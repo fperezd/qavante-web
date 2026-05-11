@@ -1,3 +1,10 @@
+import { Suspense } from "react";
+import { LoginForm } from "@/components/forms/login-form";
+
 export default function LoginPage() {
-  return <div className="p-6">Login placeholder</div>;
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
+  );
 }
