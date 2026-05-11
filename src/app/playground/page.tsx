@@ -1,3 +1,17 @@
+"use client";
+
+import { useState } from "react";
+import { Banknote } from "lucide-react";
+import {
+  QavanteButton,
+  QavanteInput,
+  QavanteCard,
+  QavanteBadge,
+  QavanteEmpty,
+  QavanteSourceTag,
+  type QavanteSource,
+} from "@/components/qavante";
+
 const brand = [
   { label: "primary", className: "bg-brand-primary", hex: "#177FC6" },
   { label: "primary-50", className: "bg-brand-primary-50", hex: "#E8F2FA" },
@@ -52,6 +66,18 @@ const tipografia = [
   { className: "text-4xl", label: "text-4xl · 36px" },
 ];
 
+const sources: QavanteSource[] = [
+  "sii",
+  "sii-rcv",
+  "sii-dte",
+  "sii-bhe",
+  "bice",
+  "buk",
+  "tgr",
+  "previred",
+  "manual",
+];
+
 function Swatch({ className, label, hex }: { className: string; label: string; hex?: string }) {
   return (
     <div className="flex flex-col gap-1">
@@ -72,15 +98,114 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function PlaygroundPage() {
+  const [rut, setRut] = useState("");
+  const [monto, setMonto] = useState("");
+  const [loading, setLoading] = useState(false);
+
   return (
     <main className="mx-auto max-w-6xl space-y-12 p-8">
       <header className="space-y-2">
         <h1 className="text-3xl font-bold text-neutral-dark">Playground · Sistema de Diseño Qavante</h1>
         <p className="text-sm text-neutral-mid">
-          Tokens del Anexo B.2 y B.4 del Documento Maestro v2.6.3 — vista de validación visual (C0-06).
-          Componentes Qavante (botones, inputs, cards) llegan en C0-07.
+          Tokens del Anexo B.2 / B.4 (C0-06) + componentes Qavante capa 1 (C0-07).
+          Validación visual del Documento Maestro v2.6.3.
         </p>
       </header>
+
+      <Section title="QavanteButton · variantes y tamaños">
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <QavanteButton variant="primary">Guardar</QavanteButton>
+            <QavanteButton variant="secondary">Cancelar</QavanteButton>
+            <QavanteButton variant="ghost">Ver detalle</QavanteButton>
+            <QavanteButton variant="danger">Eliminar</QavanteButton>
+            <QavanteButton variant="link">¿Olvidaste tu clave?</QavanteButton>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <QavanteButton size="sm">sm</QavanteButton>
+            <QavanteButton size="md">md</QavanteButton>
+            <QavanteButton size="lg">lg</QavanteButton>
+            <QavanteButton loading={loading} onClick={() => setLoading((l) => !l)}>
+              {loading ? "Sincronizando…" : "Sincronizar ahora"}
+            </QavanteButton>
+            <QavanteButton disabled>Disabled</QavanteButton>
+          </div>
+        </div>
+      </Section>
+
+      <Section title="QavanteInput · text / number / currency / date / rut">
+        <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-neutral-mid">RUT (con validador)</label>
+            <QavanteInput
+              variant="rut"
+              value={rut}
+              onValueChange={setRut}
+              placeholder="12.345.678-9"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-neutral-mid">Monto CLP</label>
+            <QavanteInput
+              variant="currency"
+              value={monto}
+              onValueChange={setMonto}
+              placeholder="$0"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-neutral-mid">Email (text)</label>
+            <QavanteInput variant="text" placeholder="tu@empresa.cl" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-neutral-mid">Fecha</label>
+            <QavanteInput variant="date" />
+          </div>
+        </div>
+      </Section>
+
+      <Section title="QavanteCard · default / elevated / bordered">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <QavanteCard variant="default" header="Caja proyectada" footer="Actualizado hoy">
+            <p className="text-2xl font-bold text-brand-primary">$12.480.000</p>
+            <p className="mt-1 text-xs text-neutral-mid">próximas 13 semanas</p>
+          </QavanteCard>
+          <QavanteCard variant="elevated" header="Pulso">
+            <p className="text-2xl font-bold text-pulso-saludable">742</p>
+            <p className="mt-1 text-xs text-neutral-mid">saludable</p>
+          </QavanteCard>
+          <QavanteCard variant="bordered">
+            <p className="text-sm text-neutral-mid">Card sin header. Bordered.</p>
+          </QavanteCard>
+        </div>
+      </Section>
+
+      <Section title="QavanteBadge · 5 variantes">
+        <div className="flex flex-wrap gap-2">
+          <QavanteBadge>default</QavanteBadge>
+          <QavanteBadge variant="success">conciliado</QavanteBadge>
+          <QavanteBadge variant="warning">por revisar</QavanteBadge>
+          <QavanteBadge variant="danger">vencida</QavanteBadge>
+          <QavanteBadge variant="info">programada</QavanteBadge>
+        </div>
+      </Section>
+
+      <Section title="QavanteEmpty · texto Anexo F.7">
+        <QavanteEmpty
+          icon={Banknote}
+          title="Caja sin movimientos importados"
+          description="Aún no tienes movimientos importados. Conecta tu Banco BICE para empezar a ver tu caja real."
+          cta={<QavanteButton size="sm">Conectar Banco BICE</QavanteButton>}
+        />
+      </Section>
+
+      <Section title="QavanteSourceTag · fuentes de datos">
+        <div className="flex flex-wrap gap-2">
+          {sources.map((s) => (
+            <QavanteSourceTag key={s} source={s} />
+          ))}
+        </div>
+      </Section>
 
       <Section title="B.2.1 — Marca Qavante (paleta provisional)">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
