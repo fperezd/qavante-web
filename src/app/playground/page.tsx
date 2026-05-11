@@ -11,6 +11,8 @@ import {
   QavanteSourceTag,
   type QavanteSource,
 } from "@/components/qavante";
+import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/errors";
 
 const brand = [
   { label: "primary", className: "bg-brand-primary", hex: "#177FC6" },
@@ -97,20 +99,69 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+type HealthState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "ok"; data: unknown }
+  | { kind: "error"; message: string; status: number };
+
 export default function PlaygroundPage() {
   const [rut, setRut] = useState("");
   const [monto, setMonto] = useState("");
   const [loading, setLoading] = useState(false);
+  const [health, setHealth] = useState<HealthState>({ kind: "idle" });
+
+  async function checkHealth() {
+    setHealth({ kind: "loading" });
+    try {
+      const data = await api.get<unknown>("/health-lite");
+      setHealth({ kind: "ok", data });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setHealth({ kind: "error", message: err.message, status: err.status });
+      } else {
+        setHealth({ kind: "error", message: String(err), status: 0 });
+      }
+    }
+  }
 
   return (
     <main className="mx-auto max-w-6xl space-y-12 p-8">
       <header className="space-y-2">
         <h1 className="text-3xl font-bold text-neutral-dark">Playground · Sistema de Diseño Qavante</h1>
         <p className="text-sm text-neutral-mid">
-          Tokens del Anexo B.2 / B.4 (C0-06) + componentes Qavante capa 1 (C0-07).
-          Validación visual del Documento Maestro v2.6.3.
+          Tokens del Anexo B.2 / B.4 (C0-06) + componentes Qavante capa 1 (C0-07) +
+          API client (C0-10). Validación visual del Documento Maestro v2.6.3.
         </p>
       </header>
+
+      <Section title="API client · GET /health-lite (C0-10)">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <QavanteButton onClick={checkHealth} loading={health.kind === "loading"} size="sm">
+              {health.kind === "loading" ? "Consultando…" : "Probar /health-lite"}
+            </QavanteButton>
+            {health.kind === "ok" && <QavanteBadge variant="success">OK · 200</QavanteBadge>}
+            {health.kind === "error" && (
+              <QavanteBadge variant="danger">
+                {health.status > 0 ? `Error · ${health.status}` : "Error de red"}
+              </QavanteBadge>
+            )}
+          </div>
+          {health.kind === "ok" && (
+            <pre className="overflow-x-auto rounded-md bg-neutral-dark p-3 text-xs text-surface">
+              {JSON.stringify(health.data, null, 2)}
+            </pre>
+          )}
+          {health.kind === "error" && (
+            <p className="text-xs text-danger-500">{health.message}</p>
+          )}
+          <p className="text-xs text-neutral-mid">
+            Llama al backend FastAPI en <code className="font-mono">NEXT_PUBLIC_API_URL</code> con credentials include.
+            Si vuelve 401, intenta auto-refresh contra <code className="font-mono">/api/auth/refresh</code> y reintenta una vez.
+          </p>
+        </div>
+      </Section>
 
       <Section title="QavanteButton · variantes y tamaños">
         <div className="space-y-3">
