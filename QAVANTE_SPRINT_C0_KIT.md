@@ -1,9 +1,17 @@
 # Qavante — Kit de arranque Sprint C0
 
-**Versión:** 1.0
-**Fecha:** Mayo 2026
+**Versión:** 1.1
+**Fecha:** 2026-05-11
 **Sprint objetivo:** C0 — Cierre de base SaaS para frontend
 **Pre-requisito:** PR-OPS-1, PR-OPS-2, PR-OPS-3 completados (ver sec 2.4 y Anexo A.7 del Documento Maestro v2.6)
+
+### Changelog v1.1 (2026-05-11)
+
+- **Adapter Cloudflare**: reemplazado `@cloudflare/next-on-pages@1.13.2` por `@opennextjs/cloudflare` (target Workers + `nodejs_compat`). Cloudflare migró su recomendación oficial en 2024.
+- **Edge Runtime**: removidas las directivas "Edge Runtime obligatorio" — el adapter actual lo prohíbe (cita opennext.js.org/cloudflare/get-started). Las pages/routes/middleware NO deben declarar `export const runtime`.
+- **Branch strategy**: eliminada la rama `develop` como integración intermedia — squash-merge directo `feat/*` → `main` (validado en bootstrap C0-01/C0-02).
+- **ESLint config**: flat config (`eslint.config.mjs`) reemplaza `.eslintrc.json` legacy.
+- Refs: qavante-web PR #1, #5 e issue #3.
 
 ---
 
@@ -111,18 +119,19 @@ qavante-web/
 │   ├── unit/
 │   └── e2e/                             # Playwright
 ├── .env.example                         # solo NEXT_PUBLIC_*, sin secretos
-├── .eslintrc.json
+├── eslint.config.mjs                    # flat config (ESLint 9+)
 ├── .gitignore
 ├── .nvmrc                               # Node 22 LTS
-├── middleware.ts                        # auth + Edge Runtime
-├── next.config.mjs
+├── middleware.ts                        # auth (Workers runtime)
+├── next.config.ts
+├── open-next.config.ts                  # config @opennextjs/cloudflare
 ├── package.json
 ├── playwright.config.ts
 ├── postcss.config.mjs
 ├── README.md
 ├── tailwind.config.ts
 ├── tsconfig.json
-└── wrangler.toml                        # Cloudflare Pages config
+└── wrangler.toml                        # Cloudflare Workers config (compat nodejs)
 ```
 
 ---
@@ -131,9 +140,9 @@ qavante-web/
 
 ### 2.1 Branching strategy
 
-- **Rama principal**: `main` (auto-deploy a producción Cloudflare Pages).
-- **Rama de integración**: `develop` (auto-deploy a `staging.qavante.cl` o preview de Cloudflare).
-- **Ramas de feature**: `c0/<numero-issue>-<slug-corto>`. Ejemplo: `c0/01-init-nextjs-skeleton`.
+- **Rama principal**: `main` (auto-deploy a producción Cloudflare Workers).
+- **Ramas de feature**: `<tipo>/c0-<slug>` donde `<tipo>` es uno de `feat|fix|chore|docs|test`. Ejemplo: `feat/c0-login-form`, `chore/c0-prettier-husky`. Compatible con convencional commits.
+- **No hay rama `develop` intermedia**: PR `<tipo>/c0-...` → `main` con squash. Esta decisión se tomó en el bootstrap C0-01/C0-02 — para un equipo de 1-2 personas en sprint C0 el overhead de develop no se justifica. Revisar si en algún sprint posterior aparece multi-track concurrente.
 
 ### 2.2 Convención de commits
 
@@ -160,7 +169,7 @@ Closes #<numero-issue-c0>
 - [ ] Cambio 2
 
 ## Definition of Done aplicable
-- [ ] Edge Runtime declarado en archivos nuevos
+- [ ] Sin `export const runtime = 'edge'` declarado (incompatible con `@opennextjs/cloudflare`)
 - [ ] Sin uso de `any` sin justificación
 - [ ] Tests pasando localmente (npm test)
 - [ ] Lighthouse mobile ≥ 85 en rutas afectadas
@@ -176,9 +185,9 @@ Closes #<numero-issue-c0>
 
 - Máximo 1 issue por PR.
 - Tamaño objetivo: <300 líneas modificadas (excluyendo tests y archivos generados).
-- Reviewer obligatorio antes de merge.
+- Reviewer obligatorio antes de merge (Fernando).
 - CI verde obligatorio (ci.yml debe pasar).
-- Squash-merge a `develop`. PR de `develop` a `main` solo cuando se cierra el sprint C0 completo.
+- Squash-merge directo a `main`. `gh pr merge --squash --delete-branch`.
 
 ---
 
@@ -214,16 +223,18 @@ Los 18 issues están agrupados en 4 milestones del sprint. Cada uno tiene tipo, 
   - [ ] `npm run typecheck` termina sin errores.
   - [ ] README claro para un dev nuevo.
 
-#### C0-02 — Configurar Cloudflare Pages + dominio
+#### C0-02 — Configurar Cloudflare Workers + dominio
 
 - **Tipo**: infra
 - **Esfuerzo**: M
 - **Dependencias**: C0-01
 - **Deliverables**:
-  - Proyecto en Cloudflare Pages conectado al repo `qavante-web`.
-  - `wrangler.toml` con config de build: `compatibility_date`, `compatibility_flags = ["nodejs_compat"]`.
-  - Build command: `npx @cloudflare/next-on-pages@1.13.2` (versión fijada exacta — bumpear con cuidado, validar build local antes de subir).
-  - Output directory: `.vercel/output/static`.
+  - Proyecto en Cloudflare Workers (vía adapter `@opennextjs/cloudflare`) conectado al repo `qavante-web`.
+  - `wrangler.toml` con: `compatibility_date >= "2024-09-23"`, `compatibility_flags = ["nodejs_compat"]`.
+  - `open-next.config.ts` (config del adapter; default sirve para qavante-web).
+  - Build command: `npm run build:cloudflare` (resuelve a `opennextjs-cloudflare build`).
+  - Output: `.open-next/worker.js` (worker bundle).
+  - **Importante**: NO declarar `export const runtime = 'edge'` en ningún archivo. El adapter empaqueta a `workerd` con `nodejs_compat`, no a Next Edge Runtime. Cita: opennext.js.org/cloudflare/get-started.
   - Env vars en Cloudflare dashboard:
     - `NEXT_PUBLIC_API_URL=https://qavante-api.fly.dev` (o el dominio que tenga el backend).
     - `NEXT_PUBLIC_APP_ENV=production`.
@@ -234,6 +245,7 @@ Los 18 issues están agrupados en 4 milestones del sprint. Cada uno tiene tipo, 
   - [ ] qavante.cl carga la app de Next.js (aunque sea la página default).
   - [ ] HTTPS válido y forzado.
   - [ ] Deploy automático funcionando.
+  - [ ] `npm run build:cloudflare` local pasa sin errores.
   - [ ] README actualizado con info del despliegue.
 
 #### C0-03 — Instalar dependencias core del frontend
@@ -369,12 +381,12 @@ Los 18 issues están agrupados en 4 milestones del sprint. Cada uno tiene tipo, 
   - Cada page muestra:
     - Título de pantalla con la pregunta central correspondiente (Anexo C de Fernando v2.4 — sec 4.1).
     - QavanteEmpty diciendo "Esta pantalla se construye en Sprint Cx" con link al issue tracker.
-  - Cada page declara `export const runtime = 'edge';`.
+  - **NO declarar** `export const runtime` (default Node runtime → mapeado a workerd por OpenNext).
   - Cada page es Client Component (`'use client'`) salvo el layout.
 - **DoD**:
   - [ ] Las 6 rutas cargan sin error.
   - [ ] Cada una tiene su pregunta central como título.
-  - [ ] Edge Runtime declarado en todas.
+  - [ ] Sin `runtime = 'edge'` declarado en ninguna page.
   - [ ] Tests E2E básicos: navegar de una a otra desde el sidebar.
 
 ---
@@ -589,9 +601,9 @@ Si los 3 están completados, podemos arrancar.
 REGLAS DURANTE EL SPRINT:
 
 1. Trabajamos issue por issue, en el orden del kit (C0-01, C0-02, ... C0-18).
-2. Por cada issue: rama nueva, commits con scope c0, PR contra develop.
+2. Por cada issue: rama nueva (`<tipo>/c0-<slug>`), commits con scope c0, PR squash contra `main`.
 3. Cumple SIEMPRE el Definition of Done específico del issue.
-4. Edge Runtime obligatorio en CADA page.tsx, route.ts, middleware.ts. Sin excepción.
+4. **NO declares `export const runtime` en pages/routes/middleware.** Cloudflare Workers via `@opennextjs/cloudflare` empaqueta a `workerd` con `nodejs_compat`. Declarar `runtime = 'edge'` rompe el build (cita: opennext.js.org/cloudflare/get-started).
 5. NO uses `any` sin justificación documentada en el código.
 6. NO instales librerías que estén en la lista de prohibidas (Anexo A.3).
 7. NO modifiques las migraciones existentes (0001-0010). Si necesitas schema nuevo, crea migration nueva.
@@ -631,10 +643,10 @@ Además del DoD específico de cada issue, el sprint completo C0 cumple cuando s
 ### 5.2 DoD técnico
 
 - [ ] Repo `qavante-web` creado, en `main` con tag `c0-complete-YYYY-MM-DD`.
-- [ ] Auto-deploy a Cloudflare Pages funciona desde main.
+- [ ] Auto-deploy a Cloudflare Workers funciona desde main.
 - [ ] CI verde en main: lint, typecheck, tests, build, secrets-scan.
 - [ ] Lighthouse mobile ≥ 85 en `/login` y `/app/inicio` (placeholder).
-- [ ] Edge Runtime declarado en TODAS las páginas, rutas y middleware.
+- [ ] Sin `export const runtime = 'edge'` declarado en ningún archivo (incompatible con `@opennextjs/cloudflare`).
 - [ ] Sin uso de `any` en código de aplicación (permitido en tests con justificación).
 - [ ] Bundle size de `/login` < 200 KB gzip.
 - [ ] Migration 0011 aplicada en producción.
@@ -818,7 +830,7 @@ Issues que pueden ir en paralelo:
 
 | Riesgo | Probabilidad | Impacto | Mitigación |
 |---|---|---|---|
-| Cloudflare next-on-pages tiene incompatibilidad con alguna lib | Media | Alto | Validar en C0-01 con un build temprano. Si falla, usar Pages Functions o evaluar workaround. |
+| `@opennextjs/cloudflare` tiene incompatibilidad con alguna lib (algunas APIs Node-only no están en `nodejs_compat`) | Media | Alto | Validar con build temprano. Para libs incompatibles: mover lógica a backend FastAPI o buscar alternativa Workers-compatible. Consultar compatibility matrix: developers.cloudflare.com/workers/runtime-apis/nodejs/. |
 | Migración 0011 (auth.refresh_tokens) rompe algo en producción | Baja | Alto | Aplicar primero en staging. Hacer test de regresión completo antes de producción. |
 | RLS activado en staging genera queries lentas | Media | Medio | Index review post C0-17. Si performance cae >20%, optimizar policies. |
 | Algún conector existente se rompe por cambios en RBAC dependency | Baja | Alto | Tests de regresión obligatorios en C0-16. Si rompe, revertir y aplicar quirúrgicamente. |
@@ -875,4 +887,4 @@ Cualquier desviación del kit requiere actualizar el Documento Maestro v2.6 prim
 
 ---
 
-*Generado el 5 de mayo de 2026 — Versión 1.0*
+*Generado el 5 de mayo de 2026 — v1.0. Actualizado 2026-05-11 — v1.1 (alineado a `@opennextjs/cloudflare`, sin `develop`, sin Edge Runtime).*
