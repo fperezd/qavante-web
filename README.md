@@ -12,10 +12,18 @@ Frontend de Qavante (Next.js 15 + React 19 + TypeScript + Tailwind 4 + shadcn/ui
 
 ## Variables de entorno
 
-Copiar `.env.example` y ajustar valores locales:
+**Setup inicial obligatorio** antes del primer `npm run dev`:
+
+```bash
+cp .env.example .env.local
+```
+
+Variables:
 
 - `NEXT_PUBLIC_API_URL` (default: `https://tooxs-gestion-api.fly.dev`)
 - `NEXT_PUBLIC_APP_ENV` (default: `development`)
+
+`.env.local` queda gitignored (no se commitea). Sin este archivo, el API client lanza `ApiError("NEXT_PUBLIC_API_URL no configurada")` en runtime cuando se invoca cualquier request al backend.
 
 ## Comandos
 
