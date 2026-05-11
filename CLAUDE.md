@@ -87,8 +87,11 @@ Solo después de los 7 checks declaro 'completado' y abro PR del milestone.
 2. NUNCA modificás el Documento Maestro sin aprobación explícita de Fernando.
 3. NUNCA modificás `src/lib/api/types.ts` a mano. Es archivo generado por
    `npm run generate:api` desde el OpenAPI del backend.
-4. Edge Runtime OBLIGATORIO en cada `page.tsx`, `route.ts` y `middleware.ts`.
-   Declará: `export const runtime = 'edge';` sin excepción.
+4. Cloudflare Workers (via `@opennextjs/cloudflare`) es el target de deploy.
+   **NO declares** `export const runtime` en pages/routes/middleware — el
+   default (Node runtime) es el correcto. El adapter empaqueta a `workerd`
+   con `nodejs_compat`. Declarar `runtime = 'edge'` rompe el build (ver
+   [opennext.js.org/cloudflare/get-started](https://opennext.js.org/cloudflare/get-started)).
 5. NUNCA usás Node-only APIs (`fs`, `path`, `child_process`, `Buffer` global).
    Si una librería las usa, buscá alternativa Edge-compatible o moverla
    al backend FastAPI vía endpoint.
