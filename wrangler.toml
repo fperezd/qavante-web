@@ -1,0 +1,8 @@
+name = "qavante-web"
+compatibility_date = "2026-05-10"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[vars]
+NEXT_PUBLIC_API_URL = "https://tooxs-gestion-api.fly.dev"
+NEXT_PUBLIC_APP_ENV = "production"

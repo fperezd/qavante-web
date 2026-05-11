@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Qavante Web
 
-## Getting Started
+Frontend de Qavante (Next.js 15 + React 19 + TypeScript + Tailwind 4 + shadcn/ui) desplegable en Cloudflare Pages.
 
-First, run the development server:
+## Requisitos
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 22 LTS (ver `.nvmrc`)
+- npm 10+
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Variables de entorno
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copiar `.env.example` y ajustar valores locales:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_APP_ENV`
 
-## Learn More
+## Comandos
 
-To learn more about Next.js, take a look at the following resources:
+- `npm run dev`: servidor local
+- `npm run build`: build de Next.js
+- `npm run lint`: linting
+- `npm run typecheck`: chequeo de TypeScript
+- `npm run test`: pruebas unitarias (Vitest)
+- `npm run e2e`: pruebas e2e (Playwright)
+- `npm run generate:api`: genera `src/lib/api/types.ts` desde OpenAPI backend
+- `npm run build:cloudflare`: build para Cloudflare Pages con OpenNext
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Cloudflare Pages
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Config base en `wrangler.toml`
+- Output directory: `.vercel/output/static`
+- Compat flag: `nodejs_compat`
 
-## Deploy on Vercel
+## Gobernanza
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Ownership en `.github/CODEOWNERS`
+- Template de PR en `.github/pull_request_template.md`
+- Workflows iniciales en `.github/workflows/`
