@@ -6,7 +6,7 @@ Closes #<numero-issue-c0>
 - [ ] Cambio 2
 
 ## Definition of Done aplicable
-- [ ] Edge Runtime declarado en archivos nuevos
+- [ ] Sin `export const runtime = 'edge'` declarado (incompatible con @opennextjs/cloudflare)
 - [ ] Sin uso de any sin justificacion
 - [ ] Tests pasando localmente (npm test)
 - [ ] Lighthouse mobile >= 85 en rutas afectadas
