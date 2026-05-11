@@ -1,20 +1,54 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
 
-:root {
-  --background: var(--qv-background);
-  --foreground: var(--qv-foreground);
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Brand */
+  --color-brand-primary: var(--qv-brand-primary);
+  --color-brand-primary-50: var(--qv-brand-primary-50);
+  --color-brand-primary-100: var(--qv-brand-primary-100);
+  --color-brand-primary-600: var(--qv-brand-primary-600);
+  --color-brand-primary-700: var(--qv-brand-primary-700);
+
+  /* Neutrales + surface */
+  --color-neutral-light: var(--qv-neutral-light);
+  --color-neutral-mid: var(--qv-neutral-mid);
+  --color-neutral-dark: var(--qv-neutral-dark);
+  --color-surface: var(--qv-surface);
+
+  /* Semánticos */
+  --color-success-500: var(--qv-success-500);
+  --color-warning-500: var(--qv-warning-500);
+  --color-danger-500: var(--qv-danger-500);
+  --color-info-500: var(--qv-info-500);
+
+  /* Bandas Pulso */
+  --color-pulso-excelente: var(--qv-pulso-excelente);
+  --color-pulso-saludable: var(--qv-pulso-saludable);
+  --color-pulso-estable: var(--qv-pulso-estable);
+  --color-pulso-vulnerable: var(--qv-pulso-vulnerable);
+  --color-pulso-critica: var(--qv-pulso-critica);
+
+  /* App background / foreground */
+  --color-background: var(--qv-background);
+  --color-foreground: var(--qv-foreground);
+
+  /* Radios */
+  --radius-sm: var(--qv-radius-sm);
+  --radius-md: var(--qv-radius-md);
+  --radius-lg: var(--qv-radius-lg);
+  --radius-xl: var(--qv-radius-xl);
+
+  /* Sombras */
+  --shadow-sm: var(--qv-shadow-sm);
+  --shadow-md: var(--qv-shadow-md);
+  --shadow-lg: var(--qv-shadow-lg);
+
+  /* Tipografía (Anexo B.3 — Inter) */
+  --font-sans: var(--font-inter);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), sans-serif;
+  background: var(--qv-background);
+  color: var(--qv-foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
 }

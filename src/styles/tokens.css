@@ -1,5 +1,45 @@
+/* Sistema de Diseño Qavante — tokens del Anexo B.2 y B.4 del Documento Maestro v2.6.3.
+   Modo claro únicamente en Fase 1 (Anexo B.5). Estructura preparada para dark mode futuro. */
+
 :root {
-  --qv-background: #f7f8fb;
-  --qv-foreground: #0d1321;
-  --qv-accent: #0f766e;
+  /* B.2.1 Marca Qavante (paleta provisional, hex hasta manual de marca propio) */
+  --qv-brand-primary: #177FC6;
+  --qv-brand-primary-50: #E8F2FA;
+  --qv-brand-primary-100: #D1E5F4;
+  --qv-brand-primary-600: #1268A6;
+  --qv-brand-primary-700: #0D5286;
+
+  /* Neutrales */
+  --qv-neutral-light: #C7C6C6;
+  --qv-neutral-mid: #575756;
+  --qv-neutral-dark: #1D1D1B;
+  --qv-surface: #FFFFFF;
+
+  /* B.2.2 Semánticos (obligatorios, no cambiar — comunican estado) */
+  --qv-success-500: #10B981;
+  --qv-warning-500: #F59E0B;
+  --qv-danger-500: #EF4444;
+  --qv-info-500: #3B82F6;
+
+  /* B.2.3 Bandas Pulso Empresa */
+  --qv-pulso-excelente: #059669;
+  --qv-pulso-saludable: #10B981;
+  --qv-pulso-estable: #F59E0B;
+  --qv-pulso-vulnerable: #F97316;
+  --qv-pulso-critica: #DC2626;
+
+  /* B.4 Radios */
+  --qv-radius-sm: 4px;
+  --qv-radius-md: 8px;
+  --qv-radius-lg: 12px;
+  --qv-radius-xl: 16px;
+
+  /* B.4 Sombras */
+  --qv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --qv-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --qv-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.10), 0 4px 6px rgba(0, 0, 0, 0.05);
+
+  /* Aliases semánticos para Tailwind y componentes */
+  --qv-background: #F7F8FB;
+  --qv-foreground: var(--qv-neutral-dark);
 }
