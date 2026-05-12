@@ -16,16 +16,16 @@
 
 ### 1.1 Cookie de sesión (compartida con backend)
 
-| Atributo   | Valor                                                                                                                   |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Nombre     | `qavante_session` (constante en [src/lib/auth/cookies.ts:6](../../src/lib/auth/cookies.ts#L6))                          |
-| `HttpOnly` | **obligatorio** (CLAUDE.md regla 6 prohibe storage APIs para tokens)                                                    |
-| `Secure`   | obligatorio en prod (Cloudflare Workers sobre HTTPS)                                                                    |
-| `SameSite` | `Lax` (recomendado; permite navegación cross-site al landing)                                                           |
-| `Path`     | `/`                                                                                                                     |
-| `Domain`   | `qavante.cl` en prod, sin domain en dev (`.fly.dev` vs `localhost`)                                                     |
-| Contenido  | Session token opaco firmado por el backend. El frontend NO lo lee, sólo lo pasa de regreso vía `credentials: "include"` |
-| Vida       | Idealmente ≤ 1h para access, refresh token aparte (cookie distinta opcional, o mismo cookie con rotación en `/refresh`) |
+| Atributo   | Valor                                                                                                                                                                       |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nombre     | `qavante_session` (constante en [src/lib/auth/cookies.ts:6](../../src/lib/auth/cookies.ts#L6))                                                                              |
+| `HttpOnly` | **obligatorio** (CLAUDE.md regla 6 prohibe storage APIs para tokens)                                                                                                        |
+| `Secure`   | obligatorio en prod (Cloudflare Workers sobre HTTPS)                                                                                                                        |
+| `SameSite` | `Lax` (recomendado; permite navegación cross-site al landing)                                                                                                               |
+| `Path`     | `/`                                                                                                                                                                         |
+| `Domain`   | host-only en prod (sin atributo `Domain`; cookie ligada al host del backend `tooxs-gestion-api.fly.dev`). FE en `app.qavante.com` es cross-origin — ver nota SameSite abajo |
+| Contenido  | Session token opaco firmado por el backend. El frontend NO lo lee, sólo lo pasa de regreso vía `credentials: "include"`                                                     |
+| Vida       | Idealmente ≤ 1h para access, refresh token aparte (cookie distinta opcional, o mismo cookie con rotación en `/refresh`)                                                     |
 
 El interceptor 401 en [src/lib/api/client.ts:64](../../src/lib/api/client.ts#L64) llama a `/api/auth/refresh` automáticamente cuando recibe un 401; si responde 2xx reintenta el request original. Si refresh falla, redirige a `/login?redirect=<path>`.
 
@@ -242,7 +242,7 @@ Campos mínimos (`id`, `email`, `role`) ya están en el tipo `SessionUser` del f
 **Comportamiento esperado:**
 
 1. Crear registro en tabla `user_invitations` con `token` único (UUID o random 32 bytes hex) y `expires_at = now() + 7 days` (DoD del Kit).
-2. Enviar email vía Resend al `email` con link `https://qavante.cl/aceptar-invitacion?token=<token>`.
+2. Enviar email vía Resend al `email` con link `https://app.qavante.com/aceptar-invitacion?token=<token>`.
 3. El user queda en estado `"invited"` hasta aceptar.
 
 **Response 201**
