@@ -8,7 +8,9 @@ export default function UsuariosPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Usuarios</h1>
-        <p className="mt-1 text-sm text-neutral-mid">¿Quién accede a la información de mi empresa?</p>
+        <p className="mt-1 text-sm text-neutral-mid">
+          ¿Quién accede a la información de mi empresa?
+        </p>
       </header>
       <QavanteEmpty
         icon={Users}

@@ -7,10 +7,7 @@ import { ApiError } from "./errors";
 
 export type ErrorContext = "general" | "login";
 
-export function apiErrorToUserMessage(
-  err: ApiError,
-  context: ErrorContext = "general",
-): string {
+export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "general"): string {
   if (err.isNetworkError()) {
     return "Parece que perdiste conexión. Verificá tu internet.";
   }

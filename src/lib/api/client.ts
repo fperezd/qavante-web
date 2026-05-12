@@ -58,12 +58,7 @@ async function request<T>(
     response = await fetch(`${API_URL}${path}`, init);
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") throw err;
-    throw new ApiError(
-      "Error de red. Verifica tu conexión y reintenta.",
-      0,
-      "network_error",
-      err,
-    );
+    throw new ApiError("Error de red. Verifica tu conexión y reintenta.", 0, "network_error", err);
   }
 
   if (response.status === 401 && !skipAuthRetry && path !== "/api/auth/refresh") {

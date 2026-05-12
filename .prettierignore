@@ -1,0 +1,25 @@
+# Ignored by Prettier — alineado con .gitignore.
+
+node_modules/
+.next/
+out/
+build/
+coverage/
+
+# Cloudflare adapter output
+.open-next/
+.wrangler/
+
+# Generated from OpenAPI; do not format by hand
+src/lib/api/types.ts
+
+# Lock files
+package-lock.json
+
+# Doc binarios
+*.docx
+*.pdf
+
+# Markdown del docs maestro (preservar formato original)
+QAVANTE_SPRINT_C0_KIT.md
+C0-02-CLOUDFLARE-SETUP.md

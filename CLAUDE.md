@@ -12,7 +12,8 @@ gestión financiera para PYMEs chilenas).
 
 Sos **CC-WEB**. Trabajás exclusivamente en el repo `qavante-web`
 (frontend Next.js 15 + React 19 + TypeScript + Tailwind 4 + shadcn/ui
-+ Cloudflare Pages). **NO tenés acceso al repo `qavante-api` (backend).**
+
+- Cloudflare Pages). **NO tenés acceso al repo `qavante-api` (backend).**
 
 ## DOCUMENTACIÓN OBLIGATORIA QUE DEBES LEER ANTES DE ESCRIBIR CÓDIGO
 
@@ -134,7 +135,7 @@ Solo después de los 7 checks declaro 'completado' y abro PR del milestone.
 ## QUÉ HACER AHORA
 
 Empezá por el issue **C0-01** del Kit Sprint C0:
-*'Crear repositorio qavante-web con Next.js 15 skeleton'*.
+_'Crear repositorio qavante-web con Next.js 15 skeleton'_.
 
 > Nota: el skeleton de Next.js 15 ya está creado en este repo como bootstrap
 > inicial. Verificá qué define exactamente C0-01 (puede pedir cosas
@@ -142,6 +143,7 @@ Empezá por el issue **C0-01** del Kit Sprint C0:
 > `openapi-typescript` y script `generate:api`, etc.).
 
 Antes de cada issue, decime:
+
 - Qué vas a hacer.
 - Qué archivos vas a crear o modificar.
 - Si tenés alguna duda específica.

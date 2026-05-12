@@ -16,8 +16,7 @@ const qavanteCardVariants = cva("rounded-lg bg-surface", {
 });
 
 export interface QavanteCardProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof qavanteCardVariants> {
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof qavanteCardVariants> {
   header?: React.ReactNode;
   footer?: React.ReactNode;
 }

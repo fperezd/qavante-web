@@ -8,8 +8,8 @@ export default function Home() {
         Qavante Web listo para arrancar
       </h1>
       <p className="max-w-2xl text-sm text-neutral-600 sm:text-base">
-        Skeleton inicial creado con Next.js 15, TypeScript estricto, soporte
-        Cloudflare y tipos OpenAPI del backend.
+        Skeleton inicial creado con Next.js 15, TypeScript estricto, soporte Cloudflare y tipos
+        OpenAPI del backend.
       </p>
     </main>
   );
