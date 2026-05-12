@@ -8,7 +8,9 @@ export default function GestionPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Gestión</h1>
-        <p className="mt-1 text-sm text-neutral-mid">¿Estoy ganando o perdiendo operacionalmente?</p>
+        <p className="mt-1 text-sm text-neutral-mid">
+          ¿Estoy ganando o perdiendo operacionalmente?
+        </p>
       </header>
       <QavanteEmpty
         icon={LineChart}

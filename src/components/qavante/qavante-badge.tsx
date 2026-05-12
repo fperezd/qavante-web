@@ -21,8 +21,7 @@ const qavanteBadgeVariants = cva(
 );
 
 export interface QavanteBadgeProps
-  extends React.HTMLAttributes<HTMLSpanElement>,
-    VariantProps<typeof qavanteBadgeVariants> {}
+  extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof qavanteBadgeVariants> {}
 
 export function QavanteBadge({ className, variant, ...props }: QavanteBadgeProps) {
   return <span className={cn(qavanteBadgeVariants({ variant }), className)} {...props} />;

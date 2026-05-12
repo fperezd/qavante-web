@@ -3,30 +3,30 @@
 
 :root {
   /* B.2.1 Marca Qavante (paleta provisional, hex hasta manual de marca propio) */
-  --qv-brand-primary: #177FC6;
-  --qv-brand-primary-50: #E8F2FA;
-  --qv-brand-primary-100: #D1E5F4;
-  --qv-brand-primary-600: #1268A6;
-  --qv-brand-primary-700: #0D5286;
+  --qv-brand-primary: #177fc6;
+  --qv-brand-primary-50: #e8f2fa;
+  --qv-brand-primary-100: #d1e5f4;
+  --qv-brand-primary-600: #1268a6;
+  --qv-brand-primary-700: #0d5286;
 
   /* Neutrales */
-  --qv-neutral-light: #C7C6C6;
+  --qv-neutral-light: #c7c6c6;
   --qv-neutral-mid: #575756;
-  --qv-neutral-dark: #1D1D1B;
-  --qv-surface: #FFFFFF;
+  --qv-neutral-dark: #1d1d1b;
+  --qv-surface: #ffffff;
 
   /* B.2.2 Semánticos (obligatorios, no cambiar — comunican estado) */
-  --qv-success-500: #10B981;
-  --qv-warning-500: #F59E0B;
-  --qv-danger-500: #EF4444;
-  --qv-info-500: #3B82F6;
+  --qv-success-500: #10b981;
+  --qv-warning-500: #f59e0b;
+  --qv-danger-500: #ef4444;
+  --qv-info-500: #3b82f6;
 
   /* B.2.3 Bandas Pulso Empresa */
   --qv-pulso-excelente: #059669;
-  --qv-pulso-saludable: #10B981;
-  --qv-pulso-estable: #F59E0B;
-  --qv-pulso-vulnerable: #F97316;
-  --qv-pulso-critica: #DC2626;
+  --qv-pulso-saludable: #10b981;
+  --qv-pulso-estable: #f59e0b;
+  --qv-pulso-vulnerable: #f97316;
+  --qv-pulso-critica: #dc2626;
 
   /* B.4 Radios */
   --qv-radius-sm: 4px;
@@ -37,9 +37,9 @@
   /* B.4 Sombras */
   --qv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --qv-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
-  --qv-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.10), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --qv-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
 
   /* Aliases semánticos para Tailwind y componentes */
-  --qv-background: #F7F8FB;
+  --qv-background: #f7f8fb;
   --qv-foreground: var(--qv-neutral-dark);
 }

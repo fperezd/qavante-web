@@ -21,6 +21,9 @@
 /.open-next/
 /.wrangler/
 
+# Claude Code local settings (no commitear — config personal del classifier)
+/.claude/settings.local.json
+
 # production
 /build
 

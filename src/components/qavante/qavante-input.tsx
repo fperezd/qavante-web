@@ -8,8 +8,10 @@ import { isValidRut } from "@/lib/validators/rut";
 
 type Variant = "text" | "number" | "currency" | "date" | "rut";
 
-export interface QavanteInputProps
-  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "onChange" | "value"> {
+export interface QavanteInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "type" | "onChange" | "value"
+> {
   variant?: Variant;
   value?: string;
   onValueChange?: (raw: string) => void;

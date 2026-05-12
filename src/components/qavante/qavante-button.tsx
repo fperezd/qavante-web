@@ -10,7 +10,8 @@ const qavanteButtonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-brand-primary text-surface hover:bg-brand-primary-600 active:bg-brand-primary-700",
+        primary:
+          "bg-brand-primary text-surface hover:bg-brand-primary-600 active:bg-brand-primary-700",
         secondary: "bg-brand-primary-50 text-brand-primary-700 hover:bg-brand-primary-100",
         ghost: "text-neutral-dark hover:bg-brand-primary-50",
         danger: "bg-danger-500 text-surface hover:bg-danger-500/90",
@@ -30,7 +31,8 @@ const qavanteButtonVariants = cva(
 );
 
 export interface QavanteButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof qavanteButtonVariants> {
   loading?: boolean;
 }

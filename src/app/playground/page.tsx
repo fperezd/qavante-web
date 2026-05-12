@@ -128,10 +128,12 @@ export default function PlaygroundPage() {
   return (
     <main className="mx-auto max-w-6xl space-y-12 p-8">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold text-neutral-dark">Playground · Sistema de Diseño Qavante</h1>
+        <h1 className="text-3xl font-bold text-neutral-dark">
+          Playground · Sistema de Diseño Qavante
+        </h1>
         <p className="text-sm text-neutral-mid">
-          Tokens del Anexo B.2 / B.4 (C0-06) + componentes Qavante capa 1 (C0-07) +
-          API client (C0-10). Validación visual del Documento Maestro v2.6.3.
+          Tokens del Anexo B.2 / B.4 (C0-06) + componentes Qavante capa 1 (C0-07) + API client
+          (C0-10). Validación visual del Documento Maestro v2.6.3.
         </p>
       </header>
 
@@ -153,12 +155,11 @@ export default function PlaygroundPage() {
               {JSON.stringify(health.data, null, 2)}
             </pre>
           )}
-          {health.kind === "error" && (
-            <p className="text-xs text-danger-500">{health.message}</p>
-          )}
+          {health.kind === "error" && <p className="text-xs text-danger-500">{health.message}</p>}
           <p className="text-xs text-neutral-mid">
-            Llama al backend FastAPI en <code className="font-mono">NEXT_PUBLIC_API_URL</code> con credentials include.
-            Si vuelve 401, intenta auto-refresh contra <code className="font-mono">/api/auth/refresh</code> y reintenta una vez.
+            Llama al backend FastAPI en <code className="font-mono">NEXT_PUBLIC_API_URL</code> con
+            credentials include. Si vuelve 401, intenta auto-refresh contra{" "}
+            <code className="font-mono">/api/auth/refresh</code> y reintenta una vez.
           </p>
         </div>
       </Section>

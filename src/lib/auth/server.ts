@@ -10,9 +10,7 @@ import type { SessionData } from "./types";
 export async function requireAuth(redirectTo?: string): Promise<SessionData> {
   const session = await auth();
   if (!session) {
-    const url = redirectTo
-      ? `/login?redirect=${encodeURIComponent(redirectTo)}`
-      : "/login";
+    const url = redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : "/login";
     redirect(url);
   }
   return session;

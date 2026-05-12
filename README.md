@@ -41,6 +41,7 @@ Variables:
 **Código listo**: `npm run build:cloudflare` valida exitosamente.
 
 **Setup manual requerido**: Ver [C0-02-CLOUDFLARE-SETUP.md](./C0-02-CLOUDFLARE-SETUP.md) para:
+
 1. Crear proyecto en Cloudflare Pages
 2. Configurar environment variables
 3. Registrar y apuntar dominio `qavante.cl`
