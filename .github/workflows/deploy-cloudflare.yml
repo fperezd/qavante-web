@@ -17,7 +17,7 @@ jobs:
       contents: read
     environment:
       name: production
-      url: https://qavante.com
+      url: https://app.qavante.com
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
