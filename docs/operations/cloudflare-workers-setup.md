@@ -1,6 +1,6 @@
 # Cloudflare Workers — setup operativo (reemplaza C0-02)
 
-> Este doc reemplaza al deprecated `docs/archive/c0-02-cloudflare-pages-attempt-deprecated.md`. La decisión arquitectural del proyecto es **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`, según Anexo A.6 del Documento Maestro v2.6.3 y CLAUDE.md regla 4.
+> Este doc reemplaza al deprecated `docs/archive/c0-02-cloudflare-pages-attempt-deprecated.md`. La decisión arquitectural del proyecto es **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`, según Anexo A.6 del Documento Maestro v2.6.4 y CLAUDE.md regla 4.
 
 ## Por qué Workers y no Pages
 

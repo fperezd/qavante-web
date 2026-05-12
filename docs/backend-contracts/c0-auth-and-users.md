@@ -53,7 +53,7 @@ El status HTTP define el comportamiento; el `code` da especificidad. Códigos ya
 | 503           | —                                  | "Qavante está en mantenimiento. Volvemos pronto."            |
 | 5xx           | —                                  | "No pudimos cargar la información. Intentá nuevamente."      |
 
-### 1.3 Roles canónicos (ver Anexo C.4 del Documento Maestro v2.6.3)
+### 1.3 Roles canónicos (ver Anexo C.4 del Documento Maestro v2.6.4)
 
 Lista exacta en [src/lib/auth/types.ts:1-8](../../src/lib/auth/types.ts#L1-L8):
 

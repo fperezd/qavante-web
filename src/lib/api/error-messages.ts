@@ -1,7 +1,7 @@
 import { ApiError } from "./errors";
 
 /* Mapping de errores técnicos -> mensajes visibles al usuario.
-   Implementa Anexo C.3 del Documento Maestro v2.6.3.
+   Implementa Anexo C.3 del Documento Maestro v2.6.4.
    El contexto permite ajustar el copy: e.g. en login 401 no es
    "sesión expiró" sino "credenciales incorrectas". */
 
