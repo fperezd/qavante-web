@@ -32,8 +32,9 @@ PR del ADR puede ir solo (decisión sin código) o acoplado al PR del cambio que
 
 ## Índice
 
-| #                                               | Título                                                     | Status   | Fecha      |
-| ----------------------------------------------- | ---------------------------------------------------------- | -------- | ---------- |
-| [0001](./0001-cloudflare-workers-vs-pages.md)   | Cloudflare Workers vía `@opennextjs/cloudflare` (no Pages) | Accepted | 2026-05-08 |
-| [0002](./0002-dominio-oficial-qavante-com.md)   | Dominio oficial `qavante.com` (no `qavante.cl`)            | Accepted | 2026-05-12 |
-| [0003](./0003-api-qavante-com-shared-parent.md) | Backend en `api.qavante.com` para shared parent con FE     | Accepted | 2026-05-12 |
+| #                                                 | Título                                                              | Status                | Fecha      |
+| ------------------------------------------------- | ------------------------------------------------------------------- | --------------------- | ---------- |
+| [0001](./0001-cloudflare-workers-vs-pages.md)     | Cloudflare Workers vía `@opennextjs/cloudflare` (no Pages)          | Accepted              | 2026-05-08 |
+| [0002](./0002-dominio-oficial-qavante-com.md)     | Dominio oficial `qavante.com` (no `qavante.cl`)                     | Accepted              | 2026-05-12 |
+| [0003](./0003-api-qavante-com-shared-parent.md)   | Backend en `api.qavante.com` para shared parent con FE              | Accepted              | 2026-05-12 |
+| [0004](./0004-asistente-qavante-anti-patterns.md) | Asistente Qavante — anti-patterns de exposición y políticas mínimas | Accepted (preventiva) | 2026-05-12 |
