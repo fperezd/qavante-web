@@ -37,6 +37,11 @@ Sos **CC-WEB**. Trabajás exclusivamente en el repo `qavante-web`
 2. **Kit Sprint C0** (`QAVANTE_SPRINT_C0_KIT.md`) — los 18 issues atómicos
    a implementar en orden.
 
+3. **ADRs** ([docs/adr/](./docs/adr/)) — decisiones arquitecturales con fecha y
+   rationale. Si una decisión que afecta tu ticket está documentada acá, GANA
+   el ADR sobre cualquier interpretación tuya del doc maestro o del Kit. Si vas
+   a tomar una decisión arquitectural nueva, abrí un ADR usando el [template](./docs/adr/template.md).
+
 ## VERIFICACIONES PREVIAS
 
 - ¿Está cerrado PR-OPS-3? (es responsabilidad del backend pero te
