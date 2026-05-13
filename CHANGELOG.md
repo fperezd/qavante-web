@@ -6,10 +6,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
-### Pendiente cierre Sprint C0 (manual de Fernando)
+### Pendiente cierre Sprint C0
 
-- Demo interna grabada (5–10 min): login → navegar 6 módulos → invitar usuario → suspender usuario.
-- Tag de release `c0-complete-YYYY-MM-DD` desde `main` cuando los items manuales estén.
+- Tag de release `c0-complete-YYYY-MM-DD` desde `main` (manual de Fernando, último paso del Sprint).
 
 ### Pendiente cross-team (no bloquea cierre C0 en `qavante-web`)
 
