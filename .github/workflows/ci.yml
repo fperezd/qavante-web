@@ -50,6 +50,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Bundle size budget (Kit C0 DoD sec 5.2)
+        run: npm run size:check
 
   e2e:
     runs-on: ubuntu-latest

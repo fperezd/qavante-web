@@ -73,8 +73,9 @@ Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (
 - [CLAUDE.md](./CLAUDE.md) — prompt operativo de CC-WEB + reglas duras del proyecto.
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — convenciones de branches, commits, PRs, DoD para contribuir.
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — diagrama y descripción de alto nivel del sistema.
-- `qavante_fase1_v2.6.3.docx` — Documento Maestro (read-only desde este repo).
-- [docs/operations/](./docs/operations/) — runbooks operativos.
+- `qavante_fase1_v2.6.4.docx` — Documento Maestro (read-only desde este repo). `qavante_fase1_v2.6.3.docx` queda como histórico.
+- [docs/operations/](./docs/operations/) — runbooks operativos (Cloudflare Workers setup, [DNS de qavante.com](./docs/operations/cloudflare-dns.md), [GitHub secrets](./docs/operations/github-secrets.md)).
 - [docs/backend-contracts/](./docs/backend-contracts/) — contratos HTTP esperados del backend para coordinación cross-repo con `qavante-api`.
+- [docs/adr/](./docs/adr/) — Architecture Decision Records (decisiones arquitecturales con fecha y rationale).
 - [docs/audits/](./docs/audits/) — reportes de revisión integral.
 - [docs/archive/](./docs/archive/) — documentación deprecada conservada por trazabilidad.

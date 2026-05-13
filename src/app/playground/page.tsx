@@ -133,7 +133,7 @@ export default function PlaygroundPage() {
         </h1>
         <p className="text-sm text-neutral-mid">
           Tokens del Anexo B.2 / B.4 (C0-06) + componentes Qavante capa 1 (C0-07) + API client
-          (C0-10). Validación visual del Documento Maestro v2.6.3.
+          (C0-10). Validación visual del Documento Maestro v2.6.4.
         </p>
       </header>
 
