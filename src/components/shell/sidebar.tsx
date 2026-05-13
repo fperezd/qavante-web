@@ -13,29 +13,45 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { UserRole } from "@/lib/auth/types";
 
 type ModuleLink = {
   href: string;
   label: string;
   Icon: LucideIcon;
+  /* Roles que ven este módulo. undefined = todos los roles autenticados. */
+  visibleFor?: ReadonlyArray<UserRole>;
 };
 
-const modules: ModuleLink[] = [
+/* Roles con acceso al módulo Administración (Kit DoD C0-15: "Viewer no ve
+   módulo Administración"). Backend impone la regla en /api/users (403); este
+   gate del sidebar es UX (no defensa de seguridad). Match a la matriz Anexo C.4. */
+const ADMIN_ROLES: ReadonlyArray<UserRole> = ["owner", "admin", "technical_admin"];
+
+const MODULES: ReadonlyArray<ModuleLink> = [
   { href: "/inicio", label: "Inicio", Icon: Home },
   { href: "/caja", label: "Caja", Icon: Banknote },
   { href: "/cobrar", label: "Cobrar", Icon: ArrowDownToLine },
   { href: "/pagar", label: "Pagar", Icon: ArrowUpFromLine },
   { href: "/gestion", label: "Gestión", Icon: LineChart },
-  { href: "/administracion", label: "Administración", Icon: Settings },
+  { href: "/administracion", label: "Administración", Icon: Settings, visibleFor: ADMIN_ROLES },
 ];
 
 export interface AppSidebarProps {
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  userRole?: UserRole;
 }
 
-export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
+export function AppSidebar({ mobileOpen, onCloseMobile, userRole }: AppSidebarProps) {
   const pathname = usePathname();
+
+  /* Defensa pasiva: si userRole es undefined (sesión rota / fallback), mostramos
+     los módulos sin restricción de rol — el módulo gated sigue siendo accesible
+     por URL pero la página renderea error/no-data del backend. */
+  const visibleModules = MODULES.filter(
+    (m) => !m.visibleFor || (userRole && m.visibleFor.includes(userRole)),
+  );
 
   return (
     <>
@@ -68,7 +84,7 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {modules.map(({ href, label, Icon }) => {
+          {visibleModules.map(({ href, label, Icon }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
