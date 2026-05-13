@@ -74,5 +74,6 @@ Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (
 - `qavante_fase1_v2.6.4.docx` — Documento Maestro (read-only desde este repo). `qavante_fase1_v2.6.3.docx` queda como histórico.
 - [docs/operations/](./docs/operations/) — runbooks operativos.
 - [docs/backend-contracts/](./docs/backend-contracts/) — contratos HTTP esperados del backend para coordinación cross-repo con `qavante-api`.
+- [docs/adr/](./docs/adr/) — Architecture Decision Records (decisiones arquitecturales con fecha y rationale).
 - [docs/audits/](./docs/audits/) — reportes de revisión integral.
 - [docs/archive/](./docs/archive/) — documentación deprecada conservada por trazabilidad.
