@@ -238,11 +238,11 @@ Los 18 issues están agrupados en 4 milestones del sprint. Cada uno tiene tipo, 
   - Env vars en Cloudflare dashboard:
     - `NEXT_PUBLIC_API_URL=https://qavante-api.fly.dev` (o el dominio que tenga el backend).
     - `NEXT_PUBLIC_APP_ENV=production`.
-  - Dominio `qavante.cl` registrado en NIC Chile y apuntando DNS a Cloudflare.
+  - Dominio `qavante.com` registrado en GoDaddy con NS migrados a Cloudflare. Subdominio `app.qavante.com` bindeado al Worker `qavante-web` como Custom Domain.
   - SSL automático activo (Cloudflare default).
   - Deploy desde `main` funcionando: cada push a main → deploy a producción.
 - **DoD**:
-  - [ ] qavante.cl carga la app de Next.js (aunque sea la página default).
+  - [ ] app.qavante.com carga la app de Next.js (aunque sea la página default).
   - [ ] HTTPS válido y forzado.
   - [ ] Deploy automático funcionando.
   - [ ] `npm run build:cloudflare` local pasa sin errores.
@@ -431,7 +431,7 @@ Los 18 issues están agrupados en 4 milestones del sprint. Cada uno tiene tipo, 
   - [ ] Migración 0011 aplicada en staging.
   - [ ] Los 4 endpoints documentados en OpenAPI.
   - [ ] Tests cubren happy path + errores (RUT inválido, password wrong, rate limit, refresh expirado, logout).
-  - [ ] CORS configurado para aceptar `https://qavante.cl` y `localhost:3000`.
+  - [ ] CORS configurado para aceptar `https://app.qavante.com` y `http://localhost:3000`.
 
 #### C0-12 — Frontend: pantalla de login + flujo completo
 
@@ -483,7 +483,7 @@ Los 18 issues están agrupados en 4 milestones del sprint. Cada uno tiene tipo, 
 - **Dependencias**: C0-11
 - **Deliverables** (basado en Anexo I.0.1):
   - `GET /api/users`: lista users del tenant. Permiso: `admin` o `owner`.
-  - `POST /api/users` (invitar): crea registro en `user_invitations` con token único, envía email vía Resend con link `https://qavante.cl/aceptar-invitacion?token=xxx`. Permiso: `admin` o `owner`.
+  - `POST /api/users` (invitar): crea registro en `user_invitations` con token único, envía email vía Resend con link `https://app.qavante.com/aceptar-invitacion?token=xxx`. Permiso: `admin` o `owner`.
   - `PATCH /api/users/{id}`: cambia rol o status. Validación: el último owner no puede cambiar su rol.
   - `POST /api/auth/accept-invitation`: recibe token, permite al invitado setear su clave inicial.
   - `GET /api/users/me/permissions`: retorna lista de permisos del usuario actual (Anexo C.4).
@@ -632,7 +632,7 @@ Además del DoD específico de cada issue, el sprint completo C0 cumple cuando s
 
 ### 5.1 DoD funcional
 
-- [ ] Un usuario puede registrarse en `qavante.cl/login` con RUT y clave.
+- [ ] Un usuario puede registrarse en `app.qavante.com/login` con RUT y clave.
 - [ ] Después de login, ve la app con sidebar y los 6 módulos visibles según su rol.
 - [ ] Owner puede invitar un usuario con rol específico, el invitado recibe email y completa registro.
 - [ ] Un viewer no ve el módulo Administración.
@@ -658,7 +658,7 @@ Además del DoD específico de cada issue, el sprint completo C0 cumple cuando s
 - [ ] Ningún secret en código (validado por gitleaks).
 - [ ] JWT firmado con clave que está en Fly secrets, nunca en repo.
 - [ ] Refresh tokens en cookies httpOnly + Secure + SameSite=Strict.
-- [ ] CORS configurado solo para dominios oficiales (qavante.cl, localhost:3000 en dev).
+- [ ] CORS configurado solo para dominios oficiales (app.qavante.com, http://localhost:3000 en dev).
 - [ ] Rate limit de login a 10 intentos/hora/RUT funciona.
 - [ ] Endpoints con permisos suficientes devuelven 403 (no 401) cuando rol no aplica.
 
