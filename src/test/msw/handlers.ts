@@ -5,9 +5,14 @@
 // URL de prod (api.qavante.com) como a dev local (localhost:3000) sin
 // acoplarse a un valor exacto de NEXT_PUBLIC_API_URL.
 //
-// Cookies: Set-Cookie HttpOnly funciona si el dev hace requests
-// same-origin (i.e., NEXT_PUBLIC_API_URL apunta a su dev server). Para
-// cross-origin, ver CONTRIBUTING.md sección "MSW dev mode".
+// Cookies (dev MSW): Set-Cookie SIN HttpOnly ni Secure. Los service
+// workers corren en contexto JS y no pueden setear cookies HttpOnly
+// (el browser las descarta silenciosamente — limitación documentada
+// del Service Worker API). Para que el middleware Next.js vea la
+// cookie tras el login, MSW la setea como JS-visible. Esto es una
+// concesión SOLO en mocks de dev/test; en prod el backend real
+// devuelve HttpOnly + Secure normalmente (regla 6 de CLAUDE.md
+// sigue vigente — los tokens reales nunca pasan por JS).
 import { http, HttpResponse } from "msw";
 import type {
   InviteUserBody,
@@ -26,7 +31,7 @@ import {
 } from "./db";
 import { SEED_SESSION_USER } from "./fixtures";
 
-const SESSION_COOKIE = "qavante_session=msw-mock-token; Path=/; HttpOnly; SameSite=Lax";
+const SESSION_COOKIE = "qavante_session=msw-mock-token; Path=/; SameSite=Lax";
 
 const errorBody = (code: string, detail: string) => ({ code, detail });
 
@@ -61,7 +66,7 @@ export const authHandlers = [
     return new HttpResponse(null, {
       status: 204,
       headers: {
-        "Set-Cookie": "qavante_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax",
+        "Set-Cookie": "qavante_session=; Path=/; Max-Age=0; SameSite=Lax",
       },
     });
   }),
