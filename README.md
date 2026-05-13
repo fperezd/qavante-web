@@ -7,7 +7,7 @@ Frontend de Qavante (Next.js 15 + React 19 + TypeScript strict + Tailwind 4 + sh
 - ✅ Milestone A — Setup base (C0-01 a C0-05)
 - ✅ Milestone B — Sistema de diseño y shell (C0-06 a C0-09)
 - 🟡 Milestone C — Auth y conexión backend (C0-10/12/13 mergeados; C0-11/14 bloqueados en repo backend, contrato en [docs/backend-contracts/c0-auth-and-users.md](./docs/backend-contracts/c0-auth-and-users.md))
-- ⏳ Milestone D — Admin mínima + cierre (pendiente)
+- 🟡 Milestone D — Admin mínima + cierre (en curso; PRs en flight: C0-15 FE/admin gate, Lighthouse CI, C0-18 docs — ver [CHANGELOG.md § Unreleased](./CHANGELOG.md#unreleased))
 
 Ver [docs/audits/c0-milestone-abc-review.md](./docs/audits/c0-milestone-abc-review.md) para la revisión integral del Anexo K.4.
 
@@ -79,3 +79,4 @@ Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (
 - [docs/adr/](./docs/adr/) — Architecture Decision Records (decisiones arquitecturales con fecha y rationale).
 - [docs/audits/](./docs/audits/) — reportes de revisión integral.
 - [docs/archive/](./docs/archive/) — documentación deprecada conservada por trazabilidad.
+- [CHANGELOG.md](./CHANGELOG.md) — historial de cambios por release (Keep a Changelog + versionado semántico pre-v1.0).
