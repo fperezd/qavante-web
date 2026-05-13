@@ -71,6 +71,8 @@ Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (
 
 - [QAVANTE_SPRINT_C0_KIT.md](./QAVANTE_SPRINT_C0_KIT.md) — tickets atómicos C0-01 a C0-18 con DoD.
 - [CLAUDE.md](./CLAUDE.md) — prompt operativo de CC-WEB + reglas duras del proyecto.
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — convenciones de branches, commits, PRs, DoD para contribuir.
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — diagrama y descripción de alto nivel del sistema.
 - `qavante_fase1_v2.6.3.docx` — Documento Maestro (read-only desde este repo).
 - [docs/operations/](./docs/operations/) — runbooks operativos.
 - [docs/backend-contracts/](./docs/backend-contracts/) — contratos HTTP esperados del backend para coordinación cross-repo con `qavante-api`.
