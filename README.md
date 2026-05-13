@@ -7,7 +7,7 @@ Frontend de Qavante (Next.js 15 + React 19 + TypeScript strict + Tailwind 4 + sh
 - ✅ Milestone A — Setup base (C0-01 a C0-05)
 - ✅ Milestone B — Sistema de diseño y shell (C0-06 a C0-09)
 - 🟡 Milestone C — Auth y conexión backend (C0-10/12/13 mergeados; C0-11/14 bloqueados en repo backend, contrato en [docs/backend-contracts/c0-auth-and-users.md](./docs/backend-contracts/c0-auth-and-users.md))
-- ⏳ Milestone D — Admin mínima + cierre (pendiente)
+- 🟡 Milestone D — Admin mínima + cierre (C0-15 frontend mergeado; C0-15 funcional + C0-16/17 bloqueados en backend; C0-18 docs parciales — ver [CHANGELOG.md](./CHANGELOG.md))
 
 Ver [docs/audits/c0-milestone-abc-review.md](./docs/audits/c0-milestone-abc-review.md) para la revisión integral del Anexo K.4.
 
@@ -70,6 +70,7 @@ Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (
 ## Documentación
 
 - [QAVANTE_SPRINT_C0_KIT.md](./QAVANTE_SPRINT_C0_KIT.md) — tickets atómicos C0-01 a C0-18 con DoD.
+- [CHANGELOG.md](./CHANGELOG.md) — historial de cambios versionado (Keep a Changelog).
 - [CLAUDE.md](./CLAUDE.md) — prompt operativo de CC-WEB + reglas duras del proyecto.
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — convenciones de branches, commits, PRs, DoD para contribuir.
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — diagrama y descripción de alto nivel del sistema.
