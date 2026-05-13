@@ -7,7 +7,7 @@ Frontend de Qavante (Next.js 15 + React 19 + TypeScript strict + Tailwind 4 + sh
 - ✅ Milestone A — Setup base (C0-01 a C0-05)
 - ✅ Milestone B — Sistema de diseño y shell (C0-06 a C0-09)
 - 🟡 Milestone C — Auth y conexión backend (C0-10/12/13 mergeados; C0-11/14 bloqueados en repo backend, contrato en [docs/backend-contracts/c0-auth-and-users.md](./docs/backend-contracts/c0-auth-and-users.md))
-- 🟡 Milestone D — Admin mínima + cierre (en curso; PRs en flight: C0-15 FE/admin gate, Lighthouse CI, C0-18 docs — ver [CHANGELOG.md § Unreleased](./CHANGELOG.md#unreleased))
+- ✅ Milestone D — Admin mínima + cierre (parte FE) — C0-15 FE/admin gate + Lighthouse CI + CHANGELOG mergeados en `[0.7.0] 2026-05-13`. Quedan items manuales (demo grabada + tag `c0-complete-…`) y blockers cross-team (qavante-api C0-14/16/17 + cookie #58) — ver [CHANGELOG.md § Unreleased](./CHANGELOG.md#unreleased). Audit Anexo K.4 en [docs/audits/c0-milestone-d-review.md](./docs/audits/c0-milestone-d-review.md).
 
 Ver [docs/audits/c0-milestone-abc-review.md](./docs/audits/c0-milestone-abc-review.md) para la revisión integral del Anexo K.4.
 

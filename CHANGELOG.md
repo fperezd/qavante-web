@@ -6,24 +6,38 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
-### En curso (Milestone D — Admin mínima + cierre)
+### Pendiente cierre Sprint C0 (manual de Fernando)
 
-- **C0-15 — Frontend Administración → Usuarios** (PR [#44](https://github.com/fperezd/qavante-web/pull/44)): tabla TanStack con cols nombre/email/rol/estado/último login, modal "Invitar usuario", inline edit de rol, suspender/reactivar con confirm, ruta pública `/aceptar-invitacion?token=xxx` con form de clave inicial. UI compila contra contrato de [docs/backend-contracts/c0-auth-and-users.md](./docs/backend-contracts/c0-auth-and-users.md) § 3; renderea error state hasta que `qavante-api` C0-14 (`/api/users`, `/api/auth/accept-invitation`) esté arriba.
-- **C0-15 — Sidebar gate** (PR [#48](https://github.com/fperezd/qavante-web/pull/48)): módulo "Administración" oculto en sidebar para roles sin permiso (Anexo C.4 — `viewer`/`accountant` no ven). Cierra el último checkbox de DoD C0-15.
-- **C0 — Lighthouse CI mobile en /login** (PR [#49](https://github.com/fperezd/qavante-web/pull/49) / issue #41): gate de performance ≥85 mobile en `/login` (Kit DoD sec 5.2). `/app/inicio` diferido hasta unblock de cookie cross-origin (qavante-api#58).
-- **C0-18 — CHANGELOG + README** (este PR / issue #45): tercer deliverable parcial de C0-18.
+- Demo interna grabada (5–10 min): login → navegar 6 módulos → invitar usuario → suspender usuario.
+- Tag de release `c0-complete-YYYY-MM-DD` desde `main` cuando los items manuales estén.
 
-### Pendiente cross-team
+### Pendiente cross-team (no bloquea cierre C0 en `qavante-web`)
 
-- **qavante-api#58 + ADR-0003**: cookie de sesión cross-origin (`SameSite=None; Secure`) funcional → desbloquea `useSession`, login real end-to-end, Lighthouse para `/app/inicio` con seed.
-- **qavante-api C0-14**: implementar `GET/POST /api/users`, `PATCH /api/users/{id}`, `POST /api/auth/accept-invitation` (contrato listo en frontend).
+- **qavante-api#58 + ADR-0003**: cookie de sesión cross-origin (`SameSite=None; Secure`) funcional → desbloquea `useSession`, login real end-to-end, Lighthouse para `/app/inicio` con seed de cookie.
+- **qavante-api C0-14**: implementar `GET/POST /api/users`, `PATCH /api/users/{id}`, `POST /api/auth/accept-invitation` (contrato listo en frontend). Cuando bajen: regenerar `src/lib/api/types.ts` vía `npm run generate:api` y reemplazar tipos hand-rolled de `src/lib/api/users.ts`.
+- **qavante-api C0-16**: RBAC dependency sobre endpoints existentes.
+- **qavante-api C0-17**: RLS staging.
 - **`fly certs create api.qavante.com`** (Fernando — IaC manual).
 
-### Pendiente cierre C0-18
+## [0.7.0] — 2026-05-13
 
-- Demo interna grabada (5–10 min): login, navegar módulos, invitar usuario, suspender usuario.
-- Revisión integral end-to-end del Anexo K.4 sobre Milestone D.
-- Tag de release `c0-complete-YYYY-MM-DD`.
+### Milestone D — Admin mínima + cierre del Sprint C0 (parte FE)
+
+Cierre del frontend de Administración + gate de performance automatizado + documentación de release. Cubre todo lo que `qavante-web` puede entregar para C0-15 y C0-18; los tickets cross-repo (C0-14/16/17) quedan a cargo de `qavante-api`.
+
+#### Added
+
+- **C0-15 — Frontend Administración → Usuarios** ([#44](https://github.com/fperezd/qavante-web/pull/44)) — tabla TanStack con cols nombre/email/rol (inline edit)/estado/último login (`date-fns` es-CL)/acciones. Modal "Invitar usuario" (`react-hook-form` + `zod`), suspender/reactivar con confirm, estado vacío con CTA, mapping de errores Anexo C.3 (`email_already_exists`, `invitation_already_pending`, `last_owner_protection`). Ruta pública `/aceptar-invitacion?token=xxx` con form de clave inicial. UI compila contra contrato `docs/backend-contracts/c0-auth-and-users.md § 3`; rinde error state hasta que `qavante-api` C0-14 esté arriba.
+- **C0-15 — Sidebar gate** ([#48](https://github.com/fperezd/qavante-web/pull/48)) — módulo "Administración" oculto en sidebar para roles sin permiso (`visibleFor: ["owner", "admin", "technical_admin"]`, Anexo C.4). Cierra el último checkbox de DoD C0-15.
+- **Lighthouse CI mobile en /login** ([#49](https://github.com/fperezd/qavante-web/pull/49) / issue #41) — job `lighthouse` en `.github/workflows/ci.yml`: `lhci autorun` con 3 runs sobre Pixel 4 emulation (412×823, dpr 1.75), slow 4G throttling (RTT 150ms, 1638.4 kbps), 4x CPU slowdown. Assert hard `performance ≥0.85` (Kit DoD sec 5.2), warn `accessibility/best-practices ≥0.9`. Upload de artifacts `.lighthouseci/` retención 7 días.
+- **CHANGELOG.md inicial** ([#50](https://github.com/fperezd/qavante-web/pull/50) / issue #45) — Keep a Changelog 1.1.0 cubriendo historial completo desde C0-01 ([0.3.0] hasta este [0.7.0]).
+- **README — Milestone D status** ([#50](https://github.com/fperezd/qavante-web/pull/50)) — Milestone D ⏳ → 🟡 → ✅ (este PR), link a CHANGELOG en sección Documentación.
+- **Audit Anexo K.4 sobre Milestone D** ([docs/audits/c0-milestone-d-review.md](./docs/audits/c0-milestone-d-review.md) — este PR) — revisión integral end-to-end: 0 críticos, 1 medio, 2 menores. Suite verde (3 unit + 16 e2e + size:check + smoke), Lighthouse `/login` ≥85 en CI.
+
+#### Changed
+
+- **CONTRIBUTING.md** ([#49](https://github.com/fperezd/qavante-web/pull/49)) — checklist DoD por PR: línea de Lighthouse pasa de "verificar manual con devtools" a "automatizado en CI" para `/login`.
+- **README — Milestone D 🟡 → ✅** (este PR) — todo lo que dependía de `qavante-web` está mergeado; quedan items manuales (demo, tag) + cross-team blockers documentados en `[Unreleased]`.
 
 ## [0.6.0] — 2026-05-13
 
@@ -97,7 +111,8 @@ Base del repo: Next.js 15 skeleton, Cloudflare Workers, CI mínima.
 
 - **CI roja desde el bootstrap** ([#16](https://github.com/fperezd/qavante-web/pull/16)) — puente a C0-05 mientras se resolvía la versión de Node + cache de `npm ci`.
 
-[unreleased]: https://github.com/fperezd/qavante-web/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/fperezd/qavante-web/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/fperezd/qavante-web/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/fperezd/qavante-web/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/fperezd/qavante-web/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/fperezd/qavante-web/compare/v0.3.0...v0.4.0
