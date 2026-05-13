@@ -22,7 +22,7 @@ export async function auth(): Promise<SessionData | null> {
   return {
     user: {
       id: "placeholder",
-      email: "placeholder@qavante.cl",
+      email: "placeholder@qavante.com",
       role: "owner",
     },
   };
