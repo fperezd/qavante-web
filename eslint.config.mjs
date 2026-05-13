@@ -22,6 +22,7 @@ const eslintConfig = [
       ".open-next/**",
       "next-env.d.ts",
       "src/lib/api/types.ts",
+      "public/mockServiceWorker.js", // generado por `npx msw init`, no editar
     ],
   },
 ];

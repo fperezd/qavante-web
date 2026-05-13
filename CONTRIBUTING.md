@@ -87,6 +87,49 @@ Regla dura: **si un ADR existente contradice tu instinto, gana el ADR.** Si pens
 - Si un endpoint nuevo en backend afecta el frontend: ANTES de implementar, correr `npm run generate:api` para regenerar `src/lib/api/types.ts`. Verificar contra `https://api.qavante.com/openapi.json` (o `tooxs-gestion-api.fly.dev` hasta que la migración del ADR-0003 esté completa).
 - Contratos vivos en [docs/backend-contracts/](./docs/backend-contracts/) — actualizar en el mismo PR que el cambio cross-repo.
 
+## MSW dev mode (mientras backend no responde)
+
+Para desarrollar `qavante-web` sin esperar a `qavante-api`, podés activar **Mock Service Worker** (ver [ADR-0005](./docs/adr/0005-mock-service-worker-for-fe-dev.md)).
+
+### Activar en `npm run dev`
+
+Setear en `.env.local`:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:3000
+NEXT_PUBLIC_API_MOCKING=enabled
+```
+
+> Importante: `NEXT_PUBLIC_API_URL` debe apuntar a **same-origin** (tu propio dev server, ej. `http://localhost:3000`). Sin esto, las cookies seteadas por MSW (`Set-Cookie qavante_session=…`) no son leídas por el middleware en el siguiente request, y se rompe el flujo de auth. Con same-origin, todo funciona como con backend real.
+
+Después arrancá:
+
+```bash
+npm run dev
+```
+
+En la consola del browser vas a ver `[MSW] Mock Service Worker activo`. Login con cualquier RUT/clave + password setea cookie y entra a `/app/inicio`.
+
+### Endpoints mockeados
+
+Definidos en [src/test/msw/handlers.ts](./src/test/msw/handlers.ts) y alineados al contrato [docs/backend-contracts/c0-auth-and-users.md](./docs/backend-contracts/c0-auth-and-users.md). Cubren auth + User CRUD (login/logout/refresh/me/accept-invitation, list/invite/update users) con sus error states (`email_already_exists`, `invitation_already_pending`, `last_owner_protection`, etc.).
+
+Seed determinístico en [src/test/msw/fixtures.ts](./src/test/msw/fixtures.ts) (6 users: 1 owner, 1 admin, 1 finance_manager, 1 accountant, 1 viewer suspended, 1 invited).
+
+### Tests (vitest)
+
+MSW arranca automáticamente en vitest vía [src/test/msw/vitest.setup.ts](./src/test/msw/vitest.setup.ts). `npm run test` no requiere env var — el setup file llama `server.listen()` y resetea `db` entre tests.
+
+Para escribir tests que dependen de handlers MSW: simplemente hacé `fetch()` contra el API y los handlers interceptan. Ver ejemplos en [src/test/msw/handlers.test.ts](./src/test/msw/handlers.test.ts).
+
+### Cuando el backend baje
+
+Cuando `qavante-api` C0-14 deploye los endpoints reales:
+
+1. Correr `npm run generate:api` para regenerar tipos.
+2. Si typecheck rompe, ajustar handlers para que los shapes sigan alineados al openapi.json real.
+3. Para dev contra backend real: quitar `NEXT_PUBLIC_API_MOCKING=enabled` de `.env.local` o ponerlo en `disabled`. Default (sin flag) = no mocking.
+
 ## Reglas duras (no negociables)
 
 Resumen del prompt CC-WEB ([CLAUDE.md](./CLAUDE.md)). Si dudás, leer el original:
