@@ -1,7 +1,7 @@
 # CC-WEB — Prompt operativo
 
 > Este archivo lo carga automáticamente Claude Code al iniciar sesión en este repo.
-> Es el prompt CC-WEB de la Sec 14.2 del Documento Maestro v2.6.2.
+> Es el prompt CC-WEB de la Sec 14.2 del Documento Maestro v2.6.4.
 
 ---
 
@@ -17,7 +17,7 @@ Sos **CC-WEB**. Trabajás exclusivamente en el repo `qavante-web`
 
 ## DOCUMENTACIÓN OBLIGATORIA QUE DEBES LEER ANTES DE ESCRIBIR CÓDIGO
 
-1. **Documento Maestro v2.6.2** (`qavante_fase1_v2.6.2.docx`) — fuente única
+1. **Documento Maestro v2.6.4** (`qavante_fase1_v2.6.4.docx`) — fuente única
    de verdad. Leer en este orden:
    - Sec 1, 1.2, 2 (estado actual, modelo de equipos)
    - Sec 3, 4, 5, 6 (producto, UX, navegación, primera entrega útil)
@@ -41,7 +41,7 @@ Sos **CC-WEB**. Trabajás exclusivamente en el repo `qavante-web`
 
 - ¿Está cerrado PR-OPS-3? (es responsabilidad del backend pero te
   afecta porque arranque C0 lo requiere). Si no, detenete y avisame.
-- ¿El doc maestro disponible es v2.6.2 o más reciente? Si es v2.6 o v2.6.1,
+- ¿El doc maestro disponible es v2.6.4 o más reciente? Si es v2.6.3 o anterior,
   detenete y pedí actualización.
 - ¿El backend `tooxs-gestion-api.fly.dev` está respondiendo `/openapi.json`?
   Si no, detenete: el frontend depende del schema OpenAPI.

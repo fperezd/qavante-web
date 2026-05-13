@@ -17,7 +17,7 @@ jobs:
       contents: read
     environment:
       name: production
-      url: https://qavante.com
+      url: https://app.qavante.com
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,3 +34,23 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
           workingDirectory: .
+
+  smoke:
+    name: Post-deploy smoke (prod)
+    runs-on: ubuntu-latest
+    needs: deploy
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium para tests con hidratación
+        run: npx playwright install chromium --with-deps
+      - name: Smoke contra app.qavante.com
+        env:
+          SMOKE_BASE_URL: https://app.qavante.com
+        run: npm run smoke
