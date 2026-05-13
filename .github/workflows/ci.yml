@@ -65,6 +65,27 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
 
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build (Next.js production)
+        run: npm run build
+      - name: Lighthouse mobile (Kit C0 DoD sec 5.2 — /login >=85)
+        run: npm run lighthouse
+      - name: Upload Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouseci
+          path: .lighthouseci/
+          retention-days: 7
+
   secrets-scan:
     runs-on: ubuntu-latest
     steps:
