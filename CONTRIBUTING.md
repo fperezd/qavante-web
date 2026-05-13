@@ -72,7 +72,7 @@ Adicional a la CI verde, validar mental o explícitamente:
 - [ ] **Sin Storage APIs** para tokens — `localStorage`, `sessionStorage`, `IndexedDB` están prohibidos. Solo cookies httpOnly. Ver CLAUDE.md regla 6.
 - [ ] **Sin secrets en código** — validado por gitleaks pero también revisar `.env*` accidentales.
 - [ ] **Tests pasando** localmente antes de pushear (`npm run test && npm run e2e`).
-- [ ] **Lighthouse mobile ≥85** en `/login` y ≥90 en `/app/inicio` si la PR las toca (verificar manual con devtools hasta que `lhci` esté en CI).
+- [ ] **Lighthouse mobile ≥85** en `/login` (automatizado en CI via `lhci`, config en [.lighthouserc.json](./.lighthouserc.json)). `/app/inicio` queda diferido hasta que el flow de auth permita lighthouse autenticado.
 - [ ] **Documentación actualizada** — si cambiás API pública, contratos cross-repo, decisiones arquitecturales: PR del doc en el mismo PR del cambio.
 
 ## Decisiones arquitecturales

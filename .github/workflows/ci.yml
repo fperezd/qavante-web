@@ -80,3 +80,29 @@ jobs:
           sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
           gitleaks version
       - run: gitleaks detect --no-banner --redact --verbose
+
+  lighthouse:
+    name: Lighthouse mobile (Kit C0 DoD sec 5.2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Lighthouse autorun (mobile preset, /login)
+        run: npm run lighthouse
+        env:
+          # En ubuntu-latest runner viene preinstalado google-chrome-stable.
+          # Si en algun momento falla "no chrome found", agregar:
+          # - run: sudo apt-get install -y google-chrome-stable
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+      - name: Upload Lighthouse artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-results
+          path: .lighthouseci/
+          retention-days: 7
