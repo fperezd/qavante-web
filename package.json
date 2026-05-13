@@ -16,6 +16,7 @@
     "generate:api": "openapi-typescript https://tooxs-gestion-api.fly.dev/openapi.json -o src/lib/api/types.ts",
     "build:cloudflare": "opennextjs-cloudflare build",
     "size:check": "node scripts/check-bundle-size.mjs",
+    "lighthouse": "lhci autorun",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -53,6 +54,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@lhci/cli": "^0.15.1",
     "@opennextjs/cloudflare": "^1.19.8",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",

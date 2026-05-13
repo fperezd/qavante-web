@@ -24,6 +24,9 @@
 /.open-next/
 /.wrangler/
 
+# lighthouse CI (reportes locales)
+/.lighthouseci/
+
 # Claude Code local settings (no commitear — config personal del classifier)
 /.claude/settings.local.json
 
