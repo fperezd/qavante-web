@@ -14,7 +14,7 @@ const PROTECTED_PATHS = [
   "/administracion/usuarios",
 ];
 
-const PUBLIC_PATHS = ["/", "/login", "/recuperar-clave", "/playground"];
+const PUBLIC_PATHS = ["/", "/login", "/recuperar-clave", "/playground", "/aceptar-invitacion"];
 
 test.describe("middleware: rutas protegidas (C0-13)", () => {
   for (const path of PROTECTED_PATHS) {
