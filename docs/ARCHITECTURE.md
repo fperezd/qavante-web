@@ -97,19 +97,51 @@ flowchart LR
 2. Backend crea registro en `user_invitations` con token único, envía email vía Resend con link a `https://app.qavante.com/aceptar-invitacion?token=xxx`.
 3. Invitado abre el link (route público), setea clave inicial, queda autenticado.
 
+## Dev environment + testing
+
+Trabajamos con un **backend `qavante-api` que está parcialmente bloqueado** (ver § Cross-repo en [CONTRIBUTING.md](../CONTRIBUTING.md)). Para que el frontend no quede esperando, se introdujo una capa de mocking + estrategia de testing multinivel:
+
+### Mocking dev/test — MSW (ver [ADR-0005](./adr/0005-mock-service-worker-for-fe-dev.md))
+
+- **Mock Service Worker v2** intercepta requests HTTP en `npm run dev` cuando `NEXT_PUBLIC_API_MOCKING=enabled`, y siempre en vitest via `src/test/msw/vitest.setup.ts`.
+- **NO** en producción — triple guard (`window` definido + `NODE_ENV !== 'production'` + flag) + dynamic import garantiza que `msw` no entra al bundle de Workers.
+- **Handlers** alineados a los contratos vivos en [docs/backend-contracts/](./backend-contracts/) — auth + users (C0) + credenciales SII (C1 prep).
+- **State mutable** in-memory en `src/test/msw/db.ts` con `resetDb()` para aislamiento entre tests.
+
+### Estrategia de testing
+
+| Capa              | Tool        | Scope                                                                                                      | Job CI         |
+| ----------------- | ----------- | ---------------------------------------------------------------------------------------------------------- | -------------- |
+| Unit              | vitest      | `src/**/*.test.ts(x)` + sanity sobre handlers MSW (`src/test/msw/handlers.test.ts`)                        | `test`         |
+| E2E HTTP          | Playwright  | `tests/e2e/auth-redirect.spec.ts` + `tests/e2e/prod-health.smoke.spec.ts` — middleware + smoke contra prod | `e2e`          |
+| E2E mobile        | Playwright  | `tests/e2e/*.mobile.spec.ts` con `devices['Pixel 5']` — anti-regresión responsive de rutas públicas        | `e2e`          |
+| Type              | tsc         | `tsc --noEmit` strict mode                                                                                 | `typecheck`    |
+| Lint              | eslint      | `next/core-web-vitals` + `next/typescript`                                                                 | `lint`         |
+| Bundle budget     | custom      | [scripts/check-bundle-size.mjs](../scripts/check-bundle-size.mjs) — gzip First Load JS por route           | `build`        |
+| Lighthouse mobile | `@lhci/cli` | `/login` mobile ≥0.85 perf, 3 runs en Pixel 4 emulation                                                    | `lighthouse`   |
+| Secrets scan      | gitleaks    | Histórico completo via `fetch-depth: 0`                                                                    | `secrets-scan` |
+
+7 jobs paralelos en `.github/workflows/ci.yml`. Si rojo, no se mergea.
+
+### Lazy dialogs en admin routes
+
+`/administracion/usuarios` y `/administracion/credenciales` usan `next/dynamic` con `ssr: false` para los dialogs interactivos (Invite, Suspend, SiiCompany, SiiPerson, CertUpload, DeleteConfirm). Esto reduce el First Load JS — react-hook-form + zod + Base UI Dialog quedan en chunks lazy que sólo se descargan al abrir el dialog.
+
 ## Decisiones clave (ADRs)
 
-| ADR                                                       | Decisión                                                                                          |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| [ADR-0001](./adr/0001-cloudflare-workers-vs-pages.md)     | Cloudflare Workers vía `@opennextjs/cloudflare` (no Pages).                                       |
-| [ADR-0002](./adr/0002-dominio-oficial-qavante-com.md)     | Dominio `qavante.com` (GoDaddy + Cloudflare DNS), no `qavante.cl`.                                |
-| [ADR-0003](./adr/0003-api-qavante-com-shared-parent.md)   | Backend en `api.qavante.com` para shared parent con FE (cookie cross-subdomain con SameSite=Lax). |
-| [ADR-0004](./adr/0004-asistente-qavante-anti-patterns.md) | Asistente Qavante — separación reasoning/content, no exposición de tool calls.                    |
+| ADR                                                         | Decisión                                                                                          |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [ADR-0001](./adr/0001-cloudflare-workers-vs-pages.md)       | Cloudflare Workers vía `@opennextjs/cloudflare` (no Pages).                                       |
+| [ADR-0002](./adr/0002-dominio-oficial-qavante-com.md)       | Dominio `qavante.com` (GoDaddy + Cloudflare DNS), no `qavante.cl`.                                |
+| [ADR-0003](./adr/0003-api-qavante-com-shared-parent.md)     | Backend en `api.qavante.com` para shared parent con FE (cookie cross-subdomain con SameSite=Lax). |
+| [ADR-0004](./adr/0004-asistente-qavante-anti-patterns.md)   | Asistente Qavante — separación reasoning/content, no exposición de tool calls.                    |
+| [ADR-0005](./adr/0005-mock-service-worker-for-fe-dev.md)    | MSW v2 para dev/test sin backend disponible.                                                      |
+| [ADR-0006](./adr/0006-sii-credentials-storage-decisions.md) | Decisiones de almacenamiento de credenciales SII (deferred, pending backend input).               |
 
 ## Lo que NO está en Fase 1
 
-- OAuth Google / Microsoft (Fase 2).
-- App móvil nativa (Fase 2 — la app es responsive desde C0).
+- OAuth Google / Microsoft (Fase 2 — [tech debt #56](https://github.com/fperezd/qavante-web/issues/56) registrado en sesión 2026-05-13 para revisión futura).
+- App móvil nativa (Fase 2 — la app es responsive desde C0, tests anti-regresión en `*.mobile.spec.ts`).
 - Sandbox / playground para desarrolladores externos.
 - Multi-país (solo Chile en Fase 1).
 - ML / forecast con modelos entrenados (Fase 1 usa drivers rule-based, ver doc maestro sec 6).
