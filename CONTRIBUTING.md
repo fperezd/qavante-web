@@ -72,7 +72,7 @@ Adicional a la CI verde, validar mental o explícitamente:
 - [ ] **Sin Storage APIs** para tokens — `localStorage`, `sessionStorage`, `IndexedDB` están prohibidos. Solo cookies httpOnly. Ver CLAUDE.md regla 6.
 - [ ] **Sin secrets en código** — validado por gitleaks pero también revisar `.env*` accidentales.
 - [ ] **Tests pasando** localmente antes de pushear (`npm run test && npm run e2e`).
-- [ ] **Lighthouse mobile ≥85** en `/login` — validado automáticamente por el job `lighthouse` de CI (`lhci autorun`, ver [.lighthouserc.json](./.lighthouserc.json)). `/app/inicio` queda diferido hasta que exista cookie de sesión cross-origin (bloqueado en qavante-api#58); por ahora, validar manual con devtools si la PR la toca.
+- [ ] **Lighthouse mobile ≥85** en `/login` + `/administracion/credenciales` — validado automáticamente por el job `lighthouse` de CI (`lhci autorun`, ver [.lighthouserc.json](./.lighthouserc.json)). La ruta protegida se mide con cookie `qavante_session` dummy vía `extraHeaders` para evadir el middleware; sin MSW, el page renderea su error state, lo cual sigue capturando regresiones de bundle del shell `(app)` (sidebar, header, breadcrumbs, layout). `/app/inicio` queda diferido hasta que exista cookie de sesión cross-origin (bloqueado en qavante-api#58).
 - [ ] **Documentación actualizada** — si cambiás API pública, contratos cross-repo, decisiones arquitecturales: PR del doc en el mismo PR del cambio.
 
 ## Decisiones arquitecturales
