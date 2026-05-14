@@ -77,15 +77,12 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     expect(apiErrorToUserMessage(err)).toBe("La fuente no está disponible en este momento.");
   });
 
-  it("code=config_missing con status 0 cae en 'perdiste conexión' (network error tiene prioridad)", () => {
-    /* NOTA: el orden actual del switch hace que isNetworkError (status===0)
-       gane antes que el chequeo de code. Eso vuelve la rama
-       case 'config_missing' efectivamente unreachable cuando se lanza con
-       status 0 (que es como lo lanza client.ts hoy). Este test documenta
-       el comportamiento real; si se decide priorizar code antes que
-       network, actualizar el test + el código en el mismo PR. */
+  it("code=config_missing con status 0 → mensaje técnico (gana sobre network)", () => {
+    /* config_missing se lanza desde client.ts cuando NEXT_PUBLIC_API_URL
+       no está seteado; comparte status=0 con un network error real pero
+       el copy técnico ayuda al troubleshooting dev (Anexo C.3 fallback). */
     const err = new ApiError("NEXT_PUBLIC_API_URL no configurada", 0, "config_missing");
-    expect(apiErrorToUserMessage(err)).toBe("Parece que perdiste conexión. Verificá tu internet.");
+    expect(apiErrorToUserMessage(err)).toBe("NEXT_PUBLIC_API_URL no configurada");
   });
 
   it("status 400 desconocido cae al mensaje original como fallback", () => {
