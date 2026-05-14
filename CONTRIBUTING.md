@@ -112,9 +112,15 @@ En la consola del browser vas a ver `[MSW] Mock Service Worker activo`. Login co
 
 ### Endpoints mockeados
 
-Definidos en [src/test/msw/handlers.ts](./src/test/msw/handlers.ts) y alineados al contrato [docs/backend-contracts/c0-auth-and-users.md](./docs/backend-contracts/c0-auth-and-users.md). Cubren auth + User CRUD (login/logout/refresh/me/accept-invitation, list/invite/update users) con sus error states (`email_already_exists`, `invitation_already_pending`, `last_owner_protection`, etc.).
+Definidos en [src/test/msw/handlers.ts](./src/test/msw/handlers.ts) y alineados a los contratos vivos en [docs/backend-contracts/](./docs/backend-contracts/):
 
-Seed determinístico en [src/test/msw/fixtures.ts](./src/test/msw/fixtures.ts) (6 users: 1 owner, 1 admin, 1 finance_manager, 1 accountant, 1 viewer suspended, 1 invited).
+- **Auth + User CRUD** (`c0-auth-and-users.md`): login, logout, refresh, /api/me, accept-invitation, list/invite/update users. Error states `email_already_exists`, `invitation_already_pending`, `last_owner_protection`.
+- **Credenciales SII** (`c1-sii-credentials.md`): GET status, PUT/DELETE company / person / certificate. Error states `rut_mismatch`, `validation_error`, `not_found`, `invalid_pkcs12`, `certificate_not_configured`.
+
+Seed determinístico en [src/test/msw/fixtures.ts](./src/test/msw/fixtures.ts):
+
+- 6 usuarios (1 owner, 1 admin, 1 finance_manager, 1 accountant, 1 viewer suspended, 1 invited).
+- Credenciales SII empresa + 2 personas autorizadas + certificado digital vigente hasta 2027.
 
 ### Tests (vitest)
 
@@ -129,6 +135,29 @@ Cuando `qavante-api` C0-14 deploye los endpoints reales:
 1. Correr `npm run generate:api` para regenerar tipos.
 2. Si typecheck rompe, ajustar handlers para que los shapes sigan alineados al openapi.json real.
 3. Para dev contra backend real: quitar `NEXT_PUBLIC_API_MOCKING=enabled` de `.env.local` o ponerlo en `disabled`. Default (sin flag) = no mocking.
+
+## Tests Playwright — projects http + mobile
+
+`playwright.config.ts` define dos projects:
+
+- **`http`** — tests HTTP-only sin browser engine. Cubre `tests/e2e/auth-redirect.spec.ts` (middleware) + `tests/e2e/prod-health.smoke.spec.ts` (smoke contra prod). Glob ignora `**/*.mobile.spec.ts`.
+- **`mobile`** — Pixel 5 viewport (393×851) con browser engine real. Glob matchea `**/*.mobile.spec.ts`. Cubre rutas públicas con anti-regresión de responsive.
+
+```bash
+npm run e2e           # corre ambos projects
+npm run smoke         # corre solo prod-health.smoke.spec.ts contra app.qavante.com
+```
+
+Para agregar un test mobile nuevo: archivo `tests/e2e/<nombre>.mobile.spec.ts`. Usar el patrón anti-overflow del spec existente:
+
+```ts
+const overflows = await page.evaluate(
+  () => document.documentElement.scrollWidth > window.innerWidth,
+);
+expect(overflows).toBe(false);
+```
+
+Rutas protegidas en mobile (admin, app/\*) **no están cubiertas todavía** — requieren combinar Playwright con MSW dev mode, diferido a un spec dedicado.
 
 ## Reglas duras (no negociables)
 
