@@ -1,14 +1,32 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { UserPlus, Users, AlertCircle } from "lucide-react";
 import { QavanteEmpty, QavanteButton } from "@/components/qavante";
 import { useUsers, type User } from "@/lib/api/users";
 import { UsersTable } from "@/components/administracion/users-table";
-import { InviteUserDialog } from "@/components/administracion/invite-user-dialog";
-import { SuspendUserDialog } from "@/components/administracion/suspend-user-dialog";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+
+/* Dialogs lazy: sólo descargan el chunk cuando el user los abre.
+   Atiende hallazgo audit K.4 #2 (admin-only bundles al borde del
+   budget) — separa react-hook-form + zod + base-ui Dialog del First
+   Load JS. ssr:false porque los dialogs son interactivos client-only. */
+const InviteUserDialog = dynamic(
+  () =>
+    import("@/components/administracion/invite-user-dialog").then((m) => ({
+      default: m.InviteUserDialog,
+    })),
+  { ssr: false },
+);
+const SuspendUserDialog = dynamic(
+  () =>
+    import("@/components/administracion/suspend-user-dialog").then((m) => ({
+      default: m.SuspendUserDialog,
+    })),
+  { ssr: false },
+);
 
 /* /app/administracion/usuarios (C0-15).
    - Permiso: admin/owner. El gating fino vive en GET /api/users (403 backend)

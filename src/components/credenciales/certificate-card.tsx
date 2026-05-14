@@ -1,12 +1,20 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { ShieldCheck, AlertCircle, AlertTriangle, Trash2 } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteButton } from "@/components/qavante";
 import { useDeleteCertificate, type CertificateStatus } from "@/lib/api/credentials";
 import { formatDateEsCL, daysUntil } from "./format";
-import { CertificateUploadDialog } from "./certificate-upload-dialog";
-import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+
+const CertificateUploadDialog = dynamic(
+  () => import("./certificate-upload-dialog").then((m) => ({ default: m.CertificateUploadDialog })),
+  { ssr: false },
+);
+const DeleteConfirmDialog = dynamic(
+  () => import("./delete-confirm-dialog").then((m) => ({ default: m.DeleteConfirmDialog })),
+  { ssr: false },
+);
 
 interface Props {
   certificate: CertificateStatus;

@@ -1,11 +1,18 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { Building2 } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteButton } from "@/components/qavante";
 import type { SiiCompanyStatus } from "@/lib/api/credentials";
 import { formatDateEsCL } from "./format";
-import { SiiCompanyDialog } from "./sii-company-dialog";
+
+/* Dialog lazy: el form + react-hook-form + zod sólo se cargan al abrir.
+   Reduce First Load JS de /administracion/credenciales (audit K.4 #2). */
+const SiiCompanyDialog = dynamic(
+  () => import("./sii-company-dialog").then((m) => ({ default: m.SiiCompanyDialog })),
+  { ssr: false },
+);
 
 interface Props {
   company: SiiCompanyStatus;

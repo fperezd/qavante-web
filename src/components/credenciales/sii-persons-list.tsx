@@ -1,14 +1,22 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { Users, UserPlus, Trash2 } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteButton, QavanteEmpty } from "@/components/qavante";
 import { useDeletePersonCredentials, type SiiPersonStatus } from "@/lib/api/credentials";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatDateShortEsCL } from "./format";
-import { SiiPersonDialog } from "./sii-person-dialog";
-import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+
+const SiiPersonDialog = dynamic(
+  () => import("./sii-person-dialog").then((m) => ({ default: m.SiiPersonDialog })),
+  { ssr: false },
+);
+const DeleteConfirmDialog = dynamic(
+  () => import("./delete-confirm-dialog").then((m) => ({ default: m.DeleteConfirmDialog })),
+  { ssr: false },
+);
 
 interface Props {
   persons: SiiPersonStatus[];
