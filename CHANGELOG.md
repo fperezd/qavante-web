@@ -6,6 +6,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### En curso (C1 prep — sin dependencias `qavante-api`)
+
+Ciclo autónomo del 2026-05-13/14 con autorización owner. Adelanta el frontend de tickets que dependen de backend bloqueado, todos mockeados con MSW (ver ADR-0005).
+
+#### Added
+
+- **C1 prep — MSW v2 setup** ([#55](https://github.com/fperezd/qavante-web/pull/55), ADR-0005) — Mock Service Worker con triple guard contra activación en prod. Handlers para auth + users alineados a contrato C0. 11 sanity tests nuevos.
+- **C1 prep — Contrato SII credentials** ([#58](https://github.com/fperezd/qavante-web/pull/58), [`docs/backend-contracts/c1-sii-credentials.md`](./docs/backend-contracts/c1-sii-credentials.md)) — 6 endpoints documentados (empresa + personas + certificado digital PKCS#12) con 10 restricciones de seguridad no-negociables.
+- **C1 prep — UI Administración → Credenciales SII** ([#59](https://github.com/fperezd/qavante-web/pull/59)) — `/app/administracion/credenciales` con 3 cards (Empresa + Personas + Certificado) + 7 componentes nuevos. Handlers MSW para los 6 endpoints. 9 tests sanity. ADR-0006 (Deferred) registra decisiones backend pendientes (KMS / storage / audit).
+- **Mobile responsive Playwright spec** ([#60](https://github.com/fperezd/qavante-web/pull/60), audit K.4 #3) — `playwright.config.ts` refactor a 2 projects (`http` + `mobile`). 4 specs cubriendo rutas públicas en viewport Pixel 5 con check anti-overflow horizontal.
+- **Tech-debt issues registrados**: [#56](https://github.com/fperezd/qavante-web/issues/56) (SSO Google/MS deferred a Fase 2) + [#57](https://github.com/fperezd/qavante-web/issues/57) (SII credentials cross-repo handoff).
+
+#### Changed
+
+- **Bundle budget `/admin/usuarios` reducido vía dynamic imports** ([#61](https://github.com/fperezd/qavante-web/pull/61), audit K.4 #2) — dialogs `Invite/Suspend/SiiPerson/CertUpload/DeleteConfirm` ahora son `next/dynamic` con `ssr: false`. **First Load JS gzip: 194 → 146 KB (-25%, -48 KB)** sobre `/admin/usuarios`. Sin impacto UX.
+- **`docs/ARCHITECTURE.md` + `CONTRIBUTING.md`** ([#62](https://github.com/fperezd/qavante-web/pull/62)) — nueva sección "Dev environment + testing" con tabla de 7 capas de testing CI (unit/E2E HTTP/E2E mobile/type/lint/bundle/lighthouse/secrets). Actualiza endpoints mockeados (auth + users + SII). Documenta patrón anti-overflow para futuros mobile specs.
+
 ### Pendiente cierre Sprint C0
 
 - Tag de release `c0-complete-YYYY-MM-DD` desde `main` (manual de Fernando, último paso del Sprint).
@@ -16,6 +33,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 - **qavante-api C0-14**: implementar `GET/POST /api/users`, `PATCH /api/users/{id}`, `POST /api/auth/accept-invitation` (contrato listo en frontend). Cuando bajen: regenerar `src/lib/api/types.ts` vía `npm run generate:api` y reemplazar tipos hand-rolled de `src/lib/api/users.ts`.
 - **qavante-api C0-16**: RBAC dependency sobre endpoints existentes.
 - **qavante-api C0-17**: RLS staging.
+- **qavante-api C1 prep**: 6 endpoints de credenciales SII según [`docs/backend-contracts/c1-sii-credentials.md`](./docs/backend-contracts/c1-sii-credentials.md). Bloquea ingesta sii_f29 / previred de Sprint C1.
 - **`fly certs create api.qavante.com`** (Fernando — IaC manual).
 
 ## [0.7.0] — 2026-05-13
