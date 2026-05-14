@@ -15,19 +15,20 @@ const STATIC_DIR = ".next";
 
 /** Presupuestos por route, en KB (gzip). Alineados con Kit Sprint C0 DoD sec 5.2:
  *  - /login < 200KB gzip (hard requirement, DoD del Kit).
+ *  - /aceptar-invitacion < 200KB — route PÚBLICA (link por email), user
+ *    primer-toque a Qavante; misma prioridad de bundle que /login.
  *  - /app/inicio: presupuesto generoso por ahora; Lighthouse es el gate final
  *    en CI (job `lighthouse` desde PR #49).
  *  - /app/administracion/usuarios: admin-only (sólo owner/admin/technical_admin
  *    ven el módulo según sidebar gate de PR #48), tolera más peso que rutas
- *    user-facing. Budget 250 KB cubre el costo actual (~195 KB gzip, dominado
- *    por TanStack Table + react-hook-form + zod) con ~25% headroom para
- *    columnas / filtros adicionales sin reventar CI. Si excede en el futuro,
- *    candidatos para dynamic(): InviteUserDialog (sólo abre on-demand),
- *    SuspendUserDialog (idem). Polish del audit Anexo K.4 hallazgo menor #2.
+ *    user-facing. Budget 250 KB. Dynamic imports en dialogs (PR #61) bajaron
+ *    el First Load de 194 → 146 KB.
+ *  - /app/administracion/credenciales: idem admin-only, budget 250 KB.
  *  Keys son rutas como aparecen en el app-build-manifest.json (con grupos
  *  Next.js entre paréntesis y sufijo /page). */
 const BUDGETS_KB = {
   "/(auth)/login/page": 200,
+  "/(auth)/aceptar-invitacion/page": 200,
   "/(app)/inicio/page": 400,
   "/(app)/administracion/usuarios/page": 250,
   "/(app)/administracion/credenciales/page": 250,
