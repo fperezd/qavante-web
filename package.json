@@ -17,7 +17,9 @@
     "build:cloudflare": "opennextjs-cloudflare build",
     "size:check": "node scripts/check-bundle-size.mjs",
     "lighthouse": "lhci autorun",
-    "prepare": "husky"
+    "prepare": "husky",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [
@@ -57,20 +59,28 @@
     "@lhci/cli": "^0.15.1",
     "@opennextjs/cloudflare": "^1.19.8",
     "@playwright/test": "^1.59.1",
+    "@storybook/addon-a11y": "^10.4.0",
+    "@storybook/addon-docs": "^10.4.0",
+    "@storybook/nextjs-vite": "^10.4.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^9",
     "eslint-config-next": "15.5.18",
     "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-storybook": "^10.4.0",
     "husky": "9.1.7",
     "lint-staged": "17.0.4",
     "msw": "^2.14.6",
     "openapi-typescript": "^7.13.0",
+    "playwright": "^1.60.0",
     "prettier": "3.8.3",
+    "storybook": "^10.4.0",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vite": "^8.0.13",
     "vitest": "^4.1.5"
   },
   "msw": {
