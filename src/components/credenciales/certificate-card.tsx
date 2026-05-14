@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import { ShieldCheck, AlertCircle, AlertTriangle, Trash2 } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteButton } from "@/components/qavante";
 import { useDeleteCertificate, type CertificateStatus } from "@/lib/api/credentials";
-import { formatDateEsCL, daysUntil } from "./format";
+import { formatDateEsCL } from "./format";
+import { getBanner } from "./expiration-banner";
 
 const CertificateUploadDialog = dynamic(
   () => import("./certificate-upload-dialog").then((m) => ({ default: m.CertificateUploadDialog })),
@@ -18,20 +19,6 @@ const DeleteConfirmDialog = dynamic(
 
 interface Props {
   certificate: CertificateStatus;
-}
-
-type ExpirationBanner =
-  | { tone: "ok" }
-  | { tone: "warn" | "urgent"; daysLeft: number }
-  | { tone: "expired" };
-
-function getBanner(expiresAt?: string): ExpirationBanner {
-  if (!expiresAt) return { tone: "ok" };
-  const days = daysUntil(expiresAt);
-  if (days <= 0) return { tone: "expired" };
-  if (days <= 30) return { tone: "urgent", daysLeft: days };
-  if (days <= 60) return { tone: "warn", daysLeft: days };
-  return { tone: "ok" };
 }
 
 export function CertificateCard({ certificate }: Props) {
