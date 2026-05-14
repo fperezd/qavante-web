@@ -141,7 +141,7 @@ Cuando `qavante-api` C0-14 deploye los endpoints reales:
 `playwright.config.ts` define dos projects:
 
 - **`http`** — tests HTTP-only sin browser engine. Cubre `tests/e2e/auth-redirect.spec.ts` (middleware) + `tests/e2e/prod-health.smoke.spec.ts` (smoke contra prod). Glob ignora `**/*.mobile.spec.ts`.
-- **`mobile`** — Pixel 5 viewport (393×851) con browser engine real. Glob matchea `**/*.mobile.spec.ts`. Cubre rutas públicas con anti-regresión de responsive.
+- **`mobile`** — Pixel 5 viewport (393×851) con browser engine real. Glob matchea `**/*.mobile.spec.ts`. Cubre rutas públicas (`public-routes.mobile.spec.ts`) **y protegidas** (`protected-routes.mobile.spec.ts`) con anti-regresión de responsive.
 
 ```bash
 npm run e2e           # corre ambos projects
@@ -157,7 +157,13 @@ const overflows = await page.evaluate(
 expect(overflows).toBe(false);
 ```
 
-Rutas protegidas en mobile (admin, app/\*) **no están cubiertas todavía** — requieren combinar Playwright con MSW dev mode, diferido a un spec dedicado.
+**Rutas protegidas (`/app/*`)** se cubren en `protected-routes.mobile.spec.ts`. El wireup:
+
+1. `playwright.config.ts` setea `NEXT_PUBLIC_API_MOCKING=enabled` + `NEXT_PUBLIC_API_URL=http://localhost:3100` en `webServer.env` → MSW arranca en el build de Playwright.
+2. Helper `loginAs(context, role)` setea cookie `qavante_session` (middleware) + opcional `qavante_test_role` (override de `session.ts` gated por `NODE_ENV !== production`). Skipea el flow real de login.
+3. Tras `page.goto(...)`, esperar `page.waitForLoadState("networkidle")` antes de assertear data fetched vía MSW.
+
+Para agregar tests sobre nuevas rutas `/app/*`: extender el helper si necesitás otros roles, reutilizar el patrón de overflow chequeo donde aplique (admin/usuarios tiene tabla que scrollea horizontal — esperado, no asertar overflow ahí).
 
 ## Reglas duras (no negociables)
 
