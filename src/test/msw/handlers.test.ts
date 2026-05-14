@@ -134,3 +134,92 @@ describe("MSW handlers — users", () => {
     expect(body.code).toBe("not_found");
   });
 });
+
+describe("MSW handlers — credentials SII", () => {
+  it("GET /api/credentials/sii devuelve seed completo (empresa + personas + cert)", async () => {
+    const { status, body } = await json<{
+      company: { configured: boolean; rut: string };
+      persons: { rut: string }[];
+      certificate: { configured: boolean };
+    }>("/api/credentials/sii");
+    expect(status).toBe(200);
+    expect(body.company.configured).toBe(true);
+    expect(body.company.rut).toBe("76.123.456-7");
+    expect(body.persons.length).toBe(2);
+    expect(body.certificate.configured).toBe(true);
+  });
+
+  it("PUT /api/credentials/sii/company con RUT distinto → 409 rut_mismatch", async () => {
+    const { status, body } = await json<{ code: string }>("/api/credentials/sii/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rut: "99.999.999-9", password: "x4digit" }),
+    });
+    expect(status).toBe(409);
+    expect(body.code).toBe("rut_mismatch");
+  });
+
+  it("PUT /api/credentials/sii/company con clave corta → 422 validation_error", async () => {
+    const { status, body } = await json<{ code: string }>("/api/credentials/sii/company", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rut: "76.123.456-7", password: "x" }),
+    });
+    expect(status).toBe(422);
+    expect(body.code).toBe("validation_error");
+  });
+
+  it("PUT /api/credentials/sii/person agrega persona nueva", async () => {
+    const r = await fetch(`${API}/api/credentials/sii/person`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rut: "11.111.111-1", name: "Nuevo", password: "secreta" }),
+    });
+    expect(r.status).toBe(204);
+    const list = await json<{ persons: { rut: string }[] }>("/api/credentials/sii");
+    expect(list.body.persons.some((p) => p.rut === "11.111.111-1")).toBe(true);
+  });
+
+  it("DELETE /api/credentials/sii/person/:rut existente → 204", async () => {
+    const r = await fetch(`${API}/api/credentials/sii/person/10.341.986-7`, { method: "DELETE" });
+    expect(r.status).toBe(204);
+  });
+
+  it("DELETE /api/credentials/sii/person/:rut inexistente → 404", async () => {
+    const { status, body } = await json<{ code: string }>(
+      "/api/credentials/sii/person/99.999.999-9",
+      { method: "DELETE" },
+    );
+    expect(status).toBe(404);
+    expect(body.code).toBe("not_found");
+  });
+
+  it("PUT /api/credentials/certificate sin file → 422 invalid_pkcs12", async () => {
+    const form = new FormData();
+    form.append("password", "asdf");
+    const r = await fetch(`${API}/api/credentials/certificate`, { method: "PUT", body: form });
+    const body = (await r.json()) as { code: string };
+    expect(r.status).toBe(422);
+    expect(body.code).toBe("invalid_pkcs12");
+  });
+
+  it("PUT /api/credentials/certificate con file válido + password → 200 + certificate status", async () => {
+    const form = new FormData();
+    form.append("file", new Blob(["mock-cert-binary"], { type: "application/x-pkcs12" }));
+    form.append("password", "secreta");
+    const r = await fetch(`${API}/api/credentials/certificate`, { method: "PUT", body: form });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as { certificate: { configured: boolean; expires_at: string } };
+    expect(body.certificate.configured).toBe(true);
+    expect(body.certificate.expires_at).toBeDefined();
+  });
+
+  it("DELETE /api/credentials/certificate borra (204) y luego 404 si se reintenta", async () => {
+    const first = await fetch(`${API}/api/credentials/certificate`, { method: "DELETE" });
+    expect(first.status).toBe(204);
+    const second = await fetch(`${API}/api/credentials/certificate`, { method: "DELETE" });
+    const body = (await second.json()) as { code: string };
+    expect(second.status).toBe(404);
+    expect(body.code).toBe("certificate_not_configured");
+  });
+});

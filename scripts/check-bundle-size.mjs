@@ -30,6 +30,7 @@ const BUDGETS_KB = {
   "/(auth)/login/page": 200,
   "/(app)/inicio/page": 400,
   "/(app)/administracion/usuarios/page": 250,
+  "/(app)/administracion/credenciales/page": 250,
 };
 
 function gzipSizeKB(filePath) {
