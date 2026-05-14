@@ -20,6 +20,7 @@ import type {
   AcceptInvitationBody,
   UsersListResponse,
 } from "@/lib/api/users";
+import type { SetCompanyCredentialsBody, SetPersonCredentialsBody } from "@/lib/api/credentials";
 import {
   listUsers,
   findUser,
@@ -28,6 +29,12 @@ import {
   inviteUser,
   updateUser,
   isLastActiveOwner,
+  getCredentialsStatus,
+  setCompanyCreds,
+  setPersonCreds,
+  deletePersonCreds,
+  uploadCertificate,
+  deleteCertificate,
 } from "./db";
 import { SEED_SESSION_USER } from "./fixtures";
 
@@ -183,4 +190,84 @@ export const usersHandlers = [
   }),
 ];
 
-export const handlers = [...authHandlers, ...usersHandlers];
+export const credentialsHandlers = [
+  http.get("*/api/credentials/sii", () => {
+    return HttpResponse.json(getCredentialsStatus());
+  }),
+
+  http.put("*/api/credentials/sii/company", async ({ request }) => {
+    const body = (await request.json()) as SetCompanyCredentialsBody;
+    if (!body?.rut || !body?.password || body.password.length < 4) {
+      return HttpResponse.json(errorBody("validation_error", "RUT y clave requeridos."), {
+        status: 422,
+      });
+    }
+    const result = setCompanyCreds(body);
+    if (!result.ok) {
+      return HttpResponse.json(
+        errorBody("rut_mismatch", "El RUT no coincide con el RUT empresa del tenant."),
+        { status: 409 },
+      );
+    }
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.put("*/api/credentials/sii/person", async ({ request }) => {
+    const body = (await request.json()) as SetPersonCredentialsBody;
+    if (!body?.rut || !body?.password || body.password.length < 4) {
+      return HttpResponse.json(errorBody("validation_error", "RUT y clave requeridos."), {
+        status: 422,
+      });
+    }
+    setPersonCreds(body);
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.delete("*/api/credentials/sii/person/:rut", ({ params }) => {
+    const ok = deletePersonCreds(params.rut as string);
+    if (!ok) {
+      return HttpResponse.json(errorBody("not_found", "Credencial no encontrada."), {
+        status: 404,
+      });
+    }
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.put("*/api/credentials/certificate", async ({ request }) => {
+    const form = await request.formData();
+    const file = form.get("file");
+    const password = form.get("password");
+    if (!(file instanceof Blob) || !file.size) {
+      return HttpResponse.json(errorBody("invalid_pkcs12", "Archivo no recibido."), {
+        status: 422,
+      });
+    }
+    if (file.size > 100 * 1024) {
+      return HttpResponse.json(errorBody("invalid_pkcs12", "Archivo > 100 KB."), { status: 413 });
+    }
+    if (typeof password !== "string" || password.length < 4) {
+      return HttpResponse.json(
+        errorBody("invalid_certificate_password", "La clave del certificado no es válida."),
+        { status: 422 },
+      );
+    }
+    /* Mock no valida formato PKCS#12 real — asume válido. expires_at fijo
+       a 1 año desde ahora para que la UI pueda renderear "vence en N días". */
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    uploadCertificate({ expiresAt, subjectRut: "76.123.456-7" });
+    return HttpResponse.json({ certificate: getCredentialsStatus().certificate }, { status: 200 });
+  }),
+
+  http.delete("*/api/credentials/certificate", () => {
+    const ok = deleteCertificate();
+    if (!ok) {
+      return HttpResponse.json(
+        errorBody("certificate_not_configured", "No hay certificado configurado."),
+        { status: 404 },
+      );
+    }
+    return new HttpResponse(null, { status: 204 });
+  }),
+];
+
+export const handlers = [...authHandlers, ...usersHandlers, ...credentialsHandlers];

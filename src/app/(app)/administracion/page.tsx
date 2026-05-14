@@ -1,7 +1,39 @@
 "use client";
 
-import { Settings } from "lucide-react";
-import { QavanteEmpty, QavanteButton } from "@/components/qavante";
+import Link from "next/link";
+import { Users, KeyRound, ArrowRight } from "lucide-react";
+import { QavanteCard } from "@/components/qavante";
+
+interface SubModuleCardProps {
+  href: string;
+  icon: typeof Users;
+  title: string;
+  description: string;
+}
+
+function SubModuleCard({ href, icon: Icon, title, description }: SubModuleCardProps) {
+  return (
+    <Link
+      href={href}
+      className="block transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+    >
+      <QavanteCard variant="bordered" className="h-full">
+        <div className="flex items-start gap-3">
+          <div className="rounded-md bg-brand-primary-50 p-2 text-brand-primary">
+            <Icon className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="flex items-center gap-1 text-sm font-semibold text-neutral-dark">
+              {title}
+              <ArrowRight className="h-3 w-3 text-neutral-mid" aria-hidden="true" />
+            </h3>
+            <p className="mt-1 text-sm text-neutral-mid">{description}</p>
+          </div>
+        </div>
+      </QavanteCard>
+    </Link>
+  );
+}
 
 export default function AdministracionPage() {
   return (
@@ -10,16 +42,21 @@ export default function AdministracionPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Administración</h1>
         <p className="mt-1 text-sm text-neutral-mid">¿Cómo configuro mi equipo y mis fuentes?</p>
       </header>
-      <QavanteEmpty
-        icon={Settings}
-        title="Administración — construcción en Sprint C0 (issues C0-14 y C0-15)"
-        description="Acá vas a configurar usuarios y permisos del equipo, fuentes de datos conectadas (SII, BICE, Buk, TGR, Previred) y preferencias de la empresa. Por ahora podés ir a Usuarios desde el sidebar."
-        cta={
-          <QavanteButton size="sm" variant="ghost">
-            Ver roadmap
-          </QavanteButton>
-        }
-      />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <SubModuleCard
+          href="/administracion/usuarios"
+          icon={Users}
+          title="Usuarios"
+          description="Invitá, suspendé y cambiá roles del equipo que accede a tu Qavante."
+        />
+        <SubModuleCard
+          href="/administracion/credenciales"
+          icon={KeyRound}
+          title="Credenciales SII"
+          description="Claves del portal SII (empresa + personas) y certificado digital."
+        />
+      </div>
     </div>
   );
 }

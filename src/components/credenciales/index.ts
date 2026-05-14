@@ -1,0 +1,10 @@
+/* Barrel export para los componentes de Administración → Credenciales SII.
+   Mantener este archivo como fuente única de imports desde rutas /app/. */
+export { SiiCompanyCard } from "./sii-company-card";
+export { SiiCompanyDialog } from "./sii-company-dialog";
+export { SiiPersonsList } from "./sii-persons-list";
+export { SiiPersonDialog } from "./sii-person-dialog";
+export { CertificateCard } from "./certificate-card";
+export { CertificateUploadDialog } from "./certificate-upload-dialog";
+export { DeleteConfirmDialog } from "./delete-confirm-dialog";
+export { PasswordInput } from "./password-input";
