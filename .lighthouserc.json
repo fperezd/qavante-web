@@ -4,7 +4,7 @@
       "startServerCommand": "npx next start -p 3101",
       "startServerReadyPattern": "Ready",
       "startServerReadyTimeout": 60000,
-      "url": ["http://localhost:3101/login"],
+      "url": ["http://localhost:3101/login", "http://localhost:3101/administracion/credenciales"],
       "numberOfRuns": 3,
       "settings": {
         "formFactor": "mobile",
@@ -23,7 +23,8 @@
           "downloadThroughputKbps": 0,
           "uploadThroughputKbps": 0
         },
-        "chromeFlags": "--no-sandbox --headless=new"
+        "chromeFlags": "--no-sandbox --headless=new",
+        "extraHeaders": "{\"Cookie\":\"qavante_session=lighthouse-bypass\"}"
       }
     },
     "assert": {

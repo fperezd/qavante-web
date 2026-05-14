@@ -118,7 +118,7 @@ Trabajamos con un **backend `qavante-api` que está parcialmente bloqueado** (ve
 | Type              | tsc         | `tsc --noEmit` strict mode                                                                                 | `typecheck`    |
 | Lint              | eslint      | `next/core-web-vitals` + `next/typescript`                                                                 | `lint`         |
 | Bundle budget     | custom      | [scripts/check-bundle-size.mjs](../scripts/check-bundle-size.mjs) — gzip First Load JS por route           | `build`        |
-| Lighthouse mobile | `@lhci/cli` | `/login` mobile ≥0.85 perf, 3 runs en Pixel 4 emulation                                                    | `lighthouse`   |
+| Lighthouse mobile | `@lhci/cli` | `/login` + `/administracion/credenciales` mobile ≥0.85 perf, 3 runs en Pixel 4 emulation                   | `lighthouse`   |
 | Secrets scan      | gitleaks    | Histórico completo via `fetch-depth: 0`                                                                    | `secrets-scan` |
 
 7 jobs paralelos en `.github/workflows/ci.yml`. Si rojo, no se mergea.

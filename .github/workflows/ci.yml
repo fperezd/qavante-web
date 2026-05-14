@@ -76,7 +76,7 @@ jobs:
       - run: npm ci
       - name: Build (Next.js production)
         run: npm run build
-      - name: Lighthouse mobile (Kit C0 DoD sec 5.2 — /login >=85)
+      - name: Lighthouse mobile (Kit C0 DoD sec 5.2 — /login + /credenciales >=85)
         run: npm run lighthouse
       - name: Upload Lighthouse report
         if: always()
