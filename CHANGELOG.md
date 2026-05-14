@@ -16,12 +16,20 @@ Ciclo autónomo del 2026-05-13/14 con autorización owner. Adelanta el frontend 
 - **C1 prep — Contrato SII credentials** ([#58](https://github.com/fperezd/qavante-web/pull/58), [`docs/backend-contracts/c1-sii-credentials.md`](./docs/backend-contracts/c1-sii-credentials.md)) — 6 endpoints documentados (empresa + personas + certificado digital PKCS#12) con 10 restricciones de seguridad no-negociables.
 - **C1 prep — UI Administración → Credenciales SII** ([#59](https://github.com/fperezd/qavante-web/pull/59)) — `/app/administracion/credenciales` con 3 cards (Empresa + Personas + Certificado) + 7 componentes nuevos. Handlers MSW para los 6 endpoints. 9 tests sanity. ADR-0006 (Deferred) registra decisiones backend pendientes (KMS / storage / audit).
 - **Mobile responsive Playwright spec** ([#60](https://github.com/fperezd/qavante-web/pull/60), audit K.4 #3) — `playwright.config.ts` refactor a 2 projects (`http` + `mobile`). 4 specs cubriendo rutas públicas en viewport Pixel 5 con check anti-overflow horizontal.
-- **Tech-debt issues registrados**: [#56](https://github.com/fperezd/qavante-web/issues/56) (SSO Google/MS deferred a Fase 2) + [#57](https://github.com/fperezd/qavante-web/issues/57) (SII credentials cross-repo handoff).
+- **A11y improvements (skip link + aria-current + landmark labels)** ([#64](https://github.com/fperezd/qavante-web/pull/64)) — `SkipLink` component, `aria-current="page"` en sidebar links activos, `aria-label`s en aside/main/breadcrumbs. Mejora SR navigation sin cambios visuales.
+- **Unit tests para `format.ts` + `expiration-banner` extraídos** ([#65](https://github.com/fperezd/qavante-web/pull/65)) — extracción de helpers de `certificate-card.tsx` a módulos testables: `format.ts` (formatDateEsCL, daysUntilExpiration) + `expiration-banner.ts` (tone calc). 13 tests anti-regresión.
+- **Unit tests para `isValidRut` + `apiErrorToUserMessage`** ([#67](https://github.com/fperezd/qavante-web/pull/67)) — 13 + 15 tests cubren validación RUT chileno (DV módulo 11) + mapping Anexo C.3 de error técnicos a copys usuario.
+- **Tech-debt issues registrados**: [#56](https://github.com/fperezd/qavante-web/issues/56) (SSO Google/MS deferred a Fase 2) + [#68](https://github.com/fperezd/qavante-web/issues/68) (Playwright + MSW combo mobile para rutas protegidas) + [#69](https://github.com/fperezd/qavante-web/issues/69) (Storybook setup deferred) + [#71](https://github.com/fperezd/qavante-web/issues/71) (cross-repo handoff backend SII).
 
 #### Changed
 
 - **Bundle budget `/admin/usuarios` reducido vía dynamic imports** ([#61](https://github.com/fperezd/qavante-web/pull/61), audit K.4 #2) — dialogs `Invite/Suspend/SiiPerson/CertUpload/DeleteConfirm` ahora son `next/dynamic` con `ssr: false`. **First Load JS gzip: 194 → 146 KB (-25%, -48 KB)** sobre `/admin/usuarios`. Sin impacto UX.
 - **`docs/ARCHITECTURE.md` + `CONTRIBUTING.md`** ([#62](https://github.com/fperezd/qavante-web/pull/62)) — nueva sección "Dev environment + testing" con tabla de 7 capas de testing CI (unit/E2E HTTP/E2E mobile/type/lint/bundle/lighthouse/secrets). Actualiza endpoints mockeados (auth + users + SII). Documenta patrón anti-overflow para futuros mobile specs.
+- **Bundle budget `/aceptar-invitacion` agregado a `size:check`** ([#66](https://github.com/fperezd/qavante-web/pull/66)) — la ruta pública de aceptación de invitación entra al gate CI con su propio budget. Cubre regresión potencial al agregar dependencias al flow de claim invitation.
+
+#### Fixed
+
+- **`config_missing` reachable en `apiErrorToUserMessage`** ([#72](https://github.com/fperezd/qavante-web/pull/72), [#70](https://github.com/fperezd/qavante-web/issues/70)) — `isNetworkError()` (status===0) ganaba al switch `err.code`, volviendo unreachable la rama `case "config_missing"`. Reordenado: switch sobre code antes que network. Un dev sin `NEXT_PUBLIC_API_URL` ahora ve el mensaje técnico "NEXT_PUBLIC_API_URL no configurada" en vez de "perdiste conexión".
 
 ### Pendiente cierre Sprint C0
 
