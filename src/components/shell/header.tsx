@@ -51,29 +51,39 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       </button>
 
       <div className="ml-auto flex items-center gap-3">
-        {/* Pulso badge (placeholder) */}
-        <div className="hidden items-center gap-1.5 md:flex">
-          <span className="text-xs text-neutral-mid">Pulso</span>
-          <QavanteBadge variant="success">742</QavanteBadge>
+        {/* Pulso badge (placeholder) — contexto descriptivo para SR */}
+        <div
+          className="hidden items-center gap-1.5 md:flex"
+          aria-label="Pulso de tu empresa: 742 puntos"
+        >
+          <span className="text-xs text-neutral-mid" aria-hidden="true">
+            Pulso
+          </span>
+          <QavanteBadge variant="success" aria-hidden="true">
+            742
+          </QavanteBadge>
         </div>
 
         {/* Notificaciones */}
         <button
           type="button"
           className="relative rounded-md p-2 text-neutral-mid hover:bg-brand-primary-50"
-          aria-label="Notificaciones"
+          aria-label="Notificaciones (hay nuevas sin leer)"
         >
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger-500" />
+          <Bell className="h-5 w-5" aria-hidden="true" />
+          <span
+            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger-500"
+            aria-hidden="true"
+          />
         </button>
 
         {/* Avatar perfil */}
         <button
           type="button"
           className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary text-xs font-semibold text-surface"
-          aria-label="Perfil"
+          aria-label="Menú de perfil"
         >
-          FP
+          <span aria-hidden="true">FP</span>
         </button>
       </div>
     </header>

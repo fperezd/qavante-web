@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2, AlertCircle } from "lucide-react";
-import Link from "next/link";
 import { QavanteEmpty } from "@/components/qavante";
 import { SiiCompanyCard, SiiPersonsList, CertificateCard } from "@/components/credenciales";
 import { useSiiCredentialsStatus } from "@/lib/api/credentials";
@@ -12,16 +11,7 @@ export default function CredencialesPage() {
   return (
     <div className="space-y-6">
       <header>
-        <nav aria-label="Breadcrumb" className="text-sm text-neutral-mid">
-          <Link href="/administracion" className="hover:text-brand-primary">
-            Administración
-          </Link>
-          <span className="px-2" aria-hidden="true">
-            ›
-          </span>
-          <span className="text-neutral-dark">Credenciales SII</span>
-        </nav>
-        <h1 className="mt-2 text-2xl font-bold text-neutral-dark">Credenciales SII</h1>
+        <h1 className="text-2xl font-bold text-neutral-dark">Credenciales SII</h1>
         <p className="mt-1 text-sm text-neutral-mid">
           Las claves y el certificado que Qavante usa para acceder al portal SII en nombre de tu
           empresa.

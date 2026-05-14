@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { AppHeader } from "@/components/shell/header";
 import { AppSidebar } from "@/components/shell/sidebar";
 import { Breadcrumbs } from "@/components/shell/breadcrumbs";
+import { SkipLink } from "@/components/shell/skip-link";
 import { AssistantTrigger } from "@/components/assistant/trigger";
 import type { UserRole } from "@/lib/auth/types";
 
@@ -17,6 +18,7 @@ export function AppShell({ children, userRole }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      <SkipLink />
       <AppHeader onMenuClick={() => setSidebarOpen(true)} />
 
       <div className="flex">
@@ -26,7 +28,7 @@ export function AppShell({ children, userRole }: AppShellProps) {
           userRole={userRole}
         />
 
-        <main className="min-w-0 flex-1">
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
           <div className="mx-auto max-w-[1440px] space-y-6 p-6 md:p-8">
             <Breadcrumbs />
             {children}

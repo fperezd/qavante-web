@@ -12,6 +12,7 @@ const labels: Record<string, string> = {
   gestion: "Gestión",
   administracion: "Administración",
   usuarios: "Usuarios",
+  credenciales: "Credenciales SII",
 };
 
 function labelFor(segment: string): string {
@@ -34,7 +35,9 @@ export function Breadcrumbs() {
           <span key={href} className="flex items-center gap-1">
             {i > 0 && <ChevronRight className="h-3 w-3" aria-hidden="true" />}
             {isLast ? (
-              <span className="font-medium text-neutral-dark">{labelFor(segment)}</span>
+              <span className="font-medium text-neutral-dark" aria-current="page">
+                {labelFor(segment)}
+              </span>
             ) : (
               <Link href={href} className="hover:text-brand-primary">
                 {labelFor(segment)}
