@@ -165,6 +165,29 @@ expect(overflows).toBe(false);
 
 Para agregar tests sobre nuevas rutas `/app/*`: extender el helper si necesitás otros roles, reutilizar el patrón de overflow chequeo donde aplique (admin/usuarios tiene tabla que scrollea horizontal — esperado, no asertar overflow ahí).
 
+## Storybook — Design System (#69 parcial)
+
+Storybook 10 con framework `nextjs-vite` cubre la **Capa 1 del Design System Qavante** (`src/components/qavante/`). Las stories viven co-located junto al componente: `src/components/qavante/qavante-button.stories.tsx`, etc.
+
+```bash
+npm run storybook         # dev en http://localhost:6006
+npm run build-storybook   # output estático en storybook-static/ (ignorado por git)
+```
+
+Addons habilitados:
+
+- `@storybook/addon-a11y` — panel a11y por story (modo `todo` — no falla build, sólo reporta).
+- `@storybook/addon-docs` — auto-genera tabla de props desde TypeScript + JSDoc.
+
+Stories actuales (Capa 1, 6 componentes): `QavanteButton`, `QavanteInput`, `QavanteCard`, `QavanteBadge`, `QavanteEmpty`, `QavanteSourceTag`.
+
+Pendientes (deferred a PRs siguientes, ver #69):
+
+- **Capa 2 (admin/credenciales):** `UsersTable`, dialogs admin, `SiiCompanyCard`, `CertificateCard`, dialogs credenciales.
+- **Visual regression con Chromatic:** opt-in tras tener Capa 2.
+
+`storybook-static/` está en `.gitignore` y nunca se deploya a Cloudflare Workers. El glob de `.storybook/main.ts` solo lo lee el binario `storybook` — Next.js no incluye `.stories.tsx` en el bundle porque ninguna route los importa.
+
 ## Reglas duras (no negociables)
 
 Resumen del prompt CC-WEB ([CLAUDE.md](./CLAUDE.md)). Si dudás, leer el original:
