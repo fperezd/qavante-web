@@ -181,12 +181,31 @@ Addons habilitados:
 
 Stories actuales (Capa 1, 6 componentes): `QavanteButton`, `QavanteInput`, `QavanteCard`, `QavanteBadge`, `QavanteEmpty`, `QavanteSourceTag`.
 
-Pendientes (deferred a PRs siguientes, ver #69):
-
-- **Capa 2 (admin/credenciales):** `UsersTable`, dialogs admin, `SiiCompanyCard`, `CertificateCard`, dialogs credenciales.
-- **Visual regression con Chromatic:** opt-in tras tener Capa 2.
-
 `storybook-static/` está en `.gitignore` y nunca se deploya a Cloudflare Workers. El glob de `.storybook/main.ts` solo lo lee el binario `storybook` — Next.js no incluye `.stories.tsx` en el bundle porque ninguna route los importa.
+
+### Chromatic — visual regression
+
+Wireup técnico listo en `.github/workflows/chromatic.yml` + npm script `chromatic`. El job se **skipea silenciosamente** mientras no exista el secret `CHROMATIC_PROJECT_TOKEN` en GitHub.
+
+**Setup pendiente (acción del owner):**
+
+1. Crear cuenta en [chromatic.com](https://chromatic.com) (gratis hasta 5 000 snapshots/mes).
+2. Conectar el repo `fperezd/qavante-web` desde la UI de Chromatic.
+3. Copiar el `Project Token` que muestra Chromatic.
+4. En GitHub: Settings → Secrets and variables → Actions → New repository secret.
+   - Name: `CHROMATIC_PROJECT_TOKEN`
+   - Value: el token de Chromatic.
+5. Push a `main` o re-run del workflow → Chromatic genera el baseline inicial con todas las stories actuales (Capa 1 + Capa 2).
+
+A partir del 6, cada PR muestra link a la UI de Chromatic con los snapshots diff vs `main`. El reviewer aprueba/rechaza cada cambio visual desde la UI.
+
+**Run local (opcional, requiere el token en `.env.local`):**
+
+```bash
+CHROMATIC_PROJECT_TOKEN=xxx npm run chromatic
+```
+
+`--only-changed` (TurboSnap) re-snapshot solo de stories cuyos archivos cambiaron en el PR → runs más rápidos sin perder cobertura.
 
 ## Reglas duras (no negociables)
 

@@ -1,0 +1,54 @@
+name: Chromatic
+
+# Visual regression para Storybook (Capa 1 + Capa 2 del Design System Qavante).
+# Chromatic toma un snapshot de cada story y lo compara contra el baseline del
+# branch destino. Si hay diferencias visuales, el PR muestra link a la review
+# UI de Chromatic donde el reviewer aprueba/rechaza cada cambio.
+#
+# Gate: si CHROMATIC_PROJECT_TOKEN no está seteado en GitHub secrets, el job
+# se skipea silenciosamente (no bloquea CI). Setup pendiente del owner —
+# ver CONTRIBUTING.md § Chromatic.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  chromatic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Chromatic necesita historia completa para diff contra baseline.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check Chromatic token
+        id: check-token
+        run: |
+          if [ -z "${{ secrets.CHROMATIC_PROJECT_TOKEN }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::notice::CHROMATIC_PROJECT_TOKEN no está seteado en GitHub secrets — skip job. Ver CONTRIBUTING.md § Chromatic para setup."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install deps
+        if: steps.check-token.outputs.skip == 'false'
+        run: npm ci
+
+      - name: Run Chromatic
+        if: steps.check-token.outputs.skip == 'false'
+        uses: chromaui/action@v11
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          # exit-zero-on-changes: marca el job como success aunque haya
+          # cambios visuales. El reviewer decide en la UI de Chromatic.
+          exitZeroOnChanges: true
+          # onlyChanged: true → re-snapshot solo de stories cuyos archivos
+          # cambiaron en el PR (TurboSnap). Acelera runs sin perder cobertura.
+          onlyChanged: true
