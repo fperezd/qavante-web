@@ -40,6 +40,21 @@ jobs:
       - run: npm ci
       - run: npm run test
 
+  test-storybook:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # `chromium-headless-shell` es lo que @vitest/browser-playwright usa por
+      # default (no el chromium full). Si solo instalamos `chromium` el job
+      # falla con "Executable doesn't exist at chrome-headless-shell".
+      - run: npx playwright install --with-deps chromium chromium-headless-shell
+      - run: npm run test:storybook
+
   build:
     runs-on: ubuntu-latest
     steps:

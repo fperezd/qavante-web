@@ -178,10 +178,25 @@ Addons habilitados:
 
 - `@storybook/addon-a11y` — panel a11y por story (modo `todo` — no falla build, sólo reporta).
 - `@storybook/addon-docs` — auto-genera tabla de props desde TypeScript + JSDoc.
+- `@storybook/addon-vitest` — corre cada story como test browser (valida que monta sin errores runtime). Ver § Storybook tests vía Vitest abajo.
 
-Stories actuales (Capa 1, 6 componentes): `QavanteButton`, `QavanteInput`, `QavanteCard`, `QavanteBadge`, `QavanteEmpty`, `QavanteSourceTag`.
+Stories actuales (Capa 1 + Capa 2, 19 componentes): `QavanteButton`, `QavanteInput`, `QavanteCard`, `QavanteBadge`, `QavanteEmpty`, `QavanteSourceTag` + `StatusBadge`, `RoleSelect`, `UsersTable`, `InviteUserDialog`, `SuspendUserDialog`, `PasswordInput`, `SiiCompanyCard`, `SiiPersonsList`, `CertificateCard`, `SiiCompanyDialog`, `SiiPersonDialog`, `CertificateUploadDialog`, `DeleteConfirmDialog`.
 
 `storybook-static/` está en `.gitignore` y nunca se deploya a Cloudflare Workers. El glob de `.storybook/main.ts` solo lo lee el binario `storybook` — Next.js no incluye `.stories.tsx` en el bundle porque ninguna route los importa.
+
+### Storybook tests vía Vitest
+
+`vitest.config.ts` define dos proyectos:
+
+- **`unit`** — los 74 unit tests sobre `src/`. Excluye `*.stories.tsx`. Rápido (~8s).
+- **`storybook`** — auto-genera un test por story con `@storybook/addon-vitest`. Cada story renderea en Chromium headless via `@vitest/browser-playwright` y valida que monta sin errores. Más lento (~50s para 86 tests).
+
+```bash
+npm run test              # solo proyecto unit (rápido, flujo dev)
+npm run test:storybook    # solo proyecto storybook (browser, opt-in)
+```
+
+CI corre ambos jobs por separado (`test` + `test-storybook`). Mantenemos `test` rápido para no penalizar el tiempo de PR.
 
 ### Chromatic — visual regression
 
