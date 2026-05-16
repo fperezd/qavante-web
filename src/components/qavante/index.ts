@@ -4,6 +4,10 @@ export { QavanteCard, type QavanteCardProps } from "./qavante-card";
 export { QavanteBadge, type QavanteBadgeProps } from "./qavante-badge";
 export { QavanteEmpty, type QavanteEmptyProps } from "./qavante-empty";
 export {
+  FeatureUnavailableState,
+  type FeatureUnavailableStateProps,
+} from "./feature-unavailable-state";
+export {
   QavanteSourceTag,
   type QavanteSourceTagProps,
   type QavanteSource,
