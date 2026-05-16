@@ -38,6 +38,21 @@ const preview: Preview = {
         { name: "qavante-background", value: "#f7f7f8" },
       ],
     },
+    /* Anti-flakiness de Chromatic (visual regression). Sin esto, las stories
+       con spinner (`animate-spin` en Loader2 — QavanteButton loading, cards
+       en estado loading) generan diffs no deterministas: cada captura agarra
+       el spinner en otro ángulo. Causa raíz de los 4 falsos positivos vistos
+       en PR #86 (cero archivos UI cambiados vs baseline).
+         - pauseAnimationAtEnd: congela animaciones CSS en su frame final.
+         - delay: deja asentar fuentes/layout antes del snapshot.
+         - diffThreshold: 0.2 tolera antialiasing sub-pixel sin enmascarar
+           regresiones reales (cambios estructurales superan 0.2 holgado;
+           Chromatic default 0.063 es muy sensible para apps con tipografía). */
+    chromatic: {
+      pauseAnimationAtEnd: true,
+      delay: 300,
+      diffThreshold: 0.2,
+    },
   },
   decorators: [
     (Story) => {
