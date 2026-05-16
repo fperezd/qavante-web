@@ -21,6 +21,14 @@
 
 ## P0 — Supuesto de estado FALSO (bloqueante)
 
+> **⚠️ Actualización 2026-05-16 — P0 YA NO SE CUMPLE.** La verificación dura
+> de hoy (ver **[P4](#p4--verificación-dura-del-openapi-de-prod-2026-05-16)**)
+> muestra que el backend **bajó la mayor parte de la capa de
+> taxonomía/gestión a prod** entre el 15 y el 16. P0 documenta el estado al
+> **2026-05-15**; léase junto con P4. El bloqueo dejó de ser "backend no
+> expone nada" y pasó a ser "3 dominios faltan + drift de credenciales SII a
+> reconciliar + confirmación oficial del handoff pendiente".
+
 **Addendum (Tabla 2):** _"Backend C1 desarrollado 100%; C2 implementado"_ y
 _"Próximo PR #83 = integración FE post-handoff"_.
 
@@ -91,6 +99,141 @@ backend exponga estos contratos. Orden correcto de la cola:
 
 ---
 
+## P3 — Datos duros del backend (Addendum Técnico Escalamiento `qavante-api`, 2026-05-16)
+
+Fernando compartió el `QAVANTE_ADDENDUM_TECNICO_ESCALAMIENTO.docx` de `qavante-api`
+("Arquitectura 1→50→100 Clientes"). De sus 7 refactors, **3 cierran preguntas
+abiertas de este handoff con datos reales** — ya no son hipótesis del addendum FE:
+
+### P3-1 · `canonical_category` = ENUM CERRADO (resuelve stop condition §30)
+
+El backend cierra `canonical_category` de `TEXT` libre a un **ENUM PostgreSQL
+de 16 valores** (migration `0026_canonical_category_enum.sql`):
+
+```text
+revenue_sales · revenue_services · cogs_materials · cogs_labor ·
+payroll_salaries · payroll_benefits · taxes_vat · taxes_income ·
+taxes_municipal · capex_equipment · capex_property ·
+financing_loan_disbursement · financing_loan_payment ·
+treasury_transfer_in · treasury_transfer_out · uncategorized
+```
+
+- **Responde** la stop condition §30 del addendum FE ("si backend devuelve
+  `canonical_category` como string libre sin metadata, detenerse"): **es enum
+  estructurado, no string libre**. ✅ El FE puede proceder cuando baje.
+- **Drift de taxonomía confirmado:** estos 16 valores (categorías contables /
+  P&L) **NO coinciden** con la lista del addendum FE §10.1 / Tabla 7
+  (`client_collection`, `supplier_payment`, `card_processor_settlement`,
+  `payroll_payment`, `tax_payment`… — taxonomía de flujo de caja operativo).
+  Son **dos taxonomías distintas**.
+- **Resolución autoritativa:** **gana el enum del backend** (es el contrato
+  real, migration aplicada). El FE adopta los 16 valores reales y los mapea a
+  labels humanos (addendum FE §11 / Tabla 5 sigue siendo el patrón de
+  traducción, pero sobre el enum real). La lista de la Tabla 7 del addendum FE
+  queda **obsoleta como contrato** — es referencia de intención UX, no de
+  valores. El brief de taxonomía ([`taxonomy-handoff-brief.md`](./taxonomy-handoff-brief.md))
+  se actualiza con esto.
+
+### P3-2 · Patrón async-task para syncs pesados (cambia el contrato de ingesta)
+
+El backend refactoriza los syncs pesados (BICE/Previred/SII ingesta) de
+síncrono a **task queue**: `POST /x/sync → {task_id, status:"pending"}` +
+`GET /x/sync/{task_id}` (polling).
+
+- **Impacto FE:** los hooks TanStack de ingesta dejan de ser "fetch que
+  devuelve data" → pasan a "iniciar task + `refetchInterval` hasta
+  `status:done`". Patrón reutilizable a construir cuando baje.
+- **Afecta a ambos handoffs:** el contrato SII (`c1-sii-credentials.md`) y el
+  brief taxonomía asumían ingesta síncrona. La **configuración** de
+  credenciales (PUT/GET) probablemente sigue síncrona; lo que cambia es la
+  **ejecución del sync/ingesta**. CC-API debe confirmar qué endpoints son
+  async-task. Registrado en el brief.
+
+### P3-3 · Multi-tenant API keys — transparente al FE (verificado)
+
+El backend pasa de `SERVER_API_KEY` global a tabla `core.api_keys`. **El FE de
+`qavante-web` no usa API keys** — autentica por cookie de sesión httpOnly
+(verificado por `grep` en `src/`, 2026-05-16: cero usos). El cambio es
+server-to-server, **transparente al flujo de usuario**. Único spillover futuro:
+si baja `/admin/api-keys`, sería UI nueva no contemplada (registrado como
+issue, no en scope del addendum FE v2.0).
+
+> Los refactors backend #1 (RLS), #3 (BICE automation), #4 (connection
+> pooling), #7 (rate limiting) son internos del backend — transparentes al FE,
+> sin cambio de contrato ni código.
+
+---
+
+## P4 — Verificación dura del OpenAPI de prod (2026-05-16)
+
+**Método:** `curl https://tooxs-gestion-api.fly.dev/openapi.json` el
+2026-05-16, parseo de `paths`. Resultado: **73 paths** (vs. 59 el 2026-05-15).
+Esto **invierte P0**: el 2º handoff backend bajó (parcial) a prod.
+
+### P4-1 · Inventario verificado vs. addendum §10
+
+| Dominio addendum                                       | Path real en prod (2026-05-16)                                                                              | Estado                                                                                                                        |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Canonical categories (§10.1)                           | `/api/treasury/canonical-categories`                                                                        | ✅ **LIVE**                                                                                                                   |
+| Management accounts (§10.2)                            | `/api/management/accounts`, `/tree`, `/{id}`, `/{id}/move`, `/{id}/toggle-active`, `/{id}/toggle-visible`   | ✅ **LIVE** (CRUD+move+toggles completos)                                                                                     |
+| Management dimensions (§10.4)                          | `/api/management/dimensions`, `/{id}`, `/{id}/values`                                                       | ✅ **LIVE**                                                                                                                   |
+| Dimension values / assignments (§10.5)                 | `/api/management/dimension-values/{id}`, `/{id}/move`, `/api/management/dimension-assignments`, `/{id}`     | ✅ **LIVE**                                                                                                                   |
+| Bank movement classify (§10.7)                         | `/api/bank-movements/{movement_id}/classify` — **sin** prefijo `treasury`                                   | ✅ **LIVE** (confirma P1-4)                                                                                                   |
+| SII ingesta C1 (#71 destrabe)                          | `/api/sii/f29/{folio}`, `/pdf`, `/api/sii/rcv/compras`, `/ventas`, `/api/sii/bhe`, `/api/sii/dte-recibidos` | ✅ **LIVE**                                                                                                                   |
+| Payroll / banco / TGR / Pulso                          | `/api/buk/*`, `/api/bice/*`, `/api/tgr/*`, `/api/confianza/score`                                           | ✅ **LIVE**                                                                                                                   |
+| Industry templates (§10.3)                             | —                                                                                                           | ❌ **AUSENTE**                                                                                                                |
+| Currencies / exchange-rates / company-settings (§10.6) | —                                                                                                           | ❌ **AUSENTE**                                                                                                                |
+| Classification rules CRUD + suggest-rule (§10.7)       | —                                                                                                           | ❌ **AUSENTE**                                                                                                                |
+| Feature-flags config (`/api/management/config`)        | —                                                                                                           | ❌ **AUSENTE** → aplica fallback [ADR-0008](../adr/0008-feature-flags-gating-pantallas-sin-backend.md) (presencia en OpenAPI) |
+
+### P4-2 · Drift de credenciales SII (handoff #71) — **bloqueante, requiere decisión humana**
+
+El contrato [`c1-sii-credentials.md`](../backend-contracts/c1-sii-credentials.md)
+especificaba **6 endpoints `/api/credentials/sii/*`**. El backend **no** los
+expone; en su lugar shipeó un **modelo genérico de fuentes**:
+
+```text
+/api/admin/sources
+/api/admin/sources/{source_code}
+/api/admin/sources/{source_code}/credential
+/api/admin/sources/{source_code}/credential/test
+/api/admin/sources/{source_code}/consent
+/api/admin/sources/{source_code}/sync-config
+```
+
+Esto es un **drift de contrato de shape + path**, no un `generate:api`
+mecánico. Por **CLAUDE.md regla 16** (y el carácter bidireccional del
+[runbook SII](../backend-contracts/c1-sii-handoff-runbook.md) §3) **NO se
+parchea en silencio**. Decisión pendiente de Fernando:
+
+- **Opción 1 — el FE se adapta al modelo `admin/sources` genérico** (el
+  backend ya lo deployó; SII pasa a ser un `source_code` más). Implica
+  reescribir tipos hand-rolled de `credentials.ts` + handlers MSW + UI de
+  `/administracion/credenciales` contra el shape genérico.
+- **Opción 2 — se pide a CC-API volver al contrato `/api/credentials/sii`**
+  (más trabajo backend, menos churn FE; el contrato ya estaba cerrado).
+
+Hasta resolver esto, `npm run generate:api` queda **diferido**: regenerar
+ahora arrastra el shape genérico y rompería los tipos hand-rolled sin una
+decisión tomada.
+
+### P4-3 · Resolución autoritativa
+
+- **El handoff de taxonomía/gestión está mayormente DESTRABADO.** La cola de
+  [P0](#p0--supuesto-de-estado-falso-bloqueante) se reordena: lo que faltaba
+  no es "todo el backend" sino **3 dominios** (industry-templates, currencies,
+  classification-rules) + `suggest-rule` + el drift SII.
+- **Trabajo FE que se puede ejecutar YA sin más backend** (no inventa tipos):
+  feature-flags ([ADR-0008](../adr/0008-feature-flags-gating-pantallas-sin-backend.md))
+  con default OFF, esqueletos de ruta con estado feature-unavailable,
+  componentes presentacionales puros + Storybook. Es el alcance "PR #83" del
+  addendum **sin** `generate:api`.
+- **Lo que sigue esperando backend/decisión:** integración real de datos
+  (post-decisión drift SII + confirmación oficial del handoff), Monedas,
+  Reglas CRUD, Plantillas de industria.
+
+---
+
 ## P2 — Gaps de proceso (resueltos en esta tanda de PRs)
 
 | Gap                                                                                                    | Resolución                                                                                                                                          |
@@ -117,15 +260,21 @@ No todo es conflicto — la mayor parte del addendum es excelente y se respeta t
 
 ## Resumen ejecutivo de decisiones
 
-| ID   | Conflicto                   | Resolución                                  | Dónde se ejecuta       |
-| ---- | --------------------------- | ------------------------------------------- | ---------------------- |
-| P0   | Backend no expone endpoints | Cola: #71 → 2º handoff → PRs #83+           | Brief CC-API + runbook |
-| P1-1 | Edge Runtime                | No declarar runtime (gana CLAUDE.md)        | Cada página nueva      |
-| P1-2 | Pages vs Workers            | Workers (gana realidad)                     | Sin acción de código   |
-| P1-3 | `src/features/`             | Mapear a `src/components/` + `src/lib/api/` | ADR-0007               |
-| P1-4 | Naming endpoints            | FE consume OpenAPI real, no inventa         | Handoff bidireccional  |
-| P2   | Proceso (.docx, ADRs, gate) | Formalizado en esta tanda                   | Estos PRs              |
+| ID   | Conflicto                      | Resolución                                                                         | Dónde se ejecuta          |
+| ---- | ------------------------------ | ---------------------------------------------------------------------------------- | ------------------------- |
+| P0   | Backend no expone endpoints    | Cola: #71 → 2º handoff → PRs #83+                                                  | Brief CC-API + runbook    |
+| P1-1 | Edge Runtime                   | No declarar runtime (gana CLAUDE.md)                                               | Cada página nueva         |
+| P1-2 | Pages vs Workers               | Workers (gana realidad)                                                            | Sin acción de código      |
+| P1-3 | `src/features/`                | Mapear a `src/components/` + `src/lib/api/`                                        | ADR-0007                  |
+| P1-4 | Naming endpoints               | FE consume OpenAPI real, no inventa                                                | Handoff bidireccional     |
+| P2   | Proceso (.docx, ADRs, gate)    | Formalizado en esta tanda                                                          | Estos PRs                 |
+| P3-1 | `canonical_category` enum      | Gana enum backend (16 valores, migr. 0026)                                         | Brief taxonomía + FE      |
+| P3-2 | Syncs async-task               | FE adopta task_id + polling                                                        | Brief taxonomía + FE      |
+| P3-3 | Multi-tenant API keys          | Transparente (FE solo cookie, verificado)                                          | Sin acción de código      |
+| P4-1 | Backend bajó a prod (73 paths) | Taxonomía/gestión LIVE; P0 invertido                                               | Reordena cola del handoff |
+| P4-2 | Drift credenciales SII         | `admin/sources` genérico vs contrato `/credentials/sii` — **decisión de Fernando** | Bloquea `generate:api`    |
+| P4-3 | Faltan 3 dominios              | industry-templates / currencies / classification-rules + suggest-rule              | Siguen esperando backend  |
 
 ---
 
-Generated by CC-WEB — 2026-05-15.
+Generated by CC-WEB — 2026-05-15 (P3 agregado 2026-05-16 con datos del Addendum Técnico Escalamiento `qavante-api`; P4 agregado 2026-05-16 con verificación dura del `/openapi.json` de prod).

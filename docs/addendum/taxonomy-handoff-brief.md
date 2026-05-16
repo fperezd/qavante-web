@@ -17,10 +17,21 @@ producto: estructura de gestión (taxonomía/management accounts), vistas de
 gestión (dimensions), multimoneda, plantillas por industria, reglas de
 clasificación y clasificación de movimientos bancarios.
 
-**Estado verificado (2026-05-15):** el OpenAPI de producción
-(`tooxs-gestion-api.fly.dev`, 59 paths) **no expone NINGUNO** de estos
-endpoints. El addendum (Tabla 2) asumía "Backend C1 100% / C2 implementado" —
-es incorrecto. Ver [`reconciliation.md`](./reconciliation.md) P0.
+**Estado al 2026-05-15:** el OpenAPI de prod (59 paths) no exponía ninguno
+de estos endpoints. El addendum (Tabla 2) asumía "Backend C1 100% / C2
+implementado" — era incorrecto. Ver [`reconciliation.md`](./reconciliation.md) P0.
+
+> **🔄 Actualización 2026-05-16 (verificación dura):** el OpenAPI de prod
+> ahora expone **73 paths** y **la mayor parte de este handoff ya está LIVE**
+> (canonical-categories, management/accounts+tree+move+toggles,
+> management/dimensions+values+assignments, bank-movements/classify, SII f29
+> ingesta). **Faltan solo 3 dominios**: industry-templates, currencies,
+> classification-rules (+ `suggest-rule`, + `/management/config`). Además hay
+> un **drift de credenciales SII** (`admin/sources` genérico vs contrato
+> `/credentials/sii`). Detalle e inventario completo en
+> [`reconciliation.md`](./reconciliation.md) **P4**. Este brief sigue siendo
+> el insumo de co-diseño para los 3 dominios faltantes y para resolver el
+> drift; ya no aplica como "el backend no expone nada".
 
 Por lo tanto: **este es un handoff de especificación, no de integración.** El
 addendum define lo que el FE espera; CC-API tiene que **diseñar, confirmar e
@@ -29,14 +40,14 @@ implementar** el contrato backend real. No es "el FE ya está, conectá" — es
 
 ## 2. Diferencia crítica con el handoff SII
 
-| | Handoff SII (#71) | Este handoff (taxonomía) |
-| --- | --- | --- |
-| Contrato backend | **Completo y cerrado** (`c1-sii-credentials.md`, 399 líneas, shapes/errores/permisos definidos por CC-WEB) | **NO existe.** El addendum §10 da *shapes esperados FE*, no un contrato backend validado |
-| Rol de CC-API | Implementar contra contrato cerrado | **Co-diseñar** el contrato + implementar |
-| Fuente de verdad del shape | El contrato escrito | El **OpenAPI que CC-API publique** manda; el addendum es input, no ley |
+|                            | Handoff SII (#71)                                                                                          | Este handoff (taxonomía)                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Contrato backend           | **Completo y cerrado** (`c1-sii-credentials.md`, 399 líneas, shapes/errores/permisos definidos por CC-WEB) | **NO existe.** El addendum §10 da _shapes esperados FE_, no un contrato backend validado |
+| Rol de CC-API              | Implementar contra contrato cerrado                                                                        | **Co-diseñar** el contrato + implementar                                                 |
+| Fuente de verdad del shape | El contrato escrito                                                                                        | El **OpenAPI que CC-API publique** manda; el addendum es input, no ley                   |
 
-**Implicancia:** los JSON de ejemplo del addendum §10 son una *propuesta de
-partida*, no un contrato. CC-API debe devolver el contrato real (paths +
+**Implicancia:** los JSON de ejemplo del addendum §10 son una _propuesta de
+partida_, no un contrato. CC-API debe devolver el contrato real (paths +
 shapes + enums + errores + permisos), y si difiere del addendum, **CC-WEB
 ajusta el addendum y sus mocks** — es bidireccional.
 
@@ -77,17 +88,35 @@ Estos son los que bloquean decisiones FE ya tomadas en ADRs:
   (fallback del ADR-0008).
 - **Endpoints `move`.** [ADR-0009](../adr/0009-politica-drag-and-drop.md)
   hace que el DnD del FE dependa de `POST /api/management/accounts/{id}/move`
-  y `POST /api/management/dimension-values/{id}/move`. Confirmar existencia
-  + payload exacto (`{new_parent_id, sort_order}`) + comportamiento ante
-  ciclo (¿código de error `category_cycle_detected` / `dimension_cycle_detected`
-  como en addendum Tabla 18?).
+  y `POST /api/management/dimension-values/{id}/move`. Confirmar existencia,
+  payload exacto (`{new_parent_id, sort_order}`) y comportamiento ante ciclo
+  (¿código de error `category_cycle_detected` / `dimension_cycle_detected`
+  como en addendum Tabla 18?). ✅ **Existencia confirmada 2026-05-16** por P4
+  (ambos paths LIVE); falta validar payload/error al regenerar tipos.
 - **Permisos.** ¿RBAC backend devuelve 403 según la matriz del addendum
   Tabla 17 (owner/admin escriben, finance_manager/viewer no)? El FE oculta
   acciones pero el backend debe validar.
-- **`canonical_category`: enum o string libre.** Stop condition del addendum
-  §30: si el backend devuelve `canonical_category` como string libre sin
-  metadata, el FE se detiene. Confirmar que viene con metadata estructurada
-  (§10.1).
+- **`canonical_category`: enum o string libre.** ✅ **RESUELTO 2026-05-16** por
+  el Addendum Técnico Escalamiento de `qavante-api`: es **ENUM CERRADO de 16
+  valores** (migration `0026_canonical_category_enum.sql`): `revenue_sales`,
+  `revenue_services`, `cogs_materials`, `cogs_labor`, `payroll_salaries`,
+  `payroll_benefits`, `taxes_vat`, `taxes_income`, `taxes_municipal`,
+  `capex_equipment`, `capex_property`, `financing_loan_disbursement`,
+  `financing_loan_payment`, `treasury_transfer_in`, `treasury_transfer_out`,
+  `uncategorized`. **Drift confirmado:** estos 16 valores ≠ la lista del
+  addendum FE §10.1/Tabla 7 (`client_collection`, `supplier_payment`…). Gana
+  el enum backend (es el contrato real). CC-API debe confirmar **qué endpoint
+  expone estos valores con sus labels humanos** (el enum SQL son solo códigos;
+  el FE necesita el mapping código→label, addendum FE §11/Tabla 5). Pregunta
+  abierta restante: ¿el enum trae metadata (label, dirección esperada,
+  cashflow_group) vía endpoint, o el FE hardcodea el mapping de 16 labels?
+- **Patrón de ejecución de syncs: ¿síncrono o async-task?** El Addendum
+  Técnico Escalamiento (#5) refactoriza los syncs pesados (ingesta
+  BICE/Previred/SII) a task queue: `POST /x/sync → {task_id}` +
+  `GET /x/sync/{task_id}` polling. Confirmar **qué endpoints de ingesta son
+  async-task** vs cuáles siguen síncronos (la _configuración_ de credenciales
+  PUT/GET probablemente sigue síncrona; la _ejecución_ del sync no). El FE
+  construye un patrón `useAsyncTask` reutilizable según esto.
 - **Decisiones de almacenamiento/arquitectura backend** (análogo a ADR-0006
   de SII): si hay decisiones no triviales (cómo se modela el árbol, RLS por
   tenant, etc.), CC-API abre su propio ADR en `qavante-api/docs/adr/`.
@@ -104,17 +133,26 @@ Estos son los que bloquean decisiones FE ya tomadas en ADRs:
 
 ## 6. DoD del handoff (cuándo está listo para que CC-WEB integre)
 
-- [ ] CC-API publica contrato (puede ser un `.md` en `qavante-api/docs/contracts/`
-      o directamente el OpenAPI) cubriendo los 7 dominios del §3.
-- [ ] `/openapi.json` en `tooxs-gestion-api.fly.dev` expone los paths con
-      shapes + enums + errores + permisos.
-- [ ] Naming de paths resuelto (punto §4) y comunicado a CC-WEB.
-- [ ] `/management/config` definido (existe con shape, o confirmado que no y
-      el FE usa fallback).
-- [ ] Endpoints `move` confirmados o explícitamente diferidos (el FE saldría
-      sin DnD, con reordenamiento por menú — ADR-0009).
+- [~] CC-API publica contrato cubriendo los 7 dominios del §3 — **parcial
+  (2026-05-16):** 4 de 7 dominios LIVE en `/openapi.json`; faltan
+  industry-templates, currencies, classification-rules.
+- [~] `/openapi.json` expone los paths con shapes + enums + errores +
+  permisos — **parcial:** paths LIVE verificados (P4-1); falta validar
+  shapes/enums/permisos al regenerar tipos (diferido por drift SII).
+- [x] Naming de paths resuelto (punto §4) — **confirmado por OpenAPI real:**
+      `/api/management/*`, `/api/treasury/canonical-categories`, y
+      `/api/bank-movements/{id}/classify` **sin** prefijo `treasury` (P1-4).
+- [ ] `/management/config` definido — **NO existe (2026-05-16)** → el FE usa
+      el fallback de [ADR-0008](../adr/0008-feature-flags-gating-pantallas-sin-backend.md)
+      (presencia del endpoint en el OpenAPI).
+- [x] Endpoints `move` confirmados — **LIVE:**
+      `/api/management/accounts/{id}/move` y
+      `/api/management/dimension-values/{id}/move` presentes. Falta validar
+      payload exacto + error de ciclo al regenerar tipos.
 - [ ] CC-API abre ADR(s) en su repo para decisiones backend no triviales.
-- [ ] Fernando avisa a CC-WEB: "2º handoff (taxonomía) arriba en prod".
+- [ ] Fernando avisa a CC-WEB: "2º handoff (taxonomía) arriba en prod"
+      (oficial) — **+ resolver el drift de credenciales SII (P4-2): ¿FE se
+      adapta a `admin/sources` o backend vuelve al contrato `/credentials/sii`?**
 
 Recién con eso CC-WEB ejecuta los PRs #83→#89 (PR #83 = integración:
 `generate:api`, hooks, query keys, feature flags, skeletons; ver
