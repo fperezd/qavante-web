@@ -50,9 +50,31 @@ El módulo de flags vive en `src/lib/feature-flags.ts` (convención del repo: l�
 
 ### Acciones que destraba o requiere
 
-- [ ] PR #83: implementar `src/lib/feature-flags.ts` con la jerarquía de este ADR (sólo cuando el handoff backend aclare si `/config` existe).
+- [x] **Patrón materializado** (`src/lib/feature-flags.ts` + tests): 7 flags
+      tipados, default `false`, override env `NEXT_PUBLIC_FF_*` (ignorado en
+      prod), seam `config` inyectable para el futuro `/api/management/config`.
+      Ver "Estado de implementación" abajo.
 - [ ] Brief a CC-API: pedir explícitamente si habrá `GET /api/management/config` y su shape; si no, confirmar que el fallback por OpenAPI es aceptable.
-- [ ] Documentar en CONTRIBUTING.md el override `NEXT_PUBLIC_FF_*` para dev.
+- [x] Documentar en CONTRIBUTING.md el override `NEXT_PUBLIC_FF_*` para dev.
+
+## Estado de implementación (2026-05-16)
+
+El **patrón** está implementado; la **integración real** está diferida (no
+depende solo de código):
+
+- ✅ Registro tipado de 7 flags, default seguro `false`, override dev/test,
+  seam `config` para inyectar `GET /api/management/config`.
+- ⏸️ Fuente primaria `/api/management/config`: **el backend no la expone**
+  (verificado 2026-05-16, [reconciliation P4-1](../addendum/reconciliation.md)).
+  El seam existe; se cablea en el PR de integración real.
+- ⏸️ Fallback "presencia en OpenAPI": **no se implementa como introspección
+  runtime** — `types.ts` son tipos (se borran al compilar), no hay artefacto
+  runtime. `FLAG_GATING_ENDPOINT` deja documentado el mapeo flag→endpoint para
+  ese trabajo futuro (cuando exista `/config` o `generate:api` emita una lista
+  de paths runtime). Default `false` es el comportamiento correcto entretanto.
+
+Por eso el status sigue `Proposed`: la decisión completa se cierra cuando el
+handoff backend confirme `/config` (o su ausencia definitiva).
 
 ## Referencias
 

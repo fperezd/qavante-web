@@ -136,6 +136,27 @@ Cuando `qavante-api` C0-14 deploye los endpoints reales:
 2. Si typecheck rompe, ajustar handlers para que los shapes sigan alineados al openapi.json real.
 3. Para dev contra backend real: quitar `NEXT_PUBLIC_API_MOCKING=enabled` de `.env.local` o ponerlo en `disabled`. Default (sin flag) = no mocking.
 
+## Feature flags del addendum ([ADR-0008](./docs/adr/0008-feature-flags-gating-pantallas-sin-backend.md))
+
+Las pantallas del Addendum Frontend v2.0 (Estructura de gestión, Vistas de gestión, Monedas, Reglas, Movimientos por clasificar) están **gateadas por feature flags con default `false`**. Flag off ⇒ la ruta existe y renderiza un estado "todavía no disponible" — nunca UI mock, nunca ruta rota.
+
+Módulo: [`src/lib/feature-flags.ts`](./src/lib/feature-flags.ts). Jerarquía de resolución: override env → config inyectada (`GET /api/management/config`, aún ausente) → default `false`.
+
+Para **ver una pantalla gateada en dev** (provisional, nunca commitear en `.env` ni usar en prod — se ignora si `NODE_ENV=production`):
+
+```bash
+# .env.local — uno por flag que quieras abrir
+NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS=true
+NEXT_PUBLIC_FF_MANAGEMENT_DIMENSIONS=true
+NEXT_PUBLIC_FF_MULTI_CURRENCY=true
+NEXT_PUBLIC_FF_CLASSIFICATION_RULES=true
+NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION=true
+NEXT_PUBLIC_FF_INDUSTRY_TEMPLATES=true
+NEXT_PUBLIC_FF_PHASE2_PLANNING_PREVIEW=true
+```
+
+Nombre de la env var de cada flag: `flagEnvVar(flag)` en el módulo. Default sin nada seteado = todas off (estado verificado de prod, 2026-05-16: el backend no expone `/api/management/config`).
+
 ## Tests Playwright — projects http + mobile
 
 `playwright.config.ts` define dos projects:
