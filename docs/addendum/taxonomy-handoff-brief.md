@@ -96,20 +96,20 @@ Estos son los que bloquean decisiones FE ya tomadas en ADRs:
 - **Permisos.** ¿RBAC backend devuelve 403 según la matriz del addendum
   Tabla 17 (owner/admin escriben, finance_manager/viewer no)? El FE oculta
   acciones pero el backend debe validar.
-- **`canonical_category`: enum o string libre.** ✅ **RESUELTO 2026-05-16** por
-  el Addendum Técnico Escalamiento de `qavante-api`: es **ENUM CERRADO de 16
-  valores** (migration `0026_canonical_category_enum.sql`): `revenue_sales`,
-  `revenue_services`, `cogs_materials`, `cogs_labor`, `payroll_salaries`,
-  `payroll_benefits`, `taxes_vat`, `taxes_income`, `taxes_municipal`,
-  `capex_equipment`, `capex_property`, `financing_loan_disbursement`,
-  `financing_loan_payment`, `treasury_transfer_in`, `treasury_transfer_out`,
-  `uncategorized`. **Drift confirmado:** estos 16 valores ≠ la lista del
-  addendum FE §10.1/Tabla 7 (`client_collection`, `supplier_payment`…). Gana
-  el enum backend (es el contrato real). CC-API debe confirmar **qué endpoint
-  expone estos valores con sus labels humanos** (el enum SQL son solo códigos;
-  el FE necesita el mapping código→label, addendum FE §11/Tabla 5). Pregunta
-  abierta restante: ¿el enum trae metadata (label, dirección esperada,
-  cashflow_group) vía endpoint, o el FE hardcodea el mapping de 16 labels?
+- **`canonical_category`: enum o string libre.** ✅ **RESUELTO 2026-05-16 por
+  el contrato vivo** (revierte la lectura previa del doc de escalamiento — ver
+  [`reconciliation.md`](./reconciliation.md) **P4-4**). El `/openapi.json`
+  desplegado expone `GET /api/treasury/canonical-categories` →
+  `CanonicalCategoryMeta`: **enum de 26 valores = addendum §11/Tabla 7**
+  (`client_collection`, `supplier_payment`, …) **con `label` humano +
+  `description` + `expected_direction` + `cashflow_group` + …** — exactamente
+  el shape del addendum §10.1. **El FE NO hardcodea labels**: los consume de la
+  metadata. El enum de 16 valores P&L del Addendum Técnico Escalamiento
+  (migration `0026`) **no aparece en el API público** (0/9 marcadores).
+  **Acción CC-API (regla 16):** confirmar si migration `0026` es
+  interna/futura/otra-columna, o si hay un cambio de taxonomía planificado que
+  rompería el contrato vivo §11. Hasta entonces el FE construye contra el
+  contrato vivo (§11/26 + `CanonicalCategoryMeta`).
 - **Patrón de ejecución de syncs: ¿síncrono o async-task?** El Addendum
   Técnico Escalamiento (#5) refactoriza los syncs pesados (ingesta
   BICE/Previred/SII) a task queue: `POST /x/sync → {task_id}` +
