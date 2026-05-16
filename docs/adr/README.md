@@ -43,3 +43,4 @@ PR del ADR puede ir solo (decisión sin código) o acoplado al PR del cambio que
 | [0007](./0007-estructura-carpetas-dominios-addendum.md)      | Mantener `src/components/` + `src/lib/api/` (no `src/features/`)      | Proposed              | 2026-05-15 |
 | [0008](./0008-feature-flags-gating-pantallas-sin-backend.md) | Feature flags para gating de pantallas del addendum sin mocks         | Proposed              | 2026-05-15 |
 | [0009](./0009-politica-drag-and-drop.md)                     | Política de drag-and-drop para árboles de gestión (preventiva)        | Proposed              | 2026-05-15 |
+| [0010](./0010-selectores-sin-libreria-combobox.md)           | Selectores de clasificación sin librería combobox (dependency-free)   | Proposed              | 2026-05-16 |
