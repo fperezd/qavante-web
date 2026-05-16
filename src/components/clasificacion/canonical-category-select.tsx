@@ -60,19 +60,16 @@ export function CanonicalCategorySelect({
           No encontramos un tipo de movimiento con ese texto.
         </p>
       ) : (
-        <ul
-          role="listbox"
-          aria-label="Tipos de movimiento"
-          className="max-h-72 space-y-1 overflow-y-auto"
-        >
+        <ul aria-label="Tipos de movimiento" className="max-h-72 space-y-1 overflow-y-auto">
           {filtered.map((opt) => {
             const selected = opt.code === value;
             const tag = opt.expectedDirection ? DIRECTION_TAG[opt.expectedDirection] : undefined;
             return (
-              <li key={opt.code} role="option" aria-selected={selected}>
+              <li key={opt.code}>
                 <button
                   type="button"
                   disabled={disabled}
+                  aria-pressed={selected}
                   onClick={() => onChange(opt.code)}
                   className={cn(
                     "flex w-full items-start gap-2 rounded-md border px-3 py-2 text-left transition-colors",

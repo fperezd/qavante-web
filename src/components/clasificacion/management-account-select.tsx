@@ -53,19 +53,16 @@ export function ManagementAccountSelect({
           No encontramos una categoría de gestión con ese texto.
         </p>
       ) : (
-        <ul
-          role="listbox"
-          aria-label="Categorías de gestión"
-          className="max-h-72 space-y-1 overflow-y-auto"
-        >
+        <ul aria-label="Categorías de gestión" className="max-h-72 space-y-1 overflow-y-auto">
           {filtered.map((opt) => {
             const selected = opt.id === value;
             const selectable = opt.selectable !== false;
             return (
-              <li key={opt.id} role="option" aria-selected={selected}>
+              <li key={opt.id}>
                 <button
                   type="button"
                   disabled={disabled || !selectable}
+                  aria-pressed={selected}
                   onClick={() => onChange(opt.id)}
                   style={{ paddingLeft: `${0.75 + opt.level * 1}rem` }}
                   className={cn(
