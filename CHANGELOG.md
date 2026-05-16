@@ -8,7 +8,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ### En curso (C1 prep — sin dependencias `qavante-api`)
 
-Ciclo autónomo del 2026-05-13/14 con autorización owner. Adelanta el frontend de tickets que dependen de backend bloqueado, todos mockeados con MSW (ver ADR-0005).
+Ciclo autónomo 2026-05-13 → 2026-05-16 con autorización owner. Adelanta el frontend de tickets que dependen de backend bloqueado, todos mockeados con MSW (ver ADR-0005). Incluye cierre del Design System (Storybook + Chromatic), audit K.4 del ciclo, runbooks de handoff cross-agente y formalización del Addendum Frontend v2.0.
 
 #### Added
 
@@ -20,6 +20,16 @@ Ciclo autónomo del 2026-05-13/14 con autorización owner. Adelanta el frontend 
 - **Unit tests para `format.ts` + `expiration-banner` extraídos** ([#65](https://github.com/fperezd/qavante-web/pull/65)) — extracción de helpers de `certificate-card.tsx` a módulos testables: `format.ts` (formatDateEsCL, daysUntilExpiration) + `expiration-banner.ts` (tone calc). 13 tests anti-regresión.
 - **Unit tests para `isValidRut` + `apiErrorToUserMessage`** ([#67](https://github.com/fperezd/qavante-web/pull/67)) — 13 + 15 tests cubren validación RUT chileno (DV módulo 11) + mapping Anexo C.3 de error técnicos a copys usuario.
 - **Tech-debt issues registrados**: [#56](https://github.com/fperezd/qavante-web/issues/56) (SSO Google/MS deferred a Fase 2) + [#68](https://github.com/fperezd/qavante-web/issues/68) (Playwright + MSW combo mobile para rutas protegidas) + [#69](https://github.com/fperezd/qavante-web/issues/69) (Storybook setup deferred) + [#71](https://github.com/fperezd/qavante-web/issues/71) (cross-repo handoff backend SII).
+- **Playwright + MSW combo para rutas protegidas mobile** ([#73](https://github.com/fperezd/qavante-web/pull/73), cierra [#68](https://github.com/fperezd/qavante-web/issues/68)) — `protected-routes.mobile.spec.ts` (Pixel 5) sobre `/app/*` con cookie injection + `qavante_test_role` + `NEXT_PUBLIC_TEST_MODE=playwright` (cuarto guard MSW para builds prod de Playwright). 5 specs.
+- **Lighthouse mobile en `/administracion/credenciales`** ([#75](https://github.com/fperezd/qavante-web/pull/75)) — primera ruta protegida en el gate Lighthouse (cookie dummy vía `extraHeaders`, sin MSW → mide bundle real del shell `(app)`). Threshold 0.85.
+- **Storybook 10 — Design System Qavante** ([#77](https://github.com/fperezd/qavante-web/pull/77) Capa 1, [#78](https://github.com/fperezd/qavante-web/pull/78) Capa 2, cierra [#69](https://github.com/fperezd/qavante-web/issues/69)) — `@storybook/nextjs-vite`, 19 componentes / ~80 stories (6 Capa 1 design system + 13 Capa 2 admin/credenciales). Co-located `*.stories.tsx`. Addons `addon-a11y` + `addon-docs`. `storybook-static/` gitignored, fuera del bundle Cloudflare.
+- **Storybook tests vía Vitest** ([#81](https://github.com/fperezd/qavante-web/pull/81)) — `vitest.config.ts` a `projects[]`: proyecto `unit` (74 tests, rápido) + proyecto `storybook` (86 tests browser Chromium vía `@vitest/browser-playwright`). `npm run test` queda en `unit`; `test:storybook` opt-in + job CI separado. Playwright alineado a 1.60.0 (fix mismatch de browser revision).
+- **Chromatic visual regression** ([#79](https://github.com/fperezd/qavante-web/pull/79) setup, [#88](https://github.com/fperezd/qavante-web/pull/88) anti-flakiness) — workflow `chromatic.yml` gated por secret, baseline de 86 snapshots operativo. Config anti-flakiness (`pauseAnimationAtEnd`/`delay`/`diffThreshold`) elimina falsos positivos de stories con `animate-spin`.
+- **Audit K.4 del ciclo c1-prep** ([#76](https://github.com/fperezd/qavante-web/pull/76), [`docs/audits/c1-prep-review.md`](./docs/audits/c1-prep-review.md)) — revisión integral: 0 críticos, 1 medio (backend bloqueado), 5 menores. Suite verde.
+- **Runbook handoff cross-agente SII** ([#82](https://github.com/fperezd/qavante-web/pull/82), [`docs/backend-contracts/c1-sii-handoff-runbook.md`](./docs/backend-contracts/c1-sii-handoff-runbook.md)) — procedimiento de 6 pasos CC-WEB↔CC-API con Fernando de puente + brief listo + plan de integración FE post-handoff.
+- **Formalización Addendum Frontend v2.0 + reconciliación CTO** ([#83](https://github.com/fperezd/qavante-web/pull/83)) — `.docx` binario de la raíz → [`docs/addendum/frontend-v2.md`](./docs/addendum/frontend-v2.md) (transcripción fiel) + [`reconciliation.md`](./docs/addendum/reconciliation.md) resolviendo P0 (backend no expone endpoints — verificado contra OpenAPI prod) + 4 contradicciones P1 (gana repo/CLAUDE.md).
+- **ADR-0007/0008/0009** ([#86](https://github.com/fperezd/qavante-web/pull/86)) — estructura de carpetas dominios addendum (no `src/features/`), feature flags gating, política drag-and-drop preventiva.
+- **Brief 2º handoff backend (taxonomía/gestión/multimoneda)** ([#87](https://github.com/fperezd/qavante-web/pull/87), [`docs/addendum/taxonomy-handoff-brief.md`](./docs/addendum/taxonomy-handoff-brief.md)) — handoff de co-diseño para CC-API (contrato NO existe, a diferencia de SII). 7 dominios priorizados + 6 decisiones que CC-API debe resolver.
 
 #### Changed
 
@@ -41,8 +51,10 @@ Ciclo autónomo del 2026-05-13/14 con autorización owner. Adelanta el frontend 
 - **qavante-api C0-14**: implementar `GET/POST /api/users`, `PATCH /api/users/{id}`, `POST /api/auth/accept-invitation` (contrato listo en frontend). Cuando bajen: regenerar `src/lib/api/types.ts` vía `npm run generate:api` y reemplazar tipos hand-rolled de `src/lib/api/users.ts`.
 - **qavante-api C0-16**: RBAC dependency sobre endpoints existentes.
 - **qavante-api C0-17**: RLS staging.
-- **qavante-api C1 prep**: 6 endpoints de credenciales SII según [`docs/backend-contracts/c1-sii-credentials.md`](./docs/backend-contracts/c1-sii-credentials.md). Bloquea ingesta sii_f29 / previred de Sprint C1.
+- **qavante-api C1 prep**: 6 endpoints de credenciales SII según [`docs/backend-contracts/c1-sii-credentials.md`](./docs/backend-contracts/c1-sii-credentials.md). Bloquea ingesta sii_f29 / previred de Sprint C1. Runbook de handoff: [`c1-sii-handoff-runbook.md`](./docs/backend-contracts/c1-sii-handoff-runbook.md).
+- **qavante-api 2º handoff — taxonomía/gestión/multimoneda**: contrato a co-diseñar con CC-API según [`docs/addendum/taxonomy-handoff-brief.md`](./docs/addendum/taxonomy-handoff-brief.md). Bloquea los PRs de implementación del Addendum Frontend v2.0 (estructura de gestión, vistas, monedas, reglas, clasificación). Verificado 2026-05-15: el OpenAPI de prod (59 paths) no expone ninguno de estos endpoints.
 - **`fly certs create api.qavante.com`** (Fernando — IaC manual).
+- **Aceptar baseline Chromatic** (Fernando — UI web): aceptar una vez los diffs históricos en chromatic.com para limpiar el baseline. Falsos positivos por flakiness ya mitigados de raíz en [#88](https://github.com/fperezd/qavante-web/pull/88).
 
 ## [0.7.0] — 2026-05-13
 
