@@ -41,9 +41,46 @@ El repo **no tiene** ninguna librería DnD instalada hoy. CLAUDE.md restringe ag
 
 ### Acciones que destraba o requiere
 
-- [ ] Brief a CC-API: confirmar existencia y payload exacto de los endpoints `move`.
+- [x] Brief a CC-API: confirmar existencia y payload exacto de los endpoints
+      `move`. → **Confirmado 2026-05-17, ver "Actualización" abajo.**
 - [ ] PR #84/#85: si hay `move`, PR enfocado que agrega `@dnd-kit` con aprobación explícita de Fernando en ese PR; si no, reordenamiento por menú.
 - [ ] El PR que agregue `@dnd-kit` actualiza este ADR a `Accepted` y documenta la versión pinneada.
+
+## Actualización 2026-05-17 — `move` real verificado (revierte el payload asumido)
+
+Verificación read-only del `/openapi.json` de prod (CC-API publicó el
+contrato de taxonomía). El payload **real** difiere de lo que asumían el
+addendum §21.2 y este ADR:
+
+| Endpoint                                          | Body real (`additionalProperties:false`) | Errores                |
+| ------------------------------------------------- | ---------------------------------------- | ---------------------- |
+| `POST /api/management/accounts/{id}/move`         | `{ "new_parent_id": string \| null }`    | 200, 422               |
+| `POST /api/management/dimension-values/{id}/move` | `{ "new_parent_id": string \| null }`    | 200, 404, **409**, 422 |
+
+`new_parent_id = null` ⇒ mover a raíz. **NO existe `sort_order`** en el body
+ni ningún endpoint de reorder/sort/position en todo el OpenAPI (verificado).
+
+**Implicancia de diseño (revierte addendum §21.2 `{new_parent_id, sort_order}`):**
+
+- El contrato soporta **reparentar**, **no reordenar dentro del mismo padre**.
+  El ordenamiento intra-padre **no es controlable por el FE** con el contrato
+  actual (lo determina el backend; probablemente implícito por nombre/creación).
+- Por lo tanto el alcance del DnD/menú "Mover" se reduce a **cambiar de
+  padre**. "Reordenar dentro del mismo padre" (invariante §21.1 / esta ADR)
+  **queda fuera de alcance hasta que el backend exponga `sort_order` o un
+  endpoint de reorder** — es un punto a llevar a CC-API en el próximo handoff,
+  no algo que el FE inventa.
+- Error de ciclo: `dimension-values` responde **409** (descripción del schema:
+  _"No puede ser el propio valor ni un descendiente"_); `accounts` responde
+  **422**. El FE mapea ambos al copy humano de Tabla 18 ("No se puede mover
+  ahí porque generaría una relación circular.").
+- La decisión de `@dnd-kit` sigue **pendiente de aprobación explícita de
+  Fernando** (sin cambios). Dado que sólo hay reparent (no reorder), el
+  fallback menú "Mover a…" cubre el 100% de lo que el contrato permite —
+  refuerza que **`@dnd-kit` no es necesario para el contrato actual**.
+- Este drift de contrato (addendum §21.2 ≠ API real) se registra también en
+  la línea de reconciliación; el FE consume el OpenAPI real, nunca el payload
+  asumido.
 
 ## Referencias
 
