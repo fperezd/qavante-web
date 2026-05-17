@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Users, KeyRound, ArrowRight } from "lucide-react";
+import { Users, KeyRound, Layers, Telescope, Coins, ListFilter, ArrowRight } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 
 interface SubModuleCardProps {
@@ -55,6 +55,30 @@ export default function AdministracionPage() {
           icon={KeyRound}
           title="Credenciales SII"
           description="Claves del portal SII (empresa + personas) y certificado digital."
+        />
+        <SubModuleCard
+          href="/administracion/estructura-gestion"
+          icon={Layers}
+          title="Estructura de gestión"
+          description="Ordená tus ingresos, costos, gastos, caja y obligaciones, partiendo de una base sugerida."
+        />
+        <SubModuleCard
+          href="/administracion/vistas-gestion"
+          icon={Telescope}
+          title="Vistas de gestión"
+          description="Mirá tu negocio por cliente, proyecto, obra, local, sociedad, canal u otra variable."
+        />
+        <SubModuleCard
+          href="/administracion/monedas"
+          icon={Coins}
+          title="Monedas"
+          description="Moneda principal de tu empresa y monedas en que querés ver tus reportes."
+        />
+        <SubModuleCard
+          href="/administracion/reglas-clasificacion"
+          icon={ListFilter}
+          title="Reglas de clasificación"
+          description="Reglas que Qavante usa para clasificar movimientos similares en el futuro."
         />
       </div>
     </div>
