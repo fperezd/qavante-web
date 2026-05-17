@@ -39,6 +39,8 @@ Ciclo autónomo 2026-05-13 → 2026-05-16 con autorización owner. Adelanta el f
 - **Audit K.4 del ciclo addendum-skeleton** ([#104](https://github.com/fperezd/qavante-web/pull/104), [`docs/audits/addendum-skeleton-cycle-review.md`](./docs/audits/addendum-skeleton-cycle-review.md)) — revisión integral sobre rama de integración: 0 críticos, 2 escalamientos 🟡 a Fernando (drift SII P4-2, `canonical_category` P4-4), 1 flake unit transitorio. Suite integrada verde. + adenda post-audit (ADR-0010 + corrección a11y del patrón ARIA en selectores/drawer antes de merge).
 
 > **Estado al cierre del ciclo (2026-05-16):** los 7 PRs anteriores **mergeados a `main`**; suite verde en `main` real (typecheck/lint/92 unit/build/size/100 storybook). Todo aditivo y gateado OFF — **`generate:api` e integración real siguen DEFERIDOS** hasta resolver las 2 decisiones (drift credenciales SII P4-2 + `canonical_category` doc-backend vs API-vivo P4-4, ver [`reconciliation.md`](./docs/addendum/reconciliation.md)).
+>
+> **Actualización 2026-05-17:** **P4-4 ✅ RESUELTO** por CC-API (R-2, ratificado por Fernando): gana la taxonomía §11/26 congelada; la lista de 16 (AD-ESC #6) descartada formalmente (nunca existió la migración). Cero rework FE. CC-API publicó el OpenAPI formal de taxonomía. **Único bloqueante restante de `generate:api`/integración real: P4-2 (drift credenciales SII).**
 
 #### Changed
 
