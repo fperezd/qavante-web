@@ -72,14 +72,21 @@ export function ClassificationDrawer({
     notes: "",
   });
   const titleId = React.useId();
+  const asideRef = React.useRef<HTMLElement>(null);
 
   React.useEffect(() => {
     if (!open) return;
+    // Foco al abrir; restaurar al cerrar (requisito WCAG de diálogo modal).
+    const prevFocused = document.activeElement as HTMLElement | null;
+    asideRef.current?.focus();
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      prevFocused?.focus?.();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -90,10 +97,12 @@ export function ClassificationDrawer({
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-neutral-dark/40" aria-hidden="true" onClick={onClose} />
       <aside
+        ref={asideRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-surface shadow-xl"
+        tabIndex={-1}
+        className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-surface shadow-xl focus-visible:outline-none"
       >
         <header className="flex items-start justify-between border-b border-neutral-light p-4">
           <div>
