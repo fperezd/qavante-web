@@ -1,5 +1,17 @@
 # Contrato backend — Credenciales SII + certificado digital (C1 prep)
 
+> **⚠️ SUPERSEDED 2026-05-17 — este contrato `/api/credentials/sii` NO se
+> implementó.** El backend shipeó un **modelo genérico de fuentes**
+> (`/api/admin/sources/{source_code}/credential|test|consent|sync-config` +
+> certificado vía `CertificateUploadRequest`/`CertificateMetadataResponse`).
+> Fernando decidió la **Opción 1**: el FE se adapta al modelo genérico (es un
+> superset que cubre todo lo de este contrato — ver
+> [`reconciliation.md` P4-2](../addendum/reconciliation.md)). Este documento
+> se conserva como **registro histórico del shape esperado** y referencia de
+> los casos de uso (empresa, personas, certificado+expiry, consent), no como
+> contrato vigente. Pregunta abierta a CC-API: representación del
+> **multi-persona** SII en el modelo genérico.
+>
 > Documento que enumera los endpoints HTTP necesarios para almacenar y gestionar las credenciales SII (empresa + persona) y el certificado digital PKCS#12 que Qavante necesita para ingestar fuentes en Sprint C1+.
 >
 > **Pre-requisito de C1.** Sin estos endpoints + las credenciales cargadas por el tenant, el ingestor de F29/Previred no puede autenticarse contra el portal SII ni firmar requests digitalmente.

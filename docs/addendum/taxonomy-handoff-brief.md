@@ -104,12 +104,13 @@ Estos son los que bloquean decisiones FE ya tomadas en ADRs:
   (`client_collection`, `supplier_payment`, …) **con `label` humano +
   `description` + `expected_direction` + `cashflow_group` + …** — exactamente
   el shape del addendum §10.1. **El FE NO hardcodea labels**: los consume de la
-  metadata. El enum de 16 valores P&L del Addendum Técnico Escalamiento
-  (migration `0026`) **no aparece en el API público** (0/9 marcadores).
-  **Acción CC-API (regla 16):** confirmar si migration `0026` es
-  interna/futura/otra-columna, o si hay un cambio de taxonomía planificado que
-  rompería el contrato vivo §11. Hasta entonces el FE construye contra el
-  contrato vivo (§11/26 + `CanonicalCategoryMeta`).
+  metadata. **✅ CERRADO 2026-05-17 por CC-API (R-2, ratificado por
+  Fernando):** la lista de 16 (AD-ESC #6) fue **descartada formalmente** —
+  nunca existió `0026_canonical_category_enum` (la `0026` real es
+  multimoneda). Las **26 son el contrato congelado** (StrEnum + CHECK 0023 +
+  metadata + endpoint). Futuro solo aditivo y anunciado vía OpenAPI (§7.3).
+  **Cero rework FE.** CC-API publicó además el OpenAPI formal de taxonomía
+  (`/api/treasury/*`); ver `reconciliation.md` P4-4 para el detalle.
 - **Patrón de ejecución de syncs: ¿síncrono o async-task?** El Addendum
   Técnico Escalamiento (#5) refactoriza los syncs pesados (ingesta
   BICE/Previred/SII) a task queue: `POST /x/sync → {task_id}` +
