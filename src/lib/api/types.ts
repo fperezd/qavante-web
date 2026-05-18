@@ -4,6 +4,235 @@
  */
 
 export interface paths {
+    "/api/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login con RUT + password — setea cookies de sesión + refresh
+         * @description Valida `(rut, password)` contra `core.users`, emite session + refresh
+         *     tokens como cookies HttpOnly, y devuelve el user básico.
+         *
+         *     Errors:
+         *       - 401 invalid_credentials para cualquier fallo de auth (genérico
+         *         intencional — no leakear "user no existe" vs "password mal").
+         *       - 422 si el password no cumple política mínima (8 chars).
+         */
+        post: operations["auth_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rota el session token (consume cookie qavante_refresh)
+         * @description Rotación de sesión. Sprint C0-15: además de validar el JWT,
+         *     verifica contra `core.user_sessions`:
+         *
+         *       1. JWT decodifica + typ=refresh + no expirado.
+         *       2. JWT lleva `jti` (rechaza tokens legacy pre-C0-15).
+         *       3. `jti` resuelve a una sesión activa (no revoked).
+         *       4. El claim `opaque` matchea el `refresh_token_hash` de la fila
+         *          (defensa contra cookie filtrada que no tiene el secret completo).
+         *       5. **Detección de reuso**: si el `jti` apunta a una sesión revocada
+         *          (no encontrada en find_active), pero find_by_refresh_hash sí la
+         *          encuentra, es PROBABLE COOKIE THEFT — el atacante usó un
+         *          refresh-token que el legítimo ya rotó. En ese caso revocamos
+         *          TODA la cadena.
+         *       6. Atomic: revoca la vieja + crea hija con nuevo refresh-token.
+         *
+         *     Falla → limpia cookies → FE redirige a /login.
+         */
+        post: operations["auth_refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/accept-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acepta una invitación con token + password — auto-login al crear
+         * @description Consume una invitación pending: valida token + crea user con password +
+         *     membership active + setea cookies de sesión. Sec 3.4 contrato.
+         *
+         *     Errors:
+         *       - 404 invitation_not_found
+         *       - 410 invitation_expired
+         *       - 422 password_mismatch / password_policy
+         *       - 409 email_already_exists (race con un signup paralelo)
+         */
+        post: operations["auth_accept_invitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cierra la sesión — limpia ambas cookies
+         * @description Cierra la sesión: revoca la fila en `core.user_sessions` Y limpia cookies.
+         *
+         *     Sprint C0-15 — revocación server-side real:
+         *       - Intentamos decode tanto session como refresh para extraer `jti`.
+         *         Si cualquiera de los dos da jti válido, revocamos esa fila.
+         *       - Si la cookie está rota / sin jti, no podemos revocar pero igual
+         *         limpiamos cookies del cliente (best-effort).
+         *       - Idempotente: si la sesión ya estaba revocada, no falla.
+         *
+         *     Defensa contra cookie theft post-logout:
+         *       Un atacante que tenga la cookie antes del logout queda inválido
+         *       inmediatamente (no espera al `exp` del JWT).
+         */
+        post: operations["auth_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Datos del usuario logueado (cookie qavante_session)
+         * @description Lee `qavante_session`, valida el JWT, y devuelve el snapshot del user
+         *     + tenant active. Si la sesión expiró, el FE recibe 401 y dispara
+         *     `/api/auth/refresh`.
+         */
+        get: operations["auth_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista usuarios del tenant — paginated, con filtros
+         * @description Lista users del tenant. Combina users reales (con membership) y
+         *     invitations pending (status='invited').
+         *
+         *     Filtros:
+         *       - `status='invited'` → solo invitations pending.
+         *       - `status='active'` o `'suspended'` → solo users con membership.
+         *       - sin status → users reales (sin invitations).
+         *       - `role` filtra por rol canónico.
+         *       - `search` matchea email o nombre (case-insensitive).
+         */
+        get: operations["users_list"];
+        put?: never;
+        /**
+         * Invitar un nuevo miembro al tenant
+         * @description Crea una invitación pending + envía email con link de aceptación.
+         *
+         *     Si el email YA es un user activo en el tenant → 409 email_already_exists.
+         *     Si ya hay una invitación pending para ese email → 409 invitation_already_pending.
+         */
+        post: operations["users_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Actualiza role / status de un user del tenant
+         * @description Cambia `role` y/o `status` de un user en el tenant.
+         *
+         *     Reglas:
+         *       - `last_owner_protection`: el último owner active no puede ser
+         *         demoteado ni suspendido.
+         *       - No se puede auto-suspender (current_user.id == user_id con
+         *         status='suspended').
+         *       - `status='invited'` está prohibido por PATCH — se usa solo en
+         *         invitations new.
+         */
+        patch: operations["users_patch"];
+        trace?: never;
+    };
+    "/api/users/me/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Permisos del usuario logueado
+         * @description Devuelve los permisos del rol active del user, según el registry
+         *     `auth_permissions.PERMISSIONS_BY_ROLE`. El wildcard `"*"` indica
+         *     que el rol tiene acceso total.
+         *
+         *     Cualquier rol puede llamarlo — solo expone los permisos del propio
+         *     user. No requiere admin/owner.
+         */
+        get: operations["users_me_permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/buk/health": {
         parameters: {
             query?: never;
@@ -109,6 +338,94 @@ export interface paths {
          * @description Detalle de una posición/cargo del organigrama.
          */
         get: operations["buk_position"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/f22/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII F22: estado de la fuente (no disponible en Fase 1)
+         * @description Estado del conector F22 (declaración anual de renta).
+         *
+         *     F22 NO está implementado en Fase 1. Este endpoint devuelve un estado
+         *     canónico `unavailable` para que el frontend muestre la fuente en la
+         *     pantalla de Administración / Fuentes como pendiente, sin romper la
+         *     experiencia. Implementación queda diferida a Fase 2 (ver Sec 11 TBL20
+         *     del Documento Maestro v2.6.2).
+         */
+        get: operations["sii_f22_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/f29/{folio}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII F29: descarga el PDF del Certificado Solemne por folio
+         * @description Descarga el PDF del Certificado Solemne F29 para un folio dado.
+         *
+         *     Estrategia (ver `docs/spikes/c1-01-sii-f29.md`):
+         *       - Tenant debe tener credencial clave tributaria registrada en
+         *         `core.credentials` (`provider='sii'`, `purpose='login_clave'`).
+         *         Se registra vía `POST /api/admin/sources/sii_rcv/credential` con
+         *         payload `{"rut": "...", "password": "..."}` (mismo source que el
+         *         SII RCV reusa).
+         *       - Service hace login form en zeusr.sii.cl, fetch del PDF en www4.sii.cl.
+         *       - Devuelve el binario del PDF directo al caller (sin parseo).
+         *
+         *     El parseo de los montos (IVA débito/crédito, PPM, total a pagar) y la
+         *     persistencia en `finops_facts` quedan deferidos al ticket C1-03b
+         *     (necesita un sample anonimizado del PDF para diseñar el parser).
+         */
+        get: operations["sii_f29_pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/f29/{folio}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII F29: descarga + parsea el Certificado Solemne por folio
+         * @description Descarga el PDF del Certificado Solemne F29 y devuelve los datos
+         *     parseados como JSON: folio, período (YYYY-MM), RUT base, fecha de
+         *     presentación (ISO), estado (`'vigente'`), y los códigos del F29
+         *     mapeados a campos canónicos (`iva_debito_fiscal`, `iva_credito_fiscal`,
+         *     `ppm`) más el dict completo `codigos` con todos los pares
+         *     `código: monto` extraídos.
+         *
+         *     Complementario a `/f29/{folio}/pdf` (descarga binaria). Mismo error
+         *     contract más `502 sii_parse_error` si el PDF no tiene la estructura
+         *     esperada del Certificado Solemne.
+         */
+        get: operations["sii_f29_parsed"];
         put?: never;
         post?: never;
         delete?: never;
@@ -456,6 +773,393 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/direccion-trabajo/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dirección del Trabajo: estado de la fuente (no disponible en Fase 1)
+         * @description Estado del conector Dirección del Trabajo.
+         *
+         *     No implementado en Fase 1 (ver Sec 11 TBL20 del Documento Maestro
+         *     v2.6.2). Devuelve estado canónico `unavailable` para que el dashboard
+         *     muestre la fuente pendiente sin afectar la experiencia.
+         */
+        get: operations["direccion_trabajo_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado agregado de todas las fuentes para el tenant autenticado
+         * @description Devuelve el estado de TODAS las fuentes para el tenant:
+         *
+         *     - Las conectadas reportan `state="ok"` y `last_sync` con timestamp ISO.
+         *     - Las no conectadas reportan `state="missing"`.
+         *     - Las expiradas reportan `state="stale"`.
+         *     - Las con error reciente reportan `state="error"` con razón.
+         *     - Las marcadas como stubs Fase 1 (`sii_f22`, `direccion_trabajo`)
+         *       siempre reportan `state="unavailable"` independientemente del catálogo.
+         *
+         *     Si la DB está momentáneamente inaccesible, el endpoint **no cae** —
+         *     devuelve al menos los stubs documentados, para que el dashboard del
+         *     frontend siga renderizando (Sec 11 TBL20 del doc maestro).
+         */
+        get: operations["sources_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/confianza/score": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Índice de Confianza del tenant (score + nivel + breakdown)
+         * @description Calcula el Índice de Confianza aplicando el algoritmo rule-based del
+         *     Anexo H sobre el estado actual de las fuentes del tenant.
+         *
+         *     Inputs principales (derivados automáticamente):
+         *     - Conectividad por fuente: bank, sii_rcv/dte/bhe, sii_f29, previred, buk.
+         *     - Cantidad de fuentes en estado `stale`.
+         *
+         *     Inputs con defaults conservadores (poblar en sprints futuros):
+         *     - reconciliation_pct, unclassified_movements_pct, employee_count,
+         *       months_of_history, has_source_inconsistencies.
+         *
+         *     Mientras esos inputs no estén poblados, el score puede ser optimista
+         *     (algunas penalizaciones TBL56 no se disparan). El shape del response
+         *     es estable desde ahora, así CC-WEB puede integrar sin re-trabajo.
+         */
+        get: operations["confianza_score"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bank-movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista movimientos bancarios del tenant (filtrado + paginado)
+         * @description Devuelve los movimientos del tenant que matchean el filtro.
+         *
+         *     `status=unclassified` es el caso default de la pantalla (los que
+         *     afectan el Índice de Confianza). El `total` permite al frontend
+         *     pintar la paginación sin un segundo request.
+         */
+        get: operations["bank_movements_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bank-movements/{movement_id}/classify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Clasifica (o reclasifica) un movimiento — registra audit before/after
+         * @description Asigna una cuenta de gestión al movimiento (clasificar) o cambia la
+         *     existente (reclasificar). El raw data del banco NUNCA se toca
+         *     (invariante Anexo I.2.3). Toda reclasificación queda en
+         *     `audit.audit_events` con before/after.
+         */
+        patch: operations["bank_movements_classify"];
+        trace?: never;
+    };
+    "/api/bank-movements/{movement_id}/suggest-rule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sugiere (sin persistir) una regla derivada del movimiento (§18.7)
+         * @description Read-only: propone una regla `description contains <glosa>` a partir
+         *     del movimiento. No escribe (el usuario la crea luego vía POST rules).
+         */
+        post: operations["bank_movements_suggest_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/canonical-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Catálogo + metadata de las categorías canónicas (Addendum §8/§10)
+         * @description Devuelve las 26 categorías canónicas con su metadata funcional
+         *     (dirección esperada, grupo de caja, modelo financiero, impacto,
+         *     raíz de gestión, flags de revisión). Orden estable por `sort_order`.
+         */
+        get: operations["canonical_categories_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/accounts/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Árbol de cuentas de gestión del tenant (anidado)
+         * @description Roots con `children` recursivos, ordenados por `sort_order`.
+         */
+        get: operations["management_accounts_tree"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Crea una cuenta de gestión */
+        post: operations["management_accounts_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/accounts/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edita campos de una cuenta (no code/type/parent) */
+        patch: operations["management_accounts_update"];
+        trace?: never;
+    };
+    "/api/management/accounts/{account_id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reasigna el padre de una cuenta (valida ciclos) */
+        post: operations["management_accounts_move"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/accounts/{account_id}/toggle-active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activa/desactiva una cuenta (soft-delete; no hay borrado) */
+        post: operations["management_accounts_toggle_active"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/accounts/{account_id}/toggle-visible": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Muestra/oculta una cuenta sin perder datos */
+        post: operations["management_accounts_toggle_visible"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/classification-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista reglas del tenant (orden de evaluación, priority ASC) */
+        get: operations["classification_rules_list"];
+        put?: never;
+        /** Crea una regla de clasificación */
+        post: operations["classification_rules_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/classification-rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edita una regla (parcial) */
+        patch: operations["classification_rules_update"];
+        trace?: never;
+    };
+    "/api/treasury/classification-rules/{rule_id}/toggle-active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activa/desactiva una regla (§17.5: toda regla desactivable) */
+        post: operations["classification_rules_toggle_active"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/core/currencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catálogo global de monedas (Addendum §15.2) */
+        get: operations["currencies_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/core/exchange-rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tipo de cambio (base→quote). Si falta: requires_attention (§15.7) */
+        get: operations["exchange_rates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/core/company-currency-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Settings de moneda del tenant (Addendum §15.4) */
+        get: operations["company_currency_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update parcial de settings de moneda (owner/admin) */
+        patch: operations["company_currency_settings_update"];
         trace?: never;
     };
     "/api/admin/audit-log": {
@@ -939,6 +1643,191 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/management/dimensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista las dimensiones del tenant */
+        get: operations["dimensions_list"];
+        put?: never;
+        /** Crea una dimensión */
+        post: operations["dimensions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/dimensions/{dimension_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Actualiza (parcial) una dimensión */
+        patch: operations["dimensions_update"];
+        trace?: never;
+    };
+    "/api/management/dimensions/{dimension_id}/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista los valores de una dimensión */
+        get: operations["dimension_values_list"];
+        put?: never;
+        /** Crea un valor de dimensión (opcionalmente hijo de otro) */
+        post: operations["dimension_values_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/dimension-values/{value_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Actualiza (parcial) un valor — sin re-parenting (usar /move) */
+        patch: operations["dimension_values_update"];
+        trace?: never;
+    };
+    "/api/management/dimension-values/{value_id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-parenting de un valor (valida ciclos) */
+        post: operations["dimension_values_move"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/dimension-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista las asignaciones de una entidad */
+        get: operations["dimension_assignments_list"];
+        put?: never;
+        /** Asigna un valor de dimensión a una entidad */
+        post: operations["dimension_assignments_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/dimension-assignments/{assignment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Quita una asignación de dimensión
+         * @description 204 sin body. Mismo patrón que `auth.py::logout` (Response inyectado).
+         */
+        delete: operations["dimension_assignments_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/industry-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catálogo global de plantillas por tipo de negocio */
+        get: operations["industry_templates_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/industry-templates/{template_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Una plantilla + sus dimensiones y cuentas sugeridas */
+        get: operations["industry_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/industry-templates/{template_code}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aplica una plantilla al tenant (sugiere / agrega faltantes)
+         * @description §14.1/§14.2. `mode`:
+         *       - suggest_only       → devuelve el diff, NO escribe (default).
+         *       - add_missing        → crea las dimensiones faltantes (tablas de B).
+         *       - replace_visibility → ajusta visibilidad de dims existentes.
+         *
+         *     Nunca borra ni pisa datos (§14.1 — sin modo destructivo). Las cuentas
+         *     son siempre report-only (dominio de A, contrato §6.2 read-only).
+         */
+        post: operations["industry_templates_apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1009,6 +1898,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AcceptInvitationRequest
+         * @description Body de POST /api/auth/accept-invitation (Sec 3.4 contrato).
+         */
+        AcceptInvitationRequest: {
+            /**
+             * Token
+             * @description Token del link de invitación.
+             */
+            token: string;
+            /** Password */
+            password: string;
+            /** Password Confirmation */
+            password_confirmation: string;
+        };
         /** AdminEventResponse */
         AdminEventResponse: {
             /**
@@ -1069,6 +1973,61 @@ export interface components {
             count: number;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * ApplyTemplateRequest
+         * @description Body de `POST /industry-templates/{template_code}/apply` (§14.1).
+         */
+        ApplyTemplateRequest: {
+            /**
+             * Mode
+             * @default suggest_only
+             * @enum {string}
+             */
+            mode: "suggest_only" | "add_missing" | "replace_visibility";
+            /**
+             * Overwrite Existing
+             * @default false
+             */
+            overwrite_existing: boolean;
+        };
+        /**
+         * ApplyTemplateResponse
+         * @description Response de apply (§14.2).
+         */
+        ApplyTemplateResponse: {
+            /** Template Code */
+            template_code: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "suggest_only" | "add_missing" | "replace_visibility";
+            summary: components["schemas"]["ApplyTemplateSummary"];
+            /** Accounts Preview */
+            accounts_preview?: {
+                [key: string]: unknown;
+            }[];
+            /** Dimensions Preview */
+            dimensions_preview?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** ApplyTemplateSummary */
+        ApplyTemplateSummary: {
+            /** Accounts To Add */
+            accounts_to_add: number;
+            /** Dimensions To Add */
+            dimensions_to_add: number;
+            /** Accounts Existing */
+            accounts_existing: number;
+            /** Dimensions Existing */
+            dimensions_existing: number;
+        };
+        /** AssignmentsListResponse */
+        AssignmentsListResponse: {
+            /** Items */
+            items: components["schemas"]["DimensionAssignment"][];
         };
         /** AuditEventResponse */
         AuditEventResponse: {
@@ -1170,6 +2129,89 @@ export interface components {
             fechaConsultaSaldo?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * BankMovement
+         * @description Movimiento bancario + su estado de clasificación.
+         *
+         *     Los campos `external_id`, `date`, `description`, `amount`,
+         *     `direction` son raw data del banco — INMUTABLES post-import
+         *     (invariante Anexo I.2.3). El resto refleja la clasificación.
+         */
+        BankMovement: {
+            /** Id */
+            id: string;
+            /** Bank Account Id */
+            bank_account_id: string;
+            /** External Id */
+            external_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Description */
+            description: string;
+            /** Amount */
+            amount: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "credit" | "debit";
+            /** @description Categoría canónica del movimiento (Addendum §7.2). NULL = sin clasificar. */
+            canonical_category?: components["schemas"]["CanonicalCategory"] | null;
+            /** Management Account Id */
+            management_account_id?: string | null;
+            /**
+             * Reconciliation Status
+             * @default unmatched
+             * @enum {string}
+             */
+            reconciliation_status: "unmatched" | "suggested" | "matched" | "rejected";
+            /** Match Score */
+            match_score?: string | null;
+            /** Matched Document Id */
+            matched_document_id?: string | null;
+            /**
+             * Data Status
+             * @default available
+             * @enum {string}
+             */
+            data_status: "available" | "stale" | "inconsistent" | "missing";
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
+            /** Classified At */
+            classified_at?: string | null;
+            /** Classified By */
+            classified_by?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Classification Status
+             * @default unclassified
+             */
+            classification_status: string;
+            /** Confidence */
+            confidence?: string | null;
+            /** Classification Notes */
+            classification_notes?: string | null;
+        };
+        /**
+         * BankMovementsListResponse
+         * @description Respuesta paginada de `GET /api/bank-movements`.
+         */
+        BankMovementsListResponse: {
+            /** Items */
+            items: components["schemas"]["BankMovement"][];
+            /**
+             * Total
+             * @description Total de movimientos que matchean el filtro (sin paginar).
+             */
+            total: number;
         };
         /**
          * BheRecibida
@@ -1298,6 +2340,57 @@ export interface components {
             } | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * CanonicalCategoriesResponse
+         * @description Respuesta de `GET /api/treasury/canonical-categories`.
+         */
+        CanonicalCategoriesResponse: {
+            /** Items */
+            items: components["schemas"]["CanonicalCategoryMeta"][];
+        };
+        /**
+         * CanonicalCategory
+         * @enum {string}
+         */
+        CanonicalCategory: "client_collection" | "card_processor_settlement" | "cash_deposit" | "supplier_payment" | "payroll_payment" | "tax_payment" | "social_security_payment" | "tgr_payment" | "bank_fee" | "interest_income" | "interest_expense" | "debt_disbursement" | "debt_service" | "factoring_advance" | "factoring_cost_or_repayment" | "owner_contribution" | "owner_withdrawal" | "internal_bank_transfer" | "intercompany_transfer" | "investment_purchase" | "investment_return" | "capex_payment" | "refund_or_reversal" | "operational_expense" | "non_operational_income" | "unknown";
+        /**
+         * CanonicalCategoryMeta
+         * @description Un ítem de `GET /api/treasury/canonical-categories` (Addendum §10.1).
+         */
+        CanonicalCategoryMeta: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Description */
+            description: string;
+            /**
+             * Expected Direction
+             * @description credit | debit | any
+             */
+            expected_direction: string;
+            /**
+             * Cashflow Group
+             * @description cash_in | cash_out | internal | non_cash | unknown
+             */
+            cashflow_group: string;
+            /** Default Financial Model */
+            default_financial_model: string;
+            /** Default Impact Type */
+            default_impact_type: string;
+            /** Default Management Root */
+            default_management_root: string;
+            /** Requires Review */
+            requires_review: boolean;
+            /** Affects Operational Result By Default */
+            affects_operational_result_by_default: boolean;
+            /** Is Internal Movement */
+            is_internal_movement: boolean;
+            /** Allowed For Bank Movement */
+            allowed_for_bank_movement: boolean;
+            /** Sort Order */
+            sort_order: number;
         };
         /** CartolaData */
         CartolaData: {
@@ -1479,6 +2572,135 @@ export interface components {
             count: number;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * ClassificationRule
+         * @description Regla de clasificación del tenant (`treasury.classification_rules`).
+         */
+        ClassificationRule: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Source Type
+             * @description bank_movement | document | manual_entry
+             */
+            source_type: string;
+            /**
+             * Condition Field
+             * @description description | counterparty_name | reference | amount | currency_code | bank_account_id
+             */
+            condition_field: string;
+            /**
+             * Operator
+             * @description equals | contains | starts_with | ends_with | regex | greater_than | less_than
+             */
+            operator: string;
+            /** Condition Value */
+            condition_value: string;
+            /** Canonical Category */
+            canonical_category?: string | null;
+            /** Management Account Id */
+            management_account_id?: string | null;
+            /** Dimension Assignments */
+            dimension_assignments?: unknown[];
+            /**
+             * Priority
+             * @default 100
+             */
+            priority: number;
+            /**
+             * Confidence
+             * @default 0.80
+             */
+            confidence: string;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Created By */
+            created_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** ClassificationRulesResponse */
+        ClassificationRulesResponse: {
+            /** Items */
+            items: components["schemas"]["ClassificationRule"][];
+        };
+        /**
+         * ClassifyMovementRequest
+         * @description Body de `PATCH /api/bank-movements/{id}/classify`.
+         */
+        ClassifyMovementRequest: {
+            /**
+             * Management Account Id
+             * @description Cuenta de gestión a asignar (obligatoria para clasificar).
+             */
+            management_account_id: string;
+            /** @description Categoría canónica del movimiento (Addendum §7.2). NULL = sin clasificar. */
+            canonical_category?: components["schemas"]["CanonicalCategory"] | null;
+            /** Notes */
+            notes?: string | null;
+            /** Classification Notes */
+            classification_notes?: string | null;
+            /**
+             * Create Rule
+             * @description Si true, crea una regla de clasificación desde este movimiento (§17).
+             * @default false
+             */
+            create_rule: boolean;
+        };
+        /** CompanyCurrencySettings */
+        CompanyCurrencySettings: {
+            /** Tenant Id */
+            tenant_id: string;
+            /** Functional Currency Code */
+            functional_currency_code: string;
+            /** Default Reporting Currency Code */
+            default_reporting_currency_code?: string | null;
+            /**
+             * Indexed Unit Enabled
+             * @default false
+             */
+            indexed_unit_enabled: boolean;
+            /** Indexed Unit Currency Code */
+            indexed_unit_currency_code?: string | null;
+            /** Reporting Currency Codes */
+            reporting_currency_codes?: string[];
+            /** Default Exchange Rate Source */
+            default_exchange_rate_source?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ConfianzaScoreResponse */
+        ConfianzaScoreResponse: {
+            /**
+             * Score
+             * @description Índice de Confianza 0-100.
+             */
+            score: number;
+            /**
+             * Nivel
+             * @description Banda visible (TBL37): alta (85-100), media_alta (70-84), media (50-69), baja (30-49), insuficiente (0-29).
+             * @enum {string}
+             */
+            nivel: "alta" | "media_alta" | "media" | "baja" | "insuficiente";
+            /**
+             * Penalizaciones
+             * @description Reglas TBL56 que dispararon, ordenadas por peso descendente.
+             */
+            penalizaciones: components["schemas"]["PenalizacionAplicadaResponse"][];
         };
         /** ConnectionStatusItem */
         ConnectionStatusItem: {
@@ -1709,6 +2931,205 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * CreateAssignmentRequest
+         * @description Body de `POST /api/management/dimension-assignments`.
+         */
+        CreateAssignmentRequest: {
+            /**
+             * Entity Type
+             * @enum {string}
+             */
+            entity_type: "bank_movement" | "document" | "manual_entry";
+            /** Entity Id */
+            entity_id: string;
+            /** Dimension Id */
+            dimension_id: string;
+            /** Dimension Value Id */
+            dimension_value_id: string;
+        };
+        /**
+         * CreateClassificationRuleRequest
+         * @description Body de `POST /api/treasury/classification-rules`.
+         */
+        CreateClassificationRuleRequest: {
+            /** Name */
+            name: string;
+            /** Source Type */
+            source_type: string;
+            /** Condition Field */
+            condition_field: string;
+            /** Operator */
+            operator: string;
+            /** Condition Value */
+            condition_value: string;
+            canonical_category?: components["schemas"]["CanonicalCategory"] | null;
+            /** Management Account Id */
+            management_account_id?: string | null;
+            /**
+             * Priority
+             * @default 100
+             */
+            priority: number;
+            /**
+             * Confidence
+             * @default 0.8
+             */
+            confidence: number;
+        };
+        /**
+         * CreateDimensionRequest
+         * @description Body de `POST /api/management/dimensions`.
+         */
+        CreateDimensionRequest: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Data Type
+             * @default text
+             * @enum {string}
+             */
+            data_type: "text" | "number" | "date" | "boolean" | "currency" | "percentage" | "reference";
+            /**
+             * Is Required
+             * @default false
+             */
+            is_required: boolean;
+            /**
+             * Is Visible
+             * @default true
+             */
+            is_visible: boolean;
+            /**
+             * Allows Hierarchy
+             * @default true
+             */
+            allows_hierarchy: boolean;
+            /**
+             * Allows Multiple Values
+             * @default false
+             */
+            allows_multiple_values: boolean;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * CreateDimensionValueRequest
+         * @description Body de `POST /api/management/dimensions/{dimension_id}/values`.
+         */
+        CreateDimensionValueRequest: {
+            /** Name */
+            name: string;
+            /** Code */
+            code?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Parent Id
+             * @description Valor padre (jerarquía). Debe ser de la misma dimensión y tenant.
+             */
+            parent_id?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * CreateManagementAccountRequest
+         * @description Body de `POST /api/management/accounts`.
+         */
+        CreateManagementAccountRequest: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+            /** Destination */
+            destination: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Display Name */
+            display_name?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Affects Pulso
+             * @default true
+             */
+            affects_pulso: boolean;
+            /**
+             * Is Visible
+             * @default true
+             */
+            is_visible: boolean;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /**
+         * CreateUserRequest
+         * @description Body de POST /api/users (invitar).
+         */
+        CreateUserRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /**
+             * Role
+             * @description Rol canónico del registry de permisos.
+             */
+            role: string;
+            /** Name */
+            name?: string | null;
+        };
+        /**
+         * CreatedInvitationResponse
+         * @description Response del POST /api/users — Sec 3.2 contrato.
+         */
+        CreatedInvitationResponse: {
+            /** Id */
+            id: string;
+            /** Email */
+            email: string;
+            /** Role */
+            role: string;
+            /**
+             * Status
+             * @default invited
+             */
+            status: string;
+            /**
+             * Invited At
+             * Format: date-time
+             */
+            invited_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
          * CredentialMetadataResponse
          * @description Metadata pública de una credencial — NUNCA incluye el secreto.
          */
@@ -1894,6 +3315,41 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** CurrenciesResponse */
+        CurrenciesResponse: {
+            /** Items */
+            items: components["schemas"]["Currency"][];
+        };
+        /** Currency */
+        Currency: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Symbol */
+            symbol?: string | null;
+            /**
+             * Currency Type
+             * @description fiat | indexed_unit
+             */
+            currency_type: string;
+            /** Decimals */
+            decimals: number;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** DatasetResponse */
         DatasetResponse: {
             /**
@@ -1932,6 +3388,42 @@ export interface components {
             error?: string | null;
             /** Latency Ms */
             latency_ms?: number | null;
+        };
+        /**
+         * DimensionAssignment
+         * @description Asignación de un valor de dimensión a una entidad.
+         */
+        DimensionAssignment: {
+            /** Id */
+            id: string;
+            /**
+             * Entity Type
+             * @enum {string}
+             */
+            entity_type: "bank_movement" | "document" | "manual_entry";
+            /** Entity Id */
+            entity_id: string;
+            /** Dimension Id */
+            dimension_id: string;
+            /** Dimension Value Id */
+            dimension_value_id: string;
+            /** Created By */
+            created_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** DimensionValuesListResponse */
+        DimensionValuesListResponse: {
+            /** Items */
+            items: components["schemas"]["ManagementDimensionValue"][];
+        };
+        /** DimensionsListResponse */
+        DimensionsListResponse: {
+            /** Items */
+            items: components["schemas"]["ManagementDimension"][];
         };
         /** DispatchEmailResponse */
         DispatchEmailResponse: {
@@ -2033,6 +3525,42 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ExchangeRate */
+        ExchangeRate: {
+            /** Id */
+            id: string;
+            /** Base Currency Code */
+            base_currency_code: string;
+            /** Quote Currency Code */
+            quote_currency_code: string;
+            /** Rate */
+            rate: string;
+            /**
+             * Rate Date
+             * Format: date
+             */
+            rate_date: string;
+            /** Source */
+            source: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ExchangeRateLookupResponse
+         * @description `GET /api/core/exchange-rates`. Si falta el tipo de cambio NO es
+         *     error: `data_status='requires_attention'` y `rate=None` (§15.7).
+         */
+        ExchangeRateLookupResponse: {
+            /**
+             * Data Status
+             * @description ok | requires_attention
+             */
+            data_status: string;
+            rate?: components["schemas"]["ExchangeRate"] | null;
+        };
         /** ExpiriesResponse */
         ExpiriesResponse: {
             /** Window Days */
@@ -2097,6 +3625,79 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * F29Period
+         * @description Período tributario del F29 (mes y año).
+         */
+        F29Period: {
+            /**
+             * Year
+             * @description Año calendario.
+             */
+            year: number;
+            /**
+             * Month
+             * @description Mes (1-12).
+             */
+            month: number;
+        };
+        /**
+         * F29Response
+         * @description Resultado de una consulta de F29 por folio.
+         *
+         *     Los campos numéricos pueden venir como `None` cuando todavía no se
+         *     parseó el PDF (caso del ticket C1-03 que solo descarga; el parseo
+         *     queda para C1-03b cuando tengamos un sample real). El folio + período
+         *     + estado son lo mínimo seguro que devolvemos siempre.
+         */
+        F29Response: {
+            /**
+             * Status
+             * @description 'ok' | 'not_found' | 'error'.
+             */
+            status: string;
+            /**
+             * Folio
+             * @description Folio del F29 consultado.
+             */
+            folio: number;
+            period: components["schemas"]["F29Period"];
+            /**
+             * Rut Base
+             * @description RUT base del contribuyente (sin DV).
+             */
+            rut_base: number;
+            /**
+             * Estado
+             * @description Estado canónico: 'vigente' | 'rectificatoria' | 'rechazada' | 'sin_declaracion'.
+             */
+            estado?: string | null;
+            /**
+             * Fecha Presentacion
+             * @description ISO date YYYY-MM-DD de la presentación, si está disponible.
+             */
+            fecha_presentacion?: string | null;
+            /** Iva Debito Fiscal */
+            iva_debito_fiscal?: number | null;
+            /** Iva Credito Fiscal */
+            iva_credito_fiscal?: number | null;
+            /** Ppm */
+            ppm?: number | null;
+            /** Total A Pagar */
+            total_a_pagar?: number | null;
+            /** Code */
+            code?: string | null;
+            /** Message */
+            message?: string | null;
+            /** Details */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+            /** Error */
+            error?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -2131,6 +3732,154 @@ export interface components {
             /** Db Configured */
             db_configured: boolean;
         };
+        /**
+         * IndustryTemplate
+         * @description Una plantilla del catálogo global de tipos de negocio (§13.2).
+         */
+        IndustryTemplate: {
+            /** Id */
+            id: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Business Family
+             * @enum {string}
+             */
+            business_family: "general" | "services" | "professional" | "technology" | "commerce" | "production" | "construction_projects" | "hospitality" | "finance_investments" | "real_estate" | "logistics" | "health_education" | "agriculture" | "nonprofit" | "other";
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * IndustryTemplateAccount
+         * @description Cuenta de gestión sugerida por una plantilla (§13.5).
+         */
+        IndustryTemplateAccount: {
+            /** Id */
+            id: string;
+            /** Industry Template Id */
+            industry_template_id: string;
+            /** Management Account Code */
+            management_account_code: string;
+            /**
+             * Default Visible
+             * @default true
+             */
+            default_visible: boolean;
+            /**
+             * Default Required
+             * @default false
+             */
+            default_required: boolean;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * IndustryTemplateDetail
+         * @description `GET /industry-templates/{code}` — plantilla + sugerencias.
+         */
+        IndustryTemplateDetail: {
+            template: components["schemas"]["IndustryTemplate"];
+            /** Dimensions */
+            dimensions: components["schemas"]["IndustryTemplateDimension"][];
+            /** Accounts */
+            accounts: components["schemas"]["IndustryTemplateAccount"][];
+        };
+        /**
+         * IndustryTemplateDimension
+         * @description Dimensión sugerida por una plantilla (§13.6).
+         */
+        IndustryTemplateDimension: {
+            /** Id */
+            id: string;
+            /** Industry Template Id */
+            industry_template_id: string;
+            /** Dimension Code */
+            dimension_code: string;
+            /** Dimension Name */
+            dimension_name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Default Visible
+             * @default true
+             */
+            default_visible: boolean;
+            /**
+             * Default Required
+             * @default false
+             */
+            default_required: boolean;
+            /**
+             * Allows Hierarchy
+             * @default true
+             */
+            allows_hierarchy: boolean;
+            /**
+             * Allows Multiple Values
+             * @default false
+             */
+            allows_multiple_values: boolean;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * IndustryTemplatesListResponse
+         * @description `GET /industry-templates`.
+         */
+        IndustryTemplatesListResponse: {
+            /** Items */
+            items: components["schemas"]["IndustryTemplate"][];
+        };
         /** IntegrationStatus */
         IntegrationStatus: {
             /** Name */
@@ -2141,6 +3890,350 @@ export interface components {
             detail?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** LoginRequest */
+        LoginRequest: {
+            /**
+             * Rut
+             * @description RUT chileno con DV (formato '12345678-9' o '12.345.678-9').
+             */
+            rut: string;
+            /** Password */
+            password: string;
+        };
+        /** LoginResponse */
+        LoginResponse: {
+            user: components["schemas"]["SessionUser"];
+        };
+        /**
+         * ManagementAccount
+         * @description Cuenta de gestión del catálogo jerárquico del tenant (Addendum §11.2).
+         */
+        ManagementAccount: {
+            /** Id */
+            id: string;
+            /**
+             * Code
+             * @description Código único de la cuenta dentro del tenant.
+             */
+            code: string;
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @description Dominio extensible: income, direct_cost, operating_expense, ...
+             */
+            type: string;
+            /**
+             * Parent Id
+             * @description Cuenta padre (jerarquía). NULL = raíz.
+             */
+            parent_id?: string | null;
+            /**
+             * Destination
+             * @description Reporte que alimenta: cash_flow, operational_income_statement, ...
+             */
+            destination: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Level
+             * @default 0
+             */
+            level: number;
+            /** Path */
+            path?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /**
+             * Is System
+             * @description TRUE = nodo del árbol base seedeado (§11.5).
+             * @default false
+             */
+            is_system: boolean;
+            /**
+             * Is Visible
+             * @default true
+             */
+            is_visible: boolean;
+            /**
+             * Affects Pulso
+             * @default true
+             */
+            affects_pulso: boolean;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * ManagementAccountNode
+         * @description Nodo del árbol anidado de `GET /api/management/accounts/tree`.
+         */
+        ManagementAccountNode: {
+            /** Id */
+            id: string;
+            /**
+             * Code
+             * @description Código único de la cuenta dentro del tenant.
+             */
+            code: string;
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @description Dominio extensible: income, direct_cost, operating_expense, ...
+             */
+            type: string;
+            /**
+             * Parent Id
+             * @description Cuenta padre (jerarquía). NULL = raíz.
+             */
+            parent_id?: string | null;
+            /**
+             * Destination
+             * @description Reporte que alimenta: cash_flow, operational_income_statement, ...
+             */
+            destination: string;
+            /** Display Name */
+            display_name?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Level
+             * @default 0
+             */
+            level: number;
+            /** Path */
+            path?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /**
+             * Is System
+             * @description TRUE = nodo del árbol base seedeado (§11.5).
+             * @default false
+             */
+            is_system: boolean;
+            /**
+             * Is Visible
+             * @default true
+             */
+            is_visible: boolean;
+            /**
+             * Affects Pulso
+             * @default true
+             */
+            affects_pulso: boolean;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Updated At */
+            updated_at?: string | null;
+            /** Children */
+            children?: components["schemas"]["ManagementAccountNode"][];
+        };
+        /**
+         * ManagementAccountTreeResponse
+         * @description Respuesta de `GET /api/management/accounts/tree` (roots anidados).
+         */
+        ManagementAccountTreeResponse: {
+            /** Items */
+            items: components["schemas"]["ManagementAccountNode"][];
+        };
+        /**
+         * ManagementDimension
+         * @description Una dimensión flexible del catálogo del tenant.
+         */
+        ManagementDimension: {
+            /** Id */
+            id: string;
+            /**
+             * Code
+             * @description Código único de la dimensión dentro del tenant.
+             */
+            code: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Data Type
+             * @default text
+             * @enum {string}
+             */
+            data_type: "text" | "number" | "date" | "boolean" | "currency" | "percentage" | "reference";
+            /**
+             * Is System
+             * @default false
+             */
+            is_system: boolean;
+            /**
+             * Is Required
+             * @default false
+             */
+            is_required: boolean;
+            /**
+             * Is Visible
+             * @default true
+             */
+            is_visible: boolean;
+            /**
+             * Allows Hierarchy
+             * @default true
+             */
+            allows_hierarchy: boolean;
+            /**
+             * Allows Multiple Values
+             * @default false
+             */
+            allows_multiple_values: boolean;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ManagementDimensionValue
+         * @description Un valor (posiblemente jerárquico) de una dimensión.
+         */
+        ManagementDimensionValue: {
+            /** Id */
+            id: string;
+            /** Dimension Id */
+            dimension_id: string;
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Path */
+            path?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** MeResponse */
+        MeResponse: {
+            user: components["schemas"]["MeUser"];
+        };
+        /** MeUser */
+        MeUser: {
+            /** Id */
+            id: string;
+            /** Email */
+            email: string;
+            /** Role */
+            role: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Name */
+            name?: string | null;
+            /** Last Login At */
+            last_login_at?: string | null;
+            /**
+             * Permissions
+             * @description Lista de permisos del rol (Anexo C.4). Hoy vacía — se rellena en Sprint C0-2 con el registry de permissions por rol.
+             */
+            permissions?: string[];
+        };
+        /**
+         * MoveDimensionValueRequest
+         * @description Body de `POST /api/management/dimension-values/{value_id}/move`.
+         *
+         *     `new_parent_id = null` mueve el valor a la raíz de su dimensión.
+         */
+        MoveDimensionValueRequest: {
+            /**
+             * New Parent Id
+             * @description Nuevo padre. NULL = raíz. No puede ser el propio valor ni un descendiente.
+             */
+            new_parent_id?: string | null;
+        };
+        /**
+         * MoveManagementAccountRequest
+         * @description Body de `POST /api/management/accounts/{id}/move`.
+         */
+        MoveManagementAccountRequest: {
+            /**
+             * New Parent Id
+             * @description Nuevo padre. NULL = mover a raíz.
+             */
+            new_parent_id?: string | null;
         };
         /**
          * MovimientoDeuda
@@ -2234,6 +4327,16 @@ export interface components {
             /** Total Pages */
             total_pages?: number | null;
         };
+        /**
+         * PatchUserRequest
+         * @description Body del PATCH — al menos uno de los campos debe estar presente.
+         */
+        PatchUserRequest: {
+            /** Role */
+            role?: string | null;
+            /** Status */
+            status?: string | null;
+        };
         /** PayrollResponse */
         PayrollResponse: {
             /** Status */
@@ -2278,6 +4381,24 @@ export interface components {
              */
             empleados_contados: number;
         };
+        /** PenalizacionAplicadaResponse */
+        PenalizacionAplicadaResponse: {
+            /**
+             * Rule Id
+             * @description Identificador de la regla TBL56 (ej. 'conf_missing_bank').
+             */
+            rule_id: string;
+            /**
+             * Description
+             * @description Razón legible para mostrar al usuario.
+             */
+            description: string;
+            /**
+             * Points
+             * @description Puntos restados del score por esta regla.
+             */
+            points: number;
+        };
         /** PermissionResponse */
         PermissionResponse: {
             /** Code */
@@ -2312,6 +4433,13 @@ export interface components {
             count: number;
         } & {
             [key: string]: unknown;
+        };
+        /** PermissionsResponse */
+        PermissionsResponse: {
+            /** Permissions */
+            permissions: string[];
+            /** Role */
+            role: string;
         };
         /** PositionResponse */
         PositionResponse: {
@@ -2427,6 +4555,21 @@ export interface components {
             cuentas?: components["schemas"]["CuentaSaldo"][];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * SessionUser
+         * @description Subset de `core.users` expuesto al frontend en login/refresh response.
+         */
+        SessionUser: {
+            /** Id */
+            id: string;
+            /** Email */
+            email: string;
+            /**
+             * Role
+             * @description Rol canónico de la membership active (e.g. 'owner', 'admin').
+             */
+            role: string;
         };
         /** SiiHealthResponse */
         SiiHealthResponse: {
@@ -2553,6 +4696,48 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * SourceStatusResponse
+         * @description Estado de una fuente externa para una pantalla de Administración / Fuentes.
+         *
+         *     El frontend usa este shape tanto en el endpoint individual por fuente
+         *     como en `/api/sources/status` (lista agregada).
+         */
+        SourceStatusResponse: {
+            /**
+             * Source
+             * @description Identificador canónico de la fuente. Ej: 'sii_f22', 'direccion_trabajo'.
+             * @example sii_f22
+             * @example direccion_trabajo
+             */
+            source: string;
+            /**
+             * State
+             * @description Estado operacional de la fuente.
+             * @enum {string}
+             */
+            state: "ok" | "stale" | "missing" | "error" | "unavailable";
+            /**
+             * Reason
+             * @description Texto breve para el usuario explicando el estado. Obligatorio cuando state != 'ok'.
+             */
+            reason?: string | null;
+            /**
+             * Last Sync
+             * @description Timestamp ISO 8601 UTC del último sync exitoso, si aplica.
+             */
+            last_sync?: string | null;
+            /**
+             * Display Name
+             * @description Nombre amigable para mostrar en UI. Solo presente en respuestas agregadas.
+             */
+            display_name?: string | null;
+            /**
+             * Category
+             * @description Categoría de la fuente (bank, tax, labor, pension, sectoral, public). Solo presente en respuestas agregadas.
+             */
+            category?: string | null;
+        };
+        /**
          * SourceSyncConfigResponse
          * @description Configuración de sincronización + reutilización de credenciales.
          *     Doc v2.1 §10.4 (frecuencia + latencia) + §13.2 (reuses_credential_from).
@@ -2595,6 +4780,22 @@ export interface components {
             count: number;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * SourcesStatusListResponse
+         * @description Wrapper sobre la lista para que OpenAPI exponga un schema con nombre.
+         */
+        SourcesStatusListResponse: {
+            /**
+             * Sources
+             * @description Estado canónico de cada fuente del catálogo para el tenant.
+             */
+            sources: components["schemas"]["SourceStatusResponse"][];
+            /**
+             * Count
+             * @description Cantidad total de fuentes en la respuesta.
+             */
+            count: number;
         };
         /** StatusResponse */
         StatusResponse: {
@@ -2909,6 +5110,155 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * UpdateClassificationRuleRequest
+         * @description Body de `PATCH /api/treasury/classification-rules/{id}` (opcionales).
+         */
+        UpdateClassificationRuleRequest: {
+            /** Name */
+            name?: string | null;
+            /** Condition Field */
+            condition_field?: string | null;
+            /** Operator */
+            operator?: string | null;
+            /** Condition Value */
+            condition_value?: string | null;
+            canonical_category?: components["schemas"]["CanonicalCategory"] | null;
+            /** Priority */
+            priority?: number | null;
+            /** Confidence */
+            confidence?: number | null;
+        };
+        /**
+         * UpdateCompanyCurrencySettingsRequest
+         * @description Body de `PATCH /api/core/company-currency-settings` (todos opcionales).
+         */
+        UpdateCompanyCurrencySettingsRequest: {
+            /** Functional Currency Code */
+            functional_currency_code?: string | null;
+            /** Default Reporting Currency Code */
+            default_reporting_currency_code?: string | null;
+            /** Indexed Unit Enabled */
+            indexed_unit_enabled?: boolean | null;
+            /** Indexed Unit Currency Code */
+            indexed_unit_currency_code?: string | null;
+            /** Reporting Currency Codes */
+            reporting_currency_codes?: string[] | null;
+            /** Default Exchange Rate Source */
+            default_exchange_rate_source?: string | null;
+        };
+        /**
+         * UpdateDimensionRequest
+         * @description Body de `PATCH /api/management/dimensions/{id}`.
+         *
+         *     Solo campos mutables. `code` e `is_system` NO se mutan vía PATCH
+         *     (code es la clave natural del tenant; is_system lo setea el seed,
+         *     no el usuario). Todos opcionales — solo se actualiza lo presente.
+         */
+        UpdateDimensionRequest: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Data Type */
+            data_type?: ("text" | "number" | "date" | "boolean" | "currency" | "percentage" | "reference") | null;
+            /** Is Required */
+            is_required?: boolean | null;
+            /** Is Visible */
+            is_visible?: boolean | null;
+            /** Allows Hierarchy */
+            allows_hierarchy?: boolean | null;
+            /** Allows Multiple Values */
+            allows_multiple_values?: boolean | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Active */
+            active?: boolean | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UpdateDimensionValueRequest
+         * @description Body de `PATCH /api/management/dimension-values/{value_id}`.
+         *
+         *     El re-parenting NO se hace acá — va por el endpoint dedicado `/move`
+         *     (que corre validación de ciclos). `dimension_id` es inmutable.
+         */
+        UpdateDimensionValueRequest: {
+            /** Name */
+            name?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Active */
+            active?: boolean | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * UpdateManagementAccountRequest
+         * @description Body de `PATCH /api/management/accounts/{id}` (todos opcionales).
+         */
+        UpdateManagementAccountRequest: {
+            /** Name */
+            name?: string | null;
+            /** Display Name */
+            display_name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Affects Pulso */
+            affects_pulso?: boolean | null;
+            /** Is Visible */
+            is_visible?: boolean | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /**
+         * UserItem
+         * @description Una fila de la tabla de usuarios. Compat shape Sec 3.1 contrato.
+         */
+        UserItem: {
+            /** Id */
+            id: string;
+            /** Email */
+            email: string;
+            /** Name */
+            name?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Status
+             * @description 'active' | 'suspended' | 'invited'
+             */
+            status: string;
+            /** Last Login At */
+            last_login_at?: string | null;
+            /** Invited At */
+            invited_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** UsersListResponse */
+        UsersListResponse: {
+            /** Items */
+            items: components["schemas"]["UserItem"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2931,6 +5281,415 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    auth_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Login OK, cookies seteadas en response. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Credenciales inválidas. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description RUT mal formateado o password muy corto. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit excedido (5 intentos/5min). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_refresh?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tokens rotados, nueva cookie qavante_session emitida. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Refresh inválido o expirado — FE debe re-loguear. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auth_accept_invitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Invitación aceptada, user creado y cookies seteadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Token inválido o ya usado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Email ya existe en algún tenant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token expirado. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Passwords no coinciden o política mínima. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+                qavante_refresh?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auth_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Datos del user + tenant activo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Sin sesión o sesión inválida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    users_list: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                search?: string | null;
+                role?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista paginada de usuarios + invitations pending. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersListResponse"];
+                };
+            };
+            /** @description Sin sesión. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol insuficiente (requiere admin u owner). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    users_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description Invitación creada y email enviado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedInvitationResponse"];
+                };
+            };
+            /** @description Sin sesión. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol insuficiente. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Email ya activo en el tenant o ya invitado. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol o email inválido. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchUserRequest"];
+            };
+        };
+        responses: {
+            /** @description User actualizado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserItem"];
+                };
+            };
+            /** @description Sin sesión. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol insuficiente. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description User no existe o no está en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description last_owner_protection o auto-suspend. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Role / status inválido o body vacío. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    users_me_permissions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lista de permisos + rol activo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionsResponse"];
+                };
+            };
+            /** @description Sin sesión. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     buk_health: {
         parameters: {
             query?: never;
@@ -3082,6 +5841,133 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    sii_f22_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceStatusResponse"];
+                };
+            };
+        };
+    };
+    sii_f29_pdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                folio: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PDF del Certificado Solemne F29 timbrado por SII. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Folio no encontrado o período sin declaración. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tenant sin credencial clave tributaria activa. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SII inalcanzable o respondió error. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sii_f29_parsed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                folio: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description F29 parseado con folio, período, RUT, códigos y montos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["F29Response"];
+                };
+            };
+            /** @description Folio no encontrado o período sin declaración. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tenant sin credencial clave tributaria activa. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SII inalcanzable, error de auth, o PDF con formato inesperado. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3528,6 +6414,684 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CertificadoErrorResponse"];
+                };
+            };
+        };
+    };
+    direccion_trabajo_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceStatusResponse"];
+                };
+            };
+        };
+    };
+    sources_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourcesStatusListResponse"];
+                };
+            };
+        };
+    };
+    confianza_score: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfianzaScoreResponse"];
+                };
+            };
+        };
+    };
+    bank_movements_list: {
+        parameters: {
+            query?: {
+                /** @description Filtro de clasificación: 'unclassified' | 'classified'. Omitir = todos. */
+                status?: string | null;
+                /** @description Período YYYY-MM (filtra por mes calendario del movimiento). */
+                period?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de movimientos + total sin paginar. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankMovementsListResponse"];
+                };
+            };
+            /** @description `period` mal formado (usar YYYY-MM). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    bank_movements_classify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID del movimiento a clasificar. */
+                movement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassifyMovementRequest"];
+            };
+        };
+        responses: {
+            /** @description Movimiento clasificado. Reclasificación queda auditada. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankMovement"];
+                };
+            };
+            /** @description Movimiento o cuenta de gestión no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Body inválido (management_account_id requerido). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    bank_movements_suggest_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID del movimiento. */
+                movement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Movimiento no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    canonical_categories_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 26 categorías canónicas ordenadas por sort_order. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CanonicalCategoriesResponse"];
+                };
+            };
+            /** @description Falta o es inválida la autenticación. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    management_accounts_tree: {
+        parameters: {
+            query?: {
+                include_inactive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementAccountTreeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    management_accounts_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateManagementAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Cuenta creada. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementAccount"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El parent_id no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ya existe una cuenta con ese code. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    management_accounts_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la cuenta. */
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateManagementAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementAccount"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    management_accounts_move: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la cuenta a mover. */
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveManagementAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementAccount"];
+                };
+            };
+            /** @description El move generaría un ciclo. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    management_accounts_toggle_active: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la cuenta. */
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementAccount"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    management_accounts_toggle_visible: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la cuenta. */
+                account_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementAccount"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    classification_rules_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationRulesResponse"];
+                };
+            };
+        };
+    };
+    classification_rules_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateClassificationRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationRule"];
+                };
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El management_account_id no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dominio inválido (source_type/condition_field/operator). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    classification_rules_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la regla. */
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateClassificationRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationRule"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    classification_rules_toggle_active: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la regla. */
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationRule"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    currencies_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrenciesResponse"];
+                };
+            };
+        };
+    };
+    exchange_rates_get: {
+        parameters: {
+            query: {
+                /** @description Moneda base (ej: UF). */
+                base: string;
+                /** @description Moneda destino (ej: CLP). */
+                quote: string;
+                /** @description Fecha (YYYY-MM-DD). Omitir = más reciente. */
+                date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExchangeRateLookupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    company_currency_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyCurrencySettings"];
+                };
+            };
+            /** @description Settings no sembrados para el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    company_currency_settings_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCompanyCurrencySettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyCurrencySettings"];
+                };
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4320,6 +7884,539 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TenantResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dimensions_list: {
+        parameters: {
+            query?: {
+                /** @description Solo dimensiones activas. */
+                only_active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DimensionsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dimensions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDimensionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementDimension"];
+                };
+            };
+            /** @description Ya existe una dimensión con ese code. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dimensions_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la dimensión. */
+                dimension_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDimensionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementDimension"];
+                };
+            };
+            /** @description La dimensión no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dimension_values_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la dimensión. */
+                dimension_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DimensionValuesListResponse"];
+                };
+            };
+            /** @description La dimensión no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dimension_values_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la dimensión. */
+                dimension_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDimensionValueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementDimensionValue"];
+                };
+            };
+            /** @description Dimensión o valor padre no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El padre es de otra dimensión. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La dimensión no permite jerarquía. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    dimension_values_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID del valor. */
+                value_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDimensionValueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementDimensionValue"];
+                };
+            };
+            /** @description El valor no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dimension_values_move: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID del valor a mover. */
+                value_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MoveDimensionValueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagementDimensionValue"];
+                };
+            };
+            /** @description El valor o el nuevo padre no existe. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El nuevo padre es de otra dimensión o crearía un ciclo. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dimension_assignments_list: {
+        parameters: {
+            query: {
+                /** @description bank_movement | document | manual_entry */
+                entity_type: string;
+                /** @description UUID de la entidad. */
+                entity_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignmentsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dimension_assignments_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAssignmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DimensionAssignment"];
+                };
+            };
+            /** @description Dimensión, valor o entidad no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Valor de otra dimensión, inactivo, o multi-valor no permitido. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dimension_assignments_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la asignación. */
+                assignment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La asignación no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    industry_templates_list: {
+        parameters: {
+            query?: {
+                only_active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndustryTemplatesListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    industry_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Código de la plantilla (ej. construction). */
+                template_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndustryTemplateDetail"];
+                };
+            };
+            /** @description La plantilla no existe en el catálogo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    industry_templates_apply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Código de la plantilla (ej. construction). */
+                template_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApplyTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyTemplateResponse"];
+                };
+            };
+            /** @description La plantilla no existe en el catálogo (§19). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflicto al materializar la plantilla (§19). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
