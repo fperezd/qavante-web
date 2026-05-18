@@ -14,6 +14,8 @@ export type ManagementAccountNode = components["schemas"]["ManagementAccountNode
 export type ManagementAccountTreeResponse = components["schemas"]["ManagementAccountTreeResponse"];
 export type ManagementDimension = components["schemas"]["ManagementDimension"];
 export type DimensionsListResponse = components["schemas"]["DimensionsListResponse"];
+export type ManagementDimensionValue = components["schemas"]["ManagementDimensionValue"];
+export type DimensionValuesListResponse = components["schemas"]["DimensionValuesListResponse"];
 
 export const managementKeys = {
   all: ["management"] as const,
@@ -21,6 +23,8 @@ export const managementKeys = {
     [...managementKeys.all, "accounts", "tree", { includeInactive }] as const,
   dimensions: (onlyActive = false) =>
     [...managementKeys.all, "dimensions", { onlyActive }] as const,
+  dimensionValues: (dimensionId: string) =>
+    [...managementKeys.all, "dimensions", dimensionId, "values"] as const,
 };
 
 /** `GET /api/management/accounts/tree` — árbol anidado por `sort_order`. */
@@ -46,6 +50,20 @@ export function useManagementDimensions(opts: { onlyActive?: boolean } = {}) {
       api.get<DimensionsListResponse>(
         `/api/management/dimensions${onlyActive ? "?only_active=true" : ""}`,
       ),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `GET /api/management/dimensions/{id}/values` — valores (lista plana con
+ *  `parent_id`; la jerarquía/level la deriva el adapter de UI en su PR). Solo
+ *  corre con `dimensionId` no vacío (`enabled`). */
+export function useDimensionValues(dimensionId: string) {
+  return useQuery({
+    queryKey: managementKeys.dimensionValues(dimensionId),
+    queryFn: () =>
+      api.get<DimensionValuesListResponse>(`/api/management/dimensions/${dimensionId}/values`),
+    enabled: dimensionId !== "",
     staleTime: 30_000,
     retry: false,
   });
