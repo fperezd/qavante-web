@@ -270,4 +270,83 @@ export const credentialsHandlers = [
   }),
 ];
 
-export const handlers = [...authHandlers, ...usersHandlers, ...credentialsHandlers];
+/* Treasury — canonical categories. Metadata read-only, contrato VIVO y
+   CONGELADO (reconciliation P4-4): taxonomía §11/26 + shape §10.1. Subconjunto
+   representativo (no las 26) con todos los campos de `CanonicalCategoryMeta`
+   para que dev/test funcionen sin backend (ADR-0005). El contrato real lo
+   sirve prod; esto NO hardcodea taxonomía en la app, solo en el mock. */
+const canonicalCategoriesFixture = [
+  {
+    code: "client_collection",
+    label: "Cobro de cliente",
+    description: "Entrada de caja de cliente o deudor comercial.",
+    expected_direction: "credit",
+    cashflow_group: "cash_in",
+    default_financial_model: "cash",
+    default_impact_type: "operational",
+    default_management_root: "ingresos",
+    requires_review: false,
+    affects_operational_result_by_default: true,
+    is_internal_movement: false,
+    allowed_for_bank_movement: true,
+    sort_order: 10,
+  },
+  {
+    code: "supplier_payment",
+    label: "Pago a proveedor",
+    description: "Pago comercial u operacional a proveedor.",
+    expected_direction: "debit",
+    cashflow_group: "cash_out",
+    default_financial_model: "cash",
+    default_impact_type: "operational",
+    default_management_root: "costos",
+    requires_review: false,
+    affects_operational_result_by_default: true,
+    is_internal_movement: false,
+    allowed_for_bank_movement: true,
+    sort_order: 40,
+  },
+  {
+    code: "internal_bank_transfer",
+    label: "Transferencia entre cuentas propias",
+    description: "Movimiento entre cuentas de la misma empresa.",
+    expected_direction: "any",
+    cashflow_group: "internal",
+    default_financial_model: "none",
+    default_impact_type: "none",
+    default_management_root: "tesoreria",
+    requires_review: false,
+    affects_operational_result_by_default: false,
+    is_internal_movement: true,
+    allowed_for_bank_movement: true,
+    sort_order: 180,
+  },
+  {
+    code: "unknown",
+    label: "Por clasificar",
+    description: "Movimiento sin clasificación suficiente.",
+    expected_direction: "any",
+    cashflow_group: "unknown",
+    default_financial_model: "none",
+    default_impact_type: "none",
+    default_management_root: "por_clasificar",
+    requires_review: true,
+    affects_operational_result_by_default: false,
+    is_internal_movement: false,
+    allowed_for_bank_movement: true,
+    sort_order: 999,
+  },
+];
+
+const treasuryHandlers = [
+  http.get("*/api/treasury/canonical-categories", () =>
+    HttpResponse.json({ items: canonicalCategoriesFixture }, { status: 200 }),
+  ),
+];
+
+export const handlers = [
+  ...authHandlers,
+  ...usersHandlers,
+  ...credentialsHandlers,
+  ...treasuryHandlers,
+];
