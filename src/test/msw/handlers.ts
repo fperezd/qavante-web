@@ -406,12 +406,42 @@ const dimensionsFixture = [
   },
 ];
 
+/* Valores de dimensión — lista PLANA con parent_id (shape §10.5 /
+   ManagementDimensionValue). La jerarquía la deriva el adapter de UI. */
+const dimensionValuesFixture = [
+  {
+    id: "val-norte",
+    dimension_id: "dim-proyecto",
+    parent_id: null,
+    code: "norte",
+    name: "Proyecto Norte",
+    description: null,
+    path: "norte",
+    sort_order: 10,
+    active: true,
+  },
+  {
+    id: "val-norte-fase1",
+    dimension_id: "dim-proyecto",
+    parent_id: "val-norte",
+    code: "norte.fase1",
+    name: "Fase 1",
+    description: null,
+    path: "norte/fase1",
+    sort_order: 10,
+    active: true,
+  },
+];
+
 const managementHandlers = [
   http.get("*/api/management/accounts/tree", () =>
     HttpResponse.json({ items: managementAccountsTreeFixture }, { status: 200 }),
   ),
   http.get("*/api/management/dimensions", () =>
     HttpResponse.json({ items: dimensionsFixture }, { status: 200 }),
+  ),
+  http.get("*/api/management/dimensions/:dimensionId/values", () =>
+    HttpResponse.json({ items: dimensionValuesFixture }, { status: 200 }),
   ),
 ];
 

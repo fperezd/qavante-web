@@ -6,6 +6,7 @@ import {
   managementKeys,
   type ManagementAccountTreeResponse,
   type DimensionsListResponse,
+  type DimensionValuesListResponse,
 } from "./management";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
@@ -20,6 +21,12 @@ describe("managementKeys", () => {
       { includeInactive: false },
     ]);
     expect(managementKeys.accountsTree(true)).not.toEqual(managementKeys.accountsTree(false));
+    expect(managementKeys.dimensionValues("dim-1")).toEqual([
+      "management",
+      "dimensions",
+      "dim-1",
+      "values",
+    ]);
     expect(managementKeys.dimensions(true)).toEqual([
       "management",
       "dimensions",
@@ -53,5 +60,16 @@ describe("MSW — management", () => {
     expect(typeof dim.code).toBe("string");
     expect(typeof dim.name).toBe("string");
     expect(typeof dim.allows_multiple_values).toBe("boolean");
+  });
+
+  it("GET /api/management/dimensions/:id/values → lista plana con parent_id", async () => {
+    const r = await fetch(`${API}/api/management/dimensions/dim-proyecto/values`);
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as DimensionValuesListResponse;
+    expect(Array.isArray(body.items)).toBe(true);
+    const child = body.items.find((v) => v.parent_id != null);
+    expect(child).toBeDefined();
+    expect(typeof child?.name).toBe("string");
+    expect(typeof child?.dimension_id).toBe("string");
   });
 });
