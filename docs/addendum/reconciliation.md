@@ -198,7 +198,26 @@ Esto **invierte P0**: el 2º handoff backend bajó (parcial) a prod.
 | Classification rules CRUD + suggest-rule (§10.7)       | —                                                                                                           | ❌ **AUSENTE**                                                                                                                |
 | Feature-flags config (`/api/management/config`)        | —                                                                                                           | ❌ **AUSENTE** → aplica fallback [ADR-0008](../adr/0008-feature-flags-gating-pantallas-sin-backend.md) (presencia en OpenAPI) |
 
-### P4-2 · Drift de credenciales SII (handoff #71) — **bloqueante, requiere decisión humana**
+### P4-2 · Drift de credenciales SII (handoff #71) — ✅ **DECIDIDO 2026-05-17: Opción 1**
+
+> **✅ RESUELTO 2026-05-17 — Fernando eligió la Opción 1: el FE se adapta al
+> modelo genérico `/api/admin/sources/*`.** Fundamento (verificado read-only
+> contra prod): el modelo genérico es un **superset completo** del contrato
+> SII — cubre credencial empresa, **certificado .pfx con `expires_at`**
+> (`CertificateUploadRequest`/`CertificateMetadataResponse`), test de
+> credencial, consentimiento con auditoría/versión, + extras (credenciales en
+> cascada, catálogo de fuentes). El contrato `/api/credentials/sii` queda
+> **superseded**. Implicancia: `generate:api` **deja de estar bloqueado** (la
+> divergencia que genera ahora es la reescritura esperada de la capa de
+> credenciales, no una sorpresa). **Pregunta abierta para CC-API (regla 16,
+> no se adivina):** el contrato viejo tenía claves de **varias personas**
+> (empresa + contador…); el modelo genérico es una credencial por
+> `source_code`. CC-API debe confirmar cómo se representa el multi-persona
+> SII antes de reescribir esa parte de la pantalla. El resto de la adaptación
+>
+> - la integración de taxonomía no dependen de eso.
+
+### P4-2 (original) · Drift de credenciales SII (handoff #71)
 
 El contrato [`c1-sii-credentials.md`](../backend-contracts/c1-sii-credentials.md)
 especificaba **6 endpoints `/api/credentials/sii/*`**. El backend **no** los
@@ -225,9 +244,13 @@ parchea en silencio**. Decisión pendiente de Fernando:
 - **Opción 2 — se pide a CC-API volver al contrato `/api/credentials/sii`**
   (más trabajo backend, menos churn FE; el contrato ya estaba cerrado).
 
-Hasta resolver esto, `npm run generate:api` queda **diferido**: regenerar
-ahora arrastra el shape genérico y rompería los tipos hand-rolled sin una
-decisión tomada.
+~~Hasta resolver esto, `npm run generate:api` queda **diferido**~~ →
+**Resuelto (ver banner arriba):** con la Opción 1 elegida, `generate:api`
+ya **no está diferido**. Además se verificó que **nada importa el
+`types.ts` generado** (la capa hand-rolled `credentials.ts`/`users.ts` es
+standalone), así que regenerar es **aditivo y no rompe el build**. El
+rewrite de credenciales al modelo genérico es un paso posterior, separado,
+gateado por la pregunta multi-persona a CC-API.
 
 ### P4-3 · Resolución autoritativa
 
@@ -330,21 +353,21 @@ No todo es conflicto — la mayor parte del addendum es excelente y se respeta t
 
 ## Resumen ejecutivo de decisiones
 
-| ID   | Conflicto                      | Resolución                                                                                                                          | Dónde se ejecuta          |
-| ---- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| P0   | Backend no expone endpoints    | Cola: #71 → 2º handoff → PRs #83+                                                                                                   | Brief CC-API + runbook    |
-| P1-1 | Edge Runtime                   | No declarar runtime (gana CLAUDE.md)                                                                                                | Cada página nueva         |
-| P1-2 | Pages vs Workers               | Workers (gana realidad)                                                                                                             | Sin acción de código      |
-| P1-3 | `src/features/`                | Mapear a `src/components/` + `src/lib/api/`                                                                                         | ADR-0007                  |
-| P1-4 | Naming endpoints               | FE consume OpenAPI real, no inventa                                                                                                 | Handoff bidireccional     |
-| P2   | Proceso (.docx, ADRs, gate)    | Formalizado en esta tanda                                                                                                           | Estos PRs                 |
-| P3-1 | `canonical_category` enum      | ~~Gana enum 16 (migr. 0026)~~ **REVERTIDO por P4-4**                                                                                | Ver P4-4                  |
-| P3-2 | Syncs async-task               | FE adopta task_id + polling                                                                                                         | Brief taxonomía + FE      |
-| P3-3 | Multi-tenant API keys          | Transparente (FE solo cookie, verificado)                                                                                           | Sin acción de código      |
-| P4-1 | Backend bajó a prod (73 paths) | Taxonomía/gestión LIVE; P0 invertido                                                                                                | Reordena cola del handoff |
-| P4-2 | Drift credenciales SII         | `admin/sources` genérico vs contrato `/credentials/sii` — **decisión de Fernando**                                                  | Bloquea `generate:api`    |
-| P4-3 | Faltan 3 dominios              | industry-templates / currencies / classification-rules + suggest-rule                                                               | Siguen esperando backend  |
-| P4-4 | `canonical_category` real      | ✅ **RESUELTO 2026-05-17** (CC-API, R-2): gana §11/26 congelado; lista de 16 descartada formalmente (nunca existió). Cero rework FE | Cerrado                   |
+| ID   | Conflicto                      | Resolución                                                                                                                                           | Dónde se ejecuta                     |
+| ---- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| P0   | Backend no expone endpoints    | Cola: #71 → 2º handoff → PRs #83+                                                                                                                    | Brief CC-API + runbook               |
+| P1-1 | Edge Runtime                   | No declarar runtime (gana CLAUDE.md)                                                                                                                 | Cada página nueva                    |
+| P1-2 | Pages vs Workers               | Workers (gana realidad)                                                                                                                              | Sin acción de código                 |
+| P1-3 | `src/features/`                | Mapear a `src/components/` + `src/lib/api/`                                                                                                          | ADR-0007                             |
+| P1-4 | Naming endpoints               | FE consume OpenAPI real, no inventa                                                                                                                  | Handoff bidireccional                |
+| P2   | Proceso (.docx, ADRs, gate)    | Formalizado en esta tanda                                                                                                                            | Estos PRs                            |
+| P3-1 | `canonical_category` enum      | ~~Gana enum 16 (migr. 0026)~~ **REVERTIDO por P4-4**                                                                                                 | Ver P4-4                             |
+| P3-2 | Syncs async-task               | FE adopta task_id + polling                                                                                                                          | Brief taxonomía + FE                 |
+| P3-3 | Multi-tenant API keys          | Transparente (FE solo cookie, verificado)                                                                                                            | Sin acción de código                 |
+| P4-1 | Backend bajó a prod (73 paths) | Taxonomía/gestión LIVE; P0 invertido                                                                                                                 | Reordena cola del handoff            |
+| P4-2 | Drift credenciales SII         | ✅ **DECIDIDO 2026-05-17: Opción 1** (FE → modelo genérico; superset verificado). `generate:api` **desbloqueado**. Multi-persona → pregunta a CC-API | FE adapta credenciales (post CC-API) |
+| P4-3 | Faltan 3 dominios              | industry-templates / currencies / classification-rules + suggest-rule                                                                                | Siguen esperando backend             |
+| P4-4 | `canonical_category` real      | ✅ **RESUELTO 2026-05-17** (CC-API, R-2): gana §11/26 congelado; lista de 16 descartada formalmente (nunca existió). Cero rework FE                  | Cerrado                              |
 
 ---
 

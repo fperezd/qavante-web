@@ -40,7 +40,7 @@ Ciclo autónomo 2026-05-13 → 2026-05-16 con autorización owner. Adelanta el f
 
 > **Estado al cierre del ciclo (2026-05-16):** los 7 PRs anteriores **mergeados a `main`**; suite verde en `main` real (typecheck/lint/92 unit/build/size/100 storybook). Todo aditivo y gateado OFF — **`generate:api` e integración real siguen DEFERIDOS** hasta resolver las 2 decisiones (drift credenciales SII P4-2 + `canonical_category` doc-backend vs API-vivo P4-4, ver [`reconciliation.md`](./docs/addendum/reconciliation.md)).
 >
-> **Actualización 2026-05-17:** **P4-4 ✅ RESUELTO** por CC-API (R-2, ratificado por Fernando): gana la taxonomía §11/26 congelada; la lista de 16 (AD-ESC #6) descartada formalmente (nunca existió la migración). Cero rework FE. CC-API publicó el OpenAPI formal de taxonomía. **Único bloqueante restante de `generate:api`/integración real: P4-2 (drift credenciales SII).**
+> **Actualización 2026-05-17:** **P4-4 ✅ RESUELTO** por CC-API (R-2, ratificado por Fernando): gana la taxonomía §11/26 congelada; la lista de 16 (AD-ESC #6) descartada formalmente (nunca existió la migración). Cero rework FE. CC-API publicó el OpenAPI formal de taxonomía. **P4-2 ✅ DECIDIDO** (Fernando, Opción 1): el FE se adapta al modelo genérico `/api/admin/sources/*` (superset verificado del contrato SII; `c1-sii-credentials.md` queda superseded). **Ambos gates resueltos** → `generate:api` desbloqueado (verificado: nada importa `types.ts`, regenerar es aditivo y no rompe build). Pendiente acotado a CC-API: representación multi-persona SII. Próximo: integración real (taxonomía) detrás de feature flags.
 
 #### Changed
 
