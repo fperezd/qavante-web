@@ -344,9 +344,81 @@ const treasuryHandlers = [
   ),
 ];
 
+/* Management — árbol de cuentas + dimensiones. Read-only. Fixtures con
+   shape de `ManagementAccountNode` / `ManagementDimension` (§10.2/§10.4)
+   para dev/test sin backend (ADR-0005). No hardcodea estructura en la app. */
+const managementAccountsTreeFixture = [
+  {
+    id: "acc-ingresos",
+    code: "ingresos",
+    name: "Ingresos",
+    type: "income",
+    parent_id: null,
+    destination: "operational_income_statement",
+    display_name: "Ingresos",
+    description: null,
+    level: 0,
+    path: "ingresos",
+    sort_order: 10,
+    is_system: true,
+    is_visible: true,
+    affects_pulso: true,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    children: [
+      {
+        id: "acc-ventas",
+        code: "ingresos.ventas",
+        name: "Ventas",
+        type: "income",
+        parent_id: "acc-ingresos",
+        destination: "operational_income_statement",
+        display_name: "Ventas de productos",
+        description: null,
+        level: 1,
+        path: "ingresos/ventas",
+        sort_order: 10,
+        is_system: false,
+        is_visible: true,
+        affects_pulso: true,
+        active: true,
+        created_at: "2026-01-01T00:00:00Z",
+        children: [],
+      },
+    ],
+  },
+];
+
+const dimensionsFixture = [
+  {
+    id: "dim-proyecto",
+    code: "proyecto",
+    name: "Proyecto",
+    description: "Analiza ingresos/costos por proyecto.",
+    data_type: "text",
+    is_system: false,
+    is_required: false,
+    is_visible: true,
+    allows_hierarchy: true,
+    allows_multiple_values: false,
+    active: true,
+    sort_order: 10,
+  },
+];
+
+const managementHandlers = [
+  http.get("*/api/management/accounts/tree", () =>
+    HttpResponse.json({ items: managementAccountsTreeFixture }, { status: 200 }),
+  ),
+  http.get("*/api/management/dimensions", () =>
+    HttpResponse.json({ items: dimensionsFixture }, { status: 200 }),
+  ),
+];
+
 export const handlers = [
   ...authHandlers,
   ...usersHandlers,
   ...credentialsHandlers,
   ...treasuryHandlers,
+  ...managementHandlers,
 ];
