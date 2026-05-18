@@ -1,11 +1,14 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { ManagementAccountsView } from "@/components/clasificacion/management-accounts-view";
 
-/* Skeleton gateado — Addendum Frontend v2.0 §14. Server Component: el flag se
-   resuelve en el server (resolveFeatureFlags lee process.env; default OFF —
-   ADR-0008). NO declarar `export const runtime` (CLAUDE.md regla 4 /
-   reconciliation P1-1). El editor de árbol real llega en un PR posterior,
-   post-handoff backend confirmado. */
+/* Gateado — Addendum Frontend v2.0 §14. Server Component: el flag se resuelve
+   en el server (resolveFeatureFlags lee process.env; default OFF — ADR-0008).
+   NO declarar `export const runtime` (CLAUDE.md regla 4 / reconciliation
+   P1-1). Flag OFF → FeatureUnavailableState (sin cambio visible: backend no
+   expone /api/management/config → fallback ADR-0008). Flag ON → vista
+   read-only conectada a `/api/management/accounts/tree`. El editor con
+   CRUD/move es un PR posterior (addendum §14.2/§14.3). */
 export default function EstructuraGestionPage() {
   const { managementAccounts } = resolveFeatureFlags();
 
@@ -19,9 +22,7 @@ export default function EstructuraGestionPage() {
         </p>
       </header>
 
-      {!managementAccounts && <FeatureUnavailableState />}
-      {/* managementAccounts === true (post-handoff): ManagementAccountTreeEditor
-          + DetailPanel aquí — addendum §14.2/§14.3. PR posterior. */}
+      {managementAccounts ? <ManagementAccountsView /> : <FeatureUnavailableState />}
     </div>
   );
 }
