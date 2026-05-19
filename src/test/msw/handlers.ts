@@ -338,10 +338,57 @@ const canonicalCategoriesFixture = [
   },
 ];
 
+/* Movimientos bancarios — listado + classify (PATCH). Shape de
+   `BankMovement` (§17). classify devuelve el movimiento "clasificado"
+   (echo del body) para que el FE vea el efecto sin backend (ADR-0005). */
+const bankMovementsFixture = [
+  {
+    id: "mov-1",
+    bank_account_id: "acct-1",
+    description: "TRANSFERENCIA PROVEEDOR ACME SPA",
+    amount: "-450000.00",
+    transaction_date: "2026-05-12",
+    canonical_category: null,
+    management_account_id: null,
+  },
+  {
+    id: "mov-2",
+    bank_account_id: "acct-1",
+    description: "ABONO CLIENTE FACTURA 1042",
+    amount: "1190000.00",
+    transaction_date: "2026-05-13",
+    canonical_category: null,
+    management_account_id: null,
+  },
+];
+
 const treasuryHandlers = [
   http.get("*/api/treasury/canonical-categories", () =>
     HttpResponse.json({ items: canonicalCategoriesFixture }, { status: 200 }),
   ),
+  http.get("*/api/bank-movements", () =>
+    HttpResponse.json(
+      { items: bankMovementsFixture, total: bankMovementsFixture.length },
+      { status: 200 },
+    ),
+  ),
+  http.patch("*/api/bank-movements/:movementId/classify", async ({ request, params }) => {
+    const body = (await request.json()) as {
+      management_account_id?: string;
+      canonical_category?: string | null;
+    };
+    const base =
+      bankMovementsFixture.find((m) => m.id === params.movementId) ?? bankMovementsFixture[0];
+    return HttpResponse.json(
+      {
+        ...base,
+        id: params.movementId,
+        management_account_id: body.management_account_id ?? null,
+        canonical_category: body.canonical_category ?? null,
+      },
+      { status: 200 },
+    );
+  }),
 ];
 
 /* Management — árbol de cuentas + dimensiones. Read-only. Fixtures con
