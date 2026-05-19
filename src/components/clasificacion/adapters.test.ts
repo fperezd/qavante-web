@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { flattenManagementAccounts } from "./adapters";
+import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
 import type { ManagementAccountNode } from "@/lib/api/management";
+import type { CanonicalCategoryMeta } from "@/lib/api/treasury";
 
 function node(p: Partial<ManagementAccountNode> & { id: string }): ManagementAccountNode {
   return {
@@ -53,5 +54,50 @@ describe("flattenManagementAccounts", () => {
 
   it("árbol vacío ⇒ []", () => {
     expect(flattenManagementAccounts([])).toEqual([]);
+  });
+});
+
+function meta(p: Partial<CanonicalCategoryMeta> & { code: string }): CanonicalCategoryMeta {
+  return {
+    label: p.code,
+    description: "",
+    expected_direction: "any",
+    cashflow_group: "unknown",
+    default_financial_model: "none",
+    default_impact_type: "none",
+    default_management_root: "x",
+    requires_review: false,
+    affects_operational_result_by_default: false,
+    is_internal_movement: false,
+    allowed_for_bank_movement: true,
+    sort_order: 0,
+    ...p,
+  } as CanonicalCategoryMeta;
+}
+
+describe("toCanonicalCategoryOptions", () => {
+  it("mapea code/label/description del backend (no hardcodea)", () => {
+    const out = toCanonicalCategoryOptions([
+      meta({ code: "supplier_payment", label: "Pago a proveedor", description: "Pago a prov." }),
+    ]);
+    expect(out[0]).toEqual({
+      code: "supplier_payment",
+      label: "Pago a proveedor",
+      description: "Pago a prov.",
+      expectedDirection: "any",
+    });
+  });
+
+  it("expectedDirection: narrowing a credit|debit|any, desconocido ⇒ undefined", () => {
+    const out = toCanonicalCategoryOptions([
+      meta({ code: "a", expected_direction: "credit" }),
+      meta({ code: "b", expected_direction: "raro" }),
+    ]);
+    expect(out[0]?.expectedDirection).toBe("credit");
+    expect(out[1]?.expectedDirection).toBeUndefined();
+  });
+
+  it("lista vacía ⇒ []", () => {
+    expect(toCanonicalCategoryOptions([])).toEqual([]);
   });
 });
