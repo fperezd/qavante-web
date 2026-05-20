@@ -492,10 +492,121 @@ const managementHandlers = [
   ),
 ];
 
+/* ============================================================
+   Credenciales V2 — Opción A (sii_rcv + certs multi-holder).
+   Conviven con los viejos `credentialsHandlers` mientras se migra
+   (PR-Cb borra los viejos). Estado mínimo en memoria, suficiente
+   para dev preview + tests sin backend (ADR-0005). */
+let siiV2State: { is_active: boolean; rut?: string } = { is_active: false };
+const certsV2State: Array<{
+  id: string;
+  rut_holder: string;
+  holder_name: string;
+  issued_at: string | null;
+  expires_at: string;
+  payload_size_bytes: number;
+  password_hint: string | null;
+}> = [];
+
+const credentialsHandlersV2 = [
+  http.get("*/api/admin/sources/sii_rcv/credential", () =>
+    HttpResponse.json(
+      {
+        source_code: "sii_rcv",
+        provider: "sii",
+        purpose: "ingest",
+        label: "Clave Tributaria SII",
+        expected_keys: ["rut", "password"],
+        human_label: "Clave del SII",
+        is_active: siiV2State.is_active,
+        created_at: "2026-05-19T00:00:00Z",
+      },
+      { status: 200 },
+    ),
+  ),
+
+  http.post("*/api/admin/sources/sii_rcv/credential", async ({ request }) => {
+    const body = (await request.json()) as { rut?: string; password?: string };
+    if (!body?.rut || !body?.password) {
+      return HttpResponse.json(errorBody("validation_error", "rut y password son requeridos."), {
+        status: 422,
+      });
+    }
+    siiV2State = { is_active: true, rut: body.rut };
+    return HttpResponse.json(
+      { status: "ok", source_code: "sii_rcv", is_active: true },
+      { status: 200 },
+    );
+  }),
+
+  http.delete("*/api/admin/sources/sii_rcv/credential", () => {
+    siiV2State = { is_active: false };
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post("*/api/admin/sources/sii_rcv/credential/test", () =>
+    HttpResponse.json(
+      {
+        status: "ok",
+        source_code: "sii_rcv",
+        validation: {
+          outcome: siiV2State.is_active ? "valid" : "skipped",
+          message: siiV2State.is_active ? "Credencial válida." : "No hay credencial configurada.",
+          details: {},
+        },
+      },
+      { status: 200 },
+    ),
+  ),
+
+  http.get("*/api/admin/certificates", () =>
+    HttpResponse.json({ certificates: certsV2State, count: certsV2State.length }, { status: 200 }),
+  ),
+
+  http.post("*/api/admin/certificates", async ({ request }) => {
+    const body = (await request.json()) as {
+      pfx_base64?: string;
+      password?: string;
+      password_hint?: string | null;
+      rut_holder?: string | null;
+    };
+    if (!body?.pfx_base64 || !body?.password) {
+      return HttpResponse.json(errorBody("validation_error", "pfx_base64 y password requeridos."), {
+        status: 422,
+      });
+    }
+    const id = `cert-${certsV2State.length + 1}`;
+    const cert = {
+      id,
+      rut_holder: body.rut_holder ?? "76.123.456-7",
+      holder_name: "Holder Demo",
+      issued_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      payload_size_bytes: Math.floor((body.pfx_base64.length * 3) / 4),
+      password_hint: body.password_hint ?? null,
+    };
+    certsV2State.push(cert);
+    return HttpResponse.json({ status: "ok", certificate: cert }, { status: 200 });
+  }),
+
+  http.delete("*/api/admin/certificates/:certificateId", ({ params }) => {
+    const id = params.certificateId as string;
+    const idx = certsV2State.findIndex((c) => c.id === id);
+    if (idx === -1) {
+      return HttpResponse.json(errorBody("not_found", "Certificado no encontrado."), {
+        status: 404,
+      });
+    }
+    certsV2State.splice(idx, 1);
+    return new HttpResponse(null, { status: 204 });
+  }),
+];
+
 export const handlers = [
   ...authHandlers,
   ...usersHandlers,
   ...credentialsHandlers,
+  ...credentialsHandlersV2,
   ...treasuryHandlers,
   ...managementHandlers,
 ];
