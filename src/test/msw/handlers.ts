@@ -515,10 +515,199 @@ const credentialsHandlersV2 = [
   }),
 ];
 
+/* ============================================================
+   Classification Rules — Addendum §17.5/§17.6/§18.7. Estado en
+   memoria con seed mínimo (2 reglas activas + 1 desactivada) para
+   probar listado ordenado, toggle, create y suggest. */
+const rulesV2State: Array<{
+  id: string;
+  name: string;
+  source_type: string;
+  condition_field: string;
+  operator: string;
+  condition_value: string;
+  canonical_category: string | null;
+  management_account_id: string | null;
+  dimension_assignments: unknown[];
+  priority: number;
+  confidence: string;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string | null;
+}> = [
+  {
+    id: "rule-1",
+    name: "Sueldo Fernando",
+    source_type: "bank_movement",
+    condition_field: "description",
+    operator: "contains",
+    condition_value: "REMUN FERNANDO",
+    canonical_category: "payroll",
+    management_account_id: "acc-9",
+    dimension_assignments: [],
+    priority: 10,
+    confidence: "0.95",
+    active: true,
+    created_by: "u_owner_01",
+    created_at: "2026-05-01T10:00:00Z",
+    updated_at: null,
+  },
+  {
+    id: "rule-2",
+    name: "Proveedor Movistar",
+    source_type: "bank_movement",
+    condition_field: "counterparty_name",
+    operator: "equals",
+    condition_value: "TELEFONICA CHILE S.A.",
+    canonical_category: "supplier_payment",
+    management_account_id: "acc-12",
+    dimension_assignments: [],
+    priority: 50,
+    confidence: "0.90",
+    active: true,
+    created_by: "u_owner_01",
+    created_at: "2026-05-03T10:00:00Z",
+    updated_at: null,
+  },
+  {
+    id: "rule-3",
+    name: "Transferencia banco — desactivada",
+    source_type: "bank_movement",
+    condition_field: "description",
+    operator: "starts_with",
+    condition_value: "TRANSF",
+    canonical_category: "internal_transfer",
+    management_account_id: null,
+    dimension_assignments: [],
+    priority: 90,
+    confidence: "0.70",
+    active: false,
+    created_by: "u_admin_01",
+    created_at: "2026-04-20T10:00:00Z",
+    updated_at: "2026-05-10T15:00:00Z",
+  },
+];
+
+let rulesV2Counter = rulesV2State.length;
+
+const classificationRulesHandlers = [
+  http.get("*/api/treasury/classification-rules", () => {
+    /* Listado ordenado por priority ASC (orden de evaluación). */
+    const sorted = [...rulesV2State].sort((a, b) => a.priority - b.priority);
+    return HttpResponse.json({ items: sorted }, { status: 200 });
+  }),
+
+  http.post("*/api/treasury/classification-rules", async ({ request }) => {
+    const body = (await request.json()) as {
+      name?: string;
+      source_type?: string;
+      condition_field?: string;
+      operator?: string;
+      condition_value?: string;
+      canonical_category?: string | null;
+      management_account_id?: string | null;
+      priority?: number;
+      confidence?: number;
+    };
+    if (!body.name || !body.condition_field || !body.operator || !body.condition_value) {
+      return HttpResponse.json(
+        errorBody(
+          "validation_error",
+          "name, condition_field, operator y condition_value requeridos.",
+        ),
+        { status: 422 },
+      );
+    }
+    rulesV2Counter += 1;
+    const newRule = {
+      id: `rule-${rulesV2Counter}`,
+      name: body.name,
+      source_type: body.source_type ?? "bank_movement",
+      condition_field: body.condition_field,
+      operator: body.operator,
+      condition_value: body.condition_value,
+      canonical_category: body.canonical_category ?? null,
+      management_account_id: body.management_account_id ?? null,
+      dimension_assignments: [],
+      priority: body.priority ?? 100,
+      confidence: String(body.confidence ?? 0.8),
+      active: true,
+      created_by: "u_owner_01",
+      created_at: new Date().toISOString(),
+      updated_at: null,
+    };
+    rulesV2State.push(newRule);
+    return HttpResponse.json(newRule, { status: 201 });
+  }),
+
+  http.patch("*/api/treasury/classification-rules/:ruleId", async ({ params, request }) => {
+    const id = params.ruleId as string;
+    const idx = rulesV2State.findIndex((r) => r.id === id);
+    if (idx === -1) {
+      return HttpResponse.json(errorBody("not_found", "Regla no encontrada."), { status: 404 });
+    }
+    const body = (await request.json()) as Record<string, unknown>;
+    const existing = rulesV2State[idx]!;
+    const patched = {
+      ...existing,
+      ...(typeof body.name === "string" ? { name: body.name } : {}),
+      ...(typeof body.condition_field === "string"
+        ? { condition_field: body.condition_field }
+        : {}),
+      ...(typeof body.operator === "string" ? { operator: body.operator } : {}),
+      ...(typeof body.condition_value === "string"
+        ? { condition_value: body.condition_value }
+        : {}),
+      ...(body.canonical_category !== undefined
+        ? { canonical_category: body.canonical_category as string | null }
+        : {}),
+      ...(typeof body.priority === "number" ? { priority: body.priority } : {}),
+      ...(typeof body.confidence === "number" ? { confidence: String(body.confidence) } : {}),
+      updated_at: new Date().toISOString(),
+    };
+    rulesV2State[idx] = patched;
+    return HttpResponse.json(patched, { status: 200 });
+  }),
+
+  http.post("*/api/treasury/classification-rules/:ruleId/toggle-active", ({ params }) => {
+    const id = params.ruleId as string;
+    const idx = rulesV2State.findIndex((r) => r.id === id);
+    if (idx === -1) {
+      return HttpResponse.json(errorBody("not_found", "Regla no encontrada."), { status: 404 });
+    }
+    const existing = rulesV2State[idx]!;
+    const toggled = {
+      ...existing,
+      active: !existing.active,
+      updated_at: new Date().toISOString(),
+    };
+    rulesV2State[idx] = toggled;
+    return HttpResponse.json(toggled, { status: 200 });
+  }),
+
+  http.post("*/api/bank-movements/:movementId/suggest-rule", ({ params }) => {
+    /* §18.7: read-only, no persiste. Sugerencia simple basada en el id
+       del movimiento (en backend real usa la glosa del movimiento). */
+    const movementId = params.movementId as string;
+    return HttpResponse.json(
+      {
+        name: `Regla sugerida para ${movementId}`,
+        source_type: "bank_movement",
+        condition_field: "description",
+        operator: "contains",
+        condition_value: "PAGO PROV",
+      },
+      { status: 200 },
+    );
+  }),
+];
+
 export const handlers = [
   ...authHandlers,
   ...usersHandlers,
   ...credentialsHandlersV2,
   ...treasuryHandlers,
   ...managementHandlers,
+  ...classificationRulesHandlers,
 ];
