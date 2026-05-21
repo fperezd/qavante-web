@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Users, KeyRound, Layers, Telescope, Coins, ListFilter, ArrowRight } from "lucide-react";
+import {
+  Users,
+  KeyRound,
+  Layers,
+  Telescope,
+  Coins,
+  ListFilter,
+  Briefcase,
+  ArrowRight,
+} from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 
 interface SubModuleCardProps {
@@ -79,6 +88,12 @@ export default function AdministracionPage() {
           icon={ListFilter}
           title="Reglas de clasificación"
           description="Reglas que Qavante usa para clasificar movimientos similares en el futuro."
+        />
+        <SubModuleCard
+          href="/administracion/plantillas"
+          icon={Briefcase}
+          title="Plantillas por rubro"
+          description="Estructura sugerida de cuentas y vistas según el tipo de negocio que tengas."
         />
       </div>
     </div>
