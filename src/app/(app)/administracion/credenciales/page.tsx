@@ -2,19 +2,24 @@
 
 import { Loader2, AlertCircle } from "lucide-react";
 import { QavanteEmpty } from "@/components/qavante";
-import { SiiCompanyCard, SiiPersonsList, CertificateCard } from "@/components/credenciales";
-import { useSiiCredentialsStatus } from "@/lib/api/credentials";
+import { SiiCredentialCard, CertificateListView } from "@/components/credenciales";
+import { useSiiCredential } from "@/lib/api/credentials";
 
+/* Pantalla Administración → Credenciales SII. Modelo Opción A (decisión
+   Fernando 2026-05-18): UNA credencial SII por tenant (`source_code=sii_rcv`)
+   + lista multi-holder de certificados digitales. SIN `persons[]` (fuera de
+   scope, regla 16). Contrato vivo en docs/contracts/sii-credentials-contract.md
+   (qavante-api); el viejo c1-sii-credentials.md quedó SUPERSEDED. */
 export default function CredencialesPage() {
-  const { data, isLoading, isError, error } = useSiiCredentialsStatus();
+  const { data, isLoading, isError, error } = useSiiCredential();
 
   return (
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Credenciales SII</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Las claves y el certificado que Qavante usa para acceder al portal SII en nombre de tu
-          empresa.
+          La clave del portal SII y los certificados digitales que Qavante usa para acceder al SII
+          en nombre de tu empresa.
         </p>
       </header>
 
@@ -38,16 +43,20 @@ export default function CredencialesPage() {
       )}
 
       {data && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <SiiCompanyCard company={data.company} />
-          </div>
-          <div className="md:col-span-2">
-            <SiiPersonsList persons={data.persons} />
-          </div>
-          <div className="md:col-span-2">
-            <CertificateCard certificate={data.certificate} />
-          </div>
+        <div className="space-y-6">
+          <section aria-labelledby="sii-credential-heading">
+            <h2 id="sii-credential-heading" className="sr-only">
+              Credencial SII
+            </h2>
+            <SiiCredentialCard credential={data} />
+          </section>
+
+          <section aria-labelledby="certificates-heading" className="space-y-2">
+            <h2 id="certificates-heading" className="text-base font-semibold text-neutral-dark">
+              Certificados digitales
+            </h2>
+            <CertificateListView />
+          </section>
         </div>
       )}
     </div>

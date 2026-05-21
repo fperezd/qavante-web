@@ -1,24 +1,16 @@
-/* Capa de datos — Credenciales SII.
+/* Capa de datos — Credenciales SII (Opción A, decisión Fernando 2026-05-18).
  *
- * ⚠️ FASE DE TRANSICIÓN (Opción A, decidida por Fernando 2026-05-18):
- *  - `c1-sii-credentials.md` quedó SUPERSEDED. El contrato vivo es el
- *    modelo genérico `/api/admin/sources/{source_code}/credential|test` +
- *    colección `/api/admin/certificates` (multi-holder). `persons[]` NO
- *    existe (fuera de scope — no inventar, regla 16).
- *  - **NUEVA superficie (Opción A) abajo** — usar de acá en adelante. Tipos
- *    del OpenAPI generado (`./types`), nunca hand-rolled (regla 3).
- *  - **VIEJA superficie (`@deprecated`)** se conserva temporalmente para
- *    NO romper consumidores aún migrados (sii-person*, sii-persons-list,
- *    certificate-*, sii-company-*, page credenciales). PR-Cb migra los
- *    consumidores al nuevo modelo y borra todo lo marcado deprecated +
- *    los componentes de personas. */
+ * Modelo vivo: UNA credencial SII por tenant (`source_code=sii_rcv`) +
+ * colección multi-holder de certificados digitales. `persons[]` está FUERA
+ * DE SCOPE — no inventar endpoints de persona (regla 16; confirmado por
+ * backend). Contrato canónico in-repo (qavante-api):
+ * `docs/contracts/sii-credentials-contract.md`. El viejo
+ * `c1-sii-credentials.md` quedó SUPERSEDED.
+ *
+ * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
-
-/* ============================================================
-   NUEVA superficie — Opción A (sii_rcv + certificados multi-holder)
-   ============================================================ */
 
 export type CredentialMetadataResponse = components["schemas"]["CredentialMetadataResponse"];
 export type CredentialPutResponse = components["schemas"]["CredentialPutResponse"];
@@ -107,130 +99,5 @@ export function useDeleteCertificateById() {
     mutationFn: (certificateId: string) =>
       api.delete<void>(`/api/admin/certificates/${certificateId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeysV2.certificates() }),
-  });
-}
-
-/* ============================================================
-   VIEJA superficie — deprecated, se borra en PR-Cb
-   Conservada para mantener el build verde mientras se migran
-   los consumidores (sii-company-*, sii-person-*, sii-persons-list,
-   certificate-card, certificate-upload-dialog, page credenciales).
-   ============================================================ */
-
-export interface SiiCompanyStatus {
-  configured: boolean;
-  rut?: string;
-  last_rotated_at?: string;
-}
-
-export interface SiiPersonStatus {
-  rut: string;
-  name: string | null;
-  configured: boolean;
-  last_rotated_at: string | null;
-}
-
-export interface CertificateStatus {
-  configured: boolean;
-  subject_rut?: string;
-  expires_at?: string;
-  uploaded_at?: string;
-}
-
-export interface SiiCredentialsStatus {
-  company: SiiCompanyStatus;
-  persons: SiiPersonStatus[];
-  certificate: CertificateStatus;
-}
-
-export interface SetCompanyCredentialsBody {
-  rut: string;
-  password: string;
-}
-
-export interface SetPersonCredentialsBody {
-  rut: string;
-  name?: string;
-  password: string;
-}
-
-const credentialsKeys = {
-  all: ["credentials", "sii"] as const,
-  status: () => [...credentialsKeys.all, "status"] as const,
-};
-
-export function useSiiCredentialsStatus() {
-  return useQuery({
-    queryKey: credentialsKeys.status(),
-    queryFn: () => api.get<SiiCredentialsStatus>("/api/credentials/sii"),
-    staleTime: 30_000,
-    retry: false,
-  });
-}
-
-export function useSetCompanyCredentials() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: SetCompanyCredentialsBody) =>
-      api.put<void>("/api/credentials/sii/company", { body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeys.all }),
-  });
-}
-
-export function useSetPersonCredentials() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: SetPersonCredentialsBody) =>
-      api.put<void>("/api/credentials/sii/person", { body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeys.all }),
-  });
-}
-
-export function useDeletePersonCredentials() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (rut: string) => api.delete<void>(`/api/credentials/sii/person/${rut}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeys.all }),
-  });
-}
-
-/* Upload de certificado es multipart/form-data — bypassa api.client porque
-   client.ts asume JSON. Hacemos fetch directo y reusamos la convención de
-   credentials: 'include' para que la cookie qavante_session viaje, y el
-   manejo de errores se hace inline (el FE lee `code` del body). */
-async function uploadCertificateMultipart(
-  file: File,
-  password: string,
-): Promise<{ certificate: CertificateStatus }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
-  const form = new FormData();
-  form.append("file", file);
-  form.append("password", password);
-  const r = await fetch(`${apiUrl}/api/credentials/certificate`, {
-    method: "PUT",
-    body: form,
-    credentials: "include",
-  });
-  if (!r.ok) {
-    const body = (await r.json().catch(() => ({}))) as { code?: string; detail?: string };
-    throw new Error(body.detail ?? `Error ${r.status}`);
-  }
-  return r.json() as Promise<{ certificate: CertificateStatus }>;
-}
-
-export function useUploadCertificate() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ file, password }: { file: File; password: string }) =>
-      uploadCertificateMultipart(file, password),
-    onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeys.all }),
-  });
-}
-
-export function useDeleteCertificate() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.delete<void>("/api/credentials/certificate"),
-    onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeys.all }),
   });
 }
