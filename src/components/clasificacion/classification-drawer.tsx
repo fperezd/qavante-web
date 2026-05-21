@@ -91,7 +91,10 @@ export function ClassificationDrawer({
 
   if (!open) return null;
 
-  const canSave = Boolean(draft.canonicalCategory) && !saving;
+  /* Contrato real (regla 16, addendum §17.3 erróneo): `management_account_id`
+     es OBLIGATORIO (422 sin él); `canonical_category` es opcional/nullable.
+     `notes` y `create_rule` también opcionales. */
+  const canSave = Boolean(draft.managementAccountId) && !saving;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
