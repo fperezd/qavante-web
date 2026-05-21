@@ -8,10 +8,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { X } from "lucide-react";
 import { QavanteButton, QavanteInput } from "@/components/qavante";
 import { PasswordInput } from "./password-input";
-import { useSetCompanyCredentials, type SiiCompanyStatus } from "@/lib/api/credentials";
+import { usePutSiiCredential } from "@/lib/api/credentials";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { isValidRut } from "@/lib/validators/rut";
+
+/* Dialog del bloque ÚNICO de credencial SII (Opción A). Form rut+password →
+   POST /api/admin/sources/sii_rcv/credential. La clave NO se almacena en
+   FE/storage (CLAUDE.md regla 6); va por HTTPS al backend que la encripta. */
 
 const schema = z.object({
   rut: z.string().min(1, "RUT requerido").refine(isValidRut, "RUT inválido"),
@@ -23,11 +27,11 @@ type FormValues = z.infer<typeof schema>;
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  company: SiiCompanyStatus;
+  active: boolean;
 }
 
-export function SiiCompanyDialog({ open, onOpenChange, company }: Props) {
-  const mutate = useSetCompanyCredentials();
+export function SiiCredentialDialog({ open, onOpenChange, active }: Props) {
+  const put = usePutSiiCredential();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const {
@@ -38,28 +42,24 @@ export function SiiCompanyDialog({ open, onOpenChange, company }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { rut: company.rut ?? "", password: "" },
+    defaultValues: { rut: "", password: "" },
     mode: "onBlur",
   });
 
   React.useEffect(() => {
     if (!open) {
-      reset({ rut: company.rut ?? "", password: "" });
+      reset({ rut: "", password: "" });
       setSubmitError(null);
     }
-  }, [open, company.rut, reset]);
+  }, [open, reset]);
 
   async function onSubmit(values: FormValues) {
     setSubmitError(null);
     try {
-      await mutate.mutateAsync(values);
+      await put.mutateAsync(values);
       onOpenChange(false);
     } catch (err) {
-      if (err instanceof ApiError && err.code === "rut_mismatch") {
-        setSubmitError("El RUT no coincide con el RUT de la empresa del tenant.");
-      } else {
-        setSubmitError(err instanceof ApiError ? apiErrorToUserMessage(err) : "Error inesperado.");
-      }
+      setSubmitError(err instanceof ApiError ? apiErrorToUserMessage(err) : "Error inesperado.");
     }
   }
 
@@ -70,7 +70,7 @@ export function SiiCompanyDialog({ open, onOpenChange, company }: Props) {
         <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-surface p-6 shadow-xl">
           <div className="mb-4 flex items-start justify-between">
             <Dialog.Title className="text-lg font-semibold text-neutral-dark">
-              {company.configured ? "Cambiar clave SII empresa" : "Configurar clave SII empresa"}
+              {active ? "Cambiar clave SII" : "Configurar clave SII"}
             </Dialog.Title>
             <Dialog.Close
               aria-label="Cerrar"
@@ -85,22 +85,21 @@ export function SiiCompanyDialog({ open, onOpenChange, company }: Props) {
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
             <div className="space-y-1">
-              <label htmlFor="company-rut" className="text-sm font-medium text-neutral-dark">
-                RUT empresa
+              <label htmlFor="sii-rut" className="text-sm font-medium text-neutral-dark">
+                RUT
               </label>
               <Controller
                 control={control}
                 name="rut"
                 render={({ field }) => (
                   <QavanteInput
-                    id="company-rut"
+                    id="sii-rut"
                     variant="rut"
                     placeholder="76.123.456-7"
                     value={field.value}
                     onValueChange={field.onChange}
                     onBlur={field.onBlur}
                     invalid={Boolean(errors.rut)}
-                    disabled={Boolean(company.rut)}
                   />
                 )}
               />
@@ -112,12 +111,12 @@ export function SiiCompanyDialog({ open, onOpenChange, company }: Props) {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="company-pwd" className="text-sm font-medium text-neutral-dark">
+              <label htmlFor="sii-pwd" className="text-sm font-medium text-neutral-dark">
                 Clave SII
               </label>
               <PasswordInput
-                id="company-pwd"
-                placeholder="Tu clave del portal SII"
+                id="sii-pwd"
+                placeholder="Tu clave tributaria del portal SII"
                 invalid={Boolean(errors.password)}
                 {...register("password")}
               />

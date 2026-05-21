@@ -20,7 +20,6 @@ import type {
   AcceptInvitationBody,
   UsersListResponse,
 } from "@/lib/api/users";
-import type { SetCompanyCredentialsBody, SetPersonCredentialsBody } from "@/lib/api/credentials";
 import {
   listUsers,
   findUser,
@@ -29,12 +28,6 @@ import {
   inviteUser,
   updateUser,
   isLastActiveOwner,
-  getCredentialsStatus,
-  setCompanyCreds,
-  setPersonCreds,
-  deletePersonCreds,
-  uploadCertificate,
-  deleteCertificate,
 } from "./db";
 import { SEED_SESSION_USER } from "./fixtures";
 
@@ -190,86 +183,6 @@ export const usersHandlers = [
   }),
 ];
 
-export const credentialsHandlers = [
-  http.get("*/api/credentials/sii", () => {
-    return HttpResponse.json(getCredentialsStatus());
-  }),
-
-  http.put("*/api/credentials/sii/company", async ({ request }) => {
-    const body = (await request.json()) as SetCompanyCredentialsBody;
-    if (!body?.rut || !body?.password || body.password.length < 4) {
-      return HttpResponse.json(errorBody("validation_error", "RUT y clave requeridos."), {
-        status: 422,
-      });
-    }
-    const result = setCompanyCreds(body);
-    if (!result.ok) {
-      return HttpResponse.json(
-        errorBody("rut_mismatch", "El RUT no coincide con el RUT empresa del tenant."),
-        { status: 409 },
-      );
-    }
-    return new HttpResponse(null, { status: 204 });
-  }),
-
-  http.put("*/api/credentials/sii/person", async ({ request }) => {
-    const body = (await request.json()) as SetPersonCredentialsBody;
-    if (!body?.rut || !body?.password || body.password.length < 4) {
-      return HttpResponse.json(errorBody("validation_error", "RUT y clave requeridos."), {
-        status: 422,
-      });
-    }
-    setPersonCreds(body);
-    return new HttpResponse(null, { status: 204 });
-  }),
-
-  http.delete("*/api/credentials/sii/person/:rut", ({ params }) => {
-    const ok = deletePersonCreds(params.rut as string);
-    if (!ok) {
-      return HttpResponse.json(errorBody("not_found", "Credencial no encontrada."), {
-        status: 404,
-      });
-    }
-    return new HttpResponse(null, { status: 204 });
-  }),
-
-  http.put("*/api/credentials/certificate", async ({ request }) => {
-    const form = await request.formData();
-    const file = form.get("file");
-    const password = form.get("password");
-    if (!(file instanceof Blob) || !file.size) {
-      return HttpResponse.json(errorBody("invalid_pkcs12", "Archivo no recibido."), {
-        status: 422,
-      });
-    }
-    if (file.size > 100 * 1024) {
-      return HttpResponse.json(errorBody("invalid_pkcs12", "Archivo > 100 KB."), { status: 413 });
-    }
-    if (typeof password !== "string" || password.length < 4) {
-      return HttpResponse.json(
-        errorBody("invalid_certificate_password", "La clave del certificado no es válida."),
-        { status: 422 },
-      );
-    }
-    /* Mock no valida formato PKCS#12 real — asume válido. expires_at fijo
-       a 1 año desde ahora para que la UI pueda renderear "vence en N días". */
-    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-    uploadCertificate({ expiresAt, subjectRut: "76.123.456-7" });
-    return HttpResponse.json({ certificate: getCredentialsStatus().certificate }, { status: 200 });
-  }),
-
-  http.delete("*/api/credentials/certificate", () => {
-    const ok = deleteCertificate();
-    if (!ok) {
-      return HttpResponse.json(
-        errorBody("certificate_not_configured", "No hay certificado configurado."),
-        { status: 404 },
-      );
-    }
-    return new HttpResponse(null, { status: 204 });
-  }),
-];
-
 /* Treasury — canonical categories. Metadata read-only, contrato VIVO y
    CONGELADO (reconciliation P4-4): taxonomía §11/26 + shape §10.1. Subconjunto
    representativo (no las 26) con todos los campos de `CanonicalCategoryMeta`
@@ -338,10 +251,57 @@ const canonicalCategoriesFixture = [
   },
 ];
 
+/* Movimientos bancarios — listado + classify (PATCH). Shape de
+   `BankMovement` (§17). classify devuelve el movimiento "clasificado"
+   (echo del body) para que el FE vea el efecto sin backend (ADR-0005). */
+const bankMovementsFixture = [
+  {
+    id: "mov-1",
+    bank_account_id: "acct-1",
+    description: "TRANSFERENCIA PROVEEDOR ACME SPA",
+    amount: "-450000.00",
+    date: "2026-05-12",
+    canonical_category: null,
+    management_account_id: null,
+  },
+  {
+    id: "mov-2",
+    bank_account_id: "acct-1",
+    description: "ABONO CLIENTE FACTURA 1042",
+    amount: "1190000.00",
+    date: "2026-05-13",
+    canonical_category: null,
+    management_account_id: null,
+  },
+];
+
 const treasuryHandlers = [
   http.get("*/api/treasury/canonical-categories", () =>
     HttpResponse.json({ items: canonicalCategoriesFixture }, { status: 200 }),
   ),
+  http.get("*/api/bank-movements", () =>
+    HttpResponse.json(
+      { items: bankMovementsFixture, total: bankMovementsFixture.length },
+      { status: 200 },
+    ),
+  ),
+  http.patch("*/api/bank-movements/:movementId/classify", async ({ request, params }) => {
+    const body = (await request.json()) as {
+      management_account_id?: string;
+      canonical_category?: string | null;
+    };
+    const base =
+      bankMovementsFixture.find((m) => m.id === params.movementId) ?? bankMovementsFixture[0];
+    return HttpResponse.json(
+      {
+        ...base,
+        id: params.movementId,
+        management_account_id: body.management_account_id ?? null,
+        canonical_category: body.canonical_category ?? null,
+      },
+      { status: 200 },
+    );
+  }),
 ];
 
 /* Management — árbol de cuentas + dimensiones. Read-only. Fixtures con
@@ -445,10 +405,120 @@ const managementHandlers = [
   ),
 ];
 
+/* ============================================================
+   Credenciales — Opción A (sii_rcv + certs multi-holder). Decisión
+   Fernando 2026-05-18. Modelo viejo (persons[], cert único) borrado
+   en PR-Cb2. Estado mínimo en memoria, suficiente para dev preview +
+   tests sin backend (ADR-0005). */
+let siiV2State: { is_active: boolean; rut?: string } = { is_active: false };
+const certsV2State: Array<{
+  id: string;
+  rut_holder: string;
+  holder_name: string;
+  issued_at: string | null;
+  expires_at: string;
+  payload_size_bytes: number;
+  password_hint: string | null;
+}> = [];
+
+const credentialsHandlersV2 = [
+  http.get("*/api/admin/sources/sii_rcv/credential", () =>
+    HttpResponse.json(
+      {
+        source_code: "sii_rcv",
+        provider: "sii",
+        purpose: "ingest",
+        label: "Clave Tributaria SII",
+        expected_keys: ["rut", "password"],
+        human_label: "Clave del SII",
+        is_active: siiV2State.is_active,
+        created_at: "2026-05-19T00:00:00Z",
+      },
+      { status: 200 },
+    ),
+  ),
+
+  http.post("*/api/admin/sources/sii_rcv/credential", async ({ request }) => {
+    const body = (await request.json()) as { rut?: string; password?: string };
+    if (!body?.rut || !body?.password) {
+      return HttpResponse.json(errorBody("validation_error", "rut y password son requeridos."), {
+        status: 422,
+      });
+    }
+    siiV2State = { is_active: true, rut: body.rut };
+    return HttpResponse.json(
+      { status: "ok", source_code: "sii_rcv", is_active: true },
+      { status: 200 },
+    );
+  }),
+
+  http.delete("*/api/admin/sources/sii_rcv/credential", () => {
+    siiV2State = { is_active: false };
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.post("*/api/admin/sources/sii_rcv/credential/test", () =>
+    HttpResponse.json(
+      {
+        status: "ok",
+        source_code: "sii_rcv",
+        validation: {
+          outcome: siiV2State.is_active ? "valid" : "skipped",
+          message: siiV2State.is_active ? "Credencial válida." : "No hay credencial configurada.",
+          details: {},
+        },
+      },
+      { status: 200 },
+    ),
+  ),
+
+  http.get("*/api/admin/certificates", () =>
+    HttpResponse.json({ certificates: certsV2State, count: certsV2State.length }, { status: 200 }),
+  ),
+
+  http.post("*/api/admin/certificates", async ({ request }) => {
+    const body = (await request.json()) as {
+      pfx_base64?: string;
+      password?: string;
+      password_hint?: string | null;
+      rut_holder?: string | null;
+    };
+    if (!body?.pfx_base64 || !body?.password) {
+      return HttpResponse.json(errorBody("validation_error", "pfx_base64 y password requeridos."), {
+        status: 422,
+      });
+    }
+    const id = `cert-${certsV2State.length + 1}`;
+    const cert = {
+      id,
+      rut_holder: body.rut_holder ?? "76.123.456-7",
+      holder_name: "Holder Demo",
+      issued_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      payload_size_bytes: Math.floor((body.pfx_base64.length * 3) / 4),
+      password_hint: body.password_hint ?? null,
+    };
+    certsV2State.push(cert);
+    return HttpResponse.json({ status: "ok", certificate: cert }, { status: 200 });
+  }),
+
+  http.delete("*/api/admin/certificates/:certificateId", ({ params }) => {
+    const id = params.certificateId as string;
+    const idx = certsV2State.findIndex((c) => c.id === id);
+    if (idx === -1) {
+      return HttpResponse.json(errorBody("not_found", "Certificado no encontrado."), {
+        status: 404,
+      });
+    }
+    certsV2State.splice(idx, 1);
+    return new HttpResponse(null, { status: 204 });
+  }),
+];
+
 export const handlers = [
   ...authHandlers,
   ...usersHandlers,
-  ...credentialsHandlers,
+  ...credentialsHandlersV2,
   ...treasuryHandlers,
   ...managementHandlers,
 ];

@@ -4,22 +4,24 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { Building2 } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteButton } from "@/components/qavante";
-import type { SiiCompanyStatus } from "@/lib/api/credentials";
+import type { CredentialMetadataResponse } from "@/lib/api/credentials";
 import { formatDateEsCL } from "./format";
 
-/* Dialog lazy: el form + react-hook-form + zod sólo se cargan al abrir.
-   Reduce First Load JS de /administracion/credenciales (audit K.4 #2). */
-const SiiCompanyDialog = dynamic(
-  () => import("./sii-company-dialog").then((m) => ({ default: m.SiiCompanyDialog })),
+/* Card del bloque ÚNICO de credencial SII (Opción A: una credencial por
+   tenant — `source_code=sii_rcv`). NO hay persons[] (fuera de scope, regla
+   16). Dialog lazy para no inflar el First Load del page. */
+const SiiCredentialDialog = dynamic(
+  () => import("./sii-credential-dialog").then((m) => ({ default: m.SiiCredentialDialog })),
   { ssr: false },
 );
 
 interface Props {
-  company: SiiCompanyStatus;
+  credential: CredentialMetadataResponse;
 }
 
-export function SiiCompanyCard({ company }: Props) {
+export function SiiCredentialCard({ credential }: Props) {
   const [open, setOpen] = React.useState(false);
+  const active = credential.is_active;
 
   return (
     <>
@@ -28,22 +30,19 @@ export function SiiCompanyCard({ company }: Props) {
         header={
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-            <span>Credenciales SII — Empresa</span>
+            <span>{credential.human_label || "Credencial SII"}</span>
           </div>
         }
       >
-        {company.configured ? (
+        {active ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <div>
-                <p className="text-neutral-mid">RUT empresa</p>
-                <p className="font-medium text-neutral-dark">{company.rut}</p>
-              </div>
+              <p className="text-neutral-mid">{credential.label || "Clave Tributaria SII"}</p>
               <QavanteBadge variant="success">Configurada</QavanteBadge>
             </div>
-            {company.last_rotated_at && (
+            {credential.created_at && (
               <p className="text-xs text-neutral-mid">
-                Última rotación: {formatDateEsCL(company.last_rotated_at)}
+                Configurada: {formatDateEsCL(credential.created_at)}
               </p>
             )}
             <div className="flex justify-end pt-2">
@@ -55,8 +54,8 @@ export function SiiCompanyCard({ company }: Props) {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-neutral-mid">
-              Cargá la clave del portal SII de tu empresa para que Qavante pueda ingestar tus F29 y
-              Previred automáticamente.
+              Cargá la clave tributaria del SII para que Qavante pueda ingestar tus F29 y RCV
+              automáticamente. La clave se encripta antes de guardarse.
             </p>
             <div className="flex justify-end pt-2">
               <QavanteButton size="sm" onClick={() => setOpen(true)}>
@@ -66,7 +65,7 @@ export function SiiCompanyCard({ company }: Props) {
           </div>
         )}
       </QavanteCard>
-      <SiiCompanyDialog open={open} onOpenChange={setOpen} company={company} />
+      <SiiCredentialDialog open={open} onOpenChange={setOpen} active={active} />
     </>
   );
 }

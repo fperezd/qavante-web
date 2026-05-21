@@ -27,6 +27,14 @@ jobs:
       - run: npm ci
       - name: Build OpenNext worker bundle
         run: npm run build:cloudflare
+        # `NEXT_PUBLIC_*` se inlinea en build-time en el bundle del browser
+        # (no se lee del `[vars]` de wrangler.toml, que es runtime del Worker).
+        # Sin esto el cliente queda con API_URL="" → error config_missing en
+        # login. Valores públicos (no secretos): mismos que wrangler.toml
+        # [vars] y .env.example.
+        env:
+          NEXT_PUBLIC_API_URL: https://tooxs-gestion-api.fly.dev
+          NEXT_PUBLIC_APP_ENV: production
       - name: Deploy with wrangler
         uses: cloudflare/wrangler-action@v3
         with:

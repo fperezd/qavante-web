@@ -1,13 +1,13 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { PorClasificarView } from "@/components/clasificacion/por-clasificar-view";
 
-/* Skeleton gateado — Addendum Frontend v2.0 §17. Server Component, flag OFF
-   por default (ADR-0008). Sin `export const runtime` (regla 4). Tabla de
-   movimientos + ClassificationDrawer llegan post-handoff. El backend ya
-   expone `/api/bank-movements/{id}/classify` (reconciliation P4-1) pero la
-   integración real va en un PR posterior, tras la decisión del drift SII y
-   confirmación oficial del handoff. Punto de entrada desde /caja queda
-   diferido (la landing de Caja es placeholder C8) — addendum §17. */
+/* Gateado — Addendum Frontend v2.0 §17. Server Component: resuelve el flag
+   (default OFF — ADR-0008). Sin `export const runtime` (regla 4). Flag OFF →
+   FeatureUnavailableState (sin cambio visible: /api/management/config no
+   existe → fallback ADR-0008). Flag ON → flujo §17 cableado a datos reales
+   (lista de movimientos + ClassificationDrawer + PATCH classify). Punto de
+   entrada desde /caja sigue diferido (landing de Caja es placeholder C8). */
 export default function PorClasificarPage() {
   const { bankMovementClassification } = resolveFeatureFlags();
 
@@ -20,9 +20,7 @@ export default function PorClasificarPage() {
         </p>
       </header>
 
-      {!bankMovementClassification && <FeatureUnavailableState />}
-      {/* bankMovementClassification === true (post-handoff): tabla de
-          movimientos + ClassificationDrawer — addendum §17.1/§17.2. */}
+      {bankMovementClassification ? <PorClasificarView /> : <FeatureUnavailableState />}
     </div>
   );
 }
