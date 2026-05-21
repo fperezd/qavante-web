@@ -53,7 +53,7 @@ test.describe("Mobile (Pixel 5) — rutas protegidas /app/*", () => {
     await page.waitForLoadState("networkidle");
   });
 
-  test("/app/administracion/credenciales renderea 3 cards stack en mobile", async ({
+  test("/app/administracion/credenciales renderea bloque SII + lista certificados en mobile", async ({
     page,
     context,
   }) => {
@@ -62,15 +62,24 @@ test.describe("Mobile (Pixel 5) — rutas protegidas /app/*", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Credenciales SII" })).toBeVisible();
 
-    /* Esperamos el fetch GET /api/credentials/sii vía MSW; sin networkidle
-       el card de cert vence puede mostrarse antes que la data arrive. */
+    /* Esperamos el fetch GET /api/admin/sources/sii_rcv/credential vía MSW;
+       sin networkidle el card puede mostrarse antes que la data arrive. */
     await page.waitForLoadState("networkidle");
 
-    /* Headers de las 3 QavanteCards. QavanteCard.header se rendea como
-       div+span (no heading semántico), por eso buscamos por texto. */
-    await expect(page.getByText(/credenciales sii — empresa/i)).toBeVisible();
-    await expect(page.getByText(/personas autorizadas/i)).toBeVisible();
-    await expect(page.getByText(/certificado digital/i)).toBeVisible();
+    /* Modelo Opción A (post-#140): UN bloque SII (`SiiCredentialCard` con
+       header "Credencial SII" o human_label del seed) + sección
+       "Certificados digitales" (multi-holder, lista). NO hay "personas
+       autorizadas" — ese concepto fue removido en la migración Opción A
+       (regla 16: no inventar `persons[]`). */
+    await expect(
+      page.getByRole("heading", { level: 2, name: "Certificados digitales" }),
+    ).toBeVisible();
+    /* Header del SiiCredentialCard — viene del human_label del seed MSW
+       ("Clave del SII") o cae al fallback "Credencial SII" si el backend
+       no devuelve human_label. */
+    await expect(page.getByText(/clave del sii|credencial sii/i).first()).toBeVisible();
+    /* Botón configurar/cambiar clave (estado active del seed = "Cambiar clave"). */
+    await expect(page.getByRole("button", { name: /(configurar|cambiar) clave/i })).toBeVisible();
 
     const overflows = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth,
