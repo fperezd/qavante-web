@@ -74,38 +74,3 @@ export const SEED_SESSION_USER = {
   email: ownerSeed.email,
   role: ownerSeed.role,
 };
-
-/* Seed credenciales SII — alineado con docs/backend-contracts/c1-sii-credentials.md.
-   Estado inicial: empresa configurada, 2 personas (Fernando + Pablo),
-   certificado cargado y vigente. Las passwords reales NO viven en este
-   seed — los handlers MSW solo trackean si están "configurada" o no. */
-
-import type { SiiCompanyStatus, SiiPersonStatus, CertificateStatus } from "@/lib/api/credentials";
-
-export const SEED_SII_COMPANY: SiiCompanyStatus = {
-  configured: true,
-  rut: "76.123.456-7",
-  last_rotated_at: "2026-04-15T10:00:00Z",
-};
-
-export const SEED_SII_PERSONS: SiiPersonStatus[] = [
-  {
-    rut: "10.341.986-7",
-    name: "Fernando Pérez",
-    configured: true,
-    last_rotated_at: "2026-04-15T10:05:00Z",
-  },
-  {
-    rut: "12.345.678-9",
-    name: "Pablo Núñez",
-    configured: true,
-    last_rotated_at: "2026-05-01T14:00:00Z",
-  },
-];
-
-export const SEED_CERTIFICATE: CertificateStatus = {
-  configured: true,
-  subject_rut: "76.123.456-7",
-  expires_at: "2027-03-20T00:00:00Z",
-  uploaded_at: "2026-04-15T10:10:00Z",
-};
