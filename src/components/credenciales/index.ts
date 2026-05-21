@@ -8,3 +8,9 @@ export { CertificateCard } from "./certificate-card";
 export { CertificateUploadDialog } from "./certificate-upload-dialog";
 export { DeleteConfirmDialog } from "./delete-confirm-dialog";
 export { PasswordInput } from "./password-input";
+
+/* Opción A (PR-Cb1, fase aditiva — reemplazan a los viejos en PR-Cb2). */
+export { SiiCredentialCard } from "./sii-credential-card";
+export { SiiCredentialDialog } from "./sii-credential-dialog";
+export { CertificateListView } from "./certificate-list-view";
+export { CertificateUploadDialogV2 } from "./certificate-upload-dialog-v2";
