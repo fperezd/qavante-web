@@ -931,6 +931,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/bank-movements/bice/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * BICE: lista de cuentas con su estado de vinculación a treasury.bank_accounts
+         * @description Devuelve las cuentas que BICE expone para este tenant + el estado de
+         *     cada una respecto a `treasury.bank_accounts` (vinculada o no).
+         *
+         *     Sin esto, el usuario no sabe qué cuentas necesita "linkear" antes de
+         *     correr `/sync`. El `external_id` que vuelve acá es el que se usa en
+         *     `POST /accounts/{external_id}/link`.
+         */
+        get: operations["bank_ingest_bice_list_accounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bank-movements/bice/accounts/{external_id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BICE: vincular una cuenta BICE a una treasury.bank_accounts del tenant
+         * @description Crea/actualiza el mapeo `(tenant, provider='bice', external_entity=
+         *     'bank_account', external_id=<numeroFormateado>) → bank_account_id` en
+         *     `integrations.external_mappings` (idempotente). Audit
+         *     `external_mapping.linked` queda en el audit chain existente.
+         *
+         *     Requiere rol owner/admin (soft-gate interim; ADR-0009 = gate duro
+         *     futuro).
+         */
+        post: operations["bank_ingest_bice_link_account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bank-movements/bice/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BICE: sincronizar cartola → treasury.bank_movements (idempotente)
+         * @description Ingesta la cartola BICE actual (período vigente) hacia
+         *     `treasury.bank_movements`. Idempotente:
+         *     `UNIQUE(tenant_id, bank_account_id, external_id)` +
+         *     `ON CONFLICT DO NOTHING` ⇒ re-correr no duplica ni pisa
+         *     clasificaciones previas.
+         *
+         *     Cuentas BICE **no vinculadas** quedan en cuarentena (skip + listado en
+         *     `accounts_unmapped`); vincular con `/accounts/{external_id}/link` y
+         *     re-correr re-importa los movimientos (sin pérdida; ADR-0012 §3.4 D-a).
+         */
+        post: operations["bank_ingest_bice_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/canonical-categories": {
         parameters: {
             query?: never;
@@ -2129,6 +2208,40 @@ export interface components {
             fechaConsultaSaldo?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * BankAccountLinkStatus
+         * @description Cuenta BICE con su estado de vinculación a `treasury.bank_accounts`.
+         */
+        BankAccountLinkStatus: {
+            /**
+             * External Id
+             * @description `numeroFormateado` durable.
+             */
+            external_id: string;
+            /**
+             * Name
+             * @description Nombre de cuenta según BICE.
+             */
+            name?: string | null;
+            /**
+             * Currency
+             * @description 'CLP' / 'USD' / etc.
+             */
+            currency?: string | null;
+            /**
+             * Linked Bank Account Id
+             * @description UUID de `treasury.bank_accounts` si la cuenta está vinculada; `null` si todavía no se mapeó (sus movimientos quedarían en cuarentena).
+             */
+            linked_bank_account_id?: string | null;
+        };
+        /**
+         * BankAccountsListResponse
+         * @description Wrapper para listas (consistente con SaldoResponse/CuentasResponse).
+         */
+        BankAccountsListResponse: {
+            /** Accounts */
+            accounts: components["schemas"]["BankAccountLinkStatus"][];
         };
         /**
          * BankMovement
@@ -3880,6 +3993,70 @@ export interface components {
             /** Items */
             items: components["schemas"]["IndustryTemplate"][];
         };
+        /**
+         * IngestAccountResult
+         * @description Resultado por cuenta dentro de una corrida de sync.
+         */
+        IngestAccountResult: {
+            /** External Id */
+            external_id: string;
+            /** Linked Bank Account Id */
+            linked_bank_account_id: string | null;
+            /**
+             * Imported
+             * @default 0
+             */
+            imported: number;
+            /**
+             * Skipped Existing
+             * @default 0
+             */
+            skipped_existing: number;
+            /**
+             * Skipped Invalid
+             * @default 0
+             */
+            skipped_invalid: number;
+            /**
+             * Quarantined
+             * @default false
+             */
+            quarantined: boolean;
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * IngestResult
+         * @description Resultado agregado de un sync BICE → bank_movements (ADR-0012 §3.3).
+         */
+        IngestResult: {
+            /** Accounts Total */
+            accounts_total: number;
+            /** Accounts Synced */
+            accounts_synced: number;
+            /**
+             * Accounts Unmapped
+             * @description `external_id` de cuentas sin mapeo (cuarentena, re-sincronizar tras vincular).
+             */
+            accounts_unmapped?: string[];
+            /**
+             * Imported Total
+             * @default 0
+             */
+            imported_total: number;
+            /**
+             * Skipped Existing Total
+             * @default 0
+             */
+            skipped_existing_total: number;
+            /**
+             * Skipped Invalid Total
+             * @default 0
+             */
+            skipped_invalid_total: number;
+            /** Per Account */
+            per_account?: components["schemas"]["IngestAccountResult"][];
+        };
         /** IntegrationStatus */
         IntegrationStatus: {
             /** Name */
@@ -3890,6 +4067,28 @@ export interface components {
             detail?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * LinkBankAccountRequest
+         * @description Body de `POST /accounts/{external_id}/link`.
+         */
+        LinkBankAccountRequest: {
+            /**
+             * Bank Account Id
+             * Format: uuid
+             * @description UUID de `treasury.bank_accounts` (del tenant) a vincular con la cuenta BICE.
+             */
+            bank_account_id: string;
+        };
+        /** LinkBankAccountResponse */
+        LinkBankAccountResponse: {
+            /** External Id */
+            external_id: string;
+            /**
+             * Linked Bank Account Id
+             * Format: uuid
+             */
+            linked_bank_account_id: string;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -6594,6 +6793,89 @@ export interface operations {
             };
         };
     };
+    bank_ingest_bice_list_accounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankAccountsListResponse"];
+                };
+            };
+        };
+    };
+    bank_ingest_bice_link_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description `numeroFormateado` BICE (durable, ej. '07-04222-1'). Obtenido de `GET /accounts`. */
+                external_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkBankAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkBankAccountResponse"];
+                };
+            };
+            /** @description `bank_account_id` no existe o no es del tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bank_ingest_bice_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestResult"];
+                };
+            };
+        };
+    };
     canonical_categories_list: {
         parameters: {
             query?: never;
@@ -8173,21 +8455,19 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description El nuevo padre es de otra dimensión o crearía un ciclo. */
+            /** @description El nuevo padre es de otra dimensión. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description El move crearía un ciclo en la jerarquía. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
