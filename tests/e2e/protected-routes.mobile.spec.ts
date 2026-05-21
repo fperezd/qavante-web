@@ -78,8 +78,11 @@ test.describe("Mobile (Pixel 5) — rutas protegidas /app/*", () => {
        ("Clave del SII") o cae al fallback "Credencial SII" si el backend
        no devuelve human_label. */
     await expect(page.getByText(/clave del sii|credencial sii/i).first()).toBeVisible();
-    /* Botón configurar/cambiar clave (estado active del seed = "Cambiar clave"). */
-    await expect(page.getByRole("button", { name: /(configurar|cambiar) clave/i })).toBeVisible();
+    /* Botón del SiiCredentialCard: "Configurar" (sin sufijo) cuando
+       `is_active=false` — el estado inicial del seed MSW — o "Cambiar
+       clave" cuando active=true. Match anclado para no atrapar otros
+       botones (ej. "Cancelar"). */
+    await expect(page.getByRole("button", { name: /^(configurar|cambiar clave)$/i })).toBeVisible();
 
     const overflows = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth,
