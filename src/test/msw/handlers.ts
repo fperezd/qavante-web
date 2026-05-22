@@ -680,6 +680,197 @@ const credentialsHandlersV2 = [
 ];
 
 /* ============================================================
+   Industry Templates — Addendum §13.5/§13.6/§14.1/§14.2. Seed
+   con 3 plantillas (services / commerce / construction) y un
+   detail completo para `services` (la más común). El apply
+   responde un diff determinístico según el modo solicitado.
+   NUNCA destructivo (§14.1). */
+const industryTemplatesFixture = [
+  {
+    id: "tpl-services",
+    code: "services",
+    name: "Servicios profesionales",
+    description: "Estudios contables, jurídicos, consultoras y otros servicios B2B.",
+    business_family: "services" as const,
+    is_active: true,
+    sort_order: 10,
+    created_at: "2026-04-01T00:00:00Z",
+    updated_at: "2026-05-01T00:00:00Z",
+  },
+  {
+    id: "tpl-commerce",
+    code: "retail_commerce",
+    name: "Comercio minorista",
+    description: "Tiendas con punto de venta físico o e-commerce.",
+    business_family: "commerce" as const,
+    is_active: true,
+    sort_order: 20,
+    created_at: "2026-04-01T00:00:00Z",
+    updated_at: "2026-05-01T00:00:00Z",
+  },
+  {
+    id: "tpl-construction",
+    code: "construction_projects",
+    name: "Construcción y proyectos",
+    description: "Constructoras, contratistas y empresas por obra/proyecto.",
+    business_family: "construction_projects" as const,
+    is_active: true,
+    sort_order: 30,
+    created_at: "2026-04-01T00:00:00Z",
+    updated_at: "2026-05-01T00:00:00Z",
+  },
+];
+
+const industryTemplatesDetailsFixture: Record<
+  string,
+  {
+    dimensions: Array<{
+      id: string;
+      industry_template_id: string;
+      dimension_code: string;
+      dimension_name: string;
+      description: string | null;
+      default_visible: boolean;
+      default_required: boolean;
+      allows_hierarchy: boolean;
+      allows_multiple_values: boolean;
+      sort_order: number;
+      created_at: string;
+    }>;
+    accounts: Array<{
+      id: string;
+      industry_template_id: string;
+      management_account_code: string;
+      default_visible: boolean;
+      default_required: boolean;
+      sort_order: number;
+      created_at: string;
+    }>;
+  }
+> = {
+  services: {
+    dimensions: [
+      {
+        id: "tpl-services-dim-1",
+        industry_template_id: "tpl-services",
+        dimension_code: "client",
+        dimension_name: "Cliente",
+        description: "Cliente asignado al ingreso/gasto.",
+        default_visible: true,
+        default_required: true,
+        allows_hierarchy: false,
+        allows_multiple_values: false,
+        sort_order: 10,
+        created_at: "2026-04-01T00:00:00Z",
+      },
+      {
+        id: "tpl-services-dim-2",
+        industry_template_id: "tpl-services",
+        dimension_code: "project",
+        dimension_name: "Proyecto",
+        description: "Proyecto o engagement.",
+        default_visible: true,
+        default_required: false,
+        allows_hierarchy: true,
+        allows_multiple_values: false,
+        sort_order: 20,
+        created_at: "2026-04-01T00:00:00Z",
+      },
+    ],
+    accounts: [
+      {
+        id: "tpl-services-acc-1",
+        industry_template_id: "tpl-services",
+        management_account_code: "ingresos_servicios",
+        default_visible: true,
+        default_required: false,
+        sort_order: 10,
+        created_at: "2026-04-01T00:00:00Z",
+      },
+      {
+        id: "tpl-services-acc-2",
+        industry_template_id: "tpl-services",
+        management_account_code: "honorarios_pagados",
+        default_visible: true,
+        default_required: false,
+        sort_order: 20,
+        created_at: "2026-04-01T00:00:00Z",
+      },
+    ],
+  },
+};
+
+const industryTemplatesHandlers = [
+  http.get("*/api/management/industry-templates", () =>
+    HttpResponse.json({ items: industryTemplatesFixture }, { status: 200 }),
+  ),
+
+  http.get("*/api/management/industry-templates/:templateCode", ({ params }) => {
+    const code = params.templateCode as string;
+    const template = industryTemplatesFixture.find((t) => t.code === code);
+    if (!template) {
+      return HttpResponse.json(errorBody("not_found", "Plantilla no encontrada."), {
+        status: 404,
+      });
+    }
+    const detail = industryTemplatesDetailsFixture[code] ?? {
+      dimensions: [],
+      accounts: [],
+    };
+    return HttpResponse.json(
+      { template, dimensions: detail.dimensions, accounts: detail.accounts },
+      { status: 200 },
+    );
+  }),
+
+  http.post(
+    "*/api/management/industry-templates/:templateCode/apply",
+    async ({ params, request }) => {
+      const code = params.templateCode as string;
+      const body = (await request.json()) as {
+        mode?: "suggest_only" | "add_missing" | "replace_visibility";
+        overwrite_existing?: boolean;
+      };
+      const mode = body.mode ?? "suggest_only";
+      const exists = industryTemplatesFixture.some((t) => t.code === code);
+      if (!exists) {
+        return HttpResponse.json(errorBody("not_found", "Plantilla no encontrada."), {
+          status: 404,
+        });
+      }
+      const detail = industryTemplatesDetailsFixture[code] ?? {
+        dimensions: [],
+        accounts: [],
+      };
+      /* Mock determinístico: nada existe todavía, así que
+         accounts_to_add y dimensions_to_add = total de sugerencias. */
+      return HttpResponse.json(
+        {
+          template_code: code,
+          mode,
+          summary: {
+            accounts_to_add: detail.accounts.length,
+            dimensions_to_add: detail.dimensions.length,
+            accounts_existing: 0,
+            dimensions_existing: 0,
+          },
+          accounts_preview: detail.accounts.map((a) => ({
+            management_account_code: a.management_account_code,
+            default_visible: a.default_visible,
+          })),
+          dimensions_preview: detail.dimensions.map((d) => ({
+            dimension_code: d.dimension_code,
+            dimension_name: d.dimension_name,
+            default_visible: d.default_visible,
+          })),
+        },
+        { status: 200 },
+      );
+    },
+  ),
+];
+
+/* ============================================================
    Classification Rules — Addendum §17.5/§17.6/§18.7. Estado en
    memoria con seed mínimo (2 reglas activas + 1 desactivada) para
    probar listado ordenado, toggle, create y suggest. */
@@ -875,4 +1066,5 @@ export const handlers = [
   ...managementHandlers,
   ...currenciesHandlers,
   ...classificationRulesHandlers,
+  ...industryTemplatesHandlers,
 ];
