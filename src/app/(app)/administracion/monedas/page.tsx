@@ -1,10 +1,14 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { CurrencySettingsView } from "@/components/monedas/currency-settings-view";
 
-/* Skeleton gateado — Addendum Frontend v2.0 §16. Server Component, flag OFF
-   por default (ADR-0008). Sin `export const runtime` (regla 4). El panel de
-   configuración de monedas llega post-handoff (`/api/core/currencies` aún
-   AUSENTE — reconciliation P4-1). */
+/* Gateado — Addendum Frontend v2.0 §15/§16. Server Component: resuelve el
+   flag `multiCurrency` (default OFF — ADR-0008). Sin `export const runtime`
+   (regla 4). Flag OFF → FeatureUnavailableState (sin cambio visible:
+   /api/management/config no existe → fallback ADR-0008). Flag ON → vista
+   read-only de Ajustes + Tipos de cambio cableada a datos reales (§15/§16).
+   El PATCH de settings llega en un PR siguiente — defense in depth: la
+   lista de TC ya estará lista cuando se agregue la edición. */
 export default function MonedasPage() {
   const { multiCurrency } = resolveFeatureFlags();
 
@@ -17,9 +21,7 @@ export default function MonedasPage() {
         </p>
       </header>
 
-      {!multiCurrency && <FeatureUnavailableState />}
-      {/* multiCurrency === true (post-handoff): CurrencySettingsPanel —
-          addendum §16.1/§16.2. PR posterior. */}
+      {multiCurrency ? <CurrencySettingsView /> : <FeatureUnavailableState />}
     </div>
   );
 }
