@@ -1,10 +1,14 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { RulesListView } from "@/components/reglas/rules-list-view";
 
-/* Skeleton gateado — Addendum Frontend v2.0 §18. Server Component, flag OFF
-   por default (ADR-0008). Sin `export const runtime` (regla 4). La tabla
-   CRUD de reglas llega post-handoff (`/api/treasury/classification-rules`
-   aún AUSENTE — reconciliation P4-1). */
+/* Gateado — Addendum Frontend v2.0 §17.5/§17.6/§18.1. Server Component:
+   resuelve el flag `classificationRules` (default OFF — ADR-0008). Sin
+   `export const runtime` (regla 4). Flag OFF → FeatureUnavailableState
+   (sin cambio visible: /api/management/config no existe → fallback
+   ADR-0008). Flag ON → listado de reglas + toggle active. Create/edit en
+   PRs siguientes; el banner §18.7 (suggest-rule desde drawer) tampoco
+   acá — pertenece al drawer §17. */
 export default function ReglasClasificacionPage() {
   const { classificationRules } = resolveFeatureFlags();
 
@@ -17,9 +21,7 @@ export default function ReglasClasificacionPage() {
         </p>
       </header>
 
-      {!classificationRules && <FeatureUnavailableState />}
-      {/* classificationRules === true (post-handoff): tabla TanStack de reglas
-          + ClassificationRuleModal — addendum §18.1. PR posterior. */}
+      {classificationRules ? <RulesListView /> : <FeatureUnavailableState />}
     </div>
   );
 }
