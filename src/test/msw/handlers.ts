@@ -406,6 +406,170 @@ const managementHandlers = [
 ];
 
 /* ============================================================
+   Currencies — catálogo global + lookup TC + settings tenant
+   (Addendum §15.2/§15.4/§15.7). Seed mínimo cubre los casos
+   chilenos típicos: CLP fiat funcional, USD/EUR/BRL reporting,
+   UF/UTM indexed_unit. Estado mutable del settings vive en
+   memoria para PATCH dev preview. */
+const currenciesFixture = [
+  {
+    code: "CLP",
+    name: "Peso chileno",
+    symbol: "$",
+    currency_type: "fiat",
+    decimals: 0,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    code: "USD",
+    name: "Dólar estadounidense",
+    symbol: "US$",
+    currency_type: "fiat",
+    decimals: 2,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    code: "EUR",
+    name: "Euro",
+    symbol: "€",
+    currency_type: "fiat",
+    decimals: 2,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    code: "BRL",
+    name: "Real brasileño",
+    symbol: "R$",
+    currency_type: "fiat",
+    decimals: 2,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    code: "UF",
+    name: "Unidad de Fomento",
+    symbol: "UF",
+    currency_type: "indexed_unit",
+    decimals: 2,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    code: "UTM",
+    name: "Unidad Tributaria Mensual",
+    symbol: "UTM",
+    currency_type: "indexed_unit",
+    decimals: 2,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+];
+
+/* TC seed determinístico — solo pares más usados en preview. La ausencia
+   del par solicitado dispara `requires_attention` + rate=null (§15.7). */
+const exchangeRatesFixture: Record<string, { rate: string; rate_date: string }> = {
+  "USD>CLP": { rate: "920.45", rate_date: "2026-05-21" },
+  "EUR>CLP": { rate: "1015.30", rate_date: "2026-05-21" },
+  "BRL>CLP": { rate: "168.92", rate_date: "2026-05-21" },
+  "UF>CLP": { rate: "39124.18", rate_date: "2026-05-21" },
+  "UTM>CLP": { rate: "67429.00", rate_date: "2026-05-21" },
+};
+
+let companyCurrencySettingsState: {
+  tenant_id: string;
+  functional_currency_code: string;
+  default_reporting_currency_code: string | null;
+  indexed_unit_enabled: boolean;
+  indexed_unit_currency_code: string | null;
+  reporting_currency_codes: string[];
+  default_exchange_rate_source: string | null;
+  updated_at: string;
+} = {
+  tenant_id: "tenant-demo",
+  functional_currency_code: "CLP",
+  default_reporting_currency_code: "USD",
+  indexed_unit_enabled: true,
+  indexed_unit_currency_code: "UF",
+  reporting_currency_codes: ["USD", "EUR"],
+  default_exchange_rate_source: "BCCH",
+  updated_at: "2026-05-21T00:00:00Z",
+};
+
+const currenciesHandlers = [
+  http.get("*/api/core/currencies", () =>
+    HttpResponse.json({ items: currenciesFixture }, { status: 200 }),
+  ),
+
+  http.get("*/api/core/exchange-rates", ({ request }) => {
+    const url = new URL(request.url);
+    const base = url.searchParams.get("base");
+    const quote = url.searchParams.get("quote");
+    const date = url.searchParams.get("date");
+    if (!base || !quote) {
+      return HttpResponse.json(errorBody("validation_error", "base y quote requeridos."), {
+        status: 422,
+      });
+    }
+    const key = `${base}>${quote}`;
+    const found = exchangeRatesFixture[key];
+    if (!found) {
+      /* §15.7: ausencia ≠ error. data_status=requires_attention. */
+      return HttpResponse.json({ data_status: "requires_attention", rate: null }, { status: 200 });
+    }
+    return HttpResponse.json(
+      {
+        data_status: "ok",
+        rate: {
+          id: `er-${base}-${quote}-${found.rate_date}`,
+          base_currency_code: base,
+          quote_currency_code: quote,
+          rate: found.rate,
+          rate_date: date ?? found.rate_date,
+          source: "BCCH",
+          created_at: `${found.rate_date}T00:00:00Z`,
+        },
+      },
+      { status: 200 },
+    );
+  }),
+
+  http.get("*/api/core/company-currency-settings", () =>
+    HttpResponse.json(companyCurrencySettingsState, { status: 200 }),
+  ),
+
+  http.patch("*/api/core/company-currency-settings", async ({ request }) => {
+    const body = (await request.json()) as Partial<typeof companyCurrencySettingsState>;
+    /* Update parcial — solo campos presentes; el resto preserva el estado. */
+    companyCurrencySettingsState = {
+      ...companyCurrencySettingsState,
+      ...(body.functional_currency_code !== undefined && body.functional_currency_code !== null
+        ? { functional_currency_code: body.functional_currency_code }
+        : {}),
+      ...(body.default_reporting_currency_code !== undefined
+        ? { default_reporting_currency_code: body.default_reporting_currency_code }
+        : {}),
+      ...(body.indexed_unit_enabled !== undefined && body.indexed_unit_enabled !== null
+        ? { indexed_unit_enabled: body.indexed_unit_enabled }
+        : {}),
+      ...(body.indexed_unit_currency_code !== undefined
+        ? { indexed_unit_currency_code: body.indexed_unit_currency_code }
+        : {}),
+      ...(body.reporting_currency_codes !== undefined && body.reporting_currency_codes !== null
+        ? { reporting_currency_codes: body.reporting_currency_codes }
+        : {}),
+      ...(body.default_exchange_rate_source !== undefined
+        ? { default_exchange_rate_source: body.default_exchange_rate_source }
+        : {}),
+      updated_at: new Date().toISOString(),
+    };
+    return HttpResponse.json(companyCurrencySettingsState, { status: 200 });
+  }),
+];
+
+/* ============================================================
    Credenciales — Opción A (sii_rcv + certs multi-holder). Decisión
    Fernando 2026-05-18. Modelo viejo (persons[], cert único) borrado
    en PR-Cb2. Estado mínimo en memoria, suficiente para dev preview +
@@ -515,10 +679,200 @@ const credentialsHandlersV2 = [
   }),
 ];
 
+/* ============================================================
+   Classification Rules — Addendum §17.5/§17.6/§18.7. Estado en
+   memoria con seed mínimo (2 reglas activas + 1 desactivada) para
+   probar listado ordenado, toggle, create y suggest. */
+const rulesV2State: Array<{
+  id: string;
+  name: string;
+  source_type: string;
+  condition_field: string;
+  operator: string;
+  condition_value: string;
+  canonical_category: string | null;
+  management_account_id: string | null;
+  dimension_assignments: unknown[];
+  priority: number;
+  confidence: string;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string | null;
+}> = [
+  {
+    id: "rule-1",
+    name: "Sueldo Fernando",
+    source_type: "bank_movement",
+    condition_field: "description",
+    operator: "contains",
+    condition_value: "REMUN FERNANDO",
+    canonical_category: "payroll",
+    management_account_id: "acc-9",
+    dimension_assignments: [],
+    priority: 10,
+    confidence: "0.95",
+    active: true,
+    created_by: "u_owner_01",
+    created_at: "2026-05-01T10:00:00Z",
+    updated_at: null,
+  },
+  {
+    id: "rule-2",
+    name: "Proveedor Movistar",
+    source_type: "bank_movement",
+    condition_field: "counterparty_name",
+    operator: "equals",
+    condition_value: "TELEFONICA CHILE S.A.",
+    canonical_category: "supplier_payment",
+    management_account_id: "acc-12",
+    dimension_assignments: [],
+    priority: 50,
+    confidence: "0.90",
+    active: true,
+    created_by: "u_owner_01",
+    created_at: "2026-05-03T10:00:00Z",
+    updated_at: null,
+  },
+  {
+    id: "rule-3",
+    name: "Transferencia banco — desactivada",
+    source_type: "bank_movement",
+    condition_field: "description",
+    operator: "starts_with",
+    condition_value: "TRANSF",
+    canonical_category: "internal_transfer",
+    management_account_id: null,
+    dimension_assignments: [],
+    priority: 90,
+    confidence: "0.70",
+    active: false,
+    created_by: "u_admin_01",
+    created_at: "2026-04-20T10:00:00Z",
+    updated_at: "2026-05-10T15:00:00Z",
+  },
+];
+
+let rulesV2Counter = rulesV2State.length;
+
+const classificationRulesHandlers = [
+  http.get("*/api/treasury/classification-rules", () => {
+    /* Listado ordenado por priority ASC (orden de evaluación). */
+    const sorted = [...rulesV2State].sort((a, b) => a.priority - b.priority);
+    return HttpResponse.json({ items: sorted }, { status: 200 });
+  }),
+
+  http.post("*/api/treasury/classification-rules", async ({ request }) => {
+    const body = (await request.json()) as {
+      name?: string;
+      source_type?: string;
+      condition_field?: string;
+      operator?: string;
+      condition_value?: string;
+      canonical_category?: string | null;
+      management_account_id?: string | null;
+      priority?: number;
+      confidence?: number;
+    };
+    if (!body.name || !body.condition_field || !body.operator || !body.condition_value) {
+      return HttpResponse.json(
+        errorBody(
+          "validation_error",
+          "name, condition_field, operator y condition_value requeridos.",
+        ),
+        { status: 422 },
+      );
+    }
+    rulesV2Counter += 1;
+    const newRule = {
+      id: `rule-${rulesV2Counter}`,
+      name: body.name,
+      source_type: body.source_type ?? "bank_movement",
+      condition_field: body.condition_field,
+      operator: body.operator,
+      condition_value: body.condition_value,
+      canonical_category: body.canonical_category ?? null,
+      management_account_id: body.management_account_id ?? null,
+      dimension_assignments: [],
+      priority: body.priority ?? 100,
+      confidence: String(body.confidence ?? 0.8),
+      active: true,
+      created_by: "u_owner_01",
+      created_at: new Date().toISOString(),
+      updated_at: null,
+    };
+    rulesV2State.push(newRule);
+    return HttpResponse.json(newRule, { status: 201 });
+  }),
+
+  http.patch("*/api/treasury/classification-rules/:ruleId", async ({ params, request }) => {
+    const id = params.ruleId as string;
+    const idx = rulesV2State.findIndex((r) => r.id === id);
+    if (idx === -1) {
+      return HttpResponse.json(errorBody("not_found", "Regla no encontrada."), { status: 404 });
+    }
+    const body = (await request.json()) as Record<string, unknown>;
+    const existing = rulesV2State[idx]!;
+    const patched = {
+      ...existing,
+      ...(typeof body.name === "string" ? { name: body.name } : {}),
+      ...(typeof body.condition_field === "string"
+        ? { condition_field: body.condition_field }
+        : {}),
+      ...(typeof body.operator === "string" ? { operator: body.operator } : {}),
+      ...(typeof body.condition_value === "string"
+        ? { condition_value: body.condition_value }
+        : {}),
+      ...(body.canonical_category !== undefined
+        ? { canonical_category: body.canonical_category as string | null }
+        : {}),
+      ...(typeof body.priority === "number" ? { priority: body.priority } : {}),
+      ...(typeof body.confidence === "number" ? { confidence: String(body.confidence) } : {}),
+      updated_at: new Date().toISOString(),
+    };
+    rulesV2State[idx] = patched;
+    return HttpResponse.json(patched, { status: 200 });
+  }),
+
+  http.post("*/api/treasury/classification-rules/:ruleId/toggle-active", ({ params }) => {
+    const id = params.ruleId as string;
+    const idx = rulesV2State.findIndex((r) => r.id === id);
+    if (idx === -1) {
+      return HttpResponse.json(errorBody("not_found", "Regla no encontrada."), { status: 404 });
+    }
+    const existing = rulesV2State[idx]!;
+    const toggled = {
+      ...existing,
+      active: !existing.active,
+      updated_at: new Date().toISOString(),
+    };
+    rulesV2State[idx] = toggled;
+    return HttpResponse.json(toggled, { status: 200 });
+  }),
+
+  http.post("*/api/bank-movements/:movementId/suggest-rule", ({ params }) => {
+    /* §18.7: read-only, no persiste. Sugerencia simple basada en el id
+       del movimiento (en backend real usa la glosa del movimiento). */
+    const movementId = params.movementId as string;
+    return HttpResponse.json(
+      {
+        name: `Regla sugerida para ${movementId}`,
+        source_type: "bank_movement",
+        condition_field: "description",
+        operator: "contains",
+        condition_value: "PAGO PROV",
+      },
+      { status: 200 },
+    );
+  }),
+];
+
 export const handlers = [
   ...authHandlers,
   ...usersHandlers,
   ...credentialsHandlersV2,
   ...treasuryHandlers,
   ...managementHandlers,
+  ...currenciesHandlers,
+  ...classificationRulesHandlers,
 ];
