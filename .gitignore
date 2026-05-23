@@ -27,8 +27,9 @@
 # lighthouse CI (reportes locales)
 /.lighthouseci/
 
-# Claude Code local settings (no commitear — config personal del classifier)
-/.claude/settings.local.json
+# Claude Code — todo el directorio es estado local (settings, scheduled
+# tasks lock, etc.). Se ignora completo: nada acá debe commitearse.
+/.claude/
 
 # production
 /build
