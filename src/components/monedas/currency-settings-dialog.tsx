@@ -130,18 +130,26 @@ export function CurrencySettingsDialog({
                     currencies={currencies}
                     filterType="fiat"
                     invalid={Boolean(errors.functional_currency_code)}
+                    required
+                    aria-describedby={
+                      errors.functional_currency_code ? "settings-functional-error" : undefined
+                    }
                   />
                 )}
               />
               {errors.functional_currency_code && (
-                <p className="text-xs text-danger-500" role="alert">
+                <p id="settings-functional-error" className="text-xs text-danger-500" role="alert">
                   {errors.functional_currency_code.message}
                 </p>
               )}
             </div>
 
             <div className="space-y-1">
-              <fieldset>
+              <fieldset
+                aria-describedby={
+                  errors.reporting_currency_codes ? "settings-reporting-error" : undefined
+                }
+              >
                 <legend className="text-sm font-medium text-neutral-dark">
                   Monedas de reporte
                 </legend>
@@ -162,7 +170,7 @@ export function CurrencySettingsDialog({
                 />
               </fieldset>
               {errors.reporting_currency_codes && (
-                <p className="text-xs text-danger-500" role="alert">
+                <p id="settings-reporting-error" className="text-xs text-danger-500" role="alert">
                   {errors.reporting_currency_codes.message}
                 </p>
               )}
@@ -187,11 +195,20 @@ export function CurrencySettingsDialog({
                     placeholder="Sin moneda por defecto"
                     invalid={Boolean(errors.default_reporting_currency_code)}
                     allowEmpty
+                    aria-describedby={
+                      errors.default_reporting_currency_code
+                        ? "settings-default-reporting-error"
+                        : undefined
+                    }
                   />
                 )}
               />
               {errors.default_reporting_currency_code && (
-                <p className="text-xs text-danger-500" role="alert">
+                <p
+                  id="settings-default-reporting-error"
+                  className="text-xs text-danger-500"
+                  role="alert"
+                >
                   {errors.default_reporting_currency_code.message}
                 </p>
               )}
@@ -239,11 +256,21 @@ export function CurrencySettingsDialog({
                         currencies={currencies}
                         filterType="indexed_unit"
                         invalid={Boolean(errors.indexed_unit_currency_code)}
+                        required
+                        aria-describedby={
+                          errors.indexed_unit_currency_code
+                            ? "settings-indexed-unit-error"
+                            : undefined
+                        }
                       />
                     )}
                   />
                   {errors.indexed_unit_currency_code && (
-                    <p className="text-xs text-danger-500" role="alert">
+                    <p
+                      id="settings-indexed-unit-error"
+                      className="text-xs text-danger-500"
+                      role="alert"
+                    >
                       {errors.indexed_unit_currency_code.message}
                     </p>
                   )}
