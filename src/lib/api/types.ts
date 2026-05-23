@@ -1241,6 +1241,43 @@ export interface paths {
         patch: operations["company_currency_settings_update"];
         trace?: never;
     };
+    "/api/planning/financial-impacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista financial_impacts del tenant (impact_date DESC) */
+        get: operations["financial_impacts_list"];
+        put?: never;
+        /** Crea un financial_impact */
+        post: operations["financial_impacts_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planning/financial-impacts/{impact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obtiene un financial_impact por id */
+        get: operations["financial_impacts_get"];
+        put?: never;
+        post?: never;
+        /** Soft-delete (SET status='deleted') */
+        delete: operations["financial_impacts_delete"];
+        options?: never;
+        head?: never;
+        /** Edita campos mutables de un financial_impact */
+        patch: operations["financial_impacts_patch"];
+        trace?: never;
+    };
     "/api/admin/audit-log": {
         parameters: {
             query?: never;
@@ -3052,7 +3089,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "bank_movement" | "document" | "manual_entry";
+            entity_type: "bank_movement" | "document" | "manual_entry" | "financial_impact" | "budget_line" | "forecast_line" | "scenario_assumption" | "investment" | "debt_schedule";
             /** Entity Id */
             entity_id: string;
             /** Dimension Id */
@@ -3513,7 +3550,7 @@ export interface components {
              * Entity Type
              * @enum {string}
              */
-            entity_type: "bank_movement" | "document" | "manual_entry";
+            entity_type: "bank_movement" | "document" | "manual_entry" | "financial_impact" | "budget_line" | "forecast_line" | "scenario_assumption" | "investment" | "debt_schedule";
             /** Entity Id */
             entity_id: string;
             /** Dimension Id */
@@ -3810,6 +3847,254 @@ export interface components {
             error?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * FinancialImpact
+         * @description Response shape de `GET/POST/PATCH /api/planning/financial-impacts*`.
+         *
+         *     Incluye campos system (id, generados, audit timestamps).
+         */
+        FinancialImpact: {
+            /**
+             * Source Type
+             * @enum {string}
+             */
+            source_type: "bank_movement" | "document" | "manual_entry";
+            /**
+             * Source Id
+             * @description UUID de la fila origen.
+             */
+            source_id: string;
+            /**
+             * Financial Model
+             * @enum {string}
+             */
+            financial_model: "operational_income_statement" | "working_capital" | "debt" | "investment" | "tax" | "equity" | "data_quality";
+            /**
+             * Impact Type
+             * @enum {string}
+             */
+            impact_type: "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment";
+            /**
+             * Amount Original
+             * @description Monto en la moneda original (NUMERIC(20,4)).
+             */
+            amount_original: string;
+            /**
+             * Currency Original Code
+             * @description Código ISO 4217 (CHAR(3)).
+             */
+            currency_original_code: string;
+            /**
+             * Impact Date
+             * Format: date
+             */
+            impact_date: string;
+            /**
+             * Date Type
+             * @description Dominio abierto en F2-1.
+             */
+            date_type: string;
+            /**
+             * Financial Layer
+             * @default committed
+             * @enum {string}
+             */
+            financial_layer: "committed" | "budget" | "forecast" | "scenario" | "manual_simulation" | "ai_projection";
+            /**
+             * Status
+             * @default active
+             */
+            status: string;
+            /**
+             * Data Status
+             * @description Mismo dominio TEXT abierto que treasury.bank_movements.
+             * @default available
+             */
+            data_status: string;
+            canonical_category?: components["schemas"]["CanonicalCategory"] | null;
+            /** Management Account Id */
+            management_account_id?: string | null;
+            /** Amount Functional */
+            amount_functional?: string | null;
+            /** Currency Functional Code */
+            currency_functional_code?: string | null;
+            /** Amount Reporting */
+            amount_reporting?: string | null;
+            /** Currency Reporting Code */
+            currency_reporting_code?: string | null;
+            /** Exchange Rate Id */
+            exchange_rate_id?: string | null;
+            /** Scenario Id */
+            scenario_id?: string | null;
+            /** Version Id */
+            version_id?: string | null;
+            /** Confidence */
+            confidence?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Period Year */
+            period_year: number;
+            /** Period Month */
+            period_month: number;
+            /** Period Week */
+            period_week?: number | null;
+            /** Created By */
+            created_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * FinancialImpactCreate
+         * @description Body de `POST /api/planning/financial-impacts`.
+         */
+        FinancialImpactCreate: {
+            /**
+             * Source Type
+             * @enum {string}
+             */
+            source_type: "bank_movement" | "document" | "manual_entry";
+            /**
+             * Source Id
+             * @description UUID de la fila origen.
+             */
+            source_id: string;
+            /**
+             * Financial Model
+             * @enum {string}
+             */
+            financial_model: "operational_income_statement" | "working_capital" | "debt" | "investment" | "tax" | "equity" | "data_quality";
+            /**
+             * Impact Type
+             * @enum {string}
+             */
+            impact_type: "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment";
+            /**
+             * Amount Original
+             * @description Monto en la moneda original (NUMERIC(20,4)).
+             */
+            amount_original: number | string;
+            /**
+             * Currency Original Code
+             * @description Código ISO 4217 (CHAR(3)).
+             */
+            currency_original_code: string;
+            /**
+             * Impact Date
+             * Format: date
+             */
+            impact_date: string;
+            /**
+             * Date Type
+             * @description Dominio abierto en F2-1.
+             */
+            date_type: string;
+            /**
+             * Financial Layer
+             * @default committed
+             * @enum {string}
+             */
+            financial_layer: "committed" | "budget" | "forecast" | "scenario" | "manual_simulation" | "ai_projection";
+            /**
+             * Status
+             * @default active
+             */
+            status: string;
+            /**
+             * Data Status
+             * @description Mismo dominio TEXT abierto que treasury.bank_movements.
+             * @default available
+             */
+            data_status: string;
+            canonical_category?: components["schemas"]["CanonicalCategory"] | null;
+            /** Management Account Id */
+            management_account_id?: string | null;
+            /** Amount Functional */
+            amount_functional?: number | string | null;
+            /** Currency Functional Code */
+            currency_functional_code?: string | null;
+            /** Amount Reporting */
+            amount_reporting?: number | string | null;
+            /** Currency Reporting Code */
+            currency_reporting_code?: string | null;
+            /** Exchange Rate Id */
+            exchange_rate_id?: string | null;
+            /** Scenario Id */
+            scenario_id?: string | null;
+            /** Version Id */
+            version_id?: string | null;
+            /** Confidence */
+            confidence?: number | string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * FinancialImpactPatch
+         * @description Body de `PATCH /api/planning/financial-impacts/{id}`.
+         *
+         *     NO mutables: id, tenant_id, source_type, source_id, created_at,
+         *     created_by, period_year/month/week (generated). Resto sí.
+         */
+        FinancialImpactPatch: {
+            /** Financial Model */
+            financial_model?: ("operational_income_statement" | "working_capital" | "debt" | "investment" | "tax" | "equity" | "data_quality") | null;
+            /** Financial Layer */
+            financial_layer?: ("committed" | "budget" | "forecast" | "scenario" | "manual_simulation" | "ai_projection") | null;
+            /** Impact Type */
+            impact_type?: ("cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment") | null;
+            canonical_category?: components["schemas"]["CanonicalCategory"] | null;
+            /** Management Account Id */
+            management_account_id?: string | null;
+            /** Amount Original */
+            amount_original?: number | string | null;
+            /** Currency Original Code */
+            currency_original_code?: string | null;
+            /** Amount Functional */
+            amount_functional?: number | string | null;
+            /** Currency Functional Code */
+            currency_functional_code?: string | null;
+            /** Amount Reporting */
+            amount_reporting?: number | string | null;
+            /** Currency Reporting Code */
+            currency_reporting_code?: string | null;
+            /** Exchange Rate Id */
+            exchange_rate_id?: string | null;
+            /** Impact Date */
+            impact_date?: string | null;
+            /** Date Type */
+            date_type?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Scenario Id */
+            scenario_id?: string | null;
+            /** Version Id */
+            version_id?: string | null;
+            /** Confidence */
+            confidence?: number | string | null;
+            /** Data Status */
+            data_status?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /**
+         * FinancialImpactsResponse
+         * @description Wrapper para `GET /api/planning/financial-impacts` (lista).
+         */
+        FinancialImpactsResponse: {
+            /** Items */
+            items: components["schemas"]["FinancialImpact"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -7378,6 +7663,207 @@ export interface operations {
             };
         };
     };
+    financial_impacts_list: {
+        parameters: {
+            query?: {
+                period_year?: number | null;
+                period_month?: number | null;
+                financial_layer?: string | null;
+                source_type?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialImpactsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    financial_impacts_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinancialImpactCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialImpact"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dominio inválido (CHECK / FK / NOT NULL). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    financial_impacts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                impact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialImpact"];
+                };
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    financial_impacts_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                impact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso de escritura (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    financial_impacts_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                impact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinancialImpactPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialImpact"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dominio inválido (CHECK / FK). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     admin_audit_log: {
         parameters: {
             query?: {
@@ -8474,8 +8960,8 @@ export interface operations {
     dimension_assignments_list: {
         parameters: {
             query: {
-                /** @description bank_movement | document | manual_entry */
-                entity_type: string;
+                /** @description bank_movement | document | manual_entry (Fase 1) */
+                entity_type: "bank_movement" | "document" | "manual_entry" | "financial_impact" | "budget_line" | "forecast_line" | "scenario_assumption" | "investment" | "debt_schedule";
                 /** @description UUID de la entidad. */
                 entity_id: string;
             };

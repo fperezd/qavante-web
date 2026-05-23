@@ -1058,6 +1058,287 @@ const classificationRulesHandlers = [
   }),
 ];
 
+/* ============================================================
+   SII — Sprint C1. Backend tiene los 8 endpoints live en prod
+   (verificado 2026-05-23). MSW reproduce el shape contractual y
+   los casos canónicos: éxito, folio no encontrado (status='not_found'
+   con HTTP 200), credencial ausente (412), validation (422). El
+   PDF se sirve como `application/pdf` con un placeholder mínimo
+   suficiente para que `<a href={url} download>` no rompa. */
+
+const SII_F29_FIXTURE_FOLIO = 1234567890;
+
+const siiHandlers = [
+  http.get("*/api/sii/health", () =>
+    HttpResponse.json(
+      {
+        status: "ok",
+        reachable: true,
+        rut_configured: true,
+        cert_available: true,
+        ambiente: "produccion",
+        code: null,
+        message: null,
+        details: null,
+        error: null,
+      },
+      { status: 200 },
+    ),
+  ),
+
+  http.get("*/api/sii/f22/status", () =>
+    HttpResponse.json(
+      {
+        source: "sii_f22",
+        state: "unavailable",
+        reason: "F22 (declaración anual) no implementado en Fase 1.",
+        last_sync: null,
+        display_name: "Declaración Anual de Renta (F22)",
+        category: "tax",
+      },
+      { status: 200 },
+    ),
+  ),
+
+  http.get("*/api/sii/f29/:folio", ({ params }) => {
+    const folio = Number(params.folio);
+    if (!Number.isFinite(folio) || folio <= 0) {
+      return HttpResponse.json(errorBody("validation_error", "Folio inválido."), { status: 422 });
+    }
+    if (folio !== SII_F29_FIXTURE_FOLIO) {
+      /* §C1-03: folio no encontrado devuelve HTTP 200 + status='not_found'.
+         No es error visible — la UI muestra "Sin declaración para este folio". */
+      return HttpResponse.json(
+        {
+          status: "not_found",
+          folio,
+          period: { year: 2026, month: 4 },
+          rut_base: 76123456,
+          estado: "sin_declaracion",
+          fecha_presentacion: null,
+          iva_debito_fiscal: null,
+          iva_credito_fiscal: null,
+          ppm: null,
+          total_a_pagar: null,
+          code: "folio_not_found",
+          message: "El folio no corresponde a una declaración del período consultado.",
+          details: null,
+          error: null,
+        },
+        { status: 200 },
+      );
+    }
+    return HttpResponse.json(
+      {
+        status: "ok",
+        folio,
+        period: { year: 2026, month: 4 },
+        rut_base: 76123456,
+        estado: "vigente",
+        fecha_presentacion: "2026-05-12",
+        iva_debito_fiscal: 4500000,
+        iva_credito_fiscal: 3200000,
+        ppm: 850000,
+        total_a_pagar: 2150000,
+        code: null,
+        message: null,
+        details: { codigos: { "538": 4500000, "511": 3200000, "563": 850000 } },
+        error: null,
+      },
+      { status: 200 },
+    );
+  }),
+
+  http.get("*/api/sii/f29/:folio/pdf", ({ params }) => {
+    const folio = Number(params.folio);
+    if (!Number.isFinite(folio) || folio <= 0) {
+      return HttpResponse.json(errorBody("validation_error", "Folio inválido."), { status: 422 });
+    }
+    if (folio !== SII_F29_FIXTURE_FOLIO) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    /* Placeholder mínimo de un PDF (header válido + EOF) — suficiente para que
+       el browser no falle al recibirlo. NO es un PDF renderizable. Tests
+       solo validan el content-type y el status. */
+    const pdfHeader = new TextEncoder().encode("%PDF-1.4\n%%EOF\n");
+    return new HttpResponse(pdfHeader, {
+      status: 200,
+      headers: { "Content-Type": "application/pdf" },
+    });
+  }),
+
+  http.get("*/api/sii/bhe", ({ request }) => {
+    const url = new URL(request.url);
+    const periodo = url.searchParams.get("periodo");
+    if (!periodo) {
+      return HttpResponse.json(errorBody("validation_error", "Falta query `periodo`."), {
+        status: 422,
+      });
+    }
+    return HttpResponse.json(
+      {
+        status: "ok",
+        bhe: [
+          {
+            periodo,
+            rut_emisor: "12345678-9",
+            nombre_emisor: "Profesional Asesor 1",
+            folio: 101,
+            fecha_emision: "2026-04-15",
+            monto_bruto: 1000000,
+            retencion: 125000,
+            monto_liquido: 875000,
+          },
+          {
+            periodo,
+            rut_emisor: "98765432-1",
+            nombre_emisor: "Estudio Jurídico XYZ",
+            folio: 202,
+            fecha_emision: "2026-04-22",
+            monto_bruto: 500000,
+            retencion: 62500,
+            monto_liquido: 437500,
+          },
+        ],
+        count: 2,
+        periodo,
+        error: null,
+      },
+      { status: 200 },
+    );
+  }),
+
+  http.get("*/api/sii/rcv/compras", ({ request }) => {
+    const url = new URL(request.url);
+    const periodo = url.searchParams.get("periodo");
+    if (!periodo) {
+      return HttpResponse.json(errorBody("validation_error", "Falta query `periodo`."), {
+        status: 422,
+      });
+    }
+    return HttpResponse.json(
+      {
+        status: "ok",
+        compras: [
+          {
+            tipo_doc: 33,
+            folio: 1001,
+            fecha: "2026-04-03",
+            rut_contraparte: "76555444-K",
+            razon_social: "Proveedor SpA",
+            monto_neto: 800000,
+            monto_iva: 152000,
+            monto_total: 952000,
+          },
+          {
+            tipo_doc: 33,
+            folio: 1002,
+            fecha: "2026-04-18",
+            rut_contraparte: "77123456-7",
+            razon_social: "Insumos Chile Ltda",
+            monto_neto: 1200000,
+            monto_iva: 228000,
+            monto_total: 1428000,
+          },
+        ],
+        count: 2,
+        periodo,
+        error: null,
+      },
+      { status: 200 },
+    );
+  }),
+
+  http.get("*/api/sii/rcv/ventas", ({ request }) => {
+    const url = new URL(request.url);
+    const periodo = url.searchParams.get("periodo");
+    if (!periodo) {
+      return HttpResponse.json(errorBody("validation_error", "Falta query `periodo`."), {
+        status: 422,
+      });
+    }
+    return HttpResponse.json(
+      {
+        status: "ok",
+        ventas: [
+          {
+            tipo_doc: 33,
+            folio: 5001,
+            fecha: "2026-04-05",
+            rut_contraparte: "78000111-K",
+            razon_social: "Cliente A SA",
+            monto_neto: 3000000,
+            monto_iva: 570000,
+            monto_total: 3570000,
+          },
+          {
+            tipo_doc: 33,
+            folio: 5002,
+            fecha: "2026-04-25",
+            rut_contraparte: "79222333-4",
+            razon_social: "Cliente B Ltda",
+            monto_neto: 2000000,
+            monto_iva: 380000,
+            monto_total: 2380000,
+          },
+        ],
+        count: 2,
+        periodo,
+        error: null,
+      },
+      { status: 200 },
+    );
+  }),
+
+  http.get("*/api/sii/dte-recibidos", ({ request }) => {
+    const url = new URL(request.url);
+    const desde = url.searchParams.get("desde");
+    const hasta = url.searchParams.get("hasta");
+    if (!desde || !hasta) {
+      return HttpResponse.json(errorBody("validation_error", "Faltan query `desde` y/o `hasta`."), {
+        status: 422,
+      });
+    }
+    return HttpResponse.json(
+      {
+        status: "ok",
+        dte_recibidos: {
+          titulo: "DTE Recibidos",
+          url: "https://www4.sii.cl/.../consulta_dte_recibidos",
+          /* Primera fila = headers (siempre, según contrato). */
+          filas: [
+            ["Ver", "Emisor", "Razón Social", "Documento", "Folio", "Fecha", "Monto", "Estado"],
+            [
+              "",
+              "76555444-K",
+              "Proveedor SpA",
+              "Factura",
+              "1001",
+              "2026-04-03",
+              "952.000",
+              "Aceptado",
+            ],
+            [
+              "",
+              "77123456-7",
+              "Insumos Chile Ltda",
+              "Factura",
+              "1002",
+              "2026-04-18",
+              "1.428.000",
+              "Aceptado",
+            ],
+          ],
+        },
+        desde,
+        hasta,
+        error: null,
+      },
+      { status: 200 },
+    );
+  }),
+];
+
 export const handlers = [
   ...authHandlers,
   ...usersHandlers,
@@ -1067,4 +1348,5 @@ export const handlers = [
   ...currenciesHandlers,
   ...classificationRulesHandlers,
   ...industryTemplatesHandlers,
+  ...siiHandlers,
 ];
