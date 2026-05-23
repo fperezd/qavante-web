@@ -2,10 +2,14 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { AlertCircle, ListChecks, Pencil, Plus, Power, PowerOff } from "lucide-react";
-import { QavanteCard, QavanteBadge, QavanteButton, QavanteEmpty } from "@/components/qavante";
-import { ApiError } from "@/lib/api/errors";
-import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+import { ListChecks, Pencil, Plus, Power, PowerOff } from "lucide-react";
+import {
+  QavanteCard,
+  QavanteBadge,
+  QavanteButton,
+  QavanteEmpty,
+  QavanteInlineError,
+} from "@/components/qavante";
 import {
   useClassificationRules,
   useToggleClassificationRuleActive,
@@ -42,20 +46,6 @@ function LoadingSkeleton() {
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="h-20 animate-pulse rounded-md bg-neutral-light/30" />
       ))}
-    </div>
-  );
-}
-
-function ErrorState({ error, what }: { error: unknown; what: string }) {
-  const message =
-    error instanceof ApiError ? apiErrorToUserMessage(error) : `No pudimos cargar ${what}.`;
-  return (
-    <div
-      role="alert"
-      className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
-    >
-      <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
-      <p>{message}</p>
     </div>
   );
 }
@@ -178,7 +168,7 @@ export function RulesListView() {
   const [editingRule, setEditingRule] = React.useState<ClassificationRule | null>(null);
 
   if (rulesQuery.isLoading) return <LoadingSkeleton />;
-  if (rulesQuery.isError) return <ErrorState error={rulesQuery.error} what="las reglas" />;
+  if (rulesQuery.isError) return <QavanteInlineError error={rulesQuery.error} what="las reglas" />;
 
   const rules = rulesQuery.data?.items ?? [];
 
@@ -243,7 +233,7 @@ export function RulesListView() {
           </li>
         ))}
       </ul>
-      {toggle.isError && <ErrorState error={toggle.error} what="al cambiar el estado" />}
+      {toggle.isError && <QavanteInlineError error={toggle.error} what="al cambiar el estado" />}
 
       <RuleFormDialog open={dialogOpen} onOpenChange={setDialogOpen} rule={editingRule} />
     </div>
