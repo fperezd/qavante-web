@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import {
   AlertCircle,
+  CheckCircle2,
   Layers,
   Briefcase,
   Store,
@@ -30,12 +32,23 @@ import {
 } from "@/lib/api/industry-templates";
 
 /* Vista de Plantillas — Addendum §13/§14. Galería de plantillas por rubro
-   con preview de "qué pasaría si aplico esto" (mode=suggest_only del §14.1).
-   NUNCA destructivo: el botón principal hace SOLO suggest_only (preview),
-   no escribe. La aplicación real (mode=add_missing) se ofrecerá en un
-   dialog confirmatorio en un PR siguiente.
+   con preview de "qué pasaría si aplico esto" (mode=suggest_only del §14.1)
+   y aplicación confirmatoria (mode=add_missing). NUNCA destructivo: el
+   botón principal hace SOLO suggest_only (preview); aplicar exige un
+   dialog confirmatorio explícito.
 
-   §14.1: ningún modo borra/pisa datos. Cuentas siempre report-only. */
+   §14.1: ningún modo expuesto borra/pisa datos. `replace_visibility` queda
+   fuera de scope — es más invasivo, decisión separada. */
+
+/* Lazy: separa Base UI Dialog del First Load JS de /administracion/plantillas.
+   Solo se descarga cuando el user pide aplicar (típicamente 1 vez). */
+const ApplyTemplateDialog = dynamic(
+  () =>
+    import("./apply-template-dialog").then((m) => ({
+      default: m.ApplyTemplateDialog,
+    })),
+  { ssr: false },
+);
 
 /* Mapping business_family → icono. 15 valores del enum cerrado del contrato. */
 const FAMILY_ICON: Record<string, typeof Briefcase> = {
@@ -121,8 +134,22 @@ function PreviewBox({ preview }: { preview: ApplyTemplateResponse }) {
         </li>
       </ul>
       <p className="text-xs text-neutral-mid">
-        Esta es una vista previa — no se aplicó nada todavía. La aplicación real estará disponible
-        próximamente.
+        Esta es solo una vista previa — para aplicar, confirmá en el siguiente paso.
+      </p>
+    </div>
+  );
+}
+
+function AppliedBox({ result }: { result: ApplyTemplateResponse }) {
+  return (
+    <div
+      role="status"
+      className="flex items-start gap-2 rounded-md border border-success-500/40 bg-success-500/10 p-3 text-sm text-neutral-dark"
+    >
+      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-success-600" aria-hidden="true" />
+      <p>
+        Plantilla aplicada. {result.summary.accounts_to_add} cuentas y{" "}
+        {result.summary.dimensions_to_add} vistas nuevas se agregaron a tu empresa.
       </p>
     </div>
   );
@@ -131,6 +158,8 @@ function PreviewBox({ preview }: { preview: ApplyTemplateResponse }) {
 function TemplateCard({ template }: { template: IndustryTemplate }) {
   const apply = useApplyIndustryTemplate();
   const [preview, setPreview] = React.useState<ApplyTemplateResponse | null>(null);
+  const [applied, setApplied] = React.useState<ApplyTemplateResponse | null>(null);
+  const [applyOpen, setApplyOpen] = React.useState(false);
   const Icon = FAMILY_ICON[template.business_family] ?? Building2;
 
   function handlePreview() {
@@ -138,6 +167,11 @@ function TemplateCard({ template }: { template: IndustryTemplate }) {
       { templateCode: template.code, body: { mode: "suggest_only", overwrite_existing: false } },
       { onSuccess: setPreview },
     );
+  }
+
+  function handleApplied(result: ApplyTemplateResponse) {
+    setApplied(result);
+    setPreview(null);
   }
 
   return (
@@ -158,8 +192,21 @@ function TemplateCard({ template }: { template: IndustryTemplate }) {
           {!template.is_active && <QavanteBadge variant="default">Inactiva</QavanteBadge>}
         </div>
         {template.description && <p className="text-sm text-neutral-mid">{template.description}</p>}
-        {preview ? (
-          <PreviewBox preview={preview} />
+
+        {applied ? (
+          <AppliedBox result={applied} />
+        ) : preview ? (
+          <>
+            <PreviewBox preview={preview} />
+            <div className="flex flex-wrap gap-2">
+              <QavanteButton size="sm" variant="ghost" onClick={() => setPreview(null)}>
+                Descartar
+              </QavanteButton>
+              <QavanteButton size="sm" onClick={() => setApplyOpen(true)}>
+                Aplicar plantilla
+              </QavanteButton>
+            </div>
+          </>
         ) : (
           <QavanteButton
             size="sm"
@@ -170,7 +217,7 @@ function TemplateCard({ template }: { template: IndustryTemplate }) {
             {apply.isPending ? "Calculando…" : "Ver vista previa"}
           </QavanteButton>
         )}
-        {apply.isError && !preview && (
+        {apply.isError && !preview && !applied && (
           <p role="alert" className="text-sm text-danger-500">
             {apply.error instanceof ApiError
               ? apiErrorToUserMessage(apply.error)
@@ -178,6 +225,17 @@ function TemplateCard({ template }: { template: IndustryTemplate }) {
           </p>
         )}
       </div>
+
+      {preview && (
+        <ApplyTemplateDialog
+          open={applyOpen}
+          onOpenChange={setApplyOpen}
+          templateCode={template.code}
+          templateName={template.name}
+          summary={preview.summary}
+          onApplied={handleApplied}
+        />
+      )}
     </QavanteCard>
   );
 }
