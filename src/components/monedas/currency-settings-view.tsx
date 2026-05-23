@@ -2,10 +2,14 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { AlertCircle, Coins, Pencil, RefreshCw } from "lucide-react";
-import { QavanteCard, QavanteBadge, QavanteEmpty, QavanteButton } from "@/components/qavante";
-import { ApiError } from "@/lib/api/errors";
-import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+import { Coins, Pencil, RefreshCw } from "lucide-react";
+import {
+  QavanteCard,
+  QavanteBadge,
+  QavanteEmpty,
+  QavanteButton,
+  QavanteInlineError,
+} from "@/components/qavante";
 import {
   useCompanyCurrencySettings,
   useCurrencies,
@@ -39,20 +43,6 @@ function LoadingSkeleton() {
     <div className="space-y-4" aria-hidden="true">
       <div className="h-32 animate-pulse rounded-md bg-neutral-light/30" />
       <div className="h-32 animate-pulse rounded-md bg-neutral-light/30" />
-    </div>
-  );
-}
-
-function ErrorState({ error, what }: { error: unknown; what: string }) {
-  const message =
-    error instanceof ApiError ? apiErrorToUserMessage(error) : `No pudimos cargar ${what}.`;
-  return (
-    <div
-      role="alert"
-      className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
-    >
-      <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
-      <p>{message}</p>
     </div>
   );
 }
@@ -128,10 +118,10 @@ export function CurrencySettingsView() {
   }
 
   if (settingsQuery.isError) {
-    return <ErrorState error={settingsQuery.error} what="los ajustes de moneda" />;
+    return <QavanteInlineError error={settingsQuery.error} what="los ajustes de moneda" />;
   }
   if (currenciesQuery.isError) {
-    return <ErrorState error={currenciesQuery.error} what="el catálogo de monedas" />;
+    return <QavanteInlineError error={currenciesQuery.error} what="el catálogo de monedas" />;
   }
 
   const settings: CompanyCurrencySettings | null = settingsQuery.data ?? null;

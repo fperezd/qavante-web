@@ -2,10 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { AlertCircle } from "lucide-react";
-import { QavanteEmpty, QavanteButton } from "@/components/qavante";
-import { ApiError } from "@/lib/api/errors";
-import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+import { QavanteEmpty, QavanteButton, QavanteInlineError } from "@/components/qavante";
 import {
   useBankMovements,
   useClassifyBankMovement,
@@ -49,20 +46,6 @@ function LoadingSkeleton() {
   );
 }
 
-function ErrorState({ error, what }: { error: unknown; what: string }) {
-  const message =
-    error instanceof ApiError ? apiErrorToUserMessage(error) : `No pudimos cargar ${what}.`;
-  return (
-    <div
-      role="alert"
-      className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
-    >
-      <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
-      <p>{message}</p>
-    </div>
-  );
-}
-
 function movementSummary(m: BankMovement) {
   return {
     date: m.date ? formatDate(new Date(m.date)) : "—",
@@ -97,7 +80,7 @@ export function PorClasificarView() {
 
   if (movementsQuery.isLoading) return <LoadingSkeleton />;
   if (movementsQuery.isError)
-    return <ErrorState error={movementsQuery.error} what="los movimientos" />;
+    return <QavanteInlineError error={movementsQuery.error} what="los movimientos" />;
 
   const movements = movementsQuery.data?.items ?? [];
   if (movements.length === 0) {
@@ -214,7 +197,9 @@ export function PorClasificarView() {
           {formError}
         </p>
       )}
-      {classify.isError && <ErrorState error={classify.error} what="al guardar la clasificación" />}
+      {classify.isError && (
+        <QavanteInlineError error={classify.error} what="al guardar la clasificación" />
+      )}
     </div>
   );
 }

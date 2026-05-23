@@ -3,7 +3,6 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import {
-  AlertCircle,
   CheckCircle2,
   Layers,
   Briefcase,
@@ -21,7 +20,13 @@ import {
   Heart,
   HelpCircle,
 } from "lucide-react";
-import { QavanteCard, QavanteBadge, QavanteButton, QavanteEmpty } from "@/components/qavante";
+import {
+  QavanteCard,
+  QavanteBadge,
+  QavanteButton,
+  QavanteEmpty,
+  QavanteInlineError,
+} from "@/components/qavante";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import {
@@ -93,20 +98,6 @@ function LoadingSkeleton() {
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="h-32 animate-pulse rounded-md bg-neutral-light/30" />
       ))}
-    </div>
-  );
-}
-
-function ErrorState({ error, what }: { error: unknown; what: string }) {
-  const message =
-    error instanceof ApiError ? apiErrorToUserMessage(error) : `No pudimos cargar ${what}.`;
-  return (
-    <div
-      role="alert"
-      className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
-    >
-      <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
-      <p>{message}</p>
     </div>
   );
 }
@@ -245,7 +236,7 @@ export function TemplatesGalleryView() {
 
   if (templatesQuery.isLoading) return <LoadingSkeleton />;
   if (templatesQuery.isError)
-    return <ErrorState error={templatesQuery.error} what="las plantillas" />;
+    return <QavanteInlineError error={templatesQuery.error} what="las plantillas" />;
 
   const templates = templatesQuery.data?.items ?? [];
 
