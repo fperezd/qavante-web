@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, Coins, RefreshCw } from "lucide-react";
+import dynamic from "next/dynamic";
+import { AlertCircle, Coins, Pencil, RefreshCw } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteEmpty, QavanteButton } from "@/components/qavante";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -10,16 +11,28 @@ import {
   useCurrencies,
   useExchangeRate,
   type Currency,
+  type CompanyCurrencySettings,
 } from "@/lib/api/currencies";
 
 /* Vista de Monedas — Addendum §15/§16. Patrón "página = contenedor": el
    screen `/administracion/monedas` resuelve el flag `multiCurrency`
-   (ADR-0008) y monta esta vista (client). Lee SOLO settings + catálogo +
-   TC. La UI de edición (PATCH settings) llega en un PR siguiente —
-   defense in depth: cuando se agregue, la lista de TC ya estará lista.
+   (ADR-0008) y monta esta vista (client). Lee settings + catálogo + TC, y
+   ofrece edición vía dialog (PATCH §15.4). El gating fino owner/admin lo
+   hace el backend (403 → message del Anexo C.3), igual que en usuarios.
 
    §15.7: la ausencia de TC NO es un error — `data_status='requires_attention'`
    y la card del par muestra "Sin datos" en banda warning, NO en danger. */
+
+/* Lazy: separa Base UI Dialog + react-hook-form + zod del First Load JS de
+   `/administracion/monedas`. Solo se descarga al abrir el editor. ssr:false
+   porque el dialog es interactivo client-only. */
+const CurrencySettingsDialog = dynamic(
+  () =>
+    import("./currency-settings-dialog").then((m) => ({
+      default: m.CurrencySettingsDialog,
+    })),
+  { ssr: false },
+);
 
 function LoadingSkeleton() {
   return (
@@ -108,6 +121,7 @@ function ExchangeRateCard({ base, quote }: ExchangeRateCardProps) {
 export function CurrencySettingsView() {
   const settingsQuery = useCompanyCurrencySettings();
   const currenciesQuery = useCurrencies();
+  const [dialogOpen, setDialogOpen] = React.useState(false);
 
   if (settingsQuery.isLoading || currenciesQuery.isLoading) {
     return <LoadingSkeleton />;
@@ -120,18 +134,32 @@ export function CurrencySettingsView() {
     return <ErrorState error={currenciesQuery.error} what="el catálogo de monedas" />;
   }
 
-  const settings = settingsQuery.data;
+  const settings: CompanyCurrencySettings | null = settingsQuery.data ?? null;
   const currencies = currenciesQuery.data?.items ?? [];
 
   if (!settings) {
-    /* §15.4: settings ausentes → estado vacío con CTA. La UI de "configurar"
-       llegará en el PR siguiente (PATCH settings). */
+    /* §15.4: settings ausentes → empty con CTA primaria que abre el dialog
+       en modo "configurar" (defaults Chile: CLP funcional). */
     return (
-      <QavanteEmpty
-        icon={Coins}
-        title="Aún no configuraste tus monedas"
-        description="Cuando habilitemos la configuración vas a poder elegir tu moneda funcional y monedas de reporte."
-      />
+      <>
+        <QavanteEmpty
+          icon={Coins}
+          title="Aún no configuraste tus monedas"
+          description="Elegí tu moneda funcional, monedas de reporte y, si la usás, la unidad indexada (UF / UTM)."
+          cta={
+            <QavanteButton onClick={() => setDialogOpen(true)}>
+              <Coins className="h-4 w-4" />
+              Configurar monedas
+            </QavanteButton>
+          }
+        />
+        <CurrencySettingsDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          settings={null}
+          currencies={currencies}
+        />
+      </>
     );
   }
 
@@ -163,9 +191,20 @@ export function CurrencySettingsView() {
         <QavanteCard
           variant="bordered"
           header={
-            <div className="flex items-center gap-2">
-              <Coins className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-              <span>Ajustes</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-brand-primary" aria-hidden="true" />
+                <span>Ajustes</span>
+              </span>
+              <QavanteButton
+                size="sm"
+                variant="ghost"
+                onClick={() => setDialogOpen(true)}
+                aria-label="Editar ajustes de moneda"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                Editar
+              </QavanteButton>
             </div>
           }
         >
@@ -229,6 +268,13 @@ export function CurrencySettingsView() {
           </div>
         </section>
       )}
+
+      <CurrencySettingsDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        settings={settings}
+        currencies={currencies}
+      />
     </div>
   );
 }
