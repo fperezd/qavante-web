@@ -18,7 +18,11 @@ interface CurrencyCodeSelectProps {
   disabled?: boolean;
   invalid?: boolean;
   allowEmpty?: boolean;
+  /* WCAG: si el campo es requerido, marcar para screen readers. */
+  required?: boolean;
   "aria-label"?: string;
+  /* WCAG: asociar mensaje de error inline (id del <p> con role="alert"). */
+  "aria-describedby"?: string;
 }
 
 /* `<select>` nativo de moneda con styling Qavante (ADR-0010 — sin combobox).
@@ -34,6 +38,7 @@ export function CurrencyCodeSelect({
   disabled,
   invalid,
   allowEmpty = false,
+  required,
   ...props
 }: CurrencyCodeSelectProps) {
   const options = React.useMemo(() => {
@@ -50,7 +55,9 @@ export function CurrencyCodeSelect({
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
       aria-invalid={invalid || undefined}
+      aria-required={required || undefined}
       aria-label={props["aria-label"]}
+      aria-describedby={props["aria-describedby"]}
       className={cn(
         "flex h-10 w-full rounded-md border bg-surface px-3 py-2 text-sm text-neutral-dark",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",

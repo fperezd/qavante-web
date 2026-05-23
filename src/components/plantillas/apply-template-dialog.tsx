@@ -144,6 +144,7 @@ export function ApplyTemplateDialog({
                   type="checkbox"
                   checked={confirmed}
                   onChange={(e) => setConfirmed(e.target.checked)}
+                  aria-required="true"
                   className="mt-0.5 h-4 w-4 rounded border-neutral-light text-brand-primary focus:ring-brand-primary"
                 />
                 <span className="text-neutral-dark">

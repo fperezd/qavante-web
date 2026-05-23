@@ -171,11 +171,13 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
                     onValueChange={field.onChange}
                     onBlur={field.onBlur}
                     invalid={Boolean(errors.name)}
+                    aria-required="true"
+                    aria-describedby={errors.name ? "rule-name-error" : undefined}
                   />
                 )}
               />
               {errors.name && (
-                <p className="text-xs text-danger-500" role="alert">
+                <p id="rule-name-error" className="text-xs text-danger-500" role="alert">
                   {errors.name.message}
                 </p>
               )}
@@ -199,6 +201,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
                         value={field.value}
                         onChange={(e) => field.onChange(e.target.value)}
                         aria-invalid={Boolean(errors.condition_field) || undefined}
+                        aria-required="true"
                         className={cn(selectClass, errors.condition_field && "border-danger-500")}
                       >
                         {CONDITION_FIELDS.map((f) => (
@@ -223,6 +226,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
                         value={field.value}
                         onChange={(e) => field.onChange(e.target.value)}
                         aria-invalid={Boolean(errors.operator) || undefined}
+                        aria-required="true"
                         className={cn(selectClass, errors.operator && "border-danger-500")}
                       >
                         {OPERATORS.map((o) => (
@@ -250,11 +254,13 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
                       onValueChange={field.onChange}
                       onBlur={field.onBlur}
                       invalid={Boolean(errors.condition_value)}
+                      aria-required="true"
+                      aria-describedby={errors.condition_value ? "rule-value-error" : undefined}
                     />
                   )}
                 />
                 {errors.condition_value && (
-                  <p className="text-xs text-danger-500" role="alert">
+                  <p id="rule-value-error" className="text-xs text-danger-500" role="alert">
                     {errors.condition_value.message}
                   </p>
                 )}
@@ -311,6 +317,10 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
                       onChange={(e) => field.onChange(e.target.valueAsNumber)}
                       onBlur={field.onBlur}
                       aria-invalid={Boolean(errors.priority) || undefined}
+                      aria-required="true"
+                      aria-describedby={
+                        errors.priority ? "rule-priority-error" : "rule-priority-hint"
+                      }
                       className={cn(
                         "flex h-10 w-full rounded-md border bg-surface px-3 py-2 text-sm text-neutral-dark",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
@@ -319,9 +329,11 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
                     />
                   )}
                 />
-                <p className="text-xs text-neutral-mid">Menor = corre antes (§17.6).</p>
+                <p id="rule-priority-hint" className="text-xs text-neutral-mid">
+                  Menor = corre antes (§17.6).
+                </p>
                 {errors.priority && (
-                  <p className="text-xs text-danger-500" role="alert">
+                  <p id="rule-priority-error" className="text-xs text-danger-500" role="alert">
                     {errors.priority.message}
                   </p>
                 )}
