@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { AlertCircle } from "lucide-react";
 import { QavanteEmpty, QavanteButton } from "@/components/qavante";
 import { ApiError } from "@/lib/api/errors";
@@ -12,10 +13,23 @@ import {
   type BankMovement,
 } from "@/lib/api/treasury";
 import { useManagementAccountsTree } from "@/lib/api/management";
+import type { SuggestRuleResponse } from "@/lib/api/classification-rules";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import { ClassificationDrawer } from "./classification-drawer";
+import { SuggestRuleBanner } from "./suggest-rule-banner";
 import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
+
+/* Lazy: separa Base UI Dialog + RHF + zod del First Load de
+   /caja/por-clasificar. Solo se descarga si el user pide crear regla
+   desde una sugerencia. ssr:false porque el dialog es client-only. */
+const RuleFormDialog = dynamic(
+  () =>
+    import("@/components/reglas/rule-form-dialog").then((m) => ({
+      default: m.RuleFormDialog,
+    })),
+  { ssr: false },
+);
 
 /* Flujo §17 — Movimientos por clasificar. Patrón "página = contenedor" del
    repo: el screen resuelve el flag (server) y monta esto (client).
@@ -67,6 +81,10 @@ export function PorClasificarView() {
 
   const [selected, setSelected] = React.useState<BankMovement | null>(null);
   const [formError, setFormError] = React.useState<string>();
+  /* §18.7 — sugerencia capturada desde el banner; abre RuleFormDialog
+     pre-poblado. read-only en el endpoint; persiste solo al confirmar el
+     POST desde el dialog. */
+  const [suggestionDraft, setSuggestionDraft] = React.useState<SuggestRuleResponse | null>(null);
 
   const canonicalOptions = React.useMemo(
     () => toCanonicalCategoryOptions(canonicalQuery.data?.items ?? []),
@@ -173,8 +191,23 @@ export function PorClasificarView() {
             // No se inventa (regla 16); se cierra. Reabrir si backend lo expone.
             setSelected(null);
           }}
+          suggestionBanner={
+            <SuggestRuleBanner
+              movementId={selected.id}
+              onCreateFromSuggestion={(s) => setSuggestionDraft(s)}
+            />
+          }
         />
       )}
+
+      <RuleFormDialog
+        open={suggestionDraft !== null}
+        onOpenChange={(open) => {
+          if (!open) setSuggestionDraft(null);
+        }}
+        rule={null}
+        suggestion={suggestionDraft}
+      />
 
       {formError && (
         <p role="alert" className="text-sm text-danger-500">

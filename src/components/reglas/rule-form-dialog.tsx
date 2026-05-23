@@ -13,6 +13,7 @@ import {
   useCreateClassificationRule,
   useUpdateClassificationRule,
   type ClassificationRule,
+  type SuggestRuleResponse,
 } from "@/lib/api/classification-rules";
 import { useCanonicalCategories } from "@/lib/api/treasury";
 import {
@@ -23,6 +24,7 @@ import {
   formToUpdateRequest,
   ruleFormSchema,
   ruleToForm,
+  suggestionToFormValues,
   type RuleFormValues,
 } from "./rule-form-schema";
 
@@ -58,8 +60,14 @@ const OPERATOR_LABEL: Record<string, string> = {
 export interface RuleFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Si viene, es edit; si no, es create. */
+  /** Si viene, es edit; si no (null), es create. */
   rule: ClassificationRule | null;
+  /** Sugerencia §18.7 (read-only) para pre-poblar el form en modo create.
+   *  El dialog hace el transform internamente — el caller pasa el response
+   *  crudo del backend. Ignorado si `rule` !== null. Mantener el transform
+   *  acá (vs en el caller) evita arrastrar el schema + zod al chunk del
+   *  caller cuando el dialog ya es lazy. */
+  suggestion?: SuggestRuleResponse | null;
 }
 
 const selectClass = cn(
@@ -67,7 +75,19 @@ const selectClass = cn(
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
 );
 
-export function RuleFormDialog({ open, onOpenChange, rule }: RuleFormDialogProps) {
+function resolveInitial(
+  rule: ClassificationRule | null,
+  suggestion?: SuggestRuleResponse | null,
+): RuleFormValues {
+  const base = ruleToForm(rule);
+  /* Solo aplica la sugerencia en modo create (rule === null). En edit el
+     snapshot de la regla manda — no queremos que una sugerencia pise
+     valores reales de la regla. */
+  if (rule || !suggestion) return base;
+  return { ...base, ...suggestionToFormValues(suggestion) };
+}
+
+export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFormDialogProps) {
   const isEdit = Boolean(rule);
   const create = useCreateClassificationRule();
   const update = useUpdateClassificationRule();
@@ -81,18 +101,18 @@ export function RuleFormDialog({ open, onOpenChange, rule }: RuleFormDialogProps
     formState: { errors, isSubmitting },
   } = useForm<RuleFormValues>({
     resolver: zodResolver(ruleFormSchema),
-    defaultValues: ruleToForm(rule),
+    defaultValues: resolveInitial(rule, suggestion),
     mode: "onBlur",
   });
 
-  /* Re-sincronizar el form si cambia el snapshot (post-mutación, o al
-     abrir el dialog en modo edit con otra regla). */
+  /* Re-sincronizar el form si cambia el snapshot (post-mutación, al abrir
+     en modo edit con otra regla, o al recibir una sugerencia distinta). */
   React.useEffect(() => {
     if (open) {
-      reset(ruleToForm(rule));
+      reset(resolveInitial(rule, suggestion));
       setSubmitError(null);
     }
-  }, [open, rule, reset]);
+  }, [open, rule, suggestion, reset]);
 
   async function onSubmit(values: RuleFormValues) {
     setSubmitError(null);

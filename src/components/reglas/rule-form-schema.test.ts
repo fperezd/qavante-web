@@ -13,9 +13,10 @@ import {
   formToUpdateRequest,
   ruleFormSchema,
   ruleToForm,
+  suggestionToFormValues,
   type RuleFormValues,
 } from "./rule-form-schema";
-import type { ClassificationRule } from "@/lib/api/classification-rules";
+import type { ClassificationRule, SuggestRuleResponse } from "@/lib/api/classification-rules";
 
 function validForm(overrides: Partial<RuleFormValues> = {}): RuleFormValues {
   return {
@@ -173,6 +174,66 @@ describe("formToCreateRequest — POST body", () => {
     const body = formToCreateRequest(validForm({ confidence: 0.95 }));
     expect(typeof body.confidence).toBe("number");
     expect(body.confidence).toBe(0.95);
+  });
+});
+
+describe("suggestionToFormValues — §18.7 sugerencia → form parcial (read-only)", () => {
+  it("mapea el shape completo de §18.7 (name + field + operator + value)", () => {
+    const s: SuggestRuleResponse = {
+      name: "Movistar",
+      condition_field: "counterparty_name",
+      operator: "contains",
+      condition_value: "MOVISTAR",
+    };
+    expect(suggestionToFormValues(s)).toEqual({
+      name: "Movistar",
+      condition_field: "counterparty_name",
+      operator: "contains",
+      condition_value: "MOVISTAR",
+    });
+  });
+
+  it("respuesta vacía → objeto vacío (el form usa defaults v1)", () => {
+    expect(suggestionToFormValues({})).toEqual({});
+  });
+
+  it("name solo espacios o vacío → dropeado (el user lo completa)", () => {
+    expect(suggestionToFormValues({ name: "" })).toEqual({});
+    expect(suggestionToFormValues({ name: "   " })).toEqual({});
+  });
+
+  it("dropa campos fuera del enum (forward-compat antes de generate:api)", () => {
+    const s: SuggestRuleResponse = {
+      name: "X",
+      condition_field: "future_field_added_by_backend",
+      operator: "future_operator",
+      condition_value: "Y",
+    };
+    expect(suggestionToFormValues(s)).toEqual({ name: "X", condition_value: "Y" });
+  });
+
+  it("dropa condition_value vacío", () => {
+    const s: SuggestRuleResponse = { name: "X", condition_value: "" };
+    expect(suggestionToFormValues(s)).toEqual({ name: "X" });
+  });
+
+  it("ignora campos extra del payload (additionalProperties=true)", () => {
+    const s: SuggestRuleResponse = {
+      name: "X",
+      condition_field: "description",
+      operator: "contains",
+      condition_value: "Y",
+      source_type: "bank_movement", // del shape pero no entra al form (es hardcoded v1)
+      explanation: "matched 3 prior movements", // campo derivado futuro
+    };
+    const result = suggestionToFormValues(s);
+    expect(result).toEqual({
+      name: "X",
+      condition_field: "description",
+      operator: "contains",
+      condition_value: "Y",
+    });
+    expect("source_type" in result).toBe(false);
   });
 });
 

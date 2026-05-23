@@ -53,6 +53,10 @@ export interface ClassificationDrawerProps {
   onSaveAndCreateRule: (draft: ClassificationDraft) => void;
   onMarkForReview: () => void;
   saving?: boolean;
+  /** Slot opcional para el banner §18.7 (sugerencia de regla). Se renderiza
+   *  arriba de los selectores. PRESENTACIONAL PURO: el drawer no sabe nada
+   *  del estado del banner — el contenedor lo monta con sus hooks. */
+  suggestionBanner?: React.ReactNode;
 }
 
 export function ClassificationDrawer({
@@ -66,6 +70,7 @@ export function ClassificationDrawer({
   onSaveAndCreateRule,
   onMarkForReview,
   saving,
+  suggestionBanner,
 }: ClassificationDrawerProps) {
   const [draft, setDraft] = React.useState<ClassificationDraft>({
     dimensionAssignments: {},
@@ -142,6 +147,8 @@ export function ClassificationDrawer({
               </dd>
             </dl>
           </QavanteCard>
+
+          {suggestionBanner}
 
           <section className="space-y-2">
             <h3 className="text-sm font-medium text-neutral-dark">Tipo de movimiento</h3>
