@@ -1,7 +1,7 @@
 /* Sanity del contrato SII vía MSW + estabilidad de query keys (Sprint C1).
    Si rompe tras tocar handlers.ts o sii.ts, el mock dejó de respetar el
    shape que la UI esperará. Cubre los 8 endpoints + helper PDF URL. */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   siiKeys,
   siiF29PdfUrl,
@@ -47,9 +47,20 @@ describe("siiKeys", () => {
 });
 
 describe("siiF29PdfUrl — helper", () => {
+  /* El helper lee `process.env.NEXT_PUBLIC_API_URL` directo. En CI no hay
+     `.env.local` cargado → la env var queda undefined y el helper devuelve
+     null. Stubbeamos un valor conocido para que el test sea determinista
+     en local Y en CI. `vi.stubEnv` es reversible al cleanup. */
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:3000");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("folio válido → URL absoluta con NEXT_PUBLIC_API_URL", () => {
     const url = siiF29PdfUrl(1234567890);
-    expect(url).toBe(`${API}/api/sii/f29/1234567890/pdf`);
+    expect(url).toBe("http://localhost:3000/api/sii/f29/1234567890/pdf");
   });
 
   it("folio inválido (≤ 0, NaN, fracción) → null", () => {
@@ -57,6 +68,14 @@ describe("siiF29PdfUrl — helper", () => {
     expect(siiF29PdfUrl(-5)).toBeNull();
     expect(siiF29PdfUrl(Number.NaN)).toBeNull();
     expect(siiF29PdfUrl(1.5)).toBeNull();
+  });
+
+  it("sin NEXT_PUBLIC_API_URL → null (caller maneja config_missing)", () => {
+    /* Si la env var falta en runtime, no inventamos host; el caller debe
+       detectar null y mostrar un error de configuración (consistente con
+       el `ApiError('config_missing')` del client.ts en el mismo caso). */
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    expect(siiF29PdfUrl(1234567890)).toBeNull();
   });
 });
 
