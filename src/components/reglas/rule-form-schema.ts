@@ -19,6 +19,7 @@ import { z } from "zod";
 import type {
   ClassificationRule,
   CreateClassificationRuleRequest,
+  SuggestRuleResponse,
   UpdateClassificationRuleRequest,
 } from "@/lib/api/classification-rules";
 
@@ -129,6 +130,32 @@ export function formToUpdateRequest(values: RuleFormValues): UpdateClassificatio
     priority: values.priority,
     confidence: values.confidence,
   };
+}
+
+/** Sugerencia §18.7 (POST /api/bank-movements/{id}/suggest-rule, read-only)
+ *  → valores parciales para pre-poblar el form. Solo mapeamos los campos
+ *  declarados en el shape estable (§18.7): name, condition_field, operator,
+ *  condition_value. El resto (priority/confidence/category) queda al user.
+ *
+ *  Defensivo: si el backend devuelve un campo/operador fuera del enum del
+ *  FE (forward-compat antes del siguiente generate:api), lo dropeamos. El
+ *  user verá el form con el default seguro y puede ajustar manualmente. */
+export function suggestionToFormValues(s: SuggestRuleResponse): Partial<RuleFormValues> {
+  const out: Partial<RuleFormValues> = {};
+  if (typeof s.name === "string" && s.name.trim() !== "") out.name = s.name;
+  if (
+    typeof s.condition_field === "string" &&
+    (CONDITION_FIELDS as readonly string[]).includes(s.condition_field)
+  ) {
+    out.condition_field = s.condition_field as (typeof CONDITION_FIELDS)[number];
+  }
+  if (typeof s.operator === "string" && (OPERATORS as readonly string[]).includes(s.operator)) {
+    out.operator = s.operator as (typeof OPERATORS)[number];
+  }
+  if (typeof s.condition_value === "string" && s.condition_value.trim() !== "") {
+    out.condition_value = s.condition_value;
+  }
+  return out;
 }
 
 /* Helpers de narrowing: si el backend incorpora nuevos valores al enum
