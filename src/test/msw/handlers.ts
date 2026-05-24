@@ -252,39 +252,160 @@ const canonicalCategoriesFixture = [
 ];
 
 /* Movimientos bancarios — listado + classify (PATCH). Shape de
-   `BankMovement` (§17). classify devuelve el movimiento "clasificado"
-   (echo del body) para que el FE vea el efecto sin backend (ADR-0005). */
+   `BankMovement` (§17). Fixtures cubren AMBOS estados (unclassified +
+   classified) para dev preview de /caja/por-clasificar y /caja/clasificados.
+   Handler filtra por query `status` y `period` (mismo contrato que el
+   backend live, regla 16). classify devuelve el movimiento "clasificado"
+   con el body aplicado (ADR-0005). */
 const bankMovementsFixture = [
+  /* Sin clasificar (status='unclassified') — alimentan /caja/por-clasificar */
   {
-    id: "mov-1",
+    id: "mov-unclas-1",
     bank_account_id: "acct-1",
+    external_id: "ext-bice-1001",
     description: "TRANSFERENCIA PROVEEDOR ACME SPA",
     amount: "-450000.00",
     date: "2026-05-12",
+    direction: "debit",
     canonical_category: null,
     management_account_id: null,
   },
   {
-    id: "mov-2",
+    id: "mov-unclas-2",
     bank_account_id: "acct-1",
+    external_id: "ext-bice-1002",
     description: "ABONO CLIENTE FACTURA 1042",
     amount: "1190000.00",
     date: "2026-05-13",
+    direction: "credit",
     canonical_category: null,
     management_account_id: null,
   },
+  /* Clasificados (status='classified') — alimentan /caja/clasificados.
+     Cubren los canonical_category más comunes de PYME para que la vista
+     muestre badges variados al filtrar. */
+  {
+    id: "mov-clas-1",
+    bank_account_id: "acct-1",
+    external_id: "ext-bice-1003",
+    description: "SUELDO FERNANDO PEREZ MAYO",
+    amount: "-2500000.00",
+    date: "2026-05-30",
+    direction: "debit",
+    canonical_category: "payroll_payment",
+    management_account_id: "acc-sueldos",
+  },
+  {
+    id: "mov-clas-2",
+    bank_account_id: "acct-1",
+    external_id: "ext-bice-1004",
+    description: "PAGO MOVISTAR FACTURA 87654321",
+    amount: "-42500.00",
+    date: "2026-05-15",
+    direction: "debit",
+    canonical_category: "supplier_payment",
+    management_account_id: "acc-servicios",
+  },
+  {
+    id: "mov-clas-3",
+    bank_account_id: "acct-1",
+    external_id: "ext-bice-1005",
+    description: "ABONO CLIENTE X CAPITAL SPA - FACTURA 217576",
+    amount: "96990.00",
+    date: "2026-05-15",
+    direction: "credit",
+    canonical_category: "client_collection",
+    management_account_id: "acc-ventas",
+  },
+  {
+    id: "mov-clas-4",
+    bank_account_id: "acct-1",
+    external_id: "ext-bice-1006",
+    description: "PAGO F29 ABRIL 2026",
+    amount: "-2150000.00",
+    date: "2026-05-12",
+    direction: "debit",
+    canonical_category: "tax_payment",
+    management_account_id: "acc-impuestos",
+  },
+  {
+    id: "mov-clas-5",
+    bank_account_id: "acct-1",
+    external_id: "ext-bice-1007",
+    description: "ABONO TGR PPM ABRIL",
+    amount: "850000.00",
+    date: "2026-05-18",
+    direction: "credit",
+    canonical_category: "tax_payment",
+    management_account_id: "acc-impuestos",
+  },
+  {
+    id: "mov-clas-6",
+    bank_account_id: "acct-1",
+    external_id: "ext-bice-1008",
+    description: "TRANSFERENCIA ENTRE CUENTAS PROPIAS",
+    amount: "-1000000.00",
+    date: "2026-05-20",
+    direction: "debit",
+    canonical_category: "internal_bank_transfer",
+    management_account_id: null,
+  },
+  {
+    id: "mov-clas-7",
+    bank_account_id: "acct-2",
+    external_id: "ext-bice-2001",
+    description: "TRANSFERENCIA ENTRE CUENTAS PROPIAS (RECEPCION)",
+    amount: "1000000.00",
+    date: "2026-05-20",
+    direction: "credit",
+    canonical_category: "internal_bank_transfer",
+    management_account_id: null,
+  },
+  {
+    id: "mov-clas-8",
+    bank_account_id: "acct-1",
+    external_id: "ext-bice-1009",
+    description: "PAGO HONORARIOS PROFESIONAL ASESOR 1",
+    amount: "-875000.00",
+    date: "2026-05-22",
+    direction: "debit",
+    canonical_category: "supplier_payment",
+    management_account_id: "acc-honorarios",
+  },
 ];
+
+function isClassified(m: { canonical_category: string | null }): boolean {
+  return m.canonical_category != null;
+}
+
+function inPeriod(m: { date: string }, period: string | null): boolean {
+  if (!period) return true;
+  /* `period` formato YYYY-MM o YYYYMM. Comparamos contra los primeros
+     7 chars de la fecha (YYYY-MM). El backend live también acepta texto
+     libre tipo "mayo 2026" pero el FE normaliza a YYYY-MM antes de
+     enviar (sii-period-form-schema). */
+  const normalized = period.includes("-") ? period : `${period.slice(0, 4)}-${period.slice(4)}`;
+  return m.date.startsWith(normalized);
+}
 
 const treasuryHandlers = [
   http.get("*/api/treasury/canonical-categories", () =>
     HttpResponse.json({ items: canonicalCategoriesFixture }, { status: 200 }),
   ),
-  http.get("*/api/bank-movements", () =>
-    HttpResponse.json(
-      { items: bankMovementsFixture, total: bankMovementsFixture.length },
-      { status: 200 },
-    ),
-  ),
+  http.get("*/api/bank-movements", ({ request }) => {
+    const url = new URL(request.url);
+    const status = url.searchParams.get("status");
+    const period = url.searchParams.get("period");
+
+    let items = bankMovementsFixture.filter((m) => inPeriod(m, period));
+    if (status === "classified") {
+      items = items.filter(isClassified);
+    } else if (status === "unclassified") {
+      items = items.filter((m) => !isClassified(m));
+    }
+
+    return HttpResponse.json({ items, total: items.length }, { status: 200 });
+  }),
   http.patch("*/api/bank-movements/:movementId/classify", async ({ request, params }) => {
     const body = (await request.json()) as {
       management_account_id?: string;
