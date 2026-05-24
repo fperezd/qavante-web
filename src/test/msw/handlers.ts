@@ -464,6 +464,140 @@ const managementHandlers = [
   http.get("*/api/management/dimensions/:dimensionId/values", () =>
     HttpResponse.json({ items: dimensionValuesFixture }, { status: 200 }),
   ),
+  /* Sprint C2 PR-Mng2 — mutations dimensions + values + assignments.
+     Mismo patrón que PR-Mng1: shape contractual desde body + defaults,
+     SIN persistencia mutable. Para tests de contrato y feedback UI
+     loading/success. Persistencia real se agrega cuando llegue el
+     editor UI. */
+  http.post("*/api/management/dimensions", async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    if (!body.code || !body.name) {
+      return HttpResponse.json(errorBody("validation_error", "code y name son requeridos."), {
+        status: 422,
+      });
+    }
+    managementAccountIdCounter += 1;
+    return HttpResponse.json(
+      {
+        id: `dim-synth-${managementAccountIdCounter}`,
+        data_type: "text",
+        is_system: false,
+        is_required: false,
+        is_visible: true,
+        allows_hierarchy: false,
+        allows_multiple_values: false,
+        active: true,
+        sort_order: 100,
+        ...body,
+      },
+      { status: 201 },
+    );
+  }),
+  http.patch("*/api/management/dimensions/:dimensionId", async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      {
+        id: params.dimensionId,
+        code: "proyecto",
+        name: "Proyecto",
+        description: null,
+        data_type: "text",
+        is_system: false,
+        is_required: false,
+        is_visible: true,
+        allows_hierarchy: true,
+        allows_multiple_values: false,
+        active: true,
+        sort_order: 10,
+        ...body,
+      },
+      { status: 200 },
+    );
+  }),
+  http.post("*/api/management/dimensions/:dimensionId/values", async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    if (!body.name) {
+      return HttpResponse.json(errorBody("validation_error", "name es requerido."), {
+        status: 422,
+      });
+    }
+    managementAccountIdCounter += 1;
+    return HttpResponse.json(
+      {
+        id: `val-synth-${managementAccountIdCounter}`,
+        dimension_id: params.dimensionId,
+        parent_id: null,
+        code: null,
+        description: null,
+        path: String(body.name).toLowerCase().replace(/\s+/g, "-"),
+        sort_order: 0,
+        active: true,
+        ...body,
+      },
+      { status: 201 },
+    );
+  }),
+  http.patch("*/api/management/dimension-values/:valueId", async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      {
+        id: params.valueId,
+        dimension_id: "dim-proyecto",
+        parent_id: null,
+        code: "norte",
+        name: "Proyecto Norte",
+        description: null,
+        path: "norte",
+        sort_order: 10,
+        active: true,
+        ...body,
+      },
+      { status: 200 },
+    );
+  }),
+  http.post("*/api/management/dimension-values/:valueId/move", async ({ params, request }) => {
+    const body = (await request.json()) as { new_parent_id?: string | null };
+    return HttpResponse.json(
+      {
+        id: params.valueId,
+        dimension_id: "dim-proyecto",
+        parent_id: body.new_parent_id ?? null,
+        code: "norte",
+        name: "Proyecto Norte",
+        description: null,
+        path: "norte",
+        sort_order: 10,
+        active: true,
+      },
+      { status: 200 },
+    );
+  }),
+  http.post("*/api/management/dimension-assignments", async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    if (!body.entity_type || !body.entity_id || !body.dimension_id || !body.dimension_value_id) {
+      return HttpResponse.json(
+        errorBody(
+          "validation_error",
+          "entity_type, entity_id, dimension_id y dimension_value_id son requeridos.",
+        ),
+        { status: 422 },
+      );
+    }
+    managementAccountIdCounter += 1;
+    return HttpResponse.json(
+      {
+        id: `assignment-synth-${managementAccountIdCounter}`,
+        created_by: "u_owner_01",
+        created_at: new Date().toISOString(),
+        ...body,
+      },
+      { status: 201 },
+    );
+  }),
+  http.delete(
+    "*/api/management/dimension-assignments/:assignmentId",
+    () => new HttpResponse(null, { status: 204 }),
+  ),
 ];
 
 /* ============================================================
