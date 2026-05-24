@@ -37,15 +37,15 @@ export default function CobrarPage() {
               header={
                 <div className="flex items-center gap-2">
                   <FileOutput className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-                  <span className="font-medium">Facturas emitidas</span>
+                  <span className="font-medium">Libro de Ventas</span>
                 </div>
               }
             >
               <div className="space-y-2">
-                <QavanteBadge variant="success">RCV Ventas</QavanteBadge>
+                <QavanteBadge variant="success">SII</QavanteBadge>
                 <p className="text-sm text-neutral-mid">
-                  Documentos de venta del SII por período: facturas, notas y otros documentos que
-                  vos le emitiste a tus clientes.
+                  Documentos de venta del SII por período: facturas, notas y boletas que vos le
+                  emitiste a tus clientes.
                 </p>
               </div>
             </QavanteCard>
