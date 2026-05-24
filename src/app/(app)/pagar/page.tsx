@@ -40,16 +40,16 @@ export default function PagarPage() {
             <SiiSubCard
               href="/pagar/facturas-recibidas"
               icon={FileInput}
-              title="Facturas recibidas"
-              description="RCV Compras del SII: facturas y notas que te emitieron tus proveedores."
-              badge="RCV Compras"
+              title="Libro de Compras"
+              description="Documentos de compra del SII: facturas, notas y boletas que te emitieron tus proveedores."
+              badge="SII"
             />
             <SiiSubCard
               href="/pagar/honorarios-recibidos"
               icon={Briefcase}
               title="Honorarios recibidos"
-              description="Boletas de Honorarios (BHE) emitidas por profesionales con su retención."
-              badge="BHE"
+              description="Boletas de Honorarios Electrónicas (BHE) emitidas por profesionales con su retención del 13,75%."
+              badge="SII"
             />
           </div>
         </section>
