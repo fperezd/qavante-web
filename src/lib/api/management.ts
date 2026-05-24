@@ -1,17 +1,32 @@
 /* Capa de datos — Management: árbol de cuentas de gestión + dimensiones
- * (vistas de gestión). Read-only en este PR (las mutaciones create/move/
- * toggle van en PRs posteriores). Tipos del OpenAPI generado (`./types`),
- * NUNCA hand-rolled (CLAUDE.md regla 3). Patrón = treasury.ts / users.ts.
+ * (vistas de gestión). Sprint C2 — PR-Mng1 agrega mutaciones de cuentas
+ * (create/update/move/toggle-active/toggle-visible). Editor UI viene en
+ * PR siguiente. Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled
+ * (CLAUDE.md regla 3). Patrón = treasury.ts / currencies.ts / users.ts.
  *
- * No cablea UI: alimenta `ManagementAccountSelect` / editores de árbol
- * (presentacionales) en PRs siguientes, detrás de feature flags (ADR-0008).
- * `move` real = `{new_parent_id}` sin `sort_order` (ADR-0009, 2026-05-17). */
-import { useQuery } from "@tanstack/react-query";
+ * Decisiones de contrato (regla 16, verificado live 2026-05-24):
+ * - `POST /api/management/accounts` → 201 ManagementAccount; 404 si
+ *   parent_id no existe; 409 si code duplicado; 422 validación; 403 §20.
+ * - `PATCH /api/management/accounts/{id}` → 200 ManagementAccount;
+ *   update parcial (campos opcionales). `code`/`type`/`destination`/
+ *   `parent_id` NO mutables vía PATCH (mover usa endpoint dedicado).
+ * - `POST /api/management/accounts/{id}/move` → 200 ManagementAccount;
+ *   `{new_parent_id?: string | null}` sin sort_order (ADR-0009); 422 si
+ *   genera ciclo.
+ * - `POST /api/management/accounts/{id}/toggle-active|visible` → 200
+ *   ManagementAccount con flag invertido. Sin body. */
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
+export type ManagementAccount = components["schemas"]["ManagementAccount"];
 export type ManagementAccountNode = components["schemas"]["ManagementAccountNode"];
 export type ManagementAccountTreeResponse = components["schemas"]["ManagementAccountTreeResponse"];
+export type CreateManagementAccountRequest =
+  components["schemas"]["CreateManagementAccountRequest"];
+export type UpdateManagementAccountRequest =
+  components["schemas"]["UpdateManagementAccountRequest"];
+export type MoveManagementAccountRequest = components["schemas"]["MoveManagementAccountRequest"];
 export type ManagementDimension = components["schemas"]["ManagementDimension"];
 export type DimensionsListResponse = components["schemas"]["DimensionsListResponse"];
 export type ManagementDimensionValue = components["schemas"]["ManagementDimensionValue"];
@@ -66,5 +81,73 @@ export function useDimensionValues(dimensionId: string) {
     enabled: dimensionId !== "",
     staleTime: 30_000,
     retry: false,
+  });
+}
+
+/** `POST /api/management/accounts` — crear cuenta. 403 si rol sin permiso
+ *  de escritura (§20); 404 si parent_id no existe; 409 si code duplicado;
+ *  422 si dominio inválido. Invalida el árbol al éxito. */
+export function useCreateManagementAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateManagementAccountRequest) =>
+      api.post<ManagementAccount>("/api/management/accounts", { body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: managementKeys.all }),
+  });
+}
+
+/** `PATCH /api/management/accounts/{id}` — update parcial. Solo `name`,
+ *  `display_name`, `description`, `affects_pulso`, `is_visible`,
+ *  `sort_order` (campos del schema). `code`/`type`/`destination`/
+ *  `parent_id` NO mutables vía PATCH (mover usa endpoint dedicado). */
+export function useUpdateManagementAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      accountId,
+      body,
+    }: {
+      accountId: string;
+      body: UpdateManagementAccountRequest;
+    }) => api.patch<ManagementAccount>(`/api/management/accounts/${accountId}`, { body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: managementKeys.all }),
+  });
+}
+
+/** `POST /api/management/accounts/{id}/move` — reparenta la cuenta.
+ *  Body `{new_parent_id?: string | null}` sin sort_order (ADR-0009).
+ *  422 si el move generaría un ciclo. Invalida el árbol al éxito. */
+export function useMoveManagementAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, body }: { accountId: string; body: MoveManagementAccountRequest }) =>
+      api.post<ManagementAccount>(`/api/management/accounts/${accountId}/move`, { body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: managementKeys.all }),
+  });
+}
+
+/** `POST /api/management/accounts/{id}/toggle-active` — invierte el flag
+ *  `is_active`. Sin body. Las cuentas inactivas no aparecen en el árbol
+ *  por defecto (ver `useManagementAccountsTree({includeInactive: true})`
+ *  para verlas). NO borra — análogo a §17.5 de reglas. */
+export function useToggleManagementAccountActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) =>
+      api.post<ManagementAccount>(`/api/management/accounts/${accountId}/toggle-active`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: managementKeys.all }),
+  });
+}
+
+/** `POST /api/management/accounts/{id}/toggle-visible` — invierte el
+ *  flag `is_visible`. Sin body. Las cuentas no-visibles siguen activas
+ *  para el cálculo pero no se muestran en reportes/selectores estándar
+ *  (ej. cuentas técnicas/transitorias). */
+export function useToggleManagementAccountVisible() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) =>
+      api.post<ManagementAccount>(`/api/management/accounts/${accountId}/toggle-visible`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: managementKeys.all }),
   });
 }

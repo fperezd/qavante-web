@@ -393,9 +393,70 @@ const dimensionValuesFixture = [
   },
 ];
 
+/* Mutations management/accounts — Sprint C2 PR-Mng1. Por simplicidad
+   las mutaciones NO persisten en el árbol mutable; devuelven shape
+   contractual completo derivado del body + fixture base. Tests validan
+   shape de request/response, no comportamiento end-to-end. Cuando el
+   editor UI llegue, agregamos persistencia real con `let` mutable
+   (patrón ya usado en credentials/rules/templates). */
+let managementAccountIdCounter = 1000;
+function syntheticAccount(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  managementAccountIdCounter += 1;
+  return {
+    id: `acc-synth-${managementAccountIdCounter}`,
+    code: "ingresos.ejemplo",
+    name: "Cuenta sintética",
+    type: "income",
+    parent_id: null,
+    destination: "operational_income_statement",
+    display_name: null,
+    description: null,
+    sort_order: 100,
+    is_system: false,
+    is_visible: true,
+    affects_pulso: true,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
+
 const managementHandlers = [
   http.get("*/api/management/accounts/tree", () =>
     HttpResponse.json({ items: managementAccountsTreeFixture }, { status: 200 }),
+  ),
+  http.post("*/api/management/accounts", async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    if (!body.code || !body.name || !body.type || !body.destination) {
+      return HttpResponse.json(
+        errorBody("validation_error", "code, name, type y destination son requeridos."),
+        { status: 422 },
+      );
+    }
+    return HttpResponse.json(syntheticAccount(body), { status: 201 });
+  }),
+  http.patch("*/api/management/accounts/:accountId", async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(syntheticAccount({ ...body, id: params.accountId }), {
+      status: 200,
+    });
+  }),
+  http.post("*/api/management/accounts/:accountId/move", async ({ params, request }) => {
+    const body = (await request.json()) as { new_parent_id?: string | null };
+    return HttpResponse.json(
+      syntheticAccount({ id: params.accountId, parent_id: body.new_parent_id ?? null }),
+      { status: 200 },
+    );
+  }),
+  http.post("*/api/management/accounts/:accountId/toggle-active", ({ params }) =>
+    HttpResponse.json(syntheticAccount({ id: params.accountId, active: false }), {
+      status: 200,
+    }),
+  ),
+  http.post("*/api/management/accounts/:accountId/toggle-visible", ({ params }) =>
+    HttpResponse.json(syntheticAccount({ id: params.accountId, is_visible: false }), {
+      status: 200,
+    }),
   ),
   http.get("*/api/management/dimensions", () =>
     HttpResponse.json({ items: dimensionsFixture }, { status: 200 }),

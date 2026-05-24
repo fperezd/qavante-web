@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   managementKeys,
+  type ManagementAccount,
   type ManagementAccountTreeResponse,
   type DimensionsListResponse,
   type DimensionValuesListResponse,
@@ -71,5 +72,82 @@ describe("MSW — management", () => {
     expect(child).toBeDefined();
     expect(typeof child?.name).toBe("string");
     expect(typeof child?.dimension_id).toBe("string");
+  });
+});
+
+describe("MSW — management/accounts mutations (Sprint C2 PR-Mng1)", () => {
+  it("POST /accounts → 201 con shape ManagementAccount completo", async () => {
+    const r = await fetch(`${API}/api/management/accounts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: "ingresos.servicios",
+        name: "Servicios",
+        type: "income",
+        destination: "operational_income_statement",
+        parent_id: "acc-ingresos",
+        affects_pulso: true,
+        is_visible: true,
+        sort_order: 20,
+      }),
+    });
+    expect(r.status).toBe(201);
+    const body = (await r.json()) as ManagementAccount;
+    expect(typeof body.id).toBe("string");
+    expect(body.code).toBe("ingresos.servicios");
+    expect(body.name).toBe("Servicios");
+    expect(body.parent_id).toBe("acc-ingresos");
+    expect(typeof body.active).toBe("boolean");
+  });
+
+  it("POST /accounts sin campos requeridos → 422 validation_error", async () => {
+    const r = await fetch(`${API}/api/management/accounts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: "x" }),
+    });
+    expect(r.status).toBe(422);
+  });
+
+  it("PATCH /accounts/:id → 200 con id preservado y campos actualizados", async () => {
+    const r = await fetch(`${API}/api/management/accounts/acc-ventas`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ display_name: "Ventas de productos premium" }),
+    });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as ManagementAccount;
+    expect(body.id).toBe("acc-ventas");
+    expect(body.display_name).toBe("Ventas de productos premium");
+  });
+
+  it("POST /accounts/:id/move → 200 con parent_id = new_parent_id", async () => {
+    const r = await fetch(`${API}/api/management/accounts/acc-ventas/move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_parent_id: null }),
+    });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as ManagementAccount;
+    expect(body.id).toBe("acc-ventas");
+    expect(body.parent_id).toBeNull();
+  });
+
+  it("POST /accounts/:id/toggle-active → 200 con active=false", async () => {
+    const r = await fetch(`${API}/api/management/accounts/acc-ventas/toggle-active`, {
+      method: "POST",
+    });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as ManagementAccount;
+    expect(body.active).toBe(false);
+  });
+
+  it("POST /accounts/:id/toggle-visible → 200 con is_visible=false", async () => {
+    const r = await fetch(`${API}/api/management/accounts/acc-ventas/toggle-visible`, {
+      method: "POST",
+    });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as ManagementAccount;
+    expect(body.is_visible).toBe(false);
   });
 });
