@@ -30,6 +30,7 @@ export const FEATURE_FLAGS = [
   "classificationRules",
   "bankMovementClassification",
   "phase2PlanningPreview",
+  "siiQueries",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -45,6 +46,7 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   classificationRules: "/api/treasury/classification-rules",
   bankMovementClassification: "/api/bank-movements/{movement_id}/classify",
   phase2PlanningPreview: "/api/management/financial-versions",
+  siiQueries: "/api/sii/health",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
