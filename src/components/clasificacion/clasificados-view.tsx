@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, FileText, Inbox, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, Inbox, Pencil, SlidersHorizontal } from "lucide-react";
 import {
   QavanteBadge,
   QavanteButton,
@@ -11,9 +11,17 @@ import {
   QavanteInput,
 } from "@/components/qavante";
 import { cn } from "@/lib/utils";
-import { useBankMovements, useCanonicalCategories, type BankMovement } from "@/lib/api/treasury";
+import {
+  useBankMovements,
+  useCanonicalCategories,
+  useClassifyBankMovement,
+  type BankMovement,
+} from "@/lib/api/treasury";
+import { useManagementAccountsTree } from "@/lib/api/management";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
+import { ClassificationDrawer, type ClassificationDraft } from "./classification-drawer";
+import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
 
 /* Vista de movimientos CLASIFICADOS — Sprint C2, primera pieza visible
    del modelo canónico. Complemento de `/caja/por-clasificar`: ahí están
@@ -73,10 +81,16 @@ function sumAmount(items: BankMovement[]): number {
 
 export function ClasificadosView() {
   const categoriesQuery = useCanonicalCategories();
+  const accountsQuery = useManagementAccountsTree();
+  const classify = useClassifyBankMovement();
   const [filters, setFilters] = React.useState<Filters>(DEFAULT_FILTERS);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState<number>(20);
+  /* Reclasificación inline: el user hace click en una row → guardamos
+     ref al movimiento + abrimos el drawer del §17 con el draft prellenado
+     desde la clasificación actual (initialDraft). */
+  const [reclasifyTarget, setReclasifyTarget] = React.useState<BankMovement | null>(null);
 
   const query = useBankMovements({
     status: "classified",
@@ -116,6 +130,47 @@ export function ClasificadosView() {
     for (const c of categoryItems) map[c.code] = c.label;
     return map;
   }, [categoryItems]);
+
+  const canonicalOptions = React.useMemo(
+    () => toCanonicalCategoryOptions(categoryItems),
+    [categoryItems],
+  );
+  const accountOptions = React.useMemo(
+    () => flattenManagementAccounts(accountsQuery.data?.items ?? []),
+    [accountsQuery.data],
+  );
+
+  /* Draft inicial para el drawer cuando se reclasifica: clona la
+     clasificación actual del movimiento target. Cuando target === null
+     el drawer está cerrado y este valor no se usa. */
+  const reclasifyDraft = React.useMemo<ClassificationDraft | undefined>(() => {
+    if (!reclasifyTarget) return undefined;
+    return {
+      canonicalCategory: reclasifyTarget.canonical_category ?? undefined,
+      managementAccountId: reclasifyTarget.management_account_id ?? undefined,
+      dimensionAssignments: {},
+      notes: "",
+    };
+  }, [reclasifyTarget]);
+
+  function handleReclasifySave(draft: ClassificationDraft) {
+    if (!reclasifyTarget || !draft.managementAccountId) return;
+    classify.mutate(
+      {
+        movementId: reclasifyTarget.id,
+        body: {
+          management_account_id: draft.managementAccountId,
+          canonical_category:
+            (draft.canonicalCategory as BankMovement["canonical_category"]) ?? null,
+          notes: draft.notes || null,
+          create_rule: false,
+        },
+      },
+      {
+        onSuccess: () => setReclasifyTarget(null),
+      },
+    );
+  }
 
   if (query.isLoading && allItems.length === 0) {
     return (
@@ -217,8 +272,11 @@ export function ClasificadosView() {
                       <th scope="col" className="py-2 pr-3 font-medium">
                         Dir.
                       </th>
-                      <th scope="col" className="py-2 text-right font-medium">
+                      <th scope="col" className="py-2 pr-3 text-right font-medium">
                         Monto
+                      </th>
+                      <th scope="col" className="py-2 font-medium">
+                        <span className="sr-only">Acciones</span>
                       </th>
                     </tr>
                   </thead>
@@ -254,12 +312,23 @@ export function ClasificadosView() {
                         </td>
                         <td
                           className={cn(
-                            "py-2 text-right tabular-nums font-medium",
+                            "py-2 pr-3 text-right tabular-nums font-medium",
                             m.direction === "credit" ? "text-success-700" : "text-neutral-dark",
                           )}
                         >
                           {m.direction === "credit" ? "+" : "−"}{" "}
                           {formatClp(Math.abs(Number(m.amount) || 0))}
+                        </td>
+                        <td className="py-2 text-right">
+                          <QavanteButton
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setReclasifyTarget(m)}
+                            aria-label={`Reclasificar movimiento ${m.description}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span className="sr-only sm:not-sr-only">Reclasificar</span>
+                          </QavanteButton>
                         </td>
                       </tr>
                     ))}
@@ -279,18 +348,19 @@ export function ClasificadosView() {
                       </td>
                       <td
                         className={cn(
-                          "py-2 text-right tabular-nums",
+                          "py-2 pr-3 text-right tabular-nums",
                           neto >= 0 ? "text-success-700" : "text-warning-700",
                         )}
                       >
                         {neto >= 0 ? "+" : "−"} {formatClp(Math.abs(neto))}
                       </td>
+                      <td className="py-2" />
                     </tr>
                     <tr className="text-xs text-neutral-mid">
                       <td colSpan={4} className="py-1 pr-3 text-right">
                         Ingresos {formatClp(totalCredit)} · Egresos {formatClp(totalDebit)}
                       </td>
-                      <td className="py-1" />
+                      <td className="py-1" colSpan={2} />
                     </tr>
                   </tfoot>
                 </table>
@@ -311,14 +381,45 @@ export function ClasificadosView() {
           )}
 
           <p className="text-xs text-neutral-mid">
-            Movimientos bancarios ya clasificados. Para reclasificar uno, andá a{" "}
-            <a href="/caja/por-clasificar" className="text-brand-primary hover:underline">
-              Por clasificar
-            </a>{" "}
-            (próximamente: reclasificar inline desde acá).
+            Movimientos bancarios ya clasificados. Para reclasificar uno, andá a Para reclasificar
+            un movimiento, hacé click en{" "}
+            <span className="font-medium text-neutral-dark">Reclasificar</span> en su fila — el
+            drawer del flujo §17 abre con la clasificación actual prellenada.
           </p>
         </div>
       </QavanteCard>
+
+      {reclasifyTarget && (
+        <ClassificationDrawer
+          key={reclasifyTarget.id}
+          open
+          onClose={() => setReclasifyTarget(null)}
+          movement={{
+            date: reclasifyTarget.date ? formatDate(new Date(reclasifyTarget.date)) : "—",
+            description: reclasifyTarget.description,
+            bankLabel: `Cuenta ····${reclasifyTarget.bank_account_id.slice(-4)}`,
+            amountFormatted: formatClp(Math.abs(Number(reclasifyTarget.amount) || 0)),
+          }}
+          canonicalCategories={canonicalOptions}
+          managementAccounts={accountOptions}
+          dimensions={[]}
+          saving={classify.isPending}
+          title="Reclasificar movimiento"
+          initialDraft={reclasifyDraft}
+          onSave={handleReclasifySave}
+          onSaveAndCreateRule={(d) => {
+            /* Mismo handler que onSave; el create_rule no aplica a una
+               reclasificación (la regla se basa en clasificación nueva,
+               para eso está /caja/por-clasificar). */
+            handleReclasifySave(d);
+          }}
+          onMarkForReview={() => setReclasifyTarget(null)}
+        />
+      )}
+
+      {classify.isError && (
+        <QavanteInlineError error={classify.error} what="al guardar la nueva clasificación" />
+      )}
     </div>
   );
 }

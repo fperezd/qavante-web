@@ -53,11 +53,24 @@ export interface ClassificationDrawerProps {
   onSaveAndCreateRule: (draft: ClassificationDraft) => void;
   onMarkForReview: () => void;
   saving?: boolean;
+  /** Draft inicial — útil para RECLASIFICAR un movimiento ya
+   *  clasificado: el caller arma el draft con la clasificación actual y
+   *  el drawer arranca con esos valores pre-poblados. Default vacío (caso
+   *  "clasificar por primera vez"). */
+  initialDraft?: ClassificationDraft;
+  /** Override del título — útil para distinguir "Clasificar" vs
+   *  "Reclasificar" / "Editar clasificación". Default "Clasificar movimiento". */
+  title?: string;
   /** Slot opcional para el banner §18.7 (sugerencia de regla). Se renderiza
    *  arriba de los selectores. PRESENTACIONAL PURO: el drawer no sabe nada
    *  del estado del banner — el contenedor lo monta con sus hooks. */
   suggestionBanner?: React.ReactNode;
 }
+
+const EMPTY_DRAFT: ClassificationDraft = {
+  dimensionAssignments: {},
+  notes: "",
+};
 
 export function ClassificationDrawer({
   open,
@@ -70,12 +83,19 @@ export function ClassificationDrawer({
   onSaveAndCreateRule,
   onMarkForReview,
   saving,
+  initialDraft,
+  title = "Clasificar movimiento",
   suggestionBanner,
 }: ClassificationDrawerProps) {
-  const [draft, setDraft] = React.useState<ClassificationDraft>({
-    dimensionAssignments: {},
-    notes: "",
-  });
+  const [draft, setDraft] = React.useState<ClassificationDraft>(initialDraft ?? EMPTY_DRAFT);
+
+  /* Si el caller cambia el `initialDraft` (porque el user abrió el drawer
+     para OTRO movimiento), resetear el draft local al snapshot nuevo. */
+  React.useEffect(() => {
+    if (open) {
+      setDraft(initialDraft ?? EMPTY_DRAFT);
+    }
+  }, [open, initialDraft]);
   const titleId = React.useId();
   const asideRef = React.useRef<HTMLElement>(null);
 
@@ -115,7 +135,7 @@ export function ClassificationDrawer({
         <header className="flex items-start justify-between border-b border-neutral-light p-4">
           <div>
             <h2 id={titleId} className="text-lg font-semibold text-neutral-dark">
-              Clasificar movimiento
+              {title}
             </h2>
             <p className="mt-0.5 text-xs text-neutral-mid">
               Qavante no modifica el movimiento original del banco. Solo agrega una clasificación de
