@@ -6,6 +6,9 @@ import {
   managementKeys,
   type ManagementAccount,
   type ManagementAccountTreeResponse,
+  type ManagementDimension,
+  type ManagementDimensionValue,
+  type DimensionAssignment,
   type DimensionsListResponse,
   type DimensionValuesListResponse,
 } from "./management";
@@ -149,5 +152,128 @@ describe("MSW — management/accounts mutations (Sprint C2 PR-Mng1)", () => {
     expect(r.status).toBe(200);
     const body = (await r.json()) as ManagementAccount;
     expect(body.is_visible).toBe(false);
+  });
+});
+
+describe("MSW — management/dimensions mutations (Sprint C2 PR-Mng2)", () => {
+  it("POST /dimensions → 201 con shape ManagementDimension", async () => {
+    const r = await fetch(`${API}/api/management/dimensions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: "cliente",
+        name: "Cliente",
+        data_type: "text",
+        is_required: false,
+        is_visible: true,
+        allows_hierarchy: false,
+        allows_multiple_values: false,
+        sort_order: 20,
+      }),
+    });
+    expect(r.status).toBe(201);
+    const body = (await r.json()) as ManagementDimension;
+    expect(body.code).toBe("cliente");
+    expect(body.name).toBe("Cliente");
+    expect(typeof body.id).toBe("string");
+  });
+
+  it("POST /dimensions sin code o name → 422", async () => {
+    const r = await fetch(`${API}/api/management/dimensions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data_type: "text" }),
+    });
+    expect(r.status).toBe(422);
+  });
+
+  it("PATCH /dimensions/:id → 200 con id preservado y campos actualizados", async () => {
+    const r = await fetch(`${API}/api/management/dimensions/dim-proyecto`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: "Analiza por proyecto/obra." }),
+    });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as ManagementDimension;
+    expect(body.id).toBe("dim-proyecto");
+    expect(body.description).toBe("Analiza por proyecto/obra.");
+  });
+
+  it("POST /dimensions/:id/values → 201 con dimension_id del path", async () => {
+    const r = await fetch(`${API}/api/management/dimensions/dim-proyecto/values`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Proyecto Sur", sort_order: 20 }),
+    });
+    expect(r.status).toBe(201);
+    const body = (await r.json()) as ManagementDimensionValue;
+    expect(body.name).toBe("Proyecto Sur");
+    expect(body.dimension_id).toBe("dim-proyecto");
+  });
+
+  it("POST /dimensions/:id/values sin name → 422", async () => {
+    const r = await fetch(`${API}/api/management/dimensions/dim-proyecto/values`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sort_order: 10 }),
+    });
+    expect(r.status).toBe(422);
+  });
+
+  it("PATCH /dimension-values/:id → 200 con id preservado", async () => {
+    const r = await fetch(`${API}/api/management/dimension-values/val-norte`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Proyecto Norte (actualizado)" }),
+    });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as ManagementDimensionValue;
+    expect(body.id).toBe("val-norte");
+    expect(body.name).toBe("Proyecto Norte (actualizado)");
+  });
+
+  it("POST /dimension-values/:id/move → 200 con parent_id = new_parent_id", async () => {
+    const r = await fetch(`${API}/api/management/dimension-values/val-norte-fase1/move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_parent_id: null }),
+    });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as ManagementDimensionValue;
+    expect(body.parent_id).toBeNull();
+  });
+
+  it("POST /dimension-assignments → 201 con shape DimensionAssignment", async () => {
+    const r = await fetch(`${API}/api/management/dimension-assignments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entity_type: "bank_movement",
+        entity_id: "mov-1",
+        dimension_id: "dim-proyecto",
+        dimension_value_id: "val-norte",
+      }),
+    });
+    expect(r.status).toBe(201);
+    const body = (await r.json()) as DimensionAssignment;
+    expect(body.entity_type).toBe("bank_movement");
+    expect(body.entity_id).toBe("mov-1");
+    expect(typeof body.id).toBe("string");
+  });
+
+  it("POST /dimension-assignments sin campos requeridos → 422", async () => {
+    const r = await fetch(`${API}/api/management/dimension-assignments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entity_type: "bank_movement" }),
+    });
+    expect(r.status).toBe(422);
+  });
+
+  it("DELETE /dimension-assignments/:id → 204 sin body", async () => {
+    const r = await fetch(`${API}/api/management/dimension-assignments/assignment-1`, {
+      method: "DELETE",
+    });
+    expect(r.status).toBe(204);
   });
 });
