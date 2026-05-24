@@ -100,6 +100,55 @@ Ya configurado en [.github/workflows/deploy-cloudflare.yml](../../.github/workfl
 - `concurrency` evita 2 deploys simultáneos.
 - `environment: production` con URL `qavante.com` para que GitHub muestre el link en Deployments.
 
+## Feature flags en producción (ADR-0012)
+
+Desde [ADR-0012](../adr/0012-flags-prod-override-env-vars.md), las variables
+`NEXT_PUBLIC_FF_*` aplican también en `NODE_ENV=production` **si están
+explícitamente seteadas en Cloudflare Workers**. Sin setear → flag OFF
+(default seguro de ADR-0008 preservado).
+
+### Cómo setear vars de prod en Cloudflare
+
+1. Cloudflare Dashboard → **Workers & Pages** → seleccionar `qavante-web`.
+2. **Settings** → **Variables and Secrets** → **Add variable**.
+3. Type: **Plaintext** (las `NEXT_PUBLIC_*` son client-visible, no son secrets).
+4. Encoding: **Text**.
+5. Repetir por cada flag a habilitar:
+
+   | Variable                                      | Valor    | Habilita                                                                   |
+   | --------------------------------------------- | -------- | -------------------------------------------------------------------------- |
+   | `NEXT_PUBLIC_FF_SII_QUERIES`                  | `"true"` | Sprint C1 — `/pagar/impuestos/f29` + facturas-recibidas + RCV ventas + BHE |
+   | `NEXT_PUBLIC_FF_MULTI_CURRENCY`               | `"true"` | `/administracion/monedas` con editor                                       |
+   | `NEXT_PUBLIC_FF_CLASSIFICATION_RULES`         | `"true"` | `/administracion/reglas-clasificacion` con create+edit                     |
+   | `NEXT_PUBLIC_FF_INDUSTRY_TEMPLATES`           | `"true"` | `/administracion/plantillas` con apply confirmatorio                       |
+   | `NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS`          | `"true"` | `/administracion/estructura-gestion`                                       |
+   | `NEXT_PUBLIC_FF_MANAGEMENT_DIMENSIONS`        | `"true"` | `/administracion/vistas-gestion`                                           |
+   | `NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION` | `"true"` | Drawer §17 + banner §18.7 en `/caja/por-clasificar`                        |
+
+   **Dejar `NEXT_PUBLIC_FF_PHASE2_PLANNING_PREVIEW` sin setear** (Fase 2 no entra en Fase 1).
+
+6. **Save and deploy** → Cloudflare hace re-deploy automático (Next.js
+   inlinea `NEXT_PUBLIC_*` en build time, por eso requiere re-deploy
+   para que tomen efecto en el bundle servido).
+
+### Cómo verificar que un flag está activo en prod
+
+- Abrir `https://app.qavante.com/` en una pestaña incognito.
+- Navegar a la ruta gateada (ej. `/administracion/monedas`).
+- Si el flag está ON: ver la vista funcional cableada.
+- Si está OFF: ver el `FeatureUnavailableState` ("Próximamente").
+
+### Kill-switch
+
+Para **desactivar** un flag en prod (ej. una feature tiene bug en producción):
+
+1. Cloudflare Dashboard → Variables → cambiar el valor a `"false"`.
+2. **Save and deploy** (re-deploy automático).
+
+El override `"false"` gana sobre la config inyectada del backend (cuando
+`/api/management/config` exista), funcionando como kill-switch sin
+necesidad de tocar el backend ni esperar al endpoint.
+
 ## Troubleshooting rápido
 
 | Síntoma                                                | Causa típica                                           | Fix                                                                    |
