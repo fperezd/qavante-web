@@ -44,3 +44,5 @@ PR del ADR puede ir solo (decisión sin código) o acoplado al PR del cambio que
 | [0008](./0008-feature-flags-gating-pantallas-sin-backend.md) | Feature flags para gating de pantallas del addendum sin mocks         | Proposed              | 2026-05-15 |
 | [0009](./0009-politica-drag-and-drop.md)                     | Política de drag-and-drop para árboles de gestión (preventiva)        | Proposed              | 2026-05-15 |
 | [0010](./0010-selectores-sin-libreria-combobox.md)           | Selectores de clasificación sin librería combobox (dependency-free)   | Proposed              | 2026-05-16 |
+| [0011](./0011-patron-dialogs-editores-admin.md)              | Patrón estándar de dialogs editores admin (Base UI + RHF + zod, lazy) | Accepted              | 2026-05-23 |
+| [0012](./0012-flags-prod-override-env-vars.md)               | Override de feature flags en prod vía Cloudflare Workers env vars     | Accepted              | 2026-05-24 |

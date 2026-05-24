@@ -1,14 +1,17 @@
 /* Feature flags — gating de pantallas del Addendum Frontend v2.0.
  *
- * Materializa el PATRÓN definido en ADR-0008 (no la integración real, que
- * llega con el handoff backend confirmado + decisión del drift SII —
- * ver docs/addendum/reconciliation.md P4-2):
+ * Materializa el PATRÓN definido en ADR-0008 con la actualización de
+ * ADR-0012 (override en prod permitido si la env var está explícitamente
+ * seteada en Cloudflare Workers):
  *
- *   1. Override dev/test explícito: env `NEXT_PUBLIC_FF_<FLAG>` = "true"|"false".
- *      Provisional. Se ignora cuando NODE_ENV === "production" para garantizar
- *      el invariante del ADR ("nunca como default de prod").
+ *   1. Override explícito: env `NEXT_PUBLIC_FF_<FLAG>` = "true"|"false".
+ *      Aplica en TODOS los ambientes, incluido prod, si la env var está
+ *      explícitamente seteada (ADR-0012). Sin env var → no aplica, cae
+ *      al siguiente nivel. Defense: setear var en prod requiere acción
+ *      manual en Cloudflare + re-deploy (Next.js inlinea NEXT_PUBLIC_*
+ *      en build time) — no hay "accidente silencioso".
  *   2. Config inyectada: el resultado de `GET /api/management/config` cuando el
- *      backend lo exponga (hoy AUSENTE — verificado 2026-05-16, reconciliation
+ *      backend lo exponga (hoy AUSENTE — verificado 2026-05-23, reconciliation
  *      P4-1). Se pasa por `opts.config`; lo cablea el PR de integración real.
  *   3. Default seguro: `false`. Flag false ⇒ la ruta existe pero renderiza un
  *      estado "todavía no disponible" — nunca UI mock, nunca ruta rota.
@@ -72,8 +75,12 @@ function readOverride(
   flag: FeatureFlag,
   env: Record<string, string | undefined>,
 ): boolean | undefined {
-  // Invariante ADR-0008: el override nunca aplica en prod.
-  if (env.NODE_ENV === "production") return undefined;
+  /* ADR-0012: el override aplica en TODOS los ambientes (incluido prod)
+     si la env var está explícitamente seteada. Defense: setear var en
+     prod requiere acción manual en Cloudflare Workers + re-deploy
+     (Next.js inlinea NEXT_PUBLIC_* en build time) — no hay accidente
+     silencioso. Sin env var → cae al siguiente nivel (config / default).
+     Supersede el invariante de ADR-0008 ("nunca en prod"). */
   const raw = env[flagEnvVar(flag)];
   if (raw === undefined) return undefined;
   const v = raw.trim().toLowerCase();
@@ -98,7 +105,7 @@ export function resolveFeatureFlag(
   return false;
 }
 
-/** Resuelve los 7 flags de una. Útil para Server Components / providers. */
+/** Resuelve los 8 flags de una. Útil para Server Components / providers. */
 export function resolveFeatureFlags(
   opts: ResolveFeatureFlagOptions = {},
 ): Record<FeatureFlag, boolean> {
