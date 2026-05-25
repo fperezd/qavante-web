@@ -229,6 +229,8 @@ export const ConDatosCompletos: Story = {
     isPartial: false,
     onApplyDirectionFilter: () => {},
     onApplyCanonicalCategoryFilter: () => {},
+    activeDirection: null,
+    activeCanonicalCategory: null,
   },
   parameters: {
     docs: {
@@ -264,6 +266,8 @@ export const NetoNegativo: Story = {
     isPartial: false,
     onApplyDirectionFilter: () => {},
     onApplyCanonicalCategoryFilter: () => {},
+    activeDirection: null,
+    activeCanonicalCategory: null,
   },
   parameters: {
     docs: {
@@ -315,12 +319,34 @@ export const AlcanceParcial: Story = {
     isPartial: true,
     onApplyDirectionFilter: () => {},
     onApplyCanonicalCategoryFilter: () => {},
+    activeDirection: null,
+    activeCanonicalCategory: null,
   },
   parameters: {
     docs: {
       description: {
         story:
           "Aviso de alcance parcial — el backend reporta 800 movimientos en el filtro pero solo se descargaron los visibles. Las stats se calculan sobre lo descargado, con banner warning.",
+      },
+    },
+  },
+};
+
+export const ConFiltroIngresosActivo: Story = {
+  name: "Con filtro 'Ingresos' activo (toggle aplicado)",
+  args: {
+    items: ITEMS_COMPLETOS.filter((m) => m.direction === "credit"),
+    isPartial: false,
+    activeDirection: "credit",
+    activeCanonicalCategory: null,
+    onApplyDirectionFilter: () => {},
+    onApplyCanonicalCategoryFilter: () => {},
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Estado tras clic en 'Ingresos': card 'Ingresos' con borde brand + sublabel 'Filtro activo · clic para quitar'. Egresos queda en $0 porque los items se filtraron a credit — el sublabel comunica que es por el filtro, no un bug.",
       },
     },
   },
@@ -371,6 +397,8 @@ export const NeedsReview: Story = {
     isPartial: false,
     onApplyDirectionFilter: () => {},
     onApplyCanonicalCategoryFilter: () => {},
+    activeDirection: null,
+    activeCanonicalCategory: null,
   },
   parameters: {
     docs: {
