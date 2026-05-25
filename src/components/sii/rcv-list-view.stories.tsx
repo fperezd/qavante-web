@@ -1,0 +1,202 @@
+import * as React from "react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { fn } from "storybook/test";
+import type { UseQueryResult } from "@tanstack/react-query";
+import { RcvListView } from "./rcv-list-view";
+import type { RcvComprasResponse, RcvVentasResponse } from "@/lib/api/sii";
+
+/* RcvListView — vista del Libro de Compras / Libro de Ventas (Sprint C1).
+   Presentacional: recibe la query por prop, no invoca hooks. Eso permite
+   storyearla sin MSW: pasamos un fake-UseQueryResult con el shape de los
+   estados canónicos (loading, success, empty, error). */
+
+type RcvQuery = UseQueryResult<RcvComprasResponse | RcvVentasResponse, unknown>;
+
+/* Helper para construir un fake-UseQueryResult sin caer en `as any`. Solo
+   las props que el componente lee están tipadas estrictas; el resto se
+   completa con defaults razonables. */
+function buildQuery(opts: Partial<RcvQuery>): RcvQuery {
+  return {
+    data: undefined,
+    error: null,
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    isSuccess: true,
+    isPending: false,
+    status: "success",
+    fetchStatus: "idle",
+    ...opts,
+  } as RcvQuery;
+}
+
+const SUCCESS_COMPRAS: RcvComprasResponse = {
+  status: "ok",
+  periodo: "2026-04",
+  count: 4,
+  compras: [
+    {
+      tipo_doc: 33,
+      folio: 1001,
+      fecha: "2026-04-03",
+      rut_contraparte: "76555444-K",
+      razon_social: "Proveedor SpA",
+      monto_neto: 800000,
+      monto_iva: 152000,
+      monto_total: 952000,
+    },
+    {
+      tipo_doc: 33,
+      folio: 1002,
+      fecha: "2026-04-18",
+      rut_contraparte: "77123456-7",
+      razon_social: "Insumos Chile Ltda",
+      monto_neto: 1200000,
+      monto_iva: 228000,
+      monto_total: 1428000,
+    },
+    {
+      tipo_doc: 34,
+      folio: 1003,
+      fecha: "2026-04-20",
+      rut_contraparte: "78444555-6",
+      razon_social: "Servicios Exentos S.A.",
+      monto_neto: 500000,
+      monto_iva: 0,
+      monto_total: 500000,
+    },
+    {
+      tipo_doc: 61,
+      folio: 1004,
+      fecha: "2026-04-22",
+      rut_contraparte: "76555444-K",
+      razon_social: "Proveedor SpA",
+      monto_neto: -100000,
+      monto_iva: -19000,
+      monto_total: -119000,
+    },
+  ],
+  error: null,
+} as RcvComprasResponse;
+
+const SUCCESS_VENTAS: RcvVentasResponse = {
+  status: "ok",
+  periodo: "2026-04",
+  count: 2,
+  ventas: [
+    {
+      tipo_doc: 33,
+      folio: 5001,
+      fecha: "2026-04-05",
+      rut_contraparte: "78000111-K",
+      razon_social: "Cliente A SA",
+      monto_neto: 3000000,
+      monto_iva: 570000,
+      monto_total: 3570000,
+    },
+    {
+      tipo_doc: 33,
+      folio: 5002,
+      fecha: "2026-04-25",
+      rut_contraparte: "79222333-4",
+      razon_social: "Cliente B Ltda",
+      monto_neto: 2000000,
+      monto_iva: 380000,
+      monto_total: 2380000,
+    },
+  ],
+  error: null,
+} as RcvVentasResponse;
+
+const EMPTY_COMPRAS: RcvComprasResponse = {
+  status: "ok",
+  periodo: "2026-04",
+  count: 0,
+  compras: [],
+  error: null,
+} as RcvComprasResponse;
+
+const meta = {
+  title: "Capa 2 / SII / RcvListView",
+  component: RcvListView,
+  parameters: {
+    layout: "padded",
+    docs: {
+      description: {
+        component:
+          "Vista del Libro de Compras / Libro de Ventas (Sprint C1 PR-Lib). Presentacional: recibe `query` como prop. Filtros + paginación + totales son client-side sobre el set descargado (el backend solo expone filtro por período). Disclaimer §17.4 al pie: 'dato oficial es el del F29'.",
+      },
+    },
+  },
+  args: {
+    onPeriodChange: fn(),
+  },
+} satisfies Meta<typeof RcvListView>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Inicial: Story = {
+  name: "Compras — Inicial (sin período consultado)",
+  args: {
+    kind: "compras",
+    period: null,
+    query: buildQuery({ isSuccess: false, status: "pending", isPending: true }),
+  },
+};
+
+export const ComprasOk: Story = {
+  name: "Compras — con resultados",
+  args: {
+    kind: "compras",
+    period: "2026-04",
+    query: buildQuery({ data: SUCCESS_COMPRAS }),
+  },
+};
+
+export const ComprasVacio: Story = {
+  name: "Compras — período sin documentos",
+  args: {
+    kind: "compras",
+    period: "2026-04",
+    query: buildQuery({ data: EMPTY_COMPRAS }),
+  },
+};
+
+export const VentasOk: Story = {
+  name: "Ventas — con resultados",
+  args: {
+    kind: "ventas",
+    period: "2026-04",
+    query: buildQuery({ data: SUCCESS_VENTAS }),
+  },
+};
+
+export const Cargando: Story = {
+  name: "Cargando (skeleton)",
+  args: {
+    kind: "compras",
+    period: "2026-04",
+    query: buildQuery({
+      isLoading: true,
+      isFetching: true,
+      isPending: true,
+      isSuccess: false,
+      status: "pending",
+    }),
+  },
+};
+
+export const ConError: Story = {
+  name: "Error de red / SII",
+  args: {
+    kind: "compras",
+    period: "2026-04",
+    query: buildQuery({
+      isError: true,
+      isSuccess: false,
+      status: "error",
+      error: new globalThis.Error("El SII no responde en este momento."),
+    }),
+  },
+};
