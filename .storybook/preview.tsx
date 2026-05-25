@@ -1,10 +1,23 @@
 import type { Preview } from "@storybook/nextjs-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { initialize, mswLoader } from "msw-storybook-addon";
 import React from "react";
 
 /* Importa el CSS global del app — Tailwind 4 directives + tokens Qavante
    + tipografía. Sin este import las stories pierden el styling del DS. */
 import "../src/app/globals.css";
+
+/* msw-storybook-addon — habilita stories de vistas-contenedor que llaman
+   hooks de TanStack Query. Cada story declara `parameters.msw.handlers`
+   con un array de handlers MSW (mismo shape que `src/test/msw/handlers.ts`).
+   Sin handlers la story renderea sin red (loading state perpetuo).
+   Service worker servido desde `/public/mockServiceWorker.js` (ya existe
+   por el dev-mode MSW del app). */
+initialize({
+  /* `bypass` — si el handler no matchea, deja pasar la request real (default
+     `warn` ensucia la consola). Para Chromatic preferimos silencio. */
+  onUnhandledRequest: "bypass",
+});
 
 /* QueryClient por story — sin retries para que stories no se queden esperando.
    Los hooks que mutan (useInviteUser, useUpdateUser, etc.) fallarán dentro del
@@ -64,6 +77,10 @@ const preview: Preview = {
       );
     },
   ],
+  /* mswLoader — corre antes del render para activar los handlers MSW
+     declarados en `parameters.msw.handlers` de cada story. Stories sin
+     `parameters.msw` no pasan por aquí (no-op). */
+  loaders: [mswLoader],
 };
 
 export default preview;
