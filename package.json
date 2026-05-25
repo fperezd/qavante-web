@@ -72,6 +72,7 @@
     "@vitest/browser-playwright": "^4.1.6",
     "@vitest/coverage-v8": "^4.1.5",
     "chromatic": "^16.10.0",
+    "esbuild": "^0.27.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.18",
     "eslint-config-prettier": "10.1.8",
