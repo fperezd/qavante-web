@@ -22,6 +22,8 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import { ClassificationDrawer, type ClassificationDraft } from "./classification-drawer";
 import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
+import { ClasificadosStats } from "./clasificados-stats";
+import { buildAccountsLookup, buildCategoriesLookup } from "./build-clasificados-stats";
 
 /* Vista de movimientos CLASIFICADOS — Sprint C2, primera pieza visible
    del modelo canónico. Complemento de `/caja/por-clasificar`: ahí están
@@ -140,6 +142,15 @@ export function ClasificadosView() {
     [accountsQuery.data],
   );
 
+  const categoriesLookup = React.useMemo(
+    () => buildCategoriesLookup(categoryItems),
+    [categoryItems],
+  );
+  const accountsLookup = React.useMemo(
+    () => buildAccountsLookup(accountsQuery.data?.items ?? []),
+    [accountsQuery.data],
+  );
+
   /* Draft inicial para el drawer cuando se reclasifica: clona la
      clasificación actual del movimiento target. Cuando target === null
      el drawer está cerrado y este valor no se usa. */
@@ -191,13 +202,35 @@ export function ClasificadosView() {
       <QavanteEmpty
         icon={CheckCircle2}
         title="Aún no hay movimientos clasificados"
-        description="Cuando clasifiques movimientos desde Por clasificar, vas a verlos acá. Podés filtrarlos por categoría, período y dirección."
+        description="Cuando clasifiques movimientos desde Por clasificar vas a verlos aquí. Podés filtrarlos por categoría, período y dirección."
       />
     );
   }
 
+  /* Señal de alcance parcial: el backend reporta más movimientos para el
+     filtro server-side (period + status=classified) que los que descargamos
+     con limit:500. Los filtros client-side (categoría/dirección/glosa) no
+     entran en esta comparación — esos solo narrowean lo que ya tenemos. */
+  const isPartial = (query.data?.total ?? 0) > allItems.length;
+
   return (
     <div className="space-y-4">
+      <ClasificadosStats
+        items={filtered}
+        isPartial={isPartial}
+        categoriesById={categoriesLookup}
+        accountsById={accountsLookup}
+        isLoading={query.isLoading}
+        onApplyDirectionFilter={(dir) => {
+          setFilters((prev) => ({ ...prev, direction: dir }));
+          setPage(1);
+        }}
+        onApplyCanonicalCategoryFilter={(code) => {
+          setFilters((prev) => ({ ...prev, canonicalCategory: code }));
+          setPage(1);
+        }}
+      />
+
       <QavanteCard
         variant="bordered"
         header={
@@ -252,7 +285,7 @@ export function ClasificadosView() {
             <QavanteEmpty
               icon={Inbox}
               title="Sin resultados para los filtros aplicados"
-              description="Probá removiendo filtros o cambiando el período."
+              description="Prueba quitando filtros o cambiando el período."
             />
           ) : (
             <>
@@ -381,8 +414,7 @@ export function ClasificadosView() {
           )}
 
           <p className="text-xs text-neutral-mid">
-            Movimientos bancarios ya clasificados. Para reclasificar uno, andá a Para reclasificar
-            un movimiento, hacé click en{" "}
+            Movimientos bancarios ya clasificados. Para reclasificar uno, haz clic en{" "}
             <span className="font-medium text-neutral-dark">Reclasificar</span> en su fila — el
             drawer del flujo §17 abre con la clasificación actual prellenada.
           </p>
