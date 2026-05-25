@@ -3,37 +3,35 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-/* Card individual del bloque "Resumen de movimientos clasificados".
+/* Métrica individual del bloque "Resumen de movimientos clasificados".
  *
- * Dos modos:
- * - info-only (sin onClick): no muestra affordance de click, no es
- *   tabbable, no captura cursor pointer;
- * - clickeable (con onClick): se ve clickeable — borde acentuado en hover,
- *   cursor pointer, foco visible, role="button", aceptás Enter/Space.
+ * Sin borde propio — vive dentro de un container card del padre (un solo
+ * borde para todo el bloque). Layout más limpio que cards anidadas.
  *
- * Tokens del DS Qavante exclusivamente (success-/warning-/neutral-),
- * sin colores hardcodeados.
+ * Estados:
+ * - info-only (sin onClick): label + value;
+ * - clickeable (onClick): role=button, foco visible, hover tenue;
+ * - clickeable activa (active=true): ring brand + bg tinte + caller pone
+ *   sublabel tipo "Filtro activo · clic para quitar";
+ * - muted (muted=true): opacidad 40 + cursor default + sin hover. Se usa
+ *   cuando un filtro activo en otra métrica hace tautológico el valor de
+ *   esta (ej. al filtrar a Ingresos, Egresos siempre vale 0).
  *
- * El tooltip es nativo `title` por simplicidad; cuando exista un
- * QavanteTooltip lo migramos. */
+ * Tokens DS Qavante. Tooltip nativo `title`. */
 
 export type StatCardTone = "neutral" | "success" | "warning";
 
 export interface ClasificadosStatCardProps {
   label: string;
-  /** Valor principal ya formateado (`formatClp(...)`, `"5"`, `"hace 2h"`...). */
   value: React.ReactNode;
-  /** Línea secundaria opcional (ej. "{N} movimientos", "{path}"). */
   sublabel?: React.ReactNode;
   tone?: StatCardTone;
-  /** Texto del tooltip (native `title`). Idealmente una frase corta que
-   *  explique qué representa esta métrica. */
   tooltip?: string;
-  /** Si está presente, la card es accionable. Etiqueta accesible para SR:
-   *  `actionLabel` describe el efecto del click (ej. "Filtrar por ingresos"). */
   onClick?: () => void;
-  /** Texto para SR cuando la card es clickeable. Si se omite y onClick
-   *  existe, usamos `label` como fallback. */
+  active?: boolean;
+  /** Filtro hermano hace tautológica esta métrica. Bloquea la interacción y
+   *  baja el contraste, sin sacarla del layout (evita layout shift). */
+  muted?: boolean;
   actionLabel?: string;
 }
 
@@ -50,17 +48,22 @@ export function ClasificadosStatCard({
   tone = "neutral",
   tooltip,
   onClick,
+  active = false,
+  muted = false,
   actionLabel,
 }: ClasificadosStatCardProps) {
-  const isInteractive = typeof onClick === "function";
+  const isInteractive = typeof onClick === "function" && !muted;
 
   const interactiveClasses = isInteractive
     ? cn(
-        "cursor-pointer transition-colors",
-        "hover:border-brand-primary/40 hover:bg-neutral-light/30",
+        "cursor-pointer rounded-md transition-colors -mx-2 px-2",
+        "hover:bg-neutral-light/40",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
       )
     : "";
+
+  const activeClasses =
+    isInteractive && active ? "bg-brand-primary/5 ring-1 ring-brand-primary/30 -mx-2 px-2" : "";
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (!isInteractive) return;
@@ -70,24 +73,38 @@ export function ClasificadosStatCard({
     }
   }
 
+  const valueAsString = typeof value === "string" ? value : undefined;
+
   return (
     <div
       role={isInteractive ? "button" : undefined}
       tabIndex={isInteractive ? 0 : undefined}
       aria-label={isInteractive ? (actionLabel ?? label) : undefined}
+      aria-pressed={isInteractive ? active : undefined}
+      aria-disabled={muted || undefined}
       title={tooltip}
       onClick={isInteractive ? onClick : undefined}
       onKeyDown={isInteractive ? handleKeyDown : undefined}
       className={cn(
-        "flex flex-col gap-1 rounded-lg border border-neutral-light bg-surface p-4",
+        "flex min-w-0 flex-col gap-0.5 py-1",
+        muted && "opacity-40",
         interactiveClasses,
+        activeClasses,
       )}
     >
-      <p className="text-xs font-medium uppercase tracking-wide text-neutral-mid">{label}</p>
-      <p className={cn("text-xl font-semibold tabular-nums", toneClasses[tone])}>{value}</p>
+      <p className="text-xs font-normal text-neutral-mid">{label}</p>
+      <p
+        className={cn(
+          "truncate text-base font-semibold tabular-nums leading-tight",
+          toneClasses[tone],
+        )}
+        title={valueAsString}
+      >
+        {value}
+      </p>
       {sublabel && (
         <p
-          className="line-clamp-1 text-xs text-neutral-mid"
+          className="truncate text-xs text-neutral-mid"
           title={typeof sublabel === "string" ? sublabel : undefined}
         >
           {sublabel}
