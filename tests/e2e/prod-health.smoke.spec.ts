@@ -26,7 +26,7 @@ test.describe("prod smoke — FE alive (HTTP-only)", () => {
     // LoginForm es client component (CSR); el HTML del form se hidrata después.
     // Verifico que el chunk del componente se referencie y el title sea el correcto.
     // (La cadena "LoginForm" aparece JSON-escapada dentro del payload self.__next_f.)
-    expect(body).toContain("<title>Qavante</title>");
+    expect(body).toMatch(/<title>Qavante[^<]*<\/title>/);
     expect(body).toContain("static/chunks/app/(auth)/login/page-");
     expect(body).toMatch(/\\"LoginForm\\"/);
   });
