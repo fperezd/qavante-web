@@ -1,13 +1,40 @@
-/* Sistema de Diseño Qavante — tokens del Anexo B.2 y B.4 del Documento Maestro v2.6.4.
-   Modo claro únicamente en Fase 1 (Anexo B.5). Estructura preparada para dark mode futuro. */
+/* Sistema de Diseño Qavante — tokens del Manual de Marca v1.1 (mayo 2026)
+ * + Anexo B.2/B.4 del Documento Maestro v2.6.4.
+ *
+ * Paleta oficial del manual:
+ *   Azul Qavante  #051637  — color principal (logotipo, fondos premium, encabezados).
+ *   Azul acento   #1D5BFF  — acento de avance (botones, links, indicadores).
+ *   Celeste anal. #60A8FF  — apoyo digital (gráficos, info secundaria).
+ *   Gris operat.  #F5F7FA  — fondos, tarjetas, superficies claras.
+ *   Negro/Blanco  #000/#fff
+ *
+ * Decisión de mapeo:
+ *   `brand-primary`  → #1D5BFF (acento, usado por TODOS los CTAs/links/focus
+ *                      actuales — minimiza cambio visual en componentes).
+ *   `brand-deep`     → #051637 (premium navy, encabezados, sidebar dark,
+ *                      fondos heroes auth).
+ *   `brand-light`    → #60A8FF (analítico secundario, gráficos).
+ *
+ * Modo claro únicamente en Fase 1 (Anexo B.5). Estructura preparada para
+ * dark mode futuro. */
 
 :root {
-  /* B.2.1 Marca Qavante (paleta provisional, hex hasta manual de marca propio) */
-  --qv-brand-primary: #177fc6;
-  --qv-brand-primary-50: #e8f2fa;
-  --qv-brand-primary-100: #d1e5f4;
-  --qv-brand-primary-600: #1268a6;
-  --qv-brand-primary-700: #0d5286;
+  /* B.2.1 Marca Qavante — paleta oficial (manual v1.1) */
+  --qv-brand-primary: #1d5bff;
+  --qv-brand-primary-50: #e8efff;
+  --qv-brand-primary-100: #c8d8ff;
+  --qv-brand-primary-600: #1750e6;
+  --qv-brand-primary-700: #1245c4;
+
+  /* Azul Qavante navy — premium backgrounds, encabezados, slogan */
+  --qv-brand-deep: #051637;
+  --qv-brand-deep-600: #0a1f47;
+  --qv-brand-deep-700: #020b1f;
+
+  /* Celeste analítico — datos secundarios, gráficos */
+  --qv-brand-light: #60a8ff;
+  --qv-brand-light-50: #ecf3ff;
+  --qv-brand-light-100: #d4e4ff;
 
   /* Neutrales */
   --qv-neutral-light: #c7c6c6;
@@ -39,7 +66,8 @@
   --qv-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
   --qv-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
 
-  /* Aliases semánticos para Tailwind y componentes */
-  --qv-background: #f7f8fb;
+  /* Aliases semánticos para Tailwind y componentes.
+     `background` = gris operativo #F5F7FA del manual (fondos de pantallas). */
+  --qv-background: #f5f7fa;
   --qv-foreground: var(--qv-neutral-dark);
 }

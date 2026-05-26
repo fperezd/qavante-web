@@ -2,12 +2,22 @@
 @import "../styles/tokens.css";
 
 @theme inline {
-  /* Brand */
+  /* Brand — Manual de Marca v1.1 (azul acento) */
   --color-brand-primary: var(--qv-brand-primary);
   --color-brand-primary-50: var(--qv-brand-primary-50);
   --color-brand-primary-100: var(--qv-brand-primary-100);
   --color-brand-primary-600: var(--qv-brand-primary-600);
   --color-brand-primary-700: var(--qv-brand-primary-700);
+
+  /* Azul Qavante navy — premium */
+  --color-brand-deep: var(--qv-brand-deep);
+  --color-brand-deep-600: var(--qv-brand-deep-600);
+  --color-brand-deep-700: var(--qv-brand-deep-700);
+
+  /* Celeste analítico */
+  --color-brand-light: var(--qv-brand-light);
+  --color-brand-light-50: var(--qv-brand-light-50);
+  --color-brand-light-100: var(--qv-brand-light-100);
 
   /* Neutrales + surface */
   --color-neutral-light: var(--qv-neutral-light);
@@ -43,12 +53,12 @@
   --shadow-md: var(--qv-shadow-md);
   --shadow-lg: var(--qv-shadow-lg);
 
-  /* Tipografía (Anexo B.3 — Inter) */
-  --font-sans: var(--font-inter);
+  /* Tipografía — Manual v1.1: Sora */
+  --font-sans: var(--font-sora);
 }
 
 body {
   background: var(--qv-background);
   color: var(--qv-foreground);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-sora), system-ui, sans-serif;
 }
