@@ -18,7 +18,7 @@ export default function PagarImpuestosPage() {
         <header>
           <h1 className="text-2xl font-bold text-neutral-dark">Impuestos</h1>
           <p className="mt-1 text-sm text-neutral-mid">
-            Consultá y descargá los documentos tributarios del SII desde Qavante.
+            Consulta y descarga los documentos tributarios del SII desde Qavante.
           </p>
         </header>
         <FeatureUnavailableState />
@@ -53,8 +53,8 @@ export default function PagarImpuestosPage() {
             <div className="space-y-2">
               <QavanteBadge variant="success">Disponible</QavanteBadge>
               <p className="text-sm text-neutral-mid">
-                Consultá tu Certificado Solemne por folio: IVA débito y crédito, PPM y total a
-                pagar. Descargá el PDF original timbrado por el SII.
+                Consulta tu Certificado Solemne por folio: IVA débito y crédito, PPM y total a
+                pagar. Descarga el PDF original timbrado por el SII.
               </p>
             </div>
           </QavanteCard>

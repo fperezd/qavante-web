@@ -21,8 +21,8 @@ export default function PagarImpuestosF29Page() {
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">F29 — Declaración mensual</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Consultá tu Certificado Solemne del SII por folio. Vas a ver los montos declarados (IVA
-          débito y crédito, PPM, total a pagar) y podés descargar el PDF original.
+          Consulta tu Certificado Solemne del SII por folio. Vas a ver los montos declarados (IVA
+          débito y crédito, PPM, total a pagar) y puedes descargar el PDF original.
         </p>
       </header>
 

@@ -78,7 +78,7 @@ export const NadaParaAgregar: Story = {
     docs: {
       description: {
         story:
-          "Caso edge: el tenant ya tiene todas las cuentas/vistas de la plantilla. El dialog cambia a estado 'ya tenés todo' (sin checkbox ni botón primario, solo 'Cerrar').",
+          "Caso edge: el tenant ya tiene todas las cuentas/vistas de la plantilla. El dialog cambia a estado 'ya tienes todo' (sin checkbox ni botón primario, solo 'Cerrar').",
       },
     },
   },
