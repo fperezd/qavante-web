@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, ChevronDown, Menu, Search } from "lucide-react";
-import { QavanteBadge } from "@/components/qavante";
+import { QavanteBadge, QavanteLogo } from "@/components/qavante";
 
 export interface AppHeaderProps {
   onMenuClick: () => void;
@@ -22,7 +22,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
 
       {/* Logo Qavante */}
       <div className="flex items-center gap-2">
-        <span className="text-lg font-bold text-brand-primary">Qavante</span>
+        <QavanteLogo variant="header" alt="Qavante" />
       </div>
 
       {/* Selector empresa (placeholder) */}
