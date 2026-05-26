@@ -253,7 +253,7 @@ export function TemplatesGalleryView() {
   return (
     <div className="space-y-3">
       <p className="text-sm text-neutral-mid">
-        Elegí una plantilla y ve qué cuentas y vistas de gestión sugiere Qavante para tu rubro. La
+        Elige una plantilla y ve qué cuentas y vistas de gestión sugiere Qavante para tu rubro. La
         vista previa no aplica nada — vas a poder confirmar antes (§14.1: nunca borramos ni pisamos
         datos).
       </p>

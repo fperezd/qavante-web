@@ -34,7 +34,7 @@ export default function PagarPage() {
               href="/pagar/impuestos"
               icon={Receipt}
               title="Impuestos"
-              description="Consultá tu F29 mensual por folio y descargá el PDF del Certificado Solemne."
+              description="Consulta tu F29 mensual por folio y descarga el PDF del Certificado Solemne."
               badge="F29 disponible"
             />
             <SiiSubCard

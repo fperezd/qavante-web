@@ -18,8 +18,8 @@ const inviteSchema = z.object({
   name: z.string().optional(),
   role: z
     .string()
-    .min(1, "Seleccioná un rol")
-    .refine((v) => v !== "", "Seleccioná un rol"),
+    .min(1, "Selecciona un rol")
+    .refine((v) => v !== "", "Selecciona un rol"),
 });
 
 type InviteFormValues = z.infer<typeof inviteSchema>;
@@ -71,7 +71,7 @@ export function InviteUserDialog({ open, onOpenChange, currentUserRole }: Invite
           setSubmitError(apiErrorToUserMessage(err));
         }
       } else {
-        setSubmitError("Error inesperado. Reintentá.");
+        setSubmitError("Error inesperado. Reintenta.");
       }
     }
   }

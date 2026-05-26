@@ -48,7 +48,7 @@ export function AceptarInvitacionForm() {
       <div className="rounded-lg bg-surface p-6 shadow-md">
         <h1 className="text-xl font-bold text-neutral-dark">Link incompleto</h1>
         <p className="mt-2 text-sm text-neutral-mid">
-          El link no incluye un token de invitación válido. Pedile a un administrador que te invite
+          El link no incluye un token de invitación válido. Pídele a un administrador que te invite
           de nuevo.
         </p>
         <Link
@@ -74,23 +74,23 @@ export function AceptarInvitacionForm() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "invitation_not_found") {
-          setSubmitError("El enlace ya no es válido. Pedile a un admin que te invite de nuevo.");
+          setSubmitError("El enlace ya no es válido. Pídele a un admin que te invite de nuevo.");
         } else if (err.code === "invitation_expired") {
-          setSubmitError("El enlace ya no es válido. Pedile a un admin que te invite de nuevo.");
+          setSubmitError("El enlace ya no es válido. Pídele a un admin que te invite de nuevo.");
         } else {
           setSubmitError(apiErrorToUserMessage(err));
         }
       } else {
-        setSubmitError("Error inesperado. Reintentá.");
+        setSubmitError("Error inesperado. Reintenta.");
       }
     }
   }
 
   return (
     <div className="rounded-lg bg-surface p-6 shadow-md">
-      <h1 className="text-xl font-bold text-neutral-dark">Creá tu clave</h1>
+      <h1 className="text-xl font-bold text-neutral-dark">Crea tu clave</h1>
       <p className="mt-2 text-sm text-neutral-mid">
-        Estás un paso de unirte a la cuenta. Definí una clave para entrar a Qavante.
+        Estás a un paso de unirte a la cuenta. Define una clave para entrar a Qavante.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-6 space-y-4">

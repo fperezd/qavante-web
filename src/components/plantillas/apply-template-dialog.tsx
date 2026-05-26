@@ -71,7 +71,7 @@ export function ApplyTemplateDialog({
       if (err instanceof ApiError) {
         setSubmitError(apiErrorToUserMessage(err));
       } else {
-        setSubmitError("Error inesperado. Reintentá.");
+        setSubmitError("Error inesperado. Reintenta.");
       }
     }
   }
@@ -95,7 +95,7 @@ export function ApplyTemplateDialog({
             </Dialog.Close>
           </div>
           <Dialog.Description className="mb-4 text-sm text-neutral-mid">
-            Qavante va a <strong>agregar</strong> lo que falte. Nunca borra ni pisa lo que ya tenés
+            Qavante va a <strong>agregar</strong> lo que falte. Nunca borra ni pisa lo que ya tienes
             — si algo existe igual, se queda como está.
           </Dialog.Description>
 
