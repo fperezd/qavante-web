@@ -42,6 +42,14 @@ export function QavanteLogo({
       width={width}
       height={height}
       priority={variant === "hero"}
+      /* `unoptimized`: bypass del Next image optimizer. El PNG se sirve
+         directo desde public/, sin pasar por /_next/image. Razón: el
+         optimizer en dev/test genera requests adicionales que rompen
+         `waitForLoadState("networkidle")` de los e2e (timeouts a 30s en
+         /app/administracion/{usuarios,credenciales} — protected-routes
+         mobile spec). En prod el browser cachea el asset estático y el
+         peso real (~optimizado por Cloudflare CDN) compensa. */
+      unoptimized
       className={cn("h-auto w-auto select-none", className)}
       style={{ height, width: "auto" }}
     />
