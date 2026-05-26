@@ -51,7 +51,7 @@ export function LoginForm() {
       if (err instanceof ApiError) {
         setSubmitError(apiErrorToUserMessage(err, "login"));
       } else {
-        setSubmitError("Error inesperado. Reintentá.");
+        setSubmitError("Error inesperado. Reintenta.");
       }
     }
   }
