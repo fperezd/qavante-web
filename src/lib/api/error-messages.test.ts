@@ -9,30 +9,30 @@ import { ApiError } from "./errors";
 describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
   it("network error (status 0) → 'perdiste conexión'", () => {
     const err = new ApiError("network", 0, "network_error");
-    expect(apiErrorToUserMessage(err)).toBe("Parece que perdiste conexión. Verificá tu internet.");
+    expect(apiErrorToUserMessage(err)).toBe("Parece que perdiste conexión. Verifica tu internet.");
   });
 
   it("401 en context login → copy específico 'RUT o clave incorrectos'", () => {
     const err = new ApiError("unauthorized", 401);
     expect(apiErrorToUserMessage(err, "login")).toBe(
-      "RUT o clave incorrectos. Verificá tus datos.",
+      "RUT o clave incorrectos. Verifica tus datos.",
     );
   });
 
   it("401 en context general → 'sesión expiró'", () => {
     const err = new ApiError("unauthorized", 401);
-    expect(apiErrorToUserMessage(err)).toBe("Tu sesión expiró. Volvé a iniciar sesión.");
+    expect(apiErrorToUserMessage(err)).toBe("Tu sesión expiró. Vuelve a iniciar sesión.");
   });
 
-  it("403 → 'no tenés permisos'", () => {
+  it("403 → 'no tienes permisos'", () => {
     expect(apiErrorToUserMessage(new ApiError("forbidden", 403))).toBe(
-      "No tenés permisos para realizar esta acción.",
+      "No tienes permisos para realizar esta acción.",
     );
   });
 
   it("404 → 'no encontramos'", () => {
     expect(apiErrorToUserMessage(new ApiError("not found", 404))).toBe(
-      "No encontramos la información que buscás.",
+      "No encontramos la información que buscas.",
     );
   });
 
@@ -44,13 +44,13 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
 
   it("422 → 'datos no válidos'", () => {
     expect(apiErrorToUserMessage(new ApiError("validation", 422))).toBe(
-      "Algunos datos no son válidos. Revisá el formulario.",
+      "Algunos datos no son válidos. Revisa el formulario.",
     );
   });
 
   it("429 rate limit → 'muchas operaciones seguidas'", () => {
     expect(apiErrorToUserMessage(new ApiError("rate-limit", 429))).toBe(
-      "Hiciste muchas operaciones seguidas. Esperá unos segundos.",
+      "Hiciste muchas operaciones seguidas. Espera unos segundos.",
     );
   });
 
@@ -62,7 +62,7 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
 
   it("5xx genérico → 'no pudimos cargar'", () => {
     expect(apiErrorToUserMessage(new ApiError("server-error", 500))).toBe(
-      "No pudimos cargar la información. Intentá nuevamente.",
+      "No pudimos cargar la información. Intenta nuevamente.",
     );
   });
 
