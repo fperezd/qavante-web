@@ -13,3 +13,4 @@ export {
   type QavanteSourceTagProps,
   type QavanteSource,
 } from "./qavante-source-tag";
+export { QavanteLogo, type QavanteLogoProps, type QavanteLogoVariant } from "./qavante-logo";
