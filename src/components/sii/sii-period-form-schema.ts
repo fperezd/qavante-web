@@ -18,9 +18,9 @@ export const siiPeriodFormSchema = z.object({
   periodo: z
     .string()
     .trim()
-    .min(1, "Elegí el período que querés consultar.")
+    .min(1, "Elige el período que quieres consultar.")
     .refine((v) => /^\d{4}-(0[1-9]|1[0-2])$/.test(v) || /^\d{4}(0[1-9]|1[0-2])$/.test(v), {
-      message: "Usá el formato AAAA-MM (ej: 2026-04) o AAAAMM (ej: 202604).",
+      message: "Usa el formato AAAA-MM (ej: 2026-04) o AAAAMM (ej: 202604).",
     }),
 });
 

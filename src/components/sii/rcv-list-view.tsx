@@ -76,10 +76,10 @@ const COPY: Record<
   compras: {
     emptyTitle: "Sin compras en el período",
     emptyDescription:
-      "El SII no tiene documentos de compra registrados para este período. Probá con otro período o verificá con tu contador.",
-    initialTitle: "Consultá tu Libro de Compras",
+      "El SII no tiene documentos de compra registrados para este período. Prueba con otro período o verifica con tu contador.",
+    initialTitle: "Consulta tu Libro de Compras",
     initialDescription:
-      "Elegí un período y vas a ver las facturas, notas y otros documentos de compra que el SII tiene registrados a tu favor.",
+      "Elige un período y vas a ver las facturas, notas y otros documentos de compra que el SII tiene registrados a tu favor.",
     partyLabel: "Proveedor",
     hint: "Los datos del mes vigente típicamente no están completos hasta mediados del mes siguiente.",
     errorWhat: "el Libro de Compras del SII",
@@ -87,10 +87,10 @@ const COPY: Record<
   ventas: {
     emptyTitle: "Sin ventas en el período",
     emptyDescription:
-      "El SII no tiene documentos de venta registrados para este período. Probá con otro período o verificá con tu contador.",
-    initialTitle: "Consultá tu Libro de Ventas",
+      "El SII no tiene documentos de venta registrados para este período. Prueba con otro período o verifica con tu contador.",
+    initialTitle: "Consulta tu Libro de Ventas",
     initialDescription:
-      "Elegí un período y vas a ver las facturas, notas y otros documentos de venta que el SII tiene registrados a tu nombre.",
+      "Elige un período y vas a ver las facturas, notas y otros documentos de venta que el SII tiene registrados a tu nombre.",
     partyLabel: "Cliente",
     hint: "Los datos del mes vigente típicamente no están completos hasta mediados del mes siguiente.",
     errorWhat: "el Libro de Ventas del SII",
@@ -262,7 +262,7 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
               <QavanteEmpty
                 icon={Inbox}
                 title="Sin resultados para los filtros aplicados"
-                description="Probá removiendo filtros o cambiando el período. El backend SII solo permite filtrar por período; el resto de los filtros se aplican en pantalla sobre los documentos descargados."
+                description="Prueba removiendo filtros o cambiando el período. El backend SII solo permite filtrar por período; el resto de los filtros se aplican en pantalla sobre los documentos descargados."
               />
             ) : (
               <>

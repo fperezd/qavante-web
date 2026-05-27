@@ -17,7 +17,7 @@ export const f29FormSchema = z.object({
   folioInput: z
     .string()
     .trim()
-    .min(1, "Ingresá el folio del F29 que querés consultar.")
+    .min(1, "Ingresa el folio del F29 que quieres consultar.")
     .refine((v) => /^[0-9]+$/.test(v), {
       message: "El folio es un número entero (solo dígitos, sin espacios ni signos).",
     })
