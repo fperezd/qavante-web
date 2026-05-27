@@ -65,7 +65,7 @@ export default function UsuariosPage() {
         <QavanteEmpty
           icon={Users}
           title="Todavía no invitaste a nadie"
-          description="Invitá a tu primer usuario para colaborar en la gestión financiera de tu empresa."
+          description="Invita a tu primer usuario para colaborar en la gestión financiera de tu empresa."
           cta={
             <QavanteButton onClick={() => setInviteOpen(true)}>
               <UserPlus className="h-4 w-4" />

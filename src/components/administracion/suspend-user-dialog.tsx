@@ -36,12 +36,12 @@ export function SuspendUserDialog({ user, open, onOpenChange }: SuspendUserDialo
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "last_owner_protection") {
-          setError("No podés suspender al último dueño de la empresa.");
+          setError("No puedes suspender al último dueño de la empresa.");
         } else {
           setError(apiErrorToUserMessage(err));
         }
       } else {
-        setError("Error inesperado. Reintentá.");
+        setError("Error inesperado. Reintenta.");
       }
     }
   }
@@ -72,7 +72,7 @@ export function SuspendUserDialog({ user, open, onOpenChange }: SuspendUserDialo
             ) : (
               <>
                 <strong>{user.name ?? user.email}</strong> no va a poder iniciar sesión. Su sesión
-                actual se cierra automáticamente. Podés reactivarlo después.
+                actual se cierra automáticamente. Puedes reactivarlo después.
               </>
             )}
           </Dialog.Description>

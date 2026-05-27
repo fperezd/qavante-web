@@ -195,7 +195,7 @@ export function RulesListView() {
         <QavanteEmpty
           icon={ListChecks}
           title="Aún no hay reglas"
-          description="Creá tu primera regla, o clasificá un movimiento con la opción «Guardar y crear regla» para que Qavante aprenda."
+          description="Crea tu primera regla, o clasifica un movimiento con la opción «Guardar y crear regla» para que Qavante aprenda."
           cta={
             <QavanteButton onClick={openCreate}>
               <Plus className="h-4 w-4" />
@@ -213,7 +213,7 @@ export function RulesListView() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <p className="text-sm text-neutral-mid">
           Las reglas se evalúan en orden de prioridad (de menor a mayor). Las desactivadas no
-          afectan la clasificación pero las podés reactivar cuando quieras — Qavante nunca borra
+          afectan la clasificación pero las puedes reactivar cuando quieras — Qavante nunca borra
           reglas.
         </p>
         <QavanteButton onClick={openCreate}>

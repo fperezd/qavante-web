@@ -135,7 +135,7 @@ export function CurrencySettingsView() {
         <QavanteEmpty
           icon={Coins}
           title="Aún no configuraste tus monedas"
-          description="Elegí tu moneda funcional, monedas de reporte y, si la usás, la unidad indexada (UF / UTM)."
+          description="Elige tu moneda funcional, monedas de reporte y, si la usas, la unidad indexada (UF / UTM)."
           cta={
             <QavanteButton onClick={() => setDialogOpen(true)}>
               <Coins className="h-4 w-4" />
