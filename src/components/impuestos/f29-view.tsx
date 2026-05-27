@@ -125,7 +125,7 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
         title="Sin declaración para este folio"
         description={
           data.message ??
-          "El folio no corresponde a una declaración del período consultado. Verificá el número y reintentá."
+          "El folio no corresponde a una declaración del período consultado. Verifica el número y reintenta."
         }
       />
     );
@@ -320,7 +320,7 @@ export function F29View() {
             <div>
               <p className="font-medium">El SII no responde en este momento.</p>
               <p className="text-neutral-mid">
-                Suele ser temporal. Reintentá en unos minutos —{" "}
+                Suele ser temporal. Reintenta en unos minutos —{" "}
                 {apiErrorToUserMessage(f29Query.error)}
               </p>
             </div>
@@ -334,7 +334,7 @@ export function F29View() {
       {!activeFolio && (
         <QavanteEmpty
           icon={FileText}
-          title="Consultá un F29 ingresando su folio"
+          title="Consulta un F29 ingresando su folio"
           description="Vas a ver el período declarado, los montos (IVA débito/crédito, PPM, total a pagar) y vas a poder descargar el PDF del Certificado Solemne."
         />
       )}

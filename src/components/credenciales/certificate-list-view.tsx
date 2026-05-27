@@ -135,7 +135,7 @@ export function CertificateListView() {
       {certificates.length === 0 ? (
         <QavanteEmpty
           title="Todavía no hay certificados"
-          description="Subí el primer .pfx del titular correspondiente para empezar."
+          description="Sube el primer .pfx del titular correspondiente para empezar."
         />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">

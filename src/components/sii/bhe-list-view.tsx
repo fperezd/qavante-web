@@ -53,8 +53,8 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
       {!period && (
         <QavanteEmpty
           icon={Briefcase}
-          title="Consultá tus honorarios recibidos"
-          description="Elegí un período y vas a ver las Boletas de Honorarios Electrónicas (BHE) que te emitieron profesionales. Incluye monto bruto, retención y monto líquido."
+          title="Consulta tus honorarios recibidos"
+          description="Elige un período y vas a ver las Boletas de Honorarios Electrónicas (BHE) que te emitieron profesionales. Incluye monto bruto, retención y monto líquido."
         />
       )}
 
@@ -74,7 +74,7 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
         <QavanteEmpty
           icon={Inbox}
           title="Sin BHE en el período"
-          description="No hay boletas de honorarios emitidas a tu favor en este período. Probá con otro período."
+          description="No hay boletas de honorarios emitidas a tu favor en este período. Prueba con otro período."
         />
       )}
 
