@@ -35,7 +35,7 @@ export const Loading: Story = {
 
 export const WithError: Story = {
   args: {
-    error: "La operación falló: no se encontró la persona. Probá refrescar la página.",
+    error: "La operación falló: no se encontró la persona. Prueba refrescar la página.",
   },
 };
 

@@ -35,7 +35,7 @@ export function ManagementAccountsView() {
     const message =
       query.error instanceof ApiError
         ? apiErrorToUserMessage(query.error)
-        : "No pudimos cargar la estructura de gestión. Intentá nuevamente.";
+        : "No pudimos cargar la estructura de gestión. Intenta nuevamente.";
     return (
       <div
         role="alert"

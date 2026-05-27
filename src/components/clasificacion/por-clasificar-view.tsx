@@ -101,7 +101,7 @@ export function PorClasificarView() {
     // `canSave` interno del drawer gatea por canonical (supuesto del
     // addendum, no del contrato) — guardamos defensivamente acá.
     if (!draft.managementAccountId) {
-      setFormError("Elegí una categoría de gestión para clasificar el movimiento.");
+      setFormError("Elige una categoría de gestión para clasificar el movimiento.");
       return;
     }
     setFormError(undefined);

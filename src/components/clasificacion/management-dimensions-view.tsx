@@ -32,7 +32,7 @@ export function ManagementDimensionsView() {
     const message =
       query.error instanceof ApiError
         ? apiErrorToUserMessage(query.error)
-        : "No pudimos cargar las vistas de gestión. Intentá nuevamente.";
+        : "No pudimos cargar las vistas de gestión. Intenta nuevamente.";
     return (
       <div
         role="alert"

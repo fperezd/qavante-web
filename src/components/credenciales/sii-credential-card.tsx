@@ -54,7 +54,7 @@ export function SiiCredentialCard({ credential }: Props) {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-neutral-mid">
-              Cargá la clave tributaria del SII para que Qavante pueda ingestar tus F29 y RCV
+              Carga la clave tributaria del SII para que Qavante pueda ingestar tus F29 y RCV
               automáticamente. La clave se encripta antes de guardarse.
             </p>
             <div className="flex justify-end pt-2">

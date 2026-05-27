@@ -77,7 +77,7 @@ export function CertificateUploadDialogV2({ open, onOpenChange }: Props) {
   async function onSubmit(values: FormValues) {
     setSubmitError(null);
     if (!file) {
-      setSubmitError("Seleccioná un archivo .pfx.");
+      setSubmitError("Selecciona un archivo .pfx.");
       return;
     }
     try {
@@ -124,7 +124,7 @@ export function CertificateUploadDialogV2({ open, onOpenChange }: Props) {
                 {file ? (
                   <span className="font-medium text-neutral-dark">{file.name}</span>
                 ) : (
-                  "Elegí un archivo .pfx"
+                  "Elige un archivo .pfx"
                 )}
               </label>
               <input

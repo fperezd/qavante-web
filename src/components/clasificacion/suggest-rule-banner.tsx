@@ -134,7 +134,7 @@ export function SuggestRuleBanner({
           <p role="alert" className="text-xs text-danger-500">
             {suggest.error instanceof ApiError
               ? apiErrorToUserMessage(suggest.error)
-              : "No pudimos generar la sugerencia. Reintentá."}
+              : "No pudimos generar la sugerencia. Reintenta."}
           </p>
         )}
         <div className="flex flex-wrap gap-2">
