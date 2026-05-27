@@ -36,8 +36,8 @@ export default function CredencialesPage() {
           title="No pudimos cargar las credenciales"
           description={
             error instanceof Error
-              ? `${error.message}. Probá refrescar la página.`
-              : "Probá refrescar la página. Si persiste, contactá a soporte."
+              ? `${error.message}. Prueba refrescar la página.`
+              : "Prueba refrescar la página. Si persiste, contacta a soporte."
           }
         />
       )}

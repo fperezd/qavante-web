@@ -34,7 +34,7 @@ export default function CajaPage() {
               href="/caja/por-clasificar"
               icon={Inbox}
               title="Por clasificar"
-              description="Movimientos pendientes de clasificación. Asigná categoría canónica y cuenta de gestión."
+              description="Movimientos pendientes de clasificación. Asigna categoría canónica y cuenta de gestión."
               badge="Acción pendiente"
               badgeVariant="warning"
             />
@@ -42,7 +42,7 @@ export default function CajaPage() {
               href="/caja/clasificados"
               icon={CheckCircle2}
               title="Clasificados"
-              description="Auditoría de los ya clasificados. Filtrá por categoría, dirección o período."
+              description="Auditoría de los ya clasificados. Filtra por categoría, dirección o período."
               badge="Auditoría"
               badgeVariant="success"
             />

@@ -44,8 +44,8 @@ export default function CobrarPage() {
               <div className="space-y-2">
                 <QavanteBadge variant="success">SII</QavanteBadge>
                 <p className="text-sm text-neutral-mid">
-                  Documentos de venta del SII por período: facturas, notas y boletas que vos le
-                  emitiste a tus clientes.
+                  Documentos de venta del SII por período: facturas, notas y boletas que le emitiste
+                  a tus clientes.
                 </p>
               </div>
             </QavanteCard>

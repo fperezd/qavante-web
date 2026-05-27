@@ -17,7 +17,7 @@ export default function PagarFacturasRecibidasPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Libro de Compras</h1>
         <p className="mt-1 text-sm text-neutral-mid">
           Documentos de compra del SII por período: facturas, notas de crédito/débito y boletas que
-          te emitieron tus proveedores. Filtrá por tipo, folio o proveedor.
+          te emitieron tus proveedores. Filtra por tipo, folio o proveedor.
         </p>
       </header>
 
