@@ -61,4 +61,10 @@ jobs:
       - name: Smoke contra app.qavante.com
         env:
           SMOKE_BASE_URL: https://app.qavante.com
+          SMOKE_API_URL: https://api.qavante.com
+          # Si los secrets no están configurados, los specs gated en
+          # prod-health.smoke.spec.ts hacen test.skip por hasCreds=false.
+          # El smoke HTTP-only y browser siguen corriendo siempre.
+          SMOKE_RUT: ${{ secrets.SMOKE_RUT }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
         run: npm run smoke
