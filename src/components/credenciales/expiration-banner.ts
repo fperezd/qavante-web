@@ -5,9 +5,9 @@
    Umbrales WCAG / UX (alineados con docs/backend-contracts/
    c1-sii-credentials.md § 3.3):
      > 60 días → ok (sin banner)
-     31–60     → warn (amarillo, "renová pronto")
-     1–30      → urgent (rojo, "renová ahora")
-     ≤ 0       → expired (rojo bloqueante, "cargá uno nuevo") */
+     31–60     → warn (amarillo, "renueva pronto")
+     1–30      → urgent (rojo, "renueva ahora")
+     ≤ 0       → expired (rojo bloqueante, "carga uno nuevo") */
 
 import { daysUntil } from "./format";
 

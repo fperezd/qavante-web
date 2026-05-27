@@ -127,7 +127,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
       if (err instanceof ApiError) {
         setSubmitError(apiErrorToUserMessage(err));
       } else {
-        setSubmitError("Error inesperado. Reintentá.");
+        setSubmitError("Error inesperado. Reintenta.");
       }
     }
   }
@@ -151,7 +151,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
           </div>
           <Dialog.Description className="mb-4 text-sm text-neutral-mid">
             Las reglas clasifican automáticamente los movimientos similares en el futuro. Se evalúan
-            de menor a mayor prioridad (1 corre antes que 100). Qavante nunca borra reglas — podés
+            de menor a mayor prioridad (1 corre antes que 100). Qavante nunca borra reglas — puedes
             desactivarlas si dejan de servir.
           </Dialog.Description>
 

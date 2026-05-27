@@ -16,7 +16,7 @@ const meta = {
   },
   args: {
     title: "Todavía no hay usuarios",
-    description: "Invitá a tu primer colaborador para empezar a gestionar tu empresa con Qavante.",
+    description: "Invita a tu primer colaborador para empezar a gestionar tu empresa con Qavante.",
   },
 } satisfies Meta<typeof QavanteEmpty>;
 
@@ -38,7 +38,7 @@ export const ErrorState: Story = {
   args: {
     icon: AlertCircle,
     title: "No pudimos cargar las credenciales",
-    description: "Probá refrescar la página. Si persiste, contactá a soporte.",
+    description: "Prueba refrescar la página. Si persiste, contacta a soporte.",
   },
 };
 
