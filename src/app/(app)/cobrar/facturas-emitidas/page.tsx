@@ -16,7 +16,7 @@ export default function CobrarFacturasEmitidasPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Libro de Ventas</h1>
         <p className="mt-1 text-sm text-neutral-mid">
           Documentos de venta del SII por período: facturas, notas de crédito/débito y boletas que
-          vos le emitiste a tus clientes. Filtrá por tipo, folio o cliente.
+          le emitiste a tus clientes. Filtra por tipo, folio o cliente.
         </p>
       </header>
 

@@ -57,7 +57,7 @@ export default function AdministracionPage() {
           href="/administracion/usuarios"
           icon={Users}
           title="Usuarios"
-          description="Invitá, suspendé y cambiá roles del equipo que accede a tu Qavante."
+          description="Invita, suspende y cambia roles del equipo que accede a tu Qavante."
         />
         <SubModuleCard
           href="/administracion/credenciales"
@@ -69,19 +69,19 @@ export default function AdministracionPage() {
           href="/administracion/estructura-gestion"
           icon={Layers}
           title="Estructura de gestión"
-          description="Ordená tus ingresos, costos, gastos, caja y obligaciones, partiendo de una base sugerida."
+          description="Ordena tus ingresos, costos, gastos, caja y obligaciones, partiendo de una base sugerida."
         />
         <SubModuleCard
           href="/administracion/vistas-gestion"
           icon={Telescope}
           title="Vistas de gestión"
-          description="Mirá tu negocio por cliente, proyecto, obra, local, sociedad, canal u otra variable."
+          description="Mira tu negocio por cliente, proyecto, obra, local, sociedad, canal u otra variable."
         />
         <SubModuleCard
           href="/administracion/monedas"
           icon={Coins}
           title="Monedas"
-          description="Moneda principal de tu empresa y monedas en que querés ver tus reportes."
+          description="Moneda principal de tu empresa y monedas en que quieres ver tus reportes."
         />
         <SubModuleCard
           href="/administracion/reglas-clasificacion"
