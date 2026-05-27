@@ -29,7 +29,7 @@ export function ManagementAccountSelect({
   onChange,
   disabled,
   searchLabel = "Buscar categoría de gestión",
-  placeholder = "Buscá una categoría…",
+  placeholder = "Busca una categoría…",
   id,
 }: ManagementAccountSelectProps) {
   const [query, setQuery] = React.useState("");

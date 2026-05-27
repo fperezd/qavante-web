@@ -106,7 +106,7 @@ export function CertificateListView() {
     const message =
       list.error instanceof ApiError
         ? apiErrorToUserMessage(list.error)
-        : "No pudimos cargar los certificados. Intentá nuevamente.";
+        : "No pudimos cargar los certificados. Intenta nuevamente.";
     return (
       <div
         role="alert"
@@ -124,7 +124,7 @@ export function CertificateListView() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-neutral-mid">
-          Cargá un certificado digital (.pfx) por cada titular. El certificado se usa para firmar
+          Carga un certificado digital (.pfx) por cada titular. El certificado se usa para firmar
           los requests al SII; la clave del .pfx no se almacena.
         </p>
         <QavanteButton size="sm" onClick={() => setUploadOpen(true)}>

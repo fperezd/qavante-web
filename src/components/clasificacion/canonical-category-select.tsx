@@ -36,7 +36,7 @@ export function CanonicalCategorySelect({
   onChange,
   disabled,
   searchLabel = "Buscar tipo de movimiento",
-  placeholder = "Buscá un tipo de movimiento…",
+  placeholder = "Busca un tipo de movimiento…",
   id,
 }: CanonicalCategorySelectProps) {
   const [query, setQuery] = React.useState("");
