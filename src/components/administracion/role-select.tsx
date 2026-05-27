@@ -51,7 +51,7 @@ export function RoleSelect({
     >
       {value === "" && (
         <option value="" disabled>
-          Seleccioná un rol…
+          Selecciona un rol…
         </option>
       )}
       {roles.map((role) => (

@@ -18,7 +18,7 @@ export const FX_SOURCES = ["BCCH", "SII"] as const;
 
 export const settingsSchema = z
   .object({
-    functional_currency_code: z.string().min(1, "Elegí la moneda funcional"),
+    functional_currency_code: z.string().min(1, "Elige la moneda funcional"),
     default_reporting_currency_code: z.string(),
     reporting_currency_codes: z.array(z.string()),
     indexed_unit_enabled: z.boolean(),
@@ -39,7 +39,7 @@ export const settingsSchema = z
     },
   )
   .refine((data) => !data.indexed_unit_enabled || data.indexed_unit_currency_code !== "", {
-    message: "Si activás la unidad indexada, tenés que elegir cuál.",
+    message: "Si activas la unidad indexada, tienes que elegir cuál.",
     path: ["indexed_unit_currency_code"],
   });
 
