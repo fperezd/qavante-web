@@ -84,7 +84,7 @@ export function CurrencySettingsDialog({
       if (err instanceof ApiError) {
         setSubmitError(apiErrorToUserMessage(err));
       } else {
-        setSubmitError("Error inesperado. Reintentá.");
+        setSubmitError("Error inesperado. Reintenta.");
       }
     }
   }
@@ -107,8 +107,8 @@ export function CurrencySettingsDialog({
           </div>
           <Dialog.Description className="mb-4 text-sm text-neutral-mid">
             La moneda funcional es la principal de tu empresa. Las monedas de reporte se usan para
-            ver los mismos números en otras monedas. Podés activar la unidad indexada (UF / UTM) si
-            la usás en Chile.
+            ver los mismos números en otras monedas. Puedes activar la unidad indexada (UF / UTM) si
+            la usas en Chile.
           </Dialog.Description>
 
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
@@ -154,7 +154,7 @@ export function CurrencySettingsDialog({
                   Monedas de reporte
                 </legend>
                 <p className="mb-2 text-xs text-neutral-mid">
-                  Las que querés ver junto a la funcional en tus reportes.
+                  Las que quieres ver junto a la funcional en tus reportes.
                 </p>
                 <Controller
                   control={control}

@@ -33,6 +33,6 @@ export const Monedas: Story = {
   args: {
     title: "Monedas — todavía no disponible",
     description:
-      "Acá vas a definir la moneda principal de tu empresa y las monedas en que querés ver tus reportes.",
+      "Acá vas a definir la moneda principal de tu empresa y las monedas en que quieres ver tus reportes.",
   },
 };

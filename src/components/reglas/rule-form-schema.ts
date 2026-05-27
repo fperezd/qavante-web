@@ -48,14 +48,14 @@ export const OPERATORS = [
 export const CONFIDENCE_STEPS = [0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0] as const;
 
 export const ruleFormSchema = z.object({
-  name: z.string().trim().min(1, "Ponele un nombre a la regla"),
+  name: z.string().trim().min(1, "Ponle un nombre a la regla"),
   condition_field: z.enum(CONDITION_FIELDS, {
-    message: "Elegí el campo a evaluar",
+    message: "Elige el campo a evaluar",
   }),
   operator: z.enum(OPERATORS, {
-    message: "Elegí el operador",
+    message: "Elige el operador",
   }),
-  condition_value: z.string().trim().min(1, "Ingresá un valor para comparar"),
+  condition_value: z.string().trim().min(1, "Ingresa un valor para comparar"),
   /* `""` = sin categoría canónica (regla sólo asigna prioridad/orden, no
      categoría). El backend lo acepta como `null`. */
   canonical_category: z.string(),
@@ -64,7 +64,7 @@ export const ruleFormSchema = z.object({
     .int("La prioridad es un número entero")
     .min(1, "La prioridad mínima es 1")
     .max(1000, "La prioridad máxima es 1000"),
-  confidence: z.number({ message: "Elegí un nivel de confianza" }).min(0).max(1),
+  confidence: z.number({ message: "Elige un nivel de confianza" }).min(0).max(1),
 });
 
 export type RuleFormValues = z.infer<typeof ruleFormSchema>;

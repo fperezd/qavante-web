@@ -34,7 +34,7 @@ export function CurrencyCodeSelect({
   currencies,
   filterType,
   excludeCodes,
-  placeholder = "Seleccioná una moneda…",
+  placeholder = "Selecciona una moneda…",
   disabled,
   invalid,
   allowEmpty = false,
