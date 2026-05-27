@@ -16,16 +16,16 @@
 
 ### 1.1 Cookie de sesión (compartida con backend)
 
-| Atributo   | Valor                                                                                                                                                                       |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Nombre     | `qavante_session` (constante en [src/lib/auth/cookies.ts:6](../../src/lib/auth/cookies.ts#L6))                                                                              |
-| `HttpOnly` | **obligatorio** (CLAUDE.md regla 6 prohibe storage APIs para tokens)                                                                                                        |
-| `Secure`   | obligatorio en prod (Cloudflare Workers sobre HTTPS)                                                                                                                        |
-| `SameSite` | `Lax` (recomendado; permite navegación cross-site al landing)                                                                                                               |
-| `Path`     | `/`                                                                                                                                                                         |
-| `Domain`   | host-only en prod (sin atributo `Domain`; cookie ligada al host del backend `tooxs-gestion-api.fly.dev`). FE en `app.qavante.com` es cross-origin — ver nota SameSite abajo |
-| Contenido  | Session token opaco firmado por el backend. El frontend NO lo lee, sólo lo pasa de regreso vía `credentials: "include"`                                                     |
-| Vida       | Idealmente ≤ 1h para access, refresh token aparte (cookie distinta opcional, o mismo cookie con rotación en `/refresh`)                                                     |
+| Atributo   | Valor                                                                                                                                                                                                |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nombre     | `qavante_session` (constante en [src/lib/auth/cookies.ts:6](../../src/lib/auth/cookies.ts#L6))                                                                                                       |
+| `HttpOnly` | **obligatorio** (CLAUDE.md regla 6 prohibe storage APIs para tokens)                                                                                                                                 |
+| `Secure`   | obligatorio en prod (Cloudflare Workers sobre HTTPS)                                                                                                                                                 |
+| `SameSite` | `Lax` (recomendado; permite navegación cross-site al landing)                                                                                                                                        |
+| `Path`     | `/`                                                                                                                                                                                                  |
+| `Domain`   | `.qavante.com` en prod — cookie compartida entre `api.qavante.com` (backend) y `app.qavante.com` (frontend) bajo el mismo parent zone. Ver [ADR-0003](../adr/0003-api-qavante-com-shared-parent.md). |
+| Contenido  | Session token opaco firmado por el backend. El frontend NO lo lee, sólo lo pasa de regreso vía `credentials: "include"`                                                                              |
+| Vida       | Idealmente ≤ 1h para access, refresh token aparte (cookie distinta opcional, o mismo cookie con rotación en `/refresh`)                                                                              |
 
 El interceptor 401 en [src/lib/api/client.ts:64](../../src/lib/api/client.ts#L64) llama a `/api/auth/refresh` automáticamente cuando recibe un 401; si responde 2xx reintenta el request original. Si refresh falla, redirige a `/login?redirect=<path>`.
 

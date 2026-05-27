@@ -33,7 +33,7 @@ jobs:
         # login. Valores públicos (no secretos): mismos que wrangler.toml
         # [vars] y .env.example.
         env:
-          NEXT_PUBLIC_API_URL: https://tooxs-gestion-api.fly.dev
+          NEXT_PUBLIC_API_URL: https://api.qavante.com
           NEXT_PUBLIC_APP_ENV: production
       - name: Deploy with wrangler
         uses: cloudflare/wrangler-action@v3

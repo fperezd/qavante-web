@@ -8,7 +8,7 @@ directory = ".open-next/assets"
 binding = "ASSETS"
 
 [vars]
-NEXT_PUBLIC_API_URL = "https://tooxs-gestion-api.fly.dev"
+NEXT_PUBLIC_API_URL = "https://api.qavante.com"
 NEXT_PUBLIC_APP_ENV = "production"
 
 # Custom domain declarativo. Idempotente: si el binding ya existe en el
