@@ -2,14 +2,18 @@
 
 Frontend de Qavante (Next.js 15 + React 19 + TypeScript strict + Tailwind 4 + shadcn/ui), desplegable en **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`.
 
-**Estado Sprint C0:**
+**Estado de sprints (al 2026-05-28, ver [último audit K.4](./docs/audits/c3-mvp-cycle-2026-05-27-28.md)):**
 
-- ✅ Milestone A — Setup base (C0-01 a C0-05)
-- ✅ Milestone B — Sistema de diseño y shell (C0-06 a C0-09)
-- 🟡 Milestone C — Auth y conexión backend (C0-10/12/13 mergeados; C0-11/14 bloqueados en repo backend, contrato en [docs/backend-contracts/c0-auth-and-users.md](./docs/backend-contracts/c0-auth-and-users.md))
-- ✅ Milestone D — Admin mínima + cierre (parte FE) — C0-15 FE/admin gate + Lighthouse CI + CHANGELOG mergeados en `[0.7.0] 2026-05-13`. Pendiente sólo el tag `c0-complete-…` para el cierre formal; blockers cross-team (qavante-api C0-14/16/17 + cookie #58) listados en [CHANGELOG.md § Unreleased](./CHANGELOG.md#unreleased). Audit Anexo K.4 en [docs/audits/c0-milestone-d-review.md](./docs/audits/c0-milestone-d-review.md).
+- ✅ **Sprint C0** — Auth, users, admin mínima, shell. Login en prod funcional end-to-end (cookie shared-parent `.qavante.com` desde [ADR-0003](./docs/adr/0003-api-qavante-com-shared-parent.md)).
+- ✅ **Sprint C1** — SII end-to-end (F29 + Libros de Compras/Ventas + BHE).
+- ✅ **Sprint C2** — Data layer de management mutations (accounts + dimensions + values + assignments). UI editor parcial.
+- 🟡 **Sprint C3** — **MVP cableado** ([PR #196](https://github.com/fperezd/qavante-web/pull/196)): `/caja/proyeccion` con reporte agregado del backend. Gated por flag `cashFlowReport` (default OFF; activar con [runbook](./docs/operations/feature-flags-activation.md)). Brechas restantes (caja mínima, acciones recomendadas, etc.) documentadas en [c3-treasury-reports-gaps.md](./docs/backend-contracts/c3-treasury-reports-gaps.md) — esperan deploy de CC-API.
+- ⏳ **Sprint C4** — Cobranza/pagos priorizados — pendiente.
+- ⏳ **Sprint C5+** — Gestión avanzada, drivers, IA financiera — pendientes.
 
-Ver [docs/audits/c0-milestone-abc-review.md](./docs/audits/c0-milestone-abc-review.md) para la revisión integral del Anexo K.4.
+Patrón de ejecución de cada sprint definido en [ADR-0013 (MVP honesto, no inventar lógica financiera en FE)](./docs/adr/0013-treasury-reports-mvp-honest-no-invention.md).
+
+Ver audits previos: [Sprint C1 + C2](./docs/audits/sprint-c1-end-to-end-cycle.md) · [Stretch UX 2026-05-24/25](./docs/audits/stretch-2026-05-24-25-ux-polish-stories.md) · [Milestone D](./docs/audits/c0-milestone-d-review.md) · [Milestone A-B-C](./docs/audits/c0-milestone-abc-review.md).
 
 ## Requisitos
 
@@ -27,8 +31,10 @@ npm run dev                     # http://localhost:3000
 
 Variables en `.env.local`:
 
-- `NEXT_PUBLIC_API_URL` (default: `https://tooxs-gestion-api.fly.dev`)
+- `NEXT_PUBLIC_API_URL` (prod canónica: `https://api.qavante.com` — ver [ADR-0003](./docs/adr/0003-api-qavante-com-shared-parent.md))
 - `NEXT_PUBLIC_APP_ENV` (default: `development`)
+- `NEXT_PUBLIC_API_MOCKING=enabled` (opcional: activa [MSW](./docs/adr/0005-mock-service-worker-for-fe-dev.md) para desarrollar sin backend)
+- `NEXT_PUBLIC_FF_<FLAG>` (opcional: activa una feature gateada — ver [runbook de feature flags](./docs/operations/feature-flags-activation.md))
 
 Sin `.env.local`, el API client lanza `ApiError("NEXT_PUBLIC_API_URL no configurada")` cuando se invoca cualquier request al backend.
 
@@ -54,6 +60,7 @@ Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (
 - Config: [wrangler.toml](./wrangler.toml) (entrypoint, compatibility flags `nodejs_compat`, assets binding).
 - Workflow deploy: [.github/workflows/deploy-cloudflare.yml](./.github/workflows/deploy-cloudflare.yml) — corre en cada push a `main` con `cloudflare/wrangler-action@v3`.
 - Setup operativo (primera vez): [docs/operations/cloudflare-workers-setup.md](./docs/operations/cloudflare-workers-setup.md).
+- Activar feature flags en prod: [docs/operations/feature-flags-activation.md](./docs/operations/feature-flags-activation.md).
 
 **Restricciones de runtime (por nodejs_compat):**
 
