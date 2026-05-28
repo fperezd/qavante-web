@@ -6,6 +6,43 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Ciclo "i18n cleanup + login fix + Sprint C3 MVP + sesión autónoma" (2026-05-27 → 2026-05-28)
+
+PRs #186-#206 (15 mergeados a `main`) + issue #194 (cerrado por falso positivo). Audit K.4 en [`docs/audits/c3-mvp-cycle-2026-05-27-28.md`](./docs/audits/c3-mvp-cycle-2026-05-27-28.md).
+
+#### Added
+
+- **Sprint C3 MVP — `/caja/proyeccion`** ([#196](https://github.com/fperezd/qavante-web/pull/196)) — cablea `GET /api/treasury/reports/cash-flow` del backend con default `granularity=week` + 3 meses (≈13 semanas) + `financial_layer=committed`. Gated por flag `cashFlowReport` (default OFF). No inventa lógica financiera en FE (regla 5 + addendum §25.3 + ADR-0013).
+- **Smoke E2E gated post-deploy** ([#195](https://github.com/fperezd/qavante-web/pull/195)) — cableo de `SMOKE_RUT` + `SMOKE_PASSWORD` en step `smoke` del workflow `deploy-cloudflare.yml`. El spec `prod-health.smoke.spec.ts > login flow (gated)` se activa cuando Fernando agrega los secrets en GH Actions (acción humana pendiente).
+- **ADR-0013 — Treasury reports MVP honesto** ([#201](https://github.com/fperezd/qavante-web/pull/201)) — establece patrón replicable C4-C8: exponer crudo del backend, no inventar lógica, documentar brechas, esperar contrato.
+- **Handoff backend para Sprint C3 waves 2-5** ([#200](https://github.com/fperezd/qavante-web/pull/200), [`docs/backend-contracts/c3-treasury-reports-gaps.md`](./docs/backend-contracts/c3-treasury-reports-gaps.md)) — 4 brechas (caja mínima, acciones recomendadas, bank-accounts list, scenario versions) con shapes sugeridos. Brief para que CC-API + Fernando decidan shape óptimo.
+- **Runbook activación de feature flags** ([#203](https://github.com/fperezd/qavante-web/pull/203), [`docs/operations/feature-flags-activation.md`](./docs/operations/feature-flags-activation.md)) — guía completa: mapping flag → env var → endpoint, steps en CF Workers + redeploy, kill-switch, errores comunes, checklist para agregar un flag nuevo.
+- **Coverage de helpers puros C3 MVP** ([#199](https://github.com/fperezd/qavante-web/pull/199)) — extrae `parseDecimal`, `formatPeriodLabel`, `isValidPeriod`, `isValidPeriodRange`, `PERIOD_REGEX` a `cash-flow-format.ts` + exporta `buildCashFlowQuery`. +51 tests anti-regresión (vitest unit).
+- **Tests de consistencia flag mapping** ([#205](https://github.com/fperezd/qavante-web/pull/205)) — +7 tests anti-regresión de `FEATURE_FLAGS` ↔ `FLAG_GATING_ENDPOINT` (each-has-entry, no-extras, env-var-format, no-duplicates, 1-a-1).
+- **Audit K.4 del ciclo** ([#202](https://github.com/fperezd/qavante-web/pull/202)) — `c3-mvp-cycle-2026-05-27-28.md` con TL;DR, inventario, tests, ADRs nuevos, brechas backend, sesión autónoma, acciones pendientes humano, estado al cierre.
+- **Feature flag `cashFlowReport`** agregado al array `FEATURE_FLAGS` + entry en `FLAG_GATING_ENDPOINT` (`/api/treasury/reports/cash-flow`). Default OFF; activar con `NEXT_PUBLIC_FF_CASH_FLOW_REPORT=true` en Cloudflare Workers + redeploy.
+
+#### Fixed
+
+- **`fix(ops)`: flipear `NEXT_PUBLIC_API_URL` a `api.qavante.com`** ([#193](https://github.com/fperezd/qavante-web/pull/193)) — cierra el último checkbox pendiente de [ADR-0003](./docs/adr/0003-api-qavante-com-shared-parent.md). Login en prod estaba pegado en `/login` post-submit porque la cookie quedaba bajo `fly.dev` y el middleware Next.js en `app.qavante.com` no la veía. Flip de `wrangler.toml` + workflow `deploy-cloudflare.yml` + update de `c0-auth-and-users.md` (campo `Domain` ahora `.qavante.com`). Verificado post-deploy con Network tab: backend emite JWTs HS256 firmados con `Domain=.qavante.com`, `HttpOnly`, `Secure`, `SameSite=lax`.
+- **`chore(api)`: flipear `npm run generate:api` a `https://api.qavante.com/openapi.json`** ([#198](https://github.com/fperezd/qavante-web/pull/198)) — followup ADR-0003. CONTRIBUTING.md sincronizado quitando caveat de migración.
+- **`fix(i18n)`: chileno neutro al 100% en copy UI + comentarios** ([#186](https://github.com/fperezd/qavante-web/pull/186)/[#188](https://github.com/fperezd/qavante-web/pull/188)/[#189](https://github.com/fperezd/qavante-web/pull/189)/[#190](https://github.com/fperezd/qavante-web/pull/190)/[#191](https://github.com/fperezd/qavante-web/pull/191)/[#192](https://github.com/fperezd/qavante-web/pull/192)/[#197](https://github.com/fperezd/qavante-web/pull/197)) — 7 PRs (parts 1-7) convirtieron toda la copy UI del producto y comentarios voseo argentinos a tuteo chileno neutro. ~85 líneas tocadas en ~40 archivos. Política aplicada: "acá" panhispánico se respeta, "vas a + inf." es futuro perifrástico tuteo válido.
+
+#### Changed
+
+- **README.md** ([#206](https://github.com/fperezd/qavante-web/pull/206)) — sección "Estado" pasa de "Sprint C0" a tracker general C0-C5+. Links al runbook de feature flags, ADR-0013, los 4 audits K.4. `NEXT_PUBLIC_API_URL` default muestra `api.qavante.com` (no fly.dev).
+- **`.gitignore`** ([#204](https://github.com/fperezd/qavante-web/pull/204)) — ignora brand assets binarios (`Logo Qavante.png`, `Manual_de_Marca_Qavante.pdf`, `Qavante_assets/`) que aparecían como untracked persistentes.
+
+#### Closed (issues)
+
+- [#194](https://github.com/fperezd/qavante-web/issues/194) — `qavante_session=demo-2026-05-13` (falso positivo, cache stale del browser). Backend actual emite JWTs correctos. Lección: si reaparece el síntoma, clear cookies de `.qavante.com` primero.
+
+#### Sesión autónoma 2026-05-27 23:00 → 2026-05-28 ~04:00 (Chile)
+
+Fernando autorizó shipping low-risk nocturno con restricciones: docs, coverage no-auth, handoffs, memorias. Sin tocar auth/login/cookies. Sin invasión a `qavante-api`. Cada PR independiente con auto-merge si CI verde.
+
+Output autónomo: PRs #197/#198/#199/#200/#201/#202/#203/#204/#205/#206. Sin slips. Sin reverts.
+
 ### En curso (C1 prep — sin dependencias `qavante-api`)
 
 Ciclo autónomo 2026-05-13 → 2026-05-16 con autorización owner. Adelanta el frontend de tickets que dependen de backend bloqueado, todos mockeados con MSW (ver ADR-0005). Incluye cierre del Design System (Storybook + Chromatic), audit K.4 del ciclo, runbooks de handoff cross-agente y formalización del Addendum Frontend v2.0.
