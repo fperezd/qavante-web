@@ -46,3 +46,4 @@ PR del ADR puede ir solo (decisión sin código) o acoplado al PR del cambio que
 | [0010](./0010-selectores-sin-libreria-combobox.md)           | Selectores de clasificación sin librería combobox (dependency-free)   | Proposed              | 2026-05-16 |
 | [0011](./0011-patron-dialogs-editores-admin.md)              | Patrón estándar de dialogs editores admin (Base UI + RHF + zod, lazy) | Accepted              | 2026-05-23 |
 | [0012](./0012-flags-prod-override-env-vars.md)               | Override de feature flags en prod vía Cloudflare Workers env vars     | Accepted              | 2026-05-24 |
+| [0013](./0013-treasury-reports-mvp-honest-no-invention.md)   | Treasury reports MVP — exponer crudo del backend, no inventar lógica  | Accepted              | 2026-05-28 |
