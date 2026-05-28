@@ -23,34 +23,43 @@
 
 ---
 
-## Brecha 0 — Auth method del endpoint (BLOQUEANTE, descubierta 2026-05-28)
+## Brecha 0 — Auth method del backend completo (BLOQUEANTE P0, escalado 2026-05-28)
 
-### Por qué
+### Por qué (scope verificado)
 
-Al activar el flag en prod y abrir `/caja/proyeccion`, el FE recibe **401 `{"detail":"Falta X-Api-Key."}`** desde `GET /api/treasury/reports/cash-flow`. El mismo browser/session funciona perfectamente contra `/api/me` (200 con user/tenant). Diagnóstico completo en [issue qavante-web#209](https://github.com/fperezd/qavante-web/issues/209).
+Al activar el flag en prod y abrir `/caja/proyeccion`, el FE recibe **401 `{"detail":"Falta X-Api-Key."}`** desde `GET /api/treasury/reports/cash-flow`. El mismo browser/session funciona perfectamente contra `/api/me` (200 con user/tenant).
 
-El `security` del OpenAPI del endpoint declara solo `APIKeyHeader`:
+**Auditoría del OpenAPI completo confirmó que el bug es sistémico, no de un endpoint individual**:
 
-```yaml
-/api/treasury/reports/cash-flow:
-  get:
-    security:
-      - APIKeyHeader: []
-```
+- **113 endpoints** declaran `security: [{ APIKeyHeader: [] }]` (solo aceptan X-Api-Key)
+- **12 endpoints** no declaran `security` (cookie por default de FastAPI o públicos): `/api/auth/{login,logout,refresh,accept-invitation}`, `/api/me`, `/api/users{,/me/permissions,/{user_id}}`, `/api/status`, `/health{,-lite}`
+- **0 endpoints** aceptan `CookieAuth` explícita
 
-Eso es modelo de auth para integraciones máquina-a-máquina (API key como header). El FE web auténtica con cookie HttpOnly según ADR-0003. **Mismatch de auth → 401 sistemático**.
+Verificado con `curl` directo a `https://api.qavante.com/api/treasury/canonical-categories` (Sprint C1) y `/api/treasury/reports/cash-flow` (Sprint C3): ambos responden idéntico `401 {"detail":"Falta X-Api-Key."}`.
 
-### Fix requerido
+Diagnóstico FE completo en [issue qavante-web#209](https://github.com/fperezd/qavante-web/issues/209).
 
-Que el endpoint acepte cookie session como mecanismo de auth, sea reemplazando `APIKeyHeader` o sumándolo como segundo `security`:
+### Implicaciones
 
-```yaml
-security:
-  - CookieAuth: []
-  - APIKeyHeader: [] # opcional, para integraciones externas
-```
+**TODAS las pantallas del FE que consumen el backend están bloqueadas en prod real** salvo las que dependen exclusivamente de los 12 endpoints sin `security` declarado (login, refresh, me, users CRUD). Esto incluye:
 
-Probablemente aplica al **tag `treasury-reports`** completo (en futuro pueden agregarse más endpoints bajo ese tag — todos deberían soportar cookie auth para que el FE pueda consumirlos directo).
+- **Sprint C1 (SII)** — F29, Libros de Compras/Ventas, BHE: bloqueados.
+- **Sprint C2 (management mutations)** — accounts, dimensions, values, assignments: bloqueados.
+- **Sprint C3 (cash-flow)** — `/caja/proyeccion`: bloqueado.
+- **Sprint C2 data layer** — canonical-categories, classification-rules, bank-movements: bloqueados.
+- **Sprint C1 prep (credenciales SII)** — `/api/admin/sources/*`, `/api/admin/certificates`: bloqueados.
+
+El testing previo de C1/C2 funcionó contra MSW (los handlers locales no respetan `security` del OpenAPI). El smoke E2E gated del PR #195, todavía sin activar (faltan secrets de smoke), hubiera detectado este bug en CI antes de prod.
+
+### Fix requerido (qavante-api)
+
+El backend debe aceptar **cookie session** como mecanismo de auth de aplicación web. Tres opciones para CC-API:
+
+1. **Agregar `CookieAuth` al `security` global del OpenAPI** (FastAPI puede declararlo en `app.include_router`). Todos los endpoints lo heredan; los que necesitan API key explícita lo agregan adicional. Más limpio.
+2. **Reemplazar `APIKeyHeader` por `CookieAuth`** en los 113 endpoints, dejando API key para una capa de integraciones futura (no Fase 1).
+3. **Aceptar ambos**: declarar `security: [{CookieAuth: []}, {APIKeyHeader: []}]` en cada endpoint (semánticamente "OR" en OpenAPI).
+
+CC-WEB recomienda opción 1 o 3. Lo importante es que el cookie session valga como auth en TODOS los endpoints que el FE consume.
 
 ### CC-WEB NO puede arreglarlo desde el FE
 
