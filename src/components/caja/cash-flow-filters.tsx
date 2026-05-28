@@ -8,6 +8,7 @@ import type {
   CashFlowGranularity,
   CashFlowReportParams,
 } from "@/lib/api/treasury-reports";
+import { isValidPeriod, isValidPeriodRange } from "./cash-flow-format";
 
 /* Controles de filtros del cash-flow report.
    - Periodo from/to (YYYY-MM)
@@ -40,8 +41,6 @@ export interface CashFlowFiltersProps {
   loading?: boolean;
 }
 
-const PERIOD_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
-
 export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersProps) {
   const [draft, setDraft] = React.useState<CashFlowReportParams>(value);
 
@@ -50,9 +49,9 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
     setDraft(value);
   }, [value]);
 
-  const fromValid = PERIOD_REGEX.test(draft.period_from);
-  const toValid = PERIOD_REGEX.test(draft.period_to);
-  const rangeValid = fromValid && toValid && draft.period_from <= draft.period_to;
+  const fromValid = isValidPeriod(draft.period_from);
+  const toValid = isValidPeriod(draft.period_to);
+  const rangeValid = isValidPeriodRange(draft.period_from, draft.period_to);
   const dirty =
     draft.period_from !== value.period_from ||
     draft.period_to !== value.period_to ||
