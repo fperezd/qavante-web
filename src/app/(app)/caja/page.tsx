@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Banknote, CheckCircle2, Inbox } from "lucide-react";
+import { Banknote, CheckCircle2, Inbox, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   FeatureUnavailableState,
@@ -9,13 +9,14 @@ import {
 } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
-/* Landing del módulo Caja. El módulo completo (caja proyectada 13
-   semanas, brecha vs caja mínima, columnas obligatorias, acciones
-   recomendadas) llega en Sprint C3. Mientras tanto, este screen muestra
-   las sub-secciones ya disponibles del Sprint C2: clasificación de
-   movimientos bancarios — antes del empty state del módulo. */
+/* Landing del módulo Caja. Sprint C3 MVP cableó `/caja/proyeccion` con el
+   reporte agregado de `/api/treasury/reports/cash-flow` — si el flag
+   cashFlowReport está ON, mostramos un CTA card hacia esa pantalla. Si
+   no, mantenemos el empty informativo "construcción en Sprint C3". Brecha
+   vs caja mínima + acciones recomendadas quedan para wave 2 cuando el
+   backend exponga los contratos. */
 export default function CajaPage() {
-  const { bankMovementClassification } = resolveFeatureFlags();
+  const { bankMovementClassification, cashFlowReport } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -52,11 +53,29 @@ export default function CajaPage() {
         <FeatureUnavailableState />
       )}
 
-      <QavanteEmpty
-        icon={Banknote}
-        title="Caja proyectada — construcción en Sprint C3"
-        description="Acá vas a ver tu flujo de caja a 13 semanas, brecha vs caja mínima, columnas obligatorias (cobros, pagos, sueldos, impuestos, deuda) y acciones recomendadas. Disponible al cerrar Sprint C3."
-      />
+      {cashFlowReport ? (
+        <section aria-labelledby="proyeccion-section" className="space-y-3">
+          <h2 id="proyeccion-section" className="text-base font-semibold text-neutral-dark">
+            Caja proyectada
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <CajaSubCard
+              href="/caja/proyeccion"
+              icon={TrendingUp}
+              title="Reporte de caja"
+              description="Entradas y salidas agregadas por período. Default ≈13 semanas con granularidad semanal sobre la capa comprometida."
+              badge="Sprint C3 MVP"
+              badgeVariant="success"
+            />
+          </div>
+        </section>
+      ) : (
+        <QavanteEmpty
+          icon={Banknote}
+          title="Caja proyectada — construcción en Sprint C3"
+          description="Acá vas a ver tu flujo de caja, brecha vs caja mínima, columnas obligatorias (cobros, pagos, sueldos, impuestos, deuda) y acciones recomendadas. Disponible al cerrar Sprint C3."
+        />
+      )}
     </div>
   );
 }
