@@ -54,7 +54,11 @@ export const treasuryReportsKeys = {
     [...treasuryReportsKeys.all, "cash-flow", params] as const,
 };
 
-function buildCashFlowQuery(p: CashFlowReportParams): string {
+/** Construye el query string para GET /api/treasury/reports/cash-flow.
+    Exportado para testing — el orden no es semánticamente significativo,
+    pero estabilizamos el shape para que el query key + caché de
+    react-query sean predecibles. */
+export function buildCashFlowQuery(p: CashFlowReportParams): string {
   const s = new URLSearchParams();
   s.set("period_from", p.period_from);
   s.set("period_to", p.period_to);
