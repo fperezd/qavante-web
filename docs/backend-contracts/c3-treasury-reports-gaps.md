@@ -23,6 +23,51 @@
 
 ---
 
+## Brecha 0 — Auth method del endpoint (BLOQUEANTE, descubierta 2026-05-28)
+
+### Por qué
+
+Al activar el flag en prod y abrir `/caja/proyeccion`, el FE recibe **401 `{"detail":"Falta X-Api-Key."}`** desde `GET /api/treasury/reports/cash-flow`. El mismo browser/session funciona perfectamente contra `/api/me` (200 con user/tenant). Diagnóstico completo en [issue qavante-web#209](https://github.com/fperezd/qavante-web/issues/209).
+
+El `security` del OpenAPI del endpoint declara solo `APIKeyHeader`:
+
+```yaml
+/api/treasury/reports/cash-flow:
+  get:
+    security:
+      - APIKeyHeader: []
+```
+
+Eso es modelo de auth para integraciones máquina-a-máquina (API key como header). El FE web auténtica con cookie HttpOnly según ADR-0003. **Mismatch de auth → 401 sistemático**.
+
+### Fix requerido
+
+Que el endpoint acepte cookie session como mecanismo de auth, sea reemplazando `APIKeyHeader` o sumándolo como segundo `security`:
+
+```yaml
+security:
+  - CookieAuth: []
+  - APIKeyHeader: [] # opcional, para integraciones externas
+```
+
+Probablemente aplica al **tag `treasury-reports`** completo (en futuro pueden agregarse más endpoints bajo ese tag — todos deberían soportar cookie auth para que el FE pueda consumirlos directo).
+
+### CC-WEB NO puede arreglarlo desde el FE
+
+1. **API keys son secrets de servidor**. Inyectarlos desde JS los expone al usuario (DevTools, network log) — vulnerabilidad crítica.
+2. **Contradice ADR-0003**: cookies HttpOnly Secure para usuarios web.
+3. Un BFF en Cloudflare Workers que reescriba auth sería over-engineering por una decisión que ya está tomada (cookie auth).
+
+### Mitigación temporal en prod
+
+Mientras CC-API no resuelva: `NEXT_PUBLIC_FF_CASH_FLOW_REPORT=false` (o quitar la var) en Cloudflare Workers. La pantalla cae al `FeatureUnavailableState`.
+
+### Impacto FE post-fix
+
+Cero. PR #196 cableó la pantalla correctamente contra el contrato OpenAPI vigente. Tests siguen verdes. Solo regenerar `types.ts` con `npm run generate:api` si CC-API hizo otros cambios al shape de la response al pasar el fix.
+
+---
+
 ## Brechas para completar la promesa de Sprint C3
 
 El doc maestro v2.6.4 §11 dice que `/caja` al cerrar C3 debe mostrar:
