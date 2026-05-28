@@ -49,9 +49,9 @@ El mapping vive en `FLAG_GATING_ENDPOINT` en `src/lib/feature-flags.ts` — actu
 
 ## Desactivar (kill-switch)
 
-Mismo procedimiento, valor `false`. Útil si una feature en prod tiene problemas y querés ocultarla rápido sin esperar al motor de `/api/management/config` (que aún no existe — ver ADR-0008).
+Mismo procedimiento, valor `false`. Útil si una feature en prod tiene problemas y quieres ocultarla rápido sin esperar al motor de `/api/management/config` (que aún no existe — ver ADR-0008).
 
-También podés **borrar la variable** completamente: el código cae al default `false` igual.
+También puedes **borrar la variable** completamente: el código cae al default `false` igual.
 
 ## Activar en local (dev)
 
@@ -65,7 +65,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3000
 
 `npm run dev` lee `.env.local` directamente. Sin redeploy necesario (Next.js dev server reinicia el HMR).
 
-Si activás un flag en dev pero el endpoint backend no existe en MSW (ver `src/test/msw/handlers.ts`), agregar handler primero o usar `NEXT_PUBLIC_API_MOCKING=disabled` para apuntar al backend real `https://api.qavante.com`.
+Si activas un flag en dev pero el endpoint backend no existe en MSW (ver `src/test/msw/handlers.ts`), agregar handler primero o usar `NEXT_PUBLIC_API_MOCKING=disabled` para apuntar al backend real `https://api.qavante.com`.
 
 ## Activar en Playwright (E2E)
 
@@ -86,7 +86,7 @@ webServer: {
 No hay endpoint dedicado para esto (todavía — eventualmente vendrá `/api/management/config`). Mientras tanto:
 
 - **Cloudflare Dashboard**: Workers & Pages → `qavante-web` → Settings → Variables and secrets. Las que aparezcan listadas son las que están seteadas.
-- **Manual desde el browser**: abrí `view-source:https://app.qavante.com/<ruta-gateada>`. Si ves la pantalla real → flag ON. Si ves "todavía no disponible" → flag OFF.
+- **Manual desde el browser**: abre `view-source:https://app.qavante.com/<ruta-gateada>`. Si ves la pantalla real → flag ON. Si ves "todavía no disponible" → flag OFF.
 
 ## Errores comunes
 
@@ -102,11 +102,11 @@ No hay endpoint dedicado para esto (todavía — eventualmente vendrá `/api/man
 
 Si construyes una pantalla nueva que depende de un endpoint backend que recién va a deployarse o que es opcional:
 
-1. Agregá la string al array `FEATURE_FLAGS` en `src/lib/feature-flags.ts`.
-2. Agregá una entry en `FLAG_GATING_ENDPOINT` con el path del endpoint.
-3. Actualizá el test count (`los N flags`) en `feature-flags.test.ts`.
-4. Gateá la pantalla con `resolveFeatureFlags().myNewFlag ? <RealView /> : <FeatureUnavailableState />`.
-5. Agregá una fila a la tabla de mapping arriba en este runbook.
+1. Agrega la string al array `FEATURE_FLAGS` en `src/lib/feature-flags.ts`.
+2. Agrega una entry en `FLAG_GATING_ENDPOINT` con el path del endpoint.
+3. Actualiza el test count (`los N flags`) en `feature-flags.test.ts`.
+4. Gatea la pantalla con `resolveFeatureFlags().myNewFlag ? <RealView /> : <FeatureUnavailableState />`.
+5. Agrega una fila a la tabla de mapping arriba en este runbook.
 
 NO actives el flag por default. Default OFF es seguro (ADR-0008).
 
