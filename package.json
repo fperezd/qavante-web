@@ -14,7 +14,7 @@
     "test:storybook": "vitest run --project storybook",
     "e2e": "playwright test",
     "smoke": "playwright test --config=playwright.smoke.config.ts",
-    "generate:api": "openapi-typescript https://tooxs-gestion-api.fly.dev/openapi.json -o src/lib/api/types.ts",
+    "generate:api": "openapi-typescript https://api.qavante.com/openapi.json -o src/lib/api/types.ts",
     "build:cloudflare": "opennextjs-cloudflare build",
     "size:check": "node scripts/check-bundle-size.mjs",
     "lighthouse": "lhci autorun",
