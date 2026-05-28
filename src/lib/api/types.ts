@@ -871,7 +871,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lista movimientos bancarios del tenant (filtrado + paginado)
+         * (DEPRECATED — usar /api/treasury/bank-movements) Lista movimientos bancarios
+         * @deprecated
          * @description Devuelve los movimientos del tenant que matchean el filtro.
          *
          *     `status=unclassified` es el caso default de la pantalla (los que
@@ -901,7 +902,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Clasifica (o reclasifica) un movimiento — registra audit before/after
+         * (DEPRECATED — usar /api/treasury/bank-movements/{id}/classify) Clasifica un movimiento
+         * @deprecated
          * @description Asigna una cuenta de gestión al movimiento (clasificar) o cambia la
          *     existente (reclasificar). El raw data del banco NUNCA se toca
          *     (invariante Anexo I.2.3). Toda reclasificación queda en
@@ -920,11 +922,80 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Sugiere (sin persistir) una regla derivada del movimiento (§18.7)
+         * (DEPRECATED — usar /api/treasury/bank-movements/{id}/suggest-rule) Sugiere regla
+         * @deprecated
          * @description Read-only: propone una regla `description contains <glosa>` a partir
          *     del movimiento. No escribe (el usuario la crea luego vía POST rules).
          */
         post: operations["bank_movements_suggest_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/bank-movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista movimientos bancarios del tenant (filtrado + paginado)
+         * @description Devuelve los movimientos del tenant que matchean el filtro.
+         *
+         *     `status=unclassified` es el caso default de la pantalla (los que
+         *     afectan el Índice de Confianza). El `total` permite al frontend
+         *     pintar la paginación sin un segundo request.
+         */
+        get: operations["treasury_bank_movements_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/bank-movements/{movement_id}/classify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Clasifica (o reclasifica) un movimiento — registra audit before/after
+         * @description Asigna una cuenta de gestión al movimiento (clasificar) o cambia la
+         *     existente (reclasificar). El raw data del banco NUNCA se toca
+         *     (invariante Anexo I.2.3). Toda reclasificación queda en
+         *     `audit.audit_events` con before/after.
+         */
+        patch: operations["treasury_bank_movements_classify"];
+        trace?: never;
+    };
+    "/api/treasury/bank-movements/{movement_id}/suggest-rule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sugiere (sin persistir) una regla derivada del movimiento (§18.7)
+         * @description Read-only: propone una regla `description contains <glosa>` a partir
+         *     del movimiento. No escribe (el usuario la crea luego vía POST rules).
+         */
+        post: operations["treasury_bank_movements_suggest_rule"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1276,6 +1347,147 @@ export interface paths {
         head?: never;
         /** Edita campos mutables de un financial_impact */
         patch: operations["financial_impacts_patch"];
+        trace?: never;
+    };
+    "/api/planning/financial-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista financial_versions del tenant */
+        get: operations["financial_versions_list"];
+        put?: never;
+        /** Crea un financial_version */
+        post: operations["financial_versions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planning/financial-versions/{version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obtiene un financial_version por id */
+        get: operations["financial_versions_get"];
+        put?: never;
+        post?: never;
+        /** Soft-archive (SET status='archived'); falla 409 si tiene impacts vivos */
+        delete: operations["financial_versions_delete"];
+        options?: never;
+        head?: never;
+        /** Edita campos mutables de un financial_version */
+        patch: operations["financial_versions_patch"];
+        trace?: never;
+    };
+    "/api/planning/scenarios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista scenarios del tenant */
+        get: operations["scenarios_list"];
+        put?: never;
+        /** Crea un scenario */
+        post: operations["scenarios_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planning/scenarios/{scenario_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Obtiene un scenario por id */
+        get: operations["scenarios_get"];
+        put?: never;
+        post?: never;
+        /** HARD-delete (CASCADE arrastra scenario_assumptions) */
+        delete: operations["scenarios_delete"];
+        options?: never;
+        head?: never;
+        /** Edita campos mutables de un scenario */
+        patch: operations["scenarios_patch"];
+        trace?: never;
+    };
+    "/api/planning/scenarios/{scenario_id}/assumptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista assumptions de un scenario */
+        get: operations["scenario_assumptions_list"];
+        put?: never;
+        /** Crea un scenario_assumption */
+        post: operations["scenario_assumptions_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planning/scenario-assumptions/{assumption_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** HARD-delete de scenario_assumption */
+        delete: operations["scenario_assumptions_delete"];
+        options?: never;
+        head?: never;
+        /** Edita campos mutables de un scenario_assumption */
+        patch: operations["scenario_assumptions_patch"];
+        trace?: never;
+    };
+    "/api/treasury/reports/cash-flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reporte cash flow agregado por período + agrupación opcional
+         * @description Genera el reporte cash flow para el rango/filtros del request.
+         *
+         *     Source: `planning.financial_impacts` con `financial_model='cash_flow'`.
+         *     Sin escrituras. Sin caching (query directa; ADR-0019 si necesita
+         *     materialized view).
+         *
+         *     Errores 422:
+         *       - period_from > period_to.
+         *       - currency=original sin currency_code.
+         *       - granularity=week con rango > 12 meses.
+         *       - granularity=day con rango > 3 meses.
+         *       - period_* mal formado (no YYYY-MM).
+         */
+        get: operations["treasury_reports_cash_flow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/admin/audit-log": {
@@ -1759,6 +1971,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Api Keys */
+        get: operations["admin_api_keys_list"];
+        put?: never;
+        /** Create Api Key */
+        post: operations["admin_api_keys_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/api-keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Api Key */
+        delete: operations["admin_api_keys_revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/management/dimensions": {
         parameters: {
             query?: never;
@@ -2089,6 +2336,62 @@ export interface components {
             count: number;
         } & {
             [key: string]: unknown;
+        };
+        /** ApiKeyCreateRequest */
+        ApiKeyCreateRequest: {
+            /** Name */
+            name: string;
+            /**
+             * Role Code
+             * @description Uno de: accountant, admin, external_advisor, finance_manager, owner, technical_admin, viewer
+             */
+            role_code: string;
+        };
+        /** ApiKeyCreateResponse */
+        ApiKeyCreateResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Role Code */
+            role_code: string;
+            /** Key Prefix */
+            key_prefix: string;
+            /**
+             * Key
+             * @description Key entera — se devuelve UNA VEZ. No se vuelve a mostrar.
+             */
+            key: string;
+            /** Created At */
+            created_at: string;
+        };
+        /** ApiKeyListItem */
+        ApiKeyListItem: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Role Code */
+            role_code: string;
+            /** Key Prefix */
+            key_prefix: string;
+            /** Created At */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+        };
+        /** ApiKeyListResponse */
+        ApiKeyListResponse: {
+            /** Items */
+            items: components["schemas"]["ApiKeyListItem"][];
         };
         /**
          * ApplyTemplateRequest
@@ -2591,6 +2894,141 @@ export interface components {
             error?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * CashFlowBucket
+         * @description Un punto temporal del reporte (mes / semana / día).
+         */
+        CashFlowBucket: {
+            /**
+             * Period
+             * @description YYYY-MM o YYYY-MM-DD según granularity.
+             */
+            period: string;
+            /** Groups */
+            groups?: components["schemas"]["CashFlowGroup"][];
+            /**
+             * Total Inflow
+             * @default 0
+             */
+            total_inflow: string;
+            /**
+             * Total Outflow
+             * @default 0
+             */
+            total_outflow: string;
+            /**
+             * Net
+             * @default 0
+             */
+            net: string;
+            /**
+             * Row Count
+             * @default 0
+             */
+            row_count: number;
+        };
+        /** CashFlowGrandTotal */
+        CashFlowGrandTotal: {
+            /**
+             * Inflow
+             * @default 0
+             */
+            inflow: string;
+            /**
+             * Outflow
+             * @default 0
+             */
+            outflow: string;
+            /**
+             * Net
+             * @default 0
+             */
+            net: string;
+            /**
+             * Row Count
+             * @default 0
+             */
+            row_count: number;
+        };
+        /**
+         * CashFlowGroup
+         * @description Una agrupación dentro de un bucket temporal.
+         */
+        CashFlowGroup: {
+            /**
+             * Key
+             * @description Valor de canonical_category o management_account_id.
+             */
+            key: string;
+            /**
+             * Label
+             * @description Display label (Spanish) si aplica. NULL si group_by=none.
+             */
+            label?: string | null;
+            /**
+             * Inflow
+             * @default 0
+             */
+            inflow: string;
+            /**
+             * Outflow
+             * @default 0
+             */
+            outflow: string;
+            /**
+             * Net
+             * @default 0
+             */
+            net: string;
+            /**
+             * Row Count
+             * @default 0
+             */
+            row_count: number;
+        };
+        /**
+         * CashFlowReportResponse
+         * @description Respuesta del endpoint GET /api/treasury/reports/cash-flow.
+         */
+        CashFlowReportResponse: {
+            /** Period From */
+            period_from: string;
+            /** Period To */
+            period_to: string;
+            /**
+             * Granularity
+             * @enum {string}
+             */
+            granularity: "month" | "week" | "day";
+            /**
+             * Financial Layer
+             * @enum {string}
+             */
+            financial_layer: "committed" | "budget" | "forecast" | "scenario" | "manual_simulation" | "ai_projection";
+            /**
+             * Group By
+             * @enum {string}
+             */
+            group_by: "none" | "canonical_category" | "management_account";
+            /**
+             * Currency
+             * @enum {string}
+             */
+            currency: "functional" | "original";
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Buckets */
+            buckets?: components["schemas"]["CashFlowBucket"][];
+            grand_total?: components["schemas"]["CashFlowGrandTotal"];
+            /**
+             * Excluded Attention
+             * @description Filas omitidas por data_status='requires_attention' cuando include_attention=false.
+             * @default 0
+             */
+            excluded_attention: number;
+            /** Warnings */
+            warnings?: string[];
         };
         /** CertificadoErrorResponse */
         CertificadoErrorResponse: {
@@ -3869,12 +4307,12 @@ export interface components {
              * Financial Model
              * @enum {string}
              */
-            financial_model: "operational_income_statement" | "working_capital" | "debt" | "investment" | "tax" | "equity" | "data_quality";
+            financial_model: "cash_flow" | "operational_income_statement" | "working_capital" | "debt" | "investment" | "tax" | "equity" | "data_quality";
             /**
              * Impact Type
              * @enum {string}
              */
-            impact_type: "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment";
+            impact_type: "cash_in" | "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment";
             /**
              * Amount Original
              * @description Monto en la moneda original (NUMERIC(20,4)).
@@ -3975,12 +4413,12 @@ export interface components {
              * Financial Model
              * @enum {string}
              */
-            financial_model: "operational_income_statement" | "working_capital" | "debt" | "investment" | "tax" | "equity" | "data_quality";
+            financial_model: "cash_flow" | "operational_income_statement" | "working_capital" | "debt" | "investment" | "tax" | "equity" | "data_quality";
             /**
              * Impact Type
              * @enum {string}
              */
-            impact_type: "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment";
+            impact_type: "cash_in" | "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment";
             /**
              * Amount Original
              * @description Monto en la moneda original (NUMERIC(20,4)).
@@ -4049,11 +4487,11 @@ export interface components {
          */
         FinancialImpactPatch: {
             /** Financial Model */
-            financial_model?: ("operational_income_statement" | "working_capital" | "debt" | "investment" | "tax" | "equity" | "data_quality") | null;
+            financial_model?: ("cash_flow" | "operational_income_statement" | "working_capital" | "debt" | "investment" | "tax" | "equity" | "data_quality") | null;
             /** Financial Layer */
             financial_layer?: ("committed" | "budget" | "forecast" | "scenario" | "manual_simulation" | "ai_projection") | null;
             /** Impact Type */
-            impact_type?: ("cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment") | null;
+            impact_type?: ("cash_in" | "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment") | null;
             canonical_category?: components["schemas"]["CanonicalCategory"] | null;
             /** Management Account Id */
             management_account_id?: string | null;
@@ -4095,6 +4533,109 @@ export interface components {
         FinancialImpactsResponse: {
             /** Items */
             items: components["schemas"]["FinancialImpact"][];
+        };
+        /**
+         * FinancialVersion
+         * @description Response shape de `GET/POST/PATCH /api/planning/financial-versions*`.
+         */
+        FinancialVersion: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "budget" | "forecast" | "scenario" | "manual_simulation" | "ai_projection";
+            /** Year */
+            year?: number | null;
+            /** Month */
+            month?: number | null;
+            /**
+             * Status
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "active" | "approved" | "locked" | "archived";
+            /** Base Version Id */
+            base_version_id?: string | null;
+            /** Id */
+            id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Approved By */
+            approved_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Approved At */
+            approved_at?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * FinancialVersionCreate
+         * @description Body de `POST /api/planning/financial-versions`.
+         */
+        FinancialVersionCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "budget" | "forecast" | "scenario" | "manual_simulation" | "ai_projection";
+            /** Year */
+            year?: number | null;
+            /** Month */
+            month?: number | null;
+            /**
+             * Status
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "active" | "approved" | "locked" | "archived";
+            /** Base Version Id */
+            base_version_id?: string | null;
+        };
+        /**
+         * FinancialVersionPatch
+         * @description Body de `PATCH /api/planning/financial-versions/{id}`.
+         *
+         *     NO mutables: id, tenant_id, created_at, created_by. Resto sí incluyendo
+         *     approved_by / approved_at (que el service mantiene coherentes con status).
+         */
+        FinancialVersionPatch: {
+            /** Name */
+            name?: string | null;
+            /** Type */
+            type?: ("budget" | "forecast" | "scenario" | "manual_simulation" | "ai_projection") | null;
+            /** Year */
+            year?: number | null;
+            /** Month */
+            month?: number | null;
+            /** Status */
+            status?: ("draft" | "active" | "approved" | "locked" | "archived") | null;
+            /** Base Version Id */
+            base_version_id?: string | null;
+            /** Approved By */
+            approved_by?: string | null;
+            /** Approved At */
+            approved_at?: string | null;
+        };
+        /**
+         * FinancialVersionsResponse
+         * @description Wrapper para `GET /api/planning/financial-versions` (lista).
+         */
+        FinancialVersionsResponse: {
+            /** Items */
+            items: components["schemas"]["FinancialVersion"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -4731,7 +5272,7 @@ export interface components {
         MovimientoDeuda: {
             /**
              * Rut Contribuyente
-             * @description RUT del contribuyente con DV (ej. '76454786-1')
+             * @description RUT del contribuyente con DV (ej. '12.345.678-9')
              */
             rut_contribuyente?: string | null;
             /**
@@ -5039,6 +5580,187 @@ export interface components {
             cuentas?: components["schemas"]["CuentaSaldo"][];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * Scenario
+         * @description Response shape de `GET/POST/PATCH /api/planning/scenarios*`.
+         */
+        Scenario: {
+            /** Name */
+            name: string;
+            /**
+             * Scenario Type
+             * @enum {string}
+             */
+            scenario_type: "base" | "optimistic" | "conservative" | "cash_stress" | "growth" | "cost_reduction" | "investment" | "financing" | "fx_high" | "uf_high" | "collection_delay" | "customer_loss" | "new_project" | "new_branch" | "custom";
+            /** Base Version Id */
+            base_version_id?: string | null;
+            /**
+             * Status
+             * @default draft
+             */
+            status: string;
+            /** Id */
+            id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Created By */
+            created_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ScenarioAssumption
+         * @description Response shape — incluye scenario_id (no en Create body, viene del path).
+         */
+        ScenarioAssumption: {
+            /** Name */
+            name: string;
+            /**
+             * Assumption Type
+             * @description Dominio TEXT abierto v1 — sugeridos: absolute_amount, percent_change, multiplier, rate_override, volume_change, fx_override, custom.
+             */
+            assumption_type: string;
+            /** Value Number */
+            value_number?: string | null;
+            /** Value Percent */
+            value_percent?: string | null;
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /** Applies To Management Account Id */
+            applies_to_management_account_id?: string | null;
+            /** Applies To Dimension Id */
+            applies_to_dimension_id?: string | null;
+            /** Applies To Dimension Value Id */
+            applies_to_dimension_value_id?: string | null;
+            /** Id */
+            id: string;
+            /** Tenant Id */
+            tenant_id: string;
+            /** Scenario Id */
+            scenario_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ScenarioAssumptionCreate
+         * @description Body de `POST /api/planning/scenarios/{scenario_id}/assumptions`.
+         */
+        ScenarioAssumptionCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Assumption Type
+             * @description Dominio TEXT abierto v1 — sugeridos: absolute_amount, percent_change, multiplier, rate_override, volume_change, fx_override, custom.
+             */
+            assumption_type: string;
+            /** Value Number */
+            value_number?: number | string | null;
+            /** Value Percent */
+            value_percent?: number | string | null;
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /** Applies To Management Account Id */
+            applies_to_management_account_id?: string | null;
+            /** Applies To Dimension Id */
+            applies_to_dimension_id?: string | null;
+            /** Applies To Dimension Value Id */
+            applies_to_dimension_value_id?: string | null;
+        };
+        /**
+         * ScenarioAssumptionPatch
+         * @description Body de `PATCH /api/planning/scenario-assumptions/{id}`.
+         */
+        ScenarioAssumptionPatch: {
+            /** Name */
+            name?: string | null;
+            /** Assumption Type */
+            assumption_type?: string | null;
+            /** Value Number */
+            value_number?: number | string | null;
+            /** Value Percent */
+            value_percent?: number | string | null;
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Start Date */
+            start_date?: string | null;
+            /** End Date */
+            end_date?: string | null;
+            /** Applies To Management Account Id */
+            applies_to_management_account_id?: string | null;
+            /** Applies To Dimension Id */
+            applies_to_dimension_id?: string | null;
+            /** Applies To Dimension Value Id */
+            applies_to_dimension_value_id?: string | null;
+        };
+        /**
+         * ScenarioAssumptionsResponse
+         * @description Wrapper para `GET /api/planning/scenarios/{id}/assumptions` (lista).
+         */
+        ScenarioAssumptionsResponse: {
+            /** Items */
+            items: components["schemas"]["ScenarioAssumption"][];
+        };
+        /**
+         * ScenarioCreate
+         * @description Body de `POST /api/planning/scenarios`.
+         */
+        ScenarioCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Scenario Type
+             * @enum {string}
+             */
+            scenario_type: "base" | "optimistic" | "conservative" | "cash_stress" | "growth" | "cost_reduction" | "investment" | "financing" | "fx_high" | "uf_high" | "collection_delay" | "customer_loss" | "new_project" | "new_branch" | "custom";
+            /** Base Version Id */
+            base_version_id?: string | null;
+            /**
+             * Status
+             * @default draft
+             */
+            status: string;
+        };
+        /**
+         * ScenarioPatch
+         * @description Body de `PATCH /api/planning/scenarios/{id}`.
+         */
+        ScenarioPatch: {
+            /** Name */
+            name?: string | null;
+            /** Scenario Type */
+            scenario_type?: ("base" | "optimistic" | "conservative" | "cash_stress" | "growth" | "cost_reduction" | "investment" | "financing" | "fx_high" | "uf_high" | "collection_delay" | "customer_loss" | "new_project" | "new_branch" | "custom") | null;
+            /** Base Version Id */
+            base_version_id?: string | null;
+            /** Status */
+            status?: string | null;
+        };
+        /**
+         * ScenariosResponse
+         * @description Wrapper para `GET /api/planning/scenarios` (lista).
+         */
+        ScenariosResponse: {
+            /** Items */
+            items: components["schemas"]["Scenario"][];
         };
         /**
          * SessionUser
@@ -7078,6 +7800,122 @@ export interface operations {
             };
         };
     };
+    treasury_bank_movements_list: {
+        parameters: {
+            query?: {
+                /** @description Filtro de clasificación: 'unclassified' | 'classified'. Omitir = todos. */
+                status?: string | null;
+                /** @description Período YYYY-MM (filtra por mes calendario del movimiento). */
+                period?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de movimientos + total sin paginar. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankMovementsListResponse"];
+                };
+            };
+            /** @description `period` mal formado (usar YYYY-MM). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_bank_movements_classify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID del movimiento a clasificar. */
+                movement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassifyMovementRequest"];
+            };
+        };
+        responses: {
+            /** @description Movimiento clasificado. Reclasificación queda auditada. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankMovement"];
+                };
+            };
+            /** @description Movimiento o cuenta de gestión no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Body inválido (management_account_id requerido). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_bank_movements_suggest_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID del movimiento. */
+                movement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Movimiento no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     bank_ingest_bice_list_accounts: {
         parameters: {
             query?: never;
@@ -7856,6 +8694,669 @@ export interface operations {
                 content?: never;
             };
             /** @description Dominio inválido (CHECK / FK). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    financial_versions_list: {
+        parameters: {
+            query?: {
+                type?: string | null;
+                status?: string | null;
+                year?: number | null;
+                month?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialVersionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    financial_versions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinancialVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialVersion"];
+                };
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description name duplicado en el tenant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CHECK / FK violation. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    financial_versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialVersion"];
+                };
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    financial_versions_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tiene financial_impacts vivos apuntando — no archivable. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    financial_versions_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FinancialVersionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialVersion"];
+                };
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description name duplicado. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CHECK / FK violation. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    scenarios_list: {
+        parameters: {
+            query?: {
+                scenario_type?: string | null;
+                status?: string | null;
+                base_version_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenariosResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scenarios_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScenarioCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"];
+                };
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description name duplicado en el tenant. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CHECK / FK violation. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    scenarios_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scenario_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"];
+                };
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scenarios_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scenario_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scenarios_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scenario_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScenarioPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Scenario"];
+                };
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description name duplicado. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CHECK / FK violation. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    scenario_assumptions_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                scenario_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenarioAssumptionsResponse"];
+                };
+            };
+            /** @description Scenario no existe. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scenario_assumptions_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scenario_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScenarioAssumptionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenarioAssumption"];
+                };
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scenario no existe. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CHECK / FK violation. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    scenario_assumptions_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assumption_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    scenario_assumptions_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assumption_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScenarioAssumptionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScenarioAssumption"];
+                };
+            };
+            /** @description Rol sin permiso (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe (o cross-tenant). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CHECK / FK violation. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_reports_cash_flow: {
+        parameters: {
+            query: {
+                /** @description Mes inicial YYYY-MM (inclusive). */
+                period_from: string;
+                /** @description Mes final YYYY-MM (inclusive). */
+                period_to: string;
+                /** @description month | week | day. */
+                granularity?: string;
+                /** @description Layer a reportar (6 valores Fase 1; default committed). */
+                financial_layer?: string;
+                /** @description none | canonical_category | management_account. */
+                group_by?: string;
+                /** @description Filtra por management_account_id. */
+                account_id?: string | null;
+                /** @description functional | original. */
+                currency?: string;
+                /** @description Required si currency=original; 3 chars. */
+                currency_code?: string | null;
+                /** @description Filtra por scenario; NULL = sin scenario. */
+                scenario_id?: string | null;
+                /** @description Filtra por version; NULL = sin version. */
+                version_id?: string | null;
+                /** @description Si true, incluye rows con data_status='requires_attention'. */
+                include_attention?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Buckets temporales agregados + grand total. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashFlowReportResponse"];
+                };
+            };
+            /** @description Params inválidos (rango invertido, currency_code faltante, granularity con rango excesivo, period mal formado). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -8652,6 +10153,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TenantResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_api_keys_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyListResponse"];
+                };
+            };
+        };
+    };
+    admin_api_keys_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiKeyCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyCreateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_api_keys_revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
