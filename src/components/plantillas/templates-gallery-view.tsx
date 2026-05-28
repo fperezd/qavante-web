@@ -125,7 +125,7 @@ function PreviewBox({ preview }: { preview: ApplyTemplateResponse }) {
         </li>
       </ul>
       <p className="text-xs text-neutral-mid">
-        Esta es solo una vista previa — para aplicar, confirmá en el siguiente paso.
+        Esta es solo una vista previa — para aplicar, confirma en el siguiente paso.
       </p>
     </div>
   );

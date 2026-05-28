@@ -1,6 +1,6 @@
 /* Estado in-memory mutable de los handlers MSW. Sobrevive entre requests
    en un mismo proceso (browser dev session, vitest run). Para tests con
-   aislamiento, llamá resetDb() en beforeEach.
+   aislamiento, llama a resetDb() en beforeEach.
 
    El estado de credenciales SII (Opción A) vive ahora dentro de
    handlers.ts (sii_rcv credential + certificates collection), no acá. */
