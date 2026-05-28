@@ -84,7 +84,7 @@ Regla dura: **si un ADR existente contradice tu instinto, gana el ADR.** Si pens
 ## Cross-repo (`qavante-api` backend)
 
 - Si necesitás un endpoint que no existe en backend: **abrí issue en `qavante-api`** con shape esperado + permisos + ejemplo de request/response. **No** lo pidas directamente al agente de backend.
-- Si un endpoint nuevo en backend afecta el frontend: ANTES de implementar, correr `npm run generate:api` para regenerar `src/lib/api/types.ts`. Verificar contra `https://api.qavante.com/openapi.json` (o `tooxs-gestion-api.fly.dev` hasta que la migración del ADR-0003 esté completa).
+- Si un endpoint nuevo en backend afecta el frontend: ANTES de implementar, correr `npm run generate:api` para regenerar `src/lib/api/types.ts`. La URL canónica es `https://api.qavante.com/openapi.json` (ADR-0003 completo desde PR #193).
 - Contratos vivos en [docs/backend-contracts/](./docs/backend-contracts/) — actualizar en el mismo PR que el cambio cross-repo.
 
 ## MSW dev mode (mientras backend no responde)
