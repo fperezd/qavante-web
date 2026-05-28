@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FEATURE_FLAGS,
+  FLAG_GATING_ENDPOINT,
   type FeatureFlag,
   flagEnvVar,
   resolveFeatureFlag,
@@ -121,5 +122,62 @@ describe("resolveFeatureFlags", () => {
     const all = resolveFeatureFlags({ env: devEnv });
     expect(Object.keys(all).sort()).toEqual([...FEATURE_FLAGS].sort());
     expect(Object.values(all).every((v) => v === false)).toBe(true);
+  });
+});
+
+describe("consistencia interna FEATURE_FLAGS ↔ FLAG_GATING_ENDPOINT", () => {
+  /* Anti-regresión: si alguien agrega un flag al array pero olvida el
+     endpoint correspondiente (o viceversa), estos tests fallan. También
+     protege el runbook docs/operations/feature-flags-activation.md que
+     documenta el mapping para Fernando. */
+
+  it("cada flag de FEATURE_FLAGS tiene una entry en FLAG_GATING_ENDPOINT", () => {
+    for (const flag of FEATURE_FLAGS) {
+      expect(FLAG_GATING_ENDPOINT[flag]).toBeDefined();
+      expect(typeof FLAG_GATING_ENDPOINT[flag]).toBe("string");
+      expect(FLAG_GATING_ENDPOINT[flag].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("FLAG_GATING_ENDPOINT no tiene keys sobrantes (extras fuera de FEATURE_FLAGS)", () => {
+    const flagSet = new Set<string>(FEATURE_FLAGS);
+    for (const key of Object.keys(FLAG_GATING_ENDPOINT)) {
+      expect(flagSet.has(key)).toBe(true);
+    }
+  });
+
+  it("cada endpoint comienza con /api/ (path absoluto, sin host)", () => {
+    for (const flag of FEATURE_FLAGS) {
+      const endpoint = FLAG_GATING_ENDPOINT[flag];
+      expect(endpoint.startsWith("/api/")).toBe(true);
+    }
+  });
+
+  it("flagEnvVar produce strings con prefix NEXT_PUBLIC_FF_ y SCREAMING_SNAKE", () => {
+    for (const flag of FEATURE_FLAGS) {
+      const envVar = flagEnvVar(flag);
+      expect(envVar.startsWith("NEXT_PUBLIC_FF_")).toBe(true);
+      /* Sin minúsculas tras el prefix: SCREAMING_SNAKE estricto. */
+      expect(envVar).toBe(envVar.toUpperCase());
+      /* Solo letras, dígitos, underscores. */
+      expect(envVar).toMatch(/^NEXT_PUBLIC_FF_[A-Z0-9_]+$/);
+    }
+  });
+
+  it("FEATURE_FLAGS no tiene duplicados", () => {
+    const set = new Set(FEATURE_FLAGS);
+    expect(set.size).toBe(FEATURE_FLAGS.length);
+  });
+
+  it("flagEnvVar es 1-a-1 (no dos flags con la misma env var)", () => {
+    const envVars = FEATURE_FLAGS.map(flagEnvVar);
+    const set = new Set(envVars);
+    expect(set.size).toBe(envVars.length);
+  });
+
+  it("FLAG_GATING_ENDPOINT también es 1-a-1 (no dos flags con el mismo endpoint)", () => {
+    const endpoints = FEATURE_FLAGS.map((f) => FLAG_GATING_ENDPOINT[f]);
+    const set = new Set(endpoints);
+    expect(set.size).toBe(endpoints.length);
   });
 });
