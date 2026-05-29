@@ -5,6 +5,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { UserRole } from "@/lib/auth/types";
+import type { components } from "./types";
+
+/* `/api/me` — payload del usuario logueado. Source de verdad: schema
+   `MeResponse` del OpenAPI generado. Re-exportamos para que la UI no
+   tenga que conocer el namespace `components`. */
+export type MeResponse = components["schemas"]["MeResponse"];
+export type MeUser = components["schemas"]["MeUser"];
 
 export type UserStatus = "active" | "suspended" | "invited";
 
@@ -48,7 +55,10 @@ export interface UsersListParams {
 const usersKeys = {
   all: ["users"] as const,
   list: (params: UsersListParams) => [...usersKeys.all, "list", params] as const,
+  me: () => [...usersKeys.all, "me"] as const,
 };
+
+export { usersKeys };
 
 function buildListQuery(params: UsersListParams): string {
   const search = new URLSearchParams();
@@ -59,6 +69,23 @@ function buildListQuery(params: UsersListParams): string {
   if (params.status) search.set("status", params.status);
   const qs = search.toString();
   return qs ? `?${qs}` : "";
+}
+
+/** `GET /api/me` — datos del usuario logueado (cookie session). Uno de
+ *  los 12 endpoints sin `security` declarado, por lo que SÍ acepta cookie
+ *  auth del FE (ver Brecha 0 en docs/backend-contracts/c3-treasury-reports-gaps.md).
+ *  Util para mostrar saludo, role, tenant_id en pantallas que solo
+ *  necesitan info del usuario. */
+export function useMe() {
+  return useQuery({
+    queryKey: usersKeys.me(),
+    queryFn: () => api.get<MeResponse>("/api/me"),
+    /* 60s: el shape de /api/me cambia raramente (solo en cambio de role
+       o invalidación de sesión); 60s evita hits innecesarios y no
+       compromete frescura. */
+    staleTime: 60_000,
+    retry: false,
+  });
 }
 
 export function useUsers(params: UsersListParams = {}) {
