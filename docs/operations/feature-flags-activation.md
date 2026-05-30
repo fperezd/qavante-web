@@ -5,7 +5,7 @@
 
 ## Modelo mental — ADR-0008 + ADR-0012
 
-Hay 10 feature flags definidas en [`src/lib/feature-flags.ts`](../../src/lib/feature-flags.ts). Cada uno gobierna una sección del producto. **Todas tienen default `false` (la sección renderiza un estado "todavía no disponible" en lugar de UI mock).**
+Hay 11 feature flags definidas en [`src/lib/feature-flags.ts`](../../src/lib/feature-flags.ts). Cada uno gobierna una sección del producto. **Todas tienen default `false` (la sección renderiza un estado "todavía no disponible" en lugar de UI mock).**
 
 Activar un flag requiere setear una env var **explícita** en el entorno donde corre el FE. La env var sigue la convención `NEXT_PUBLIC_FF_<FLAG_SCREAMING_SNAKE>`.
 
@@ -25,6 +25,7 @@ Importante: `NEXT_PUBLIC_*` se **inlinea en build-time** por Next.js — no se l
 | `siiQueries`                 | `NEXT_PUBLIC_FF_SII_QUERIES`                  | `/api/sii/health`                            |
 | `cashFlowReport`             | `NEXT_PUBLIC_FF_CASH_FLOW_REPORT`             | `/api/treasury/reports/cash-flow`            |
 | `inicioMvp`                  | `NEXT_PUBLIC_FF_INICIO_MVP`                   | `/api/me`                                    |
+| `miCuenta`                   | `NEXT_PUBLIC_FF_MI_CUENTA`                    | POST `/api/auth/logout` (+ lee `/api/me`)    |
 
 El mapping vive en `FLAG_GATING_ENDPOINT` en `src/lib/feature-flags.ts` — actualizar acá cuando se agregue un flag nuevo.
 

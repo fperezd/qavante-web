@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Bell, ChevronDown, Menu, Search } from "lucide-react";
 import { QavanteBadge, QavanteLogo } from "@/components/qavante";
 
@@ -77,14 +78,14 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           />
         </button>
 
-        {/* Avatar perfil */}
-        <button
-          type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary text-xs font-semibold text-surface"
-          aria-label="Menú de perfil"
+        {/* Avatar perfil — enlaza a Mi cuenta (perfil + cerrar sesión) */}
+        <Link
+          href="/mi-cuenta"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary text-xs font-semibold text-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+          aria-label="Mi cuenta"
         >
           <span aria-hidden="true">FP</span>
-        </button>
+        </Link>
       </div>
     </header>
   );

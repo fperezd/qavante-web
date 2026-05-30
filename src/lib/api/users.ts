@@ -4,6 +4,7 @@
    estados de error/vacío con copys de Anexo C.3 mientras BE no esté arriba. */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { ApiError } from "./errors";
 import type { UserRole } from "@/lib/auth/types";
 import type { components } from "./types";
 
@@ -85,6 +86,36 @@ export function useMe() {
        compromete frescura. */
     staleTime: 60_000,
     retry: false,
+  });
+}
+
+/** Maneja el error de `POST /api/auth/logout`. Un 401 es éxito funcional:
+ *  la sesión ya estaba inválida, así que el objetivo del logout ya se
+ *  cumplió y lo tragamos. Cualquier otro error se propaga para que la UI
+ *  lo muestre. Exportado para poder testear la lógica sin renderizar el hook. */
+export function handleLogoutError(err: unknown): void {
+  if (err instanceof ApiError && err.status === 401) {
+    return;
+  }
+  throw err;
+}
+
+/** `POST /api/auth/logout` — invalida la sesión en el servidor y
+ *  limpia las cookies. Tras éxito (204), redirige a /login con
+ *  `window.location.href` (no router.push) para forzar reset COMPLETO
+ *  del state cliente: queryClient cache + cualquier estado React in-memory.
+ *
+ *  `skipAuthRetry: true` evita el loop si la sesión ya está expirada
+ *  (un 401 en logout es éxito funcional — ver `handleLogoutError`). */
+export function useLogout() {
+  return useMutation({
+    mutationFn: () =>
+      api.post<void>("/api/auth/logout", { skipAuthRetry: true }).catch(handleLogoutError),
+    onSuccess: () => {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    },
   });
 }
 

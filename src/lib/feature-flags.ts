@@ -36,6 +36,7 @@ export const FEATURE_FLAGS = [
   "siiQueries",
   "cashFlowReport",
   "inicioMvp",
+  "miCuenta",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -54,6 +55,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   siiQueries: "/api/sii/health",
   cashFlowReport: "/api/treasury/reports/cash-flow",
   inicioMvp: "/api/me",
+  /* Mi cuenta también lee /api/me, pero su capacidad propia (y única
+     respecto de inicio) es cerrar sesión — ese es el endpoint que justifica
+     habilitar el flag y lo mantiene 1-a-1 en el mapping. */
+  miCuenta: "/api/auth/logout",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
