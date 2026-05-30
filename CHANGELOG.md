@@ -6,6 +6,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Sesión autónoma 2026-05-30 (tarde) — unblock tesorería C3 + limpieza + stories (Modo A)
+
+PRs #229-#238 (10 mergeados a `main`). Continuación supervisada/autónoma (Fernando intermitente). Highlight: **respuesta a la nota de CC-API-A en `STATE_OF_THE_TRAIN` → ADR-0027 destrabó la Brecha 0 para tesorería C3.**
+
+#### Unblocked / Changed
+
+- **`generate:api` tras ADR-0027** ([#233](https://github.com/fperezd/qavante-web/pull/233)) — el backend (ADR-0027, live prod) hizo que **5 grupos de endpoints de tesorería C3 acepten la cookie `qavante_session`** del FE (resuelve la **Brecha 0** para esos grupos: `bank-movements`, `treasury/canonical-categories`, `treasury/classification-rules`, `treasury/reports/cash-flow`, `management/accounts/tree`). `types.ts` sincronizado — diff 100% aditivo (param `cookie`), `tsc` verde → las vistas ya cableadas son contract-compatible. Verificado por `curl` (`no_session` vs `Falta X-Api-Key`).
+- **Handoff de activación + Brecha 0 resuelta-parcial** ([#234](https://github.com/fperezd/qavante-web/pull/234), [`docs/operations/treasury-c3-activation-2026-05-30.md`](./docs/operations/treasury-c3-activation-2026-05-30.md)) — 4 flags activables ya (`cashFlowReport`, `bankMovementClassification`, `classificationRules`, `managementAccounts`) con pasos Cloudflare; residual aún bloqueado (`management/dimensions`, `core/currencies`, `sii/*`) marcado como handoff para CC-API.
+
+#### Removed
+
+- **Dead code `src/components/ui/`** ([#229](https://github.com/fperezd/qavante-web/pull/229)) — 9 primitivas shadcn sin uso (0 imports, tokens fuera del DS Qavante). `tsc` + 393 tests verdes tras el borrado.
+
+#### Tested (stories de container-views con MSW)
+
+- `TemplatesGalleryView` ([#230](https://github.com/fperezd/qavante-web/pull/230)), `RulesListView` ([#231](https://github.com/fperezd/qavante-web/pull/231)), `CertificateListView` ([#232](https://github.com/fperezd/qavante-web/pull/232)), `CashFlowView` ([#235](https://github.com/fperezd/qavante-web/pull/235)), `PorClasificarView` ([#236](https://github.com/fperezd/qavante-web/pull/236)), `ManagementAccountsView` ([#237](https://github.com/fperezd/qavante-web/pull/237)), `ManagementDimensionsView` ([#238](https://github.com/fperezd/qavante-web/pull/238)) — 4 estados cada una (datos/vacío/loading/error 500) con handlers MSW. Cobertura visual de las pantallas de tesorería que quedan activables.
+
 ### Sesión autónoma 2026-05-30 — confirmación logout + coverage + brecha perfil (Modo A)
 
 PRs #217-#227 (11 mergeados a `main`). Continuación del ciclo Mi cuenta; Fernando autorizó ~6h en Modo A ([ADR-0014](./docs/adr/0014-sesiones-autonomas-low-risk.md)) eligiendo (A) confirmación de logout + (B) pivot a coverage low-risk.
