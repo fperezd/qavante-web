@@ -8,7 +8,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ### Sesión autónoma 2026-05-30 — confirmación logout + coverage + brecha perfil (Modo A)
 
-PRs #217-#223 (7 mergeados a `main`). Continuación del ciclo Mi cuenta; Fernando autorizó ~6h en Modo A ([ADR-0014](./docs/adr/0014-sesiones-autonomas-low-risk.md)) eligiendo (A) confirmación de logout + (B) pivot a coverage low-risk.
+PRs #217-#227 (11 mergeados a `main`). Continuación del ciclo Mi cuenta; Fernando autorizó ~6h en Modo A ([ADR-0014](./docs/adr/0014-sesiones-autonomas-low-risk.md)) eligiendo (A) confirmación de logout + (B) pivot a coverage low-risk.
 
 #### Added
 
@@ -21,7 +21,10 @@ PRs #217-#223 (7 mergeados a `main`). Continuación del ciclo Mi cuenta; Fernand
 - **`ApiError`** ([#219](https://github.com/fperezd/qavante-web/pull/219)) — 10 tests de construcción + predicados de status (gobiernan el mapeo error→copy del Anexo C.3).
 - **`formatClp` / `formatDate` / `isClpAmount`** ([#220](https://github.com/fperezd/qavante-web/pull/220)) — 11 tests de caracterización (formato de plata/fecha, guard de monto).
 - **Cliente HTTP `api/client`** ([#221](https://github.com/fperezd/qavante-web/pull/221)) — 8 tests de `request()`: parseo, 204, `ApiError` desde no-OK, error de red, y el flujo 401→refresh→retry. Env fijada con `vi.hoisted` (no `resetModules`, que rompería `instanceof ApiError`).
+- **Helpers de auth** ([#225](https://github.com/fperezd/qavante-web/pull/225)) — 10 tests de `auth()`, `requireAuth()` y `SESSION_COOKIE_NAME`. Incluye el **boundary de seguridad** del override `qavante_test_role` (solo aplica con `NEXT_PUBLIC_API_MOCKING=enabled`). Solo lectura, cero cambios de runtime de auth.
 - **`ClasificadosStatCard`** ([#223](https://github.com/fperezd/qavante-web/pull/223)) — 6 stories cubriendo estados (info/clickeable/activa/muted/warning/truncado).
+- **`LoginForm`** ([#226](https://github.com/fperezd/qavante-web/pull/226)) — story de la pantalla de login. **Primera story del repo con hooks de App Router**: establece el patrón `parameters.nextjs.appDirectory: true` (+ `navigation.pathname`) para `useRouter`/`useSearchParams`/`usePathname`.
+- **`AppSidebar`** ([#227](https://github.com/fperezd/qavante-web/pull/227)) — 4 stories del gating de Administración por rol (owner sí, viewer no, sin-rol default seguro, drawer mobile). Usa el patrón App Router de #226.
 
 ### Ciclo "Mi cuenta + logout" (2026-05-29 — sesión autónoma Modo A)
 
