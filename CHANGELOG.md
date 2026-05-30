@@ -6,6 +6,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Sesión autónoma 2026-05-30 — confirmación logout + coverage + brecha perfil (Modo A)
+
+PRs #217-#223 (7 mergeados a `main`). Continuación del ciclo Mi cuenta; Fernando autorizó ~6h en Modo A ([ADR-0014](./docs/adr/0014-sesiones-autonomas-low-risk.md)) eligiendo (A) confirmación de logout + (B) pivot a coverage low-risk.
+
+#### Added
+
+- **Confirmación antes de cerrar sesión** ([#217](https://github.com/fperezd/qavante-web/pull/217)) — el botón "Cerrar sesión" abre un `LogoutConfirmDialog` dedicado y **neutro** (no reusa `DeleteConfirmDialog`, que es destructivo) para evitar el logout accidental. Bajo flag `miCuenta` OFF. + 3 stories.
+- **Brecha backend `PATCH /api/me`** ([#222](https://github.com/fperezd/qavante-web/pull/222), [`docs/backend-contracts/mi-cuenta-profile-edit-gap.md`](./docs/backend-contracts/mi-cuenta-profile-edit-gap.md)) — handoff CC-WEB→CC-API para editar el perfil propio (campo `name`). Documenta por qué `/mi-cuenta` queda solo-lectura: `/api/me` es solo GET y `PATCH /api/users/{id}` es gestión admin.
+
+#### Tested (coverage anti-regresión, sin cambios de runtime)
+
+- **`formatRut`** ([#218](https://github.com/fperezd/qavante-web/pull/218)) — 8 tests sobre normalización + formateo del RUT chileno (identidad crítica).
+- **`ApiError`** ([#219](https://github.com/fperezd/qavante-web/pull/219)) — 10 tests de construcción + predicados de status (gobiernan el mapeo error→copy del Anexo C.3).
+- **`formatClp` / `formatDate` / `isClpAmount`** ([#220](https://github.com/fperezd/qavante-web/pull/220)) — 11 tests de caracterización (formato de plata/fecha, guard de monto).
+- **Cliente HTTP `api/client`** ([#221](https://github.com/fperezd/qavante-web/pull/221)) — 8 tests de `request()`: parseo, 204, `ApiError` desde no-OK, error de red, y el flujo 401→refresh→retry. Env fijada con `vi.hoisted` (no `resetModules`, que rompería `instanceof ApiError`).
+- **`ClasificadosStatCard`** ([#223](https://github.com/fperezd/qavante-web/pull/223)) — 6 stories cubriendo estados (info/clickeable/activa/muted/warning/truncado).
+
 ### Ciclo "Mi cuenta + logout" (2026-05-29 — sesión autónoma Modo A)
 
 PRs #213-#215 (3 mergeados a `main`). Sesión autónoma Modo A ([ADR-0014](./docs/adr/0014-sesiones-autonomas-low-risk.md)), scope "Extender Mi cuenta".
