@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { Building2, Clock, LogOut, Mail, User2, type LucideIcon } from "lucide-react";
 import { QavanteBadge, QavanteButton, QavanteCard, QavanteInlineError } from "@/components/qavante";
 import { useLogout, useMe, type MeUser } from "@/lib/api/users";
+import { ApiError } from "@/lib/api/errors";
+import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { ROLE_LABELS } from "@/components/administracion/role-labels";
 import type { UserRole } from "@/lib/auth/types";
 import { formatLastLogin } from "@/components/inicio/inicio-mvp-format";
+import { LogoutConfirmDialog } from "./logout-confirm-dialog";
 
 /* Pantalla "Mi cuenta". Muestra el perfil del usuario logueado (nombre,
    correo, empresa, rol, último ingreso) consumiendo `/api/me` — el mismo
@@ -97,19 +101,36 @@ export function MiCuentaContent({ user }: MiCuentaContentProps) {
   );
 }
 
+/* Mensaje de error de logout. Para `ApiError` usamos el copy del Anexo C.3;
+   el fallback genérico de QavanteInlineError ("No pudimos cargar…") no aplica
+   a una acción, así que lo manejamos acá con una frase propia. */
+function logoutErrorMessage(error: unknown): string {
+  return error instanceof ApiError
+    ? apiErrorToUserMessage(error)
+    : "No pudimos cerrar tu sesión. Vuelve a intentar en unos segundos.";
+}
+
 /* Aislado del contenido presentacional porque consume el hook de mutación.
-   En éxito, `useLogout` redirige a /login con `window.location.href`, así
-   que no hace falta manejar el estado de éxito acá. */
+   El botón abre un diálogo de confirmación (evita logout accidental); el
+   logout real corre al confirmar. En éxito, `useLogout` redirige a /login
+   con `window.location.href`, así que el diálogo se desmonta solo. */
 function LogoutButton() {
   const logout = useLogout();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
-    <div className="space-y-2">
-      <QavanteButton variant="secondary" loading={logout.isPending} onClick={() => logout.mutate()}>
-        {!logout.isPending && <LogOut className="h-4 w-4" aria-hidden="true" />}
+    <>
+      <QavanteButton variant="secondary" onClick={() => setConfirmOpen(true)}>
+        <LogOut className="h-4 w-4" aria-hidden="true" />
         Cerrar sesión
       </QavanteButton>
-      {logout.isError && <QavanteInlineError error={logout.error} what="cerrar tu sesión" />}
-    </div>
+      <LogoutConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        loading={logout.isPending}
+        error={logout.isError ? logoutErrorMessage(logout.error) : null}
+        onConfirm={() => logout.mutate()}
+      />
+    </>
   );
 }
