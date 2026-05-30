@@ -13,6 +13,7 @@ const labels: Record<string, string> = {
   administracion: "Administración",
   usuarios: "Usuarios",
   credenciales: "Credenciales SII",
+  "mi-cuenta": "Mi cuenta",
 };
 
 function labelFor(segment: string): string {
