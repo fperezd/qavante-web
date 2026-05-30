@@ -7696,7 +7696,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7726,7 +7728,9 @@ export interface operations {
                 /** @description UUID del movimiento a clasificar. */
                 movement_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -7767,7 +7771,9 @@ export interface operations {
                 /** @description UUID del movimiento. */
                 movement_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7812,7 +7818,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7842,7 +7850,9 @@ export interface operations {
                 /** @description UUID del movimiento a clasificar. */
                 movement_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -7883,7 +7893,9 @@ export interface operations {
                 /** @description UUID del movimiento. */
                 movement_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -8004,7 +8016,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -8024,6 +8038,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     management_accounts_tree: {
@@ -8033,7 +8056,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -8062,7 +8087,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -8119,7 +8146,9 @@ export interface operations {
                 /** @description UUID de la cuenta. */
                 account_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -8155,7 +8184,9 @@ export interface operations {
                 /** @description UUID de la cuenta a mover. */
                 account_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -8189,7 +8220,9 @@ export interface operations {
                 /** @description UUID de la cuenta. */
                 account_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -8221,7 +8254,9 @@ export interface operations {
                 /** @description UUID de la cuenta. */
                 account_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -8250,7 +8285,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -8263,6 +8300,15 @@ export interface operations {
                     "application/json": components["schemas"]["ClassificationRulesResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     classification_rules_create: {
@@ -8270,7 +8316,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -8318,7 +8366,9 @@ export interface operations {
                 /** @description UUID de la regla. */
                 rule_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -8354,7 +8404,9 @@ export interface operations {
                 /** @description UUID de la regla. */
                 rule_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -9343,7 +9395,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
