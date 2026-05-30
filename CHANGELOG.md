@@ -6,6 +6,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Ciclo "Mi cuenta + logout" (2026-05-29 — sesión autónoma Modo A)
+
+PRs #213-#215 (3 mergeados a `main`). Sesión autónoma Modo A ([ADR-0014](./docs/adr/0014-sesiones-autonomas-low-risk.md)), scope "Extender Mi cuenta".
+
+#### Added
+
+- **Pantalla `/mi-cuenta` + logout** ([#213](https://github.com/fperezd/qavante-web/pull/213)) — perfil del usuario logueado (nombre, correo, empresa, rol, último ingreso) consumiendo `GET /api/me`, + **Cerrar sesión** vía `POST /api/auth/logout` (revocación server-side real C0-15). Gated por el flag nuevo `miCuenta` (default OFF, patrón "MVP honesto" [ADR-0013](./docs/adr/0013-treasury-reports-mvp-honest-no-invention.md)). El avatar del header enlaza a la ruta. Logout trata el 401 como éxito funcional (`handleLogoutError`, helper puro testeado) y redirige con `window.location.href` para reset completo del state cliente.
+- **Feature flag `miCuenta`** agregado a `FEATURE_FLAGS` + entry en `FLAG_GATING_ENDPOINT` (`/api/auth/logout` — capacidad única vs. inicio, mantiene el invariante 1-a-1). Default OFF; activar con `NEXT_PUBLIC_FF_MI_CUENTA=true` en Cloudflare Workers + redeploy. Runbook + tabla en [`docs/operations/feature-flags-activation.md`](./docs/operations/feature-flags-activation.md).
+- **Stories de `MiCuentaContent`** ([#214](https://github.com/fperezd/qavante-web/pull/214)) — 6 stories cubriendo roles (owner/admin/finance_manager/viewer) + edge cases (sin nombre, sin último login). Cobertura visual Chromatic + render test del proyecto `storybook` de vitest.
+- **Stories de estados de `MiCuentaView`** ([#215](https://github.com/fperezd/qavante-web/pull/215)) — container con MSW: loading (skeleton vía `delay("infinite")`), error 500 (`QavanteInlineError`), éxito (perfil + logout). Mirror del patrón `f29-view.stories`.
+
 ### Ciclo "i18n cleanup + login fix + Sprint C3 MVP + sesión autónoma" (2026-05-27 → 2026-05-28)
 
 PRs #186-#206 (15 mergeados a `main`) + issue #194 (cerrado por falso positivo). Audit K.4 en [`docs/audits/c3-mvp-cycle-2026-05-27-28.md`](./docs/audits/c3-mvp-cycle-2026-05-27-28.md).
