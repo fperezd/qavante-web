@@ -25,6 +25,31 @@
 
 ## Brecha 0 — Auth method del backend completo (BLOQUEANTE P0, escalado 2026-05-28)
 
+> ### 🟢 RESUELTA PARCIALMENTE — 2026-05-30 (ADR-0027 backend)
+>
+> CC-API-A implementó **ADR-0027** (live en prod, PRs backend #177→#180→#181):
+> los endpoints de **tesorería C3 aceptan ahora la cookie `qavante_session`**
+> del FE además de `X-Api-Key` (opción 3 de este doc). Fuente: nota CC-API-A en
+> `STATE_OF_THE_TRAIN.md` (2026-05-30).
+>
+> **5 grupos DESBLOQUEADOS** (verificado por `curl` → devuelven `{"code":"no_session"}`, ya no `Falta X-Api-Key`):
+>
+> - `GET /api/bank-movements` (+ `/api/treasury/bank-movements`), `PATCH …/{id}/classify`, `POST …/{id}/suggest-rule`
+> - `GET /api/treasury/canonical-categories`
+> - `GET|POST|PATCH /api/treasury/classification-rules` (+ `/{id}/toggle-active`)
+> - `GET /api/treasury/reports/cash-flow`
+> - `GET /api/management/accounts/tree` (+ CRUD `/api/management/accounts/*`)
+>
+> **FE listo:** `npm run generate:api` (PR #233) sincronizó `types.ts` — diff
+> 100% aditivo (param `cookie qavante_session`), `tsc` verde. Las 4 pantallas
+> ya cableadas quedan **activables vía flag** — ver
+> [`docs/operations/treasury-c3-activation-2026-05-30.md`](../operations/treasury-c3-activation-2026-05-30.md).
+>
+> **Residual aún bloqueado** (siguen `Falta X-Api-Key` — api-key-only): `GET /api/management/dimensions`,
+> `GET /api/core/currencies`, `GET /api/sii/*`. Por lo tanto los flags
+> `managementDimensions`, `multiCurrency`, `siiQueries` **NO activar todavía**
+> → handoff residual para CC-API (extender ADR-0027 al resto de dominios C1/C2).
+
 ### Por qué (scope verificado)
 
 Al activar el flag en prod y abrir `/caja/proyeccion`, el FE recibe **401 `{"detail":"Falta X-Api-Key."}`** desde `GET /api/treasury/reports/cash-flow`. El mismo browser/session funciona perfectamente contra `/api/me` (200 con user/tenant).
