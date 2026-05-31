@@ -3,31 +3,37 @@
 import * as React from "react";
 import { AlertCircle } from "lucide-react";
 import { QavanteEmpty } from "@/components/qavante";
-import { useManagementAccountsTree } from "@/lib/api/management";
+import {
+  useManagementAccountsTree,
+  useToggleManagementAccountActive,
+  useToggleManagementAccountVisible,
+} from "@/lib/api/management";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
-import { ManagementAccountSelect } from "./management-account-select";
-import { flattenManagementAccounts } from "./adapters";
+import { ManagementAccountsTree } from "./management-accounts-tree";
+import { toManagementAccountTreeRows } from "./adapters";
 
-/* Vista read-only de la estructura de gestión (addendum §14, alcance mínimo:
-   navegar el árbol). El editor con CRUD/move llega en un PR posterior. Patrón
-   "página = contenedor" del repo (cf. administracion/usuarios): el screen
-   resuelve el flag (server) y monta esto (client) que hace el fetch + estados.
-   Sin mutación: la selección es local (resaltado), no persiste. */
+/* Editor de la estructura de gestión (addendum §14). Container ("página =
+   contenedor"): resuelve el árbol + las mutaciones de toggle y monta el árbol
+   presentacional. PR 1: activar/desactivar + mostrar/ocultar + incluir
+   inactivas. Crear/editar/mover llegan en PRs siguientes. El backend impone
+   el permiso de escritura (403 → copy del Anexo C.3). */
 
 function LoadingSkeleton() {
   return (
     <div className="space-y-2" aria-hidden="true">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-9 animate-pulse rounded-md bg-neutral-light/30" />
+        <div key={i} className="h-10 animate-pulse rounded-md bg-neutral-light/30" />
       ))}
     </div>
   );
 }
 
 export function ManagementAccountsView() {
-  const query = useManagementAccountsTree();
-  const [selected, setSelected] = React.useState<string>();
+  const [includeInactive, setIncludeInactive] = React.useState(false);
+  const query = useManagementAccountsTree({ includeInactive });
+  const toggleActive = useToggleManagementAccountActive();
+  const toggleVisible = useToggleManagementAccountVisible();
 
   if (query.isLoading) return <LoadingSkeleton />;
 
@@ -50,9 +56,9 @@ export function ManagementAccountsView() {
     );
   }
 
-  const items = flattenManagementAccounts(query.data?.items ?? []);
+  const rows = toManagementAccountTreeRows(query.data?.items ?? []);
 
-  if (items.length === 0) {
+  if (rows.length === 0 && !includeInactive) {
     return (
       <QavanteEmpty
         title="Todavía no hay una estructura de gestión"
@@ -61,5 +67,54 @@ export function ManagementAccountsView() {
     );
   }
 
-  return <ManagementAccountSelect items={items} value={selected} onChange={setSelected} />;
+  /* `variables` de la mutación en curso = el accountId que se está toggleando. */
+  const pendingId =
+    (toggleActive.isPending ? toggleActive.variables : undefined) ??
+    (toggleVisible.isPending ? toggleVisible.variables : undefined) ??
+    null;
+  const mutationError = toggleActive.error ?? toggleVisible.error;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-neutral-mid">
+          Activa, desactiva u oculta cuentas de tu estructura. Crear, editar y mover llegan pronto.
+        </p>
+        <label className="flex shrink-0 items-center gap-2 text-sm text-neutral-mid">
+          <input
+            type="checkbox"
+            checked={includeInactive}
+            onChange={(e) => setIncludeInactive(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-light text-brand-primary"
+          />
+          Incluir inactivas
+        </label>
+      </div>
+
+      {mutationError && (
+        <div
+          role="alert"
+          className="rounded-md border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
+        >
+          {mutationError instanceof ApiError
+            ? apiErrorToUserMessage(mutationError)
+            : "No pudimos guardar el cambio. Intenta nuevamente."}
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <QavanteEmpty
+          title="No hay cuentas que mostrar"
+          description="No hay cuentas inactivas para mostrar con el filtro actual."
+        />
+      ) : (
+        <ManagementAccountsTree
+          rows={rows}
+          pendingId={pendingId}
+          onToggleActive={(row) => toggleActive.mutate(row.id)}
+          onToggleVisible={(row) => toggleVisible.mutate(row.id)}
+        />
+      )}
+    </div>
+  );
 }
