@@ -61,4 +61,20 @@ describe("formatLastLogin", () => {
   it("ISO inválido → fallback al string original", () => {
     expect(formatLastLogin("no-es-fecha")).toBe("no-es-fecha");
   });
+
+  it("renderiza en hora de Chile (America/Santiago), no en la del runtime", () => {
+    /* 01:30 UTC del 28 → en Chile (UTC-4 en mayo) es el DÍA 27 ~21:30. Con el
+       timeZone pineado el resultado es determinista sin importar el TZ del
+       runner; sin el pin, en un runtime UTC (Cloudflare) saldría "28". */
+    const out = formatLastLogin("2026-05-28T01:30:00Z");
+    expect(out).toMatch(/27/);
+    expect(out).toMatch(/may/);
+    expect(out).toMatch(/2026/);
+  });
+});
+
+describe("buildGreeting — Date inválida", () => {
+  it("Date inválida → saludo neutro 'Hola' (no cae silenciosamente a Buenas noches)", () => {
+    expect(buildGreeting(new Date("no-fecha"), "Fernando")).toBe("Hola, Fernando");
+  });
 });

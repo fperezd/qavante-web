@@ -82,9 +82,12 @@ describe("formatPeriodLabel — period del backend a label es-CL", () => {
     expect(formatPeriodLabel("2026-05-04")).toBe("2026-05-04");
   });
 
-  it("mes 00 inválido → fallback string original (mes index -1 → undefined → '00')", () => {
-    // No es válido en el backend, pero defendemos el fallback.
-    expect(formatPeriodLabel("2026-00")).toBe("00 2026");
+  it("mes fuera de rango (00, 13, 99) → fallback al string original (no híbrido)", () => {
+    /* No válido en el backend; el fallback defensivo devuelve el string TAL CUAL
+       (no "00 2026"/"13 2026" como hacía antes del fix del code-review #2). */
+    expect(formatPeriodLabel("2026-00")).toBe("2026-00");
+    expect(formatPeriodLabel("2026-13")).toBe("2026-13");
+    expect(formatPeriodLabel("2026-99")).toBe("2026-99");
   });
 
   it("formato desconocido → fallback string original", () => {

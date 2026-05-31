@@ -92,9 +92,12 @@ const CONFIDENCE_THRESHOLD = 0.7;
 
 function isNeedsReview(m: BankMovement): boolean {
   if (m.classification_status === "needs_review") return true;
-  if (m.confidence != null) {
+  /* String vacío/blanco = ausencia de confianza, NO confianza 0: `Number("")`
+     coacciona a 0 (< threshold) y daría un falso positivo. Solo contamos un
+     confidence numérico finito y real. */
+  if (m.confidence != null && String(m.confidence).trim() !== "") {
     const c = Number(m.confidence);
-    if (!Number.isNaN(c) && c < CONFIDENCE_THRESHOLD) return true;
+    if (Number.isFinite(c) && c < CONFIDENCE_THRESHOLD) return true;
   }
   if (m.data_status && m.data_status !== "available") return true;
   return false;
@@ -140,6 +143,10 @@ export function buildClasificadosStats({
   let expenseAmount = 0;
   let needsReviewCount = 0;
   let lastClassifiedAt: string | null = null;
+  /* Comparamos por instante (Date.parse), no por string: `classified_at` no
+     tiene `Format: date-time` garantizado en el OpenAPI, así que offsets de
+     zona mixtos (-03:00 vs Z) romperían la comparación lexicográfica. */
+  let lastClassifiedTs = -Infinity;
 
   const canonicalBuckets = new Map<string, Bucket>();
   const accountBuckets = new Map<string, Bucket>();
@@ -152,8 +159,12 @@ export function buildClasificadosStats({
 
     if (isNeedsReview(m)) needsReviewCount += 1;
 
-    if (m.classified_at && (lastClassifiedAt === null || m.classified_at > lastClassifiedAt)) {
-      lastClassifiedAt = m.classified_at;
+    if (m.classified_at) {
+      const ts = Date.parse(m.classified_at);
+      if (Number.isFinite(ts) && ts > lastClassifiedTs) {
+        lastClassifiedTs = ts;
+        lastClassifiedAt = m.classified_at;
+      }
     }
 
     if (m.canonical_category) {

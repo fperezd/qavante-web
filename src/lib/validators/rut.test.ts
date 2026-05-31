@@ -73,5 +73,15 @@ describe("isValidRut — validador módulo 11", () => {
     it("rechaza solo letras", () => {
       expect(isValidRut("abc")).toBe(false);
     });
+
+    it("rechaza RUT cero (cuerpo todo-ceros: pasa módulo 11 pero no existe en Chile)", () => {
+      expect(isValidRut("0-0")).toBe(false);
+      expect(isValidRut("00000000-0")).toBe(false);
+    });
+
+    it("rechaza DV dígito tipeado como K", () => {
+      /* 11.111.111 tiene DV correcto "1"; un "K" no debe colar. */
+      expect(isValidRut("11.111.111-K")).toBe(false);
+    });
   });
 });
