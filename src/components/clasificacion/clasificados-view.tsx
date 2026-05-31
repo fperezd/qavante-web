@@ -239,7 +239,7 @@ export function ClasificadosView() {
       <QavanteEmpty
         icon={CheckCircle2}
         title="Aún no hay movimientos clasificados"
-        description="Cuando clasifiques movimientos desde Por clasificar vas a verlos aquí. Podés filtrarlos por categoría, período y dirección."
+        description="Cuando clasifiques movimientos desde Por clasificar vas a verlos aquí. Puedes filtrarlos por categoría, período y dirección."
       />
     );
   }

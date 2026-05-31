@@ -145,6 +145,7 @@ export function PorClasificarView() {
             <QavanteButton
               size="sm"
               variant="secondary"
+              aria-label={`Clasificar movimiento ${m.description}`}
               onClick={() => {
                 setFormError(undefined);
                 setSelected(m);

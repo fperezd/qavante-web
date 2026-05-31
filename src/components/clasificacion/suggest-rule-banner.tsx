@@ -106,7 +106,7 @@ export function SuggestRuleBanner({
               , crear una regla {suggestion.name ? `llamada "${suggestion.name}"` : ""}.
             </p>
             <p className="text-xs text-neutral-mid">
-              Podés ajustarla antes de guardarla — solo se crea cuando confirmes.
+              Puedes ajustarla antes de guardarla — solo se crea cuando confirmes.
             </p>
           </div>
         </div>
