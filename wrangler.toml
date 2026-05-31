@@ -11,6 +11,22 @@ binding = "ASSETS"
 NEXT_PUBLIC_API_URL = "https://api.qavante.com"
 NEXT_PUBLIC_APP_ENV = "production"
 
+# Feature flags de prod (ADR-0008/0012). Las pantallas gateadas son Server
+# Components: resuelven `process.env.NEXT_PUBLIC_FF_*` en runtime del Worker,
+# que se llena con estas `[vars]`. IMPORTANTE: viven ACÁ (versionado), NO en
+# el panel de Cloudflare — `wrangler deploy` resetea las vars del Worker a
+# este archivo en cada deploy, así que lo del panel se borra. Para activar/
+# desactivar una pantalla: editar acá + merge a main (auto-deploya).
+#
+# Activadas 2026-05-30 tras ADR-0027 (backend acepta cookie en tesorería C3).
+NEXT_PUBLIC_FF_CASH_FLOW_REPORT = "true"
+NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION = "true"
+NEXT_PUBLIC_FF_CLASSIFICATION_RULES = "true"
+# OFF: el backend tira 500 en GET /api/management/accounts/tree (ver
+# docs/backend-contracts/management-accounts-tree-500-2026-05-30.md).
+# Destapar cuando CC-API confirme 200:
+# NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS = "true"
+
 # Custom domain declarativo. Idempotente: si el binding ya existe en el
 # dashboard (creado manualmente el 2026-05-12), wrangler lo respeta. Si se
 # recrea el Worker, este bloque lo restaura. Requiere que la zona qavante.com

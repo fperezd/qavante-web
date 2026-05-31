@@ -9,7 +9,20 @@ Hay 11 feature flags definidas en [`src/lib/feature-flags.ts`](../../src/lib/fea
 
 Activar un flag requiere setear una env var **explícita** en el entorno donde corre el FE. La env var sigue la convención `NEXT_PUBLIC_FF_<FLAG_SCREAMING_SNAKE>`.
 
-Importante: `NEXT_PUBLIC_*` se **inlinea en build-time** por Next.js — no se lee del `[vars]` de wrangler.toml en runtime. Esto significa que cambiar el flag en prod **requiere redeploy** del Worker.
+**IMPORTANTE — corregido 2026-05-30 (la versión anterior de esta guía estaba mal):**
+las pantallas gateadas (`/caja/*`, `/administracion/estructura-gestion`, etc.) son
+**Server Components**: resuelven `process.env.NEXT_PUBLIC_FF_*` **en runtime del
+Worker**, que se llena con las `[vars]` de [`wrangler.toml`](../../wrangler.toml).
+Por eso los flags **viven en `wrangler.toml [vars]` (versionado en el repo)**, no
+en el panel del dashboard.
+
+⚠️ **NO usar el panel de Cloudflare ("Variables and secrets") para los flags:**
+`wrangler deploy` (que corre en cada push a `main`) **resetea** las vars del Worker
+a lo que diga `wrangler.toml`, así que **cualquier var agregada a mano en el panel
+se borra en el siguiente deploy**. (Si se prefiriera el panel, habría que agregar
+`keep_vars = true` al toml — pero hoy la fuente de verdad es el toml.)
+
+Cambiar un flag en prod = editar `wrangler.toml` + merge a `main` (auto-deploya).
 
 ## Mapping flag → env var → endpoint que gobierna
 
@@ -39,11 +52,11 @@ El mapping vive en `FLAG_GATING_ENDPOINT` en `src/lib/feature-flags.ts` — actu
 
    Si responde 401 (sin sesión) o 200, el endpoint existe. Si responde 404, falta backend.
 
-2. **Cloudflare Workers Dashboard**:
-   1. https://dash.cloudflare.com → tu cuenta → **Workers & Pages** → **`qavante-web`**.
-   2. Tab **Settings** → sección **Variables and secrets** → **Add variable**.
-   3. Type: **Plain Text**. Name: `NEXT_PUBLIC_FF_<...>`. Value: `true` (o `false` para apagar).
-   4. **Save and deploy**. Esto rebuildea el Worker con la env var como build-time constant.
+2. **Editar `wrangler.toml`** (en el repo, NO el dashboard):
+   - En el bloque `[vars]`, agregar/editar la línea `NEXT_PUBLIC_FF_<...> = "true"`
+     (o `"false"` para apagar; o borrar/comentar la línea → cae al default `false`).
+   - Commit + PR + merge a `main`. El workflow `deploy-cloudflare.yml` corre
+     `wrangler deploy` y el Worker queda con la var nueva, de forma persistente.
 
 3. **Validar**:
    - Refresh `https://app.qavante.com/<ruta-gateada>` en una ventana nueva (Ctrl+F5 para saltar caché CDN).
