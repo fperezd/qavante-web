@@ -93,9 +93,14 @@ export function UsersTable({ users, currentUserRole, onSuspendClick }: UsersTabl
         cell: ({ row }) => {
           const v = row.original.last_login_at;
           if (!v) return <span className="text-sm text-neutral-mid">—</span>;
+          /* Guard: un last_login_at no-ISO/corrupto haría que date-fns `format`
+             lance RangeError y rompa el render de TODA la tabla (no hay error
+             boundary de segmento). Caer a "—" como con null (code-review #3). */
+          const d = new Date(v);
+          if (Number.isNaN(d.getTime())) return <span className="text-sm text-neutral-mid">—</span>;
           return (
             <span className="text-sm text-neutral-dark">
-              {format(new Date(v), "dd MMM yyyy HH:mm", { locale: es })}
+              {format(d, "dd MMM yyyy HH:mm", { locale: es })}
             </span>
           );
         },

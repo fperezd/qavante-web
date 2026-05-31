@@ -52,7 +52,7 @@ function movementSummary(m: BankMovement) {
     description: m.description,
     // §17.1: no mostrar número de cuenta completo.
     bankLabel: `Cuenta ····${m.bank_account_id.slice(-4)}`,
-    amountFormatted: formatClp(Number(m.amount)),
+    amountFormatted: formatClp(Number(m.amount) || 0),
   };
 }
 
@@ -140,7 +140,7 @@ export function PorClasificarView() {
               {m.description}
             </span>
             <span className="w-32 shrink-0 text-right text-sm font-medium text-neutral-dark">
-              {formatClp(Number(m.amount))}
+              {formatClp(Number(m.amount) || 0)}
             </span>
             <QavanteButton
               size="sm"

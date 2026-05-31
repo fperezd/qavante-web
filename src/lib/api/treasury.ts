@@ -7,6 +7,8 @@
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { classificationRulesKeys } from "./classification-rules";
+import { treasuryReportsKeys } from "./treasury-reports";
 import type { components } from "./types";
 
 export type CanonicalCategoryMeta = components["schemas"]["CanonicalCategoryMeta"];
@@ -72,6 +74,15 @@ export function useClassifyBankMovement() {
   return useMutation({
     mutationFn: ({ movementId, body }: { movementId: string; body: ClassifyMovementRequest }) =>
       api.patch<BankMovement>(`/api/bank-movements/${movementId}/classify`, { body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: treasuryKeys.all }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: treasuryKeys.all });
+      /* Clasificar con `create_rule:true` crea una regla, y SIEMPRE cambia los
+         financial_impacts que alimentan el cash-flow report. Ambos viven en
+         namespaces de query-key distintos (`classification-rules`,
+         `treasury-reports`) que la invalidación de `treasury` no alcanza por
+         prefijo → invalidarlos aparte (code-review #3). */
+      qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
+      qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
+    },
   });
 }
