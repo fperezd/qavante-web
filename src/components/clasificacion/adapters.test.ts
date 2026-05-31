@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
+import {
+  flattenManagementAccounts,
+  toCanonicalCategoryOptions,
+  toManagementAccountTreeRows,
+} from "./adapters";
 import type { ManagementAccountNode } from "@/lib/api/management";
 import type { CanonicalCategoryMeta } from "@/lib/api/treasury";
 
@@ -99,5 +103,46 @@ describe("toCanonicalCategoryOptions", () => {
 
   it("lista vacía ⇒ []", () => {
     expect(toCanonicalCategoryOptions([])).toEqual([]);
+  });
+});
+
+describe("toManagementAccountTreeRows", () => {
+  it("aplana en pre-orden con code/type/active/isVisible/parentId", () => {
+    const tree = [
+      node({
+        id: "a",
+        code: "1",
+        level: 0,
+        type: "income",
+        children: [node({ id: "a1", code: "1.1", level: 1, parent_id: "a", active: false })],
+      }),
+      node({ id: "b", code: "2", level: 0 }),
+    ];
+    const rows = toManagementAccountTreeRows(tree);
+    expect(rows.map((r) => r.id)).toEqual(["a", "a1", "b"]);
+    expect(rows[0]).toMatchObject({
+      id: "a",
+      code: "1",
+      level: 0,
+      type: "income",
+      parentId: null,
+      active: true,
+      isVisible: true,
+    });
+    expect(rows[1]).toMatchObject({ id: "a1", parentId: "a", active: false });
+  });
+
+  it("name usa display_name con fallback a name; is_visible → isVisible", () => {
+    const rows = toManagementAccountTreeRows([
+      node({ id: "x", name: "Nombre", display_name: "Visible", is_visible: false }),
+      node({ id: "y", name: "SoloName", display_name: null }),
+    ]);
+    expect(rows[0]?.name).toBe("Visible");
+    expect(rows[0]?.isVisible).toBe(false);
+    expect(rows[1]?.name).toBe("SoloName");
+  });
+
+  it("árbol vacío ⇒ []", () => {
+    expect(toManagementAccountTreeRows([])).toEqual([]);
   });
 });

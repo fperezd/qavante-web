@@ -4,7 +4,11 @@
  * generados NO se filtran a los componentes de presentación. */
 import type { ManagementAccountNode } from "@/lib/api/management";
 import type { CanonicalCategoryMeta } from "@/lib/api/treasury";
-import type { CanonicalCategoryOption, ManagementAccountOption } from "./types";
+import type {
+  CanonicalCategoryOption,
+  ManagementAccountOption,
+  ManagementAccountTreeRow,
+} from "./types";
 
 const DIRECTIONS = ["credit", "debit", "any"] as const;
 type Direction = (typeof DIRECTIONS)[number];
@@ -40,6 +44,33 @@ export function flattenManagementAccounts(
         displayName: n.display_name || n.name,
         level: n.level,
         selectable: n.active,
+      });
+      if (n.children && n.children.length > 0) walk(n.children);
+    }
+  };
+  walk(nodes);
+  return out;
+}
+
+/** Aplana el árbol (pre-orden DFS) a filas del EDITOR — más campos que el
+ *  selector (code/type/active/is_visible/parent_id) para mostrar badges y
+ *  accionar por nodo. Incluye nodos inactivos (el editor decide cómo
+ *  mostrarlos). */
+export function toManagementAccountTreeRows(
+  nodes: ManagementAccountNode[],
+): ManagementAccountTreeRow[] {
+  const out: ManagementAccountTreeRow[] = [];
+  const walk = (list: ManagementAccountNode[]) => {
+    for (const n of list) {
+      out.push({
+        id: n.id,
+        name: n.display_name || n.name,
+        code: n.code,
+        level: n.level,
+        type: n.type,
+        parentId: n.parent_id ?? null,
+        active: n.active,
+        isVisible: n.is_visible,
       });
       if (n.children && n.children.length > 0) walk(n.children);
     }

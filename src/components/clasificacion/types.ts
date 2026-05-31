@@ -34,6 +34,23 @@ export interface ManagementAccountOption {
   selectable?: boolean;
 }
 
+/** Fila del EDITOR de estructura de gestión (subset de §10.2 con los campos
+ *  que el editor necesita para mostrar + accionar por nodo). Más rico que
+ *  `ManagementAccountOption` (que es solo para el selector type-ahead). */
+export interface ManagementAccountTreeRow {
+  id: string;
+  /** `display_name || name`. */
+  name: string;
+  code: string;
+  /** Profundidad en el árbol (0 = raíz) — para indentar. */
+  level: number;
+  /** Dominio del nodo (income, direct_cost, operating_expense, …). */
+  type: string;
+  parentId: string | null;
+  active: boolean;
+  isVisible: boolean;
+}
+
 /** Valor de una vista de gestión (dimension value, subset de §10.5). */
 export interface DimensionValueOption {
   id: string;
