@@ -44,6 +44,21 @@ export function UsersTable({ users, currentUserRole, onSuspendClick }: UsersTabl
         header: "Rol",
         cell: ({ row }) => {
           const u = row.original;
+          const roleOptions = ASSIGNABLE_ROLES.filter(
+            (r) => r !== "owner" || currentUserRole === "owner",
+          );
+          /* Solo es editable si el rol ACTUAL está entre los asignables por el
+             usuario actual. owner (salvo que vos seas owner) y technical_admin
+             NO se editan acá: un <select> controlado sin <option> que matchee
+             su `value` mostraría un rol equivocado y, al elegir, podría
+             DEGRADAR el rol en silencio (code-review #10). Si no es editable,
+             se muestra read-only. */
+          const canEditRole = roleOptions.includes(u.role);
+
+          if (!canEditRole) {
+            return <span className="text-sm text-neutral-dark">{ROLE_LABELS[u.role]}</span>;
+          }
+
           if (editingRole === u.id) {
             return (
               <select
@@ -60,13 +75,11 @@ export function UsersTable({ users, currentUserRole, onSuspendClick }: UsersTabl
                 onBlur={() => setEditingRole(null)}
                 className="h-8 rounded-md border border-neutral-light bg-surface px-2 text-sm"
               >
-                {ASSIGNABLE_ROLES.filter((r) => r !== "owner" || currentUserRole === "owner").map(
-                  (r) => (
-                    <option key={r} value={r}>
-                      {ROLE_LABELS[r]}
-                    </option>
-                  ),
-                )}
+                {roleOptions.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </option>
+                ))}
               </select>
             );
           }
