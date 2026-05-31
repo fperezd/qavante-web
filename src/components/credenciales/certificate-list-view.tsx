@@ -91,6 +91,7 @@ export function CertificateListView() {
   const del = useDeleteCertificateById();
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const [deleting, setDeleting] = React.useState<CertificateMetadataResponse | null>(null);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
   if (list.isLoading) {
     return (
@@ -152,7 +153,10 @@ export function CertificateListView() {
       <DeleteConfirmDialog
         open={Boolean(deleting)}
         onOpenChange={(o) => {
-          if (!o) setDeleting(null);
+          if (!o) {
+            setDeleting(null);
+            setDeleteError(null);
+          }
         }}
         title="Eliminar certificado"
         description={
@@ -161,11 +165,24 @@ export function CertificateListView() {
             : ""
         }
         confirmLabel="Eliminar"
+        error={deleteError}
         loading={del.isPending}
         onConfirm={async () => {
           if (!deleting) return;
-          await del.mutateAsync(deleting.id);
-          setDeleting(null);
+          setDeleteError(null);
+          try {
+            await del.mutateAsync(deleting.id);
+            setDeleting(null);
+          } catch (err) {
+            /* El error NO cierra el diálogo: el usuario ve el mensaje y reintenta.
+               Sin este catch, mutateAsync rechazaba → unhandled rejection + cero
+               feedback (code-review #3). */
+            setDeleteError(
+              err instanceof ApiError
+                ? apiErrorToUserMessage(err)
+                : "No pudimos eliminar el certificado. Intenta nuevamente.",
+            );
+          }
         }}
       />
     </div>
