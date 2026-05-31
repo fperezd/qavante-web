@@ -39,4 +39,11 @@ describe("filterByQuery", () => {
   it("sin matches devuelve []", () => {
     expect(filterByQuery(items, "xyz", ["label", "description"])).toEqual([]);
   });
+
+  it("query de solo diacríticos/símbolos (ej. '´', '^') devuelve [], NO toda la lista", () => {
+    /* normalize() colapsa '´'/'^' a "" tras NFD+strip; una búsqueda no vacía no
+       debe comportarse como vacía (code-review #2). */
+    expect(filterByQuery(items, "´", ["label"])).toEqual([]);
+    expect(filterByQuery(items, "^", ["label"])).toEqual([]);
+  });
 });

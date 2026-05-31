@@ -7,6 +7,9 @@ export function isValidRut(rut: string): boolean {
   const body = clean.slice(0, -1);
   const dv = clean.slice(-1);
   if (!/^\d+$/.test(body)) return false;
+  /* Cuerpo todo-ceros ("0", "00000000"): pasa el módulo 11 (DV "0") pero el
+     RUT 0 no existe en Chile (parten en 1). Rechazar datos basura. */
+  if (!/[1-9]/.test(body)) return false;
 
   let sum = 0;
   let multiplier = 2;

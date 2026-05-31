@@ -36,7 +36,10 @@ export function formatPeriodLabel(period: string): string {
   if (/^\d{4}-\d{2}$/.test(period)) {
     const [y, m] = period.split("-");
     const i = Number(m) - 1;
-    return `${MONTHS_ES_CL[i] ?? m} ${y}`;
+    /* Mes fuera de rango (00, 13..99): caer al string original como promete el
+       JSDoc, en vez de un híbrido tipo "13 2026". */
+    if (i < 0 || i > 11) return period;
+    return `${MONTHS_ES_CL[i]} ${y}`;
   }
   if (/^\d{4}-\d{2}-\d{2}$/.test(period)) {
     return period;

@@ -15,8 +15,13 @@ export function filterByQuery<T>(
   query: string,
   keys: ReadonlyArray<keyof T>,
 ): T[] {
-  const q = normalize(query.trim());
-  if (q === "") return [...items];
+  const trimmed = query.trim();
+  if (trimmed === "") return [...items];
+  /* Si la query tenía contenido pero normalize() lo dejó vacío (el usuario
+     tecleó solo diacríticos/símbolos como "´" o "^", que NFD+strip eliminan),
+     NO devolvemos todo: una búsqueda no vacía no debe comportarse como vacía. */
+  const q = normalize(trimmed);
+  if (q === "") return [];
   return items.filter((item) =>
     keys.some((k) => {
       const v = item[k];

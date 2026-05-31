@@ -325,3 +325,58 @@ describe("buildCategoriesLookup", () => {
     expect(lookup.size).toBe(3);
   });
 });
+
+/* Edge cases del code-review #2 (lógica pura). */
+describe("buildClasificadosStats — edge cases de needsReview/classified_at", () => {
+  function statsOf(items: BankMovement[]) {
+    return buildClasificadosStats({
+      items,
+      isPartial: false,
+      categoriesById: categoriesLookup(),
+      accountsById: accountsLookup(),
+    });
+  }
+
+  it("confidence '' (vacío) NO cuenta como needs review (Number('')=0 daría falso positivo)", () => {
+    expect(
+      statsOf([mov({ id: "1", direction: "debit", amount: "100", confidence: "" })])
+        .needsReviewCount,
+    ).toBe(0);
+  });
+
+  it("confidence '   ' (solo espacios) NO cuenta", () => {
+    expect(
+      statsOf([mov({ id: "1", direction: "debit", amount: "100", confidence: "   " })])
+        .needsReviewCount,
+    ).toBe(0);
+  });
+
+  it("confidence '0.7' exacto NO cuenta (boundary: < 0.7)", () => {
+    expect(
+      statsOf([mov({ id: "1", direction: "debit", amount: "100", confidence: "0.7" })])
+        .needsReviewCount,
+    ).toBe(0);
+  });
+
+  it("confidence '0.69' SÍ cuenta", () => {
+    expect(
+      statsOf([mov({ id: "1", direction: "debit", amount: "100", confidence: "0.69" })])
+        .needsReviewCount,
+    ).toBe(1);
+  });
+
+  it("lastClassifiedAt compara por instante, no lexicográfico (offsets de zona mixtos)", () => {
+    /* -03:00 = 02:00Z (instante MÁS reciente), pero lexicográficamente ordena
+       ANTES que el 01:00Z. La comparación correcta es por instante real. */
+    const s = statsOf([
+      mov({
+        id: "1",
+        direction: "credit",
+        amount: "100",
+        classified_at: "2026-05-20T23:00:00-03:00",
+      }),
+      mov({ id: "2", direction: "credit", amount: "100", classified_at: "2026-05-21T01:00:00Z" }),
+    ]);
+    expect(s.lastClassifiedAt).toBe("2026-05-20T23:00:00-03:00");
+  });
+});
