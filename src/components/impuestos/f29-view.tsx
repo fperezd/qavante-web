@@ -188,7 +188,7 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
             <MontoRow label="Total a pagar" amount={data.total_a_pagar} />
           </dl>
           {data.iva_debito_fiscal == null && data.total_a_pagar == null && (
-            <HealthBanner message="Los montos están en proceso de parseo. Podés ver el PDF original mientras tanto." />
+            <HealthBanner message="Los montos están en proceso de parseo. Puedes ver el PDF original mientras tanto." />
           )}
         </section>
 

@@ -16,8 +16,8 @@ interface Props {
 
 /* Confirmación de cierre de sesión. A diferencia de `DeleteConfirmDialog`,
    logout NO es destructivo: sin triángulo de warning ni botón danger.
-   Icono neutro + botón primary. Evita el logout accidental (perdés tu
-   lugar y tenés que volver a autenticarte). */
+   Icono neutro + botón primary. Evita el logout accidental (pierdes tu
+   lugar y tienes que volver a autenticarte). */
 export function LogoutConfirmDialog({
   open,
   onOpenChange,

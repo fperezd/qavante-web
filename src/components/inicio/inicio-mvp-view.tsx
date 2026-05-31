@@ -71,7 +71,7 @@ export function InicioMvpContent({ user }: InicioMvpContentProps) {
         <InfoCard
           icon={User2}
           label="Tu perfil"
-          value={user.name ?? "Sin nombre configurado"}
+          value={user.name?.trim() || "Sin nombre configurado"}
           extra={user.email}
         />
         <InfoCard
