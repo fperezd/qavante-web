@@ -6,9 +6,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
-### Sesión autónoma nocturna 2026-05-30/31 — activación prod + 2 code-reviews (Modo A, 10h)
+### Sesión autónoma nocturna 2026-05-30/31 — activación prod + 3 code-reviews (Modo A)
 
-PRs #241-#246 (6 mergeados a `main`). Fernando autorizó ~10h Modo A para avanzar mientras dormía.
+PRs #241-#250 (10 mergeados a `main`). Fernando autorizó bloques Modo A para avanzar mientras dormía/estaba afuera.
+
+#### Continuación 2026-05-31 (#248-#250)
+
+- **4ta pantalla de tesorería activada** ([#248](https://github.com/fperezd/qavante-web/pull/248)) — CC-API arregló el 500 de `accounts/tree` (verificado end-to-end) → reactivé `managementAccounts` en `wrangler.toml`. **Las 4 pantallas de tesorería C3 están LIVE en prod.** Bug doc marcado resuelto.
+- **3er code-review (forms/mutations/effects)** — 12 hallazgos confirmados. **5 arreglados** ([#249](https://github.com/fperezd/qavante-web/pull/249)): error handling del borrado de certificado (HIGH — unhandled rejection + el prop `error` del diálogo estaba sin cablear), invalidación de cache de `classify` (classification-rules + cash-flow report), guard `\|\| 0` contra `$NaN`, guard de fecha en users-table (un `last_login_at` corrupto rompía el render de toda la tabla). **7 diferidos** ([#250](https://github.com/fperezd/qavante-web/pull/250)) — incl. **#10 HIGH** (users-table role-`select` puede degradar un owner en silencio, toca RBAC → revisión Fernando).
 
 #### Changed (prod)
 
