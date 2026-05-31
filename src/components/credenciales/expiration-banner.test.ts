@@ -3,10 +3,28 @@
    docs/backend-contracts/c1-sii-credentials.md § 3.3 y son consumidos
    por la UX (banner amarillo/rojo + email automático). */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getBanner } from "./expiration-banner";
 
-/* Helper: ISO de fecha futura/pasada relativa a now. */
+/* Tiempo CONGELADO. Los thresholds son por día exacto (ej. "1 día → urgent")
+   y `daysUntil()` hace `differenceInDays(iso, new Date())`. Sin congelar, el
+   `new Date()` interno cae microsegundos DESPUÉS del `Date.now()` del fixture;
+   cuando ambos caen en el mismo milisegundo el diff da exactamente 1 día
+   (urgent), pero ~1 de cada 6 corridas cruza un boundary de ms → diff < 1 día
+   → `differenceInDays` = 0 → 'expired' en vez de 'urgent' (test flaky). Con
+   tiempo fijo, el `Date.now()` del fixture y el `new Date()` de daysUntil ven
+   el MISMO instante → boundaries deterministas. Mediodía UTC evita el edge de
+   medianoche. (Bug del test, no de producción.) */
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-06-15T12:00:00Z"));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/* Helper: ISO de fecha futura/pasada relativa a now (congelado). */
 function isoInDays(days: number): string {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
@@ -57,8 +75,8 @@ describe("getBanner — certificate expiration tones", () => {
   });
 
   it("vence en 0 días → tone expired", () => {
-    /* differenceInDays con días=0 puede caer en 0 o -1 según hora local.
-       isoInDays(0) = now, daysUntil(now) suele dar 0 → expired. */
+    /* Con tiempo congelado, isoInDays(0) = el instante fijo exacto →
+       daysUntil = differenceInDays(t, t) = 0 → expired (determinista). */
     expect(getBanner(isoInDays(0)).tone).toBe("expired");
   });
 
