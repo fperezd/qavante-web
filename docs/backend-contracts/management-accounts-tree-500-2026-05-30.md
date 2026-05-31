@@ -1,5 +1,14 @@
 # Bug backend — `GET /api/management/accounts/tree` 500 + los 500 salen sin CORS (CC-WEB → CC-API)
 
+> ## ✅ RESUELTO — 2026-05-31
+>
+> CC-API arregló el 500 de `GET /api/management/accounts/tree` (verificado
+> end-to-end por CC-API). El flag `managementAccounts` se **reactivó** en
+> `wrangler.toml` → `/administracion/estructura-gestion` queda LIVE (4/4
+> pantallas de tesorería activas). Sanity-check FE: el endpoint devuelve
+> `401 no_session` **con** headers CORS (el path de error ya no los pierde).
+> Lo de abajo queda como histórico del incidente.
+
 > Hallado el **2026-05-30** activando en prod las 4 pantallas de tesorería
 > desbloqueadas por ADR-0027 (ver [`docs/operations/treasury-c3-activation-2026-05-30.md`](../operations/treasury-c3-activation-2026-05-30.md)).
 > **3/4 funcionaron** (`/caja/proyeccion`, `/caja/por-clasificar`+`/clasificados`,

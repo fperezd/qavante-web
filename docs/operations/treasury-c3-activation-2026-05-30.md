@@ -1,14 +1,17 @@
 # Activar pantallas de tesorería C3 en prod (post-ADR-0027) — handoff para Fernando
 
-> ### ✅ Resultado de la activación (2026-05-30) — 3/4 OK
+> ### ✅ Resultado de la activación — 4/4 OK (al 2026-05-31)
 >
-> Fernando activó los 4 flags. **Funcionaron 3:** `/caja/proyeccion`,
-> `/caja/por-clasificar`+`/clasificados`, `/administracion/reglas-clasificacion`.
-> **Falló `/administracion/estructura-gestion`** (`managementAccounts`): el endpoint
-> `GET /api/management/accounts/tree` devuelve **500** en el path autenticado +
-> los 500 salen sin CORS → el FE lo ve como error de red. **Bug de backend** (FE OK).
-> Mitigado con kill-switch (`NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS=false`). Detalle +
-> handoff a CC-API: [`../backend-contracts/management-accounts-tree-500-2026-05-30.md`](../backend-contracts/management-accounts-tree-500-2026-05-30.md).
+> **Las 4 pantallas de tesorería C3 están LIVE en prod:** `/caja/proyeccion`,
+> `/caja/por-clasificar`+`/clasificados`, `/administracion/reglas-clasificacion`
+> y `/administracion/estructura-gestion`.
+>
+> Las primeras 3 se activaron el 2026-05-30. La 4ta (`managementAccounts`) quedó
+> OFF unos días porque `GET /api/management/accounts/tree` tiraba **500** en el
+> path autenticado (los 500 además salían sin CORS → el FE lo veía como error de
+> red). **Bug de backend, FE siempre OK.** CC-API lo arregló y verificó end-to-end;
+> el flag se reactivó en `wrangler.toml` el 2026-05-31. Histórico del incidente:
+> [`../backend-contracts/management-accounts-tree-500-2026-05-30.md`](../backend-contracts/management-accounts-tree-500-2026-05-30.md).
 
 > **TL;DR.** El backend (CC-API-A, ADR-0027, 2026-05-30) hizo que **5 grupos de
 > endpoints de tesorería C3 acepten la cookie de sesión** del FE (antes eran

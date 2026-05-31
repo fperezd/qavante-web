@@ -22,10 +22,9 @@ NEXT_PUBLIC_APP_ENV = "production"
 NEXT_PUBLIC_FF_CASH_FLOW_REPORT = "true"
 NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION = "true"
 NEXT_PUBLIC_FF_CLASSIFICATION_RULES = "true"
-# OFF: el backend tira 500 en GET /api/management/accounts/tree (ver
-# docs/backend-contracts/management-accounts-tree-500-2026-05-30.md).
-# Destapar cuando CC-API confirme 200:
-# NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS = "true"
+# Reactivada 2026-05-31: CC-API arregló el 500 de GET /api/management/accounts/tree
+# (verificado end-to-end por CC-API). Era el único bloqueante de esta pantalla.
+NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS = "true"
 
 # Custom domain declarativo. Idempotente: si el binding ya existe en el
 # dashboard (creado manualmente el 2026-05-12), wrangler lo respeta. Si se
