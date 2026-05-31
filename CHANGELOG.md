@@ -6,6 +6,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Sesión autónoma nocturna 2026-05-30/31 — activación prod + 2 code-reviews (Modo A, 10h)
+
+PRs #241-#246 (6 mergeados a `main`). Fernando autorizó ~10h Modo A para avanzar mientras dormía.
+
+#### Changed (prod)
+
+- **3 pantallas de tesorería C3 ACTIVADAS en prod** ([#241](https://github.com/fperezd/qavante-web/pull/241)) — `cashFlowReport` (`/caja/proyeccion`), `bankMovementClassification` (`/caja/por-clasificar`+`/clasificados`), `classificationRules` (`/administracion/reglas-clasificacion`), vía `wrangler.toml [vars]`. **Descubrimiento clave:** el panel de Cloudflare es **efímero** (`wrangler deploy` resetea las vars del Worker al `wrangler.toml` en cada push), así que los flags **viven versionados en el repo**, no en el dashboard. Runbook corregido. `managementAccounts` queda OFF (backend 500, ver abajo). Deploy verificado OK.
+
+#### Fixed (code-review multi-agente — 2 pasadas, 24 hallazgos confirmados, 12 arreglados)
+
+- **Lógica pura** ([#246](https://github.com/fperezd/qavante-web/pull/246)) — 7 bugs + 10 tests: `confidence=""` → falso positivo "needs review"; `classified_at` comparado lexicográfico → por instante; `formatPeriodLabel("2026-13")` híbrido → fallback; RUT cero aceptado → rechazado; `formatLastLogin` sin `timeZone` → **mostraba hora UTC en prod (Cloudflare)** → pinea `America/Santiago`; filtro de solo-diacríticos devolvía toda la lista → `[]`.
+- **i18n + a11y + correctitud** ([#244](https://github.com/fperezd/qavante-web/pull/244)) — 3 voseos "Podés"→"Puedes" en copy visible (+ comentario), fallback de nombre vacío en inicio, `aria-label` distintivo en botones "Clasificar".
+- **Test flaky `expiration-banner`** ([#243](https://github.com/fperezd/qavante-web/pull/243)) — fallaba ~1/6 por race de `Date.now()` vs `new Date()` interno → tiempo congelado con `vi.useFakeTimers`. Suite ahora 100% determinista.
+
+#### Docs / handoffs
+
+- **Bug backend `accounts/tree` 500 + 500-sin-CORS** ([#240](https://github.com/fperezd/qavante-web/pull/240)) — hallado activando tesorería: el endpoint 500ea para el tenant real y los 500 pierden headers CORS (el FE lo ve como "perdiste conexión"). Handoff preciso a CC-API.
+- **Cookie demo investigada** ([#242](https://github.com/fperezd/qavante-web/pull/242)) — el FE NO setea `qavante_session` en prod; falso positivo #194 confirmado.
+- **5 hallazgos diferidos del code-review** ([#245](https://github.com/fperezd/qavante-web/pull/245)) — los que tocan auth/middleware (`client.ts` 401-redirect, `/mi-cuenta` sin gate) o son juicio, documentados para revisión de Fernando.
+
 ### Sesión autónoma 2026-05-30 (tarde) — unblock tesorería C3 + limpieza + stories (Modo A)
 
 PRs #229-#238 (10 mergeados a `main`). Continuación supervisada/autónoma (Fernando intermitente). Highlight: **respuesta a la nota de CC-API-A en `STATE_OF_THE_TRAIN` → ADR-0027 destrabó la Brecha 0 para tesorería C3.**
