@@ -27,8 +27,9 @@ import {
 export interface ManagementAccountCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Padre pre-seleccionado al crear sub-cuenta; null = cuenta raíz. */
-  parent: { id: string; name: string } | null;
+  /** Padre pre-seleccionado al crear sub-cuenta; null = cuenta raíz. `type`/
+   *  `destination` (si vienen) pre-pueblan el dominio del form. */
+  parent: { id: string; name: string; type?: string; destination?: string } | null;
   /** Dominios válidos derivados del árbol existente. */
   typeOptions: string[];
   destinationOptions: string[];
@@ -56,14 +57,18 @@ export function ManagementAccountCreateDialog({
     formState: { errors, isSubmitting },
   } = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
-    defaultValues: emptyAccountForm(parent?.id ?? ""),
+    defaultValues: emptyAccountForm(
+      parent?.id ?? "",
+      parent?.type ?? "",
+      parent?.destination ?? "",
+    ),
     mode: "onBlur",
   });
 
   /* Re-sincroniza al abrir o cambiar de padre (sub-cuenta de otro nodo). */
   React.useEffect(() => {
     if (open) {
-      reset(emptyAccountForm(parent?.id ?? ""));
+      reset(emptyAccountForm(parent?.id ?? "", parent?.type ?? "", parent?.destination ?? ""));
       setSubmitError(null);
     }
   }, [open, parent, reset]);

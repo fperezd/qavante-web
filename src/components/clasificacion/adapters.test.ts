@@ -143,6 +143,20 @@ describe("toManagementAccountTreeRows", () => {
     expect(rows[1]?.name).toBe("SoloName");
   });
 
+  it("expone rawName/displayName separados del display + destination (para editar sin pisar)", () => {
+    const rows = toManagementAccountTreeRows([
+      node({ id: "x", name: "Ventas netas", display_name: "Ventas", destination: "operating" }),
+      node({ id: "y", name: "SoloName", display_name: null, destination: "non_operating" }),
+    ]);
+    expect(rows[0]).toMatchObject({
+      name: "Ventas", // display
+      rawName: "Ventas netas", // crudo
+      displayName: "Ventas",
+      destination: "operating",
+    });
+    expect(rows[1]).toMatchObject({ rawName: "SoloName", displayName: "", name: "SoloName" });
+  });
+
   it("expone description (fallback '') y affectsPulso para el form de edición", () => {
     const rows = toManagementAccountTreeRows([
       node({ id: "x", description: "glosa", affects_pulso: false }),

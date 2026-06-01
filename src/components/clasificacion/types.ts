@@ -39,13 +39,19 @@ export interface ManagementAccountOption {
  *  `ManagementAccountOption` (que es solo para el selector type-ahead). */
 export interface ManagementAccountTreeRow {
   id: string;
-  /** `display_name || name`. */
+  /** `display_name || name` — para MOSTRAR (árbol, selector de mover, labels). */
   name: string;
+  /** `name` crudo del backend — para EDITAR sin pisar el display_name. */
+  rawName: string;
+  /** `display_name ?? ""` — nombre para mostrar, editable aparte de `rawName`. */
+  displayName: string;
   code: string;
   /** Profundidad en el árbol (0 = raíz) — para indentar. */
   level: number;
   /** Dominio del nodo (income, direct_cost, operating_expense, …). */
   type: string;
+  /** `destination` — para pre-poblar el dominio al crear una sub-cuenta. */
+  destination: string;
   parentId: string | null;
   active: boolean;
   isVisible: boolean;

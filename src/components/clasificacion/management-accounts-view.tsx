@@ -48,6 +48,10 @@ const ManagementAccountMoveDialog = dynamic(
   { ssr: false },
 );
 
+/** Padre pre-seleccionado al crear una sub-cuenta (incluye el dominio del
+ *  padre para pre-poblar tipo/destino en el form). */
+type CreateParent = { id: string; name: string; type: string; destination: string };
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-2" aria-hidden="true">
@@ -61,8 +65,9 @@ function LoadingSkeleton() {
 export function ManagementAccountsView() {
   const [includeInactive, setIncludeInactive] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
-  /** Padre de la cuenta a crear: null = raíz; {id,name} = sub-cuenta. */
-  const [createParent, setCreateParent] = React.useState<{ id: string; name: string } | null>(null);
+  /** Padre de la cuenta a crear: null = raíz; objeto = sub-cuenta (con el
+   *  dominio del padre para pre-poblar tipo/destino). */
+  const [createParent, setCreateParent] = React.useState<CreateParent | null>(null);
   const [editOpen, setEditOpen] = React.useState(false);
   /** Cuenta en edición; se conserva mientras el dialog anima al cerrar. */
   const [editAccount, setEditAccount] = React.useState<ManagementAccountTreeRow | null>(null);
@@ -72,7 +77,7 @@ export function ManagementAccountsView() {
   const toggleActive = useToggleManagementAccountActive();
   const toggleVisible = useToggleManagementAccountVisible();
 
-  function openCreate(parent: { id: string; name: string } | null) {
+  function openCreate(parent: CreateParent | null) {
     setCreateParent(parent);
     setCreateOpen(true);
   }
@@ -194,10 +199,23 @@ export function ManagementAccountsView() {
         <ManagementAccountsTree
           rows={rows}
           pendingId={pendingId}
-          onToggleActive={(row) => toggleActive.mutate(row.id)}
-          onToggleVisible={(row) => toggleVisible.mutate(row.id)}
+          onToggleActive={(row) => {
+            // Limpiar el error del otro toggle: si no, su banner stale
+            // sobrevive a una acción posterior exitosa (review MED#3).
+            toggleVisible.reset();
+            toggleActive.mutate(row.id);
+          }}
+          onToggleVisible={(row) => {
+            toggleActive.reset();
+            toggleVisible.mutate(row.id);
+          }}
           onCreateChild={(row: ManagementAccountTreeRow) =>
-            openCreate({ id: row.id, name: row.name })
+            openCreate({
+              id: row.id,
+              name: row.name,
+              type: row.type,
+              destination: row.destination,
+            })
           }
           onEdit={openEdit}
           onMove={openMove}

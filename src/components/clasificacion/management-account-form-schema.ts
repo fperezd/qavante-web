@@ -61,16 +61,20 @@ export function formToCreateRequest(v: AccountFormValues): CreateManagementAccou
 
 export const accountEditFormSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido"),
+  displayName: z.string(),
   description: z.string(),
   affectsPulso: z.boolean(),
 });
 
 export type AccountEditFormValues = z.infer<typeof accountEditFormSchema>;
 
-/** Valores iniciales del form de edición desde la fila del árbol. */
+/** Valores iniciales del form de edición desde la fila del árbol. Usa el
+ *  `rawName` (no el display) para no pisar `display_name` con `name` al
+ *  guardar; `name` y `display_name` se editan por separado. */
 export function accountToEditForm(row: ManagementAccountTreeRow): AccountEditFormValues {
   return {
-    name: row.name,
+    name: row.rawName,
+    displayName: row.displayName,
     description: row.description,
     affectsPulso: row.affectsPulso,
   };
@@ -79,6 +83,7 @@ export function accountToEditForm(row: ManagementAccountTreeRow): AccountEditFor
 export function formToUpdateRequest(v: AccountEditFormValues): UpdateManagementAccountRequest {
   return {
     name: v.name.trim(),
+    display_name: v.displayName.trim() || null,
     description: v.description.trim() || null,
     affects_pulso: v.affectsPulso,
   };

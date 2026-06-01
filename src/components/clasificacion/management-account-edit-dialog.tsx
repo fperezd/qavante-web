@@ -36,7 +36,12 @@ const textareaClass = cn(
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
 );
 
-const EMPTY_EDIT: AccountEditFormValues = { name: "", description: "", affectsPulso: true };
+const EMPTY_EDIT: AccountEditFormValues = {
+  name: "",
+  displayName: "",
+  description: "",
+  affectsPulso: true,
+};
 
 export function ManagementAccountEditDialog({
   open,
@@ -132,6 +137,28 @@ export function ManagementAccountEditDialog({
                   {errors.name.message}
                 </p>
               )}
+            </div>
+
+            <div className="space-y-1">
+              <label
+                htmlFor="acct-edit-display-name"
+                className="text-sm font-medium text-neutral-dark"
+              >
+                Nombre para mostrar <span className="text-neutral-mid">(opcional)</span>
+              </label>
+              <Controller
+                control={control}
+                name="displayName"
+                render={({ field }) => (
+                  <QavanteInput
+                    id="acct-edit-display-name"
+                    placeholder="Si lo dejas vacío, se muestra el nombre"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                  />
+                )}
+              />
             </div>
 
             <div className="space-y-1">
