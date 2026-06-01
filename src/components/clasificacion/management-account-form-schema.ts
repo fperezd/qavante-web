@@ -3,7 +3,12 @@
    409 code duplicado, 422 dominio inválido, 403 sin permiso (§20). */
 
 import { z } from "zod";
-import type { CreateManagementAccountRequest, ManagementAccountNode } from "@/lib/api/management";
+import type {
+  CreateManagementAccountRequest,
+  ManagementAccountNode,
+  UpdateManagementAccountRequest,
+} from "@/lib/api/management";
+import type { ManagementAccountTreeRow } from "./types";
 
 export const accountFormSchema = z.object({
   code: z.string().trim().min(1, "El código es requerido"),
@@ -45,6 +50,37 @@ export function formToCreateRequest(v: AccountFormValues): CreateManagementAccou
     /* No expuesto al usuario (ADR-0009: sin reorder manual). El backend
        ordena; 0 = su default. */
     sort_order: 0,
+  };
+}
+
+/* ── Edición (PATCH) ──────────────────────────────────────────────────────
+   Solo los campos que el editor expone: nombre, glosa y afecta-Pulso. El
+   contrato PATCH también acepta display_name/is_visible/sort_order, pero
+   is_visible tiene su toggle en el árbol y sort_order no es editable
+   (ADR-0009). code/type/destination/parent NO son mutables vía PATCH. */
+
+export const accountEditFormSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es requerido"),
+  description: z.string(),
+  affectsPulso: z.boolean(),
+});
+
+export type AccountEditFormValues = z.infer<typeof accountEditFormSchema>;
+
+/** Valores iniciales del form de edición desde la fila del árbol. */
+export function accountToEditForm(row: ManagementAccountTreeRow): AccountEditFormValues {
+  return {
+    name: row.name,
+    description: row.description,
+    affectsPulso: row.affectsPulso,
+  };
+}
+
+export function formToUpdateRequest(v: AccountEditFormValues): UpdateManagementAccountRequest {
+  return {
+    name: v.name.trim(),
+    description: v.description.trim() || null,
+    affects_pulso: v.affectsPulso,
   };
 }
 

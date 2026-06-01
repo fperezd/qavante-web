@@ -49,6 +49,10 @@ export interface ManagementAccountTreeRow {
   parentId: string | null;
   active: boolean;
   isVisible: boolean;
+  /** `description ?? ""` — valor actual para pre-poblar el form de edición. */
+  description: string;
+  /** `affects_pulso` — valor actual para el form de edición. */
+  affectsPulso: boolean;
 }
 
 /** Valor de una vista de gestión (dimension value, subset de §10.5). */
