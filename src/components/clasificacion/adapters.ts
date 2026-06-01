@@ -71,6 +71,8 @@ export function toManagementAccountTreeRows(
         parentId: n.parent_id ?? null,
         active: n.active,
         isVisible: n.is_visible,
+        description: n.description ?? "",
+        affectsPulso: n.affects_pulso,
       });
       if (n.children && n.children.length > 0) walk(n.children);
     }

@@ -1,13 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
   accountFormSchema,
+  accountEditFormSchema,
+  accountToEditForm,
   emptyAccountForm,
   formToCreateRequest,
+  formToUpdateRequest,
   collectAccountDomains,
   humanizeDomain,
   type AccountFormValues,
 } from "./management-account-form-schema";
 import type { ManagementAccountNode } from "@/lib/api/management";
+import type { ManagementAccountTreeRow } from "./types";
 
 function node(partial: Partial<ManagementAccountNode>): ManagementAccountNode {
   return {
@@ -120,6 +124,55 @@ describe("formToCreateRequest", () => {
     });
     expect(req.parent_id).toBeNull();
     expect(req.description).toBeNull();
+  });
+});
+
+describe("accountEditFormSchema", () => {
+  it("acepta nombre + glosa + afecta-Pulso", () => {
+    expect(
+      accountEditFormSchema.safeParse({ name: "Ventas", description: "", affectsPulso: true })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rechaza nombre vacío", () => {
+    expect(
+      accountEditFormSchema.safeParse({ name: "  ", description: "", affectsPulso: true }).success,
+    ).toBe(false);
+  });
+});
+
+describe("accountToEditForm", () => {
+  it("pre-pobla desde la fila del árbol", () => {
+    const row: ManagementAccountTreeRow = {
+      id: "1",
+      name: "Ventas",
+      code: "1.1",
+      level: 1,
+      type: "income",
+      parentId: "1",
+      active: true,
+      isVisible: true,
+      description: "glosa",
+      affectsPulso: false,
+    };
+    expect(accountToEditForm(row)).toEqual({
+      name: "Ventas",
+      description: "glosa",
+      affectsPulso: false,
+    });
+  });
+});
+
+describe("formToUpdateRequest", () => {
+  it("trimea name/description; glosa vacía → null", () => {
+    expect(
+      formToUpdateRequest({ name: "  Ventas ", description: "  ", affectsPulso: true }),
+    ).toEqual({
+      name: "Ventas",
+      description: null,
+      affects_pulso: true,
+    });
   });
 });
 

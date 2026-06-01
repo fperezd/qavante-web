@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Eye, EyeOff, Plus, Power, PowerOff, type LucideIcon } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, Power, PowerOff, type LucideIcon } from "lucide-react";
 import { QavanteBadge, QavanteInput } from "@/components/qavante";
 import { cn } from "@/lib/utils";
 import { filterByQuery } from "./filter";
@@ -11,7 +11,7 @@ import type { ManagementAccountTreeRow } from "./types";
    PURO: recibe las filas aplanadas (con `level` para indentar) + callbacks de
    acción por props; sin fetch ni mutación propia (esas viven en el container
    `ManagementAccountsView`). Cada nodo expone activar/desactivar, mostrar/
-   ocultar y crear sub-cuenta. Editar/mover llegan en PRs siguientes. */
+   ocultar, crear sub-cuenta y editar. Mover llega en un PR siguiente. */
 
 export interface ManagementAccountsTreeProps {
   rows: ManagementAccountTreeRow[];
@@ -19,6 +19,8 @@ export interface ManagementAccountsTreeProps {
   onToggleVisible: (row: ManagementAccountTreeRow) => void;
   /** Crear una sub-cuenta dentro del nodo. Si no se pasa, no se muestra. */
   onCreateChild?: (row: ManagementAccountTreeRow) => void;
+  /** Editar el nodo (nombre/glosa/afecta-Pulso). Si no se pasa, no se muestra. */
+  onEdit?: (row: ManagementAccountTreeRow) => void;
   /** Id del nodo cuya mutación está en curso → deshabilita sus acciones. */
   pendingId?: string | null;
 }
@@ -28,6 +30,7 @@ export function ManagementAccountsTree({
   onToggleActive,
   onToggleVisible,
   onCreateChild,
+  onEdit,
   pendingId,
 }: ManagementAccountsTreeProps) {
   const [query, setQuery] = React.useState("");
@@ -67,6 +70,14 @@ export function ManagementAccountsTree({
                   <QavanteBadge variant="warning">Oculta</QavanteBadge>
                 )}
                 <div className="flex shrink-0 items-center gap-1">
+                  {onEdit && (
+                    <ActionButton
+                      label={`Editar ${row.name}`}
+                      Icon={Pencil}
+                      onClick={() => onEdit(row)}
+                      disabled={busy}
+                    />
+                  )}
                   {onCreateChild && row.active && (
                     <ActionButton
                       label={`Agregar sub-cuenta en ${row.name}`}

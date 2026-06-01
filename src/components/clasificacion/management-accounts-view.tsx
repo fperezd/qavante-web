@@ -19,15 +19,23 @@ import type { ManagementAccountTreeRow } from "./types";
 /* Editor de la estructura de gestión (addendum §14). Container ("página =
    contenedor"): resuelve el árbol + las mutaciones y monta el árbol
    presentacional. PR 1: activar/desactivar + mostrar/ocultar + incluir
-   inactivas. PR 2: crear cuenta raíz + sub-cuenta. Editar/mover llegan en PRs
-   siguientes. El backend impone el permiso de escritura (403 → Anexo C.3).
+   inactivas. PR 2: crear cuenta raíz + sub-cuenta. PR 3: editar
+   (nombre/glosa/afecta-Pulso). Mover llega en un PR siguiente. El backend
+   impone el permiso de escritura (403 → Anexo C.3).
 
-   El dialog de creación es lazy (form + zod solo al abrir): admin-only, no
-   infla el First Load JS de la pantalla read-mostly. */
+   Los dialogs son lazy (form + zod solo al abrir): admin-only, no inflan el
+   First Load JS de la pantalla read-mostly. */
 const ManagementAccountCreateDialog = dynamic(
   () =>
     import("./management-account-create-dialog").then((m) => ({
       default: m.ManagementAccountCreateDialog,
+    })),
+  { ssr: false },
+);
+const ManagementAccountEditDialog = dynamic(
+  () =>
+    import("./management-account-edit-dialog").then((m) => ({
+      default: m.ManagementAccountEditDialog,
     })),
   { ssr: false },
 );
@@ -47,6 +55,9 @@ export function ManagementAccountsView() {
   const [createOpen, setCreateOpen] = React.useState(false);
   /** Padre de la cuenta a crear: null = raíz; {id,name} = sub-cuenta. */
   const [createParent, setCreateParent] = React.useState<{ id: string; name: string } | null>(null);
+  const [editOpen, setEditOpen] = React.useState(false);
+  /** Cuenta en edición; se conserva mientras el dialog anima al cerrar. */
+  const [editAccount, setEditAccount] = React.useState<ManagementAccountTreeRow | null>(null);
   const query = useManagementAccountsTree({ includeInactive });
   const toggleActive = useToggleManagementAccountActive();
   const toggleVisible = useToggleManagementAccountVisible();
@@ -54,6 +65,11 @@ export function ManagementAccountsView() {
   function openCreate(parent: { id: string; name: string } | null) {
     setCreateParent(parent);
     setCreateOpen(true);
+  }
+
+  function openEdit(row: ManagementAccountTreeRow) {
+    setEditAccount(row);
+    setEditOpen(true);
   }
 
   if (query.isLoading) return <LoadingSkeleton />;
@@ -89,6 +105,9 @@ export function ManagementAccountsView() {
       destinationOptions={domains.destinations}
     />
   );
+  const editDialog = (
+    <ManagementAccountEditDialog open={editOpen} onOpenChange={setEditOpen} account={editAccount} />
+  );
 
   if (rows.length === 0 && !includeInactive) {
     return (
@@ -110,7 +129,7 @@ export function ManagementAccountsView() {
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-neutral-mid">
-          Crea cuentas, activa, desactiva u oculta tu estructura. Editar y mover llegan pronto.
+          Crea, edita, activa, desactiva u oculta cuentas de tu estructura. Mover llega pronto.
         </p>
         <div className="flex shrink-0 items-center gap-3">
           <label className="flex items-center gap-2 text-sm text-neutral-mid">
@@ -154,10 +173,12 @@ export function ManagementAccountsView() {
           onCreateChild={(row: ManagementAccountTreeRow) =>
             openCreate({ id: row.id, name: row.name })
           }
+          onEdit={openEdit}
         />
       )}
 
       {createDialog}
+      {editDialog}
     </div>
   );
 }

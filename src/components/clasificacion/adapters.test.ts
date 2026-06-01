@@ -142,6 +142,15 @@ describe("toManagementAccountTreeRows", () => {
     expect(rows[1]?.name).toBe("SoloName");
   });
 
+  it("expone description (fallback '') y affectsPulso para el form de edición", () => {
+    const rows = toManagementAccountTreeRows([
+      node({ id: "x", description: "glosa", affects_pulso: false }),
+      node({ id: "y", description: null, affects_pulso: true }),
+    ]);
+    expect(rows[0]).toMatchObject({ description: "glosa", affectsPulso: false });
+    expect(rows[1]).toMatchObject({ description: "", affectsPulso: true });
+  });
+
   it("árbol vacío ⇒ []", () => {
     expect(toManagementAccountTreeRows([])).toEqual([]);
   });

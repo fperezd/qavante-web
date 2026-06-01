@@ -4,60 +4,45 @@ import { ManagementAccountsTree } from "./management-accounts-tree";
 import type { ManagementAccountTreeRow } from "./types";
 
 /* Árbol editable de estructura de gestión (presentacional). Acciones por
-   nodo: activar/desactivar y mostrar/ocultar. */
+   nodo: editar, agregar sub-cuenta, activar/desactivar y mostrar/ocultar. */
 
-const ROWS: ManagementAccountTreeRow[] = [
-  {
-    id: "1",
-    code: "1",
-    name: "Ingresos",
+function row(p: Partial<ManagementAccountTreeRow> & { id: string }): ManagementAccountTreeRow {
+  return {
+    code: p.id,
+    name: p.id,
     level: 0,
     type: "income",
     parentId: null,
     active: true,
     isVisible: true,
-  },
-  {
-    id: "1.1",
-    code: "1.1",
-    name: "Ventas",
-    level: 1,
-    type: "income",
-    parentId: "1",
-    active: true,
-    isVisible: true,
-  },
-  {
+    description: "",
+    affectsPulso: true,
+    ...p,
+  };
+}
+
+const ROWS: ManagementAccountTreeRow[] = [
+  row({ id: "1", code: "1", name: "Ingresos", level: 0, type: "income" }),
+  row({ id: "1.1", code: "1.1", name: "Ventas", level: 1, type: "income", parentId: "1" }),
+  row({
     id: "1.2",
     code: "1.2",
     name: "Otros ingresos (oculta)",
     level: 1,
     type: "income",
     parentId: "1",
-    active: true,
     isVisible: false,
-  },
-  {
-    id: "2",
-    code: "2",
-    name: "Gastos operativos",
-    level: 0,
-    type: "operating_expense",
-    parentId: null,
-    active: true,
-    isVisible: true,
-  },
-  {
+  }),
+  row({ id: "2", code: "2", name: "Gastos operativos", level: 0, type: "operating_expense" }),
+  row({
     id: "2.1",
     code: "2.1",
     name: "Arriendo",
     level: 1,
     type: "operating_expense",
     parentId: "2",
-    active: true,
-    isVisible: true,
-  },
-  {
+  }),
+  row({
     id: "2.2",
     code: "2.2",
     name: "Sueldos (inactiva)",
@@ -65,8 +50,7 @@ const ROWS: ManagementAccountTreeRow[] = [
     type: "operating_expense",
     parentId: "2",
     active: false,
-    isVisible: true,
-  },
+  }),
 ];
 
 const meta = {
@@ -77,7 +61,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Árbol editable de la estructura de gestión (presentacional). Indenta por `level`, muestra badges Inactiva/Oculta y expone activar/desactivar + mostrar/ocultar por nodo. Search por nombre/código.",
+          "Árbol editable de la estructura de gestión (presentacional). Indenta por `level`, muestra badges Inactiva/Oculta y expone editar, agregar sub-cuenta, activar/desactivar + mostrar/ocultar por nodo. Search por nombre/código.",
       },
     },
   },
@@ -85,6 +69,8 @@ const meta = {
     rows: ROWS,
     onToggleActive: fn(),
     onToggleVisible: fn(),
+    onCreateChild: fn(),
+    onEdit: fn(),
   },
 } satisfies Meta<typeof ManagementAccountsTree>;
 
@@ -98,6 +84,11 @@ export const Arbol: Story = {
 export const ConPendiente: Story = {
   name: "Con una acción en curso (pendingId)",
   args: { pendingId: "2.1" },
+};
+
+export const SoloLectura: Story = {
+  name: "Sin acciones de crear/editar (solo toggles)",
+  args: { onCreateChild: undefined, onEdit: undefined },
 };
 
 export const Vacio: Story = {
