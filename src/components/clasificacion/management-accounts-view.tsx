@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle } from "lucide-react";
-import { QavanteEmpty } from "@/components/qavante";
+import dynamic from "next/dynamic";
+import { AlertCircle, Plus } from "lucide-react";
+import { QavanteButton, QavanteEmpty } from "@/components/qavante";
 import {
   useManagementAccountsTree,
   useToggleManagementAccountActive,
@@ -12,12 +13,24 @@ import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { ManagementAccountsTree } from "./management-accounts-tree";
 import { toManagementAccountTreeRows } from "./adapters";
+import { collectAccountDomains } from "./management-account-form-schema";
+import type { ManagementAccountTreeRow } from "./types";
 
 /* Editor de la estructura de gestión (addendum §14). Container ("página =
-   contenedor"): resuelve el árbol + las mutaciones de toggle y monta el árbol
+   contenedor"): resuelve el árbol + las mutaciones y monta el árbol
    presentacional. PR 1: activar/desactivar + mostrar/ocultar + incluir
-   inactivas. Crear/editar/mover llegan en PRs siguientes. El backend impone
-   el permiso de escritura (403 → copy del Anexo C.3). */
+   inactivas. PR 2: crear cuenta raíz + sub-cuenta. Editar/mover llegan en PRs
+   siguientes. El backend impone el permiso de escritura (403 → Anexo C.3).
+
+   El dialog de creación es lazy (form + zod solo al abrir): admin-only, no
+   infla el First Load JS de la pantalla read-mostly. */
+const ManagementAccountCreateDialog = dynamic(
+  () =>
+    import("./management-account-create-dialog").then((m) => ({
+      default: m.ManagementAccountCreateDialog,
+    })),
+  { ssr: false },
+);
 
 function LoadingSkeleton() {
   return (
@@ -31,9 +44,17 @@ function LoadingSkeleton() {
 
 export function ManagementAccountsView() {
   const [includeInactive, setIncludeInactive] = React.useState(false);
+  const [createOpen, setCreateOpen] = React.useState(false);
+  /** Padre de la cuenta a crear: null = raíz; {id,name} = sub-cuenta. */
+  const [createParent, setCreateParent] = React.useState<{ id: string; name: string } | null>(null);
   const query = useManagementAccountsTree({ includeInactive });
   const toggleActive = useToggleManagementAccountActive();
   const toggleVisible = useToggleManagementAccountVisible();
+
+  function openCreate(parent: { id: string; name: string } | null) {
+    setCreateParent(parent);
+    setCreateOpen(true);
+  }
 
   if (query.isLoading) return <LoadingSkeleton />;
 
@@ -56,7 +77,18 @@ export function ManagementAccountsView() {
     );
   }
 
-  const rows = toManagementAccountTreeRows(query.data?.items ?? []);
+  const items = query.data?.items ?? [];
+  const rows = toManagementAccountTreeRows(items);
+  const domains = collectAccountDomains(items);
+  const createDialog = (
+    <ManagementAccountCreateDialog
+      open={createOpen}
+      onOpenChange={setCreateOpen}
+      parent={createParent}
+      typeOptions={domains.types}
+      destinationOptions={domains.destinations}
+    />
+  );
 
   if (rows.length === 0 && !includeInactive) {
     return (
@@ -78,17 +110,23 @@ export function ManagementAccountsView() {
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-neutral-mid">
-          Activa, desactiva u oculta cuentas de tu estructura. Crear, editar y mover llegan pronto.
+          Crea cuentas, activa, desactiva u oculta tu estructura. Editar y mover llegan pronto.
         </p>
-        <label className="flex shrink-0 items-center gap-2 text-sm text-neutral-mid">
-          <input
-            type="checkbox"
-            checked={includeInactive}
-            onChange={(e) => setIncludeInactive(e.target.checked)}
-            className="h-4 w-4 rounded border-neutral-light text-brand-primary"
-          />
-          Incluir inactivas
-        </label>
+        <div className="flex shrink-0 items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-neutral-mid">
+            <input
+              type="checkbox"
+              checked={includeInactive}
+              onChange={(e) => setIncludeInactive(e.target.checked)}
+              className="h-4 w-4 rounded border-neutral-light text-brand-primary"
+            />
+            Incluir inactivas
+          </label>
+          <QavanteButton size="sm" onClick={() => openCreate(null)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Nueva cuenta
+          </QavanteButton>
+        </div>
       </div>
 
       {mutationError && (
@@ -113,8 +151,13 @@ export function ManagementAccountsView() {
           pendingId={pendingId}
           onToggleActive={(row) => toggleActive.mutate(row.id)}
           onToggleVisible={(row) => toggleVisible.mutate(row.id)}
+          onCreateChild={(row: ManagementAccountTreeRow) =>
+            openCreate({ id: row.id, name: row.name })
+          }
         />
       )}
+
+      {createDialog}
     </div>
   );
 }

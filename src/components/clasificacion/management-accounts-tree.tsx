@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Eye, EyeOff, Power, PowerOff, type LucideIcon } from "lucide-react";
+import { Eye, EyeOff, Plus, Power, PowerOff, type LucideIcon } from "lucide-react";
 import { QavanteBadge, QavanteInput } from "@/components/qavante";
 import { cn } from "@/lib/utils";
 import { filterByQuery } from "./filter";
@@ -10,13 +10,15 @@ import type { ManagementAccountTreeRow } from "./types";
 /* Árbol EDITABLE de la estructura de gestión (addendum §14). PRESENTACIONAL
    PURO: recibe las filas aplanadas (con `level` para indentar) + callbacks de
    acción por props; sin fetch ni mutación propia (esas viven en el container
-   `ManagementAccountsView`). Cada nodo expone activar/desactivar y mostrar/
-   ocultar. Crear/editar/mover llegan en PRs siguientes. */
+   `ManagementAccountsView`). Cada nodo expone activar/desactivar, mostrar/
+   ocultar y crear sub-cuenta. Editar/mover llegan en PRs siguientes. */
 
 export interface ManagementAccountsTreeProps {
   rows: ManagementAccountTreeRow[];
   onToggleActive: (row: ManagementAccountTreeRow) => void;
   onToggleVisible: (row: ManagementAccountTreeRow) => void;
+  /** Crear una sub-cuenta dentro del nodo. Si no se pasa, no se muestra. */
+  onCreateChild?: (row: ManagementAccountTreeRow) => void;
   /** Id del nodo cuya mutación está en curso → deshabilita sus acciones. */
   pendingId?: string | null;
 }
@@ -25,6 +27,7 @@ export function ManagementAccountsTree({
   rows,
   onToggleActive,
   onToggleVisible,
+  onCreateChild,
   pendingId,
 }: ManagementAccountsTreeProps) {
   const [query, setQuery] = React.useState("");
@@ -64,6 +67,14 @@ export function ManagementAccountsTree({
                   <QavanteBadge variant="warning">Oculta</QavanteBadge>
                 )}
                 <div className="flex shrink-0 items-center gap-1">
+                  {onCreateChild && row.active && (
+                    <ActionButton
+                      label={`Agregar sub-cuenta en ${row.name}`}
+                      Icon={Plus}
+                      onClick={() => onCreateChild(row)}
+                      disabled={busy}
+                    />
+                  )}
                   <ActionButton
                     label={row.isVisible ? `Ocultar ${row.name}` : `Mostrar ${row.name}`}
                     Icon={row.isVisible ? Eye : EyeOff}
