@@ -7,7 +7,32 @@ import {
   isValidPeriod,
   isValidPeriodRange,
   parseDecimal,
+  normalizeNet,
 } from "./cash-flow-format";
+
+describe("normalizeNet — colapsa -0 y fracciones que redondean a cero (#12)", () => {
+  it("fracción negativa que redondea a cero → 0 positivo (no -0)", () => {
+    const out = normalizeNet(-0.3);
+    expect(out).toBe(0);
+    expect(Object.is(out, -0)).toBe(false);
+    expect(out < 0).toBe(false); // no se pinta de rojo
+  });
+
+  it("-0 exacto → 0 positivo", () => {
+    expect(Object.is(normalizeNet(-0), -0)).toBe(false);
+    expect(normalizeNet(-0)).toBe(0);
+  });
+
+  it("negativo real se preserva (redondeado)", () => {
+    expect(normalizeNet(-100.4)).toBe(-100);
+    expect(normalizeNet(-0.6)).toBe(-1);
+  });
+
+  it("positivo se redondea normal", () => {
+    expect(normalizeNet(100.6)).toBe(101);
+    expect(normalizeNet(0)).toBe(0);
+  });
+});
 
 describe("parseDecimal — string decimal del backend a number", () => {
   it("parsea entero positivo", () => {

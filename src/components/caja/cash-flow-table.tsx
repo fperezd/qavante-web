@@ -4,7 +4,7 @@ import * as React from "react";
 import { QavanteCard, QavanteBadge } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import type { CashFlowBucket, CashFlowReportResponse } from "@/lib/api/treasury-reports";
-import { formatPeriodLabel, parseDecimal } from "./cash-flow-format";
+import { formatPeriodLabel, parseDecimal, normalizeNet } from "./cash-flow-format";
 
 export { formatPeriodLabel } from "./cash-flow-format";
 
@@ -71,7 +71,7 @@ export function CashFlowTable({ data }: CashFlowTableProps) {
               {buckets.map((b) => {
                 const inflow = parseDecimal(b.total_inflow);
                 const outflow = parseDecimal(b.total_outflow);
-                const net = parseDecimal(b.net);
+                const net = normalizeNet(parseDecimal(b.net));
                 return (
                   <tr key={b.period} className="border-b border-neutral-light/40 last:border-b-0">
                     <td className="py-2 pr-3 text-neutral-dark">{formatPeriodLabel(b.period)}</td>
@@ -111,10 +111,12 @@ export function CashFlowTable({ data }: CashFlowTableProps) {
                   <td
                     className={
                       "py-2 pr-3 text-right tabular-nums " +
-                      (parseDecimal(grand.net) < 0 ? "text-danger-500" : "text-neutral-dark")
+                      (normalizeNet(parseDecimal(grand.net)) < 0
+                        ? "text-danger-500"
+                        : "text-neutral-dark")
                     }
                   >
-                    {formatClp(parseDecimal(grand.net))}
+                    {formatClp(normalizeNet(parseDecimal(grand.net)))}
                   </td>
                   <td className="py-2 text-right tabular-nums text-neutral-mid">
                     {grand.row_count ?? 0}
