@@ -113,4 +113,49 @@ describe("api — flujo de auth en 401", () => {
     );
     await expect(api.get("/api/secure")).rejects.toMatchObject({ status: 401 });
   });
+
+  it("si el refresh es 2xx pero el retry SIGUE 401, no loopea y lanza ApiError 401 (#1)", async () => {
+    /* Caso del fix #1: rotación de token / cookie nueva que sigue sin
+       autorizar. Antes el retry (skipAuthRetry) caía a un ApiError 401 plano
+       SIN redirigir; ahora redirige a /login. El refresh se llama UNA sola vez
+       (el retry usa skipAuthRetry → no re-dispara refresh → sin loop). */
+    let refreshCalls = 0;
+    server.use(
+      http.post(`${BASE}/api/auth/refresh`, () => {
+        refreshCalls += 1;
+        return new HttpResponse(null, { status: 200 });
+      }),
+      http.get(`${BASE}/api/secure`, () => new HttpResponse(null, { status: 401 })),
+    );
+    await expect(api.get("/api/secure")).rejects.toMatchObject({ status: 401 });
+    expect(refreshCalls).toBe(1);
+  });
+});
+
+describe("api — body JSON vacío o inválido (#2)", () => {
+  it("200 con content-type JSON y body vacío resuelve undefined (no SyntaxError crudo)", async () => {
+    server.use(
+      http.get(
+        `${BASE}/api/empty`,
+        () =>
+          new HttpResponse("", { status: 200, headers: { "content-type": "application/json" } }),
+      ),
+    );
+    await expect(api.get("/api/empty")).resolves.toBeUndefined();
+  });
+
+  it("200 con JSON malformado lanza ApiError invalid_json (no SyntaxError crudo)", async () => {
+    server.use(
+      http.get(
+        `${BASE}/api/bad-json`,
+        () =>
+          new HttpResponse("{not json", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      ),
+    );
+    await expect(api.get("/api/bad-json")).rejects.toBeInstanceOf(ApiError);
+    await expect(api.get("/api/bad-json")).rejects.toMatchObject({ code: "invalid_json" });
+  });
 });
