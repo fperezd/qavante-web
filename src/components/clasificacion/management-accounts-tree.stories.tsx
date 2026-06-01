@@ -71,6 +71,7 @@ const meta = {
     onToggleVisible: fn(),
     onCreateChild: fn(),
     onEdit: fn(),
+    onMove: fn(),
   },
 } satisfies Meta<typeof ManagementAccountsTree>;
 
@@ -87,8 +88,8 @@ export const ConPendiente: Story = {
 };
 
 export const SoloLectura: Story = {
-  name: "Sin acciones de crear/editar (solo toggles)",
-  args: { onCreateChild: undefined, onEdit: undefined },
+  name: "Sin acciones de crear/editar/mover (solo toggles)",
+  args: { onCreateChild: undefined, onEdit: undefined, onMove: undefined },
 };
 
 export const Vacio: Story = {

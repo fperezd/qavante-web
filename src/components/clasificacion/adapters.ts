@@ -80,3 +80,18 @@ export function toManagementAccountTreeRows(
   walk(nodes);
   return out;
 }
+
+/** Destinos válidos para mover `id`: todas las filas menos la propia y sus
+ *  descendientes (mover un nodo dentro de su propio subárbol generaría un
+ *  ciclo → 422). Asume `rows` en pre-orden (padre antes que hijos), como las
+ *  devuelve {@link toManagementAccountTreeRows}. */
+export function excludeSelfAndDescendants(
+  rows: ManagementAccountTreeRow[],
+  id: string,
+): ManagementAccountTreeRow[] {
+  const excluded = new Set<string>([id]);
+  for (const r of rows) {
+    if (r.parentId && excluded.has(r.parentId)) excluded.add(r.id);
+  }
+  return rows.filter((r) => !excluded.has(r.id));
+}
