@@ -10,6 +10,7 @@ import type {
 import type { CanonicalCategoryMeta } from "@/lib/api/treasury";
 import type {
   CanonicalCategoryOption,
+  DimensionValueOption,
   DimensionValueTreeRow,
   ManagementAccountOption,
   ManagementAccountTreeRow,
@@ -153,6 +154,17 @@ export function toDimensionValueTreeRows(
   };
   walk(roots, 0);
   return out;
+}
+
+/** Valores de una dimensión → opciones del `DimensionValuePicker` (id + label
+ *  + level). Solo valores ACTIVOS (no se asignan inactivos). Reusa el árbol
+ *  para el `level` de indentación. */
+export function toDimensionValueOptions(
+  values: ManagementDimensionValue[],
+): DimensionValueOption[] {
+  return toDimensionValueTreeRows(values)
+    .filter((r) => r.active)
+    .map((r) => ({ id: r.id, label: r.name, level: r.level }));
 }
 
 /** Destinos válidos para mover `id`: todas las filas menos la propia y sus

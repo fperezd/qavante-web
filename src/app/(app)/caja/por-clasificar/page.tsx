@@ -9,7 +9,7 @@ import { PorClasificarView } from "@/components/clasificacion/por-clasificar-vie
    (lista de movimientos + ClassificationDrawer + PATCH classify). Punto de
    entrada desde /caja sigue diferido (landing de Caja es placeholder C8). */
 export default function PorClasificarPage() {
-  const { bankMovementClassification } = resolveFeatureFlags();
+  const { bankMovementClassification, managementDimensions } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -20,7 +20,14 @@ export default function PorClasificarPage() {
         </p>
       </header>
 
-      {bankMovementClassification ? <PorClasificarView /> : <FeatureUnavailableState />}
+      {bankMovementClassification ? (
+        /* `managementDimensions` gatea la sección de vistas de gestión del
+           drawer (D3): OFF ⇒ no se fetchean dimensiones (el endpoint sigue
+           api-key-only). */
+        <PorClasificarView dimensionsEnabled={managementDimensions} />
+      ) : (
+        <FeatureUnavailableState />
+      )}
     </div>
   );
 }

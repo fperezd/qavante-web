@@ -9,13 +9,25 @@ import {
   useCanonicalCategories,
   type BankMovement,
 } from "@/lib/api/treasury";
-import { useManagementAccountsTree } from "@/lib/api/management";
+import {
+  useManagementAccountsTree,
+  useClassificationDimensions,
+  useCreateDimensionAssignment,
+} from "@/lib/api/management";
 import type { SuggestRuleResponse } from "@/lib/api/classification-rules";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
-import { ClassificationDrawer } from "./classification-drawer";
+import {
+  ClassificationDrawer,
+  type ClassificationDimension,
+  type ClassificationDraft,
+} from "./classification-drawer";
 import { SuggestRuleBanner } from "./suggest-rule-banner";
-import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
+import {
+  flattenManagementAccounts,
+  toCanonicalCategoryOptions,
+  toDimensionValueOptions,
+} from "./adapters";
 
 /* Lazy: separa Base UI Dialog + RHF + zod del First Load de
    /caja/por-clasificar. Solo se descarga si el user pide crear regla
@@ -31,10 +43,15 @@ const RuleFormDialog = dynamic(
 /* Flujo §17 — Movimientos por clasificar. Patrón "página = contenedor" del
    repo: el screen resuelve el flag (server) y monta esto (client).
    Contrato real (regla 16, addendum §17.3 erróneo): classify es PATCH y
-   `management_account_id` es OBLIGATORIO (422 sin él); NO hay
-   `dimension_assignments` (asignar dimensión = endpoint aparte) → el drawer
-   va con `dimensions={[]}` (esa sección queda oculta). §17.4: el resumen del
-   movimiento es read-only (no se edita glosa/fecha/monto). */
+   `management_account_id` es OBLIGATORIO (422 sin él). §17.4: el resumen del
+   movimiento es read-only (no se edita glosa/fecha/monto).
+
+   D3 — asignación de dimensiones: el contrato NO acepta `dimension_assignments`
+   inline en classify → se crean aparte (`POST /dimension-assignments`) tras
+   clasificar. Gateado por `dimensionsEnabled` (flag `managementDimensions`):
+   OFF ⇒ no se fetchean dimensiones (el endpoint sigue api-key-only y un 401 con
+   cookie podría gatillar el redirect a /login) y el drawer va con
+   `dimensions={[]}` (sección oculta) — comportamiento idéntico al previo. */
 
 function LoadingSkeleton() {
   return (
@@ -56,11 +73,19 @@ function movementSummary(m: BankMovement) {
   };
 }
 
-export function PorClasificarView() {
+export interface PorClasificarViewProps {
+  /** Flag `managementDimensions`. OFF ⇒ no se fetchean dimensiones ni se
+   *  muestran/crean asignaciones (default, comportamiento previo). */
+  dimensionsEnabled?: boolean;
+}
+
+export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarViewProps = {}) {
   const movementsQuery = useBankMovements({ status: "unclassified" });
   const canonicalQuery = useCanonicalCategories();
   const accountsQuery = useManagementAccountsTree();
   const classify = useClassifyBankMovement();
+  const dims = useClassificationDimensions(dimensionsEnabled);
+  const assign = useCreateDimensionAssignment();
 
   const [selected, setSelected] = React.useState<BankMovement | null>(null);
   const [formError, setFormError] = React.useState<string>();
@@ -76,6 +101,16 @@ export function PorClasificarView() {
   const accountOptions = React.useMemo(
     () => flattenManagementAccounts(accountsQuery.data?.items ?? []),
     [accountsQuery.data],
+  );
+  /* Dimensiones activas+visibles con sus valores → secciones del drawer. Vacío
+     cuando el flag está OFF (la sección de vistas queda oculta). */
+  const classificationDimensions: ClassificationDimension[] = dims.data.map(
+    ({ dimension, values }) => ({
+      id: dimension.id,
+      name: dimension.name,
+      allowsMultiple: dimension.allows_multiple_values,
+      values: toDimensionValueOptions(values),
+    }),
   );
 
   if (movementsQuery.isLoading) return <LoadingSkeleton />;
@@ -96,13 +131,10 @@ export function PorClasificarView() {
     setSelected(null);
     setFormError(undefined);
     classify.reset();
+    assign.reset();
   }
 
-  function submit(
-    movement: BankMovement,
-    draft: { canonicalCategory?: string; managementAccountId?: string; notes: string },
-    createRule: boolean,
-  ) {
+  async function submit(movement: BankMovement, draft: ClassificationDraft, createRule: boolean) {
     // Contrato real: management_account_id es obligatorio (422 sin él). El
     // `canSave` interno del drawer gatea por canonical (supuesto del
     // addendum, no del contrato) — guardamos defensivamente acá.
@@ -111,8 +143,9 @@ export function PorClasificarView() {
       return;
     }
     setFormError(undefined);
-    classify.mutate(
-      {
+    assign.reset();
+    try {
+      await classify.mutateAsync({
         movementId: movement.id,
         body: {
           management_account_id: draft.managementAccountId,
@@ -121,14 +154,30 @@ export function PorClasificarView() {
           notes: draft.notes || null,
           create_rule: createRule,
         },
-      },
-      {
-        onSuccess: () => {
-          setSelected(null);
-          setFormError(undefined);
-        },
-      },
-    );
+      });
+      /* D3: crear las asignaciones de dimensión seleccionadas. NO es atómico
+         con classify (endpoints separados): si una asignación falla, el
+         movimiento ya quedó clasificado y el error se muestra en el drawer (no
+         se cierra). Con el flag OFF, dimensionAssignments es {} → no corre nada
+         y el comportamiento es idéntico al previo. */
+      const pairs = Object.entries(draft.dimensionAssignments).flatMap(([dimensionId, valueIds]) =>
+        valueIds.map((valueId) => ({ dimensionId, valueId })),
+      );
+      for (const { dimensionId, valueId } of pairs) {
+        await assign.mutateAsync({
+          entity_type: "bank_movement",
+          entity_id: movement.id,
+          dimension_id: dimensionId,
+          dimension_value_id: valueId,
+        });
+      }
+      setSelected(null);
+      setFormError(undefined);
+    } catch {
+      /* El error (de classify o de una asignación) se renderiza dentro del
+         drawer vía classify.error / assign.error. No se cierra para que el
+         usuario reintente. */
+    }
   }
 
   return (
@@ -170,6 +219,7 @@ export function PorClasificarView() {
                 // de classify vive en el container, no en el drawer keyed.
                 setFormError(undefined);
                 classify.reset();
+                assign.reset();
                 setSelected(m);
               }}
             >
@@ -187,8 +237,8 @@ export function PorClasificarView() {
           movement={movementSummary(selected)}
           canonicalCategories={canonicalOptions}
           managementAccounts={accountOptions}
-          dimensions={[]}
-          saving={classify.isPending}
+          dimensions={classificationDimensions}
+          saving={classify.isPending || assign.isPending}
           onSave={(d) => submit(selected, d, false)}
           onSaveAndCreateRule={(d) => submit(selected, d, true)}
           onMarkForReview={() => {
@@ -207,6 +257,11 @@ export function PorClasificarView() {
               </p>
             ) : classify.isError ? (
               <QavanteInlineError error={classify.error} what="al guardar la clasificación" />
+            ) : assign.isError ? (
+              <QavanteInlineError
+                error={assign.error}
+                what="al asignar las vistas de gestión (el movimiento ya quedó clasificado)"
+              />
             ) : undefined
           }
           suggestionBanner={

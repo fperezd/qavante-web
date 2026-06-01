@@ -15,7 +15,7 @@
  *   genera ciclo.
  * - `POST /api/management/accounts/{id}/toggle-active|visible` → 200
  *   ManagementAccount con flag invertido. Sin body. */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -63,8 +63,9 @@ export function useManagementAccountsTree(opts: { includeInactive?: boolean } = 
   });
 }
 
-/** `GET /api/management/dimensions` — vistas de gestión del tenant. */
-export function useManagementDimensions(opts: { onlyActive?: boolean } = {}) {
+/** `GET /api/management/dimensions` — vistas de gestión del tenant. `enabled`
+ *  (default true) permite gatearla por flag desde el caller. */
+export function useManagementDimensions(opts: { onlyActive?: boolean; enabled?: boolean } = {}) {
   const onlyActive = opts.onlyActive ?? false;
   return useQuery({
     queryKey: managementKeys.dimensions(onlyActive),
@@ -72,9 +73,43 @@ export function useManagementDimensions(opts: { onlyActive?: boolean } = {}) {
       api.get<DimensionsListResponse>(
         `/api/management/dimensions${onlyActive ? "?only_active=true" : ""}`,
       ),
+    enabled: opts.enabled ?? true,
     staleTime: 30_000,
     retry: false,
   });
+}
+
+/** Dimensiones activas+visibles con sus valores, para el selector de vistas en
+ *  el drawer de clasificación. Compone `useManagementDimensions` + `useQueries`
+ *  (un GET de valores por dimensión). Todo gateado por `enabled` (el flag
+ *  `managementDimensions`): con `enabled=false` no dispara NINGÚN request —
+ *  importante porque el endpoint sigue api-key-only y un 401 con cookie podría
+ *  gatillar el redirect a /login del cliente. */
+export function useClassificationDimensions(enabled: boolean): {
+  data: Array<{ dimension: ManagementDimension; values: ManagementDimensionValue[] }>;
+  isLoading: boolean;
+  isError: boolean;
+} {
+  const dimsQuery = useManagementDimensions({ onlyActive: true, enabled });
+  const dims = (dimsQuery.data?.items ?? []).filter((d) => d.active && d.is_visible);
+  const valueQueries = useQueries({
+    queries: dims.map((d) => ({
+      queryKey: managementKeys.dimensionValues(d.id),
+      queryFn: () =>
+        api.get<DimensionValuesListResponse>(`/api/management/dimensions/${d.id}/values`),
+      enabled: enabled && d.id !== "",
+      staleTime: 30_000,
+      retry: false,
+    })),
+  });
+  return {
+    data: dims.map((dimension, i) => ({
+      dimension,
+      values: valueQueries[i]?.data?.items ?? [],
+    })),
+    isLoading: dimsQuery.isLoading || valueQueries.some((q) => q.isLoading),
+    isError: dimsQuery.isError || valueQueries.some((q) => q.isError),
+  };
 }
 
 /** `GET /api/management/dimensions/{id}/values` — valores (lista plana con
