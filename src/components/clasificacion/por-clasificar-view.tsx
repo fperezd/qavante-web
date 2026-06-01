@@ -133,6 +133,16 @@ export function PorClasificarView() {
 
   return (
     <div className="space-y-3">
+      {/* Las cuentas de gestión son obligatorias para clasificar (422 sin
+          management_account_id). Si su carga falla, sin esto el usuario veía un
+          drawer sin cuentas + "Elige una categoría de gestión" engañoso, con el
+          error tragado. La raíz suele ser el 500 de accounts/tree (backend). */}
+      {accountsQuery.isError && (
+        <QavanteInlineError
+          error={accountsQuery.error}
+          what="las cuentas de gestión — no vas a poder clasificar hasta resolverlo"
+        />
+      )}
       <ul className="divide-y divide-neutral-light rounded-md border border-neutral-light">
         {movements.map((m) => (
           <li key={m.id} className="flex items-center gap-4 p-3">
@@ -152,6 +162,9 @@ export function PorClasificarView() {
               size="sm"
               variant="secondary"
               aria-label={`Clasificar movimiento ${m.description}`}
+              // Sin cuentas de gestión no se puede clasificar (422). Mejor
+              // bloquear que abrir un drawer inútil con el error tragado.
+              disabled={accountsQuery.isError}
               onClick={() => {
                 // Limpiar error stale del movimiento anterior (#4): el error
                 // de classify vive en el container, no en el drawer keyed.

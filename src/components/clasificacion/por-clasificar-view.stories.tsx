@@ -67,6 +67,13 @@ const MOV_ERROR = http.get(MOV_PATH, () =>
     { status: 500 },
   ),
 );
+/* Cuentas de gestión en 500: el bug de la raíz real (accounts/tree 500). */
+const ACCT_ERROR = http.get(ACCT_PATH, () =>
+  HttpResponse.json(
+    { code: "internal_error", detail: "No pudimos cargar las cuentas de gestión." },
+    { status: 500 },
+  ),
+);
 
 const meta = {
   title: "Capa 2 / Clasificación / PorClasificarView",
@@ -104,4 +111,11 @@ export const Cargando: Story = {
 export const Error500: Story = {
   name: "Error (500)",
   parameters: { msw: { handlers: [MOV_ERROR, CANON_EMPTY, ACCT_EMPTY] } },
+};
+
+/* rounds 1/2 #5: hay movimientos pero las cuentas de gestión fallan → banner
+   explicativo + "Clasificar" deshabilitado (en vez de tragar el error). */
+export const CuentasConError: Story = {
+  name: "Movimientos OK pero cuentas en error (no se puede clasificar)",
+  parameters: { msw: { handlers: [MOV_OK, CANON_EMPTY, ACCT_ERROR] } },
 };

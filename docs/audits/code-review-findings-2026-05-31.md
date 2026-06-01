@@ -44,6 +44,7 @@
 - **Qué:** solo se maneja loading/error de `movementsQuery`. Si `accountsQuery` (useManagementAccountsTree) o `canonicalQuery` fallan, `accountOptions` queda `[]` y, como `management_account_id` es obligatorio para clasificar, el usuario ve un drawer sin cuentas + el mensaje engañoso "Elige una categoría de gestión" cuando no hay ninguna. El error se traga sin señal.
 - **⚠️ Relevante AHORA:** la raíz es el mismo bug que ya documentamos — `GET /api/management/accounts/tree` **tira 500** (ver [`../backend-contracts/management-accounts-tree-500-2026-05-30.md`](../backend-contracts/management-accounts-tree-500-2026-05-30.md)). Con `bankMovementClassification` activo en prod, los usuarios de `/caja/por-clasificar` no pueden clasificar (sin opciones de cuenta) y no se les dice por qué.
 - **Por qué lo DIFIERO:** es cambio de comportamiento en pantalla LIVE + la raíz real es el 500 del backend (CC-API). **Recomendación:** prioridad = que CC-API arregle el 500 (#1 del bug doc). Como mitigación FE opcional, surfacear `accountsQuery.isError` con un banner o deshabilitar "Clasificar" con mensaje específico — decímelo y lo hago.
+- **✅ RESUELTO (2026-06-01, autorizado):** se surfacea `accountsQuery.isError` con un `QavanteInlineError` ("las cuentas de gestión — no vas a poder clasificar hasta resolverlo") y se **deshabilita "Clasificar"** mientras las cuentas estén en error → no más drawer inútil con el error tragado. + story `CuentasConError`. (La raíz del 500 sigue siendo backend.)
 
 ---
 
