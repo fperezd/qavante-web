@@ -6,9 +6,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
-### Bloque 2026-06-01 — auth/middleware + editor de vistas de gestión (Modo A)
+### Bloque 2026-06-01 — auth/middleware + editor de vistas de gestión + sweep + D3 (Modo A)
 
-PRs #269-#274. Fernando autorizó los hallazgos de auth/middleware diferidos + construir el editor de dimensiones análogo al de cuentas.
+PRs #269-#276. Fernando autorizó los hallazgos de auth/middleware diferidos + construir el editor de dimensiones (D1-D3) + un sweep de la capa de datos.
+
+#### Added (D3 — asignación de vistas de gestión al clasificar)
+
+- **Asignar dimensiones al clasificar** ([#276](https://github.com/fperezd/qavante-web/pull/276)) — el drawer de `/caja/por-clasificar` puebla la sección "Vistas de gestión" (dimensiones activas+visibles + sus valores) y, al Guardar, crea las asignaciones de los valores elegidos (`POST /dimension-assignments`) tras clasificar. Completa el uso de las dimensiones (D1 crear/editar + D2 valores + D3 asignar). **Gated por `managementDimensions` (OFF en prod)**: flag OFF ⇒ no se fetchea nada ⇒ no-op perfecto (revisado adversarialmente: cero requests filtran, sin riesgo de 401→logout en la pantalla live). No activar hasta que el backend extienda la cookie a `/api/management/dimensions*`.
+
+#### Fixed (sweep capa de datos)
+
+- **reglas cross-invalidan treasury/reports** ([#275](https://github.com/fperezd/qavante-web/pull/275)) — crear/editar/togglear una regla no invalidaba `treasury`/`treasury-reports` (espejo del bug de `classify`, #249) → quedaban stale. + endurecimiento del upload .pfx (reset de la mutación al cerrar para no retener password/base64; cap de 1 MB).
 
 #### Fixed (auth/middleware — code-review 1/2, autorizado)
 
