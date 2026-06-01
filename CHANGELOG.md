@@ -6,6 +6,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Bloque 2026-06-01 (madrugada) — backlog diferido del code-review #3, 6 fixes (Modo A)
+
+PRs #258-#263 (6 mergeados a `main`). Continuación del bloque Modo A: tras cerrar #10 HIGH (#252), Fernando autorizó arreglar **todos** los hallazgos diferidos del 3er code-review. **Backlog del review #3 = 100% cerrado** ([`docs/audits/code-review-findings-round3-2026-05-31.md`](./docs/audits/code-review-findings-round3-2026-05-31.md) marcado resuelto).
+
+#### Fixed
+
+- **#4 (MED, prod) — error de clasificación visible dentro del drawer** ([#258](https://github.com/fperezd/qavante-web/pull/258)) — el `ClassificationDrawer` es overlay `z-50`; un error de `classify` se renderizaba en el flujo de página, **debajo del overlay** → invisible (la clasificación fallaba en silencio). Ahora el error va dentro del drawer (arriba del footer) + `classify.reset()` al cambiar de movimiento/cerrar (sin error stale).
+- **#8 (MED) — `qavante-input` preserva el caret al reformatear** ([#263](https://github.com/fperezd/qavante-web/pull/263)) — variants `currency`/`rut` reformateaban en cada tecla y el caret saltaba al final al editar en medio (afectaba el **RUT de login**). Se reancla el caret por chars significativos (sólo si el input está enfocado). Helpers de caret puros (10 tests). **Contrato + validación intactos** → login sin cambio funcional (442 unit tests verdes).
+- **#7 (MED) — `currency-code-select` no miente con value fuera de opciones** ([#259](https://github.com/fperezd/qavante-web/pull/259)) — misma clase que #10: un value inactivo/filtrado se mostraba como la primera opción. Ahora `<option value hidden disabled>` "(no disponible)" mantiene el valor real visible.
+- **#5 (low) — limpia el default de reporte stale** ([#262](https://github.com/fperezd/qavante-web/pull/262)) — al destildar una moneda de reporte que era el default, el campo quedaba con valor stale invisible; efecto que lo limpia al salir de `reporting_currency_codes`.
+- **#9 (low) — `dimension-value-picker` single deselecciona** ([#260](https://github.com/fperezd/qavante-web/pull/260)) — la rama toggle-off de radios era código muerto (un radio ya `checked` no dispara `onChange`); se agregó opción explícita "Sin asignar".
+- **#12 (low) — `cash-flow-table` sin `$-0`** ([#261](https://github.com/fperezd/qavante-web/pull/261)) — un neto fraccionario negativo mostraba "$-0" en rojo; helper puro `normalizeNet` (`Math.round(net) || 0`) para formatear y colorear.
+
 ### Bloque 2026-05-31 (tarde) — editor completo de Estructura de gestión + fix #10 HIGH (Modo A)
 
 PRs #252-#256 (5 mergeados a `main`). Fernando autorizó un bloque Modo A de ~3h: arreglar el hallazgo HIGH del role-`select` y construir el editor **completo** de `/administracion/estructura-gestion` (que estaba read-only).
