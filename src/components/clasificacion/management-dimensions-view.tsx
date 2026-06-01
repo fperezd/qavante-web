@@ -51,15 +51,21 @@ export function ManagementDimensionsView() {
     null,
   );
 
+  /* Limpiar el error del toggle al abrir un diálogo: si no, un banner de error
+     de un activar/desactivar fallido sobrevive a un crear/editar exitoso
+     posterior (mismo patrón que el editor de cuentas). */
   function openCreate() {
+    toggleActive.reset();
     setEditing(null);
     setFormOpen(true);
   }
   function openEdit(row: ManagementDimensionRow) {
+    toggleActive.reset();
     setEditing(row);
     setFormOpen(true);
   }
   function openValues(row: ManagementDimensionRow) {
+    toggleActive.reset();
     setValuesDimension({ id: row.id, name: row.name });
     setValuesOpen(true);
   }

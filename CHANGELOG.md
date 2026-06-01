@@ -6,6 +6,22 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Bloque 2026-06-01 — auth/middleware + editor de vistas de gestión (Modo A)
+
+PRs #269-#274. Fernando autorizó los hallazgos de auth/middleware diferidos + construir el editor de dimensiones análogo al de cuentas.
+
+#### Fixed (auth/middleware — code-review 1/2, autorizado)
+
+- **#1+#2 — `client.ts`** ([#269](https://github.com/fperezd/qavante-web/pull/269)) — un 401 irrecuperable tras refresh 2xx ahora **redirige a /login** (antes dejaba al usuario varado con "Error 401"); el path de login/logout (`skipAuthRetry` del caller) no cambia (conserva el detalle del backend). Body JSON vacío→`undefined`, malformado→`ApiError invalid_json` (no `SyntaxError` crudo). +3 tests.
+- **#7 — `middleware.ts`** ([#270](https://github.com/fperezd/qavante-web/pull/270)) — `/mi-cuenta/:path*` agregado al matcher (era ruta autenticada sin gate server-side).
+- **#3** — ya estaba resuelto en #249 (classify ya cross-invalida `treasury-reports`); doc actualizado ([#271](https://github.com/fperezd/qavante-web/pull/271)).
+
+#### Added (editor de vistas de gestión / dimensiones — análogo al de cuentas)
+
+- **Dimensiones CRUD** ([#272](https://github.com/fperezd/qavante-web/pull/272)) — `/administracion/vistas-gestion` deja de ser read-only: "Nueva vista" + editar + activar/desactivar (PATCH `active`). Dialog único crear/editar (código read-only al editar). 9 tests de schema.
+- **Árbol de valores por dimensión** ([#273](https://github.com/fperezd/qavante-web/pull/273)) — drawer "Gestionar valores" con CRUD del árbol: crear raíz/sub-valor, editar, mover ("Mover a…", sin DnD, anti-ciclo) y activar/desactivar. `toDimensionValueTreeRows` deriva el árbol+level desde la lista plana (robusto a huérfanos y ciclos); `excludeSelfAndDescendants` ahora genérico. +12 tests.
+- **Post-revisión + brecha backend** ([#274](https://github.com/fperezd/qavante-web/pull/274)) — revisión adversarial del editor: única corrección, el banner de error del toggle no quedaba stale tras un éxito vía diálogo (se agrega `reset()` al abrir, como en cuentas). **⚠️ El editor NO es activable en prod**: `/api/management/dimensions*` sigue api-key-only (ADR-0027 no lo cubrió) → handoff [`docs/backend-contracts/management-dimensions-cookie-gap.md`](./docs/backend-contracts/management-dimensions-cookie-gap.md).
+
 ### Bloque 2026-06-01 (madrugada, cont.) — revisión integral + sweep de bugs (Modo A)
 
 PRs #265-#267 (3 mergeados a `main`). Tras cerrar el backlog del code-review #3, apliqué la **regla de revisión integral al cierre** (Anexo K.4) con revisiones adversariales independientes.
