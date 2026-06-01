@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { isValidRut } from "@/lib/validators/rut";
+import { preservedCaret } from "./qavante-input-caret";
 
 type Variant = "text" | "number" | "currency" | "date" | "rut";
 
@@ -49,18 +50,41 @@ export function QavanteInput({
 }: QavanteInputProps) {
   const [internal, setInternal] = React.useState(value ?? "");
   const [touched, setTouched] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  /* Caret a restaurar tras un reformateo en vivo (currency/rut). null = nada
+     pendiente; el layout effect lo aplica y vuelve a null. */
+  const caretRef = React.useRef<number | null>(null);
 
   const current = value !== undefined ? value : internal;
   const showError =
     invalidProp ?? (variant === "rut" && touched && current !== "" && !isValidRut(current));
 
+  /* #8: el input es controlado y reformatea en cada tecla → el browser manda
+     el caret al final. Tras renderizar el valor nuevo, reanclamos el caret por
+     cantidad de chars significativos. Solo si el input sigue enfocado (no
+     pisar cambios programáticos del valor). */
+  React.useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (caretRef.current !== null && el && document.activeElement === el) {
+      const pos = caretRef.current;
+      el.setSelectionRange(pos, pos);
+    }
+    caretRef.current = null;
+  });
+
   return (
     <input
+      ref={inputRef}
       type={variantToType[variant]}
       value={current}
       aria-invalid={showError || undefined}
       onChange={(e) => {
-        const transformed = transformByVariant(variant, e.target.value);
+        const raw = e.target.value;
+        const rawCaret = e.target.selectionStart ?? raw.length;
+        const transformed = transformByVariant(variant, raw);
+        if (variant === "currency" || variant === "rut") {
+          caretRef.current = preservedCaret(variant, raw, rawCaret, transformed);
+        }
         if (value === undefined) setInternal(transformed);
         onValueChange?.(transformed);
       }}
