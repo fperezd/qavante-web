@@ -32,12 +32,11 @@ export function DimensionValuePicker({
 }: DimensionValuePickerProps) {
   const groupName = React.useId();
 
-  function toggle(id: string) {
-    if (allowsMultiple) {
-      onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
-    } else {
-      onChange(selected[0] === id ? [] : [id]);
-    }
+  /* Solo multi: en single, seleccionar = onChange([id]); deseleccionar va por
+     la opción "Sin asignar" (un radio ya `checked` NO dispara onChange al
+     re-clickearlo → la rama toggle-off sería código muerto). */
+  function toggleMultiple(id: string) {
+    onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
   }
 
   return (
@@ -46,29 +45,50 @@ export function DimensionValuePicker({
       {values.length === 0 ? (
         <p className="px-1 py-2 text-sm text-neutral-mid">Esta vista todavía no tiene valores.</p>
       ) : (
-        values.map((v) => {
-          const checked = selected.includes(v.id);
-          return (
+        <>
+          {!allowsMultiple && (
             <label
-              key={v.id}
-              style={{ paddingLeft: `${0.25 + v.level * 1}rem` }}
+              style={{ paddingLeft: "0.25rem" }}
               className={cn(
                 "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
                 "hover:bg-brand-primary-50",
-                checked ? "text-neutral-dark" : "text-neutral-mid",
+                selected.length === 0 ? "text-neutral-dark" : "text-neutral-mid",
               )}
             >
               <input
-                type={allowsMultiple ? "checkbox" : "radio"}
-                name={allowsMultiple ? undefined : groupName}
-                checked={checked}
-                onChange={() => toggle(v.id)}
+                type="radio"
+                name={groupName}
+                checked={selected.length === 0}
+                onChange={() => onChange([])}
                 className="h-4 w-4 accent-brand-primary"
               />
-              {v.label}
+              <span className="italic">Sin asignar</span>
             </label>
-          );
-        })
+          )}
+          {values.map((v) => {
+            const checked = selected.includes(v.id);
+            return (
+              <label
+                key={v.id}
+                style={{ paddingLeft: `${0.25 + v.level * 1}rem` }}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                  "hover:bg-brand-primary-50",
+                  checked ? "text-neutral-dark" : "text-neutral-mid",
+                )}
+              >
+                <input
+                  type={allowsMultiple ? "checkbox" : "radio"}
+                  name={allowsMultiple ? undefined : groupName}
+                  checked={checked}
+                  onChange={() => (allowsMultiple ? toggleMultiple(v.id) : onChange([v.id]))}
+                  className="h-4 w-4 accent-brand-primary"
+                />
+                {v.label}
+              </label>
+            );
+          })}
+        </>
       )}
     </fieldset>
   );
