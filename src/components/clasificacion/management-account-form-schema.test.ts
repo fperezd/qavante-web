@@ -128,28 +128,40 @@ describe("formToCreateRequest", () => {
 });
 
 describe("accountEditFormSchema", () => {
-  it("acepta nombre + glosa + afecta-Pulso", () => {
+  it("acepta nombre + display + glosa + afecta-Pulso", () => {
     expect(
-      accountEditFormSchema.safeParse({ name: "Ventas", description: "", affectsPulso: true })
-        .success,
+      accountEditFormSchema.safeParse({
+        name: "Ventas",
+        displayName: "",
+        description: "",
+        affectsPulso: true,
+      }).success,
     ).toBe(true);
   });
 
   it("rechaza nombre vacío", () => {
     expect(
-      accountEditFormSchema.safeParse({ name: "  ", description: "", affectsPulso: true }).success,
+      accountEditFormSchema.safeParse({
+        name: "  ",
+        displayName: "",
+        description: "",
+        affectsPulso: true,
+      }).success,
     ).toBe(false);
   });
 });
 
 describe("accountToEditForm", () => {
-  it("pre-pobla desde la fila del árbol", () => {
+  it("pre-pobla con rawName (no el display) para no pisar display_name", () => {
     const row: ManagementAccountTreeRow = {
       id: "1",
-      name: "Ventas",
+      name: "Ventas", // display_name || name
+      rawName: "Ventas netas", // name crudo
+      displayName: "Ventas",
       code: "1.1",
       level: 1,
       type: "income",
+      destination: "operating",
       parentId: "1",
       active: true,
       isVisible: true,
@@ -157,7 +169,8 @@ describe("accountToEditForm", () => {
       affectsPulso: false,
     };
     expect(accountToEditForm(row)).toEqual({
-      name: "Ventas",
+      name: "Ventas netas",
+      displayName: "Ventas",
       description: "glosa",
       affectsPulso: false,
     });
@@ -165,14 +178,31 @@ describe("accountToEditForm", () => {
 });
 
 describe("formToUpdateRequest", () => {
-  it("trimea name/description; glosa vacía → null", () => {
+  it("trimea name/display/description; vacíos → null (display y glosa)", () => {
     expect(
-      formToUpdateRequest({ name: "  Ventas ", description: "  ", affectsPulso: true }),
+      formToUpdateRequest({
+        name: "  Ventas netas ",
+        displayName: "  ",
+        description: "  ",
+        affectsPulso: true,
+      }),
     ).toEqual({
-      name: "Ventas",
+      name: "Ventas netas",
+      display_name: null,
       description: null,
       affects_pulso: true,
     });
+  });
+
+  it("conserva display_name cuando viene (no lo pisa con name)", () => {
+    const out = formToUpdateRequest({
+      name: "Ventas netas",
+      displayName: "Ventas",
+      description: "",
+      affectsPulso: false,
+    });
+    expect(out.name).toBe("Ventas netas");
+    expect(out.display_name).toBe("Ventas");
   });
 });
 

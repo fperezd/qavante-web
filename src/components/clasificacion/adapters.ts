@@ -65,9 +65,12 @@ export function toManagementAccountTreeRows(
       out.push({
         id: n.id,
         name: n.display_name || n.name,
+        rawName: n.name,
+        displayName: n.display_name ?? "",
         code: n.code,
         level: n.level,
         type: n.type,
+        destination: n.destination,
         parentId: n.parent_id ?? null,
         active: n.active,
         isVisible: n.is_visible,

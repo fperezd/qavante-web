@@ -10,8 +10,11 @@ function row(p: Partial<ManagementAccountTreeRow> & { id: string }): ManagementA
   return {
     code: p.id,
     name: p.id,
+    rawName: p.id,
+    displayName: "",
     level: 0,
     type: "income",
+    destination: "operating",
     parentId: null,
     active: true,
     isVisible: true,
