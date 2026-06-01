@@ -73,22 +73,28 @@ export function DimensionValuesDrawer({
   const mutationError = toggleActive.error;
   const moveTargets = moveValue ? excludeSelfAndDescendants(rows, moveValue.id) : [];
 
+  /* Limpiar el error del toggle al abrir un diálogo: si no, un banner de error
+     de un activar/desactivar fallido sobrevive a una acción exitosa posterior. */
   function openCreateRoot() {
+    toggleActive.reset();
     setEditingValue(null);
     setCreateParent(null);
     setFormOpen(true);
   }
   function openCreateChild(row: DimensionValueTreeRow) {
+    toggleActive.reset();
     setEditingValue(null);
     setCreateParent({ id: row.id, name: row.name });
     setFormOpen(true);
   }
   function openEdit(row: DimensionValueTreeRow) {
+    toggleActive.reset();
     setCreateParent(null);
     setEditingValue(row);
     setFormOpen(true);
   }
   function openMove(row: DimensionValueTreeRow) {
+    toggleActive.reset();
     setMoveValue(row);
     setMoveOpen(true);
   }
