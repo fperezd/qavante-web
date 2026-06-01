@@ -6,6 +6,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Bloque 2026-05-31 (tarde) — editor completo de Estructura de gestión + fix #10 HIGH (Modo A)
+
+PRs #252-#256 (5 mergeados a `main`). Fernando autorizó un bloque Modo A de ~3h: arreglar el hallazgo HIGH del role-`select` y construir el editor **completo** de `/administracion/estructura-gestion` (que estaba read-only).
+
+#### Fixed (seguridad)
+
+- **#10 HIGH — role-`select` ya no miente ni degrada un owner en silencio** ([#252](https://github.com/fperezd/qavante-web/pull/252)) — el `<select>` de rol en `users-table` filtraba `owner`/`technical_admin` de las `<option>` pero seguía siendo controlado con `value={u.role}`, así que para esos roles mostraba la **primera** opción (mentía) y, si el admin elegía algo, **degradaba al owner sin verlo**. Fix: las filas cuyo rol no es asignable por el usuario actual se renderizan como **texto read-only** (no `select`). Toca RBAC → autorizado por Fernando explícitamente.
+
+#### Added (editor de Estructura de gestión — de read-only a CRUD completo)
+
+Pantalla `/administracion/estructura-gestion` (flag `managementAccounts`, LIVE en prod). Construido en 4 PRs incrementales (cada uno <300 líneas, contract-driven, dialogs lazy admin-only, schema/transforms testeables sin React, frontera de tipos respetada vía `ManagementAccountTreeRow` + adapters):
+
+- **Árbol interactivo + activar/ocultar** ([#253](https://github.com/fperezd/qavante-web/pull/253)) — árbol indentado con badges Inactiva/Oculta, toggles `toggle-active`/`toggle-visible` por nodo, "incluir inactivas", search.
+- **Crear cuenta raíz + sub-cuenta** ([#254](https://github.com/fperezd/qavante-web/pull/254)) — botón "Nueva cuenta" + "Agregar sub-cuenta" por nodo; dialog con código/nombre/tipo/destino (de los dominios del árbol)/glosa/afecta-Pulso. 409/422/403 vía `apiErrorToUserMessage`.
+- **Editar** ([#255](https://github.com/fperezd/qavante-web/pull/255)) — lápiz por nodo → PATCH de nombre/glosa/afecta-Pulso (lo único mutable vía PATCH; el dialog lo explicita).
+- **Mover** ([#256](https://github.com/fperezd/qavante-web/pull/256)) — icono → selector **"Mover a…"** (sin drag-and-drop, [ADR-0009](./docs/adr/0009-politica-drag-and-drop.md)). El selector excluye la propia cuenta + descendientes (`excludeSelfAndDescendants`, puro + testeado) → no se puede generar un ciclo desde la UI; red de seguridad para 422 (ciclo por edición concurrente) con copy específico.
+
 ### Sesión autónoma nocturna 2026-05-30/31 — activación prod + 3 code-reviews (Modo A)
 
 PRs #241-#250 (10 mergeados a `main`). Fernando autorizó bloques Modo A para avanzar mientras dormía/estaba afuera.
