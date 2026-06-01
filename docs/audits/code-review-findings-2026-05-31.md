@@ -10,6 +10,18 @@
 > Fernando no tocarlos sin él) o son juicio de producto. Cada uno tiene fix
 > sugerido listo. **Acción: Fernando revisa y decide.**
 
+> ## ✅ RESUELTOS (2026-06-01) — Fernando autorizó los 5
+>
+> | # | Sev | Estado |
+> |---|-----|--------|
+> | #1 | med | [#269](https://github.com/fperezd/qavante-web/pull/269) — 401 irrecuperable tras refresh redirige a /login (sin tocar login/logout) |
+> | #2 | low | [#269](https://github.com/fperezd/qavante-web/pull/269) — body JSON vacío→undefined, malformado→ApiError invalid_json |
+> | #7 | med | [#270](https://github.com/fperezd/qavante-web/pull/270) — `/mi-cuenta/:path*` agregado al matcher del middleware |
+> | #3 | low | **Ya estaba resuelto** ([#249](https://github.com/fperezd/qavante-web/pull/249)): `useClassifyBankMovement.onSuccess` ya invalida `treasuryReportsKeys.all` + `classificationRulesKeys.all` (ver `treasury.ts:84-85`). El diagnóstico de abajo quedó stale. |
+> | #5 | low | [#265](https://github.com/fperezd/qavante-web/pull/265) (ver nota en su sección) |
+>
+> Las secciones de abajo quedan como registro del diagnóstico original.
+
 ## 🔐 #1 — `client.ts`: un 401 que persiste tras refresh 2xx no redirige a /login
 
 - **Archivo:** [`src/lib/api/client.ts:64-86`](../../src/lib/api/client.ts#L64) · severidad **med** · confidence **high** · **toca auth**
