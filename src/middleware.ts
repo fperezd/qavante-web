@@ -23,8 +23,11 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  /* Aplica solo a las 6 rutas del menú principal (Anexo B.7).
-     Login, recuperar-clave y rutas públicas (/, /playground) no entran. */
+  /* Rutas autenticadas del route group (app). Las 6 del menú principal
+     (Anexo B.7) + /mi-cuenta (autenticada, bajo (app)/, enlazada desde el
+     avatar del header — sin esto un visitante sin cookie NO era redirigido
+     por el server, a diferencia de las otras, #7). Login, recuperar-clave y
+     rutas públicas (/, /playground) no entran. */
   matcher: [
     "/inicio/:path*",
     "/caja/:path*",
@@ -32,5 +35,6 @@ export const config = {
     "/pagar/:path*",
     "/gestion/:path*",
     "/administracion/:path*",
+    "/mi-cuenta/:path*",
   ],
 };
