@@ -55,6 +55,7 @@ export function CurrencySettingsDialog({
     handleSubmit,
     watch,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
@@ -74,6 +75,21 @@ export function CurrencySettingsDialog({
   const indexedEnabled = watch("indexed_unit_enabled");
   const functionalCode = watch("functional_currency_code");
   const reportingCodes = watch("reporting_currency_codes");
+  const defaultReporting = watch("default_reporting_currency_code");
+
+  /* #5: si el "default de reporte" deja de estar entre las monedas de reporte
+     (el user la destildó), limpiarlo. Sin esto queda un valor stale invisible
+     en el select (el submit lo atrapaba con un refine, pero el usuario no veía
+     por qué). Converge: al ponerlo en "" el guard no vuelve a dispararse. */
+  const reportingKey = reportingCodes.join(",");
+  React.useEffect(() => {
+    if (defaultReporting && !reportingCodes.includes(defaultReporting)) {
+      setValue("default_reporting_currency_code", "", { shouldDirty: true, shouldValidate: true });
+    }
+    // reportingKey representa reportingCodes de forma estable (evita re-correr
+    // en cada render por una nueva referencia del array de watch).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportingKey, defaultReporting, setValue]);
 
   async function onSubmit(values: SettingsFormValues) {
     setSubmitError(null);
