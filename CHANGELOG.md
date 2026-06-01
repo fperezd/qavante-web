@@ -6,6 +6,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Bloque 2026-06-01 (madrugada, cont.) — revisión integral + sweep de bugs (Modo A)
+
+PRs #265-#267 (3 mergeados a `main`). Tras cerrar el backlog del code-review #3, apliqué la **regla de revisión integral al cierre** (Anexo K.4) con revisiones adversariales independientes.
+
+#### Fixed
+
+- **rounds 1/2 #5 — `por-clasificar` surfacea el error de carga de cuentas** ([#265](https://github.com/fperezd/qavante-web/pull/265)) — solo se manejaba el error de `movementsQuery`; si las cuentas de gestión (obligatorias para clasificar) fallaban, el usuario veía un drawer sin cuentas + mensaje engañoso, con el error tragado. Ahora banner explicativo + "Clasificar" deshabilitado.
+- **🔴 Revisión integral del editor — HIGH de corrupción de datos** ([#266](https://github.com/fperezd/qavante-web/pull/266)) — una revisión adversarial del editor recién shipeado encontró que editar una cuenta con `display_name` distinto del `name` **pisaba el `name` real** (el form ataba "Nombre" a `display_name||name` y lo PATCHeaba como `name`). Fix: `rawName`/`displayName` separados, se editan y PATCHean ambos. + 2 MED (crear sub-cuenta hereda dominio del padre; banner de error de toggles ya no queda stale).
+- **SII F29 — cap de folio + `status="error"`** ([#267](https://github.com/fperezd/qavante-web/pull/267)) — sweep adversarial sobre áreas fiscales no cubiertas: folio sin cota → 16+ dígitos se corrompían en silencio por `MAX_SAFE_INTEGER` (cap a 15); `status="error"` caía a la tarjeta de éxito con montos en "—" (rama de error explícita).
+
+> Los 3 reviews adversariales: editor (encontró el HIGH propio), los 6 fixes de #258-#263 (limpios, incl. el caret que toca login — 7 sub-puntos verificados), y un sweep amplio (SII/navegación/inicio/formatters/validators salieron sólidos; solo 2 lows en F29). Diferidos a Fernando: auth/middleware (#1,#2,#7 del review 1/2 + 5 de #245) y el tradeoff documentado #3.
+
 ### Bloque 2026-06-01 (madrugada) — backlog diferido del code-review #3, 6 fixes (Modo A)
 
 PRs #258-#263 (6 mergeados a `main`). Continuación del bloque Modo A: tras cerrar #10 HIGH (#252), Fernando autorizó arreglar **todos** los hallazgos diferidos del 3er code-review. **Backlog del review #3 = 100% cerrado** ([`docs/audits/code-review-findings-round3-2026-05-31.md`](./docs/audits/code-review-findings-round3-2026-05-31.md) marcado resuelto).
