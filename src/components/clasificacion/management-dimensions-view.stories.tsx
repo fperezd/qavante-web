@@ -75,7 +75,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Vistas/dimensiones de gestión (`/administracion/vistas-gestion`). El container resuelve loading/error/empty/grid desde `GET /api/management/dimensions`. El editor de valores jerárquicos es por interacción. (Endpoint aún api-key-only — pantalla no activable hasta que el backend extienda ADR-0027.)",
+          "Editor de vistas/dimensiones de gestión (`/administracion/vistas-gestion`). El container resuelve loading/error/empty/grid desde `GET /api/management/dimensions` y expone crear / editar / activar-desactivar por tarjeta (dialog lazy). El editor del ÁRBOL de valores por dimensión llega en un PR siguiente. (Endpoint aún api-key-only — pantalla no activable hasta que el backend extienda ADR-0027.)",
       },
     },
     msw: { handlers: [OK] },

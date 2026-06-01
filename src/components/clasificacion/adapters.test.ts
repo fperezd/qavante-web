@@ -4,8 +4,9 @@ import {
   toCanonicalCategoryOptions,
   toManagementAccountTreeRows,
   excludeSelfAndDescendants,
+  toManagementDimensionRows,
 } from "./adapters";
-import type { ManagementAccountNode } from "@/lib/api/management";
+import type { ManagementAccountNode, ManagementDimension } from "@/lib/api/management";
 import type { CanonicalCategoryMeta } from "@/lib/api/treasury";
 
 function node(p: Partial<ManagementAccountNode> & { id: string }): ManagementAccountNode {
@@ -168,6 +169,63 @@ describe("toManagementAccountTreeRows", () => {
 
   it("árbol vacío ⇒ []", () => {
     expect(toManagementAccountTreeRows([])).toEqual([]);
+  });
+});
+
+describe("toManagementDimensionRows", () => {
+  function dim(p: Partial<ManagementDimension> & { id: string }): ManagementDimension {
+    return {
+      code: p.id,
+      name: p.id,
+      data_type: "text",
+      is_system: false,
+      is_required: false,
+      is_visible: true,
+      allows_hierarchy: true,
+      allows_multiple_values: false,
+      sort_order: 0,
+      active: true,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      ...p,
+    } as ManagementDimension;
+  }
+
+  it("mapea los campos del backend a la fila UI (description fallback '')", () => {
+    const rows = toManagementDimensionRows([
+      dim({
+        id: "1",
+        code: "proyecto",
+        name: "Proyecto",
+        description: "Por proyecto",
+        data_type: "reference",
+        is_required: true,
+        is_visible: false,
+        allows_hierarchy: false,
+        allows_multiple_values: true,
+        active: false,
+        is_system: true,
+      }),
+      dim({ id: "2", description: null }),
+    ]);
+    expect(rows[0]).toEqual({
+      id: "1",
+      code: "proyecto",
+      name: "Proyecto",
+      description: "Por proyecto",
+      dataType: "reference",
+      isRequired: true,
+      isVisible: false,
+      allowsHierarchy: false,
+      allowsMultiple: true,
+      active: false,
+      isSystem: true,
+    });
+    expect(rows[1]?.description).toBe("");
+  });
+
+  it("lista vacía → []", () => {
+    expect(toManagementDimensionRows([])).toEqual([]);
   });
 });
 

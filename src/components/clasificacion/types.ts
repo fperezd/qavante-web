@@ -67,3 +67,20 @@ export interface DimensionValueOption {
   label: string;
   level: number;
 }
+
+/** Fila del EDITOR de vistas de gestión (dimensiones, subset de §15 con los
+ *  campos que la tarjeta + el form de edición necesitan). */
+export interface ManagementDimensionRow {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  /** Enum técnico (text|number|date|boolean|currency|percentage|reference). */
+  dataType: string;
+  isRequired: boolean;
+  isVisible: boolean;
+  allowsHierarchy: boolean;
+  allowsMultiple: boolean;
+  active: boolean;
+  isSystem: boolean;
+}

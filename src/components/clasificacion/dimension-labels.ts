@@ -20,6 +20,11 @@ export function dimensionTypeLabel(dataType: string): string {
   return DATA_TYPE_LABEL[dataType as DataType] ?? "Texto";
 }
 
+/** Opciones {value,label} de `data_type` para el select del editor. */
+export const DATA_TYPE_OPTIONS: ReadonlyArray<{ value: DataType; label: string }> = (
+  Object.keys(DATA_TYPE_LABEL) as DataType[]
+).map((value) => ({ value, label: DATA_TYPE_LABEL[value] }));
+
 /** "Obligatoria" | "Opcional" según `is_required`. */
 export function dimensionRequirementLabel(isRequired: boolean): string {
   return isRequired ? "Obligatoria" : "Opcional";

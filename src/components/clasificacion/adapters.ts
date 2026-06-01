@@ -2,12 +2,13 @@
  * los tipos del OpenAPI generado a los tipos de UI de los selectores
  * (presentacionales, prop-driven). Mantiene la frontera limpia: los tipos
  * generados NO se filtran a los componentes de presentación. */
-import type { ManagementAccountNode } from "@/lib/api/management";
+import type { ManagementAccountNode, ManagementDimension } from "@/lib/api/management";
 import type { CanonicalCategoryMeta } from "@/lib/api/treasury";
 import type {
   CanonicalCategoryOption,
   ManagementAccountOption,
   ManagementAccountTreeRow,
+  ManagementDimensionRow,
 } from "./types";
 
 const DIRECTIONS = ["credit", "debit", "any"] as const;
@@ -82,6 +83,23 @@ export function toManagementAccountTreeRows(
   };
   walk(nodes);
   return out;
+}
+
+/** `ManagementDimension[]` (API §15) → filas del editor de vistas de gestión. */
+export function toManagementDimensionRows(dims: ManagementDimension[]): ManagementDimensionRow[] {
+  return dims.map((d) => ({
+    id: d.id,
+    code: d.code,
+    name: d.name,
+    description: d.description ?? "",
+    dataType: d.data_type,
+    isRequired: d.is_required,
+    isVisible: d.is_visible,
+    allowsHierarchy: d.allows_hierarchy,
+    allowsMultiple: d.allows_multiple_values,
+    active: d.active,
+    isSystem: d.is_system,
+  }));
 }
 
 /** Destinos válidos para mover `id`: todas las filas menos la propia y sus
