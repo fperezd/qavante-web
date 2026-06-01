@@ -10,7 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Selector de valores de una vista de gestión (addendum §20). Respeta `allowsMultiple` (addendum §15.5/§26.1): false ⇒ radios (a lo sumo 1), true ⇒ checkboxes. Presentacional puro.",
+          'Selector de valores de una vista de gestión (addendum §20). Respeta `allowsMultiple` (addendum §15.5/§26.1): false ⇒ radios (a lo sumo 1) + opción "Sin asignar" para deseleccionar, true ⇒ checkboxes. Presentacional puro.',
       },
     },
   },
@@ -19,8 +19,14 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-function Interactive({ allowsMultiple }: { allowsMultiple: boolean }) {
-  const [selected, setSelected] = React.useState<string[]>([]);
+function Interactive({
+  allowsMultiple,
+  initial = [],
+}: {
+  allowsMultiple: boolean;
+  initial?: string[];
+}) {
+  const [selected, setSelected] = React.useState<string[]>(initial);
   return (
     <div className="max-w-md">
       <DimensionValuePicker
@@ -44,6 +50,14 @@ const baseArgs = {
 export const SingleValue: Story = {
   args: baseArgs,
   render: () => <Interactive allowsMultiple={false} />,
+};
+
+/* #9: en single, "Sin asignar" permite volver a vacío (un radio ya checked no
+   dispara onChange al re-clickearlo). Arranca con un valor preseleccionado. */
+export const SinglePreseleccionado: Story = {
+  name: "Single con valor (deseleccionar con 'Sin asignar')",
+  args: baseArgs,
+  render: () => <Interactive allowsMultiple={false} initial={[DIMENSION_VALUES_FIXTURE[0]!.id]} />,
 };
 
 export const MultipleValues: Story = {
