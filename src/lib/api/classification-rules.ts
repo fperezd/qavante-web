@@ -12,7 +12,7 @@
  *
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). El
  * gating de la UI lo hace `classificationRules` (ADR-0008) en su PR de wire. */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -44,6 +44,20 @@ export const classificationRulesKeys = {
     [...classificationRulesKeys.all, "suggest", movementId] as const,
 };
 
+/* Crear/editar/toggle de una regla cambia cómo se (re)clasifican los
+   movimientos server-side y, vía su `management_account_id`, los
+   financial_impacts que alimentan el cash-flow report. Esos viven en los
+   namespaces `treasury` y `treasury-reports`, que NO son prefijo de
+   `classification-rules` → hay que invalidarlos aparte. Espejo del
+   cross-invalidation de `classify` (treasury.ts). Se usan las keys raíz
+   LITERALES (== `treasuryKeys.all` / `treasuryReportsKeys.all`) para evitar un
+   import circular: treasury.ts ya importa `classificationRulesKeys` de acá. */
+function invalidateAfterRuleChange(qc: QueryClient): void {
+  qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
+  qc.invalidateQueries({ queryKey: ["treasury"] });
+  qc.invalidateQueries({ queryKey: ["treasury-reports"] });
+}
+
 /** `GET /api/treasury/classification-rules` — lista ordenada por priority ASC. */
 export function useClassificationRules() {
   return useQuery({
@@ -62,7 +76,7 @@ export function useCreateClassificationRule() {
   return useMutation({
     mutationFn: (body: CreateClassificationRuleRequest) =>
       api.post<ClassificationRule>("/api/treasury/classification-rules", { body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: classificationRulesKeys.all }),
+    onSuccess: () => invalidateAfterRuleChange(qc),
   });
 }
 
@@ -72,7 +86,7 @@ export function useUpdateClassificationRule() {
   return useMutation({
     mutationFn: ({ ruleId, body }: { ruleId: string; body: UpdateClassificationRuleRequest }) =>
       api.patch<ClassificationRule>(`/api/treasury/classification-rules/${ruleId}`, { body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: classificationRulesKeys.all }),
+    onSuccess: () => invalidateAfterRuleChange(qc),
   });
 }
 
@@ -83,7 +97,7 @@ export function useToggleClassificationRuleActive() {
   return useMutation({
     mutationFn: (ruleId: string) =>
       api.post<ClassificationRule>(`/api/treasury/classification-rules/${ruleId}/toggle-active`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: classificationRulesKeys.all }),
+    onSuccess: () => invalidateAfterRuleChange(qc),
   });
 }
 

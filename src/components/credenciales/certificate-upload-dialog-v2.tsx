@@ -30,6 +30,10 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+/* Un .pfx/.p12 real pesa KBs. Cap defensivo antes de leer/encodear en memoria
+   (base64 infla ~33%): evita que un archivo equivocado/enorme llene el body. */
+const MAX_PFX_BYTES = 1024 * 1024; // 1 MB
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,6 +55,9 @@ async function fileToBase64(file: File): Promise<string> {
 
 export function CertificateUploadDialogV2({ open, onOpenChange }: Props) {
   const upload = useUploadCertificatePfx();
+  /* Referencia estable (TanStack memoiza `reset`) → usable como dep del efecto
+     sin re-correrlo en cada render (el objeto `upload` sí cambia de identidad). */
+  const resetUpload = upload.reset;
   const [file, setFile] = React.useState<File | null>(null);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
@@ -71,13 +78,22 @@ export function CertificateUploadDialogV2({ open, onOpenChange }: Props) {
       reset({ password: "", password_hint: "", rut_holder: "" });
       setFile(null);
       setSubmitError(null);
+      /* El diálogo se desmonta lazy (queda open=false montado) → la mutación
+         retiene `variables` (password + pfx_base64) en memoria hasta el próximo
+         submit. Resetearla al cerrar borra ese residuo (defensa-en-profundidad
+         de la regla 6). */
+      resetUpload();
     }
-  }, [open, reset]);
+  }, [open, reset, resetUpload]);
 
   async function onSubmit(values: FormValues) {
     setSubmitError(null);
     if (!file) {
       setSubmitError("Selecciona un archivo .pfx.");
+      return;
+    }
+    if (file.size > MAX_PFX_BYTES) {
+      setSubmitError("El archivo es demasiado grande para ser un .pfx (máx. 1 MB).");
       return;
     }
     try {
