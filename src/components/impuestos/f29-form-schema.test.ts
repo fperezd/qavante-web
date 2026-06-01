@@ -41,6 +41,15 @@ describe("f29FormSchema — validación de folio", () => {
     expect(r.success).toBe(true);
   });
 
+  it("acepta hasta 15 dígitos (límite de precisión segura)", () => {
+    expect(f29FormSchema.safeParse({ folioInput: "123456789012345" }).success).toBe(true);
+  });
+
+  it("rechaza folios de 16+ dígitos (Number() los redondearía → folio distinto)", () => {
+    // 17 dígitos: Number("12345678901234567") === 12345678901234568 (corrupto).
+    expect(f29FormSchema.safeParse({ folioInput: "12345678901234567" }).success).toBe(false);
+  });
+
   it("F29_FORM_DEFAULTS arranca vacío (form no se prefilla)", () => {
     expect(F29_FORM_DEFAULTS.folioInput).toBe("");
   });

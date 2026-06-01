@@ -23,6 +23,12 @@ export const f29FormSchema = z.object({
     })
     .refine((v) => Number(v) > 0, {
       message: "El folio debe ser mayor a cero.",
+    })
+    /* Cap a 15 dígitos: arriba de eso `Number(v)` excede MAX_SAFE_INTEGER y se
+       redondea en silencio → consultaríamos un folio DISTINTO sin avisar. Los
+       folios SII reales son de 6-12 dígitos, así que no molesta a nadie real. */
+    .refine((v) => v.length <= 15, {
+      message: "El folio es demasiado largo (máximo 15 dígitos).",
     }),
 });
 

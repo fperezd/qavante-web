@@ -131,6 +131,27 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
     );
   }
 
+  /* `status === "error"`: el SII respondió 200 pero con error de negocio (no
+     es ok ni not_found). Sin esta rama caía a la tarjeta de éxito con los
+     montos en "—", sin explicar nada. */
+  if (data.status === "error") {
+    return (
+      <div
+        role="alert"
+        className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
+      >
+        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
+        <div>
+          <p className="font-medium">No pudimos consultar el F29</p>
+          <p className="mt-1 text-neutral-mid">
+            {data.message ??
+              "El SII devolvió un error para este folio. Intenta nuevamente más tarde."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <QavanteCard
       variant="bordered"
