@@ -90,3 +90,16 @@ export const Saving: Story = {
 export const WithoutDimensions: Story = {
   args: { ...baseArgs, dimensions: [] },
 };
+
+/* #4: el error de guardado se renderiza DENTRO del drawer (arriba del footer),
+   nunca en el flujo de la página (quedaría invisible bajo el overlay z-50). */
+export const WithError: Story = {
+  args: {
+    ...baseArgs,
+    error: (
+      <p role="alert" className="text-sm text-danger-500">
+        No pudimos guardar la clasificación. Intenta nuevamente.
+      </p>
+    ),
+  },
+};

@@ -65,6 +65,10 @@ export interface ClassificationDrawerProps {
    *  arriba de los selectores. PRESENTACIONAL PURO: el drawer no sabe nada
    *  del estado del banner — el contenedor lo monta con sus hooks. */
   suggestionBanner?: React.ReactNode;
+  /** Error de guardado, renderizado DENTRO del drawer (arriba del footer). El
+   *  drawer es un overlay `z-50`: un error en el flujo de la página queda
+   *  invisible debajo. El nodo trae su propio `role="alert"`. */
+  error?: React.ReactNode;
 }
 
 const EMPTY_DRAFT: ClassificationDraft = {
@@ -86,6 +90,7 @@ export function ClassificationDrawer({
   initialDraft,
   title = "Clasificar movimiento",
   suggestionBanner,
+  error,
 }: ClassificationDrawerProps) {
   const [draft, setDraft] = React.useState<ClassificationDraft>(initialDraft ?? EMPTY_DRAFT);
 
@@ -230,6 +235,8 @@ export function ClassificationDrawer({
             />
           </section>
         </div>
+
+        {error && <div className="border-t border-neutral-light px-4 pt-3">{error}</div>}
 
         <footer className="flex flex-wrap gap-2 border-t border-neutral-light p-4">
           <QavanteButton
