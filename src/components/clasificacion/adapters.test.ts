@@ -5,8 +5,13 @@ import {
   toManagementAccountTreeRows,
   excludeSelfAndDescendants,
   toManagementDimensionRows,
+  toDimensionValueTreeRows,
 } from "./adapters";
-import type { ManagementAccountNode, ManagementDimension } from "@/lib/api/management";
+import type {
+  ManagementAccountNode,
+  ManagementDimension,
+  ManagementDimensionValue,
+} from "@/lib/api/management";
 import type { CanonicalCategoryMeta } from "@/lib/api/treasury";
 
 function node(p: Partial<ManagementAccountNode> & { id: string }): ManagementAccountNode {
@@ -226,6 +231,68 @@ describe("toManagementDimensionRows", () => {
 
   it("lista vacía → []", () => {
     expect(toManagementDimensionRows([])).toEqual([]);
+  });
+});
+
+describe("toDimensionValueTreeRows", () => {
+  function val(p: Partial<ManagementDimensionValue> & { id: string }): ManagementDimensionValue {
+    return {
+      dimension_id: "d1",
+      name: p.id,
+      parent_id: null,
+      sort_order: 0,
+      active: true,
+      created_at: "2026-01-01T00:00:00Z",
+      ...p,
+    } as ManagementDimensionValue;
+  }
+
+  it("arma el árbol desde la lista plana y calcula level en pre-orden", () => {
+    const rows = toDimensionValueTreeRows([
+      val({ id: "a", name: "A", sort_order: 0 }),
+      val({ id: "a1", name: "A1", parent_id: "a", sort_order: 0 }),
+      val({ id: "a2", name: "A2", parent_id: "a", sort_order: 1 }),
+      val({ id: "b", name: "B", sort_order: 1 }),
+    ]);
+    expect(rows.map((r) => [r.id, r.level])).toEqual([
+      ["a", 0],
+      ["a1", 1],
+      ["a2", 1],
+      ["b", 0],
+    ]);
+  });
+
+  it("ordena hermanos por sort_order y luego name", () => {
+    const rows = toDimensionValueTreeRows([
+      val({ id: "z", name: "Zeta", sort_order: 0 }),
+      val({ id: "a", name: "Alfa", sort_order: 0 }),
+      val({ id: "m", name: "Mid", sort_order: -1 }),
+    ]);
+    expect(rows.map((r) => r.id)).toEqual(["m", "a", "z"]);
+  });
+
+  it("un valor con parent_id ausente se trata como raíz (no se pierde)", () => {
+    const rows = toDimensionValueTreeRows([
+      val({ id: "huerfano", parent_id: "no-existe" }),
+      val({ id: "raiz" }),
+    ]);
+    expect(rows.map((r) => r.id).sort()).toEqual(["huerfano", "raiz"]);
+    expect(rows.every((r) => r.level === 0)).toBe(true);
+  });
+
+  it("no entra en loop infinito ante un ciclo de datos", () => {
+    const rows = toDimensionValueTreeRows([
+      val({ id: "x", parent_id: "y" }),
+      val({ id: "y", parent_id: "x" }),
+    ]);
+    // Ambos tienen parent presente → no son raíces → el walk arranca de [] y
+    // el visited corta cualquier ciclo. No cuelga.
+    expect(Array.isArray(rows)).toBe(true);
+  });
+
+  it("code/description null → '' ", () => {
+    const rows = toDimensionValueTreeRows([val({ id: "a", code: null, description: null })]);
+    expect(rows[0]).toMatchObject({ code: "", description: "" });
   });
 });
 

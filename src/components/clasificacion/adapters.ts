@@ -2,10 +2,15 @@
  * los tipos del OpenAPI generado a los tipos de UI de los selectores
  * (presentacionales, prop-driven). Mantiene la frontera limpia: los tipos
  * generados NO se filtran a los componentes de presentación. */
-import type { ManagementAccountNode, ManagementDimension } from "@/lib/api/management";
+import type {
+  ManagementAccountNode,
+  ManagementDimension,
+  ManagementDimensionValue,
+} from "@/lib/api/management";
 import type { CanonicalCategoryMeta } from "@/lib/api/treasury";
 import type {
   CanonicalCategoryOption,
+  DimensionValueTreeRow,
   ManagementAccountOption,
   ManagementAccountTreeRow,
   ManagementDimensionRow,
@@ -102,14 +107,63 @@ export function toManagementDimensionRows(dims: ManagementDimension[]): Manageme
   }));
 }
 
+/** `ManagementDimensionValue[]` (lista PLANA del backend, con `parent_id` pero
+ *  sin `level`) → filas del árbol del editor de valores. Arma el árbol por
+ *  `parent_id` y calcula `level` en pre-orden. Robustez: un valor cuyo
+ *  `parent_id` no está en la lista (p. ej. padre inactivo filtrado) se trata
+ *  como raíz (no se pierde); un `visited` corta ciclos de datos malformados.
+ *  Hermanos ordenados por `sort_order` y luego `name`. */
+export function toDimensionValueTreeRows(
+  values: ManagementDimensionValue[],
+): DimensionValueTreeRow[] {
+  const idSet = new Set(values.map((v) => v.id));
+  const byParent = new Map<string, ManagementDimensionValue[]>();
+  const roots: ManagementDimensionValue[] = [];
+  for (const v of values) {
+    const pid = v.parent_id ?? null;
+    if (pid === null || !idSet.has(pid)) {
+      roots.push(v);
+    } else {
+      const arr = byParent.get(pid);
+      if (arr) arr.push(v);
+      else byParent.set(pid, [v]);
+    }
+  }
+  const sortSiblings = (a: ManagementDimensionValue, b: ManagementDimensionValue) =>
+    a.sort_order - b.sort_order || a.name.localeCompare(b.name);
+
+  const out: DimensionValueTreeRow[] = [];
+  const visited = new Set<string>();
+  const walk = (list: ManagementDimensionValue[], level: number) => {
+    for (const v of [...list].sort(sortSiblings)) {
+      if (visited.has(v.id)) continue; // corta ciclos de datos
+      visited.add(v.id);
+      out.push({
+        id: v.id,
+        name: v.name,
+        code: v.code ?? "",
+        description: v.description ?? "",
+        level,
+        parentId: v.parent_id ?? null,
+        active: v.active,
+      });
+      const children = byParent.get(v.id);
+      if (children && children.length > 0) walk(children, level + 1);
+    }
+  };
+  walk(roots, 0);
+  return out;
+}
+
 /** Destinos válidos para mover `id`: todas las filas menos la propia y sus
  *  descendientes (mover un nodo dentro de su propio subárbol generaría un
- *  ciclo → 422). Asume `rows` en pre-orden (padre antes que hijos), como las
- *  devuelve {@link toManagementAccountTreeRows}. */
-export function excludeSelfAndDescendants(
-  rows: ManagementAccountTreeRow[],
+ *  ciclo → 422). Genérico sobre cualquier fila con `id` + `parentId`; asume
+ *  pre-orden (padre antes que hijos), como las devuelven
+ *  {@link toManagementAccountTreeRows} y {@link toDimensionValueTreeRows}. */
+export function excludeSelfAndDescendants<T extends { id: string; parentId: string | null }>(
+  rows: T[],
   id: string,
-): ManagementAccountTreeRow[] {
+): T[] {
   const excluded = new Set<string>([id]);
   for (const r of rows) {
     if (r.parentId && excluded.has(r.parentId)) excluded.add(r.id);

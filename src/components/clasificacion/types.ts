@@ -68,6 +68,22 @@ export interface DimensionValueOption {
   level: number;
 }
 
+/** Fila del EDITOR del ÁRBOL de valores de una dimensión (subset de §15.5).
+ *  Derivada de la lista plana del backend (que trae `parent_id` pero no
+ *  `level`); el adapter arma el árbol y calcula `level` para indentar. */
+export interface DimensionValueTreeRow {
+  id: string;
+  name: string;
+  /** `code ?? ""`. */
+  code: string;
+  /** `description ?? ""` — para pre-poblar el form de edición. */
+  description: string;
+  /** Profundidad (0 = raíz) — para indentar. */
+  level: number;
+  parentId: string | null;
+  active: boolean;
+}
+
 /** Fila del EDITOR de vistas de gestión (dimensiones, subset de §15 con los
  *  campos que la tarjeta + el form de edición necesitan). */
 export interface ManagementDimensionRow {
