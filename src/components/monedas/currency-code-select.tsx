@@ -48,6 +48,16 @@ export function CurrencyCodeSelect({
     return list;
   }, [currencies, filterType, excludeCodes]);
 
+  /* Si el `value` persistido no quedó en `options` (moneda inactiva, de otro
+     `filterType` o en `excludeCodes`), un `<select>` controlado mostraría la
+     PRIMERA opción → miente sobre el valor real y persiste otra moneda al
+     submit. Renderizamos una opción `hidden disabled` que matchea el value
+     para que el select muestre el valor real (el usuario ve que debe corregir);
+     el backend revalida igual (422). */
+  const valueInOptions = value === "" || options.some((c) => c.code === value);
+  const orphan =
+    !valueInOptions && value !== "" ? currencies.find((c) => c.code === value) : undefined;
+
   return (
     <select
       id={id}
@@ -68,6 +78,11 @@ export function CurrencyCodeSelect({
       {(value === "" || allowEmpty) && (
         <option value="" disabled={!allowEmpty}>
           {placeholder}
+        </option>
+      )}
+      {!valueInOptions && value !== "" && (
+        <option value={value} hidden disabled>
+          {orphan ? `${orphan.code} · ${orphan.name}` : value} (no disponible)
         </option>
       )}
       {options.map((c) => (
