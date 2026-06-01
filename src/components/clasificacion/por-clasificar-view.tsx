@@ -92,6 +92,12 @@ export function PorClasificarView() {
     );
   }
 
+  function closeDrawer() {
+    setSelected(null);
+    setFormError(undefined);
+    classify.reset();
+  }
+
   function submit(
     movement: BankMovement,
     draft: { canonicalCategory?: string; managementAccountId?: string; notes: string },
@@ -147,7 +153,10 @@ export function PorClasificarView() {
               variant="secondary"
               aria-label={`Clasificar movimiento ${m.description}`}
               onClick={() => {
+                // Limpiar error stale del movimiento anterior (#4): el error
+                // de classify vive en el container, no en el drawer keyed.
                 setFormError(undefined);
+                classify.reset();
                 setSelected(m);
               }}
             >
@@ -161,7 +170,7 @@ export function PorClasificarView() {
         <ClassificationDrawer
           key={selected.id}
           open
-          onClose={() => setSelected(null)}
+          onClose={closeDrawer}
           movement={movementSummary(selected)}
           canonicalCategories={canonicalOptions}
           managementAccounts={accountOptions}
@@ -173,8 +182,20 @@ export function PorClasificarView() {
             // El contrato actual no expone un endpoint de "marcar por
             // revisar" sin clasificar (classify exige management_account_id).
             // No se inventa (regla 16); se cierra. Reabrir si backend lo expone.
-            setSelected(null);
+            closeDrawer();
           }}
+          /* #4: el error va DENTRO del drawer (overlay z-50) o queda invisible
+             debajo. formError (validación local) tiene prioridad sobre el de
+             la mutación. */
+          error={
+            formError ? (
+              <p role="alert" className="text-sm text-danger-500">
+                {formError}
+              </p>
+            ) : classify.isError ? (
+              <QavanteInlineError error={classify.error} what="al guardar la clasificación" />
+            ) : undefined
+          }
           suggestionBanner={
             <SuggestRuleBanner
               movementId={selected.id}
@@ -192,15 +213,6 @@ export function PorClasificarView() {
         rule={null}
         suggestion={suggestionDraft}
       />
-
-      {formError && (
-        <p role="alert" className="text-sm text-danger-500">
-          {formError}
-        </p>
-      )}
-      {classify.isError && (
-        <QavanteInlineError error={classify.error} what="al guardar la clasificación" />
-      )}
     </div>
   );
 }
