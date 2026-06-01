@@ -8,6 +8,22 @@
 > están detrás de flags OFF). **Acción: Fernando revisa.** El #10 es **HIGH** y
 > conviene priorizarlo.
 
+> ## ✅ RESUELTOS (2026-06-01) — los 7 diferidos, mergeados a `main`
+>
+> Fernando autorizó arreglarlos. **Todos cerrados:**
+>
+> | # | Sev | PR |
+> |---|-----|----|
+> | #10 | HIGH | [#252](https://github.com/fperezd/qavante-web/pull/252) — role-`select` no asignable → texto read-only |
+> | #4 | MED | [#258](https://github.com/fperezd/qavante-web/pull/258) — error de clasificación dentro del drawer + `classify.reset()` |
+> | #7 | MED | [#259](https://github.com/fperezd/qavante-web/pull/259) — `currency-code-select` `<option hidden disabled>` para value huérfano |
+> | #8 | MED | [#263](https://github.com/fperezd/qavante-web/pull/263) — `qavante-input` reancla el caret (currency/rut) — toca login, sin cambio funcional |
+> | #5 | low | [#262](https://github.com/fperezd/qavante-web/pull/262) — limpia el default de reporte stale |
+> | #9 | low | [#260](https://github.com/fperezd/qavante-web/pull/260) — `dimension-value-picker` "Sin asignar" |
+> | #12 | low | [#261](https://github.com/fperezd/qavante-web/pull/261) — `cash-flow-table` `normalizeNet` (no `$-0`) |
+>
+> Las secciones de abajo quedan como registro del diagnóstico original.
+
 ## 🔴 #10 (HIGH) — `users-table.tsx`: el `<select>` de rol miente y puede degradar un owner en silencio
 
 - **Archivo:** [`src/components/administracion/users-table.tsx:47-71`](../../src/components/administracion/users-table.tsx#L47) · severidad **high** · confidence **high** · **toca role-management**
