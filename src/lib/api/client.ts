@@ -23,6 +23,15 @@ async function tryRefresh(): Promise<boolean> {
   }
 }
 
+/* Redirige a /login preservando el destino. Guard: solo en browser y si no
+   estamos ya en /login (evita loop de redirect, p.ej. el 401 del propio login). */
+function redirectToLogin(): void {
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    const redirect = window.location.pathname + window.location.search;
+    window.location.href = `/login?redirect=${encodeURIComponent(redirect)}`;
+  }
+}
+
 async function request<T>(
   method: HttpMethod,
   path: string,
@@ -64,12 +73,22 @@ async function request<T>(
   if (response.status === 401 && !skipAuthRetry && path !== "/api/auth/refresh") {
     const refreshed = await tryRefresh();
     if (refreshed) {
-      return request<T>(method, path, { ...options, skipAuthRetry: true });
+      /* Reintento único tras refresh OK. Si AÚN da 401, la sesión es
+         irrecuperable (rotación de refresh token / cookie nueva que sigue sin
+         autorizar) → redirigir a /login en vez de dejar escapar un ApiError
+         401 plano que varaba al usuario en la pantalla (#1). El retry usa
+         skipAuthRetry, así que su 401 cae en `!response.ok` y se lanza como
+         ApiError — lo atrapamos para redirigir antes de re-lanzar. */
+      try {
+        return await request<T>(method, path, { ...options, skipAuthRetry: true });
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          redirectToLogin();
+        }
+        throw err;
+      }
     }
-    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-      const redirect = window.location.pathname + window.location.search;
-      window.location.href = `/login?redirect=${encodeURIComponent(redirect)}`;
-    }
+    redirectToLogin();
     throw new ApiError("Sesión expirada. Volvé a iniciar sesión.", 401, "unauthorized");
   }
 
@@ -89,7 +108,17 @@ async function request<T>(
 
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
-    return (await response.json()) as T;
+    /* Body vacío con content-type JSON (p.ej. 200/201 sin cuerpo) → undefined,
+       no reventar con `SyntaxError` crudo fuera del contrato ApiError. JSON
+       malformado → ApiError (no un SyntaxError que escape como unhandled
+       rejection, p.ej. en handleLogoutError) (#2). */
+    const text = await response.text();
+    if (!text) return undefined as T;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new ApiError("Respuesta inválida del servidor.", response.status, "invalid_json");
+    }
   }
   return (await response.text()) as unknown as T;
 }
