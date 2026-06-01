@@ -94,6 +94,29 @@ const F29_NOT_FOUND = http.get("*/api/sii/f29/:folio", ({ params }) =>
   ),
 );
 
+/* HTTP 200 con status='error' — el SII respondió pero con error de negocio. */
+const F29_ERROR = http.get("*/api/sii/f29/:folio", ({ params }) =>
+  HttpResponse.json(
+    {
+      status: "error",
+      folio: Number(params.folio),
+      period: { year: 2026, month: 4 },
+      rut_base: 76123456,
+      estado: null,
+      fecha_presentacion: null,
+      iva_debito_fiscal: null,
+      iva_credito_fiscal: null,
+      ppm: null,
+      total_a_pagar: null,
+      code: "sii_business_error",
+      message: "El SII rechazó la consulta de este folio.",
+      details: null,
+      error: null,
+    },
+    { status: 200 },
+  ),
+);
+
 const F29_NO_CREDENTIAL = http.get("*/api/sii/f29/:folio", () =>
   HttpResponse.json(
     { code: "credential_missing", detail: "Falta clave tributaria del SII." },
@@ -200,5 +223,18 @@ export const FaltaClaveTributariaInteractivo: Story = {
       },
     },
     msw: { handlers: [SII_HEALTH_OK, F29_NO_CREDENTIAL] },
+  },
+};
+
+export const ErrorDeNegocioInteractivo: Story = {
+  name: "status='error' (post-submit — interactivo)",
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Tipear cualquier folio → HTTP 200 con `status='error'` (el SII respondió pero rechazó la consulta). Tarjeta de error roja explícita, en vez de caer a la tarjeta de éxito con los montos en '—'.",
+      },
+    },
+    msw: { handlers: [SII_HEALTH_OK, F29_ERROR] },
   },
 };
