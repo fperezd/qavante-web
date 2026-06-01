@@ -12,7 +12,7 @@ import {
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { ManagementAccountsTree } from "./management-accounts-tree";
-import { toManagementAccountTreeRows } from "./adapters";
+import { toManagementAccountTreeRows, excludeSelfAndDescendants } from "./adapters";
 import { collectAccountDomains } from "./management-account-form-schema";
 import type { ManagementAccountTreeRow } from "./types";
 
@@ -20,8 +20,9 @@ import type { ManagementAccountTreeRow } from "./types";
    contenedor"): resuelve el árbol + las mutaciones y monta el árbol
    presentacional. PR 1: activar/desactivar + mostrar/ocultar + incluir
    inactivas. PR 2: crear cuenta raíz + sub-cuenta. PR 3: editar
-   (nombre/glosa/afecta-Pulso). Mover llega en un PR siguiente. El backend
-   impone el permiso de escritura (403 → Anexo C.3).
+   (nombre/glosa/afecta-Pulso). PR 4: mover (selector "Mover a…", sin
+   drag-and-drop per ADR-0009). El backend impone el permiso de escritura
+   (403 → Anexo C.3).
 
    Los dialogs son lazy (form + zod solo al abrir): admin-only, no inflan el
    First Load JS de la pantalla read-mostly. */
@@ -36,6 +37,13 @@ const ManagementAccountEditDialog = dynamic(
   () =>
     import("./management-account-edit-dialog").then((m) => ({
       default: m.ManagementAccountEditDialog,
+    })),
+  { ssr: false },
+);
+const ManagementAccountMoveDialog = dynamic(
+  () =>
+    import("./management-account-move-dialog").then((m) => ({
+      default: m.ManagementAccountMoveDialog,
     })),
   { ssr: false },
 );
@@ -58,6 +66,8 @@ export function ManagementAccountsView() {
   const [editOpen, setEditOpen] = React.useState(false);
   /** Cuenta en edición; se conserva mientras el dialog anima al cerrar. */
   const [editAccount, setEditAccount] = React.useState<ManagementAccountTreeRow | null>(null);
+  const [moveOpen, setMoveOpen] = React.useState(false);
+  const [moveAccount, setMoveAccount] = React.useState<ManagementAccountTreeRow | null>(null);
   const query = useManagementAccountsTree({ includeInactive });
   const toggleActive = useToggleManagementAccountActive();
   const toggleVisible = useToggleManagementAccountVisible();
@@ -70,6 +80,11 @@ export function ManagementAccountsView() {
   function openEdit(row: ManagementAccountTreeRow) {
     setEditAccount(row);
     setEditOpen(true);
+  }
+
+  function openMove(row: ManagementAccountTreeRow) {
+    setMoveAccount(row);
+    setMoveOpen(true);
   }
 
   if (query.isLoading) return <LoadingSkeleton />;
@@ -108,6 +123,17 @@ export function ManagementAccountsView() {
   const editDialog = (
     <ManagementAccountEditDialog open={editOpen} onOpenChange={setEditOpen} account={editAccount} />
   );
+  /* Destinos válidos = todo el árbol menos la propia cuenta y sus
+     descendientes (evita ciclos antes de pegarle al backend). */
+  const moveTargets = moveAccount ? excludeSelfAndDescendants(rows, moveAccount.id) : [];
+  const moveDialog = (
+    <ManagementAccountMoveDialog
+      open={moveOpen}
+      onOpenChange={setMoveOpen}
+      account={moveAccount}
+      targets={moveTargets}
+    />
+  );
 
   if (rows.length === 0 && !includeInactive) {
     return (
@@ -129,7 +155,7 @@ export function ManagementAccountsView() {
     <div className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-neutral-mid">
-          Crea, edita, activa, desactiva u oculta cuentas de tu estructura. Mover llega pronto.
+          Crea, edita, mueve, activa, desactiva u oculta cuentas de tu estructura.
         </p>
         <div className="flex shrink-0 items-center gap-3">
           <label className="flex items-center gap-2 text-sm text-neutral-mid">
@@ -174,11 +200,13 @@ export function ManagementAccountsView() {
             openCreate({ id: row.id, name: row.name })
           }
           onEdit={openEdit}
+          onMove={openMove}
         />
       )}
 
       {createDialog}
       {editDialog}
+      {moveDialog}
     </div>
   );
 }

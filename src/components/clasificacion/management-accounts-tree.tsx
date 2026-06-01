@@ -1,7 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Eye, EyeOff, Pencil, Plus, Power, PowerOff, type LucideIcon } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  FolderInput,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  type LucideIcon,
+} from "lucide-react";
 import { QavanteBadge, QavanteInput } from "@/components/qavante";
 import { cn } from "@/lib/utils";
 import { filterByQuery } from "./filter";
@@ -11,7 +20,7 @@ import type { ManagementAccountTreeRow } from "./types";
    PURO: recibe las filas aplanadas (con `level` para indentar) + callbacks de
    acción por props; sin fetch ni mutación propia (esas viven en el container
    `ManagementAccountsView`). Cada nodo expone activar/desactivar, mostrar/
-   ocultar, crear sub-cuenta y editar. Mover llega en un PR siguiente. */
+   ocultar, crear sub-cuenta, editar y mover. */
 
 export interface ManagementAccountsTreeProps {
   rows: ManagementAccountTreeRow[];
@@ -21,6 +30,8 @@ export interface ManagementAccountsTreeProps {
   onCreateChild?: (row: ManagementAccountTreeRow) => void;
   /** Editar el nodo (nombre/glosa/afecta-Pulso). Si no se pasa, no se muestra. */
   onEdit?: (row: ManagementAccountTreeRow) => void;
+  /** Mover el nodo a otro padre. Si no se pasa, no se muestra. */
+  onMove?: (row: ManagementAccountTreeRow) => void;
   /** Id del nodo cuya mutación está en curso → deshabilita sus acciones. */
   pendingId?: string | null;
 }
@@ -31,6 +42,7 @@ export function ManagementAccountsTree({
   onToggleVisible,
   onCreateChild,
   onEdit,
+  onMove,
   pendingId,
 }: ManagementAccountsTreeProps) {
   const [query, setQuery] = React.useState("");
@@ -83,6 +95,14 @@ export function ManagementAccountsTree({
                       label={`Agregar sub-cuenta en ${row.name}`}
                       Icon={Plus}
                       onClick={() => onCreateChild(row)}
+                      disabled={busy}
+                    />
+                  )}
+                  {onMove && (
+                    <ActionButton
+                      label={`Mover ${row.name}`}
+                      Icon={FolderInput}
+                      onClick={() => onMove(row)}
                       disabled={busy}
                     />
                   )}

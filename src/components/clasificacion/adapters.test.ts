@@ -3,6 +3,7 @@ import {
   flattenManagementAccounts,
   toCanonicalCategoryOptions,
   toManagementAccountTreeRows,
+  excludeSelfAndDescendants,
 } from "./adapters";
 import type { ManagementAccountNode } from "@/lib/api/management";
 import type { CanonicalCategoryMeta } from "@/lib/api/treasury";
@@ -153,5 +154,36 @@ describe("toManagementAccountTreeRows", () => {
 
   it("árbol vacío ⇒ []", () => {
     expect(toManagementAccountTreeRows([])).toEqual([]);
+  });
+});
+
+describe("excludeSelfAndDescendants", () => {
+  const rows = toManagementAccountTreeRows([
+    node({
+      id: "a",
+      code: "1",
+      children: [
+        node({
+          id: "a1",
+          code: "1.1",
+          parent_id: "a",
+          children: [node({ id: "a11", parent_id: "a1" })],
+        }),
+        node({ id: "a2", code: "1.2", parent_id: "a" }),
+      ],
+    }),
+    node({ id: "b", code: "2" }),
+  ]);
+
+  it("excluye el nodo y todo su subárbol (anti-ciclo)", () => {
+    expect(excludeSelfAndDescendants(rows, "a").map((r) => r.id)).toEqual(["b"]);
+  });
+
+  it("excluye self + descendientes anidados, deja hermanos y ancestros", () => {
+    expect(excludeSelfAndDescendants(rows, "a1").map((r) => r.id)).toEqual(["a", "a2", "b"]);
+  });
+
+  it("una hoja solo se excluye a sí misma", () => {
+    expect(excludeSelfAndDescendants(rows, "b").map((r) => r.id)).toEqual(["a", "a1", "a11", "a2"]);
   });
 });
