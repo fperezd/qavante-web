@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { AlertCircle, Pencil, Plus, Power, PowerOff } from "lucide-react";
+import { AlertCircle, ListTree, Pencil, Plus, Power, PowerOff } from "lucide-react";
 import { QavanteEmpty, QavanteCard, QavanteBadge, QavanteButton } from "@/components/qavante";
 import { useManagementDimensions, useUpdateDimension } from "@/lib/api/management";
 import { ApiError } from "@/lib/api/errors";
@@ -14,15 +14,19 @@ import type { ManagementDimensionRow } from "./types";
 /* Editor de vistas de gestión (dimensiones, addendum §15). Container: resuelve
    la lista + las mutaciones y monta las tarjetas. CRUD de dimensión: crear,
    editar y activar/desactivar (el activar va por PATCH `active`, no hay toggle
-   dedicado). El editor del ÁRBOL de valores por dimensión llega en un PR
-   siguiente. El backend impone el permiso (403 → Anexo C.3).
+   dedicado). "Gestionar valores" abre el editor del ÁRBOL de valores de esa
+   dimensión (drawer). El backend impone el permiso (403 → Anexo C.3).
 
-   El dialog es lazy (form + zod solo al abrir): admin-only. */
+   Dialogs/drawer lazy (form + zod solo al abrir): admin-only. */
 const ManagementDimensionFormDialog = dynamic(
   () =>
     import("./management-dimension-form-dialog").then((m) => ({
       default: m.ManagementDimensionFormDialog,
     })),
+  { ssr: false },
+);
+const DimensionValuesDrawer = dynamic(
+  () => import("./dimension-values-drawer").then((m) => ({ default: m.DimensionValuesDrawer })),
   { ssr: false },
 );
 
@@ -42,6 +46,10 @@ export function ManagementDimensionsView() {
   const [formOpen, setFormOpen] = React.useState(false);
   /** Dimensión en edición; null = crear. Se conserva mientras anima al cerrar. */
   const [editing, setEditing] = React.useState<ManagementDimensionRow | null>(null);
+  const [valuesOpen, setValuesOpen] = React.useState(false);
+  const [valuesDimension, setValuesDimension] = React.useState<{ id: string; name: string } | null>(
+    null,
+  );
 
   function openCreate() {
     setEditing(null);
@@ -50,6 +58,10 @@ export function ManagementDimensionsView() {
   function openEdit(row: ManagementDimensionRow) {
     setEditing(row);
     setFormOpen(true);
+  }
+  function openValues(row: ManagementDimensionRow) {
+    setValuesDimension({ id: row.id, name: row.name });
+    setValuesOpen(true);
   }
 
   if (query.isLoading) return <LoadingSkeleton />;
@@ -155,6 +167,17 @@ export function ManagementDimensionsView() {
                     </QavanteBadge>
                     <QavanteBadge variant="info">{dimensionTypeLabel(dim.dataType)}</QavanteBadge>
                   </div>
+                  <div className="mt-3">
+                    <QavanteButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openValues(dim)}
+                      disabled={busy}
+                    >
+                      <ListTree className="h-4 w-4" aria-hidden="true" />
+                      Gestionar valores
+                    </QavanteButton>
+                  </div>
                 </QavanteCard>
               </li>
             );
@@ -163,6 +186,11 @@ export function ManagementDimensionsView() {
       )}
 
       {formDialog}
+      <DimensionValuesDrawer
+        dimension={valuesDimension}
+        open={valuesOpen}
+        onOpenChange={setValuesOpen}
+      />
     </div>
   );
 }
