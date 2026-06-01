@@ -6,6 +6,7 @@ import {
   excludeSelfAndDescendants,
   toManagementDimensionRows,
   toDimensionValueTreeRows,
+  toDimensionValueOptions,
 } from "./adapters";
 import type {
   ManagementAccountNode,
@@ -293,6 +294,32 @@ describe("toDimensionValueTreeRows", () => {
   it("code/description null → '' ", () => {
     const rows = toDimensionValueTreeRows([val({ id: "a", code: null, description: null })]);
     expect(rows[0]).toMatchObject({ code: "", description: "" });
+  });
+});
+
+describe("toDimensionValueOptions", () => {
+  function val(p: Partial<ManagementDimensionValue> & { id: string }): ManagementDimensionValue {
+    return {
+      dimension_id: "d1",
+      name: p.id,
+      parent_id: null,
+      sort_order: 0,
+      active: true,
+      created_at: "2026-01-01T00:00:00Z",
+      ...p,
+    } as ManagementDimensionValue;
+  }
+
+  it("mapea a {id,label,level} y excluye inactivos", () => {
+    const opts = toDimensionValueOptions([
+      val({ id: "a", name: "Zona Norte", sort_order: 0 }),
+      val({ id: "a1", name: "Obra 1", parent_id: "a", sort_order: 0 }),
+      val({ id: "a2", name: "Obra inactiva", parent_id: "a", active: false }),
+    ]);
+    expect(opts).toEqual([
+      { id: "a", label: "Zona Norte", level: 0 },
+      { id: "a1", label: "Obra 1", level: 1 },
+    ]);
   });
 });
 

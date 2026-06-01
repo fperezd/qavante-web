@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse, delay } from "msw";
 import { PorClasificarView } from "./por-clasificar-view";
 import type { BankMovement } from "@/lib/api/treasury";
+import type { ManagementDimension, ManagementDimensionValue } from "@/lib/api/management";
 
 /* PorClasificarView — container de `/caja/por-clasificar`. Usa 3 queries:
    `useBankMovements({status:'unclassified'})` (gate loading/error/empty),
@@ -75,6 +76,61 @@ const ACCT_ERROR = http.get(ACCT_PATH, () =>
   ),
 );
 
+/* D3 — vistas de gestión (gated por managementDimensions). Fixtures para que,
+   con dimensionsEnabled, el drawer muestre el selector de vistas. */
+const DIMENSIONS: ManagementDimension[] = [
+  {
+    id: "dim-1",
+    code: "centro_costo",
+    name: "Centro de costo",
+    description: null,
+    data_type: "reference",
+    is_system: false,
+    is_required: false,
+    is_visible: true,
+    allows_hierarchy: true,
+    allows_multiple_values: false,
+    sort_order: 0,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+];
+const DIM_VALUES: ManagementDimensionValue[] = [
+  {
+    id: "dv-1",
+    dimension_id: "dim-1",
+    parent_id: null,
+    code: "N",
+    name: "Zona Norte",
+    description: null,
+    path: null,
+    sort_order: 0,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: "dv-2",
+    dimension_id: "dim-1",
+    parent_id: "dv-1",
+    code: "N-01",
+    name: "Obra Antofagasta",
+    description: null,
+    path: null,
+    sort_order: 0,
+    active: true,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  },
+];
+const DIMS_OK = http.get("*/api/management/dimensions", () =>
+  HttpResponse.json({ items: DIMENSIONS }, { status: 200 }),
+);
+const VALUES_OK = http.get("*/api/management/dimensions/:dimId/values", () =>
+  HttpResponse.json({ items: DIM_VALUES }, { status: 200 }),
+);
+
 const meta = {
   title: "Capa 2 / Clasificación / PorClasificarView",
   component: PorClasificarView,
@@ -118,4 +174,12 @@ export const Error500: Story = {
 export const CuentasConError: Story = {
   name: "Movimientos OK pero cuentas en error (no se puede clasificar)",
   parameters: { msw: { handlers: [MOV_OK, CANON_EMPTY, ACCT_ERROR] } },
+};
+
+/* D3: con el flag managementDimensions ON, el drawer (al abrirlo) muestra la
+   sección "Vistas de gestión" con el picker de valores. */
+export const ConVistasDeGestion: Story = {
+  name: "Con vistas de gestión (flag ON)",
+  args: { dimensionsEnabled: true },
+  parameters: { msw: { handlers: [MOV_OK, CANON_EMPTY, ACCT_EMPTY, DIMS_OK, VALUES_OK] } },
 };
