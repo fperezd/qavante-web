@@ -27,6 +27,15 @@ export function parseDecimal(raw: string | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Normaliza el neto a un entero CLP, colapsando `-0` y las fracciones que
+    redondean a cero a un **0 positivo**. Sin esto, un neto fraccionario
+    negativo (ej. -0.3) se muestra "$-0" (formatClp redondea a 0 pero conserva
+    el signo) y se pinta de rojo por `net < 0` — un cero en rojo es incoherente
+    (#12). Usar el resultado tanto para formatear como para decidir el color. */
+export function normalizeNet(net: number): number {
+  return Math.round(net) || 0;
+}
+
 /** Traduce el formato `period` del backend (YYYY-MM mensual/semanal,
     YYYY-MM-DD diario) a un label legible es-CL.
     - "2026-05"     → "may 2026"
