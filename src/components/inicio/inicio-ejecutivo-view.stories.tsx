@@ -75,6 +75,26 @@ const PARCIAL = http.get(PATH, () =>
     { status: 200 },
   ),
 );
+/* Primer drop del backend (acordado 2026-06-02): solo los bloques de caja
+   (que reusan el motor de cash-flow ya live); pulso, frase, resultado,
+   cobranza, pagos y acciones arrancan null. */
+const PRIMER_DROP = http.get(PATH, () =>
+  HttpResponse.json(
+    {
+      executive_phrase: null,
+      pulso: null,
+      cash_today: FIXTURE.cash_today,
+      cash_forecast: FIXTURE.cash_forecast,
+      cash_gap: FIXTURE.cash_gap,
+      overdue_collections: null,
+      critical_payments: null,
+      operational_result: null,
+      priority_actions: null,
+      generated_at: FIXTURE.generated_at,
+    },
+    { status: 200 },
+  ),
+);
 const LOADING = http.get(PATH, async () => {
   await delay("infinite");
   return HttpResponse.json(FIXTURE, { status: 200 });
@@ -105,6 +125,10 @@ export const Completo: Story = { parameters: { msw: { handlers: [OK] } } };
 export const Parcial: Story = {
   name: "Degradación parcial (bloques sin dato)",
   parameters: { msw: { handlers: [PARCIAL] } },
+};
+export const PrimerDrop: Story = {
+  name: "Primer drop backend (solo caja)",
+  parameters: { msw: { handlers: [PRIMER_DROP] } },
 };
 export const Cargando: Story = { parameters: { msw: { handlers: [LOADING] } } };
 export const Error500: Story = { name: "Error (500)", parameters: { msw: { handlers: [ERROR] } } };

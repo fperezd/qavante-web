@@ -76,6 +76,19 @@
 }
 ```
 
+## Entrega incremental (acordado con CC-API 2026-06-02)
+
+El FE soporta entrega por bloques: arranca con lo que ya tiene motor y deja el
+resto `null`. **`executive_phrase` y `priority_actions` también son nullable** y
+el FE los maneja (frase ausente → no se renderiza; acciones `null`/`[]` → no se
+renderiza el bloque "Qué hacer primero"). Primer drop esperado: `cash_today` +
+`cash_forecast` + `cash_gap` con dato real, todo lo demás `null`.
+
+- `executive_phrase`: `string | null` (null hasta que exista el motor rule-based).
+- `priority_actions`: `DashboardAction[]` o `null` (= Brecha 2, heurístico-vs-LLM).
+- `pulso`, `operational_result`, `overdue_collections`, `critical_payments`:
+  `null` hasta tener su cálculo.
+
 ## Notas para CC-API
 
 - Cualquier bloque puede ser `null` (fuente faltante) — el FE NO asume 0.

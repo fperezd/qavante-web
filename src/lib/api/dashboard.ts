@@ -83,8 +83,9 @@ export interface DashboardAction {
 }
 
 export interface DashboardSummaryResponse {
-  /** Frase ejecutiva rule-based (NO LLM). */
-  executive_phrase: string;
+  /** Frase ejecutiva rule-based (NO LLM). null mientras el motor de la frase no
+     esté listo (rollout incremental del backend — ver contrato). */
+  executive_phrase: string | null;
   /** Cada bloque puede venir null si su fuente falta/falla. */
   pulso: DashboardPulso | null;
   cash_today: DashboardCashToday | null;
@@ -93,8 +94,9 @@ export interface DashboardSummaryResponse {
   overdue_collections: DashboardOverdueCollections | null;
   critical_payments: DashboardCriticalPayments | null;
   operational_result: DashboardOperationalResult | null;
-  /** Máximo 3 acciones prioritarias. */
-  priority_actions: DashboardAction[];
+  /** Máximo 3 acciones prioritarias. null/[] mientras el motor (Brecha 2,
+     heurístico-vs-LLM) no esté resuelto. */
+  priority_actions: DashboardAction[] | null;
   generated_at: string;
 }
 

@@ -55,8 +55,10 @@ export function InicioEjecutivoView() {
 function Dashboard({ data }: { data: DashboardSummaryResponse }) {
   return (
     <div className="space-y-4">
-      {/* Frase ejecutiva. */}
-      <p className="text-lg font-medium text-neutral-dark">{data.executive_phrase}</p>
+      {/* Frase ejecutiva (nullable durante el rollout incremental del backend). */}
+      {data.executive_phrase && (
+        <p className="text-lg font-medium text-neutral-dark">{data.executive_phrase}</p>
+      )}
 
       {/* Pulso (destacado). */}
       {data.pulso ? (
@@ -232,8 +234,8 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         </DashCard>
       </div>
 
-      {/* Acciones prioritarias (máx 3). */}
-      {data.priority_actions.length > 0 && (
+      {/* Acciones prioritarias (máx 3). Nullable durante el rollout incremental. */}
+      {data.priority_actions && data.priority_actions.length > 0 && (
         <QavanteCard
           variant="bordered"
           header={<span className="font-medium">Qué hacer primero</span>}
