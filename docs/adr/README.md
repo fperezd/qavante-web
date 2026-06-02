@@ -50,4 +50,4 @@ PR del ADR puede ir solo (decisión sin código) o acoplado al PR del cambio que
 | [0014](./0014-sesiones-autonomas-low-risk.md)                          | Sesiones autónomas CC-WEB — modos, reglas y DoD                                                  | Accepted              | 2026-05-28 |
 | [0015](./0015-coordinacion-cross-repo-issues-vs-state-of-the-train.md) | Coordinación cross-repo — issues para pedidos, STATE_OF_THE_TRAIN para estado                    | Accepted              | 2026-06-01 |
 | [0016](./0016-estructura-rutas-canonica.md)                            | Estructura de rutas construida es canónica (supersede Anexo E en rutas)                          | Accepted              | 2026-06-02 |
-| [0017](./0017-modelo-identidad-multi-empresa.md)                       | Modelo de identidad y multi-empresa (email llave, persona↔empresa N:M, empresa activa en sesión) | Proposed              | 2026-06-02 |
+| [0017](./0017-modelo-identidad-multi-empresa.md)                       | Modelo de identidad y multi-empresa (email llave, persona↔empresa N:M, empresa activa en sesión) | Accepted              | 2026-06-02 |

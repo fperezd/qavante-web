@@ -1,9 +1,9 @@
 # ADR-0017: Modelo de identidad y multi-empresa (email como llave, persona↔empresa N:M, empresa activa en sesión, subdominio único)
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Fecha:** 2026-06-02
 - **Decididores:** Fernando (producto) + CC-WEB (rol CTO)
-- **Tickets / PRs:** este ADR; handoff CC-API pendiente (ver Acciones)
+- **Tickets / PRs:** este ADR (#293); handoff CC-API (ver Acciones)
 
 ## Contexto
 
@@ -18,7 +18,7 @@ Este ADR fija el modelo para ambos repos sin implementar Fase 2 (SSO está prohi
 ### Identidad
 
 - **El email es la llave canónica de una persona.** Una persona = un email. Mismo email por distintos métodos (clave, Google, Microsoft) = la misma persona; emails distintos = personas distintas.
-- **Llave (email) ≠ input de login.** El input del MVP sigue siendo **RUT + clave** (resuelve 1-1 a la persona/email). El **login-por-email llega con SSO en Fase 2**, sin migración de datos (el email ya era la llave). No se toca el login del MVP ahora (no-regresión; cambiar el input es trabajo de backend sin ganancia funcional hoy). _[Recomendación CTO — confirmar.]_
+- **Llave (email) ≠ input de login.** El input del MVP sigue siendo **RUT + clave** (resuelve 1-1 a la persona/email). El **login-por-email llega con SSO en Fase 2**, sin migración de datos (el email ya era la llave). No se toca el login del MVP ahora (no-regresión; cambiar el input es trabajo de backend sin ganancia funcional hoy). _(Confirmado por Fernando, 2026-06-02.)_
 
 ### Multi-empresa (tenancy)
 
@@ -29,7 +29,7 @@ Este ADR fija el modelo para ambos repos sin implementar Fase 2 (SSO está prohi
 ### Empresa activa y enrutamiento
 
 - **Subdominio único `app.qavante.com`** para todos los tenants. El contexto de empresa NO va en el host. → Refuerza [[0003-api-qavante-com-shared-parent]] (cookie shared-parent `.qavante.com`); no cambia la estrategia de cookies.
-- **La empresa activa vive en la sesión server-side.** Cambiarla = endpoint dedicado (ej. `POST /api/session/active-company { company_id }`) que el backend valida (membresía) y persiste en la sesión. Todos los requests de negocio quedan auto-scopeados por la empresa activa; el FE no adjunta header por request. _[Recomendación CTO — confirmar.]_
+- **La empresa activa vive en la sesión server-side.** Cambiarla = endpoint dedicado (ej. `POST /api/session/active-company { company_id }`) que el backend valida (membresía) y persiste en la sesión. Todos los requests de negocio quedan auto-scopeados por la empresa activa; el FE no adjunta header por request. _(Confirmado por Fernando, 2026-06-02.)_
 - **Autorización de membresía en cada request** (defensa en profundidad): el backend nunca confía ciegamente en la sesión para el scope de empresa.
 - **UI:** switcher de empresa **persistente en el header**, default a la **última usada**. Si la persona tiene una sola empresa, el switcher no estorba (se muestra sin acción de cambio).
 
@@ -56,10 +56,10 @@ Este ADR fija el modelo para ambos repos sin implementar Fase 2 (SSO está prohi
 
 ### Acciones que destraba o requiere
 
-- [ ] **Handoff CC-API** (cross-repo, ADR-0015): `/api/auth/login` y `/api/me` devuelven `companies[]` + `active_company`; nuevo endpoint `POST /api/session/active-company`; autz de membresía por request.
+- [x] **Handoff CC-API** documentado en [`docs/backend-contracts/auth-identity-multi-empresa-contract.md`](../backend-contracts/auth-identity-multi-empresa-contract.md): `/api/auth/login` y `/api/me` devuelven `companies[]` + `active_company`; nuevo endpoint `POST /api/session/active-company`; autz de membresía por request. (Falta: abrir issue cross-repo / nota en STATE_OF_THE_TRAIN — acción Fernando.)
 - [ ] **FE:** switcher de empresa en el header (default última usada), detrás de flag, cuando el contrato exista.
 - [ ] **Fase 2:** Google/MS SSO → login-por-email; el RUT-login puede quedar como método adicional o retirarse (sin migración de identidad).
-- [ ] Fernando confirma las dos recomendaciones CTO marcadas (login-input diferido; empresa activa en sesión) → este ADR pasa a **Accepted**.
+- [x] Fernando confirma las dos recomendaciones CTO (login-input diferido; empresa activa en sesión) → ADR **Accepted** (2026-06-02).
 
 ## Referencias
 
