@@ -32,21 +32,22 @@ PR del ADR puede ir solo (decisión sin código) o acoplado al PR del cambio que
 
 ## Índice
 
-| #                                                                      | Título                                                                        | Status                | Fecha      |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------- | ---------- |
-| [0001](./0001-cloudflare-workers-vs-pages.md)                          | Cloudflare Workers vía `@opennextjs/cloudflare` (no Pages)                    | Accepted              | 2026-05-08 |
-| [0002](./0002-dominio-oficial-qavante-com.md)                          | Dominio oficial `qavante.com` (no `qavante.cl`)                               | Accepted              | 2026-05-12 |
-| [0003](./0003-api-qavante-com-shared-parent.md)                        | Backend en `api.qavante.com` para shared parent con FE                        | Accepted              | 2026-05-12 |
-| [0004](./0004-asistente-qavante-anti-patterns.md)                      | Asistente Qavante — anti-patterns de exposición y políticas mínimas           | Accepted (preventiva) | 2026-05-12 |
-| [0005](./0005-mock-service-worker-for-fe-dev.md)                       | Mock Service Worker (MSW) para desarrollo y testing de FE sin backend         | Accepted              | 2026-05-13 |
-| [0006](./0006-sii-credentials-storage-decisions.md)                    | SII credentials — decisiones de almacenamiento (placeholder)                  | Deferred              | 2026-05-13 |
-| [0007](./0007-estructura-carpetas-dominios-addendum.md)                | Mantener `src/components/` + `src/lib/api/` (no `src/features/`)              | Proposed              | 2026-05-15 |
-| [0008](./0008-feature-flags-gating-pantallas-sin-backend.md)           | Feature flags para gating de pantallas del addendum sin mocks                 | Proposed              | 2026-05-15 |
-| [0009](./0009-politica-drag-and-drop.md)                               | Política de drag-and-drop para árboles de gestión (preventiva)                | Proposed              | 2026-05-15 |
-| [0010](./0010-selectores-sin-libreria-combobox.md)                     | Selectores de clasificación sin librería combobox (dependency-free)           | Proposed              | 2026-05-16 |
-| [0011](./0011-patron-dialogs-editores-admin.md)                        | Patrón estándar de dialogs editores admin (Base UI + RHF + zod, lazy)         | Accepted              | 2026-05-23 |
-| [0012](./0012-flags-prod-override-env-vars.md)                         | Override de feature flags en prod vía Cloudflare Workers env vars             | Accepted              | 2026-05-24 |
-| [0013](./0013-treasury-reports-mvp-honest-no-invention.md)             | Treasury reports MVP — exponer crudo del backend, no inventar lógica          | Accepted              | 2026-05-28 |
-| [0014](./0014-sesiones-autonomas-low-risk.md)                          | Sesiones autónomas CC-WEB — modos, reglas y DoD                               | Accepted              | 2026-05-28 |
-| [0015](./0015-coordinacion-cross-repo-issues-vs-state-of-the-train.md) | Coordinación cross-repo — issues para pedidos, STATE_OF_THE_TRAIN para estado | Accepted              | 2026-06-01 |
-| [0016](./0016-estructura-rutas-canonica.md)                            | Estructura de rutas construida es canónica (supersede Anexo E en rutas)       | Accepted              | 2026-06-02 |
+| #                                                                      | Título                                                                                           | Status                | Fecha      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------- | ---------- |
+| [0001](./0001-cloudflare-workers-vs-pages.md)                          | Cloudflare Workers vía `@opennextjs/cloudflare` (no Pages)                                       | Accepted              | 2026-05-08 |
+| [0002](./0002-dominio-oficial-qavante-com.md)                          | Dominio oficial `qavante.com` (no `qavante.cl`)                                                  | Accepted              | 2026-05-12 |
+| [0003](./0003-api-qavante-com-shared-parent.md)                        | Backend en `api.qavante.com` para shared parent con FE                                           | Accepted              | 2026-05-12 |
+| [0004](./0004-asistente-qavante-anti-patterns.md)                      | Asistente Qavante — anti-patterns de exposición y políticas mínimas                              | Accepted (preventiva) | 2026-05-12 |
+| [0005](./0005-mock-service-worker-for-fe-dev.md)                       | Mock Service Worker (MSW) para desarrollo y testing de FE sin backend                            | Accepted              | 2026-05-13 |
+| [0006](./0006-sii-credentials-storage-decisions.md)                    | SII credentials — decisiones de almacenamiento (placeholder)                                     | Deferred              | 2026-05-13 |
+| [0007](./0007-estructura-carpetas-dominios-addendum.md)                | Mantener `src/components/` + `src/lib/api/` (no `src/features/`)                                 | Proposed              | 2026-05-15 |
+| [0008](./0008-feature-flags-gating-pantallas-sin-backend.md)           | Feature flags para gating de pantallas del addendum sin mocks                                    | Proposed              | 2026-05-15 |
+| [0009](./0009-politica-drag-and-drop.md)                               | Política de drag-and-drop para árboles de gestión (preventiva)                                   | Proposed              | 2026-05-15 |
+| [0010](./0010-selectores-sin-libreria-combobox.md)                     | Selectores de clasificación sin librería combobox (dependency-free)                              | Proposed              | 2026-05-16 |
+| [0011](./0011-patron-dialogs-editores-admin.md)                        | Patrón estándar de dialogs editores admin (Base UI + RHF + zod, lazy)                            | Accepted              | 2026-05-23 |
+| [0012](./0012-flags-prod-override-env-vars.md)                         | Override de feature flags en prod vía Cloudflare Workers env vars                                | Accepted              | 2026-05-24 |
+| [0013](./0013-treasury-reports-mvp-honest-no-invention.md)             | Treasury reports MVP — exponer crudo del backend, no inventar lógica                             | Accepted              | 2026-05-28 |
+| [0014](./0014-sesiones-autonomas-low-risk.md)                          | Sesiones autónomas CC-WEB — modos, reglas y DoD                                                  | Accepted              | 2026-05-28 |
+| [0015](./0015-coordinacion-cross-repo-issues-vs-state-of-the-train.md) | Coordinación cross-repo — issues para pedidos, STATE_OF_THE_TRAIN para estado                    | Accepted              | 2026-06-01 |
+| [0016](./0016-estructura-rutas-canonica.md)                            | Estructura de rutas construida es canónica (supersede Anexo E en rutas)                          | Accepted              | 2026-06-02 |
+| [0017](./0017-modelo-identidad-multi-empresa.md)                       | Modelo de identidad y multi-empresa (email llave, persona↔empresa N:M, empresa activa en sesión) | Proposed              | 2026-06-02 |
