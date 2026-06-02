@@ -68,8 +68,8 @@ Avance desde el 2026-06-01:
 
 - ✅ **E2E de flujos reales** — hechos: `clasificar`, `cobrar`, `pagar`, `gestion`, `estructura-gestion` (antes solo routing/render).
 - ⏳ **Login e2e real nunca corre** — smoke `test.skip` esperando secrets `SMOKE_RUT`/`SMOKE_PASSWORD` (acción tuya: setearlos en GitHub).
-- ⏳ **Lighthouse no mide `/app/inicio`** — mide `/login` + `/credenciales`; el target ≥90 del DoD no se enforcea. **En curso.**
-- ⏳ **Sin gate de a11y automático** — LHCI a11y en `warn`. **En curso.**
+- ✅ **Lighthouse mide `/app/inicio`** — agregado a las URLs con perf ≥0.90 enforced (`assertMatrix`) — PR #290.
+- ✅ **Gate de a11y automático** — LHCI a11y de `warn`→`error` ≥0.90 en todas las URLs — PR #290.
 - ⏳ **Chromatic** — cableado (corre en CI), baselines visuales pendientes de aceptar a mano.
 - ⏳ **Ledger de DoD por sprint** — ver `docs/dod-ledger.md` (nuevo).
 
