@@ -25,12 +25,19 @@ export default defineConfig({
     {
       name: "http",
       use: {},
-      testIgnore: ["**/*.mobile.spec.ts"],
+      testIgnore: ["**/*.mobile.spec.ts", "**/*.flow.spec.ts"],
     },
     {
       name: "mobile",
       use: { ...devices["Pixel 5"] },
       testMatch: "**/*.mobile.spec.ts",
+    },
+    {
+      /* Flujos de usuario reales (browser desktop): clasificar, editar
+         estructura, etc. Manejan formularios contra MSW — no solo render. */
+      name: "flows",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: "**/*.flow.spec.ts",
     },
   ],
   webServer: {
@@ -52,6 +59,13 @@ export default defineConfig({
       NEXT_PUBLIC_API_MOCKING: "enabled",
       NEXT_PUBLIC_API_URL: "http://localhost:3100",
       NEXT_PUBLIC_TEST_MODE: "playwright",
+      /* Flags que están ON en prod (wrangler.toml) → el build de e2e espeja
+         prod, así los flujos reales (clasificar, editar estructura) renderean
+         sus vistas en vez de FeatureUnavailableState. El resto queda OFF. */
+      NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION: "true",
+      NEXT_PUBLIC_FF_CLASSIFICATION_RULES: "true",
+      NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS: "true",
+      NEXT_PUBLIC_FF_CASH_FLOW_REPORT: "true",
     },
   },
 });
