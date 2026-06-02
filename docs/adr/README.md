@@ -48,3 +48,4 @@ PR del ADR puede ir solo (decisión sin código) o acoplado al PR del cambio que
 | [0012](./0012-flags-prod-override-env-vars.md)               | Override de feature flags en prod vía Cloudflare Workers env vars     | Accepted              | 2026-05-24 |
 | [0013](./0013-treasury-reports-mvp-honest-no-invention.md)   | Treasury reports MVP — exponer crudo del backend, no inventar lógica  | Accepted              | 2026-05-28 |
 | [0014](./0014-sesiones-autonomas-low-risk.md)                | Sesiones autónomas CC-WEB — modos, reglas y DoD                       | Accepted              | 2026-05-28 |
+| [0015](./0015-coordinacion-cross-repo-issues-vs-state-of-the-train.md) | Coordinación cross-repo — issues para pedidos, STATE_OF_THE_TRAIN para estado | Accepted     | 2026-06-01 |
