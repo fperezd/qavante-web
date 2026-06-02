@@ -4,19 +4,16 @@ import { Activity } from "lucide-react";
 import { QavanteEmpty, QavanteButton } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { InicioMvpView } from "@/components/inicio/inicio-mvp-view";
+import { InicioEjecutivoView } from "@/components/inicio/inicio-ejecutivo-view";
 
-/* Landing del módulo Inicio. El Sprint C8 completo (Pulso Empresa,
-   frase ejecutiva, alertas prioritarias, acciones recomendadas) llega
-   cuando el backend exponga los endpoints — Fase 2 según addendum.
-
-   MVP (flag `inicioMvp` ON): muestra saludo + perfil + tenant + último
-   login consumiendo `/api/me`, único endpoint de info de usuario que
-   acepta cookie auth hoy (ver Brecha 0 en
-   docs/backend-contracts/c3-treasury-reports-gaps.md).
-
-   Flag OFF (default): mantiene el QavanteEmpty informativo "Sprint C8". */
+/* Inicio Ejecutivo (Sprint C8). Jerarquía de gating:
+   1. `dashboardSummary` ON → el dashboard completo (Pulso, caja, brecha,
+      cobranza, pagos, resultado, 3 acciones) cableado a `GET /api/dashboard/
+      summary` (contrato FE-first, gated hasta que el backend lo exponga).
+   2. `inicioMvp` ON → el MVP de perfil (saludo + /api/me), interino.
+   3. Default OFF → QavanteEmpty informativo "Sprint C8". */
 export default function InicioPage() {
-  const { inicioMvp } = resolveFeatureFlags();
+  const { inicioMvp, dashboardSummary } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -25,7 +22,9 @@ export default function InicioPage() {
         <p className="mt-1 text-sm text-neutral-mid">¿Cómo está mi empresa hoy?</p>
       </header>
 
-      {inicioMvp ? (
+      {dashboardSummary ? (
+        <InicioEjecutivoView />
+      ) : inicioMvp ? (
         <InicioMvpView />
       ) : (
         <QavanteEmpty

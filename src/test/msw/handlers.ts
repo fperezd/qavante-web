@@ -1940,6 +1940,74 @@ const pagosHandlers = [
   ),
 ];
 
+/* Inicio Ejecutivo — dashboard summary (Sprint C8, contrato FE-first). Endpoint
+   real aún no existe (ver docs/backend-contracts/inicio-dashboard-summary-contract.md). */
+const dashboardSummaryFixture = {
+  executive_phrase:
+    "Tu caja alcanza ~6 semanas; hay $7,9M vencidos por cobrar y un pago crítico esta semana.",
+  pulso: {
+    score: 68,
+    status: "stable",
+    confidence: "medium",
+    top_driver_positive: "Ventas en alza vs. mes anterior",
+    top_driver_negative: "Cobranza más lenta de lo normal",
+    preliminary: false,
+  },
+  cash_today: { total: "9800000", last_updated: "2026-06-02T08:00:00Z", data_state: "available" },
+  cash_forecast: { min_14d: "5400000", min_30d: "2100000", days_of_cash: 42 },
+  cash_gap: { critical_obligations_14d: "6600000", projected_cash_14d: "5400000", has_gap: true },
+  overdue_collections: {
+    total_receivable: "24800000",
+    overdue: "7900000",
+    top_clients: [
+      { name: "Constructora Andes SpA", amount: "3200000" },
+      { name: "Comercial del Sur Ltda", amount: "2400000" },
+      { name: "Minera Atacama SA", amount: "1100000" },
+    ],
+  },
+  critical_payments: {
+    due_7d: "3800000",
+    due_14d: "6200000",
+    next_critical: { label: "IVA / F29 mayo", due_date: "2026-06-12", amount: "2400000" },
+  },
+  operational_result: {
+    revenue: "18500000",
+    gross_margin: "11100000",
+    ebitda_proxy: "3900000",
+    result: "3900000",
+  },
+  priority_actions: [
+    {
+      priority: 1,
+      reason: "Cobra $3,2M vencidos a Constructora Andes",
+      deadline: "esta semana",
+      cta_label: "Ver cobranza",
+      cta_href: "/cobrar",
+    },
+    {
+      priority: 2,
+      reason: "IVA / F29 vence el 12 — asegura la caja",
+      deadline: "12 jun",
+      cta_label: "Ver pagos",
+      cta_href: "/pagar",
+    },
+    {
+      priority: 3,
+      reason: "Tienes 12 movimientos sin clasificar",
+      deadline: null,
+      cta_label: "Clasificar",
+      cta_href: "/caja/por-clasificar",
+    },
+  ],
+  generated_at: "2026-06-02T12:00:00Z",
+};
+
+const dashboardHandlers = [
+  http.get("*/api/dashboard/summary", () =>
+    HttpResponse.json(dashboardSummaryFixture, { status: 200 }),
+  ),
+];
+
 const gestionHandlers = [
   http.get("*/api/management/operational-result", ({ request }) => {
     const period = new URL(request.url).searchParams.get("period");
@@ -1964,6 +2032,7 @@ export const handlers = [
   ...gestionHandlers,
   ...cobranzaHandlers,
   ...pagosHandlers,
+  ...dashboardHandlers,
   ...currenciesHandlers,
   ...classificationRulesHandlers,
   ...industryTemplatesHandlers,
