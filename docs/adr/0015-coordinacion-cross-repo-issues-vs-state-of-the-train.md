@@ -81,8 +81,8 @@ Separamos **pedidos** de **estado**:
 ### Acciones que destraba o requiere
 
 - [x] Primer pedido migrado a issue: `qavante-api` #205 (cookie en dimensiones).
-- [ ] Fernando elimina la copia duplicada stale de `STATE_OF_THE_TRAIN`
-      (`qavante-api-B`).
+- [x] Fernando elimina la copia duplicada stale de `STATE_OF_THE_TRAIN`
+      (`qavante-api-B`) — hecho 2026-06-01.
 - [ ] CC-API confirma la convención (idealmente reflejándola en su lado).
 
 ## Referencias
