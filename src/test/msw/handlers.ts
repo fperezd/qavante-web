@@ -1781,12 +1781,67 @@ const siiHandlers = [
   }),
 ];
 
+/* Gestión — Resultado Operacional (Sprint C5, contrato FE-first). El endpoint
+   real aún no existe en el backend (ver docs/backend-contracts/
+   gestion-operational-result-contract.md). Fixture realista para dev/test;
+   `period=2026-13` (inválido) → 404 para ejercitar el estado "sin datos". */
+const operationalResultFixture = {
+  period: "2026-05",
+  revenue: "18500000",
+  direct_cost: "7400000",
+  gross_margin: "11100000",
+  gross_margin_pct: "60.0",
+  labor_cost: "4200000",
+  professional_fees: "900000",
+  recurring_expenses: "2100000",
+  ebitda_proxy: "3900000",
+  result: "3900000",
+  variation: {
+    vs_previous_month: { amount: "600000", pct: "18.2" },
+    vs_same_month_last_year: { amount: "-300000", pct: "-7.1" },
+  },
+  drivers: [
+    {
+      direction: "improves",
+      concept: "Ventas",
+      impact: "1200000",
+      explanation: "Más ventas que el mes anterior.",
+    },
+    {
+      direction: "worsens",
+      concept: "Sueldos",
+      impact: "-500000",
+      explanation: "Subió el gasto en remuneraciones.",
+    },
+  ],
+  confidence: "high",
+  data_state: "available",
+  missing_sources: [],
+  generated_at: "2026-06-01T12:00:00Z",
+};
+
+const gestionHandlers = [
+  http.get("*/api/management/operational-result", ({ request }) => {
+    const period = new URL(request.url).searchParams.get("period");
+    if (period && !/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) {
+      return HttpResponse.json(errorBody("not_found", "Sin datos para el período."), {
+        status: 404,
+      });
+    }
+    return HttpResponse.json(
+      { ...operationalResultFixture, period: period ?? operationalResultFixture.period },
+      { status: 200 },
+    );
+  }),
+];
+
 export const handlers = [
   ...authHandlers,
   ...usersHandlers,
   ...credentialsHandlersV2,
   ...treasuryHandlers,
   ...managementHandlers,
+  ...gestionHandlers,
   ...currenciesHandlers,
   ...classificationRulesHandlers,
   ...industryTemplatesHandlers,
