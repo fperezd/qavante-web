@@ -66,6 +66,9 @@ export default defineConfig({
       NEXT_PUBLIC_FF_CLASSIFICATION_RULES: "true",
       NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS: "true",
       NEXT_PUBLIC_FF_CASH_FLOW_REPORT: "true",
+      /* Pantallas construidas FE-first (no ON en prod aún, esperan backend) que
+         igual queremos cubrir con e2e contra MSW. */
+      NEXT_PUBLIC_FF_OPERATIONAL_RESULT: "true",
     },
   },
 });

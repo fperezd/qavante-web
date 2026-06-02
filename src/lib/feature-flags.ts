@@ -37,6 +37,7 @@ export const FEATURE_FLAGS = [
   "cashFlowReport",
   "inicioMvp",
   "miCuenta",
+  "operationalResult",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -59,6 +60,9 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      respecto de inicio) es cerrar sesión — ese es el endpoint que justifica
      habilitar el flag y lo mantiene 1-a-1 en el mapping. */
   miCuenta: "/api/auth/logout",
+  /* Resultado Operacional de Gestión (Sprint C5). Endpoint FE-first esperado
+     del backend (aún no existe — ver brecha gestion-operational-result). */
+  operationalResult: "/api/management/operational-result",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
