@@ -39,6 +39,7 @@ export const FEATURE_FLAGS = [
   "miCuenta",
   "operationalResult",
   "accountsReceivable",
+  "accountsPayable",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -67,6 +68,9 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   /* Cobrar — cuentas por cobrar (Sprint C4). Endpoint FE-first esperado (aún
      no existe — ver brecha cobrar-accounts-receivable). */
   accountsReceivable: "/api/treasury/accounts-receivable",
+  /* Pagar — cuentas por pagar (Sprint C4). Endpoint FE-first esperado (aún no
+     existe — ver brecha pagar-accounts-payable). */
+  accountsPayable: "/api/treasury/accounts-payable",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

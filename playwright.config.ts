@@ -70,6 +70,7 @@ export default defineConfig({
          igual queremos cubrir con e2e contra MSW. */
       NEXT_PUBLIC_FF_OPERATIONAL_RESULT: "true",
       NEXT_PUBLIC_FF_ACCOUNTS_RECEIVABLE: "true",
+      NEXT_PUBLIC_FF_ACCOUNTS_PAYABLE: "true",
     },
   },
 });

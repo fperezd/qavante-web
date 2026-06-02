@@ -1878,6 +1878,68 @@ const cobranzaHandlers = [
   ),
 ];
 
+/* Pagar — cuentas por pagar (Sprint C4, contrato FE-first). Endpoint real aún
+   no existe (ver docs/backend-contracts/pagar-accounts-payable-contract.md). */
+const accountsPayableFixture = {
+  total: "12600000",
+  due_7d: "3800000",
+  due_14d: "6200000",
+  due_30d: "9100000",
+  items: [
+    {
+      label: "IVA / F29 mayo",
+      category: "tax",
+      due_date: "2026-06-12",
+      amount: "2400000",
+      criticality: "high",
+      source: "SII",
+    },
+    {
+      label: "Sueldos junio",
+      category: "payroll",
+      due_date: "2026-06-30",
+      amount: "4200000",
+      criticality: "high",
+      source: "Previred",
+    },
+    {
+      label: "Proveedor Telefónica",
+      category: "supplier",
+      due_date: "2026-06-18",
+      amount: "890000",
+      criticality: "medium",
+      source: "SII",
+    },
+    {
+      label: "Arriendo bodega",
+      category: "rent",
+      due_date: "2026-06-05",
+      amount: "1300000",
+      criticality: "medium",
+      source: "Manual",
+    },
+    {
+      label: "Leasing camioneta",
+      category: "leasing",
+      due_date: "2026-06-22",
+      amount: "640000",
+      criticality: "low",
+      source: "Manual",
+    },
+  ],
+  projected_cash_14d: "5400000",
+  covers_critical: false,
+  confidence: "high",
+  data_state: "available",
+  generated_at: "2026-06-02T12:00:00Z",
+};
+
+const pagosHandlers = [
+  http.get("*/api/treasury/accounts-payable", () =>
+    HttpResponse.json(accountsPayableFixture, { status: 200 }),
+  ),
+];
+
 const gestionHandlers = [
   http.get("*/api/management/operational-result", ({ request }) => {
     const period = new URL(request.url).searchParams.get("period");
@@ -1901,6 +1963,7 @@ export const handlers = [
   ...managementHandlers,
   ...gestionHandlers,
   ...cobranzaHandlers,
+  ...pagosHandlers,
   ...currenciesHandlers,
   ...classificationRulesHandlers,
   ...industryTemplatesHandlers,

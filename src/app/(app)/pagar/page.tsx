@@ -8,14 +8,15 @@ import {
   QavanteEmpty,
 } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { PagarView } from "@/components/pagar/pagar-view";
 
-/* Landing del módulo Pagar. El módulo completo (pagos priorizados,
-   alertas críticas, proveedores frecuentes) llega en Sprint C4. Mientras
-   tanto, este screen muestra las sub-secciones ya disponibles del Sprint
-   C1 — datos del SII (Impuestos / Facturas recibidas / Honorarios
-   recibidos) — antes del empty state del módulo. */
+/* Pagar (Sprint C4). Server Component: resuelve los flags. `accountsPayable`
+   ON → la pantalla completa (resumen + 7/14/30 + relación contra caja + pagos/
+   obligaciones, contrato FE-first). La sección "Desde el SII" (Impuestos /
+   Compras / Honorarios) se mantiene si `siiQueries`. Flag OFF → comportamiento
+   previo (SII + placeholder C4). Sin `export const runtime` (regla 4). */
 export default function PagarPage() {
-  const { siiQueries } = resolveFeatureFlags();
+  const { siiQueries, accountsPayable } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -23,6 +24,8 @@ export default function PagarPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Pagar</h1>
         <p className="mt-1 text-sm text-neutral-mid">¿Qué debo pagar y qué pagos son críticos?</p>
       </header>
+
+      {accountsPayable && <PagarView />}
 
       {siiQueries ? (
         <section aria-labelledby="sii-section" className="space-y-3">
@@ -54,14 +57,16 @@ export default function PagarPage() {
           </div>
         </section>
       ) : (
-        <FeatureUnavailableState />
+        !accountsPayable && <FeatureUnavailableState />
       )}
 
-      <QavanteEmpty
-        icon={ArrowUpFromLine}
-        title="Pagos a proveedores — construcción en Sprint C4"
-        description="Acá vas a ver tus pagos pendientes priorizados, pagos críticos por vencer, recordatorios y proveedores frecuentes. Disponible al cerrar Sprint C4."
-      />
+      {!accountsPayable && (
+        <QavanteEmpty
+          icon={ArrowUpFromLine}
+          title="Pagos a proveedores — construcción en Sprint C4"
+          description="Acá vas a ver tus pagos pendientes priorizados, pagos críticos por vencer, recordatorios y proveedores frecuentes. Disponible al cerrar Sprint C4."
+        />
+      )}
     </div>
   );
 }
