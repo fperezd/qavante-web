@@ -99,3 +99,20 @@ renderiza el bloque "Qué hacer primero"). Primer drop esperado: `cash_today` +
 - Este endpoint **reutiliza** los cálculos de operational-result / accounts-
   receivable / accounts-payable / cash-flow — es su agregación para el home.
 - Endpoint para el flag (FLAG_GATING_ENDPOINT): `/api/dashboard/summary`.
+
+## Estado de coordinación
+
+| Fecha      | Quién  | Hito                                                                                                                                                                                     |
+| ---------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-02 | CC-WEB | Handoff inicial: `/inicio` construido contra este contrato + MSW, gated por `dashboardSummary` (OFF en prod) — PR #286.                                                                  |
+| 2026-06-02 | CC-API | Confirma construirlo; **entrega incremental** (caja primero, resto `null`). `executive_phrase` y `priority_actions` arrancan `null`. Arranca **después de ADR-0032** (credenciales SII). |
+| 2026-06-02 | CC-WEB | Alinea el contrato a la entrega incremental: `executive_phrase` y `priority_actions` ahora nullable, FE no crashea con el primer drop — PR #287.                                         |
+
+**Pendientes (owner CC-API):** ADR de diseño de `pulso` (fórmula score, knock-outs,
+umbrales de status), `executive_phrase` (reglas rule-based, Anexo H.1) y
+`priority_actions` (= Brecha 2, decisión heurístico-vs-LLM). Es lógica de negocio
+del backend; el FE solo mapea `status`→label y formatea CLP/fechas.
+
+**Cuando el endpoint exista (aunque sea solo `cash_*`):** CC-WEB corre
+`generate:api`, reemplaza los tipos hand-rolled, ajusta el adapter y activa el
+flag para ese primer drop.
