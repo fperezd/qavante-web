@@ -4,7 +4,11 @@
       "startServerCommand": "npx next start -p 3101",
       "startServerReadyPattern": "Ready",
       "startServerReadyTimeout": 60000,
-      "url": ["http://localhost:3101/login", "http://localhost:3101/administracion/credenciales"],
+      "url": [
+        "http://localhost:3101/login",
+        "http://localhost:3101/administracion/credenciales",
+        "http://localhost:3101/inicio"
+      ],
       "numberOfRuns": 3,
       "settings": {
         "formFactor": "mobile",
@@ -28,11 +32,22 @@
       }
     },
     "assert": {
-      "assertions": {
-        "categories:performance": ["error", { "minScore": 0.85 }],
-        "categories:accessibility": ["warn", { "minScore": 0.9 }],
-        "categories:best-practices": ["warn", { "minScore": 0.9 }]
-      }
+      "assertMatrix": [
+        {
+          "matchingUrlPattern": ".*",
+          "assertions": {
+            "categories:performance": ["error", { "minScore": 0.85 }],
+            "categories:accessibility": ["error", { "minScore": 0.9 }],
+            "categories:best-practices": ["warn", { "minScore": 0.9 }]
+          }
+        },
+        {
+          "matchingUrlPattern": ".*/inicio$",
+          "assertions": {
+            "categories:performance": ["error", { "minScore": 0.9 }]
+          }
+        }
+      ]
     },
     "upload": {
       "target": "temporary-public-storage"
