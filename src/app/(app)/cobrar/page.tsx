@@ -7,13 +7,27 @@ import {
   QavanteEmpty,
 } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { CobrarView } from "@/components/cobrar/cobrar-view";
 
-/* Landing del módulo Cobrar. El módulo completo (cobranza priorizada,
-   antigüedad de saldos, acciones por cliente) llega en Sprint C4.
-   Mientras tanto muestra las sub-secciones del Sprint C1 — RCV Ventas
-   del SII — antes del empty state del módulo. */
+/* Cobrar (Sprint C4). Server Component: resuelve los flags. `accountsReceivable`
+   ON → la pantalla completa (resumen + aging + top deudores + documentos,
+   contrato FE-first); el link al Libro de Ventas SII va dentro (si `siiQueries`).
+   Flag OFF → comportamiento previo (card SII + placeholder C4). Sin
+   `export const runtime` (regla 4). */
 export default function CobrarPage() {
-  const { siiQueries } = resolveFeatureFlags();
+  const { siiQueries, accountsReceivable } = resolveFeatureFlags();
+
+  if (accountsReceivable) {
+    return (
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
+          <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
+        </header>
+        <CobrarView siiEnabled={siiQueries} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

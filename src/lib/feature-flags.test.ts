@@ -16,7 +16,7 @@ import {
 const devEnv = { NODE_ENV: "development" } as Record<string, string | undefined>;
 
 describe("resolveFeatureFlag — jerarquía ADR-0008 + ADR-0012", () => {
-  it("default seguro: los 12 flags son false sin config ni override", () => {
+  it("default seguro: los 13 flags son false sin config ni override", () => {
     for (const flag of FEATURE_FLAGS) {
       expect(resolveFeatureFlag(flag, { env: devEnv })).toBe(false);
     }
@@ -118,7 +118,7 @@ describe("flagEnvVar — mapeo camelCase → SCREAMING_SNAKE", () => {
 });
 
 describe("resolveFeatureFlags", () => {
-  it("devuelve los 12 flags, todos false por default", () => {
+  it("devuelve los 13 flags, todos false por default", () => {
     const all = resolveFeatureFlags({ env: devEnv });
     expect(Object.keys(all).sort()).toEqual([...FEATURE_FLAGS].sort());
     expect(Object.values(all).every((v) => v === false)).toBe(true);
