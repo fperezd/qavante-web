@@ -1820,6 +1820,64 @@ const operationalResultFixture = {
   generated_at: "2026-06-01T12:00:00Z",
 };
 
+/* Cobrar — cuentas por cobrar (Sprint C4, contrato FE-first). Endpoint real
+   aún no existe (ver docs/backend-contracts/cobrar-accounts-receivable-contract.md). */
+const accountsReceivableFixture = {
+  total: "24800000",
+  overdue: "7900000",
+  overdue_pct: "31.9",
+  aging: {
+    current: "16900000",
+    d1_30: "3200000",
+    d31_60: "2100000",
+    d61_90: "1400000",
+    d90_plus: "1200000",
+  },
+  top_debtors: [
+    { name: "Constructora Andes SpA", rut: "76.123.456-7", total: "9800000", overdue: "3200000" },
+    { name: "Comercial del Sur Ltda", rut: "77.987.654-3", total: "6100000", overdue: "2400000" },
+    { name: "Minera Atacama SA", rut: "96.555.444-2", total: "4300000", overdue: "1100000" },
+  ],
+  overdue_documents: [
+    {
+      client_name: "Constructora Andes SpA",
+      client_rut: "76.123.456-7",
+      document: "Factura 1234",
+      due_date: "2026-05-10",
+      amount: "3200000",
+      balance: "3200000",
+      days_overdue: 23,
+    },
+    {
+      client_name: "Comercial del Sur Ltda",
+      client_rut: "77.987.654-3",
+      document: "Factura 5678",
+      due_date: "2026-05-18",
+      amount: "2400000",
+      balance: "2400000",
+      days_overdue: 15,
+    },
+    {
+      client_name: "Minera Atacama SA",
+      client_rut: "96.555.444-2",
+      document: "Factura 9012",
+      due_date: "2026-05-25",
+      amount: "1100000",
+      balance: "800000",
+      days_overdue: 8,
+    },
+  ],
+  confidence: "high",
+  data_state: "available",
+  generated_at: "2026-06-02T12:00:00Z",
+};
+
+const cobranzaHandlers = [
+  http.get("*/api/treasury/accounts-receivable", () =>
+    HttpResponse.json(accountsReceivableFixture, { status: 200 }),
+  ),
+];
+
 const gestionHandlers = [
   http.get("*/api/management/operational-result", ({ request }) => {
     const period = new URL(request.url).searchParams.get("period");
@@ -1842,6 +1900,7 @@ export const handlers = [
   ...treasuryHandlers,
   ...managementHandlers,
   ...gestionHandlers,
+  ...cobranzaHandlers,
   ...currenciesHandlers,
   ...classificationRulesHandlers,
   ...industryTemplatesHandlers,

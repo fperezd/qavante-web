@@ -69,6 +69,7 @@ export default defineConfig({
       /* Pantallas construidas FE-first (no ON en prod aún, esperan backend) que
          igual queremos cubrir con e2e contra MSW. */
       NEXT_PUBLIC_FF_OPERATIONAL_RESULT: "true",
+      NEXT_PUBLIC_FF_ACCOUNTS_RECEIVABLE: "true",
     },
   },
 });
