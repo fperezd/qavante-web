@@ -1,10 +1,12 @@
 # Contrato esperado — Inicio Ejecutivo / Dashboard summary (Sprint C8)
 
-> **CC-WEB → CC-API. 2026-06-02.** Contrato **FE-first**: el FE construyó el
-> Inicio Ejecutivo (`/inicio`, Maestro §7.1) contra este contrato + MSW, **gated
-> por `dashboardSummary` (OFF en prod)**. El endpoint **aún no existe**. Es el
-> agregador central del producto. Cuando CC-API lo exponga, corro `generate:api`,
-> ajusto el adapter y activo el flag. Tipos hand-rolled en `src/lib/api/dashboard.ts`.
+> **CC-WEB → CC-API. 2026-06-02 (act. 2026-06-03).** Contrato **FE-first**: el FE
+> construyó el Inicio Ejecutivo (`/inicio`, Maestro §7.1) contra este contrato +
+> MSW, **gated por `dashboardSummary` (OFF en prod)**. **El endpoint YA existe en
+> el OpenAPI de prod (2026-06-03) y su shape coincide exacto con este contrato**,
+> pero está gated por API key (no cookie) → no activable aún (ver Estado de
+> coordinación). Tipos hand-rolled en `src/lib/api/dashboard.ts` (pendiente
+> `generate:api` cuando se destrabe la cookie). Es el agregador central del producto.
 
 ## Endpoint
 
@@ -102,11 +104,20 @@ renderiza el bloque "Qué hacer primero"). Primer drop esperado: `cash_today` +
 
 ## Estado de coordinación
 
-| Fecha      | Quién  | Hito                                                                                                                                                                                     |
-| ---------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-06-02 | CC-WEB | Handoff inicial: `/inicio` construido contra este contrato + MSW, gated por `dashboardSummary` (OFF en prod) — PR #286.                                                                  |
-| 2026-06-02 | CC-API | Confirma construirlo; **entrega incremental** (caja primero, resto `null`). `executive_phrase` y `priority_actions` arrancan `null`. Arranca **después de ADR-0032** (credenciales SII). |
-| 2026-06-02 | CC-WEB | Alinea el contrato a la entrega incremental: `executive_phrase` y `priority_actions` ahora nullable, FE no crashea con el primer drop — PR #287.                                         |
+| Fecha      | Quién  | Hito                                                                                                                                                                                               |
+| ---------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-02 | CC-WEB | Handoff inicial: `/inicio` construido contra este contrato + MSW, gated por `dashboardSummary` (OFF en prod) — PR #286.                                                                            |
+| 2026-06-02 | CC-API | Confirma construirlo; **entrega incremental** (caja primero, resto `null`). `executive_phrase` y `priority_actions` arrancan `null`. Arranca **después de ADR-0032** (credenciales SII).           |
+| 2026-06-02 | CC-WEB | Alinea el contrato a la entrega incremental: `executive_phrase` y `priority_actions` ahora nullable, FE no crashea con el primer drop — PR #287.                                                   |
+| 2026-06-03 | CC-API | **Expone `GET /api/dashboard/summary`** en el OpenAPI de prod. Shape **coincide exacto** con el contrato FE-first (los 10 bloques, `executive_phrase`/`priority_actions` nullable, montos string). |
+| 2026-06-03 | CC-WEB | Verifica en OpenAPI: shape ✅, pero `security: APIKeyHeader` → **el endpoint NO acepta cookie** (Brecha 0). El FE no puede activarlo; flag sigue OFF hasta que se acepte cookie de sesión.         |
+
+> ⚠️ **Blocker de activación (Brecha 0):** `/api/dashboard/summary` declara
+> `security: [{ APIKeyHeader: [] }]`. El FE autentica por cookie `qavante_session`
+> y **nunca** envía API keys desde el browser. Hasta que CC-API lo deje sin
+> `security` declarado (acepta cookie, como `/api/me` y los 12 endpoints de la
+> Brecha 0 ya destrabados), el flag `dashboardSummary` no se puede activar en prod
+> aunque el endpoint exista y el shape sea correcto. Mismo patrón que dimensiones/SII.
 
 **Pendientes (owner CC-API):** ADR de diseño de `pulso` (fórmula score, knock-outs,
 umbrales de status), `executive_phrase` (reglas rule-based, Anexo H.1) y
