@@ -171,7 +171,7 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
                 vencido de {formatClp(parseAmount(data.overdue_collections.total_receivable))}
               </p>
               <ul className="mt-2 space-y-0.5 text-xs text-neutral-mid">
-                {data.overdue_collections.top_clients.slice(0, 3).map((c) => (
+                {(data.overdue_collections.top_clients ?? []).slice(0, 3).map((c) => (
                   <li key={c.name} className="flex justify-between gap-2">
                     <span className="truncate">{c.name}</span>
                     <span className="tabular-nums">{formatClp(parseAmount(c.amount))}</span>

@@ -142,7 +142,14 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edita el perfil propio (hoy: name) — cookie qavante_session
+         * @description Auto-edición del perfil (Ask #2 CC-WEB). Cualquier rol autenticado edita
+         *     LO SUYO (sin gate de rol — `ctx.user_id` es el del propio token). Hoy solo
+         *     `name` → `core.users.full_name`. Devuelve el snapshot actualizado (mismo
+         *     shape que GET) para que el FE refresque sin un segundo request.
+         */
+        patch: operations["auth_me_patch"];
         trace?: never;
     };
     "/api/users": {
@@ -535,6 +542,92 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/credentials/sii": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Estado de credenciales SII del tenant (sin passwords) */
+        get: operations["credentials_sii_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/credentials/sii/company": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Setea/rota la clave SII de la empresa (owner/admin) */
+        put: operations["credentials_sii_company_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/credentials/sii/person": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Setea/rota la clave SII de una persona (contador) — owner/admin */
+        put: operations["credentials_sii_person_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/credentials/sii/person/{rut}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Elimina la credencial SII de una persona (owner/admin) */
+        delete: operations["credentials_sii_person_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/credentials/certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Sube el certificado digital .pfx/.p12 (owner/admin) */
+        put: operations["credentials_certificate_put"];
+        post?: never;
+        /** Elimina el certificado digital del tenant (owner/admin) */
+        delete: operations["credentials_certificate_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1002,6 +1095,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/bank-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista las cuentas bancarias del tenant (selector de filtro) */
+        get: operations["treasury_bank_accounts_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bank-movements/bice/accounts": {
         parameters: {
             query?: never;
@@ -1312,6 +1422,24 @@ export interface paths {
         patch: operations["company_currency_settings_update"];
         trace?: never;
     };
+    "/api/treasury/cash-minimum": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Umbrales de caja mínima del tenant (por moneda) */
+        get: operations["treasury_cash_minimum_get"];
+        /** Setea/actualiza el umbral de caja mínima de una moneda (owner/admin) */
+        put: operations["treasury_cash_minimum_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planning/financial-impacts": {
         parameters: {
             query?: never;
@@ -1482,6 +1610,23 @@ export interface paths {
          *       - period_* mal formado (no YYYY-MM).
          */
         get: operations["treasury_reports_cash_flow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inicio Ejecutivo — resumen agregado del tenant (bloques nullable) */
+        get: operations["dashboard_summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2550,6 +2695,36 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * BankAccountItem
+         * @description Cuenta bancaria del tenant para el selector `account_id` del reporte
+         *     cash-flow. Read-only; no expone external_ref/account_number_masked.
+         */
+        BankAccountItem: {
+            /** Id */
+            id: string;
+            /**
+             * Name
+             * @description Alias legible (account_name).
+             */
+            name: string;
+            /** Bank Name */
+            bank_name: string;
+            /** Currency Code */
+            currency_code: string;
+            /**
+             * Account Type
+             * @description checking/savings/credit_card/loan/investment.
+             */
+            account_type: string;
+            /** Active */
+            active: boolean;
+            /**
+             * Last Movement At
+             * @description Fecha del último movimiento; NULL si no tiene.
+             */
+            last_movement_at?: string | null;
+        };
+        /**
          * BankAccountLinkStatus
          * @description Cuenta BICE con su estado de vinculación a `treasury.bank_accounts`.
          */
@@ -2574,14 +2749,6 @@ export interface components {
              * @description UUID de `treasury.bank_accounts` si la cuenta está vinculada; `null` si todavía no se mapeó (sus movimientos quedarían en cuarentena).
              */
             linked_bank_account_id?: string | null;
-        };
-        /**
-         * BankAccountsListResponse
-         * @description Wrapper para listas (consistente con SaldoResponse/CuentasResponse).
-         */
-        BankAccountsListResponse: {
-            /** Accounts */
-            accounts: components["schemas"]["BankAccountLinkStatus"][];
         };
         /**
          * BankMovement
@@ -2922,6 +3089,8 @@ export interface components {
              * @default 0
              */
             net: string;
+            operacional?: components["schemas"]["CashFlowLayer"];
+            no_operacional?: components["schemas"]["CashFlowLayer"];
             /**
              * Row Count
              * @default 0
@@ -2945,6 +3114,8 @@ export interface components {
              * @default 0
              */
             net: string;
+            operacional?: components["schemas"]["CashFlowLayer"];
+            no_operacional?: components["schemas"]["CashFlowLayer"];
             /**
              * Row Count
              * @default 0
@@ -2988,6 +3159,29 @@ export interface components {
             row_count: number;
         };
         /**
+         * CashFlowLayer
+         * @description Sub-total de una capa de caja (ADR-0031): operacional o no-operacional.
+         *
+         *     `total` del bucket/grand_total = operacional + no_operacional (invariante).
+         */
+        CashFlowLayer: {
+            /**
+             * Inflow
+             * @default 0
+             */
+            inflow: string;
+            /**
+             * Outflow
+             * @default 0
+             */
+            outflow: string;
+            /**
+             * Net
+             * @default 0
+             */
+            net: string;
+        };
+        /**
          * CashFlowReportResponse
          * @description Respuesta del endpoint GET /api/treasury/reports/cash-flow.
          */
@@ -3029,6 +3223,62 @@ export interface components {
             excluded_attention: number;
             /** Warnings */
             warnings?: string[];
+        };
+        /** CashForecast */
+        CashForecast: {
+            /** Min 14D */
+            min_14d: string;
+            /** Min 30D */
+            min_30d: string;
+            /** Days Of Cash */
+            days_of_cash?: number | null;
+        };
+        /** CashGap */
+        CashGap: {
+            /** Critical Obligations 14D */
+            critical_obligations_14d: string;
+            /** Projected Cash 14D */
+            projected_cash_14d: string;
+            /** Has Gap */
+            has_gap: boolean;
+        };
+        /**
+         * CashMinimumResponse
+         * @description Respuesta de `GET`/`PUT /api/treasury/cash-minimum`.
+         */
+        CashMinimumResponse: {
+            /** Thresholds */
+            thresholds?: components["schemas"]["CashMinimumThreshold"][];
+        };
+        /**
+         * CashMinimumThreshold
+         * @description Un umbral de caja mínima para una moneda. `amount` se guarda/devuelve
+         *     como string (preserva la escala exacta; el JSONB lo persiste así).
+         */
+        CashMinimumThreshold: {
+            /** Currency Code */
+            currency_code: string;
+            /** Amount */
+            amount: string;
+            /** Updated At */
+            updated_at?: string | null;
+            /** Updated By */
+            updated_by?: string | null;
+        };
+        /** CashToday */
+        CashToday: {
+            /** Total */
+            total: string;
+            /**
+             * Last Updated
+             * Format: date-time
+             */
+            last_updated: string;
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "stale" | "estimated";
         };
         /** CertificadoErrorResponse */
         CertificadoErrorResponse: {
@@ -3136,18 +3386,6 @@ export interface components {
              * @description RUT del titular en formato '12345678-9'. Si se omite, se intenta extraer del subject del certificado. Si no se puede, se exige.
              */
             rut_holder?: string | null;
-        };
-        /** CertificateUploadResponse */
-        CertificateUploadResponse: {
-            /**
-             * Status
-             * @default ok
-             * @example ok
-             */
-            status: string;
-            certificate: components["schemas"]["CertificateMetadataResponse"];
-        } & {
-            [key: string]: unknown;
         };
         /** CertificatesListResponse */
         CertificatesListResponse: {
@@ -3833,6 +4071,14 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** CriticalPayments */
+        CriticalPayments: {
+            /** Due 7D */
+            due_7d: string;
+            /** Due 14D */
+            due_14d: string;
+            next_critical?: components["schemas"]["NextCriticalPayment"] | null;
+        };
         /** CuentaBalanceResponse */
         CuentaBalanceResponse: {
             /** Status */
@@ -3937,6 +4183,29 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * DashboardSummaryResponse
+         * @description Respuesta de `GET /api/dashboard/summary`. Cada bloque puede ser `null`
+         *     (entrega incremental — el FE tolera el rollout por bloques).
+         */
+        DashboardSummaryResponse: {
+            /** Executive Phrase */
+            executive_phrase?: string | null;
+            pulso?: components["schemas"]["Pulso"] | null;
+            cash_today?: components["schemas"]["CashToday"] | null;
+            cash_forecast?: components["schemas"]["CashForecast"] | null;
+            cash_gap?: components["schemas"]["CashGap"] | null;
+            overdue_collections?: components["schemas"]["OverdueCollections"] | null;
+            critical_payments?: components["schemas"]["CriticalPayments"] | null;
+            operational_result?: components["schemas"]["OperationalResult"] | null;
+            /** Priority Actions */
+            priority_actions?: components["schemas"]["PriorityAction"][] | null;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
         };
         /** DatasetResponse */
         DatasetResponse: {
@@ -4312,7 +4581,7 @@ export interface components {
              * Impact Type
              * @enum {string}
              */
-            impact_type: "cash_in" | "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment";
+            impact_type: "cash_in" | "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment" | "investment_purchase" | "investment_return";
             /**
              * Amount Original
              * @description Monto en la moneda original (NUMERIC(20,4)).
@@ -4418,7 +4687,7 @@ export interface components {
              * Impact Type
              * @enum {string}
              */
-            impact_type: "cash_in" | "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment";
+            impact_type: "cash_in" | "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment" | "investment_purchase" | "investment_return";
             /**
              * Amount Original
              * @description Monto en la moneda original (NUMERIC(20,4)).
@@ -4491,7 +4760,7 @@ export interface components {
             /** Financial Layer */
             financial_layer?: ("committed" | "budget" | "forecast" | "scenario" | "manual_simulation" | "ai_projection") | null;
             /** Impact Type */
-            impact_type?: ("cash_in" | "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment") | null;
+            impact_type?: ("cash_in" | "cash_out" | "revenue" | "direct_cost" | "operating_expense" | "commercial_expense" | "administrative_expense" | "financial_expense" | "tax" | "capex" | "debt_drawdown" | "debt_repayment" | "equity_contribution" | "dividend_or_withdrawal" | "accounts_receivable" | "accounts_payable" | "intercompany" | "adjustment" | "investment_purchase" | "investment_return") | null;
             canonical_category?: components["schemas"]["CanonicalCategory"] | null;
             /** Management Account Id */
             management_account_id?: string | null;
@@ -5212,6 +5481,22 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * MePatchRequest
+         * @description Body de `PATCH /api/me` — auto-edición del perfil (Ask #2 CC-WEB).
+         *
+         *     Solo `name` (mapea a `core.users.full_name`). email/password/rol tienen
+         *     sus propios flujos (re-verificación / recuperación / gestión admin) y
+         *     quedan fuera de scope. `extra=forbid` rechaza intentos de tocar otros
+         *     campos por este endpoint.
+         */
+        MePatchRequest: {
+            /**
+             * Name
+             * @description Nombre del usuario.
+             */
+            name: string;
+        };
         /** MeResponse */
         MeResponse: {
             user: components["schemas"]["MeUser"];
@@ -5340,6 +5625,38 @@ export interface components {
             count: number;
         } & {
             [key: string]: unknown;
+        };
+        /** NextCriticalPayment */
+        NextCriticalPayment: {
+            /** Label */
+            label: string;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /** Amount */
+            amount: string;
+        };
+        /** OperationalResult */
+        OperationalResult: {
+            /** Revenue */
+            revenue: string;
+            /** Gross Margin */
+            gross_margin: string;
+            /** Ebitda Proxy */
+            ebitda_proxy: string;
+            /** Result */
+            result: string;
+        };
+        /** OverdueCollections */
+        OverdueCollections: {
+            /** Total Receivable */
+            total_receivable: string;
+            /** Overdue */
+            overdue: string;
+            /** Top Clients */
+            top_clients?: components["schemas"]["TopClient"][];
         };
         /** Pagination */
         Pagination: {
@@ -5476,6 +5793,101 @@ export interface components {
             };
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * PriorityAction
+         * @description Máx 3 en la respuesta. `cta_href` = ruta interna del FE
+         *     (/cobrar, /pagar, /caja/proyeccion, /gestion, /caja/por-clasificar).
+         */
+        PriorityAction: {
+            /** Priority */
+            priority: number;
+            /** Reason */
+            reason: string;
+            /** Deadline */
+            deadline: string;
+            /** Cta Label */
+            cta_label: string;
+            /** Cta Href */
+            cta_href: string;
+        };
+        /** Pulso */
+        Pulso: {
+            /** Score */
+            score: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "critical" | "weak" | "stable" | "strong";
+            /** Confidence */
+            confidence: string;
+            /** Top Driver Positive */
+            top_driver_positive?: string | null;
+            /** Top Driver Negative */
+            top_driver_negative?: string | null;
+            /**
+             * Preliminary
+             * @default false
+             */
+            preliminary: boolean;
+        };
+        /**
+         * PutCashMinimumRequest
+         * @description Body de `PUT /api/treasury/cash-minimum` — setea/actualiza el umbral de
+         *     una moneda. `amount >= 0` (un umbral negativo no tiene sentido).
+         */
+        PutCashMinimumRequest: {
+            /** Currency Code */
+            currency_code: string;
+            /** Amount */
+            amount: number | string;
+        };
+        /**
+         * PutCertificateRequest
+         * @description Body de `PUT /api/credentials/certificate`.
+         *
+         *     El `.pfx`/`.p12` viaja en **base64-JSON** (no multipart) — consistente con
+         *     el endpoint existente `seed-cert` y sin agregar `python-multipart` como
+         *     dependencia. CC-WEB codifica el archivo a base64 antes de enviar
+         *     (ajuste de contrato §2.5, coordinado con CC-WEB).
+         */
+        PutCertificateRequest: {
+            /**
+             * File B64
+             * @description Certificado .pfx/.p12 en base64.
+             */
+            file_b64: string;
+            /**
+             * Password
+             * @description Clave del certificado.
+             */
+            password: string;
+        };
+        /**
+         * PutSiiCompanyRequest
+         * @description Body de `PUT /api/credentials/sii/company`.
+         */
+        PutSiiCompanyRequest: {
+            /** Rut */
+            rut: string;
+            /**
+             * Password
+             * @description Clave SII de la empresa (plaintext en tránsito).
+             */
+            password: string;
+        };
+        /**
+         * PutSiiPersonRequest
+         * @description Body de `PUT /api/credentials/sii/person`.
+         */
+        PutSiiPersonRequest: {
+            /** Rut */
+            rut: string;
+            /** Name */
+            name?: string | null;
+            /** Password */
+            password: string;
         };
         /** RcvComprasResponse */
         RcvComprasResponse: {
@@ -5777,6 +6189,36 @@ export interface components {
              */
             role: string;
         };
+        /** SiiCertificateStatus */
+        SiiCertificateStatus: {
+            /** Configured */
+            configured: boolean;
+            /** Subject Rut */
+            subject_rut?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Uploaded At */
+            uploaded_at?: string | null;
+        };
+        /** SiiCompanyStatus */
+        SiiCompanyStatus: {
+            /** Configured */
+            configured: boolean;
+            /** Rut */
+            rut?: string | null;
+            /** Last Rotated At */
+            last_rotated_at?: string | null;
+        };
+        /**
+         * SiiCredentialsResponse
+         * @description Respuesta de `GET /api/credentials/sii`.
+         */
+        SiiCredentialsResponse: {
+            company: components["schemas"]["SiiCompanyStatus"];
+            /** Persons */
+            persons?: components["schemas"]["SiiPersonStatus"][];
+            certificate: components["schemas"]["SiiCertificateStatus"];
+        };
         /** SiiHealthResponse */
         SiiHealthResponse: {
             /** Status */
@@ -5814,6 +6256,20 @@ export interface components {
             error?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** SiiPersonStatus */
+        SiiPersonStatus: {
+            /** Rut */
+            rut: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Configured
+             * @default true
+             */
+            configured: boolean;
+            /** Last Rotated At */
+            last_rotated_at?: string | null;
         };
         /** SourceDetailResponse */
         SourceDetailResponse: {
@@ -6316,6 +6772,13 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** TopClient */
+        TopClient: {
+            /** Name */
+            name: string;
+            /** Amount */
+            amount: string;
+        };
         /**
          * UpdateClassificationRuleRequest
          * @description Body de `PATCH /api/treasury/classification-rules/{id}` (opcionales).
@@ -6477,6 +6940,41 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** CertificateUploadResponse */
+        app__api__admin__certificates__CertificateUploadResponse: {
+            /**
+             * Status
+             * @default ok
+             * @example ok
+             */
+            status: string;
+            certificate: components["schemas"]["CertificateMetadataResponse"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BankAccountsListResponse
+         * @description Wrapper para listas (consistente con SaldoResponse/CuentasResponse).
+         */
+        app__api__bank_ingest_bice__BankAccountsListResponse: {
+            /** Accounts */
+            accounts: components["schemas"]["BankAccountLinkStatus"][];
+        };
+        /**
+         * CertificateUploadResponse
+         * @description Respuesta de `PUT /api/credentials/certificate`.
+         */
+        app__core__sii_credentials_schemas__CertificateUploadResponse: {
+            certificate: components["schemas"]["SiiCertificateStatus"];
+        };
+        /**
+         * BankAccountsListResponse
+         * @description Respuesta de `GET /api/treasury/bank-accounts`.
+         */
+        app__core__treasury_schemas__BankAccountsListResponse: {
+            /** Items */
+            items?: components["schemas"]["BankAccountItem"][];
         };
     };
     responses: never;
@@ -6687,6 +7185,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    auth_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MePatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Perfil actualizado; devuelve el mismo shape que GET. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Sin sesión o sesión inválida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description name vacío / solo espacios / >160 chars. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -7055,7 +7593,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7068,6 +7608,15 @@ export interface operations {
                     "application/json": components["schemas"]["SourceStatusResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     sii_f29_pdf: {
@@ -7077,7 +7626,9 @@ export interface operations {
             path: {
                 folio: number;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7132,7 +7683,9 @@ export interface operations {
             path: {
                 folio: number;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7182,7 +7735,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7195,6 +7750,15 @@ export interface operations {
                     "application/json": components["schemas"]["SiiHealthResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     sii_bhe: {
@@ -7205,7 +7769,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7239,7 +7805,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7273,7 +7841,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7307,7 +7877,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -7319,6 +7891,247 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DteRecibidosResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    credentials_sii_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado configurado/no-configurado + metadata. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiiCredentialsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    credentials_sii_company_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutSiiCompanyRequest"];
+            };
+        };
+        responses: {
+            /** @description Clave guardada (cifrada). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description RUT inválido (formato/DV) o password < 4. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    credentials_sii_person_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutSiiPersonRequest"];
+            };
+        };
+        responses: {
+            /** @description Clave guardada (cifrada). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description RUT inválido (formato/DV) o password < 4. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    credentials_sii_person_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description RUT de la persona. */
+                rut: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Credencial eliminada. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existía credencial para ese RUT. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description RUT inválido. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    credentials_certificate_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutCertificateRequest"];
+            };
+        };
+        responses: {
+            /** @description Certificado guardado (cifrado). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__core__sii_credentials_schemas__CertificateUploadResponse"];
+                };
+            };
+            /** @description Rol sin permiso. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Archivo > 100 KB. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PKCS#12 inválido / password no destraba / cert expirado. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    credentials_certificate_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Certificado eliminado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No hay certificado configurado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -7747,6 +8560,13 @@ export interface operations {
                     "application/json": components["schemas"]["BankMovement"];
                 };
             };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Movimiento o cuenta de gestión no existe en el tenant. */
             404: {
                 headers: {
@@ -7869,6 +8689,13 @@ export interface operations {
                     "application/json": components["schemas"]["BankMovement"];
                 };
             };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Movimiento o cuenta de gestión no existe en el tenant. */
             404: {
                 headers: {
@@ -7928,6 +8755,40 @@ export interface operations {
             };
         };
     };
+    treasury_bank_accounts_list: {
+        parameters: {
+            query?: {
+                /** @description Solo cuentas activas (default). `false` incluye las desactivadas. */
+                active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cuentas del tenant (default: solo activas). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__core__treasury_schemas__BankAccountsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     bank_ingest_bice_list_accounts: {
         parameters: {
             query?: never;
@@ -7943,7 +8804,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BankAccountsListResponse"];
+                    "application/json": components["schemas"]["app__api__bank_ingest_bice__BankAccountsListResponse"];
                 };
             };
         };
@@ -8435,7 +9296,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -8446,6 +9309,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CurrenciesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -8462,7 +9334,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -8491,7 +9365,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -8511,6 +9387,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     company_currency_settings_update: {
@@ -8518,7 +9403,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -8550,6 +9437,91 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    treasury_cash_minimum_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Umbrales (lista vacía si no hay ninguno configurado). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashMinimumResponse"];
+                };
+            };
+            /** @description El tenant no tiene settings de moneda. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_cash_minimum_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutCashMinimumRequest"];
+            };
+        };
+        responses: {
+            /** @description Umbral actualizado; devuelve la lista completa. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashMinimumResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El tenant no tiene settings de moneda. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description amount < 0 o currency_code no es una moneda activa. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -9419,6 +10391,44 @@ export interface operations {
             };
         };
     };
+    dashboard_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen; cada bloque puede ser null (entrega incremental). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummaryResponse"];
+                };
+            };
+            /** @description Sin sesión válida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_audit_log: {
         parameters: {
             query?: {
@@ -9540,7 +10550,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CertificateUploadResponse"];
+                    "application/json": components["schemas"]["app__api__admin__certificates__CertificateUploadResponse"];
                 };
             };
             /** @description Validation Error */
@@ -10309,7 +11319,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10338,7 +11350,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -10381,7 +11395,9 @@ export interface operations {
                 /** @description UUID de la dimensión. */
                 dimension_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -10424,7 +11440,9 @@ export interface operations {
                 /** @description UUID de la dimensión. */
                 dimension_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10463,7 +11481,9 @@ export interface operations {
                 /** @description UUID de la dimensión. */
                 dimension_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -10511,7 +11531,9 @@ export interface operations {
                 /** @description UUID del valor. */
                 value_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -10554,7 +11576,9 @@ export interface operations {
                 /** @description UUID del valor a mover. */
                 value_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -10604,7 +11628,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10633,7 +11659,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -10683,7 +11711,9 @@ export interface operations {
                 /** @description UUID de la asignación. */
                 assignment_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10719,7 +11749,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10751,7 +11783,9 @@ export interface operations {
                 /** @description Código de la plantilla (ej. construction). */
                 template_code: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10790,7 +11824,9 @@ export interface operations {
                 /** @description Código de la plantilla (ej. construction). */
                 template_code: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: {
             content: {
