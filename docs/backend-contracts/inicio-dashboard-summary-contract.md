@@ -2,11 +2,11 @@
 
 > **CC-WEB → CC-API. 2026-06-02 (act. 2026-06-03).** Contrato **FE-first**: el FE
 > construyó el Inicio Ejecutivo (`/inicio`, Maestro §7.1) contra este contrato +
-> MSW, **gated por `dashboardSummary` (OFF en prod)**. **El endpoint YA existe en
-> el OpenAPI de prod (2026-06-03) y su shape coincide exacto con este contrato**,
-> pero está gated por API key (no cookie) → no activable aún (ver Estado de
-> coordinación). Tipos hand-rolled en `src/lib/api/dashboard.ts` (pendiente
-> `generate:api` cuando se destrabe la cookie). Es el agregador central del producto.
+> MSW. **✅ LIVE en prod desde 2026-06-03** (PR #296): CC-API expuso
+> `GET /api/dashboard/summary` aceptando cookie, el FE corrió `generate:api`
+> (tipos generados en `src/lib/api/dashboard.ts`) y activó el flag
+> `dashboardSummary`. El shape del backend coincide exacto con este contrato. Es
+> el agregador central del producto.
 
 ## Endpoint
 
@@ -111,8 +111,14 @@ renderiza el bloque "Qué hacer primero"). Primer drop esperado: `cash_today` +
 | 2026-06-02 | CC-WEB | Alinea el contrato a la entrega incremental: `executive_phrase` y `priority_actions` ahora nullable, FE no crashea con el primer drop — PR #287.                                                   |
 | 2026-06-03 | CC-API | **Expone `GET /api/dashboard/summary`** en el OpenAPI de prod. Shape **coincide exacto** con el contrato FE-first (los 10 bloques, `executive_phrase`/`priority_actions` nullable, montos string). |
 | 2026-06-03 | CC-WEB | Verifica en OpenAPI: shape ✅, pero `security: APIKeyHeader` → **el endpoint NO acepta cookie** (Brecha 0). El FE no puede activarlo; flag sigue OFF hasta que se acepte cookie de sesión.         |
+| 2026-06-03 | CC-API | **Destraba la cookie**: deja `/api/dashboard/summary` sin `security` (acepta `qavante_session`). Verificado: 401 sin/with-bad cookie como `/api/me`, sin 500.                                      |
+| 2026-06-03 | CC-WEB | **Activa el Inicio Ejecutivo en prod** — PR #296: `generate:api` + tipos generados + `/inicio` a Server Component + flag `dashboardSummary` ON. Deploy + smoke verdes. **C8 LIVE.** ✅             |
 
-> ⚠️ **Blocker de activación (Brecha 0):** `/api/dashboard/summary` declara
+> ✅ **Activado 2026-06-03 (PR #296).** El blocker de abajo quedó resuelto: CC-API
+> dejó el endpoint sin `security`, el FE corrió `generate:api`, convirtió `/inicio`
+> a Server Component y prendió el flag. Histórico del blocker:
+>
+> ⚠️ **Blocker de activación (Brecha 0) — RESUELTO:** `/api/dashboard/summary` declara
 > `security: [{ APIKeyHeader: [] }]`. El FE autentica por cookie `qavante_session`
 > y **nunca** envía API keys desde el browser. Hasta que CC-API lo deje sin
 > `security` declarado (acepta cookie, como `/api/me` y los 12 endpoints de la
