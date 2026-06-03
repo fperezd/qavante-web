@@ -1,15 +1,17 @@
-"use client";
-
 import { Activity } from "lucide-react";
 import { QavanteEmpty, QavanteButton } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { InicioMvpView } from "@/components/inicio/inicio-mvp-view";
 import { InicioEjecutivoView } from "@/components/inicio/inicio-ejecutivo-view";
 
-/* Inicio Ejecutivo (Sprint C8). Jerarquía de gating:
+/* Inicio Ejecutivo (Sprint C8). **Server Component** (como gestion/cobrar/pagar):
+   resuelve el flag en runtime del Worker leyendo `NEXT_PUBLIC_FF_*` vía la
+   `[vars]` de wrangler.toml (lookup con key computada → Next.js NO lo inlinea →
+   runtime). Un `"use client"` acá rompería el gating (el lookup daría undefined
+   en el cliente → flag siempre OFF en navegación soft). Jerarquía:
    1. `dashboardSummary` ON → el dashboard completo (Pulso, caja, brecha,
       cobranza, pagos, resultado, 3 acciones) cableado a `GET /api/dashboard/
-      summary` (contrato FE-first, gated hasta que el backend lo exponga).
+      summary` (ya expuesto por el backend, acepta cookie).
    2. `inicioMvp` ON → el MVP de perfil (saludo + /api/me), interino.
    3. Default OFF → QavanteEmpty informativo "Sprint C8". */
 export default function InicioPage() {

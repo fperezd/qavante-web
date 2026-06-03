@@ -25,6 +25,11 @@ NEXT_PUBLIC_FF_CLASSIFICATION_RULES = "true"
 # Reactivada 2026-05-31: CC-API arregló el 500 de GET /api/management/accounts/tree
 # (verificado end-to-end por CC-API). Era el único bloqueante de esta pantalla.
 NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS = "true"
+# Activada 2026-06-03: CC-API expuso GET /api/dashboard/summary aceptando cookie
+# (verificado: 401 sin/with-bad cookie como /api/me, sin 500; shape == contrato
+# FE-first). Inicio Ejecutivo (C8) LIVE. La page es Server Component → el flag
+# resuelve en runtime del Worker.
+NEXT_PUBLIC_FF_DASHBOARD_SUMMARY = "true"
 
 # Custom domain declarativo. Idempotente: si el binding ya existe en el
 # dashboard (creado manualmente el 2026-05-12), wrangler lo respeta. Si se
