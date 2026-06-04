@@ -7,10 +7,11 @@ import {
   AlertTriangle,
   ArrowRight,
   Banknote,
+  Sparkles,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { QavanteCard } from "@/components/qavante";
+import { QavanteCard, QavanteEmpty, QavanteButton } from "@/components/qavante";
 import { useDashboardSummary, type DashboardSummaryResponse } from "@/lib/api/dashboard";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -21,6 +22,7 @@ import {
   pulsoStatusLabel,
   pulsoStatusTone,
   confidenceLabel,
+  isEmptySummary,
 } from "./dashboard-format";
 
 /* Inicio Ejecutivo (Sprint C8, Maestro §7.1): "¿Cómo está mi empresa hoy?".
@@ -53,6 +55,10 @@ export function InicioEjecutivoView() {
 }
 
 function Dashboard({ data }: { data: DashboardSummaryResponse }) {
+  /* Empresa nueva / sin fuentes: el backend responde 200 con todo null. En vez
+     de 7 cards de "sin dato", un empty-state único y accionable. */
+  if (isEmptySummary(data)) return <EmptySummary />;
+
   return (
     <div className="space-y-4">
       {/* Frase ejecutiva (nullable durante el rollout incremental del backend). */}
@@ -319,6 +325,28 @@ function NoData() {
       <Banknote className="h-4 w-4" aria-hidden="true" />
       Sin dato por ahora (no se asume en cero).
     </p>
+  );
+}
+
+function EmptySummary() {
+  return (
+    <QavanteEmpty
+      icon={Sparkles}
+      title="Estamos preparando tu resumen"
+      description="Todavía no hay datos para mostrar. A medida que conectes tus fuentes (SII, banco) y clasifiques tus movimientos, acá vas a ver tu Pulso, tu caja, alertas y las acciones prioritarias."
+      cta={
+        <div className="flex flex-wrap justify-center gap-2">
+          <Link href="/administracion/credenciales">
+            <QavanteButton size="sm">Conectar SII</QavanteButton>
+          </Link>
+          <Link href="/caja/por-clasificar">
+            <QavanteButton size="sm" variant="ghost">
+              Clasificar movimientos
+            </QavanteButton>
+          </Link>
+        </div>
+      }
+    />
   );
 }
 

@@ -95,6 +95,25 @@ const PRIMER_DROP = http.get(PATH, () =>
     { status: 200 },
   ),
 );
+/* Empresa nueva / sin fuentes: el backend responde 200 con TODO null (estado
+   real verificado en prod 2026-06-03). La vista muestra un empty-state único. */
+const VACIO = http.get(PATH, () =>
+  HttpResponse.json(
+    {
+      executive_phrase: null,
+      pulso: null,
+      cash_today: null,
+      cash_forecast: null,
+      cash_gap: null,
+      overdue_collections: null,
+      critical_payments: null,
+      operational_result: null,
+      priority_actions: null,
+      generated_at: FIXTURE.generated_at,
+    },
+    { status: 200 },
+  ),
+);
 const LOADING = http.get(PATH, async () => {
   await delay("infinite");
   return HttpResponse.json(FIXTURE, { status: 200 });
@@ -129,6 +148,10 @@ export const Parcial: Story = {
 export const PrimerDrop: Story = {
   name: "Primer drop backend (solo caja)",
   parameters: { msw: { handlers: [PRIMER_DROP] } },
+};
+export const Vacio: Story = {
+  name: "Sin datos (empresa nueva)",
+  parameters: { msw: { handlers: [VACIO] } },
 };
 export const Cargando: Story = { parameters: { msw: { handlers: [LOADING] } } };
 export const Error500: Story = { name: "Error (500)", parameters: { msw: { handlers: [ERROR] } } };
