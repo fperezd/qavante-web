@@ -41,6 +41,7 @@ export const FEATURE_FLAGS = [
   "accountsReceivable",
   "accountsPayable",
   "dashboardSummary",
+  "pulsoDetail",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -75,6 +76,9 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   /* Inicio Ejecutivo (Sprint C8) — el dashboard agregado. Endpoint FE-first
      esperado (aún no existe — ver brecha inicio-dashboard-summary). */
   dashboardSummary: "/api/dashboard/summary",
+  /* Pulso detalle (Sprint C6/C7) — "¿por qué está así mi Pulso?". Endpoint
+     FE-first esperado (aún no existe — ver pulso-detail-contract). */
+  pulsoDetail: "/api/management/pulso",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
