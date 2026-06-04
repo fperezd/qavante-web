@@ -2070,6 +2070,28 @@ const pulsoHandlers = [
   http.get("*/api/management/pulso", () => HttpResponse.json(pulsoDetailFixture, { status: 200 })),
 ];
 
+/* Asistente Qavante — chat (Sprint C9, contrato FE-first; wire format ADR-0004).
+   Endpoint real aún no existe. Devuelve SOLO content + tools_used + sources (el
+   FE ignora cualquier otra clave, incluido `reasoning`). */
+const assistantHandlers = [
+  http.post("*/api/assistant/chat", () =>
+    HttpResponse.json(
+      {
+        content:
+          "Tu caja proyectada para los próximos 14 días es de $5,4M y cubre las obligaciones críticas. " +
+          "Tenés $7,9M en cobranzas vencidas — apretar esa cobranza es lo que más mueve tu Pulso.",
+        reasoning: "internal trace omitted from client response",
+        tools_used: ["caja", "cobranza", "pulso"],
+        sources: [
+          { type: "screen", url: "/caja/proyeccion", label: "Caja proyectada" },
+          { type: "screen", url: "/cobrar", label: "Cobranza" },
+        ],
+      },
+      { status: 200 },
+    ),
+  ),
+];
+
 const gestionHandlers = [
   http.get("*/api/management/operational-result", ({ request }) => {
     const period = new URL(request.url).searchParams.get("period");
@@ -2096,6 +2118,7 @@ export const handlers = [
   ...pagosHandlers,
   ...dashboardHandlers,
   ...pulsoHandlers,
+  ...assistantHandlers,
   ...currenciesHandlers,
   ...classificationRulesHandlers,
   ...industryTemplatesHandlers,

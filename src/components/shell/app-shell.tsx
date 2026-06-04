@@ -6,14 +6,18 @@ import { AppSidebar } from "@/components/shell/sidebar";
 import { Breadcrumbs } from "@/components/shell/breadcrumbs";
 import { SkipLink } from "@/components/shell/skip-link";
 import { AssistantTrigger } from "@/components/assistant/trigger";
+import { Assistant } from "@/components/assistant/assistant";
 import type { UserRole } from "@/lib/auth/types";
 
 export interface AppShellProps {
   children: ReactNode;
   userRole?: UserRole;
+  /** `assistant` ON → monta el Asistente interactivo (chat). OFF → el trigger
+     stub actual (comportamiento previo intacto). Lo resuelve el layout (server). */
+  assistantEnabled?: boolean;
 }
 
-export function AppShell({ children, userRole }: AppShellProps) {
+export function AppShell({ children, userRole, assistantEnabled }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -36,7 +40,7 @@ export function AppShell({ children, userRole }: AppShellProps) {
         </main>
       </div>
 
-      <AssistantTrigger />
+      {assistantEnabled ? <Assistant /> : <AssistantTrigger />}
     </div>
   );
 }
