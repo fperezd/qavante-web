@@ -72,6 +72,7 @@ export default defineConfig({
       NEXT_PUBLIC_FF_ACCOUNTS_RECEIVABLE: "true",
       NEXT_PUBLIC_FF_ACCOUNTS_PAYABLE: "true",
       NEXT_PUBLIC_FF_DASHBOARD_SUMMARY: "true",
+      NEXT_PUBLIC_FF_PULSO_DETAIL: "true",
     },
   },
 });

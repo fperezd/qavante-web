@@ -2008,6 +2008,68 @@ const dashboardHandlers = [
   ),
 ];
 
+/* Pulso detalle (Sprint C6/C7, contrato FE-first). Endpoint real aún no existe
+   (ver docs/backend-contracts/pulso-detail-contract.md). */
+const pulsoDetailFixture = {
+  score: 68,
+  status: "stable",
+  confidence: "medium",
+  preliminary: false,
+  headline: "Tu Pulso está estable: la rentabilidad ayuda, pero la cobranza más lenta lo frena.",
+  components: [
+    { key: "liquidity", label: "Liquidez", score: 72, weight: 0.3 },
+    { key: "profitability", label: "Rentabilidad", score: 81, weight: 0.3 },
+    { key: "collections", label: "Cobranza", score: 48, weight: 0.25 },
+    { key: "debt", label: "Endeudamiento", score: 65, weight: 0.15 },
+  ],
+  drivers: [
+    {
+      label: "Margen en alza",
+      direction: "positive",
+      impact: "high",
+      detail: "El margen bruto subió 4 pts vs. el mes anterior.",
+      cta_label: "Ver resultado",
+      cta_href: "/gestion",
+    },
+    {
+      label: "Caja con colchón",
+      direction: "positive",
+      impact: "medium",
+      detail: "La caja proyectada cubre las obligaciones críticas de 14 días.",
+      cta_label: null,
+      cta_href: null,
+    },
+    {
+      label: "Cobranza lenta",
+      direction: "negative",
+      impact: "high",
+      detail: "Hay $7,9M vencidos; el plazo promedio de cobro subió a 52 días.",
+      cta_label: "Ver cobranza",
+      cta_href: "/cobrar",
+    },
+    {
+      label: "Pago crítico esta semana",
+      direction: "negative",
+      impact: "medium",
+      detail: "IVA / F29 vence el 12 — asegurá la caja.",
+      cta_label: "Ver pagos",
+      cta_href: "/pagar",
+    },
+  ],
+  trend: [
+    { period: "ene", score: 61 },
+    { period: "feb", score: 58 },
+    { period: "mar", score: 64 },
+    { period: "abr", score: 66 },
+    { period: "may", score: 68 },
+  ],
+  generated_at: "2026-06-03T12:00:00Z",
+};
+
+const pulsoHandlers = [
+  http.get("*/api/management/pulso", () => HttpResponse.json(pulsoDetailFixture, { status: 200 })),
+];
+
 const gestionHandlers = [
   http.get("*/api/management/operational-result", ({ request }) => {
     const period = new URL(request.url).searchParams.get("period");
@@ -2033,6 +2095,7 @@ export const handlers = [
   ...cobranzaHandlers,
   ...pagosHandlers,
   ...dashboardHandlers,
+  ...pulsoHandlers,
   ...currenciesHandlers,
   ...classificationRulesHandlers,
   ...industryTemplatesHandlers,
