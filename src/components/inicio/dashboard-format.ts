@@ -1,7 +1,25 @@
 /* Helpers puros del Inicio Ejecutivo (Sprint C8). SIN React → testeables.
    `parseAmount` se repite (consolidación pendiente). */
 
-import type { PulsoStatus, Confidence } from "@/lib/api/dashboard";
+import type { PulsoStatus, Confidence, DashboardSummaryResponse } from "@/lib/api/dashboard";
+
+/** true si el summary no trae NINGÚN dato útil (todos los bloques null, sin
+   frase ni acciones). Es el estado de una empresa nueva / sin fuentes cargadas:
+   el backend responde 200 con todo en null. En ese caso la vista muestra un
+   empty-state único en vez de 7 cards de "sin dato". */
+export function isEmptySummary(data: DashboardSummaryResponse): boolean {
+  return (
+    !data.executive_phrase &&
+    data.pulso == null &&
+    data.cash_today == null &&
+    data.cash_forecast == null &&
+    data.cash_gap == null &&
+    data.overdue_collections == null &&
+    data.critical_payments == null &&
+    data.operational_result == null &&
+    (data.priority_actions == null || data.priority_actions.length === 0)
+  );
+}
 
 export function parseAmount(raw: string | null | undefined): number {
   if (!raw) return 0;
