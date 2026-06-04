@@ -132,7 +132,7 @@ export function Assistant() {
               {turns.length === 0 && !chat.isPending && (
                 <div className="space-y-3">
                   <p className="text-sm text-neutral-mid">
-                    Preguntame sobre tu caja, cobranzas, pagos o resultado. Respondo en base a tus
+                    Pregúntame sobre tu caja, cobranzas, pagos o resultado. Respondo en base a tus
                     datos.
                   </p>
                   <ul className="space-y-2">
@@ -200,7 +200,7 @@ export function Assistant() {
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Escribí tu pregunta…"
+                placeholder="Escribe tu pregunta…"
                 aria-label="Tu pregunta"
                 className="min-w-0 flex-1 rounded-full border border-neutral-light/60 px-4 py-2 text-sm text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
               />

@@ -174,7 +174,7 @@ export const usersHandlers = [
       ((body.role && body.role !== "owner") || body.status === "suspended");
     if (tryingToBreakLastOwner) {
       return HttpResponse.json(
-        errorBody("last_owner_protection", "No podés modificar al único owner activo del tenant."),
+        errorBody("last_owner_protection", "No puedes modificar al único owner activo del tenant."),
         { status: 409 },
       );
     }
@@ -2051,7 +2051,7 @@ const pulsoDetailFixture = {
       label: "Pago crítico esta semana",
       direction: "negative",
       impact: "medium",
-      detail: "IVA / F29 vence el 12 — asegurá la caja.",
+      detail: "IVA / F29 vence el 12 — asegura la caja.",
       cta_label: "Ver pagos",
       cta_href: "/pagar",
     },
@@ -2079,7 +2079,7 @@ const assistantHandlers = [
       {
         content:
           "Tu caja proyectada para los próximos 14 días es de $5,4M y cubre las obligaciones críticas. " +
-          "Tenés $7,9M en cobranzas vencidas — apretar esa cobranza es lo que más mueve tu Pulso.",
+          "Tienes $7,9M en cobranzas vencidas — apretar esa cobranza es lo que más mueve tu Pulso.",
         reasoning: "internal trace omitted from client response",
         tools_used: ["caja", "cobranza", "pulso"],
         sources: [
