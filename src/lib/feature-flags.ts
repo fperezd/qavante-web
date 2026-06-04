@@ -42,6 +42,7 @@ export const FEATURE_FLAGS = [
   "accountsPayable",
   "dashboardSummary",
   "pulsoDetail",
+  "assistant",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -79,6 +80,9 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   /* Pulso detalle (Sprint C6/C7) — "¿por qué está así mi Pulso?". Endpoint
      FE-first esperado (aún no existe — ver pulso-detail-contract). */
   pulsoDetail: "/api/management/pulso",
+  /* Asistente Qavante (Sprint C9, Anexo G) — chat read-only. Endpoint FE-first
+     esperado (aún no existe — wire format en ADR-0004). */
+  assistant: "/api/assistant/chat",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
