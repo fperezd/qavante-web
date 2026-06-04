@@ -40,7 +40,7 @@ const FIXTURE = {
       label: "Pago crítico esta semana",
       direction: "negative",
       impact: "medium",
-      detail: "IVA / F29 vence el 12 — asegurá la caja.",
+      detail: "IVA / F29 vence el 12 — asegura la caja.",
       cta_label: null,
       cta_href: null,
     },

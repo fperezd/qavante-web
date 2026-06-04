@@ -5,7 +5,7 @@ import { Assistant } from "./assistant";
 /* Asistente Qavante (Sprint C9, Anexo G). Botón flotante → drawer con chat
    read-only. Contrato FE-first (endpoint aún no existe). Wire format ADR-0004:
    el FE renderiza SOLO content + tools_used + sources; ignora `reasoning`. El
-   drawer arranca cerrado: en la story, hacé click en "Preguntar a Qavante". */
+   drawer arranca cerrado: en la story, haz click en "Preguntar a Qavante". */
 
 const PATH = "*/api/assistant/chat";
 
@@ -40,7 +40,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Asistente Qavante (C9, Anexo G): chat read-only. Renderiza solo content + tools_used (chips) + sources (links), ignora reasoning (ADR-0004). Hacé click en el botón flotante para abrir.",
+          "Asistente Qavante (C9, Anexo G): chat read-only. Renderiza solo content + tools_used (chips) + sources (links), ignora reasoning (ADR-0004). Haz click en el botón flotante para abrir.",
       },
     },
     msw: { handlers: [OK] },
