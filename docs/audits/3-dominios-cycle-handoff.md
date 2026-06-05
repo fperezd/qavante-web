@@ -48,7 +48,7 @@ del segundo se rompe.
   conflicto en `src/test/msw/handlers.ts` (cada PR agrega su sección al
   `export const handlers = [...]`). Resolución trivial: agregar el
   array spread de los otros dominios. GitHub debería auto-detectarlo
-  o yo (o vos) podemos rebasear local.
+  o yo (o tú) podemos rebasear local.
 - Los UI PRs (#151/#152/#153) **no chocan entre sí** ni con los data
   PRs — tocan rutas y componentes distintos.
 
@@ -162,7 +162,7 @@ del segundo se rompe.
    - Regla 16 (no inventar contrato): ✅ todo verificado contra
      `types.ts` regenerado en #144.
 5. **DoD:** ✅ los 3 dominios cableados read-only end-to-end vía MSW
-   (no necesitás backend para verlos en dev preview).
+   (no necesitas backend para verlos en dev preview).
 6. **Documentación:** este handoff + comentarios in-code densos por PR.
 7. **Lighthouse/bundle:** sin verificar todavía (lo hago al cerrar el
    ciclo en el audit K.5 formal). Expectativa: bundle sube ~5-8 kB por

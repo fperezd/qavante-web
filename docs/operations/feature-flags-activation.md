@@ -105,13 +105,13 @@ No hay endpoint dedicado para esto (todavía — eventualmente vendrá `/api/man
 
 ## Errores comunes
 
-| Síntoma                                        | Causa probable                                                            | Fix                                                        |
-| ---------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Variable seteada pero pantalla no cambia       | No hiciste redeploy del Worker (env var inlineada en build-time)          | Click "Save **and deploy**" en CF Dashboard.               |
-| Pantalla cargando infinito tras activar        | Endpoint backend no deployado todavía                                     | Verificar con `curl` y/o desactivar el flag.               |
-| Variable con valor `True` o `TRUE` no funciona | Parser case-insensitive solo acepta `true`/`false` exactos                | Usar minúsculas. Ver `readOverride` en `feature-flags.ts`. |
-| Variable con valor `yes` o `1` no funciona     | Mismo motivo                                                              | Usar `true`/`false`.                                       |
-| Pantalla muestra UI mock o datos raros         | Tenés `NEXT_PUBLIC_API_MOCKING=enabled` activo en prod (no debería pasar) | Borrar la variable de mocking en CF Dashboard.             |
+| Síntoma                                        | Causa probable                                                             | Fix                                                        |
+| ---------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Variable seteada pero pantalla no cambia       | No hiciste redeploy del Worker (env var inlineada en build-time)           | Click "Save **and deploy**" en CF Dashboard.               |
+| Pantalla cargando infinito tras activar        | Endpoint backend no deployado todavía                                      | Verificar con `curl` y/o desactivar el flag.               |
+| Variable con valor `True` o `TRUE` no funciona | Parser case-insensitive solo acepta `true`/`false` exactos                 | Usar minúsculas. Ver `readOverride` en `feature-flags.ts`. |
+| Variable con valor `yes` o `1` no funciona     | Mismo motivo                                                               | Usar `true`/`false`.                                       |
+| Pantalla muestra UI mock o datos raros         | Tienes `NEXT_PUBLIC_API_MOCKING=enabled` activo en prod (no debería pasar) | Borrar la variable de mocking en CF Dashboard.             |
 
 ## Cuando agregar un flag nuevo
 

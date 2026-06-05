@@ -46,9 +46,9 @@ El status HTTP define el comportamiento; el `code` da especificidad. Códigos ya
 | ------------- | ---------------------------------- | ------------------------------------------------------------ |
 | 401 (login)   | `invalid_credentials` o cualquiera | "RUT o clave incorrectos. Verificá tus datos."               |
 | 401 (general) | —                                  | "Tu sesión expiró. Volvé a iniciar sesión."                  |
-| 403           | —                                  | "No tenés permisos para realizar esta acción."               |
-| 404           | —                                  | "No encontramos la información que buscás."                  |
-| 422           | —                                  | "Algunos datos no son válidos. Revisá el formulario."        |
+| 403           | —                                  | "No tienes permisos para realizar esta acción."              |
+| 404           | —                                  | "No encontramos la información que buscas."                  |
+| 422           | —                                  | "Algunos datos no son válidos. Revisa el formulario."        |
 | 429           | —                                  | "Hiciste muchas operaciones seguidas. Esperá unos segundos." |
 | 503           | —                                  | "Qavante está en mantenimiento. Volvemos pronto."            |
 | 5xx           | —                                  | "No pudimos cargar la información. Intentá nuevamente."      |
@@ -391,7 +391,7 @@ ErrorResponse:
 1. **HttpOnly + Secure obligatorios** en todas las cookies de sesión y refresh. El frontend no tiene fallback a localStorage (CLAUDE.md regla 6).
 2. **CSRF:** con `SameSite=Lax` el riesgo de CSRF clásico está mitigado, pero para POST/PATCH/DELETE recomendamos doble token (header `X-Csrf-Token` que el backend devuelva en `GET /api/me`). El frontend puede agregar esto fácilmente si el backend lo requiere.
 3. **Rate limit en `/api/auth/login`:** mínimo recomendado 5 intentos/RUT en 5 min, con 429 + `Retry-After`.
-4. **Mensaje 403 genérico:** no filtrar qué rol falta (Kit C0-16 DoD); responder `403 { code: "permission_denied", detail: "No tenés permisos para esta acción." }`.
+4. **Mensaje 403 genérico:** no filtrar qué rol falta (Kit C0-16 DoD); responder `403 { code: "permission_denied", detail: "No tienes permisos para esta acción." }`.
 
 ---
 
