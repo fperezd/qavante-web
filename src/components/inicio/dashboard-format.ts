@@ -1,7 +1,12 @@
-/* Helpers puros del Inicio Ejecutivo (Sprint C8). SIN React → testeables.
+/* Helpers puros del Inicio Ejecutivo (Sprint C8 + v2). SIN React → testeables.
    `parseAmount` se repite (consolidación pendiente). */
 
-import type { PulsoStatus, Confidence, DashboardSummaryResponse } from "@/lib/api/dashboard";
+import type {
+  PulsoStatus,
+  Confidence,
+  DashboardSummaryResponse,
+  ObligationCoverage,
+} from "@/lib/api/dashboard";
 
 /** true si el summary no trae NINGÚN dato útil (todos los bloques null, sin
    frase ni acciones). Es el estado de una empresa nueva / sin fuentes cargadas:
@@ -60,4 +65,68 @@ const CONFIDENCE_LABEL: Record<Confidence, string> = {
 
 export function confidenceLabel(c: string): string {
   return CONFIDENCE_LABEL[c as Confidence] ?? "confianza media";
+}
+
+/* ── Helpers del Inicio Ejecutivo v2 ──────────────────────────────────────── */
+
+const MESES = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+];
+
+/** Primer término del nombre, para el saludo ("Fernando Pérez" → "Fernando"). */
+export function firstName(name: string | null | undefined): string {
+  if (!name) return "";
+  return name.trim().split(/\s+/)[0] ?? "";
+}
+
+/** Fecha hasta la que alcanza la caja a partir de los días de runway, relativo
+   a `from`. "18 de julio" (agrega año solo si cae en otro año). null si no hay
+   dato. Es presentación (no cálculo de negocio: los días los da el backend). */
+export function runwayDateLabel(daysOfCash: number | null | undefined, from: Date): string | null {
+  if (daysOfCash == null || !Number.isFinite(daysOfCash) || daysOfCash < 0) return null;
+  const d = new Date(from.getTime());
+  d.setDate(d.getDate() + Math.round(daysOfCash));
+  const anio = d.getFullYear() !== from.getFullYear() ? ` de ${d.getFullYear()}` : "";
+  return `${d.getDate()} de ${MESES[d.getMonth()]}${anio}`;
+}
+
+const COVERAGE_LABEL: Record<ObligationCoverage, string> = {
+  covered: "cubierto",
+  tight: "ajustado",
+  uncovered: "no alcanza",
+};
+
+export function obligationCoverageLabel(c: string): string {
+  return COVERAGE_LABEL[c as ObligationCoverage] ?? "—";
+}
+
+/** Color (clase de texto) del estado de una obligación. */
+export function obligationCoverageTone(c: string): string {
+  switch (c) {
+    case "covered":
+      return "text-success-700";
+    case "tight":
+      return "text-warning-700";
+    case "uncovered":
+      return "text-danger-500";
+    default:
+      return "text-neutral-mid";
+  }
+}
+
+/** "↑8%" / "↓3%" para la variación de caja; null si no hay dato. */
+export function deltaPctLabel(pct: number | null | undefined): string | null {
+  if (pct == null || !Number.isFinite(pct)) return null;
+  return `${pct >= 0 ? "↑" : "↓"}${Math.abs(pct)}%`;
 }
