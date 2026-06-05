@@ -20,7 +20,7 @@
 > que tenía a esas pantallas en `FeatureUnavailableState` en prod.
 >
 > Preparado autónomamente por CC-WEB el 2026-05-30 (Fernando ausente 3h). Las
-> acciones de abajo las ejecutás vos (acceso Cloudflare + redeploy).
+> acciones de abajo las ejecutas tú (acceso Cloudflare + redeploy).
 
 ## Qué ya hizo CC-WEB (mergeado)
 

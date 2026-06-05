@@ -36,7 +36,7 @@ Copiá ese archivo al repo `qavante-api` (sugerido: `docs/contracts/c1-sii-crede
 o donde CC-API tenga sus contratos). Es un `.md` autocontenido — copy/paste del
 archivo entero.
 
-> Alternativa si no querés duplicar el archivo: pegarle el contenido completo
+> Alternativa si no quieres duplicar el archivo: pegarle el contenido completo
 > del contrato a CC-API como contexto en el primer mensaje. Pero tener el
 > archivo versionado en el repo backend es mejor (CC-API lo re-lee cuando
 > necesite, queda en su historial).
@@ -55,11 +55,11 @@ Abrí Claude Code en el repo `qavante-api` y pegale el brief de la
 ### Paso 3 — CC-API: implementar + PR backend
 
 CC-API implementa los 6 endpoints + encriptación + tablas + tests pytest,
-según el DoD del contrato §7. Abre PR en `qavante-api`. Vos lo revisás/mergeás
+según el DoD del contrato §7. Abre PR en `qavante-api`. Tú lo revisas/mergeas
 igual que los míos.
 
 **Punto de sincronización:** si CC-API encuentra una ambigüedad en el contrato
-o necesita cambiar un shape, te lo dice → vos me lo traés a mí → yo ajusto el
+o necesita cambiar un shape, te lo dice → tú me lo traes a mí → yo ajusto el
 contrato + los handlers MSW + los tipos del FE para que sigan alineados. El
 contrato es bidireccional: si cambia, cambia en ambos lados.
 
@@ -69,7 +69,7 @@ El backend tiene que estar **deployado en `https://tooxs-gestion-api.fly.dev`**
 con `/openapi.json` reflejando los 6 paths nuevos. No alcanza con que esté
 mergeado en el repo backend — el FE regenera tipos desde la URL de prod.
 
-Verificación rápida (la podés correr vos o yo):
+Verificación rápida (la puedes correr tú o yo):
 
 ```bash
 curl -s https://tooxs-gestion-api.fly.dev/openapi.json | grep -o "credentials/sii" | head -1
@@ -115,7 +115,7 @@ Antes de codear:
    - Storage del cert PKCS#12: Postgres bytea encriptado vs R2.
    - Auditoría: tabla propia vs log estructurado.
    El contrato trae recomendaciones iniciales para cada una. Si las seguís,
-   decilo en el ADR con rationale. Si te apartás, justificá.
+   decilo en el ADR con rationale. Si te apartas, justificá.
 
 3. DoD está en el contrato §7. Incluye tests pytest cubriendo casos felices,
    403 por rol insuficiente, 422 por cert inválido/expirado, y aislamiento
@@ -124,15 +124,15 @@ Antes de codear:
 4. CRÍTICO: el shape de las respuestas tiene que matchear EXACTAMENTE el
    contrato §2 y los modelos OpenAPI de §4. CC-WEB regenera sus tipos
    TypeScript desde tu /openapi.json — cualquier drift rompe el build del
-   frontend. Si necesitás cambiar un shape, avisá a Fernando para que
+   frontend. Si necesitas cambiar un shape, avisa a Fernando para que
    CC-WEB ajuste el contrato + sus mocks en paralelo (es bidireccional).
 
 5. Al terminar: el backend tiene que estar deployado en
    https://tooxs-gestion-api.fly.dev con /openapi.json mostrando los 6
-   paths nuevos. Avisá a Fernando cuando esté live en prod (no solo
+   paths nuevos. Avisa a Fernando cuando esté live en prod (no solo
    mergeado).
 
-Decime tu plan antes de implementar.
+Dime tu plan antes de implementar.
 ```
 
 ---

@@ -71,7 +71,7 @@ Si la zona se pierde (cambio de cuenta Cloudflare, accidente, etc.):
 1. Cloudflare dashboard → `qavante.com` → DNS → Records → **+ Add record**.
 2. Llenar: Tipo, Name, Content, TTL, Proxy status (decidir consciente: Proxied o DNS-only).
 3. Save.
-4. **Inmediatamente:** abrir PR en este repo agregando el record a la tabla "Records actuales" arriba, con propósito y proxy status. Si lo olvidás, el siguiente que toque DNS no sabe que existe.
+4. **Inmediatamente:** abrir PR en este repo agregando el record a la tabla "Records actuales" arriba, con propósito y proxy status. Si lo olvidas, el siguiente que toque DNS no sabe que existe.
 
 ## Casos especiales de proxy status
 

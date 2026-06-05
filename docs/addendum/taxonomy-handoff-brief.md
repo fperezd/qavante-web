@@ -35,7 +35,7 @@ implementado" — era incorrecto. Ver [`reconciliation.md`](./reconciliation.md)
 
 Por lo tanto: **este es un handoff de especificación, no de integración.** El
 addendum define lo que el FE espera; CC-API tiene que **diseñar, confirmar e
-implementar** el contrato backend real. No es "el FE ya está, conectá" — es
+implementar** el contrato backend real. No es "el FE ya está, conecta" — es
 "acá está la expectativa FE, definí el contrato y construilo".
 
 ## 2. Diferencia crítica con el handoff SII
@@ -163,7 +163,7 @@ numeración del addendum asumía un estado que no se cumplió).
 ## 7. Brief listo para pegarle a CC-API
 
 > Texto para que Fernando pegue a Claude Code en `qavante-api`. Ajustá rutas
-> si copiás los docs al repo backend.
+> si copias los docs al repo backend.
 
 ```
 Hola CC-API. Segundo handoff frontend→backend (el primero fue credenciales
@@ -171,9 +171,9 @@ SII, #71). Este es la capa de taxonomía/gestión/multimoneda.
 
 Diferencia clave con el de SII: el contrato backend NO está escrito. El
 addendum frontend (te paso docs/addendum/frontend-v2.md) define lo que el
-FE ESPERA, pero vos tenés que DISEÑAR y CONFIRMAR el contrato real, no
+FE ESPERA, pero tú tienes que DISEÑAR y CONFIRMAR el contrato real, no
 solo implementar. Los JSON del §10 son propuesta de partida, no ley. Si tu
-diseño difiere, avisás a Fernando y CC-WEB ajusta el addendum + sus mocks
+diseño difiere, avisas a Fernando y CC-WEB ajusta el addendum + sus mocks
 (bidireccional).
 
 Necesito, en este orden de prioridad:
@@ -185,15 +185,15 @@ Necesito, en este orden de prioridad:
 6. Classification rules CRUD.
 7. Industry templates.
 
-Decisiones que tenés que resolver explícitamente (bloquean ADRs del FE):
+Decisiones que tienes que resolver explícitamente (bloquean ADRs del FE):
 - Namespace de paths: el FE espera /api/management|treasury|core/* pero
-  vos ya exponés /api/bank-movements/{id}/classify sin prefijo treasury.
-  Definí el namespace final y si deprecás el path viejo.
+  tú ya expones /api/bank-movements/{id}/classify sin prefijo treasury.
+  Definí el namespace final y si deprecas el path viejo.
 - ¿Vas a exponer GET /api/management/config para feature flags? Si no,
   confirmá que el FE puede derivar disponibilidad por presencia del
   endpoint en el OpenAPI.
 - Endpoints move ({new_parent_id, sort_order}) + error de ciclo. Si no
-  los hacés ahora, el FE sale sin drag-and-drop (reordena por menú).
+  los haces ahora, el FE sale sin drag-and-drop (reordena por menú).
 - RBAC: 403 según matriz owner/admin escriben, finance_manager/viewer no.
 - canonical_category DEBE venir con metadata estructurada (label,
   dirección, etc.), no string libre.
@@ -207,8 +207,8 @@ Restricciones del FE que tu diseño debe respetar:
 Abrí ADR en qavante-api/docs/adr/ para decisiones backend no triviales
 (modelo del árbol, RLS, etc.).
 
-Al terminar: /openapi.json en prod con todos los paths + avisá a Fernando
-"2º handoff taxonomía arriba en prod". Decime tu plan y el contrato
+Al terminar: /openapi.json en prod con todos los paths + avisa a Fernando
+"2º handoff taxonomía arriba en prod". Dime tu plan y el contrato
 propuesto ANTES de implementar.
 ```
 
@@ -221,9 +221,9 @@ propuesto ANTES de implementar.
 2. Llevar `docs/addendum/frontend-v2.md` (+ opcional `reconciliation.md`)
    al repo `qavante-api`.
 3. Pegarle a CC-API el brief de §7.
-4. CC-API confirma plan + contrato propuesto → vos lo revisás → implementa
+4. CC-API confirma plan + contrato propuesto → tú lo revisas → implementa
    → deploya a prod.
-5. Avisás a CC-WEB "2º handoff taxonomía arriba" → CC-WEB ejecuta PRs
+5. Avisas a CC-WEB "2º handoff taxonomía arriba" → CC-WEB ejecuta PRs
    #83→#89 del addendum (numeración real puede diferir; orden en
    reconciliation P0).
 
