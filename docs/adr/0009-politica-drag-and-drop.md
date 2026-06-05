@@ -1,6 +1,6 @@
 # ADR-0009: Política de drag-and-drop para árboles de gestión (preventiva)
 
-- **Status:** Proposed
+- **Status:** Accepted (preventiva; promovido 2026-06-05, la política se respeta en los editores de árbol)
 - **Fecha:** 2026-05-15
 - **Decididores:** Fernando + CC-WEB (rol CTO)
 - **Tickets / PRs:** addendum frontend v2.0 §21, PRs #84 (estructura de gestión) y #85 (vistas de gestión)

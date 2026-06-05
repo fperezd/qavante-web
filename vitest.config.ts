@@ -7,7 +7,7 @@ import { playwright } from "@vitest/browser-playwright";
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /* Vitest 4 con `projects[]` — 2 proyectos:
-   1. `unit` — config histórica del repo. 74 unit tests sobre src/.
+   1. `unit` — config histórica del repo. 500+ unit tests sobre src/.
       Excluye tests/e2e/ (Playwright) y stories (browser-only).
    2. `storybook` — auto-genera un test por story con el plugin
       @storybook/addon-vitest. Renderea la story en un browser headless

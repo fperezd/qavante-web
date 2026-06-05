@@ -209,8 +209,8 @@ Stories actuales (Capa 1 + Capa 2, 19 componentes): `QavanteButton`, `QavanteInp
 
 `vitest.config.ts` define dos proyectos:
 
-- **`unit`** — los 74 unit tests sobre `src/`. Excluye `*.stories.tsx`. Rápido (~8s).
-- **`storybook`** — auto-genera un test por story con `@storybook/addon-vitest`. Cada story renderea en Chromium headless via `@vitest/browser-playwright` y valida que monta sin errores. Más lento (~50s para 86 tests).
+- **`unit`** — 500+ unit tests sobre `src/`. Excluye `*.stories.tsx`. Rápido (~8s).
+- **`storybook`** — auto-genera un test por story con `@storybook/addon-vitest`. Cada story renderea en Chromium headless via `@vitest/browser-playwright` y valida que monta sin errores. Más lento (~50s; un test por story).
 
 ```bash
 npm run test              # solo proyecto unit (rápido, flujo dev)

@@ -51,13 +51,18 @@ Configuración resultante:
 
 ### Acciones que destraba o requiere
 
+> **Estado (actualizado 2026-06-05):** el login en prod `app.qavante.com` está
+> funcional desde PR #193 (2026-05-27, flip de `NEXT_PUBLIC_API_URL` a
+> `api.qavante.com`), lo que confirma que los ítems de cert/CORS/cookie del
+> backend están operativos. Único pendiente: habilitar el smoke test gated.
+
 - [x] DNS: CNAME `api → tooxs-gestion-api.fly.dev` en Cloudflare, DNS-only (Fernando, 2026-05-12).
-- [ ] `fly certs create api.qavante.com` (CC-API — issue qavante-api#58).
-- [ ] CORS allowlist FastAPI: `https://app.qavante.com` + `localhost:3000` con `allow_credentials=true` (CC-API).
-- [ ] Cookie `qavante_session` con `Domain=.qavante.com`, `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/` (CC-API).
-- [ ] Flip `NEXT_PUBLIC_API_URL` en `wrangler.toml` (CC-WEB, follow-up PR post-confirmación BE).
-- [ ] Update `docs/backend-contracts/c0-auth-and-users.md`: `Domain` field a `.qavante.com` (CC-WEB, mismo PR del flip).
-- [ ] Habilitar el test gated en `tests/e2e/prod-health.smoke.spec.ts` con `SMOKE_RUT` + `SMOKE_PASSWORD` cuando exista usuario de prueba (CC-WEB).
+- [x] `fly certs create api.qavante.com` (CC-API — issue qavante-api#58). _Operativo (login en prod funcional)._
+- [x] CORS allowlist FastAPI: `https://app.qavante.com` + `localhost:3000` con `allow_credentials=true` (CC-API). _Operativo._
+- [x] Cookie `qavante_session` con `Domain=.qavante.com`, `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/` (CC-API). _Operativo; `c0-auth-and-users.md` refleja `Domain=.qavante.com`._
+- [x] Flip `NEXT_PUBLIC_API_URL` en `wrangler.toml` (CC-WEB). _Hecho en PR #193 — `wrangler.toml` = `https://api.qavante.com`._
+- [x] Update `docs/backend-contracts/c0-auth-and-users.md`: `Domain` field a `.qavante.com` (CC-WEB). _Hecho._
+- [ ] Habilitar el test gated en `tests/e2e/prod-health.smoke.spec.ts` con `SMOKE_RUT` + `SMOKE_PASSWORD` cuando exista usuario de prueba (CC-WEB). _Sigue pendiente: las credenciales no están seteadas, así que el único `.skip` del repo permanece (hallazgo #3 del 360 de testing)._
 
 ## Referencias
 
