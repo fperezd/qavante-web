@@ -1,11 +1,16 @@
-"use client";
-
 import { UserCircle } from "lucide-react";
 import { QavanteEmpty } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { MiCuentaView } from "@/components/mi-cuenta/mi-cuenta-view";
 
 /* Pantalla "Mi cuenta": perfil del usuario logueado + cerrar sesión.
+
+   **Server Component** (como inicio/caja/cobrar/pagar): resuelve `miCuenta` en
+   runtime del Worker. NO debe llevar `"use client"`: el lookup de la flag usa
+   una key computada (`NEXT_PUBLIC_FF_MI_CUENTA`) que Next.js NO inlinea, así que
+   en el cliente daría `undefined` → flag siempre OFF → la pantalla quedaría
+   inerte al prenderla en wrangler.toml. `MiCuentaView` es el Client Component
+   que consume los datos.
 
    MVP (flag `miCuenta` ON): consume `/api/me` (info de usuario con cookie
    auth) y expone logout vía `POST /api/auth/logout`.
