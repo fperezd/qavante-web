@@ -1,6 +1,6 @@
 # ADR-0010: Selectores de clasificación sin librería combobox (dependency-free)
 
-- **Status:** Proposed
+- **Status:** Accepted (promovido 2026-06-05; los selectores dependency-free están en prod)
 - **Fecha:** 2026-05-16
 - **Decididores:** Fernando + CC-WEB (rol CTO)
 - **Tickets / PRs:** [#100](https://github.com/fperezd/qavante-web/pull/100) (selectores), [#102](https://github.com/fperezd/qavante-web/pull/102) (drawer), addendum frontend v2.0 §17/§20

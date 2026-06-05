@@ -1,6 +1,6 @@
 # ADR-0007: Mantener `src/components/` + `src/lib/api/` para los dominios del addendum (no introducir `src/features/`)
 
-- **Status:** Proposed
+- **Status:** Accepted (promovido 2026-06-05; la estructura está materializada y deployada)
 - **Fecha:** 2026-05-15
 - **Decididores:** Fernando + CC-WEB (rol CTO)
 - **Tickets / PRs:** addendum frontend v2.0 §24, [`docs/addendum/reconciliation.md`](../addendum/reconciliation.md) P1-3, PR de formalización del addendum
