@@ -32,15 +32,21 @@ export async function auth(): Promise<SessionData | null> {
   if (!sessionCookie?.value) return null;
 
   /* Test-only override: cookie qavante_test_role permite a Playwright
-     simular usuarios con roles distintos sin tocar el flow real. Gated
-     por NEXT_PUBLIC_API_MOCKING==="enabled" — esta env var sólo se setea
-     en dev (npm run dev) y en Playwright (webServer.env). En prod el
-     triple-guard de MSW (ver init-browser.ts + msw-provider.tsx) impide
-     que se active, por lo que esta cookie es efectivamente unreachable
-     en prod. Cuando C0-11 baje GET /api/me, este bloque se reemplaza por
-     el fetch real al backend. */
+     simular usuarios con roles distintos sin tocar el flow real.
+
+     Defensa en profundidad (hallazgo #6 del 360): el override exige
+     NEXT_PUBLIC_API_MOCKING==="enabled" Y un entorno no-prod — el MISMO guard
+     que MswProvider/init-browser. Así, aunque NEXT_PUBLIC_API_MOCKING se filtrara
+     a un build de prod por error, el override sigue inalcanzable en prod real: un
+     atacante NO puede auto-asignarse `owner` vía cookie. NEXT_PUBLIC_API_MOCKING
+     solo se setea en dev (npm run dev) y Playwright (webServer.env);
+     NEXT_PUBLIC_TEST_MODE==="playwright" solo en e2e (build prod-like). Cuando
+     C0-11 baje GET /api/me, este bloque se reemplaza por el fetch real. */
+  const testRoleAllowed =
+    process.env.NEXT_PUBLIC_API_MOCKING === "enabled" &&
+    (process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_TEST_MODE === "playwright");
   let role: UserRole = "owner";
-  if (process.env.NEXT_PUBLIC_API_MOCKING === "enabled") {
+  if (testRoleAllowed) {
     const testRoleCookie = cookieStore.get(TEST_ROLE_COOKIE_NAME);
     if (testRoleCookie?.value && isValidRole(testRoleCookie.value)) {
       role = testRoleCookie.value;

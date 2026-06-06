@@ -61,6 +61,29 @@ describe("auth() — override de rol de testing (boundary de seguridad)", () => 
     expect(s!.user.role).toBe("finance_manager");
   });
 
+  it("IGNORA qavante_test_role en prod aunque mocking esté enabled (defensa en profundidad #6)", async () => {
+    /* Si NEXT_PUBLIC_API_MOCKING se filtrara a un build de prod, el guard de
+       NODE_ENV debe seguir bloqueando el override (sin NEXT_PUBLIC_TEST_MODE). */
+    vi.stubEnv("NEXT_PUBLIC_API_MOCKING", "enabled");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_TEST_MODE", undefined);
+    setCookies({ qavante_session: "tok", qavante_test_role: "admin" });
+    const s = await auth();
+    expect(s!.user.role).toBe("owner");
+  });
+
+  it("aplica qavante_test_role en build prod-like SOLO bajo Playwright (NEXT_PUBLIC_TEST_MODE)", async () => {
+    /* El e2e buildea con NODE_ENV=production pero setea NEXT_PUBLIC_TEST_MODE=
+       playwright — ahí el override SÍ debe aplicar (lo necesita para simular
+       roles). Esa var nunca se setea en prod real. */
+    vi.stubEnv("NEXT_PUBLIC_API_MOCKING", "enabled");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_TEST_MODE", "playwright");
+    setCookies({ qavante_session: "tok", qavante_test_role: "viewer" });
+    const s = await auth();
+    expect(s!.user.role).toBe("viewer");
+  });
+
   it("cae a owner si el role de la cookie es inválido (no está en VALID_ROLES)", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MOCKING", "enabled");
     setCookies({ qavante_session: "tok", qavante_test_role: "superadmin" });
