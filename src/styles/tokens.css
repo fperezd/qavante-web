@@ -61,10 +61,27 @@
   --qv-radius-lg: 12px;
   --qv-radius-xl: 16px;
 
-  /* B.4 Sombras */
-  --qv-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --qv-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
-  --qv-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+  /* B.4 Sombras — refresh v1.2: tintadas con el navy de marca (#051637) en vez
+     de negro puro (se sienten más premium y "frías") + en capas + más presentes
+     para dar profundidad. Mismas keys (sm/md/lg) → propagan a todas las cards. */
+  --qv-shadow-sm: 0 1px 2px rgba(5, 22, 55, 0.06);
+  --qv-shadow-md: 0 2px 4px -1px rgba(5, 22, 55, 0.06), 0 4px 12px -2px rgba(5, 22, 55, 0.08);
+  --qv-shadow-lg: 0 4px 8px -2px rgba(5, 22, 55, 0.08), 0 12px 24px -4px rgba(5, 22, 55, 0.1);
+  --qv-shadow-xl: 0 8px 16px -4px rgba(5, 22, 55, 0.1), 0 24px 48px -12px rgba(5, 22, 55, 0.18);
+  /* Sombra de color (acento) para CTAs/elementos activos. */
+  --qv-shadow-brand: 0 8px 20px -6px rgba(29, 91, 255, 0.4);
+
+  /* Gradientes de marca — profundidad y acento (refresh v1.2). */
+  --qv-gradient-brand: linear-gradient(135deg, #051637 0%, #1d5bff 100%);
+  --qv-gradient-brand-vivid: linear-gradient(135deg, #1d5bff 0%, #60a8ff 100%);
+  --qv-gradient-surface: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+
+  /* Bordes fríos de bajo alfa + superficie sutil (más premium que el
+     neutral-light #c7c6c6, gris cálido que se ve apagado). Aditivos: los
+     componentes los adoptan progresivamente. */
+  --qv-surface-muted: #fbfcfe;
+  --qv-border: rgba(5, 22, 55, 0.08);
+  --qv-border-strong: rgba(5, 22, 55, 0.14);
 
   /* Aliases semánticos para Tailwind y componentes.
      `background` = gris operativo #F5F7FA del manual (fondos de pantallas). */
