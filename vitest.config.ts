@@ -28,6 +28,26 @@ export default defineConfig({
     },
   },
   test: {
+    /* Coverage ratchet (hallazgo #8 del 360). Se corre con `npm run test:coverage`
+       (y en CI). NO hay umbral GLOBAL a propósito: el repo cubre componentes vía
+       Storybook y flujos vía e2e, así que la cobertura unit de `src/` es parcial
+       por diseño (~44% en src/lib, dominado por los hooks de datos que NO se
+       unit-testean). Un piso global sería engañoso o frágil (false-fails en PRs no
+       relacionados).
+
+       En cambio, fijamos un piso POR-ARCHIVO solo en la lógica crítica/segura que
+       ya está bien cubierta por unit tests, como guarda anti-regresión ("no gutees
+       los tests de estos archivos"). Floors ~debajo del actual (medido 2026-06-05:
+       client.ts 84% lines, feature-flags.ts 100%, error-messages.ts 95%). */
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary"],
+      thresholds: {
+        "src/lib/api/client.ts": { statements: 78, branches: 75, functions: 50, lines: 78 },
+        "src/lib/feature-flags.ts": { statements: 95, branches: 85, functions: 90, lines: 95 },
+        "src/lib/api/error-messages.ts": { statements: 90, branches: 85, functions: 90, lines: 90 },
+      },
+    },
     projects: [
       {
         extends: true,
