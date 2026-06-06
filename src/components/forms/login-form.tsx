@@ -57,7 +57,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="rounded-lg bg-surface p-6 shadow-md">
+    <div className="rounded-xl border border-border bg-surface p-6 shadow-lg">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div className="space-y-1">
           <label htmlFor="rut" className="text-sm font-medium text-neutral-dark">
@@ -100,10 +100,10 @@ export function LoginForm() {
               {...register("password")}
               aria-invalid={Boolean(errors.password) || undefined}
               className={cn(
-                "flex h-10 w-full rounded-md border bg-surface px-3 py-2 pr-10 text-sm text-neutral-dark",
-                "placeholder:text-neutral-mid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+                "flex h-10 w-full rounded-lg border bg-surface px-3 py-2 pr-10 text-sm text-neutral-dark transition-colors",
+                "placeholder:text-neutral-mid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:border-brand-primary",
                 "disabled:cursor-not-allowed disabled:opacity-50",
-                errors.password ? "border-danger-500" : "border-neutral-light",
+                errors.password ? "border-danger-500" : "border-border-strong",
               )}
             />
             <button
