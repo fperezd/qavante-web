@@ -2,12 +2,12 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const qavanteCardVariants = cva("rounded-lg bg-surface", {
+const qavanteCardVariants = cva("rounded-xl bg-surface transition-shadow", {
   variants: {
     variant: {
-      default: "shadow-sm",
-      elevated: "shadow-md",
-      bordered: "border border-neutral-light",
+      default: "border border-border shadow-sm",
+      elevated: "shadow-lg",
+      bordered: "border border-border",
     },
   },
   defaultVariants: {
