@@ -10,7 +10,7 @@ export interface AppHeaderProps {
 
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-neutral-light bg-surface px-4">
+    <header className="glass sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border px-4">
       {/* Mobile hamburguesa */}
       <button
         type="button"
@@ -29,7 +29,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       {/* Selector empresa (placeholder) */}
       <button
         type="button"
-        className="hidden items-center gap-1 rounded-md border border-neutral-light bg-surface px-3 py-1.5 text-sm text-neutral-dark hover:bg-brand-primary-50 md:inline-flex"
+        className="hidden items-center gap-1 rounded-lg border border-border bg-surface/70 px-3 py-1.5 text-sm text-neutral-dark hover:bg-brand-primary-50 md:inline-flex"
         aria-label="Seleccionar empresa"
         disabled
       >
@@ -40,13 +40,13 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       {/* Búsqueda CMD+K (placeholder) */}
       <button
         type="button"
-        className="hidden flex-1 items-center gap-2 rounded-md border border-neutral-light bg-background px-3 py-1.5 text-sm text-neutral-mid hover:border-brand-primary md:inline-flex md:max-w-md"
+        className="hidden flex-1 items-center gap-2 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-sm text-neutral-mid transition-colors hover:border-brand-primary md:inline-flex md:max-w-md"
         aria-label="Búsqueda global"
         disabled
       >
         <Search className="h-4 w-4" />
         <span className="flex-1 text-left">Buscar…</span>
-        <kbd className="rounded border border-neutral-light bg-surface px-1.5 py-0.5 font-mono text-[10px] text-neutral-mid">
+        <kbd className="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] text-neutral-mid">
           ⌘K
         </kbd>
       </button>
@@ -81,7 +81,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         {/* Avatar perfil — enlaza a Mi cuenta (perfil + cerrar sesión) */}
         <Link
           href="/mi-cuenta"
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary text-xs font-semibold text-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-deep to-brand-primary text-xs font-semibold text-surface shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
           aria-label="Mi cuenta"
         >
           <span aria-hidden="true">FP</span>
