@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests --project unit",
     "test:storybook": "vitest run --project storybook",
+    "test:coverage": "vitest run --project unit --coverage",
     "e2e": "playwright test",
     "smoke": "playwright test --config=playwright.smoke.config.ts",
     "generate:api": "openapi-typescript https://api.qavante.com/openapi.json -o src/lib/api/types.ts",
