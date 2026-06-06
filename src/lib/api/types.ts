@@ -547,6 +547,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sii/sync-rcv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII: sincroniza el RCV del período al devengado AR/AP (receivables/payables)
+         * @description Persiste el RCV del período en el devengado AR/AP (ADR-0035 Fase 1):
+         *     ventas -> receivables, compras -> payables. Idempotente (upsert por
+         *     tipo+folio+rut). Las notas de crédito restan. `due_date` queda NULL (el RCV no
+         *     trae vencimiento) y el pagado/pendiente lo fija la conciliación bancaria
+         *     (fases posteriores). Fuente siempre SII, sin defaults.
+         */
+        post: operations["sii_sync_rcv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/credentials/sii": {
         parameters: {
             query?: never;
@@ -1612,6 +1636,78 @@ export interface paths {
         get: operations["treasury_reports_cash_flow"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conciliación: corre el motor sobre los movimientos sin conciliar
+         * @description Empareja `bank_movements` con el devengado (ADR-0036 Fase 1). Idempotente:
+         *     auto-aplica los matches ≥90, deja 60-90 en cola de revisión, no toca el resto.
+         */
+        post: operations["treasury_reconcile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conciliación: cola de revisión (sugerencias 60-90) */
+        get: operations["treasury_reconciliation_review"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/{movement_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Conciliación: confirma la sugerencia en cola */
+        post: operations["treasury_reconciliation_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/{movement_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Conciliación: descarta la sugerencia en cola */
+        post: operations["treasury_reconciliation_reject"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3527,6 +3623,13 @@ export interface components {
              * @description Reglas TBL56 que dispararon, ordenadas por peso descendente.
              */
             penalizaciones: components["schemas"]["PenalizacionAplicadaResponse"][];
+        };
+        /** ConfirmResponse */
+        ConfirmResponse: {
+            /** Movement Id */
+            movement_id: string;
+            /** Status */
+            status: string;
         };
         /** ConnectionStatusItem */
         ConnectionStatusItem: {
@@ -5912,6 +6015,31 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * RcvSyncResponse
+         * @description Resultado de `POST /api/sii/sync-rcv` — devengado persistido (ADR-0035).
+         */
+        RcvSyncResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Periodo */
+            periodo: string;
+            /**
+             * Receivables Upserted
+             * @default 0
+             */
+            receivables_upserted: number;
+            /**
+             * Payables Upserted
+             * @default 0
+             */
+            payables_upserted: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** RcvVentasResponse */
         RcvVentasResponse: {
             /** Status */
@@ -5934,6 +6062,72 @@ export interface components {
             error?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** ReconcileResponse */
+        ReconcileResponse: {
+            /**
+             * Matched
+             * @default 0
+             */
+            matched: number;
+            /**
+             * Consolidated
+             * @default 0
+             */
+            consolidated: number;
+            /**
+             * Review
+             * @default 0
+             */
+            review: number;
+            /**
+             * Excluded
+             * @default 0
+             */
+            excluded: number;
+            /**
+             * Ambiguous
+             * @default 0
+             */
+            ambiguous: number;
+            /**
+             * No Candidate
+             * @default 0
+             */
+            no_candidate: number;
+        };
+        /** ReviewItem */
+        ReviewItem: {
+            /** Movement Id */
+            movement_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Amount */
+            amount: string;
+            /** Description */
+            description?: string | null;
+            suggestion: components["schemas"]["ReviewSuggestion"];
+        };
+        /** ReviewQueueResponse */
+        ReviewQueueResponse: {
+            /** Items */
+            items: components["schemas"]["ReviewItem"][];
+            /** Count */
+            count: number;
+        };
+        /** ReviewSuggestion */
+        ReviewSuggestion: {
+            /** Document Kind */
+            document_kind: string;
+            /** Document Id */
+            document_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Score */
+            score?: string | null;
         };
         /** RolePermissionsResponse */
         RolePermissionsResponse: {
@@ -7890,6 +8084,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DteRecibidosResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_sync_rcv: {
+        parameters: {
+            query: {
+                /** @description Período YYYY-MM, YYYYMM o 'marzo 2026'. */
+                periodo: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RcvSyncResponse"];
                 };
             };
             /** @description Validation Error */
@@ -10388,6 +10616,148 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    treasury_reconcile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconcileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewQueueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmResponse"];
+                };
+            };
+            /** @description El movimiento no está en cola de revisión. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_reject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmResponse"];
+                };
+            };
+            /** @description El movimiento no está en cola de revisión. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
