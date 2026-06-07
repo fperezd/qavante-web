@@ -80,8 +80,8 @@
      neutral-light #c7c6c6, gris cálido que se ve apagado). Aditivos: los
      componentes los adoptan progresivamente. */
   --qv-surface-muted: #fbfcfe;
-  --qv-border: rgba(5, 22, 55, 0.08);
-  --qv-border-strong: rgba(5, 22, 55, 0.14);
+  --qv-border: rgba(5, 22, 55, 0.1);
+  --qv-border-strong: rgba(5, 22, 55, 0.16);
 
   /* Aliases semánticos para Tailwind y componentes.
      `background` = gris operativo #F5F7FA del manual (fondos de pantallas). */

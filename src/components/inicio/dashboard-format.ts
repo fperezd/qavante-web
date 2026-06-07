@@ -57,6 +57,21 @@ export function pulsoStatusTone(status: string): string {
   }
 }
 
+/** Color (clase de fondo) del semáforo del Pulso. Espeja `pulsoStatusTone` para
+   el punto de estado (color + ícono/label, nunca color solo → daltonismo-safe). */
+export function pulsoStatusDotBg(status: string): string {
+  switch (status) {
+    case "critical":
+      return "bg-danger-500";
+    case "weak":
+      return "bg-warning-700";
+    case "strong":
+      return "bg-success-700";
+    default:
+      return "bg-brand-primary";
+  }
+}
+
 const CONFIDENCE_LABEL: Record<Confidence, string> = {
   high: "confianza alta",
   medium: "confianza media",
