@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, AlertTriangle } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteEmpty } from "@/components/qavante";
 import { useAccountsPayable, type AccountsPayableResponse } from "@/lib/api/pagos";
 import { ApiError } from "@/lib/api/errors";
@@ -34,7 +34,7 @@ export function PagarView() {
     return (
       <div
         role="alert"
-        className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
+        className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
       >
         <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
         <p>
@@ -72,7 +72,7 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
       {data.covers_critical === false && (
         <div
           role="alert"
-          className="flex items-start gap-3 rounded-md border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-neutral-dark"
+          className="flex items-start gap-3 rounded-xl border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-neutral-dark"
         >
           <AlertTriangle
             className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500"
@@ -89,7 +89,8 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         </div>
       )}
       {data.covers_critical === true && (
-        <p className="text-sm text-success-700">
+        <p className="flex items-center gap-1.5 text-sm text-success-700">
+          <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
           La caja proyectada cubre los pagos críticos próximos.
         </p>
       )}
@@ -102,7 +103,7 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[600px] text-sm">
             <thead>
-              <tr className="border-b border-neutral-light text-left text-xs uppercase tracking-wide text-neutral-mid">
+              <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                 <th scope="col" className="py-2 pr-3 font-medium">
                   Pago / obligación
                 </th>
@@ -122,7 +123,10 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
             </thead>
             <tbody>
               {items.map((it, i) => (
-                <tr key={i} className="border-b border-neutral-light/40 last:border-b-0">
+                <tr
+                  key={i}
+                  className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
+                >
                   <td className="py-2 pr-3 text-neutral-dark">
                     <span className="block truncate">{it.label}</span>
                     <span className="text-xs text-neutral-mid">{it.source}</span>
@@ -154,8 +158,13 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
 function Metric({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <QavanteCard variant="bordered">
-      <p className="text-xs text-neutral-mid">{label}</p>
-      <p className={"mt-1 text-lg font-bold " + (accent ? "text-danger-500" : "text-neutral-dark")}>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
+      <p
+        className={
+          "mt-1 text-lg font-bold tabular-nums " +
+          (accent ? "text-danger-500" : "text-neutral-dark")
+        }
+      >
         {value}
       </p>
     </QavanteCard>
