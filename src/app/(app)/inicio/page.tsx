@@ -20,7 +20,7 @@ export default function InicioPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">Inicio Ejecutivo</h1>
+        <h1 className="text-gradient-brand text-2xl font-bold">Inicio Ejecutivo</h1>
         <p className="mt-1 text-sm text-neutral-mid">¿Cómo está mi empresa hoy?</p>
       </header>
 

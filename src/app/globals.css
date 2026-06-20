@@ -24,6 +24,9 @@
   --color-neutral-mid: var(--qv-neutral-mid);
   --color-neutral-dark: var(--qv-neutral-dark);
   --color-surface: var(--qv-surface);
+  --color-surface-muted: var(--qv-surface-muted);
+  --color-border: var(--qv-border);
+  --color-border-strong: var(--qv-border-strong);
 
   /* Semánticos */
   --color-success-500: var(--qv-success-500);
@@ -52,6 +55,8 @@
   --shadow-sm: var(--qv-shadow-sm);
   --shadow-md: var(--qv-shadow-md);
   --shadow-lg: var(--qv-shadow-lg);
+  --shadow-xl: var(--qv-shadow-xl);
+  --shadow-brand: var(--qv-shadow-brand);
 
   /* Tipografía — Manual v1.1: Sora */
   --font-sans: var(--font-sora);
@@ -61,4 +66,63 @@ body {
   background: var(--qv-background);
   color: var(--qv-foreground);
   font-family: var(--font-sora), system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ───────── Utilidades de marca (refresh v1.2) ─────────
+   Aditivas: dan profundidad/acento sin tocar la semántica. Los componentes y
+   pantallas las adoptan progresivamente. */
+
+/* Texto en gradiente de marca (navy→acento). Para titulares y cifras héroe. */
+.text-gradient-brand {
+  background-image: var(--qv-gradient-brand);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.bg-gradient-brand {
+  background-image: var(--qv-gradient-brand);
+}
+.bg-gradient-brand-vivid {
+  background-image: var(--qv-gradient-brand-vivid);
+}
+.bg-gradient-surface {
+  background-image: var(--qv-gradient-surface);
+}
+
+/* Glassmorphism — barras/encabezados translúcidos con blur. */
+.glass {
+  background-color: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+
+/* Entrada sutil para contenido (cards, secciones). */
+@keyframes qv-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-qv-fade-up {
+  animation: qv-fade-up 0.4s ease-out both;
+}
+
+/* Respeta a quien pide menos movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-qv-fade-up {
+    animation: none;
+  }
 }

@@ -140,6 +140,42 @@ export function PlaygroundDemo() {
         </p>
       </header>
 
+      <Section title="Refresh v1.2 — gradientes · glass · profundidad">
+        <div className="space-y-4">
+          <h3 className="text-gradient-brand text-3xl font-bold">
+            Avanzar con inteligencia financiera
+          </h3>
+          <div className="flex flex-wrap gap-3">
+            <div className="bg-gradient-brand rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-brand">
+              Gradiente marca · navy→acento
+            </div>
+            <div className="bg-gradient-brand-vivid rounded-xl px-5 py-3 text-sm font-semibold text-white">
+              Gradiente vívido · acento→celeste
+            </div>
+          </div>
+          <div className="bg-gradient-brand relative overflow-hidden rounded-xl p-6">
+            <div className="glass rounded-lg border border-white/40 px-4 py-3 text-sm font-medium text-neutral-dark shadow-lg">
+              .glass — barra translúcida con blur sobre el gradiente de marca
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { c: "shadow-sm", l: "sm" },
+              { c: "shadow-md", l: "md" },
+              { c: "shadow-lg", l: "lg" },
+              { c: "shadow-xl", l: "xl" },
+            ].map((s) => (
+              <div
+                key={s.l}
+                className={`rounded-xl bg-surface p-5 text-center text-sm font-medium text-neutral-dark ${s.c}`}
+              >
+                shadow-{s.l}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
+
       <Section title="API client · GET /health-lite (C0-10)">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">

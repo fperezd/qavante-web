@@ -93,10 +93,10 @@ export function QavanteInput({
         onBlur?.(e);
       }}
       className={cn(
-        "flex h-10 w-full rounded-md border bg-surface px-3 py-2 text-sm text-neutral-dark transition-colors",
-        "placeholder:text-neutral-mid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+        "flex h-10 w-full rounded-lg border bg-surface px-3 py-2 text-sm text-neutral-dark transition-colors",
+        "placeholder:text-neutral-mid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:border-brand-primary",
         "disabled:cursor-not-allowed disabled:opacity-50",
-        showError ? "border-danger-500" : "border-neutral-light",
+        showError ? "border-danger-500" : "border-border-strong",
         className,
       )}
       {...props}

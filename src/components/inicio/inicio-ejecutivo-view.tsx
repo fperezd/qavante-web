@@ -7,11 +7,15 @@ import {
   AlertTriangle,
   ArrowRight,
   Banknote,
+  CheckCircle2,
+  Clock,
+  ShieldCheck,
   Sparkles,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import { QavanteCard, QavanteEmpty, QavanteButton } from "@/components/qavante";
+import { cn } from "@/lib/utils";
 import { useDashboardSummary, type DashboardSummaryResponse } from "@/lib/api/dashboard";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -21,15 +25,17 @@ import {
   parseAmount,
   pulsoStatusLabel,
   pulsoStatusTone,
+  pulsoStatusDotBg,
   confidenceLabel,
   isEmptySummary,
 } from "./dashboard-format";
 
 /* Inicio Ejecutivo (Sprint C8, Maestro §7.1): "¿Cómo está mi empresa hoy?".
-   Frase ejecutiva + Pulso + caja hoy/proyectada + brecha + cobranza + pagos +
-   resultado + 3 acciones prioritarias. Cada bloque es NULLABLE (una fuente
-   puede faltar sin tumbar el dashboard). Container: resuelve el summary + monta
-   las cards. Contrato FE-first gated por `dashboardSummary` (la page resuelve). */
+   Refresh v1.3 — diseñado alrededor de LA DECISIÓN: el Pulso es la respuesta
+   héroe; cada card defiende un dato y su origen (capa de confianza visible);
+   números tabulares; las cards son clickeables con feedback de hover; deltas con
+   ícono+color (daltonismo-safe). Cada bloque es NULLABLE (una fuente puede faltar
+   sin tumbar el dashboard). Contrato FE-first gated por `dashboardSummary`. */
 
 export function InicioEjecutivoView() {
   const query = useDashboardSummary();
@@ -39,7 +45,7 @@ export function InicioEjecutivoView() {
     return (
       <div
         role="alert"
-        className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
+        className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
       >
         <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
         <p>
@@ -55,42 +61,63 @@ export function InicioEjecutivoView() {
 }
 
 function Dashboard({ data }: { data: DashboardSummaryResponse }) {
-  /* Empresa nueva / sin fuentes: el backend responde 200 con todo null. En vez
-     de 7 cards de "sin dato", un empty-state único y accionable. */
+  /* Empresa nueva / sin fuentes: el backend responde 200 con todo null. */
   if (isEmptySummary(data)) return <EmptySummary />;
 
   return (
-    <div className="space-y-4">
-      {/* Frase ejecutiva (nullable durante el rollout incremental del backend). */}
+    <div className="space-y-5">
+      {/* Frase ejecutiva — lectura humana, calma (contexto, no titular). */}
       {data.executive_phrase && (
-        <p className="text-lg font-medium text-neutral-dark">{data.executive_phrase}</p>
+        <p className="max-w-3xl text-[15px] font-medium leading-relaxed text-neutral-dark sm:text-base">
+          {data.executive_phrase}
+        </p>
       )}
 
-      {/* Pulso (destacado). */}
+      {/* Pulso — la respuesta héroe ("¿estoy bien?"). */}
       {data.pulso ? (
-        <QavanteCard variant="bordered">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-neutral-mid">Pulso del negocio</p>
-              <p className={"text-3xl font-bold " + pulsoStatusTone(data.pulso.status)}>
-                {data.pulso.score}
-                <span className="ml-2 text-lg">{pulsoStatusLabel(data.pulso.status)}</span>
-              </p>
-              <p className="mt-0.5 text-xs text-neutral-mid">
-                {confidenceLabel(data.pulso.confidence)}
-                {data.pulso.preliminary && " · preliminar"}
-              </p>
+        <QavanteCard variant="bordered" className="overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-stretch gap-4">
+              <span
+                className={cn("w-1.5 shrink-0 rounded-full", pulsoStatusDotBg(data.pulso.status))}
+                aria-hidden="true"
+              />
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                  Pulso del negocio
+                </p>
+                <p className="flex items-baseline gap-2">
+                  <span
+                    className={cn(
+                      "text-4xl font-bold tabular-nums tracking-tight",
+                      pulsoStatusTone(data.pulso.status),
+                    )}
+                  >
+                    {data.pulso.score}
+                  </span>
+                  <span
+                    className={cn("text-base font-semibold", pulsoStatusTone(data.pulso.status))}
+                  >
+                    {pulsoStatusLabel(data.pulso.status)}
+                  </span>
+                </p>
+                <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-mid">
+                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                  {confidenceLabel(data.pulso.confidence)}
+                  {data.pulso.preliminary && " · preliminar"}
+                </p>
+              </div>
             </div>
-            <div className="space-y-1 text-sm">
+            <div className="space-y-1.5 text-sm">
               {data.pulso.top_driver_positive && (
-                <p className="flex items-center gap-1 text-success-700">
-                  <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                <p className="flex items-center gap-1.5 font-medium text-success-700">
+                  <TrendingUp className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {data.pulso.top_driver_positive}
                 </p>
               )}
               {data.pulso.top_driver_negative && (
-                <p className="flex items-center gap-1 text-danger-500">
-                  <TrendingDown className="h-4 w-4" aria-hidden="true" />
+                <p className="flex items-center gap-1.5 font-medium text-danger-500">
+                  <TrendingDown className="h-4 w-4 shrink-0" aria-hidden="true" />
                   {data.pulso.top_driver_negative}
                 </p>
               )}
@@ -103,20 +130,19 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         </DashCard>
       )}
 
-      {/* Grid de bloques. */}
+      {/* Grid de bloques de soporte — cada card es clickeable. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* Caja hoy. */}
         <DashCard title="Caja hoy" href="/caja/proyeccion" cta="Ver caja">
           {data.cash_today ? (
             <>
-              <p className="text-2xl font-bold text-neutral-dark">
+              <p className="text-xl font-bold tabular-nums text-neutral-dark">
                 {formatClp(parseAmount(data.cash_today.total))}
               </p>
-              <p className="mt-1 text-xs text-neutral-mid">
-                Actualizado {formatDate(new Date(data.cash_today.last_updated))}
-                {data.cash_today.data_state === "stale" && " · puede estar desactualizado"}
-                {data.cash_today.data_state === "estimated" && " · estimado"}
-              </p>
+              <Freshness
+                updated={data.cash_today.last_updated}
+                state={data.cash_today.data_state}
+              />
             </>
           ) : (
             <NoData />
@@ -126,7 +152,7 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         {/* Caja proyectada. */}
         <DashCard title="Caja proyectada" href="/caja/proyeccion" cta="Ver proyección">
           {data.cash_forecast ? (
-            <dl className="space-y-1 text-sm">
+            <dl className="space-y-1.5 text-sm">
               <Row
                 label="Mínima 14 días"
                 value={formatClp(parseAmount(data.cash_forecast.min_14d))}
@@ -152,13 +178,22 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
                 <span>
                   Obligaciones críticas 14d:{" "}
-                  <b>{formatClp(parseAmount(data.cash_gap.critical_obligations_14d))}</b> vs caja{" "}
-                  {formatClp(parseAmount(data.cash_gap.projected_cash_14d))}. Hay brecha.
+                  <b className="tabular-nums">
+                    {formatClp(parseAmount(data.cash_gap.critical_obligations_14d))}
+                  </b>{" "}
+                  vs caja{" "}
+                  <span className="tabular-nums">
+                    {formatClp(parseAmount(data.cash_gap.projected_cash_14d))}
+                  </span>
+                  . Hay brecha.
                 </span>
               </div>
             ) : (
-              <p className="text-sm text-success-700">
-                La caja proyectada cubre las obligaciones críticas de los próximos 14 días.
+              <p className="flex items-start gap-2 text-sm text-success-700">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                <span>
+                  La caja proyectada cubre las obligaciones críticas de los próximos 14 días.
+                </span>
               </p>
             )
           ) : (
@@ -171,12 +206,17 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
           {data.overdue_collections ? (
             <>
               <p className="text-sm">
-                <span className="font-semibold text-danger-500">
+                <span className="text-xl font-bold tabular-nums text-danger-500">
                   {formatClp(parseAmount(data.overdue_collections.overdue))}
                 </span>{" "}
-                vencido de {formatClp(parseAmount(data.overdue_collections.total_receivable))}
+                <span className="text-neutral-mid">
+                  vencido de{" "}
+                  <span className="tabular-nums">
+                    {formatClp(parseAmount(data.overdue_collections.total_receivable))}
+                  </span>
+                </span>
               </p>
-              <ul className="mt-2 space-y-0.5 text-xs text-neutral-mid">
+              <ul className="mt-2 space-y-1 text-xs text-neutral-mid">
                 {(data.overdue_collections.top_clients ?? []).slice(0, 3).map((c) => (
                   <li key={c.name} className="flex justify-between gap-2">
                     <span className="truncate">{c.name}</span>
@@ -194,7 +234,7 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         <DashCard title="Pagos críticos" href="/pagar" cta="Ver pagos">
           {data.critical_payments ? (
             <>
-              <dl className="space-y-1 text-sm">
+              <dl className="space-y-1.5 text-sm">
                 <Row
                   label="Próx. 7 días"
                   value={formatClp(parseAmount(data.critical_payments.due_7d))}
@@ -219,7 +259,7 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         {/* Resultado operacional. */}
         <DashCard title="Resultado del mes" href="/gestion" cta="Ver gestión">
           {data.operational_result ? (
-            <dl className="space-y-1 text-sm">
+            <dl className="space-y-1.5 text-sm">
               <Row
                 label="Ingresos"
                 value={formatClp(parseAmount(data.operational_result.revenue))}
@@ -240,25 +280,40 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         </DashCard>
       </div>
 
-      {/* Acciones prioritarias (máx 3). Nullable durante el rollout incremental. */}
+      {/* Qué hacer primero — la decisión (máx 3 acciones priorizadas). */}
       {data.priority_actions && data.priority_actions.length > 0 && (
         <QavanteCard
           variant="bordered"
-          header={<span className="font-medium">Qué hacer primero</span>}
+          header={
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+              Qué hacer primero
+            </span>
+          }
         >
-          <ul className="space-y-2">
-            {data.priority_actions.slice(0, 3).map((a) => (
-              <li key={a.priority} className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm text-neutral-dark">{a.reason}</p>
-                  {a.deadline && <p className="text-xs text-neutral-mid">Plazo: {a.deadline}</p>}
+          <ul className="divide-y divide-border">
+            {data.priority_actions.slice(0, 3).map((a, i) => (
+              <li
+                key={a.priority}
+                className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-primary-50 text-[11px] font-bold text-brand-primary">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-neutral-dark">{a.reason}</p>
+                    {a.deadline && <p className="text-xs text-neutral-mid">Plazo: {a.deadline}</p>}
+                  </div>
                 </div>
                 <Link
                   href={a.cta_href}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-brand-primary/40 px-2 py-1 text-xs font-medium text-brand-primary hover:bg-brand-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                  className="group inline-flex shrink-0 items-center gap-1 rounded-md border border-brand-primary/40 px-2.5 py-1 text-xs font-semibold text-brand-primary transition-colors hover:bg-brand-primary hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
                 >
                   {a.cta_label}
-                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  <ArrowRight
+                    className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
                 </Link>
               </li>
             ))}
@@ -269,6 +324,8 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
   );
 }
 
+/* Card de KPI: label uppercase + contenido. Clickeable (con href) → todo el card
+   reacciona al mouse (eleva + borde de marca + flecha), no solo el link chico. */
 function DashCard({
   title,
   href,
@@ -280,21 +337,27 @@ function DashCard({
   cta?: string;
   children: React.ReactNode;
 }) {
-  return (
+  const card = (
     <QavanteCard
       variant="bordered"
-      className="h-full"
+      className={cn(
+        "h-full transition-all duration-150",
+        href &&
+          "group-hover:-translate-y-0.5 group-hover:border-brand-primary/50 group-hover:shadow-lg",
+      )}
       header={
         <div className="flex items-center justify-between gap-2">
-          <span className="font-medium">{title}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+            {title}
+          </span>
           {href && cta && (
-            <Link
-              href={href}
-              className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-            >
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-primary">
               {cta}
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </Link>
+              <ArrowRight
+                className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
+            </span>
           )}
         </div>
       }
@@ -302,20 +365,39 @@ function DashCard({
       {children}
     </QavanteCard>
   );
+
+  return href ? (
+    <Link
+      href={href}
+      className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+    >
+      {card}
+    </Link>
+  ) : (
+    card
+  );
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
       <dt className="text-neutral-mid">{label}</dt>
-      <dd
-        className={
-          "tabular-nums " + (strong ? "font-semibold text-neutral-dark" : "text-neutral-dark")
-        }
-      >
+      <dd className={cn("tabular-nums text-neutral-dark", strong ? "font-bold" : "font-medium")}>
         {value}
       </dd>
     </div>
+  );
+}
+
+/* Capa de confianza: frescura + estado del dato. Un número sin origen no se cree. */
+function Freshness({ updated, state }: { updated: string; state?: string }) {
+  return (
+    <p className="mt-1.5 inline-flex items-center gap-1 text-xs text-neutral-mid">
+      <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
+      Actualizado {formatDate(new Date(updated))}
+      {state === "stale" && " · puede estar desactualizado"}
+      {state === "estimated" && " · estimado"}
+    </p>
   );
 }
 
@@ -352,12 +434,12 @@ function EmptySummary() {
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-4" aria-hidden="true">
+    <div className="space-y-5" aria-hidden="true">
       <div className="h-6 w-3/4 animate-pulse rounded-md bg-neutral-light/30" />
-      <div className="h-24 animate-pulse rounded-md bg-neutral-light/30" />
+      <div className="h-24 animate-pulse rounded-xl bg-neutral-light/30" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-28 animate-pulse rounded-md bg-neutral-light/30" />
+          <div key={i} className="h-28 animate-pulse rounded-xl bg-neutral-light/30" />
         ))}
       </div>
     </div>
