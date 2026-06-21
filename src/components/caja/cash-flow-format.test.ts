@@ -4,6 +4,8 @@
 import { describe, expect, it } from "vitest";
 import {
   formatPeriodLabel,
+  formatPeriodMMYYYY,
+  buildMonthOptions,
   isValidPeriod,
   isValidPeriodRange,
   parseDecimal,
@@ -97,14 +99,14 @@ describe("formatPeriodLabel — period del backend a label es-CL", () => {
     expect(formatPeriodLabel("2026-12")).toBe("dic 2026");
   });
 
-  it("YYYY-MM-DD diario → formato ISO sin tocar", () => {
-    expect(formatPeriodLabel("2026-05-13")).toBe("2026-05-13");
+  it("YYYY-MM-DD diario → DD-MM-AAAA (mes-año, nunca año-mes)", () => {
+    expect(formatPeriodLabel("2026-05-13")).toBe("13-05-2026");
   });
 
-  it("YYYY-MM-DD semanal (también viene en granularity=week como lunes) → ISO", () => {
+  it("YYYY-MM-DD semanal (lunes del bucket en granularity=week) → DD-MM-AAAA", () => {
     /* Backend con granularity=week emite el lunes del bucket en formato
-       YYYY-MM-DD; el label cae al fallback ISO. */
-    expect(formatPeriodLabel("2026-05-04")).toBe("2026-05-04");
+       YYYY-MM-DD; lo mostramos como DD-MM-AAAA. */
+    expect(formatPeriodLabel("2026-05-04")).toBe("04-05-2026");
   });
 
   it("mes fuera de rango (00, 13, 99) → fallback al string original (no híbrido)", () => {
@@ -117,6 +119,37 @@ describe("formatPeriodLabel — period del backend a label es-CL", () => {
 
   it("formato desconocido → fallback string original", () => {
     expect(formatPeriodLabel("totalmente-otro-formato")).toBe("totalmente-otro-formato");
+  });
+});
+
+describe("formatPeriodMMYYYY — YYYY-MM a MM-YYYY (mes-año)", () => {
+  it("invierte a MM-YYYY", () => {
+    expect(formatPeriodMMYYYY("2026-06")).toBe("06-2026");
+    expect(formatPeriodMMYYYY("2026-01")).toBe("01-2026");
+    expect(formatPeriodMMYYYY("2027-12")).toBe("12-2027");
+  });
+
+  it("formato no esperado → string original (fallback)", () => {
+    expect(formatPeriodMMYYYY("2026-06-13")).toBe("2026-06-13");
+    expect(formatPeriodMMYYYY("otro")).toBe("otro");
+  });
+});
+
+describe("buildMonthOptions — opciones de mes para los selects de rango", () => {
+  it("value en YYYY-MM y label en MM-YYYY; incluye el mes actual", () => {
+    const opts = buildMonthOptions(new Date(2026, 5, 21), 2, 2); // jun 2026, ±2
+    expect(opts).toEqual([
+      { value: "2026-04", label: "04-2026" },
+      { value: "2026-05", label: "05-2026" },
+      { value: "2026-06", label: "06-2026" },
+      { value: "2026-07", label: "07-2026" },
+      { value: "2026-08", label: "08-2026" },
+    ]);
+  });
+
+  it("cruza el cambio de año correctamente", () => {
+    const opts = buildMonthOptions(new Date(2026, 11, 1), 1, 1); // dic 2026, ±1
+    expect(opts.map((o) => o.value)).toEqual(["2026-11", "2026-12", "2027-01"]);
   });
 
   it("string vacío → ''", () => {

@@ -36,28 +36,22 @@ describe("treasuryReportsKeys", () => {
 });
 
 describe("defaultCashFlowRange", () => {
-  it("from = mes del 'now'; to = mes + 3 (≈13 semanas con granularity=week)", () => {
+  it("from = mes del 'now'; to = mes siguiente (mes + 1)", () => {
     const r = defaultCashFlowRange(new Date(2026, 4, 27)); // 2026-05-27 (mes 0-based)
     expect(r.period_from).toBe("2026-05");
-    expect(r.period_to).toBe("2026-08");
+    expect(r.period_to).toBe("2026-06");
   });
 
-  it("rollover de año cuando from está cerca de fin de año", () => {
-    const r = defaultCashFlowRange(new Date(2026, 10, 1)); // 2026-11
-    expect(r.period_from).toBe("2026-11");
-    expect(r.period_to).toBe("2027-02");
-  });
-
-  it("rollover de año en el extremo de diciembre", () => {
+  it("rollover de año cuando from es diciembre", () => {
     const r = defaultCashFlowRange(new Date(2026, 11, 31)); // 2026-12
     expect(r.period_from).toBe("2026-12");
-    expect(r.period_to).toBe("2027-03");
+    expect(r.period_to).toBe("2027-01");
   });
 
   it("pads months con cero a la izquierda", () => {
     const r = defaultCashFlowRange(new Date(2026, 0, 15)); // 2026-01
     expect(r.period_from).toBe("2026-01");
-    expect(r.period_to).toBe("2026-04");
+    expect(r.period_to).toBe("2026-02");
   });
 });
 

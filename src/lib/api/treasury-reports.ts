@@ -35,7 +35,7 @@ export type CashFlowCurrency = "functional" | "original";
 export interface CashFlowReportParams {
   /** YYYY-MM inclusive (default: mes actual). */
   period_from: string;
-  /** YYYY-MM inclusive (default: 3 meses adelante). */
+  /** YYYY-MM inclusive (default: mes siguiente). */
   period_to: string;
   granularity?: CashFlowGranularity;
   financial_layer?: CashFlowFinancialLayer;
@@ -92,8 +92,8 @@ export function useCashFlowReport(params: CashFlowReportParams) {
   });
 }
 
-/* Helper puro para defaultear rango = mes actual → mes actual + 3 (≈13 semanas
-   con granularity=week). Aislado del componente para poder testear. */
+/* Helper puro para defaultear rango = mes actual → mes siguiente (mes + 1).
+   Con granularity=week da ~8-9 semanas. Aislado del componente para testear. */
 export function defaultCashFlowRange(now: Date = new Date()): {
   period_from: string;
   period_to: string;
@@ -101,7 +101,7 @@ export function defaultCashFlowRange(now: Date = new Date()): {
   const y0 = now.getFullYear();
   const m0 = now.getMonth(); // 0-based
   const from = `${y0}-${String(m0 + 1).padStart(2, "0")}`;
-  const future = new Date(y0, m0 + 3, 1);
-  const to = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, "0")}`;
+  const next = new Date(y0, m0 + 1, 1);
+  const to = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
   return { period_from: from, period_to: to };
 }

@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { QavanteButton, QavanteInput } from "@/components/qavante";
+import { QavanteButton } from "@/components/qavante";
 import { cn } from "@/lib/utils";
 import type {
   CashFlowFinancialLayer,
   CashFlowGranularity,
   CashFlowReportParams,
 } from "@/lib/api/treasury-reports";
-import { isValidPeriod, isValidPeriodRange } from "./cash-flow-format";
+import { buildMonthOptions, isValidPeriodRange } from "./cash-flow-format";
 
 /* Controles de filtros del cash-flow report.
    - Periodo from/to (YYYY-MM)
@@ -41,6 +41,12 @@ export interface CashFlowFiltersProps {
   loading?: boolean;
 }
 
+/* Estilo compartido de los <select> del panel (rango + granularidad + capa). */
+const SELECT_CLASS = cn(
+  "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+);
+
 export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersProps) {
   const [draft, setDraft] = React.useState<CashFlowReportParams>(value);
 
@@ -49,8 +55,10 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
     setDraft(value);
   }, [value]);
 
-  const fromValid = isValidPeriod(draft.period_from);
-  const toValid = isValidPeriod(draft.period_to);
+  /* Opciones de mes (MM-AAAA visible, YYYY-MM como value) para los selects de
+     rango. Se calculan una vez al montar. */
+  const monthOptions = React.useMemo(() => buildMonthOptions(), []);
+
   const rangeValid = isValidPeriodRange(draft.period_from, draft.period_to);
   const dirty =
     draft.period_from !== value.period_from ||
@@ -76,34 +84,40 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
             htmlFor="cf-from"
             className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
           >
-            Desde (YYYY-MM)
+            Desde
           </label>
-          <QavanteInput
+          <select
             id="cf-from"
             value={draft.period_from}
-            onValueChange={(v) => setDraft({ ...draft, period_from: v })}
-            placeholder="2026-05"
-            invalid={!fromValid && draft.period_from.length > 0}
-            autoComplete="off"
-            inputMode="numeric"
-          />
+            onChange={(e) => setDraft({ ...draft, period_from: e.target.value })}
+            className={SELECT_CLASS}
+          >
+            {monthOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-1">
           <label
             htmlFor="cf-to"
             className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
           >
-            Hasta (YYYY-MM)
+            Hasta
           </label>
-          <QavanteInput
+          <select
             id="cf-to"
             value={draft.period_to}
-            onValueChange={(v) => setDraft({ ...draft, period_to: v })}
-            placeholder="2026-08"
-            invalid={!toValid && draft.period_to.length > 0}
-            autoComplete="off"
-            inputMode="numeric"
-          />
+            onChange={(e) => setDraft({ ...draft, period_to: e.target.value })}
+            className={SELECT_CLASS}
+          >
+            {monthOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-1">
           <label
@@ -118,10 +132,7 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
             onChange={(e) =>
               setDraft({ ...draft, granularity: e.target.value as CashFlowGranularity })
             }
-            className={cn(
-              "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
-            )}
+            className={SELECT_CLASS}
           >
             {GRANULARITIES.map((g) => (
               <option key={g.value} value={g.value}>
@@ -146,10 +157,7 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
                 financial_layer: e.target.value as CashFlowFinancialLayer,
               })
             }
-            className={cn(
-              "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
-            )}
+            className={SELECT_CLASS}
           >
             {LAYERS.map((l) => (
               <option key={l.value} value={l.value}>
@@ -164,7 +172,7 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
         <p className="text-xs text-neutral-mid">
           {rangeValid
             ? "Aplica para consultar el reporte."
-            : "Período inválido. Formato AAAA-MM, desde ≤ hasta."}
+            : "El mes inicial no puede ser posterior al final."}
         </p>
         <QavanteButton type="submit" size="sm" loading={loading} disabled={!rangeValid || !dirty}>
           Aplicar

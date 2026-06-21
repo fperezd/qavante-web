@@ -17,8 +17,8 @@ export default function CajaProyeccionPage() {
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Caja proyectada</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Reporte agregado de entradas y salidas por período. Default ≈13 semanas con granularidad
-          semanal sobre la capa comprometida (real).
+          Reporte agregado de entradas y salidas por período. Por defecto muestra el mes actual y el
+          siguiente, con granularidad semanal sobre la capa comprometida (real).
         </p>
       </header>
 
