@@ -33,7 +33,7 @@ export function QavanteInlineError({ error, what, className, ...rest }: QavanteI
     <div
       role="alert"
       className={cn(
-        "flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark",
+        "flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark",
         className,
       )}
       {...rest}

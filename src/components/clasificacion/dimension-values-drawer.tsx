@@ -153,7 +153,7 @@ export function DimensionValuesDrawer({
           {valuesQuery.isLoading ? (
             <div className="space-y-2" aria-hidden="true">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-10 animate-pulse rounded-md bg-neutral-light/30" />
+                <div key={i} className="h-10 animate-pulse rounded-xl bg-neutral-light/30" />
               ))}
             </div>
           ) : valuesQuery.isError ? (
