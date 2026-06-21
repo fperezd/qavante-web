@@ -39,12 +39,13 @@ NEXT_PUBLIC_FF_MULTI_CURRENCY = "true"
 NEXT_PUBLIC_FF_MANAGEMENT_DIMENSIONS = "true"
 NEXT_PUBLIC_FF_INDUSTRY_TEMPLATES = "true"
 NEXT_PUBLIC_FF_MI_CUENTA = "true"
-# Activadas 2026-06-21: CC-API construyó accounts-receivable/payable (404→401).
-# Pendiente confirmar que aceptan cookie (un 401 en query de datos dispara
-# redirectToLogin → si fueran api-key-only, expulsa al usuario). Flip retenido
-# hasta verde de CC-API.
+# Activadas 2026-06-21: CC-API construyó accounts-receivable/payable +
+# operational-result (404→401). Pendiente confirmar que aceptan cookie (un 401
+# en query de datos dispara redirectToLogin → si fueran api-key-only, expulsa al
+# usuario). Flip retenido hasta verde de CC-API.
 NEXT_PUBLIC_FF_ACCOUNTS_RECEIVABLE = "true"
 NEXT_PUBLIC_FF_ACCOUNTS_PAYABLE = "true"
+NEXT_PUBLIC_FF_OPERATIONAL_RESULT = "true"
 
 # Custom domain declarativo. Idempotente: si el binding ya existe en el
 # dashboard (creado manualmente el 2026-05-12), wrangler lo respeta. Si se
