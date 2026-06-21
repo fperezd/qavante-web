@@ -69,7 +69,7 @@ function MontoRow({ label, amount }: { label: string; amount: number | null | un
   /* §15.7 / §17.4 — si el backend no completó el parseo, mostramos "—",
      no "$ 0" (que sería falsa precisión). */
   return (
-    <div className="flex items-baseline justify-between border-b border-neutral-light/40 py-1.5">
+    <div className="flex items-baseline justify-between border-b border-border/60 py-1.5">
       <dt className="text-sm text-neutral-mid">{label}</dt>
       <dd className="text-sm font-medium tabular-nums text-neutral-dark">
         {amount == null ? <span className="text-neutral-mid">—</span> : formatClp(amount)}
@@ -82,7 +82,7 @@ function SinCredencialBanner() {
   return (
     <div
       role="alert"
-      className="flex items-start gap-3 rounded-md border border-warning-500/40 bg-warning-500/5 p-4 text-sm text-neutral-dark"
+      className="flex items-start gap-3 rounded-xl border border-warning-500/40 bg-warning-500/5 p-4 text-sm text-neutral-dark"
     >
       <Lock className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning-700" aria-hidden="true" />
       <div className="space-y-1">
@@ -105,7 +105,7 @@ function HealthBanner({ message }: { message: string }) {
   return (
     <div
       role="status"
-      className="flex items-start gap-3 rounded-md border border-info-500/30 bg-info-500/5 p-3 text-xs text-neutral-dark"
+      className="flex items-start gap-3 rounded-xl border border-info-500/30 bg-info-500/5 p-3 text-xs text-neutral-dark"
     >
       <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-info-600" aria-hidden="true" />
       <p>{message}</p>
@@ -138,7 +138,7 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
     return (
       <div
         role="alert"
-        className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
+        className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
       >
         <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
         <div>
@@ -198,7 +198,7 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
         <section aria-labelledby="montos-heading" className="space-y-1">
           <h3
             id="montos-heading"
-            className="text-xs font-medium uppercase tracking-wide text-neutral-mid"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
           >
             Montos declarados
           </h3>
@@ -277,7 +277,10 @@ export function F29View() {
             className="flex flex-col gap-3 sm:flex-row sm:items-end"
           >
             <div className="flex-1 space-y-1">
-              <label htmlFor="f29-folio" className="text-sm font-medium text-neutral-dark">
+              <label
+                htmlFor="f29-folio"
+                className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+              >
                 Folio del F29
               </label>
               <Controller
@@ -318,7 +321,7 @@ export function F29View() {
 
       {activeFolio && f29Query.isLoading && (
         <div
-          className="h-32 animate-pulse rounded-md bg-neutral-light/30"
+          className="h-32 animate-pulse rounded-xl bg-neutral-light/30"
           aria-busy="true"
           aria-label="Consultando F29 al SII"
         />
@@ -332,7 +335,7 @@ export function F29View() {
         (f29Query.error instanceof ApiError && f29Query.error.status === 502 ? (
           <div
             role="alert"
-            className="flex items-start gap-3 rounded-md border border-warning-500/40 bg-warning-500/5 p-4 text-sm text-neutral-dark"
+            className="flex items-start gap-3 rounded-xl border border-warning-500/40 bg-warning-500/5 p-4 text-sm text-neutral-dark"
           >
             <AlertCircle
               className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning-700"

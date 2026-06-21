@@ -198,7 +198,7 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
 
       {period && query.isLoading && (
         <div
-          className="h-32 animate-pulse rounded-md bg-neutral-light/30"
+          className="h-32 animate-pulse rounded-xl bg-neutral-light/30"
           aria-busy="true"
           aria-label="Consultando al SII"
         />
@@ -269,26 +269,26 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[720px] text-sm">
                     <thead>
-                      <tr className="border-b border-neutral-light text-left text-xs uppercase tracking-wide text-neutral-mid">
-                        <th scope="col" className="py-2 pr-3 font-medium">
+                      <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                        <th scope="col" className="py-2 pr-3 font-semibold">
                           Tipo
                         </th>
-                        <th scope="col" className="py-2 pr-3 font-medium">
+                        <th scope="col" className="py-2 pr-3 font-semibold">
                           Folio
                         </th>
-                        <th scope="col" className="py-2 pr-3 font-medium">
+                        <th scope="col" className="py-2 pr-3 font-semibold">
                           Fecha
                         </th>
-                        <th scope="col" className="py-2 pr-3 font-medium">
+                        <th scope="col" className="py-2 pr-3 font-semibold">
                           {copy.partyLabel}
                         </th>
-                        <th scope="col" className="py-2 pr-3 text-right font-medium">
+                        <th scope="col" className="py-2 pr-3 text-right font-semibold">
                           Neto
                         </th>
-                        <th scope="col" className="py-2 pr-3 text-right font-medium">
+                        <th scope="col" className="py-2 pr-3 text-right font-semibold">
                           IVA
                         </th>
-                        <th scope="col" className="py-2 text-right font-medium">
+                        <th scope="col" className="py-2 text-right font-semibold">
                           Total
                         </th>
                       </tr>
@@ -299,7 +299,7 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
                         return (
                           <tr
                             key={`${d.folio ?? "x"}-${d.rut_contraparte ?? i}-${i}`}
-                            className="border-b border-neutral-light/40 last:border-b-0"
+                            className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
                           >
                             <td className="py-2 pr-3">
                               <span
@@ -337,10 +337,10 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t-2 border-neutral-light/60 font-medium">
+                      <tr className="border-t-2 border-border-strong font-semibold">
                         <td
                           colSpan={4}
-                          className="py-2 pr-3 text-xs uppercase tracking-wide text-neutral-mid"
+                          className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
                         >
                           Totales del período
                           {hasActiveFilters && (
@@ -399,11 +399,14 @@ function FiltersPanel({ kind, value, onChange, onReset }: FiltersPanelProps) {
   return (
     <div
       id="rcv-filters"
-      className="space-y-3 rounded-md border border-neutral-light bg-neutral-light/20 p-3"
+      className="space-y-3 rounded-xl border border-border bg-surface-muted p-3"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="space-y-1">
-          <label htmlFor="rcv-filter-folio" className="text-xs font-medium text-neutral-dark">
+          <label
+            htmlFor="rcv-filter-folio"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+          >
             Folio
           </label>
           <QavanteInput
@@ -416,7 +419,10 @@ function FiltersPanel({ kind, value, onChange, onReset }: FiltersPanelProps) {
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="rcv-filter-razon" className="text-xs font-medium text-neutral-dark">
+          <label
+            htmlFor="rcv-filter-razon"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+          >
             {kind === "compras" ? "Proveedor" : "Cliente"} o RUT
           </label>
           <QavanteInput
@@ -428,7 +434,10 @@ function FiltersPanel({ kind, value, onChange, onReset }: FiltersPanelProps) {
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="rcv-filter-tipo" className="text-xs font-medium text-neutral-dark">
+          <label
+            htmlFor="rcv-filter-tipo"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+          >
             Tipo de documento
           </label>
           <select
@@ -436,7 +445,7 @@ function FiltersPanel({ kind, value, onChange, onReset }: FiltersPanelProps) {
             value={value.tipoFamily}
             onChange={(e) => onChange({ ...value, tipoFamily: e.target.value as TipoDocFamily })}
             className={cn(
-              "flex h-10 w-full rounded-md border border-neutral-light bg-surface px-3 py-2 text-sm text-neutral-dark",
+              "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
             )}
           >
@@ -492,7 +501,7 @@ function PaginationBar({
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="ml-1 rounded-md border border-neutral-light bg-surface px-2 py-1 text-xs"
+            className="ml-1 rounded-md border border-border bg-surface px-2 py-1 text-xs"
           >
             {PAGE_SIZE_OPTIONS.map((n) => (
               <option key={n} value={n}>

@@ -60,7 +60,7 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
 
       {period && query.isLoading && (
         <div
-          className="h-32 animate-pulse rounded-md bg-neutral-light/30"
+          className="h-32 animate-pulse rounded-xl bg-neutral-light/30"
           aria-busy="true"
           aria-label="Consultando BHE al SII"
         />
@@ -98,23 +98,23 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px] text-sm">
               <thead>
-                <tr className="border-b border-neutral-light text-left text-xs uppercase tracking-wide text-neutral-mid">
-                  <th scope="col" className="py-2 pr-3 font-medium">
+                <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                  <th scope="col" className="py-2 pr-3 font-semibold">
                     Fecha
                   </th>
-                  <th scope="col" className="py-2 pr-3 font-medium">
+                  <th scope="col" className="py-2 pr-3 font-semibold">
                     Emisor
                   </th>
-                  <th scope="col" className="py-2 pr-3 font-medium">
+                  <th scope="col" className="py-2 pr-3 font-semibold">
                     Folio
                   </th>
-                  <th scope="col" className="py-2 pr-3 text-right font-medium">
+                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
                     Bruto
                   </th>
-                  <th scope="col" className="py-2 pr-3 text-right font-medium">
+                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
                     Retención
                   </th>
-                  <th scope="col" className="py-2 text-right font-medium">
+                  <th scope="col" className="py-2 text-right font-semibold">
                     Líquido
                   </th>
                 </tr>
@@ -123,7 +123,7 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
                 {items.map((b, i) => (
                   <tr
                     key={`${b.folio ?? "x"}-${b.rut_emisor ?? i}`}
-                    className="border-b border-neutral-light/40 last:border-b-0"
+                    className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
                   >
                     <td className="py-2 pr-3 text-neutral-dark">{b.fecha_emision ?? "—"}</td>
                     <td className="py-2 pr-3">
