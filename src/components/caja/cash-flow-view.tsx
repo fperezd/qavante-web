@@ -32,7 +32,7 @@ export function CashFlowView() {
 
       {query.isLoading && (
         <div
-          className="h-32 animate-pulse rounded-md bg-neutral-light/30"
+          className="h-32 animate-pulse rounded-xl bg-neutral-light/30"
           aria-busy="true"
           aria-label="Cargando reporte de caja"
         />

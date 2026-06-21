@@ -68,11 +68,14 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
     <form
       onSubmit={handleApply}
       noValidate
-      className="space-y-3 rounded-md border border-neutral-light bg-neutral-light/20 p-3"
+      className="space-y-3 rounded-xl border border-border bg-surface-muted p-3"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <div className="space-y-1">
-          <label htmlFor="cf-from" className="text-xs font-medium text-neutral-dark">
+          <label
+            htmlFor="cf-from"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+          >
             Desde (YYYY-MM)
           </label>
           <QavanteInput
@@ -86,7 +89,10 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="cf-to" className="text-xs font-medium text-neutral-dark">
+          <label
+            htmlFor="cf-to"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+          >
             Hasta (YYYY-MM)
           </label>
           <QavanteInput
@@ -100,7 +106,10 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="cf-gran" className="text-xs font-medium text-neutral-dark">
+          <label
+            htmlFor="cf-gran"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+          >
             Granularidad
           </label>
           <select
@@ -110,7 +119,7 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
               setDraft({ ...draft, granularity: e.target.value as CashFlowGranularity })
             }
             className={cn(
-              "flex h-10 w-full rounded-md border border-neutral-light bg-surface px-3 py-2 text-sm text-neutral-dark",
+              "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
             )}
           >
@@ -122,7 +131,10 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
           </select>
         </div>
         <div className="space-y-1">
-          <label htmlFor="cf-layer" className="text-xs font-medium text-neutral-dark">
+          <label
+            htmlFor="cf-layer"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+          >
             Capa
           </label>
           <select
@@ -135,7 +147,7 @@ export function CashFlowFilters({ value, onChange, loading }: CashFlowFiltersPro
               })
             }
             className={cn(
-              "flex h-10 w-full rounded-md border border-neutral-light bg-surface px-3 py-2 text-sm text-neutral-dark",
+              "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
             )}
           >
