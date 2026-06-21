@@ -176,10 +176,10 @@ function LoadingSkeleton() {
     <div className="space-y-3" aria-hidden="true">
       <div className="grid grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-16 animate-pulse rounded-md bg-neutral-light/30" />
+          <div key={i} className="h-16 animate-pulse rounded-xl bg-neutral-light/30" />
         ))}
       </div>
-      <div className="h-56 animate-pulse rounded-md bg-neutral-light/30" />
+      <div className="h-56 animate-pulse rounded-xl bg-neutral-light/30" />
     </div>
   );
 }

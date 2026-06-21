@@ -435,7 +435,7 @@ function EmptySummary() {
 function LoadingSkeleton() {
   return (
     <div className="space-y-5" aria-hidden="true">
-      <div className="h-6 w-3/4 animate-pulse rounded-md bg-neutral-light/30" />
+      <div className="h-6 w-3/4 animate-pulse rounded-xl bg-neutral-light/30" />
       <div className="h-24 animate-pulse rounded-xl bg-neutral-light/30" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {Array.from({ length: 6 }).map((_, i) => (
