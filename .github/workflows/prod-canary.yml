@@ -1,0 +1,72 @@
+name: Prod canary
+
+# Chequeo programado de salud de producción (app.qavante.com). Atajo al riesgo
+# operacional #1: un deploy roto o prod caído pasando desapercibido por días
+# (ej. token de Cloudflare expirado 6→20 jun 2026, ~2 semanas sin deploy y CI
+# en verde). Corre los smoke "FE alive" (HTTP + browser, SIN credenciales — no
+# depende del login flow gated del backend) y, si fallan, abre/actualiza un
+# issue etiquetado `prod-canary` para que el rojo sea visible y trackeable.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # cada 6 horas
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: prod-canary
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+      - name: Smoke FE-alive contra prod (sin creds)
+        env:
+          SMOKE_BASE_URL: https://app.qavante.com
+          SMOKE_API_URL: https://api.qavante.com
+        # Solo los checks "FE alive" (/, /login, /inicio→307, hidratación).
+        # Excluye el login-flow gated (creds backend) a propósito: el canary
+        # mide salud del FE en prod, no el backend de auth.
+        run: npm run smoke -- -g "FE alive"
+      - name: Abrir/actualizar issue si el canary falla
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = "prod-canary";
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `🚨 El canary de producción (app.qavante.com) falló.\n\nRun: ${runUrl}\nFecha (UTC): ${new Date().toISOString()}\n\nLos smoke "FE alive" (/, /login, /inicio, hidratación) no pasaron. Revisar deploy/estado de prod.`;
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: label,
+            });
+            if (open.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: "🚨 Prod canary: app.qavante.com con fallas",
+                body,
+                labels: [label],
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open[0].number,
+                body,
+              });
+            }
