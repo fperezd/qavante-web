@@ -41,8 +41,8 @@ const CurrencySettingsDialog = dynamic(
 function LoadingSkeleton() {
   return (
     <div className="space-y-4" aria-hidden="true">
-      <div className="h-32 animate-pulse rounded-md bg-neutral-light/30" />
-      <div className="h-32 animate-pulse rounded-md bg-neutral-light/30" />
+      <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" />
+      <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" />
     </div>
   );
 }

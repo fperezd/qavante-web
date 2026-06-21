@@ -96,7 +96,7 @@ function LoadingSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-32 animate-pulse rounded-md bg-neutral-light/30" />
+        <div key={i} className="h-32 animate-pulse rounded-xl bg-neutral-light/30" />
       ))}
     </div>
   );
@@ -104,7 +104,7 @@ function LoadingSkeleton() {
 
 function PreviewBox({ preview }: { preview: ApplyTemplateResponse }) {
   return (
-    <div className="space-y-2 rounded-md border border-info-500/40 bg-info-500/5 p-3 text-sm">
+    <div className="space-y-2 rounded-xl border border-info-500/40 bg-info-500/5 p-3 text-sm">
       <p className="font-medium text-neutral-dark">
         Vista previa — aplicar plantilla{" "}
         <code className="rounded bg-neutral-light/40 px-1 py-0.5 text-xs">
@@ -135,7 +135,7 @@ function AppliedBox({ result }: { result: ApplyTemplateResponse }) {
   return (
     <div
       role="status"
-      className="flex items-start gap-2 rounded-md border border-success-500/40 bg-success-500/10 p-3 text-sm text-neutral-dark"
+      className="flex items-start gap-2 rounded-xl border border-success-500/40 bg-success-500/10 p-3 text-sm text-neutral-dark"
     >
       <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-success-600" aria-hidden="true" />
       <p>

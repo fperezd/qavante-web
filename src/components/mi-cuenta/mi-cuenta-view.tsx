@@ -25,7 +25,7 @@ export function MiCuentaView() {
   if (query.isLoading) {
     return (
       <div
-        className="h-32 animate-pulse rounded-md bg-neutral-light/30"
+        className="h-32 animate-pulse rounded-xl bg-neutral-light/30"
         aria-busy="true"
         aria-label="Cargando tu cuenta"
       />
@@ -75,7 +75,7 @@ export function MiCuentaContent({ user }: MiCuentaContentProps) {
           </div>
         }
       >
-        <dl className="divide-y divide-neutral-light">
+        <dl className="divide-y divide-border">
           {rows.map(({ Icon, label, value }) => (
             <div key={label} className="flex items-center gap-3 py-3">
               <Icon className="h-4 w-4 shrink-0 text-brand-primary" aria-hidden="true" />
