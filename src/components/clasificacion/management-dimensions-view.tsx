@@ -34,7 +34,7 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-2" aria-hidden="true">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-24 animate-pulse rounded-md bg-neutral-light/30" />
+        <div key={i} className="h-24 animate-pulse rounded-xl bg-neutral-light/30" />
       ))}
     </div>
   );
@@ -80,7 +80,7 @@ export function ManagementDimensionsView() {
     return (
       <div
         role="alert"
-        className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
+        className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
       >
         <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
         <div>
@@ -116,11 +116,14 @@ export function ManagementDimensionsView() {
       {mutationError && (
         <div
           role="alert"
-          className="rounded-md border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
+          className="flex items-start gap-3 rounded-xl border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
         >
-          {mutationError instanceof ApiError
-            ? apiErrorToUserMessage(mutationError)
-            : "No pudimos guardar el cambio. Intenta nuevamente."}
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          <p>
+            {mutationError instanceof ApiError
+              ? apiErrorToUserMessage(mutationError)
+              : "No pudimos guardar el cambio. Intenta nuevamente."}
+          </p>
         </div>
       )}
 
