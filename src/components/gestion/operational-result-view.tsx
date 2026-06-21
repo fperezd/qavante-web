@@ -60,7 +60,7 @@ export function OperationalResultView({ initialPeriod }: OperationalResultViewPr
           type="button"
           aria-label="Mes anterior"
           onClick={() => setPeriod((p) => shiftPeriod(p, -1))}
-          className="rounded-md border border-neutral-light p-1.5 text-neutral-mid hover:bg-brand-primary-50 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+          className="rounded-md border border-border p-1.5 text-neutral-mid hover:bg-brand-primary-50 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -71,7 +71,7 @@ export function OperationalResultView({ initialPeriod }: OperationalResultViewPr
           type="button"
           aria-label="Mes siguiente"
           onClick={() => setPeriod((p) => shiftPeriod(p, 1))}
-          className="rounded-md border border-neutral-light p-1.5 text-neutral-mid hover:bg-brand-primary-50 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+          className="rounded-md border border-border p-1.5 text-neutral-mid hover:bg-brand-primary-50 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
         >
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -96,7 +96,7 @@ export function OperationalResultView({ initialPeriod }: OperationalResultViewPr
         ) : (
           <div
             role="alert"
-            className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
+            className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
           >
             <AlertCircle
               className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500"
@@ -150,7 +150,7 @@ function Result({ data }: { data: OperationalResultResponse }) {
 
       {/* Desglose (P&L de gestión). */}
       <QavanteCard variant="bordered" header={<span className="font-medium">Desglose</span>}>
-        <dl className="divide-y divide-neutral-light/60 text-sm">
+        <dl className="divide-y divide-border/60 text-sm">
           <PnlRow label="Ingresos" value={data.revenue} strong />
           <PnlRow label="Costos directos" value={data.direct_cost} negative />
           <PnlRow
@@ -214,7 +214,7 @@ function VariationChip({ label, amount, pct }: { label: string; amount: string; 
   return (
     <span
       className={
-        "inline-flex items-center gap-1 rounded-md border border-neutral-light px-2 py-1 text-xs " +
+        "inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs " +
         TONE_CLASS[tone]
       }
     >
@@ -261,8 +261,8 @@ function PnlRow({
 function LoadingSkeleton() {
   return (
     <div className="space-y-4" aria-hidden="true">
-      <div className="h-28 animate-pulse rounded-md bg-neutral-light/30" />
-      <div className="h-64 animate-pulse rounded-md bg-neutral-light/30" />
+      <div className="h-28 animate-pulse rounded-xl bg-neutral-light/30" />
+      <div className="h-64 animate-pulse rounded-xl bg-neutral-light/30" />
     </div>
   );
 }

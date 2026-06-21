@@ -32,7 +32,7 @@ export function PulsoDetailView() {
     return (
       <div
         role="alert"
-        className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
+        className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
       >
         <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
         <p>
@@ -59,7 +59,9 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
       <QavanteCard variant="bordered">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-wide text-neutral-mid">Pulso del negocio</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+              Pulso del negocio
+            </p>
             <p className={"text-4xl font-bold " + pulsoStatusTone(data.status)}>
               {data.score}
               <span className="ml-2 text-xl">{pulsoStatusLabel(data.status)}</span>
@@ -198,11 +200,11 @@ function EmptyDetail() {
 function LoadingSkeleton() {
   return (
     <div className="space-y-4" aria-hidden="true">
-      <div className="h-28 animate-pulse rounded-md bg-neutral-light/30" />
-      <div className="h-40 animate-pulse rounded-md bg-neutral-light/30" />
+      <div className="h-28 animate-pulse rounded-xl bg-neutral-light/30" />
+      <div className="h-40 animate-pulse rounded-xl bg-neutral-light/30" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="h-32 animate-pulse rounded-md bg-neutral-light/30" />
-        <div className="h-32 animate-pulse rounded-md bg-neutral-light/30" />
+        <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" />
+        <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" />
       </div>
     </div>
   );
