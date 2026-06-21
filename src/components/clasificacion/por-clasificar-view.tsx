@@ -57,7 +57,7 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-2" aria-hidden="true">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-12 animate-pulse rounded-md bg-neutral-light/30" />
+        <div key={i} className="h-12 animate-pulse rounded-xl bg-neutral-light/30" />
       ))}
     </div>
   );
@@ -192,9 +192,12 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           what="las cuentas de gestión — no vas a poder clasificar hasta resolverlo"
         />
       )}
-      <ul className="divide-y divide-neutral-light rounded-md border border-neutral-light">
+      <ul className="divide-y divide-border rounded-xl border border-border">
         {movements.map((m) => (
-          <li key={m.id} className="flex items-center gap-4 p-3">
+          <li
+            key={m.id}
+            className="flex items-center gap-4 p-3 transition-colors hover:bg-surface-muted"
+          >
             <span className="w-24 shrink-0 text-sm text-neutral-mid">
               {m.date ? formatDate(new Date(m.date)) : "—"}
             </span>
