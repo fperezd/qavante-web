@@ -142,7 +142,7 @@ export function DimensionValuesDrawer({
           {mutationError && (
             <div
               role="alert"
-              className="rounded-md border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
+              className="rounded-xl border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
             >
               {mutationError instanceof ApiError
                 ? apiErrorToUserMessage(mutationError)
@@ -159,7 +159,7 @@ export function DimensionValuesDrawer({
           ) : valuesQuery.isError ? (
             <div
               role="alert"
-              className="rounded-md border border-danger-500/30 bg-danger-500/5 p-3 text-sm text-neutral-dark"
+              className="rounded-xl border border-danger-500/30 bg-danger-500/5 p-3 text-sm text-neutral-dark"
             >
               {valuesQuery.error instanceof ApiError
                 ? apiErrorToUserMessage(valuesQuery.error)

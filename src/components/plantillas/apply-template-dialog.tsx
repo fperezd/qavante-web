@@ -103,7 +103,7 @@ export function ApplyTemplateDialog({
             <div className="space-y-3">
               <div
                 role="status"
-                className="flex items-start gap-2 rounded-md border border-success-500/40 bg-success-500/10 p-3 text-sm text-neutral-dark"
+                className="flex items-start gap-2 rounded-xl border border-success-500/40 bg-success-500/10 p-3 text-sm text-neutral-dark"
               >
                 <CheckCircle2
                   className="mt-0.5 h-4 w-4 flex-shrink-0 text-success-600"
@@ -155,7 +155,7 @@ export function ApplyTemplateDialog({
               {submitError && (
                 <div
                   role="alert"
-                  className="mb-3 rounded-md border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
+                  className="mb-3 rounded-xl border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
                 >
                   {submitError}
                 </div>
