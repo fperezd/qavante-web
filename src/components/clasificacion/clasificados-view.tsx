@@ -223,7 +223,7 @@ export function ClasificadosView() {
   if (query.isLoading && allItems.length === 0) {
     return (
       <div
-        className="h-32 animate-pulse rounded-md bg-neutral-light/30"
+        className="h-32 animate-pulse rounded-xl bg-neutral-light/30"
         aria-busy="true"
         aria-label="Cargando movimientos clasificados"
       />
@@ -334,30 +334,33 @@ export function ClasificadosView() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[720px] text-[13px]">
                   <thead>
-                    <tr className="border-b border-neutral-light text-left text-xs uppercase tracking-wide text-neutral-mid">
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                    <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                      <th scope="col" className="py-2 pr-3 font-semibold">
                         Fecha
                       </th>
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                      <th scope="col" className="py-2 pr-3 font-semibold">
                         Glosa
                       </th>
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                      <th scope="col" className="py-2 pr-3 font-semibold">
                         Categoría
                       </th>
-                      <th scope="col" className="py-2 pr-3 font-medium">
+                      <th scope="col" className="py-2 pr-3 font-semibold">
                         Dir.
                       </th>
-                      <th scope="col" className="py-2 pr-3 text-right font-medium">
+                      <th scope="col" className="py-2 pr-3 text-right font-semibold">
                         Monto
                       </th>
-                      <th scope="col" className="py-2 font-medium">
+                      <th scope="col" className="py-2 font-semibold">
                         <span className="sr-only">Acciones</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {paged.map((m) => (
-                      <tr key={m.id} className="border-b border-neutral-light/40 last:border-b-0">
+                      <tr
+                        key={m.id}
+                        className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
+                      >
                         <td className="py-2 pr-3 text-neutral-dark">
                           {m.date ? formatDate(new Date(m.date)) : "—"}
                         </td>
@@ -409,10 +412,10 @@ export function ClasificadosView() {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t-2 border-neutral-light/60 font-medium">
+                    <tr className="border-t-2 border-border-strong font-semibold">
                       <td
                         colSpan={4}
-                        className="py-2 pr-3 text-xs uppercase tracking-wide text-neutral-mid"
+                        className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
                       >
                         Neto del período
                         {hasActiveFilters && (
@@ -507,20 +510,20 @@ interface FiltersPanelProps {
 
 function FiltersPanel({ value, onChange, onReset, categories }: FiltersPanelProps) {
   const selectClass = cn(
-    "flex h-10 w-full rounded-md border border-neutral-light bg-surface px-3 py-2 text-sm text-neutral-dark",
+    "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
   );
 
   return (
     <div
       id="clasificados-filters"
-      className="space-y-3 rounded-md border border-neutral-light bg-neutral-light/20 p-3"
+      className="space-y-3 rounded-xl border border-border bg-surface-muted p-3"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
         <div className="space-y-1">
           <label
             htmlFor="clasif-filter-categoria"
-            className="text-xs font-medium text-neutral-dark"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
           >
             Categoría
           </label>
@@ -539,7 +542,10 @@ function FiltersPanel({ value, onChange, onReset, categories }: FiltersPanelProp
           </select>
         </div>
         <div className="space-y-1">
-          <label htmlFor="clasif-filter-tipo" className="text-xs font-medium text-neutral-dark">
+          <label
+            htmlFor="clasif-filter-tipo"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+          >
             Tipo
           </label>
           <select
@@ -556,14 +562,19 @@ function FiltersPanel({ value, onChange, onReset, categories }: FiltersPanelProp
           </select>
         </div>
         <div className="space-y-1 sm:col-span-2">
-          <label className="text-xs font-medium text-neutral-dark">Período</label>
+          <label className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+            Período
+          </label>
           <PeriodControl
             value={value.period}
             onChange={(period) => onChange({ ...value, period })}
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="clasif-filter-search" className="text-xs font-medium text-neutral-dark">
+          <label
+            htmlFor="clasif-filter-search"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+          >
             Glosa
           </label>
           <QavanteInput
@@ -619,7 +630,7 @@ function PaginationBar({
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="ml-1 rounded-md border border-neutral-light bg-surface px-2 py-1 text-xs"
+            className="ml-1 rounded-md border border-border bg-surface px-2 py-1 text-xs"
           >
             {PAGE_SIZE_OPTIONS.map((n) => (
               <option key={n} value={n}>
@@ -680,7 +691,7 @@ function PeriodControl({ value, onChange }: PeriodControlProps) {
   }
 
   const inputClass = cn(
-    "h-10 rounded-md border border-neutral-light bg-surface px-3 py-2 text-sm text-neutral-dark",
+    "h-10 rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
   );
 
@@ -689,7 +700,7 @@ function PeriodControl({ value, onChange }: PeriodControlProps) {
       <div
         role="tablist"
         aria-label="Modo de filtro de período"
-        className="inline-flex rounded-md border border-neutral-light bg-surface p-0.5"
+        className="inline-flex rounded-md border border-border bg-surface p-0.5"
       >
         {PERIOD_MODES.map((m) => {
           const selected = m.kind === value.kind;
