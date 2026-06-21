@@ -260,7 +260,7 @@ export function ManagementDimensionFormDialog({
             {submitError && (
               <div
                 role="alert"
-                className="rounded-md border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
+                className="rounded-xl border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
               >
                 {submitError}
               </div>

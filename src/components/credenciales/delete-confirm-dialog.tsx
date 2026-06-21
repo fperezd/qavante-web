@@ -55,7 +55,7 @@ export function DeleteConfirmDialog({
           {error && (
             <div
               role="alert"
-              className="mb-4 rounded-md border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
+              className="mb-4 rounded-xl border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-danger-500"
             >
               {error}
             </div>

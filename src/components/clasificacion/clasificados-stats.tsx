@@ -97,7 +97,7 @@ export function ClasificadosStats({
       {stats.dataStatus === "partial" && (
         <div
           role="status"
-          className="flex items-start gap-2 rounded-md border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-700"
+          className="flex items-start gap-2 rounded-xl border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-700"
         >
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <p>
