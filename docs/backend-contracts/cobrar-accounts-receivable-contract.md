@@ -1,5 +1,7 @@
 # Contrato esperado — Cobrar / Cuentas por cobrar (Sprint C4)
 
+> ✅ **Verificado 2026-06-21 (CC-WEB):** shape vigente, idéntico a los types del FE (`src/lib/api/cobranza.ts`). Claves de aging: `current/d1_30/d31_60/d61_90/d90_plus`. Construir contra esto — flip inmediato al exponerse.
+
 > **CC-WEB → CC-API. 2026-06-02.** Contrato **FE-first**: el FE construyó la
 > pantalla Cobrar (`/cobrar`, Maestro §7.3) contra este contrato + MSW, **gated
 > por `accountsReceivable` (OFF en prod)**. El endpoint **aún no existe**.
@@ -31,24 +33,34 @@
   "overdue": "7900000",
   "overdue_pct": "31.9",
   "aging": {
-    "current": "16900000",   // vigente (no vencido)
+    "current": "16900000", // vigente (no vencido)
     "d1_30": "3200000",
     "d31_60": "2100000",
     "d61_90": "1400000",
-    "d90_plus": "1200000"
+    "d90_plus": "1200000",
   },
   "top_debtors": [
-    { "name": "Constructora Andes SpA", "rut": "76.123.456-7",
-      "total": "9800000", "overdue": "3200000" }
+    {
+      "name": "Constructora Andes SpA",
+      "rut": "76.123.456-7",
+      "total": "9800000",
+      "overdue": "3200000",
+    },
   ],
   "overdue_documents": [
-    { "client_name": "Constructora Andes SpA", "client_rut": "76.123.456-7",
-      "document": "Factura 1234", "due_date": "2026-05-10",
-      "amount": "3200000", "balance": "3200000", "days_overdue": 23 }
+    {
+      "client_name": "Constructora Andes SpA",
+      "client_rut": "76.123.456-7",
+      "document": "Factura 1234",
+      "due_date": "2026-05-10",
+      "amount": "3200000",
+      "balance": "3200000",
+      "days_overdue": 23,
+    },
   ],
-  "confidence": "high",         // high | medium | low
-  "data_state": "available",    // available | partial | estimated
-  "generated_at": "2026-06-02T12:00:00Z"
+  "confidence": "high", // high | medium | low
+  "data_state": "available", // available | partial | estimated
+  "generated_at": "2026-06-02T12:00:00Z",
 }
 ```
 

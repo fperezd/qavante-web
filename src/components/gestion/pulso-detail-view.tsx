@@ -7,6 +7,7 @@ import { QavanteCard, QavanteEmpty } from "@/components/qavante";
 import { usePulsoDetail, type PulsoDetailResponse, type PulsoDriverDetail } from "@/lib/api/pulso";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+import { formatDateLike } from "@/lib/formatters/date";
 import {
   pulsoStatusLabel,
   pulsoStatusTone,
@@ -124,12 +125,13 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
                   />
                 </div>
                 <span className="text-[10px] tabular-nums text-neutral-mid">{t.score}</span>
-                <span className="text-[10px] text-neutral-mid">{t.period}</span>
+                <span className="text-[10px] text-neutral-mid">{formatDateLike(t.period)}</span>
               </div>
             ))}
           </div>
           <p className="sr-only">
-            Histórico del Pulso: {data.trend.map((t) => `${t.period}: ${t.score}`).join("; ")}.
+            Histórico del Pulso:{" "}
+            {data.trend.map((t) => `${formatDateLike(t.period)}: ${t.score}`).join("; ")}.
           </p>
         </QavanteCard>
       )}

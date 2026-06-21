@@ -6,6 +6,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import type { BheRecibida, BheResponse } from "@/lib/api/sii";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
 import { formatPeriodLabel } from "./sii-period-form-schema";
 
@@ -125,7 +126,9 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
                     key={`${b.folio ?? "x"}-${b.rut_emisor ?? i}`}
                     className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
                   >
-                    <td className="py-2 pr-3 text-neutral-dark">{b.fecha_emision ?? "—"}</td>
+                    <td className="py-2 pr-3 text-neutral-dark">
+                      {formatDateLike(b.fecha_emision)}
+                    </td>
                     <td className="py-2 pr-3">
                       <span className="block text-neutral-dark">
                         {b.nombre_emisor ?? "Sin nombre"}

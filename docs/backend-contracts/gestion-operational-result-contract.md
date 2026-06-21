@@ -1,5 +1,7 @@
 # Contrato esperado — Resultado Operacional de Gestión (Sprint C5)
 
+> ✅ **Verificado 2026-06-21 (CC-WEB):** shape vigente, idéntico a los types del FE (`src/lib/api/gestion.ts`). Construir contra esto — el flip del FE es inmediato al exponerse.
+
 > **CC-WEB → CC-API. 2026-06-01.** Contrato **FE-first**: el FE construyó la
 > pantalla de Gestión / Resultado Operacional (`/gestion`, Maestro §7.5 / §11.5)
 > contra este contrato + MSW, **gated por el flag `operationalResult` (OFF en
@@ -30,29 +32,37 @@
 ```jsonc
 {
   "period": "2026-05",
-  "revenue": "18500000",            // ingresos
-  "direct_cost": "7400000",         // costos directos (proxy)
-  "gross_margin": "11100000",       // margen bruto (proxy)
-  "gross_margin_pct": "60.0",       // %
-  "labor_cost": "4200000",          // gasto laboral
-  "professional_fees": "900000",    // honorarios
-  "recurring_expenses": "2100000",  // gastos recurrentes
-  "ebitda_proxy": "3900000",        // EBITDA (proxy)
-  "result": "3900000",              // resultado operacional del mes
+  "revenue": "18500000", // ingresos
+  "direct_cost": "7400000", // costos directos (proxy)
+  "gross_margin": "11100000", // margen bruto (proxy)
+  "gross_margin_pct": "60.0", // %
+  "labor_cost": "4200000", // gasto laboral
+  "professional_fees": "900000", // honorarios
+  "recurring_expenses": "2100000", // gastos recurrentes
+  "ebitda_proxy": "3900000", // EBITDA (proxy)
+  "result": "3900000", // resultado operacional del mes
   "variation": {
-    "vs_previous_month": { "amount": "600000", "pct": "18.2" },        // o null
-    "vs_same_month_last_year": { "amount": "-300000", "pct": "-7.1" }  // o null
+    "vs_previous_month": { "amount": "600000", "pct": "18.2" }, // o null
+    "vs_same_month_last_year": { "amount": "-300000", "pct": "-7.1" }, // o null
   },
   "drivers": [
-    { "direction": "improves", "concept": "Ventas", "impact": "1200000",
-      "explanation": "Más ventas que el mes anterior." },
-    { "direction": "worsens", "concept": "Sueldos", "impact": "-500000",
-      "explanation": "Subió el gasto en remuneraciones." }
+    {
+      "direction": "improves",
+      "concept": "Ventas",
+      "impact": "1200000",
+      "explanation": "Más ventas que el mes anterior.",
+    },
+    {
+      "direction": "worsens",
+      "concept": "Sueldos",
+      "impact": "-500000",
+      "explanation": "Subió el gasto en remuneraciones.",
+    },
   ],
-  "confidence": "high",             // high | medium | low
-  "data_state": "available",        // available | partial | estimated
-  "missing_sources": [],            // ej. ["Previred"] si falta una fuente
-  "generated_at": "2026-06-01T12:00:00Z"
+  "confidence": "high", // high | medium | low
+  "data_state": "available", // available | partial | estimated
+  "missing_sources": [], // ej. ["Previred"] si falta una fuente
+  "generated_at": "2026-06-01T12:00:00Z",
 }
 ```
 

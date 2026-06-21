@@ -1,5 +1,7 @@
 # Contrato esperado — Pagar / Cuentas por pagar (Sprint C4)
 
+> ✅ **Verificado 2026-06-21 (CC-WEB):** shape vigente, idéntico a los types del FE (`src/lib/api/pagos.ts`). Tramos `due_7d/14d/30d`, `category` ∈ supplier|tax|payroll|rent|debt|leasing|other. Construir contra esto — flip inmediato al exponerse.
+
 > **CC-WEB → CC-API. 2026-06-02.** Contrato **FE-first**: el FE construyó la
 > pantalla Pagar (`/pagar`, Maestro §7.4) contra este contrato + MSW, **gated
 > por `accountsPayable` (OFF en prod)**. El endpoint **aún no existe**. Cuando
@@ -13,7 +15,7 @@
 
 - **Auth:** cookie `qavante_session`.
 - Snapshot **actual**. **200** → `AccountsPayableResponse`. Sin datos → `items: []`
-  + montos "0" (no se asume faltante = 0 silenciosamente, §13).
+  - montos "0" (no se asume faltante = 0 silenciosamente, §13).
 
 ## Semántica (Maestro §7.4)
 
@@ -32,19 +34,36 @@
   "due_14d": "6200000",
   "due_30d": "9100000",
   "items": [
-    { "label": "IVA / F29 mayo", "category": "tax", "due_date": "2026-06-12",
-      "amount": "2400000", "criticality": "high", "source": "SII" },
-    { "label": "Sueldos junio", "category": "payroll", "due_date": "2026-06-30",
-      "amount": "4200000", "criticality": "high", "source": "Previred" },
-    { "label": "Proveedor Telefónica", "category": "supplier",
-      "due_date": "2026-06-18", "amount": "890000", "criticality": "medium",
-      "source": "SII" }
+    {
+      "label": "IVA / F29 mayo",
+      "category": "tax",
+      "due_date": "2026-06-12",
+      "amount": "2400000",
+      "criticality": "high",
+      "source": "SII",
+    },
+    {
+      "label": "Sueldos junio",
+      "category": "payroll",
+      "due_date": "2026-06-30",
+      "amount": "4200000",
+      "criticality": "high",
+      "source": "Previred",
+    },
+    {
+      "label": "Proveedor Telefónica",
+      "category": "supplier",
+      "due_date": "2026-06-18",
+      "amount": "890000",
+      "criticality": "medium",
+      "source": "SII",
+    },
   ],
-  "projected_cash_14d": "5400000",   // o null
-  "covers_critical": false,          // o null — ¿la caja proyectada cubre lo crítico?
-  "confidence": "high",              // high | medium | low
-  "data_state": "available",         // available | partial | estimated
-  "generated_at": "2026-06-02T12:00:00Z"
+  "projected_cash_14d": "5400000", // o null
+  "covers_critical": false, // o null — ¿la caja proyectada cubre lo crítico?
+  "confidence": "high", // high | medium | low
+  "data_state": "available", // available | partial | estimated
+  "generated_at": "2026-06-02T12:00:00Z",
 }
 ```
 

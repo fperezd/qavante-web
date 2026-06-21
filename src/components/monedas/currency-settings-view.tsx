@@ -10,6 +10,7 @@ import {
   QavanteButton,
   QavanteInlineError,
 } from "@/components/qavante";
+import { formatDateLike } from "@/lib/formatters/date";
 import {
   useCompanyCurrencySettings,
   useCurrencies,
@@ -235,7 +236,7 @@ export function CurrencySettingsView() {
             </div>
             <div>
               <dt className="text-neutral-mid">Última actualización</dt>
-              <dd className="text-xs text-neutral-mid">{settings.updated_at}</dd>
+              <dd className="text-xs text-neutral-mid">{formatDateLike(settings.updated_at)}</dd>
             </div>
           </dl>
         </QavanteCard>
