@@ -37,9 +37,10 @@ export function normalizeNet(net: number): number {
 }
 
 /** Traduce el formato `period` del backend (YYYY-MM mensual/semanal,
-    YYYY-MM-DD diario) a un label legible es-CL.
+    YYYY-MM-DD diario) a un label legible es-CL. Convención de la app:
+    nunca año-mes; mes-año para meses y DD-MM-AAAA para días.
     - "2026-05"     → "may 2026"
-    - "2026-05-13"  → "2026-05-13" (formato ISO ya legible)
+    - "2026-05-13"  → "13-05-2026" (DD-MM-AAAA, no ISO año-mes-día)
     Cualquier otro formato cae al string original (fallback defensivo). */
 export function formatPeriodLabel(period: string): string {
   if (/^\d{4}-\d{2}$/.test(period)) {
@@ -50,10 +51,39 @@ export function formatPeriodLabel(period: string): string {
     if (i < 0 || i > 11) return period;
     return `${MONTHS_ES_CL[i]} ${y}`;
   }
-  if (/^\d{4}-\d{2}-\d{2}$/.test(period)) {
-    return period;
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(period);
+  if (day) {
+    const [, y, m, d] = day;
+    return `${d}-${m}-${y}`;
   }
   return period;
+}
+
+/** "YYYY-MM" → "MM-YYYY" (ej. "2026-06" → "06-2026"). Para los selects y labels
+    de rango: convención mes-año, nunca año-mes. Fallback al string original si
+    no matchea el formato esperado. */
+export function formatPeriodMMYYYY(period: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(period);
+  return m ? `${m[2]}-${m[1]}` : period;
+}
+
+/** Opciones de mes para los selects de rango: [{value:"YYYY-MM", label:"MM-YYYY"}]
+    desde `back` meses atrás hasta `forward` meses adelante de `now` (inclusive).
+    `value` queda en YYYY-MM (lo que espera el backend); `label` en MM-YYYY. */
+export function buildMonthOptions(
+  now: Date = new Date(),
+  back = 24,
+  forward = 18,
+): Array<{ value: string; label: string }> {
+  const out: Array<{ value: string; label: string }> = [];
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  for (let i = -back; i <= forward; i += 1) {
+    const d = new Date(y, m + i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    out.push({ value, label: formatPeriodMMYYYY(value) });
+  }
+  return out;
 }
 
 /** Regex del formato canónico que acepta el endpoint backend:
