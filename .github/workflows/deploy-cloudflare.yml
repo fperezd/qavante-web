@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      issues: write
     environment:
       name: production
       url: https://app.qavante.com
@@ -42,6 +43,40 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
           workingDirectory: .
+
+      # Riesgo operacional #1: deploy fallido pasando desapercibido (token CF
+      # expirado 6→20 jun = ~2 semanas sin deploy, CI verde). Si el deploy falla,
+      # abrimos/actualizamos un issue para que el rojo sea visible y accionable.
+      - name: Avisar si el deploy a prod falló (issue)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const label = "deploy-failure";
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `🚨 El deploy a producción (app.qavante.com) falló — prod NO se actualizó.\n\nRun: ${runUrl}\nCommit: ${context.sha}\nFecha (UTC): ${new Date().toISOString()}\n\nCausa típica: token de Cloudflare (\`CLOUDFLARE_API_TOKEN\`) expirado/revocado (error 10000), o build OpenNext roto. Ver runbook de deploy.`;
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: label,
+            });
+            if (open.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: "🚨 Deploy a prod falló — prod desactualizado",
+                body,
+                labels: [label],
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open[0].number,
+                body,
+              });
+            }
 
   smoke:
     name: Post-deploy smoke (prod)
