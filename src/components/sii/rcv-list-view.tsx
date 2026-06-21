@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { RcvComprasResponse, RcvVentasResponse } from "@/lib/api/sii";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
 import { formatPeriodLabel } from "./sii-period-form-schema";
 import { TIPO_DOC_FAMILIES, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
@@ -312,7 +313,9 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
                             <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
                               {d.folio ?? "—"}
                             </td>
-                            <td className="py-2 pr-3 text-neutral-dark">{d.fecha ?? "—"}</td>
+                            <td className="py-2 pr-3 text-neutral-dark">
+                              {formatDateLike(d.fecha)}
+                            </td>
                             <td className="py-2 pr-3">
                               <span className="block text-neutral-dark">
                                 {d.razon_social ?? "Sin nombre"}

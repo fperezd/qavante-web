@@ -16,6 +16,7 @@ import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { siiF29PdfUrl, useSiiF29, useSiiHealth, type F29Response } from "@/lib/api/sii";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatDateLike } from "@/lib/formatters/date";
 import { f29FormSchema, parseFolio, type F29FormValues } from "./f29-form-schema";
 
 /* Vista del consultor F29 — Sprint C1, ruta `/pagar/impuestos/f29`. Patrón
@@ -190,7 +191,7 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
           {data.fecha_presentacion && (
             <div>
               <dt className="text-neutral-mid">Fecha de presentación</dt>
-              <dd className="text-neutral-dark">{data.fecha_presentacion}</dd>
+              <dd className="text-neutral-dark">{formatDateLike(data.fecha_presentacion)}</dd>
             </div>
           )}
         </dl>

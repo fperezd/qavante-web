@@ -1,5 +1,7 @@
 # Contrato esperado — Pulso detalle (Sprint C6/C7)
 
+> ✅ **Verificado 2026-06-21 (CC-WEB):** shape vigente, idéntico a los types del FE (`src/lib/api/pulso.ts`). `status` ∈ critical|weak|stable|strong. **Pedido:** `trend[].period` en formato `"YYYY-MM"` (el FE lo muestra como mes-año). Construir contra esto — flip inmediato al exponerse.
+
 > **CC-WEB → CC-API. 2026-06-03.** Contrato **FE-first**: el FE construyó la
 > pantalla `/gestion/pulso` ("¿por qué está así mi Pulso?", Maestro §7, Anexo C)
 > contra este contrato + MSW, **gated por `pulsoDetail` (OFF en prod)**. El
