@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { AlertTriangle } from "lucide-react";
 import { QavanteCard, QavanteBadge } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import type { CashFlowBucket, CashFlowReportResponse } from "@/lib/api/treasury-reports";
@@ -16,7 +17,10 @@ export { formatPeriodLabel } from "./cash-flow-format";
 
    MVP: no expande groups (canonical_category / management_account). Cuando
    se agregue `group_by != none`, los groups irán como sub-rows expandibles
-   o como columnas adicionales — wave 2. */
+   o como columnas adicionales — wave 2.
+
+   Refresh v1.3 (lote 2 — Caja): headers uppercase semibold + border-strong,
+   filas con hover (tinte sutil), warnings rounded-xl con icono daltonismo-safe. */
 
 export interface CashFlowTableProps {
   data: CashFlowReportResponse;
@@ -49,20 +53,20 @@ export function CashFlowTable({ data }: CashFlowTableProps) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
-              <tr className="border-b border-neutral-light text-left text-xs uppercase tracking-wide text-neutral-mid">
-                <th scope="col" className="py-2 pr-3 font-medium">
+              <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                <th scope="col" className="py-2 pr-3 font-semibold">
                   Período
                 </th>
-                <th scope="col" className="py-2 pr-3 text-right font-medium">
+                <th scope="col" className="py-2 pr-3 text-right font-semibold">
                   Entrada
                 </th>
-                <th scope="col" className="py-2 pr-3 text-right font-medium">
+                <th scope="col" className="py-2 pr-3 text-right font-semibold">
                   Salida
                 </th>
-                <th scope="col" className="py-2 pr-3 text-right font-medium">
+                <th scope="col" className="py-2 pr-3 text-right font-semibold">
                   Neto
                 </th>
-                <th scope="col" className="py-2 text-right font-medium">
+                <th scope="col" className="py-2 text-right font-semibold">
                   Movimientos
                 </th>
               </tr>
@@ -73,7 +77,10 @@ export function CashFlowTable({ data }: CashFlowTableProps) {
                 const outflow = parseDecimal(b.total_outflow);
                 const net = normalizeNet(parseDecimal(b.net));
                 return (
-                  <tr key={b.period} className="border-b border-neutral-light/40 last:border-b-0">
+                  <tr
+                    key={b.period}
+                    className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
+                  >
                     <td className="py-2 pr-3 text-neutral-dark">{formatPeriodLabel(b.period)}</td>
                     <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
                       {formatClp(inflow)}
@@ -98,8 +105,8 @@ export function CashFlowTable({ data }: CashFlowTableProps) {
             </tbody>
             {grand && (
               <tfoot>
-                <tr className="border-t-2 border-neutral-light/60 font-medium">
-                  <td className="py-2 pr-3 text-xs uppercase tracking-wide text-neutral-mid">
+                <tr className="border-t-2 border-border-strong font-semibold">
+                  <td className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                     Total del rango
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
@@ -128,14 +135,17 @@ export function CashFlowTable({ data }: CashFlowTableProps) {
         </div>
 
         {warnings.length > 0 && (
-          <ul
+          <div
             role="alert"
-            className="space-y-1 rounded-md border border-warning-700/30 bg-warning-700/5 p-3 text-xs text-warning-700"
+            className="flex items-start gap-3 rounded-xl border border-warning-700/30 bg-warning-700/5 p-3 text-xs text-warning-700"
           >
-            {warnings.map((w, i) => (
-              <li key={i}>{w}</li>
-            ))}
-          </ul>
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+            <ul className="space-y-1">
+              {warnings.map((w, i) => (
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {data.excluded_attention > 0 && (
