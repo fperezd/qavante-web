@@ -97,7 +97,7 @@ export function CertificateListView() {
     return (
       <div className="space-y-2" aria-hidden="true">
         {Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="h-20 animate-pulse rounded-md bg-neutral-light/30" />
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-neutral-light/30" />
         ))}
       </div>
     );
@@ -111,7 +111,7 @@ export function CertificateListView() {
     return (
       <div
         role="alert"
-        className="flex items-start gap-3 rounded-md border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
+        className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
       >
         <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
         <p>{message}</p>
