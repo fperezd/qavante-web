@@ -59,7 +59,13 @@ export function MiCuentaContent({ user }: MiCuentaContentProps) {
     {
       Icon: Building2,
       label: "Empresa",
-      value: <span className="font-mono text-xs break-all">{user.tenant_id}</span>,
+      /* Preferimos el nombre de empresa (tenant_name, expuesto por el backend
+         2026-06-22); fallback al UUID si no viene. */
+      value: user.tenant_name?.trim() ? (
+        user.tenant_name
+      ) : (
+        <span className="font-mono text-xs break-all">{user.tenant_id}</span>
+      ),
     },
     { Icon: Clock, label: "Último ingreso", value: formatLastLogin(user.last_login_at) },
   ];

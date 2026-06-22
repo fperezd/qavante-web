@@ -30,6 +30,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crea empresa + owner (pending) y envía verificación de email
+         * @description Crea la empresa + owner en `pending` (no puede loguear hasta verificar el
+         *     email). Captcha obligatorio (gated por TURNSTILE_SECRET → fail-closed sin él).
+         */
+        post: operations["auth_signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verifica el email (activa la cuenta) y auto-loguea
+         * @description Consume el token de verificación → membership `pending`→`active` → auto-login.
+         */
+        post: operations["auth_verify_email"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/refresh": {
         parameters: {
             query?: never;
@@ -462,6 +503,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sii/dte/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII: genera el PDF (representación impresa) de un DTE desde su XML
+         * @description Genera localmente la representación impresa (PDF) de un DTE a partir de su
+         *     XML — incluye el timbre electrónico (PDF417) si el XML trae el nodo `<TED>`.
+         *
+         *     Es una transformación PURA: no llama al SII ni usa credenciales del tenant;
+         *     el XML lo provee el caller. Se devuelve `inline` para preview en el browser.
+         */
+        post: operations["sii_dte_pdf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/dte/estado": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: estado oficial de un DTE (web service QueryEstDte)
+         * @description Consulta el estado oficial de un DTE en el SII vía el web service
+         *     QueryEstDte (estable). `estado='DOK'` = documento recibido y los datos
+         *     (RUT/folio/fecha/monto) coinciden con lo registrado en el SII.
+         *
+         *     Requiere el certificado digital del tenant (el mismo que usa RCV) —
+         *     412 si no hay cert. El consultante es el RUT de auth del tenant.
+         */
+        get: operations["sii_dte_estado"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/contribuyente/{rut}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: situación tributaria de un contribuyente por RUT (público)
+         * @description Datos PÚBLICOS de un contribuyente (cliente o proveedor) por RUT vía la
+         *     "Situación Tributaria de Terceros" del SII (`getstc`). No requiere
+         *     certificado ni clave SII del tenant — solo sesión/API key de Qavante.
+         *
+         *     Devuelve razón social, actividades económicas (giro) e inicio de
+         *     actividades. `status='not_found'` si el SII no entrega datos para el RUT.
+         *     Sirve para enriquecer cliente/proveedor y clasificar compras por giro
+         *     (ADR-0037 Fase 1).
+         */
+        get: operations["sii_contribuyente"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/enrich-giros": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII: enriquece el giro de los proveedores del tenant (cache para operational_result)
+         * @description Cachea el giro (getstc, público) de cada proveedor del RCV del tenant que
+         *     aún no esté en `integrations.contribuyente_cache`, clasificándolo COGS vs
+         *     gasto (`giro_classifier`). Alimenta `operational_result` del dashboard.
+         *
+         *     **Batch acotado** (`limit`, default 50): getstc es secuencial + captcha, así
+         *     que para tenants con muchos proveedores se procesa de a tandas. Llamar de nuevo
+         *     mientras `remaining > 0`. Tolerante (una falla por RUT no aborta el resto),
+         *     idempotente (solo consulta los RUTs sin cachear).
+         */
+        post: operations["sii_enrich_giros"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sii/bhe": {
         parameters: {
             query?: never;
@@ -652,6 +796,24 @@ export interface paths {
         post?: never;
         /** Elimina el certificado digital del tenant (owner/admin) */
         delete: operations["credentials_certificate_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/credentials/bice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Estado de la conexión BICE (sin password) */
+        get: operations["credentials_bice_status"];
+        /** Conecta/rota las credenciales del banco BICE (owner/admin) */
+        put: operations["credentials_bice_put"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1136,6 +1298,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/bank-accounts/{account_id}/opening-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Setea el saldo de apertura de una cuenta (onboarding, owner/admin) */
+        put: operations["treasury_bank_account_set_opening_balance"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bank-movements/bice/accounts": {
         parameters: {
             query?: never;
@@ -1464,6 +1643,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/cost-classification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Perfil de costo del tenant (clasificación COGS/gasto) */
+        get: operations["treasury_cost_classification_get"];
+        /** Setea el perfil de costo del tenant (owner/admin) */
+        put: operations["treasury_cost_classification_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planning/financial-impacts": {
         parameters: {
             query?: never;
@@ -1611,6 +1808,40 @@ export interface paths {
         patch: operations["scenario_assumptions_patch"];
         trace?: never;
     };
+    "/api/planning/budget-vs-actual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Presupuesto vs real del período (por línea de P&L) */
+        get: operations["planning_budget_vs_actual"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planning/budget-by-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Presupuesto vs real del período, drill-down por cuenta de gestión */
+        get: operations["planning_budget_by_account"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/reports/cash-flow": {
         parameters: {
             query?: never;
@@ -1634,6 +1865,97 @@ export interface paths {
          *       - period_* mal formado (no YYYY-MM).
          */
         get: operations["treasury_reports_cash_flow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reports/operational-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reporte P&L devengado por mes (income statement, COGS/gasto por giro)
+         * @description Income statement devengado por mes desde el RCV (ADR-0035) con las compras
+         *     clasificadas COGS vs gasto por el giro del proveedor + el `cost_profile` del
+         *     tenant (ADR-0039). Mismo cálculo que el bloque `operational_result` del
+         *     dashboard, extendido a un rango. Read-only.
+         */
+        get: operations["treasury_reports_operational_result"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/accounts-receivable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cobrar — saldo por cobrar agregado (aging, top deudores, vencidos) */
+        get: operations["treasury_accounts_receivable"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/accounts-payable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pagar — saldo por pagar agregado (tramos, pagos próximos, cobertura) */
+        get: operations["treasury_accounts_payable"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/operational-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gestión — resultado operacional del período (P&L + variación + drivers) */
+        get: operations["management_operational_result"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/pulso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pulso (detalle) — score + componentes + drivers */
+        get: operations["management_pulso_detail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1709,6 +2031,230 @@ export interface paths {
         /** Conciliación: descarta la sugerencia en cola */
         post: operations["treasury_reconciliation_reject"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/{movement_id}/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Conciliación: contrapartes sugeridas para un movimiento de la cola (IA-sugeridor v1)
+         * @description Top-5 contrapartes probables (fuzzy determinístico, ADR-0042 v1) para un
+         *     movimiento sin conciliar. Read-only — NO auto-aplica; ordena candidatos para
+         *     la cola y el humano confirma (ahí se aprende el alias, ADR-0038).
+         */
+        get: operations["treasury_reconciliation_suggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/aliases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Conciliación: diccionario de alias aprendido del tenant
+         * @description Lista los aliases del tenant (ADR-0038). Auto-aprendidos vía `confirm` +
+         *     manuales. Ordenados por `confirmations DESC` — los más usados primero.
+         */
+        get: operations["treasury_reconciliation_aliases_list"];
+        put?: never;
+        /**
+         * Conciliación: crea un alias manual
+         * @description Crea un alias `pattern → counterparty_rut` manualmente. Arranca con
+         *     `confirmations=2` → utilizable de inmediato por el matcher. Idempotente
+         *     vía `(tenant, pattern, direction)`: si ya existe, incrementa `confirmations`.
+         *
+         *     El `pattern` se almacena tal cual viene (se espera ya normalizado por el FE;
+         *     el backend lo trunca a 200). El RUT debe ser el normalizado `12345678-9`.
+         */
+        post: operations["treasury_reconciliation_aliases_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/aliases/{alias_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Conciliación: elimina un alias
+         * @description Borrado físico. Idempotente: 404 si no existe.
+         */
+        delete: operations["treasury_reconciliation_aliases_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/factoring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Conciliación: mapeos factoring del tenant
+         * @description Lista los mapeos factoring_rut → debtor_rut del tenant (ADR-0036 Fase 5).
+         */
+        get: operations["treasury_reconciliation_factoring_list"];
+        put?: never;
+        /**
+         * Conciliación: crea o actualiza un mapeo factoring
+         * @description Alta/actualización de un mapeo factoring_rut → debtor_rut.
+         *
+         *     Idempotente: si ya existe un mapeo para `factoring_rut`, actualiza `debtor_rut`
+         *     y `notes`. Ambos RUTs deben ser el formato normalizado `12345678-9`.
+         */
+        post: operations["treasury_reconciliation_factoring_upsert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/factoring/{factoring_rut}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Conciliación: elimina un mapeo factoring
+         * @description Borrado físico del mapeo. Idempotente: 404 si no existe.
+         */
+        delete: operations["treasury_reconciliation_factoring_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/holding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Conciliación: mapeos holding del tenant
+         * @description Lista los mapeos holding_rut → subsidiary_rut del tenant (Fase 7).
+         */
+        get: operations["treasury_reconciliation_holding_list"];
+        put?: never;
+        /**
+         * Conciliación: crea o actualiza un mapeo holding
+         * @description Alta/actualización de un mapeo holding_rut → subsidiary_rut. Idempotente.
+         */
+        post: operations["treasury_reconciliation_holding_upsert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/holding/{holding_rut}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Conciliación: elimina un mapeo holding
+         * @description Borrado físico del mapeo. 404 si no existe.
+         */
+        delete: operations["treasury_reconciliation_holding_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/{movement_id}/prepago": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conciliación: estaciona un movimiento como prepago
+         * @description Estaciona el movimiento como prepago/anticipo con el RUT de la contraparte.
+         *     El motor lo linkea automáticamente cuando llegue la factura del mismo RUT y monto.
+         */
+        post: operations["treasury_reconciliation_prepago_create"];
+        /**
+         * Conciliación: cancela un prepago estacionado
+         * @description Cancela el prepago: el movimiento vuelve a 'unmatched' y queda disponible
+         *     para el motor en el próximo ciclo de reconcile_tenant.
+         */
+        delete: operations["treasury_reconciliation_prepago_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/processor-configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conciliación: lista configs de medios de pago del tenant */
+        get: operations["treasury_reconciliation_processor_configs_list"];
+        put?: never;
+        /** Conciliación: crea o actualiza un config de medio de pago */
+        post: operations["treasury_reconciliation_processor_configs_upsert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/processor-configs/{processor_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Conciliación: elimina un config de medio de pago */
+        delete: operations["treasury_reconciliation_processor_configs_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2503,6 +3049,28 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * ARAging
+         * @description Aging contable del saldo por cobrar (claves exactas del contrato FE).
+         */
+        ARAging: {
+            /**
+             * Current
+             * @description No vencido (due_date >= hoy).
+             */
+            current: string;
+            /**
+             * D1 30
+             * @description 1-30 días de mora.
+             */
+            d1_30: string;
+            /** D31 60 */
+            d31_60: string;
+            /** D61 90 */
+            d61_90: string;
+            /** D90 Plus */
+            d90_plus: string;
+        };
+        /**
          * AcceptInvitationRequest
          * @description Body de POST /api/auth/accept-invitation (Sec 3.4 contrato).
          */
@@ -2516,6 +3084,112 @@ export interface components {
             password: string;
             /** Password Confirmation */
             password_confirmation: string;
+        };
+        /**
+         * AccountsPayableResponse
+         * @description Respuesta de `GET /api/treasury/accounts-payable` (pantalla Pagar).
+         */
+        AccountsPayableResponse: {
+            /** Total */
+            total: string;
+            /**
+             * Due 7D
+             * @description Saldo que vence en ≤7 días (acumulativo, incl. vencido).
+             */
+            due_7d: string;
+            /** Due 14D */
+            due_14d: string;
+            /** Due 30D */
+            due_30d: string;
+            /** Items */
+            items?: components["schemas"]["PayableItem"][];
+            /**
+             * Projected Cash 14D
+             * @description Caja proyectada a 14 días (del cash-flow); null sin saldo.
+             */
+            projected_cash_14d?: string | null;
+            /**
+             * Covers Critical
+             * @description ¿La caja proyectada cubre lo que vence en 14d? null sin saldo.
+             */
+            covers_critical?: boolean | null;
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "high" | "medium" | "low";
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Missing Sources */
+            missing_sources?: string[];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /**
+         * AccountsReceivableResponse
+         * @description Respuesta de `GET /api/treasury/accounts-receivable` (pantalla Cobrar).
+         */
+        AccountsReceivableResponse: {
+            /** Total */
+            total: string;
+            /** Overdue */
+            overdue: string;
+            /**
+             * Overdue Pct
+             * @description overdue/total*100 (string-decimal, ej. '32.0').
+             */
+            overdue_pct: string;
+            aging: components["schemas"]["ARAging"];
+            /** Top Debtors */
+            top_debtors?: components["schemas"]["TopDebtor"][];
+            /** Overdue Documents */
+            overdue_documents?: components["schemas"]["OverdueDocument"][];
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "high" | "medium" | "low";
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Missing Sources */
+            missing_sources?: string[];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /**
+         * ActividadEconomica
+         * @description Actividad económica del contribuyente (una fila del giro en el SII).
+         */
+        ActividadEconomica: {
+            /** Giro */
+            giro: string;
+            /**
+             * Codigo
+             * @description Código de actividad económica del SII.
+             */
+            codigo?: string | null;
+            /**
+             * Categoria
+             * @description Categoría tributaria (ej. 'Primera').
+             */
+            categoria?: string | null;
+            /**
+             * Afecta
+             * @description Si la actividad es afecta a IVA.
+             */
+            afecta?: boolean | null;
         };
         /** AdminEventResponse */
         AdminEventResponse: {
@@ -2847,6 +3521,22 @@ export interface components {
             linked_bank_account_id?: string | null;
         };
         /**
+         * BankCredentialStatus
+         * @description Estado de la conexión de banco (sin password).
+         */
+        BankCredentialStatus: {
+            /**
+             * Provider
+             * @description Proveedor del banco (ej. 'bice').
+             */
+            provider: string;
+            /**
+             * Connected
+             * @description True si hay credenciales guardadas.
+             */
+            connected: boolean;
+        };
+        /**
          * BankMovement
          * @description Movimiento bancario + su estado de clasificación.
          *
@@ -3012,6 +3702,115 @@ export interface components {
             } | null;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * BudgetAccountLine
+         * @description Budget vs actual de una cuenta de gestión (F2-A.2). Montos signados.
+         */
+        BudgetAccountLine: {
+            /**
+             * Account Id
+             * @description NULL = bucket 'Sin asignar'.
+             */
+            account_id?: string | null;
+            /** Account Code */
+            account_code?: string | null;
+            /** Account Name */
+            account_name: string;
+            /** Budget */
+            budget: string;
+            /** Actual */
+            actual: string;
+            /**
+             * Variance
+             * @description actual - budget (signado).
+             */
+            variance: string;
+            /** Variance Pct */
+            variance_pct: string;
+        };
+        /**
+         * BudgetByAccountResponse
+         * @description Respuesta de `GET /api/planning/budget-by-account?period=YYYY-MM` — drill-down
+         *     por cuenta de gestión (budget vs actual committed).
+         */
+        BudgetByAccountResponse: {
+            /**
+             * Period
+             * @description Período YYYY-MM.
+             */
+            period: string;
+            /** Accounts */
+            accounts?: components["schemas"]["BudgetAccountLine"][];
+            /** Has Budget */
+            has_budget: boolean;
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Missing Sources */
+            missing_sources?: string[];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /**
+         * BudgetLine
+         * @description Una línea del P&L comparada budget vs actual (montos signados).
+         */
+        BudgetLine: {
+            /**
+             * Concept
+             * @enum {string}
+             */
+            concept: "revenue" | "direct_cost" | "operating_expense" | "result";
+            /** Budget */
+            budget: string;
+            /** Actual */
+            actual: string;
+            /**
+             * Variance
+             * @description actual - budget (signado).
+             */
+            variance: string;
+            /**
+             * Variance Pct
+             * @description variance / |budget| * 100 (0 si budget 0).
+             */
+            variance_pct: string;
+        };
+        /**
+         * BudgetVsActualResponse
+         * @description Respuesta de `GET /api/planning/budget-vs-actual?period=YYYY-MM`.
+         */
+        BudgetVsActualResponse: {
+            /**
+             * Period
+             * @description Período YYYY-MM.
+             */
+            period: string;
+            /** Lines */
+            lines?: components["schemas"]["BudgetLine"][];
+            /**
+             * Has Budget
+             * @description False si no hay líneas budget del período.
+             */
+            has_budget: boolean;
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Missing Sources */
+            missing_sources?: string[];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
         };
         /** BukHealthResponse */
         BukHealthResponse: {
@@ -3860,6 +4659,65 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ContribuyenteResponse
+         * @description Datos públicos de un contribuyente por RUT (razón social + giro).
+         */
+        ContribuyenteResponse: {
+            /**
+             * Status
+             * @description 'ok' | 'not_found' | 'error'.
+             */
+            status: string;
+            /**
+             * Rut
+             * @description RUT consultado, normalizado 'cuerpo-DV' (ej. '76454786-1').
+             */
+            rut: string;
+            /** Razon Social */
+            razon_social?: string | null;
+            /**
+             * Giro
+             * @description Giro principal (primera actividad económica), si existe.
+             */
+            giro?: string | null;
+            /** Actividades */
+            actividades?: components["schemas"]["ActividadEconomica"][];
+            /**
+             * Inicio Actividades
+             * @description Fecha de inicio de actividades, tal como la entrega el SII.
+             */
+            inicio_actividades?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CostClassificationResponse
+         * @description Respuesta de `GET`/`PUT /api/treasury/cost-classification` — el perfil de
+         *     costo del tenant que clasifica las compras COGS/gasto en operational_result
+         *     (ADR-0039 capa 2). `cost_profile` null → el tenant usa el default global.
+         */
+        CostClassificationResponse: {
+            /** Cost Profile */
+            cost_profile?: string | null;
+            /** Available Profiles */
+            available_profiles?: string[];
+        };
+        /** CounterpartySuggestion */
+        CounterpartySuggestion: {
+            /** Rut */
+            rut?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Score */
+            score: string;
+        };
+        /**
          * CreateAssignmentRequest
          * @description Body de `POST /api/management/dimension-assignments`.
          */
@@ -4407,6 +5265,43 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * DteEstadoResponse
+         * @description Estado de un DTE en el SII (web service oficial QueryEstDte).
+         */
+        DteEstadoResponse: {
+            /**
+             * Status
+             * @description 'ok' | 'error'.
+             */
+            status: string;
+            /**
+             * Estado
+             * @description Código de estado del SII (ej. 'DOK' = recibido y datos coinciden).
+             */
+            estado?: string | null;
+            /** Glosa */
+            glosa?: string | null;
+            /** Glosa Err */
+            glosa_err?: string | null;
+            /** Num Atencion */
+            num_atencion?: string | null;
+            /**
+             * Detalle
+             * @description Campos crudos devueltos por el SII.
+             */
+            detalle?: {
+                [key: string]: unknown;
+            } | null;
+            /** Code */
+            code?: string | null;
+            /** Message */
+            message?: string | null;
+            /** Error */
+            error?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** DteRecibidosData */
         DteRecibidosData: {
             /** Titulo */
@@ -4643,6 +5538,8 @@ export interface components {
             iva_credito_fiscal?: number | null;
             /** Ppm */
             ppm?: number | null;
+            /** Remanente */
+            remanente?: number | null;
             /** Total A Pagar */
             total_a_pagar?: number | null;
             /** Code */
@@ -4657,6 +5554,38 @@ export interface components {
             error?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** FactoringAssignment */
+        FactoringAssignment: {
+            /** Id */
+            id: string;
+            /** Factoring Rut */
+            factoring_rut: string;
+            /** Debtor Rut */
+            debtor_rut: string;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** FactoringAssignmentCreate */
+        FactoringAssignmentCreate: {
+            /** Factoring Rut */
+            factoring_rut: string;
+            /** Debtor Rut */
+            debtor_rut: string;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** FactoringAssignmentsResponse */
+        FactoringAssignmentsResponse: {
+            /** Items */
+            items: components["schemas"]["FactoringAssignment"][];
+            /** Count */
+            count: number;
         };
         /**
          * FinancialImpact
@@ -5009,6 +5938,50 @@ export interface components {
             /** Items */
             items: components["schemas"]["FinancialVersion"][];
         };
+        /**
+         * GiroEnrichResponse
+         * @description Resultado de `POST /api/sii/enrich-giros` — cachea el giro de los
+         *     proveedores del tenant (clasificación COGS/gasto para operational_result).
+         */
+        GiroEnrichResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /**
+             * Total Suppliers
+             * @default 0
+             */
+            total_suppliers: number;
+            /**
+             * Already Cached
+             * @default 0
+             */
+            already_cached: number;
+            /**
+             * Enriched
+             * @default 0
+             */
+            enriched: number;
+            /**
+             * Not Found
+             * @default 0
+             */
+            not_found: number;
+            /**
+             * Failed
+             * @default 0
+             */
+            failed: number;
+            /**
+             * Remaining
+             * @default 0
+             */
+            remaining: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -5042,6 +6015,38 @@ export interface components {
             db: components["schemas"]["DbHealth"];
             /** Db Configured */
             db_configured: boolean;
+        };
+        /** HoldingMapping */
+        HoldingMapping: {
+            /** Id */
+            id: string;
+            /** Holding Rut */
+            holding_rut: string;
+            /** Subsidiary Rut */
+            subsidiary_rut: string;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** HoldingMappingCreate */
+        HoldingMappingCreate: {
+            /** Holding Rut */
+            holding_rut: string;
+            /** Subsidiary Rut */
+            subsidiary_rut: string;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** HoldingMappingsResponse */
+        HoldingMappingsResponse: {
+            /** Items */
+            items: components["schemas"]["HoldingMapping"][];
+            /** Count */
+            count: number;
         };
         /**
          * IndustryTemplate
@@ -5614,6 +6619,11 @@ export interface components {
             role: string;
             /** Tenant Id */
             tenant_id: string;
+            /**
+             * Tenant Name
+             * @description Razón social del tenant activo (CC-WEB #3).
+             */
+            tenant_name?: string | null;
             /** Name */
             name?: string | null;
             /** Last Login At */
@@ -5741,6 +6751,26 @@ export interface components {
             /** Amount */
             amount: string;
         };
+        /**
+         * OperationalDriver
+         * @description Factor rule-based que explica el movimiento del resultado.
+         */
+        OperationalDriver: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "improves" | "worsens";
+            /** Concept */
+            concept: string;
+            /**
+             * Impact
+             * @description Magnitud del aporte (string-decimal).
+             */
+            impact: string;
+            /** Explanation */
+            explanation: string;
+        };
         /** OperationalResult */
         OperationalResult: {
             /** Revenue */
@@ -5752,6 +6782,111 @@ export interface components {
             /** Result */
             result: string;
         };
+        /**
+         * OperationalResultBucket
+         * @description Un mes del reporte.
+         */
+        OperationalResultBucket: {
+            /** Revenue */
+            revenue: string;
+            /** Cogs */
+            cogs: string;
+            /** Gross Margin */
+            gross_margin: string;
+            /** Gasto */
+            gasto: string;
+            /** Ebitda Proxy */
+            ebitda_proxy: string;
+            /** Result */
+            result: string;
+            /** Period */
+            period: string;
+        };
+        /**
+         * OperationalResultReportResponse
+         * @description Respuesta de `GET /api/treasury/reports/operational-result`.
+         */
+        OperationalResultReportResponse: {
+            /** Period From */
+            period_from: string;
+            /** Period To */
+            period_to: string;
+            /** Buckets */
+            buckets: components["schemas"]["OperationalResultBucket"][];
+            grand_total: components["schemas"]["OperationalResultTotals"];
+        };
+        /**
+         * OperationalResultResponse
+         * @description Respuesta de `GET /api/management/operational-result?period=YYYY-MM`.
+         */
+        OperationalResultResponse: {
+            /**
+             * Period
+             * @description Período YYYY-MM.
+             */
+            period: string;
+            /** Revenue */
+            revenue: string;
+            /** Direct Cost */
+            direct_cost: string;
+            /** Gross Margin */
+            gross_margin: string;
+            /** Gross Margin Pct */
+            gross_margin_pct: string;
+            /** Labor Cost */
+            labor_cost: string;
+            /** Professional Fees */
+            professional_fees: string;
+            /** Recurring Expenses */
+            recurring_expenses: string;
+            /** Ebitda Proxy */
+            ebitda_proxy: string;
+            /** Result */
+            result: string;
+            variation: components["schemas"]["OperationalVariation"];
+            /** Drivers */
+            drivers?: components["schemas"]["OperationalDriver"][];
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "high" | "medium" | "low";
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Missing Sources */
+            missing_sources?: string[];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /**
+         * OperationalResultTotals
+         * @description Totales del income statement devengado (un período o el gran total).
+         */
+        OperationalResultTotals: {
+            /** Revenue */
+            revenue: string;
+            /** Cogs */
+            cogs: string;
+            /** Gross Margin */
+            gross_margin: string;
+            /** Gasto */
+            gasto: string;
+            /** Ebitda Proxy */
+            ebitda_proxy: string;
+            /** Result */
+            result: string;
+        };
+        /** OperationalVariation */
+        OperationalVariation: {
+            vs_previous_month?: components["schemas"]["ResultVariation"] | null;
+            vs_same_month_last_year?: components["schemas"]["ResultVariation"] | null;
+        };
         /** OverdueCollections */
         OverdueCollections: {
             /** Total Receivable */
@@ -5760,6 +6895,32 @@ export interface components {
             overdue: string;
             /** Top Clients */
             top_clients?: components["schemas"]["TopClient"][];
+        };
+        /** OverdueDocument */
+        OverdueDocument: {
+            /** Client Name */
+            client_name: string;
+            /** Client Rut */
+            client_rut?: string | null;
+            /**
+             * Document
+             * @description Tipo + folio legible (ej. 'Factura 1234').
+             */
+            document: string;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /** Amount */
+            amount: string;
+            /**
+             * Balance
+             * @description Saldo pendiente (≤ amount).
+             */
+            balance: string;
+            /** Days Overdue */
+            days_overdue: number;
         };
         /** Pagination */
         Pagination: {
@@ -5781,6 +6942,36 @@ export interface components {
             role?: string | null;
             /** Status */
             status?: string | null;
+        };
+        /**
+         * PayableItem
+         * @description Un pago próximo (contrato CC-WEB `AccountsPayableResponse.items`).
+         */
+        PayableItem: {
+            /** Label */
+            label: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "supplier" | "tax" | "payroll" | "rent" | "debt" | "leasing" | "other";
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /** Amount */
+            amount: string;
+            /**
+             * Criticality
+             * @enum {string}
+             */
+            criticality: "high" | "medium" | "low";
+            /**
+             * Source
+             * @description Origen legible (ej. 'SII', 'Previred', 'Manual').
+             */
+            source: string;
         };
         /** PayrollResponse */
         PayrollResponse: {
@@ -5897,6 +7088,22 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** PrepaymentLinkCreate */
+        PrepaymentLinkCreate: {
+            /** Counterparty Rut */
+            counterparty_rut: string;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** PrepaymentLinkResponse */
+        PrepaymentLinkResponse: {
+            /** Movement Id */
+            movement_id: string;
+            /** Status */
+            status: string;
+            /** Counterparty Rut */
+            counterparty_rut: string;
+        };
         /**
          * PriorityAction
          * @description Máx 3 en la respuesta. `cta_href` = ruta interna del FE
@@ -5913,6 +7120,57 @@ export interface components {
             cta_label: string;
             /** Cta Href */
             cta_href: string;
+        };
+        /** ProcessorConfigCreate */
+        ProcessorConfigCreate: {
+            /** Processor Code */
+            processor_code: string;
+            /** Detection Keywords */
+            detection_keywords: string[];
+            /** Commission Rate */
+            commission_rate: number | string;
+            /**
+             * Settlement Days Min
+             * @default 1
+             */
+            settlement_days_min: number;
+            /**
+             * Settlement Days Max
+             * @default 3
+             */
+            settlement_days_max: number;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** ProcessorConfigResponse */
+        ProcessorConfigResponse: {
+            /** Processor Code */
+            processor_code: string;
+            /** Detection Keywords */
+            detection_keywords: string[];
+            /** Commission Rate */
+            commission_rate: string;
+            /**
+             * Settlement Days Min
+             * @default 1
+             */
+            settlement_days_min: number;
+            /**
+             * Settlement Days Max
+             * @default 3
+             */
+            settlement_days_max: number;
+            /** Notes */
+            notes?: string | null;
+            /** Id */
+            id: string;
+            /** Active */
+            active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** Pulso */
         Pulso: {
@@ -5934,6 +7192,115 @@ export interface components {
              * @default false
              */
             preliminary: boolean;
+        };
+        /**
+         * PulsoComponent
+         * @description Un factor del composite (auditable).
+         */
+        PulsoComponent: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Score
+             * @description Factor normalizado a 0-100.
+             */
+            score: number;
+            /**
+             * Weight
+             * @description Peso del factor (0-1).
+             */
+            weight: number;
+        };
+        /**
+         * PulsoDetailResponse
+         * @description Respuesta de `GET /api/management/pulso`.
+         */
+        PulsoDetailResponse: {
+            /**
+             * Score
+             * @description 0-100.
+             */
+            score: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "critical" | "weak" | "stable" | "strong";
+            /**
+             * Confidence
+             * @description high|medium|low (string; el FE tolera otros).
+             */
+            confidence: string;
+            /**
+             * Preliminary
+             * @description True si faltan fuentes (cobranza/devengado).
+             */
+            preliminary: boolean;
+            /**
+             * Headline
+             * @description Frase rule-based (NO LLM).
+             */
+            headline?: string | null;
+            /** Components */
+            components?: components["schemas"]["PulsoComponent"][];
+            /** Drivers */
+            drivers?: components["schemas"]["PulsoDriver"][];
+            /** Trend */
+            trend?: components["schemas"]["PulsoTrendPoint"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /** PulsoDriver */
+        PulsoDriver: {
+            /** Label */
+            label: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "positive" | "negative";
+            /**
+             * Impact
+             * @enum {string}
+             */
+            impact: "high" | "medium" | "low";
+            /** Detail */
+            detail: string;
+            /** Cta Label */
+            cta_label?: string | null;
+            /** Cta Href */
+            cta_href?: string | null;
+        };
+        /** PulsoTrendPoint */
+        PulsoTrendPoint: {
+            /**
+             * Period
+             * @description YYYY-MM.
+             */
+            period: string;
+            /** Score */
+            score: number;
+        };
+        /**
+         * PutBankCredentialRequest
+         * @description Body de `PUT /api/credentials/bice` — conecta/rota las credenciales del banco.
+         */
+        PutBankCredentialRequest: {
+            /**
+             * Rut
+             * @description RUT de acceso al banco (formato '12345678-9').
+             */
+            rut: string;
+            /**
+             * Password
+             * @description Clave de acceso al banco.
+             */
+            password: string;
         };
         /**
          * PutCashMinimumRequest
@@ -5966,6 +7333,17 @@ export interface components {
              * @description Clave del certificado.
              */
             password: string;
+        };
+        /**
+         * PutCostProfileRequest
+         * @description Body de `PUT /api/treasury/cost-classification` — setea el perfil de costo.
+         */
+        PutCostProfileRequest: {
+            /**
+             * Cost Profile
+             * @description Uno de available_profiles (ADR-0039).
+             */
+            cost_profile: string;
         };
         /**
          * PutSiiCompanyRequest
@@ -6095,6 +7473,82 @@ export interface components {
              * @default 0
              */
             no_candidate: number;
+            /**
+             * Iva Retention
+             * @default 0
+             */
+            iva_retention: number;
+            /**
+             * Nc Netting
+             * @default 0
+             */
+            nc_netting: number;
+            /**
+             * Holding
+             * @default 0
+             */
+            holding: number;
+            /**
+             * Prepago Applied
+             * @default 0
+             */
+            prepago_applied: number;
+            /**
+             * Processor Batch
+             * @default 0
+             */
+            processor_batch: number;
+        };
+        /** ReconciliationAlias */
+        ReconciliationAlias: {
+            /** Id */
+            id: string;
+            /** Pattern */
+            pattern: string;
+            /** Counterparty Rut */
+            counterparty_rut: string;
+            /** Direction */
+            direction: string;
+            /** Source */
+            source: string;
+            /** Confirmations */
+            confirmations: number;
+            /** Last Used At */
+            last_used_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ReconciliationAliasCreate */
+        ReconciliationAliasCreate: {
+            /** Pattern */
+            pattern: string;
+            /** Counterparty Rut */
+            counterparty_rut: string;
+            /** Direction */
+            direction: string;
+        };
+        /** ReconciliationAliasesResponse */
+        ReconciliationAliasesResponse: {
+            /** Items */
+            items: components["schemas"]["ReconciliationAlias"][];
+            /** Count */
+            count: number;
+        };
+        /**
+         * ResultVariation
+         * @description Variación del resultado vs un período de referencia.
+         */
+        ResultVariation: {
+            /** Amount */
+            amount: string;
+            /**
+             * Pct
+             * @description Variación % sobre |resultado| base (string-decimal).
+             */
+            pct: string;
         };
         /** ReviewItem */
         ReviewItem: {
@@ -6383,6 +7837,71 @@ export interface components {
              */
             role: string;
         };
+        /**
+         * SetOpeningBalanceRequest
+         * @description Body de `PUT /api/treasury/bank-accounts/{id}/opening-balance` (onboarding O-3).
+         */
+        SetOpeningBalanceRequest: {
+            /**
+             * Opening Balance
+             * @description Saldo de apertura de la cuenta.
+             */
+            opening_balance: number | string;
+            /**
+             * Opening Balance Date
+             * Format: date
+             * @description Fecha del saldo de apertura (YYYY-MM-DD).
+             */
+            opening_balance_date: string;
+        };
+        /**
+         * SignupRequest
+         * @description Body de `POST /api/auth/signup` (onboarding O-1, ADR-0047).
+         */
+        SignupRequest: {
+            /**
+             * Company Name
+             * @description Razón social de la empresa.
+             */
+            company_name: string;
+            /**
+             * Company Rut
+             * @description RUT de la empresa (opcional).
+             */
+            company_rut?: string | null;
+            /**
+             * Owner Full Name
+             * @description Nombre del owner (requerido).
+             */
+            owner_full_name: string;
+            /**
+             * Owner Rut
+             * @description RUT del owner con DV.
+             */
+            owner_rut: string;
+            /**
+             * Email
+             * @description Email del owner (recibe la verificación).
+             */
+            email: string;
+            /** Password */
+            password: string;
+            /**
+             * Captcha Token
+             * @description Token del captcha (Turnstile).
+             */
+            captcha_token: string;
+        };
+        /** SignupResponse */
+        SignupResponse: {
+            /**
+             * Status
+             * @default pending_verification
+             */
+            status: string;
+            /** Message */
+            message: string;
+        };
         /** SiiCertificateStatus */
         SiiCertificateStatus: {
             /** Configured */
@@ -6670,6 +8189,13 @@ export interface components {
             db: components["schemas"]["DbHealth"];
             /** Integrations */
             integrations: components["schemas"]["IntegrationStatus"][];
+        };
+        /** SuggestionsResponse */
+        SuggestionsResponse: {
+            /** Movement Id */
+            movement_id: string;
+            /** Suggestions */
+            suggestions: components["schemas"]["CounterpartySuggestion"][];
         };
         /** TarjetaCredito */
         TarjetaCredito: {
@@ -6973,6 +8499,20 @@ export interface components {
             /** Amount */
             amount: string;
         };
+        /** TopDebtor */
+        TopDebtor: {
+            /** Name */
+            name: string;
+            /**
+             * Rut
+             * @description RUT contraparte (del devengado); null si falta.
+             */
+            rut?: string | null;
+            /** Total */
+            total: string;
+            /** Overdue */
+            overdue: string;
+        };
         /**
          * UpdateClassificationRuleRequest
          * @description Body de `PATCH /api/treasury/classification-rules/{id}` (opcionales).
@@ -7135,6 +8675,11 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** VerifyEmailRequest */
+        VerifyEmailRequest: {
+            /** Token */
+            token: string;
+        };
         /** CertificateUploadResponse */
         app__api__admin__certificates__CertificateUploadResponse: {
             /**
@@ -7182,7 +8727,9 @@ export interface operations {
     auth_login: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                origin?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -7224,10 +8771,108 @@ export interface operations {
             };
         };
     };
+    auth_signup: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupRequest"];
+            };
+        };
+        responses: {
+            /** @description Cuenta creada; revisar email para activar (no auto-login). */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupResponse"];
+                };
+            };
+            /** @description Captcha inválido. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Email/RUT ya registrados (mensaje genérico, anti-enumeración). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Datos inválidos (email/RUT/password/razón social). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_verify_email: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Email verificado, membership activada, cookies seteadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Token inválido, expirado o ya usado. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     auth_refresh: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                origin?: string | null;
+            };
             path?: never;
             cookie?: {
                 qavante_refresh?: string | null;
@@ -7317,7 +8962,9 @@ export interface operations {
     auth_logout: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                origin?: string | null;
+            };
             path?: never;
             cookie?: {
                 qavante_session?: string | null;
@@ -7955,6 +9602,172 @@ export interface operations {
             };
         };
     };
+    sii_dte_pdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/xml": string;
+            };
+        };
+        responses: {
+            /** @description PDF del DTE con timbre electrónico (PDF417) si el XML trae TED. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description XML inválido o sin documentos DTE parseables. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sii_dte_estado: {
+        parameters: {
+            query: {
+                /** @description Tipo de DTE (33=Factura, 61=NC, etc.). */
+                tipo_dte: number;
+                /** @description Folio del documento. */
+                folio: number;
+                /** @description RUT del emisor con DV (ej. '76454786-1'). */
+                rut_emisor: string;
+                /** @description Fecha de emisión en formato dd-mm-aaaa. */
+                fecha_emision: string;
+                /** @description Monto total del documento. */
+                monto_total: number;
+                /** @description RUT del receptor con DV. */
+                rut_receptor: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado del DTE (ESTADO='DOK' = recibido y datos coinciden). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DteEstadoResponse"];
+                };
+            };
+            /** @description Tenant sin certificado digital activo. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SII inalcanzable o respondió error. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sii_contribuyente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rut: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Razón social + actividades económicas (giro) del RUT. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContribuyenteResponse"];
+                };
+            };
+            /** @description RUT con formato o dígito verificador inválido. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SII inalcanzable o respondió error. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sii_enrich_giros: {
+        parameters: {
+            query?: {
+                /** @description Máximo de RUTs a consultar en esta llamada (batch). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen del enriquecimiento (cuántos giros se cachearon). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiroEnrichResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     sii_bhe: {
         parameters: {
             query: {
@@ -8369,6 +10182,75 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    credentials_bice_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description connected=true si hay credenciales guardadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankCredentialStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    credentials_bice_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutBankCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description Credenciales guardadas (cifradas). */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description RUT inválido (formato/DV) o password < 4. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -9017,12 +10899,63 @@ export interface operations {
             };
         };
     };
+    treasury_bank_account_set_opening_balance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetOpeningBalanceRequest"];
+            };
+        };
+        responses: {
+            /** @description Saldo de apertura guardado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La cuenta no existe para el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     bank_ingest_bice_list_accounts: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -9035,6 +10968,15 @@ export interface operations {
                     "application/json": components["schemas"]["app__api__bank_ingest_bice__BankAccountsListResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     bank_ingest_bice_link_account: {
@@ -9045,7 +10987,9 @@ export interface operations {
                 /** @description `numeroFormateado` BICE (durable, ej. '07-04222-1'). Obtenido de `GET /accounts`. */
                 external_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -9085,7 +11029,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -9096,6 +11042,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IngestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -9745,6 +11700,91 @@ export interface operations {
                 content?: never;
             };
             /** @description amount < 0 o currency_code no es una moneda activa. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_cost_classification_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Perfil actual (null = default) + perfiles disponibles. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostClassificationResponse"];
+                };
+            };
+            /** @description El tenant no tiene settings de moneda. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_cost_classification_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutCostProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Perfil actualizado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostClassificationResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El tenant no tiene settings de moneda. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description cost_profile no es uno de los perfiles disponibles. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -10567,6 +12607,70 @@ export interface operations {
             };
         };
     };
+    planning_budget_vs_actual: {
+        parameters: {
+            query?: {
+                /** @description Período 'YYYY-MM'. Default: mes actual. */
+                period?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Budget-vs-actual; has_budget=false si no hay presupuesto. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetVsActualResponse"];
+                };
+            };
+            /** @description period mal formado. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    planning_budget_by_account: {
+        parameters: {
+            query?: {
+                /** @description Período 'YYYY-MM'. Default: mes actual. */
+                period?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Budget-vs-actual por cuenta (budget vs committed). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetByAccountResponse"];
+                };
+            };
+            /** @description period mal formado. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     treasury_reports_cash_flow: {
         parameters: {
             query: {
@@ -10616,6 +12720,165 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    treasury_reports_operational_result: {
+        parameters: {
+            query: {
+                /** @description Mes inicial YYYY-MM (inclusive). */
+                period_from: string;
+                /** @description Mes final YYYY-MM (inclusive). */
+                period_to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Buckets mensuales (revenue/COGS/gross_margin/gasto/ebitda) + total. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationalResultReportResponse"];
+                };
+            };
+            /** @description period mal formado, rango invertido, o rango > 36 meses. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_accounts_receivable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agregado de cuentas por cobrar vivas (open/partially_paid). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountsReceivableResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_accounts_payable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agregado de cuentas por pagar vivas (open/partially_paid). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountsPayableResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    management_operational_result: {
+        parameters: {
+            query?: {
+                /** @description Período 'YYYY-MM'. Default: mes actual. */
+                period?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultado operacional del período (0 si no hay documentos). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationalResultResponse"];
+                };
+            };
+            /** @description period mal formado. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    management_pulso_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pulso detallado (neutral preliminar si no hay saldo). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulsoDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -10761,6 +13024,533 @@ export interface operations {
             };
         };
     };
+    treasury_reconciliation_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionsResponse"];
+                };
+            };
+            /** @description El movimiento no existe. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_aliases_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationAliasesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_aliases_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationAliasCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationAlias"];
+                };
+            };
+            /** @description Patrón vacío, RUT vacío o dirección inválida. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_reconciliation_aliases_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                alias_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El alias no existe o no es del tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_factoring_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactoringAssignmentsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_factoring_upsert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactoringAssignmentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactoringAssignment"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_factoring_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                factoring_rut: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El mapeo no existe o no es del tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_holding_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HoldingMappingsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_holding_upsert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HoldingMappingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HoldingMapping"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_holding_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                holding_rut: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El mapeo no existe o no es del tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_prepago_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrepaymentLinkCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrepaymentLinkResponse"];
+                };
+            };
+            /** @description RUT vacío o inválido. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_reconciliation_prepago_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe prepago para ese movimiento. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_processor_configs_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProcessorConfigResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_processor_configs_upsert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProcessorConfigCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProcessorConfigResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_processor_configs_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                processor_code: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No existe config para ese processor_code. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     dashboard_summary: {
         parameters: {
             query?: never;
@@ -10877,7 +13667,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10906,7 +13698,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -10941,7 +13735,9 @@ export interface operations {
             path: {
                 certificate_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10972,7 +13768,9 @@ export interface operations {
             path: {
                 certificate_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11155,7 +13953,9 @@ export interface operations {
             path: {
                 source_code: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11189,7 +13989,9 @@ export interface operations {
             path: {
                 source_code: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -11226,7 +14028,9 @@ export interface operations {
             path: {
                 source_code: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11257,7 +14061,9 @@ export interface operations {
             path: {
                 source_code: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11739,6 +14545,13 @@ export interface operations {
                     "application/json": components["schemas"]["ManagementDimension"];
                 };
             };
+            /** @description Rol insuficiente para la acción (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Ya existe una dimensión con ese code. */
             409: {
                 headers: {
@@ -11783,6 +14596,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ManagementDimension"];
                 };
+            };
+            /** @description Rol insuficiente para la acción (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description La dimensión no existe en el tenant. */
             404: {
@@ -11870,6 +14690,13 @@ export interface operations {
                     "application/json": components["schemas"]["ManagementDimensionValue"];
                 };
             };
+            /** @description Rol insuficiente para la acción (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Dimensión o valor padre no existe en el tenant. */
             404: {
                 headers: {
@@ -11920,6 +14747,13 @@ export interface operations {
                     "application/json": components["schemas"]["ManagementDimensionValue"];
                 };
             };
+            /** @description Rol insuficiente para la acción (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description El valor no existe en el tenant. */
             404: {
                 headers: {
@@ -11964,6 +14798,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ManagementDimensionValue"];
                 };
+            };
+            /** @description Rol insuficiente para la acción (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description El valor o el nuevo padre no existe. */
             404: {
@@ -12048,6 +14889,13 @@ export interface operations {
                     "application/json": components["schemas"]["DimensionAssignment"];
                 };
             };
+            /** @description Rol insuficiente para la acción (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Dimensión, valor o entidad no existe en el tenant. */
             404: {
                 headers: {
@@ -12089,6 +14937,13 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol insuficiente para la acción (§20). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12212,6 +15067,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ApplyTemplateResponse"];
                 };
+            };
+            /** @description Rol insuficiente para la acción (§20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description La plantilla no existe en el catálogo (§19). */
             404: {
