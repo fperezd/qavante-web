@@ -15,9 +15,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const { assistant, onboarding } = resolveFeatureFlags();
   return (
     <AppShell userRole={session?.user.role} assistantEnabled={assistant}>
-      {/* Gated por `onboarding` (OFF en prod → inerte). Si ON y el tenant no
+      {/* Gated por `onboarding` (OFF en prod → no se monta). Si ON y el tenant no
           completó onboarding, redirige al wizard. Fail-safe (ver el componente). */}
-      <OnboardingGuard enabled={onboarding} />
+      {onboarding && <OnboardingGuard />}
       {children}
     </AppShell>
   );

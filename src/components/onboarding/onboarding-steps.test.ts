@@ -11,7 +11,7 @@ import {
   nextStep,
   prevStep,
   routeAfter,
-  stepRouteOrFirst,
+  onboardingResumeRoute,
 } from "./onboarding-steps";
 
 describe("onboarding-steps — modelo del wizard", () => {
@@ -74,10 +74,9 @@ describe("onboarding-steps — modelo del wizard", () => {
     expect(routeAfter("import")).toBe(ONBOARDING_DONE_ROUTE);
   });
 
-  it("stepRouteOrFirst: id conocido → su ruta; desconocido/null → primer post-auth", () => {
-    expect(stepRouteOrFirst("industry")).toBe("/onboarding/rubro");
-    expect(stepRouteOrFirst("connect-sii")).toBe("/onboarding/conectar-sii");
-    expect(stepRouteOrFirst(null)).toBe("/onboarding/conectar-sii"); // primer post-auth
-    expect(stepRouteOrFirst("desconocido")).toBe("/onboarding/conectar-sii");
+  it("onboardingResumeRoute: reanuda según fuentes conectadas", () => {
+    expect(onboardingResumeRoute(false, false)).toBe("/onboarding/conectar-sii"); // falta SII
+    expect(onboardingResumeRoute(true, false)).toBe("/onboarding/conectar-banco"); // falta banco
+    expect(onboardingResumeRoute(true, true)).toBe("/onboarding/rubro"); // ambas → seguir
   });
 });
