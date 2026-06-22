@@ -71,6 +71,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/resend-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-envía el correo de verificación (anti-enumeración: siempre 202)
+         * @description Reemite el correo de verificación para una cuenta pendiente. Responde
+         *     **siempre 202** sin revelar si el email existe o ya está verificado
+         *     (anti-enumeración). Captcha + rate-limit cierran el email-bombing.
+         */
+        post: operations["auth_resend_verification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/refresh": {
         parameters: {
             query?: never;
@@ -191,6 +213,47 @@ export interface paths {
          *     shape que GET) para que el FE refresque sin un segundo request.
          */
         patch: operations["auth_me_patch"];
+        trace?: never;
+    };
+    "/api/onboarding/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado del wizard de onboarding (completado + pasos)
+         * @description Read-only: cualquier miembro autenticado del tenant ve el estado.
+         */
+        get: operations["onboarding_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/onboarding/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Marca el onboarding como terminado (owner/admin, idempotente)
+         * @description Setea `onboarding_completed_at` si estaba NULL (idempotente: un segundo
+         *     `complete` no pisa el timestamp original).
+         */
+        post: operations["onboarding_complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/users": {
@@ -6624,6 +6687,12 @@ export interface components {
              * @description Razón social del tenant activo (CC-WEB #3).
              */
             tenant_name?: string | null;
+            /**
+             * Onboarding Completed
+             * @description True si el tenant terminó el wizard de onboarding (`core.tenants.onboarding_completed_at` no-NULL). Guard del redirect-a-wizard.
+             * @default false
+             */
+            onboarding_completed: boolean;
             /** Name */
             name?: string | null;
             /** Last Login At */
@@ -6750,6 +6819,33 @@ export interface components {
             due_date: string;
             /** Amount */
             amount: string;
+        };
+        /** OnboardingStatusResponse */
+        OnboardingStatusResponse: {
+            /**
+             * Completed
+             * @description True si el owner marcó el onboarding terminado.
+             */
+            completed: boolean;
+            /**
+             * Completed At
+             * @description Timestamp (UTC) en que se completó, o null si sigue pendiente.
+             */
+            completed_at?: string | null;
+            steps: components["schemas"]["OnboardingSteps"];
+        };
+        /** OnboardingSteps */
+        OnboardingSteps: {
+            /**
+             * Bank Connected
+             * @description Fuente bancaria (BICE) conectada y fresca.
+             */
+            bank_connected: boolean;
+            /**
+             * Sii Connected
+             * @description Credencial SII (RCV) conectada y fresca.
+             */
+            sii_connected: boolean;
         };
         /**
          * OperationalDriver
@@ -7536,6 +7632,22 @@ export interface components {
             items: components["schemas"]["ReconciliationAlias"][];
             /** Count */
             count: number;
+        };
+        /**
+         * ResendVerificationRequest
+         * @description Body de `POST /api/auth/resend-verification` (onboarding O-1.b).
+         */
+        ResendVerificationRequest: {
+            /**
+             * Email
+             * @description Email de la cuenta a reactivar el correo de verificación.
+             */
+            email: string;
+            /**
+             * Captcha Token
+             * @description Token del captcha (Turnstile).
+             */
+            captcha_token: string;
         };
         /**
          * ResultVariation
@@ -8867,6 +8979,55 @@ export interface operations {
             };
         };
     };
+    auth_resend_verification: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResendVerificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Si la cuenta existe y no está verificada, se reenvió el correo. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupResponse"];
+                };
+            };
+            /** @description Captcha inválido. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limit excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     auth_refresh: {
         parameters: {
             query?: never;
@@ -9066,6 +9227,75 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    onboarding_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado del onboarding del tenant. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    onboarding_complete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Onboarding marcado completo; devuelve el estado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStatusResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

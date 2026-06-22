@@ -23,6 +23,7 @@ const FERNANDO: MeUser = {
   email: "fperez@tooxs.com",
   role: "owner",
   tenant_id: "a1d8143e-a1f7-410b-ac60-e7f15708488c",
+  onboarding_completed: true,
   name: "Fernando Perez",
   last_login_at: "2026-05-28T15:40:13.929323Z",
   permissions: [],
