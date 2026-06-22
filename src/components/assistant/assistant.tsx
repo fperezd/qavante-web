@@ -10,7 +10,7 @@ import {
 } from "@/lib/api/assistant";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
-import { toolLabel } from "./assistant-format";
+import { toolLabel, sanitizeAssistantContent } from "./assistant-format";
 
 /* Asistente Qavante (Sprint C9, Anexo G): "Preguntar a Qavante". Botón flotante
    → drawer con chat read-only (Fase 1). Renderiza SOLO `content` + `tools_used`
@@ -71,7 +71,7 @@ export function Assistant() {
             ...prev,
             {
               role: "assistant",
-              content: res.content,
+              content: sanitizeAssistantContent(res.content),
               tools_used: res.tools_used ?? [],
               sources: res.sources ?? [],
             },
