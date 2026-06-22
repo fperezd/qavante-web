@@ -10,6 +10,10 @@ binding = "ASSETS"
 [vars]
 NEXT_PUBLIC_API_URL = "https://api.qavante.com"
 NEXT_PUBLIC_APP_ENV = "production"
+# Cloudflare Turnstile (anti-bot del signup). Site key PÚBLICA. El widget es
+# client-side → el valor real lo inlinea el build (ver build env en
+# deploy-cloudflare.yml); esto queda por consistencia/runtime.
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAADpQkYv0x2Mvz7Xp"
 
 # Feature flags de prod (ADR-0008/0012). Las pantallas gateadas son Server
 # Components: resuelven `process.env.NEXT_PUBLIC_FF_*` en runtime del Worker,

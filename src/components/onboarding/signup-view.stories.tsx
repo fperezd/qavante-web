@@ -7,7 +7,10 @@ import { SignupView } from "./signup-view";
    aún no existe; el snapshot captura el form vacío. */
 
 const OK = http.post("*/api/auth/signup", () =>
-  HttpResponse.json({ email: "fernando@tooxs.com", verification_sent: true }, { status: 200 }),
+  HttpResponse.json(
+    { status: "pending_verification", message: "Te enviamos un correo de verificación." },
+    { status: 200 },
+  ),
 );
 const CONFLICT = http.post("*/api/auth/signup", () =>
   HttpResponse.json({ code: "conflict", detail: "Ese email ya está registrado." }, { status: 409 }),
