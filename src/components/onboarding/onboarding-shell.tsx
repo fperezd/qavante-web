@@ -31,7 +31,7 @@ export function OnboardingShell({ step, children, description }: OnboardingShell
   const pct = progressPct(step);
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 py-8 sm:py-12">
+    <div className="mx-auto flex w-full max-w-2xl flex-col px-4 py-8 sm:py-12">
       {/* Encabezado: progreso. */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
