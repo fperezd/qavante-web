@@ -5,11 +5,10 @@ import type { components } from "./types";
 /* Capa de datos — Onboarding (signup + verificar email). Sprint onboarding,
    modelo ADR-0017 (la 1ra persona crea su empresa y queda owner).
 
-   signup y verify-email YA existen en prod (2026-06-22) → tipos GENERADOS del
-   OpenAPI (regla 3). signup exige `captcha_token` de Turnstile (anti-bot,
-   fail-closed). verify-email devuelve LoginResponse (auto-login + cookie).
-   `resend-verification` aún NO existe → hand-rolled FE-first. Gated por
-   `onboarding`. Ver `docs/backend-contracts/onboarding-signup-verify-contract.md`. */
+   signup, verify-email y resend-verification YA existen en prod (2026-06-22) →
+   tipos GENERADOS del OpenAPI (regla 3). signup y resend exigen `captcha_token`
+   de Turnstile (anti-bot, fail-closed). verify-email devuelve LoginResponse
+   (auto-login + cookie). Gated por `onboarding`. */
 
 /* ── Signup ──────────────────────────────────────────────────────────────── */
 
@@ -41,13 +40,12 @@ export function useVerifyEmail() {
   });
 }
 
-/* ── Reenviar verificación (FE-first: endpoint aún no existe) ─────────────── */
+/* ── Reenviar verificación ───────────────────────────────────────────────── */
 
-export interface ResendVerificationBody {
-  email: string;
-}
+export type ResendVerificationBody = components["schemas"]["ResendVerificationRequest"];
 
-/** `POST /api/auth/resend-verification` — reenvía el correo de verificación. */
+/** `POST /api/auth/resend-verification` — reenvía el correo de verificación.
+    Requiere `email` + `captcha_token` (Turnstile). */
 export function useResendVerification() {
   return useMutation({
     mutationFn: (body: ResendVerificationBody) =>

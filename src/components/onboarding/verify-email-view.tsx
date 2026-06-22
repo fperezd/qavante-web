@@ -9,15 +9,18 @@ import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useVerifyEmail, useResendVerification } from "@/lib/api/onboarding";
 import { OnboardingShell } from "./onboarding-shell";
+import { Turnstile } from "./turnstile";
 import { routeAfter } from "./onboarding-steps";
 
 /* Paso 2 del onboarding — Verificar email. Dos entradas:
    - Con `?token=` (link del correo): auto-verifica → al éxito el backend setea
      la cookie y seguimos al primer paso post-auth.
-   - Sin token (recién venís del signup, `?email=`): estado "te enviamos un
-     correo" + reenviar. FE-first: `POST /api/auth/verify-email` aún no existe. */
+   - Sin token (recién vienes del signup, `?email=`): estado "te enviamos un
+     correo" + reenviar. `verify-email` y `resend-verification` están en prod;
+     el reenvío exige captcha (Turnstile). */
 
 const NEXT_ROUTE = routeAfter("verify-email"); // /onboarding/conectar-sii
+const TURNSTILE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
 export function VerifyEmailView() {
   const router = useRouter();
@@ -67,7 +70,7 @@ export function VerifyEmailView() {
                 <p className="mt-1">
                   {verify.error instanceof ApiError
                     ? apiErrorToUserMessage(verify.error)
-                    : "El enlace es inválido o expiró. Pedí uno nuevo."}
+                    : "El enlace es inválido o expiró. Pide uno nuevo."}
                 </p>
               </div>
             </div>
@@ -102,10 +105,10 @@ export function VerifyEmailView() {
         <p className="text-sm text-neutral-dark">
           {email ? (
             <>
-              Revisá <span className="font-medium">{email}</span> y hacé clic en el enlace.
+              Revisa <span className="font-medium">{email}</span> y haz clic en el enlace.
             </>
           ) : (
-            "Revisá tu bandeja de entrada y hacé clic en el enlace."
+            "Revisa tu bandeja de entrada y haz clic en el enlace."
           )}
         </p>
         <ResendBlock email={email} resend={resend} />
@@ -121,6 +124,8 @@ function ResendBlock({
   email: string | null;
   resend: ReturnType<typeof useResendVerification>;
 }) {
+  const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+
   if (!email) {
     return (
       <p className="text-sm text-neutral-mid">
@@ -132,14 +137,18 @@ function ResendBlock({
     );
   }
   if (resend.isSuccess) {
-    return <p className="text-sm text-success-700">Te reenviamos el correo. Revisá tu bandeja.</p>;
+    return <p className="text-sm text-success-700">Te reenviamos el correo. Revisa tu bandeja.</p>;
   }
+
+  const captchaOk = !TURNSTILE_CONFIGURED || Boolean(captchaToken);
   return (
-    <div className="space-y-1 text-center">
+    <div className="flex flex-col items-center gap-2 text-center">
+      <Turnstile onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} />
       <QavanteButton
         variant="secondary"
         loading={resend.isPending}
-        onClick={() => resend.mutate({ email })}
+        disabled={!captchaOk}
+        onClick={() => resend.mutate({ email, captcha_token: captchaToken ?? "" })}
       >
         Reenviar correo
       </QavanteButton>

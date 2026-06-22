@@ -256,6 +256,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/onboarding/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Primer sync de datos del onboarding (per-source, no-bloqueante)
+         * @description Dispara el primer sync de las fuentes **conectadas** (banco BICE + SII RCV).
+         *     Per-source + partial-success: cada fuente reporta `ok`/`failed`/`skipped` y una
+         *     no bloquea a la otra (el wizard puede continuar). `skipped` = no conectada.
+         */
+        post: operations["onboarding_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/users": {
         parameters: {
             query?: never;
@@ -1372,6 +1394,27 @@ export interface paths {
         /** Setea el saldo de apertura de una cuenta (onboarding, owner/admin) */
         put: operations["treasury_bank_account_set_opening_balance"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/opening-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Setea la semilla de caja manual del tenant (onboarding, owner/admin)
+         * @description Semilla standalone: `current_cash_balance` la usa solo mientras no haya
+         *     cuentas con saldo (per-account supersede). Upsert sobre la fila del tenant.
+         */
+        post: operations["treasury_set_tenant_opening_balance"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6847,6 +6890,15 @@ export interface components {
              */
             sii_connected: boolean;
         };
+        /** OnboardingSyncResponse */
+        OnboardingSyncResponse: {
+            sources: components["schemas"]["OnboardingSyncSources"];
+        };
+        /** OnboardingSyncSources */
+        OnboardingSyncSources: {
+            bank: components["schemas"]["SyncSourceResult"];
+            sii: components["schemas"]["SyncSourceResult"];
+        };
         /**
          * OperationalDriver
          * @description Factor rule-based que explica el movimiento del resultado.
@@ -7967,6 +8019,29 @@ export interface components {
             opening_balance_date: string;
         };
         /**
+         * SetTenantOpeningBalanceRequest
+         * @description Body de `POST /api/treasury/opening-balance` (semilla de caja tenant-level).
+         */
+        SetTenantOpeningBalanceRequest: {
+            /**
+             * Amount
+             * @description Saldo de apertura manual (semilla de caja).
+             */
+            amount: number | string;
+            /**
+             * Currency
+             * @description Moneda ISO 4217 (default CLP).
+             * @default CLP
+             */
+            currency: string;
+            /**
+             * As Of Date
+             * Format: date
+             * @description Fecha del saldo de apertura (YYYY-MM-DD).
+             */
+            as_of_date: string;
+        };
+        /**
          * SignupRequest
          * @description Body de `POST /api/auth/signup` (onboarding O-1, ADR-0047).
          */
@@ -8308,6 +8383,15 @@ export interface components {
             movement_id: string;
             /** Suggestions */
             suggestions: components["schemas"]["CounterpartySuggestion"][];
+        };
+        /** SyncSourceResult */
+        SyncSourceResult: {
+            /**
+             * Status
+             * @description 'ok' (sincronizó), 'failed' (lo intentó y falló), 'skipped' (no conectada).
+             * @enum {string}
+             */
+            status: "ok" | "failed" | "skipped";
         };
         /** TarjetaCredito */
         TarjetaCredito: {
@@ -9279,6 +9363,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingStatusResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    onboarding_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultado por fuente. Una falla no bloquea la otra. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingSyncResponse"];
                 };
             };
             /** @description Rol sin permiso (owner/admin). */
@@ -11162,6 +11284,46 @@ export interface operations {
             };
             /** @description La cuenta no existe para el tenant. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_set_tenant_opening_balance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetTenantOpeningBalanceRequest"];
+            };
+        };
+        responses: {
+            /** @description Semilla de caja guardada. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
