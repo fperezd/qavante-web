@@ -4,9 +4,10 @@ import type { components } from "./types";
 
 /* Capa de datos — estado del onboarding. Sprint onboarding.
 
-   status + complete YA están en prod (2026-06-22) → tipos GENERADOS. `sync`
-   (wrapper de /bice/sync + /sii/sync-rcv) AÚN no existe → FE-first. Gated por
-   `onboarding`. Ver `docs/backend-contracts/onboarding-status-contract.md`. */
+   status + complete + sync YA están en prod (2026-06-22, qavante-api #344/#345)
+   → tipos GENERADOS. `sync` es per-source partial-success:
+   `{ sources: { sii: { status }, bank: { status } } }` con status
+   ok|failed|skipped. Gated por `onboarding`. */
 
 /* ── Estado del onboarding (para el guard) ───────────────────────────────── */
 
@@ -35,11 +36,11 @@ export function useCompleteOnboarding() {
   });
 }
 
-/* ── Traer datos (sync inicial) — FE-first: wrapper aún no existe ─────────── */
+/* ── Traer datos (sync inicial) — per-source partial-success ──────────────── */
 
-export interface OnboardingSyncResponse {
-  started: boolean;
-}
+/** `OnboardingSyncResponse` real: `{ sources: { sii: { status }, bank: { status } } }`
+    con status `ok` | `failed` | `skipped` (no conectada). */
+export type OnboardingSyncResponse = components["schemas"]["OnboardingSyncResponse"];
 
 /** `POST /api/onboarding/sync` — dispara la traída inicial (SII + banco). NO retry. */
 export function useTriggerOnboardingSync() {

@@ -11,7 +11,14 @@ import { ONBOARDING_DONE_ROUTE } from "./onboarding-steps";
 /* Paso 7 (final) — Traer datos. Dispara la sincronización inicial (SII + banco)
    y, al finalizar, marca el onboarding completado y lleva al dashboard. La sync
    puede ser asíncrona: no bloquea: "lo seguimos trayendo en segundo plano".
-   FE-first (endpoints aún no existen). */
+   Respuesta per-source partial-success (`sources.{sii,bank}.status`). */
+
+const SOURCE_LABEL = { sii: "SII", bank: "Banco" } as const;
+const STATUS_TEXT = {
+  ok: "sincronizado",
+  failed: "no se pudo conectar",
+  skipped: "no conectado",
+} as const;
 
 export function ImportView() {
   const router = useRouter();
@@ -54,6 +61,15 @@ export function ImportView() {
           <>
             <CheckCircle2 className="h-12 w-12 text-success-600" aria-hidden="true" />
             <p className="text-sm text-neutral-dark">¡Listo! Tu información está cargándose.</p>
+            {sync.data?.sources && (
+              <ul className="space-y-1 text-xs text-neutral-mid">
+                {(["sii", "bank"] as const).map((src) => (
+                  <li key={src}>
+                    {SOURCE_LABEL[src]}: {STATUS_TEXT[sync.data!.sources[src].status]}
+                  </li>
+                ))}
+              </ul>
+            )}
           </>
         )}
 

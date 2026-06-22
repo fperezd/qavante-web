@@ -30,7 +30,11 @@ export function OpeningBalanceView() {
       router.push(NEXT);
       return;
     }
-    save.mutate({ balance: digits }, { onSuccess: () => router.push(NEXT) });
+    const as_of_date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (hoy)
+    save.mutate(
+      { amount: digits, currency: "CLP", as_of_date },
+      { onSuccess: () => router.push(NEXT) },
+    );
   }
 
   return (
