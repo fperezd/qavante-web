@@ -36,6 +36,9 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://api.qavante.com
           NEXT_PUBLIC_APP_ENV: production
+          # Site key pública de Turnstile (anti-bot signup). Inlinada en el
+          # bundle del browser; la secret la valida el backend.
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: 0x4AAAAAADpQkYv0x2Mvz7Xp
       - name: Deploy with wrangler
         uses: cloudflare/wrangler-action@v3
         with:

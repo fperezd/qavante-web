@@ -1,36 +1,34 @@
 # Contrato esperado — Onboarding: signup + verificar email
 
-> **CC-WEB → CC-API. 2026-06-21.** Contrato **FE-first**: el FE construyó los
-> pasos 1-2 del wizard de onboarding contra este contrato + MSW, **gated por
-> `onboarding` (OFF en prod)**. Modelo [ADR-0017](../adr/0017-modelo-identidad-multi-empresa.md)
-> (la 1ra persona crea su empresa y queda owner). Los endpoints **aún no existen
-> en prod** (`/api/auth/*` solo tiene login/refresh/accept-invitation/logout).
-> Tipos hand-rolled en `src/lib/api/onboarding.ts`.
+> **CC-WEB → CC-API. Actualizado 2026-06-22.** signup + verify-email **YA están
+> en prod** ✅ → el FE usa los **tipos generados** (`SignupRequest`,
+> `SignupResponse`, `VerifyEmailRequest`, `LoginResponse`) en
+> `src/lib/api/onboarding.ts`. Modelo [ADR-0017](../adr/0017-modelo-identidad-multi-empresa.md)
+> (la 1ra persona crea su empresa y queda owner). Gated por `onboarding` (OFF en
+> prod). Este doc queda como referencia del flujo; el contrato vivo es el OpenAPI.
 
-## 1. `POST /api/auth/signup`
+## 1. `POST /api/auth/signup` ✅ (en prod)
 
-Crea **persona** (email = llave) + **empresa** (RUT, tenant) y deja a la persona
-como **owner**. Dispara el correo de verificación. **NO inicia sesión** (Fase 1:
-primero se verifica el email).
+Crea **persona** (owner) + **empresa** y dispara el correo de verificación. **NO
+inicia sesión** (primero se verifica el email). **Captcha Turnstile obligatorio**
+(fail-closed sin él).
 
-- **Auth:** público (sin sesión).
-- **Request:**
+- **Auth:** público. **Request** (`SignupRequest`):
   ```jsonc
   {
-    "name": "Fernando Pérez",
+    "owner_full_name": "Fernando Pérez",
+    "owner_rut": "11.111.111-1", // RUT de la persona (con DV)
     "email": "fernando@tooxs.com",
     "password": "claveSegura1",
     "company_name": "Tooxs SpA",
-    "company_rut": "76.123.456-7",
+    "company_rut": "76.123.456-0", // opcional (null permitido)
+    "captcha_token": "<token de Turnstile>", // anti-bot; el FE lo manda del widget
   }
   ```
-- **201/200 →**
-  ```jsonc
-  { "email": "fernando@tooxs.com", "verification_sent": true }
-  ```
-- **409** si email o RUT ya existen (el FE muestra el detalle).
-- **422** validación (el FE ya valida formato; el backend valida canónicamente:
-  dígito verificador del RUT, unicidad, fuerza de clave).
+- **200 →** `SignupResponse` `{ "status": "pending_verification", "message": "…" }`.
+- **409** email/RUT duplicado · **422** validación (DV del RUT, unicidad, clave).
+- **Turnstile:** site key pública `NEXT_PUBLIC_TURNSTILE_SITE_KEY` en el FE; la
+  **secret** la valida el backend (`TURNSTILE_SECRET`).
 
 ## 2. `POST /api/auth/verify-email`
 
