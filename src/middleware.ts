@@ -36,5 +36,8 @@ export const config = {
     "/gestion/:path*",
     "/administracion/:path*",
     "/mi-cuenta/:path*",
+    /* Pasos post-auth del wizard de onboarding (conectar SII/banco, rubro, saldo
+       apertura, sincronizar). /registro y /verificar son pre-auth → NO entran. */
+    "/onboarding/:path*",
   ],
 };
