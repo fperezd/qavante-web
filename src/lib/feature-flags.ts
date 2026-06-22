@@ -43,6 +43,7 @@ export const FEATURE_FLAGS = [
   "dashboardSummary",
   "pulsoDetail",
   "assistant",
+  "onboarding",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -83,6 +84,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   /* Asistente Qavante (Sprint C9, Anexo G) — chat read-only. Endpoint FE-first
      esperado (aún no existe — wire format en ADR-0004). */
   assistant: "/api/assistant/chat",
+  /* Onboarding wizard (signup → verificar → SII → banco → rubro → saldo apertura
+     → traer datos → dashboard). Modelo ADR-0017 (1ra persona crea empresa owner).
+     FE-first; entry signup aún no en prod (404). */
+  onboarding: "/api/auth/signup",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
