@@ -30,16 +30,16 @@ Marca el onboarding del tenant como completado.
 - `current_step` ∈ ids de `OnboardingStep` (`signup` | `verify-email` | `connect-sii` |
   `connect-bank` | `industry` | `opening-balance` | `import`).
 
-## Guard (enforcement) — pendiente de wiring
+## Guard (enforcement) — CABLEADO FE-first (gated)
 
-El FE provee `useOnboardingStatus`. La **enforcement** (mandar al wizard si el
-tenant no completó onboarding) **NO está cableada todavía** porque toca el entry
-vivo (`/inicio`) y depende de este `status` (o de `active_company`/`companies`
-del [contrato de identidad](./auth-identity-multi-empresa-contract.md)). Cuando
-exista `GET /api/onboarding/status` (o el login/me devuelva `onboarding_completed`),
-se agrega el guard en un PR dedicado: post-login → si `!completed` → redirect a
-`/onboarding/{current_step}`.
+El guard YA está cableado: `(app)/layout.tsx` (server) resuelve el flag y monta
+`<OnboardingGuard enabled={onboarding} />` (client, `onboarding-guard.tsx`), que
+consulta `useOnboardingStatus` y, si `completed === false`, redirige a
+`/onboarding/{current_step}` (`stepRouteOrFirst`).
 
-**Recomendación:** lo más simple para el FE es que **`/api/me` incluya
-`onboarding_completed: bool`** (un campo), evitando un endpoint extra. Avisar cuál
-prefieren.
+- **FAIL-SAFE:** solo redirige con data y `completed === false`. Loading, error
+  (este endpoint aún 404) o flag OFF → **no redirige** (nunca atrapa al usuario).
+- **Gated `onboarding` OFF** → hoy inerte en prod (no hace requests).
+- **Limitación:** redirección client-side (un flash). **Mejora recomendada:** que
+  **`/api/me` incluya `onboarding_completed: bool`** → el guard pasa a server-side
+  en el layout (sin flash, sin endpoint extra). Avisar si lo agregan a `/api/me`.

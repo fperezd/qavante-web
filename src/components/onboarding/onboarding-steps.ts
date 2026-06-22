@@ -131,3 +131,14 @@ export function prevStep(id: OnboardingStepId): OnboardingStep | null {
 export function routeAfter(id: OnboardingStepId): string {
   return nextStep(id)?.route ?? ONBOARDING_DONE_ROUTE;
 }
+
+/** Primer paso post-auth (al que cae el guard si no sabe el paso exacto). */
+const FIRST_POST_AUTH = ONBOARDING_STEPS.find((s) => s.phase === "post-auth")!;
+
+/** Ruta del wizard a la que mandar a un usuario con onboarding incompleto.
+    Usa el `current_step` que reporta el backend; si no lo reconoce, cae al
+    primer paso post-auth. Para el guard (status.current_step puede ser null). */
+export function stepRouteOrFirst(stepId: string | null | undefined): string {
+  const match = ONBOARDING_STEPS.find((s) => s.id === stepId);
+  return match?.route ?? FIRST_POST_AUTH.route;
+}
