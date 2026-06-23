@@ -35,6 +35,23 @@ const SESSION_COOKIE = "qavante_session=msw-mock-token; Path=/; SameSite=Lax";
 
 const errorBody = (code: string, detail: string) => ({ code, detail });
 
+/* Estado N:M multi-empresa (ADR-0049): empresas del usuario logueado. */
+const meTenantsState: Array<{
+  id: string;
+  slug: string;
+  legal_name: string;
+  role: string;
+  is_active: boolean;
+}> = [
+  {
+    id: "t_qavante_demo",
+    slug: "qavante-demo",
+    legal_name: "MVP Tenant",
+    role: "owner",
+    is_active: true,
+  },
+];
+
 export const authHandlers = [
   http.post("*/api/auth/login", async ({ request }) => {
     const body = (await request.json()) as { rut: string; password: string };
@@ -81,6 +98,44 @@ export const authHandlers = [
         permissions: ["users.read", "users.write"],
       },
     });
+  }),
+
+  /* N:M multi-empresa (ADR-0049): listar / crear / cambiar empresa activa. */
+  http.get("*/api/me/tenants", () =>
+    HttpResponse.json({ tenants: meTenantsState }, { status: 200 }),
+  ),
+
+  http.post("*/api/me/tenants", async ({ request }) => {
+    const body = (await request.json()) as { legal_name?: string };
+    if (!body?.legal_name) {
+      return HttpResponse.json(errorBody("validation_error", "legal_name requerido."), {
+        status: 422,
+      });
+    }
+    const id = `t_new_${meTenantsState.length + 1}`;
+    meTenantsState.push({
+      id,
+      slug: body.legal_name.toLowerCase().replace(/\s+/g, "-"),
+      legal_name: body.legal_name,
+      role: "owner",
+      is_active: false,
+    });
+    return HttpResponse.json(
+      { id, slug: id, legal_name: body.legal_name, role: "owner" },
+      { status: 201 },
+    );
+  }),
+
+  http.post("*/api/me/active-tenant", async ({ request }) => {
+    const body = (await request.json()) as { tenant_id?: string };
+    const target = meTenantsState.find((t) => t.id === body?.tenant_id);
+    if (!target) {
+      return HttpResponse.json(errorBody("forbidden", "No perteneces a esa empresa."), {
+        status: 403,
+      });
+    }
+    meTenantsState.forEach((t) => (t.is_active = t.id === target.id));
+    return new HttpResponse(null, { status: 200, headers: { "Set-Cookie": SESSION_COOKIE } });
   }),
 
   http.post("*/api/auth/accept-invitation", async ({ request }) => {
