@@ -1,8 +1,14 @@
 # Tooxs Frontend Standard
 
-> **Versión:** 1.0 · **Estado:** Activo · **Fecha:** 2026-06-23
+> **Versión:** 1.1 · **Estado:** Activo · **Fecha:** 2026-06-23
 > **Dueño:** CTO / Líder UX/UI · **Aplica a:** todo SaaS web nuevo de Tooxs
 > **Repo de referencia:** `qavante-web` (implementación canónica)
+> **Enforcement:** [`eslint-config-tooxs.mjs`](./eslint-config-tooxs.mjs) (§23)
+>
+> **Changelog:** v1.1 — implementaciones de referencia con código real (§21),
+> enforcement por ESLint (§23), observabilidad (§17), i18n (§18), theming/
+> white-label (§19), auth+SSR (§20), modelo de conformidad (§22) y política de
+> versionado (§24). · v1.0 — estándar inicial.
 
 Este documento es **agnóstico del dominio**: no asume finanzas, salud, logística
 ni ningún vertical. Define el stack, la arquitectura, el design system y las
@@ -393,6 +399,210 @@ vistas existentes se hacen **incrementales con e2e por dominio**, nunca big-bang
 - [ ] Lighthouse perf + a11y dentro de presupuesto
 - [ ] PR atómico (1 issue), no-regresión validada
 ```
+
+---
+
+---
+
+## 17. Observabilidad y errores de cliente
+
+Un estándar maduro **sabe cuándo se rompe en producción**.
+
+| Qué | Estándar | Dónde |
+| --- | --- | --- |
+| Errores no capturados | Reporter en `error.tsx` / `global-error.tsx` + `onError` de Query | Boundaries |
+| Errores de red/API | Tag por `status`/`code` de `ApiError` (no por mensaje) | `lib/api/client` |
+| Performance real (RUM) | Web Vitals reportados (`useReportWebVitals`) | Layout raíz |
+| PII | **Nunca** en logs/tags. Scrub antes de enviar | Reporter |
+
+```tsx
+// app/error.tsx — boundary por segmento, reporta y degrada local.
+"use client";
+import { useEffect } from "react";
+export default function Error({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => { reportError(error); }, [error]); // Sentry/equivalente, sin PII
+  return <InlineError error={error} what="esta sección" onRetry={reset} />;
+}
+```
+
+**Regla:** el proveedor concreto (Sentry, etc.) es intercambiable; lo normativo es
+que **exista un único `reportError(e)`** y que toda boundary lo llame.
+
+## 18. Internacionalización
+
+Aunque el producto lance con un solo locale, **los copys no se hardcodean en JSX**.
+
+- Todo texto visible sale de `next-intl` (`useTranslations`/`getTranslations`).
+- Plurales con ICU (`{n, plural, one {# fila} other {# filas}}`), no `if`.
+- Fechas/números **siempre** vía formatters centralizados (`lib/formatters`), nunca
+  `toLocaleString` disperso. Moneda/zona horaria del *tenant*, no del navegador.
+- Claves namespaced por dominio (`dashboard.*`, `auth.*`), nunca por pantalla suelta.
+
+## 19. Theming, dark mode y white-label
+
+El sistema de tokens (§4.1) es la base; el theming es **runtime**, no rebuild.
+
+- **Dark mode:** se resuelve con un segundo set de variables bajo `[data-theme="dark"]`
+  / `prefers-color-scheme`. Los componentes **nunca** referencian un set; usan la
+  utilidad semántica (`text-foreground`, `bg-surface`), que cambia con el tema.
+- **White-label / multi-tenant:** un tenant puede sobreescribir `--<brand>-primary*`
+  inyectando variables en el `<html>` desde el server (Server Component lee el tema
+  del tenant). Cero recompilación por marca.
+- **Prohibido** hardcodear hex en componentes. Si un color no es token, no existe.
+
+```css
+:root { --c-surface: #fff; --c-foreground: #1d1d1b; }
+[data-theme="dark"] { --c-surface: #0a0f1c; --c-foreground: #e8edf5; }
+/* tenant override (inyectado server-side): */
+[data-tenant="acme"] { --brand-primary: #7c3aed; }
+```
+
+## 20. Autenticación y sesión (SSR)
+
+- **Tokens solo en cookies `httpOnly` + `Secure` + `SameSite`.** Jamás en JS/Storage.
+- La sesión se lee en el **servidor** (Server Component / middleware leyendo la
+  cookie), no en el cliente. El gating de UI por rol es UX; la autorización real la
+  impone el backend (403).
+- **Redirect de no-autenticado** en middleware/layout server, no en un `useEffect`
+  (evita flash de contenido protegido).
+- Un 401 en una query de datos dispara el flujo de re-login **una sola vez**
+  (interceptor central), con `skipAuthRetry` para pasos opcionales que no deben
+  expulsar al usuario.
+
+## 21. Implementaciones de referencia (código canónico)
+
+Esto es lo que las features copian. No es pseudocódigo: es el contrato.
+
+### 21.1 `QueryClient` (providers)
+
+```tsx
+// components/providers/app-providers.tsx
+"use client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
+import { Toaster, toast } from "@/components/<brand>/toaster";
+import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+
+export function AppProviders({ children }: { children: React.ReactNode }) {
+  const [client] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
+          mutations: { onError: (e) => toast.error(apiErrorToUserMessage(e)) },
+        },
+      }),
+  );
+  return (
+    <QueryClientProvider client={client}>
+      {children}
+      <Toaster /> {/* montado UNA vez, acá. Si no está montado, es un bug. */}
+    </QueryClientProvider>
+  );
+}
+```
+
+### 21.2 `AsyncBoundary` (el primitivo que mata el boilerplate)
+
+```tsx
+// components/<brand>/async-boundary.tsx
+import type { UseQueryResult } from "@tanstack/react-query";
+import { InlineError } from "./inline-error";
+
+type Props<T> = {
+  query: UseQueryResult<T>;
+  skeleton: React.ReactNode;        // forma que anticipa el contenido
+  empty?: React.ReactNode;          // Empty de marca con CTA
+  isEmpty?: (data: T) => boolean;
+  what: string;                     // "las facturas", "el resumen"…
+  children: (data: T) => React.ReactNode;
+};
+
+export function AsyncBoundary<T>({ query, skeleton, empty, isEmpty, what, children }: Props<T>) {
+  if (query.isLoading) return <>{skeleton}</>;
+  if (query.isError) return <InlineError error={query.error} what={what} />;
+  if (query.data === undefined) return null;
+  if (empty && isEmpty?.(query.data)) return <>{empty}</>;
+  return <>{children(query.data)}</>;
+}
+```
+
+```tsx
+// uso en cualquier *-view — CERO if/isLoading a mano:
+<AsyncBoundary query={q} what="las facturas" skeleton={<TableSkeleton rows={6} />}
+  isEmpty={(d) => d.items.length === 0} empty={<Empty title="Sin facturas" .../>}>
+  {(data) => <InvoiceTable data={data} />}
+</AsyncBoundary>
+```
+
+### 21.3 Mapeo de errores (un solo lugar)
+
+```ts
+// lib/api/error-messages.ts — el usuario NUNCA ve error.message crudo.
+import { ApiError } from "./errors";
+export function apiErrorToUserMessage(e: unknown): string {
+  if (e instanceof ApiError) {
+    if (e.isNetworkError()) return "Sin conexión. Revisá tu internet e intentá de nuevo.";
+    if (e.isUnauthorized()) return "Tu sesión expiró. Iniciá sesión nuevamente.";
+    if (e.isForbidden()) return "No tenés permisos para esta acción.";
+    if (e.isValidation()) return "Revisá los datos ingresados.";
+    if (e.isServerError()) return "Tuvimos un problema. Reintentá en unos minutos.";
+  }
+  return "Algo salió mal. Intentá nuevamente.";
+}
+```
+
+### 21.4 Formulario (RHF + Zod)
+
+```tsx
+const schema = z.object({ email: z.string().email(), name: z.string().min(2) });
+const form = useForm({ resolver: zodResolver(schema), mode: "onBlur" });
+const mutation = useMutation({
+  mutationFn: api.create,
+  onSuccess: () => { toast.success("Guardado."); form.reset(); },
+  // onError ya está cubierto por el default global del QueryClient.
+});
+// submit deshabilitado + loading mientras corre; errores inline por campo.
+```
+
+## 22. Modelo de conformidad (niveles)
+
+Un repo declara su nivel; el objetivo es **Gold**.
+
+| Nivel | Criterio |
+| --- | --- |
+| 🥉 **Bronze** | Stack canónico (§1) + carpetas (§2.2) + tipos generados + sin Node-only/Storage. Pasa `eslint-config-tooxs`. |
+| 🥈 **Silver** | Bronze + `AsyncBoundary`/`Toaster`/`QueryClient` de referencia (§21) + a11y estática + Storybook de Capa 1. |
+| 🥇 **Gold** | Silver + streaming RSC con `loading.tsx`/`error.tsx` por segmento + a11y dinámica + observabilidad (§17) + Lighthouse perf **y** a11y en gate + e2e de flujos núcleo. |
+
+**Regla:** un producto que entra a clientes debe estar en **Silver mínimo**; el
+estándar de excelencia es **Gold**.
+
+## 23. Enforcement (no es opcional)
+
+El preset [`eslint-config-tooxs.mjs`](./eslint-config-tooxs.mjs) convierte las
+prohibiciones duras en errores de build:
+
+- `export const runtime` → error (rompe el adapter Cloudflare).
+- `localStorage`/`sessionStorage`/`indexedDB`/`Buffer` → error.
+- imports Node-only (`fs`, `path`, `child_process`, `os`) → error.
+- `any` sin justificación → error (relajado en tests/stories).
+- `error.message` crudo en UI → error (usá `apiErrorToUserMessage`).
+- import default de `api/types` (generado) → error.
+
+Rollout sin romper CI: arrancar las reglas en `warn`, limpiar 1 PR por regla, subir
+a `error`. **Un estándar sin enforcement es una sugerencia.**
+
+## 24. Versionado y migración
+
+- **SemVer normativo:** MAJOR = cambio que obliga a migrar repos existentes; MINOR =
+  agrega reglas/secciones sin romper; PATCH = editorial.
+- Todo bump MAJOR trae **guía de migración** (qué cambia, cómo adaptar, codemods si
+  aplica) y ventana de adopción.
+- Cambios nacen por **ADR** en el repo del producto; si son generalizables, se
+  proponen de vuelta a este estándar.
+- El preset de ESLint se versiona junto al doc: el repo declara qué versión del
+  estándar cumple.
 
 ---
 
