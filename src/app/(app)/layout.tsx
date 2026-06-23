@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/shell/app-shell";
 import { OnboardingGuard } from "@/components/onboarding/onboarding-guard";
+import { LiveRegion } from "@/components/a11y/live-region";
 import { auth } from "@/lib/auth/session";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
@@ -19,6 +20,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           completó onboarding, redirige al wizard. Fail-safe (ver el componente). */}
       {onboarding && <OnboardingGuard />}
       {children}
+      {/* A11y dinámica: región aria-live global (Tooxs Standard §9). */}
+      <LiveRegion />
     </AppShell>
   );
 }
