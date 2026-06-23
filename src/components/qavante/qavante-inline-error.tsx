@@ -1,45 +1,27 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
-import { cn } from "@/lib/utils";
+import { InlineError } from "./inline-error";
 
-/* Alerta inline para estados de error de queries (Anexo C.3 mapeo de copys).
-   Reemplaza la función ErrorState duplicada idénticamente en 4 views
-   (monedas, reglas, plantillas, por-clasificar). Mapea ApiError →
-   apiErrorToUserMessage cuando aplica, y cae al copy "No pudimos cargar
-   {what}" en otros errores no clasificados.
-
-   Patrón consistente del repo: borde + fondo danger suave + icono
-   AlertCircle + role="alert" para a11y (los lectores anuncian el cambio
-   automáticamente). */
+/* QavanteInlineError — wrapper de APP sobre el primitivo agnóstico InlineError.
+   Mapea el `ApiError` del backend a copy de usuario (Anexo C.3) y delega la
+   presentación. Esta es la pieza acoplada a la API de Qavante: se queda en el
+   repo, NO se extrae (el primitivo agnóstico InlineError sí — ver
+   capa1-extraction-map §B). Mantiene la ergonomía `{ error, what }` que ya
+   usan ~13 vistas, así que el desacople es transparente para ellas. */
 
 export interface QavanteInlineErrorProps extends React.HTMLAttributes<HTMLDivElement> {
-  /** Error sin tipar (puede venir de TanStack Query, fetch, etc.). Si es
-   *  `ApiError`, mapeamos a copy del Anexo C.3; cualquier otra cosa cae al
-   *  fallback genérico con `what`. */
+  /** Error sin tipar (TanStack Query, fetch, etc.). Si es `ApiError`, se mapea
+   *  a copy del Anexo C.3; cualquier otra cosa cae al fallback con `what`. */
   error: unknown;
-  /** Qué se intentaba cargar — completa la frase "No pudimos cargar {what}".
-   *  Ej: "las reglas", "los ajustes de moneda", "las plantillas". */
+  /** Qué se intentaba cargar — completa "No pudimos cargar {what}". */
   what: string;
 }
 
-export function QavanteInlineError({ error, what, className, ...rest }: QavanteInlineErrorProps) {
+export function QavanteInlineError({ error, what, ...rest }: QavanteInlineErrorProps) {
   const message =
     error instanceof ApiError ? apiErrorToUserMessage(error) : `No pudimos cargar ${what}.`;
-  return (
-    <div
-      role="alert"
-      className={cn(
-        "flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark",
-        className,
-      )}
-      {...rest}
-    >
-      <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
-      <p>{message}</p>
-    </div>
-  );
+  return <InlineError message={message} {...rest} />;
 }

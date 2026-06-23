@@ -4,6 +4,7 @@ export { QavanteCard, type QavanteCardProps } from "./qavante-card";
 export { QavanteBadge, type QavanteBadgeProps } from "./qavante-badge";
 export { QavanteEmpty, type QavanteEmptyProps } from "./qavante-empty";
 export { QavanteInlineError, type QavanteInlineErrorProps } from "./qavante-inline-error";
+export { InlineError, type InlineErrorProps } from "./inline-error";
 export {
   FeatureUnavailableState,
   type FeatureUnavailableStateProps,

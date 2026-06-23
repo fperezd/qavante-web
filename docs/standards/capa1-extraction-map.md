@@ -133,9 +133,18 @@ son financieros de Qavante.
 - Formatters de dominio (`clp`, `rut`) y tokens de dominio (Pulso).
 - El asset de logo y la voz de marca de Qavante.
 
-## Próximo paso concreto (sin publicar)
+## Estado de desacoplamientos
 
-Resolver el acoplamiento **B** in-repo: introducir el wrapper `AppInlineError` en
-Qavante y dejar `InlineError`/`AsyncBoundary` agnósticos. Es el único cambio que
-hace la Capa 1 verdaderamente extraíble, y es de bajo riesgo (1 PR, aditivo + un
-reemplazo de import en las vistas que ya usan `QavanteInlineError`).
+- ✅ **B — hecho** (2026-06-23). Se creó el primitivo agnóstico `InlineError`
+  (`{ message }`, sin import de API) y `QavanteInlineError` quedó como **wrapper de
+  app** que mapea `ApiError → texto` y delega en él. `AsyncBoundary` ahora usa el
+  primitivo agnóstico + un `resolveError` inyectable. Cero churn en las ~13 vistas
+  (mantienen `QavanteInlineError` con `{ error, what }`). Verificado: typecheck OK,
+  lint 0 errores, 559 unit tests verdes.
+- ⏳ **A** (alias `@/`) · **C** (colores themeables) · **D** (dominio en
+  `source-tag`/`input`): se resuelven en la extracción real, cuando llegue el #2.
+
+Con **B** resuelto, la Capa 1 ya es **extraíble**: los primitivos agnósticos
+(`InlineError`, `AsyncBoundary`, `Skeleton`, `Button`, `Card`, …) no arrastran
+lógica de API. Lo único acoplado que queda (`QavanteInlineError`) es,
+deliberadamente, el wrapper de app que NO se extrae.
