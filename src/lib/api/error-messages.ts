@@ -22,6 +22,12 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
       return "La fuente no está disponible en este momento.";
     case "config_missing":
       return err.message;
+    /* Captcha (Turnstile): el token es de un solo uso y expira → un reintento
+       con el token viejo da `captcha_failed` (status 403). NO es un problema de
+       permisos: hay que rehacer el captcha. Mapear explícito antes del switch
+       de status (que lo mostraba como "No tienes permisos"). */
+    case "captcha_failed":
+      return "No pudimos verificar el captcha. Recárgalo e intenta de nuevo.";
   }
 
   if (err.isNetworkError()) {

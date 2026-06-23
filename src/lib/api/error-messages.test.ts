@@ -24,6 +24,13 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     expect(apiErrorToUserMessage(err)).toBe("Tu sesión expiró. Vuelve a iniciar sesión.");
   });
 
+  it("captcha_failed (403) → mensaje de captcha, NO 'no tienes permisos'", () => {
+    const err = new ApiError("Verificación de captcha fallida.", 403, "captcha_failed");
+    expect(apiErrorToUserMessage(err)).toBe(
+      "No pudimos verificar el captcha. Recárgalo e intenta de nuevo.",
+    );
+  });
+
   it("403 → 'no tienes permisos'", () => {
     expect(apiErrorToUserMessage(new ApiError("forbidden", 403))).toBe(
       "No tienes permisos para realizar esta acción.",

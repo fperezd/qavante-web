@@ -61,6 +61,37 @@ describe("api — errores", () => {
     await expect(api.get("/api/boom")).rejects.toBeInstanceOf(ApiError);
   });
 
+  it("detail anidado {code,detail} se extrae como message+code (no [object Object])", async () => {
+    server.use(
+      http.get(`${BASE}/api/nested`, () =>
+        HttpResponse.json(
+          { detail: { code: "captcha_failed", detail: "Verificación de captcha fallida." } },
+          { status: 403 },
+        ),
+      ),
+    );
+    await expect(api.get("/api/nested")).rejects.toMatchObject({
+      status: 403,
+      code: "captcha_failed",
+      message: "Verificación de captcha fallida.",
+    });
+  });
+
+  it("detail array (validación 422) usa el primer msg, no [object Object]", async () => {
+    server.use(
+      http.get(`${BASE}/api/invalid`, () =>
+        HttpResponse.json(
+          { detail: [{ loc: ["body", "email"], msg: "value is not a valid email", type: "x" }] },
+          { status: 422 },
+        ),
+      ),
+    );
+    await expect(api.get("/api/invalid")).rejects.toMatchObject({
+      status: 422,
+      message: "value is not a valid email",
+    });
+  });
+
   it("error de red se mapea a ApiError status 0 (isNetworkError)", async () => {
     server.use(http.get(`${BASE}/api/down`, () => HttpResponse.error()));
     try {
