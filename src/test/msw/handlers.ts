@@ -1017,6 +1017,7 @@ const currenciesHandlers = [
    en PR-Cb2. Estado mínimo en memoria, suficiente para dev preview +
    tests sin backend (ADR-0005). */
 let siiV2State: { is_active: boolean; rut?: string } = { is_active: false };
+let biceConnected = false;
 const certsV2State: Array<{
   id: string;
   rut_holder: string;
@@ -1118,6 +1119,22 @@ const credentialsHandlersV2 = [
     }
     certsV2State.splice(idx, 1);
     return new HttpResponse(null, { status: 204 });
+  }),
+
+  /* Conexión bancaria BICE (Administración → Credenciales + paso de onboarding). */
+  http.get("*/api/credentials/bice", () =>
+    HttpResponse.json({ provider: "bice", connected: biceConnected }, { status: 200 }),
+  ),
+
+  http.put("*/api/credentials/bice", async ({ request }) => {
+    const body = (await request.json()) as { rut?: string; password?: string };
+    if (!body?.rut || !body?.password) {
+      return HttpResponse.json(errorBody("validation_error", "rut y password son requeridos."), {
+        status: 422,
+      });
+    }
+    biceConnected = true;
+    return new HttpResponse(null, { status: 200 });
   }),
 ];
 

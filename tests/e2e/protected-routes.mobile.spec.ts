@@ -60,7 +60,9 @@ test.describe("Mobile (Pixel 5) — rutas protegidas /app/*", () => {
     await loginAs(context, "owner");
     await page.goto("/administracion/credenciales");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Credenciales SII" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Credenciales y conexiones" }),
+    ).toBeVisible();
 
     /* Esperamos el fetch GET /api/admin/sources/sii_rcv/credential vía MSW;
        sin networkidle el card puede mostrarse antes que la data arrive. */
