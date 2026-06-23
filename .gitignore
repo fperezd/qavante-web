@@ -64,3 +64,6 @@ storybook-static
 /Logo Qavante.png
 /Manual_de_Marca_Qavante.pdf
 /Qavante_assets/
+
+# build de paquetes del workspace
+packages/*/dist

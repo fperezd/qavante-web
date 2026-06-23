@@ -19,15 +19,26 @@ Design system reutilizable de Tooxs — **Capa 1**: primitivos agnósticos de do
 ## Uso
 
 ```bash
-npm i @tooxs/ui   # workspace por ahora; publicable a registry cuando haya 2º consumidor
+npm i @tooxs/ui
+npm i react react-dom recharts @tanstack/react-table \
+  @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities   # peers
 ```
 
-En tu `globals.css`:
+`next.config.ts` (se distribuye como source → Next lo transpila):
+
+```ts
+const nextConfig = { transpilePackages: ["@tooxs/ui"] };
+```
+
+En tu `globals.css` (Tailwind v4 ignora `node_modules` → hay que apuntarle):
 
 ```css
 @import "tailwindcss";
+@source "../../node_modules/@tooxs/ui/src";
 @import "@tooxs/ui/styles.css";
 ```
+
+> Guía completa de publicación y consumo: [PUBLISHING.md](./PUBLISHING.md).
 
 En tu código:
 
@@ -56,6 +67,12 @@ los tokens sin tocar el paquete:
 
 ## Estado
 
-`0.1.0` — workspace interno, consumido vía monorepo. Para publicar a npm: agregar
-build (tsup/tsc) y mover `@dnd-kit`/`recharts`/`@tanstack/react-table` a
-`peerDependencies` si se quiere deduplicar en el consumidor.
+`0.1.0` — publicable como **source** (Next lo transpila vía `transpilePackages`).
+React-context deps (`recharts`, `@tanstack/react-table`, `@dnd-kit/*`) son
+`peerDependencies` para garantizar una sola instancia. Ver
+[PUBLISHING.md](./PUBLISHING.md).
+
+Se evaluó un bundle (tsup/bunchee) pero se descartó: el merge RSC co-loca `cn` en
+un chunk `"use client"` y rompe los componentes server que lo usan. Shipping source
+es correcto por construcción (directivas por archivo). El bundle queda como opción
+futura si se quiere evitar `transpilePackages` (requiere validarlo en un Next real).

@@ -65,3 +65,17 @@ de marca como defaults themeables.
 - [Mapa de extracción de la Capa 1](../standards/capa1-extraction-map.md)
 - [Tooxs Frontend Standard](../standards/tooxs-frontend-standard.md)
 - `packages/ui/README.md`
+
+## Actualización (2026-06-23) — paquete publicable
+
+Se hizo publicable: `peerDependencies` para los deps con contexto de React
+(`react`, `react-dom`, `recharts`, `@tanstack/react-table`, `@dnd-kit/*`) → una sola
+instancia en el consumidor; el resto como `dependencies`. Distribución como
+**source TypeScript** (el consumidor transpila con `transpilePackages`).
+
+Se **evaluó y descartó** un bundle (tsup + `esbuild-plugin-preserve-directives`, y
+`bunchee`): el merge RSC co-loca `cn` en un chunk `"use client"` y rompe los
+componentes server que lo usan (ej. `Card`). Shipping source es correcto por
+construcción (Next respeta las directivas por archivo). El bundle queda como opción
+futura si se quiere evitar `transpilePackages`, previa validación en un Next real.
+Pasos de publicación y consumo en `packages/ui/PUBLISHING.md`.
