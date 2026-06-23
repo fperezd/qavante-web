@@ -62,7 +62,7 @@ para drag & drop accesible.
       Board). La regresión visual (Chromatic) corre en CI con navegador real; el
       runner browser local no está disponible en este entorno (build de Chromium
       ausente, descarga bloqueada) — validadas por typecheck + eslint-storybook.
-- [ ] Al extraer a `@tooxs/ui`, @dnd-kit y recharts pasan a `peerDependencies`.
+- [ ] Al extraer a `@tooxs-digital/ui`, @dnd-kit y recharts pasan a `peerDependencies`.
 
 ## Referencias
 

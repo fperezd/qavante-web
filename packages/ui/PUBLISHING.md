@@ -1,6 +1,6 @@
-# Publicar y consumir `@tooxs/ui`
+# Publicar y consumir `@tooxs-digital/ui`
 
-`@tooxs/ui` se distribuye **bundleado** (con [bunchee](https://github.com/huozhi/bunchee)):
+`@tooxs-digital/ui` se distribuye **bundleado** (con [bunchee](https://github.com/huozhi/bunchee)):
 `dist/` con ESM + `.d.ts`, y los `"use client"` preservados **por componente**. Es
 **zero-config**: el consumidor NO necesita `transpilePackages`. (Validado con un
 `next build` real de una app que lo consume desde el tarball.)
@@ -19,7 +19,7 @@ npm run build      # bunchee -> dist/
 
 `prepublishOnly` corre el build automáticamente antes de `npm publish`.
 
-## Publicar a GitHub Packages (org `tooxs`)
+## Publicar a GitHub Packages (org `tooxs-digital`)
 
 El scope `@tooxs` requiere una **organización `tooxs`** en GitHub (el scope npm de
 GitHub Packages = owner). Creala (gratis) y asegurate de que el repo del paquete
@@ -28,7 +28,7 @@ viva bajo esa org (o publicá con un PAT con permiso sobre la org).
 **1. Auth — `~/.npmrc` (o del repo):**
 
 ```
-@tooxs:registry=https://npm.pkg.github.com
+@tooxs-digital:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
@@ -45,7 +45,7 @@ npm publish                # usa publishConfig.registry = npm.pkg.github.com
 
 ### Publicar desde CI (GitHub Actions)
 
-Workflow (corre desde un repo **bajo la org `tooxs`**, donde `GITHUB_TOKEN` tiene
+Workflow (corre desde un repo **bajo la org `tooxs-digital`**, donde `GITHUB_TOKEN` tiene
 permiso de packages; si el paquete vive en otro owner, usá un PAT como secret):
 
 ```yaml
@@ -65,10 +65,10 @@ jobs:
         with:
           node-version: 24
           registry-url: https://npm.pkg.github.com
-          scope: "@tooxs"
+          scope: "@tooxs-digital"
       - run: npm ci
-      - run: npm run build -w @tooxs/ui
-      - run: npm publish -w @tooxs/ui
+      - run: npm run build -w @tooxs-digital/ui
+      - run: npm publish -w @tooxs-digital/ui
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -78,14 +78,14 @@ jobs:
 **1. `~/.npmrc` de la app** (para instalar desde GitHub Packages):
 
 ```
-@tooxs:registry=https://npm.pkg.github.com
+@tooxs-digital:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
 **2. Instalar** (el paquete + sus peers):
 
 ```bash
-npm i @tooxs/ui
+npm i @tooxs-digital/ui
 npm i react react-dom recharts @tanstack/react-table \
   @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
 ```
@@ -95,8 +95,8 @@ al `dist` del paquete y cargá los tokens. **No hace falta `transpilePackages`.*
 
 ```css
 @import "tailwindcss";
-@source "../node_modules/@tooxs/ui/dist"; /* genera las clases del paquete */
-@import "@tooxs/ui/styles.css"; /* tokens + @theme de marca */
+@source "../node_modules/@tooxs-digital/ui/dist"; /* genera las clases del paquete */
+@import "@tooxs-digital/ui/styles.css"; /* tokens + @theme de marca */
 ```
 
 > Ajustá el path de `@source` según dónde viva tu `globals.css`.
@@ -104,7 +104,7 @@ al `dist` del paquete y cargá los tokens. **No hace falta `transpilePackages`.*
 **4. Montá el `Toaster` una vez** (en tu layout/provider):
 
 ```tsx
-import { Toaster } from "@tooxs/ui";
+import { Toaster } from "@tooxs-digital/ui";
 // ...> {children}<Toaster />
 ```
 
@@ -120,7 +120,7 @@ import { Toaster } from "@tooxs/ui";
 boundary solos):
 
 ```tsx
-import { Button, Card, AsyncBoundary, DataTable, Board } from "@tooxs/ui";
+import { Button, Card, AsyncBoundary, DataTable, Board } from "@tooxs-digital/ui";
 ```
 
 ## Checklist de release
@@ -128,6 +128,6 @@ import { Button, Card, AsyncBoundary, DataTable, Board } from "@tooxs/ui";
 - [ ] `npm run typecheck` (en `packages/ui`) verde.
 - [ ] `npm run build` genera `dist/` (ESM + `.d.ts`).
 - [ ] Bump de versión (semver) + `CHANGELOG`.
-- [ ] `npm publish` a GitHub Packages (org `tooxs`).
-- [ ] Probar `npm i @tooxs/ui` en una app limpia (`@source` + peers, sin
+- [ ] `npm publish` a GitHub Packages (org `tooxs-digital`).
+- [ ] Probar `npm i @tooxs-digital/ui` en una app limpia (`@source` + peers, sin
       `transpilePackages`) y `next build`.

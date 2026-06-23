@@ -6,7 +6,7 @@
  * convierte el estándar en arquitectura: el linter impide la violación.
  *
  * ── Adopción (sin romper CI el día 1) ────────────────────────────────────
- * 1. Copiá este archivo al repo (o, en Fase 2, instalá @tooxs/eslint-config).
+ * 1. Copiá este archivo al repo (o, en Fase 2, instalá @tooxs-digital/eslint-config).
  * 2. En tu eslint.config.mjs:
  *
  *      import tooxs from "./docs/standards/eslint-config-tooxs.mjs";

@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* InlineError — primitivo AGNÓSTICO de alerta inline (Capa 1, extraíble a
-   @tooxs/ui). Recibe el mensaje ya resuelto: NO conoce ninguna API ni mapea
+   @tooxs-digital/ui). Recibe el mensaje ya resuelto: NO conoce ninguna API ni mapea
    errores de un backend específico (ver capa1-extraction-map §B). El mapeo
    ApiError → texto vive en el wrapper de app `QavanteInlineError`.
 

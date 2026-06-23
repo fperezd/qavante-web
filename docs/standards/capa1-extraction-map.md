@@ -18,7 +18,7 @@ abstraer a partir de un caso → API que calza Qavante y nadie más. Por eso:
 1. **Ahora:** consolidar la Capa 1 in-repo como **extraíble** (resolver los
    acoplamientos de abajo), pero **sin publicar**.
 2. **Disparador:** el día que aparezca el SaaS #2 (o el primer copy-paste cross-repo
-   de un primitivo), se extrae a `@tooxs/ui`. La extracción será casi mecánica
+   de un primitivo), se extrae a `@tooxs-digital/ui`. La extracción será casi mecánica
    porque los acoplamientos ya estarán resueltos.
 
 ## Clasificación archivo por archivo
@@ -113,7 +113,7 @@ son financieros de Qavante.
 ## Estructura propuesta del paquete (cuando llegue el #2)
 
 ```
-@tooxs/ui/
+@tooxs-digital/ui/
   src/
     primitives/   button, card, badge, input, empty, inline-error,
                   skeleton, async-boundary, toaster, source-tag, feature-state
@@ -124,7 +124,7 @@ son financieros de Qavante.
                   tailwind-merge, lucide-react, sonner
 ```
 
-`@tooxs/eslint-config` (el preset ya verificado) viaja como paquete hermano.
+`@tooxs-digital/eslint-config` (el preset ya verificado) viaja como paquete hermano.
 
 ## Lo que NUNCA se extrae
 

@@ -1,4 +1,4 @@
-/* @tooxs/ui — barrel del design system (Capa 1). Solo primitivos agnósticos de
+/* @tooxs-digital/ui — barrel del design system (Capa 1). Solo primitivos agnósticos de
    dominio. La lógica de negocio, la API y los tokens de dominio viven en cada app.
 
    Distribución bundleada (zero-config, sin transpilePackages): se exportan SOLO

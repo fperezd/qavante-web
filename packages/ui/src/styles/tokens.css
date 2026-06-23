@@ -1,4 +1,4 @@
-/* @tooxs/ui — tokens base (de-brandeados, themeables).
+/* @tooxs-digital/ui — tokens base (de-brandeados, themeables).
  *
  * Estos son los DEFAULTS del design system. Cada SaaS los sobreescribe en su
  * propio `:root` (o por tenant) sin tocar el paquete — ej. para white-label:

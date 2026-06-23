@@ -1,4 +1,4 @@
-# ADR-0019: Extraer la Capa 1 a `@tooxs/ui` (workspace, sin publicar aún)
+# ADR-0019: Extraer la Capa 1 a `@tooxs-digital/ui` (workspace, sin publicar aún)
 
 - **Status:** Accepted
 - **Fecha:** 2026-06-23
@@ -9,7 +9,7 @@
 
 El design system (Capa 1) de Qavante ya era extraíble tras el desacople B (ver
 [mapa de extracción](../standards/capa1-extraction-map.md)). Decisión de negocio:
-materializar el paquete reutilizable `@tooxs/ui` ahora, para que sea consumible por
+materializar el paquete reutilizable `@tooxs-digital/ui` ahora, para que sea consumible por
 los próximos SaaS de Tooxs.
 
 Restricción dura: **no romper Qavante**. La migración de Qavante a consumir el
@@ -18,7 +18,7 @@ no se justifica todavía.
 
 ## Decisión
 
-Creamos `packages/ui` (`@tooxs/ui`) como **workspace del monorepo**: paquete real,
+Creamos `packages/ui` (`@tooxs-digital/ui`) como **workspace del monorepo**: paquete real,
 de-brandeado, con los primitivos agnósticos + tokens themeables + `cn`. Qavante
 **no** se rewirea en este paso (cero regresión); el paquete es el artefacto extraído
 y la migración del consumidor queda como paso opcional posterior.
@@ -30,7 +30,7 @@ de marca como defaults themeables.
 
 ## Alternativas consideradas
 
-- **Rewire completo de Qavante a `@tooxs/ui` — descartada (ahora):** alto riesgo
+- **Rewire completo de Qavante a `@tooxs-digital/ui` — descartada (ahora):** alto riesgo
   (toca todas las vistas), sin beneficio hasta que exista un 2º consumidor.
 - **No extraer hasta el SaaS #2 — descartada:** el negocio pidió el paquete ya; el
   desacople estaba hecho, el costo de materializarlo es bajo si no se rewirea.
@@ -41,7 +41,7 @@ de marca como defaults themeables.
 
 ### Positivas
 
-- `@tooxs/ui` existe, typecheckea y queda linkeado (`node_modules/@tooxs/ui`).
+- `@tooxs-digital/ui` existe, typecheckea y queda linkeado (`node_modules/@tooxs-digital/ui`).
 - Listo para que un SaaS #2 lo consuma (o se publique a registry con un build).
 - Qavante sigue como implementación de referencia, sin tocar.
 
@@ -55,7 +55,7 @@ de marca como defaults themeables.
 
 ### Acciones que destraba o requiere
 
-- [ ] Migrar Qavante a `@tooxs/ui` de forma incremental (1 dominio por PR) cuando se
+- [ ] Migrar Qavante a `@tooxs-digital/ui` de forma incremental (1 dominio por PR) cuando se
       decida eliminar la duplicación — o al aparecer el 2º consumidor.
 - [ ] Agregar build + mover `@dnd-kit`/`recharts`/`@tanstack/react-table` a
       `peerDependencies` antes de publicar a registry.

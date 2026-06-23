@@ -1,4 +1,4 @@
-# @tooxs/ui
+# @tooxs-digital/ui
 
 Design system reutilizable de Tooxs — **Capa 1**: primitivos agnósticos de dominio
 
@@ -19,7 +19,7 @@ Design system reutilizable de Tooxs — **Capa 1**: primitivos agnósticos de do
 ## Uso
 
 ```bash
-npm i @tooxs/ui
+npm i @tooxs-digital/ui
 npm i react react-dom recharts @tanstack/react-table \
   @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities   # peers
 ```
@@ -29,8 +29,8 @@ ignora `node_modules` → hay que apuntarle al `dist`):
 
 ```css
 @import "tailwindcss";
-@source "../node_modules/@tooxs/ui/dist";
-@import "@tooxs/ui/styles.css";
+@source "../node_modules/@tooxs-digital/ui/dist";
+@import "@tooxs-digital/ui/styles.css";
 ```
 
 > Guía completa de publicación y consumo: [PUBLISHING.md](./PUBLISHING.md).
@@ -38,7 +38,7 @@ ignora `node_modules` → hay que apuntarle al `dist`):
 En tu código:
 
 ```tsx
-import { Button, Card, AsyncBoundary, Toaster } from "@tooxs/ui";
+import { Button, Card, AsyncBoundary, Toaster } from "@tooxs-digital/ui";
 ```
 
 ## Theming / white-label

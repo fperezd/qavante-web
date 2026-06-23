@@ -1,8 +1,8 @@
-/* @tooxs/ui — hoja de estilos del design system.
+/* @tooxs-digital/ui — hoja de estilos del design system.
  *
  * Uso en el consumidor (su globals.css):
  *   @import "tailwindcss";
- *   @import "@tooxs/ui/styles.css";
+ *   @import "@tooxs-digital/ui/styles.css";
  *
  * Expone los tokens (de tokens.css) como utilidades de Tailwind v4 (`bg-brand-primary`,
  * `text-neutral-dark`, `rounded-lg`, `shadow-md`, etc.) que consumen los primitivos.
