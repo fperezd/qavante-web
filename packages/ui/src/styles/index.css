@@ -1,0 +1,61 @@
+/* @tooxs/ui — hoja de estilos del design system.
+ *
+ * Uso en el consumidor (su globals.css):
+ *   @import "tailwindcss";
+ *   @import "@tooxs/ui/styles.css";
+ *
+ * Expone los tokens (de tokens.css) como utilidades de Tailwind v4 (`bg-brand-primary`,
+ * `text-neutral-dark`, `rounded-lg`, `shadow-md`, etc.) que consumen los primitivos.
+ * `inline` resuelve las referencias contra los `--*` de tokens.css → el consumidor
+ * puede sobreescribir esos vars para theming/white-label sin recompilar el paquete.
+ */
+
+@import "./tokens.css";
+
+@theme inline {
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-50: var(--brand-primary-50);
+  --color-brand-primary-100: var(--brand-primary-100);
+  --color-brand-primary-600: var(--brand-primary-600);
+  --color-brand-primary-700: var(--brand-primary-700);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-deep-600: var(--brand-deep-600);
+  --color-brand-deep-700: var(--brand-deep-700);
+  --color-brand-light: var(--brand-light);
+  --color-brand-light-50: var(--brand-light-50);
+  --color-brand-light-100: var(--brand-light-100);
+
+  --color-neutral-light: var(--neutral-light);
+  --color-neutral-mid: var(--neutral-mid);
+  --color-neutral-dark: var(--neutral-dark);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-success-500: var(--success-500);
+  --color-warning-500: var(--warning-500);
+  --color-danger-500: var(--danger-500);
+  --color-info-500: var(--info-500);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-brand: var(--shadow-brand);
+}
+
+.bg-gradient-brand {
+  background-image: var(--gradient-brand);
+}
+.bg-gradient-surface {
+  background-image: var(--gradient-surface);
+}
