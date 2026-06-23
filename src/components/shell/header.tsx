@@ -3,12 +3,27 @@
 import Link from "next/link";
 import { Bell, ChevronDown, Menu, Search } from "lucide-react";
 import { QavanteBadge, QavanteLogo } from "@/components/qavante";
+import { useMe } from "@/lib/api/users";
 
 export interface AppHeaderProps {
   onMenuClick: () => void;
 }
 
+/** Iniciales para el avatar a partir del nombre ("Fernando Pérez" → "FP"). */
+function initialsOf(name?: string | null): string {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "·";
+  return parts
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
+  const { data } = useMe();
+  const user = data?.user;
+  const companyName = user?.tenant_name?.trim() || "Mi empresa";
+
   return (
     <header className="glass sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border px-4">
       {/* Mobile hamburguesa */}
@@ -26,16 +41,16 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         <QavanteLogo variant="header" alt="Qavante" />
       </div>
 
-      {/* Selector empresa (placeholder) */}
-      <button
-        type="button"
-        className="hidden items-center gap-1 rounded-lg border border-border bg-surface/70 px-3 py-1.5 text-sm text-neutral-dark hover:bg-brand-primary-50 md:inline-flex"
-        aria-label="Seleccionar empresa"
-        disabled
+      {/* Empresa activa (tenant_name de /api/me). El selector multi-empresa
+          (N:M, ADR-0017) es trabajo futuro; por ahora muestra la empresa real. */}
+      <span
+        className="hidden items-center gap-1 rounded-lg border border-border bg-surface/70 px-3 py-1.5 text-sm text-neutral-dark md:inline-flex"
+        aria-label={`Empresa activa: ${companyName}`}
+        title={companyName}
       >
-        Empresa demo
-        <ChevronDown className="h-4 w-4 text-neutral-mid" />
-      </button>
+        <span className="max-w-[14rem] truncate">{companyName}</span>
+        <ChevronDown className="h-4 w-4 text-neutral-mid opacity-40" aria-hidden="true" />
+      </span>
 
       {/* Búsqueda CMD+K (placeholder) */}
       <button
@@ -84,7 +99,7 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
           className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-brand-deep to-brand-primary text-xs font-semibold text-surface shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
           aria-label="Mi cuenta"
         >
-          <span aria-hidden="true">FP</span>
+          <span aria-hidden="true">{initialsOf(user?.name)}</span>
         </Link>
       </div>
     </header>
