@@ -1,13 +1,18 @@
 # Tooxs Frontend Standard
 
-> **Versión:** 1.1 · **Estado:** Activo · **Fecha:** 2026-06-23
+> **Versión:** 1.2 · **Estado:** Activo · **Fecha:** 2026-06-23
 > **Dueño:** CTO / Líder UX/UI · **Aplica a:** todo SaaS web nuevo de Tooxs
 > **Repo de referencia:** `qavante-web` (implementación canónica)
-> **Enforcement:** [`eslint-config-tooxs.mjs`](./eslint-config-tooxs.mjs) (§23)
+> **Enforcement:** [`eslint-config-tooxs.mjs`](./eslint-config-tooxs.mjs) (§23) ✅ verificado
+> **Capa de craft (premium):** [Tooxs Design System — Especificación Premium](./tooxs-design-system-premium.md)
 >
-> **Changelog:** v1.1 — implementaciones de referencia con código real (§21),
-> enforcement por ESLint (§23), observabilidad (§17), i18n (§18), theming/
-> white-label (§19), auth+SSR (§20), modelo de conformidad (§22) y política de
+> **Changelog:** v1.2 — enforcement **verificado contra el código real** (parsea,
+> corre, y cazó 1 violación real de `error.message` crudo en
+> `administracion/credenciales`; reglas estructurales con 0 violaciones → el
+> codebase ya cumple). Se agrega el documento de craft premium (sistema visual con
+> números, motion, patrones/anti-patrones, pipeline de tokens). · v1.1 —
+> implementaciones de referencia (§21), enforcement (§23), observabilidad (§17),
+> i18n (§18), theming/white-label (§19), auth+SSR (§20), conformidad (§22),
 > versionado (§24). · v1.0 — estándar inicial.
 
 Este documento es **agnóstico del dominio**: no asume finanzas, salud, logística
@@ -42,27 +47,27 @@ pero el cambio se propone de vuelta a este estándar si es generalizable.
 
 ## 1. Stack canónico
 
-| Capa | Estándar | Versión piso | Por qué / cuándo desviarse |
-| --- | --- | --- | --- |
-| Framework | **Next.js (App Router)** | 15+ | RSC + streaming. No usar Pages Router en proyectos nuevos. |
-| UI runtime | **React** | 19+ | Server Components, Actions, `use()`. |
-| Lenguaje | **TypeScript strict** | 5+ | `strict` + `noUncheckedIndexedAccess` obligatorios. |
-| Estilos | **Tailwind CSS** | 4+ | Vía `@tailwindcss/postcss`. CSS variables para tokens. |
-| Primitivos UI | **shadcn/ui sobre Base UI** | — | Copiados al repo (no dependencia), tematizados con tokens propios. |
-| Iconos | **lucide-react** | — | Un solo set. No mezclar librerías de iconos. |
-| Server state | **TanStack Query** | 5+ | Todo fetch remoto. Nunca `useEffect` + `fetch` a mano. |
-| Client state | **Zustand** | 5+ | Solo estado de UI no derivable del server. Mínimo. |
-| Forms | **react-hook-form + Zod** | RHF 7+, Zod 4+ | Validación con `@hookform/resolvers`. |
-| Tablas | **TanStack Table** | 8+ | Sobre un primitivo `DataTable` propio. |
-| Gráficos | **Recharts** | 3+ | Tematizado con tokens. |
-| Fechas | **date-fns** | 4+ | No moment. No `Intl` crudo disperso. |
-| Toasts | **Sonner** | 2+ | Montado **una vez** en providers (ver §6). |
-| i18n | **next-intl** | 4+ | Aunque sea un solo locale, centraliza copys. |
-| Deploy | **Cloudflare Workers** vía `@opennextjs/cloudflare` | — | `nodejs_compat`. **Nunca** `runtime = 'edge'` (rompe el adapter). |
-| Tests unit | **Vitest** | — | Lógica pura + componentes. |
-| Tests e2e | **Playwright** | — | Flujos núcleo + smoke en prod. |
-| Visual | **Storybook + Chromatic** | — | Todo primitivo tiene `.stories.tsx`. |
-| Calidad | **ESLint + Prettier + Lighthouse CI + Husky/lint-staged** | — | Gates en CI. |
+| Capa          | Estándar                                                  | Versión piso   | Por qué / cuándo desviarse                                         |
+| ------------- | --------------------------------------------------------- | -------------- | ------------------------------------------------------------------ |
+| Framework     | **Next.js (App Router)**                                  | 15+            | RSC + streaming. No usar Pages Router en proyectos nuevos.         |
+| UI runtime    | **React**                                                 | 19+            | Server Components, Actions, `use()`.                               |
+| Lenguaje      | **TypeScript strict**                                     | 5+             | `strict` + `noUncheckedIndexedAccess` obligatorios.                |
+| Estilos       | **Tailwind CSS**                                          | 4+             | Vía `@tailwindcss/postcss`. CSS variables para tokens.             |
+| Primitivos UI | **shadcn/ui sobre Base UI**                               | —              | Copiados al repo (no dependencia), tematizados con tokens propios. |
+| Iconos        | **lucide-react**                                          | —              | Un solo set. No mezclar librerías de iconos.                       |
+| Server state  | **TanStack Query**                                        | 5+             | Todo fetch remoto. Nunca `useEffect` + `fetch` a mano.             |
+| Client state  | **Zustand**                                               | 5+             | Solo estado de UI no derivable del server. Mínimo.                 |
+| Forms         | **react-hook-form + Zod**                                 | RHF 7+, Zod 4+ | Validación con `@hookform/resolvers`.                              |
+| Tablas        | **TanStack Table**                                        | 8+             | Sobre un primitivo `DataTable` propio.                             |
+| Gráficos      | **Recharts**                                              | 3+             | Tematizado con tokens.                                             |
+| Fechas        | **date-fns**                                              | 4+             | No moment. No `Intl` crudo disperso.                               |
+| Toasts        | **Sonner**                                                | 2+             | Montado **una vez** en providers (ver §6).                         |
+| i18n          | **next-intl**                                             | 4+             | Aunque sea un solo locale, centraliza copys.                       |
+| Deploy        | **Cloudflare Workers** vía `@opennextjs/cloudflare`       | —              | `nodejs_compat`. **Nunca** `runtime = 'edge'` (rompe el adapter).  |
+| Tests unit    | **Vitest**                                                | —              | Lógica pura + componentes.                                         |
+| Tests e2e     | **Playwright**                                            | —              | Flujos núcleo + smoke en prod.                                     |
+| Visual        | **Storybook + Chromatic**                                 | —              | Todo primitivo tiene `.stories.tsx`.                               |
+| Calidad       | **ESLint + Prettier + Lighthouse CI + Husky/lint-staged** | —              | Gates en CI.                                                       |
 
 **Regla de oro:** este stack no se vota por proyecto. Se hereda. Agregar una
 dependencia nueva al tier "core" requiere ADR + aprobación de CTO.
@@ -73,10 +78,10 @@ dependencia nueva al tier "core" requiere ADR + aprobación de CTO.
 
 ### 2.1 Server vs Client Components
 
-| Qué usar | Cuándo | Dónde | Evitar |
-| --- | --- | --- | --- |
-| **Server Component** (default) | Lectura de datos, layout, gating por flags/rol, SEO | `page.tsx`, `layout.tsx`, vistas de solo-lectura | Marcar `"use client"` "por si acaso" |
-| **Client Component** | Interactividad: forms, estado local, listeners, hooks de browser | Hojas del árbol (`*-view`, inputs, dialogs) | Subir el `"use client"` al tope del árbol |
+| Qué usar                       | Cuándo                                                           | Dónde                                            | Evitar                                    |
+| ------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------- |
+| **Server Component** (default) | Lectura de datos, layout, gating por flags/rol, SEO              | `page.tsx`, `layout.tsx`, vistas de solo-lectura | Marcar `"use client"` "por si acaso"      |
+| **Client Component**           | Interactividad: forms, estado local, listeners, hooks de browser | Hojas del árbol (`*-view`, inputs, dialogs)      | Subir el `"use client"` al tope del árbol |
 
 **Regla:** `"use client"` lo más abajo posible en el árbol. Un layout o page que
 resuelve feature flags **debe** ser Server Component (los flags se leen en runtime
@@ -126,11 +131,11 @@ con su `.test.ts` al lado.
 
 ### 3.1 Fetching
 
-| Qué usar | Cuándo | Dónde |
-| --- | --- | --- |
-| **Server fetch + Suspense** | Carga inicial de una pantalla | Server Component + `loading.tsx` por segmento |
-| **TanStack Query** | Datos que mutan, refetch, paginación, cache cliente | Client `*-view` |
-| **Server Action / route handler** | Mutaciones | Forms |
+| Qué usar                          | Cuándo                                              | Dónde                                         |
+| --------------------------------- | --------------------------------------------------- | --------------------------------------------- |
+| **Server fetch + Suspense**       | Carga inicial de una pantalla                       | Server Component + `loading.tsx` por segmento |
+| **TanStack Query**                | Datos que mutan, refetch, paginación, cache cliente | Client `*-view`                               |
+| **Server Action / route handler** | Mutaciones                                          | Forms                                         |
 
 **Obligatorio:** todo segmento de ruta con datos tiene un `loading.tsx` (skeleton de
 navegación) y un `error.tsx` (degradación local). `global-error.tsx` para el
@@ -144,9 +149,9 @@ catch-all del layout.
 new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,            // ajustar por criticidad del dato
-      retry: 1,                     // no 3 (default) — evita tormentas
-      refetchOnWindowFocus: false,  // activar solo en dashboards "live"
+      staleTime: 30_000, // ajustar por criticidad del dato
+      retry: 1, // no 3 (default) — evita tormentas
+      refetchOnWindowFocus: false, // activar solo en dashboards "live"
     },
     mutations: {
       onError: (e) => toast.error(messageFor(e)), // feedback global garantizado
@@ -160,12 +165,12 @@ new QueryClient({
 **Prohibido** escribir `if (isLoading) … if (isError) …` a mano en cada vista. Existe
 un único primitivo que compone los cuatro estados:
 
-| Estado | Componente | Regla |
-| --- | --- | --- |
-| Loading | `Skeleton` (Capa 1) | Forma que **anticipa** el contenido (no un spinner genérico) |
-| Error | `InlineError` (Capa 1) | `role="alert"` + mapeo `ApiError → mensaje de usuario` |
-| Empty | `Empty` (Capa 1) | Título + descripción + CTA accionable (voz de marca) |
-| Success | `children` | El contenido real |
+| Estado  | Componente             | Regla                                                        |
+| ------- | ---------------------- | ------------------------------------------------------------ |
+| Loading | `Skeleton` (Capa 1)    | Forma que **anticipa** el contenido (no un spinner genérico) |
+| Error   | `InlineError` (Capa 1) | `role="alert"` + mapeo `ApiError → mensaje de usuario`       |
+| Empty   | `Empty` (Capa 1)       | Título + descripción + CTA accionable (voz de marca)         |
+| Success | `children`             | El contenido real                                            |
 
 ```tsx
 <AsyncBoundary query={query} skeleton={<KpiSkeleton />} empty={<Empty .../>}>
@@ -188,10 +193,10 @@ un único primitivo que compone los cuatro estados:
 
 ### 4.1 Tokens
 
-| Qué | Dónde | Regla |
-| --- | --- | --- |
-| Valores crudos | `styles/tokens.css` (`--<brand>-*`) | Única fuente de verdad de color/radio/sombra/tipografía |
-| Exposición a Tailwind | `globals.css` → `@theme inline` | Mapea `--<brand>-*` a utilidades. Componentes usan utilidades, no el crudo |
+| Qué                   | Dónde                               | Regla                                                                      |
+| --------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
+| Valores crudos        | `styles/tokens.css` (`--<brand>-*`) | Única fuente de verdad de color/radio/sombra/tipografía                    |
+| Exposición a Tailwind | `globals.css` → `@theme inline`     | Mapea `--<brand>-*` a utilidades. Componentes usan utilidades, no el crudo |
 
 **Escalas obligatorias:**
 
@@ -209,20 +214,20 @@ solo claro. Hardcodear contra un solo set es deuda.
 
 ### 4.2 Catálogo de primitivos — qué usar, cuándo, dónde
 
-| Componente | Usar para | No usar para | Notas |
-| --- | --- | --- | --- |
-| **Button** | Acción primaria/secundaria/destructiva | Navegación pura (usar Link) | Variantes: `primary, secondary, ghost, danger`. `loading` con spinner + disable. `focus-visible:ring` obligatorio. Máx 1 primary por vista. |
-| **Link** | Navegar | Disparar acciones | No disfrazar botones de links ni viceversa |
-| **Card** | Agrupar contenido relacionado | Layout de página | Variantes `default/bordered/elevated`. Header/footer opcionales |
-| **Input / Field** | Captura de datos | — | Siempre con `<label>` asociado, estado de error inline, `aria-describedby` |
-| **Badge** | Estado/categoría corta | Acciones | Color por semántica, no decorativo |
-| **Skeleton** | Loading | Spinners genéricos | Forma anticipa el contenido |
-| **Empty** | Sin datos / módulo vacío | Errores duros | Siempre con CTA accionable |
-| **InlineError** | Error recuperable de query | Validación de campo | `role="alert"`, mensaje mapeado |
-| **Toast** (Sonner) | Resultado de una acción puntual | Errores de carga de página | Ver §6 |
-| **Dialog / Sheet** | Tarea enfocada / confirmación destructiva | Contenido primario | Foco atrapado, cierre con Esc, retorno de foco |
-| **DataTable** | Listados tabulares | Layout | Ver §7 |
-| **SourceTag / Freshness** | Origen y frescura de un dato | — | "Actualizado X · estimado/stale" |
+| Componente                | Usar para                                 | No usar para                | Notas                                                                                                                                       |
+| ------------------------- | ----------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Button**                | Acción primaria/secundaria/destructiva    | Navegación pura (usar Link) | Variantes: `primary, secondary, ghost, danger`. `loading` con spinner + disable. `focus-visible:ring` obligatorio. Máx 1 primary por vista. |
+| **Link**                  | Navegar                                   | Disparar acciones           | No disfrazar botones de links ni viceversa                                                                                                  |
+| **Card**                  | Agrupar contenido relacionado             | Layout de página            | Variantes `default/bordered/elevated`. Header/footer opcionales                                                                             |
+| **Input / Field**         | Captura de datos                          | —                           | Siempre con `<label>` asociado, estado de error inline, `aria-describedby`                                                                  |
+| **Badge**                 | Estado/categoría corta                    | Acciones                    | Color por semántica, no decorativo                                                                                                          |
+| **Skeleton**              | Loading                                   | Spinners genéricos          | Forma anticipa el contenido                                                                                                                 |
+| **Empty**                 | Sin datos / módulo vacío                  | Errores duros               | Siempre con CTA accionable                                                                                                                  |
+| **InlineError**           | Error recuperable de query                | Validación de campo         | `role="alert"`, mensaje mapeado                                                                                                             |
+| **Toast** (Sonner)        | Resultado de una acción puntual           | Errores de carga de página  | Ver §6                                                                                                                                      |
+| **Dialog / Sheet**        | Tarea enfocada / confirmación destructiva | Contenido primario          | Foco atrapado, cierre con Esc, retorno de foco                                                                                              |
+| **DataTable**             | Listados tabulares                        | Layout                      | Ver §7                                                                                                                                      |
+| **SourceTag / Freshness** | Origen y frescura de un dato              | —                           | "Actualizado X · estimado/stale"                                                                                                            |
 
 **Regla de adopción:** todo primitivo nuevo nace con `.stories.tsx` (estados:
 default, loading, error, empty, edge) y test si tiene lógica. Sin story, no entra al
@@ -232,11 +237,11 @@ design system.
 
 ## 5. Formularios
 
-| Qué usar | Regla |
-| --- | --- |
-| **react-hook-form** | Un `useForm` por formulario. Nada de estado manual de campos |
-| **Zod** | Esquema de validación reutilizable en `lib/validators`. El mismo esquema valida cliente y (si aplica) se comparte de contrato |
-| **`@hookform/resolvers`** | Pegamento RHF↔Zod |
+| Qué usar                  | Regla                                                                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **react-hook-form**       | Un `useForm` por formulario. Nada de estado manual de campos                                                                  |
+| **Zod**                   | Esquema de validación reutilizable en `lib/validators`. El mismo esquema valida cliente y (si aplica) se comparte de contrato |
+| **`@hookform/resolvers`** | Pegamento RHF↔Zod                                                                                                             |
 
 **UX obligatoria:** validación en `onBlur`/`onSubmit` (no `onChange` agresivo);
 error inline por campo con `aria-describedby`; el submit muestra `loading` y se
@@ -288,13 +293,13 @@ deshabilita; éxito → `toast.success` + redirect/reset; error de servidor →
 
 ## 9. Accesibilidad (piso AA)
 
-| Área | Estándar |
-| --- | --- |
-| Estática | `focus-visible:ring` en todo interactivo; `aria-label` en iconos de acción; `skip-link`; `prefers-reduced-motion` respetado; contraste AA |
-| Dinámica | Región `aria-live` global para cambios de datos; `aria-busy` durante fetch; filtros/resultados anunciados ("N resultados"); mutaciones anunciadas |
-| Teclado | Todo flujo operable sin mouse. Dialogs con foco atrapado y retorno de foco |
-| Formularios | Label asociado, error con `aria-describedby`, `aria-invalid` |
-| Gate de CI | **Lighthouse a11y ≥ 0.95** como assertion dura (no solo performance) |
+| Área        | Estándar                                                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Estática    | `focus-visible:ring` en todo interactivo; `aria-label` en iconos de acción; `skip-link`; `prefers-reduced-motion` respetado; contraste AA         |
+| Dinámica    | Región `aria-live` global para cambios de datos; `aria-busy` durante fetch; filtros/resultados anunciados ("N resultados"); mutaciones anunciadas |
+| Teclado     | Todo flujo operable sin mouse. Dialogs con foco atrapado y retorno de foco                                                                        |
+| Formularios | Label asociado, error con `aria-describedby`, `aria-invalid`                                                                                      |
+| Gate de CI  | **Lighthouse a11y ≥ 0.95** como assertion dura (no solo performance)                                                                              |
 
 La a11y dinámica (lo que cambia tras una acción) es tan obligatoria como la
 estática; se centraliza en `AsyncBoundary` y `Toaster`.
@@ -303,12 +308,12 @@ estática; se centraliza en `AsyncBoundary` y `Toaster`.
 
 ## 10. Performance
 
-| Métrica | Presupuesto |
-| --- | --- |
-| Lighthouse Performance (mobile) | ≥ 85 en pantallas de auth, ≥ 90 en app autenticada |
-| Lighthouse Accessibility | ≥ 95 |
-| LCP | Dato server-rendered en pantallas clave (no spinner) |
-| Bundle | Budget verificado en CI (`size:check`). Code-split por ruta. Lazy de dialogs/charts pesados |
+| Métrica                         | Presupuesto                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------- |
+| Lighthouse Performance (mobile) | ≥ 85 en pantallas de auth, ≥ 90 en app autenticada                                          |
+| Lighthouse Accessibility        | ≥ 95                                                                                        |
+| LCP                             | Dato server-rendered en pantallas clave (no spinner)                                        |
+| Bundle                          | Budget verificado en CI (`size:check`). Code-split por ruta. Lazy de dialogs/charts pesados |
 
 **Reglas:** RSC para reducir JS al cliente; `next/image`/`next/font`; evitar
 librerías pesadas client-side cuando hay alternativa server; `Suspense` para
@@ -343,13 +348,13 @@ streaming.
 
 ## 13. Testing
 
-| Tipo | Herramienta | Qué cubre | Regla |
-| --- | --- | --- | --- |
-| Unit | Vitest | Lógica pura (`*-format.ts`, validadores, hooks) | Toda lógica pura tiene test al lado |
-| Componente | Vitest + Testing Library | Estados de primitivos | — |
-| Visual | Storybook + Chromatic | Regresión visual de Capa 1 | Story por primitivo, con estados |
-| E2E | Playwright | Flujos núcleo + smoke en prod | Los contratos e2e no se rompen sin actualizar el test |
-| Mock | MSW | Dev/CI sin backend | Render-blocking hasta que el worker esté listo |
+| Tipo       | Herramienta              | Qué cubre                                       | Regla                                                 |
+| ---------- | ------------------------ | ----------------------------------------------- | ----------------------------------------------------- |
+| Unit       | Vitest                   | Lógica pura (`*-format.ts`, validadores, hooks) | Toda lógica pura tiene test al lado                   |
+| Componente | Vitest + Testing Library | Estados de primitivos                           | —                                                     |
+| Visual     | Storybook + Chromatic    | Regresión visual de Capa 1                      | Story por primitivo, con estados                      |
+| E2E        | Playwright               | Flujos núcleo + smoke en prod                   | Los contratos e2e no se rompen sin actualizar el test |
+| Mock       | MSW                      | Dev/CI sin backend                              | Render-blocking hasta que el worker esté listo        |
 
 **DoD de tests:** unit + e2e verdes localmente antes de PR. Las migraciones de
 vistas existentes se hacen **incrementales con e2e por dominio**, nunca big-bang.
@@ -408,19 +413,21 @@ vistas existentes se hacen **incrementales con e2e por dominio**, nunca big-bang
 
 Un estándar maduro **sabe cuándo se rompe en producción**.
 
-| Qué | Estándar | Dónde |
-| --- | --- | --- |
-| Errores no capturados | Reporter en `error.tsx` / `global-error.tsx` + `onError` de Query | Boundaries |
-| Errores de red/API | Tag por `status`/`code` de `ApiError` (no por mensaje) | `lib/api/client` |
-| Performance real (RUM) | Web Vitals reportados (`useReportWebVitals`) | Layout raíz |
-| PII | **Nunca** en logs/tags. Scrub antes de enviar | Reporter |
+| Qué                    | Estándar                                                          | Dónde            |
+| ---------------------- | ----------------------------------------------------------------- | ---------------- |
+| Errores no capturados  | Reporter en `error.tsx` / `global-error.tsx` + `onError` de Query | Boundaries       |
+| Errores de red/API     | Tag por `status`/`code` de `ApiError` (no por mensaje)            | `lib/api/client` |
+| Performance real (RUM) | Web Vitals reportados (`useReportWebVitals`)                      | Layout raíz      |
+| PII                    | **Nunca** en logs/tags. Scrub antes de enviar                     | Reporter         |
 
 ```tsx
 // app/error.tsx — boundary por segmento, reporta y degrada local.
 "use client";
 import { useEffect } from "react";
 export default function Error({ error, reset }: { error: Error; reset: () => void }) {
-  useEffect(() => { reportError(error); }, [error]); // Sentry/equivalente, sin PII
+  useEffect(() => {
+    reportError(error);
+  }, [error]); // Sentry/equivalente, sin PII
   return <InlineError error={error} what="esta sección" onRetry={reset} />;
 }
 ```
@@ -435,7 +442,7 @@ Aunque el producto lance con un solo locale, **los copys no se hardcodean en JSX
 - Todo texto visible sale de `next-intl` (`useTranslations`/`getTranslations`).
 - Plurales con ICU (`{n, plural, one {# fila} other {# filas}}`), no `if`.
 - Fechas/números **siempre** vía formatters centralizados (`lib/formatters`), nunca
-  `toLocaleString` disperso. Moneda/zona horaria del *tenant*, no del navegador.
+  `toLocaleString` disperso. Moneda/zona horaria del _tenant_, no del navegador.
 - Claves namespaced por dominio (`dashboard.*`, `auth.*`), nunca por pantalla suelta.
 
 ## 19. Theming, dark mode y white-label
@@ -451,10 +458,18 @@ El sistema de tokens (§4.1) es la base; el theming es **runtime**, no rebuild.
 - **Prohibido** hardcodear hex en componentes. Si un color no es token, no existe.
 
 ```css
-:root { --c-surface: #fff; --c-foreground: #1d1d1b; }
-[data-theme="dark"] { --c-surface: #0a0f1c; --c-foreground: #e8edf5; }
+:root {
+  --c-surface: #fff;
+  --c-foreground: #1d1d1b;
+}
+[data-theme="dark"] {
+  --c-surface: #0a0f1c;
+  --c-foreground: #e8edf5;
+}
 /* tenant override (inyectado server-side): */
-[data-tenant="acme"] { --brand-primary: #7c3aed; }
+[data-tenant="acme"] {
+  --brand-primary: #7c3aed;
+}
 ```
 
 ## 20. Autenticación y sesión (SSR)
@@ -511,10 +526,10 @@ import { InlineError } from "./inline-error";
 
 type Props<T> = {
   query: UseQueryResult<T>;
-  skeleton: React.ReactNode;        // forma que anticipa el contenido
-  empty?: React.ReactNode;          // Empty de marca con CTA
+  skeleton: React.ReactNode; // forma que anticipa el contenido
+  empty?: React.ReactNode; // Empty de marca con CTA
   isEmpty?: (data: T) => boolean;
-  what: string;                     // "las facturas", "el resumen"…
+  what: string; // "las facturas", "el resumen"…
   children: (data: T) => React.ReactNode;
 };
 
@@ -559,7 +574,10 @@ const schema = z.object({ email: z.string().email(), name: z.string().min(2) });
 const form = useForm({ resolver: zodResolver(schema), mode: "onBlur" });
 const mutation = useMutation({
   mutationFn: api.create,
-  onSuccess: () => { toast.success("Guardado."); form.reset(); },
+  onSuccess: () => {
+    toast.success("Guardado.");
+    form.reset();
+  },
   // onError ya está cubierto por el default global del QueryClient.
 });
 // submit deshabilitado + loading mientras corre; errores inline por campo.
@@ -569,11 +587,11 @@ const mutation = useMutation({
 
 Un repo declara su nivel; el objetivo es **Gold**.
 
-| Nivel | Criterio |
-| --- | --- |
-| 🥉 **Bronze** | Stack canónico (§1) + carpetas (§2.2) + tipos generados + sin Node-only/Storage. Pasa `eslint-config-tooxs`. |
-| 🥈 **Silver** | Bronze + `AsyncBoundary`/`Toaster`/`QueryClient` de referencia (§21) + a11y estática + Storybook de Capa 1. |
-| 🥇 **Gold** | Silver + streaming RSC con `loading.tsx`/`error.tsx` por segmento + a11y dinámica + observabilidad (§17) + Lighthouse perf **y** a11y en gate + e2e de flujos núcleo. |
+| Nivel         | Criterio                                                                                                                                                              |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🥉 **Bronze** | Stack canónico (§1) + carpetas (§2.2) + tipos generados + sin Node-only/Storage. Pasa `eslint-config-tooxs`.                                                          |
+| 🥈 **Silver** | Bronze + `AsyncBoundary`/`Toaster`/`QueryClient` de referencia (§21) + a11y estática + Storybook de Capa 1.                                                           |
+| 🥇 **Gold**   | Silver + streaming RSC con `loading.tsx`/`error.tsx` por segmento + a11y dinámica + observabilidad (§17) + Lighthouse perf **y** a11y en gate + e2e de flujos núcleo. |
 
 **Regla:** un producto que entra a clientes debe estar en **Silver mínimo**; el
 estándar de excelencia es **Gold**.
@@ -610,4 +628,4 @@ a `error`. **Un estándar sin enforcement es una sugerencia.**
 > nacido en un producto se propone de vuelta acá. La versión se bumpea con cada
 > cambio normativo (no editorial). El repo `qavante-web` es la implementación de
 > referencia viva del estándar.
-</content>
+> </content>

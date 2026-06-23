@@ -67,8 +67,7 @@ const tooxsStandard = [
         },
         {
           name: "Buffer",
-          message:
-            "Prohibido el global Buffer (Node-only). Usá Uint8Array / Web APIs. Ver §11.",
+          message: "Prohibido el global Buffer (Node-only). Usá Uint8Array / Web APIs. Ver §11.",
         },
       ],
 
@@ -109,4 +108,3 @@ const tooxsStandard = [
 ];
 
 export default tooxsStandard;
-</content>
