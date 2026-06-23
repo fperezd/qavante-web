@@ -79,6 +79,28 @@ weight / tracking**.
 - Line-height más generoso en body (1.6) que en títulos (1.2–1.3).
 - Texto largo: ancho máximo **~65ch** (`max-w-prose`). Líneas anchas = barato.
 
+### 2.1 Uso correcto (anti-AI)
+
+La fuente de marca **no se cambia** para "des-IA-izar" una pantalla — el look
+genérico casi nunca viene del archivo tipográfico, viene de **cómo se usa**. Estos 5
+ajustes eliminan los tells tipográficos sin tocar la identidad de marca:
+
+1. **Nada de gradiente en el texto.** Títulos y cifras en color sólido
+   (`brand-deep`). El gradiente sobre texto es el delator #1 de UI generada. Si se
+   usa el gradiente de marca, que sea en un gesto gráfico, nunca en glifos.
+2. **Máximo 2 pesos por pantalla** (p. ej. 400 + 700). Cargar y mezclar 300/400/500/
+   600/700 aplana el carácter y se ve "template".
+3. **Tracking cerrado en títulos y cifras** (`-0.02` a `-0.03em`). Las cifras se ven
+   sólidas, no infladas.
+4. **`tabular-nums` en todo dato numérico**, sin excepción. Es el detalle que más
+   separa un dashboard serio de uno genérico.
+5. **Overline UPPERCASE: 1–2 usos por pantalla**, no en cada card. El label en
+   mayúscula sobre cada bloque es un cliché de dashboard generado.
+
+> Cambiar la familia tipográfica es una **decisión de marca** (afecta el Manual),
+> no un recurso de des-IA-ización. Primero aplicar estos 5 ajustes; recién después,
+> si persiste la necesidad, evaluar la fuente a nivel marca.
+
 ---
 
 ## 3. Color — cómo se aplica (no solo qué tokens)
