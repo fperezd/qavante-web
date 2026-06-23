@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, ChevronDown, Menu, Search } from "lucide-react";
+import { Bell, Menu, Search } from "lucide-react";
 import { QavanteBadge, QavanteLogo } from "@/components/qavante";
 import { useMe } from "@/lib/api/users";
+import { CompanySwitcher } from "./company-switcher";
 
 export interface AppHeaderProps {
   onMenuClick: () => void;
@@ -22,7 +23,6 @@ function initialsOf(name?: string | null): string {
 export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const { data } = useMe();
   const user = data?.user;
-  const companyName = user?.tenant_name?.trim() || "Mi empresa";
 
   return (
     <header className="glass sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border px-4">
@@ -41,16 +41,8 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
         <QavanteLogo variant="header" alt="Qavante" />
       </div>
 
-      {/* Empresa activa (tenant_name de /api/me). El selector multi-empresa
-          (N:M, ADR-0017) es trabajo futuro; por ahora muestra la empresa real. */}
-      <span
-        className="hidden items-center gap-1 rounded-lg border border-border bg-surface/70 px-3 py-1.5 text-sm text-neutral-dark md:inline-flex"
-        aria-label={`Empresa activa: ${companyName}`}
-        title={companyName}
-      >
-        <span className="max-w-[14rem] truncate">{companyName}</span>
-        <ChevronDown className="h-4 w-4 text-neutral-mid opacity-40" aria-hidden="true" />
-      </span>
+      {/* Selector de empresa (N:M, ADR-0049): listar / cambiar / crear. */}
+      <CompanySwitcher />
 
       {/* Búsqueda CMD+K (placeholder) */}
       <button

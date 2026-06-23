@@ -215,6 +215,57 @@ export interface paths {
         patch: operations["auth_me_patch"];
         trace?: never;
     };
+    "/api/me/tenants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Empresas del usuario logueado (selector de empresa, N:M)
+         * @description Lista las empresas del usuario (membership active) para el selector de empresa
+         *     del FE (ADR-0049). `is_active` marca la empresa de la sesión actual; cambiarla va
+         *     por `POST /api/me/active-tenant` (PR-2).
+         */
+        get: operations["auth_me_tenants"];
+        put?: never;
+        /**
+         * Crea una empresa nueva (el usuario logueado queda owner) — N:M
+         * @description El usuario logueado crea una empresa nueva y queda `owner` (membership
+         *     active, sin captcha/verificación — ya está autenticado). NO cambia la empresa
+         *     activa: para eso el FE llama `POST /api/me/active-tenant`. Rate-limit anti-abuso.
+         */
+        post: operations["auth_me_create_tenant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/active-tenant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cambia la empresa activa de la sesión (N:M)
+         * @description Cambia el tenant activo de la sesión (ADR-0049). **Valida** que el usuario
+         *     tenga membership active en el tenant destino (cross-tenant vía BYPASSRLS) — 403
+         *     si no pertenece, sin tocar la sesión (anti escalada). Luego **revoca la sesión
+         *     vieja** y re-emite cookies con el nuevo `tenant_id` (una sola sesión viva).
+         */
+        post: operations["auth_me_switch_tenant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/onboarding/status": {
         parameters: {
             query?: never;
@@ -4978,6 +5029,27 @@ export interface components {
             sort_order: number;
         };
         /**
+         * CreateTenantRequest
+         * @description Body de `POST /api/me/tenants` — alta de empresa por un usuario logueado.
+         */
+        CreateTenantRequest: {
+            /**
+             * Legal Name
+             * @description Razón social de la empresa.
+             */
+            legal_name: string;
+            /**
+             * Rut
+             * @description RUT de la empresa (opcional).
+             */
+            rut?: string | null;
+            /**
+             * Trade Name
+             * @description Nombre de fantasía (opcional).
+             */
+            trade_name?: string | null;
+        };
+        /**
          * CreateUserRequest
          * @description Body de POST /api/users (invitar).
          */
@@ -5021,6 +5093,17 @@ export interface components {
              * Format: date-time
              */
             expires_at: string;
+        };
+        /** CreatedTenant */
+        CreatedTenant: {
+            /** Id */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Legal Name */
+            legal_name: string;
+            /** Role */
+            role: string;
         };
         /**
          * CredentialMetadataResponse
@@ -6715,6 +6798,30 @@ export interface components {
         MeResponse: {
             user: components["schemas"]["MeUser"];
         };
+        /** MeTenant */
+        MeTenant: {
+            /** Id */
+            id: string;
+            /** Slug */
+            slug: string;
+            /** Legal Name */
+            legal_name: string;
+            /**
+             * Role
+             * @description Rol del usuario en esa empresa (owner/admin/...).
+             */
+            role: string;
+            /**
+             * Is Active
+             * @description True si es la empresa activa de la sesión actual.
+             */
+            is_active: boolean;
+        };
+        /** MeTenantsResponse */
+        MeTenantsResponse: {
+            /** Tenants */
+            tenants: components["schemas"]["MeTenant"][];
+        };
         /** MeUser */
         MeUser: {
             /** Id */
@@ -8384,6 +8491,15 @@ export interface components {
             /** Suggestions */
             suggestions: components["schemas"]["CounterpartySuggestion"][];
         };
+        /** SwitchTenantRequest */
+        SwitchTenantRequest: {
+            /**
+             * Tenant Id
+             * Format: uuid
+             * @description UUID de la empresa a activar (una de /api/me/tenants).
+             */
+            tenant_id: string;
+        };
         /** SyncSourceResult */
         SyncSourceResult: {
             /**
@@ -9311,6 +9427,151 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    auth_me_tenants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Empresas donde el usuario tiene membership activa. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeTenantsResponse"];
+                };
+            };
+            /** @description Sin sesión o sesión inválida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auth_me_create_tenant: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTenantRequest"];
+            };
+        };
+        responses: {
+            /** @description Empresa creada; el usuario queda owner (membership active). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedTenant"];
+                };
+            };
+            /** @description Sin sesión o sesión inválida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description RUT de empresa ya registrado. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Datos inválidos (razón social/RUT). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit excedido. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_me_switch_tenant: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SwitchTenantRequest"];
+            };
+        };
+        responses: {
+            /** @description Empresa activa cambiada; cookies de sesión re-emitidas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Sin sesión o sesión inválida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El usuario no pertenece a esa empresa (sin membership activa). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
