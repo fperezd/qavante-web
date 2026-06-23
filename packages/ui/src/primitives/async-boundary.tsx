@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { InlineError } from "./inline-error";
 import { resolveAsyncState, type AsyncQueryLike } from "./async-boundary-state";

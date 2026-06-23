@@ -24,17 +24,12 @@ npm i react react-dom recharts @tanstack/react-table \
   @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities   # peers
 ```
 
-`next.config.ts` (se distribuye como source → Next lo transpila):
-
-```ts
-const nextConfig = { transpilePackages: ["@tooxs/ui"] };
-```
-
-En tu `globals.css` (Tailwind v4 ignora `node_modules` → hay que apuntarle):
+**Zero-config** — no necesita `transpilePackages`. En tu `globals.css` (Tailwind v4
+ignora `node_modules` → hay que apuntarle al `dist`):
 
 ```css
 @import "tailwindcss";
-@source "../../node_modules/@tooxs/ui/src";
+@source "../node_modules/@tooxs/ui/dist";
 @import "@tooxs/ui/styles.css";
 ```
 
@@ -67,12 +62,13 @@ los tokens sin tocar el paquete:
 
 ## Estado
 
-`0.1.0` — publicable como **source** (Next lo transpila vía `transpilePackages`).
-React-context deps (`recharts`, `@tanstack/react-table`, `@dnd-kit/*`) son
+`0.1.0` — **bundleado con bunchee** (`dist/` ESM + `.d.ts`, `"use client"` por
+componente). **Zero-config** (sin `transpilePackages`), validado con un `next build`
+real. React-context deps (`recharts`, `@tanstack/react-table`, `@dnd-kit/*`) son
 `peerDependencies` para garantizar una sola instancia. Ver
 [PUBLISHING.md](./PUBLISHING.md).
 
-Se evaluó un bundle (tsup/bunchee) pero se descartó: el merge RSC co-loca `cn` en
-un chunk `"use client"` y rompe los componentes server que lo usan. Shipping source
-es correcto por construcción (directivas por archivo). El bundle queda como opción
-futura si se quiere evitar `transpilePackages` (requiere validarlo en un Next real).
+Para que el bundle sea correcto en RSC, el barrel exporta **solo componentes (todos
+`"use client"`) + tipos**; las utilidades puras (`cn`, lógica de estado) quedan
+internas (exportarlas desde un bundle las metería en un chunk client). El consumidor
+usa su propio `cn`.

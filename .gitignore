@@ -67,3 +67,4 @@ storybook-static
 
 # build de paquetes del workspace
 packages/*/dist
+packages/*/*.tgz

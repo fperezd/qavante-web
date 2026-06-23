@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 
 /* Logo — parametrizado por marca. Cada app pasa su asset (`src`) y dimensiones.

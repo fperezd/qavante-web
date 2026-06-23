@@ -66,16 +66,20 @@ de marca como defaults themeables.
 - [Tooxs Frontend Standard](../standards/tooxs-frontend-standard.md)
 - `packages/ui/README.md`
 
-## Actualización (2026-06-23) — paquete publicable
+## Actualización (2026-06-23) — paquete publicable + zero-config
 
-Se hizo publicable: `peerDependencies` para los deps con contexto de React
-(`react`, `react-dom`, `recharts`, `@tanstack/react-table`, `@dnd-kit/*`) → una sola
-instancia en el consumidor; el resto como `dependencies`. Distribución como
-**source TypeScript** (el consumidor transpila con `transpilePackages`).
+`peerDependencies` para los deps con contexto de React (`react`, `react-dom`,
+`recharts`, `@tanstack/react-table`, `@dnd-kit/*`) → una sola instancia en el
+consumidor; el resto como `dependencies`.
 
-Se **evaluó y descartó** un bundle (tsup + `esbuild-plugin-preserve-directives`, y
-`bunchee`): el merge RSC co-loca `cn` en un chunk `"use client"` y rompe los
-componentes server que lo usan (ej. `Card`). Shipping source es correcto por
-construcción (Next respeta las directivas por archivo). El bundle queda como opción
-futura si se quiere evitar `transpilePackages`, previa validación en un Next real.
-Pasos de publicación y consumo en `packages/ui/PUBLISHING.md`.
+**Build zero-config (sin `transpilePackages`):** se bundlea con **bunchee** →
+`dist/` (ESM + `.d.ts`) con `"use client"` preservado por componente. El primer
+intento (tsup + `esbuild-plugin-preserve-directives`) y el bundle ingenuo
+co-locaban `cn` en un chunk `"use client"`, rompiendo Server Components que lo
+llamaran. Solución: el barrel exporta **solo componentes (todos `"use client"`) +
+tipos**; las utilidades puras quedan internas. Validado con un `next build` real de
+una app que consume el tarball sin `transpilePackages` (Server Component importando
+`Card`/`Button`, island client con Board/DataTable/Chart/Toaster → build OK).
+
+Publicación: GitHub Packages bajo la org **`tooxs`** (scope = owner). Pasos en
+`packages/ui/PUBLISHING.md`.

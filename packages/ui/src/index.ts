@@ -1,7 +1,11 @@
 /* @tooxs/ui — barrel del design system (Capa 1). Solo primitivos agnósticos de
-   dominio. La lógica de negocio, la API y los tokens de dominio viven en cada app. */
+   dominio. La lógica de negocio, la API y los tokens de dominio viven en cada app.
 
-export { cn } from "./lib/cn";
+   Distribución bundleada (zero-config, sin transpilePackages): se exportan SOLO
+   componentes (todos "use client") + TIPOS. Las utilidades puras (cn, resolveAsyncState,
+   moveItem, etc.) quedan internas a propósito — exportarlas desde un bundle las
+   metería en un chunk "use client" y romperían si un Server Component las llamara.
+   El consumidor usa su propio `cn` (clsx + tailwind-merge). */
 
 export { Button, type ButtonProps } from "./primitives/button";
 export { Card, type CardProps } from "./primitives/card";
@@ -11,11 +15,7 @@ export { Empty, type EmptyProps } from "./primitives/empty";
 export { Skeleton, type SkeletonProps } from "./primitives/skeleton";
 export { InlineError, type InlineErrorProps } from "./primitives/inline-error";
 export { AsyncBoundary, type AsyncBoundaryProps } from "./primitives/async-boundary";
-export {
-  resolveAsyncState,
-  type AsyncState,
-  type AsyncQueryLike,
-} from "./primitives/async-boundary-state";
+export { type AsyncState, type AsyncQueryLike } from "./primitives/async-boundary-state";
 export { Toaster, toast } from "./primitives/toaster";
 export {
   FeatureUnavailableState,
@@ -34,12 +34,5 @@ export {
   type ChartDatum,
 } from "./primitives/chart";
 export { DataTable, type DataTableProps } from "./primitives/data-table";
-export { reorder, moveColumn } from "./primitives/data-table-utils";
 export { Board, type BoardProps } from "./primitives/board";
-export {
-  type BoardItem,
-  type BoardColumn,
-  type BoardState,
-  moveItem,
-  findColumnOf,
-} from "./primitives/board-state";
+export { type BoardItem, type BoardColumn, type BoardState } from "./primitives/board-state";
