@@ -87,4 +87,12 @@
      `background` = gris operativo #F5F7FA del manual (fondos de pantallas). */
   --qv-background: #f5f7fa;
   --qv-foreground: var(--qv-neutral-dark);
+
+  /* Motion — Tooxs Design System Premium §6. Duraciones y curvas canónicas:
+     entradas con ease-out (rápido→lento, naturales). Movimiento con propósito,
+     siempre respetando prefers-reduced-motion. */
+  --qv-motion-fast: 120ms;
+  --qv-motion-base: 200ms;
+  --qv-motion-slow: 320ms;
+  --qv-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
