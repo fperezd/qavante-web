@@ -16,8 +16,8 @@ describe("signupFormSchema", () => {
     expect(signupFormSchema.safeParse(valid).success).toBe(true);
   });
 
-  it("company_rut es opcional (vacío permitido)", () => {
-    expect(signupFormSchema.safeParse({ ...valid, companyRut: "" }).success).toBe(true);
+  it("company_rut es obligatorio (vacío rechazado)", () => {
+    expect(signupFormSchema.safeParse({ ...valid, companyRut: "" }).success).toBe(false);
   });
 
   it("rechaza owner_rut inválido (dígito verificador)", () => {

@@ -18,7 +18,8 @@ import { signupFormSchema, type SignupFormValues } from "./signup-form-schema";
 
 /* Paso 1 del onboarding — Crear cuenta. La 1ra persona (owner) crea su empresa
    (ADR-0017). Alineado al contrato real `SignupRequest` (owner_full_name,
-   owner_rut, company_name, company_rut opcional, email, password, captcha_token).
+   owner_rut, company_name, company_rut, email, password, captcha_token). El RUT
+   de empresa es obligatorio en el form (producto), aunque el backend lo acepte opcional.
    Captcha Turnstile obligatorio (el backend es fail-closed). Al éxito el backend
    manda el correo y avanzamos a /verificar. Gated por `onboarding`. */
 
@@ -28,6 +29,17 @@ export function SignupView() {
   const router = useRouter();
   const signup = useSignup();
   const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
+  /* El token de Turnstile es de un solo uso: tras un error de signup, el token
+     ya está consumido → remontamos el widget (bump del key) para conseguir uno
+     fresco y que el reintento no falle con captcha_failed. */
+  const [captchaKey, setCaptchaKey] = React.useState(0);
+
+  React.useEffect(() => {
+    if (signup.isError) {
+      setCaptchaToken(null);
+      setCaptchaKey((k) => k + 1);
+    }
+  }, [signup.isError]);
 
   const {
     control,
@@ -54,7 +66,7 @@ export function SignupView() {
     signup.mutate(
       {
         company_name: values.companyName,
-        company_rut: values.companyRut.trim() || null,
+        company_rut: values.companyRut.trim(),
         owner_full_name: values.ownerFullName,
         owner_rut: values.ownerRut,
         email: values.email,
@@ -156,11 +168,7 @@ export function SignupView() {
             />
           </Field>
 
-          <Field
-            id="su-company-rut"
-            label="RUT de la empresa (opcional)"
-            error={errors.companyRut?.message}
-          >
+          <Field id="su-company-rut" label="RUT de la empresa" error={errors.companyRut?.message}>
             <Controller
               control={control}
               name="companyRut"
@@ -179,7 +187,11 @@ export function SignupView() {
           </Field>
         </div>
 
-        <Turnstile onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} />
+        <Turnstile
+          key={captchaKey}
+          onVerify={setCaptchaToken}
+          onExpire={() => setCaptchaToken(null)}
+        />
 
         {signup.isError && (
           <div

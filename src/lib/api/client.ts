@@ -99,9 +99,8 @@ async function request<T>(
     } catch {
       parsed = undefined;
     }
-    const obj = (parsed ?? {}) as { code?: string; detail?: string; message?: string };
-    const message = obj.detail ?? obj.message ?? `Error ${response.status}`;
-    throw new ApiError(message, response.status, obj.code, parsed);
+    const { message, code } = extractApiError(parsed, response.status);
+    throw new ApiError(message, response.status, code, parsed);
   }
 
   if (response.status === 204) return undefined as T;
@@ -121,6 +120,37 @@ async function request<T>(
     }
   }
   return (await response.text()) as unknown as T;
+}
+
+/* El backend usa varias formas de error y NINGUNA debe escapar como
+   "[object Object]" a la UI:
+   - `{ detail: "texto" }`               → HTTPException clásico
+   - `{ detail: { code, detail } }`      → endpoints nuevos (code + msg anidados)
+   - `{ detail: [{ msg, loc, ... }] }`   → validación 422 de FastAPI
+   - `{ message, code }`                 → handlers propios
+   Devuelve siempre un `message` string + `code` opcional. */
+function extractApiError(parsed: unknown, status: number): { message: string; code?: string } {
+  const fallback = `Error ${status}`;
+  if (!parsed || typeof parsed !== "object") return { message: fallback };
+  const obj = parsed as { code?: string; message?: string; detail?: unknown };
+  const detail = obj.detail;
+
+  if (typeof detail === "string") return { message: detail, code: obj.code };
+  if (Array.isArray(detail)) {
+    const first = detail[0] as { msg?: string } | undefined;
+    return { message: first?.msg ?? obj.message ?? fallback, code: obj.code };
+  }
+  if (detail && typeof detail === "object") {
+    const d = detail as { code?: string; detail?: unknown; message?: unknown };
+    const msg =
+      typeof d.detail === "string"
+        ? d.detail
+        : typeof d.message === "string"
+          ? d.message
+          : undefined;
+    return { message: msg ?? obj.message ?? fallback, code: d.code ?? obj.code };
+  }
+  return { message: obj.message ?? fallback, code: obj.code };
 }
 
 export const api = {
