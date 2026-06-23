@@ -24,11 +24,15 @@ export function useBiceCredentialStatus(enabled = true) {
   });
 }
 
-/** `PUT /api/credentials/bice` — conecta/rota las credenciales del banco. */
+/** `PUT /api/credentials/bice` — conecta/rota las credenciales del banco.
+ *  `skipAuthRetry`: durante el onboarding (sesión recién creada) un 401 acá es
+ *  rechazo persistente del endpoint, no expiración → que caiga como ApiError
+ *  inline ("no pudimos conectar el banco") en vez de expulsar al login. */
 export function usePutBiceCredential() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: PutBankCredentialBody) => api.put<void>("/api/credentials/bice", { body }),
+    mutationFn: (body: PutBankCredentialBody) =>
+      api.put<void>("/api/credentials/bice", { body, skipAuthRetry: true }),
     onSuccess: () => qc.invalidateQueries({ queryKey: bankCredentialKeys.bice }),
   });
 }

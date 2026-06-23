@@ -52,6 +52,14 @@ NEXT_PUBLIC_FF_ACCOUNTS_RECEIVABLE = "true"
 NEXT_PUBLIC_FF_ACCOUNTS_PAYABLE = "true"
 NEXT_PUBLIC_FF_OPERATIONAL_RESULT = "true"
 NEXT_PUBLIC_FF_PULSO_DETAIL = "true"
+# Activada 2026-06-22: wizard de onboarding. CC-API dejó vivos en prod todos los
+# endpoints (qavante-api #344 status/complete + onboarding_completed en /me, #345
+# sync per-source, #346 opening-balance; signup/verify ya estaban). FE alineado a
+# tipos generados (PR #337). Backfill onboarding_completed=true en tenants
+# existentes CONFIRMADO por Fernando → el guard no arrastra usuarios actuales al
+# wizard. Pasos SII/banco son opcionales y blindados (skipAuthRetry: un 401 ahí
+# muestra error inline, no expulsa al login).
+NEXT_PUBLIC_FF_ONBOARDING = "true"
 
 # Custom domain declarativo. Idempotente: si el binding ya existe en el
 # dashboard (creado manualmente el 2026-05-12), wrangler lo respeta. Si se

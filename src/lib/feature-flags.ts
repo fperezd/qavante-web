@@ -86,7 +86,7 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   assistant: "/api/assistant/chat",
   /* Onboarding wizard (signup → verificar → SII → banco → rubro → saldo apertura
      → traer datos → dashboard). Modelo ADR-0017 (1ra persona crea empresa owner).
-     FE-first; entry signup aún no en prod (404). */
+     Todos los endpoints vivos en prod (qavante-api #344/#345/#346 + signup/verify). */
   onboarding: "/api/auth/signup",
 };
 
