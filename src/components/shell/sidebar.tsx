@@ -86,7 +86,10 @@ export function AppSidebar({ mobileOpen, onCloseMobile, userRole }: AppSidebarPr
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-border bg-surface transition-transform md:sticky md:top-14 md:h-[calc(100vh-3.5rem)] md:translate-x-0",
+          // Mobile: drawer z-40 (sobre el header z-20). Desktop (md): columna
+          // estática z-10 (bajo el header) → así el dropdown del selector de
+          // empresa, que vive en el header, queda por encima del sidebar.
+          "fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-border bg-surface transition-transform md:sticky md:top-14 md:z-10 md:h-[calc(100vh-3.5rem)] md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
         aria-label="Navegación principal"
