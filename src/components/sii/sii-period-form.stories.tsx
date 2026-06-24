@@ -65,7 +65,7 @@ export const Loading: Story = {
 };
 
 export const PeriodoExplicito: Story = {
-  args: { defaultValue: "2026-03" },
+  args: { defaultValue: "03-2026" },
   parameters: {
     docs: {
       description: {

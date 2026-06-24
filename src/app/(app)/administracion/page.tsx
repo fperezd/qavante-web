@@ -62,8 +62,8 @@ export default function AdministracionPage() {
         <SubModuleCard
           href="/administracion/credenciales"
           icon={KeyRound}
-          title="Credenciales SII"
-          description="Claves del portal SII (empresa + personas) y certificado digital."
+          title="Credenciales"
+          description="Claves del SII, certificado digital y conexión con tu banco."
         />
         <SubModuleCard
           href="/administracion/estructura-gestion"

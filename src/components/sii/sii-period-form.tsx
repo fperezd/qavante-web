@@ -70,7 +70,7 @@ export function SiiPeriodForm({
             render={({ field }) => (
               <QavanteInput
                 id="sii-period"
-                placeholder="2026-04"
+                placeholder="04-2026"
                 value={field.value}
                 onValueChange={field.onChange}
                 onBlur={field.onBlur}
