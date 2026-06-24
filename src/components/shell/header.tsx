@@ -25,7 +25,9 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const user = data?.user;
 
   return (
-    <header className="glass sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border px-4">
+    // z-50: por encima del sidebar (z-40) para que el dropdown del selector de
+    // empresa no quede tapado por el menú lateral.
+    <header className="glass sticky top-0 z-50 flex h-14 items-center gap-4 border-b border-border px-4">
       {/* Mobile hamburguesa */}
       <button
         type="button"
