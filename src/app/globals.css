@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@source "../../node_modules/@tooxs-digital/ui/dist";
+@import "@tooxs-digital/ui/styles.css";
+
+@import "tailwindcss";
 @import "../styles/tokens.css";
 
 @theme inline {
