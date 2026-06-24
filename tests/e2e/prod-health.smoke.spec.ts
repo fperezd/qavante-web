@@ -10,13 +10,12 @@ import { test, expect } from "@playwright/test";
    que dependen de hidratación client-side (forms, etc.). */
 
 test.describe("prod smoke — FE alive (HTTP-only)", () => {
-  test("GET / → 200 + HTML de Next.js", async ({ request }) => {
+  test("GET / → 307 a /inicio (raíz redirige a la app)", async ({ request }) => {
+    /* La raíz no tiene contenido propio: redirige a /inicio (y el middleware
+       gatea a /login si no hay sesión). Antes acá vivía el skeleton "Sprint C0". */
     const res = await request.get("/", { maxRedirects: 0 });
-    expect(res.status()).toBe(200);
-    const body = await res.text();
-    expect(body).toContain("<!DOCTYPE html>");
-    expect(body).toMatch(/<html[^>]*lang="es-CL"/);
-    expect(body).toContain("/_next/static/");
+    expect(res.status()).toBe(307);
+    expect(res.headers()["location"]).toContain("/inicio");
   });
 
   test("GET /login → 200 + bundle de LoginForm cargado", async ({ request }) => {
