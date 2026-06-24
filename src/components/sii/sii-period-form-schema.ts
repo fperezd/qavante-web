@@ -3,10 +3,10 @@
    Vive aparte del form para mantenerse testeable sin renderizar UI.
  *
  * Decisiones:
- * - Aceptamos formato `YYYY-MM` (estándar ISO month) y `YYYYMM` (compacto
- *   que el backend también acepta). El backend normaliza ambos. Rechazamos
- *   formatos no-numéricos como "marzo 2026" — son ambiguos y propensos a
- *   typo. Si el usuario los necesita, lo agregamos después con confirmación.
+ * - El usuario ingresa/ve `MM-AAAA` (convención Qavante: mes antes que año,
+ *   siempre). Internamente lo normalizamos a `YYYY-MM` (lo que espera el
+ *   backend). Rechazamos formatos no-numéricos como "marzo 2026" — son
+ *   ambiguos y propensos a typo.
  * - Mes obligatoriamente 01-12. Año obligatoriamente 4 dígitos.
  * - Default: período anterior al mes actual (los datos del mes vigente
  *   típicamente no están completos en el SII hasta el día 12-15 del
@@ -15,12 +15,13 @@
 import { z } from "zod";
 
 export const siiPeriodFormSchema = z.object({
+  // Lo que escribe el usuario: MM-AAAA (mes antes que año).
   periodo: z
     .string()
     .trim()
     .min(1, "Elige el período que quieres consultar.")
-    .refine((v) => /^\d{4}-(0[1-9]|1[0-2])$/.test(v) || /^\d{4}(0[1-9]|1[0-2])$/.test(v), {
-      message: "Usa el formato AAAA-MM (ej: 2026-04) o AAAAMM (ej: 202604).",
+    .refine((v) => /^(0[1-9]|1[0-2])-\d{4}$/.test(v), {
+      message: "Usa el formato MM-AAAA (ej: 04-2026).",
     }),
 });
 
@@ -29,7 +30,7 @@ export type SiiPeriodFormValues = z.infer<typeof siiPeriodFormSchema>;
 /** Devuelve el período anterior al mes pasado en `now` (default: mes
  *  pasado de hoy). Útil como default del form porque los datos del mes
  *  actual típicamente no están completos en el SII hasta mediados del
- *  mes siguiente. Formato `YYYY-MM`.
+ *  mes siguiente. Formato `MM-AAAA` (el que ve el usuario).
  *
  *  @param now - opcional, para tests determinísticos. */
 export function defaultPeriod(now: Date = new Date()): string {
@@ -38,17 +39,17 @@ export function defaultPeriod(now: Date = new Date()): string {
   /* Si estamos en enero, el "mes anterior" es diciembre del año previo. */
   const targetMonth = month === 0 ? 12 : month;
   const targetYear = month === 0 ? year - 1 : year;
-  return `${targetYear}-${String(targetMonth).padStart(2, "0")}`;
+  return `${String(targetMonth).padStart(2, "0")}-${targetYear}`;
 }
 
-/** Normaliza el input a `YYYY-MM` para presentación. El backend acepta
- *  ambos pero el FE muestra siempre con guión. */
+/** Normaliza a `YYYY-MM` (lo que espera el backend). Acepta el `MM-AAAA` del
+ *  usuario y, defensivamente, un `YYYY-MM` ya normalizado. */
 export function normalizePeriod(input: string): string {
   const trimmed = input.trim();
-  if (/^\d{4}-\d{2}$/.test(trimmed)) return trimmed;
-  if (/^\d{6}$/.test(trimmed)) {
-    return `${trimmed.slice(0, 4)}-${trimmed.slice(4)}`;
-  }
+  const mmaaaa = /^(\d{2})-(\d{4})$/.exec(trimmed); // MM-AAAA → YYYY-MM
+  if (mmaaaa) return `${mmaaaa[2]}-${mmaaaa[1]}`;
+  if (/^\d{4}-\d{2}$/.test(trimmed)) return trimmed; // ya YYYY-MM (defensivo)
+  if (/^\d{6}$/.test(trimmed)) return `${trimmed.slice(0, 4)}-${trimmed.slice(4)}`;
   return trimmed; // no debería llegar acá si el schema validó
 }
 

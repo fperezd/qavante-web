@@ -12,7 +12,7 @@ const labels: Record<string, string> = {
   gestion: "Gestión",
   administracion: "Administración",
   usuarios: "Usuarios",
-  credenciales: "Credenciales SII",
+  credenciales: "Credenciales",
   "mi-cuenta": "Mi cuenta",
 };
 

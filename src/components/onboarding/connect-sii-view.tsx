@@ -46,17 +46,20 @@ export function ConnectSiiView() {
       <form onSubmit={handleSubmit} noValidate className="max-w-md space-y-4">
         <div className="flex items-start gap-3 rounded-xl border border-info-500/30 bg-info-500/5 p-3 text-sm text-neutral-dark">
           <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-info-600" aria-hidden="true" />
-          <p>Tu clave se guarda cifrada y solo se usa para consultar tus datos en el SII.</p>
+          <p>
+            Usa el RUT y la clave tributaria del <strong>representante legal</strong> (con los que
+            ingresa al SII). Se guardan cifrados y solo se usan para consultar tus datos.
+          </p>
         </div>
 
         <div className="space-y-1">
           <label htmlFor="sii-rut" className="text-sm font-medium text-neutral-dark">
-            RUT
+            RUT del representante legal
           </label>
           <QavanteInput
             id="sii-rut"
             variant="rut"
-            placeholder="76.123.456-7"
+            placeholder="12.345.678-5"
             value={rut}
             onValueChange={setRut}
             invalid={touched && !rutValid}
