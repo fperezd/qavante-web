@@ -36,3 +36,14 @@ export function usePutBiceCredential() {
     onSuccess: () => qc.invalidateQueries({ queryKey: bankCredentialKeys.bice }),
   });
 }
+
+/** `POST /api/bank-movements/bice/sync` — dispara la traída de movimientos del
+ *  banco (sin params). Conectar las credenciales NO trae datos por sí solo; hay
+ *  que sincronizar. Los movimientos resultantes se ven en Caja. NO retry. */
+export function useSyncBiceMovements() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<unknown>("/api/bank-movements/bice/sync"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["bank-movements"] }),
+  });
+}

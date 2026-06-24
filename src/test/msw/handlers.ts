@@ -1191,6 +1191,10 @@ const credentialsHandlersV2 = [
     biceConnected = true;
     return new HttpResponse(null, { status: 200 });
   }),
+
+  http.post("*/api/bank-movements/bice/sync", () =>
+    HttpResponse.json({ started: true, synced: 0 }, { status: 200 }),
+  ),
 ];
 
 /* ============================================================

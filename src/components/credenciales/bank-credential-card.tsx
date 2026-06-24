@@ -1,12 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, Landmark, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Landmark, Loader2, RefreshCw } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteButton, QavanteInput } from "@/components/qavante";
 import { PasswordInput } from "@/components/credenciales/password-input";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
-import { useBiceCredentialStatus, usePutBiceCredential } from "@/lib/api/bank-credentials";
+import {
+  useBiceCredentialStatus,
+  usePutBiceCredential,
+  useSyncBiceMovements,
+} from "@/lib/api/bank-credentials";
 import { isValidRut } from "@/lib/validators/rut";
 
 /* Card de conexión bancaria (BICE). Conecta/rota las credenciales del banco
@@ -16,6 +20,7 @@ import { isValidRut } from "@/lib/validators/rut";
 export function BankCredentialCard() {
   const status = useBiceCredentialStatus();
   const save = usePutBiceCredential();
+  const sync = useSyncBiceMovements();
   const [editing, setEditing] = React.useState(false);
   const [rut, setRut] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -68,10 +73,47 @@ export function BankCredentialCard() {
           </div>
 
           {!showForm && (
-            <div className="flex justify-end pt-1">
-              <QavanteButton size="sm" variant="ghost" onClick={() => setEditing(true)}>
-                {connected ? "Cambiar credenciales" : "Conectar banco"}
-              </QavanteButton>
+            <div className="space-y-2 pt-1">
+              {connected && (
+                <p className="text-xs text-neutral-mid">
+                  Conectar el banco no trae los datos solo: sincroniza para traer tus movimientos.
+                  Después los ves en <strong>Caja</strong>.
+                </p>
+              )}
+
+              {sync.isSuccess && (
+                <div className="flex items-start gap-2 rounded-lg border border-success-500/40 bg-success-500/10 p-2.5 text-sm text-success-700">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                  <p>
+                    Sincronización iniciada. Tus movimientos aparecerán en Caja en unos minutos.
+                  </p>
+                </div>
+              )}
+              {sync.isError && (
+                <div
+                  className="flex items-start gap-2 rounded-lg border border-danger-500/40 bg-danger-500/10 p-2.5 text-sm text-danger-500"
+                  role="alert"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                  <p>
+                    {sync.error instanceof ApiError
+                      ? apiErrorToUserMessage(sync.error)
+                      : "No pudimos sincronizar. Intenta de nuevo en unos segundos."}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap justify-end gap-2">
+                <QavanteButton size="sm" variant="ghost" onClick={() => setEditing(true)}>
+                  {connected ? "Cambiar credenciales" : "Conectar banco"}
+                </QavanteButton>
+                {connected && (
+                  <QavanteButton size="sm" loading={sync.isPending} onClick={() => sync.mutate()}>
+                    <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                    Sincronizar movimientos
+                  </QavanteButton>
+                )}
+              </div>
             </div>
           )}
 
