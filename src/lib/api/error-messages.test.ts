@@ -73,9 +73,18 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
   });
 
-  it("5xx genérico → 'no pudimos cargar'", () => {
-    expect(apiErrorToUserMessage(new ApiError("server-error", 500))).toBe(
+  it("5xx sin detalle útil (Internal Server Error) → genérico 'no pudimos cargar'", () => {
+    expect(apiErrorToUserMessage(new ApiError("Internal Server Error", 500))).toBe(
       "No pudimos cargar la información. Intenta nuevamente.",
+    );
+    expect(apiErrorToUserMessage(new ApiError("Error 500", 500))).toBe(
+      "No pudimos cargar la información. Intenta nuevamente.",
+    );
+  });
+
+  it("5xx con detalle del backend → muestra el detalle (no esconde la causa)", () => {
+    expect(apiErrorToUserMessage(new ApiError("El SII no respondió a tiempo.", 500))).toBe(
+      "El SII no respondió a tiempo.",
     );
   });
 
