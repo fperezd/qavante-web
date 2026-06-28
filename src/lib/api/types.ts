@@ -851,6 +851,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sii/enrich-due-dates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII: llena receivables.due_date bajando el XML de cada DTE emitido (ADR-0037 §6.4)
+         * @description Para las ventas del período (RCV ya sincronizado), usa el `dhdr_codigo` de cada
+         *     documento para bajar su XML del DTE emitido (`mipeGenDLNewEnvio.cgi`, login por cert),
+         *     saca el vencimiento (`FchVenc`/`FchPago`) y llena `receivables.due_date` — el dato que
+         *     no viene en el RCV. Desbloquea overdue_collections + aging de Cobrar. Idempotente.
+         */
+        post: operations["sii_enrich_due_dates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/credentials/sii": {
         parameters: {
             query?: never;
@@ -5878,6 +5901,47 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * DueDateEnrichResponse
+         * @description Resultado de `POST /api/sii/enrich-due-dates` — baja el XML de cada DTE emitido
+         *     (via `dhdr_codigo` del RCV) y llena `receivables.due_date` (ADR-0037 §6.4).
+         */
+        DueDateEnrichResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Period */
+            period: string;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Enriched
+             * @default 0
+             */
+            enriched: number;
+            /**
+             * No Code
+             * @default 0
+             */
+            no_code: number;
+            /**
+             * No Xml
+             * @default 0
+             */
+            no_xml: number;
+            /**
+             * No Date
+             * @default 0
+             */
+            no_date: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** EmailDispatchSummary */
         EmailDispatchSummary: {
             /**
@@ -10515,7 +10579,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10526,6 +10592,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BukHealthResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -10546,7 +10621,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10577,7 +10654,9 @@ export interface operations {
             path: {
                 employee_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10609,7 +10688,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -10640,7 +10721,9 @@ export interface operations {
             path: {
                 position_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11026,6 +11109,13 @@ export interface operations {
                     "application/json": components["schemas"]["BheResponse"];
                 };
             };
+            /** @description Credenciales SII inválidas o cert sin autorización para el RUT. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11034,6 +11124,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description El SII no respondió correctamente (login/portal caído o rechazo). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -11062,6 +11159,13 @@ export interface operations {
                     "application/json": components["schemas"]["RcvComprasResponse"];
                 };
             };
+            /** @description Credenciales SII inválidas o cert sin autorización para el RUT. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11070,6 +11174,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description El SII no respondió correctamente (login/portal caído o rechazo). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -11098,6 +11209,13 @@ export interface operations {
                     "application/json": components["schemas"]["RcvVentasResponse"];
                 };
             };
+            /** @description Credenciales SII inválidas o cert sin autorización para el RUT. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11106,6 +11224,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description El SII no respondió correctamente (login/portal caído o rechazo). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -11166,6 +11291,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RcvSyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_enrich_due_dates: {
+        parameters: {
+            query: {
+                /** @description Período YYYY-MM, YYYYMM o 'marzo 2026'. */
+                periodo: string;
+                /** @description Diagnóstico: baja UN documento y devuelve la respuesta cruda. */
+                debug?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DueDateEnrichResponse"];
                 };
             };
             /** @description Validation Error */
@@ -11706,7 +11867,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11719,6 +11882,15 @@ export interface operations {
                     "application/json": components["schemas"]["TgrHealthResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     tgr_movimientos_deudas: {
@@ -11726,7 +11898,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11739,6 +11913,15 @@ export interface operations {
                     "application/json": components["schemas"]["MovimientosDeudasResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     tgr_certificado_deudas: {
@@ -11746,7 +11929,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11771,6 +11956,15 @@ export interface operations {
                     "application/json": components["schemas"]["CertificadoErrorResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
             /** @description Error upstream del API TGR. */
             502: {
                 headers: {
@@ -11787,7 +11981,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11800,6 +11996,15 @@ export interface operations {
                     "application/json": components["schemas"]["SourceStatusResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     sources_status: {
@@ -11807,7 +12012,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -11818,6 +12025,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourcesStatusListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -16006,7 +16222,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16017,6 +16235,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectionStatusListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
