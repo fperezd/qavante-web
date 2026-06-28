@@ -67,6 +67,12 @@ NEXT_PUBLIC_FF_ONBOARDING = "true"
 # flag → Worker [vars]). Degradación elegante si el endpoint falla (error inline,
 # no expulsa). FE construido en #346/#347/#348.
 NEXT_PUBLIC_FF_OBLIGATIONS = "true"
+# Activada 2026-06-28: indicador de sincronización del header. CC-API migró
+# /api/sources/status a require_session (cookie) en #388 — verificado en prod
+# (GET sin auth → 401 no_session, ya no "Falta X-Api-Key"). Gating server-side
+# (layout → shell → header). Degradación elegante: si falla, el indicador no se
+# muestra (no rompe el header).
+NEXT_PUBLIC_FF_SYNC_STATUS = "true"
 
 # Custom domain declarativo. Idempotente: si el binding ya existe en el
 # dashboard (creado manualmente el 2026-05-12), wrangler lo respeta. Si se
