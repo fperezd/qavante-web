@@ -31,8 +31,14 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
   });
 
-  it("403 → 'no tienes permisos'", () => {
-    expect(apiErrorToUserMessage(new ApiError("forbidden", 403))).toBe(
+  it("403 con detalle del backend → muestra el detalle (no el genérico)", () => {
+    expect(apiErrorToUserMessage(new ApiError("El SII rechazó la consulta.", 403))).toBe(
+      "El SII rechazó la consulta.",
+    );
+  });
+
+  it("403 sin detalle útil → genérico 'no tienes permisos'", () => {
+    expect(apiErrorToUserMessage(new ApiError("Error 403", 403))).toBe(
       "No tienes permisos para realizar esta acción.",
     );
   });

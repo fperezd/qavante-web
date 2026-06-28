@@ -38,7 +38,13 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
     case 401:
       return "Tu sesión expiró. Vuelve a iniciar sesión.";
     case 403:
-      return "No tienes permisos para realizar esta acción.";
+      /* El backend suele mandar un detalle específico y user-facing en el 403
+         (ej. por qué el SII rechaza la consulta, falta de consentimiento, etc.).
+         Lo preferimos sobre el genérico — el "No tienes permisos" escondía la
+         causa real. Cae al genérico solo si no hay detalle útil. */
+      return err.message && err.message !== `Error ${err.status}`
+        ? err.message
+        : "No tienes permisos para realizar esta acción.";
     case 404:
       return "No encontramos la información que buscas.";
     case 408:
