@@ -59,7 +59,13 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
   }
 
   if (err.status >= 500) {
-    return "No pudimos cargar la información. Intenta nuevamente.";
+    /* Igual que el 403: si el backend mandó un detalle específico y útil (no un
+       genérico tipo "Internal Server Error"), lo mostramos en vez de esconder la
+       causa. Ayuda a diagnosticar 500 inesperados (ej. el RCV del SII que falla
+       al traer en vivo). Cae al genérico si el detalle no aporta. */
+    const generic = "No pudimos cargar la información. Intenta nuevamente.";
+    const bare = ["Internal Server Error", "Service Unavailable", `Error ${err.status}`];
+    return err.message && !bare.includes(err.message) ? err.message : generic;
   }
 
   return err.message || "Ocurrió un error inesperado.";
