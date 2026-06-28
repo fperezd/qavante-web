@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Banknote, CheckCircle2, Inbox, TrendingUp } from "lucide-react";
+import { Banknote, CheckCircle2, Globe, Inbox, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   FeatureUnavailableState,
@@ -47,6 +47,14 @@ export default function CajaPage() {
               badge="Auditoría"
               badgeVariant="success"
             />
+            <CajaSubCard
+              href="/caja/compras-extranjero"
+              icon={Globe}
+              title="Compras al extranjero"
+              description="Compras en moneda extranjera de tus cartolas de tarjeta. Asigna concepto y categoría."
+              badge="Tarjeta"
+              badgeVariant="info"
+            />
           </div>
         </section>
       ) : (
@@ -86,7 +94,7 @@ interface CajaSubCardProps {
   title: string;
   description: string;
   badge: string;
-  badgeVariant: "success" | "warning";
+  badgeVariant: "success" | "warning" | "info";
 }
 
 function CajaSubCard({

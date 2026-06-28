@@ -2160,6 +2160,51 @@ const obligationsHandlers = [
   http.post("*/api/treasury/obligations/reconcile", () =>
     HttpResponse.json({ reconciled: 2 }, { status: 200 }),
   ),
+
+  /* Compras al extranjero (de la cartola). Lista + clasificar. */
+  http.get("*/api/treasury/foreign-purchases", () =>
+    HttpResponse.json(
+      {
+        items: [
+          {
+            id: "fp-1",
+            merchant: "OpenAI LLC",
+            op_date: "2026-06-12",
+            country: "Estados Unidos",
+            amount_usd: "20.00",
+            clp_operative: "19200",
+            currency_origin: "USD",
+            status: "pending",
+            needs_review: true,
+          },
+          {
+            id: "fp-2",
+            merchant: "Amazon Web Services",
+            op_date: "2026-06-10",
+            country: "Estados Unidos",
+            amount_usd: "143.20",
+            clp_operative: "137500",
+            currency_origin: "USD",
+            status: "classified",
+            needs_review: false,
+            concept: "Hosting",
+            category: "Gastos operativos",
+          },
+        ],
+      },
+      { status: 200 },
+    ),
+  ),
+
+  http.post("*/api/treasury/foreign-purchases/:id/classify", async ({ request }) => {
+    const b = (await request.json()) as { concept?: string; category?: string };
+    if (!b?.concept || !b?.category) {
+      return HttpResponse.json(errorBody("validation_error", "Falta concepto/categoría."), {
+        status: 422,
+      });
+    }
+    return HttpResponse.json({ status: "ok" }, { status: 200 });
+  }),
 ];
 
 /* Inicio Ejecutivo — dashboard summary (Sprint C8, contrato FE-first). Endpoint
