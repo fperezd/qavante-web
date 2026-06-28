@@ -1,0 +1,79 @@
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { http, HttpResponse } from "msw";
+import { ObligacionDetailView } from "./obligacion-detail-view";
+
+/* Detalle de una obligación / préstamo. `GET /api/treasury/obligations/:id`. */
+
+const OK = http.get("*/api/treasury/obligations/:id", () =>
+  HttpResponse.json(
+    {
+      obligation: {
+        id: "obl-1",
+        type: "loan",
+        counterparty: "Banco BICE",
+        principal_total: "12000000",
+        annual_rate: "0.18",
+        currency_code: "CLP",
+        origination_date: "2026-01-15",
+        installments_total: 6,
+        status: "active",
+        needs_review: false,
+      },
+      installments: [
+        {
+          number: 1,
+          due_date: "2026-02-15",
+          principal_amount: "1900000",
+          interest_amount: "180000",
+          total_amount: "2080000",
+          status: "paid",
+        },
+        {
+          number: 2,
+          due_date: "2026-03-15",
+          principal_amount: "1930000",
+          interest_amount: "150000",
+          total_amount: "2080000",
+          status: "paid",
+        },
+        {
+          number: 3,
+          due_date: "2026-04-15",
+          principal_amount: "1960000",
+          interest_amount: "120000",
+          total_amount: "2080000",
+          status: "pending",
+        },
+        {
+          number: 4,
+          due_date: "2026-05-15",
+          principal_amount: "1990000",
+          interest_amount: "90000",
+          total_amount: "2080000",
+          status: "pending",
+        },
+      ],
+    },
+    { status: 200 },
+  ),
+);
+const ERROR = http.get("*/api/treasury/obligations/:id", () =>
+  HttpResponse.json({ detail: { code: "not_found", detail: "No existe." } }, { status: 404 }),
+);
+
+const meta = {
+  title: "Capa 2 / Pagar / ObligacionDetailView",
+  component: ObligacionDetailView,
+  args: { id: "obl-1" },
+  parameters: {
+    layout: "padded",
+    nextjs: { appDirectory: true },
+    msw: { handlers: [OK] },
+  },
+} satisfies Meta<typeof ObligacionDetailView>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const ConCalendario: Story = { name: "Con calendario" };
+export const Error: Story = { name: "No encontrada", parameters: { msw: { handlers: [ERROR] } } };
