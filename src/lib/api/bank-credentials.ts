@@ -37,13 +37,29 @@ export function usePutBiceCredential() {
   });
 }
 
-/** `POST /api/bank-movements/bice/sync` — dispara la traída de movimientos del
- *  banco (sin params). Conectar las credenciales NO trae datos por sí solo; hay
- *  que sincronizar. Los movimientos resultantes se ven en Caja. NO retry. */
+/** Dispara la traída de movimientos del banco: cuentas
+ *  (`POST /api/bank-movements/bice/sync`) **y** tarjetas de crédito
+ *  (`POST /api/bank-movements/bice/cards/sync`). Conectar las credenciales NO
+ *  trae datos solo; hay que sincronizar. Los movimientos se ven en Caja.
+ *  Tolerante a fallas parciales: tiene éxito si al menos una fuente sincronizó.
+ *  NO retry. */
 export function useSyncBiceMovements() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<unknown>("/api/bank-movements/bice/sync"),
+    mutationFn: async () => {
+      const [accounts, cards] = await Promise.allSettled([
+        api.post<unknown>("/api/bank-movements/bice/sync"),
+        api.post<unknown>("/api/bank-movements/bice/cards/sync"),
+      ]);
+      // Si ambas fallaron, propagamos el error de cuentas (el principal).
+      if (accounts.status === "rejected" && cards.status === "rejected") {
+        throw accounts.reason;
+      }
+      return {
+        accounts: accounts.status === "fulfilled",
+        cards: cards.status === "fulfilled",
+      };
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bank-movements"] }),
   });
 }

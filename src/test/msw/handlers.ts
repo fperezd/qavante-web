@@ -1195,6 +1195,10 @@ const credentialsHandlersV2 = [
   http.post("*/api/bank-movements/bice/sync", () =>
     HttpResponse.json({ started: true, synced: 0 }, { status: 200 }),
   ),
+
+  http.post("*/api/bank-movements/bice/cards/sync", () =>
+    HttpResponse.json({ started: true, synced: 0 }, { status: 200 }),
+  ),
 ];
 
 /* ============================================================
