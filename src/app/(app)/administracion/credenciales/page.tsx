@@ -6,6 +6,7 @@ import {
   SiiCredentialCard,
   CertificateListView,
   BankCredentialCard,
+  CardStatementUpload,
 } from "@/components/credenciales";
 import { useSiiCredential } from "@/lib/api/credentials";
 
@@ -33,6 +34,7 @@ export default function CredencialesPage() {
           Conexión bancaria
         </h2>
         <BankCredentialCard />
+        <CardStatementUpload />
       </section>
 
       {isLoading && (

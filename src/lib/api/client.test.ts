@@ -44,6 +44,25 @@ describe("api — respuestas OK", () => {
     );
     await expect(api.post("/api/echo", { body: { a: 1 } })).resolves.toEqual({ a: 1 });
   });
+
+  it("FormData se envía sin serializar y sin forzar Content-Type JSON (uploads)", async () => {
+    server.use(
+      http.post(`${BASE}/api/upload`, async ({ request }) => {
+        const ct = request.headers.get("content-type") ?? "";
+        const form = await request.formData();
+        return HttpResponse.json({
+          isMultipart: ct.includes("multipart/form-data"),
+          fileName: (form.get("file") as File | null)?.name ?? null,
+        });
+      }),
+    );
+    const fd = new FormData();
+    fd.append("file", new File(["%PDF-1.4"], "cartola.pdf", { type: "application/pdf" }));
+    await expect(api.post("/api/upload", { body: fd })).resolves.toEqual({
+      isMultipart: true,
+      fileName: "cartola.pdf",
+    });
+  });
 });
 
 describe("api — errores", () => {
