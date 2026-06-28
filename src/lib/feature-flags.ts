@@ -44,6 +44,7 @@ export const FEATURE_FLAGS = [
   "pulsoDetail",
   "assistant",
   "onboarding",
+  "obligations",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -88,6 +89,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      → traer datos → dashboard). Modelo ADR-0017 (1ra persona crea empresa owner).
      Todos los endpoints vivos en prod (qavante-api #344/#345/#346 + signup/verify). */
   onboarding: "/api/auth/signup",
+  /* Obligaciones / Préstamos (Tesorería → Pagar). Alta de préstamo con
+     amortización francesa + conciliación de cuotas vs débitos bancarios.
+     Endpoints vivos en prod y aceptan cookie (verificado 2026-06-25). */
+  obligations: "/api/treasury/obligations",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

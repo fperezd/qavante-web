@@ -1427,7 +1427,14 @@ export interface paths {
         /** Lista las cuentas bancarias del tenant (selector de filtro) */
         get: operations["treasury_bank_accounts_list"];
         put?: never;
-        post?: never;
+        /**
+         * Crea una cuenta bancaria del tenant (owner/admin)
+         * @description Alta de cuenta (cta cte CLP/USD, tarjeta de crédito, etc.). Hasta ahora las
+         *     cuentas solo se seedeaban a mano; este endpoint las hace productizables y es
+         *     el prerequisito para vincular cuentas BICE (`POST …/bice/accounts/{ext}/link`)
+         *     y para la ingesta de tarjetas (ADR-0050). Requiere rol owner/admin.
+         */
+        post: operations["treasury_bank_accounts_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1545,6 +1552,32 @@ export interface paths {
          *     re-correr re-importa los movimientos (sin pérdida; ADR-0012 §3.4 D-a).
          */
         post: operations["bank_ingest_bice_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bank-movements/bice/cards/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BICE: sincronizar movimientos de tarjeta no facturados → payables (devengado)
+         * @description Ingesta los movimientos **no facturados** de las tarjetas de crédito BICE como
+         *     pasivos devengados en `treasury.payables` (`source_provider='bice'`), ADR-0050
+         *     (B1). Idempotente por el UNIQUE `(tenant, source_provider, source_external_id)`.
+         *
+         *     El gasto con tarjeta queda visible al motor (capa devengado); el pago del
+         *     facturado en la cta cte es la capa caja (no se doble-cuenta — ADR-0050 §4).
+         *     Requiere rol owner/admin.
+         */
+        post: operations["bank_ingest_bice_cards_sync"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2053,6 +2086,72 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/obligations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista las obligaciones del tenant + resumen de cuotas pendientes */
+        get: operations["treasury_obligations_list"];
+        put?: never;
+        /**
+         * Alta de préstamo: deriva la amortización (sistema francés) + calendario
+         * @description Crea un préstamo amortizable (ADR-0051): a partir de monto + **tasa mensual** +
+         *     número de cuotas, el sistema deriva el calendario por **sistema francés** (cuota
+         *     fija), separando capital de interés en cada cuota. Eso permite que después el
+         *     pago de cada cuota reduzca el pasivo (capital) y reconozca solo el interés como
+         *     gasto — sin el descuadre de tratar la cuota entera como gasto.
+         */
+        post: operations["treasury_obligations_create_loan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/obligations/{obligation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalle de una obligación: cabecera + calendario completo */
+        get: operations["treasury_obligations_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/obligations/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Concilia cuotas de préstamo pendientes contra débitos bancarios (1:1)
+         * @description Auto-concilia (ADR-0051 D) las cuotas de **préstamo** pendientes contra los
+         *     débitos de la cuenta corriente: solo cuando el match es inequívoco (monto exacto
+         *     + fecha cercana al vencimiento + contraparte en la glosa) → la cuota pasa a
+         *     `paid` con su `paid_movement_id` y baja el `needs_review`. Lo ambiguo queda
+         *     pendiente (cero falsos positivos). Requiere rol owner/admin.
+         */
+        post: operations["treasury_obligations_reconcile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/accounts-receivable": {
         parameters: {
             query?: never;
@@ -2543,24 +2642,28 @@ export interface paths {
         };
         /**
          * Tooxs360: estado del consentimiento de una fuente
-         * @description Devuelve el consentimiento activo del tenant para esa fuente. Si no hay,
-         *     devuelve el texto estándar que se debería presentar al usuario para
-         *     aceptar (UI puede usarlo en el modal de "conectar fuente").
+         * @description Devuelve el consentimiento EFECTIVO del tenant para esa fuente (resuelve
+         *     cascade por credencial, ADR-0050 §3.2 — el consent de la dueña cubre a las
+         *     que reusan su credencial). Si no hay, devuelve el texto de la familia que
+         *     se debería presentar para aceptar (UI lo usa en el modal de "conectar").
          */
         get: operations["admin_get_consent"];
         put?: never;
         /**
          * Tooxs360: aceptar consentimiento para conectar fuente
-         * @description Acepta el consentimiento para conectar una fuente. Vigencia 12 meses
-         *     desde ahora. Si ya había un consent activo, se revoca y se crea uno
-         *     nuevo (rotación). Audita en audit.consents con IP y user-agent del request.
+         * @description Acepta el consentimiento para conectar una fuente. El consent se graba sobre
+         *     la fuente DUEÑA de la credencial (cascade, ADR-0050 §3.2): aceptar `sii_rcv`
+         *     —o cualquier fuente de su familia— habilita RCV/DTE/BHE/F29/F22/TGR de una.
+         *     Vigencia 12 meses; si ya había un consent activo en la dueña, se revoca y se
+         *     crea uno nuevo (rotación). Audita en audit.consents con IP y user-agent.
          */
         post: operations["admin_accept_consent"];
         /**
          * Tooxs360: revocar consentimiento de una fuente
-         * @description Revoca el consentimiento activo del tenant para esa fuente. Idempotente:
-         *     devuelve 404 solo si nunca hubo consent o ya estaba revocado. Audita
-         *     en audit.consents.
+         * @description Revoca el consentimiento activo del tenant para esa fuente. Opera sobre la
+         *     fuente DUEÑA de la credencial (cascade, ADR-0050 §3.2): revocar deshabilita
+         *     toda la familia (es una sola credencial). Idempotente: 404 solo si nunca hubo
+         *     consent en la dueña o ya estaba revocado. Audita en audit.consents.
          */
         delete: operations["admin_revoke_consent"];
         options?: never;
@@ -4064,6 +4167,50 @@ export interface components {
             /** Sort Order */
             sort_order: number;
         };
+        /** CardIngestCardResult */
+        CardIngestCardResult: {
+            /** Card Ref */
+            card_ref: string;
+            /**
+             * Imported
+             * @default 0
+             */
+            imported: number;
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * CardIngestResult
+         * @description Resultado agregado de un sync de tarjetas → payables + obligaciones.
+         */
+        CardIngestResult: {
+            /** Provider */
+            provider: string;
+            /**
+             * Cards Total
+             * @default 0
+             */
+            cards_total: number;
+            /**
+             * Cards Synced
+             * @default 0
+             */
+            cards_synced: number;
+            /**
+             * Movements Imported
+             * @description Movimientos simples persistidos como payables.
+             * @default 0
+             */
+            movements_imported: number;
+            /**
+             * Obligations Detected
+             * @description Cuotas enrutadas a obligaciones card_purchase (ADR-0051 C).
+             * @default 0
+             */
+            obligations_detected: number;
+            /** Per Card */
+            per_card?: components["schemas"]["CardIngestCardResult"][];
+        };
         /** CartolaData */
         CartolaData: {
             DataHeader?: components["schemas"]["CartolaDataHeader"];
@@ -4892,6 +5039,54 @@ export interface components {
             dimension_value_id: string;
         };
         /**
+         * CreateBankAccountRequest
+         * @description Body de `POST /api/treasury/bank-accounts` — alta de cuenta (owner/admin).
+         */
+        CreateBankAccountRequest: {
+            /**
+             * Bank Name
+             * @description Banco (ej. 'BICE').
+             */
+            bank_name: string;
+            /**
+             * Account Name
+             * @description Alias legible (ej. 'Cuenta Corriente USD').
+             */
+            account_name: string;
+            /**
+             * Currency Code
+             * @description ISO 4217 (ej. 'CLP', 'USD'). Se normaliza a mayúsculas.
+             */
+            currency_code: string;
+            /**
+             * Account Type
+             * @description Tipo de cuenta (mig 0003).
+             * @default checking
+             * @enum {string}
+             */
+            account_type: "checking" | "savings" | "credit_card" | "loan" | "investment";
+            /**
+             * Account Number Masked
+             * @description Número de cuenta enmascarado (opcional).
+             */
+            account_number_masked?: string | null;
+            /**
+             * Credit Limit
+             * @description Cupo aprobado (solo `credit_card`).
+             */
+            credit_limit?: number | string | null;
+            /**
+             * Statement Close Day
+             * @description Día de cierre del estado de cuenta (solo `credit_card`).
+             */
+            statement_close_day?: number | null;
+            /**
+             * External Ref
+             * @description Referencia externa (ej. `numeroFormateado` BICE).
+             */
+            external_ref?: string | null;
+        };
+        /**
          * CreateClassificationRuleRequest
          * @description Body de `POST /api/treasury/classification-rules`.
          */
@@ -4992,6 +5187,48 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * CreateLoanRequest
+         * @description Body de `POST /api/treasury/obligations` (alta de préstamo, owner/admin).
+         */
+        CreateLoanRequest: {
+            /**
+             * Counterparty
+             * @description Acreedor del préstamo.
+             */
+            counterparty: string;
+            /**
+             * Principal
+             * @description Monto financiado (capital, sin intereses).
+             */
+            principal: number | string;
+            /**
+             * Monthly Rate
+             * @description Tasa de interés **mensual** en decimal (0.02 = 2%/mes).
+             */
+            monthly_rate: number | string;
+            /**
+             * Installments
+             * @description Número de cuotas mensuales.
+             */
+            installments: number;
+            /**
+             * First Due Date
+             * Format: date
+             * @description Vencimiento de la primera cuota (YYYY-MM-DD).
+             */
+            first_due_date: string;
+            /**
+             * Currency Code
+             * @description ISO 4217. Se normaliza a mayúsculas.
+             */
+            currency_code: string;
+            /**
+             * Origination Date
+             * @description Fecha del desembolso (default: la primera cuota).
+             */
+            origination_date?: string | null;
         };
         /**
          * CreateManagementAccountRequest
@@ -5248,7 +5485,7 @@ export interface components {
             numeroCuenta: string;
             /**
              * Numeroformateado
-             * @description Número de cuenta legible (ej. '07-04222-1')
+             * @description Número de cuenta legible (ej. '12-34567-8')
              */
             numeroFormateado: string;
             /** Nombrecuenta */
@@ -6482,6 +6719,40 @@ export interface components {
              */
             linked_bank_account_id: string;
         };
+        /**
+         * LoanInstallmentItem
+         * @description Una cuota del calendario de amortización (con split capital/interés).
+         */
+        LoanInstallmentItem: {
+            /** Number */
+            number: number;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /**
+             * Principal Amount
+             * @description Capital de la cuota (reduce el pasivo).
+             */
+            principal_amount: string;
+            /**
+             * Interest Amount
+             * @description Interés de la cuota (gasto).
+             */
+            interest_amount: string;
+            /** Total Amount */
+            total_amount: string;
+        };
+        /**
+         * LoanResponse
+         * @description Respuesta del alta de préstamo: cabecera + calendario derivado.
+         */
+        LoanResponse: {
+            obligation: components["schemas"]["ObligationHeader"];
+            /** Installments */
+            installments?: components["schemas"]["LoanInstallmentItem"][];
+        };
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -6970,6 +7241,143 @@ export interface components {
             /** Amount */
             amount: string;
         };
+        /**
+         * ObligationDetailResponse
+         * @description Respuesta de `GET /api/treasury/obligations/{id}`: cabecera + calendario.
+         */
+        ObligationDetailResponse: {
+            obligation: components["schemas"]["ObligationHeader"];
+            /** Installments */
+            installments?: components["schemas"]["ObligationInstallmentDetail"][];
+        };
+        /**
+         * ObligationHeader
+         * @description Cabecera de una obligación amortizable.
+         */
+        ObligationHeader: {
+            /** Id */
+            id: string;
+            /**
+             * Type
+             * @description card_purchase / loan / leasing / other.
+             */
+            type: string;
+            /** Counterparty */
+            counterparty?: string | null;
+            /** Principal Total */
+            principal_total: string;
+            /**
+             * Annual Rate
+             * @description Tasa anual nominal (mensual x 12).
+             */
+            annual_rate?: string | null;
+            /** Currency Code */
+            currency_code: string;
+            /**
+             * Origination Date
+             * Format: date
+             */
+            origination_date: string;
+            /** Installments Total */
+            installments_total: number;
+            /** Status */
+            status: string;
+            /**
+             * Needs Review
+             * @default false
+             */
+            needs_review: boolean;
+        };
+        /**
+         * ObligationInstallmentDetail
+         * @description Una cuota con su estado (para el detalle de la obligación).
+         */
+        ObligationInstallmentDetail: {
+            /** Number */
+            number: number;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /** Principal Amount */
+            principal_amount: string;
+            /** Interest Amount */
+            interest_amount: string;
+            /** Total Amount */
+            total_amount: string;
+            /**
+             * Status
+             * @description pending / paid.
+             */
+            status: string;
+        };
+        /**
+         * ObligationListItem
+         * @description Obligación + resumen de sus cuotas pendientes (para el listado).
+         */
+        ObligationListItem: {
+            /** Id */
+            id: string;
+            /** Type */
+            type: string;
+            /** Counterparty */
+            counterparty?: string | null;
+            /** Principal Total */
+            principal_total: string;
+            /** Annual Rate */
+            annual_rate?: string | null;
+            /** Currency Code */
+            currency_code: string;
+            /**
+             * Origination Date
+             * Format: date
+             */
+            origination_date: string;
+            /** Installments Total */
+            installments_total: number;
+            /** Status */
+            status: string;
+            /**
+             * Needs Review
+             * @default false
+             */
+            needs_review: boolean;
+            /**
+             * Pending Count
+             * @description Cuotas pendientes (no pagadas).
+             */
+            pending_count: number;
+            /**
+             * Next Due Date
+             * @description Próximo vencimiento pendiente.
+             */
+            next_due_date?: string | null;
+            /**
+             * Outstanding Total
+             * @description Σ total de las cuotas pendientes.
+             */
+            outstanding_total: string;
+        };
+        /**
+         * ObligationReconcileResponse
+         * @description Respuesta de `POST /api/treasury/obligations/reconcile`.
+         */
+        ObligationReconcileResponse: {
+            /**
+             * Reconciled
+             * @description Cuotas auto-conciliadas contra débitos bancarios.
+             */
+            reconciled: number;
+        };
+        /**
+         * ObligationsListResponse
+         * @description Respuesta de `GET /api/treasury/obligations`.
+         */
+        ObligationsListResponse: {
+            /** Items */
+            items?: components["schemas"]["ObligationListItem"][];
+        };
         /** OnboardingStatusResponse */
         OnboardingStatusResponse: {
             /**
@@ -7094,9 +7502,27 @@ export interface components {
             professional_fees: string;
             /** Recurring Expenses */
             recurring_expenses: string;
-            /** Ebitda Proxy */
+            /**
+             * Ebitda Proxy
+             * @description EBITDA operativo (neto de la compra de tarjeta sin clasificar). ADR-0051 E.
+             */
             ebitda_proxy: string;
-            /** Result */
+            /**
+             * Financial Expense
+             * @description Gasto financiero = interés de cuotas de préstamo del período (DEBAJO del EBITDA).
+             * @default 0
+             */
+            financial_expense: string;
+            /**
+             * Unclassified
+             * @description Compra de tarjeta reconocida al comprar, sin giro (operativo sin clasificar).
+             * @default 0
+             */
+            unclassified: string;
+            /**
+             * Result
+             * @description Resultado neto = EBITDA menos gasto financiero.
+             */
             result: string;
             variation: components["schemas"]["OperationalVariation"];
             /** Drivers */
@@ -11512,6 +11938,55 @@ export interface operations {
             };
         };
     };
+    treasury_bank_accounts_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBankAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Cuenta creada. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankAccountItem"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ya existe una cuenta con (banco, alias, moneda). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_bank_account_set_opening_balance: {
         parameters: {
             query?: never;
@@ -11637,7 +12112,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description `numeroFormateado` BICE (durable, ej. '07-04222-1'). Obtenido de `GET /accounts`. */
+                /** @description `numeroFormateado` BICE (durable, ej. '12-34567-8'). Obtenido de `GET /accounts`. */
                 external_id: string;
             };
             cookie?: {
@@ -11695,6 +12170,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IngestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bank_ingest_bice_cards_sync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardIngestResult"];
                 };
             };
             /** @description Validation Error */
@@ -13410,6 +13916,162 @@ export interface operations {
             };
         };
     };
+    treasury_obligations_list: {
+        parameters: {
+            query?: {
+                /** @description Filtro por tipo (loan/card_purchase/…). */
+                type?: string | null;
+                /** @description Filtro por estado (active/paid/cancelled). */
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObligationsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_obligations_create_loan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLoanRequest"];
+            };
+        };
+        responses: {
+            /** @description Préstamo creado con su calendario de cuotas. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_obligations_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                obligation_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObligationDetailResponse"];
+                };
+            };
+            /** @description La obligación no existe para el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_obligations_reconcile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObligationReconcileResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_accounts_receivable: {
         parameters: {
             query?: never;
@@ -14454,7 +15116,9 @@ export interface operations {
             path: {
                 source_code: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -14487,7 +15151,9 @@ export interface operations {
             path: {
                 source_code: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: {
             content: {
@@ -14522,7 +15188,9 @@ export interface operations {
             path: {
                 source_code: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -14551,7 +15219,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -14562,6 +15232,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsentsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -14575,7 +15254,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {

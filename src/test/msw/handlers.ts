@@ -2016,6 +2016,128 @@ const pagosHandlers = [
   ),
 ];
 
+/* Obligaciones / Préstamos (Tesorería). Seed con 1 préstamo + calendario. */
+const obligationsSeed = [
+  {
+    id: "obl-1",
+    type: "loan",
+    counterparty: "Banco BICE",
+    principal_total: "12000000",
+    annual_rate: "0.18",
+    currency_code: "CLP",
+    origination_date: "2026-01-15",
+    installments_total: 12,
+    status: "active",
+    needs_review: false,
+    pending_count: 9,
+    next_due_date: "2026-07-15",
+    outstanding_total: "9100000",
+  },
+  {
+    id: "obl-2",
+    type: "loan",
+    counterparty: "Leasing Andes",
+    principal_total: "4500000",
+    annual_rate: "0.22",
+    currency_code: "CLP",
+    origination_date: "2025-09-01",
+    installments_total: 18,
+    status: "active",
+    needs_review: true,
+    pending_count: 11,
+    next_due_date: "2026-07-01",
+    outstanding_total: "2750000",
+  },
+];
+
+function loanSchedule(principal: number, monthlyRate: number, n: number, firstDue: string) {
+  const cuota =
+    monthlyRate === 0 ? principal / n : (principal * monthlyRate) / (1 - (1 + monthlyRate) ** -n);
+  const parts = firstDue.split("-").map(Number);
+  const y = parts[0] ?? 2026;
+  const m = parts[1] ?? 1;
+  let saldo = principal;
+  const items = [];
+  for (let i = 0; i < n; i++) {
+    const interest = saldo * monthlyRate;
+    const principalAmt = cuota - interest;
+    saldo -= principalAmt;
+    const due = new Date(Date.UTC(y, m - 1 + i, 1));
+    items.push({
+      number: i + 1,
+      due_date: due.toISOString().slice(0, 10),
+      principal_amount: principalAmt.toFixed(0),
+      interest_amount: interest.toFixed(0),
+      total_amount: cuota.toFixed(0),
+      status: i < 3 ? "paid" : "pending",
+    });
+  }
+  return items;
+}
+
+const obligationsHandlers = [
+  http.get("*/api/treasury/obligations", () =>
+    HttpResponse.json({ items: obligationsSeed }, { status: 200 }),
+  ),
+
+  http.get("*/api/treasury/obligations/:id", ({ params }) => {
+    const o = obligationsSeed.find((x) => x.id === params.id) ?? obligationsSeed[0]!;
+    return HttpResponse.json(
+      {
+        obligation: o,
+        installments: loanSchedule(
+          Number(o.principal_total),
+          0.015,
+          o.installments_total,
+          o.origination_date,
+        ),
+      },
+      { status: 200 },
+    );
+  }),
+
+  http.post("*/api/treasury/obligations", async ({ request }) => {
+    const b = (await request.json()) as {
+      counterparty?: string;
+      principal?: string | number;
+      monthly_rate?: string | number;
+      installments?: number;
+      first_due_date?: string;
+      currency_code?: string;
+    };
+    if (!b?.counterparty || !b?.principal || !b?.installments || !b?.first_due_date) {
+      return HttpResponse.json(errorBody("validation_error", "Faltan datos del préstamo."), {
+        status: 422,
+      });
+    }
+    const principal = Number(b.principal);
+    const rate = Number(b.monthly_rate ?? 0);
+    const header = {
+      id: "obl-new",
+      type: "loan",
+      counterparty: b.counterparty,
+      principal_total: String(principal),
+      annual_rate: String(rate * 12),
+      currency_code: b.currency_code ?? "CLP",
+      origination_date: b.first_due_date,
+      installments_total: b.installments,
+      status: "active",
+      needs_review: false,
+    };
+    return HttpResponse.json(
+      {
+        obligation: header,
+        installments: loanSchedule(principal, rate, b.installments, b.first_due_date),
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.post("*/api/treasury/obligations/reconcile", () =>
+    HttpResponse.json({ reconciled: 2 }, { status: 200 }),
+  ),
+];
+
 /* Inicio Ejecutivo — dashboard summary (Sprint C8, contrato FE-first). Endpoint
    real aún no existe (ver docs/backend-contracts/inicio-dashboard-summary-contract.md). */
 const dashboardSummaryFixture = {
@@ -2188,6 +2310,7 @@ export const handlers = [
   ...usersHandlers,
   ...credentialsHandlersV2,
   ...treasuryHandlers,
+  ...obligationsHandlers,
   ...managementHandlers,
   ...gestionHandlers,
   ...cobranzaHandlers,
