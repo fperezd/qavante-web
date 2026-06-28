@@ -5,9 +5,12 @@ import { Bell, Menu, Search } from "lucide-react";
 import { QavanteBadge, QavanteLogo } from "@/components/qavante";
 import { useMe } from "@/lib/api/users";
 import { CompanySwitcher } from "./company-switcher";
+import { SyncStatusIndicator } from "./sync-status-indicator";
 
 export interface AppHeaderProps {
   onMenuClick: () => void;
+  /** Monta el indicador de sincronización (gated `syncStatus`, server-resuelto). */
+  syncStatusEnabled?: boolean;
 }
 
 /** Iniciales para el avatar a partir del nombre ("Fernando Pérez" → "FP"). */
@@ -20,7 +23,7 @@ function initialsOf(name?: string | null): string {
     .join("");
 }
 
-export function AppHeader({ onMenuClick }: AppHeaderProps) {
+export function AppHeader({ onMenuClick, syncStatusEnabled }: AppHeaderProps) {
   const { data } = useMe();
   const user = data?.user;
 
@@ -59,6 +62,9 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
       </button>
 
       <div className="ml-auto flex items-center gap-3">
+        {/* Indicador de sincronización (gated `syncStatus`). */}
+        {syncStatusEnabled && <SyncStatusIndicator />}
+
         {/* Pulso badge (placeholder) — contexto descriptivo para SR */}
         <div
           className="hidden items-center gap-1.5 md:flex"

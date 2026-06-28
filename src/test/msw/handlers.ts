@@ -2309,8 +2309,52 @@ const gestionHandlers = [
   }),
 ];
 
+/* Estado de las fuentes (indicador de sync del header). Seed con fuentes mixtas. */
+const sourcesStatusHandlers = [
+  http.get("*/api/sources/status", () =>
+    HttpResponse.json(
+      {
+        sources: [
+          {
+            source: "sii_rcv",
+            display_name: "SII",
+            category: "tax",
+            state: "ok",
+            last_sync: "2026-06-27T12:30:00Z",
+          },
+          {
+            source: "bice",
+            display_name: "Banco BICE",
+            category: "bank",
+            state: "ok",
+            last_sync: "2026-06-27T13:05:00Z",
+          },
+          {
+            source: "tgr",
+            display_name: "Tesorería (TGR)",
+            category: "tax",
+            state: "stale",
+            last_sync: "2026-06-20T09:00:00Z",
+            reason: "Última sincronización hace más de 5 días.",
+          },
+          {
+            source: "direccion_trabajo",
+            display_name: "Dirección del Trabajo",
+            category: "labor",
+            state: "missing",
+            reason: "No conectada.",
+          },
+        ],
+        count: 4,
+      },
+      { status: 200 },
+    ),
+  ),
+];
+
 export const handlers = [
   ...authHandlers,
+  ...sourcesStatusHandlers,
   ...usersHandlers,
   ...credentialsHandlersV2,
   ...treasuryHandlers,
