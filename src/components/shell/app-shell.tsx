@@ -15,15 +15,22 @@ export interface AppShellProps {
   /** `assistant` ON → monta el Asistente interactivo (chat). OFF → el trigger
      stub actual (comportamiento previo intacto). Lo resuelve el layout (server). */
   assistantEnabled?: boolean;
+  /** `syncStatus` ON → muestra el indicador de sincronización en el header. */
+  syncStatusEnabled?: boolean;
 }
 
-export function AppShell({ children, userRole, assistantEnabled }: AppShellProps) {
+export function AppShell({
+  children,
+  userRole,
+  assistantEnabled,
+  syncStatusEnabled,
+}: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
       <SkipLink />
-      <AppHeader onMenuClick={() => setSidebarOpen(true)} />
+      <AppHeader onMenuClick={() => setSidebarOpen(true)} syncStatusEnabled={syncStatusEnabled} />
 
       <div className="flex">
         <AppSidebar

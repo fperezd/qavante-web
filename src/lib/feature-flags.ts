@@ -45,6 +45,7 @@ export const FEATURE_FLAGS = [
   "assistant",
   "onboarding",
   "obligations",
+  "syncStatus",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -93,6 +94,11 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      amortización francesa + conciliación de cuotas vs débitos bancarios.
      Endpoints vivos en prod y aceptan cookie (verificado 2026-06-25). */
   obligations: "/api/treasury/obligations",
+  /* Indicador de sincronización (header): estado por fuente + última
+     actualización + errores. FE-first contra `/api/sources/status` — el endpoint
+     existe pero es api-key-only (no acepta cookie); activar cuando CC-API lo
+     migre a require_session. Ver STATE_OF_THE_TRAIN (gaps de auth). */
+  syncStatus: "/api/sources/status",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
