@@ -24,7 +24,7 @@
  *   `'marzo 2026'`. El FE manda lo que tiene; el backend normaliza.
  *
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -192,5 +192,21 @@ export function useSiiDteRecibidos(params: SiiDteRangoParams) {
     enabled: Boolean(params.desde) && Boolean(params.hasta),
     staleTime: 5 * 60 * 1000,
     retry: false,
+  });
+}
+
+/** `POST /api/sii/sync-rcv?periodo=YYYY-MM` — dispara la sincronización del RCV
+ *  (compras y ventas) del período desde el SII. Requiere consentimiento `sii_rcv`
+ *  aceptado (si falta → 403 "consent missing"). Invalida el estado de fuentes
+ *  para refrescar la última sincronización. NO retry. */
+export function useSyncSiiRcv() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (periodo: string) =>
+      api.post<unknown>(`/api/sii/sync-rcv?periodo=${encodeURIComponent(periodo)}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["sources-status"] });
+      qc.invalidateQueries({ queryKey: siiKeys.all });
+    },
   });
 }

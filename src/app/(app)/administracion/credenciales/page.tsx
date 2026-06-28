@@ -8,6 +8,7 @@ import {
   BankCredentialCard,
   CardStatementUpload,
   SourceConsentCard,
+  SiiSyncCard,
 } from "@/components/credenciales";
 import { useSiiCredential } from "@/lib/api/credentials";
 
@@ -67,6 +68,7 @@ export default function CredencialesPage() {
             {/* La credencial sola no alcanza: el acceso al SII requiere un
                 consentimiento legal explícito (sin él, las consultas dan 403). */}
             <SourceConsentCard sourceCode="sii_rcv" label="Autorización de acceso al SII" />
+            <SiiSyncCard />
           </section>
 
           <section aria-labelledby="certificates-heading" className="space-y-2">

@@ -6,6 +6,8 @@ export { SiiCredentialCard } from "./sii-credential-card";
 export { BankCredentialCard } from "./bank-credential-card";
 export { CardStatementUpload } from "./card-statement-upload";
 export { SourceConsentCard } from "./source-consent-card";
+export { SourceLastSync } from "./source-last-sync";
+export { SiiSyncCard } from "./sii-sync-card";
 export { SiiCredentialDialog } from "./sii-credential-dialog";
 export { CertificateListView } from "./certificate-list-view";
 export { CertificateUploadDialogV2 } from "./certificate-upload-dialog-v2";
