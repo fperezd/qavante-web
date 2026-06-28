@@ -60,6 +60,13 @@ NEXT_PUBLIC_FF_PULSO_DETAIL = "true"
 # wizard. Pasos SII/banco son opcionales y blindados (skipAuthRetry: un 401 ahí
 # muestra error inline, no expulsa al login).
 NEXT_PUBLIC_FF_ONBOARDING = "true"
+# Activada 2026-06-25 (sesión autónoma): Préstamos y obligaciones (Pagar). CC-API
+# shipeó GET/POST /api/treasury/obligations + detalle + reconcile; verificado que
+# usan auth por COOKIE de sesión (GET sin auth → 401 no_session, igual que
+# treasury; NO api-key-only como SII). Gating server-side (las pages resuelven el
+# flag → Worker [vars]). Degradación elegante si el endpoint falla (error inline,
+# no expulsa). FE construido en #346/#347/#348.
+NEXT_PUBLIC_FF_OBLIGATIONS = "true"
 
 # Custom domain declarativo. Idempotente: si el binding ya existe en el
 # dashboard (creado manualmente el 2026-05-12), wrangler lo respeta. Si se
