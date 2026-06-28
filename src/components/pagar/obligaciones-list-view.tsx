@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Landmark, ChevronRight, RefreshCw, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Landmark, ChevronRight, Plus, RefreshCw, CheckCircle2 } from "lucide-react";
 import {
   QavanteCard,
   QavanteBadge,
@@ -56,7 +57,10 @@ function statusBadge(status: string): {
   }
 }
 
+const NUEVO_HREF = "/pagar/obligaciones/nuevo";
+
 export function ObligacionesListView() {
+  const router = useRouter();
   const query = useObligations();
   const reconcile = useReconcileObligations();
 
@@ -82,6 +86,12 @@ export function ObligacionesListView() {
         icon={Landmark}
         title="Todavía no registraste obligaciones"
         description="Cuando registres un préstamo, vas a ver acá su capital, cuotas pendientes y el próximo vencimiento."
+        cta={
+          <QavanteButton size="sm" onClick={() => router.push(NUEVO_HREF)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Registrar préstamo
+          </QavanteButton>
+        }
       />
     );
   }
@@ -126,6 +136,10 @@ export function ObligacionesListView() {
               >
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                 Conciliar cuotas
+              </QavanteButton>
+              <QavanteButton size="sm" onClick={() => router.push(NUEVO_HREF)}>
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                Nuevo préstamo
               </QavanteButton>
             </div>
           </div>
