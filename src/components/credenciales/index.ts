@@ -4,6 +4,7 @@
    sii-credentials-contract.md (qavante-api) para el contrato vivo. */
 export { SiiCredentialCard } from "./sii-credential-card";
 export { BankCredentialCard } from "./bank-credential-card";
+export { CardStatementUpload } from "./card-statement-upload";
 export { SiiCredentialDialog } from "./sii-credential-dialog";
 export { CertificateListView } from "./certificate-list-view";
 export { CertificateUploadDialogV2 } from "./certificate-upload-dialog-v2";

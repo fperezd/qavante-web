@@ -1199,6 +1199,26 @@ const credentialsHandlersV2 = [
   http.post("*/api/bank-movements/bice/cards/sync", () =>
     HttpResponse.json({ started: true, synced: 0 }, { status: 200 }),
   ),
+
+  /* Importar cartola de tarjeta (PDF) → resumen de lo extraído. */
+  http.post("*/api/treasury/card-statements/import", async ({ request }) => {
+    const form = await request.formData();
+    if (!form.get("file")) {
+      return HttpResponse.json(errorBody("validation_error", "Falta el archivo."), { status: 422 });
+    }
+    return HttpResponse.json(
+      {
+        type: "international",
+        needs_review: 2,
+        purchases_upserted: 7,
+        charges_detected: 1,
+        payment_detected: "350000",
+        deuda_total_usd: "1240.50",
+        pagar_hasta: "2026-07-05",
+      },
+      { status: 200 },
+    );
+  }),
 ];
 
 /* ============================================================

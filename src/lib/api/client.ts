@@ -47,19 +47,24 @@ async function request<T>(
 
   const { body, skipAuthRetry, headers, ...rest } = options;
 
+  /* FormData (uploads multipart, ej. subir cartola): el browser setea el
+     Content-Type con su boundary y el body va sin serializar. Para todo lo
+     demás, JSON. */
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+
   const init: RequestInit = {
     ...rest,
     method,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       Accept: "application/json",
       ...headers,
     },
   };
 
   if (body !== undefined) {
-    init.body = JSON.stringify(body);
+    init.body = isFormData ? body : JSON.stringify(body);
   }
 
   let response: Response;

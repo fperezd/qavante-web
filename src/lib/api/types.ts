@@ -2152,6 +2152,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/foreign-purchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista las compras extranjeras (USD) del tenant */
+        get: operations["treasury_foreign_purchases_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/foreign-purchases/{purchase_id}/classify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clasifica una compra extranjera (concepto + categoría operativa)
+         * @description Las compras extranjeras no tienen DTE del SII → el usuario las clasifica a mano
+         *     (ADR-0052). Pone concepto + categoría; el estado pasa a `clasificada`. Requiere
+         *     rol owner/admin.
+         */
+        post: operations["treasury_foreign_purchases_classify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/card-statements/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Importa una cartola de tarjeta (PDF) → obligaciones / compras extranjeras
+         * @description Detecta el tipo de cartola y la ingesta (ADR-0052 F4):
+         *     - **Internacional (USD):** compras extranjeras → `foreign_purchases` (al dólar del día).
+         *     - **Nacional (CLP):** operaciones financiadas → obligaciones `card_purchase`.
+         *
+         *     Idempotente: re-subir la misma cartola actualiza las mismas filas. Requiere owner/admin.
+         */
+        post: operations["treasury_card_statements_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/accounts-receivable": {
         parameters: {
             query?: never;
@@ -3963,6 +4026,14 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** Body_treasury_card_statements_import */
+        Body_treasury_card_statements_import: {
+            /**
+             * File
+             * @description PDF de la cartola BICE (nacional o internacional).
+             */
+            file: string;
+        };
         /**
          * BudgetAccountLine
          * @description Budget vs actual de una cuenta de gestión (F2-A.2). Montos signados.
@@ -4210,6 +4281,43 @@ export interface components {
             obligations_detected: number;
             /** Per Card */
             per_card?: components["schemas"]["CardIngestCardResult"][];
+        };
+        /**
+         * CardStatementImportResponse
+         * @description Respuesta de `POST /api/treasury/card-statements/import` (ADR-0052 F4).
+         */
+        CardStatementImportResponse: {
+            /**
+             * Type
+             * @description 'nacional' (CLP) | 'internacional' (USD).
+             */
+            type: string;
+            /**
+             * Needs Review
+             * @description Filas que quedaron para revisión humana.
+             */
+            needs_review: number;
+            /** Obligations Upserted */
+            obligations_upserted?: number | null;
+            /**
+             * Payment Detected
+             * @description MONTO CANCELADO detectado (pago a conciliar 1:1); no persistido.
+             */
+            payment_detected?: string | null;
+            /**
+             * Charges Detected
+             * @description Cargos de la sección 3 detectados (no persistidos).
+             */
+            charges_detected?: number | null;
+            /** Purchases Upserted */
+            purchases_upserted?: number | null;
+            /** Deuda Total Usd */
+            deuda_total_usd?: string | null;
+            /**
+             * Pagar Hasta
+             * @description Vencimiento del internacional (ISO).
+             */
+            pagar_hasta?: string | null;
         };
         /** CartolaData */
         CartolaData: {
@@ -4659,6 +4767,22 @@ export interface components {
         ClassificationRulesResponse: {
             /** Items */
             items: components["schemas"]["ClassificationRule"][];
+        };
+        /**
+         * ClassifyForeignPurchaseRequest
+         * @description Body de `POST /api/treasury/foreign-purchases/{id}/classify`.
+         */
+        ClassifyForeignPurchaseRequest: {
+            /**
+             * Concept
+             * @description Concepto/glosa de la compra.
+             */
+            concept: string;
+            /**
+             * Category
+             * @description Categoría operativa.
+             */
+            category: string;
         };
         /**
          * ClassifyMovementRequest
@@ -6363,6 +6487,78 @@ export interface components {
         FinancialVersionsResponse: {
             /** Items */
             items: components["schemas"]["FinancialVersion"][];
+        };
+        /**
+         * ForeignPurchaseClassifyResponse
+         * @description Respuesta de `POST /api/treasury/foreign-purchases/{id}/classify`.
+         */
+        ForeignPurchaseClassifyResponse: {
+            /** Id */
+            id: string;
+            /** Merchant */
+            merchant: string;
+            /** Status */
+            status: string;
+            /** Concept */
+            concept?: string | null;
+            /** Category */
+            category?: string | null;
+        };
+        /**
+         * ForeignPurchaseItem
+         * @description Una compra extranjera (USD, sin DTE del SII) para listar/clasificar.
+         */
+        ForeignPurchaseItem: {
+            /** Id */
+            id: string;
+            /** Merchant */
+            merchant: string;
+            /**
+             * Op Date
+             * Format: date
+             */
+            op_date: string;
+            /** Country */
+            country?: string | null;
+            /** Amount Origin */
+            amount_origin?: string | null;
+            /** Currency Origin */
+            currency_origin?: string | null;
+            /** Amount Usd */
+            amount_usd: string;
+            /**
+             * Rate At Purchase
+             * @description Dólar observado del día de la compra (ADR-0052 decisión A).
+             */
+            rate_at_purchase?: string | null;
+            /**
+             * Clp Operative
+             * @description Gasto operativo en CLP = amount_usd x rate_at_purchase.
+             */
+            clp_operative?: string | null;
+            /**
+             * Status
+             * @description 'sin_clasificar' | 'clasificada'.
+             */
+            status: string;
+            /** Concept */
+            concept?: string | null;
+            /** Category */
+            category?: string | null;
+            /**
+             * Needs Review
+             * @description TRUE si no se resolvió el tipo de cambio.
+             * @default false
+             */
+            needs_review: boolean;
+        };
+        /**
+         * ForeignPurchasesListResponse
+         * @description Respuesta de `GET /api/treasury/foreign-purchases`.
+         */
+        ForeignPurchasesListResponse: {
+            /** Items */
+            items?: components["schemas"]["ForeignPurchaseItem"][];
         };
         /**
          * GiroEnrichResponse
@@ -14069,6 +14265,145 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    treasury_foreign_purchases_list: {
+        parameters: {
+            query?: {
+                /** @description Filtro por estado ('sin_clasificar' / 'clasificada'). */
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForeignPurchasesListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_foreign_purchases_classify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purchase_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassifyForeignPurchaseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForeignPurchaseClassifyResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La compra no existe para el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_card_statements_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_treasury_card_statements_import"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardStatementImportResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El archivo excede el máximo. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El archivo no es un PDF. */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No se reconoció la cartola (ni nacional ni internacional). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
