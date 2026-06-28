@@ -2,7 +2,7 @@
    Envuelve Intl.DateTimeFormat es-CL. Las fechas se construyen con
    componentes locales + mediodía para evitar corrimientos por timezone. */
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDateLike } from "./date";
+import { formatDate, formatDateLike, formatDateTimeLike } from "./date";
 
 describe("formatDate", () => {
   it("usa el orden día-mes-año con guiones (es-CL)", () => {
@@ -43,5 +43,19 @@ describe("formatDateLike — convención mes-año / DD-MM-AAAA (string in, strin
     expect(formatDateLike(null)).toBe("—");
     expect(formatDateLike(undefined)).toBe("—");
     expect(formatDateLike("")).toBe("—");
+  });
+});
+
+describe("formatDateTimeLike", () => {
+  it("ISO datetime → DD-MM-AAAA HH:MM:SS (hora local)", () => {
+    const r = formatDateTimeLike("2026-06-27T10:15:30Z");
+    expect(r).toMatch(/^\d{2}-\d{2}-2026 \d{2}:\d{2}:\d{2}$/);
+    expect(r.slice(0, 10).split("-")).toContain("2026"); // el año va al final
+  });
+
+  it("null / inválido → guion / as-is", () => {
+    expect(formatDateTimeLike(null)).toBe("—");
+    expect(formatDateTimeLike("")).toBe("—");
+    expect(formatDateTimeLike("no-es-fecha")).toBe("no-es-fecha");
   });
 });

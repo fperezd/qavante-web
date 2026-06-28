@@ -12,6 +12,7 @@ import {
   useSyncBiceMovements,
 } from "@/lib/api/bank-credentials";
 import { isValidRut } from "@/lib/validators/rut";
+import { SourceLastSync } from "./source-last-sync";
 
 /* Card de conexión bancaria (BICE). Conecta/rota las credenciales del banco
    (`PUT /api/credentials/bice`, RUT + clave de acceso) y muestra el estado
@@ -80,6 +81,8 @@ export function BankCredentialCard() {
                   Después los ves en <strong>Caja</strong>.
                 </p>
               )}
+
+              {connected && <SourceLastSync sourceCode="bice" />}
 
               {sync.isSuccess && (
                 <div className="flex items-start gap-2 rounded-lg border border-success-500/40 bg-success-500/10 p-2.5 text-sm text-success-700">

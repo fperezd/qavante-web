@@ -21,3 +21,13 @@ export function formatDateLike(raw: string | null | undefined): string {
   if (month) return `${month[2]}-${month[1]}`;
   return raw;
 }
+
+/* Timestamp ISO (UTC) → "DD-MM-AAAA HH:MM:SS" en hora local. Para "última
+   sincronización". Defensivo: null/inválido → "—"; lo que no parsea, tal cual. */
+export function formatDateTimeLike(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}

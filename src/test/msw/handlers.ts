@@ -1649,6 +1649,10 @@ const classificationRulesHandlers = [
 const SII_F29_FIXTURE_FOLIO = 1234567890;
 
 const siiHandlers = [
+  http.post("*/api/sii/sync-rcv", () =>
+    HttpResponse.json({ status: "ok", periodo: "2026-05" }, { status: 200 }),
+  ),
+
   http.get("*/api/sii/health", () =>
     HttpResponse.json(
       {
