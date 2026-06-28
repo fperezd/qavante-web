@@ -1073,6 +1073,7 @@ const currenciesHandlers = [
    tests sin backend (ADR-0005). */
 let siiV2State: { is_active: boolean; rut?: string } = { is_active: false };
 let biceConnected = false;
+let siiConsentAccepted = false;
 const certsV2State: Array<{
   id: string;
   rut_holder: string;
@@ -1133,6 +1134,43 @@ const credentialsHandlersV2 = [
       { status: 200 },
     ),
   ),
+
+  /* Consentimiento de fuente (Tooxs360). Estado mínimo en memoria. */
+  http.get("*/api/admin/sources/:code/consent", ({ params }) =>
+    siiConsentAccepted
+      ? HttpResponse.json(
+          {
+            id: "consent-1",
+            tenant_id: "t_qavante_demo",
+            source_code: params.code,
+            consent_text: "Autorizo a Qavante a acceder al SII en nombre de mi empresa.",
+            consent_version: "v1",
+            accepted_at: "2026-06-28T12:00:00Z",
+            expires_at: "2027-06-28T12:00:00Z",
+            is_valid: true,
+            days_to_expiry: 365,
+          },
+          { status: 200 },
+        )
+      : HttpResponse.json(
+          {
+            source_code: params.code,
+            is_valid: false,
+            consent_text_offered:
+              "Autorizo a Qavante a acceder al Servicio de Impuestos Internos (SII) en nombre de mi empresa, en modo solo lectura, para traer mis documentos tributarios.",
+            consent_version_offered: "v1",
+          },
+          { status: 200 },
+        ),
+  ),
+
+  http.post("*/api/admin/sources/:code/consent", ({ params }) => {
+    siiConsentAccepted = true;
+    return HttpResponse.json(
+      { status: "ok", consent: { source_code: params.code, is_valid: true } },
+      { status: 201 },
+    );
+  }),
 
   http.get("*/api/admin/certificates", () =>
     HttpResponse.json({ certificates: certsV2State, count: certsV2State.length }, { status: 200 }),
