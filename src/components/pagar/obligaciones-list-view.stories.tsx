@@ -69,4 +69,4 @@ export const Vacio: Story = {
   name: "Sin obligaciones",
   parameters: { msw: { handlers: [EMPTY] } },
 };
-export const Error: Story = { name: "Error", parameters: { msw: { handlers: [ERROR] } } };
+export const Error: Story = { parameters: { msw: { handlers: [ERROR] } } };

@@ -1,9 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Landmark, ChevronRight } from "lucide-react";
-import { QavanteCard, QavanteBadge, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
-import { useObligations, type ObligationListItem } from "@/lib/api/obligations";
+import { Landmark, ChevronRight, RefreshCw, CheckCircle2 } from "lucide-react";
+import {
+  QavanteCard,
+  QavanteBadge,
+  QavanteButton,
+  QavanteEmpty,
+  QavanteInlineError,
+} from "@/components/qavante";
+import {
+  useObligations,
+  useReconcileObligations,
+  type ObligationListItem,
+} from "@/lib/api/obligations";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 
@@ -48,6 +58,7 @@ function statusBadge(status: string): {
 
 export function ObligacionesListView() {
   const query = useObligations();
+  const reconcile = useReconcileObligations();
 
   if (query.isLoading) {
     return (
@@ -79,31 +90,54 @@ export function ObligacionesListView() {
   const pending = items.reduce((acc, o) => acc + (o.pending_count || 0), 0);
 
   return (
-    <QavanteCard
-      variant="bordered"
-      header={
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="font-medium">
-            {items.length} {items.length === 1 ? "obligación" : "obligaciones"}
-          </span>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <QavanteBadge variant="info">{pending} cuotas pendientes</QavanteBadge>
-            <span className="text-neutral-mid">
-              Saldo:{" "}
-              <span className="font-medium text-neutral-dark tabular-nums">
-                {formatClp(outstanding)}
-              </span>
-            </span>
-          </div>
+    <div className="space-y-3">
+      {reconcile.isSuccess && (
+        <div className="flex items-start gap-2 rounded-lg border border-success-500/40 bg-success-500/10 p-2.5 text-sm text-success-700">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          <p>
+            {reconcile.data.reconciled === 0
+              ? "No había cuotas nuevas para conciliar."
+              : `Conciliamos ${reconcile.data.reconciled} ${reconcile.data.reconciled === 1 ? "cuota" : "cuotas"} contra tus débitos bancarios.`}
+          </p>
         </div>
-      }
-    >
-      <ul className="divide-y divide-border">
-        {items.map((o) => (
-          <ObligationRow key={o.id} obligation={o} />
-        ))}
-      </ul>
-    </QavanteCard>
+      )}
+      {reconcile.isError && <QavanteInlineError error={reconcile.error} what="la conciliación" />}
+
+      <QavanteCard
+        variant="bordered"
+        header={
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-medium">
+              {items.length} {items.length === 1 ? "obligación" : "obligaciones"}
+            </span>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <QavanteBadge variant="info">{pending} cuotas pendientes</QavanteBadge>
+              <span className="text-neutral-mid">
+                Saldo:{" "}
+                <span className="font-medium text-neutral-dark tabular-nums">
+                  {formatClp(outstanding)}
+                </span>
+              </span>
+              <QavanteButton
+                size="sm"
+                variant="secondary"
+                loading={reconcile.isPending}
+                onClick={() => reconcile.mutate()}
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                Conciliar cuotas
+              </QavanteButton>
+            </div>
+          </div>
+        }
+      >
+        <ul className="divide-y divide-border">
+          {items.map((o) => (
+            <ObligationRow key={o.id} obligation={o} />
+          ))}
+        </ul>
+      </QavanteCard>
+    </div>
   );
 }
 
