@@ -55,7 +55,10 @@ export function CreateLoanForm() {
       {
         counterparty: counterparty.trim(),
         principal: String(principal),
-        monthly_rate: String(monthlyRate),
+        // `toFixed` evita notación científica (ej. 5e-7) y el ruido de float
+        // (ej. 0.0289999…998) en este campo decimal de dinero. El backend
+        // (Decimal) parsea ceros finales sin problema.
+        monthly_rate: monthlyRate.toFixed(8),
         installments: n,
         first_due_date: firstDue,
         currency_code: "CLP",
