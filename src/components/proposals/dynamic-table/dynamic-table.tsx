@@ -117,10 +117,10 @@ export function DynamicTable<TData>({
 
       <div className="overflow-x-auto rounded-xl border border-border">
         <table
-          className="w-full text-sm [&_td]:border-r [&_td]:border-border/50 [&_th]:border-r [&_th]:border-border/50 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0"
+          className="w-full text-sm [&_td]:border-r [&_td]:border-border/30 [&_td:last-child]:border-r-0"
           style={{ minWidth }}
         >
-          <thead>
+          <thead className="bg-surface-muted/60">
             {table.getHeaderGroups().map((hg) => (
               <tr
                 key={hg.id}
@@ -139,7 +139,7 @@ export function DynamicTable<TData>({
                         if (dragId.current) moveColumn(dragId.current, header.column.id);
                         dragId.current = null;
                       }}
-                      className={cn("px-3 py-2.5 align-top", align && "text-right")}
+                      className={cn("group/th px-3 py-2.5 align-top", align && "text-right")}
                     >
                       <span className={cn("flex items-center gap-1", align && "flex-row-reverse")}>
                         <span
@@ -147,7 +147,7 @@ export function DynamicTable<TData>({
                           onDragStart={() => {
                             dragId.current = header.column.id;
                           }}
-                          className="cursor-grab text-neutral-mid/40 hover:text-neutral-mid active:cursor-grabbing"
+                          className="cursor-grab text-neutral-mid/50 opacity-0 transition-opacity hover:text-neutral-mid group-hover/th:opacity-100 active:cursor-grabbing"
                           title="Arrastra para mover la columna"
                           aria-hidden="true"
                         >
@@ -165,7 +165,7 @@ export function DynamicTable<TData>({
                             ) : sorted === "desc" ? (
                               <ArrowDown className="h-3 w-3 text-brand-primary" aria-hidden="true" />
                             ) : (
-                              <ChevronsUpDown className="h-3 w-3 opacity-30" aria-hidden="true" />
+                              <ChevronsUpDown className="h-3 w-3 text-neutral-mid opacity-0 transition-opacity group-hover/th:opacity-60" aria-hidden="true" />
                             )}
                           </button>
                         ) : (
@@ -204,7 +204,7 @@ export function DynamicTable<TData>({
                 tabIndex={onRowClick ? 0 : undefined}
                 role={onRowClick ? "button" : undefined}
                 className={cn(
-                  "border-b border-border/60 last:border-b-0 hover:bg-surface-muted",
+                  "border-b border-border/40 transition-colors last:border-b-0 hover:bg-surface-muted/70",
                   onRowClick && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary",
                   rowClassName?.(row.original),
                 )}
@@ -230,8 +230,8 @@ export function DynamicTable<TData>({
         </table>
       </div>
 
-      <p className="text-xs text-neutral-mid">
-        Clic en un título para ordenar · arrastra el ⠿ para mover columnas · botón «Filtros» para filtrar por columna.
+      <p className="text-[11px] text-neutral-mid/70">
+        Clic en el título para ordenar · arrastra para mover columnas · «Filtros» para filtrar.
       </p>
     </div>
   );
