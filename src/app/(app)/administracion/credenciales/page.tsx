@@ -36,6 +36,10 @@ export default function CredencialesPage() {
           Conexión bancaria
         </h2>
         <BankCredentialCard />
+        {/* Igual que el SII: la credencial sola no alcanza — leer el portal BICE
+            en nombre del tenant requiere un consentimiento legal explícito. Sin
+            él, el sync devuelve "Consent missing para bank_bice". */}
+        <SourceConsentCard sourceCode="bank_bice" label="Autorización de acceso al banco" />
         <CardStatementUpload />
       </section>
 
