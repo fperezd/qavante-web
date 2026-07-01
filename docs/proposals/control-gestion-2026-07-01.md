@@ -28,6 +28,12 @@ En Storybook, navegar el grupo **`Propuestas / …`** (y `Capa 2 / Impuestos / F
 | 7 | SII | **BHE v2** (retención como KPI + CTA F29 + concentración) | `Propuestas / SII / BHE v2` | #369 | **FE-only** (mayormente) |
 | 8 | Inicio | **Inicio Ejecutivo v2** (runway héroe + deltas + sparkline + fechas clave) | `Propuestas / Inicio / Inicio Ejecutivo v2` | #370 | **FE-only** (mayormente) |
 | 9 | Clasificación | **Por clasificar v2** (progreso + orden por monto + bulk + sugerencia+confianza) | `Propuestas / Clasificación / Por clasificar v2` | #371 | mixto |
+| 10 | Transversal | **Tabla dinámica** (ordenar + filtrar + reordenar columnas por drag) | `Propuestas / Tablas dinámicas / Data-grid` | #373 | **FE-only** |
+
+> **Tabla dinámica (#373):** capacidad reutilizable sobre `@tanstack/react-table` (ya en deps)
+> — ordenar al clic, filtrar por columna y **reordenar columnas arrastrando el título**. Se
+> puede adoptar como la tabla base de Cobrar / Pagar / Caja / Libros / Clasificación (siguiente
+> paso si a Fernando le cierra la UX).
 
 ## Hallazgo transversal más importante
 
