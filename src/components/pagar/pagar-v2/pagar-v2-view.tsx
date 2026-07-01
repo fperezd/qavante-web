@@ -178,14 +178,14 @@ function PagoTable({ items }: { items: PagoItem[] }) {
             return (
               <tr key={i} className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted">
                 <td className="py-2 pl-4 pr-3">
-                  <span className="block font-medium text-neutral-dark">{it.label}</span>
-                  <span className="text-xs text-neutral-mid">{CATEGORY_LABEL[it.category] ?? it.category}</span>
+                  <span className="block text-neutral-dark">{it.label}</span>
+                  <span className="block text-neutral-mid">{CATEGORY_LABEL[it.category] ?? it.category}</span>
                 </td>
                 <td className="py-2 pr-3 text-neutral-mid">
                   {formatDateLike(it.due_date)}
-                  {it.days_to_due < 0 && <span className="ml-1 text-xs text-danger-500">({Math.abs(it.days_to_due)}d)</span>}
+                  {it.days_to_due < 0 && <span className="ml-1 text-danger-500">({Math.abs(it.days_to_due)}d)</span>}
                 </td>
-                <td className="py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark">
+                <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
                   {formatClp(parseAmount(it.amount))}
                 </td>
                 <td className="py-2 pr-4 text-right">

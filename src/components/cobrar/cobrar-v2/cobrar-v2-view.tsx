@@ -153,8 +153,8 @@ const PRIORITY_COLUMNS: ColumnDef<CollectionItem>[] = [
     header: "Cliente",
     cell: ({ row }) => (
       <span className="block">
-        <span className="block truncate font-medium text-neutral-dark">{row.original.client_name}</span>
-        <span className="text-xs text-neutral-mid">{formatRut(row.original.client_rut)}</span>
+        <span className="block truncate text-neutral-dark">{row.original.client_name}</span>
+        <span className="block text-neutral-mid">{formatRut(row.original.client_rut)}</span>
       </span>
     ),
   },
@@ -168,7 +168,7 @@ const PRIORITY_COLUMNS: ColumnDef<CollectionItem>[] = [
       <span className="whitespace-nowrap text-neutral-mid">
         {formatDateLike(row.original.due_date)}
         {row.original.days_overdue > 0 && (
-          <span className="ml-1 text-xs text-danger-500">({row.original.days_overdue}d)</span>
+          <span className="ml-1 text-danger-500">({row.original.days_overdue}d)</span>
         )}
       </span>
     ),
@@ -179,7 +179,7 @@ const PRIORITY_COLUMNS: ColumnDef<CollectionItem>[] = [
     header: "Saldo",
     enableColumnFilter: false,
     meta: { align: "right" },
-    cell: ({ getValue }) => <span className="font-medium">{formatClp(getValue() as number)}</span>,
+    cell: ({ getValue }) => formatClp(getValue() as number),
   },
   {
     id: "prioridad",

@@ -91,7 +91,7 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
         accessorKey: "glosa",
         header: "Movimiento",
         cell: ({ getValue }) => (
-          <span className="block truncate font-medium text-neutral-dark">{getValue() as string}</span>
+          <span className="block truncate text-neutral-dark">{getValue() as string}</span>
         ),
       },
       {
@@ -112,7 +112,7 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
         cell: ({ getValue }) => {
           const amt = getValue() as number;
           return (
-            <span className={cn("whitespace-nowrap font-medium", amt < 0 ? "text-danger-500" : "text-success-700")}>
+            <span className={cn("whitespace-nowrap", amt < 0 ? "text-danger-500" : "text-success-700")}>
               {amt < 0 ? "−" : "+"}
               {formatClp(Math.abs(amt))}
             </span>
@@ -132,7 +132,7 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
               <QavanteBadge variant={BADGE[confidenceTone(m.confidence)]}>{confidencePct(m.confidence)}</QavanteBadge>
             </span>
           ) : (
-            <span className="text-xs text-neutral-mid">Sin sugerencia</span>
+            <span className="text-neutral-mid">Sin sugerencia</span>
           );
         },
       },

@@ -436,7 +436,7 @@ function DeclaracionesCard({
                         className={cn("h-2.5 w-2.5 flex-shrink-0 rounded-full", TONE_DOT[status.tone])}
                         aria-hidden="true"
                       />
-                      <span className="font-medium text-neutral-dark">{mesLabel(d.periodo)}</span>
+                      <span className="text-neutral-dark">{mesLabel(d.periodo)}</span>
                     </span>
                   </td>
                   <td className="py-2.5 pr-3">

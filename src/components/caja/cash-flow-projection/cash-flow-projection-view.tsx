@@ -191,7 +191,7 @@ function ProjectionChart({
 /* ── Tabla con saldo acumulado ────────────────────────────────────────── */
 
 const PROJECTION_COLUMNS: ColumnDef<ProjRow>[] = [
-  { id: "periodo", accessorKey: "label", header: "Período", cell: ({ getValue }) => <span className="font-medium text-neutral-dark">{getValue() as string}</span> },
+  { id: "periodo", accessorKey: "label", header: "Período", cell: ({ getValue }) => <span className="text-neutral-dark">{getValue() as string}</span> },
   {
     id: "entradas",
     accessorFn: (r) => parseAmount(r.inflow),
@@ -226,7 +226,7 @@ const PROJECTION_COLUMNS: ColumnDef<ProjRow>[] = [
     enableColumnFilter: false,
     meta: { align: "right" },
     cell: ({ row }) => (
-      <span className={cn("font-semibold", row.original.belowMinimum ? "text-danger-500" : "text-neutral-dark")}>
+      <span className={row.original.belowMinimum ? "text-danger-500" : "text-neutral-dark"}>
         {formatClp(row.original.running)}
       </span>
     ),
