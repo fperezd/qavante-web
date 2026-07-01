@@ -5,6 +5,7 @@ import { ArrowRight, Receipt, Users } from "lucide-react";
 import { QavanteBadge, QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
+import { KpiCell, KpiStrip } from "@/components/proposals/shared/kpi-strip";
 import { bheTotals, concentrationByEmisor, type BheItem } from "./bhe-v2-format";
 
 /* Panel BHE v2 — propuesta UX (control de gestión) para /pagar/honorarios-recibidos.
@@ -20,36 +21,25 @@ export function BheKpisPanel({ items, periodo }: { items: BheItem[]; periodo?: s
 
   return (
     <div className="space-y-4">
-      {/* KPI hero: retención destacada */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <QavanteCard variant="bordered" className="border-warning-500/40 bg-warning-500/5 sm:col-span-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            Retención a pagar en tu F29
-          </p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-warning-700">{formatClp(t.retencion)}</p>
-          <a
-            href="/pagar/impuestos/f29"
-            className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
-          >
-            Se declara y paga en tu F29 <ArrowRight className="h-3 w-3" aria-hidden="true" />
-          </a>
-        </QavanteCard>
-
-        <QavanteCard variant="bordered">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">Líquido pagado</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-neutral-dark">{formatClp(t.liquido)}</p>
-          <p className="mt-0.5 text-xs text-neutral-mid">A los profesionales</p>
-        </QavanteCard>
-
-        <QavanteCard variant="bordered">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">Boletas</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-neutral-dark">{t.count}</p>
-          <p className="mt-0.5 text-xs text-neutral-mid">
-            Bruto {formatClp(t.bruto)}
-            {periodo ? ` · ${periodo}` : ""}
-          </p>
-        </QavanteCard>
-      </div>
+      {/* KPIs compactos — la retención destacada */}
+      <KpiStrip>
+        <KpiCell
+          label="Retención a pagar en tu F29"
+          value={formatClp(t.retencion)}
+          valueClassName="text-warning-700"
+          sub={
+            <a href="/pagar/impuestos/f29" className="inline-flex items-center gap-1 font-medium text-brand-primary hover:underline">
+              Se paga en tu F29 <ArrowRight className="h-3 w-3" aria-hidden="true" />
+            </a>
+          }
+        />
+        <KpiCell label="Líquido pagado" value={formatClp(t.liquido)} sub="A los profesionales" />
+        <KpiCell
+          label="Boletas"
+          value={String(t.count)}
+          sub={`Bruto ${formatClp(t.bruto)}${periodo ? ` · ${periodo}` : ""}`}
+        />
+      </KpiStrip>
 
       {/* Concentración por profesional */}
       {conc.length > 0 && (

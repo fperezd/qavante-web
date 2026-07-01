@@ -5,6 +5,7 @@ import { Download, Users } from "lucide-react";
 import { QavanteButton, QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
+import { KpiCell } from "@/components/proposals/shared/kpi-strip";
 import {
   computeLibroKpis,
   concentrationByCounterparty,
@@ -46,37 +47,27 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
 
   return (
     <div className="space-y-4">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label={netoLabel} value={formatClp(kpis.netTotal)} strong />
-        <Kpi label={ivaLabel} value={formatClp(kpis.iva)} accent />
-        <Kpi label="Documentos" value={String(kpis.docCount)} sub={kind === "ventas" ? "emitidos" : "recibidos"} />
-        <Kpi
-          label="Notas de crédito"
-          value={kpis.ncCount > 0 ? `−${formatClp(kpis.ncTotal)}` : "—"}
-          sub={kpis.ncCount > 0 ? `${kpis.ncCount} NC descontadas` : "Sin NC"}
-        />
-      </div>
-
-      {/* Neteo explícito */}
-      {kpis.ncCount > 0 && (
-        <QavanteCard variant="bordered">
-          <dl className="grid grid-cols-3 gap-2 text-sm">
-            <div>
-              <dt className="text-xs text-neutral-mid">{kind === "ventas" ? "Ventas brutas" : "Compras brutas"}</dt>
-              <dd className="tabular-nums font-medium text-neutral-dark">{formatClp(kpis.grossTotal)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-neutral-mid">(−) Notas de crédito</dt>
-              <dd className="tabular-nums font-medium text-danger-500">{formatClp(kpis.ncTotal)}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-neutral-mid">= Neto</dt>
-              <dd className="tabular-nums font-semibold text-neutral-dark">{formatClp(kpis.netTotal)}</dd>
-            </div>
-          </dl>
-        </QavanteCard>
-      )}
+      {/* KPIs compactos — una sola tarjeta con divisores + neteo en línea fina */}
+      <QavanteCard variant="bordered" className="p-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 sm:divide-x sm:divide-border">
+          <KpiCell label={netoLabel} value={formatClp(kpis.netTotal)} />
+          <KpiCell label={ivaLabel} value={formatClp(kpis.iva)} valueClassName="text-brand-primary" />
+          <KpiCell label="Documentos" value={String(kpis.docCount)} sub={kind === "ventas" ? "emitidos" : "recibidos"} />
+          <KpiCell
+            label="Notas de crédito"
+            value={kpis.ncCount > 0 ? `−${formatClp(kpis.ncTotal)}` : "—"}
+            sub={kpis.ncCount > 0 ? `${kpis.ncCount} NC` : "Sin NC"}
+          />
+        </div>
+        {kpis.ncCount > 0 && (
+          <p className="border-t border-border px-4 py-1.5 text-xs text-neutral-mid">
+            {kind === "ventas" ? "Ventas" : "Compras"} brutas{" "}
+            <span className="tabular-nums text-neutral-dark">{formatClp(kpis.grossTotal)}</span>{" "}
+            <span className="tabular-nums text-danger-500">− NC {formatClp(kpis.ncTotal)}</span> ={" "}
+            <span className="tabular-nums font-medium text-neutral-dark">Neto {formatClp(kpis.netTotal)}</span>
+          </p>
+        )}
+      </QavanteCard>
 
       {/* Concentración por contraparte + export */}
       <QavanteCard
@@ -121,34 +112,5 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
         )}
       </QavanteCard>
     </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  sub,
-  strong,
-  accent,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  strong?: boolean;
-  accent?: boolean;
-}) {
-  return (
-    <QavanteCard variant="bordered">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
-      <p
-        className={
-          "mt-1 tabular-nums font-bold " +
-          (strong ? "text-xl text-neutral-dark" : accent ? "text-xl text-brand-primary" : "text-lg text-neutral-dark")
-        }
-      >
-        {value}
-      </p>
-      {sub && <p className="mt-0.5 text-xs text-neutral-mid">{sub}</p>}
-    </QavanteCard>
   );
 }

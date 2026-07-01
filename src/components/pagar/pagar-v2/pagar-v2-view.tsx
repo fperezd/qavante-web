@@ -6,6 +6,7 @@ import { QavanteBadge, QavanteButton, QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
+import { KpiCell, KpiStrip } from "@/components/proposals/shared/kpi-strip";
 import {
   cashDelta14d,
   criticalityTone,
@@ -99,23 +100,19 @@ export function PagarV2View({ data }: { data: PagarV2Data }) {
       )}
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Total por pagar" value={formatClp(parseAmount(data.total))} />
-        <Kpi label="Vencido" value={formatClp(vencidoTotal)} tone={vencidoTotal > 0 ? "danger" : "neutral"} />
-        <Kpi label="Esta semana" value={formatClp(d7Total)} tone={d7Total > 0 ? "warning" : "neutral"} />
-        <Kpi
-          label="Holgura de caja 14d"
-          value={formatClp(delta)}
-          tone={delta < 0 ? "danger" : "success"}
-        />
-      </div>
+      <KpiStrip>
+        <KpiCell label="Total por pagar" value={formatClp(parseAmount(data.total))} />
+        <KpiCell label="Vencido" value={formatClp(vencidoTotal)} valueClassName={vencidoTotal > 0 ? COLOR.danger : undefined} />
+        <KpiCell label="Esta semana" value={formatClp(d7Total)} valueClassName={d7Total > 0 ? COLOR.warning : undefined} />
+        <KpiCell label="Holgura de caja 14d" value={formatClp(delta)} valueClassName={delta < 0 ? COLOR.danger : COLOR.success} />
+      </KpiStrip>
 
       {/* Subtotales por criticidad */}
-      <div className="grid grid-cols-3 gap-3">
-        <MiniStat label="Crítico" value={formatClp(subtotals.critica)} tone="danger" />
-        <MiniStat label="Medio" value={formatClp(subtotals.media)} tone="warning" />
-        <MiniStat label="Bajo" value={formatClp(subtotals.baja)} tone="neutral" />
-      </div>
+      <KpiStrip>
+        <KpiCell label="Crítico" value={formatClp(subtotals.critica)} valueClassName={COLOR.danger} />
+        <KpiCell label="Medio" value={formatClp(subtotals.media)} valueClassName={COLOR.warning} />
+        <KpiCell label="Bajo" value={formatClp(subtotals.baja)} />
+      </KpiStrip>
 
       {/* Toggle vista */}
       <div className="flex items-center gap-2">
@@ -135,23 +132,6 @@ export function PagarV2View({ data }: { data: PagarV2Data }) {
   );
 }
 
-function Kpi({ label, value, tone = "neutral" }: { label: string; value: string; tone?: Tone }) {
-  return (
-    <QavanteCard variant="bordered">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
-      <p className={cn("mt-1 text-xl font-bold tabular-nums", COLOR[tone])}>{value}</p>
-    </QavanteCard>
-  );
-}
-
-function MiniStat({ label, value, tone }: { label: string; value: string; tone: Tone }) {
-  return (
-    <div className={cn("rounded-xl border p-3", tone === "danger" ? "border-danger-500/30 bg-danger-500/5" : tone === "warning" ? "border-warning-500/30 bg-warning-500/5" : "border-border bg-surface-muted")}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
-      <p className={cn("mt-0.5 text-sm font-semibold tabular-nums", COLOR[tone])}>{value}</p>
-    </div>
-  );
-}
 
 /* ── Vista por vencimiento (con bucket Vencido aparte) ────────────────── */
 

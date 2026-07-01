@@ -1,18 +1,11 @@
 "use client";
 
 import * as React from "react";
-import {
-  AlertTriangle,
-  Banknote,
-  CalendarClock,
-  Clock,
-  Landmark,
-  Wallet,
-} from "lucide-react";
+import { AlertTriangle, Clock, Landmark } from "lucide-react";
 import { QavanteBadge, QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateTimeLike } from "@/lib/formatters/date";
-import { cn } from "@/lib/utils";
+import { KpiCell, KpiStrip } from "@/components/proposals/shared/kpi-strip";
 import {
   cashCushion14d,
   dataStateLabel,
@@ -64,11 +57,7 @@ export function CajaCockpitView({ data }: { data: CajaCockpitData }) {
 
       <GapBanner data={data} />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <SaldoHoyCard data={data} />
-        <RunwayCard data={data} />
-        <Proyeccion14dCard data={data} />
-      </div>
+      <CockpitKpis data={data} />
 
       <BankAccountsCard data={data} />
     </div>
@@ -102,94 +91,68 @@ function GapBanner({ data }: { data: CajaCockpitData }) {
   );
 }
 
-/* ── KPI: Saldo hoy ───────────────────────────────────────────────────── */
+/* ── KPIs compactos (Saldo hoy · Runway · Holgura 14d) ────────────────── */
 
-function SaldoHoyCard({ data }: { data: CajaCockpitData }) {
+function CockpitKpis({ data }: { data: CajaCockpitData }) {
   const t = data.cash_today;
   const ds = t ? dataStateLabel(t.data_state) : null;
-  return (
-    <HeroCard icon={Wallet} label="Saldo hoy (consolidado)">
-      <p className="text-2xl font-semibold tabular-nums text-neutral-dark">
-        {t ? formatClp(parseAmount(t.total)) : "—"}
-      </p>
-      {t && ds && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <QavanteBadge variant={BADGE_VARIANT[ds.tone]}>{ds.label}</QavanteBadge>
-          <span className="inline-flex items-center gap-1 text-neutral-mid">
-            <Clock className="h-3 w-3" aria-hidden="true" />
-            {formatDateTimeLike(t.last_updated)}
-          </span>
-        </div>
-      )}
-    </HeroCard>
-  );
-}
-
-/* ── KPI: Runway / días de caja ───────────────────────────────────────── */
-
-function RunwayCard({ data }: { data: CajaCockpitData }) {
   const days = data.forecast?.days_of_cash ?? null;
-  const tone = runwayTone(days);
-  return (
-    <HeroCard icon={CalendarClock} label="Días de caja (runway)">
-      <p className={cn("text-2xl font-semibold tabular-nums", VALUE_COLOR[tone])}>
-        {days != null ? `${days} días` : "—"}
-      </p>
-      <p className="text-xs text-neutral-mid">
-        {days == null
-          ? "Sin proyección disponible"
-          : tone === "danger"
-            ? "Caja ajustada — actúa esta semana"
-            : tone === "warning"
-              ? "Vigila de cerca las próximas semanas"
-              : "Caja holgada al ritmo actual"}
-      </p>
-    </HeroCard>
-  );
-}
+  const runwT = runwayTone(days);
+  const cushion = data.gap
+    ? cashCushion14d(data.gap.projected_cash_14d, data.gap.critical_obligations_14d)
+    : null;
+  const cushTone: Tone = cushion == null ? "neutral" : cushion < 0 ? "danger" : "success";
 
-/* ── KPI: Caja proyectada 14d / holgura ───────────────────────────────── */
-
-function Proyeccion14dCard({ data }: { data: CajaCockpitData }) {
-  const gap = data.gap;
-  const forecast = data.forecast;
-  const cushion = gap ? cashCushion14d(gap.projected_cash_14d, gap.critical_obligations_14d) : null;
-  const tone: Tone = cushion == null ? "neutral" : cushion < 0 ? "danger" : cushion < 1 ? "warning" : "success";
   return (
-    <HeroCard icon={Banknote} label="Holgura de caja a 14 días">
-      <p className={cn("text-2xl font-semibold tabular-nums", VALUE_COLOR[tone])}>
-        {cushion != null ? formatClp(cushion) : forecast ? formatClp(parseAmount(forecast.min_14d)) : "—"}
-      </p>
-      <p className="text-xs text-neutral-mid">
-        {cushion != null
-          ? cushion < 0
-            ? "Caja proyectada NO cubre pagos críticos"
-            : "Caja proyectada cubre tus pagos críticos"
-          : "Mínimo proyectado a 14 días"}
-      </p>
-    </HeroCard>
-  );
-}
-
-function HeroCard({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon: typeof Wallet;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <QavanteCard variant="bordered">
-      <div className="space-y-1.5">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-          <Icon className="h-3.5 w-3.5 text-brand-primary" aria-hidden="true" />
-          {label}
-        </p>
-        {children}
-      </div>
-    </QavanteCard>
+    <KpiStrip>
+      <KpiCell
+        label="Saldo hoy"
+        value={t ? formatClp(parseAmount(t.total)) : "—"}
+        sub={
+          t && ds ? (
+            <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+              <QavanteBadge variant={BADGE_VARIANT[ds.tone]}>{ds.label}</QavanteBadge>
+              <span className="inline-flex items-center gap-1 text-neutral-mid">
+                <Clock className="h-3 w-3" aria-hidden="true" />
+                {formatDateTimeLike(t.last_updated)}
+              </span>
+            </span>
+          ) : undefined
+        }
+      />
+      <KpiCell
+        label="Días de caja"
+        value={days != null ? `${days} días` : "—"}
+        valueClassName={VALUE_COLOR[runwT]}
+        sub={
+          days == null
+            ? "Sin proyección"
+            : runwT === "danger"
+              ? "Caja ajustada — actúa ya"
+              : runwT === "warning"
+                ? "Vigila de cerca"
+                : "Caja holgada"
+        }
+      />
+      <KpiCell
+        label="Holgura de caja a 14 días"
+        value={
+          cushion != null
+            ? formatClp(cushion)
+            : data.forecast
+              ? formatClp(parseAmount(data.forecast.min_14d))
+              : "—"
+        }
+        valueClassName={VALUE_COLOR[cushTone]}
+        sub={
+          cushion != null
+            ? cushion < 0
+              ? "No cubre pagos críticos"
+              : "Cubre tus pagos críticos"
+            : "Mínimo proyectado 14d"
+        }
+      />
+    </KpiStrip>
   );
 }
 

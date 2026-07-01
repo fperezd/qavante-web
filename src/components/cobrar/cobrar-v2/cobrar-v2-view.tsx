@@ -7,6 +7,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
 import { cn } from "@/lib/utils";
+import { KpiCell, KpiStrip } from "@/components/proposals/shared/kpi-strip";
 import {
   concentrationPct,
   dsoTrend,
@@ -52,18 +53,18 @@ export function CobrarV2View({ data }: { data: CobranzaV2Data }) {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <Kpi label="Total por cobrar" value={formatClp(parseAmount(data.total))} />
-        <Kpi
+      <KpiStrip>
+        <KpiCell label="Total por cobrar" value={formatClp(parseAmount(data.total))} />
+        <KpiCell
           label="Vencido"
           value={formatClp(parseAmount(data.overdue))}
-          tone="danger"
+          valueClassName={COLOR.danger}
           sub={`${parseAmount(data.overdue_pct).toLocaleString("es-CL", { maximumFractionDigits: 1 })}% del total`}
         />
-        <Kpi
+        <KpiCell
           label="DSO (días de cobro)"
           value={data.dso != null ? `${data.dso} días` : "—"}
-          tone={trend.tone}
+          valueClassName={COLOR[trend.tone]}
           sub={
             trend.deltaDays != null ? (
               <span className={cn("inline-flex items-center gap-1 font-medium", COLOR[trend.tone])}>
@@ -81,13 +82,13 @@ export function CobrarV2View({ data }: { data: CobranzaV2Data }) {
             )
           }
         />
-        <Kpi
+        <KpiCell
           label="Concentración top 3"
           value={`${conc.toLocaleString("es-CL", { maximumFractionDigits: 0 })}%`}
-          tone={conc > 60 ? "warning" : "neutral"}
+          valueClassName={conc > 60 ? COLOR.warning : undefined}
           sub={conc > 60 ? "Riesgo de dependencia" : "de la cartera"}
         />
-      </div>
+      </KpiStrip>
 
       {/* Proyección de cobranza semanal */}
       {data.weekly_collection.length > 0 && <WeeklyCollection weeks={data.weekly_collection} />}
@@ -98,26 +99,6 @@ export function CobrarV2View({ data }: { data: CobranzaV2Data }) {
       {/* Concentración por deudor */}
       {data.top_debtors.length > 0 && <TopDebtors debtors={data.top_debtors} total={data.total} />}
     </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  sub,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  sub?: React.ReactNode;
-  tone?: Tone;
-}) {
-  return (
-    <QavanteCard variant="bordered">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
-      <p className={cn("mt-1 text-xl font-bold tabular-nums", COLOR[tone])}>{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-neutral-mid">{sub}</p>}
-    </QavanteCard>
   );
 }
 

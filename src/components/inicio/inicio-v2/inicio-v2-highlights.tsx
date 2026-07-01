@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { CalendarClock, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import { QavanteBadge, QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
+import { KpiCell, KpiStrip } from "@/components/proposals/shared/kpi-strip";
 import {
   coverageInfo,
   deltaInfo,
@@ -48,56 +49,29 @@ export function InicioV2Highlights({ data }: { data: InicioV2Data }) {
         <p className="mt-1 text-sm text-neutral-mid">¿Cómo estoy hoy y hacia dónde voy?</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {/* Runway héroe */}
-        <QavanteCard variant="bordered">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            <CalendarClock className="h-3.5 w-3.5 text-brand-primary" aria-hidden="true" />
-            Días de caja
-          </p>
-          <p className={cn("mt-1 text-3xl font-bold tabular-nums", VALUE_COLOR[runwayT])}>
-            {data.days_of_cash != null ? data.days_of_cash : "—"}
-            {data.days_of_cash != null && <span className="text-base font-medium"> días</span>}
-          </p>
-          <p className="text-xs text-neutral-mid">
-            {runwayT === "danger" ? "Caja ajustada" : runwayT === "warning" ? "Vigila de cerca" : "Caja holgada"}
-          </p>
-        </QavanteCard>
-
-        {/* Caja hoy + delta + sparkline */}
-        <QavanteCard variant="bordered">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            <Wallet className="h-3.5 w-3.5 text-brand-primary" aria-hidden="true" />
-            Caja hoy
-          </p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-neutral-dark">
-            {formatClp(Number(data.cash_today))}
-          </p>
-          <div className="flex items-center justify-between gap-2">
-            {cashDelta ? (
-              <DeltaChip info={cashDelta} suffix="vs mes ant." />
-            ) : (
-              <span className="text-xs text-neutral-mid">Sin comparativo</span>
-            )}
-            <Sparkline values={data.cash_sparkline} />
-          </div>
-        </QavanteCard>
-
-        {/* Ventas del mes vs año anterior */}
-        <QavanteCard variant="bordered">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            Ventas del mes
-          </p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-neutral-dark">
-            {formatClp(Number(data.ventas_mes))}
-          </p>
-          {ventasDelta ? (
-            <DeltaChip info={ventasDelta} suffix="vs año anterior" />
-          ) : (
-            <span className="text-xs text-neutral-mid">Sin comparativo</span>
-          )}
-        </QavanteCard>
-      </div>
+      <KpiStrip>
+        <KpiCell
+          label="Días de caja"
+          value={data.days_of_cash != null ? `${data.days_of_cash} días` : "—"}
+          valueClassName={VALUE_COLOR[runwayT]}
+          sub={runwayT === "danger" ? "Caja ajustada" : runwayT === "warning" ? "Vigila de cerca" : "Caja holgada"}
+        />
+        <KpiCell
+          label="Caja hoy"
+          value={formatClp(Number(data.cash_today))}
+          sub={
+            <span className="flex items-center justify-between gap-2">
+              {cashDelta ? <DeltaChip info={cashDelta} suffix="vs mes ant." /> : <span>Sin comparativo</span>}
+              <Sparkline values={data.cash_sparkline} />
+            </span>
+          }
+        />
+        <KpiCell
+          label="Ventas del mes"
+          value={formatClp(Number(data.ventas_mes))}
+          sub={ventasDelta ? <DeltaChip info={ventasDelta} suffix="vs año anterior" /> : "Sin comparativo"}
+        />
+      </KpiStrip>
 
       {/* 3 fechas clave del mes */}
       {data.key_obligations.length > 0 && (
