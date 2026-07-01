@@ -40,8 +40,14 @@ export interface DynamicTableProps<TData> {
   data: TData[];
   /** Orden inicial de columnas (ids). Default: el orden de `columns`. */
   initialColumnOrder?: string[];
+  /** Orden inicial de filas. */
+  initialSorting?: SortingState;
   /** Ancho mínimo de la tabla (para el scroll horizontal). */
   minWidth?: number;
+  /** Clic en una fila (ej. abrir detalle). Marca la fila como clickeable. */
+  onRowClick?: (row: TData) => void;
+  /** Clases extra por fila (ej. resaltar filas en rojo). */
+  rowClassName?: (row: TData) => string | undefined;
 }
 
 function colAlign(meta: unknown): boolean {
@@ -52,9 +58,12 @@ export function DynamicTable<TData>({
   columns,
   data,
   initialColumnOrder,
+  initialSorting,
   minWidth = 720,
+  onRowClick,
+  rowClassName,
 }: DynamicTableProps<TData>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>(initialSorting ?? []);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(
     initialColumnOrder ?? columns.map((c) => c.id as string),
@@ -179,7 +188,27 @@ export function DynamicTable<TData>({
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted">
+              <tr
+                key={row.id}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onRowClick(row.original);
+                        }
+                      }
+                    : undefined
+                }
+                tabIndex={onRowClick ? 0 : undefined}
+                role={onRowClick ? "button" : undefined}
+                className={cn(
+                  "border-b border-border/60 last:border-b-0 hover:bg-surface-muted",
+                  onRowClick && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary",
+                  rowClassName?.(row.original),
+                )}
+              >
                 {row.getVisibleCells().map((cell) => {
                   const align = colAlign(cell.column.columnDef.meta);
                   return (

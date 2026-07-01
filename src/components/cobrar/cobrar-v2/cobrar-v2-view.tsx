@@ -6,8 +6,10 @@ import { QavanteBadge, QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
+import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import { KpiCell, KpiStrip } from "@/components/proposals/shared/kpi-strip";
+import { DynamicTable } from "@/components/proposals/dynamic-table/dynamic-table";
 import {
   concentrationPct,
   dsoTrend,
@@ -16,7 +18,7 @@ import {
   urgencyScore,
   type Tone,
 } from "./cobranza-v2-format";
-import type { CobranzaV2Data } from "./types";
+import type { CobranzaV2Data, CollectionItem } from "./types";
 
 /* Cobrar v2 — propuesta UX (control de gestión) para `/cobrar`.
  *
@@ -144,6 +146,54 @@ function WeeklyCollection({ weeks }: { weeks: { label: string; expected: string 
 
 /* ── Lista priorizada de gestión ──────────────────────────────────────── */
 
+const PRIORITY_COLUMNS: ColumnDef<CollectionItem>[] = [
+  {
+    id: "cliente",
+    accessorKey: "client_name",
+    header: "Cliente",
+    cell: ({ row }) => (
+      <span className="block">
+        <span className="block truncate font-medium text-neutral-dark">{row.original.client_name}</span>
+        <span className="text-xs text-neutral-mid">{formatRut(row.original.client_rut)}</span>
+      </span>
+    ),
+  },
+  { id: "documento", accessorKey: "document", header: "Documento" },
+  {
+    id: "vence",
+    accessorKey: "due_date",
+    header: "Vence",
+    enableColumnFilter: false,
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap text-neutral-mid">
+        {formatDateLike(row.original.due_date)}
+        {row.original.days_overdue > 0 && (
+          <span className="ml-1 text-xs text-danger-500">({row.original.days_overdue}d)</span>
+        )}
+      </span>
+    ),
+  },
+  {
+    id: "saldo",
+    accessorFn: (r) => parseAmount(r.balance),
+    header: "Saldo",
+    enableColumnFilter: false,
+    meta: { align: "right" },
+    cell: ({ getValue }) => <span className="font-medium">{formatClp(getValue() as number)}</span>,
+  },
+  {
+    id: "prioridad",
+    accessorFn: (r) => r.days_overdue,
+    header: "Prioridad",
+    enableColumnFilter: false,
+    meta: { align: "right" },
+    cell: ({ row }) => {
+      const prio = priorityTone(row.original.days_overdue);
+      return <QavanteBadge variant={BADGE[prio.tone]}>{prio.label}</QavanteBadge>;
+    },
+  },
+];
+
 function PriorityList({ items }: { items: CobranzaV2Data["items"] }) {
   const ranked = React.useMemo(
     () =>
@@ -152,51 +202,15 @@ function PriorityList({ items }: { items: CobranzaV2Data["items"] }) {
   );
 
   return (
-    <QavanteCard variant="bordered" className="overflow-hidden p-0">
-      <div className="border-b border-border-strong px-4 py-3">
+    <div className="space-y-2">
+      <div>
         <span className="font-medium text-neutral-dark">A quién cobrar primero</span>
-        <p className="text-xs text-neutral-mid">Ordenado por urgencia (saldo × días de mora).</p>
+        <p className="text-xs text-neutral-mid">
+          Por defecto, por urgencia (saldo × días de mora). Ordená, filtrá o mové columnas a gusto.
+        </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-border/60 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-              <th scope="col" className="py-2 pl-4 pr-3 font-semibold">Cliente</th>
-              <th scope="col" className="py-2 pr-3 font-semibold">Documento</th>
-              <th scope="col" className="py-2 pr-3 font-semibold">Vence</th>
-              <th scope="col" className="py-2 pr-3 text-right font-semibold">Saldo</th>
-              <th scope="col" className="py-2 pr-4 text-right font-semibold">Prioridad</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ranked.map((it, i) => {
-              const prio = priorityTone(it.days_overdue);
-              return (
-                <tr key={i} className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted">
-                  <td className="py-2 pl-4 pr-3">
-                    <span className="block truncate font-medium text-neutral-dark">{it.client_name}</span>
-                    <span className="text-xs text-neutral-mid">{formatRut(it.client_rut)}</span>
-                  </td>
-                  <td className="py-2 pr-3 text-neutral-dark">{it.document}</td>
-                  <td className="py-2 pr-3 text-neutral-mid">
-                    {formatDateLike(it.due_date)}
-                    {it.days_overdue > 0 && (
-                      <span className="ml-1 text-xs text-danger-500">({it.days_overdue}d)</span>
-                    )}
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark">
-                    {formatClp(parseAmount(it.balance))}
-                  </td>
-                  <td className="py-2 pr-4 text-right">
-                    <QavanteBadge variant={BADGE[prio.tone]}>{prio.label}</QavanteBadge>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </QavanteCard>
+      <DynamicTable columns={PRIORITY_COLUMNS as ColumnDef<CollectionItem, unknown>[]} data={ranked} minWidth={640} />
+    </div>
   );
 }
 
