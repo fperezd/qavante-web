@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { ColumnDef } from "@tanstack/react-table";
-import { QavanteBadge } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { DynamicTable } from "./dynamic-table";
@@ -33,11 +32,11 @@ const data: Venta[] = [
 ];
 
 const columns: ColumnDef<Venta>[] = [
-  { id: "tipo", accessorKey: "tipo", header: "Tipo", cell: ({ getValue }) => <QavanteBadge variant="info">{getValue() as string}</QavanteBadge> },
+  { id: "tipo", accessorKey: "tipo", header: "Tipo" },
   { id: "folio", accessorKey: "folio", header: "Folio", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => getValue() as number },
   { id: "fecha", accessorKey: "fecha", header: "Fecha", enableColumnFilter: false, cell: ({ getValue }) => formatDateLike(getValue() as string) },
   { id: "cliente", accessorKey: "cliente", header: "Cliente" },
-  { id: "rut", accessorKey: "rut", header: "RUT", cell: ({ getValue }) => <span className="text-neutral-mid">{getValue() as string}</span> },
+  { id: "rut", accessorKey: "rut", header: "RUT" },
   { id: "neto", accessorKey: "neto", header: "Neto", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => formatClp(getValue() as number) },
   { id: "iva", accessorKey: "iva", header: "IVA", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => formatClp(getValue() as number) },
   { id: "total", accessorKey: "total", header: "Total", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => formatClp(getValue() as number) },

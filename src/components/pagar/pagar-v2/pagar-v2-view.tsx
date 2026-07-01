@@ -171,7 +171,7 @@ function ByDueDate({ items }: { items: PagoItem[] }) {
 function PagoTable({ items }: { items: PagoItem[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[620px] text-sm [&_td]:border-r [&_td]:border-border/30 [&_td:last-child]:border-r-0">
+      <table className="w-full min-w-[620px] text-xs [&_td]:border-r [&_td]:border-border/30 [&_td:last-child]:border-r-0">
         <tbody>
           {items.map((it, i) => {
             const crit = criticalityTone(it.criticality);
@@ -179,9 +179,9 @@ function PagoTable({ items }: { items: PagoItem[] }) {
               <tr key={i} className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted">
                 <td className="py-2 pl-4 pr-3">
                   <span className="block text-neutral-dark">{it.label}</span>
-                  <span className="block text-neutral-mid">{CATEGORY_LABEL[it.category] ?? it.category}</span>
+                  <span className="block text-neutral-dark">{CATEGORY_LABEL[it.category] ?? it.category}</span>
                 </td>
-                <td className="py-2 pr-3 text-neutral-mid">
+                <td className="py-2 pr-3 text-neutral-dark">
                   {formatDateLike(it.due_date)}
                   {it.days_to_due < 0 && <span className="ml-1 text-danger-500">({Math.abs(it.days_to_due)}d)</span>}
                 </td>

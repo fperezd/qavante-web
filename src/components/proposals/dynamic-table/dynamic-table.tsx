@@ -117,7 +117,7 @@ export function DynamicTable<TData>({
 
       <div className="overflow-x-auto rounded-xl border border-border">
         <table
-          className="w-full text-sm [&_td]:border-r [&_td]:border-border/30 [&_td:last-child]:border-r-0"
+          className="w-full text-xs [&_td]:border-r [&_td]:border-border/30 [&_td:last-child]:border-r-0"
           style={{ minWidth }}
         >
           <thead className="bg-surface-muted/60">

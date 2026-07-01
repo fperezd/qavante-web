@@ -206,7 +206,7 @@ const PROJECTION_COLUMNS: ColumnDef<ProjRow>[] = [
     header: "Salidas",
     enableColumnFilter: false,
     meta: { align: "right" },
-    cell: ({ getValue }) => <span className="text-neutral-mid">{formatClp(getValue() as number)}</span>,
+    cell: ({ getValue }) => <span className="text-neutral-dark">{formatClp(getValue() as number)}</span>,
   },
   {
     id: "neto",

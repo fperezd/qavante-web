@@ -100,7 +100,7 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
         header: "Fecha",
         enableColumnFilter: false,
         cell: ({ getValue }) => (
-          <span className="whitespace-nowrap text-neutral-mid">{formatDateLike(getValue() as string)}</span>
+          <span className="whitespace-nowrap text-neutral-dark">{formatDateLike(getValue() as string)}</span>
         ),
       },
       {
@@ -132,7 +132,7 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
               <QavanteBadge variant={BADGE[confidenceTone(m.confidence)]}>{confidencePct(m.confidence)}</QavanteBadge>
             </span>
           ) : (
-            <span className="text-neutral-mid">Sin sugerencia</span>
+            <span className="text-neutral-dark">Sin sugerencia</span>
           );
         },
       },

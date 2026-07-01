@@ -154,7 +154,7 @@ const PRIORITY_COLUMNS: ColumnDef<CollectionItem>[] = [
     cell: ({ row }) => (
       <span className="block">
         <span className="block truncate text-neutral-dark">{row.original.client_name}</span>
-        <span className="block text-neutral-mid">{formatRut(row.original.client_rut)}</span>
+        <span className="block text-neutral-dark">{formatRut(row.original.client_rut)}</span>
       </span>
     ),
   },
@@ -165,7 +165,7 @@ const PRIORITY_COLUMNS: ColumnDef<CollectionItem>[] = [
     header: "Vence",
     enableColumnFilter: false,
     cell: ({ row }) => (
-      <span className="whitespace-nowrap text-neutral-mid">
+      <span className="whitespace-nowrap text-neutral-dark">
         {formatDateLike(row.original.due_date)}
         {row.original.days_overdue > 0 && (
           <span className="ml-1 text-danger-500">({row.original.days_overdue}d)</span>

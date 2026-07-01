@@ -394,7 +394,7 @@ function DeclaracionesCard({
   return (
     <QavanteCard variant="bordered" className="overflow-hidden p-0">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm [&_td]:border-r [&_td]:border-border/30 [&_td:last-child]:border-r-0">
+        <table className="w-full min-w-[760px] text-xs [&_td]:border-r [&_td]:border-border/30 [&_td:last-child]:border-r-0">
           <thead className="bg-surface-muted/60">
             <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
               <th scope="col" className="py-2.5 pl-4 pr-3 font-semibold">Período</th>
@@ -449,7 +449,7 @@ function DeclaracionesCard({
                   <td className="py-2.5 pr-3 text-right tabular-nums text-neutral-dark">
                     {money(d.monto_pagado)}
                   </td>
-                  <td className="py-2.5 pr-3 text-right tabular-nums text-neutral-mid">
+                  <td className="py-2.5 pr-3 text-right tabular-nums text-neutral-dark">
                     {d.iva_postergado ? formatClp(d.iva_postergado) : "—"}
                   </td>
                   <td className="py-2.5 pr-3">
