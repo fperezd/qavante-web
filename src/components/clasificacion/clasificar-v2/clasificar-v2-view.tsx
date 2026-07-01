@@ -105,7 +105,7 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
       {/* Tabla */}
       <QavanteCard variant="bordered" className="overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
+          <table className="w-full min-w-[720px] text-sm [&_td]:border-r [&_td]:border-border/50 [&_th]:border-r [&_th]:border-border/50 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0">
             <thead>
               <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                 <th scope="col" className="py-2.5 pl-4 pr-2">
@@ -117,10 +117,11 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
                     className="h-4 w-4 rounded border-border accent-brand-primary"
                   />
                 </th>
-                <th scope="col" className="py-2.5 pr-3 font-semibold">Movimiento</th>
-                <th scope="col" className="py-2.5 pr-3 text-right font-semibold">Monto</th>
-                <th scope="col" className="py-2.5 pr-3 font-semibold">Sugerencia de Qavante</th>
-                <th scope="col" className="py-2.5 pr-4" aria-label="Acción" />
+                <th scope="col" className="py-2 pr-3 font-semibold">Movimiento</th>
+                <th scope="col" className="py-2 pr-3 font-semibold">Fecha</th>
+                <th scope="col" className="py-2 pr-3 text-right font-semibold">Monto</th>
+                <th scope="col" className="py-2 pr-3 font-semibold">Sugerencia de Qavante</th>
+                <th scope="col" className="py-2 pr-4" aria-label="Acción" />
               </tr>
             </thead>
             <tbody>
@@ -130,7 +131,7 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
                 const cTone = confidenceTone(m.confidence);
                 return (
                   <tr key={m.id} className={cn("border-b border-border/60 last:border-b-0 hover:bg-surface-muted", isSel && "bg-brand-primary/5")}>
-                    <td className="py-2 pl-4 pr-2">
+                    <td className="py-1.5 pl-4 pr-2">
                       <input
                         type="checkbox"
                         checked={isSel}
@@ -139,15 +140,15 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
                         className="h-4 w-4 rounded border-border accent-brand-primary"
                       />
                     </td>
-                    <td className="py-2 pr-3">
+                    <td className="py-1.5 pr-3">
                       <span className="block truncate font-medium text-neutral-dark">{m.glosa}</span>
-                      <span className="text-xs text-neutral-mid">{formatDateLike(m.date)}</span>
                     </td>
-                    <td className={cn("py-2 pr-3 text-right tabular-nums font-medium", amt < 0 ? "text-danger-500" : "text-success-700")}>
+                    <td className="whitespace-nowrap py-1.5 pr-3 text-neutral-mid">{formatDateLike(m.date)}</td>
+                    <td className={cn("whitespace-nowrap py-1.5 pr-3 text-right tabular-nums font-medium", amt < 0 ? "text-danger-500" : "text-success-700")}>
                       {amt < 0 ? "−" : "+"}
                       {formatClp(Math.abs(amt))}
                     </td>
-                    <td className="py-2 pr-3">
+                    <td className="py-1.5 pr-3">
                       {m.suggested_account ? (
                         <span className="inline-flex flex-wrap items-center gap-1.5">
                           <Sparkles className="h-3.5 w-3.5 text-brand-primary" aria-hidden="true" />
@@ -158,7 +159,7 @@ export function ClasificarV2View({ data }: { data: ClasificarV2Data }) {
                         <span className="text-xs text-neutral-mid">Sin sugerencia</span>
                       )}
                     </td>
-                    <td className="py-2 pr-4 text-right">
+                    <td className="py-1.5 pr-4 text-right">
                       <QavanteButton size="sm" variant={m.suggested_account ? "secondary" : "ghost"}>
                         {m.suggested_account ? "Confirmar" : "Clasificar"}
                       </QavanteButton>

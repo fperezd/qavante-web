@@ -107,7 +107,10 @@ export function DynamicTable<TData>({
       )}
 
       <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full text-sm" style={{ minWidth }}>
+        <table
+          className="w-full text-sm [&_td]:border-r [&_td]:border-border/50 [&_th]:border-r [&_th]:border-border/50 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0"
+          style={{ minWidth }}
+        >
           <thead>
             {table.getHeaderGroups().map((hg) => (
               <tr
