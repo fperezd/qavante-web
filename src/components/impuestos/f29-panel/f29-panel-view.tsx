@@ -394,7 +394,7 @@ function DeclaracionesCard({
   return (
     <QavanteCard variant="bordered" className="overflow-hidden p-0">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[760px] text-sm [&_td]:border-r [&_td]:border-border/50 [&_th]:border-r [&_th]:border-border/50 [&_td:last-child]:border-r-0 [&_th:last-child]:border-r-0">
           <thead>
             <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
               <th scope="col" className="py-2.5 pl-4 pr-3 font-semibold">Período</th>

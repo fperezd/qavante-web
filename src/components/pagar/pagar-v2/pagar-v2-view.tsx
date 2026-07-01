@@ -171,7 +171,7 @@ function ByDueDate({ items }: { items: PagoItem[] }) {
 function PagoTable({ items }: { items: PagoItem[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[620px] text-sm">
+      <table className="w-full min-w-[620px] text-sm [&_td]:border-r [&_td]:border-border/50 [&_td:last-child]:border-r-0">
         <tbody>
           {items.map((it, i) => {
             const crit = criticalityTone(it.criticality);

@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { ShieldCheck, TrendingDown } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { cn } from "@/lib/utils";
+import { DynamicTable } from "@/components/proposals/dynamic-table/dynamic-table";
 import {
   computeRunning,
   firstBreachIndex,
@@ -188,55 +190,63 @@ function ProjectionChart({
 
 /* ── Tabla con saldo acumulado ────────────────────────────────────────── */
 
+const PROJECTION_COLUMNS: ColumnDef<ProjRow>[] = [
+  { id: "periodo", accessorKey: "label", header: "Período", cell: ({ getValue }) => <span className="font-medium text-neutral-dark">{getValue() as string}</span> },
+  {
+    id: "entradas",
+    accessorFn: (r) => parseAmount(r.inflow),
+    header: "Entradas",
+    enableColumnFilter: false,
+    meta: { align: "right" },
+    cell: ({ getValue }) => <span className="text-success-700">{formatClp(getValue() as number)}</span>,
+  },
+  {
+    id: "salidas",
+    accessorFn: (r) => parseAmount(r.outflow),
+    header: "Salidas",
+    enableColumnFilter: false,
+    meta: { align: "right" },
+    cell: ({ getValue }) => <span className="text-neutral-mid">{formatClp(getValue() as number)}</span>,
+  },
+  {
+    id: "neto",
+    accessorFn: (r) => parseAmount(r.net),
+    header: "Neto",
+    enableColumnFilter: false,
+    meta: { align: "right" },
+    cell: ({ getValue }) => {
+      const n = getValue() as number;
+      return <span className={n < 0 ? "text-danger-500" : "text-neutral-dark"}>{formatClp(n)}</span>;
+    },
+  },
+  {
+    id: "saldo",
+    accessorFn: (r) => r.running,
+    header: "Saldo proyectado",
+    enableColumnFilter: false,
+    meta: { align: "right" },
+    cell: ({ row }) => (
+      <span className={cn("font-semibold", row.original.belowMinimum ? "text-danger-500" : "text-neutral-dark")}>
+        {formatClp(row.original.running)}
+      </span>
+    ),
+  },
+];
+
 function ProjectionTable({ rows, cashMinimum }: { rows: ProjRow[]; cashMinimum: string | null }) {
   return (
-    <QavanteCard variant="bordered" className="overflow-hidden p-0">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[620px] text-sm">
-          <thead>
-            <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-              <th scope="col" className="py-2.5 pl-4 pr-3 font-semibold">Período</th>
-              <th scope="col" className="py-2.5 pr-3 text-right font-semibold">Entradas</th>
-              <th scope="col" className="py-2.5 pr-3 text-right font-semibold">Salidas</th>
-              <th scope="col" className="py-2.5 pr-3 text-right font-semibold">Neto</th>
-              <th scope="col" className="py-2.5 pr-4 text-right font-semibold">Saldo proyectado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => {
-              const net = parseAmount(r.net);
-              return (
-                <tr
-                  key={`${r.period}-${i}`}
-                  className={cn(
-                    "border-b border-border/60 last:border-b-0",
-                    r.belowMinimum && "bg-danger-500/5",
-                  )}
-                >
-                  <td className="py-2 pl-4 pr-3 font-medium text-neutral-dark">{r.label}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-success-700">
-                    {formatClp(parseAmount(r.inflow))}
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-                    {formatClp(parseAmount(r.outflow))}
-                  </td>
-                  <td className={cn("py-2 pr-3 text-right tabular-nums", net < 0 ? "text-danger-500" : "text-neutral-dark")}>
-                    {formatClp(net)}
-                  </td>
-                  <td className={cn("py-2 pr-4 text-right tabular-nums font-semibold", r.belowMinimum ? "text-danger-500" : "text-neutral-dark")}>
-                    {formatClp(r.running)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <div className="space-y-2">
+      <DynamicTable
+        columns={PROJECTION_COLUMNS as ColumnDef<ProjRow, unknown>[]}
+        data={rows}
+        minWidth={620}
+        rowClassName={(r) => (r.belowMinimum ? "bg-danger-500/5" : undefined)}
+      />
       {cashMinimum != null && (
-        <p className="border-t border-border/60 px-4 py-2 text-xs text-neutral-mid">
+        <p className="text-xs text-neutral-mid">
           Filas en rojo: el saldo proyectado cae bajo tu caja mínima de {formatClp(parseAmount(cashMinimum))}.
         </p>
       )}
-    </QavanteCard>
+    </div>
   );
 }
