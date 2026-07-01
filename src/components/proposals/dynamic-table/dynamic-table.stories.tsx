@@ -34,13 +34,13 @@ const data: Venta[] = [
 
 const columns: ColumnDef<Venta>[] = [
   { id: "tipo", accessorKey: "tipo", header: "Tipo", cell: ({ getValue }) => <QavanteBadge variant="info">{getValue() as string}</QavanteBadge> },
-  { id: "folio", accessorKey: "folio", header: "Folio", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => <span className="font-mono text-xs">{getValue() as number}</span> },
+  { id: "folio", accessorKey: "folio", header: "Folio", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => getValue() as number },
   { id: "fecha", accessorKey: "fecha", header: "Fecha", enableColumnFilter: false, cell: ({ getValue }) => formatDateLike(getValue() as string) },
-  { id: "cliente", accessorKey: "cliente", header: "Cliente", cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
-  { id: "rut", accessorKey: "rut", header: "RUT", cell: ({ getValue }) => <span className="font-mono text-xs text-neutral-mid">{getValue() as string}</span> },
+  { id: "cliente", accessorKey: "cliente", header: "Cliente" },
+  { id: "rut", accessorKey: "rut", header: "RUT", cell: ({ getValue }) => <span className="text-neutral-mid">{getValue() as string}</span> },
   { id: "neto", accessorKey: "neto", header: "Neto", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => formatClp(getValue() as number) },
   { id: "iva", accessorKey: "iva", header: "IVA", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => formatClp(getValue() as number) },
-  { id: "total", accessorKey: "total", header: "Total", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => <span className="font-medium">{formatClp(getValue() as number)}</span> },
+  { id: "total", accessorKey: "total", header: "Total", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => formatClp(getValue() as number) },
 ];
 
 const meta = {
