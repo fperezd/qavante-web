@@ -48,7 +48,53 @@ export interface DynamicTableProps<TData> {
   onRowClick?: (row: TData) => void;
   /** Clases extra por fila (ej. resaltar filas en rojo). */
   rowClassName?: (row: TData) => string | undefined;
+  /** Estilo visual: `modern` (aireado), `hybrid` (recomendado) o `clear` (tipo Excel). */
+  variant?: TableVariant;
 }
+
+type TableVariant = "modern" | "hybrid" | "clear";
+
+const VARIANTS: Record<
+  TableVariant,
+  {
+    table: string;
+    thead: string;
+    headRow: string;
+    iconLight: boolean;
+    rowBorder: string;
+    rowHover: string;
+    zebra: string;
+  }
+> = {
+  modern: {
+    table: "[&_td]:border-r-0",
+    thead: "border-b-2 border-border-strong",
+    headRow: "text-neutral-mid",
+    iconLight: false,
+    rowBorder: "border-border/40",
+    rowHover: "hover:bg-surface-muted/50",
+    zebra: "",
+  },
+  hybrid: {
+    table: "[&_td]:border-r [&_td]:border-border/25 [&_td:last-child]:border-r-0",
+    thead: "border-b border-border-strong bg-surface-muted",
+    headRow: "text-neutral-dark",
+    iconLight: false,
+    rowBorder: "border-border/40",
+    rowHover: "hover:bg-surface-muted/70",
+    zebra: "even:bg-surface-muted/30",
+  },
+  clear: {
+    table:
+      "[&_td]:border-r [&_td]:border-border/40 [&_td:last-child]:border-r-0 [&_th]:border-r [&_th]:border-surface/15 [&_th:last-child]:border-r-0",
+    thead: "bg-brand-primary",
+    headRow: "text-surface/90",
+    iconLight: true,
+    rowBorder: "border-border/50",
+    rowHover: "hover:bg-brand-primary/10",
+    zebra: "even:bg-surface-muted/50",
+  },
+};
 
 function colAlign(meta: unknown): boolean {
   return (meta as { align?: "right" } | undefined)?.align === "right";
@@ -62,7 +108,9 @@ export function DynamicTable<TData>({
   minWidth = 720,
   onRowClick,
   rowClassName,
+  variant = "hybrid",
 }: DynamicTableProps<TData>) {
+  const styles = VARIANTS[variant];
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting ?? []);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(
@@ -98,6 +146,9 @@ export function DynamicTable<TData>({
 
   const leafCols = table.getAllLeafColumns();
   const anyFilterable = leafCols.some((c) => c.getCanFilter());
+  /* Zebra solo cuando las filas no traen su propio color (para no pisar el
+     resaltado de quiebre/selección de otras tablas). */
+  const zebra = !rowClassName;
 
   return (
     <div className="space-y-2">
@@ -116,15 +167,12 @@ export function DynamicTable<TData>({
       )}
 
       <div className="overflow-x-auto rounded-xl border border-border">
-        <table
-          className="w-full text-xs [&_td]:border-r [&_td]:border-border/30 [&_td:last-child]:border-r-0"
-          style={{ minWidth }}
-        >
-          <thead className="bg-surface-muted/60">
+        <table className={cn("w-full text-xs", styles.table)} style={{ minWidth }}>
+          <thead className={styles.thead}>
             {table.getHeaderGroups().map((hg) => (
               <tr
                 key={hg.id}
-                className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+                className={cn("text-left text-[11px] font-semibold uppercase tracking-wider", styles.headRow)}
               >
                 {hg.headers.map((header) => {
                   const sorted = header.column.getIsSorted();
@@ -147,7 +195,10 @@ export function DynamicTable<TData>({
                           onDragStart={() => {
                             dragId.current = header.column.id;
                           }}
-                          className="cursor-grab text-neutral-mid/50 opacity-0 transition-opacity hover:text-neutral-mid group-hover/th:opacity-100 active:cursor-grabbing"
+                          className={cn(
+                            "cursor-grab opacity-0 transition-opacity group-hover/th:opacity-100 active:cursor-grabbing",
+                            styles.iconLight ? "text-surface/50 hover:text-surface" : "text-neutral-mid/50 hover:text-neutral-mid",
+                          )}
                           title="Arrastra para mover la columna"
                           aria-hidden="true"
                         >
@@ -157,15 +208,18 @@ export function DynamicTable<TData>({
                           <button
                             type="button"
                             onClick={header.column.getToggleSortingHandler()}
-                            className="inline-flex items-center gap-1 font-semibold uppercase tracking-wider hover:text-neutral-dark"
+                            className={cn(
+                              "inline-flex items-center gap-1 font-semibold uppercase tracking-wider",
+                              styles.iconLight ? "hover:text-surface" : "hover:text-neutral-dark",
+                            )}
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
                             {sorted === "asc" ? (
-                              <ArrowUp className="h-3 w-3 text-brand-primary" aria-hidden="true" />
+                              <ArrowUp className={cn("h-3 w-3", styles.iconLight ? "text-surface" : "text-brand-primary")} aria-hidden="true" />
                             ) : sorted === "desc" ? (
-                              <ArrowDown className="h-3 w-3 text-brand-primary" aria-hidden="true" />
+                              <ArrowDown className={cn("h-3 w-3", styles.iconLight ? "text-surface" : "text-brand-primary")} aria-hidden="true" />
                             ) : (
-                              <ChevronsUpDown className="h-3 w-3 text-neutral-mid opacity-0 transition-opacity group-hover/th:opacity-60" aria-hidden="true" />
+                              <ChevronsUpDown className={cn("h-3 w-3", styles.iconLight ? "text-surface/50" : "text-neutral-mid opacity-0 transition-opacity group-hover/th:opacity-60")} aria-hidden="true" />
                             )}
                           </button>
                         ) : (
@@ -204,7 +258,10 @@ export function DynamicTable<TData>({
                 tabIndex={onRowClick ? 0 : undefined}
                 role={onRowClick ? "button" : undefined}
                 className={cn(
-                  "border-b border-border/40 transition-colors last:border-b-0 hover:bg-surface-muted/70",
+                  "border-b transition-colors last:border-b-0",
+                  styles.rowBorder,
+                  styles.rowHover,
+                  zebra && styles.zebra,
                   onRowClick && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary",
                   rowClassName?.(row.original),
                 )}

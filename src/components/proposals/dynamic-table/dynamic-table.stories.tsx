@@ -68,3 +68,29 @@ export const LibroDeVentas: Story = {
     minWidth: 820,
   },
 };
+
+const VARIANT_LABELS = [
+  { v: "modern", label: "1 · Moderna (aireada, estilo SaaS)" },
+  { v: "hybrid", label: "2 · Híbrida (recomendada)" },
+  { v: "clear", label: "3 · Clara (tipo Excel)" },
+] as const;
+
+/** Las 3 versiones lado a lado, misma tabla — para elegir con el ojo. */
+export const Comparacion: Story = {
+  args: { columns: columns as ColumnDef<unknown, unknown>[], data: data as unknown[] },
+  render: () => (
+    <div className="space-y-8">
+      {VARIANT_LABELS.map(({ v, label }) => (
+        <div key={v}>
+          <p className="mb-2 text-sm font-semibold text-neutral-dark">{label}</p>
+          <DynamicTable
+            columns={columns as ColumnDef<Venta>[]}
+            data={data}
+            variant={v}
+            minWidth={820}
+          />
+        </div>
+      ))}
+    </div>
+  ),
+};
