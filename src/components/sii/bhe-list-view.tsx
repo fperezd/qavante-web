@@ -5,6 +5,7 @@ import { Briefcase, Inbox } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import type { BheRecibida, BheResponse } from "@/lib/api/sii";
+import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
@@ -27,21 +28,27 @@ export interface BheListViewProps {
   query: UseQueryResult<BheResponse, unknown>;
 }
 
+/* Las boletas anuladas NO cuentan para el líquido ni la retención (la retención
+   se revierte al anular). Se listan tachadas pero no suman. */
 function sumLiquido(items: BheRecibida[]): number {
   return items.reduce(
-    (acc, b) => acc + (typeof b.monto_liquido === "number" ? b.monto_liquido : 0),
+    (acc, b) => acc + (!b.anulada && typeof b.monto_liquido === "number" ? b.monto_liquido : 0),
     0,
   );
 }
 
 function sumRetencion(items: BheRecibida[]): number {
-  return items.reduce((acc, b) => acc + (typeof b.retencion === "number" ? b.retencion : 0), 0);
+  return items.reduce(
+    (acc, b) => acc + (!b.anulada && typeof b.retencion === "number" ? b.retencion : 0),
+    0,
+  );
 }
 
 export function BheListView({ period, onPeriodChange, query }: BheListViewProps) {
   const items: BheRecibida[] = query.data?.bhe ?? [];
   const liquidoTotal = sumLiquido(items);
   const retencionTotal = sumRetencion(items);
+  const anuladasCount = items.filter((b) => b.anulada).length;
 
   return (
     <div className="space-y-4">
@@ -124,13 +131,16 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
                 {items.map((b, i) => (
                   <tr
                     key={`${b.folio ?? "x"}-${b.rut_emisor ?? i}`}
-                    className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
+                    className={cn(
+                      "border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted",
+                      b.anulada && "text-neutral-mid",
+                    )}
                   >
                     <td className="py-2 pr-3 text-neutral-dark">
                       {formatDateLike(b.fecha_emision)}
                     </td>
                     <td className="py-2 pr-3">
-                      <span className="block text-neutral-dark">
+                      <span className={cn("block text-neutral-dark", b.anulada && "text-neutral-mid line-through")}>
                         {b.nombre_emisor ?? "Sin nombre"}
                       </span>
                       {b.rut_emisor && (
@@ -140,15 +150,18 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
                       )}
                     </td>
                     <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
-                      {b.folio ?? "—"}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className={cn(b.anulada && "line-through")}>{b.folio ?? "—"}</span>
+                        {b.anulada && <QavanteBadge variant="danger">Anulada</QavanteBadge>}
+                      </span>
                     </td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+                    <td className={cn("py-2 pr-3 text-right tabular-nums text-neutral-dark", b.anulada && "line-through")}>
                       {typeof b.monto_bruto === "number" ? formatClp(b.monto_bruto) : "—"}
                     </td>
-                    <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
+                    <td className={cn("py-2 pr-3 text-right tabular-nums text-neutral-mid", b.anulada && "line-through")}>
                       {typeof b.retencion === "number" ? formatClp(b.retencion) : "—"}
                     </td>
-                    <td className="py-2 text-right tabular-nums font-medium text-neutral-dark">
+                    <td className={cn("py-2 text-right tabular-nums font-medium text-neutral-dark", b.anulada && "font-normal line-through")}>
                       {typeof b.monto_liquido === "number" ? formatClp(b.monto_liquido) : "—"}
                     </td>
                   </tr>
@@ -157,8 +170,16 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
             </table>
           </div>
           <p className="mt-3 text-xs text-neutral-mid">
-            Retención acumulada del período: {formatClp(retencionTotal)}. Datos descargados del SII
-            en vivo — las sumas son referenciales y se calculan sobre las boletas mostradas.
+            Retención acumulada del período: {formatClp(retencionTotal)}.
+            {anuladasCount > 0 && (
+              <>
+                {" "}
+                {anuladasCount} {anuladasCount === 1 ? "boleta anulada" : "boletas anuladas"} no
+                {anuladasCount === 1 ? " suma" : " suman"} al líquido ni a la retención.
+              </>
+            )}{" "}
+            Datos descargados del SII en vivo — las sumas son referenciales y se calculan sobre las
+            boletas vigentes mostradas.
           </p>
         </QavanteCard>
       )}
