@@ -171,12 +171,12 @@ function ByDueDate({ items }: { items: PagoItem[] }) {
 function PagoTable({ items }: { items: PagoItem[] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[620px] text-xs [&_td]:border-r [&_td]:border-border/30 [&_td:last-child]:border-r-0">
+      <table className="w-full min-w-[620px] text-xs [&_td]:border-r [&_td]:border-border/25 [&_td:last-child]:border-r-0">
         <tbody>
           {items.map((it, i) => {
             const crit = criticalityTone(it.criticality);
             return (
-              <tr key={i} className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted">
+              <tr key={i} className="border-b border-border/40 last:border-b-0 even:bg-surface-muted/30 hover:bg-surface-muted/70">
                 <td className="py-2 pl-4 pr-3">
                   <span className="block text-neutral-dark">{it.label}</span>
                   <span className="block text-neutral-dark">{CATEGORY_LABEL[it.category] ?? it.category}</span>
