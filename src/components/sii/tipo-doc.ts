@@ -41,6 +41,15 @@ const TIPO_DOC_MAP: Record<number, TipoDocMeta> = {
   112: { label: "Nota de Crédito de Exportación Electrónica", abbr: "NC-EXP-EL", family: "nota" },
 };
 
+/** Códigos de Nota de Crédito del SII (reducen el neto): 60, 61, 112. Las Notas
+ *  de Débito (56, 111) NO — aumentan, por eso no van acá. */
+const NC_CODES = new Set([60, 61, 112]);
+
+/** ¿El documento es una Nota de Crédito? (para netear en los totales). */
+export function isNotaCredito(code: number | null | undefined): boolean {
+  return code != null && NC_CODES.has(code);
+}
+
 /** Devuelve metadata del tipo de documento. Si el código es null/undefined
  *  o no está mapeado, devuelve un fallback `DOC <code>` legible. */
 export function tipoDocMeta(code: number | null | undefined): TipoDocMeta {

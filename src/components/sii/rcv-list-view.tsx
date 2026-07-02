@@ -17,7 +17,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
 import { formatPeriodLabel } from "./sii-period-form-schema";
-import { TIPO_DOC_FAMILIES, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
+import { TIPO_DOC_FAMILIES, isNotaCredito, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
 
 /* Vista reusable para Libro de Compras / Libro de Ventas (Sprint C1
    PR-Lib, mejora 2026-05-24). Hoy el backend expone /api/sii/rcv/compras
@@ -108,11 +108,8 @@ function extractDocs(
   return (arr as RcvDoc[] | undefined) ?? [];
 }
 
-function sumField(docs: RcvDoc[], field: "monto_neto" | "monto_iva" | "monto_total"): number {
-  return docs.reduce((acc, d) => {
-    const v = d[field];
-    return acc + (typeof v === "number" ? v : 0);
-  }, 0);
+function numOr0(v: number | undefined): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }
 
 interface Filters {
@@ -170,17 +167,27 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
     [filteredDocs, currentPage, pageSize],
   );
 
-  /* Totales sobre el SET FILTRADO COMPLETO (no solo la página actual)
-     — el user quiere saber "el total del período filtrado", no del
-     viewport. */
-  const totals = React.useMemo(
-    () => ({
-      neto: sumField(filteredDocs, "monto_neto"),
-      iva: sumField(filteredDocs, "monto_iva"),
-      total: sumField(filteredDocs, "monto_total"),
-    }),
-    [filteredDocs],
-  );
+  /* Totales sobre el SET FILTRADO COMPLETO (no solo la página actual).
+     NETEA las Notas de Crédito (restan) — antes se sumaban como una venta más,
+     inflando el total. El bruto y el monto de NC se exponen aparte para que el
+     neteo sea explícito. Las Notas de Débito (56/111) suman, como corresponde. */
+  const totals = React.useMemo(() => {
+    let neto = 0, iva = 0, total = 0, grossTotal = 0, ncTotal = 0, ncCount = 0;
+    for (const d of filteredDocs) {
+      const nc = isNotaCredito(d.tipo_doc);
+      const sign = nc ? -1 : 1;
+      neto += sign * numOr0(d.monto_neto);
+      iva += sign * numOr0(d.monto_iva);
+      total += sign * numOr0(d.monto_total);
+      if (nc) {
+        ncTotal += numOr0(d.monto_total);
+        ncCount += 1;
+      } else {
+        grossTotal += numOr0(d.monto_total);
+      }
+    }
+    return { neto, iva, total, grossTotal, ncTotal, ncCount };
+  }, [filteredDocs]);
 
   const hasActiveFilters =
     filters.folio !== "" || filters.razonSocial !== "" || filters.tipoFamily !== "todos";
@@ -345,7 +352,7 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
                           colSpan={4}
                           className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
                         >
-                          Totales del período
+                          Total neto del período
                           {hasActiveFilters && (
                             <span className="ml-1 normal-case text-neutral-mid">
                               (con filtros aplicados)
@@ -362,6 +369,19 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
                           {formatClp(totals.total)}
                         </td>
                       </tr>
+                      {totals.ncCount > 0 && (
+                        <tr className="text-[11px] text-neutral-mid">
+                          <td colSpan={7} className="pb-2 pr-3">
+                            Se descontaron {totals.ncCount}{" "}
+                            {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
+                            <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}
+                            <span className="tabular-nums text-danger-500">
+                              {formatClp(totals.ncTotal)}
+                            </span>{" "}
+                            = neto <span className="tabular-nums">{formatClp(totals.total)}</span>.
+                          </td>
+                        </tr>
+                      )}
                     </tfoot>
                   </table>
                 </div>
@@ -381,8 +401,9 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
             )}
 
             <p className="text-xs text-neutral-mid">
-              Datos descargados del SII en vivo. Las sumas son referenciales y se calculan sobre los
-              documentos mostrados — el dato oficial sigue siendo el del F29.
+              Datos descargados del SII en vivo. Las notas de crédito se descuentan del total. Las
+              sumas son referenciales y se calculan sobre los documentos mostrados — el dato oficial
+              sigue siendo el del F29.
             </p>
           </div>
         </QavanteCard>
