@@ -843,6 +843,13 @@ export interface paths {
          *     tipo+folio+rut). Las notas de crédito restan. `due_date` queda NULL (el RCV no
          *     trae vencimiento) y el pagado/pendiente lo fija la conciliación bancaria
          *     (fases posteriores). Fuente siempre SII, sin defaults.
+         *
+         *     OJO shape (bug prod 2026-07-02): el upsert espera la shape de
+         *     `normalizar_documentos` (`fecha_emision`, montos parseados), NO la shape slim
+         *     de `get_rcv_ventas` (`fecha`, orientada a payloads LLM). Por eso se pide
+         *     `full=True` (docs crudos del SII) y se normaliza acá antes de persistir.
+         *     Pasar la slim hacía que el upsert descartara TODO por "sin fecha de emisión"
+         *     → `upserted:0` silencioso pese a que el RCV traía documentos.
          */
         post: operations["sii_sync_rcv"];
         delete?: never;
@@ -862,10 +869,14 @@ export interface paths {
         put?: never;
         /**
          * SII: llena receivables.due_date bajando el XML de cada DTE emitido (ADR-0037 §6.4)
-         * @description Para las ventas del período (RCV ya sincronizado), usa el `dhdr_codigo` de cada
-         *     documento para bajar su XML del DTE emitido (`mipeGenDLNewEnvio.cgi`, login por cert),
+         * @description Para las ventas del período (RCV ya sincronizado), baja el XML del DTE emitido,
          *     saca el vencimiento (`FchVenc`/`FchPago`) y llena `receivables.due_date` — el dato que
-         *     no viene en el RCV. Desbloquea overdue_collections + aging de Cobrar. Idempotente.
+         *     no viene en el RCV.
+         *
+         *     ⚠️ WIP (2026-06-30): la descarga del XML todavía **no funciona end-to-end** — el
+         *     `dhdr_codigo` del RCV no es el `CODIGO` que espera `mipeGenDLNewEnvio.cgi` (ver
+         *     `_dte_emitidos.py` + `docs/runbooks/sii-postfirmadigital-capture.md`). Hoy devuelve
+         *     `enriched=0` (todos `no_xml`). Idempotente.
          */
         post: operations["sii_enrich_due_dates"];
         delete?: never;
@@ -2169,6 +2180,29 @@ export interface paths {
          *     pendiente (cero falsos positivos). Requiere rol owner/admin.
          */
         post: operations["treasury_obligations_reconcile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/obligations/card-payments/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Concilia pagos de cartola de tarjeta (MONTO CANCELADO) contra débitos (1:1)
+         * @description Auto-concilia (§C.4) los **pagos de tarjeta** (MONTO CANCELADO) `unmatched` contra los
+         *     débitos de la cuenta corriente: solo cuando el match es inequívoco (monto exacto +
+         *     fecha cercana + unicidad mutua) → el pago pasa a `matched` con su `matched_movement_id`.
+         *     Lo ambiguo queda `unmatched` (cero falsos positivos). Requiere rol owner/admin.
+         */
+        post: operations["treasury_card_payments_reconcile"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3986,6 +4020,12 @@ export interface components {
             retencion?: number | null;
             /** Monto Liquido */
             monto_liquido?: number | null;
+            /**
+             * Anulada
+             * @description True si la BHE está anulada en el SII (las BHE se anulan directo, sin NC). El FE la muestra tachada y la excluye del líquido/retención.
+             * @default false
+             */
+            anulada: boolean;
         };
         /** BheResponse */
         BheResponse: {
@@ -4934,7 +4974,7 @@ export interface components {
         ConsentAcceptRequest: {
             /**
              * Consent Text
-             * @description Texto del consentimiento aceptado. Si se omite, se usa el texto estándar Tooxs360. Cliente puede pasar uno custom si ya lo mostró.
+             * @description Texto del consentimiento aceptado. Si se omite, se usa el texto estándar Qavante. Cliente puede pasar uno custom si ya lo mostró.
              */
             consent_text?: string | null;
             /**
@@ -11309,8 +11349,6 @@ export interface operations {
             query: {
                 /** @description Período YYYY-MM, YYYYMM o 'marzo 2026'. */
                 periodo: string;
-                /** @description Diagnóstico: baja UN documento y devuelve la respuesta cruda. */
-                debug?: boolean;
             };
             header?: never;
             path?: never;
@@ -14447,6 +14485,44 @@ export interface operations {
         };
     };
     treasury_obligations_reconcile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObligationReconcileResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_card_payments_reconcile: {
         parameters: {
             query?: never;
             header?: never;
