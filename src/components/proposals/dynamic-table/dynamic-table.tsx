@@ -78,7 +78,7 @@ const VARIANTS: Record<
   hybrid: {
     table: "[&_td]:border-r [&_td]:border-border/25 [&_td:last-child]:border-r-0",
     thead: "border-b border-border-strong bg-surface-muted",
-    headRow: "text-neutral-dark",
+    headRow: "text-neutral-mid",
     iconLight: false,
     rowBorder: "border-border/40",
     rowHover: "hover:bg-surface-muted/70",
@@ -166,8 +166,14 @@ export function DynamicTable<TData>({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className={cn("w-full text-xs", styles.table)} style={{ minWidth }}>
+      <div className="overflow-x-auto rounded-xl border border-border [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-2">
+        <table
+          className={cn(
+            "w-full text-xs [&_td:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:first-child]:pl-4 [&_th:last-child]:pr-4",
+            styles.table,
+          )}
+          style={{ minWidth }}
+        >
           <thead className={styles.thead}>
             {table.getHeaderGroups().map((hg) => (
               <tr
@@ -269,7 +275,7 @@ export function DynamicTable<TData>({
                 {row.getVisibleCells().map((cell) => {
                   const align = colAlign(cell.column.columnDef.meta);
                   return (
-                    <td key={cell.id} className={cn("px-3 py-2 text-neutral-dark", align && "text-right tabular-nums")}>
+                    <td key={cell.id} className={cn("px-3 py-2.5 text-neutral-dark", align && "text-right tabular-nums")}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   );

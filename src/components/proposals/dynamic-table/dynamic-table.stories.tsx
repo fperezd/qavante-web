@@ -33,7 +33,7 @@ const data: Venta[] = [
 
 const columns: ColumnDef<Venta>[] = [
   { id: "tipo", accessorKey: "tipo", header: "Tipo" },
-  { id: "folio", accessorKey: "folio", header: "Folio", enableColumnFilter: false, meta: { align: "right" }, cell: ({ getValue }) => getValue() as number },
+  { id: "folio", accessorKey: "folio", header: "Folio", enableColumnFilter: false, cell: ({ getValue }) => getValue() as number },
   { id: "fecha", accessorKey: "fecha", header: "Fecha", enableColumnFilter: false, cell: ({ getValue }) => formatDateLike(getValue() as string) },
   { id: "cliente", accessorKey: "cliente", header: "Cliente" },
   { id: "rut", accessorKey: "rut", header: "RUT" },
