@@ -28,9 +28,19 @@ const ESTADO_BADGE: Record<EstadoDoc, { variant: "danger" | "warning" | "default
   vigente: { variant: "default", label: "Vigente" },
 };
 
-export function LibroAnuladasView({ docs, periodo }: { docs: LibroDoc[]; periodo?: string }) {
+export function LibroAnuladasView({
+  docs,
+  periodo,
+  kind = "ventas",
+}: {
+  docs: LibroDoc[];
+  periodo?: string;
+  kind?: "ventas" | "compras";
+}) {
   const grouped = React.useMemo(() => agruparConReferencias(docs), [docs]);
   const [selected, setSelected] = React.useState<FacturaRow | null>(null);
+  const partyLabel = kind === "compras" ? "Proveedor" : "Cliente";
+  const netoLabel = kind === "compras" ? "Compras netas del período" : "Ventas netas del período";
 
   return (
     <div className="space-y-4">
@@ -47,7 +57,7 @@ export function LibroAnuladasView({ docs, periodo }: { docs: LibroDoc[]; periodo
             <thead className="bg-surface-muted">
               <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                 <th scope="col" className="px-3 py-2.5">Documento</th>
-                <th scope="col" className="px-3 py-2.5">Cliente</th>
+                <th scope="col" className="px-3 py-2.5">{partyLabel}</th>
                 <th scope="col" className="px-3 py-2.5">Fecha</th>
                 <th scope="col" className="px-3 py-2.5 text-right">Monto</th>
                 <th scope="col" className="px-3 py-2.5">Estado</th>
@@ -126,7 +136,7 @@ export function LibroAnuladasView({ docs, periodo }: { docs: LibroDoc[]; periodo
             <tfoot>
               <tr className="border-t-2 border-border-strong">
                 <td colSpan={3} className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                  Ventas netas del período
+                  {netoLabel}
                 </td>
                 <td className="px-3 py-2.5 text-right tabular-nums text-neutral-dark">
                   {formatClp(grouped.totalNetas)}

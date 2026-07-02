@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { LibroAnuladasView } from "./libro-anuladas-view";
-import { ventasJulio, ventasKaufmann } from "./libro-anuladas-fixtures";
+import { comprasJunio, ventasJulio, ventasKaufmann } from "./libro-anuladas-fixtures";
 
 /* PROPUESTA UX — Libro de Ventas con anuladas (estilo Chipax).
    Las facturas anuladas por NC se muestran "Anuladas" (no factura + NC sueltas).
@@ -29,3 +29,6 @@ export const Julio2026: Story = { args: { docs: ventasJulio, periodo: "Julio 202
 
 /** Caso 1:1 (como el modal de Chipax): Kaufmann anulada + una venta vigente. */
 export const CasoKaufmann: Story = { args: { docs: ventasKaufmann, periodo: "Junio 2026" } };
+
+/** Libro de COMPRAS: el proveedor emite factura + NC idéntica → compra anulada. */
+export const Compras: Story = { args: { docs: comprasJunio, periodo: "Junio 2026", kind: "compras" } };
