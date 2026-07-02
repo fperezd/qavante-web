@@ -19,8 +19,9 @@ import {
  *
  * Cuando una NC anula una factura, la factura se muestra como **"Anulada"** (no
  * factura + NC sueltas). Clic en la fila → modal "Documentos asociados" (factura
- * + NC + neto). Totales neteados (brutas − NC). La vinculación es heurística
- * (RUT + monto) hasta que el backend exponga la referencia real del DTE. */
+ * + NC + neto). Totales neteados (brutas − NC). La vinculación usa la referencia
+ * REAL del DTE (`ref_tipo_doc`/`ref_folio`); solo cae a heurística (RUT + monto)
+ * para NC sin referencia. */
 
 const ESTADO_BADGE: Record<EstadoDoc, { variant: "danger" | "warning" | "default"; label: string }> = {
   anulada: { variant: "danger", label: "Anulada" },
@@ -141,8 +142,10 @@ export function LibroAnuladasView({ docs, periodo }: { docs: LibroDoc[]; periodo
       </QavanteCard>
 
       <p className="text-[11px] text-neutral-mid">
-        Las facturas anuladas por nota de crédito se muestran vinculadas. Vinculación referencial
-        (por RUT y monto) hasta que el SII exponga la referencia exacta del documento.
+        Las facturas anuladas por nota de crédito se muestran vinculadas por la referencia del DTE
+        (SII).
+        {grouped.rows.some((r) => r.notas.length > 0 && !r.matchExacto) &&
+          " Algunas notas sin referencia se vincularon por RUT y monto (referencial)."}
       </p>
 
       {selected && <AsociadosModal row={selected} onClose={() => setSelected(null)} />}

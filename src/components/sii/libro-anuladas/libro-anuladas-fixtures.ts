@@ -9,14 +9,16 @@ export const ventasJulio: LibroDoc[] = [
   { tipo_doc: 33, folio: 428, fecha: "2026-07-01", rut_contraparte: "76106531-9", razon_social: "GPS7000 SPA", monto_neto: 1241020, monto_iva: 235794, monto_total: 1476814 },
   { tipo_doc: 33, folio: 425, fecha: "2026-07-01", rut_contraparte: "76489841-9", razon_social: "CLINICA DE PUERTO VARAS SPA", monto_neto: 142881, monto_iva: 27147, monto_total: 170028 },
   { tipo_doc: 33, folio: 427, fecha: "2026-07-01", rut_contraparte: "76106531-9", razon_social: "GPS7000 SPA", monto_neto: 1241020, monto_iva: 235794, monto_total: 1476814 },
-  { tipo_doc: 61, folio: 89, fecha: "2026-07-02", rut_contraparte: "76106531-9", razon_social: "GPS7000 SPA", monto_neto: 1241020, monto_iva: 235794, monto_total: 1476814 },
-  { tipo_doc: 61, folio: 91, fecha: "2026-07-02", rut_contraparte: "76489841-9", razon_social: "CLINICA DE PUERTO VARAS SPA", monto_neto: 142881, monto_iva: 27147, monto_total: 170028 },
-  { tipo_doc: 61, folio: 90, fecha: "2026-07-02", rut_contraparte: "76489841-9", razon_social: "CLINICA DE PUERTO VARAS SPA", monto_neto: 142881, monto_iva: 27147, monto_total: 170028 },
+  // NC 89 referencia la factura 427 (ref real del DTE) — desambigua entre las
+  // dos GPS7000 idénticas (427 y 428): se anula la 427, la 428 queda vigente.
+  { tipo_doc: 61, folio: 89, fecha: "2026-07-02", rut_contraparte: "76106531-9", razon_social: "GPS7000 SPA", monto_neto: 1241020, monto_iva: 235794, monto_total: 1476814, ref_tipo_doc: 33, ref_folio: 427 },
+  { tipo_doc: 61, folio: 91, fecha: "2026-07-02", rut_contraparte: "76489841-9", razon_social: "CLINICA DE PUERTO VARAS SPA", monto_neto: 142881, monto_iva: 27147, monto_total: 170028, ref_tipo_doc: 33, ref_folio: 426 },
+  { tipo_doc: 61, folio: 90, fecha: "2026-07-02", rut_contraparte: "76489841-9", razon_social: "CLINICA DE PUERTO VARAS SPA", monto_neto: 142881, monto_iva: 27147, monto_total: 170028, ref_tipo_doc: 33, ref_folio: 425 },
 ];
 
 /** Caso simple 1:1 (como el modal de Chipax): factura Kaufmann anulada por su NC. */
 export const ventasKaufmann: LibroDoc[] = [
   { tipo_doc: 33, folio: 418, fecha: "2026-06-10", rut_contraparte: "96572360-9", razon_social: "Comercial Kaufmann S.A.", monto_neto: 1210749, monto_iva: 230042, monto_total: 1440791 },
-  { tipo_doc: 61, folio: 83, fecha: "2026-06-11", rut_contraparte: "96572360-9", razon_social: "Comercial Kaufmann S.A.", monto_neto: 1210749, monto_iva: 230042, monto_total: 1440791 },
+  { tipo_doc: 61, folio: 83, fecha: "2026-06-11", rut_contraparte: "96572360-9", razon_social: "Comercial Kaufmann S.A.", monto_neto: 1210749, monto_iva: 230042, monto_total: 1440791, ref_tipo_doc: 33, ref_folio: 418 },
   { tipo_doc: 33, folio: 411, fecha: "2026-06-10", rut_contraparte: "76114300-8", razon_social: "Matrix Consulting Limitada", monto_neto: 1712170, monto_iva: 325313, monto_total: 2037483 },
 ];

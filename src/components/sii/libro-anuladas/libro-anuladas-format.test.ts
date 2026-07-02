@@ -15,6 +15,12 @@ const nc = (folio: number, rut: string, total: number): LibroDoc => ({
   razon_social: "Cliente",
   monto_total: total,
 });
+/** NC con referencia exacta al DTE (ref_tipo_doc 33 = factura por defecto). */
+const ncRef = (folio: number, rut: string, total: number, refFolio: number, refTipo = 33): LibroDoc => ({
+  ...nc(folio, rut, total),
+  ref_tipo_doc: refTipo,
+  ref_folio: refFolio,
+});
 
 describe("libro-anuladas-format", () => {
   it("isNotaCredito detecta 60/61/112", () => {
@@ -47,6 +53,48 @@ describe("libro-anuladas-format", () => {
     const { rows } = agruparConReferencias([fac(1, "1-9", 100000), nc(2, "1-9", 30000)]);
     // no matchea (monto distinto) → queda vigente + NC huérfana. Verifico huérfana.
     expect(rows[0]?.estado).toBe("vigente");
+  });
+
+  it("ref exacta: NC apunta a la factura por ref_folio (no por monto)", () => {
+    // Dos facturas idénticas (mismo RUT y monto); la NC referencia la 428.
+    const { rows } = agruparConReferencias([
+      fac(427, "76106531-9", 1476814),
+      fac(428, "76106531-9", 1476814),
+      ncRef(89, "76106531-9", 1476814, 428),
+    ]);
+    const anulada = rows.find((r) => r.estado === "anulada");
+    const vigente = rows.find((r) => r.estado === "vigente");
+    expect(anulada?.factura.folio).toBe(428);
+    expect(vigente?.factura.folio).toBe(427);
+    expect(anulada?.matchExacto).toBe(true);
+  });
+
+  it("ref exacta linkea aunque el monto de la NC difiera (la heurística no lo haría)", () => {
+    // Monto de la NC ≠ factura → la heurística (RUT+monto) NO matchearía;
+    // la referencia sí. Anulación parcial: neto positivo.
+    const { rows, notasHuerfanas } = agruparConReferencias([fac(500, "9-9", 1000000), ncRef(90, "9-9", 999999, 500)]);
+    expect(notasHuerfanas).toHaveLength(0);
+    expect(rows[0]?.estado).toBe("parcial");
+    expect(rows[0]?.neto).toBe(1);
+    expect(rows[0]?.matchExacto).toBe(true);
+  });
+
+  it("ref con tipo distinto no matchea la factura equivocada", () => {
+    // ref_tipo_doc 34 (factura exenta) no debe linkear una factura tipo 33.
+    const { rows, notasHuerfanas } = agruparConReferencias([
+      fac(600, "9-9", 500000),
+      ncRef(91, "9-9", 500000, 600, 34),
+    ]);
+    // Cae a heurística (RUT+monto) → igual la anula, pero marcada no-exacta.
+    expect(rows[0]?.estado).toBe("anulada");
+    expect(rows[0]?.matchExacto).toBe(false);
+    expect(notasHuerfanas).toHaveLength(0);
+  });
+
+  it("NC heurística (sin ref) marca matchExacto=false", () => {
+    const { rows } = agruparConReferencias([fac(1, "a", 5000), nc(3, "a", 5000)]);
+    expect(rows[0]?.estado).toBe("anulada");
+    expect(rows[0]?.matchExacto).toBe(false);
   });
 
   it("totales: brutas − NC = netas", () => {
