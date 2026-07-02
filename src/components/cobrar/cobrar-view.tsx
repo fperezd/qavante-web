@@ -7,6 +7,12 @@ import { QavanteCard, QavanteBadge, QavanteEmpty } from "@/components/qavante";
 import { useAccountsReceivable, type AccountsReceivableResponse } from "@/lib/api/cobranza";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+import {
+  PartialDataBanner,
+  SyncPendingState,
+  isPartial,
+  isSyncPending,
+} from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
@@ -55,10 +61,14 @@ export function CobrarView({ siiEnabled }: CobrarViewProps) {
           </p>
         </div>
       ) : query.data && parseAmount(query.data.total) === 0 ? (
-        <QavanteEmpty
-          title="No tienes cuentas por cobrar"
-          description="Cuando tengas documentos por cobrar pendientes, vas a verlos acá ordenados por prioridad."
-        />
+        isSyncPending(query.data) ? (
+          <SyncPendingState missingSources={query.data.missing_sources} what="tus cuentas por cobrar" />
+        ) : (
+          <QavanteEmpty
+            title="No tienes cuentas por cobrar"
+            description="Cuando tengas documentos por cobrar pendientes, vas a verlos acá ordenados por prioridad."
+          />
+        )
       ) : query.data ? (
         <Receivable data={query.data} />
       ) : null}
@@ -92,6 +102,8 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
   const bars = agingBars(data.aging);
   return (
     <div className="space-y-4">
+      {isPartial(data) && <PartialDataBanner missingSources={data.missing_sources} />}
+
       {/* Resumen. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Metric label="Total por cobrar" value={formatClp(parseAmount(data.total))} />

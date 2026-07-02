@@ -4,12 +4,11 @@ import { api } from "./client";
 /* Capa de datos — Cobrar / Cuentas por cobrar (Sprint C4, Documento Maestro
    §7.3).
 
-   ⚠️ Contrato FE-FIRST. El endpoint `GET /api/treasury/accounts-receivable`
-   AÚN NO existe en el backend (no está en el OpenAPI generado). Tipos
-   hand-rolled como el contrato ESPERADO, documentado en
-   `docs/backend-contracts/cobrar-accounts-receivable-contract.md` (handoff a
-   CC-API). `generate:api` los reemplaza cuando el backend lo exponga (regla 3).
-   Gated por el flag `accountsReceivable` (OFF en prod) → no corre en prod.
+   `GET /api/treasury/accounts-receivable` YA existe en el backend (cookie-ready)
+   y el flag `accountsReceivable` está ON en prod. Cuando el devengado
+   (treasury.receivables, poblado por `sync-rcv`) está vacío, el backend devuelve
+   honesto `data_state:"partial"` + `missing_sources` (ADR-0055 F1) en vez de un
+   $0 confiado → la UI muestra "sincronización pendiente".
 
    Montos como string-decimal (igual que el resto del API treasury). */
 
@@ -56,6 +55,9 @@ export interface AccountsReceivableResponse {
   overdue_documents: OverdueDocument[];
   confidence: "high" | "medium" | "low";
   data_state: "available" | "partial" | "estimated";
+  /** Fuentes que faltan para completar el dato (ej. "Sincronización SII
+   *  pendiente", "Conectar SII"). Vacío/ausente cuando el dato está completo. */
+  missing_sources?: string[];
   generated_at: string;
 }
 
