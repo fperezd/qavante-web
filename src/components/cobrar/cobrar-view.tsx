@@ -7,7 +7,12 @@ import { QavanteCard, QavanteBadge, QavanteEmpty } from "@/components/qavante";
 import { useAccountsReceivable, type AccountsReceivableResponse } from "@/lib/api/cobranza";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
-import { SyncPendingState, isSyncPending } from "@/components/treasury/sync-pending-state";
+import {
+  PartialDataBanner,
+  SyncPendingState,
+  isPartial,
+  isSyncPending,
+} from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
@@ -97,6 +102,8 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
   const bars = agingBars(data.aging);
   return (
     <div className="space-y-4">
+      {isPartial(data) && <PartialDataBanner missingSources={data.missing_sources} />}
+
       {/* Resumen. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Metric label="Total por cobrar" value={formatClp(parseAmount(data.total))} />

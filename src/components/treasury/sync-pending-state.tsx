@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { Info, RefreshCw } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 
 /* Vacío HONESTO de tesorería. Cuando el devengado está vacío porque falta
@@ -41,6 +41,26 @@ export function SyncPendingState({
   );
 }
 
+/* Banner de DATOS PARCIALES: hay montos, pero el dato no está completo (ej. el
+ * RCV no trae fecha de vencimiento → el aging/vencidos no es confiable todavía).
+ * Se muestra ARRIBA de los datos para no engañar con un aging incompleto. */
+export function PartialDataBanner({ missingSources }: { missingSources?: string[] }) {
+  return (
+    <div
+      role="status"
+      className="flex items-start gap-2 rounded-xl border border-warning-500/30 bg-warning-500/5 p-3 text-sm text-neutral-dark"
+    >
+      <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning-700" aria-hidden="true" />
+      <p>
+        <span className="font-medium">Datos parciales.</span> Los montos son correctos, pero los
+        vencimientos (antigüedad de saldos) todavía no están disponibles
+        {missingSources && missingSources.length > 0 ? ` — ${missingSources.join(" · ")}` : ""}. Se
+        completan cuando el SII entregue las fechas de vencimiento.
+      </p>
+    </div>
+  );
+}
+
 /** ¿El dato viene incompleto (falta sincronizar)? — para decidir entre el vacío
  *  honesto y el "no tienes deuda" real. */
 export function isSyncPending(d: {
@@ -48,4 +68,9 @@ export function isSyncPending(d: {
   missing_sources?: string[] | null;
 }): boolean {
   return (d.data_state != null && d.data_state !== "available") || (d.missing_sources?.length ?? 0) > 0;
+}
+
+/** ¿Hay datos pero incompletos (montos ok, vencimientos no)? */
+export function isPartial(d: { data_state?: string }): boolean {
+  return d.data_state != null && d.data_state !== "available";
 }

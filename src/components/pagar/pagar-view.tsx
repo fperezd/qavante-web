@@ -6,7 +6,12 @@ import { QavanteCard, QavanteBadge, QavanteEmpty } from "@/components/qavante";
 import { useAccountsPayable, type AccountsPayableResponse } from "@/lib/api/pagos";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
-import { SyncPendingState, isSyncPending } from "@/components/treasury/sync-pending-state";
+import {
+  PartialDataBanner,
+  SyncPendingState,
+  isPartial,
+  isSyncPending,
+} from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import { parseAmount, paymentCategoryLabel, criticalFirst } from "./pagos-format";
@@ -71,6 +76,8 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
   const items = criticalFirst(data.items);
   return (
     <div className="space-y-4">
+      {isPartial(data) && <PartialDataBanner missingSources={data.missing_sources} />}
+
       {/* Resumen. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric label="Total por pagar" value={formatClp(parseAmount(data.total))} />
