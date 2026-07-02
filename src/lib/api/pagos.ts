@@ -4,11 +4,10 @@ import { api } from "./client";
 /* Capa de datos — Pagar / Cuentas por pagar (Sprint C4, Documento Maestro
    §7.4).
 
-   ⚠️ Contrato FE-FIRST. `GET /api/treasury/accounts-payable` AÚN NO existe en
-   el backend. Tipos hand-rolled como el contrato ESPERADO, documentado en
-   `docs/backend-contracts/pagar-accounts-payable-contract.md` (handoff a
-   CC-API). `generate:api` los reemplaza cuando el backend lo exponga (regla 3).
-   Gated por `accountsPayable` (OFF en prod) → no corre en prod.
+   `GET /api/treasury/accounts-payable` YA existe en el backend. Igual que
+   accounts-receivable (ADR-0055 F1): con el devengado (treasury.payables,
+   poblado por `sync-rcv`) vacío devuelve honesto `data_state:"partial"` +
+   `missing_sources` en vez de un $0 confiado. Gated por `accountsPayable`.
 
    Montos string-decimal (igual que el resto del API treasury). */
 
@@ -50,6 +49,9 @@ export interface AccountsPayableResponse {
   covers_critical: boolean | null;
   confidence: "high" | "medium" | "low";
   data_state: "available" | "partial" | "estimated";
+  /** Fuentes que faltan para completar el dato (ej. "Sincronización SII
+   *  pendiente"). Vacío/ausente cuando el dato está completo. */
+  missing_sources?: string[];
   generated_at: string;
 }
 

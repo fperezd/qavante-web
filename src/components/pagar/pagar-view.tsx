@@ -6,6 +6,7 @@ import { QavanteCard, QavanteBadge, QavanteEmpty } from "@/components/qavante";
 import { useAccountsPayable, type AccountsPayableResponse } from "@/lib/api/pagos";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+import { SyncPendingState, isSyncPending } from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import { parseAmount, paymentCategoryLabel, criticalFirst } from "./pagos-format";
@@ -45,7 +46,17 @@ export function PagarView() {
       </div>
     );
   }
-  if (!query.data || parseAmount(query.data.total) === 0) {
+  if (query.data && parseAmount(query.data.total) === 0) {
+    return isSyncPending(query.data) ? (
+      <SyncPendingState missingSources={query.data.missing_sources} what="tus cuentas por pagar" />
+    ) : (
+      <QavanteEmpty
+        title="No tienes pagos pendientes"
+        description="Cuando tengas pagos u obligaciones por vencer, vas a verlos acá priorizados por criticidad."
+      />
+    );
+  }
+  if (!query.data) {
     return (
       <QavanteEmpty
         title="No tienes pagos pendientes"
