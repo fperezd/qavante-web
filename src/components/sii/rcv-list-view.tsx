@@ -17,7 +17,8 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
 import { formatPeriodLabel } from "./sii-period-form-schema";
-import { TIPO_DOC_FAMILIES, isNotaCredito, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
+import { TIPO_DOC_FAMILIES, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
+import { computeRcvTotals } from "./rcv-totals";
 
 /* Vista reusable para Libro de Compras / Libro de Ventas (Sprint C1
    PR-Lib, mejora 2026-05-24). Hoy el backend expone /api/sii/rcv/compras
@@ -108,10 +109,6 @@ function extractDocs(
   return (arr as RcvDoc[] | undefined) ?? [];
 }
 
-function numOr0(v: number | undefined): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : 0;
-}
-
 interface Filters {
   folio: string;
   razonSocial: string;
@@ -167,27 +164,10 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
     [filteredDocs, currentPage, pageSize],
   );
 
-  /* Totales sobre el SET FILTRADO COMPLETO (no solo la página actual).
-     NETEA las Notas de Crédito (restan) — antes se sumaban como una venta más,
-     inflando el total. El bruto y el monto de NC se exponen aparte para que el
-     neteo sea explícito. Las Notas de Débito (56/111) suman, como corresponde. */
-  const totals = React.useMemo(() => {
-    let neto = 0, iva = 0, total = 0, grossTotal = 0, ncTotal = 0, ncCount = 0;
-    for (const d of filteredDocs) {
-      const nc = isNotaCredito(d.tipo_doc);
-      const sign = nc ? -1 : 1;
-      neto += sign * numOr0(d.monto_neto);
-      iva += sign * numOr0(d.monto_iva);
-      total += sign * numOr0(d.monto_total);
-      if (nc) {
-        ncTotal += numOr0(d.monto_total);
-        ncCount += 1;
-      } else {
-        grossTotal += numOr0(d.monto_total);
-      }
-    }
-    return { neto, iva, total, grossTotal, ncTotal, ncCount };
-  }, [filteredDocs]);
+  /* Totales sobre el SET FILTRADO COMPLETO (no solo la página actual). Netea las
+     Notas de Crédito (restan) — antes se sumaban como una venta más, inflando el
+     total. Ver computeRcvTotals (robusto al signo de la NC). */
+  const totals = React.useMemo(() => computeRcvTotals(filteredDocs), [filteredDocs]);
 
   const hasActiveFilters =
     filters.folio !== "" || filters.razonSocial !== "" || filters.tipoFamily !== "todos";
