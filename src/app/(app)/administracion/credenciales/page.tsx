@@ -43,6 +43,20 @@ export default function CredencialesPage() {
         <CardStatementUpload />
       </section>
 
+      <section aria-labelledby="buk-consent-heading" className="space-y-2">
+        <h2 id="buk-consent-heading" className="text-base font-semibold text-neutral-dark">
+          Remuneraciones (BUK)
+        </h2>
+        {/* Leer la planilla de BUK en nombre del tenant requiere consentimiento
+            explícito. Sin él, /api/buk/* devuelve 403 "Consent missing para buk"
+            (ADR-0056). Autorizar acá habilita la dotación, la planilla y su carga
+            a Pagar. */}
+        <SourceConsentCard
+          sourceCode="buk"
+          label="Autorización de acceso a Remuneraciones (BUK)"
+        />
+      </section>
+
       {isLoading && (
         <div className="flex items-center gap-2 text-sm text-neutral-mid">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
