@@ -1,7 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { Database, Inbox, Layers, Rows3, SlidersHorizontal, XCircle } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronsUpDown,
+  Database,
+  Inbox,
+  Layers,
+  Rows3,
+  SlidersHorizontal,
+  XCircle,
+} from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import {
   QavanteBadge,
@@ -21,6 +31,14 @@ import { TIPO_DOC_FAMILIES, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
 import { computeRcvTotals } from "./rcv-totals";
 import { agruparConReferencias, type EstadoDoc, type FacturaRow } from "./rcv-anuladas";
 import { RcvAsociadosModal } from "./rcv-asociados-modal";
+import type { GroupedItem, RcvDoc } from "./rcv-grouped-item";
+import {
+  sortDocs,
+  sortGroupedItems,
+  toggleSort,
+  type SortKey,
+  type SortState,
+} from "./rcv-sort";
 
 /* Vista reusable para Libro de Compras / Libro de Ventas (Sprint C1
    PR-Lib, mejora 2026-05-24). Hoy el backend expone /api/sii/rcv/compras
@@ -37,27 +55,6 @@ import { RcvAsociadosModal } from "./rcv-asociados-modal";
    §17.4: FE no calcula finanzas — el total se computa como suma simple
    de los `monto_total` descargados (agregado visual). Disclaimer
    explícito en el footer: "dato oficial es el del F29". */
-
-interface RcvDoc {
-  tipo_doc?: number;
-  folio?: number;
-  fecha?: string;
-  rut_contraparte?: string;
-  razon_social?: string;
-  monto_neto?: number;
-  monto_iva?: number;
-  monto_total?: number;
-  /** Referencia del DTE (SII): la NC/ND apunta al documento que modifica. */
-  ref_tipo_doc?: number;
-  ref_folio?: number;
-  [key: string]: unknown;
-}
-
-/** Fila del Libro en modo "agrupado": o una factura (con sus NC vinculadas) o
- *  una nota de crédito huérfana (sin factura asociada en el período). */
-type GroupedItem =
-  | { t: "fac"; row: FacturaRow<RcvDoc> }
-  | { t: "nc"; doc: RcvDoc };
 
 const ESTADO_BADGE: Record<
   Exclude<EstadoDoc, "vigente">,
@@ -186,6 +183,13 @@ export function RcvListView({
      Chipax, default). "detalle" = lista plana documento por documento. */
   const [viewMode, setViewMode] = React.useState<"agrupado" | "detalle">("agrupado");
   const [selected, setSelected] = React.useState<FacturaRow<RcvDoc> | null>(null);
+  /* Orden por columna (clic en el título): none → asc → desc → none. */
+  const [sort, setSort] = React.useState<SortState | null>(null);
+
+  const onToggleSort = React.useCallback((key: SortKey) => {
+    setSort((s) => toggleSort(s, key));
+    setPage(1);
+  }, []);
 
   /* Cuando el período cambia, resetear página + filtros (el set de
      datos es completamente nuevo). */
@@ -207,16 +211,23 @@ export function RcvListView({
     [grouped],
   );
 
+  /* Orden aplicado sobre el set completo (antes de paginar). */
+  const sortedDocs = React.useMemo(() => sortDocs(filteredDocs, sort), [filteredDocs, sort]);
+  const sortedGrouped = React.useMemo(
+    () => sortGroupedItems(groupedItems, sort),
+    [groupedItems, sort],
+  );
+
   const rowCount = viewMode === "agrupado" ? groupedItems.length : filteredDocs.length;
   const totalPages = Math.max(1, Math.ceil(rowCount / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedDocs = React.useMemo(
-    () => filteredDocs.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [filteredDocs, currentPage, pageSize],
+    () => sortedDocs.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [sortedDocs, currentPage, pageSize],
   );
   const pagedGrouped = React.useMemo(
-    () => groupedItems.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [groupedItems, currentPage, pageSize],
+    () => sortedGrouped.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [sortedGrouped, currentPage, pageSize],
   );
 
   /* Totales sobre el SET FILTRADO COMPLETO (no solo la página actual). Netea las
@@ -352,6 +363,8 @@ export function RcvListView({
                   partyLabel={copy.partyLabel}
                   hasActiveFilters={hasActiveFilters}
                   onSelect={setSelected}
+                  sort={sort}
+                  onToggleSort={onToggleSort}
                 />
                 <PaginationBar
                   page={currentPage}
@@ -371,27 +384,13 @@ export function RcvListView({
                   <table className="w-full min-w-[720px] text-sm">
                     <thead>
                       <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                        <th scope="col" className="py-2 pr-3 font-semibold">
-                          Tipo
-                        </th>
-                        <th scope="col" className="py-2 pr-3 font-semibold">
-                          Folio
-                        </th>
-                        <th scope="col" className="py-2 pr-3 font-semibold">
-                          Fecha
-                        </th>
-                        <th scope="col" className="py-2 pr-3 font-semibold">
-                          {copy.partyLabel}
-                        </th>
-                        <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                          Neto
-                        </th>
-                        <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                          IVA
-                        </th>
-                        <th scope="col" className="py-2 text-right font-semibold">
-                          Total
-                        </th>
+                        <SortHeader label="Tipo" sortKey="tipo" sort={sort} onToggleSort={onToggleSort} />
+                        <SortHeader label="Folio" sortKey="folio" sort={sort} onToggleSort={onToggleSort} />
+                        <SortHeader label="Fecha" sortKey="fecha" sort={sort} onToggleSort={onToggleSort} />
+                        <SortHeader label={copy.partyLabel} sortKey="cliente" sort={sort} onToggleSort={onToggleSort} />
+                        <SortHeader label="Neto" sortKey="neto" sort={sort} onToggleSort={onToggleSort} align="right" />
+                        <SortHeader label="IVA" sortKey="iva" sort={sort} onToggleSort={onToggleSort} align="right" />
+                        <SortHeader label="Total" sortKey="total" sort={sort} onToggleSort={onToggleSort} align="right" />
                       </tr>
                     </thead>
                     <tbody>
@@ -518,41 +517,78 @@ export function RcvListView({
 
 /* ── Tabla en modo "agrupado" (facturas + NC vinculadas, estilo Chipax) ──── */
 
+/* Header ordenable: clic → asc/desc/none, con flechas. */
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onToggleSort,
+  align,
+  className,
+}: {
+  label: React.ReactNode;
+  sortKey: SortKey;
+  sort: SortState | null;
+  onToggleSort: (key: SortKey) => void;
+  align?: "right";
+  className?: string;
+}) {
+  const dir = sort?.key === sortKey ? sort.dir : null;
+  return (
+    <th scope="col" className={cn("py-2 pr-3 font-semibold", align === "right" && "text-right", className)}>
+      <button
+        type="button"
+        onClick={() => onToggleSort(sortKey)}
+        className={cn(
+          "inline-flex items-center gap-1 font-semibold uppercase tracking-wider hover:text-neutral-dark",
+          align === "right" && "flex-row-reverse",
+        )}
+        title="Ordenar por esta columna"
+      >
+        {label}
+        {dir === "asc" ? (
+          <ArrowUp className="h-3 w-3 text-brand-primary" aria-hidden="true" />
+        ) : dir === "desc" ? (
+          <ArrowDown className="h-3 w-3 text-brand-primary" aria-hidden="true" />
+        ) : (
+          <ChevronsUpDown className="h-3 w-3 opacity-30" aria-hidden="true" />
+        )}
+      </button>
+    </th>
+  );
+}
+
 interface GroupedTableProps {
   items: GroupedItem[];
   totals: ReturnType<typeof computeRcvTotals>;
   partyLabel: string;
   hasActiveFilters: boolean;
   onSelect: (row: FacturaRow<RcvDoc>) => void;
+  sort: SortState | null;
+  onToggleSort: (key: SortKey) => void;
 }
 
-function GroupedTable({ items, totals, partyLabel, hasActiveFilters, onSelect }: GroupedTableProps) {
+function GroupedTable({
+  items,
+  totals,
+  partyLabel,
+  hasActiveFilters,
+  onSelect,
+  sort,
+  onToggleSort,
+}: GroupedTableProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] text-sm">
         <thead>
           <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            <th scope="col" className="py-2 pr-3 font-semibold">
-              Tipo
-            </th>
-            <th scope="col" className="py-2 pr-3 font-semibold">
-              Folio
-            </th>
-            <th scope="col" className="py-2 pr-3 font-semibold">
-              Fecha
-            </th>
-            <th scope="col" className="py-2 pr-3 font-semibold">
-              {partyLabel}
-            </th>
-            <th scope="col" className="py-2 pr-3 text-right font-semibold">
-              Neto
-            </th>
-            <th scope="col" className="py-2 pr-3 text-right font-semibold">
-              IVA
-            </th>
-            <th scope="col" className="py-2 pr-3 text-right font-semibold">
-              Total
-            </th>
+            <SortHeader label="Tipo" sortKey="tipo" sort={sort} onToggleSort={onToggleSort} />
+            <SortHeader label="Folio" sortKey="folio" sort={sort} onToggleSort={onToggleSort} />
+            <SortHeader label="Fecha" sortKey="fecha" sort={sort} onToggleSort={onToggleSort} />
+            <SortHeader label={partyLabel} sortKey="cliente" sort={sort} onToggleSort={onToggleSort} />
+            <SortHeader label="Neto" sortKey="neto" sort={sort} onToggleSort={onToggleSort} align="right" />
+            <SortHeader label="IVA" sortKey="iva" sort={sort} onToggleSort={onToggleSort} align="right" />
+            <SortHeader label="Total" sortKey="total" sort={sort} onToggleSort={onToggleSort} align="right" />
             <th scope="col" className="py-2 font-semibold">
               Estado
             </th>
