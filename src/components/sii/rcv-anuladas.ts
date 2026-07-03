@@ -48,12 +48,18 @@ export type EstadoDoc = "vigente" | "anulada" | "parcial";
 export interface FacturaRow<T extends AnulableDoc = AnulableDoc> {
   factura: T;
   notas: T[];
-  /** monto_total de la factura menos la suma de sus NC. */
+  /** monto_total de la factura menos la suma de sus NC. Puede quedar NEGATIVO
+   *  si las NC referenciadas superan el monto de la factura (anomalía del SII);
+   *  ver `sobreCredito`. La UI NO debe mostrar un neto negativo tal cual. */
   neto: number;
   estado: EstadoDoc;
   /** `true` si TODAS las NC vinculadas lo hicieron por ref exacta del DTE;
    *  `false` si alguna se linkeó por heurística (mostrar "referencial"). */
   matchExacto: boolean;
+  /** `true` cuando la suma de las NC supera el monto de la factura (neto < 0).
+   *  Suele ser un error de referencia en el SII (varias NC apuntando al mismo
+   *  folio). La UI lo marca como "revisar" y no muestra el neto en negativo. */
+  sobreCredito: boolean;
 }
 
 export interface LibroAgrupado<T extends AnulableDoc = AnulableDoc> {
@@ -75,6 +81,7 @@ export function agruparConReferencias<T extends AnulableDoc>(docs: T[]): LibroAg
     neto: num(f.monto_total),
     estado: "vigente",
     matchExacto: true,
+    sobreCredito: false,
   }));
   const huerfanas: T[] = [];
 
@@ -114,8 +121,11 @@ export function agruparConReferencias<T extends AnulableDoc>(docs: T[]): LibroAg
     if (r.notas.length === 0) {
       r.estado = "vigente";
       r.matchExacto = true;
-    } else if (r.neto <= 0) r.estado = "anulada";
-    else r.estado = "parcial";
+    } else if (r.neto <= 0) {
+      r.estado = "anulada";
+      // neto < 0 ⇒ las NC superan el monto de la factura (anomalía del SII).
+      r.sobreCredito = r.neto < 0;
+    } else r.estado = "parcial";
   }
 
   const totalBrutas = facturas.reduce((a, f) => a + num(f.monto_total), 0);

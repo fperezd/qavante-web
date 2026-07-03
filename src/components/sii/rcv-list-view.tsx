@@ -666,6 +666,14 @@ function GroupedTable({ items, totals, partyLabel, hasActiveFilters, onSelect }:
                         <XCircle className="mr-1 inline h-3 w-3" aria-hidden="true" />
                         {badge.label}
                       </QavanteBadge>
+                      {row.sobreCredito && (
+                        <span
+                          className="text-[11px] font-medium text-danger-500"
+                          title="Las notas de crédito superan el monto de la factura — posible error de referencia en el SII"
+                        >
+                          revisar
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-0.5 text-xs text-brand-primary">
                         <Layers className="h-3.5 w-3.5" aria-hidden="true" />
                         asociados

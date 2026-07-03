@@ -8,6 +8,10 @@ import { formatDateLike } from "@/lib/formatters/date";
 import { tipoDocMeta } from "./tipo-doc";
 import type { AnulableDoc, FacturaRow } from "./rcv-anuladas";
 
+function mag(v: number | undefined): number {
+  return typeof v === "number" && Number.isFinite(v) ? Math.abs(v) : 0;
+}
+
 /* Modal "Documentos asociados" — muestra una factura anulada/parcial junto con
    las notas de crédito que la modifican y el neto resultante. Estilo Chipax.
    Se abre al hacer clic en una fila anulada del Libro. */
@@ -28,6 +32,12 @@ export function RcvAsociadosModal({
   }, [onClose]);
 
   const docs: AnulableDoc[] = [row.factura, ...row.notas];
+  const ncTotal = row.notas.reduce((a, n) => a + mag(n.monto_total), 0);
+  const facturaTotal = mag(row.factura.monto_total);
+  /* neto real puede quedar negativo si las NC superan la factura (anomalía del
+     SII, p.ej. varias NC apuntando al mismo folio). No mostramos negativo: se
+     muestra $0 (factura cancelada) y se explica el sobre-crédito. */
+  const netoMostrado = Math.max(0, row.neto);
 
   return (
     <div
@@ -53,7 +63,15 @@ export function RcvAsociadosModal({
           </button>
         </div>
         <div className="p-5">
-          {!row.matchExacto && (
+          {row.sobreCredito && (
+            <p className="mb-3 rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-500">
+              <strong>Revisar:</strong> las {row.notas.length} notas de crédito (
+              {formatClp(ncTotal)}) superan el monto de la factura ({formatClp(facturaTotal)}). Suele
+              ser un error de referencia en el SII (varias NC apuntando al mismo folio). La factura
+              se considera anulada; el exceso conviene revisarlo con tu contador.
+            </p>
+          )}
+          {!row.matchExacto && !row.sobreCredito && (
             <p className="mb-3 rounded-lg bg-warning-50 px-3 py-2 text-xs text-warning-700">
               Vinculación referencial (por {partyLabel.toLowerCase()} y monto): esta nota de crédito
               no traía la referencia exacta del documento en el SII.
@@ -107,10 +125,10 @@ export function RcvAsociadosModal({
                   <td
                     className={
                       "py-2.5 text-right text-base font-semibold tabular-nums " +
-                      (row.neto <= 0 ? "text-danger-500" : "text-neutral-dark")
+                      (netoMostrado <= 0 ? "text-danger-500" : "text-neutral-dark")
                     }
                   >
-                    {formatClp(row.neto)}
+                    {formatClp(netoMostrado)}
                   </td>
                 </tr>
               </tfoot>
