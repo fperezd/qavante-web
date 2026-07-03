@@ -121,8 +121,8 @@ export function PayrollSyncBar({
             {typeof syncResult.total_liquido === "number" && (
               <> por {formatClp(syncResult.total_liquido)}</>
             )}{" "}
-            (vence el {paydayRule ?? "último día hábil"}). La vas a ver en la caja de Pagar con su
-            aging.
+            (vence el {paydayRule ?? "último día hábil"}). La verás en la caja de Pagar junto a tus
+            otras cuentas por pagar.
           </span>
         </p>
       )}
