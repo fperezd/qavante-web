@@ -3,7 +3,14 @@
  * Las NC (tipo 60/61/112) RESTAN del total; el resto (facturas, boletas, notas de
  * DÉBITO 56/111) suma. Robusto al signo: normaliza por MAGNITUD (Math.abs) antes
  * de aplicar el signo, así funciona venga la NC positiva o negativa del SII (el
- * detalle RCV usa ambas convenciones según el origen). */
+ * detalle RCV usa ambas convenciones según el origen).
+ *
+ * DECISIÓN Opción A (Fernando, 2026-07-03): se restan TODAS las NC fiel al SII,
+ * aunque para una factura puntual las NC superen su monto (sobre-crédito, p.ej.
+ * varias NC apuntando al mismo folio). NO filtrar el excedente acá: el F29 (dato
+ * oficial) descuenta esas NC igual, así que filtrarlas descuadraría con el F29.
+ * La anomalía se marca "revisar" en la fila (ver rcv-anuladas.ts), no se "corrige"
+ * la plata (§17.4: el FE no calcula finanzas). */
 
 import { isNotaCredito } from "./tipo-doc";
 
