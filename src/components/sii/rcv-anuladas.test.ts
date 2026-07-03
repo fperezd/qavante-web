@@ -67,6 +67,32 @@ describe("rcv-anuladas · agruparConReferencias", () => {
     expect(notasHuerfanas[0]?.folio).toBe(9);
   });
 
+  it("sobre-crédito: 3 NC (ref) sobre 1 factura → anulada + sobreCredito, neto<0 (caso Kaufmann real)", () => {
+    const { rows } = agruparConReferencias([
+      fac(417, "96572360-9", 1440791),
+      fac(416, "96572360-9", 1440791), // misma plata, SIN NC → queda vigente
+      ncRef(81, "96572360-9", 1440791, 417),
+      ncRef(84, "96572360-9", 1440791, 417),
+      ncRef(88, "96572360-9", 1440791, 417),
+    ]);
+    const r417 = rows.find((r) => r.factura.folio === 417);
+    const r416 = rows.find((r) => r.factura.folio === 416);
+    expect(r417?.notas).toHaveLength(3);
+    expect(r417?.estado).toBe("anulada");
+    expect(r417?.sobreCredito).toBe(true);
+    expect(r417?.neto).toBeLessThan(0);
+    // La 416 NO recibe NC (todas ref a 417) → sigue vigente, sin sobreCredito.
+    expect(r416?.estado).toBe("vigente");
+    expect(r416?.sobreCredito).toBe(false);
+  });
+
+  it("anulación exacta no marca sobreCredito", () => {
+    const { rows } = agruparConReferencias([fac(415, "9", 1260693), ncRef(80, "9", 1260693, 415)]);
+    expect(rows[0]?.estado).toBe("anulada");
+    expect(rows[0]?.sobreCredito).toBe(false);
+    expect(rows[0]?.neto).toBe(0);
+  });
+
   it("robusto al signo: NC con monto negativo igual RESTA (magnitud)", () => {
     // Algunos fixtures traen la NC en negativo; el neto debe bajar, no subir.
     const ncNeg: AnulableDoc = { ...nc(9, "a", -5000), ref_tipo_doc: 33, ref_folio: 1 };
