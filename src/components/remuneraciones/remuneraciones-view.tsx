@@ -10,7 +10,9 @@ import { PlanillaView } from "./planilla-view";
 import { PayrollSyncBar } from "./payroll-sync-bar";
 import { EmpleadoDetalle } from "./empleado-detalle";
 import { ConciliacionSueldosView } from "./conciliacion-sueldos-view";
-import { defaultPeriod, formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
+import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
+import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
+import { presetRange, type PeriodRange } from "@/lib/period/period-range";
 import { normalizePayrollDetalle } from "./payroll-detalle";
 import type { BankDebitLike } from "./payroll-conciliacion";
 import type { EmployeeSlim } from "./buk-format";
@@ -32,10 +34,12 @@ const TABS: ReadonlyArray<{ id: Tab; label: string; Icon: typeof Users }> = [
 export function RemuneracionesView() {
   const [tab, setTab] = React.useState<Tab>("dotacion");
   const [selected, setSelected] = React.useState<EmployeeSlim | null>(null);
-  /* Auto-carga: Planilla y Conciliación arrancan con el mes pasado ya cargado
-     (los datos del mes en curso suelen estar incompletos). Son operaciones
-     por-mes (se registra/concilia un mes) → sin rango, solo auto-carga. */
-  const [period, setPeriod] = React.useState<string | null>(() => defaultPeriod());
+  /* Filtro de rango idéntico al Libro (pedido de Fernando: consistente en toda la
+     app). Planilla y Conciliación son operaciones POR MES (se registra/concilia
+     un mes) → usan el mes final del rango (`range.hasta`); por defecto el mes
+     actual (rango de un mes). Auto-carga: arranca con datos, sin "Consultar". */
+  const [range, setRange] = React.useState<PeriodRange>(() => presetRange("mes_actual"));
+  const period = range.hasta;
 
   const employeesQuery = useBukEmployees();
   const payrollQuery = useBukPayroll({ period: period ?? "", detalle: true });
@@ -59,6 +63,16 @@ export function RemuneracionesView() {
   /* Hay planilla del período pero sin detalle por empleado (contrato backend
      pendiente) → la conciliación no puede cruzar todavía. */
   const detalleUnavailable = Boolean(payrollQuery.data?.totales) && empleados.length === 0;
+
+  /* Filtro de rango idéntico al Libro. La planilla trabaja por mes → se usa el
+     mes final del rango; el hint lo aclara. */
+  const periodForm = (
+    <PeriodRangeFilter
+      value={range}
+      onChange={setRange}
+      hint="La planilla se registra y concilia por mes: se usa el mes final del rango."
+    />
+  );
 
   return (
     <div className="space-y-4">
@@ -93,7 +107,12 @@ export function RemuneracionesView() {
       {tab === "dotacion" && <DotacionView query={employeesQuery} onSelect={setSelected} />}
       {tab === "planilla" && (
         <div className="space-y-4">
-          <PlanillaView period={period} onPeriodChange={setPeriod} query={payrollQuery} />
+          <PlanillaView
+            period={period}
+            onPeriodChange={() => {}}
+            query={payrollQuery}
+            periodForm={periodForm}
+          />
           {period && payrollQuery.data?.totales && (
             <PayrollSync
               period={period}
@@ -106,12 +125,13 @@ export function RemuneracionesView() {
       {tab === "conciliacion" && (
         <ConciliacionSueldosView
           period={period}
-          onPeriodChange={setPeriod}
+          onPeriodChange={() => {}}
           empleados={empleados}
           movimientos={movimientos}
           loading={payrollQuery.isFetching || bankQuery.isFetching}
           error={bankQuery.error ?? payrollQuery.error}
           detalleUnavailable={detalleUnavailable}
+          periodForm={periodForm}
         />
       )}
 

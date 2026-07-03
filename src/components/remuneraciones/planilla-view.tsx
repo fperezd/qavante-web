@@ -26,19 +26,24 @@ export interface PlanillaViewProps {
   period: string | null;
   onPeriodChange: (period: string) => void;
   query: UseQueryResult<PayrollResponse, unknown>;
+  /** Selector de período custom (filtro de rango, idéntico al Libro). Reemplaza
+   *  al SiiPeriodForm interno. Aditivo. */
+  periodForm?: React.ReactNode;
 }
 
-export function PlanillaView({ period, onPeriodChange, query }: PlanillaViewProps) {
+export function PlanillaView({ period, onPeriodChange, query, periodForm }: PlanillaViewProps) {
   const totales = query.data?.totales;
   const detalle = React.useMemo(() => normalizePayrollDetalle(query.data), [query.data]);
 
   return (
     <div className="space-y-4">
-      <SiiPeriodForm
-        onSubmit={onPeriodChange}
-        loading={query.isFetching}
-        hint="Totales de la planilla de remuneraciones del mes (haberes, descuentos y líquido)."
-      />
+      {periodForm ?? (
+        <SiiPeriodForm
+          onSubmit={onPeriodChange}
+          loading={query.isFetching}
+          hint="Totales de la planilla de remuneraciones del mes (haberes, descuentos y líquido)."
+        />
+      )}
 
       {!period && (
         <QavanteEmpty
