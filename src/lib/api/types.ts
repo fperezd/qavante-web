@@ -510,6 +510,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/buk/sync-payroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BUK: persiste el líquido de la planilla como obligación 'Remuneraciones' (Pagar)
+         * @description ADR-0056. Trae los totales de planilla de BUK del período y persiste el
+         *     `total_liquido` como una obligación **Remuneraciones** en `treasury.payables`. Suma al
+         *     total de Pagar (categoría `payroll`) con vencimiento = día de pago (último día hábil por
+         *     default, configurable con `PUT /api/treasury/payroll-payday`). Idempotente por período.
+         */
+        post: operations["buk_sync_payroll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/buk/positions/{position_id}": {
         parameters: {
             query?: never;
@@ -1867,6 +1890,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/payroll-payday": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Día de pago de remuneraciones del tenant (null = último día hábil) */
+        get: operations["treasury_payroll_payday_get"];
+        /** Setea/limpia el día de pago de remuneraciones (owner/admin) */
+        put: operations["treasury_payroll_payday_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/cost-classification": {
         parameters: {
             query?: never;
@@ -3027,6 +3068,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/sii/refresh-cache": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII: refresca el cache de reportes de todos los tenants (cron F3, ADR-0055)
+         * @description Refresca el cache de reportes SII de **todos** los tenants conectados. Lo llama
+         *     el cron cada 6 h (GitHub Actions) con `SERVER_API_KEY`. Idempotente (repuebla el
+         *     cache); best-effort por (tenant, período, side).
+         */
+        post: operations["admin_sii_refresh_cache"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/sources": {
         parameters: {
             query?: never;
@@ -4040,6 +4103,11 @@ export interface components {
             count: number;
             /** Periodo */
             periodo?: string | null;
+            /**
+             * Last Synced At
+             * @description ISO 8601 UTC del último sync exitoso de la fuente (o null si nunca sincronizó). El FE muestra 'actualizado hace X' (ADR-0055 F2, cache-first).
+             */
+            last_synced_at?: string | null;
             /** Error */
             error?: string | null;
         } & {
@@ -7954,6 +8022,19 @@ export interface components {
              */
             source: string;
         };
+        /** PayrollPaydayResponse */
+        PayrollPaydayResponse: {
+            /**
+             * Payday Day
+             * @description Día del mes (1-31) en que se pagan los sueldos, o null = último día hábil del mes (default).
+             */
+            payday_day?: number | null;
+            /**
+             * Effective Rule
+             * @description Regla vigente legible: 'último día hábil' o 'día N'.
+             */
+            effective_rule: string;
+        };
         /** PayrollResponse */
         PayrollResponse: {
             /** Status */
@@ -7967,6 +8048,42 @@ export interface components {
             totales?: components["schemas"]["PayrollTotales"];
             /** Error */
             error?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PayrollSyncResponse
+         * @description Resultado de `POST /api/buk/sync-payroll` (ADR-0056) — persiste el líquido de la
+         *     planilla como obligación "Remuneraciones" en `treasury.payables` (caja de Pagar).
+         */
+        PayrollSyncResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /**
+             * Period
+             * @description Período YYYY-MM sincronizado.
+             */
+            period?: string | null;
+            /**
+             * Total Liquido
+             * @description Líquido total de BUK persistido (CLP).
+             * @default 0
+             */
+            total_liquido: number;
+            /**
+             * Empleados
+             * @description Empleados contados en la planilla.
+             * @default 0
+             */
+            empleados: number;
+            /**
+             * Due Date
+             * @description Vencimiento asignado (día de pago) ISO 8601.
+             */
+            due_date?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -8326,6 +8443,14 @@ export interface components {
              */
             cost_profile: string;
         };
+        /** PutPayrollPaydayRequest */
+        PutPayrollPaydayRequest: {
+            /**
+             * Payday Day
+             * @description Día 1-31, o null para volver al default (último día hábil).
+             */
+            payday_day?: number | null;
+        };
         /**
          * PutSiiCompanyRequest
          * @description Body de `PUT /api/credentials/sii/company`.
@@ -8369,6 +8494,11 @@ export interface components {
             count: number;
             /** Periodo */
             periodo?: string | null;
+            /**
+             * Last Synced At
+             * @description ISO 8601 UTC del último sync exitoso de sii_rcv (o null). FE: 'actualizado hace X' (ADR-0055 F2).
+             */
+            last_synced_at?: string | null;
             /** Error */
             error?: string | null;
         } & {
@@ -8417,6 +8547,11 @@ export interface components {
             count: number;
             /** Periodo */
             periodo?: string | null;
+            /**
+             * Last Synced At
+             * @description ISO 8601 UTC del último sync exitoso de sii_rcv (o null). FE: 'actualizado hace X' (ADR-0055 F2).
+             */
+            last_synced_at?: string | null;
             /** Error */
             error?: string | null;
         } & {
@@ -8517,6 +8652,34 @@ export interface components {
             items: components["schemas"]["ReconciliationAlias"][];
             /** Count */
             count: number;
+        };
+        /** RefreshCacheResponse */
+        RefreshCacheResponse: {
+            /**
+             * Tenants
+             * @description Tenants con SII conectado procesados.
+             */
+            tenants: number;
+            /**
+             * Cached
+             * @description (tenant, período, side) cacheados OK.
+             */
+            cached: number;
+            /**
+             * Skipped Consent
+             * @description Saltados por consent faltante/expirado.
+             */
+            skipped_consent: number;
+            /**
+             * Errors
+             * @description Errores best-effort (no abortan el resto).
+             */
+            errors: number;
+            /**
+             * Periods
+             * @description Períodos por tenant (mes actual + N-1 anteriores).
+             */
+            periods: number;
         };
         /**
          * ResendVerificationRequest
@@ -10754,6 +10917,40 @@ export interface operations {
             };
         };
     };
+    buk_sync_payroll: {
+        parameters: {
+            query?: {
+                /** @description Período YYYY-MM, YYYYMM o 'marzo 2026'. Default: mes actual. */
+                period?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollSyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     buk_position: {
         parameters: {
             query?: never;
@@ -11131,6 +11328,8 @@ export interface operations {
             query: {
                 /** @description Período YYYY-MM, YYYYMM o 'marzo 2026'. */
                 periodo: string;
+                /** @description Cache-first (ADR-0055 F2b): por default sirve del cache con `last_synced_at`. `refresh=true` fuerza fetch vivo al SII + actualiza el cache. */
+                refresh?: boolean;
             };
             header?: never;
             path?: never;
@@ -11181,6 +11380,8 @@ export interface operations {
                 periodo: string;
                 /** @description Si True, devuelve TODOS los campos del SII (50+ por doc, response grande). Default slim. */
                 full?: boolean;
+                /** @description Cache-first (ADR-0055 F2b): por default sirve del cache con `last_synced_at`. `refresh=true` fuerza fetch vivo + actualiza el cache. `full=true` siempre va en vivo (no se cachea). */
+                refresh?: boolean;
             };
             header?: never;
             path?: never;
@@ -11231,6 +11432,8 @@ export interface operations {
                 periodo: string;
                 /** @description Si True, devuelve TODOS los campos del SII (50+ por doc). Default slim. */
                 full?: boolean;
+                /** @description Cache-first (ADR-0055 F2b): por default sirve del cache con `last_synced_at`. `refresh=true` fuerza fetch vivo + actualiza el cache. `full=true` siempre va en vivo (no se cachea). */
+                refresh?: boolean;
             };
             header?: never;
             path?: never;
@@ -13314,6 +13517,79 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    treasury_payroll_payday_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPaydayResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_payroll_payday_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutPayrollPaydayRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPaydayResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -16186,6 +16462,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RolePermissionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_sii_refresh_cache: {
+        parameters: {
+            query?: {
+                /** @description Períodos a refrescar (mes actual + N-1 anteriores). */
+                periods?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefreshCacheResponse"];
                 };
             };
             /** @description Validation Error */
