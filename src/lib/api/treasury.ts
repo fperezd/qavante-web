@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import { classificationRulesKeys } from "./classification-rules";
 import { treasuryReportsKeys } from "./treasury-reports";
+import { obligationKeys } from "./obligations";
 import type { components } from "./types";
 
 export type CanonicalCategoryMeta = components["schemas"]["CanonicalCategoryMeta"];
@@ -16,6 +17,8 @@ export type CanonicalCategoriesResponse = components["schemas"]["CanonicalCatego
 export type BankMovement = components["schemas"]["BankMovement"];
 export type BankMovementsListResponse = components["schemas"]["BankMovementsListResponse"];
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
+export type PayrollPaydayResponse = components["schemas"]["PayrollPaydayResponse"];
+export type PutPayrollPaydayRequest = components["schemas"]["PutPayrollPaydayRequest"];
 
 export interface BankMovementsParams {
   /** 'unclassified' | 'classified' | undefined (todos). */
@@ -33,6 +36,7 @@ export const treasuryKeys = {
   canonicalCategories: () => [...treasuryKeys.all, "canonical-categories"] as const,
   bankMovements: (params: BankMovementsParams = {}) =>
     [...treasuryKeys.all, "bank-movements", params] as const,
+  payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
 };
 
 /** `GET /api/treasury/canonical-categories` — metadata congelada (P4-4). */
@@ -83,6 +87,33 @@ export function useClassifyBankMovement() {
          prefijo → invalidarlos aparte (code-review #3). */
       qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
       qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
+    },
+  });
+}
+
+/** `GET /api/treasury/payroll-payday` (ADR-0056) — día de pago de remuneraciones
+ *  del tenant (1-31, o null = último día hábil). Define el vencimiento de la
+ *  obligación "Remuneraciones" en Pagar. */
+export function usePayrollPayday() {
+  return useQuery({
+    queryKey: treasuryKeys.payrollPayday(),
+    queryFn: () => api.get<PayrollPaydayResponse>("/api/treasury/payroll-payday"),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** `PUT /api/treasury/payroll-payday` (owner/admin) — setea el día de pago
+ *  (`payday_day` 1-31, o null para volver al default = último día hábil).
+ *  Invalida el payday + las obligaciones (cambia el vencimiento de Remuneraciones). */
+export function useSetPayrollPayday() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: PutPayrollPaydayRequest) =>
+      api.put<PayrollPaydayResponse>("/api/treasury/payroll-payday", { body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: treasuryKeys.payrollPayday() });
+      qc.invalidateQueries({ queryKey: obligationKeys.all });
     },
   });
 }

@@ -14,14 +14,16 @@
  * cookie-gatee — la UI lo surfacea con QavanteInlineError (regla 16).
  *
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { obligationKeys } from "./obligations";
 import type { components } from "./types";
 
 export type EmployeesListResponse = components["schemas"]["EmployeesListResponse"];
 export type EmployeeDetailResponse = components["schemas"]["EmployeeDetailResponse"];
 export type PayrollResponse = components["schemas"]["PayrollResponse"];
 export type PayrollTotales = components["schemas"]["PayrollTotales"];
+export type PayrollSyncResponse = components["schemas"]["PayrollSyncResponse"];
 export type BukHealthResponse = components["schemas"]["BukHealthResponse"];
 
 export interface BukEmployeesParams {
@@ -116,5 +118,24 @@ export function useBukPayroll(params: BukPayrollParams) {
     enabled: Boolean(params.period),
     staleTime: 10 * 60 * 1000,
     retry: false,
+  });
+}
+
+/** `POST /api/buk/sync-payroll?period=YYYY-MM` (ADR-0056) — trae el líquido total
+ *  de BUK del período y lo persiste como una obligación "Remuneraciones" en Pagar
+ *  (`treasury.payables`, con vencimiento = día de pago). Idempotente por período.
+ *  Owner/admin. Invalida la planilla + las obligaciones para reflejar la nueva
+ *  cuenta por pagar. NO retry (es una acción explícita del usuario). */
+export function useSyncBukPayroll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (period: string) =>
+      api.post<PayrollSyncResponse>(
+        `/api/buk/sync-payroll?period=${encodeURIComponent(period)}`,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: bukKeys.all });
+      qc.invalidateQueries({ queryKey: obligationKeys.all });
+    },
   });
 }
