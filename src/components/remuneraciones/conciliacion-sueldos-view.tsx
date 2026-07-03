@@ -30,6 +30,8 @@ export interface ConciliacionSueldosViewProps {
   error?: unknown;
   /** `true` si el payroll no trae `detalle` por empleado (contrato pendiente). */
   detalleUnavailable?: boolean;
+  /** Selector de período custom (filtro de rango). Reemplaza al SiiPeriodForm. */
+  periodForm?: React.ReactNode;
 }
 
 export function ConciliacionSueldosView({
@@ -40,6 +42,7 @@ export function ConciliacionSueldosView({
   loading = false,
   error = null,
   detalleUnavailable = false,
+  periodForm,
 }: ConciliacionSueldosViewProps) {
   const result = React.useMemo(
     () => matchPayrollToBank(empleados, movimientos),
@@ -49,11 +52,13 @@ export function ConciliacionSueldosView({
 
   return (
     <div className="space-y-4">
-      <SiiPeriodForm
-        onSubmit={onPeriodChange}
-        loading={loading}
-        hint="Cruza el líquido de cada trabajador contra los débitos de sueldos del banco del mes."
-      />
+      {periodForm ?? (
+        <SiiPeriodForm
+          onSubmit={onPeriodChange}
+          loading={loading}
+          hint="Cruza el líquido de cada trabajador contra los débitos de sueldos del banco del mes."
+        />
+      )}
 
       {!period && (
         <QavanteEmpty

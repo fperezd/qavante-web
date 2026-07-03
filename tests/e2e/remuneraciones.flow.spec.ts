@@ -21,9 +21,8 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     await expect(page.getByText("Benjamín Rojas Díaz")).toBeVisible();
     await expect(page.getByText("Contadora")).toBeVisible();
 
-    // Planilla: consultar el período por defecto → totales agregados.
+    // Planilla: auto-carga (filtro de rango, mes actual) → totales agregados.
     await page.getByRole("tab", { name: "Planilla" }).click();
-    await page.getByRole("button", { name: "Consultar" }).click();
     await expect(page.getByText("Líquido a pagar")).toBeVisible();
     await expect(page.getByText("$14.330.000")).toBeVisible();
 
@@ -43,7 +42,6 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     await page.goto("/remuneraciones");
 
     await page.getByRole("tab", { name: "Conciliación" }).click();
-    await page.getByRole("button", { name: "Consultar" }).click();
     await expect(page.getByText(/Falta el detalle por empleado/i)).toBeVisible();
   });
 });
