@@ -46,6 +46,7 @@ export const FEATURE_FLAGS = [
   "onboarding",
   "obligations",
   "syncStatus",
+  "remuneraciones",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -99,6 +100,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      existe pero es api-key-only (no acepta cookie); activar cuando CC-API lo
      migre a require_session. Ver STATE_OF_THE_TRAIN (gaps de auth). */
   syncStatus: "/api/sources/status",
+  /* Remuneraciones (RRHH / planilla) — dotación + totales de planilla desde BUK.
+     FE-first contra `/api/buk/employees` (existe en el OpenAPI). CC-API está
+     construyendo Remuneraciones en paralelo; activar cuando el conector BUK
+     acepte cookie de sesión (hoy podría ser api-key-only → 401). Ver
+     STATE_OF_THE_TRAIN. */
+  remuneraciones: "/api/buk/employees",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
