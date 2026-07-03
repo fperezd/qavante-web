@@ -52,6 +52,10 @@ describe("period-range · presets", () => {
     expect(presetRange("este_ano", NOW)).toEqual({ desde: "2026-01", hasta: "2026-07" });
     expect(presetRange("ano_anterior", NOW)).toEqual({ desde: "2025-01", hasta: "2025-12" });
   });
+  it("mes actual = un solo mes (desde === hasta)", () => {
+    expect(presetRange("mes_actual", NOW)).toEqual({ desde: "2026-07", hasta: "2026-07" });
+    expect(matchingPreset({ desde: "2026-07", hasta: "2026-07" }, NOW)).toBe("mes_actual");
+  });
   it("defaultRange = últimos 6 meses", () => {
     expect(defaultRange(NOW)).toEqual({ desde: "2026-02", hasta: "2026-07" });
   });
