@@ -80,6 +80,14 @@ export interface RcvListViewProps {
   /** Query de TanStack — invocada por el page con el hook que
    *  corresponde (`useSiiRcvCompras` o `useSiiRcvVentas`). */
   query: UseQueryResult<RcvComprasResponse | RcvVentasResponse, unknown>;
+  /** Selector de período custom (ej. filtro de rango con auto-carga). Si se
+   *  provee, reemplaza al `SiiPeriodForm` mono-mes interno. Cuando se usa, el
+   *  caller ya trae datos (no hay estado "sin consultar"): pasar `period`
+   *  truthy + `headerLabel`. Aditivo — sin esto, comportamiento previo. */
+  periodForm?: React.ReactNode;
+  /** Etiqueta del header (ej. "feb-2026 a jul-2026"). Reemplaza a
+   *  `formatPeriodLabel(period)` cuando se provee (modo rango). */
+  headerLabel?: string;
 }
 
 const COPY: Record<
@@ -159,7 +167,14 @@ function applyFilters(docs: RcvDoc[], filters: Filters): RcvDoc[] {
   });
 }
 
-export function RcvListView({ kind, period, onPeriodChange, query }: RcvListViewProps) {
+export function RcvListView({
+  kind,
+  period,
+  onPeriodChange,
+  query,
+  periodForm,
+  headerLabel,
+}: RcvListViewProps) {
   const copy = COPY[kind];
   const allDocs = extractDocs(query.data, kind);
 
@@ -218,7 +233,9 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
 
   return (
     <div className="space-y-4">
-      <SiiPeriodForm onSubmit={onPeriodChange} loading={query.isFetching} hint={copy.hint} />
+      {periodForm ?? (
+        <SiiPeriodForm onSubmit={onPeriodChange} loading={query.isFetching} hint={copy.hint} />
+      )}
 
       {!period && (
         <QavanteEmpty
@@ -247,7 +264,7 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
           variant="bordered"
           header={
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-medium">{formatPeriodLabel(period)}</span>
+              <span className="font-medium">{headerLabel ?? formatPeriodLabel(period)}</span>
               <div className="flex flex-wrap items-center gap-2">
                 <QavanteBadge variant="info">
                   {filteredDocs.length} {filteredDocs.length === 1 ? "documento" : "documentos"}
