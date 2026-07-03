@@ -10,7 +10,7 @@ import { PlanillaView } from "./planilla-view";
 import { PayrollSyncBar } from "./payroll-sync-bar";
 import { EmpleadoDetalle } from "./empleado-detalle";
 import { ConciliacionSueldosView } from "./conciliacion-sueldos-view";
-import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
+import { defaultPeriod, formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { normalizePayrollDetalle } from "./payroll-detalle";
 import type { BankDebitLike } from "./payroll-conciliacion";
 import type { EmployeeSlim } from "./buk-format";
@@ -32,7 +32,10 @@ const TABS: ReadonlyArray<{ id: Tab; label: string; Icon: typeof Users }> = [
 export function RemuneracionesView() {
   const [tab, setTab] = React.useState<Tab>("dotacion");
   const [selected, setSelected] = React.useState<EmployeeSlim | null>(null);
-  const [period, setPeriod] = React.useState<string | null>(null);
+  /* Auto-carga: Planilla y Conciliación arrancan con el mes pasado ya cargado
+     (los datos del mes en curso suelen estar incompletos). Son operaciones
+     por-mes (se registra/concilia un mes) → sin rango, solo auto-carga. */
+  const [period, setPeriod] = React.useState<string | null>(() => defaultPeriod());
 
   const employeesQuery = useBukEmployees();
   const payrollQuery = useBukPayroll({ period: period ?? "", detalle: true });
