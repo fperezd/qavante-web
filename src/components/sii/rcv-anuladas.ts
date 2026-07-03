@@ -104,7 +104,8 @@ export function agruparConReferencias<T extends AnulableDoc>(docs: T[]): LibroAg
       row = rows.find(
         (r) =>
           r.factura.rut_contraparte === nc.rut_contraparte &&
-          num(r.factura.monto_total) === num(nc.monto_total) &&
+          // magnitud: la NC puede venir negativa; la factura siempre positiva.
+          mag(r.factura.monto_total) === mag(nc.monto_total) &&
           r.neto > 0,
       );
     }

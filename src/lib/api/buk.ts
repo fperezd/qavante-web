@@ -17,6 +17,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import { obligationKeys } from "./obligations";
+import { pagosKeys } from "./pagos";
 import type { components } from "./types";
 
 export type EmployeesListResponse = components["schemas"]["EmployeesListResponse"];
@@ -96,7 +97,7 @@ export function useBukEmployee(employeeId: string | null, opts?: { full?: boolea
     queryKey: bukKeys.employee(employeeId ?? "", opts?.full),
     queryFn: () =>
       api.get<EmployeeDetailResponse>(
-        `/api/buk/employees/${employeeId}${opts?.full ? "?full=true" : ""}`,
+        `/api/buk/employees/${encodeURIComponent(employeeId ?? "")}${opts?.full ? "?full=true" : ""}`,
       ),
     enabled: Boolean(employeeId),
     staleTime: 10 * 60 * 1000,
@@ -135,6 +136,10 @@ export function useSyncBukPayroll() {
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: bukKeys.all });
+      // La obligación "Remuneraciones" vive en treasury.payables → la sirve
+      // accounts-payable (namespace `pagos`), NO obligations (préstamos). Sin
+      // esto, el total de Pagar queda stale tras registrar la planilla.
+      qc.invalidateQueries({ queryKey: pagosKeys.accountsPayable() });
       qc.invalidateQueries({ queryKey: obligationKeys.all });
     },
   });

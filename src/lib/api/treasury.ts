@@ -10,6 +10,7 @@ import { api } from "./client";
 import { classificationRulesKeys } from "./classification-rules";
 import { treasuryReportsKeys } from "./treasury-reports";
 import { obligationKeys } from "./obligations";
+import { pagosKeys } from "./pagos";
 import type { components } from "./types";
 
 export type CanonicalCategoryMeta = components["schemas"]["CanonicalCategoryMeta"];
@@ -113,6 +114,9 @@ export function useSetPayrollPayday() {
       api.put<PayrollPaydayResponse>("/api/treasury/payroll-payday", { body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: treasuryKeys.payrollPayday() });
+      // Cambiar el día de pago mueve el vencimiento de la obligación
+      // "Remuneraciones" (treasury.payables) → refrescar accounts-payable.
+      qc.invalidateQueries({ queryKey: pagosKeys.accountsPayable() });
       qc.invalidateQueries({ queryKey: obligationKeys.all });
     },
   });
