@@ -2459,8 +2459,57 @@ const sourcesStatusHandlers = [
   ),
 ];
 
+/* BUK / Remuneraciones (ADR-0056). Dotación slim + planilla agregada + payday +
+   sync a Pagar. Sin `detalle` por empleado (contrato futuro) → Conciliación/
+   planilla-por-empleado muestran su estado "en preparación". */
+const bukHandlers = [
+  http.get("*/api/buk/health", () =>
+    HttpResponse.json({ status: "ok", mode: "starter", reachable: true }, { status: 200 }),
+  ),
+  http.get("*/api/buk/employees", () =>
+    HttpResponse.json(
+      {
+        status: "ok",
+        count: 3,
+        employees: [
+          { id: 1, full_name: "Ana Pérez Soto", rut: "12.345.678-9", email: "ana@empresa.cl", gender: "F", role: "Analista de Finanzas", status: "activo" },
+          { id: 2, full_name: "Benjamín Rojas Díaz", rut: "9.876.543-2", email: "benjamin@empresa.cl", gender: "M", role: "Jefe de Operaciones", status: "activo" },
+          { id: 3, full_name: "Carla Muñoz Vera", rut: "15.111.222-3", email: "carla@empresa.cl", gender: "F", role: "Contadora", status: "activo" },
+        ],
+      },
+      { status: 200 },
+    ),
+  ),
+  http.get("*/api/buk/payroll", () =>
+    HttpResponse.json(
+      {
+        status: "ok",
+        period: "2026-06",
+        totales: {
+          total_haberes: 18450000,
+          total_descuentos: 4120000,
+          total_liquido: 14330000,
+          total_imponible: 16800000,
+          empleados_contados: 3,
+        },
+      },
+      { status: 200 },
+    ),
+  ),
+  http.post("*/api/buk/sync-payroll", () =>
+    HttpResponse.json({ status: "ok", period: "2026-06", total_liquido: 14330000 }, { status: 200 }),
+  ),
+  http.get("*/api/treasury/payroll-payday", () =>
+    HttpResponse.json({ payday_day: null, effective_rule: "último día hábil" }, { status: 200 }),
+  ),
+  http.put("*/api/treasury/payroll-payday", () =>
+    HttpResponse.json({ payday_day: null, effective_rule: "último día hábil" }, { status: 200 }),
+  ),
+];
+
 export const handlers = [
   ...authHandlers,
+  ...bukHandlers,
   ...sourcesStatusHandlers,
   ...usersHandlers,
   ...credentialsHandlersV2,

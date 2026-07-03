@@ -74,6 +74,9 @@ export default defineConfig({
       NEXT_PUBLIC_FF_DASHBOARD_SUMMARY: "true",
       NEXT_PUBLIC_FF_PULSO_DETAIL: "true",
       NEXT_PUBLIC_FF_ASSISTANT: "true",
+      /* Remuneraciones (BUK) — LIVE en prod (wrangler.toml). Cubierto por e2e
+         contra MSW (dotación + planilla). */
+      NEXT_PUBLIC_FF_REMUNERACIONES: "true",
     },
   },
 });
