@@ -73,6 +73,11 @@ NEXT_PUBLIC_FF_OBLIGATIONS = "true"
 # (layout → shell → header). Degradación elegante: si falla, el indicador no se
 # muestra (no rompe el header).
 NEXT_PUBLIC_FF_SYNC_STATUS = "true"
+# Activada 2026-07-03: sección Remuneraciones (BUK) — Dotación + Planilla. CC-API
+# confirmó que /api/buk/* acepta cookie de sesión. FE construido en #382-#387
+# (gated). Gating server-side (layout → shell → nav "Equipo"; page server-gated).
+# Degradación elegante: si el endpoint falla, error inline (no rompe la nav).
+NEXT_PUBLIC_FF_REMUNERACIONES = "true"
 
 # Custom domain declarativo. Idempotente: si el binding ya existe en el
 # dashboard (creado manualmente el 2026-05-12), wrangler lo respeta. Si se
