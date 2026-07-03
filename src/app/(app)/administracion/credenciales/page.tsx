@@ -9,6 +9,7 @@ import {
   CardStatementUpload,
   SourceConsentCard,
   SiiSyncCard,
+  BukCredentialCard,
 } from "@/components/credenciales";
 import { useSiiCredential } from "@/lib/api/credentials";
 
@@ -47,10 +48,11 @@ export default function CredencialesPage() {
         <h2 id="buk-consent-heading" className="text-base font-semibold text-neutral-dark">
           Remuneraciones (BUK)
         </h2>
-        {/* Leer la planilla de BUK en nombre del tenant requiere consentimiento
-            explícito. Sin él, /api/buk/* devuelve 403 "Consent missing para buk"
-            (ADR-0056). Autorizar acá habilita la dotación, la planilla y su carga
-            a Pagar. */}
+        {/* Dos pasos (ADR-0056): (1) el token de BUK por empresa habilita el
+            registro de la planilla en Pagar (sin él, el sync da "El tenant no
+            tiene credencial BUK configurada"); (2) el consentimiento habilita la
+            lectura de la dotación/planilla (sin él, 403 "Consent missing"). */}
+        <BukCredentialCard />
         <SourceConsentCard
           sourceCode="buk"
           label="Autorización de acceso a Remuneraciones (BUK)"

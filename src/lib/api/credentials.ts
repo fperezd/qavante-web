@@ -22,6 +22,10 @@ export type CertificateUploadRequest = components["schemas"]["CertificateUploadR
 /** Source code único de la credencial de login SII (Opción A): UNA por tenant. */
 export const SII_SOURCE_CODE = "sii_rcv";
 
+/** Source code de la credencial de BUK (Remuneraciones): token por tenant
+ *  (ADR-0056). El sync de planilla a Pagar la necesita (sin fallback global). */
+export const BUK_SOURCE_CODE = "buk";
+
 /** Payload genérico de `POST /credential`. Para SII: `{rut, password}`
  *  (las `expected_keys` las declara el backend en GET .../credential). */
 export type SiiCredentialPayload = Record<string, unknown>;
@@ -30,6 +34,8 @@ export const credentialsKeysV2 = {
   all: ["credentials-v2"] as const,
   siiCredential: () =>
     [...credentialsKeysV2.all, "sources", SII_SOURCE_CODE, "credential"] as const,
+  bukCredential: () =>
+    [...credentialsKeysV2.all, "sources", BUK_SOURCE_CODE, "credential"] as const,
   certificates: () => [...credentialsKeysV2.all, "certificates"] as const,
 };
 
@@ -52,6 +58,29 @@ export function usePutSiiCredential() {
     mutationFn: (body: SiiCredentialPayload) =>
       api.post<CredentialPutResponse>(`/api/admin/sources/${SII_SOURCE_CODE}/credential`, { body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeysV2.siiCredential() }),
+  });
+}
+
+/** `GET /api/admin/sources/buk/credential` — metadata de la credencial BUK
+ *  (is_active, expected_keys). No devuelve el token. */
+export function useBukCredential() {
+  return useQuery({
+    queryKey: credentialsKeysV2.bukCredential(),
+    queryFn: () =>
+      api.get<CredentialMetadataResponse>(`/api/admin/sources/${BUK_SOURCE_CODE}/credential`),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `POST /api/admin/sources/buk/credential` — guarda/rota el token de BUK.
+ *  Body genérico `{api_token}` (las expected_keys las declara el backend). */
+export function usePutBukCredential() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: SiiCredentialPayload) =>
+      api.post<CredentialPutResponse>(`/api/admin/sources/${BUK_SOURCE_CODE}/credential`, { body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeysV2.bukCredential() }),
   });
 }
 
