@@ -1,4 +1,3 @@
-import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { fn } from "storybook/test";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -108,6 +107,83 @@ const SUCCESS_VENTAS: RcvVentasResponse = {
   error: null,
 } as RcvVentasResponse;
 
+/* Ventas con anulaciones — demuestra el modo "agrupado" (default): la factura
+   anulada se muestra tachada con badge "Anulada" y sus NC se pliegan al modal.
+   Incluye el caso lindo de la ref exacta: dos facturas idénticas (5020/5021) y
+   la NC referencia la 5021 → se anula esa, no la 5020. */
+const VENTAS_ANULADAS: RcvVentasResponse = {
+  status: "ok",
+  periodo: "2026-07",
+  count: 6,
+  ventas: [
+    {
+      tipo_doc: 33,
+      folio: 5010,
+      fecha: "2026-07-02",
+      rut_contraparte: "96572360-9",
+      razon_social: "Comercial Kaufmann S.A.",
+      monto_neto: 1210749,
+      monto_iva: 230042,
+      monto_total: 1440791,
+    },
+    {
+      tipo_doc: 61,
+      folio: 88,
+      fecha: "2026-07-03",
+      rut_contraparte: "96572360-9",
+      razon_social: "Comercial Kaufmann S.A.",
+      monto_neto: 1210749,
+      monto_iva: 230042,
+      monto_total: 1440791,
+      ref_tipo_doc: 33,
+      ref_folio: 5010,
+    },
+    {
+      tipo_doc: 33,
+      folio: 5020,
+      fecha: "2026-07-01",
+      rut_contraparte: "76106531-9",
+      razon_social: "GPS7000 SPA",
+      monto_neto: 1241020,
+      monto_iva: 235794,
+      monto_total: 1476814,
+    },
+    {
+      tipo_doc: 33,
+      folio: 5021,
+      fecha: "2026-07-01",
+      rut_contraparte: "76106531-9",
+      razon_social: "GPS7000 SPA",
+      monto_neto: 1241020,
+      monto_iva: 235794,
+      monto_total: 1476814,
+    },
+    {
+      tipo_doc: 61,
+      folio: 89,
+      fecha: "2026-07-02",
+      rut_contraparte: "76106531-9",
+      razon_social: "GPS7000 SPA",
+      monto_neto: 1241020,
+      monto_iva: 235794,
+      monto_total: 1476814,
+      ref_tipo_doc: 33,
+      ref_folio: 5021,
+    },
+    {
+      tipo_doc: 33,
+      folio: 5030,
+      fecha: "2026-07-05",
+      rut_contraparte: "90209000-2",
+      razon_social: "CIA INDUSTRIAL EL VOLCAN S A",
+      monto_neto: 1837159,
+      monto_iva: 349060,
+      monto_total: 2186219,
+    },
+  ],
+  error: null,
+} as RcvVentasResponse;
+
 const EMPTY_COMPRAS: RcvComprasResponse = {
   status: "ok",
   periodo: "2026-04",
@@ -169,6 +245,15 @@ export const VentasOk: Story = {
     kind: "ventas",
     period: "2026-04",
     query: buildQuery({ data: SUCCESS_VENTAS }),
+  },
+};
+
+export const VentasConAnuladas: Story = {
+  name: "Ventas — con anuladas (modo agrupado)",
+  args: {
+    kind: "ventas",
+    period: "2026-07",
+    query: buildQuery({ data: VENTAS_ANULADAS }),
   },
 };
 
