@@ -38,6 +38,10 @@ export interface BukEmployeesParams {
 export interface BukPayrollParams {
   /** Período `YYYY-MM` (ej. `2026-03`). */
   period: string;
+  /** `true` pide el detalle por empleado (líquido) para conciliación bancaria.
+   *  Contrato FE-first: CC-API extiende el payroll con `detalle` gated owner/admin
+   *  (escalado por STATE). Si el backend lo ignora, el detalle no viene y listo. */
+  detalle?: boolean;
 }
 
 export const bukKeys = {
@@ -104,7 +108,11 @@ export function useBukPayroll(params: BukPayrollParams) {
   return useQuery({
     queryKey: bukKeys.payroll(params),
     queryFn: () =>
-      api.get<PayrollResponse>(`/api/buk/payroll?period=${encodeURIComponent(params.period)}`),
+      api.get<PayrollResponse>(
+        `/api/buk/payroll?period=${encodeURIComponent(params.period)}${
+          params.detalle ? "&detalle=true" : ""
+        }`,
+      ),
     enabled: Boolean(params.period),
     staleTime: 10 * 60 * 1000,
     retry: false,

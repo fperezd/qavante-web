@@ -1,17 +1,25 @@
 "use client";
 
 import * as React from "react";
-import { Wallet, Inbox, Lock } from "lucide-react";
+import { Wallet, Inbox, Users, CheckCircle2, AlertTriangle } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import type { PayrollResponse, PayrollTotales } from "@/lib/api/buk";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatRut } from "@/lib/formatters/rut";
 import { SiiPeriodForm } from "@/components/sii/sii-period-form";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
+import {
+  detalleCuadra,
+  normalizePayrollDetalle,
+  sumLiquido,
+  type EmployeePayroll,
+} from "./payroll-detalle";
 
-/* Planilla — totales AGREGADOS de remuneraciones del período (BUK). Por privacidad
-   el backend NO expone detalle por empleado, solo agregados. Presentacional:
-   recibe la query por prop (el page invoca useBukPayroll). */
+/* Planilla — totales del período (BUK) + detalle por empleado (líquido) para
+   conciliación bancaria. El detalle por empleado (`payroll.detalle`) es contrato
+   FE-first: si el backend todavía no lo expone, se muestra solo el agregado con
+   un aviso. Presentacional: recibe la query por prop (el page invoca useBukPayroll). */
 
 export interface PlanillaViewProps {
   /** Período consultado (null = todavía no se consultó). */
@@ -22,6 +30,7 @@ export interface PlanillaViewProps {
 
 export function PlanillaView({ period, onPeriodChange, query }: PlanillaViewProps) {
   const totales = query.data?.totales;
+  const detalle = React.useMemo(() => normalizePayrollDetalle(query.data), [query.data]);
 
   return (
     <div className="space-y-4">
@@ -59,12 +68,22 @@ export function PlanillaView({ period, onPeriodChange, query }: PlanillaViewProp
         />
       )}
 
-      {period && totales && <PlanillaTotales period={period} totales={totales} />}
+      {period && totales && (
+        <PlanillaTotales period={period} totales={totales} detalle={detalle} />
+      )}
     </div>
   );
 }
 
-function PlanillaTotales({ period, totales }: { period: string; totales: PayrollTotales }) {
+function PlanillaTotales({
+  period,
+  totales,
+  detalle,
+}: {
+  period: string;
+  totales: PayrollTotales;
+  detalle: EmployeePayroll[];
+}) {
   return (
     <QavanteCard
       variant="bordered"
@@ -95,15 +114,107 @@ function PlanillaTotales({ period, totales }: { period: string; totales: Payroll
           <Metric label="Total imponible" value={totales.total_imponible} tone="muted" />
         </div>
 
-        <p className="flex items-start gap-1.5 text-xs text-neutral-mid">
-          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span>
-            Por privacidad se muestran solo <strong>totales agregados</strong> del período — sin
-            detalle por empleado. Fuente: conector de Remuneraciones (BUK).
-          </span>
-        </p>
+        {detalle.length > 0 ? (
+          <DetalleEmpleados detalle={detalle} totalLiquido={totales.total_liquido} />
+        ) : (
+          <p className="flex items-start gap-1.5 text-xs text-neutral-mid">
+            <Users className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              El <strong>detalle por empleado</strong> (líquido de cada trabajador, para conciliar
+              contra el banco) se está habilitando en el conector. Por ahora se muestran los totales
+              del período.
+            </span>
+          </p>
+        )}
       </div>
     </QavanteCard>
+  );
+}
+
+/* Detalle por empleado — líquido de cada trabajador para conciliación bancaria.
+   Incluye un indicador de cuadratura (suma del detalle vs total agregado): si
+   cuadra, el detalle está completo y es confiable para conciliar. */
+function DetalleEmpleados({
+  detalle,
+  totalLiquido,
+}: {
+  detalle: EmployeePayroll[];
+  totalLiquido: number;
+}) {
+  const cuadra = detalleCuadra(detalle, totalLiquido);
+  const suma = sumLiquido(detalle);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-neutral-dark">Detalle por empleado</h3>
+        <span
+          className={
+            "inline-flex items-center gap-1 text-xs " +
+            (cuadra ? "text-success-600" : "text-warning-700")
+          }
+          title={
+            cuadra
+              ? "La suma del detalle coincide con el total del período"
+              : "La suma del detalle no coincide con el total del período — revisar antes de conciliar"
+          }
+        >
+          {cuadra ? (
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+          {cuadra ? "Cuadra con el total" : `Descuadre: detalle ${formatClp(suma)}`}
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] text-sm">
+          <thead>
+            <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+              <th scope="col" className="py-2 pr-3 font-semibold">
+                Empleado
+              </th>
+              <th scope="col" className="py-2 pr-3 font-semibold">
+                RUT
+              </th>
+              <th scope="col" className="py-2 text-right font-semibold">
+                Líquido
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {detalle.map((e, i) => (
+              <tr
+                key={e.id || `${e.nombre}-${i}`}
+                className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted"
+              >
+                <td className="py-2 pr-3 text-neutral-dark">{e.nombre}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
+                  {e.rut ? formatRut(e.rut) : "—"}
+                </td>
+                <td className="py-2 text-right tabular-nums font-medium text-neutral-dark">
+                  {e.liquido !== null ? formatClp(e.liquido) : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-border-strong font-semibold">
+              <td colSpan={2} className="py-2 pr-3 text-[11px] uppercase tracking-wider text-neutral-mid">
+                Suma del detalle
+              </td>
+              <td className="py-2 text-right tabular-nums text-neutral-dark">{formatClp(suma)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <p className="text-xs text-neutral-mid">
+        El líquido de cada trabajador se cruza contra los débitos de sueldos del banco para la
+        conciliación. Fuente: conector de Remuneraciones (BUK).
+      </p>
+    </div>
   );
 }
 

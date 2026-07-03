@@ -36,6 +36,25 @@ const SUCCESS: PayrollResponse = {
   },
 } as PayrollResponse;
 
+/* Con detalle por empleado (contrato FE-first `payroll.detalle`) para conciliación
+   bancaria. La suma del detalle cuadra con el total agregado. */
+const CON_DETALLE = {
+  status: "ok",
+  period: "2026-03",
+  totales: {
+    total_haberes: 3800000,
+    total_descuentos: 900000,
+    total_liquido: 2900000,
+    total_imponible: 3400000,
+    empleados_contados: 3,
+  },
+  detalle: [
+    { employee_id: 1, nombre: "Ana Pérez Soto", rut: "12.345.678-9", liquido: 1200000 },
+    { employee_id: 2, nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", liquido: 1000000 },
+    { employee_id: 3, nombre: "Carla Muñoz Vera", rut: "15.111.222-3", liquido: 700000 },
+  ],
+} as unknown as PayrollResponse;
+
 const meta = {
   title: "Capa 2 / Remuneraciones / PlanillaView",
   component: PlanillaView,
@@ -44,7 +63,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Totales agregados de planilla del período (BUK). Por privacidad no expone detalle por empleado. Presentacional: recibe `query` por prop. Gated `remuneraciones`.",
+          "Totales de planilla del período (BUK) + detalle por empleado (líquido) para conciliación bancaria. El detalle es contrato FE-first: si el backend no lo expone, se muestra solo el agregado. Recibe `query` por prop. Gated `remuneraciones`.",
       },
     },
   },
@@ -63,8 +82,13 @@ export const Inicial: Story = {
 };
 
 export const ConTotales: Story = {
-  name: "Con totales",
+  name: "Con totales (sin detalle por empleado)",
   args: { period: "2026-03", query: buildQuery({ data: SUCCESS }) },
+};
+
+export const ConDetallePorEmpleado: Story = {
+  name: "Con detalle por empleado (conciliación)",
+  args: { period: "2026-03", query: buildQuery({ data: CON_DETALLE }) },
 };
 
 export const SinPlanilla: Story = {
