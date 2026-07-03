@@ -43,7 +43,7 @@ export function BukCredentialCard() {
       <div className="space-y-3">
         <p className="text-sm text-neutral-mid">
           {active
-            ? "El token de BUK está configurado para esta empresa. Podés reemplazarlo si lo rotaste."
+            ? "El token de BUK está configurado para esta empresa. Puedes reemplazarlo si lo rotaste."
             : "Pega el token de la API de BUK de tu empresa para habilitar el registro de la planilla en Pagar. Lo guardamos cifrado; no queda en el navegador."}
         </p>
 
@@ -62,7 +62,7 @@ export function BukCredentialCard() {
         </div>
 
         {put.isSuccess && !put.isPending && (
-          <p className="text-xs text-success-700">Token guardado. Ya podés registrar la planilla en Pagar.</p>
+          <p className="text-xs text-success-700">Token guardado. Ya puedes registrar la planilla en Pagar.</p>
         )}
         {put.isError && (
           <QavanteInlineError error={put.error} what="el token de BUK" />
