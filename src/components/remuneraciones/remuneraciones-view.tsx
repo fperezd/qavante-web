@@ -3,10 +3,11 @@
 import * as React from "react";
 import { Users, Wallet, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBukEmployees, useBukPayroll } from "@/lib/api/buk";
-import { useBankMovements } from "@/lib/api/treasury";
+import { useBukEmployees, useBukPayroll, useSyncBukPayroll } from "@/lib/api/buk";
+import { useBankMovements, usePayrollPayday, useSetPayrollPayday } from "@/lib/api/treasury";
 import { DotacionView } from "./dotacion-view";
 import { PlanillaView } from "./planilla-view";
+import { PayrollSyncBar } from "./payroll-sync-bar";
 import { EmpleadoDetalle } from "./empleado-detalle";
 import { ConciliacionSueldosView } from "./conciliacion-sueldos-view";
 import { normalizePayrollDetalle } from "./payroll-detalle";
@@ -87,7 +88,10 @@ export function RemuneracionesView() {
 
       {tab === "dotacion" && <DotacionView query={employeesQuery} onSelect={setSelected} />}
       {tab === "planilla" && (
-        <PlanillaView period={period} onPeriodChange={setPeriod} query={payrollQuery} />
+        <div className="space-y-4">
+          <PlanillaView period={period} onPeriodChange={setPeriod} query={payrollQuery} />
+          {period && payrollQuery.data?.totales && <PayrollSync period={period} />}
+        </div>
       )}
       {tab === "conciliacion" && (
         <ConciliacionSueldosView
@@ -103,5 +107,28 @@ export function RemuneracionesView() {
 
       <EmpleadoDetalle employee={selected} onClose={() => setSelected(null)} />
     </div>
+  );
+}
+
+/* Contenedor de la barra de sync (ADR-0056): registra el líquido del período como
+   obligación "Remuneraciones" en Pagar + configura el día de pago. Usa los hooks
+   (mutations); la barra es presentacional. */
+function PayrollSync({ period }: { period: string }) {
+  const payday = usePayrollPayday();
+  const sync = useSyncBukPayroll();
+  const setPayday = useSetPayrollPayday();
+
+  return (
+    <PayrollSyncBar
+      paydayRule={payday.data?.effective_rule}
+      paydayDay={payday.data?.payday_day}
+      onSync={() => sync.mutate(period)}
+      syncing={sync.isPending}
+      syncResult={sync.data ?? null}
+      syncError={sync.error}
+      onSavePayday={(day) => setPayday.mutate({ payday_day: day })}
+      savingPayday={setPayday.isPending}
+      paydayError={setPayday.error}
+    />
   );
 }
