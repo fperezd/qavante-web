@@ -54,3 +54,8 @@ export const MobileAbierto: Story = {
   name: "Drawer mobile abierto",
   args: { userRole: "admin", mobileOpen: true },
 };
+
+export const ConRemuneraciones: Story = {
+  name: "Con Remuneraciones (flag ON)",
+  args: { userRole: "owner", remuneracionesEnabled: true },
+};
