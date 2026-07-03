@@ -1,13 +1,8 @@
 "use client";
 
-import * as React from "react";
-import { RcvListView } from "@/components/sii/rcv-list-view";
-import { useSiiRcvCompras } from "@/lib/api/sii";
+import { RcvRangeView } from "@/components/sii/rcv-range-view";
 
-/* Wrapper client del page Server Component — invoca el hook RCV compras
-   y delega el render al view presentacional reusable. */
+/* Libro de Compras — filtro de rango + auto-carga (compartido con Ventas). */
 export function FacturasRecibidasView() {
-  const [period, setPeriod] = React.useState<string | null>(null);
-  const query = useSiiRcvCompras({ periodo: period ?? "" });
-  return <RcvListView kind="compras" period={period} onPeriodChange={setPeriod} query={query} />;
+  return <RcvRangeView kind="compras" />;
 }
