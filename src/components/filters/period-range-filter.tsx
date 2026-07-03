@@ -20,10 +20,11 @@ import {
    un rango por defecto (no hay estado "sin consultar"). */
 
 const PRESETS: ReadonlyArray<{ id: RangePreset; label: string }> = [
-  { id: "ano_anterior", label: "Año anterior" },
-  { id: "este_ano", label: "Este año" },
-  { id: "seis_meses", label: "Seis meses" },
+  { id: "mes_actual", label: "Mes actual" },
   { id: "tres_meses", label: "Tres meses" },
+  { id: "seis_meses", label: "Seis meses" },
+  { id: "este_ano", label: "Este año" },
+  { id: "ano_anterior", label: "Año anterior" },
 ];
 
 export interface PeriodRangeFilterProps {
