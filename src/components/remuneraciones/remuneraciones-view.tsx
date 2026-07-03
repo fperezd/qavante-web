@@ -27,7 +27,7 @@ export function RemuneracionesView() {
   const [period, setPeriod] = React.useState<string | null>(null);
 
   const employeesQuery = useBukEmployees();
-  const payrollQuery = useBukPayroll({ period: period ?? "" });
+  const payrollQuery = useBukPayroll({ period: period ?? "", detalle: true });
 
   return (
     <div className="space-y-4">
