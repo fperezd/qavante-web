@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Database, Inbox, SlidersHorizontal } from "lucide-react";
+import { Database, Inbox, Layers, Rows3, SlidersHorizontal, XCircle } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import {
   QavanteBadge,
@@ -19,6 +19,8 @@ import { SiiPeriodForm } from "./sii-period-form";
 import { formatPeriodLabel } from "./sii-period-form-schema";
 import { TIPO_DOC_FAMILIES, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
 import { computeRcvTotals } from "./rcv-totals";
+import { agruparConReferencias, type EstadoDoc, type FacturaRow } from "./rcv-anuladas";
+import { RcvAsociadosModal } from "./rcv-asociados-modal";
 
 /* Vista reusable para Libro de Compras / Libro de Ventas (Sprint C1
    PR-Lib, mejora 2026-05-24). Hoy el backend expone /api/sii/rcv/compras
@@ -45,8 +47,25 @@ interface RcvDoc {
   monto_neto?: number;
   monto_iva?: number;
   monto_total?: number;
+  /** Referencia del DTE (SII): la NC/ND apunta al documento que modifica. */
+  ref_tipo_doc?: number;
+  ref_folio?: number;
   [key: string]: unknown;
 }
+
+/** Fila del Libro en modo "agrupado": o una factura (con sus NC vinculadas) o
+ *  una nota de crédito huérfana (sin factura asociada en el período). */
+type GroupedItem =
+  | { t: "fac"; row: FacturaRow<RcvDoc> }
+  | { t: "nc"; doc: RcvDoc };
+
+const ESTADO_BADGE: Record<
+  Exclude<EstadoDoc, "vigente">,
+  { variant: "danger" | "warning"; label: string }
+> = {
+  anulada: { variant: "danger", label: "Anulada" },
+  parcial: { variant: "warning", label: "Anulada parcial" },
+};
 
 export type RcvKind = "compras" | "ventas";
 
@@ -148,6 +167,10 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState<number>(20);
+  /* "agrupado" = facturas anuladas mostradas con sus NC vinculadas (estilo
+     Chipax, default). "detalle" = lista plana documento por documento. */
+  const [viewMode, setViewMode] = React.useState<"agrupado" | "detalle">("agrupado");
+  const [selected, setSelected] = React.useState<FacturaRow<RcvDoc> | null>(null);
 
   /* Cuando el período cambia, resetear página + filtros (el set de
      datos es completamente nuevo). */
@@ -157,17 +180,38 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
   }, [period]);
 
   const filteredDocs = React.useMemo(() => applyFilters(allDocs, filters), [allDocs, filters]);
-  const totalPages = Math.max(1, Math.ceil(filteredDocs.length / pageSize));
+
+  /* Agrupación NC→factura (modo "agrupado"). Facturas primero, luego las NC
+     huérfanas (sin factura del período). */
+  const grouped = React.useMemo(() => agruparConReferencias(filteredDocs), [filteredDocs]);
+  const groupedItems = React.useMemo<GroupedItem[]>(
+    () => [
+      ...grouped.rows.map((row) => ({ t: "fac" as const, row })),
+      ...grouped.notasHuerfanas.map((doc) => ({ t: "nc" as const, doc })),
+    ],
+    [grouped],
+  );
+
+  const rowCount = viewMode === "agrupado" ? groupedItems.length : filteredDocs.length;
+  const totalPages = Math.max(1, Math.ceil(rowCount / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedDocs = React.useMemo(
     () => filteredDocs.slice((currentPage - 1) * pageSize, currentPage * pageSize),
     [filteredDocs, currentPage, pageSize],
+  );
+  const pagedGrouped = React.useMemo(
+    () => groupedItems.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [groupedItems, currentPage, pageSize],
   );
 
   /* Totales sobre el SET FILTRADO COMPLETO (no solo la página actual). Netea las
      Notas de Crédito (restan) — antes se sumaban como una venta más, inflando el
      total. Ver computeRcvTotals (robusto al signo de la NC). */
   const totals = React.useMemo(() => computeRcvTotals(filteredDocs), [filteredDocs]);
+  const anuladasCount = React.useMemo(
+    () => grouped.rows.filter((r) => r.estado !== "vigente").length,
+    [grouped],
+  );
 
   const hasActiveFilters =
     filters.folio !== "" || filters.razonSocial !== "" || filters.tipoFamily !== "todos";
@@ -211,6 +255,37 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
                     <span className="ml-1 text-xs opacity-80">de {allDocs.length}</span>
                   )}
                 </QavanteBadge>
+                {anuladasCount > 0 && (
+                  <QavanteBadge variant="danger">
+                    {anuladasCount} {anuladasCount === 1 ? "anulada" : "anuladas"}
+                  </QavanteBadge>
+                )}
+                <QavanteButton
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setViewMode((m) => (m === "agrupado" ? "detalle" : "agrupado"));
+                    setPage(1);
+                  }}
+                  aria-pressed={viewMode === "agrupado"}
+                  title={
+                    viewMode === "agrupado"
+                      ? "Ver la lista plana, documento por documento"
+                      : "Agrupar las notas de crédito con su factura"
+                  }
+                >
+                  {viewMode === "agrupado" ? (
+                    <>
+                      <Rows3 className="h-3.5 w-3.5" aria-hidden="true" />
+                      Ver detalle
+                    </>
+                  ) : (
+                    <>
+                      <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+                      Agrupar N/C
+                    </>
+                  )}
+                </QavanteButton>
                 <QavanteButton
                   size="sm"
                   variant={filtersOpen || hasActiveFilters ? "secondary" : "ghost"}
@@ -252,6 +327,27 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
                 title="Sin resultados para los filtros aplicados"
                 description="Prueba removiendo filtros o cambiando el período. El backend SII solo permite filtrar por período; el resto de los filtros se aplican en pantalla sobre los documentos descargados."
               />
+            ) : viewMode === "agrupado" ? (
+              <>
+                <GroupedTable
+                  items={pagedGrouped}
+                  totals={totals}
+                  partyLabel={copy.partyLabel}
+                  hasActiveFilters={hasActiveFilters}
+                  onSelect={setSelected}
+                />
+                <PaginationBar
+                  page={currentPage}
+                  pageSize={pageSize}
+                  totalRows={rowCount}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  onPageSizeChange={(n) => {
+                    setPageSize(n);
+                    setPage(1);
+                  }}
+                />
+              </>
             ) : (
               <>
                 <div className="overflow-x-auto">
@@ -381,13 +477,243 @@ export function RcvListView({ kind, period, onPeriodChange, query }: RcvListView
             )}
 
             <p className="text-xs text-neutral-mid">
-              Datos descargados del SII en vivo. Las notas de crédito se descuentan del total. Las
-              sumas son referenciales y se calculan sobre los documentos mostrados — el dato oficial
-              sigue siendo el del F29.
+              Datos descargados del SII en vivo. Las notas de crédito se descuentan del total
+              {viewMode === "agrupado"
+                ? " y se muestran vinculadas a su factura (haz clic en una fila anulada para ver los documentos asociados)"
+                : ""}
+              . Las sumas son referenciales y se calculan sobre los documentos mostrados — el dato
+              oficial sigue siendo el del F29.
             </p>
           </div>
         </QavanteCard>
       )}
+
+      {selected && (
+        <RcvAsociadosModal
+          row={selected}
+          partyLabel={copy.partyLabel}
+          onClose={() => setSelected(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Tabla en modo "agrupado" (facturas + NC vinculadas, estilo Chipax) ──── */
+
+interface GroupedTableProps {
+  items: GroupedItem[];
+  totals: ReturnType<typeof computeRcvTotals>;
+  partyLabel: string;
+  hasActiveFilters: boolean;
+  onSelect: (row: FacturaRow<RcvDoc>) => void;
+}
+
+function GroupedTable({ items, totals, partyLabel, hasActiveFilters, onSelect }: GroupedTableProps) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[760px] text-sm">
+        <thead>
+          <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+            <th scope="col" className="py-2 pr-3 font-semibold">
+              Tipo
+            </th>
+            <th scope="col" className="py-2 pr-3 font-semibold">
+              Folio
+            </th>
+            <th scope="col" className="py-2 pr-3 font-semibold">
+              Fecha
+            </th>
+            <th scope="col" className="py-2 pr-3 font-semibold">
+              {partyLabel}
+            </th>
+            <th scope="col" className="py-2 pr-3 text-right font-semibold">
+              Neto
+            </th>
+            <th scope="col" className="py-2 pr-3 text-right font-semibold">
+              IVA
+            </th>
+            <th scope="col" className="py-2 pr-3 text-right font-semibold">
+              Total
+            </th>
+            <th scope="col" className="py-2 font-semibold">
+              Estado
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, i) => {
+            if (item.t === "nc") {
+              // Nota de crédito huérfana (sin factura asociada en el período).
+              const d = item.doc;
+              const meta = tipoDocMeta(d.tipo_doc ?? null);
+              return (
+                <tr
+                  key={`nc-${d.folio ?? "x"}-${i}`}
+                  className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted"
+                >
+                  <td className="py-2 pr-3">
+                    <span
+                      title={meta.label}
+                      className="inline-block rounded bg-danger-50 px-1.5 py-0.5 font-mono text-[11px] text-danger-500"
+                    >
+                      {meta.abbr}
+                    </span>
+                  </td>
+                  <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">{d.folio ?? "—"}</td>
+                  <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(d.fecha)}</td>
+                  <td className="py-2 pr-3">
+                    <span className="block text-neutral-dark">{d.razon_social ?? "Sin nombre"}</span>
+                    {d.rut_contraparte && (
+                      <span className="block font-mono text-xs text-neutral-mid">
+                        {d.rut_contraparte}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
+                    {typeof d.monto_neto === "number" ? `−${formatClp(Math.abs(d.monto_neto))}` : "—"}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
+                    {typeof d.monto_iva === "number" ? `−${formatClp(Math.abs(d.monto_iva))}` : "—"}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums text-danger-500">
+                    {typeof d.monto_total === "number" ? `−${formatClp(Math.abs(d.monto_total))}` : "—"}
+                  </td>
+                  <td className="py-2 text-[11px] text-neutral-mid">Nota de crédito</td>
+                </tr>
+              );
+            }
+
+            const { row } = item;
+            const f = row.factura;
+            const meta = tipoDocMeta(f.tipo_doc ?? null);
+            const anulada = row.estado === "anulada";
+            const clickable = row.notas.length > 0;
+            const badge = row.estado !== "vigente" ? ESTADO_BADGE[row.estado] : null;
+            return (
+              <tr
+                key={`fac-${f.folio ?? "x"}-${i}`}
+                onClick={clickable ? () => onSelect(row) : undefined}
+                onKeyDown={
+                  clickable
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelect(row);
+                        }
+                      }
+                    : undefined
+                }
+                tabIndex={clickable ? 0 : undefined}
+                role={clickable ? "button" : undefined}
+                className={cn(
+                  "border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted",
+                  clickable &&
+                    "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary",
+                  anulada && "text-neutral-mid",
+                )}
+              >
+                <td className="py-2 pr-3">
+                  <span
+                    title={meta.label}
+                    className="inline-block rounded bg-neutral-light/40 px-1.5 py-0.5 font-mono text-[11px] text-neutral-dark"
+                  >
+                    {meta.abbr}
+                  </span>
+                </td>
+                <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
+                  <span className={cn(anulada && "line-through")}>{f.folio ?? "—"}</span>
+                </td>
+                <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(f.fecha)}</td>
+                <td className="py-2 pr-3">
+                  <span className={cn("block text-neutral-dark", anulada && "line-through")}>
+                    {f.razon_social ?? "Sin nombre"}
+                  </span>
+                  {f.rut_contraparte && (
+                    <span className="block font-mono text-xs text-neutral-mid">
+                      {f.rut_contraparte}
+                    </span>
+                  )}
+                </td>
+                <td
+                  className={cn(
+                    "py-2 pr-3 text-right tabular-nums text-neutral-dark",
+                    anulada && "line-through",
+                  )}
+                >
+                  {typeof f.monto_neto === "number" ? formatClp(f.monto_neto) : "—"}
+                </td>
+                <td
+                  className={cn(
+                    "py-2 pr-3 text-right tabular-nums text-neutral-mid",
+                    anulada && "line-through",
+                  )}
+                >
+                  {typeof f.monto_iva === "number" ? formatClp(f.monto_iva) : "—"}
+                </td>
+                <td
+                  className={cn(
+                    "py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark",
+                    anulada && "font-normal line-through",
+                  )}
+                >
+                  {typeof f.monto_total === "number" ? formatClp(f.monto_total) : "—"}
+                </td>
+                <td className="py-2">
+                  {badge ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <QavanteBadge variant={badge.variant}>
+                        <XCircle className="mr-1 inline h-3 w-3" aria-hidden="true" />
+                        {badge.label}
+                      </QavanteBadge>
+                      <span className="inline-flex items-center gap-0.5 text-xs text-brand-primary">
+                        <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+                        asociados
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-neutral-mid">—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-border-strong font-semibold">
+            <td
+              colSpan={4}
+              className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+            >
+              Total neto del período
+              {hasActiveFilters && (
+                <span className="ml-1 normal-case text-neutral-mid">(con filtros aplicados)</span>
+              )}
+            </td>
+            <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+              {formatClp(totals.neto)}
+            </td>
+            <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
+              {formatClp(totals.iva)}
+            </td>
+            <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+              {formatClp(totals.total)}
+            </td>
+            <td className="py-2" />
+          </tr>
+          {totals.ncCount > 0 && (
+            <tr className="text-[11px] text-neutral-mid">
+              <td colSpan={8} className="pb-2 pr-3">
+                Se descontaron {totals.ncCount}{" "}
+                {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
+                <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}
+                <span className="tabular-nums text-danger-500">{formatClp(totals.ncTotal)}</span> ={" "}
+                neto <span className="tabular-nums">{formatClp(totals.total)}</span>.
+              </td>
+            </tr>
+          )}
+        </tfoot>
+      </table>
     </div>
   );
 }
