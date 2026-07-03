@@ -12,7 +12,7 @@ import { routeAfter } from "./onboarding-steps";
 
 /* Paso 6 — Saldo de apertura. Punto de partida de la caja. Monto manual opcional
    (string-decimal CLP) a nivel tenant. FE-first (endpoint manual aún no existe).
-   Si lo omites, podés cargarlo después. */
+   Si lo omites, puedes cargarlo después. */
 
 const NEXT = routeAfter("opening-balance");
 
@@ -65,7 +65,7 @@ export function OpeningBalanceView() {
           <p className="text-xs text-neutral-mid">
             {digits
               ? formatClp(amount)
-              : "Opcional — podés dejarlo en blanco y cargarlo más tarde."}
+              : "Opcional — puedes dejarlo en blanco y cargarlo más tarde."}
           </p>
         </div>
 

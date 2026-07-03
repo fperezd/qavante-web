@@ -136,7 +136,7 @@ export function PayrollSyncBar({
       )}
 
       {syncResult && !syncError && (
-        <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-success-50 px-3 py-2 text-xs text-success-700">
+        <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-success-500/10 px-3 py-2 text-xs text-success-700">
           <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>
             Planilla registrada en Pagar como obligación <strong>Remuneraciones</strong>

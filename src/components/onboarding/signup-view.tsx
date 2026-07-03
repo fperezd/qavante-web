@@ -82,7 +82,7 @@ export function SignupView() {
   return (
     <OnboardingShell
       step="signup"
-      description="Crea tu cuenta y la empresa que vas a gestionar. Sos el primer usuario (owner)."
+      description="Crea tu cuenta y la empresa que vas a gestionar. Eres el primer usuario (owner)."
     >
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="max-w-md space-y-4">
         <Field id="su-name" label="Tu nombre" error={errors.ownerFullName?.message}>

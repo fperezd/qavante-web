@@ -93,6 +93,19 @@ describe("rcv-anuladas · agruparConReferencias", () => {
     expect(rows[0]?.neto).toBe(0);
   });
 
+  it("heurística (sin ref) matchea NC NEGATIVA por magnitud (bug de signo)", () => {
+    // NC negativa SIN ref → entra por la heurística RUT+monto. La comparación
+    // debe ser por magnitud (5000 vs -5000), si no la NC quedaría huérfana y la
+    // factura "vigente", contradiciendo el total neteado.
+    const { rows, notasHuerfanas } = agruparConReferencias([
+      fac(1, "a", 5000),
+      nc(9, "a", -5000),
+    ]);
+    expect(rows[0]?.estado).toBe("anulada");
+    expect(rows[0]?.neto).toBe(0);
+    expect(notasHuerfanas).toHaveLength(0);
+  });
+
   it("robusto al signo: NC con monto negativo igual RESTA (magnitud)", () => {
     // Algunos fixtures traen la NC en negativo; el neto debe bajar, no subir.
     const ncNeg: AnulableDoc = { ...nc(9, "a", -5000), ref_tipo_doc: 33, ref_folio: 1 };
