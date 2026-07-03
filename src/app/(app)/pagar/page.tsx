@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpFromLine, Briefcase, FileInput, Landmark, Receipt } from "lucide-react";
+import { ArrowUpFromLine, Briefcase, FileInput, Landmark, Receipt, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   FeatureUnavailableState,
@@ -16,7 +16,7 @@ import { PagarView } from "@/components/pagar/pagar-view";
    Compras / Honorarios) se mantiene si `siiQueries`. Flag OFF → comportamiento
    previo (SII + placeholder C4). Sin `export const runtime` (regla 4). */
 export default function PagarPage() {
-  const { siiQueries, accountsPayable, obligations } = resolveFeatureFlags();
+  const { siiQueries, accountsPayable, obligations, remuneraciones } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -27,19 +27,30 @@ export default function PagarPage() {
 
       {accountsPayable && <PagarView />}
 
-      {obligations && (
+      {(obligations || remuneraciones) && (
         <section aria-labelledby="obligations-section" className="space-y-3">
           <h2 id="obligations-section" className="text-base font-semibold text-neutral-dark">
             Préstamos y obligaciones
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <SiiSubCard
-              href="/pagar/obligaciones"
-              icon={Landmark}
-              title="Préstamos y obligaciones"
-              description="Registra tus préstamos (con amortización automática) y concilia las cuotas contra los débitos de tu banco."
-              badge="Tesorería"
-            />
+            {obligations && (
+              <SiiSubCard
+                href="/pagar/obligaciones"
+                icon={Landmark}
+                title="Préstamos y obligaciones"
+                description="Registra tus préstamos (con amortización automática) y concilia las cuotas contra los débitos de tu banco."
+                badge="Tesorería"
+              />
+            )}
+            {remuneraciones && (
+              <SiiSubCard
+                href="/remuneraciones"
+                icon={Users}
+                title="Remuneraciones"
+                description="Tu dotación y la planilla de sueldos. Regístrala en Pagar como obligación y concilia el líquido contra el banco."
+                badge="Equipo"
+              />
+            )}
           </div>
         </section>
       )}
