@@ -8,6 +8,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   LineChart,
+  Users,
   Settings,
   X,
   type LucideIcon,
@@ -56,20 +57,41 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
   },
 ];
 
+/* Grupo Remuneraciones (RRHH). Gateado por el flag `remuneraciones` (se inyecta
+   solo cuando el layout lo pasa ON) → con el flag OFF el nav no cambia nada. */
+const EQUIPO_GROUP: NavGroup = {
+  label: "Equipo",
+  items: [{ href: "/remuneraciones", label: "Remuneraciones", Icon: Users }],
+};
+
 export interface AppSidebarProps {
   mobileOpen: boolean;
   onCloseMobile: () => void;
   userRole?: UserRole;
+  /** `remuneraciones` ON → inyecta el grupo Equipo (Remuneraciones) en el nav.
+     Lo resuelve el layout (server). OFF/undefined → el nav no cambia. */
+  remuneracionesEnabled?: boolean;
 }
 
-export function AppSidebar({ mobileOpen, onCloseMobile, userRole }: AppSidebarProps) {
+export function AppSidebar({
+  mobileOpen,
+  onCloseMobile,
+  userRole,
+  remuneracionesEnabled,
+}: AppSidebarProps) {
   const pathname = usePathname();
+
+  /* Inserta el grupo Equipo después de Análisis (antes de Configuración) solo si
+     el flag está ON. */
+  const sourceGroups = remuneracionesEnabled
+    ? [...NAV_GROUPS.slice(0, 3), EQUIPO_GROUP, ...NAV_GROUPS.slice(3)]
+    : NAV_GROUPS;
 
   /* Defensa pasiva: si userRole es undefined (sesión rota / fallback), mostramos
      los módulos sin restricción de rol — el módulo gated sigue siendo accesible
      por URL pero la página renderea error/no-data del backend. */
   const canSee = (m: ModuleLink) => !m.visibleFor || (userRole && m.visibleFor.includes(userRole));
-  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
+  const groups = sourceGroups.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
     (g) => g.items.length > 0,
   );
 

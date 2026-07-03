@@ -17,6 +17,8 @@ export interface AppShellProps {
   assistantEnabled?: boolean;
   /** `syncStatus` ON → muestra el indicador de sincronización en el header. */
   syncStatusEnabled?: boolean;
+  /** `remuneraciones` ON → inyecta el grupo Equipo (Remuneraciones) en el nav. */
+  remuneracionesEnabled?: boolean;
 }
 
 export function AppShell({
@@ -24,6 +26,7 @@ export function AppShell({
   userRole,
   assistantEnabled,
   syncStatusEnabled,
+  remuneracionesEnabled,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -37,6 +40,7 @@ export function AppShell({
           mobileOpen={sidebarOpen}
           onCloseMobile={() => setSidebarOpen(false)}
           userRole={userRole}
+          remuneracionesEnabled={remuneracionesEnabled}
         />
 
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
