@@ -10,6 +10,7 @@ import { PlanillaView } from "./planilla-view";
 import { PayrollSyncBar } from "./payroll-sync-bar";
 import { EmpleadoDetalle } from "./empleado-detalle";
 import { ConciliacionSueldosView } from "./conciliacion-sueldos-view";
+import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { normalizePayrollDetalle } from "./payroll-detalle";
 import type { BankDebitLike } from "./payroll-conciliacion";
 import type { EmployeeSlim } from "./buk-format";
@@ -90,7 +91,13 @@ export function RemuneracionesView() {
       {tab === "planilla" && (
         <div className="space-y-4">
           <PlanillaView period={period} onPeriodChange={setPeriod} query={payrollQuery} />
-          {period && payrollQuery.data?.totales && <PayrollSync period={period} />}
+          {period && payrollQuery.data?.totales && (
+            <PayrollSync
+              period={period}
+              totalLiquido={payrollQuery.data.totales.total_liquido}
+              periodLabel={formatPeriodLabel(period)}
+            />
+          )}
         </div>
       )}
       {tab === "conciliacion" && (
@@ -113,7 +120,15 @@ export function RemuneracionesView() {
 /* Contenedor de la barra de sync (ADR-0056): registra el líquido del período como
    obligación "Remuneraciones" en Pagar + configura el día de pago. Usa los hooks
    (mutations); la barra es presentacional. */
-function PayrollSync({ period }: { period: string }) {
+function PayrollSync({
+  period,
+  totalLiquido,
+  periodLabel,
+}: {
+  period: string;
+  totalLiquido?: number;
+  periodLabel?: string;
+}) {
   const payday = usePayrollPayday();
   const sync = useSyncBukPayroll();
   const setPayday = useSetPayrollPayday();
@@ -122,6 +137,8 @@ function PayrollSync({ period }: { period: string }) {
     <PayrollSyncBar
       paydayRule={payday.data?.effective_rule}
       paydayDay={payday.data?.payday_day}
+      totalLiquido={totalLiquido}
+      periodLabel={periodLabel}
       onSync={() => sync.mutate(period)}
       syncing={sync.isPending}
       syncResult={sync.data ?? null}

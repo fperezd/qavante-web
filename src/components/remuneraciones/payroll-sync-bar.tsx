@@ -15,6 +15,10 @@ export interface PayrollSyncBarProps {
   paydayRule?: string | null;
   /** Día del mes (1-31) o null = último día hábil. */
   paydayDay?: number | null;
+  /** Líquido total del período (para la confirmación previa). */
+  totalLiquido?: number;
+  /** Etiqueta del período (ej. "Junio 2026") para la confirmación. */
+  periodLabel?: string;
   onSync: () => void;
   syncing?: boolean;
   /** Resultado del último sync (para el mensaje de confirmación). */
@@ -28,6 +32,8 @@ export interface PayrollSyncBarProps {
 export function PayrollSyncBar({
   paydayRule,
   paydayDay,
+  totalLiquido,
+  periodLabel,
   onSync,
   syncing = false,
   syncResult = null,
@@ -37,7 +43,13 @@ export function PayrollSyncBar({
   paydayError = null,
 }: PayrollSyncBarProps) {
   const [editing, setEditing] = React.useState(false);
+  const [confirming, setConfirming] = React.useState(false);
   const [dayInput, setDayInput] = React.useState<string>(paydayDay != null ? String(paydayDay) : "");
+
+  function confirmSync() {
+    setConfirming(false);
+    onSync();
+  }
 
   function save() {
     const raw = dayInput.trim();
@@ -107,11 +119,21 @@ export function PayrollSyncBar({
           )}
         </div>
 
-        <QavanteButton onClick={onSync} loading={syncing}>
+        <QavanteButton onClick={() => setConfirming(true)} loading={syncing}>
           <ArrowRightToLine className="h-4 w-4" aria-hidden="true" />
           Registrar en Pagar
         </QavanteButton>
       </div>
+
+      {confirming && (
+        <ConfirmSyncDialog
+          periodLabel={periodLabel}
+          totalLiquido={totalLiquido}
+          paydayRule={paydayRule}
+          onConfirm={confirmSync}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
 
       {syncResult && !syncError && (
         <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-success-50 px-3 py-2 text-xs text-success-700">
@@ -137,5 +159,66 @@ export function PayrollSyncBar({
         </div>
       )}
     </QavanteCard>
+  );
+}
+
+/* Confirmación previa al registro. Aclara que si la planilla ya está registrada
+   se ACTUALIZA (el backend es idempotente por período) — no se duplica. */
+function ConfirmSyncDialog({
+  periodLabel,
+  totalLiquido,
+  paydayRule,
+  onConfirm,
+  onCancel,
+}: {
+  periodLabel?: string;
+  totalLiquido?: number;
+  paydayRule?: string | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-dark/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Confirmar registro en Pagar"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl bg-surface shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4">
+          <h2 className="text-base font-semibold text-neutral-dark">Registrar planilla en Pagar</h2>
+          <p className="mt-2 text-sm text-neutral-mid">
+            Vas a registrar la planilla{periodLabel ? <> de <strong>{periodLabel}</strong></> : null}{" "}
+            en Pagar como obligación{" "}
+            {typeof totalLiquido === "number" && (
+              <>
+                por <strong>{formatClp(totalLiquido)}</strong>
+              </>
+            )}{" "}
+            (vence el {paydayRule ?? "último día hábil"}).
+          </p>
+          <p className="mt-2 rounded-lg bg-surface-muted px-3 py-2 text-xs text-neutral-mid">
+            Si esta planilla <strong>ya está registrada</strong>, se actualiza con el monto vigente —
+            no se crea una obligación duplicada.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+          <QavanteButton variant="ghost" onClick={onCancel}>
+            Cancelar
+          </QavanteButton>
+          <QavanteButton onClick={onConfirm}>Registrar</QavanteButton>
+        </div>
+      </div>
+    </div>
   );
 }
