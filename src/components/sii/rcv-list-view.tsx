@@ -31,14 +31,9 @@ import { TIPO_DOC_FAMILIES, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
 import { computeRcvTotals } from "./rcv-totals";
 import { agruparConReferencias, type EstadoDoc, type FacturaRow } from "./rcv-anuladas";
 import { RcvAsociadosModal } from "./rcv-asociados-modal";
+import { RcvDetalleGrid } from "./rcv-detalle-grid";
 import type { GroupedItem, RcvDoc } from "./rcv-grouped-item";
-import {
-  sortDocs,
-  sortGroupedItems,
-  toggleSort,
-  type SortKey,
-  type SortState,
-} from "./rcv-sort";
+import { sortGroupedItems, toggleSort, type SortKey, type SortState } from "./rcv-sort";
 
 /* Vista reusable para Libro de Compras / Libro de Ventas (Sprint C1
    PR-Lib, mejora 2026-05-24). Hoy el backend expone /api/sii/rcv/compras
@@ -211,20 +206,16 @@ export function RcvListView({
     [grouped],
   );
 
-  /* Orden aplicado sobre el set completo (antes de paginar). */
-  const sortedDocs = React.useMemo(() => sortDocs(filteredDocs, sort), [filteredDocs, sort]);
+  /* Orden aplicado sobre el set agrupado (antes de paginar). El modo "detalle"
+     usa la grilla dinámica (RcvDetalleGrid), que ordena/filtra/pagina por sí. */
   const sortedGrouped = React.useMemo(
     () => sortGroupedItems(groupedItems, sort),
     [groupedItems, sort],
   );
 
-  const rowCount = viewMode === "agrupado" ? groupedItems.length : filteredDocs.length;
+  const rowCount = groupedItems.length;
   const totalPages = Math.max(1, Math.ceil(rowCount / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pagedDocs = React.useMemo(
-    () => sortedDocs.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [sortedDocs, currentPage, pageSize],
-  );
   const pagedGrouped = React.useMemo(
     () => sortedGrouped.slice((currentPage - 1) * pageSize, currentPage * pageSize),
     [sortedGrouped, currentPage, pageSize],
@@ -379,117 +370,12 @@ export function RcvListView({
                 />
               </>
             ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-sm">
-                    <thead>
-                      <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                        <SortHeader label="Tipo" sortKey="tipo" sort={sort} onToggleSort={onToggleSort} />
-                        <SortHeader label="Folio" sortKey="folio" sort={sort} onToggleSort={onToggleSort} />
-                        <SortHeader label="Fecha" sortKey="fecha" sort={sort} onToggleSort={onToggleSort} />
-                        <SortHeader label={copy.partyLabel} sortKey="cliente" sort={sort} onToggleSort={onToggleSort} />
-                        <SortHeader label="Neto" sortKey="neto" sort={sort} onToggleSort={onToggleSort} align="right" />
-                        <SortHeader label="IVA" sortKey="iva" sort={sort} onToggleSort={onToggleSort} align="right" />
-                        <SortHeader label="Total" sortKey="total" sort={sort} onToggleSort={onToggleSort} align="right" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pagedDocs.map((d, i) => {
-                        const meta = tipoDocMeta(d.tipo_doc ?? null);
-                        return (
-                          <tr
-                            key={`${d.folio ?? "x"}-${d.rut_contraparte ?? i}-${i}`}
-                            className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
-                          >
-                            <td className="py-2 pr-3">
-                              <span
-                                title={meta.label}
-                                className="inline-block rounded bg-neutral-light/40 px-1.5 py-0.5 font-mono text-[11px] text-neutral-dark"
-                              >
-                                {meta.abbr}
-                              </span>
-                            </td>
-                            <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
-                              {d.folio ?? "—"}
-                            </td>
-                            <td className="py-2 pr-3 text-neutral-dark">
-                              {formatDateLike(d.fecha)}
-                            </td>
-                            <td className="py-2 pr-3">
-                              <span className="block text-neutral-dark">
-                                {d.razon_social ?? "Sin nombre"}
-                              </span>
-                              {d.rut_contraparte && (
-                                <span className="block font-mono text-xs text-neutral-mid">
-                                  {d.rut_contraparte}
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-                              {typeof d.monto_neto === "number" ? formatClp(d.monto_neto) : "—"}
-                            </td>
-                            <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-                              {typeof d.monto_iva === "number" ? formatClp(d.monto_iva) : "—"}
-                            </td>
-                            <td className="py-2 text-right tabular-nums font-medium text-neutral-dark">
-                              {typeof d.monto_total === "number" ? formatClp(d.monto_total) : "—"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-border-strong font-semibold">
-                        <td
-                          colSpan={4}
-                          className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
-                        >
-                          Total neto del período
-                          {hasActiveFilters && (
-                            <span className="ml-1 normal-case text-neutral-mid">
-                              (con filtros aplicados)
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-                          {formatClp(totals.neto)}
-                        </td>
-                        <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-                          {formatClp(totals.iva)}
-                        </td>
-                        <td className="py-2 text-right tabular-nums text-neutral-dark">
-                          {formatClp(totals.total)}
-                        </td>
-                      </tr>
-                      {totals.ncCount > 0 && (
-                        <tr className="text-[11px] text-neutral-mid">
-                          <td colSpan={7} className="pb-2 pr-3">
-                            Se descontaron {totals.ncCount}{" "}
-                            {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
-                            <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}
-                            <span className="tabular-nums text-danger-500">
-                              {formatClp(totals.ncTotal)}
-                            </span>{" "}
-                            = neto <span className="tabular-nums">{formatClp(totals.total)}</span>.
-                          </td>
-                        </tr>
-                      )}
-                    </tfoot>
-                  </table>
-                </div>
-
-                <PaginationBar
-                  page={currentPage}
-                  pageSize={pageSize}
-                  totalRows={filteredDocs.length}
-                  totalPages={totalPages}
-                  onPageChange={setPage}
-                  onPageSizeChange={(n) => {
-                    setPageSize(n);
-                    setPage(1);
-                  }}
-                />
-              </>
+              <RcvDetalleGrid
+                docs={filteredDocs}
+                totals={totals}
+                partyLabel={copy.partyLabel}
+                hasActiveFilters={hasActiveFilters}
+              />
             )}
 
             <p className="text-xs text-neutral-mid">
