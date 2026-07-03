@@ -26,6 +26,11 @@ export interface BheListViewProps {
   onPeriodChange: (periodo: string) => void;
   /** Query de TanStack invocada por el page (useSiiBhe). */
   query: UseQueryResult<BheResponse, unknown>;
+  /** Selector custom (filtro de rango con auto-carga). Reemplaza al SiiPeriodForm
+   *  interno cuando se provee. Aditivo. */
+  periodForm?: React.ReactNode;
+  /** Etiqueta del header (rango). Reemplaza a formatPeriodLabel(period). */
+  headerLabel?: string;
 }
 
 /* Las boletas anuladas NO cuentan para el líquido ni la retención (la retención
@@ -44,7 +49,13 @@ function sumRetencion(items: BheRecibida[]): number {
   );
 }
 
-export function BheListView({ period, onPeriodChange, query }: BheListViewProps) {
+export function BheListView({
+  period,
+  onPeriodChange,
+  query,
+  periodForm,
+  headerLabel,
+}: BheListViewProps) {
   const items: BheRecibida[] = query.data?.bhe ?? [];
   const liquidoTotal = sumLiquido(items);
   const retencionTotal = sumRetencion(items);
@@ -52,11 +63,13 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
 
   return (
     <div className="space-y-4">
-      <SiiPeriodForm
-        onSubmit={onPeriodChange}
-        loading={query.isFetching}
-        hint="La retención del 13.75% (2026) corre por tu cuenta y se paga en el F29."
-      />
+      {periodForm ?? (
+        <SiiPeriodForm
+          onSubmit={onPeriodChange}
+          loading={query.isFetching}
+          hint="La retención del 13.75% (2026) corre por tu cuenta y se paga en el F29."
+        />
+      )}
 
       {!period && (
         <QavanteEmpty
@@ -91,7 +104,7 @@ export function BheListView({ period, onPeriodChange, query }: BheListViewProps)
           variant="bordered"
           header={
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-medium">{formatPeriodLabel(period)}</span>
+              <span className="font-medium">{headerLabel ?? formatPeriodLabel(period)}</span>
               <div className="flex flex-wrap items-center gap-2">
                 <QavanteBadge variant="info">
                   {items.length} {items.length === 1 ? "boleta" : "boletas"}

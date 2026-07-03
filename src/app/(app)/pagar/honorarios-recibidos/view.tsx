@@ -1,13 +1,8 @@
 "use client";
 
-import * as React from "react";
-import { BheListView } from "@/components/sii/bhe-list-view";
-import { useSiiBhe } from "@/lib/api/sii";
+import { BheRangeView } from "@/components/sii/bhe-range-view";
 
-/* Wrapper client del page Server Component — invoca el hook BHE y
-   delega el render al view presentacional reusable. */
+/* Honorarios (BHE) — filtro de rango + auto-carga. */
 export function HonorariosRecibidosView() {
-  const [period, setPeriod] = React.useState<string | null>(null);
-  const query = useSiiBhe({ periodo: period ?? "" });
-  return <BheListView period={period} onPeriodChange={setPeriod} query={query} />;
+  return <BheRangeView />;
 }
