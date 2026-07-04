@@ -9,6 +9,7 @@ import {
   QavanteInlineError,
   QavanteStatTile,
 } from "@/components/qavante";
+import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
 import { useAccountsPayable, type AccountsPayableResponse } from "@/lib/api/pagos";
 import {
   PartialDataBanner,
@@ -120,9 +121,9 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         variant="bordered"
         header={<span className="font-medium">Pagos y obligaciones</span>}
       >
-        <div className="overflow-x-auto">
+        <div className={stickyScroll}>
           <table className="w-full min-w-[600px] text-sm">
-            <thead>
+            <thead className={stickyHead}>
               <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                 <th scope="col" className="py-2 pr-3 font-medium">
                   Pago / obligación

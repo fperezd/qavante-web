@@ -10,6 +10,7 @@ import {
   QavanteInlineError,
   QavanteStatTile,
 } from "@/components/qavante";
+import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
 import { useAccountsReceivable, type AccountsReceivableResponse } from "@/lib/api/cobranza";
 import {
   PartialDataBanner,
@@ -181,9 +182,9 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
           variant="bordered"
           header={<span className="font-medium">Documentos vencidos</span>}
         >
-          <div className="overflow-x-auto">
+          <div className={stickyScroll}>
             <table className="w-full min-w-[560px] text-sm">
-              <thead>
+              <thead className={stickyHead}>
                 <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                   <th scope="col" className="py-2 pr-3 font-semibold">
                     Cliente

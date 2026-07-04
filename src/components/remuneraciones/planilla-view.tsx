@@ -4,6 +4,7 @@ import * as React from "react";
 import { Wallet, Inbox, Users, CheckCircle2, AlertTriangle } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
+import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-table";
 import type { PayrollResponse, PayrollTotales } from "@/lib/api/buk";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
@@ -197,9 +198,9 @@ function DetalleEmpleados({
         </span>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className={stickyScroll}>
         <table className="w-full min-w-[520px] text-sm">
-          <thead>
+          <thead className={stickyHead}>
             <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
               <th scope="col" className="py-2 pr-3 font-semibold">
                 Empleado
@@ -228,7 +229,7 @@ function DetalleEmpleados({
               </tr>
             ))}
           </tbody>
-          <tfoot>
+          <tfoot className={stickyFoot}>
             <tr className="border-t-2 border-border-strong font-semibold">
               <td
                 colSpan={2}

@@ -4,6 +4,7 @@ import * as React from "react";
 import { Briefcase, Inbox } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
+import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
 import type { BheRecibida, BheResponse } from "@/lib/api/sii";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
@@ -116,9 +117,9 @@ export function BheListView({
             </div>
           }
         >
-          <div className="overflow-x-auto">
+          <div className={stickyScroll}>
             <table className="w-full min-w-[600px] text-sm">
-              <thead>
+              <thead className={stickyHead}>
                 <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                   <th scope="col" className="py-2 pr-3 font-semibold">
                     Fecha
@@ -153,7 +154,12 @@ export function BheListView({
                       {formatDateLike(b.fecha_emision)}
                     </td>
                     <td className="py-2 pr-3">
-                      <span className={cn("block text-neutral-dark", b.anulada && "text-neutral-mid line-through")}>
+                      <span
+                        className={cn(
+                          "block text-neutral-dark",
+                          b.anulada && "text-neutral-mid line-through",
+                        )}
+                      >
                         {b.nombre_emisor ?? "Sin nombre"}
                       </span>
                       {b.rut_emisor && (
@@ -168,13 +174,28 @@ export function BheListView({
                         {b.anulada && <QavanteBadge variant="danger">Anulada</QavanteBadge>}
                       </span>
                     </td>
-                    <td className={cn("py-2 pr-3 text-right tabular-nums text-neutral-dark", b.anulada && "line-through")}>
+                    <td
+                      className={cn(
+                        "py-2 pr-3 text-right tabular-nums text-neutral-dark",
+                        b.anulada && "line-through",
+                      )}
+                    >
                       {typeof b.monto_bruto === "number" ? formatClp(b.monto_bruto) : "—"}
                     </td>
-                    <td className={cn("py-2 pr-3 text-right tabular-nums text-neutral-mid", b.anulada && "line-through")}>
+                    <td
+                      className={cn(
+                        "py-2 pr-3 text-right tabular-nums text-neutral-mid",
+                        b.anulada && "line-through",
+                      )}
+                    >
                       {typeof b.retencion === "number" ? formatClp(b.retencion) : "—"}
                     </td>
-                    <td className={cn("py-2 text-right tabular-nums font-medium text-neutral-dark", b.anulada && "font-normal line-through")}>
+                    <td
+                      className={cn(
+                        "py-2 text-right tabular-nums font-medium text-neutral-dark",
+                        b.anulada && "font-normal line-through",
+                      )}
+                    >
                       {typeof b.monto_liquido === "number" ? formatClp(b.monto_liquido) : "—"}
                     </td>
                   </tr>

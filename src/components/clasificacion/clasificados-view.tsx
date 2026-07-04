@@ -11,6 +11,7 @@ import {
   QavanteInlineError,
   QavanteInput,
 } from "@/components/qavante";
+import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-table";
 import { cn } from "@/lib/utils";
 import {
   useBankMovements,
@@ -357,9 +358,9 @@ export function ClasificadosView() {
             />
           ) : (
             <>
-              <div className="overflow-x-auto">
+              <div className={stickyScroll}>
                 <table className="w-full min-w-[720px] text-[13px]">
-                  <thead>
+                  <thead className={stickyHead}>
                     <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                       <th scope="col" className="py-2 pr-3 font-semibold">
                         Fecha
@@ -437,7 +438,7 @@ export function ClasificadosView() {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
+                  <tfoot className={stickyFoot}>
                     <tr className="border-t-2 border-border-strong font-semibold">
                       <td
                         colSpan={4}
