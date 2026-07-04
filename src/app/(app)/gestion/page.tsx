@@ -28,8 +28,8 @@ export default function GestionPage() {
       ) : (
         <QavanteEmpty
           icon={LineChart}
-          title="Resultado Operacional — construcción en Sprint C5"
-          description="Acá vas a ver tu Resultado Operacional de Gestión, drivers explicativos (qué cambió y por qué), Pulso Empresa detallado y comparativas mes a mes. Disponible al cerrar Sprint C5."
+          title="Resultado Operacional"
+          description="Aquí vas a ver tu Resultado Operacional de Gestión, los factores que lo explican (qué cambió y por qué), tu Pulso Empresa en detalle y comparativas mes a mes. Muy pronto disponible."
         />
       )}
     </div>

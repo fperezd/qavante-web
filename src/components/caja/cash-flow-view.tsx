@@ -44,7 +44,7 @@ export function CashFlowView() {
         <QavanteEmpty
           icon={Banknote}
           title="Sin datos en este rango"
-          description="No hay financial impacts clasificados para el rango y la capa elegidos. Prueba con otro rango, otra granularidad u otra capa."
+          description="No hay movimientos financieros clasificados para el rango y la capa elegidos. Prueba con otro rango, otra granularidad u otra capa."
         />
       )}
 
