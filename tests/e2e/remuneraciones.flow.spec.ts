@@ -21,10 +21,12 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     await expect(page.getByText("Benjamín Rojas Díaz")).toBeVisible();
     await expect(page.getByText("Contadora")).toBeVisible();
 
-    // Planilla: auto-carga (filtro de rango, mes actual) → totales agregados.
+    // Planilla: auto-carga (filtro de rango, mes actual) → totales agregados +
+    // detalle por empleado (ADR-0057).
     await page.getByRole("tab", { name: "Planilla" }).click();
     await expect(page.getByText("Líquido a pagar")).toBeVisible();
-    await expect(page.getByText("$14.330.000")).toBeVisible();
+    await expect(page.getByText("Detalle por empleado")).toBeVisible();
+    await expect(page.getByText("Carla Muñoz Vera")).toBeVisible();
 
     // Barra de registro a Pagar (ADR-0056) + confirmación previa (anti-duplicado).
     await page.getByRole("button", { name: /Registrar en Pagar/ }).click();
