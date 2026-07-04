@@ -13,14 +13,19 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { QavanteCard, QavanteEmpty, QavanteButton, QavanteInlineError } from "@/components/qavante";
+import {
+  QavanteCard,
+  QavanteEmpty,
+  QavanteButton,
+  QavanteInlineError,
+  AmountCountUp,
+} from "@/components/qavante";
 import { cn } from "@/lib/utils";
 import { useDashboardSummary, type DashboardSummaryResponse } from "@/lib/api/dashboard";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike, formatDateTimeLike } from "@/lib/formatters/date";
 import { parseAmount, confidenceLabel, isEmptySummary } from "./dashboard-format";
 import { PulsoRing } from "./pulso-ring";
-import { useCountUp } from "@/lib/hooks/use-count-up";
 
 /* Inicio Ejecutivo (Sprint C8, Maestro §7.1): "¿Cómo está mi empresa hoy?".
    Refresh v1.3 — diseñado alrededor de LA DECISIÓN: el Pulso es la respuesta
@@ -415,13 +420,6 @@ function DashCard({
   ) : (
     card
   );
-}
-
-/* Monto que "cuenta" desde 0 al cargar (nivel dios: las cifras aparecen con vida,
-   no de golpe). Respeta reduce-motion vía el hook. */
-function AmountCountUp({ value }: { value: number }) {
-  const n = useCountUp(value, 1100);
-  return <>{formatClp(Math.round(n))}</>;
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
