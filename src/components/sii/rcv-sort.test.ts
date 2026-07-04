@@ -20,6 +20,17 @@ describe("rcv-sort · fechaSortKey", () => {
     expect(fechaSortKey(undefined)).toBe(0);
     expect(fechaSortKey("basura")).toBe(0);
   });
+
+  it("tolera cualquier separador, orden y hora (regresión: Fecha no ordenaba)", () => {
+    expect(fechaSortKey("30-01-2026")).toBe(20260130); // DD-MM-YYYY con guion (era 0 → bug)
+    expect(fechaSortKey("30/01/2026")).toBe(20260130);
+    expect(fechaSortKey("30.01.2026")).toBe(20260130); // con punto
+    expect(fechaSortKey("2026-01-30T10:30:00")).toBe(20260130); // ISO con hora
+    expect(fechaSortKey("2026/01/30")).toBe(20260130); // ISO con slash
+    // El día 30 de enero ordena ANTES que el día 01 de febrero (fecha completa,
+    // no por día del mes) — el bug reportado.
+    expect(fechaSortKey("30-01-2026")).toBeLessThan(fechaSortKey("01-02-2026"));
+  });
 });
 
 describe("rcv-sort · sortValue", () => {
@@ -60,7 +71,17 @@ describe("rcv-sort · sortDocs", () => {
 
 describe("rcv-sort · sortGroupedItems / docOf", () => {
   const items: GroupedItem[] = [
-    { t: "fac", row: { factura: { folio: 2, monto_total: 200 }, notas: [], neto: 200, estado: "vigente", matchExacto: true, sobreCredito: false } },
+    {
+      t: "fac",
+      row: {
+        factura: { folio: 2, monto_total: 200 },
+        notas: [],
+        neto: 200,
+        estado: "vigente",
+        matchExacto: true,
+        sobreCredito: false,
+      },
+    },
     { t: "nc", doc: { folio: 1, monto_total: 100 } },
   ];
   it("docOf extrae la factura o la NC huérfana", () => {
@@ -76,8 +97,14 @@ describe("rcv-sort · sortGroupedItems / docOf", () => {
 describe("rcv-sort · toggleSort", () => {
   it("none → asc → desc → none; cambiar de columna reinicia en asc", () => {
     expect(toggleSort(null, "folio")).toEqual({ key: "folio", dir: "asc" });
-    expect(toggleSort({ key: "folio", dir: "asc" }, "folio")).toEqual({ key: "folio", dir: "desc" });
+    expect(toggleSort({ key: "folio", dir: "asc" }, "folio")).toEqual({
+      key: "folio",
+      dir: "desc",
+    });
     expect(toggleSort({ key: "folio", dir: "desc" }, "folio")).toBeNull();
-    expect(toggleSort({ key: "folio", dir: "desc" }, "total")).toEqual({ key: "total", dir: "asc" });
+    expect(toggleSort({ key: "folio", dir: "desc" }, "total")).toEqual({
+      key: "total",
+      dir: "asc",
+    });
   });
 });

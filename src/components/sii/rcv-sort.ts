@@ -24,19 +24,23 @@ export interface SortableDoc {
   monto_total?: number;
 }
 
-/** Convierte `DD/MM/YYYY` (o `YYYY-MM-DD`) en un número YYYYMMDD ordenable.
- *  Si no parsea, devuelve 0 (van al principio en asc). */
+/** Convierte una fecha en un número YYYYMMDD ordenable, TOLERANTE al formato:
+ *  acepta cualquier separador (`/`, `-`, `.`, espacio), ambos órdenes
+ *  (`DD-MM-YYYY` o `YYYY-MM-DD`) y contenido extra (hora). Extrae los grupos de
+ *  dígitos y detecta el año por el grupo de 4 cifras. Si no puede, devuelve 0.
+ *
+ *  Antes exigía `DD/MM/YYYY` (solo slash) o `YYYY-MM-DD` (solo guion) con anclas
+ *  estrictas → cualquier otro formato del SII (ej. `DD-MM-YYYY`) caía a 0 y la
+ *  columna Fecha NO ordenaba (quedaba el orden original del backend). */
 export function fechaSortKey(fecha: string | undefined): number {
   if (!fecha) return 0;
-  const dmy = fecha.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (dmy && dmy[1] && dmy[2] && dmy[3]) {
-    return Number(`${dmy[3]}${dmy[2].padStart(2, "0")}${dmy[1].padStart(2, "0")}`);
-  }
-  const ymd = fecha.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (ymd && ymd[1] && ymd[2] && ymd[3]) {
-    return Number(`${ymd[1]}${ymd[2].padStart(2, "0")}${ymd[3].padStart(2, "0")}`);
-  }
-  return 0;
+  const nums = String(fecha).match(/\d+/g);
+  if (!nums || nums.length < 3) return 0;
+  const yearIdx = nums.findIndex((n) => n.length === 4);
+  // Año primero (YYYY MM DD) si el grupo de 4 cifras abre; si no, DD MM YYYY.
+  const [y, m, d] = yearIdx === 0 ? nums : [nums[2], nums[1], nums[0]];
+  if (!y || !m || !d) return 0;
+  return Number(`${y}${m.padStart(2, "0")}${d.padStart(2, "0")}`);
 }
 
 /** Valor comparable de un doc para una columna. Strings en minúscula; los montos
