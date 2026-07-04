@@ -134,6 +134,17 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         </DashCard>
       )}
 
+      {/* Brecha de caja elevada: "¿me alcanza para lo que debo pagar?" es la
+          pregunta de supervivencia del dueño. Cuando NO alcanza, no puede ser una
+          card más del grid → banner de ancho completo con el FALTANTE cuantificado
+          (answer-first). El delta se calcula acá (CashGap ya trae las dos cifras). */}
+      {data.cash_gap?.has_gap && (
+        <CashGapBanner
+          critical={parseAmount(data.cash_gap.critical_obligations_14d)}
+          projected={parseAmount(data.cash_gap.projected_cash_14d)}
+        />
+      )}
+
       {/* Grid de bloques de soporte — cada card es clickeable. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* Caja hoy. */}
@@ -178,18 +189,20 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         <DashCard title="Brecha de caja" href="/caja/proyeccion" cta="Ver detalle">
           {data.cash_gap ? (
             data.cash_gap.has_gap ? (
-              <div className="flex items-start gap-2 text-sm text-danger-500">
+              <div className="flex items-start gap-2 text-sm text-danger-700">
                 <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
                 <span>
-                  Obligaciones críticas 14d:{" "}
+                  Te faltan{" "}
                   <b className="tabular-nums">
-                    {formatClp(parseAmount(data.cash_gap.critical_obligations_14d))}
+                    {formatClp(
+                      Math.max(
+                        0,
+                        parseAmount(data.cash_gap.critical_obligations_14d) -
+                          parseAmount(data.cash_gap.projected_cash_14d),
+                      ),
+                    )}
                   </b>{" "}
-                  vs caja{" "}
-                  <span className="tabular-nums">
-                    {formatClp(parseAmount(data.cash_gap.projected_cash_14d))}
-                  </span>
-                  . Hay brecha.
+                  para tus pagos críticos de 14 días.
                 </span>
               </div>
             ) : (
@@ -325,6 +338,50 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         </QavanteCard>
       )}
     </div>
+  );
+}
+
+/* Banner de brecha de caja (answer-first): el FALTANTE es el número que dispara la
+   acción — protagonista; el desglose (críticas / caja) es respaldo, más chico.
+   Clickeable al detalle de proyección. Solo se muestra cuando hay brecha. */
+function CashGapBanner({ critical, projected }: { critical: number; projected: number }) {
+  const faltante = Math.max(0, critical - projected);
+  return (
+    <Link
+      href="/caja/proyeccion"
+      className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+    >
+      <div
+        role="alert"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger-500/40 bg-danger-50 p-4 transition-colors group-hover:border-danger-500/60"
+      >
+        <div className="flex items-start gap-3">
+          <AlertTriangle
+            className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500"
+            aria-hidden="true"
+          />
+          <div>
+            <p className="text-sm font-semibold text-danger-700">
+              Te faltan <span className="tabular-nums">{formatClp(faltante)}</span> para cubrir tus
+              pagos críticos de los próximos 14 días
+            </p>
+            <p className="mt-0.5 text-xs text-neutral-mid">
+              Obligaciones críticas{" "}
+              <span className="tabular-nums text-neutral-dark">{formatClp(critical)}</span> · caja
+              proyectada{" "}
+              <span className="tabular-nums text-neutral-dark">{formatClp(projected)}</span>
+            </p>
+          </div>
+        </div>
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-danger-700">
+          Ver proyección
+          <ArrowRight
+            className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+            aria-hidden="true"
+          />
+        </span>
+      </div>
+    </Link>
   );
 }
 
