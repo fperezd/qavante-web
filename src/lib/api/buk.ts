@@ -23,6 +23,7 @@ import type { components } from "./types";
 export type EmployeesListResponse = components["schemas"]["EmployeesListResponse"];
 export type EmployeeDetailResponse = components["schemas"]["EmployeeDetailResponse"];
 export type PayrollResponse = components["schemas"]["PayrollResponse"];
+export type PayrollDetailResponse = components["schemas"]["PayrollDetailResponse"];
 export type PayrollTotales = components["schemas"]["PayrollTotales"];
 export type PayrollSyncResponse = components["schemas"]["PayrollSyncResponse"];
 export type BukHealthResponse = components["schemas"]["BukHealthResponse"];
@@ -54,6 +55,7 @@ export const bukKeys = {
   employee: (id: string, full?: boolean) =>
     [...bukKeys.all, "employee", id, { full: Boolean(full) }] as const,
   payroll: (params: BukPayrollParams) => [...bukKeys.all, "payroll", params] as const,
+  payrollDetail: (period: string) => [...bukKeys.all, "payroll-detail", period] as const,
 };
 
 /** Construye el query string de `/api/buk/employees` a partir de los params.
@@ -117,6 +119,22 @@ export function useBukPayroll(params: BukPayrollParams) {
         }`,
       ),
     enabled: Boolean(params.period),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** `GET /api/buk/payroll/detail?period=YYYY-MM` (ADR-0057) — detalle POR EMPLEADO
+ *  (líquido individual: employee_id/nombre/rut/liquido). **Owner-only** → sin
+ *  permiso da 403 (lo surfacea la vista). Alimenta la conciliación de sueldos. */
+export function useBukPayrollDetail(period: string | null) {
+  return useQuery({
+    queryKey: bukKeys.payrollDetail(period ?? ""),
+    queryFn: () =>
+      api.get<PayrollDetailResponse>(
+        `/api/buk/payroll/detail?period=${encodeURIComponent(period ?? "")}`,
+      ),
+    enabled: Boolean(period),
     staleTime: 10 * 60 * 1000,
     retry: false,
   });

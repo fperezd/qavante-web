@@ -21,10 +21,12 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     await expect(page.getByText("Benjamín Rojas Díaz")).toBeVisible();
     await expect(page.getByText("Contadora")).toBeVisible();
 
-    // Planilla: auto-carga (filtro de rango, mes actual) → totales agregados.
+    // Planilla: auto-carga (filtro de rango, mes actual) → totales agregados +
+    // detalle por empleado (ADR-0057).
     await page.getByRole("tab", { name: "Planilla" }).click();
     await expect(page.getByText("Líquido a pagar")).toBeVisible();
-    await expect(page.getByText("$14.330.000")).toBeVisible();
+    await expect(page.getByText("Detalle por empleado")).toBeVisible();
+    await expect(page.getByText("Carla Muñoz Vera")).toBeVisible();
 
     // Barra de registro a Pagar (ADR-0056) + confirmación previa (anti-duplicado).
     await page.getByRole("button", { name: /Registrar en Pagar/ }).click();
@@ -34,14 +36,16 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     await expect(page.getByText(/Planilla registrada en Pagar/i)).toBeVisible();
   });
 
-  test("Conciliación muestra el estado honesto cuando falta el detalle por empleado", async ({
+  test("Conciliación cruza el líquido por empleado contra el banco (ADR-0057)", async ({
     page,
     context,
   }) => {
     await loginAs(context, "owner");
     await page.goto("/remuneraciones");
 
+    // El detalle por empleado (/payroll/detail) alimenta el cruce → resumen.
     await page.getByRole("tab", { name: "Conciliación" }).click();
-    await expect(page.getByText(/Falta el detalle por empleado/i)).toBeVisible();
+    await expect(page.getByText(/empleados conciliados/i)).toBeVisible();
+    await expect(page.getByText("Ana Pérez Soto")).toBeVisible();
   });
 });

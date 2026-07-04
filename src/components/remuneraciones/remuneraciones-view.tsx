@@ -3,7 +3,12 @@
 import * as React from "react";
 import { Users, Wallet, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBukEmployees, useBukPayroll, useSyncBukPayroll } from "@/lib/api/buk";
+import {
+  useBukEmployees,
+  useBukPayroll,
+  useBukPayrollDetail,
+  useSyncBukPayroll,
+} from "@/lib/api/buk";
 import { useBankMovements, usePayrollPayday, useSetPayrollPayday } from "@/lib/api/treasury";
 import { DotacionView } from "./dotacion-view";
 import { PlanillaView } from "./planilla-view";
@@ -42,12 +47,15 @@ export function RemuneracionesView() {
   const period = range.hasta;
 
   const employeesQuery = useBukEmployees();
-  const payrollQuery = useBukPayroll({ period: period ?? "", detalle: true });
+  const payrollQuery = useBukPayroll({ period: period ?? "" });
+  const payrollDetailQuery = useBukPayrollDetail(period);
   const bankQuery = useBankMovements({ period: period ?? "" });
 
+  /* Detalle por empleado (ADR-0057, owner-only). Alimenta la tabla por empleado
+     de Planilla y la Conciliación de sueldos. */
   const empleados = React.useMemo(
-    () => normalizePayrollDetalle(payrollQuery.data),
-    [payrollQuery.data],
+    () => normalizePayrollDetalle(payrollDetailQuery.data),
+    [payrollDetailQuery.data],
   );
   const movimientos = React.useMemo<BankDebitLike[]>(
     () =>
@@ -60,9 +68,13 @@ export function RemuneracionesView() {
       })),
     [bankQuery.data],
   );
-  /* Hay planilla del período pero sin detalle por empleado (contrato backend
-     pendiente) → la conciliación no puede cruzar todavía. */
-  const detalleUnavailable = Boolean(payrollQuery.data?.totales) && empleados.length === 0;
+  /* Hay planilla del período pero el detalle por empleado no está disponible
+     (sin permiso owner, o el conector aún no lo puebla) → la conciliación no
+     puede cruzar. */
+  const detalleUnavailable =
+    Boolean(payrollQuery.data?.totales) &&
+    !payrollDetailQuery.isLoading &&
+    empleados.length === 0;
 
   /* Filtro de rango idéntico al Libro. La planilla trabaja por mes → se usa el
      mes final del rango; el hint lo aclara. */
@@ -111,6 +123,7 @@ export function RemuneracionesView() {
             period={period}
             onPeriodChange={() => {}}
             query={payrollQuery}
+            detalle={empleados}
             periodForm={periodForm}
           />
           {period && payrollQuery.data?.totales && (
@@ -128,8 +141,10 @@ export function RemuneracionesView() {
           onPeriodChange={() => {}}
           empleados={empleados}
           movimientos={movimientos}
-          loading={payrollQuery.isFetching || bankQuery.isFetching}
-          error={bankQuery.error ?? payrollQuery.error}
+          loading={payrollDetailQuery.isFetching || bankQuery.isFetching}
+          // Un 403/err del detalle (owner-only) NO es "error de banco" → cae en
+          // detalleUnavailable ("falta el detalle"). Solo el banco es error real.
+          error={bankQuery.error}
           detalleUnavailable={detalleUnavailable}
           periodForm={periodForm}
         />

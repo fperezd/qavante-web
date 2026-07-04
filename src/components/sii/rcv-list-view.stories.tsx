@@ -76,7 +76,7 @@ const SUCCESS_COMPRAS: RcvComprasResponse = {
     },
   ],
   error: null,
-} as RcvComprasResponse;
+} as unknown as RcvComprasResponse;
 
 const SUCCESS_VENTAS: RcvVentasResponse = {
   status: "ok",
@@ -105,7 +105,7 @@ const SUCCESS_VENTAS: RcvVentasResponse = {
     },
   ],
   error: null,
-} as RcvVentasResponse;
+} as unknown as RcvVentasResponse;
 
 /* Ventas con anulaciones — demuestra el modo "agrupado" (default): la factura
    anulada se muestra tachada con badge "Anulada" y sus NC se pliegan al modal.
@@ -231,7 +231,7 @@ const VENTAS_ANULADAS: RcvVentasResponse = {
     },
   ],
   error: null,
-} as RcvVentasResponse;
+} as unknown as RcvVentasResponse;
 
 const EMPTY_COMPRAS: RcvComprasResponse = {
   status: "ok",
@@ -239,7 +239,7 @@ const EMPTY_COMPRAS: RcvComprasResponse = {
   count: 0,
   compras: [],
   error: null,
-} as RcvComprasResponse;
+} as unknown as RcvComprasResponse;
 
 const meta = {
   title: "Capa 2 / SII / RcvListView",

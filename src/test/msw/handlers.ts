@@ -2496,6 +2496,20 @@ const bukHandlers = [
       { status: 200 },
     ),
   ),
+  http.get("*/api/buk/payroll/detail", () =>
+    HttpResponse.json(
+      {
+        status: "ok",
+        period: "2026-06",
+        empleados: [
+          { employee_id: 1, nombre: "Ana Pérez Soto", rut: "12.345.678-9", liquido: 5000000 },
+          { employee_id: 2, nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", liquido: 5000000 },
+          { employee_id: 3, nombre: "Carla Muñoz Vera", rut: "15.111.222-3", liquido: 4330000 },
+        ],
+      },
+      { status: 200 },
+    ),
+  ),
   http.post("*/api/buk/sync-payroll", () =>
     HttpResponse.json({ status: "ok", period: "2026-06", total_liquido: 14330000 }, { status: 200 }),
   ),

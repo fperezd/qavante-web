@@ -53,7 +53,7 @@ const SUCCESS: BheResponse = {
     },
   ],
   error: null,
-} as BheResponse;
+} as unknown as BheResponse;
 
 const EMPTY: BheResponse = {
   status: "ok",
@@ -61,7 +61,7 @@ const EMPTY: BheResponse = {
   count: 0,
   bhe: [],
   error: null,
-} as BheResponse;
+} as unknown as BheResponse;
 
 const meta = {
   title: "Capa 2 / SII / BheListView",

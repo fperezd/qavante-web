@@ -4,13 +4,12 @@
  * los débitos de sueldos del banco. Necesitamos, por empleado, `nombre + rut +
  * liquido` del período.
  *
- * FE-first: el contrato lo escalé a CC-API (extender `/api/buk/payroll` con un
- * array `detalle`, gated owner/admin). Hoy `PayrollResponse` NO tipa `detalle`,
- * pero su index signature lo permite → lo leemos de forma defensiva. Cuando
- * CC-API lo shipee, se corre `generate:api` y queda tipado. Tolerante a nombres
- * alternativos de campo (no adivinamos: aceptamos los más probables). */
+ * CC-API lo expuso (ADR-0057): `GET /api/buk/payroll/detail?period=` →
+ * `{ empleados: [{employee_id, nombre, rut, liquido}] }` (owner-only). Leemos
+ * `empleados` (fallback al viejo `detalle` por robustez). Tolerante a nombres
+ * alternativos de campo. */
 
-import type { PayrollResponse } from "@/lib/api/buk";
+import type { PayrollDetailResponse, PayrollResponse } from "@/lib/api/buk";
 
 export interface EmployeePayroll {
   /** Id del empleado (string para keys). "" si falta. */
@@ -35,12 +34,15 @@ function firstNum(...vals: unknown[]): number | null {
   return null;
 }
 
-/** Lee el detalle por empleado del payroll de forma defensiva. Devuelve [] si el
- *  backend todavía no expone `detalle` (contrato FE-first pendiente). */
-export function normalizePayrollDetalle(data: PayrollResponse | undefined): EmployeePayroll[] {
-  const detalle = (data as Record<string, unknown> | undefined)?.detalle;
-  if (!Array.isArray(detalle)) return [];
-  return detalle.map((raw) => {
+/** Lee el detalle por empleado (`empleados` del endpoint /payroll/detail; fallback
+ *  al viejo `detalle`). Devuelve [] si no hay detalle (no-owner / sin planilla). */
+export function normalizePayrollDetalle(
+  data: PayrollDetailResponse | PayrollResponse | undefined,
+): EmployeePayroll[] {
+  const rec = data as Record<string, unknown> | undefined;
+  const rows = rec?.empleados ?? rec?.detalle;
+  if (!Array.isArray(rows)) return [];
+  return rows.map((raw) => {
     const r = (raw ?? {}) as Record<string, unknown>;
     const idRaw = r.employee_id ?? r.id;
     return {
