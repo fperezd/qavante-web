@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  AlertCircle,
   AlertTriangle,
   ArrowRight,
   Banknote,
@@ -14,13 +13,11 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { QavanteCard, QavanteEmpty, QavanteButton } from "@/components/qavante";
+import { QavanteCard, QavanteEmpty, QavanteButton, QavanteInlineError } from "@/components/qavante";
 import { cn } from "@/lib/utils";
 import { useDashboardSummary, type DashboardSummaryResponse } from "@/lib/api/dashboard";
-import { ApiError } from "@/lib/api/errors";
-import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatClp } from "@/lib/formatters/clp";
-import { formatDate } from "@/lib/formatters/date";
+import { formatDateLike, formatDateTimeLike } from "@/lib/formatters/date";
 import {
   parseAmount,
   pulsoStatusLabel,
@@ -43,17 +40,7 @@ export function InicioEjecutivoView() {
   if (query.isLoading) return <LoadingSkeleton />;
   if (query.isError) {
     return (
-      <div
-        role="alert"
-        className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
-      >
-        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
-        <p>
-          {query.error instanceof ApiError
-            ? apiErrorToUserMessage(query.error)
-            : "No pudimos cargar tu resumen. Intenta nuevamente."}
-        </p>
-      </div>
+      <QavanteInlineError error={query.error} what="tu resumen" onRetry={() => query.refetch()} />
     );
   }
   if (!query.data) return null;
@@ -73,57 +60,74 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         </p>
       )}
 
-      {/* Pulso — la respuesta héroe ("¿estoy bien?"). */}
+      {/* Pulso — la respuesta héroe ("¿estoy bien?"). Clickeable → su detalle
+          ("¿por qué está así mi Pulso?"): el diagnóstico principal debe dejar
+          profundizar en el porqué. */}
       {data.pulso ? (
-        <QavanteCard variant="bordered" className="overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-stretch gap-4">
-              <span
-                className={cn("w-1.5 shrink-0 rounded-full", pulsoStatusDotBg(data.pulso.status))}
-                aria-hidden="true"
-              />
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                  Pulso del negocio
-                </p>
-                <p className="flex items-baseline gap-2">
-                  <span
-                    className={cn(
-                      "text-4xl font-bold tabular-nums tracking-tight",
-                      pulsoStatusTone(data.pulso.status),
-                    )}
-                  >
-                    {data.pulso.score}
-                  </span>
-                  <span
-                    className={cn("text-base font-semibold", pulsoStatusTone(data.pulso.status))}
-                  >
-                    {pulsoStatusLabel(data.pulso.status)}
-                  </span>
-                </p>
-                <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-mid">
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  {confidenceLabel(data.pulso.confidence)}
-                  {data.pulso.preliminary && " · preliminar"}
-                </p>
+        <Link
+          href="/gestion/pulso"
+          className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+        >
+          <QavanteCard
+            variant="bordered"
+            className="overflow-hidden transition-all duration-150 group-hover:-translate-y-0.5 group-hover:border-brand-primary/50 group-hover:shadow-lg"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-stretch gap-4">
+                <span
+                  className={cn("w-1.5 shrink-0 rounded-full", pulsoStatusDotBg(data.pulso.status))}
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                    Pulso del negocio
+                    <span className="inline-flex items-center gap-0.5 font-semibold normal-case tracking-normal text-brand-primary opacity-0 transition-opacity group-hover:opacity-100">
+                      Ver por qué
+                      <ArrowRight
+                        className="h-3 w-3 transition-transform group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </p>
+                  <p className="flex items-baseline gap-2">
+                    <span
+                      className={cn(
+                        "text-4xl font-bold tabular-nums tracking-tight",
+                        pulsoStatusTone(data.pulso.status),
+                      )}
+                    >
+                      {data.pulso.score}
+                    </span>
+                    <span
+                      className={cn("text-base font-semibold", pulsoStatusTone(data.pulso.status))}
+                    >
+                      {pulsoStatusLabel(data.pulso.status)}
+                    </span>
+                  </p>
+                  <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-mid">
+                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                    {confidenceLabel(data.pulso.confidence)}
+                    {data.pulso.preliminary && " · preliminar"}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-1.5 text-sm">
+                {data.pulso.top_driver_positive && (
+                  <p className="flex items-center gap-1.5 font-medium text-success-700">
+                    <TrendingUp className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {data.pulso.top_driver_positive}
+                  </p>
+                )}
+                {data.pulso.top_driver_negative && (
+                  <p className="flex items-center gap-1.5 font-medium text-danger-700">
+                    <TrendingDown className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    {data.pulso.top_driver_negative}
+                  </p>
+                )}
               </div>
             </div>
-            <div className="space-y-1.5 text-sm">
-              {data.pulso.top_driver_positive && (
-                <p className="flex items-center gap-1.5 font-medium text-success-700">
-                  <TrendingUp className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {data.pulso.top_driver_positive}
-                </p>
-              )}
-              {data.pulso.top_driver_negative && (
-                <p className="flex items-center gap-1.5 font-medium text-danger-500">
-                  <TrendingDown className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  {data.pulso.top_driver_negative}
-                </p>
-              )}
-            </div>
-          </div>
-        </QavanteCard>
+          </QavanteCard>
+        </Link>
       ) : (
         <DashCard title="Pulso del negocio">
           <NoData />
@@ -247,7 +251,7 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
               {data.critical_payments.next_critical && (
                 <p className="mt-2 text-xs text-neutral-mid">
                   Próximo: {data.critical_payments.next_critical.label} ·{" "}
-                  {formatDate(new Date(data.critical_payments.next_critical.due_date))}
+                  {formatDateLike(data.critical_payments.next_critical.due_date)}
                 </p>
               )}
             </>
@@ -394,7 +398,7 @@ function Freshness({ updated, state }: { updated: string; state?: string }) {
   return (
     <p className="mt-1.5 inline-flex items-center gap-1 text-xs text-neutral-mid">
       <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
-      Actualizado {formatDate(new Date(updated))}
+      Actualizado {formatDateTimeLike(updated)}
       {state === "stale" && " · puede estar desactualizado"}
       {state === "estimated" && " · estimado"}
     </p>

@@ -1,11 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { QavanteCard, QavanteBadge, QavanteEmpty } from "@/components/qavante";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { QavanteCard, QavanteBadge, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import { useAccountsPayable, type AccountsPayableResponse } from "@/lib/api/pagos";
-import { ApiError } from "@/lib/api/errors";
-import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import {
   PartialDataBanner,
   SyncPendingState,
@@ -13,7 +11,7 @@ import {
   isSyncPending,
 } from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
-import { formatDate } from "@/lib/formatters/date";
+import { formatDateLike } from "@/lib/formatters/date";
 import { parseAmount, payableItemLabel, paymentCategoryLabel, criticalFirst } from "./pagos-format";
 
 /* Pagar — cuentas por pagar (Sprint C4, Maestro §7.4): resumen (total + 7/14/30
@@ -38,17 +36,11 @@ export function PagarView() {
   if (query.isLoading) return <LoadingSkeleton />;
   if (query.isError) {
     return (
-      <div
-        role="alert"
-        className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
-      >
-        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
-        <p>
-          {query.error instanceof ApiError
-            ? apiErrorToUserMessage(query.error)
-            : "No pudimos cargar las cuentas por pagar. Intenta nuevamente."}
-        </p>
-      </div>
+      <QavanteInlineError
+        error={query.error}
+        what="las cuentas por pagar"
+        onRetry={() => query.refetch()}
+      />
     );
   }
   if (query.data && parseAmount(query.data.total) === 0) {
@@ -154,9 +146,7 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
                   <td className="py-2 pr-3 text-neutral-mid">
                     {paymentCategoryLabel(it.category)}
                   </td>
-                  <td className="py-2 pr-3 text-neutral-mid">
-                    {it.due_date ? formatDate(new Date(it.due_date)) : "—"}
-                  </td>
+                  <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(it.due_date)}</td>
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
                     {formatClp(parseAmount(it.amount))}
                   </td>
