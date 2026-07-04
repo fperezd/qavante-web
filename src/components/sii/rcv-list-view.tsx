@@ -32,6 +32,7 @@ import { computeRcvTotals } from "./rcv-totals";
 import { agruparConReferencias, type EstadoDoc, type FacturaRow } from "./rcv-anuladas";
 import { RcvAsociadosModal } from "./rcv-asociados-modal";
 import { RcvDetalleGrid } from "./rcv-detalle-grid";
+import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-table";
 import type { GroupedItem, RcvDoc } from "./rcv-grouped-item";
 import { sortGroupedItems, toggleSort, type SortKey, type SortState } from "./rcv-sort";
 
@@ -421,7 +422,10 @@ function SortHeader({
 }) {
   const dir = sort?.key === sortKey ? sort.dir : null;
   return (
-    <th scope="col" className={cn("py-2 pr-3 font-semibold", align === "right" && "text-right", className)}>
+    <th
+      scope="col"
+      className={cn("py-2 pr-3 font-semibold", align === "right" && "text-right", className)}
+    >
       <button
         type="button"
         onClick={() => onToggleSort(sortKey)}
@@ -464,17 +468,40 @@ function GroupedTable({
   onToggleSort,
 }: GroupedTableProps) {
   return (
-    <div className="overflow-x-auto">
+    <div className={stickyScroll}>
       <table className="w-full min-w-[760px] text-sm">
-        <thead>
+        <thead className={stickyHead}>
           <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
             <SortHeader label="Tipo" sortKey="tipo" sort={sort} onToggleSort={onToggleSort} />
             <SortHeader label="Folio" sortKey="folio" sort={sort} onToggleSort={onToggleSort} />
             <SortHeader label="Fecha" sortKey="fecha" sort={sort} onToggleSort={onToggleSort} />
-            <SortHeader label={partyLabel} sortKey="cliente" sort={sort} onToggleSort={onToggleSort} />
-            <SortHeader label="Neto" sortKey="neto" sort={sort} onToggleSort={onToggleSort} align="right" />
-            <SortHeader label="IVA" sortKey="iva" sort={sort} onToggleSort={onToggleSort} align="right" />
-            <SortHeader label="Total" sortKey="total" sort={sort} onToggleSort={onToggleSort} align="right" />
+            <SortHeader
+              label={partyLabel}
+              sortKey="cliente"
+              sort={sort}
+              onToggleSort={onToggleSort}
+            />
+            <SortHeader
+              label="Neto"
+              sortKey="neto"
+              sort={sort}
+              onToggleSort={onToggleSort}
+              align="right"
+            />
+            <SortHeader
+              label="IVA"
+              sortKey="iva"
+              sort={sort}
+              onToggleSort={onToggleSort}
+              align="right"
+            />
+            <SortHeader
+              label="Total"
+              sortKey="total"
+              sort={sort}
+              onToggleSort={onToggleSort}
+              align="right"
+            />
             <th scope="col" className="py-2 font-semibold">
               Estado
             </th>
@@ -499,10 +526,14 @@ function GroupedTable({
                       {meta.abbr}
                     </span>
                   </td>
-                  <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">{d.folio ?? "—"}</td>
+                  <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
+                    {d.folio ?? "—"}
+                  </td>
                   <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(d.fecha)}</td>
                   <td className="py-2 pr-3">
-                    <span className="block text-neutral-dark">{d.razon_social ?? "Sin nombre"}</span>
+                    <span className="block text-neutral-dark">
+                      {d.razon_social ?? "Sin nombre"}
+                    </span>
                     {d.rut_contraparte && (
                       <span className="block font-mono text-xs text-neutral-mid">
                         {d.rut_contraparte}
@@ -510,13 +541,17 @@ function GroupedTable({
                     )}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-                    {typeof d.monto_neto === "number" ? `−${formatClp(Math.abs(d.monto_neto))}` : "—"}
+                    {typeof d.monto_neto === "number"
+                      ? `−${formatClp(Math.abs(d.monto_neto))}`
+                      : "—"}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
                     {typeof d.monto_iva === "number" ? `−${formatClp(Math.abs(d.monto_iva))}` : "—"}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-danger-500">
-                    {typeof d.monto_total === "number" ? `−${formatClp(Math.abs(d.monto_total))}` : "—"}
+                    {typeof d.monto_total === "number"
+                      ? `−${formatClp(Math.abs(d.monto_total))}`
+                      : "—"}
                   </td>
                   <td className="py-2 text-[11px] text-neutral-mid">Nota de crédito</td>
                 </tr>
@@ -626,7 +661,7 @@ function GroupedTable({
             );
           })}
         </tbody>
-        <tfoot>
+        <tfoot className={stickyFoot}>
           <tr className="border-t-2 border-border-strong font-semibold">
             <td
               colSpan={4}
