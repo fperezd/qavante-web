@@ -141,12 +141,55 @@ html {
   animation: qv-fade-up 0.4s ease-out both;
 }
 
+/* Entrada escalonada: cada hijo aparece un pelín después (stagger). Se combina
+   con .animate-qv-fade-up en el contenedor. */
+.qv-stagger > * {
+  animation: qv-fade-up 0.45s ease-out both;
+}
+.qv-stagger > *:nth-child(1) {
+  animation-delay: 0.02s;
+}
+.qv-stagger > *:nth-child(2) {
+  animation-delay: 0.07s;
+}
+.qv-stagger > *:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.qv-stagger > *:nth-child(4) {
+  animation-delay: 0.17s;
+}
+.qv-stagger > *:nth-child(5) {
+  animation-delay: 0.22s;
+}
+.qv-stagger > *:nth-child(6) {
+  animation-delay: 0.27s;
+}
+
+/* "Respirar": latido sutil para el Pulso — el número más importante, vivo. */
+@keyframes qv-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.92;
+  }
+}
+.animate-qv-breathe {
+  animation: qv-breathe 3.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
 /* Respeta a quien pide menos movimiento. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
-  .animate-qv-fade-up {
+  .animate-qv-fade-up,
+  .qv-stagger > *,
+  .animate-qv-breathe {
     animation: none;
   }
 }
