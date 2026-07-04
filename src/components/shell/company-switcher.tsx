@@ -7,6 +7,8 @@ import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useMyTenants, useSwitchTenant, useCreateTenant } from "@/lib/api/tenants";
 import { isValidRut } from "@/lib/validators/rut";
+import { ROLE_LABELS } from "@/components/administracion/role-labels";
+import type { UserRole } from "@/lib/auth/types";
 
 /* Selector de empresa (N:M, ADR-0049). Lista las empresas del usuario
    (`GET /api/me/tenants`), permite cambiar la activa (`POST /api/me/active-tenant`)
@@ -97,7 +99,9 @@ export function CompanySwitcher() {
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{t.legal_name}</span>
-                    <span className="block text-xs text-neutral-mid">{t.role}</span>
+                    <span className="block text-xs text-neutral-mid">
+                      {ROLE_LABELS[t.role as UserRole] ?? t.role}
+                    </span>
                   </span>
                   {t.is_active && (
                     <Check
@@ -121,7 +125,7 @@ export function CompanySwitcher() {
                 type="button"
                 role="menuitem"
                 onClick={() => setMode("create")}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium text-brand-primary hover:bg-brand-primary-50"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium text-brand-primary-700 hover:bg-brand-primary-50"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Agregar empresa

@@ -8,10 +8,10 @@ const qavanteBadgeVariants = cva(
     variants: {
       variant: {
         default: "bg-neutral-light/40 text-neutral-dark",
-        success: "bg-success-500/15 text-success-500",
-        warning: "bg-warning-500/15 text-warning-500",
-        danger: "bg-danger-500/15 text-danger-500",
-        info: "bg-info-500/15 text-info-500",
+        success: "bg-success-50 text-success-700",
+        warning: "bg-warning-50 text-warning-700",
+        danger: "bg-danger-50 text-danger-700",
+        info: "bg-info-50 text-info-700",
       },
     },
     defaultVariants: {

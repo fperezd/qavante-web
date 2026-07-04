@@ -91,9 +91,9 @@ export function AppSidebar({
      los módulos sin restricción de rol — el módulo gated sigue siendo accesible
      por URL pero la página renderea error/no-data del backend. */
   const canSee = (m: ModuleLink) => !m.visibleFor || (userRole && m.visibleFor.includes(userRole));
-  const groups = sourceGroups.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
-    (g) => g.items.length > 0,
-  );
+  const groups = sourceGroups
+    .map((g) => ({ ...g, items: g.items.filter(canSee) }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <>
@@ -131,7 +131,7 @@ export function AppSidebar({
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
           {groups.map((group) => (
             <div key={group.label}>
-              <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid/60">
+              <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                 {group.label}
               </p>
               <div className="space-y-1">

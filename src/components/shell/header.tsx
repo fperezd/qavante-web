@@ -96,17 +96,14 @@ export function AppHeader({ onMenuClick, syncStatusEnabled }: AppHeaderProps) {
           </Link>
         )}
 
-        {/* Notificaciones */}
+        {/* Notificaciones. El punto de "sin leer" se mostrará cuando exista el
+            conteo real (evitamos el cry-wolf de un dot siempre encendido). */}
         <button
           type="button"
           className="relative rounded-md p-2 text-neutral-mid hover:bg-brand-primary-50"
-          aria-label="Notificaciones (hay nuevas sin leer)"
+          aria-label="Notificaciones"
         >
           <Bell className="h-5 w-5" aria-hidden="true" />
-          <span
-            className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger-500"
-            aria-hidden="true"
-          />
         </button>
 
         {/* Avatar perfil — enlaza a Mi cuenta (perfil + cerrar sesión) */}
