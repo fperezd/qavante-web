@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import { CheckCircle2, Inbox, Pencil, SlidersHorizontal } from "lucide-react";
 import {
   QavanteBadge,
@@ -203,9 +204,14 @@ export function ClasificadosView() {
 
   function handleReclasifySave(draft: ClassificationDraft) {
     if (!reclasifyTarget || !draft.managementAccountId) return;
+    const target = reclasifyTarget;
+    /* Clasificación previa (para el "Deshacer": re-aplicar los valores que tenía).
+       Es un undo real y seguro — vuelve a PATCH la categoría anterior. */
+    const prevAccountId = target.management_account_id;
+    const prevCategory = target.canonical_category ?? null;
     classify.mutate(
       {
-        movementId: reclasifyTarget.id,
+        movementId: target.id,
         body: {
           management_account_id: draft.managementAccountId,
           canonical_category:
@@ -215,7 +221,27 @@ export function ClasificadosView() {
         },
       },
       {
-        onSuccess: () => setReclasifyTarget(null),
+        onSuccess: () => {
+          setReclasifyTarget(null);
+          toast.success("Movimiento reclasificado", {
+            description: `${target.description} · ${formatClp(Math.abs(Number(target.amount) || 0))}`,
+            ...(prevAccountId && {
+              action: {
+                label: "Deshacer",
+                onClick: () =>
+                  classify.mutate({
+                    movementId: target.id,
+                    body: {
+                      management_account_id: prevAccountId,
+                      canonical_category: prevCategory,
+                      notes: null,
+                      create_rule: false,
+                    },
+                  }),
+              },
+            }),
+          });
+        },
       },
     );
   }

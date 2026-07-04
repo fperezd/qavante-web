@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
+import { toast } from "sonner";
 import { QavanteEmpty, QavanteButton, QavanteInlineError } from "@/components/qavante";
 import {
   useBankMovements,
@@ -171,6 +172,11 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           dimension_value_id: valueId,
         });
       }
+      /* Feedback de éxito: antes la fila simplemente desaparecía de la lista, lo
+         que se podía leer como error. El toast confirma la acción. */
+      toast.success("Movimiento clasificado", {
+        description: `${movement.description} · ${formatClp(Math.abs(Number(movement.amount) || 0))}`,
+      });
       setSelected(null);
       setFormError(undefined);
     } catch {
