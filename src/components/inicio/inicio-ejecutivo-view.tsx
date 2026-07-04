@@ -18,14 +18,9 @@ import { cn } from "@/lib/utils";
 import { useDashboardSummary, type DashboardSummaryResponse } from "@/lib/api/dashboard";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike, formatDateTimeLike } from "@/lib/formatters/date";
-import {
-  parseAmount,
-  pulsoStatusLabel,
-  pulsoStatusTone,
-  pulsoStatusDotBg,
-  confidenceLabel,
-  isEmptySummary,
-} from "./dashboard-format";
+import { parseAmount, confidenceLabel, isEmptySummary } from "./dashboard-format";
+import { PulsoRing } from "./pulso-ring";
+import { useCountUp } from "@/lib/hooks/use-count-up";
 
 /* Inicio Ejecutivo (Sprint C8, Maestro §7.1): "¿Cómo está mi empresa hoy?".
    Refresh v1.3 — diseñado alrededor de LA DECISIÓN: el Pulso es la respuesta
@@ -73,11 +68,8 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
             className="overflow-hidden transition-all duration-150 group-hover:-translate-y-0.5 group-hover:border-brand-primary/50 group-hover:shadow-lg"
           >
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-stretch gap-4">
-                <span
-                  className={cn("w-1.5 shrink-0 rounded-full", pulsoStatusDotBg(data.pulso.status))}
-                  aria-hidden="true"
-                />
+              <div className="flex items-center gap-5">
+                <PulsoRing score={data.pulso.score} status={data.pulso.status} />
                 <div>
                   <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                     Pulso del negocio
@@ -89,22 +81,7 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
                       />
                     </span>
                   </p>
-                  <p className="flex items-baseline gap-2">
-                    <span
-                      className={cn(
-                        "text-4xl font-bold tabular-nums tracking-tight",
-                        pulsoStatusTone(data.pulso.status),
-                      )}
-                    >
-                      {data.pulso.score}
-                    </span>
-                    <span
-                      className={cn("text-base font-semibold", pulsoStatusTone(data.pulso.status))}
-                    >
-                      {pulsoStatusLabel(data.pulso.status)}
-                    </span>
-                  </p>
-                  <p className="mt-1 inline-flex items-center gap-1 text-xs text-neutral-mid">
+                  <p className="mt-2 inline-flex items-center gap-1 text-xs text-neutral-mid">
                     <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                     {confidenceLabel(data.pulso.confidence)}
                     {data.pulso.preliminary && " · preliminar"}
@@ -145,14 +122,15 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         />
       )}
 
-      {/* Grid de bloques de soporte — cada card es clickeable. */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {/* Grid de bloques de soporte — cada card es clickeable, con entrada
+          escalonada (las cards "aparecen" en cascada al cargar). */}
+      <div className="qv-stagger grid grid-cols-1 gap-3 sm:grid-cols-2">
         {/* Caja hoy. */}
         <DashCard title="Caja hoy" href="/caja/proyeccion" cta="Ver caja">
           {data.cash_today ? (
             <>
               <p className="text-xl font-bold tabular-nums text-neutral-dark">
-                {formatClp(parseAmount(data.cash_today.total))}
+                <AmountCountUp value={parseAmount(data.cash_today.total)} />
               </p>
               <Freshness
                 updated={data.cash_today.last_updated}
@@ -437,6 +415,13 @@ function DashCard({
   ) : (
     card
   );
+}
+
+/* Monto que "cuenta" desde 0 al cargar (nivel dios: las cifras aparecen con vida,
+   no de golpe). Respeta reduce-motion vía el hook. */
+function AmountCountUp({ value }: { value: number }) {
+  const n = useCountUp(value, 1100);
+  return <>{formatClp(Math.round(n))}</>;
 }
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
