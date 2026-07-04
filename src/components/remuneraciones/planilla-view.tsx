@@ -9,7 +9,12 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { SiiPeriodForm } from "@/components/sii/sii-period-form";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
-import { detalleCuadra, sumLiquido, type EmployeePayroll } from "./payroll-detalle";
+import {
+  detalleCuadra,
+  readPayrollObligaciones,
+  sumLiquido,
+  type EmployeePayroll,
+} from "./payroll-detalle";
 
 /* Planilla — totales del período (BUK) + detalle por empleado (líquido) para
    conciliación bancaria. El detalle por empleado (`payroll.detalle`) es contrato
@@ -44,7 +49,7 @@ export function PlanillaView({
         <SiiPeriodForm
           onSubmit={onPeriodChange}
           loading={query.isFetching}
-          hint="Totales de la planilla de remuneraciones del mes (haberes, descuentos y líquido)."
+          hint="Planilla del mes: líquido a pagar, impuesto del F29 e imposiciones de Previred."
         />
       )}
 
@@ -52,7 +57,7 @@ export function PlanillaView({
         <QavanteEmpty
           icon={Wallet}
           title="Consulta la planilla del período"
-          description="Elige un mes y vas a ver los totales de remuneraciones: haberes, descuentos, líquido a pagar e imponible, más la cantidad de empleados considerados."
+          description="Elige un mes y vas a ver la planilla del período: el líquido a pagar a los trabajadores, el impuesto que se entera en el F29 y las imposiciones de Previred, más la cantidad de empleados considerados."
         />
       )}
 
@@ -76,9 +81,7 @@ export function PlanillaView({
         />
       )}
 
-      {period && totales && (
-        <PlanillaTotales period={period} totales={totales} detalle={detalle} />
-      )}
+      {period && totales && <PlanillaTotales period={period} totales={totales} detalle={detalle} />}
     </div>
   );
 }
@@ -92,6 +95,7 @@ function PlanillaTotales({
   totales: PayrollTotales;
   detalle: EmployeePayroll[];
 }) {
+  const obligaciones = readPayrollObligaciones(totales as Record<string, unknown>);
   return (
     <QavanteCard
       variant="bordered"
@@ -116,11 +120,28 @@ function PlanillaTotales({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Metric label="Total haberes" value={totales.total_haberes} />
-          <Metric label="Total descuentos" value={totales.total_descuentos} tone="muted" />
-          <Metric label="Total imponible" value={totales.total_imponible} tone="muted" />
+        {/* Además del líquido, la planilla genera dos desembolsos: el impuesto de
+            remuneraciones que se entera en el F29 y las cotizaciones a Previred.
+            Es lo útil de mostrar (haberes/descuentos/imponible no aportan). */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Metric
+            label="Impuestos (F29)"
+            value={obligaciones.impuestoF29}
+            help="Impuesto de remuneraciones (Impuesto Único de 2ª Categoría) a enterar en el F29."
+          />
+          <Metric
+            label="Imposiciones (Previred)"
+            value={obligaciones.previred}
+            help="Cotizaciones previsionales del período (AFP, salud y seguro de cesantía) a pagar en Previred."
+          />
         </div>
+        {(obligaciones.impuestoF29 === null || obligaciones.previred === null) && (
+          <p className="text-xs text-neutral-mid">
+            Los montos de <strong>impuestos</strong> e <strong>imposiciones</strong> se están
+            habilitando en el conector de Remuneraciones (vienen de BUK). En cuanto lleguen, se
+            muestran acá.
+          </p>
+        )}
 
         {detalle.length > 0 ? (
           <DetalleEmpleados detalle={detalle} totalLiquido={totales.total_liquido} />
@@ -209,7 +230,10 @@ function DetalleEmpleados({
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-border-strong font-semibold">
-              <td colSpan={2} className="py-2 pr-3 text-[11px] uppercase tracking-wider text-neutral-mid">
+              <td
+                colSpan={2}
+                className="py-2 pr-3 text-[11px] uppercase tracking-wider text-neutral-mid"
+              >
                 Suma del detalle
               </td>
               <td className="py-2 text-right tabular-nums text-neutral-dark">{formatClp(suma)}</td>
@@ -226,26 +250,23 @@ function DetalleEmpleados({
   );
 }
 
-function Metric({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "muted";
-}) {
+/* Tarjeta de un desembolso de la planilla (Impuestos F29 / Imposiciones Previred).
+   `value === null` = el conector aún no lo expone → se muestra "En preparación"
+   (NO $0, que se leería como "nada que pagar"). */
+function Metric({ label, value, help }: { label: string; value: number | null; help?: string }) {
+  const pending = value === null;
   return (
     <div className="rounded-xl border border-border p-3">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
       <p
         className={
           "mt-1 text-lg font-semibold tabular-nums " +
-          (tone === "muted" ? "text-neutral-mid" : "text-neutral-dark")
+          (pending ? "text-neutral-mid/70" : "text-neutral-dark")
         }
       >
-        {formatClp(value)}
+        {pending ? "En preparación" : formatClp(value)}
       </p>
+      {help && <p className="mt-1 text-[11px] leading-snug text-neutral-mid">{help}</p>}
     </div>
   );
 }

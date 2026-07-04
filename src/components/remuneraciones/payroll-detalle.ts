@@ -54,6 +54,45 @@ export function normalizePayrollDetalle(
   });
 }
 
+/** Montos "a pagar por la planilla" que NO son el líquido de los trabajadores:
+ *  el impuesto de remuneraciones (Impuesto Único de 2ª Categoría) que se entera
+ *  en el F29, y las cotizaciones previsionales que se pagan en Previred. Son los
+ *  dos desembolsos que acompañan a cada planilla, además del líquido.
+ *
+ *  Contrato FE-first: CC-API extiende `PayrollTotales` con estos montos desde BUK
+ *  (escalado por STATE). El tipo generado todavía no los declara → los leemos de
+ *  forma tolerante (varios nombres candidatos). `null` = el conector aún no los
+ *  expone (la UI lo muestra como "en preparación", no como $0). */
+export interface PayrollObligaciones {
+  /** Impuesto de remuneraciones a enterar en el F29 (IUSC retenido). null si falta. */
+  impuestoF29: number | null;
+  /** Cotizaciones previsionales a pagar en Previred (AFP/salud/AFC). null si falta. */
+  previred: number | null;
+}
+
+export function readPayrollObligaciones(
+  totales: Record<string, unknown> | undefined | null,
+): PayrollObligaciones {
+  const t = (totales ?? {}) as Record<string, unknown>;
+  return {
+    impuestoF29: firstNum(
+      t.total_impuesto,
+      t.total_impuestos,
+      t.total_impuesto_unico,
+      t.impuesto_unico,
+      t.total_iusc,
+      t.impuesto_f29,
+    ),
+    previred: firstNum(
+      t.total_previred,
+      t.previred,
+      t.total_imposiciones,
+      t.total_cotizaciones,
+      t.total_cotizaciones_previsionales,
+    ),
+  };
+}
+
 /** Suma los líquidos del detalle (para cuadrar contra el total agregado). */
 export function sumLiquido(rows: EmployeePayroll[]): number {
   return rows.reduce((acc, r) => acc + (r.liquido ?? 0), 0);

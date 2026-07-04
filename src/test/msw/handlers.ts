@@ -2472,9 +2472,33 @@ const bukHandlers = [
         status: "ok",
         count: 3,
         employees: [
-          { id: 1, full_name: "Ana Pérez Soto", rut: "12.345.678-9", email: "ana@empresa.cl", gender: "F", role: "Analista de Finanzas", status: "activo" },
-          { id: 2, full_name: "Benjamín Rojas Díaz", rut: "9.876.543-2", email: "benjamin@empresa.cl", gender: "M", role: "Jefe de Operaciones", status: "activo" },
-          { id: 3, full_name: "Carla Muñoz Vera", rut: "15.111.222-3", email: "carla@empresa.cl", gender: "F", role: "Contadora", status: "activo" },
+          {
+            id: 1,
+            full_name: "Ana Pérez Soto",
+            rut: "12.345.678-9",
+            email: "ana@empresa.cl",
+            gender: "F",
+            role: "Analista de Finanzas",
+            status: "activo",
+          },
+          {
+            id: 2,
+            full_name: "Benjamín Rojas Díaz",
+            rut: "9.876.543-2",
+            email: "benjamin@empresa.cl",
+            gender: "M",
+            role: "Jefe de Operaciones",
+            status: "activo",
+          },
+          {
+            id: 3,
+            full_name: "Carla Muñoz Vera",
+            rut: "15.111.222-3",
+            email: "carla@empresa.cl",
+            gender: "F",
+            role: "Contadora",
+            status: "activo",
+          },
         ],
       },
       { status: 200 },
@@ -2490,6 +2514,9 @@ const bukHandlers = [
           total_descuentos: 4120000,
           total_liquido: 14330000,
           total_imponible: 16800000,
+          // Desembolsos que acompañan a la planilla (contrato FE-first, ADR pendiente CC-API):
+          total_impuesto: 620000, // impuesto de remuneraciones a enterar en el F29
+          total_previred: 3510000, // cotizaciones previsionales (Previred)
           empleados_contados: 3,
         },
       },
@@ -2511,7 +2538,10 @@ const bukHandlers = [
     ),
   ),
   http.post("*/api/buk/sync-payroll", () =>
-    HttpResponse.json({ status: "ok", period: "2026-06", total_liquido: 14330000 }, { status: 200 }),
+    HttpResponse.json(
+      { status: "ok", period: "2026-06", total_liquido: 14330000 },
+      { status: 200 },
+    ),
   ),
   http.get("*/api/treasury/payroll-payday", () =>
     HttpResponse.json({ payday_day: null, effective_rule: "último día hábil" }, { status: 200 }),

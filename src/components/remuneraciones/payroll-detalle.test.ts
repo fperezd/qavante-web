@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   detalleCuadra,
   normalizePayrollDetalle,
+  readPayrollObligaciones,
   sumLiquido,
   type EmployeePayroll,
 } from "./payroll-detalle";
@@ -25,7 +26,9 @@ describe("payroll-detalle · normalizePayrollDetalle", () => {
   });
 
   it("tolera nombres alternativos (id/full_name/monto_liquido)", () => {
-    const rows = normalizePayrollDetalle(resp([{ id: "9", full_name: "Beto", monto_liquido: 700000 }]));
+    const rows = normalizePayrollDetalle(
+      resp([{ id: "9", full_name: "Beto", monto_liquido: 700000 }]),
+    );
     expect(rows[0]).toEqual({ id: "9", nombre: "Beto", rut: null, liquido: 700000 });
   });
 
@@ -33,6 +36,36 @@ describe("payroll-detalle · normalizePayrollDetalle", () => {
     const rows = normalizePayrollDetalle(resp([{ employee_id: 1, nombre: "X" }]));
     expect(rows[0]?.liquido).toBeNull();
     expect(rows[0]?.rut).toBeNull();
+  });
+});
+
+describe("payroll-detalle · readPayrollObligaciones", () => {
+  it("sin totales → ambos null (se muestra 'en preparación', no $0)", () => {
+    expect(readPayrollObligaciones(undefined)).toEqual({ impuestoF29: null, previred: null });
+    expect(readPayrollObligaciones({})).toEqual({ impuestoF29: null, previred: null });
+  });
+
+  it("lee los campos canónicos (total_impuesto / total_previred)", () => {
+    expect(readPayrollObligaciones({ total_impuesto: 320000, total_previred: 1450000 })).toEqual({
+      impuestoF29: 320000,
+      previred: 1450000,
+    });
+  });
+
+  it("tolera nombres alternativos (impuesto_unico / total_imposiciones)", () => {
+    expect(readPayrollObligaciones({ impuesto_unico: 210000, total_imposiciones: 990000 })).toEqual(
+      {
+        impuestoF29: 210000,
+        previred: 990000,
+      },
+    );
+  });
+
+  it("distingue 0 explícito (real) de ausente (null)", () => {
+    expect(readPayrollObligaciones({ total_impuesto: 0 })).toEqual({
+      impuestoF29: 0,
+      previred: null,
+    });
   });
 });
 
