@@ -3,7 +3,8 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
-import { CheckCircle2 } from "lucide-react";
+import { Dialog } from "@base-ui/react/dialog";
+import { CheckCircle2, ListChecks, RefreshCw } from "lucide-react";
 import { QavanteEmpty, QavanteButton, QavanteInlineError } from "@/components/qavante";
 import { cn } from "@/lib/utils";
 import {
@@ -101,6 +102,26 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
   React.useEffect(() => {
     setActive((a) => Math.min(a, Math.max(0, itemCount - 1)));
   }, [itemCount]);
+  /* Selección múltiple (clasificar en lote): checkbox por fila (o Espacio en la
+     fila activa) marca movimientos; se aplican todos con una misma categoría. */
+  const [checked, setChecked] = React.useState<Set<string>>(() => new Set());
+  const [bulkOpen, setBulkOpen] = React.useState(false);
+  const [bulkAccountId, setBulkAccountId] = React.useState("");
+  const [bulkCanonical, setBulkCanonical] = React.useState("");
+  const [bulkRun, setBulkRun] = React.useState<{
+    done: number;
+    total: number;
+    failed: number;
+    running: boolean;
+  } | null>(null);
+  /* Descartar del set los ids que ya no están en la lista (se clasificaron). */
+  React.useEffect(() => {
+    const ids = new Set((movementsQuery.data?.items ?? []).map((m) => m.id));
+    setChecked((prev) => {
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [movementsQuery.data]);
   /* Enfocar la lista cuando hay ítems y no hay drawer abierto → el teclado
      funciona de una (y vuelve a la lista al cerrar el drawer). */
   React.useEffect(() => {
@@ -161,6 +182,56 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
     setSelected(m);
   }
 
+  function toggleCheck(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  const allChecked = movements.length > 0 && movements.every((m) => checked.has(m.id));
+  function toggleAll() {
+    setChecked(allChecked ? new Set() : new Set(movements.map((m) => m.id)));
+  }
+
+  /* Aplica UNA categoría a todos los seleccionados (secuencial, tolerante a
+     errores puntuales). El hook invalida la lista tras cada uno → las filas
+     desaparecen a medida que se clasifican. */
+  async function runBulk() {
+    const ids = [...checked];
+    if (!bulkAccountId || ids.length === 0) return;
+    setBulkRun({ done: 0, total: ids.length, failed: 0, running: true });
+    let failed = 0;
+    for (let i = 0; i < ids.length; i++) {
+      try {
+        await classify.mutateAsync({
+          movementId: ids[i]!,
+          body: {
+            management_account_id: bulkAccountId,
+            canonical_category: (bulkCanonical || null) as
+              | BankMovement["canonical_category"]
+              | null,
+            notes: null,
+            create_rule: false,
+          },
+        });
+      } catch {
+        failed++;
+      }
+      setBulkRun({ done: i + 1, total: ids.length, failed, running: i + 1 < ids.length });
+    }
+    const ok = ids.length - failed;
+    toast.success(`${ok} ${ok === 1 ? "movimiento clasificado" : "movimientos clasificados"}`, {
+      description: failed > 0 ? `${failed} con error` : undefined,
+    });
+    setChecked(new Set());
+    setBulkOpen(false);
+    setBulkRun(null);
+    setBulkAccountId("");
+    setBulkCanonical("");
+  }
+
   /* Triage por teclado: ↑↓ (o j/k) mueven la fila activa; Enter la clasifica.
      Solo cuando el drawer está cerrado (con el drawer abierto, las teclas son
      del formulario). */
@@ -176,6 +247,11 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       e.preventDefault();
       const m = movements[active];
       if (m) openFor(m);
+    } else if (e.key === " ") {
+      // Espacio: marca/desmarca la fila activa para el lote.
+      e.preventDefault();
+      const m = movements[active];
+      if (m) toggleCheck(m.id);
     }
   }
 
@@ -249,17 +325,58 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           what="las cuentas de gestión — no vas a poder clasificar hasta resolverlo"
         />
       )}
-      {/* Triage por teclado (nivel dios). */}
-      <p className="px-1 text-xs text-neutral-mid">
-        Consejo: usa{" "}
-        <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">↑</kbd>{" "}
-        <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">↓</kbd>{" "}
-        para moverte y{" "}
-        <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
-          Enter
-        </kbd>{" "}
-        para clasificar.
-      </p>
+      {/* Toolbar: seleccionar todos + hint de teclado. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-neutral-mid">
+          <input
+            type="checkbox"
+            checked={allChecked}
+            onChange={toggleAll}
+            className="h-4 w-4 accent-brand-primary"
+            aria-label="Seleccionar todos los movimientos"
+          />
+          Seleccionar todos
+        </label>
+        <p className="text-xs text-neutral-mid">
+          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+            ↑
+          </kbd>{" "}
+          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+            ↓
+          </kbd>{" "}
+          moverte ·{" "}
+          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+            Enter
+          </kbd>{" "}
+          clasificar ·{" "}
+          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+            Espacio
+          </kbd>{" "}
+          marcar
+        </p>
+      </div>
+
+      {/* Barra de acción en lote (aparece con la selección). */}
+      {checked.size > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-primary/30 bg-brand-primary-50 px-4 py-2.5">
+          <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-deep">
+            <ListChecks className="h-4 w-4 text-brand-primary" aria-hidden="true" />
+            {checked.size} seleccionado{checked.size === 1 ? "" : "s"}
+          </span>
+          <div className="flex gap-2">
+            <QavanteButton size="sm" variant="ghost" onClick={() => setChecked(new Set())}>
+              Limpiar
+            </QavanteButton>
+            <QavanteButton
+              size="sm"
+              onClick={() => setBulkOpen(true)}
+              disabled={accountsQuery.isError}
+            >
+              Clasificar {checked.size}
+            </QavanteButton>
+          </div>
+        </div>
+      )}
       <ul
         ref={listRef}
         role="listbox"
@@ -281,11 +398,20 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
               onMouseMove={() => setActive(idx)}
               className={cn(
                 "flex items-center gap-4 p-3 transition-colors",
-                isActive
-                  ? "bg-brand-primary-50 ring-1 ring-inset ring-brand-primary/30"
-                  : "hover:bg-surface-muted",
+                checked.has(m.id)
+                  ? "bg-brand-primary-50/60"
+                  : isActive
+                    ? "bg-brand-primary-50 ring-1 ring-inset ring-brand-primary/30"
+                    : "hover:bg-surface-muted",
               )}
             >
+              <input
+                type="checkbox"
+                checked={checked.has(m.id)}
+                onChange={() => toggleCheck(m.id)}
+                className="h-4 w-4 shrink-0 accent-brand-primary"
+                aria-label={`Seleccionar ${m.description}`}
+              />
               <span className="w-24 shrink-0 text-sm text-neutral-mid">
                 {m.date ? formatDate(new Date(m.date)) : "—"}
               </span>
@@ -366,6 +492,92 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
         rule={null}
         suggestion={suggestionDraft}
       />
+
+      {/* Clasificar en lote: una misma categoría a todos los seleccionados. */}
+      <Dialog.Root
+        open={bulkOpen}
+        onOpenChange={(o) => {
+          if (!bulkRun?.running) setBulkOpen(o);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-40 bg-brand-deep/40 backdrop-blur-sm data-[open]:animate-in data-[closed]:animate-out" />
+          <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border-strong bg-surface p-5 shadow-xl data-[open]:animate-in data-[closed]:animate-out">
+            <Dialog.Title className="text-lg font-semibold text-neutral-dark">
+              Clasificar {checked.size} movimiento{checked.size === 1 ? "" : "s"}
+            </Dialog.Title>
+            <p className="mt-1 text-sm text-neutral-mid">
+              Se aplica la misma categoría a todos los seleccionados.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-neutral-dark">Cuenta de gestión</span>
+                <select
+                  value={bulkAccountId}
+                  onChange={(e) => setBulkAccountId(e.target.value)}
+                  aria-label="Cuenta de gestión"
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                >
+                  <option value="">Elige una cuenta…</option>
+                  {accountOptions
+                    .filter((o) => o.selectable)
+                    .map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {"  ".repeat(Math.max(0, o.level))}
+                        {o.displayName}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block font-medium text-neutral-dark">
+                  Categoría canónica{" "}
+                  <span className="font-normal text-neutral-mid">(opcional)</span>
+                </span>
+                <select
+                  value={bulkCanonical}
+                  onChange={(e) => setBulkCanonical(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                >
+                  <option value="">Sin categoría canónica</option>
+                  {canonicalOptions.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {bulkRun?.running && (
+              <p className="mt-3 inline-flex items-center gap-2 text-sm text-brand-primary-700">
+                <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                Clasificando {bulkRun.done}/{bulkRun.total}…
+              </p>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <QavanteButton
+                size="sm"
+                variant="ghost"
+                disabled={Boolean(bulkRun?.running)}
+                onClick={() => setBulkOpen(false)}
+              >
+                Cancelar
+              </QavanteButton>
+              <QavanteButton
+                size="sm"
+                onClick={runBulk}
+                loading={Boolean(bulkRun?.running)}
+                disabled={!bulkAccountId || Boolean(bulkRun?.running)}
+              >
+                Clasificar {checked.size}
+              </QavanteButton>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

@@ -62,6 +62,29 @@ test.describe("Flujo: clasificar un movimiento (/caja/por-clasificar)", () => {
     ).toBeVisible();
   });
 
+  test("clasificar en lote: seleccionar todos → aplicar una categoría a todos", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/caja/por-clasificar");
+
+    // Seleccionar todos → aparece la barra de lote con el conteo.
+    await page.getByRole("checkbox", { name: "Seleccionar todos los movimientos" }).check();
+    const openBulk = page.getByRole("button", { name: /^Clasificar \d+$/ }).first();
+    await expect(openBulk).toBeVisible();
+    await openBulk.click();
+
+    // Diálogo del lote: elegir cuenta y aplicar.
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("heading", { name: /Clasificar \d+ movimiento/ })).toBeVisible();
+    await dialog.getByLabel("Cuenta de gestión").selectOption({ index: 1 });
+    await dialog.getByRole("button", { name: /^Clasificar \d+$/ }).click();
+
+    // Confirmación (toast) de los movimientos clasificados.
+    await expect(page.getByText(/movimientos? clasificados?/i)).toBeVisible();
+  });
+
   test("cancelar cierra el drawer sin guardar", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/caja/por-clasificar");
