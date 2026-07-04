@@ -40,6 +40,8 @@ export interface DynamicTableProps<TData> {
   data: TData[];
   /** Orden inicial de columnas (ids). Default: el orden de `columns`. */
   initialColumnOrder?: string[];
+  /** Orden inicial de filas (columna + dirección). Default: sin ordenar. */
+  initialSorting?: SortingState;
   /** Ancho mínimo de la tabla (para el scroll horizontal). */
   minWidth?: number;
 }
@@ -52,9 +54,10 @@ export function DynamicTable<TData>({
   columns,
   data,
   initialColumnOrder,
+  initialSorting,
   minWidth = 720,
 }: DynamicTableProps<TData>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>(initialSorting ?? []);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>(
     initialColumnOrder ?? columns.map((c) => c.id as string),
@@ -151,7 +154,10 @@ export function DynamicTable<TData>({
                             {sorted === "asc" ? (
                               <ArrowUp className="h-3 w-3 text-brand-primary" aria-hidden="true" />
                             ) : sorted === "desc" ? (
-                              <ArrowDown className="h-3 w-3 text-brand-primary" aria-hidden="true" />
+                              <ArrowDown
+                                className="h-3 w-3 text-brand-primary"
+                                aria-hidden="true"
+                              />
                             ) : (
                               <ChevronsUpDown className="h-3 w-3 opacity-30" aria-hidden="true" />
                             )}
@@ -176,11 +182,20 @@ export function DynamicTable<TData>({
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted">
+              <tr
+                key={row.id}
+                className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted"
+              >
                 {row.getVisibleCells().map((cell) => {
                   const align = colAlign(cell.column.columnDef.meta);
                   return (
-                    <td key={cell.id} className={cn("px-3 py-2 text-neutral-dark", align && "text-right tabular-nums")}>
+                    <td
+                      key={cell.id}
+                      className={cn(
+                        "px-3 py-2 text-neutral-dark",
+                        align && "text-right tabular-nums",
+                      )}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   );
@@ -199,7 +214,8 @@ export function DynamicTable<TData>({
       </div>
 
       <p className="text-xs text-neutral-mid">
-        Clic en un título para ordenar · arrastra el ⠿ para mover columnas · botón «Filtros» para filtrar por columna.
+        Clic en un título para ordenar · arrastra el ⠿ para mover columnas · botón «Filtros» para
+        filtrar por columna.
       </p>
     </div>
   );

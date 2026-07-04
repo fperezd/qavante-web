@@ -179,8 +179,9 @@ export function RcvListView({
      Chipax, default). "detalle" = lista plana documento por documento. */
   const [viewMode, setViewMode] = React.useState<"agrupado" | "detalle">("agrupado");
   const [selected, setSelected] = React.useState<FacturaRow<RcvDoc> | null>(null);
-  /* Orden por columna (clic en el título): none → asc → desc → none. */
-  const [sort, setSort] = React.useState<SortState | null>(null);
+  /* Orden por columna (clic en el título): none → asc → desc → none. Arranca por
+     fecha descendente: las facturas más recientes primero (pedido de Fernando). */
+  const [sort, setSort] = React.useState<SortState | null>({ key: "fecha", dir: "desc" });
 
   const onToggleSort = React.useCallback((key: SortKey) => {
     setSort((s) => toggleSort(s, key));

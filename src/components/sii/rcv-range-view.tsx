@@ -7,7 +7,7 @@ import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { api } from "@/lib/api/client";
 import { siiKeys, type RcvComprasResponse, type RcvVentasResponse } from "@/lib/api/sii";
 import {
-  defaultRange,
+  presetRange,
   expandPeriodRange,
   formatRangeLabel,
   type PeriodRange,
@@ -23,7 +23,9 @@ import {
 type RcvResp = RcvVentasResponse | RcvComprasResponse;
 
 export function RcvRangeView({ kind }: { kind: RcvKind }) {
-  const [range, setRange] = React.useState<PeriodRange>(() => defaultRange());
+  // Por defecto: el año en curso (enero → mes actual), para ver todo el año sin
+  // ampliar el filtro cada vez.
+  const [range, setRange] = React.useState<PeriodRange>(() => presetRange("este_ano"));
   const periods = React.useMemo(() => expandPeriodRange(range), [range]);
 
   const results = useQueries({
@@ -51,7 +53,9 @@ export function RcvRangeView({ kind }: { kind: RcvKind }) {
   const isError = results.length > 0 && results.every((r) => r.isError);
   const error = results.find((r) => r.isError)?.error ?? null;
 
-  const data = (kind === "ventas" ? { status: "ok", ventas: docs } : { status: "ok", compras: docs }) as unknown as RcvResp;
+  const data = (kind === "ventas"
+    ? { status: "ok", ventas: docs }
+    : { status: "ok", compras: docs }) as unknown as RcvResp;
 
   const query = {
     data,

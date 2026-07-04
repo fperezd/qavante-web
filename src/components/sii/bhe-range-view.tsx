@@ -7,7 +7,7 @@ import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { api } from "@/lib/api/client";
 import { siiKeys, type BheResponse, type BheRecibida } from "@/lib/api/sii";
 import {
-  defaultRange,
+  presetRange,
   expandPeriodRange,
   formatRangeLabel,
   type PeriodRange,
@@ -18,7 +18,8 @@ import {
    boletas. Los totales (líquido/retención) y las anuladas operan sobre el set
    combinado. */
 export function BheRangeView() {
-  const [range, setRange] = React.useState<PeriodRange>(() => defaultRange());
+  // Por defecto: el año en curso (enero → mes actual).
+  const [range, setRange] = React.useState<PeriodRange>(() => presetRange("este_ano"));
   const periods = React.useMemo(() => expandPeriodRange(range), [range]);
 
   const results = useQueries({

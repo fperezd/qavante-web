@@ -21,7 +21,12 @@ export interface RcvDetalleGridProps {
   hasActiveFilters: boolean;
 }
 
-export function RcvDetalleGrid({ docs, totals, partyLabel, hasActiveFilters }: RcvDetalleGridProps) {
+export function RcvDetalleGrid({
+  docs,
+  totals,
+  partyLabel,
+  hasActiveFilters,
+}: RcvDetalleGridProps) {
   const columns = React.useMemo<ColumnDef<RcvDoc, unknown>[]>(
     () => [
       {
@@ -64,7 +69,9 @@ export function RcvDetalleGrid({ docs, totals, partyLabel, hasActiveFilters }: R
         accessorFn: (d) => `${d.razon_social ?? ""} ${d.rut_contraparte ?? ""}`,
         cell: ({ row }) => (
           <div>
-            <span className="block text-neutral-dark">{row.original.razon_social ?? "Sin nombre"}</span>
+            <span className="block text-neutral-dark">
+              {row.original.razon_social ?? "Sin nombre"}
+            </span>
             {row.original.rut_contraparte && (
               <span className="block font-mono text-xs text-neutral-mid">
                 {row.original.rut_contraparte}
@@ -76,7 +83,8 @@ export function RcvDetalleGrid({ docs, totals, partyLabel, hasActiveFilters }: R
       {
         id: "neto",
         header: "Neto",
-        accessorFn: (d) => (typeof d.monto_neto === "number" ? d.monto_neto : Number.NEGATIVE_INFINITY),
+        accessorFn: (d) =>
+          typeof d.monto_neto === "number" ? d.monto_neto : Number.NEGATIVE_INFINITY,
         enableColumnFilter: false,
         meta: { align: "right" },
         cell: ({ row }) =>
@@ -85,7 +93,8 @@ export function RcvDetalleGrid({ docs, totals, partyLabel, hasActiveFilters }: R
       {
         id: "iva",
         header: "IVA",
-        accessorFn: (d) => (typeof d.monto_iva === "number" ? d.monto_iva : Number.NEGATIVE_INFINITY),
+        accessorFn: (d) =>
+          typeof d.monto_iva === "number" ? d.monto_iva : Number.NEGATIVE_INFINITY,
         enableColumnFilter: false,
         meta: { align: "right" },
         cell: ({ row }) =>
@@ -98,7 +107,8 @@ export function RcvDetalleGrid({ docs, totals, partyLabel, hasActiveFilters }: R
       {
         id: "total",
         header: "Total",
-        accessorFn: (d) => (typeof d.monto_total === "number" ? d.monto_total : Number.NEGATIVE_INFINITY),
+        accessorFn: (d) =>
+          typeof d.monto_total === "number" ? d.monto_total : Number.NEGATIVE_INFINITY,
         enableColumnFilter: false,
         meta: { align: "right" },
         cell: ({ row }) =>
@@ -114,7 +124,12 @@ export function RcvDetalleGrid({ docs, totals, partyLabel, hasActiveFilters }: R
 
   return (
     <div className="space-y-2">
-      <DynamicTable columns={columns} data={docs} minWidth={720} />
+      <DynamicTable
+        columns={columns}
+        data={docs}
+        minWidth={720}
+        initialSorting={[{ id: "fecha", desc: true }]}
+      />
 
       <div className="rounded-xl border border-border-strong bg-surface-muted px-3 py-2 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
