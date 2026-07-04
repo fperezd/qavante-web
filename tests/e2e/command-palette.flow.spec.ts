@@ -10,6 +10,10 @@ test.describe("Flujo: command palette (⌘K)", () => {
     await loginAs(context, "owner");
     await page.goto("/inicio");
 
+    // El atajo global se registra en un efecto del shell → esperar a que el
+    // header (mismo árbol cliente) esté montado/hidratado antes de disparar ⌘K.
+    await expect(page.getByRole("button", { name: /Buscar y navegar/ })).toBeVisible();
+
     // Abrir con el atajo global.
     await page.keyboard.press("Control+k");
     const input = page.getByPlaceholder("Buscar pantalla o acción…");
