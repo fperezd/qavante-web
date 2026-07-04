@@ -34,7 +34,7 @@ export default function MiCuentaPage() {
         <QavanteEmpty
           icon={UserCircle}
           title="Mi cuenta — disponible pronto"
-          description="Acá vas a ver tu perfil, tu rol en la empresa y vas a poder cerrar sesión. Se habilita cuando se active la sección."
+          description="Aquí vas a ver tu perfil, tu rol en la empresa y vas a poder cerrar sesión. Se habilita cuando se active la sección."
         />
       )}
     </div>

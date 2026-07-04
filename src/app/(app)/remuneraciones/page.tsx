@@ -32,7 +32,7 @@ export default function RemuneracionesPage() {
         <QavanteEmpty
           icon={Users}
           title="Remuneraciones — disponible pronto"
-          description="Acá vas a ver la dotación de empleados y los totales de la planilla (haberes, descuentos y líquido) del conector de Remuneraciones. Se habilita cuando se active la sección."
+          description="Aquí vas a ver la dotación de empleados y los totales de la planilla del conector de Remuneraciones. Se habilita cuando se active la sección."
         />
       )}
     </div>

@@ -4,8 +4,17 @@ import Link from "next/link";
 import { Bell, Menu, Search } from "lucide-react";
 import { QavanteBadge, QavanteLogo } from "@/components/qavante";
 import { useMe } from "@/lib/api/users";
+import { useDashboardSummary } from "@/lib/api/dashboard";
 import { CompanySwitcher } from "./company-switcher";
 import { SyncStatusIndicator } from "./sync-status-indicator";
+
+/** Mapea el estado del Pulso (backend) al variant del badge. */
+const PULSO_VARIANT: Record<string, "success" | "warning" | "danger"> = {
+  strong: "success",
+  stable: "success",
+  weak: "warning",
+  critical: "danger",
+};
 
 export interface AppHeaderProps {
   onMenuClick: () => void;
@@ -26,6 +35,11 @@ function initialsOf(name?: string | null): string {
 export function AppHeader({ onMenuClick, syncStatusEnabled }: AppHeaderProps) {
   const { data } = useMe();
   const user = data?.user;
+  /* Pulso real del negocio (mismo dato que el Inicio Ejecutivo; comparte cache
+     de React Query). Si el backend no lo expone (flag OFF o sin sesión), no
+     mostramos badge — nada de números placeholder que contradigan el dashboard. */
+  const { data: dashboard } = useDashboardSummary();
+  const pulso = dashboard?.pulso ?? null;
 
   return (
     <header className="glass sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border px-4">
@@ -65,18 +79,22 @@ export function AppHeader({ onMenuClick, syncStatusEnabled }: AppHeaderProps) {
         {/* Indicador de sincronización (gated `syncStatus`). */}
         {syncStatusEnabled && <SyncStatusIndicator />}
 
-        {/* Pulso badge (placeholder) — contexto descriptivo para SR */}
-        <div
-          className="hidden items-center gap-1.5 md:flex"
-          aria-label="Pulso de tu empresa: 742 puntos"
-        >
-          <span className="text-xs text-neutral-mid" aria-hidden="true">
-            Pulso
-          </span>
-          <QavanteBadge variant="success" aria-hidden="true">
-            742
-          </QavanteBadge>
-        </div>
+        {/* Pulso real del negocio (mismo valor que el Inicio Ejecutivo). Solo se
+            muestra si el backend lo entrega; si no, no hay badge. */}
+        {pulso && (
+          <Link
+            href="/inicio"
+            className="hidden items-center gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 md:flex"
+            aria-label={`Pulso de tu empresa: ${pulso.score} puntos. Ver Inicio.`}
+          >
+            <span className="text-xs text-neutral-mid" aria-hidden="true">
+              Pulso
+            </span>
+            <QavanteBadge variant={PULSO_VARIANT[pulso.status] ?? "info"} aria-hidden="true">
+              {pulso.score}
+            </QavanteBadge>
+          </Link>
+        )}
 
         {/* Notificaciones */}
         <button

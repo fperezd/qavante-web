@@ -71,8 +71,8 @@ export default function CobrarPage() {
 
       <QavanteEmpty
         icon={ArrowDownToLine}
-        title="Cobranza — construcción en Sprint C4"
-        description="Acá vas a ver tus documentos por cobrar ordenados por prioridad, cobranza vencida, antigüedad de saldos y acciones sugeridas por cliente. Disponible al cerrar Sprint C4."
+        title="Cobranza"
+        description="Aquí vas a ver tus documentos por cobrar ordenados por prioridad, la cobranza vencida, la antigüedad de saldos y acciones sugeridas por cliente. Muy pronto disponible."
       />
     </div>
   );
