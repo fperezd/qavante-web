@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { QavanteCard, QavanteBadge, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
+import {
+  QavanteCard,
+  QavanteBadge,
+  QavanteEmpty,
+  QavanteInlineError,
+  QavanteStatTile,
+} from "@/components/qavante";
 import { useAccountsPayable, type AccountsPayableResponse } from "@/lib/api/pagos";
 import {
   PartialDataBanner,
@@ -72,10 +78,14 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
 
       {/* Resumen. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Metric label="Total por pagar" value={formatClp(parseAmount(data.total))} />
-        <Metric label="Próx. 7 días" value={formatClp(parseAmount(data.due_7d))} accent />
-        <Metric label="Próx. 14 días" value={formatClp(parseAmount(data.due_14d))} />
-        <Metric label="Próx. 30 días" value={formatClp(parseAmount(data.due_30d))} />
+        <QavanteStatTile label="Total por pagar" value={formatClp(parseAmount(data.total))} />
+        <QavanteStatTile
+          label="Próx. 7 días"
+          value={formatClp(parseAmount(data.due_7d))}
+          tone="danger"
+        />
+        <QavanteStatTile label="Próx. 14 días" value={formatClp(parseAmount(data.due_14d))} />
+        <QavanteStatTile label="Próx. 30 días" value={formatClp(parseAmount(data.due_30d))} />
       </div>
 
       {/* Relación contra caja. */}
@@ -162,22 +172,6 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         </div>
       </QavanteCard>
     </div>
-  );
-}
-
-function Metric({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <QavanteCard variant="bordered">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
-      <p
-        className={
-          "mt-1 text-lg font-bold tabular-nums " +
-          (accent ? "text-danger-500" : "text-neutral-dark")
-        }
-      >
-        {value}
-      </p>
-    </QavanteCard>
   );
 }
 

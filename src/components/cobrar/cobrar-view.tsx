@@ -3,7 +3,13 @@
 import * as React from "react";
 import Link from "next/link";
 import { FileOutput } from "lucide-react";
-import { QavanteCard, QavanteBadge, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
+import {
+  QavanteCard,
+  QavanteBadge,
+  QavanteEmpty,
+  QavanteInlineError,
+  QavanteStatTile,
+} from "@/components/qavante";
 import { useAccountsReceivable, type AccountsReceivableResponse } from "@/lib/api/cobranza";
 import {
   PartialDataBanner,
@@ -98,12 +104,16 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
 
       {/* Resumen. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Metric label="Total por cobrar" value={formatClp(parseAmount(data.total))} />
-        <Metric label="Vencido" value={formatClp(parseAmount(data.overdue))} danger />
-        <Metric
+        <QavanteStatTile label="Total por cobrar" value={formatClp(parseAmount(data.total))} />
+        <QavanteStatTile
+          label="Vencido"
+          value={formatClp(parseAmount(data.overdue))}
+          tone="danger"
+        />
+        <QavanteStatTile
           label="% vencido"
           value={`${parseAmount(data.overdue_pct).toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`}
-          danger
+          tone="danger"
         />
       </div>
 
@@ -220,22 +230,6 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
         </QavanteCard>
       )}
     </div>
-  );
-}
-
-function Metric({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
-  return (
-    <QavanteCard variant="bordered">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
-      <p
-        className={
-          "mt-1 text-xl font-bold tabular-nums " +
-          (danger ? "text-danger-500" : "text-neutral-dark")
-        }
-      >
-        {value}
-      </p>
-    </QavanteCard>
   );
 }
 
