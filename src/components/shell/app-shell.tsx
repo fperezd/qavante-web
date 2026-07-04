@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AppHeader } from "@/components/shell/header";
 import { AppSidebar } from "@/components/shell/sidebar";
 import { Breadcrumbs } from "@/components/shell/breadcrumbs";
 import { SkipLink } from "@/components/shell/skip-link";
+import { CommandPalette } from "@/components/shell/command-palette";
 import { AssistantTrigger } from "@/components/assistant/trigger";
 import { Assistant } from "@/components/assistant/assistant";
 import type { UserRole } from "@/lib/auth/types";
@@ -29,11 +30,29 @@ export function AppShell({
   remuneracionesEnabled,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  /* Atajo global ⌘K / Ctrl+K → abre el command palette (navegación por teclado).
+     Se ignora si el foco está en un input/textarea salvo que sea el propio atajo. */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
       <SkipLink />
-      <AppHeader onMenuClick={() => setSidebarOpen(true)} syncStatusEnabled={syncStatusEnabled} />
+      <AppHeader
+        onMenuClick={() => setSidebarOpen(true)}
+        onOpenSearch={() => setPaletteOpen(true)}
+        syncStatusEnabled={syncStatusEnabled}
+      />
 
       <div className="flex">
         <AppSidebar
@@ -50,6 +69,8 @@ export function AppShell({
           </div>
         </main>
       </div>
+
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} userRole={userRole} />
 
       {assistantEnabled ? <Assistant /> : <AssistantTrigger />}
     </div>

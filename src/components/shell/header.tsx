@@ -18,6 +18,8 @@ const PULSO_VARIANT: Record<string, "success" | "warning" | "danger"> = {
 
 export interface AppHeaderProps {
   onMenuClick: () => void;
+  /** Abre el command palette (⌘K) al clickear la barra de búsqueda. */
+  onOpenSearch?: () => void;
   /** Monta el indicador de sincronización (gated `syncStatus`, server-resuelto). */
   syncStatusEnabled?: boolean;
 }
@@ -32,7 +34,7 @@ function initialsOf(name?: string | null): string {
     .join("");
 }
 
-export function AppHeader({ onMenuClick, syncStatusEnabled }: AppHeaderProps) {
+export function AppHeader({ onMenuClick, onOpenSearch, syncStatusEnabled }: AppHeaderProps) {
   const { data } = useMe();
   const user = data?.user;
   /* Pulso real del negocio (mismo dato que el Inicio Ejecutivo; comparte cache
@@ -61,12 +63,12 @@ export function AppHeader({ onMenuClick, syncStatusEnabled }: AppHeaderProps) {
       {/* Selector de empresa (N:M, ADR-0049): listar / cambiar / crear. */}
       <CompanySwitcher />
 
-      {/* Búsqueda CMD+K (placeholder) */}
+      {/* Búsqueda global / command palette (⌘K). */}
       <button
         type="button"
+        onClick={onOpenSearch}
         className="hidden flex-1 items-center gap-2 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-sm text-neutral-mid transition-colors hover:border-brand-primary md:inline-flex md:max-w-md"
-        aria-label="Búsqueda global"
-        disabled
+        aria-label="Buscar y navegar (Ctrl+K)"
       >
         <Search className="h-4 w-4" />
         <span className="flex-1 text-left">Buscar…</span>
