@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RotateCw } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { cn } from "@/lib/utils";
@@ -24,9 +24,18 @@ export interface QavanteInlineErrorProps extends React.HTMLAttributes<HTMLDivEle
   /** Qué se intentaba cargar — completa la frase "No pudimos cargar {what}".
    *  Ej: "las reglas", "los ajustes de moneda", "las plantillas". */
   what: string;
+  /** Si se pasa, muestra un botón "Reintentar" (ej. `() => query.refetch()`).
+   *  Sin esto, el error es un callejón: el usuario debe recargar la página. */
+  onRetry?: () => void;
 }
 
-export function QavanteInlineError({ error, what, className, ...rest }: QavanteInlineErrorProps) {
+export function QavanteInlineError({
+  error,
+  what,
+  onRetry,
+  className,
+  ...rest
+}: QavanteInlineErrorProps) {
   const message =
     error instanceof ApiError ? apiErrorToUserMessage(error) : `No pudimos cargar ${what}.`;
   return (
@@ -39,7 +48,19 @@ export function QavanteInlineError({ error, what, className, ...rest }: QavanteI
       {...rest}
     >
       <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
-      <p>{message}</p>
+      <div className="flex flex-1 flex-wrap items-center justify-between gap-2">
+        <p>{message}</p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-danger-500/30 px-2.5 py-1 text-xs font-semibold text-danger-700 transition-colors hover:bg-danger-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+          >
+            <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+            Reintentar
+          </button>
+        )}
+      </div>
     </div>
   );
 }

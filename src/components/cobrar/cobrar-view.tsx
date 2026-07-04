@@ -2,11 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertCircle, FileOutput } from "lucide-react";
-import { QavanteCard, QavanteBadge, QavanteEmpty } from "@/components/qavante";
+import { FileOutput } from "lucide-react";
+import { QavanteCard, QavanteBadge, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import { useAccountsReceivable, type AccountsReceivableResponse } from "@/lib/api/cobranza";
-import { ApiError } from "@/lib/api/errors";
-import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import {
   PartialDataBanner,
   SyncPendingState,
@@ -14,7 +12,7 @@ import {
   isSyncPending,
 } from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
-import { formatDate } from "@/lib/formatters/date";
+import { formatDateLike } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
 import { parseAmount, agingBars } from "./cobranza-format";
 
@@ -46,23 +44,17 @@ export function CobrarView({ siiEnabled }: CobrarViewProps) {
       {query.isLoading ? (
         <LoadingSkeleton />
       ) : query.isError ? (
-        <div
-          role="alert"
-          className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
-        >
-          <AlertCircle
-            className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500"
-            aria-hidden="true"
-          />
-          <p>
-            {query.error instanceof ApiError
-              ? apiErrorToUserMessage(query.error)
-              : "No pudimos cargar las cuentas por cobrar. Intenta nuevamente."}
-          </p>
-        </div>
+        <QavanteInlineError
+          error={query.error}
+          what="las cuentas por cobrar"
+          onRetry={() => query.refetch()}
+        />
       ) : query.data && parseAmount(query.data.total) === 0 ? (
         isSyncPending(query.data) ? (
-          <SyncPendingState missingSources={query.data.missing_sources} what="tus cuentas por cobrar" />
+          <SyncPendingState
+            missingSources={query.data.missing_sources}
+            what="tus cuentas por cobrar"
+          />
         ) : (
           <QavanteEmpty
             title="No tienes cuentas por cobrar"
@@ -211,9 +203,7 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
                       <span className="text-xs text-neutral-mid">{formatRut(doc.client_rut)}</span>
                     </td>
                     <td className="py-2 pr-3 text-neutral-dark">{doc.document}</td>
-                    <td className="py-2 pr-3 text-neutral-mid">
-                      {doc.due_date ? formatDate(new Date(doc.due_date)) : "—"}
-                    </td>
+                    <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(doc.due_date)}</td>
                     <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
                       {formatClp(parseAmount(doc.balance))}
                     </td>
