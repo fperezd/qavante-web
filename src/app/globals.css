@@ -28,11 +28,35 @@
   --color-border: var(--qv-border);
   --color-border-strong: var(--qv-border-strong);
 
-  /* Semánticos */
+  /* Semánticos — rampa completa (50/100/400/500/600/700). Habilita texto -700
+     sobre fondo -50/-100 (color con significado financiero, contraste AA). */
+  --color-success-50: var(--qv-success-50);
+  --color-success-100: var(--qv-success-100);
+  --color-success-400: var(--qv-success-400);
   --color-success-500: var(--qv-success-500);
+  --color-success-600: var(--qv-success-600);
+  --color-success-700: var(--qv-success-700);
+
+  --color-warning-50: var(--qv-warning-50);
+  --color-warning-100: var(--qv-warning-100);
+  --color-warning-400: var(--qv-warning-400);
   --color-warning-500: var(--qv-warning-500);
+  --color-warning-600: var(--qv-warning-600);
+  --color-warning-700: var(--qv-warning-700);
+
+  --color-danger-50: var(--qv-danger-50);
+  --color-danger-100: var(--qv-danger-100);
+  --color-danger-400: var(--qv-danger-400);
   --color-danger-500: var(--qv-danger-500);
+  --color-danger-600: var(--qv-danger-600);
+  --color-danger-700: var(--qv-danger-700);
+
+  --color-info-50: var(--qv-info-50);
+  --color-info-100: var(--qv-info-100);
+  --color-info-400: var(--qv-info-400);
   --color-info-500: var(--qv-info-500);
+  --color-info-600: var(--qv-info-600);
+  --color-info-700: var(--qv-info-700);
 
   /* Bandas Pulso */
   --color-pulso-excelente: var(--qv-pulso-excelente);

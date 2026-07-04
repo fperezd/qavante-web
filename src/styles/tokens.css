@@ -42,11 +42,38 @@
   --qv-neutral-dark: #1d1d1b;
   --qv-surface: #ffffff;
 
-  /* B.2.2 Semánticos (obligatorios, no cambiar — comunican estado) */
+  /* B.2.2 Semánticos (obligatorios — comunican estado). Rampa completa: el `-500`
+     es el ancla del manual; el resto (50/100/400/600/700) son los pasos estándar
+     alrededor de ese tono. NECESARIOS: el color con significado financiero usa
+     texto -700 sobre fondo -50/-100 (chips, montos +/−, banners). Sin estos
+     shades, esas clases no se emiten y positivo/negativo caen a gris idéntico. */
+  --qv-success-50: #ecfdf5;
+  --qv-success-100: #d1fae5;
+  --qv-success-400: #34d399;
   --qv-success-500: #10b981;
+  --qv-success-600: #059669;
+  --qv-success-700: #047857;
+
+  --qv-warning-50: #fffbeb;
+  --qv-warning-100: #fef3c7;
+  --qv-warning-400: #fbbf24;
   --qv-warning-500: #f59e0b;
+  --qv-warning-600: #d97706;
+  --qv-warning-700: #b45309;
+
+  --qv-danger-50: #fef2f2;
+  --qv-danger-100: #fee2e2;
+  --qv-danger-400: #f87171;
   --qv-danger-500: #ef4444;
+  --qv-danger-600: #dc2626;
+  --qv-danger-700: #b91c1c;
+
+  --qv-info-50: #eff6ff;
+  --qv-info-100: #dbeafe;
+  --qv-info-400: #60a5fa;
   --qv-info-500: #3b82f6;
+  --qv-info-600: #2563eb;
+  --qv-info-700: #1d4ed8;
 
   /* B.2.3 Bandas Pulso Empresa */
   --qv-pulso-excelente: #059669;
