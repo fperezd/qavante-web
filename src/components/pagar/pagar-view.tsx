@@ -8,6 +8,7 @@ import {
   QavanteEmpty,
   QavanteInlineError,
   QavanteStatTile,
+  AmountCountUp,
 } from "@/components/qavante";
 import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
 import { useAccountsPayable, type AccountsPayableResponse } from "@/lib/api/pagos";
@@ -79,14 +80,23 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
 
       {/* Resumen. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <QavanteStatTile label="Total por pagar" value={formatClp(parseAmount(data.total))} />
+        <QavanteStatTile
+          label="Total por pagar"
+          value={<AmountCountUp value={parseAmount(data.total)} />}
+        />
         <QavanteStatTile
           label="Próx. 7 días"
-          value={formatClp(parseAmount(data.due_7d))}
+          value={<AmountCountUp value={parseAmount(data.due_7d)} />}
           tone="danger"
         />
-        <QavanteStatTile label="Próx. 14 días" value={formatClp(parseAmount(data.due_14d))} />
-        <QavanteStatTile label="Próx. 30 días" value={formatClp(parseAmount(data.due_30d))} />
+        <QavanteStatTile
+          label="Próx. 14 días"
+          value={<AmountCountUp value={parseAmount(data.due_14d)} />}
+        />
+        <QavanteStatTile
+          label="Próx. 30 días"
+          value={<AmountCountUp value={parseAmount(data.due_30d)} />}
+        />
       </div>
 
       {/* Relación contra caja. */}

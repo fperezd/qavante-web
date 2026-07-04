@@ -9,6 +9,7 @@ import {
   QavanteEmpty,
   QavanteInlineError,
   QavanteStatTile,
+  AmountCountUp,
 } from "@/components/qavante";
 import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
 import { useAccountsReceivable, type AccountsReceivableResponse } from "@/lib/api/cobranza";
@@ -105,10 +106,13 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
 
       {/* Resumen. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <QavanteStatTile label="Total por cobrar" value={formatClp(parseAmount(data.total))} />
+        <QavanteStatTile
+          label="Total por cobrar"
+          value={<AmountCountUp value={parseAmount(data.total)} />}
+        />
         <QavanteStatTile
           label="Vencido"
-          value={formatClp(parseAmount(data.overdue))}
+          value={<AmountCountUp value={parseAmount(data.overdue)} />}
           tone="danger"
         />
         <QavanteStatTile
