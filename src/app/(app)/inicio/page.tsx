@@ -1,5 +1,5 @@
 import { Activity } from "lucide-react";
-import { QavanteEmpty, QavanteButton } from "@/components/qavante";
+import { QavanteEmpty } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { InicioMvpView } from "@/components/inicio/inicio-mvp-view";
 import { InicioEjecutivoView } from "@/components/inicio/inicio-ejecutivo-view";
@@ -31,13 +31,8 @@ export default function InicioPage() {
       ) : (
         <QavanteEmpty
           icon={Activity}
-          title="Inicio Ejecutivo — construcción en Sprint C8"
-          description="Acá vas a ver una frase ejecutiva resumiendo el estado actual de tu empresa, tu Pulso Empresa, alertas prioritarias y próximas acciones. Disponible al cerrar Sprint C8."
-          cta={
-            <QavanteButton size="sm" variant="ghost">
-              Ver roadmap
-            </QavanteButton>
-          }
+          title="Inicio Ejecutivo"
+          description="Aquí vas a ver una frase ejecutiva que resume el estado actual de tu empresa, tu Pulso Empresa, alertas prioritarias y próximas acciones. Muy pronto disponible."
         />
       )}
     </div>

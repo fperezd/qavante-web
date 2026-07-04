@@ -30,8 +30,8 @@ export default function PulsoPage() {
       ) : (
         <QavanteEmpty
           icon={Activity}
-          title="Pulso Empresa — construcción en Sprint C6/C7"
-          description="Acá vas a ver tu índice de salud en detalle: qué lo compone, qué lo empuja arriba o abajo (drivers) y cómo evolucionó en el tiempo. Disponible al cerrar Sprint C6/C7."
+          title="Pulso Empresa"
+          description="Aquí vas a ver tu índice de salud en detalle: qué lo compone, qué lo empuja hacia arriba o hacia abajo y cómo evolucionó en el tiempo. Muy pronto disponible."
         />
       )}
     </div>

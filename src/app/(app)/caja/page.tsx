@@ -72,16 +72,16 @@ export default function CajaPage() {
               icon={TrendingUp}
               title="Reporte de caja"
               description="Entradas y salidas agregadas por período. Default ≈13 semanas con granularidad semanal sobre la capa comprometida."
-              badge="Sprint C3 MVP"
-              badgeVariant="success"
+              badge="Proyección"
+              badgeVariant="info"
             />
           </div>
         </section>
       ) : (
         <QavanteEmpty
           icon={Banknote}
-          title="Caja proyectada — construcción en Sprint C3"
-          description="Acá vas a ver tu flujo de caja, brecha vs caja mínima, columnas obligatorias (cobros, pagos, sueldos, impuestos, deuda) y acciones recomendadas. Disponible al cerrar Sprint C3."
+          title="Caja proyectada"
+          description="Aquí vas a ver tu flujo de caja, la brecha frente a tu caja mínima, las columnas de cobros, pagos, sueldos, impuestos y deuda, y acciones recomendadas. Muy pronto disponible."
         />
       )}
     </div>

@@ -24,4 +24,4 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const SinToken: Story = { name: "Esperando verificación (revisá tu correo)" };
+export const SinToken: Story = { name: "Esperando verificación (revisa tu correo)" };

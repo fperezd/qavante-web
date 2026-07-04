@@ -303,7 +303,7 @@ export function F29View() {
                 )}
               />
               <p id="f29-folio-hint" className="text-xs text-neutral-mid">
-                Lo encontrás en la copia del SII o en tu correo de confirmación.
+                Lo encuentras en la copia del SII o en tu correo de confirmación.
               </p>
               {errors.folioInput && (
                 <p id="f29-folio-error" className="text-xs text-danger-500" role="alert">

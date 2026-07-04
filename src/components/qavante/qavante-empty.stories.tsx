@@ -45,13 +45,8 @@ export const ErrorState: Story = {
 export const ModuleInConstruction: Story = {
   args: {
     icon: FileText,
-    title: "Inicio Ejecutivo — construcción en Sprint C8",
+    title: "Inicio Ejecutivo",
     description:
-      "Acá vas a ver una frase ejecutiva, tu Pulso Empresa, alertas prioritarias y próximas acciones.",
-    cta: (
-      <QavanteButton size="sm" variant="ghost">
-        Ver roadmap
-      </QavanteButton>
-    ),
+      "Aquí vas a ver una frase ejecutiva, tu Pulso Empresa, alertas prioritarias y próximas acciones. Muy pronto disponible.",
   },
 };

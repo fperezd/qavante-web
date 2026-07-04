@@ -61,8 +61,8 @@ export function InicioMvpContent({ user }: InicioMvpContentProps) {
         <div className="space-y-2">
           <h2 className="text-xl font-semibold text-neutral-dark">{greeting}</h2>
           <p className="text-sm text-neutral-mid">
-            Bienvenido al inicio de Qavante. Pulso Empresa, alertas y acciones recomendadas llegan
-            en Sprint C8 cuando el backend exponga los endpoints correspondientes.
+            Bienvenido al inicio de Qavante. Muy pronto vas a ver aquí tu Pulso Empresa, alertas y
+            acciones recomendadas.
           </p>
         </div>
       </QavanteCard>
@@ -77,7 +77,7 @@ export function InicioMvpContent({ user }: InicioMvpContentProps) {
         <InfoCard
           icon={Building2}
           label="Empresa"
-          value={<span className="font-mono text-xs">{user.tenant_id.slice(0, 8)}…</span>}
+          value={user.tenant_name?.trim() || "Tu empresa"}
           extra={<QavanteBadge variant="success">{roleLabel}</QavanteBadge>}
         />
         <InfoCard icon={Clock} label="Último ingreso" value={lastLoginLabel} extra={null} />
