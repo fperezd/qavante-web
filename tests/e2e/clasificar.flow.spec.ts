@@ -10,7 +10,10 @@ import { loginAs } from "./helpers";
    La fixture MSW sirve movimientos sin clasificar + el árbol de cuentas. */
 
 test.describe("Flujo: clasificar un movimiento (/caja/por-clasificar)", () => {
-  test("abre el drawer, elige categoría de gestión y guarda → cierra", async ({ page, context }) => {
+  test("abre el drawer, elige categoría de gestión y guarda → cierra", async ({
+    page,
+    context,
+  }) => {
     await loginAs(context, "owner");
     await page.goto("/caja/por-clasificar");
 
@@ -41,11 +44,32 @@ test.describe("Flujo: clasificar un movimiento (/caja/por-clasificar)", () => {
     await expect(drawerTitle).toBeHidden();
   });
 
+  test("triage por teclado: Enter en la lista abre el drawer del activo", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/caja/por-clasificar");
+
+    // La lista es un listbox navegable por teclado (↑↓ mover, Enter clasificar).
+    const list = page.getByRole("listbox", { name: "Movimientos por clasificar" });
+    await expect(list).toBeVisible();
+
+    // `press` enfoca la lista y dispara Enter → abre el drawer del movimiento activo.
+    await list.press("Enter");
+    await expect(
+      page.getByRole("heading", { name: "Clasificar movimiento", exact: true }),
+    ).toBeVisible();
+  });
+
   test("cancelar cierra el drawer sin guardar", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/caja/por-clasificar");
 
-    await page.getByRole("button", { name: /^Clasificar movimiento/ }).first().click();
+    await page
+      .getByRole("button", { name: /^Clasificar movimiento/ })
+      .first()
+      .click();
     const drawerTitle = page.getByRole("heading", { name: "Clasificar movimiento", exact: true });
     await expect(drawerTitle).toBeVisible();
 

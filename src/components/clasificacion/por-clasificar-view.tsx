@@ -3,7 +3,9 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
+import { CheckCircle2 } from "lucide-react";
 import { QavanteEmpty, QavanteButton, QavanteInlineError } from "@/components/qavante";
+import { cn } from "@/lib/utils";
 import {
   useBankMovements,
   useClassifyBankMovement,
@@ -90,6 +92,26 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
 
   const [selected, setSelected] = React.useState<BankMovement | null>(null);
   const [formError, setFormError] = React.useState<string>();
+  /* Triage por teclado (nivel dios): ↑↓ mueven la fila activa, Enter abre el
+     drawer para clasificarla. `active` indexa `movements`; se acota cuando la
+     lista cambia (al clasificar, la fila desaparece). */
+  const [active, setActive] = React.useState(0);
+  const listRef = React.useRef<HTMLUListElement>(null);
+  const itemCount = movementsQuery.data?.items?.length ?? 0;
+  React.useEffect(() => {
+    setActive((a) => Math.min(a, Math.max(0, itemCount - 1)));
+  }, [itemCount]);
+  /* Enfocar la lista cuando hay ítems y no hay drawer abierto → el teclado
+     funciona de una (y vuelve a la lista al cerrar el drawer). */
+  React.useEffect(() => {
+    if (itemCount > 0 && !selected) listRef.current?.focus();
+  }, [itemCount, selected]);
+  /* Mantener la fila activa a la vista. */
+  React.useEffect(() => {
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-idx="${active}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [active]);
   /* §18.7 — sugerencia capturada desde el banner; abre RuleFormDialog
      pre-poblado. read-only en el endpoint; persiste solo al confirmar el
      POST desde el dialog. */
@@ -122,10 +144,39 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
   if (movements.length === 0) {
     return (
       <QavanteEmpty
-        title="No hay movimientos por clasificar"
-        description="Cuando Qavante reciba movimientos que no pueda clasificar con confianza, vas a poder revisarlos acá."
+        icon={CheckCircle2}
+        title="¡Todo al día! 🎉"
+        description="No te queda ningún movimiento por clasificar. Cuando lleguen nuevos que Qavante no pueda clasificar con confianza, aparecerán acá."
       />
     );
+  }
+
+  /* Abre el drawer para clasificar un movimiento (botón o Enter en la lista).
+     Bloqueado si faltan las cuentas de gestión (no se puede clasificar). */
+  function openFor(m: BankMovement) {
+    if (accountsQuery.isError) return;
+    setFormError(undefined);
+    classify.reset();
+    assign.reset();
+    setSelected(m);
+  }
+
+  /* Triage por teclado: ↑↓ (o j/k) mueven la fila activa; Enter la clasifica.
+     Solo cuando el drawer está cerrado (con el drawer abierto, las teclas son
+     del formulario). */
+  function onListKeyDown(e: React.KeyboardEvent) {
+    if (selected) return;
+    if (e.key === "ArrowDown" || e.key === "j") {
+      e.preventDefault();
+      setActive((a) => Math.min(a + 1, movements.length - 1));
+    } else if (e.key === "ArrowUp" || e.key === "k") {
+      e.preventDefault();
+      setActive((a) => Math.max(a - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const m = movements[active];
+      if (m) openFor(m);
+    }
   }
 
   function closeDrawer() {
@@ -198,44 +249,69 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           what="las cuentas de gestión — no vas a poder clasificar hasta resolverlo"
         />
       )}
-      <ul className="divide-y divide-border rounded-xl border border-border">
-        {movements.map((m) => (
-          <li
-            key={m.id}
-            className="flex items-center gap-4 p-3 transition-colors hover:bg-surface-muted"
-          >
-            <span className="w-24 shrink-0 text-sm text-neutral-mid">
-              {m.date ? formatDate(new Date(m.date)) : "—"}
-            </span>
-            <span
-              className="min-w-0 flex-1 truncate text-sm text-neutral-dark"
-              title={m.description}
+      {/* Triage por teclado (nivel dios). */}
+      <p className="px-1 text-xs text-neutral-mid">
+        Consejo: usa{" "}
+        <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">↑</kbd>{" "}
+        <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">↓</kbd>{" "}
+        para moverte y{" "}
+        <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+          Enter
+        </kbd>{" "}
+        para clasificar.
+      </p>
+      <ul
+        ref={listRef}
+        role="listbox"
+        aria-label="Movimientos por clasificar"
+        aria-activedescendant={movements[active] ? `mov-${movements[active].id}` : undefined}
+        tabIndex={0}
+        onKeyDown={onListKeyDown}
+        className="divide-y divide-border rounded-xl border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+      >
+        {movements.map((m, idx) => {
+          const isActive = idx === active;
+          return (
+            <li
+              key={m.id}
+              id={`mov-${m.id}`}
+              data-idx={idx}
+              role="option"
+              aria-selected={isActive}
+              onMouseMove={() => setActive(idx)}
+              className={cn(
+                "flex items-center gap-4 p-3 transition-colors",
+                isActive
+                  ? "bg-brand-primary-50 ring-1 ring-inset ring-brand-primary/30"
+                  : "hover:bg-surface-muted",
+              )}
             >
-              {m.description}
-            </span>
-            <span className="w-32 shrink-0 text-right text-sm font-medium text-neutral-dark">
-              {formatClp(Number(m.amount) || 0)}
-            </span>
-            <QavanteButton
-              size="sm"
-              variant="secondary"
-              aria-label={`Clasificar movimiento ${m.description}`}
-              // Sin cuentas de gestión no se puede clasificar (422). Mejor
-              // bloquear que abrir un drawer inútil con el error tragado.
-              disabled={accountsQuery.isError}
-              onClick={() => {
-                // Limpiar error stale del movimiento anterior (#4): el error
-                // de classify vive en el container, no en el drawer keyed.
-                setFormError(undefined);
-                classify.reset();
-                assign.reset();
-                setSelected(m);
-              }}
-            >
-              Clasificar
-            </QavanteButton>
-          </li>
-        ))}
+              <span className="w-24 shrink-0 text-sm text-neutral-mid">
+                {m.date ? formatDate(new Date(m.date)) : "—"}
+              </span>
+              <span
+                className="min-w-0 flex-1 truncate text-sm text-neutral-dark"
+                title={m.description}
+              >
+                {m.description}
+              </span>
+              <span className="w-32 shrink-0 text-right text-sm font-medium text-neutral-dark">
+                {formatClp(Number(m.amount) || 0)}
+              </span>
+              <QavanteButton
+                size="sm"
+                variant="secondary"
+                aria-label={`Clasificar movimiento ${m.description}`}
+                // Sin cuentas de gestión no se puede clasificar (422). Mejor
+                // bloquear que abrir un drawer inútil con el error tragado.
+                disabled={accountsQuery.isError}
+                onClick={() => openFor(m)}
+              >
+                Clasificar
+              </QavanteButton>
+            </li>
+          );
+        })}
       </ul>
 
       {selected && (
