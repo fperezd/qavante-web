@@ -46,6 +46,8 @@ const CON_DETALLE = {
     total_descuentos: 900000,
     total_liquido: 2900000,
     total_imponible: 3400000,
+    total_impuesto: 145000,
+    total_previred: 720000,
     empleados_contados: 3,
   },
   detalle: [
@@ -102,7 +104,13 @@ export const SinPlanilla: Story = {
 export const Cargando: Story = {
   args: {
     period: "2026-03",
-    query: buildQuery({ isLoading: true, isFetching: true, isPending: true, isSuccess: false, status: "pending" }),
+    query: buildQuery({
+      isLoading: true,
+      isFetching: true,
+      isPending: true,
+      isSuccess: false,
+      status: "pending",
+    }),
   },
 };
 
