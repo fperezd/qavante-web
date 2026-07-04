@@ -91,8 +91,8 @@ export default function PagarPage() {
       {!accountsPayable && (
         <QavanteEmpty
           icon={ArrowUpFromLine}
-          title="Pagos a proveedores — construcción en Sprint C4"
-          description="Acá vas a ver tus pagos pendientes priorizados, pagos críticos por vencer, recordatorios y proveedores frecuentes. Disponible al cerrar Sprint C4."
+          title="Pagos a proveedores"
+          description="Aquí vas a ver tus pagos pendientes priorizados, los pagos críticos por vencer, recordatorios y proveedores frecuentes. Muy pronto disponible."
         />
       )}
     </div>
