@@ -510,6 +510,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/buk/payroll/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * BUK: detalle de planilla por empleado (ADR-0057)
+         * @description Detalle de planilla **por empleado** (líquido individual) del período.
+         *
+         *     A diferencia de `/payroll` (agregado), expone el líquido individual con
+         *     `employee_id`/`nombre`/`rut`/`liquido` — **owner-only** (ADR-0057). Alimenta las
+         *     tabs "Planilla por empleado" + "Conciliación" del FE.
+         */
+        get: operations["buk_payroll_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/buk/sync-payroll": {
         parameters: {
             query?: never;
@@ -4108,6 +4132,12 @@ export interface components {
              * @description ISO 8601 UTC del último sync exitoso de la fuente (o null si nunca sincronizó). El FE muestra 'actualizado hace X' (ADR-0055 F2, cache-first).
              */
             last_synced_at?: string | null;
+            /**
+             * Stale
+             * @description True si se sirvió el cache por un fallo transitorio del SII (stale-if-error, ADR-0055): el dato puede estar viejo. El FE puede avisar 'último dato disponible'.
+             * @default false
+             */
+            stale: boolean;
             /** Error */
             error?: string | null;
         } & {
@@ -8021,6 +8051,59 @@ export interface components {
              * @description Origen legible (ej. 'SII', 'Previred', 'Manual').
              */
             source: string;
+            /**
+             * Source External Id
+             * @description Clave natural de la obligación (ej. 'payroll-202606'). Para las de categoría 'payroll' el FE deriva el período ('payroll-YYYYMM') para linkear al detalle por empleado (GET /api/buk/payroll/detail?period=).
+             */
+            source_external_id?: string | null;
+        };
+        /**
+         * PayrollDetailEmployee
+         * @description Líquido de un empleado en la planilla del mes (para conciliación fina).
+         */
+        PayrollDetailEmployee: {
+            /**
+             * Employee Id
+             * @description ID del empleado en BUK.
+             */
+            employee_id?: number | string | null;
+            /**
+             * Nombre
+             * @description Nombre completo (de la Dotación, por RUT).
+             */
+            nombre?: string | null;
+            /** Rut */
+            rut: string;
+            /**
+             * Liquido
+             * @description Líquido a recibir del empleado (CLP).
+             * @default 0
+             */
+            liquido: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PayrollDetailResponse
+         * @description Detalle de planilla **por empleado** (ADR-0057). A diferencia de
+         *     `PayrollResponse` (agregado), expone el líquido individual — **owner-only** en la
+         *     capa API. Alimenta las tabs "Planilla por empleado" + "Conciliación".
+         */
+        PayrollDetailResponse: {
+            /** Status */
+            status: string;
+            /**
+             * Period
+             * @description Período 'YYYY-MM'.
+             */
+            period?: string | null;
+            /** Empleados */
+            empleados?: components["schemas"]["PayrollDetailEmployee"][];
+            totales?: components["schemas"]["PayrollTotales"];
+            /** Error */
+            error?: string | null;
+        } & {
+            [key: string]: unknown;
         };
         /** PayrollPaydayResponse */
         PayrollPaydayResponse: {
@@ -8499,6 +8582,12 @@ export interface components {
              * @description ISO 8601 UTC del último sync exitoso de sii_rcv (o null). FE: 'actualizado hace X' (ADR-0055 F2).
              */
             last_synced_at?: string | null;
+            /**
+             * Stale
+             * @description True si se sirvió el cache por un fallo transitorio del SII (stale-if-error, ADR-0055): el dato puede estar viejo. El FE puede avisar 'último dato disponible'.
+             * @default false
+             */
+            stale: boolean;
             /** Error */
             error?: string | null;
         } & {
@@ -8552,6 +8641,12 @@ export interface components {
              * @description ISO 8601 UTC del último sync exitoso de sii_rcv (o null). FE: 'actualizado hace X' (ADR-0055 F2).
              */
             last_synced_at?: string | null;
+            /**
+             * Stale
+             * @description True si se sirvió el cache por un fallo transitorio del SII (stale-if-error, ADR-0055): el dato puede estar viejo. El FE puede avisar 'último dato disponible'.
+             * @default false
+             */
+            stale: boolean;
             /** Error */
             error?: string | null;
         } & {
@@ -10904,6 +10999,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PayrollResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    buk_payroll_detail: {
+        parameters: {
+            query?: {
+                /** @description Período YYYY-MM, YYYYMM o 'marzo 2026'. */
+                period?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollDetailResponse"];
                 };
             };
             /** @description Validation Error */

@@ -9,12 +9,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { SiiPeriodForm } from "@/components/sii/sii-period-form";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
-import {
-  detalleCuadra,
-  normalizePayrollDetalle,
-  sumLiquido,
-  type EmployeePayroll,
-} from "./payroll-detalle";
+import { detalleCuadra, sumLiquido, type EmployeePayroll } from "./payroll-detalle";
 
 /* Planilla — totales del período (BUK) + detalle por empleado (líquido) para
    conciliación bancaria. El detalle por empleado (`payroll.detalle`) es contrato
@@ -26,14 +21,22 @@ export interface PlanillaViewProps {
   period: string | null;
   onPeriodChange: (period: string) => void;
   query: UseQueryResult<PayrollResponse, unknown>;
+  /** Detalle por empleado (líquido individual, ADR-0057). [] si no hay/no-owner.
+   *  Lo resuelve el page desde /api/buk/payroll/detail. */
+  detalle?: EmployeePayroll[];
   /** Selector de período custom (filtro de rango, idéntico al Libro). Reemplaza
    *  al SiiPeriodForm interno. Aditivo. */
   periodForm?: React.ReactNode;
 }
 
-export function PlanillaView({ period, onPeriodChange, query, periodForm }: PlanillaViewProps) {
+export function PlanillaView({
+  period,
+  onPeriodChange,
+  query,
+  detalle = [],
+  periodForm,
+}: PlanillaViewProps) {
   const totales = query.data?.totales;
-  const detalle = React.useMemo(() => normalizePayrollDetalle(query.data), [query.data]);
 
   return (
     <div className="space-y-4">

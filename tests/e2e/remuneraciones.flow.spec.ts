@@ -34,14 +34,16 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     await expect(page.getByText(/Planilla registrada en Pagar/i)).toBeVisible();
   });
 
-  test("Conciliación muestra el estado honesto cuando falta el detalle por empleado", async ({
+  test("Conciliación cruza el líquido por empleado contra el banco (ADR-0057)", async ({
     page,
     context,
   }) => {
     await loginAs(context, "owner");
     await page.goto("/remuneraciones");
 
+    // El detalle por empleado (/payroll/detail) alimenta el cruce → resumen.
     await page.getByRole("tab", { name: "Conciliación" }).click();
-    await expect(page.getByText(/Falta el detalle por empleado/i)).toBeVisible();
+    await expect(page.getByText(/empleados conciliados/i)).toBeVisible();
+    await expect(page.getByText("Ana Pérez Soto")).toBeVisible();
   });
 });
