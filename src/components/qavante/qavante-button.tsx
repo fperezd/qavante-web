@@ -14,8 +14,8 @@ const qavanteButtonVariants = cva(
           "bg-brand-primary text-surface shadow-sm hover:bg-brand-primary-600 hover:shadow-brand active:bg-brand-primary-700",
         secondary: "bg-brand-primary-50 text-brand-primary-700 hover:bg-brand-primary-100",
         ghost: "text-neutral-dark hover:bg-brand-primary-50",
-        danger: "bg-danger-500 text-surface shadow-sm hover:bg-danger-500/90",
-        link: "text-brand-primary underline-offset-4 hover:underline",
+        danger: "bg-danger-500 text-surface shadow-sm hover:bg-danger-600",
+        link: "text-brand-primary-700 underline-offset-4 hover:underline",
       },
       size: {
         sm: "h-8 px-3 text-xs",

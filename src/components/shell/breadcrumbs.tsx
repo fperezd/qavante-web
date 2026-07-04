@@ -39,7 +39,7 @@ export function Breadcrumbs() {
         return (
           <span key={href} className="flex items-center gap-1">
             {i > 0 && <ChevronRight className="h-3 w-3" aria-hidden="true" />}
-            <Link href={href} className="hover:text-brand-primary">
+            <Link href={href} className="hover:text-brand-primary-700">
               {labelFor(segment)}
             </Link>
           </span>
