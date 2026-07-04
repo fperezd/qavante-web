@@ -14,7 +14,7 @@ import {
 } from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
-import { parseAmount, paymentCategoryLabel, criticalFirst } from "./pagos-format";
+import { parseAmount, payableItemLabel, paymentCategoryLabel, criticalFirst } from "./pagos-format";
 
 /* Pagar — cuentas por pagar (Sprint C4, Maestro §7.4): resumen (total + 7/14/30
    días), relación contra caja, y pagos/obligaciones (proveedores + IVA/PPM/
@@ -146,7 +146,9 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
                   className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
                 >
                   <td className="py-2 pr-3 text-neutral-dark">
-                    <span className="block truncate">{it.label}</span>
+                    <span className="block truncate" title={payableItemLabel(it)}>
+                      {payableItemLabel(it)}
+                    </span>
                     <span className="text-xs text-neutral-mid">{it.source}</span>
                   </td>
                   <td className="py-2 pr-3 text-neutral-mid">

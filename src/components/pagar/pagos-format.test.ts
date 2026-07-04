@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAmount, paymentCategoryLabel, criticalFirst } from "./pagos-format";
+import { parseAmount, payableItemLabel, paymentCategoryLabel, criticalFirst } from "./pagos-format";
 import type { PayableItem } from "@/lib/api/pagos";
 
 describe("parseAmount", () => {
@@ -18,6 +18,34 @@ describe("paymentCategoryLabel", () => {
   });
   it("desconocida → 'Otro'", () => {
     expect(paymentCategoryLabel("loquesea")).toBe("Otro");
+  });
+});
+
+describe("payableItemLabel", () => {
+  it("payroll con clave natural → 'Remuneraciones — Mes Año'", () => {
+    expect(
+      payableItemLabel({
+        label: "Remuneraciones — Doc 06",
+        category: "payroll",
+        source_external_id: "payroll-202606",
+      }),
+    ).toBe("Remuneraciones — Junio 2026");
+  });
+
+  it("payroll sin clave natural → respeta el label del backend", () => {
+    expect(payableItemLabel({ label: "Remuneraciones — Doc 06", category: "payroll" })).toBe(
+      "Remuneraciones — Doc 06",
+    );
+  });
+
+  it("otras categorías → label del backend intacto", () => {
+    expect(
+      payableItemLabel({
+        label: "Proveedor ACME",
+        category: "supplier",
+        source_external_id: "sii-123",
+      }),
+    ).toBe("Proveedor ACME");
   });
 });
 
