@@ -500,6 +500,45 @@ const treasuryHandlers = [
       ],
     }),
   ),
+  /* Cuentas que trae BICE con su estado de vínculo. Una vinculada + una EN
+     CUARENTENA (linked_bank_account_id null) → alimenta "Cuentas por vincular". */
+  http.get("*/api/bank-movements/bice/accounts", () =>
+    HttpResponse.json({
+      accounts: [
+        {
+          external_id: "0001234567",
+          name: "Cuenta Corriente",
+          currency: "CLP",
+          linked_bank_account_id: "acct-1",
+        },
+        {
+          external_id: "0009876543",
+          name: "Cuenta Internacional",
+          currency: "USD",
+          linked_bank_account_id: null,
+        },
+      ],
+    }),
+  ),
+  http.post("*/api/treasury/bank-accounts", async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    return HttpResponse.json(
+      {
+        id: "acct-new",
+        name: (body.account_name as string) ?? "Cuenta",
+        bank_name: (body.bank_name as string) ?? "BICE",
+        currency_code: (body.currency_code as string) ?? "CLP",
+        account_type: (body.account_type as string) ?? "checking",
+      },
+      { status: 201 },
+    );
+  }),
+  http.post("*/api/bank-movements/bice/accounts/:externalId/link", ({ params }) =>
+    HttpResponse.json({
+      external_id: String(params.externalId),
+      linked_bank_account_id: "acct-new",
+    }),
+  ),
 
   http.get("*/api/bank-movements", ({ request }) => {
     const url = new URL(request.url);

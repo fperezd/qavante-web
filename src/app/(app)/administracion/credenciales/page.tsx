@@ -11,6 +11,7 @@ import {
   SiiSyncCard,
   BukCredentialCard,
 } from "@/components/credenciales";
+import { LinkBankAccountsCard } from "@/components/treasury/link-bank-accounts-card";
 import { useSiiCredential } from "@/lib/api/credentials";
 
 /* Pantalla Administración → Credenciales y conexiones. SII (Opción A, decisión
@@ -41,6 +42,9 @@ export default function CredencialesPage() {
             en nombre del tenant requiere un consentimiento legal explícito. Sin
             él, el sync devuelve "Consent missing para bank_bice". */}
         <SourceConsentCard sourceCode="bank_bice" label="Autorización de acceso al banco" />
+        {/* Cuentas que BICE trae sin vincular → un clic las mapea a una cuenta
+            Qavante y habilita el sync de sus movimientos (handoff CC-API). */}
+        <LinkBankAccountsCard />
         <CardStatementUpload />
       </section>
 
@@ -53,10 +57,7 @@ export default function CredencialesPage() {
             tiene credencial BUK configurada"); (2) el consentimiento habilita la
             lectura de la dotación/planilla (sin él, 403 "Consent missing"). */}
         <BukCredentialCard />
-        <SourceConsentCard
-          sourceCode="buk"
-          label="Autorización de acceso a Remuneraciones (BUK)"
-        />
+        <SourceConsentCard sourceCode="buk" label="Autorización de acceso a Remuneraciones (BUK)" />
       </section>
 
       {isLoading && (

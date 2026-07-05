@@ -23,6 +23,10 @@ export type PutPayrollPaydayRequest = components["schemas"]["PutPayrollPaydayReq
 export type BankAccountItem = components["schemas"]["BankAccountItem"];
 export type BankAccountsListResponse =
   components["schemas"]["app__core__treasury_schemas__BankAccountsListResponse"];
+export type BiceAccount = components["schemas"]["BankAccountLinkStatus"];
+export type BiceAccountsResponse =
+  components["schemas"]["app__api__bank_ingest_bice__BankAccountsListResponse"];
+export type CreateBankAccountRequest = components["schemas"]["CreateBankAccountRequest"];
 
 export interface BankMovementsParams {
   /** 'unclassified' | 'classified' | undefined (todos). */
@@ -41,6 +45,7 @@ export const treasuryKeys = {
   bankMovements: (params: BankMovementsParams = {}) =>
     [...treasuryKeys.all, "bank-movements", params] as const,
   bankAccounts: () => [...treasuryKeys.all, "bank-accounts"] as const,
+  biceAccounts: () => [...treasuryKeys.all, "bice-accounts"] as const,
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
 };
 
@@ -52,6 +57,44 @@ export function useBankAccounts() {
     queryFn: () => api.get<BankAccountsListResponse>("/api/treasury/bank-accounts"),
     staleTime: 10 * 60 * 1000,
     retry: false,
+  });
+}
+
+/** `GET /api/bank-movements/bice/accounts` — cuentas que BICE trae, con su estado
+ *  de vínculo. `linked_bank_account_id === null` = en cuarentena (por vincular). */
+export function useBiceAccounts() {
+  return useQuery({
+    queryKey: treasuryKeys.biceAccounts(),
+    queryFn: () => api.get<BiceAccountsResponse>("/api/bank-movements/bice/accounts"),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+/** `POST /api/treasury/bank-accounts` — alta de cuenta Qavante (owner/admin).
+ *  Devuelve la cuenta creada (con `id`). Invalida el listado de cuentas. */
+export function useCreateBankAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateBankAccountRequest) =>
+      api.post<BankAccountItem>("/api/treasury/bank-accounts", { body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: treasuryKeys.bankAccounts() }),
+  });
+}
+
+/** `POST /api/bank-movements/bice/accounts/{external_id}/link` — vincula una
+ *  cuenta BICE a una `treasury.bank_accounts`. Invalida BICE + cuentas. */
+export function useLinkBiceAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ externalId, bankAccountId }: { externalId: string; bankAccountId: string }) =>
+      api.post(`/api/bank-movements/bice/accounts/${encodeURIComponent(externalId)}/link`, {
+        body: { bank_account_id: bankAccountId },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: treasuryKeys.biceAccounts() });
+      qc.invalidateQueries({ queryKey: treasuryKeys.bankAccounts() });
+    },
   });
 }
 
