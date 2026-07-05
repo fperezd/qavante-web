@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X, Info } from "lucide-react";
+import { X, Info, FileText } from "lucide-react";
 import {
   QavanteCard,
   QavanteButton,
@@ -12,7 +12,7 @@ import {
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
-import { useSiiF29Impuesto, useSiiF29Giros } from "@/lib/api/sii";
+import { useSiiF29Impuesto, useSiiF29Giros, siiF29PdfUrl } from "@/lib/api/sii";
 
 /* Detalle F29 de un mes (handoff CC-API): dos montos lado a lado — pagar todo
    (`total_con_iva`) vs postergar el IVA (`total_sin_iva`) — + desglose e input
@@ -143,6 +143,19 @@ export function F29MonthDetail({
               />
             </dl>
           </div>
+
+          {/* Drill-down: ver el Certificado Solemne (PDF) del F29 en el SII. */}
+          {data.folio && siiF29PdfUrl(data.folio) && (
+            <a
+              href={siiF29PdfUrl(data.folio) ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            >
+              <FileText className="h-4 w-4" aria-hidden="true" />
+              Ver F29 (PDF) en el SII
+            </a>
+          )}
 
           {/* Input manual cuando no hay fuente confiable del impuesto trabajadores. */}
           {data.fuente_impuesto_trabajadores === "no_disponible" && (
