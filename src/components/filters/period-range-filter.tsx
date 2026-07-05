@@ -21,6 +21,7 @@ import {
 
 const PRESETS: ReadonlyArray<{ id: RangePreset; label: string }> = [
   { id: "mes_actual", label: "Mes actual" },
+  { id: "mes_anterior", label: "Mes anterior" },
   { id: "tres_meses", label: "Tres meses" },
   { id: "seis_meses", label: "Seis meses" },
   { id: "este_ano", label: "Este año" },
