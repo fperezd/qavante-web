@@ -3,7 +3,7 @@
 import * as React from "react";
 import { AlertTriangle } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
-import { formatClp } from "@/lib/formatters/clp";
+import { formatMoney } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import type { BankMovement } from "@/lib/api/treasury";
 import { ClasificadosStatCard, type StatCardTone } from "./clasificados-stat-card";
@@ -41,6 +41,8 @@ export interface ClasificadosStatsProps {
   isPartial: boolean;
   categoriesById: Map<string, CategoryLookupItem>;
   accountsById: Map<string, AccountLookupItem>;
+  /** Moneda de los montos (los items comparten moneda: filtro de cuenta). */
+  currency?: string;
   isLoading?: boolean;
   activeDirection?: "credit" | "debit" | null;
   activeCanonicalCategory?: string | null;
@@ -54,6 +56,7 @@ export function ClasificadosStats({
   isPartial,
   categoriesById,
   accountsById,
+  currency,
   isLoading = false,
   activeDirection = null,
   activeCanonicalCategory = null,
@@ -121,7 +124,7 @@ export function ClasificadosStats({
           />
           <ClasificadosStatCard
             label="Ingresos"
-            value={formatClp(stats.incomeAmount)}
+            value={formatMoney(stats.incomeAmount, currency)}
             tone="success"
             tooltip="Suma de movimientos con dirección ingreso."
             active={incomeActive}
@@ -136,7 +139,7 @@ export function ClasificadosStats({
           />
           <ClasificadosStatCard
             label="Egresos"
-            value={formatClp(stats.expenseAmount)}
+            value={formatMoney(stats.expenseAmount, currency)}
             tone="warning"
             tooltip="Suma de movimientos con dirección egreso."
             active={expenseActive}
@@ -151,7 +154,7 @@ export function ClasificadosStats({
           />
           <ClasificadosStatCard
             label="Neto"
-            value={formatClp(stats.netAmount)}
+            value={formatMoney(stats.netAmount, currency)}
             tone={netTone}
             muted={netMuted}
             tooltip="Ingresos clasificados menos egresos clasificados."
