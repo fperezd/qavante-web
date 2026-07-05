@@ -41,6 +41,7 @@ export type F29GirosResponse = components["schemas"]["F29GirosResponse"];
  *  (`{[k]: unknown}`); acá le damos forma según el handoff CC-API 2026-07-05. */
 export type F29EstadoMesEstado =
   | "declarado"
+  | "sin_dato"
   | "no_declarado_vencido"
   | "por_declarar"
   | "en_curso"

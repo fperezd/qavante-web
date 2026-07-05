@@ -13,6 +13,7 @@ const estado = http.get("*/api/sii/f29/estado", ({ request }) => {
     else if (anio === 2026 && mes === 5) e = "en_curso";
     else if (anio === 2026 && mes === 4) e = "por_declarar";
     else if (anio === 2026 && mes === 3) e = "no_declarado_vencido";
+    else if (anio < 2024) e = "sin_dato";
     const declarado = e === "declarado";
     return {
       mes,

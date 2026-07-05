@@ -1783,6 +1783,8 @@ const siiHandlers = [
       else if (anio === curYear && mes === curMonth) estado = "en_curso";
       else if (anio === curYear && mes === curMonth - 1) estado = "por_declarar";
       else if (anio === 2026 && mes === 3) estado = "no_declarado_vencido";
+      else if (anio < curYear - 1)
+        estado = "sin_dato"; // años viejos sin sincronizar
       else estado = "declarado";
       const declarado = estado === "declarado";
       return {
