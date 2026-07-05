@@ -1754,6 +1754,22 @@ const siiHandlers = [
     ),
   ),
 
+  /* Situación tributaria por RUT (autocompletar razón social al agregar empresa). */
+  http.get("*/api/sii/contribuyente/:rut", ({ params }) => {
+    const rut = String(params.rut);
+    if (rut === "76123456-0") {
+      return HttpResponse.json({
+        status: "ok",
+        rut,
+        razon_social: "EMPRESA DEMO SPA",
+        giro: "Servicios de tecnología",
+        actividades: [],
+        inicio_actividades: "2023-03-01",
+      });
+    }
+    return HttpResponse.json({ status: "not_found", rut, razon_social: null }, { status: 200 });
+  }),
+
   /* Panel F29 — estado por año (debe ir ANTES de `/f29/:folio` o lo captura). */
   http.get("*/api/sii/f29/estado", ({ request }) => {
     const anio = Number(new URL(request.url).searchParams.get("anio")) || 2026;
