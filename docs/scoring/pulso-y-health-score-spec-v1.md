@@ -121,11 +121,14 @@ Evita que un crédito recién girado pinte el PULSO de verde.
 | 20–39 | Tenso | `weak` (con drivers de alta severidad) |
 | 0–19 | Crítico | `critical` |
 
-> Nota: el contrato FE vigente (`pulso-detail-contract.md`) define 4 estados.
-> Las 5 bandas metodológicas se colapsan como arriba; los knock-outs fuerzan
-> `critical`, coherente con la semántica ya documentada. Los `components[]` del
-> contrato deben migrar a COB/RUN/DPC/CAL cuando el backend implemente este motor
-> (punto abierto para CC-API).
+> **La definición anterior de Pulso queda REEMPLAZADA por esta spec** (decisión
+> de Fernando, 2026-07-05). Los componentes de ejemplo del contrato FE-first
+> (liquidez/cobranza/rentabilidad en `pulso-detail-contract.md`) eran
+> placeholders y **no deben considerarse**: la composición autoritativa del
+> Pulso es **COB / RUN / DPC / CAL** con la fórmula de §2.1. Del contrato solo
+> se conserva el *shape* de respuesta (genérico: `key/label/score/weight`) y los
+> 4 estados de display, que se colapsan desde las 5 bandas como indica la tabla;
+> los knock-outs fuerzan `critical`, coherente con la semántica ya documentada.
 
 ---
 
@@ -316,9 +319,9 @@ Reglas objetivas sobre los dos scores; convierten el índice en herramienta
 ## 7. Puntos abiertos
 
 - [ ] Validación de Fernando de pesos y umbrales v1.
-- [ ] CC-API: implementar el motor y alinear `components[]` del contrato
-  `/api/management/pulso` con COB/RUN/DPC/CAL (hoy el contrato FE-first usa
-  liquidez/cobranza/rentabilidad como placeholder).
+- [ ] CC-API: implementar el motor de Pulso **según esta spec** (COB/RUN/DPC/CAL).
+  Los `components[]` de ejemplo del contrato FE-first
+  (liquidez/cobranza/rentabilidad) quedan obsoletos y no deben implementarse.
 - [ ] Definir contrato del QHS (endpoint separado o extensión del dashboard).
 - [ ] Estimación de nómina cuando no hay dato de remuneraciones: inferir del
   histórico bancario (pagos clasificados como remuneraciones, mismos días del mes).
