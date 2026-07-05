@@ -24,8 +24,14 @@ export function CompanySwitcher() {
   const [mode, setMode] = React.useState<"list" | "create">("list");
   const ref = React.useRef<HTMLDivElement>(null);
 
-  const items = tenants.data?.tenants ?? [];
-  const active = items.find((t) => t.is_active);
+  const allItems = tenants.data?.tenants ?? [];
+  /* Parche temporal: ocultar el tenant de config "MVP Tenant" del selector — trae
+     datos de otra conexión y confunde (Fernando creyó que eran suyos). El fix de
+     fondo es que CC-API lo saque del `MVP_TENANT_ID` de config (escalado). El
+     `active` se calcula sobre la lista completa para no romper el label si por
+     algún motivo fuera el activo. */
+  const items = allItems.filter((t) => t.legal_name?.trim().toLowerCase() !== "mvp tenant");
+  const active = allItems.find((t) => t.is_active);
   const label = active?.legal_name ?? "Mi empresa";
   const busy = switchTenant.isPending || createTenant.isPending;
 
