@@ -7,6 +7,7 @@ import { useMe } from "@/lib/api/users";
 import { useDashboardSummary } from "@/lib/api/dashboard";
 import { CompanySwitcher } from "./company-switcher";
 import { SyncStatusIndicator } from "./sync-status-indicator";
+import { SyncAllButton } from "./sync-all-button";
 
 /** Mapea el estado del Pulso (backend) al variant del badge. */
 const PULSO_VARIANT: Record<string, "success" | "warning" | "danger"> = {
@@ -78,6 +79,10 @@ export function AppHeader({ onMenuClick, onOpenSearch, syncStatusEnabled }: AppH
       </button>
 
       <div className="ml-auto flex items-center gap-3">
+        {/* Actualizar todo (SII + banco): un botón global que trae los datos, en
+            vez de sincronizar fuente por fuente (patrón Chipax). */}
+        <SyncAllButton />
+
         {/* Indicador de sincronización (gated `syncStatus`). */}
         {syncStatusEnabled && <SyncStatusIndicator />}
 
