@@ -4,9 +4,11 @@
 > composición del Pulso está definida en
 > [`docs/scoring/pulso-y-health-score-spec-v1.md`](../scoring/pulso-y-health-score-spec-v1.md)
 > — componentes **COB / RUN / DPC / CAL** con fórmula
-> `0.40·COB + 0.25·RUN + 0.20·DPC + 0.15·CAL`. Los ejes de ejemplo de este
-> contrato (liquidez/cobranza/rentabilidad) eran placeholders FE-first y quedan
-> **obsoletos** — CC-API debe implementar el motor según la spec. El *shape* de
+> `0.40·COB + 0.25·RUN + 0.20·DPC + 0.15·CAL`. Formalizada en el backend como
+> **ADR-0064 de qavante-api**, que reemplaza el composite del ADR-0033 §2
+> (`dashboard_pulso.py`). Los ejes de ejemplo de este contrato
+> (liquidez/cobranza/rentabilidad) eran placeholders FE-first y quedan
+> **obsoletos** — CC-API implementa el motor según la spec. El *shape* de
 > respuesta y los 4 `status` de este contrato siguen vigentes (las 5 bandas
 > metodológicas se colapsan a los 4 estados según §2.7 de la spec).
 

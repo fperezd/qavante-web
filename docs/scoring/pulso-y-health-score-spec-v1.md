@@ -1,12 +1,20 @@
 # Especificación v1 — PULSO y Qavante Health Score (QHS)
 
-> **Estado:** propuesta metodológica para validación de Fernando y calibración con datos reales.
-> **Origen:** sesión de asesoría CEO/Controller (2026-07-05) sobre el documento
+> **Estado:** metodología definida con Fernando (2026-07-05); umbrales v1 para
+> calibración con datos reales.
+> **Origen:** sesión de asesoría CEO/Controller sobre el documento
 > `Qavante_Health_Score_Documento_Tecnico_Completo.docx`.
 > **Ámbito:** este documento define la METODOLOGÍA (fórmulas, pesos, umbrales,
 > guardrails). El cálculo es **lógica de negocio del backend** (CLAUDE.md); el FE
 > solo muestra resultados vía contratos como
 > [`pulso-detail-contract.md`](../backend-contracts/pulso-detail-contract.md).
+> **Decisión formal en el backend:** ADR-0064 de qavante-api
+> (`docs/adr/0064-pulso-v2-cob-run-dpc-cal-y-health-score.md`), que reemplaza el
+> §2 del ADR-0033 (el composite runway/gap/data-quality/cobranza de
+> `dashboard_pulso.py`).
+> **Espejo:** este archivo existe en ambos repos — qavante-web
+> `docs/scoring/pulso-y-health-score-spec-v1.md` y qavante-api
+> `docs/design/pulso-y-health-score-spec-v1.md` — y debe actualizarse en tándem.
 > Los umbrales de este documento son puntos de partida para pyme chilena y deben
 > vivir en configuración versionada (`q_score_model_version`), nunca hardcodeados.
 
@@ -319,8 +327,9 @@ Reglas objetivas sobre los dos scores; convierten el índice en herramienta
 ## 7. Puntos abiertos
 
 - [ ] Validación de Fernando de pesos y umbrales v1.
-- [ ] CC-API: implementar el motor de Pulso **según esta spec** (COB/RUN/DPC/CAL).
-  Los `components[]` de ejemplo del contrato FE-first
+- [ ] CC-API: migrar el motor actual (`dashboard_pulso.py`, ADR-0033 §2) a
+  COB/RUN/DPC/CAL según esta spec — plan de transición en el ADR-0064 de
+  qavante-api. Los `components[]` de ejemplo del contrato FE-first
   (liquidez/cobranza/rentabilidad) quedan obsoletos y no deben implementarse.
 - [ ] Definir contrato del QHS (endpoint separado o extensión del dashboard).
 - [ ] Estimación de nómina cuando no hay dato de remuneraciones: inferir del
