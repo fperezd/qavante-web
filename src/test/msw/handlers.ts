@@ -2440,6 +2440,8 @@ const dashboardSummaryFixture = {
       deadline: "esta semana",
       cta_label: "Ver cobranza",
       cta_href: "/cobrar",
+      amount: "3200000",
+      impact_label: "vencido por cobrar",
     },
     {
       priority: 2,
@@ -2447,6 +2449,8 @@ const dashboardSummaryFixture = {
       deadline: "12 jun",
       cta_label: "Ver pagos",
       cta_href: "/pagar",
+      amount: "1850000",
+      impact_label: "a pagar",
     },
     {
       priority: 3,
@@ -2454,6 +2458,8 @@ const dashboardSummaryFixture = {
       deadline: null,
       cta_label: "Clasificar",
       cta_href: "/caja/por-clasificar",
+      amount: null,
+      impact_label: null,
     },
   ],
   generated_at: "2026-06-02T12:00:00Z",
