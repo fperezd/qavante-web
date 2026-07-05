@@ -20,6 +20,9 @@ export type BankMovementsListResponse = components["schemas"]["BankMovementsList
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
 export type PayrollPaydayResponse = components["schemas"]["PayrollPaydayResponse"];
 export type PutPayrollPaydayRequest = components["schemas"]["PutPayrollPaydayRequest"];
+export type BankAccountItem = components["schemas"]["BankAccountItem"];
+export type BankAccountsListResponse =
+  components["schemas"]["app__core__treasury_schemas__BankAccountsListResponse"];
 
 export interface BankMovementsParams {
   /** 'unclassified' | 'classified' | undefined (todos). */
@@ -37,8 +40,20 @@ export const treasuryKeys = {
   canonicalCategories: () => [...treasuryKeys.all, "canonical-categories"] as const,
   bankMovements: (params: BankMovementsParams = {}) =>
     [...treasuryKeys.all, "bank-movements", params] as const,
+  bankAccounts: () => [...treasuryKeys.all, "bank-accounts"] as const,
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
 };
+
+/** `GET /api/treasury/bank-accounts` — cuentas del tenant con su moneda. Para el
+ *  selector de cuenta en Caja (no mezclar CLP/USD) y el formateo por moneda. */
+export function useBankAccounts() {
+  return useQuery({
+    queryKey: treasuryKeys.bankAccounts(),
+    queryFn: () => api.get<BankAccountsListResponse>("/api/treasury/bank-accounts"),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
 
 /** `GET /api/treasury/canonical-categories` — metadata congelada (P4-4). */
 export function useCanonicalCategories() {

@@ -477,6 +477,30 @@ const treasuryHandlers = [
   http.get("*/api/treasury/canonical-categories", () =>
     HttpResponse.json({ items: canonicalCategoriesFixture }, { status: 200 }),
   ),
+  /* Cuentas del tenant (CLP + USD) → alimenta el selector de cuenta de Caja
+     (no mezclar monedas) y el formateo por moneda. Los ids matchean los
+     `bank_account_id` de los movimientos del fixture (acct-1 / acct-2). */
+  http.get("*/api/treasury/bank-accounts", () =>
+    HttpResponse.json({
+      items: [
+        {
+          id: "acct-1",
+          name: "Cuenta Corriente",
+          bank_name: "BICE",
+          currency_code: "CLP",
+          account_type: "checking",
+        },
+        {
+          id: "acct-2",
+          name: "Cuenta Internacional",
+          bank_name: "BICE",
+          currency_code: "USD",
+          account_type: "checking",
+        },
+      ],
+    }),
+  ),
+
   http.get("*/api/bank-movements", ({ request }) => {
     const url = new URL(request.url);
     const status = url.searchParams.get("status");

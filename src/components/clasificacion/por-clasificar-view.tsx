@@ -9,10 +9,17 @@ import { QavanteEmpty, QavanteButton, QavanteInlineError } from "@/components/qa
 import { cn } from "@/lib/utils";
 import {
   useBankMovements,
+  useBankAccounts,
   useClassifyBankMovement,
   useCanonicalCategories,
   type BankMovement,
 } from "@/lib/api/treasury";
+import {
+  BankAccountFilter,
+  currencyByAccount,
+  hasMixedCurrencies,
+} from "@/components/treasury/bank-account-filter";
+import { formatMoney } from "@/lib/formatters/clp";
 import {
   useManagementAccountsTree,
   useClassificationDimensions,
@@ -87,18 +94,31 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
   const movementsQuery = useBankMovements({ status: "unclassified" });
   const canonicalQuery = useCanonicalCategories();
   const accountsQuery = useManagementAccountsTree();
+  const bankAccountsQuery = useBankAccounts();
   const classify = useClassifyBankMovement();
   const dims = useClassificationDimensions(dimensionsEnabled);
   const assign = useCreateDimensionAssignment();
 
   const [selected, setSelected] = React.useState<BankMovement | null>(null);
   const [formError, setFormError] = React.useState<string>();
+  /* Filtro por cuenta bancaria (no mezclar CLP/USD). "" = todas (solo si no hay
+     monedas mezcladas). Con monedas mezcladas se arranca en la primera cuenta. */
+  const [accountId, setAccountId] = React.useState("");
+  const bankAccounts = bankAccountsQuery.data?.items ?? [];
+  React.useEffect(() => {
+    const accts = bankAccountsQuery.data?.items ?? [];
+    if (accts.length > 1 && hasMixedCurrencies(accts) && !accountId) {
+      setAccountId(accts[0]!.id);
+    }
+  }, [bankAccountsQuery.data, accountId]);
   /* Triage por teclado (nivel dios): ↑↓ mueven la fila activa, Enter abre el
      drawer para clasificarla. `active` indexa `movements`; se acota cuando la
      lista cambia (al clasificar, la fila desaparece). */
   const [active, setActive] = React.useState(0);
   const listRef = React.useRef<HTMLUListElement>(null);
-  const itemCount = movementsQuery.data?.items?.length ?? 0;
+  const rawItems = movementsQuery.data?.items ?? [];
+  const itemCount = (accountId ? rawItems.filter((m) => m.bank_account_id === accountId) : rawItems)
+    .length;
   React.useEffect(() => {
     setActive((a) => Math.min(a, Math.max(0, itemCount - 1)));
   }, [itemCount]);
@@ -122,6 +142,10 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       return next.size === prev.size ? prev : next;
     });
   }, [movementsQuery.data]);
+  /* Al cambiar de cuenta, limpiar la selección del lote (eran de otra cuenta). */
+  React.useEffect(() => {
+    setChecked(new Set());
+  }, [accountId]);
   /* Enfocar la lista cuando hay ítems y no hay drawer abierto → el teclado
      funciona de una (y vuelve a la lista al cerrar el drawer). */
   React.useEffect(() => {
@@ -161,8 +185,15 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
   if (movementsQuery.isError)
     return <QavanteInlineError error={movementsQuery.error} what="los movimientos" />;
 
-  const movements = movementsQuery.data?.items ?? [];
-  if (movements.length === 0) {
+  const allMovements = movementsQuery.data?.items ?? [];
+  /* Filtro por cuenta (no mezclar monedas) + moneda de cada movimiento para
+     formatear correcto (US$ vs $). El vacío global (celebración) se evalúa sobre
+     TODAS las cuentas; el filtro por cuenta solo afecta lo que se muestra. */
+  const currencyMap = currencyByAccount(bankAccounts);
+  const movements = accountId
+    ? allMovements.filter((m) => m.bank_account_id === accountId)
+    : allMovements;
+  if (allMovements.length === 0) {
     return (
       <QavanteEmpty
         icon={CheckCircle2}
@@ -325,120 +356,135 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           what="las cuentas de gestión — no vas a poder clasificar hasta resolverlo"
         />
       )}
-      {/* Toolbar: seleccionar todos + hint de teclado. */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-        <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-neutral-mid">
-          <input
-            type="checkbox"
-            checked={allChecked}
-            onChange={toggleAll}
-            className="h-4 w-4 accent-brand-primary"
-            aria-label="Seleccionar todos los movimientos"
-          />
-          Seleccionar todos
-        </label>
-        <p className="text-xs text-neutral-mid">
-          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
-            ↑
-          </kbd>{" "}
-          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
-            ↓
-          </kbd>{" "}
-          moverte ·{" "}
-          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
-            Enter
-          </kbd>{" "}
-          clasificar ·{" "}
-          <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
-            Espacio
-          </kbd>{" "}
-          marcar
-        </p>
-      </div>
-
-      {/* Barra de acción en lote (aparece con la selección). */}
-      {checked.size > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-primary/30 bg-brand-primary-50 px-4 py-2.5">
-          <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-deep">
-            <ListChecks className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-            {checked.size} seleccionado{checked.size === 1 ? "" : "s"}
-          </span>
-          <div className="flex gap-2">
-            <QavanteButton size="sm" variant="ghost" onClick={() => setChecked(new Set())}>
-              Limpiar
-            </QavanteButton>
-            <QavanteButton
-              size="sm"
-              onClick={() => setBulkOpen(true)}
-              disabled={accountsQuery.isError}
-            >
-              Clasificar {checked.size}
-            </QavanteButton>
-          </div>
+      {/* Selector de cuenta (no mezclar CLP/USD). Solo con >1 cuenta. */}
+      {bankAccounts.length > 1 && (
+        <div className="px-1">
+          <BankAccountFilter accounts={bankAccounts} value={accountId} onChange={setAccountId} />
         </div>
       )}
-      <ul
-        ref={listRef}
-        role="listbox"
-        aria-label="Movimientos por clasificar"
-        aria-activedescendant={movements[active] ? `mov-${movements[active].id}` : undefined}
-        tabIndex={0}
-        onKeyDown={onListKeyDown}
-        className="divide-y divide-border rounded-xl border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
-      >
-        {movements.map((m, idx) => {
-          const isActive = idx === active;
-          return (
-            <li
-              key={m.id}
-              id={`mov-${m.id}`}
-              data-idx={idx}
-              role="option"
-              aria-selected={isActive}
-              onMouseMove={() => setActive(idx)}
-              className={cn(
-                "flex items-center gap-4 p-3 transition-colors",
-                checked.has(m.id)
-                  ? "bg-brand-primary-50/60"
-                  : isActive
-                    ? "bg-brand-primary-50 ring-1 ring-inset ring-brand-primary/30"
-                    : "hover:bg-surface-muted",
-              )}
-            >
+
+      {movements.length === 0 ? (
+        <p className="rounded-xl border border-border bg-surface-muted px-4 py-6 text-center text-sm text-neutral-mid">
+          No hay movimientos por clasificar en esta cuenta.
+        </p>
+      ) : (
+        <>
+          {/* Toolbar: seleccionar todos + hint de teclado. */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-neutral-mid">
               <input
                 type="checkbox"
-                checked={checked.has(m.id)}
-                onChange={() => toggleCheck(m.id)}
-                className="h-4 w-4 shrink-0 accent-brand-primary"
-                aria-label={`Seleccionar ${m.description}`}
+                checked={allChecked}
+                onChange={toggleAll}
+                className="h-4 w-4 accent-brand-primary"
+                aria-label="Seleccionar todos los movimientos"
               />
-              <span className="w-24 shrink-0 text-sm text-neutral-mid">
-                {m.date ? formatDate(new Date(m.date)) : "—"}
+              Seleccionar todos
+            </label>
+            <p className="text-xs text-neutral-mid">
+              <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+                ↑
+              </kbd>{" "}
+              <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+                ↓
+              </kbd>{" "}
+              moverte ·{" "}
+              <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+                Enter
+              </kbd>{" "}
+              clasificar ·{" "}
+              <kbd className="rounded border border-border bg-surface px-1 font-mono text-[11px]">
+                Espacio
+              </kbd>{" "}
+              marcar
+            </p>
+          </div>
+
+          {/* Barra de acción en lote (aparece con la selección). */}
+          {checked.size > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-brand-primary/30 bg-brand-primary-50 px-4 py-2.5">
+              <span className="inline-flex items-center gap-2 text-sm font-medium text-brand-deep">
+                <ListChecks className="h-4 w-4 text-brand-primary" aria-hidden="true" />
+                {checked.size} seleccionado{checked.size === 1 ? "" : "s"}
               </span>
-              <span
-                className="min-w-0 flex-1 truncate text-sm text-neutral-dark"
-                title={m.description}
-              >
-                {m.description}
-              </span>
-              <span className="w-32 shrink-0 text-right text-sm font-medium text-neutral-dark">
-                {formatClp(Number(m.amount) || 0)}
-              </span>
-              <QavanteButton
-                size="sm"
-                variant="secondary"
-                aria-label={`Clasificar movimiento ${m.description}`}
-                // Sin cuentas de gestión no se puede clasificar (422). Mejor
-                // bloquear que abrir un drawer inútil con el error tragado.
-                disabled={accountsQuery.isError}
-                onClick={() => openFor(m)}
-              >
-                Clasificar
-              </QavanteButton>
-            </li>
-          );
-        })}
-      </ul>
+              <div className="flex gap-2">
+                <QavanteButton size="sm" variant="ghost" onClick={() => setChecked(new Set())}>
+                  Limpiar
+                </QavanteButton>
+                <QavanteButton
+                  size="sm"
+                  onClick={() => setBulkOpen(true)}
+                  disabled={accountsQuery.isError}
+                >
+                  Clasificar {checked.size}
+                </QavanteButton>
+              </div>
+            </div>
+          )}
+          <ul
+            ref={listRef}
+            role="listbox"
+            aria-label="Movimientos por clasificar"
+            aria-activedescendant={movements[active] ? `mov-${movements[active].id}` : undefined}
+            tabIndex={0}
+            onKeyDown={onListKeyDown}
+            className="divide-y divide-border rounded-xl border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+          >
+            {movements.map((m, idx) => {
+              const isActive = idx === active;
+              return (
+                <li
+                  key={m.id}
+                  id={`mov-${m.id}`}
+                  data-idx={idx}
+                  role="option"
+                  aria-selected={isActive}
+                  onMouseMove={() => setActive(idx)}
+                  className={cn(
+                    "flex items-center gap-4 p-3 transition-colors",
+                    checked.has(m.id)
+                      ? "bg-brand-primary-50/60"
+                      : isActive
+                        ? "bg-brand-primary-50 ring-1 ring-inset ring-brand-primary/30"
+                        : "hover:bg-surface-muted",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked.has(m.id)}
+                    onChange={() => toggleCheck(m.id)}
+                    className="h-4 w-4 shrink-0 accent-brand-primary"
+                    aria-label={`Seleccionar ${m.description}`}
+                  />
+                  <span className="w-24 shrink-0 text-sm text-neutral-mid">
+                    {m.date ? formatDate(new Date(m.date)) : "—"}
+                  </span>
+                  <span
+                    className="min-w-0 flex-1 truncate text-sm text-neutral-dark"
+                    title={m.description}
+                  >
+                    {m.description}
+                  </span>
+                  <span className="w-36 shrink-0 text-right text-sm font-medium tabular-nums text-neutral-dark">
+                    {formatMoney(Number(m.amount) || 0, currencyMap.get(m.bank_account_id))}
+                  </span>
+                  <QavanteButton
+                    size="sm"
+                    variant="secondary"
+                    aria-label={`Clasificar movimiento ${m.description}`}
+                    // Sin cuentas de gestión no se puede clasificar (422). Mejor
+                    // bloquear que abrir un drawer inútil con el error tragado.
+                    disabled={accountsQuery.isError}
+                    onClick={() => openFor(m)}
+                  >
+                    Clasificar
+                  </QavanteButton>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
 
       {selected && (
         <ClassificationDrawer
