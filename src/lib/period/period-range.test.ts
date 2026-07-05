@@ -57,6 +57,13 @@ describe("period-range · presets", () => {
     expect(presetRange("mes_actual", NOW)).toEqual({ desde: "2026-07", hasta: "2026-07" });
     expect(matchingPreset({ desde: "2026-07", hasta: "2026-07" }, NOW)).toBe("mes_actual");
   });
+  it("mes anterior = el mes previo (cruza año)", () => {
+    expect(presetRange("mes_anterior", NOW)).toEqual({ desde: "2026-06", hasta: "2026-06" });
+    expect(matchingPreset({ desde: "2026-06", hasta: "2026-06" }, NOW)).toBe("mes_anterior");
+    // Enero → diciembre del año anterior.
+    const ENERO = new Date(Date.UTC(2026, 0, 15));
+    expect(presetRange("mes_anterior", ENERO)).toEqual({ desde: "2025-12", hasta: "2025-12" });
+  });
   it("defaultRange = últimos 6 meses", () => {
     expect(defaultRange(NOW)).toEqual({ desde: "2026-02", hasta: "2026-07" });
   });

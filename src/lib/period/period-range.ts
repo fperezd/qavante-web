@@ -3,7 +3,13 @@
  * expande el rango a la lista de meses y consulta cada uno (orquestación en el
  * hook). Este módulo solo hace la aritmética de meses + los presets. */
 
-export type RangePreset = "mes_actual" | "tres_meses" | "seis_meses" | "este_ano" | "ano_anterior";
+export type RangePreset =
+  | "mes_actual"
+  | "mes_anterior"
+  | "tres_meses"
+  | "seis_meses"
+  | "este_ano"
+  | "ano_anterior";
 
 export interface PeriodRange {
   /** Mes inicial `YYYY-MM` (inclusive). */
@@ -69,6 +75,10 @@ export function presetRange(preset: RangePreset, now: Date = new Date()): Period
   switch (preset) {
     case "mes_actual":
       return { desde: hastaMes, hasta: hastaMes };
+    case "mes_anterior": {
+      const prev = addMonths(hastaMes, -1);
+      return { desde: prev, hasta: prev };
+    }
     case "tres_meses":
       return { desde: addMonths(hastaMes, -2), hasta: hastaMes };
     case "seis_meses":
@@ -108,6 +118,7 @@ export function formatRangeLabel(range: PeriodRange): string {
 export function matchingPreset(range: PeriodRange, now: Date = new Date()): RangePreset | null {
   const presets: RangePreset[] = [
     "mes_actual",
+    "mes_anterior",
     "tres_meses",
     "seis_meses",
     "este_ano",
