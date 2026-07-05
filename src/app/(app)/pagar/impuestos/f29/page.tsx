@@ -1,6 +1,6 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
-import { F29View } from "@/components/impuestos/f29-view";
+import { F29PanelView } from "@/components/impuestos/f29-panel-view";
 
 /* Gateado — Sprint C1, ruta `/pagar/impuestos/f29`. Server Component:
    resuelve el flag `siiQueries` (default OFF — ADR-0008). Sin `export
@@ -19,14 +19,14 @@ export default function PagarImpuestosF29Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">F29 — Declaración mensual</h1>
+        <h1 className="text-2xl font-bold text-neutral-dark">F29 — Estado por período</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Consulta tu Certificado Solemne del SII por folio. Vas a ver los montos declarados (IVA
-          débito y crédito, PPM, total a pagar) y puedes descargar el PDF original.
+          El estado de tu F29 mes a mes (como en el SII). Haz clic en un mes para ver cuánto pagar
+          si declaras todo o si postergas el IVA.
         </p>
       </header>
 
-      {siiQueries ? <F29View /> : <FeatureUnavailableState />}
+      {siiQueries ? <F29PanelView /> : <FeatureUnavailableState />}
     </div>
   );
 }

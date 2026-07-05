@@ -665,6 +665,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sii/f29/anual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII F29: resumen del AÑO (12 meses persistidos) para el panel de gestión
+         * @description Devuelve los F29 del año **ya persistidos** (`treasury.f29_periods`, C4-05) — NO pega
+         *     en vivo al SII. Solo los meses efectivamente sincronizados (vía `GET /f29/{folio}` o el
+         *     cron). El FE arma el panel (semáforo/tendencia/cuadratura) con estos datos mensuales.
+         */
+        get: operations["sii_f29_anual"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/f29/estado": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII F29: estado de los 12 meses del año (declarado/vencido/por declarar/…)
+         * @description Estado del F29 por período (año x mes) a partir de los F29 **ya persistidos**
+         *     (`treasury.f29_periods`) + el calendario. NO pega en vivo al SII. Cada mes:
+         *     `declarado` (con folio + saldo) / `no_declarado_vencido` / `por_declarar` / `en_curso` /
+         *     `sin_periodo`. Postergación de IVA y confirmación de pago (Consulta de Giros) son
+         *     enriquecimientos futuros (ver `docs/spikes/f29-fuentes-sii.md`).
+         */
+        get: operations["sii_f29_estado"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/f29/impuesto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII F29: impuesto a pagar con y sin IVA del período (decidir pagar o postergar)
+         * @description Impuesto a pagar **con** y **sin** IVA del período — visibilidad para decidir pagar todo
+         *     o **postergar el IVA** (típico en el mes en curso). IVA/PPM/remanente salen del F29
+         *     declarado o de la estimación del RCV; el **impuesto de trabajadores** (retención 2ª cat.,
+         *     código 48) sale de **BUK**, o se pasa **manual** en `impuesto_trabajadores` si no hay BUK.
+         *     Fuente en `fuente_impuesto_trabajadores` (manual/buk/no_disponible).
+         */
+        get: operations["sii_f29_impuesto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sii/health": {
         parameters: {
             query?: never;
@@ -866,6 +936,119 @@ export interface paths {
          *     tabla de documentos como `data.filas[]` (la primera fila es headers).
          */
         get: operations["sii_dte_recibidos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/dte-emitidos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: DTE emitidos por rango de fechas con el DTE completo (Obtener Envío)
+         * @description DTE emitidos por rango de fechas. Lista el portal (`mipeAdminDocsEmi.cgi`), baja el
+         *     XML (`EnvioDTE`) de cada documento vía "Obtener Envío" y devuelve el DTE **completo**
+         *     (emisor, receptor, ítems, totales, referencias, forma de pago, vencimiento) en
+         *     `dte_emitidos[]`. Auth/consent: el mismo certificado y consent del RCV (`sii_rcv`).
+         */
+        get: operations["sii_dte_emitidos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/dte-recibidos-completo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: DTE recibidos por rango con el DTE completo (respaldo masivo XML)
+         * @description DTE recibidos por rango de fechas con el documento **completo**. Baja el respaldo masivo
+         *     XML (`mipeDownLoad.cgi?ORIGEN=RCP&DOWNLOAD=XML`) del rango y devuelve el DTE completo
+         *     (emisor, receptor, ítems, totales, referencias, forma de pago, vencimiento) en
+         *     `dte_recibidos[]`. Auth/consent: el mismo certificado y consent del RCV (`sii_rcv`).
+         */
+        get: operations["sii_dte_recibidos_completo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/bhe/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: PDF oficial de una BHE recibida (por período + folio)
+         * @description Baja el PDF oficial de una **BHE recibida** desde el SII. Ubica la boleta por `folio`
+         *     (+ `rut_emisor` opcional) en el informe mensual del período y baja su PDF de
+         *     `TMBCOT_ConsultaBoletaPdf.cgi`. El PDF trae la **glosa** (concepto del servicio), que no
+         *     viene en forma estructurada. Auth: clave tributaria per-tenant de la empresa (igual que
+         *     `GET /api/sii/bhe`). Se devuelve `inline` para preview en el browser.
+         */
+        get: operations["sii_bhe_pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/dte-emitidos/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: PDF (render propio) de un DTE emitido
+         * @description Render propio del PDF de un DTE **emitido**: baja su XML (Obtener Envío) y lo dibuja
+         *     con el timbre PDF417. Auth: certificado per-tenant (igual que `dte-emitidos`).
+         */
+        get: operations["sii_dte_emitido_pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/dte-recibidos/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: PDF (render propio) de un DTE recibido
+         * @description Render propio del PDF de un DTE **recibido**: lo saca del respaldo masivo del rango y
+         *     lo dibuja con el timbre PDF417. Auth: certificado per-tenant (igual que
+         *     `dte-recibidos-completo`).
+         */
+        get: operations["sii_dte_recibido_pdf"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2460,6 +2643,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/reconciliation/confirm-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conciliación: confirma varias sugerencias de la cola de una vez ('Conciliar todas')
+         * @description Aplica en lote las sugerencias en cola — el botón **"Conciliar todas (N)"**. Best-effort:
+         *     cada movimiento se confirma por separado; uno que no esté en cola (`not_in_review`) o que
+         *     falle (`error`) NO aborta el resto. Cada ítem reporta su `status`.
+         */
+        post: operations["treasury_reconciliation_confirm_batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/reconciliation/{movement_id}/reject": {
         parameters: {
             query?: never;
@@ -2756,6 +2961,50 @@ export interface paths {
         get: operations["admin_admin_log"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/bice/sync-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BICE: sincroniza la cartola de todos los tenants conectados (cron, ADR-0010)
+         * @description Sincroniza BICE de **todos** los tenants conectados. Lo llama el cron con
+         *     `SERVER_API_KEY`. El re-login server-side (patchright_proxy) se dispara solo si la
+         *     sesión expiró → mantiene BICE siempre conectado. Idempotente; best-effort por tenant.
+         */
+        post: operations["admin_bice_sync_all"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/bice/keepwarm-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BICE: keep-warm de la sesión de todos los tenants conectados (cron, ADR-0059)
+         * @description 'Toca' la sesión BICE cacheada de cada tenant (userInfo) para mantenerla viva **sin**
+         *     disparar login. Lo llama el cron liviano (cada ~20 min) con `SERVER_API_KEY`. Baja la
+         *     frecuencia de re-login (que es el paso Cloudflare-duro). Best-effort por tenant.
+         */
+        post: operations["admin_bice_keepwarm_all"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4187,6 +4436,57 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** BiceKeepwarmResponse */
+        BiceKeepwarmResponse: {
+            /**
+             * Tenants
+             * @description Tenants con BICE conectado procesados.
+             */
+            tenants: number;
+            /**
+             * Alive
+             * @description Sesiones tocadas y vivas (userInfo 200).
+             */
+            alive: number;
+            /**
+             * Dead
+             * @description Sesiones muertas (userInfo 401/red); las re-mintea el sync.
+             */
+            dead: number;
+            /**
+             * No Session
+             * @description Tenants sin storage_state cacheado (nada que tocar).
+             */
+            no_session: number;
+            /**
+             * Errors
+             * @description Errores best-effort (no abortan el resto).
+             */
+            errors: number;
+        };
+        /** BiceSyncAllResponse */
+        BiceSyncAllResponse: {
+            /**
+             * Tenants
+             * @description Tenants con BICE conectado procesados.
+             */
+            tenants: number;
+            /**
+             * Synced
+             * @description Tenants sincronizados OK.
+             */
+            synced: number;
+            /**
+             * Skipped Consent
+             * @description Saltados por consent faltante/expirado.
+             */
+            skipped_consent: number;
+            /**
+             * Errors
+             * @description Errores best-effort (no abortan el resto).
+             */
+            errors: number;
+        };
         /** Body_treasury_card_statements_import */
         Body_treasury_card_statements_import: {
             /**
@@ -4700,6 +5000,10 @@ export interface components {
             min_30d: string;
             /** Days Of Cash */
             days_of_cash?: number | null;
+            /** Last Updated */
+            last_updated?: string | null;
+            /** Source */
+            source?: string | null;
         };
         /** CashGap */
         CashGap: {
@@ -4709,6 +5013,10 @@ export interface components {
             projected_cash_14d: string;
             /** Has Gap */
             has_gap: boolean;
+            /** Last Updated */
+            last_updated?: string | null;
+            /** Source */
+            source?: string | null;
         };
         /**
          * CashMinimumResponse
@@ -5011,6 +5319,27 @@ export interface components {
              * @description Reglas TBL56 que dispararon, ordenadas por peso descendente.
              */
             penalizaciones: components["schemas"]["PenalizacionAplicadaResponse"][];
+        };
+        /** ConfirmBatchItemResult */
+        ConfirmBatchItemResult: {
+            /** Movement Id */
+            movement_id: string;
+            /** Status */
+            status: string;
+        };
+        /** ConfirmBatchRequest */
+        ConfirmBatchRequest: {
+            /** Movement Ids */
+            movement_ids: string[];
+        };
+        /** ConfirmBatchResponse */
+        ConfirmBatchResponse: {
+            /** Confirmed */
+            confirmed: number;
+            /** Failed */
+            failed: number;
+            /** Results */
+            results: components["schemas"]["ConfirmBatchItemResult"][];
         };
         /** ConfirmResponse */
         ConfirmResponse: {
@@ -5750,6 +6079,10 @@ export interface components {
             /** Due 14D */
             due_14d: string;
             next_critical?: components["schemas"]["NextCriticalPayment"] | null;
+            /** Last Updated */
+            last_updated?: string | null;
+            /** Source */
+            source?: string | null;
         };
         /** CuentaBalanceResponse */
         CuentaBalanceResponse: {
@@ -5976,6 +6309,31 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** DteEmitidosResponse */
+        DteEmitidosResponse: {
+            /** Status */
+            status: string;
+            /**
+             * Dte Emitidos
+             * @description DTE emitidos con el documento completo bajado del EnvioDTE: tipo, folio, fecha_emision, emisor_*, receptor_*, neto/exento/iva/total, moneda, items[], referencias[], forma_pago, fecha_vence, codigo, estado_sii.
+             */
+            dte_emitidos?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Count
+             * @default 0
+             */
+            count: number;
+            /** Desde */
+            desde?: string | null;
+            /** Hasta */
+            hasta?: string | null;
+            /** Error */
+            error?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * DteEstadoResponse
          * @description Estado de un DTE en el SII (web service oficial QueryEstDte).
@@ -6008,6 +6366,31 @@ export interface components {
             code?: string | null;
             /** Message */
             message?: string | null;
+            /** Error */
+            error?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** DteRecibidosCompletoResponse */
+        DteRecibidosCompletoResponse: {
+            /** Status */
+            status: string;
+            /**
+             * Dte Recibidos
+             * @description DTE recibidos con el documento completo bajado del respaldo masivo XML: tipo, folio, fecha_emision, emisor_*, receptor_*, neto/exento/iva/total, moneda, items[], referencias[], forma_pago, fecha_vence.
+             */
+            dte_recibidos?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Count
+             * @default 0
+             */
+            count: number;
+            /** Desde */
+            desde?: string | null;
+            /** Hasta */
+            hasta?: string | null;
             /** Error */
             error?: string | null;
         } & {
@@ -6229,6 +6612,165 @@ export interface components {
              * @example info
              */
             severity: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * F29AnualResponse
+         * @description F29 del AÑO: los 12 meses persistidos (los que se sincronizaron). El FE arma el
+         *     panel (semáforo/tendencia/cuadratura) con estos datos mensuales.
+         */
+        F29AnualResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Anio */
+            anio: number;
+            /**
+             * Meses
+             * @description Meses efectivamente sincronizados, ordenados 1..12.
+             */
+            meses?: components["schemas"]["F29MesResumen"][];
+            /**
+             * Count
+             * @default 0
+             */
+            count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * F29EstadoResponse
+         * @description Estado del F29 por período (año x mes): los 12 meses con su situación derivada de lo
+         *     persistido + el calendario.
+         */
+        F29EstadoResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Anio */
+            anio: number;
+            /**
+             * Meses
+             * @description Los 12 meses con {mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento}. estado ∈ declarado / no_declarado_vencido / por_declarar / en_curso / sin_periodo.
+             */
+            meses?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Count
+             * @default 0
+             */
+            count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * F29ImpuestoResponse
+         * @description Impuesto a pagar **con** y **sin** IVA de un período, para decidir pagar todo o
+         *     postergar el IVA. El impuesto de trabajadores (código 48) sale de BUK o entrada manual.
+         */
+        F29ImpuestoResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Periodo */
+            periodo: string;
+            /**
+             * Declarado
+             * @default false
+             */
+            declarado: boolean;
+            /** Folio */
+            folio?: number | null;
+            /**
+             * Iva Debito
+             * @default 0
+             */
+            iva_debito: number;
+            /**
+             * Iva Credito
+             * @default 0
+             */
+            iva_credito: number;
+            /**
+             * Remanente
+             * @default 0
+             */
+            remanente: number;
+            /**
+             * Ppm
+             * @default 0
+             */
+            ppm: number;
+            /**
+             * Impuesto Trabajadores
+             * @default 0
+             */
+            impuesto_trabajadores: number;
+            /**
+             * Fuente Impuesto Trabajadores
+             * @description manual | buk | no_disponible
+             * @default no_disponible
+             */
+            fuente_impuesto_trabajadores: string;
+            /**
+             * Iva Determinado
+             * @default 0
+             */
+            iva_determinado: number;
+            /**
+             * Iva Postergable
+             * @default 0
+             */
+            iva_postergable: number;
+            /**
+             * Total Con Iva
+             * @description Pagar todo (IVA + PPM + trabajadores).
+             * @default 0
+             */
+            total_con_iva: number;
+            /**
+             * Total Sin Iva
+             * @description Postergando el IVA: PPM + trabajadores (sin el IVA determinado).
+             * @default 0
+             */
+            total_sin_iva: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * F29MesResumen
+         * @description Resumen F29 de un mes (fila persistida de `treasury.f29_periods`, C4-05).
+         */
+        F29MesResumen: {
+            /** Period Year */
+            period_year: number;
+            /** Period Month */
+            period_month: number;
+            /** Folio */
+            folio?: number | null;
+            /**
+             * Estado
+             * @description 'vigente' | 'rectificatoria' | 'rechazada' | 'sin_declaracion'.
+             */
+            estado?: string | null;
+            /** Iva Debito Fiscal */
+            iva_debito_fiscal?: number | null;
+            /** Iva Credito Fiscal */
+            iva_credito_fiscal?: number | null;
+            /** Ppm */
+            ppm?: number | null;
+            /** Remanente */
+            remanente?: number | null;
+            /** Total A Pagar */
+            total_a_pagar?: number | null;
         } & {
             [key: string]: unknown;
         };
@@ -7842,6 +8384,10 @@ export interface components {
             ebitda_proxy: string;
             /** Result */
             result: string;
+            /** Last Updated */
+            last_updated?: string | null;
+            /** Source */
+            source?: string | null;
         };
         /**
          * OperationalResultBucket
@@ -7974,6 +8520,10 @@ export interface components {
             overdue: string;
             /** Top Clients */
             top_clients?: components["schemas"]["TopClient"][];
+            /** Last Updated */
+            last_updated?: string | null;
+            /** Source */
+            source?: string | null;
         };
         /** OverdueDocument */
         OverdueDocument: {
@@ -8289,6 +8839,11 @@ export interface components {
          * PriorityAction
          * @description Máx 3 en la respuesta. `cta_href` = ruta interna del FE
          *     (/cobrar, /pagar, /caja/proyeccion, /gestion, /caja/por-clasificar).
+         *
+         *     `amount`/`impact_label` (opcionales, Ola 3): cuánta plata está en juego para
+         *     poder priorizar. `amount` = string decimal; `impact_label` = etiqueta legible
+         *     ("$4,2M descubierto a 14 días"). Nulos cuando la acción no tiene monto (ej.
+         *     'N movimientos sin clasificar' es un conteo, no plata) → el FE degrada.
          */
         PriorityAction: {
             /** Priority */
@@ -8301,6 +8856,10 @@ export interface components {
             cta_label: string;
             /** Cta Href */
             cta_href: string;
+            /** Amount */
+            amount?: string | null;
+            /** Impact Label */
+            impact_label?: string | null;
         };
         /** ProcessorConfigCreate */
         ProcessorConfigCreate: {
@@ -11255,6 +11814,112 @@ export interface operations {
             };
         };
     };
+    sii_f29_anual: {
+        parameters: {
+            query: {
+                /** @description Año calendario (ej. 2026). */
+                anio: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meses F29 sincronizados del año (semáforo/tendencia FE). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["F29AnualResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_f29_estado: {
+        parameters: {
+            query: {
+                /** @description Año calendario (ej. 2026). */
+                anio: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["F29EstadoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_f29_impuesto: {
+        parameters: {
+            query: {
+                /** @description Año del período. */
+                anio: number;
+                /** @description Mes del período (1-12). */
+                mes: number;
+                /** @description Override manual del impuesto de trabajadores (si no hay BUK). */
+                impuesto_trabajadores?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["F29ImpuestoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     sii_health: {
         parameters: {
             query?: never;
@@ -11630,6 +12295,247 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DteRecibidosResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_dte_emitidos: {
+        parameters: {
+            query: {
+                /** @description Fecha desde YYYY-MM-DD */
+                desde: string;
+                /** @description Fecha hasta YYYY-MM-DD */
+                hasta: string;
+                /** @description Máx. documentos a bajar */
+                max_docs?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DteEmitidosResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_dte_recibidos_completo: {
+        parameters: {
+            query: {
+                /** @description Fecha desde YYYY-MM-DD */
+                desde: string;
+                /** @description Fecha hasta YYYY-MM-DD */
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DteRecibidosCompletoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_bhe_pdf: {
+        parameters: {
+            query: {
+                /** @description Período YYYY-MM o YYYYMM */
+                periodo: string;
+                /** @description Folio (N°) de la boleta */
+                folio: number;
+                /** @description RUT del emisor para desambiguar (opcional) */
+                rut_emisor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PDF oficial de la boleta de honorarios (incluye la glosa). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description No se encontró la boleta en el período. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tenant sin credencial clave tributaria activa. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_dte_emitido_pdf: {
+        parameters: {
+            query: {
+                /** @description CODIGO del emitido (del listado de Portal001) */
+                codigo: string;
+                /** @description Tipo de DTE (33, 61, …) */
+                tpo_doc: number;
+                /** @description RUT del receptor (con guión) */
+                rut_receptor: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PDF del DTE con timbre. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description No se pudo obtener el XML del DTE. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tenant sin certificado activo. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_dte_recibido_pdf: {
+        parameters: {
+            query: {
+                /** @description Fecha desde YYYY-MM-DD */
+                desde: string;
+                /** @description Fecha hasta YYYY-MM-DD */
+                hasta: string;
+                /** @description Folio del documento */
+                folio: number;
+                /** @description RUT del emisor para desambiguar (opcional) */
+                rut_emisor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PDF del DTE con timbre. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description No se encontró el DTE en el rango. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tenant sin certificado activo. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -15331,6 +16237,41 @@ export interface operations {
             };
         };
     };
+    treasury_reconciliation_confirm_batch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmBatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_reconciliation_reject: {
         parameters: {
             query?: never;
@@ -16002,6 +16943,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_bice_sync_all: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BiceSyncAllResponse"];
+                };
+            };
+        };
+    };
+    admin_bice_keepwarm_all: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BiceKeepwarmResponse"];
                 };
             };
         };

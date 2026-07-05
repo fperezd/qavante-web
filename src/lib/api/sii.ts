@@ -24,7 +24,7 @@
  *   `'marzo 2026'`. El FE manda lo que tiene; el backend normaliza.
  *
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -32,6 +32,28 @@ export type SiiHealthResponse = components["schemas"]["SiiHealthResponse"];
 export type SourceStatusResponse = components["schemas"]["SourceStatusResponse"];
 export type F29Response = components["schemas"]["F29Response"];
 export type F29Period = components["schemas"]["F29Period"];
+export type F29EstadoResponse = components["schemas"]["F29EstadoResponse"];
+export type F29ImpuestoResponse = components["schemas"]["F29ImpuestoResponse"];
+
+/** Estado de un mes en el panel F29. El contrato tipa `meses[]` laxo
+ *  (`{[k]: unknown}`); acá le damos forma según el handoff CC-API 2026-07-05. */
+export type F29EstadoMesEstado =
+  | "declarado"
+  | "no_declarado_vencido"
+  | "por_declarar"
+  | "en_curso"
+  | "sin_periodo";
+export interface F29EstadoMes {
+  mes: number;
+  periodo: string;
+  estado: F29EstadoMesEstado;
+  declarado: boolean;
+  folio: number | null;
+  /** `null` = declarado con monto desconocido (NO es $0 — ver handoff). */
+  saldo: number | null;
+  remanente: number | null;
+  vencimiento: string | null;
+}
 export type BheResponse = components["schemas"]["BheResponse"];
 export type BheRecibida = components["schemas"]["BheRecibida"];
 export type RcvComprasResponse = components["schemas"]["RcvComprasResponse"];
@@ -62,6 +84,9 @@ export const siiKeys = {
   health: () => [...siiKeys.all, "health"] as const,
   f22Status: () => [...siiKeys.all, "f22-status"] as const,
   f29: (folio: number) => [...siiKeys.all, "f29", folio] as const,
+  f29Estado: (anio: number) => [...siiKeys.all, "f29-estado", anio] as const,
+  f29Impuesto: (anio: number, mes: number, imp?: number) =>
+    [...siiKeys.all, "f29-impuesto", anio, mes, imp ?? null] as const,
   bhe: (params: SiiPeriodoParams) => [...siiKeys.all, "bhe", params] as const,
   rcvCompras: (params: SiiRcvParams) => [...siiKeys.all, "rcv-compras", params] as const,
   rcvVentas: (params: SiiRcvParams) => [...siiKeys.all, "rcv-ventas", params] as const,
@@ -123,6 +148,59 @@ export function siiF29PdfUrl(folio: number): string | null {
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base) return null;
   return `${base}/api/sii/f29/${folio}/pdf`;
+}
+
+/** `GET /api/sii/f29/estado?anio=` — los 12 meses de un año con su estado
+ *  (semáforo del panel). Acepta cookie (require_api_key_or_session). */
+export function useSiiF29Estado(anio: number, enabled = true) {
+  const valid = Number.isInteger(anio) && anio > 0;
+  return useQuery({
+    queryKey: siiKeys.f29Estado(anio),
+    queryFn: () => api.get<F29EstadoResponse>(`/api/sii/f29/estado?anio=${anio}`),
+    enabled: enabled && valid,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** Panel multi-año: un `/f29/estado` por año (react-query `useQueries`, orden
+ *  estable). Devuelve `{ anio, mesesByMes }` por año, donde `mesesByMes` mapea
+ *  `mes (1-12)` → `F29EstadoMes`. */
+export function useSiiF29EstadoMulti(anios: number[], enabled = true) {
+  return useQueries({
+    queries: anios.map((anio) => ({
+      queryKey: siiKeys.f29Estado(anio),
+      queryFn: () => api.get<F29EstadoResponse>(`/api/sii/f29/estado?anio=${anio}`),
+      enabled: enabled && Number.isInteger(anio) && anio > 0,
+      staleTime: 5 * 60 * 1000,
+      retry: false,
+    })),
+  });
+}
+
+/** `GET /api/sii/f29/impuesto?anio&mes[&impuesto_trabajadores]` — el desglose
+ *  con/sin IVA de un mes. `impuestoTrabajadores` opcional: cuando la fuente es
+ *  `no_disponible`, el usuario lo ingresa y el back recomputa (`fuente=manual`). */
+export function useSiiF29Impuesto(
+  anio: number,
+  mes: number,
+  impuestoTrabajadores?: number,
+  enabled = true,
+) {
+  const valid = Number.isInteger(anio) && anio > 0 && mes >= 1 && mes <= 12;
+  return useQuery({
+    queryKey: siiKeys.f29Impuesto(anio, mes, impuestoTrabajadores),
+    queryFn: () => {
+      const q = new URLSearchParams({ anio: String(anio), mes: String(mes) });
+      if (impuestoTrabajadores != null && Number.isFinite(impuestoTrabajadores)) {
+        q.set("impuesto_trabajadores", String(impuestoTrabajadores));
+      }
+      return api.get<F29ImpuestoResponse>(`/api/sii/f29/impuesto?${q.toString()}`);
+    },
+    enabled: enabled && valid,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 }
 
 function buildPeriodoQuery(p: SiiPeriodoParams): string {
