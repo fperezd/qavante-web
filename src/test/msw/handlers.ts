@@ -1799,6 +1799,22 @@ const siiHandlers = [
     return HttpResponse.json({ status: "ok", anio, meses, count: meses.length }, { status: 200 });
   }),
 
+  /* Estado de pago/postergación de un período (Consulta de Giros). Antes de :folio. */
+  http.get("*/api/sii/f29/giros", ({ request }) => {
+    const mes = Number(new URL(request.url).searchParams.get("mes")) || 1;
+    const postergado = mes % 2 === 0; // par → postergado; impar → pagado
+    return HttpResponse.json({
+      status: "ok",
+      periodo: `2026-${String(mes).padStart(2, "0")}`,
+      tiene_giros: postergado,
+      estado: postergado ? "postergado" : "sin_giro",
+      postergado_iva: postergado,
+      iva_postergado: postergado ? 400000 : null,
+      vencimiento_postergado: postergado ? "2026-08-12" : null,
+      multiples_giros: false,
+    });
+  }),
+
   /* Detalle F29 de un mes — con/sin IVA + impuesto trabajadores. */
   http.get("*/api/sii/f29/impuesto", ({ request }) => {
     const url = new URL(request.url);
