@@ -138,6 +138,13 @@ export const authHandlers = [
     return new HttpResponse(null, { status: 200, headers: { "Set-Cookie": SESSION_COOKIE } });
   }),
 
+  http.post("*/api/onboarding/sync", () =>
+    HttpResponse.json(
+      { sources: { sii: { status: "ok" }, bank: { status: "ok" } } },
+      { status: 200 },
+    ),
+  ),
+
   http.post("*/api/auth/accept-invitation", async ({ request }) => {
     const body = (await request.json()) as AcceptInvitationBody;
     if (!body?.token) {
