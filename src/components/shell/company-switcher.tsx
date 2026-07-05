@@ -25,15 +25,34 @@ export function CompanySwitcher() {
   const ref = React.useRef<HTMLDivElement>(null);
 
   const allItems = tenants.data?.tenants ?? [];
-  /* Parche temporal: ocultar el tenant de config "MVP Tenant" del selector — trae
-     datos de otra conexión y confunde (Fernando creyó que eran suyos). El fix de
-     fondo es que CC-API lo saque del `MVP_TENANT_ID` de config (escalado). El
-     `active` se calcula sobre la lista completa para no romper el label si por
-     algún motivo fuera el activo. */
-  const items = allItems.filter((t) => t.legal_name?.trim().toLowerCase() !== "mvp tenant");
+  /* Parche temporal: ocultar el tenant de config "MVP Tenant" — trae datos de otra
+     conexión y confunde (Fernando creyó que eran suyos). El fix de fondo es que
+     CC-API deje de usarlo como `MVP_TENANT_ID` de config y como tenant activo por
+     defecto (escalado, PR #461). */
+  const isMvp = (t: { legal_name?: string | null }) =>
+    t.legal_name?.trim().toLowerCase() === "mvp tenant";
+  const items = allItems.filter((t) => !isMvp(t));
   const active = allItems.find((t) => t.is_active);
-  const label = active?.legal_name ?? "Mi empresa";
+  const activeIsMvp = active != null && isMvp(active);
+  /* El label nunca muestra "MVP Tenant": si la sesión cayó en él, mostramos la
+     empresa real (la autocorrección de abajo va a cambiar a ella enseguida). */
+  const label = (activeIsMvp ? items[0]?.legal_name : active?.legal_name) ?? "Mi empresa";
   const busy = switchTenant.isPending || createTenant.isPending;
+
+  /* Autocorrección del default: el backend arranca la sesión en el MVP Tenant.
+     Si la activa es el MVP y existe una empresa real, cambiamos a ella una sola
+     vez (el switch persiste en la cookie → al recargar la activa ya es la real,
+     así que no hay loop). Tapón hasta que CC-API corrija el default (PR #461). */
+  const didAutoSwitch = React.useRef(false);
+  React.useEffect(() => {
+    if (didAutoSwitch.current || busy) return;
+    if (!activeIsMvp) return;
+    const real = items[0];
+    if (!real) return;
+    didAutoSwitch.current = true;
+    switchTenant.mutate(real.id, { onSuccess: reloadIntoTenant });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIsMvp, items]);
 
   // Cerrar al click afuera.
   React.useEffect(() => {
