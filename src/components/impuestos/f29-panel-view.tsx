@@ -32,6 +32,7 @@ const YEARS_BACK = 5;
 
 const ESTADO_LABEL: Record<F29EstadoMesEstado, string> = {
   declarado: "Declarado",
+  sin_dato: "Sin dato (sincronizá)",
   no_declarado_vencido: "No declarado (vencido)",
   por_declarar: "Por declarar",
   en_curso: "En curso",
@@ -172,6 +173,17 @@ function StatusCell({
       </span>
     );
   }
+  /* Sin dato: vencido pero sin F29 sincronizado. NO es "no declaró" — no lo
+     pintamos rojo. Marca neutra (círculo hueco), no clickeable: sincronizá. */
+  if (estado === "sin_dato") {
+    return (
+      <span
+        className="inline-block h-3 w-3 rounded-full border border-neutral-mid/50"
+        title="Sin dato — sincronizá tus F29 para ver el estado real"
+        aria-label="Sin dato, sincronizá"
+      />
+    );
+  }
 
   const ringSel = selected ? "ring-2 ring-brand-primary ring-offset-1" : "";
   const title = `${ESTADO_LABEL[estado]}${cell.folio ? ` · folio ${cell.folio}` : ""}`;
@@ -213,6 +225,10 @@ function Legend() {
           <Check className="h-2.5 w-2.5" />
         </span>
         Declarado
+      </LegendItem>
+      <LegendItem>
+        <span className="inline-block h-3 w-3 rounded-full border border-neutral-mid/50" />
+        Sin dato (sincronizá)
       </LegendItem>
       <LegendItem>
         <span className="text-[11px] font-bold text-danger-500">ND</span>
