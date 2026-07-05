@@ -698,9 +698,14 @@ export interface paths {
          * SII F29: estado de los 12 meses del año (declarado/vencido/por declarar/…)
          * @description Estado del F29 por período (año x mes) a partir de los F29 **ya persistidos**
          *     (`treasury.f29_periods`) + el calendario. NO pega en vivo al SII. Cada mes:
-         *     `declarado` (con folio + saldo) / `no_declarado_vencido` / `por_declarar` / `en_curso` /
-         *     `sin_periodo`. Postergación de IVA y confirmación de pago (Consulta de Giros) son
-         *     enriquecimientos futuros (ver `docs/spikes/f29-fuentes-sii.md`).
+         *     `declarado` (con folio + saldo) / `sin_dato` / `no_declarado_vencido` / `por_declarar` /
+         *     `en_curso` / `sin_periodo`.
+         *
+         *     ⚠️ **No afirma "no declaró" sin sincronizar:** si el tenant no tiene F29 sincronizados del año,
+         *     los meses vencidos van **`sin_dato`** (no `no_declarado_vencido`) — afirmar "no declaró" sin
+         *     haber sincronizado es un falso alarmante (dato faltante ≠ "no declaró"). El
+         *     `no_declarado_vencido` autoritativo requiere la Consulta de Estado del SII (aún no cableada, ver
+         *     `docs/spikes/f29-consulta-estado.md`). Postergación/pago vía Consulta de Giros (`/f29/giros`).
          */
         get: operations["sii_f29_estado"];
         put?: never;
@@ -729,6 +734,59 @@ export interface paths {
         get: operations["sii_f29_impuesto"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/f29/giros": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII F29: estado de pago/postergación del período (Consulta de Giros, en vivo)
+         * @description Consulta **en vivo** la Consulta de Giros del SII para un período y devuelve su estado de
+         *     pago/postergación (clave empresa). On-demand por período (el FE lo llama al abrir el detalle
+         *     de un mes) — NO es cache; el semáforo del año usa `/f29/estado` (rápido, desde la BD).
+         *
+         *     `estado` ∈ `sin_giro` (nada pendiente; con período declarado = **pagado**) · `postergado`
+         *     (IVA postergado, con `iva_postergado` + `vencimiento_postergado`) · `giro_no_determinado`
+         *     (hay un giro pero no es una postergación reconocida → revisar en el SII) ·
+         *     `multiples_no_determinado`. **NO afirma 'pagado' ante error/sin dato** (ADR-0061).
+         */
+        get: operations["sii_f29_giros"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/f29/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII F29: sincroniza los F29 del año (enumera folios + baja los que faltan)
+         * @description Sincroniza los F29 del año para el tenant: enumera los folios declarados (Búsqueda de
+         *     Formularios del SII) y **baja+persiste los que faltan**. Alimenta `/f29/estado` y `/f29/anual`.
+         *     Es el que dispara el botón "Actualizar F29" del FE.
+         *
+         *     **Incremental por inmutabilidad (ADR-0063):** un folio ya persistido NO se re-baja (un F29 por
+         *     folio es inmutable). Carga inicial = todos; luego solo lo nuevo. Costo bajo. Los errores por
+         *     folio individual no abortan (best-effort, van en `errores`).
+         */
+        post: operations["sii_f29_sync"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1109,6 +1167,32 @@ export interface paths {
          *     `enriched=0` (todos `no_xml`). Idempotente.
          */
         post: operations["sii_enrich_due_dates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/enrich-dte-detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII: persiste las líneas del DTE + giro de la contraparte (ADR-0062 PR-0)
+         * @description Baja el **DTE completo** del rango (recibidos via respaldo masivo XML, emitidos via
+         *     Portal001) y persiste el **detalle**: líneas (`treasury.document_lines`, NmbItem/DscItem/
+         *     montos) + giro en texto y acteco de la contraparte en receivables/payables.
+         *
+         *     Es la señal primaria del clasificador del Resultado Operacional por categoría
+         *     (ADR-0062 §4.0). Idempotente: re-correr un rango reemplaza las líneas, no duplica.
+         *     Auth: certificado per-tenant (mismo consent que el RCV, `sii_rcv`).
+         */
+        post: operations["sii_enrich_dte_detail"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2565,6 +2649,121 @@ export interface paths {
         get: operations["management_operational_result"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/operational-result/breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gestión — Resultado Operacional por categoría (árbol de cuentas, mensualizado)
+         * @description Resultado Operacional mensualizado por el árbol de cuentas del tenant (ADR-0062 §3).
+         *
+         *     Cada documento RCV se clasifica con la **cascada determinista** (regla del tenant >
+         *     memo > heurística > giro CIIU > sin-clasificar honesto); las decisiones AI/manual
+         *     persistidas en `document_classifications` se leen, nunca se computan acá. Los
+         *     subtotales (Ingresos/Margen/Resultado) cuadran con
+         *     `/api/treasury/reports/operational-result` por construcción.
+         */
+        get: operations["management_operational_result_breakdown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/operational-result/classify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clasificación LLM del residuo (último recurso de la cascada, ADR-0062 §4.2)
+         * @description Corre el clasificador LLM (Gemini por config) SOLO sobre el residuo del rango —
+         *     los documentos que la cascada determinista no resolvió a hoja fina. Fuera del
+         *     request path del reporte: escribe decisiones en `document_classifications`
+         *     (confianza alta → aplicada; media → propuesta). Si el LLM está apagado/mal
+         *     configurado devuelve `status='llm_off'` (no-op honesto). Idempotente: no re-manda
+         *     al modelo lo ya aplicado.
+         */
+        post: operations["management_operational_result_classify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/operational-result/classifications/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cola de propuestas de clasificación LLM (confianza media) para confirmar
+         * @description Propuestas `proposed` (el LLM clasificó con confianza media) esperando que el
+         *     usuario confirme (→ regla + aplicada) o rechace.
+         */
+        get: operations["management_classification_proposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/operational-result/classifications/{classification_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirma una propuesta → aplica + crea regla por contraparte (aprende)
+         * @description Confirma una propuesta: la decisión pasa a `applied` y se crea una
+         *     `classification_rule` por la contraparte → futuros documentos de ese proveedor
+         *     resuelven por regla, sin volver al LLM (aprendizaje ADR-0062 §4.2).
+         */
+        post: operations["management_classification_confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/operational-result/classifications/{classification_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rechaza una propuesta de clasificación LLM
+         * @description Rechaza una propuesta (`rejected`): el documento queda en el fallback
+         *     determinista, honesto, sin crear regla.
+         */
+        post: operations["management_classification_reject"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4496,6 +4695,50 @@ export interface components {
             file: string;
         };
         /**
+         * BreakdownRow
+         * @description Una fila del informe: sección (con hijos), cuenta, o subtotal (con %).
+         */
+        BreakdownRow: {
+            /**
+             * Kind
+             * @description 'section' | 'account' | 'subtotal'
+             */
+            kind: string;
+            /**
+             * Key
+             * @description Código de cuenta/sección ('income', 'gross_margin', ...)
+             */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * By Month
+             * @description Monto firmado por mes (alineado a `months`).
+             */
+            by_month: string[];
+            /** Total */
+            total: string;
+            /**
+             * Pct By Month
+             * @description % de ingresos por mes (solo subtotales).
+             */
+            pct_by_month?: string[] | null;
+            /**
+             * Pct Total
+             * @description % de ingresos del total (solo subtotales).
+             */
+            pct_total?: string | null;
+            /**
+             * Origen Counts
+             * @description Cuántos documentos de la cuenta vinieron de cada capa de la cascada (rule/memo/heuristic/ai/giro/unclassified) — transparencia ADR-0062 §4.1.
+             */
+            origen_counts?: {
+                [key: string]: number;
+            } | null;
+            /** Children */
+            children?: components["schemas"]["BreakdownRow"][];
+        };
+        /**
          * BudgetAccountLine
          * @description Budget vs actual de una cuenta de gestión (F2-A.2). Montos signados.
          */
@@ -5175,6 +5418,25 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ClassificationProposal */
+        ClassificationProposal: {
+            /** Id */
+            id: string;
+            /** Side */
+            side: string;
+            /** Source External Id */
+            source_external_id: string;
+            /** Account Code */
+            account_code: string;
+            /** Confidence */
+            confidence?: string | null;
+            /** Reasoning */
+            reasoning?: string | null;
+            /** Provider */
+            provider?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * ClassificationRule
          * @description Regla de clasificación del tenant (`treasury.classification_rules`).
@@ -5276,6 +5538,45 @@ export interface components {
              */
             create_rule: boolean;
         };
+        /**
+         * ClassifyRunResponse
+         * @description Resultado del job de clasificación LLM del residuo (ADR-0062 §4.2).
+         */
+        ClassifyRunResponse: {
+            /** Status */
+            status: string;
+            /**
+             * Residuo
+             * @default 0
+             */
+            residuo: number;
+            /**
+             * Applied
+             * @default 0
+             */
+            applied: number;
+            /**
+             * Proposed
+             * @default 0
+             */
+            proposed: number;
+            /**
+             * Descartadas
+             * @default 0
+             */
+            descartadas: number;
+            /** Provider */
+            provider?: string | null;
+            /** Model Id */
+            model_id?: string | null;
+            /**
+             * Errores
+             * @description Errores del proveedor LLM por lote (max 5, truncados, sin secretos) — p.ej. 'HTTP 403: PERMISSION_DENIED ...' de Vertex. Diagnóstico directo sin ir a los logs; vacío = todos los lotes llamaron bien.
+             */
+            errores?: string[];
+        } & {
+            [key: string]: unknown;
+        };
         /** CompanyCurrencySettings */
         CompanyCurrencySettings: {
             /** Tenant Id */
@@ -5340,13 +5641,6 @@ export interface components {
             failed: number;
             /** Results */
             results: components["schemas"]["ConfirmBatchItemResult"][];
-        };
-        /** ConfirmResponse */
-        ConfirmResponse: {
-            /** Movement Id */
-            movement_id: string;
-            /** Status */
-            status: string;
         };
         /** ConnectionStatusItem */
         ConnectionStatusItem: {
@@ -6309,6 +6603,51 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * DteDetailEnrichResponse
+         * @description Resultado de `POST /api/sii/enrich-dte-detail` — persiste las líneas del DTE
+         *     (`treasury.document_lines`) + giro/acteco de la contraparte (ADR-0062 PR-0).
+         */
+        DteDetailEnrichResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Side */
+            side: string;
+            /** Desde */
+            desde: string;
+            /** Hasta */
+            hasta: string;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Con Lineas
+             * @default 0
+             */
+            con_lineas: number;
+            /**
+             * Lineas
+             * @default 0
+             */
+            lineas: number;
+            /**
+             * Sin Clave
+             * @default 0
+             */
+            sin_clave: number;
+            /**
+             * Giro Actualizado
+             * @default 0
+             */
+            giro_actualizado: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** DteEmitidosResponse */
         DteEmitidosResponse: {
             /** Status */
@@ -6656,7 +6995,7 @@ export interface components {
             anio: number;
             /**
              * Meses
-             * @description Los 12 meses con {mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento}. estado ∈ declarado / no_declarado_vencido / por_declarar / en_curso / sin_periodo.
+             * @description Los 12 meses con {mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento}. estado ∈ declarado / sin_dato (vencido pero sin sincronizar → NO se afirma 'no declaró') / no_declarado_vencido (solo con evidencia) / por_declarar / en_curso / sin_periodo.
              */
             meses?: {
                 [key: string]: unknown;
@@ -6666,6 +7005,53 @@ export interface components {
              * @default 0
              */
             count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * F29GirosResponse
+         * @description Estado de pago/postergación del F29 de un período, desde la **Consulta de Giros** del SII
+         *     (en vivo). Un `estado` honesto: NO afirma 'pagado' sin dato (ver ADR-0061).
+         */
+        F29GirosResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Periodo */
+            periodo: string;
+            /**
+             * Tiene Giros
+             * @default false
+             */
+            tiene_giros: boolean;
+            /**
+             * Estado
+             * @description sin_giro (nada pendiente; con período declarado = pagado) | postergado (IVA postergado) | giro_no_determinado (hay giro, tipo no reconocido) | multiples_no_determinado (2+ giros)
+             * @default sin_giro
+             */
+            estado: string;
+            /**
+             * Postergado Iva
+             * @default false
+             */
+            postergado_iva: boolean;
+            /**
+             * Iva Postergado
+             * @description Monto del IVA postergado (None si no hay o no se pudo leer).
+             */
+            iva_postergado?: number | null;
+            /**
+             * Vencimiento Postergado
+             * @description Fecha diferida del IVA postergado (ISO), o None.
+             */
+            vencimiento_postergado?: string | null;
+            /**
+             * Multiples Giros
+             * @default false
+             */
+            multiples_giros: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -6846,6 +7232,45 @@ export interface components {
             } | null;
             /** Error */
             error?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * F29SyncResponse
+         * @description Resultado de `POST /api/sii/f29/sync` — enumera folios del año y baja+persiste los que
+         *     faltan (incremental por inmutabilidad, ADR-0063).
+         */
+        F29SyncResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Anio */
+            anio: number;
+            /**
+             * Folios Encontrados
+             * @default 0
+             */
+            folios_encontrados: number;
+            /**
+             * Ya Persistidos
+             * @description Folios que ya estaban (no se re-bajaron).
+             * @default 0
+             */
+            ya_persistidos: number;
+            /**
+             * Persistidos Nuevos
+             * @description F29 nuevos bajados y persistidos.
+             * @default 0
+             */
+            persistidos_nuevos: number;
+            /**
+             * Errores
+             * @description Folios que fallaron al bajar/parsear (best-effort).
+             * @default 0
+             */
+            errores: number;
         } & {
             [key: string]: unknown;
         };
@@ -8049,6 +8474,11 @@ export interface components {
              */
             tenant_name?: string | null;
             /**
+             * Company Rut
+             * @description RUT (con DV) de la empresa del tenant, de su credencial SII (`sii_clave_empresa`). `null` si no configuró SII. El FE lo usa para consultar su propia situación tributaria (`/sii/contribuyente/{rut}` → inicio de actividades → acotar la grilla F29).
+             */
+            company_rut?: string | null;
+            /**
              * Onboarding Completed
              * @description True si el tenant terminó el wizard de onboarding (`core.tenants.onboarding_completed_at` no-NULL). Guard del redirect-a-wizard.
              * @default false
@@ -8388,6 +8818,38 @@ export interface components {
             last_updated?: string | null;
             /** Source */
             source?: string | null;
+        };
+        /**
+         * OperationalResultBreakdownResponse
+         * @description Resultado Operacional mensualizado por categoría (árbol de cuentas del tenant).
+         */
+        OperationalResultBreakdownResponse: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Period From */
+            period_from: string;
+            /** Period To */
+            period_to: string;
+            /**
+             * Mode
+             * @default por_cuenta
+             */
+            mode: string;
+            /**
+             * Months
+             * @description Meses 'YYYY-MM' del rango (columnas).
+             */
+            months: string[];
+            /**
+             * Proforma Month
+             * @description Mes en curso (parcial) si está en el rango — estilo Chipax.
+             */
+            proforma_month?: string | null;
+            /** Rows */
+            rows: components["schemas"]["BreakdownRow"][];
         };
         /**
          * OperationalResultBucket
@@ -8911,6 +9373,13 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** ProposalsResponse */
+        ProposalsResponse: {
+            /** Proposals */
+            proposals: components["schemas"]["ClassificationProposal"][];
+            /** Count */
+            count: number;
         };
         /** Pulso */
         Pulso: {
@@ -10555,6 +11024,25 @@ export interface components {
             /** Accounts */
             accounts: components["schemas"]["BankAccountLinkStatus"][];
         };
+        /** ConfirmResponse */
+        app__api__operational_result__ConfirmResponse: {
+            /** Status */
+            status: string;
+            /**
+             * Rule Created
+             * @default false
+             */
+            rule_created: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ConfirmResponse */
+        app__api__reconciliation__ConfirmResponse: {
+            /** Movement Id */
+            movement_id: string;
+            /** Status */
+            status: string;
+        };
         /**
          * CertificateUploadResponse
          * @description Respuesta de `PUT /api/credentials/certificate`.
@@ -11920,6 +12408,104 @@ export interface operations {
             };
         };
     };
+    sii_f29_giros: {
+        parameters: {
+            query: {
+                /** @description Año del período. */
+                anio: number;
+                /** @description Mes del período (1-12). */
+                mes: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado del período: sin_giro / postergado / no determinado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["F29GirosResponse"];
+                };
+            };
+            /** @description Tenant sin credencial clave tributaria activa. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SII inalcanzable, auth fallida, sesión expirada o //EX. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sii_f29_sync: {
+        parameters: {
+            query: {
+                /** @description Año a sincronizar. */
+                anio: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen: folios encontrados / persistidos nuevos / errores. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["F29SyncResponse"];
+                };
+            };
+            /** @description Tenant sin credencial clave tributaria activa. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SII inalcanzable, auth fallida o enumerador (sesión expirada). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     sii_health: {
         parameters: {
             query?: never;
@@ -12613,6 +13199,58 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    sii_enrich_dte_detail: {
+        parameters: {
+            query: {
+                /** @description Fecha desde YYYY-MM-DD */
+                desde: string;
+                /** @description Fecha hasta YYYY-MM-DD */
+                hasta: string;
+                /** @description 'compras' = DTE recibidos (respaldo masivo) | 'ventas' = DTE emitidos. */
+                side?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen: documentos con líneas persistidas y giros seteados. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DteDetailEnrichResponse"];
+                };
+            };
+            /** @description Consent SII faltante. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description El SII no devolvió los DTE del rango (upstream). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -16104,6 +16742,191 @@ export interface operations {
             };
         };
     };
+    management_operational_result_breakdown: {
+        parameters: {
+            query: {
+                /** @description Período inicial 'YYYY-MM' (inclusive). */
+                period_from: string;
+                /** @description Período final 'YYYY-MM' (inclusive). */
+                period_to: string;
+                /** @description Eje de agrupación. 'por_cliente' llega en una fase posterior (ADR-0062). */
+                mode?: string;
+                /** @description Incluye el mes en curso marcado `proforma_month` (parcial, estilo Chipax). */
+                include_proforma?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Árbol Ingresos/Costos/Margen/Gastos/Resultado por mes + %. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationalResultBreakdownResponse"];
+                };
+            };
+            /** @description period_from/period_to mal formados, invertidos o > 36 meses. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    management_operational_result_classify: {
+        parameters: {
+            query: {
+                /** @description Período inicial 'YYYY-MM' (inclusive). */
+                period_from: string;
+                /** @description Período final 'YYYY-MM' (inclusive). */
+                period_to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen del job (o status='llm_off' si el LLM no está configurado). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassifyRunResponse"];
+                };
+            };
+            /** @description period_from/period_to mal formados, invertidos o > 36 meses. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    management_classification_proposals: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    management_classification_confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                classification_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__operational_result__ConfirmResponse"];
+                };
+            };
+            /** @description La propuesta no existe o ya no está pendiente. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    management_classification_reject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                classification_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__operational_result__ConfirmResponse"];
+                };
+            };
+            /** @description La propuesta no existe o ya no está pendiente. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     management_pulso_detail: {
         parameters: {
             query?: never;
@@ -16216,7 +17039,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConfirmResponse"];
+                    "application/json": components["schemas"]["app__api__reconciliation__ConfirmResponse"];
                 };
             };
             /** @description El movimiento no está en cola de revisión. */
@@ -16291,7 +17114,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ConfirmResponse"];
+                    "application/json": components["schemas"]["app__api__reconciliation__ConfirmResponse"];
                 };
             };
             /** @description El movimiento no está en cola de revisión. */

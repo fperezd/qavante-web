@@ -10,8 +10,9 @@ import {
   QavanteInlineError,
 } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
-import { useSiiF29Impuesto } from "@/lib/api/sii";
+import { useSiiF29Impuesto, useSiiF29Giros } from "@/lib/api/sii";
 
 /* Detalle F29 de un mes (handoff CC-API): dos montos lado a lado — pagar todo
    (`total_con_iva`) vs postergar el IVA (`total_sin_iva`) — + desglose e input
@@ -42,6 +43,13 @@ export function F29MonthDetail({
   const query = useSiiF29Impuesto(anio, mes, manual);
   const data = query.data;
 
+  /* Estado de pago/postergación (Consulta de Giros, en vivo). NO afirma "pagado"
+     ante error → si `giros` falla, no mostramos badge (estado base). */
+  const giros = useSiiF29Giros(anio, mes);
+  const girosData = giros.isError ? undefined : giros.data;
+  const postergado = girosData?.postergado_iva === true;
+  const pagado = girosData?.estado === "sin_giro" && data?.declarado === true;
+
   return (
     <QavanteCard
       variant="bordered"
@@ -54,6 +62,11 @@ export function F29MonthDetail({
             {data?.folio ? <QavanteBadge variant="info">folio {data.folio}</QavanteBadge> : null}
             {data && !data.declarado ? (
               <QavanteBadge variant="warning">estimado (sin declarar)</QavanteBadge>
+            ) : null}
+            {postergado ? (
+              <QavanteBadge variant="warning">IVA postergado</QavanteBadge>
+            ) : pagado ? (
+              <QavanteBadge variant="success">Pagado</QavanteBadge>
             ) : null}
           </span>
           <button
@@ -98,6 +111,18 @@ export function F29MonthDetail({
               }
             />
           </div>
+
+          {/* Si el SII ya registra el IVA postergado, lo mostramos como hecho. */}
+          {postergado && girosData && (
+            <div className="rounded-lg border border-warning-500/30 bg-warning-500/10 p-3 text-sm text-warning-700">
+              IVA ya postergado
+              {girosData.iva_postergado != null ? ` de ${formatClp(girosData.iva_postergado)}` : ""}
+              {girosData.vencimiento_postergado
+                ? ` · vence el ${formatDateLike(girosData.vencimiento_postergado)}`
+                : ""}
+              .
+            </div>
+          )}
 
           {/* Desglose. */}
           <div className="rounded-xl border border-border bg-surface-muted p-3">

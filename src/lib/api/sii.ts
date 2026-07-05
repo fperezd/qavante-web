@@ -35,6 +35,7 @@ export type F29Period = components["schemas"]["F29Period"];
 export type F29EstadoResponse = components["schemas"]["F29EstadoResponse"];
 export type F29ImpuestoResponse = components["schemas"]["F29ImpuestoResponse"];
 export type ContribuyenteResponse = components["schemas"]["ContribuyenteResponse"];
+export type F29GirosResponse = components["schemas"]["F29GirosResponse"];
 
 /** Estado de un mes en el panel F29. El contrato tipa `meses[]` laxo
  *  (`{[k]: unknown}`); acá le damos forma según el handoff CC-API 2026-07-05. */
@@ -89,6 +90,7 @@ export const siiKeys = {
   f29Estado: (anio: number) => [...siiKeys.all, "f29-estado", anio] as const,
   f29Impuesto: (anio: number, mes: number, imp?: number) =>
     [...siiKeys.all, "f29-impuesto", anio, mes, imp ?? null] as const,
+  f29Giros: (anio: number, mes: number) => [...siiKeys.all, "f29-giros", anio, mes] as const,
   bhe: (params: SiiPeriodoParams) => [...siiKeys.all, "bhe", params] as const,
   rcvCompras: (params: SiiRcvParams) => [...siiKeys.all, "rcv-compras", params] as const,
   rcvVentas: (params: SiiRcvParams) => [...siiKeys.all, "rcv-ventas", params] as const,
@@ -215,6 +217,21 @@ export function useSiiF29Impuesto(
       }
       return api.get<F29ImpuestoResponse>(`/api/sii/f29/impuesto?${q.toString()}`);
     },
+    enabled: enabled && valid,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** `GET /api/sii/f29/giros?anio&mes` — estado de pago/postergación de IVA de un
+ *  período (Consulta de Giros del SII, en vivo). `estado` ∈ `sin_giro` (declarado
+ *  + sin giro = pagado) · `postergado` · `giro_no_determinado` · `multiples_no_determinado`.
+ *  ⚠️ NO afirma "pagado" ante error: si falla, el caller muestra el estado base. */
+export function useSiiF29Giros(anio: number, mes: number, enabled = true) {
+  const valid = Number.isInteger(anio) && anio > 0 && mes >= 1 && mes <= 12;
+  return useQuery({
+    queryKey: siiKeys.f29Giros(anio, mes),
+    queryFn: () => api.get<F29GirosResponse>(`/api/sii/f29/giros?anio=${anio}&mes=${mes}`),
     enabled: enabled && valid,
     staleTime: 5 * 60 * 1000,
     retry: false,
