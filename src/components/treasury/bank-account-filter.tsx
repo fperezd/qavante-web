@@ -21,14 +21,23 @@ export function hasMixedCurrencies(accounts: BankAccountItem[]): boolean {
 
 export interface BankAccountFilterProps {
   accounts: BankAccountItem[];
-  /** id de la cuenta seleccionada; "" = todas (solo si no hay monedas mezcladas). */
+  /** id de la cuenta seleccionada; "" = todas. */
   value: string;
   onChange: (accountId: string) => void;
+  /** Permitir "Todas" aunque haya monedas mezcladas. Úsalo en listas SIN total
+   *  (cada fila se formatea en su moneda → no hay total que mezclar). Default
+   *  false: con monedas mezcladas se obliga a elegir una cuenta (vistas con total). */
+  allowAll?: boolean;
 }
 
-export function BankAccountFilter({ accounts, value, onChange }: BankAccountFilterProps) {
+export function BankAccountFilter({
+  accounts,
+  value,
+  onChange,
+  allowAll = false,
+}: BankAccountFilterProps) {
   if (accounts.length <= 1) return null;
-  const mixed = hasMixedCurrencies(accounts);
+  const showAll = allowAll || !hasMixedCurrencies(accounts);
 
   return (
     <label className="inline-flex items-center gap-2 text-sm">
@@ -39,7 +48,7 @@ export function BankAccountFilter({ accounts, value, onChange }: BankAccountFilt
         aria-label="Filtrar por cuenta bancaria"
         className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
       >
-        {!mixed && <option value="">Todas las cuentas</option>}
+        {showAll && <option value="">Todas las cuentas</option>}
         {accounts.map((a) => (
           <option key={a.id} value={a.id}>
             {a.name} · {a.currency_code}
