@@ -61,11 +61,23 @@ export function useBankAccounts() {
 }
 
 /** `GET /api/bank-movements/bice/accounts` — cuentas que BICE trae, con su estado
- *  de vínculo. `linked_bank_account_id === null` = en cuarentena (por vincular). */
+ *  de vínculo. `linked_bank_account_id === null` = en cuarentena (por vincular).
+ *  Timeout de 12s: el endpoint puede colgarse/tardar (lee del banco) → sin esto
+ *  la card se quedaba cargando para siempre; con el abort cae en error + reintentar. */
 export function useBiceAccounts() {
   return useQuery({
     queryKey: treasuryKeys.biceAccounts(),
-    queryFn: () => api.get<BiceAccountsResponse>("/api/bank-movements/bice/accounts"),
+    queryFn: async () => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 12_000);
+      try {
+        return await api.get<BiceAccountsResponse>("/api/bank-movements/bice/accounts", {
+          signal: ctrl.signal,
+        });
+      } finally {
+        clearTimeout(t);
+      }
+    },
     staleTime: 60_000,
     retry: false,
   });
