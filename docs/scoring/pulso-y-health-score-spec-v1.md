@@ -326,15 +326,26 @@ Reglas objetivas sobre los dos scores; convierten el índice en herramienta
 
 ## 7. Puntos abiertos
 
+> Auditoría de datos 2026-07-05: la captura NO es el cuello de botella. Ya
+> resuelto por lo que el backend captura hoy: **F29 real** (`f29_periods`),
+> **nómina** (Buk), **calendario de deuda** (`obligations`), **`due_date` de los
+> DTE** (los HTML/XML del detalle ya se bajan vía `sii_due_date_service`) e
+> **identidad de pagador bajo factoring** (`factoring_assignments`). Los tres
+> gaps restantes son features **derivadas** — especificación de implementación
+> en el ADR-0064 §4 de qavante-api.
+
 - [ ] Validación de Fernando de pesos y umbrales v1.
 - [ ] CC-API: migrar el motor actual (`dashboard_pulso.py`, ADR-0033 §2) a
-  COB/RUN/DPC/CAL según esta spec — plan de transición en el ADR-0064 de
+  COB/RUN/DPC/CAL según esta spec — plan de transición en el ADR-0064 §3 de
   qavante-api. Los `components[]` de ejemplo del contrato FE-first
   (liquidez/cobranza/rentabilidad) quedan obsoletos y no deben implementarse.
+- [ ] **Gap 1 — `payer_payment_stats`** (historial de pago por pagador): habilita
+  la probabilidad de pago de COB y la concentración mitigada de RES. Cómo: ADR-0064 §4.1.
+- [ ] **Gap 2 — `recurring_series`** (detector de recurrencia de egresos):
+  alimenta RUN, DPC, gasto fijo (RES) y elasticidad (EXP). Cómo: ADR-0064 §4.2.
+- [ ] **Gap 3 — política de historia por tenant** (backfill RCV + cold start
+  progresivo): habilita TRAY/GEN del QHS. Cómo: ADR-0064 §4.3.
 - [ ] Definir contrato del QHS (endpoint separado o extensión del dashboard).
-- [ ] Estimación de nómina cuando no hay dato de remuneraciones: inferir del
-  histórico bancario (pagos clasificados como remuneraciones, mismos días del mes).
-- [ ] Resolver identidad de pagador bajo factoring (matching factor ↔ cliente).
 
 ---
 
