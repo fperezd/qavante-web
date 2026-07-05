@@ -27,6 +27,7 @@ import {
   hasMixedCurrencies,
 } from "@/components/treasury/bank-account-filter";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
+import { DirectionSegment } from "@/components/filters/direction-segment";
 import { presetRange, isInPeriodRange, type PeriodRange } from "@/lib/period/period-range";
 import { formatMoney } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
@@ -183,6 +184,9 @@ export function ClasificadosView() {
     filters.canonicalCategory !== "todos" ||
     filters.searchText !== "" ||
     filters.direction !== "todos";
+  /* Filtros que viven DENTRO del panel colapsable (categoría + glosa). La
+     dirección ya no cuenta acá: es control de primer nivel (segmentado arriba). */
+  const hasPanelFilters = filters.canonicalCategory !== "todos" || filters.searchText !== "";
 
   const categoryLabelByCode = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -297,14 +301,25 @@ export function ClasificadosView() {
 
   return (
     <div className="space-y-4">
-      {/* Filtro de rango de período (idéntico al Libro de Ventas). */}
-      <PeriodRangeFilter
-        value={range}
-        onChange={(r) => {
-          setRange(r);
-          setPage(1);
-        }}
-      />
+      {/* Filtros de primer nivel: rango de período (idéntico al Libro) +
+          dirección cobrar/pagar (el corte que el usuario hace más seguido). */}
+      <div className="flex flex-wrap items-center gap-2">
+        <PeriodRangeFilter
+          value={range}
+          onChange={(r) => {
+            setRange(r);
+            setPage(1);
+          }}
+        />
+        <DirectionSegment
+          value={filters.direction}
+          onChange={(dir) => {
+            setFilters((prev) => ({ ...prev, direction: dir }));
+            setPage(1);
+          }}
+          aria-label="Filtrar movimientos clasificados por dirección"
+        />
+      </div>
 
       <ClasificadosStats
         items={filtered}
@@ -353,14 +368,14 @@ export function ClasificadosView() {
               </QavanteBadge>
               <QavanteButton
                 size="sm"
-                variant={filtersOpen || hasActiveFilters ? "secondary" : "ghost"}
+                variant={filtersOpen || hasPanelFilters ? "secondary" : "ghost"}
                 onClick={() => setFiltersOpen((v) => !v)}
                 aria-expanded={filtersOpen}
                 aria-controls="clasificados-filters"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
                 Filtros
-                {hasActiveFilters && (
+                {hasPanelFilters && (
                   <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-primary px-1 text-[10px] font-medium leading-none text-surface">
                     •
                   </span>
@@ -590,7 +605,7 @@ function FiltersPanel({ value, onChange, onReset, categories }: FiltersPanelProp
       className="space-y-3 rounded-xl border border-border bg-surface-muted p-3"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-5">
-        <div className="space-y-1">
+        <div className="space-y-1 sm:col-span-2">
           <label
             htmlFor="clasif-filter-categoria"
             className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
@@ -609,26 +624,6 @@ function FiltersPanel({ value, onChange, onReset, categories }: FiltersPanelProp
                 {c.label}
               </option>
             ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label
-            htmlFor="clasif-filter-tipo"
-            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
-          >
-            Tipo
-          </label>
-          <select
-            id="clasif-filter-tipo"
-            value={value.direction}
-            onChange={(e) =>
-              onChange({ ...value, direction: e.target.value as Filters["direction"] })
-            }
-            className={selectClass}
-          >
-            <option value="todos">Todos</option>
-            <option value="credit">Ingresos</option>
-            <option value="debit">Egresos</option>
           </select>
         </div>
         <div className="space-y-1 sm:col-span-3">
