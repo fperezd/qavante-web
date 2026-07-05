@@ -14,11 +14,7 @@ import {
   useCanonicalCategories,
   type BankMovement,
 } from "@/lib/api/treasury";
-import {
-  BankAccountFilter,
-  currencyByAccount,
-  hasMixedCurrencies,
-} from "@/components/treasury/bank-account-filter";
+import { BankAccountFilter, currencyByAccount } from "@/components/treasury/bank-account-filter";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { presetRange, isInPeriodRange, type PeriodRange } from "@/lib/period/period-range";
 import { formatMoney } from "@/lib/formatters/clp";
@@ -105,14 +101,11 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
   const [formError, setFormError] = React.useState<string>();
   /* Filtro por cuenta bancaria (no mezclar CLP/USD). "" = todas (solo si no hay
      monedas mezcladas). Con monedas mezcladas se arranca en la primera cuenta. */
+  /* Sin default forzado: "Por clasificar" es una LISTA sin total → mostramos
+     todas las cuentas juntas ("" = todas), cada fila formateada en su moneda. No
+     hay total que mezclar, así que no hace falta obligar a elegir una cuenta. */
   const [accountId, setAccountId] = React.useState("");
   const bankAccounts = bankAccountsQuery.data?.items ?? [];
-  React.useEffect(() => {
-    const accts = bankAccountsQuery.data?.items ?? [];
-    if (accts.length > 1 && hasMixedCurrencies(accts) && !accountId) {
-      setAccountId(accts[0]!.id);
-    }
-  }, [bankAccountsQuery.data, accountId]);
   /* Filtro de rango de período (idéntico al Libro). Filtra los pendientes por la
      fecha del movimiento; default el año en curso. */
   const [range, setRange] = React.useState<PeriodRange>(() => presetRange("este_ano"));
@@ -367,7 +360,12 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       <div className="flex flex-wrap items-center gap-3 px-1">
         <PeriodRangeFilter value={range} onChange={setRange} />
         {bankAccounts.length > 1 && (
-          <BankAccountFilter accounts={bankAccounts} value={accountId} onChange={setAccountId} />
+          <BankAccountFilter
+            accounts={bankAccounts}
+            value={accountId}
+            onChange={setAccountId}
+            allowAll
+          />
         )}
       </div>
 

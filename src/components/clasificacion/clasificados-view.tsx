@@ -104,15 +104,11 @@ export function ClasificadosView() {
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState<number>(20);
-  /* Filtro por cuenta (no mezclar CLP/USD). Con monedas mezcladas arranca en la
-     1ª cuenta; el monto de cada fila se muestra en la moneda de su cuenta. */
+  /* Filtro por cuenta (no mezclar CLP/USD — Clasificados tiene totales). Con
+     monedas mezcladas se obliga a elegir una; el default (data-aware) se resuelve
+     más abajo, cuando ya cargaron los movimientos. */
   const [accountId, setAccountId] = React.useState("");
-  React.useEffect(() => {
-    const accts = bankAccountsQuery.data?.items ?? [];
-    if (accts.length > 1 && hasMixedCurrencies(accts) && !accountId) {
-      setAccountId(accts[0]!.id);
-    }
-  }, [bankAccountsQuery.data, accountId]);
+  const didDefaultAccount = React.useRef(false);
   /* Filtro de rango de período (idéntico al Libro). Default el año en curso.
      Filtra client-side por la fecha del movimiento. */
   const [range, setRange] = React.useState<PeriodRange>(() => presetRange("este_ano"));
@@ -127,6 +123,22 @@ export function ClasificadosView() {
 
   const allItems = query.data?.items ?? [];
   const categoryItems = categoriesQuery.data?.items ?? [];
+  /* Default de cuenta data-aware: cuando cargan cuentas + movimientos, si hay
+     monedas mezcladas, arranca en la cuenta con MÁS movimientos (evita caer en
+     una cuenta vacía). Una sola vez; después respeta la elección del usuario. */
+  React.useEffect(() => {
+    if (didDefaultAccount.current) return;
+    const accts = bankAccountsQuery.data?.items;
+    const movs = query.data?.items;
+    if (!accts || !movs) return;
+    didDefaultAccount.current = true;
+    if (accts.length > 1 && hasMixedCurrencies(accts)) {
+      const counts = new Map<string, number>();
+      for (const m of movs) counts.set(m.bank_account_id, (counts.get(m.bank_account_id) ?? 0) + 1);
+      const best = [...accts].sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))[0];
+      if (best) setAccountId(best.id);
+    }
+  }, [bankAccountsQuery.data, query.data]);
   const currencyMap = React.useMemo(
     () => currencyByAccount(bankAccountsQuery.data?.items ?? []),
     [bankAccountsQuery.data],
