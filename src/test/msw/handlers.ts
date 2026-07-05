@@ -94,6 +94,7 @@ export const authHandlers = [
         ...SEED_SESSION_USER,
         tenant_id: "t_qavante_demo",
         name: "Fernando Pérez",
+        company_rut: "76123456-0",
         last_login_at: "2026-05-13T08:00:00Z",
         permissions: ["users.read", "users.write"],
       },
