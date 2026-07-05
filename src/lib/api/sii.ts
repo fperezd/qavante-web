@@ -36,6 +36,7 @@ export type F29EstadoResponse = components["schemas"]["F29EstadoResponse"];
 export type F29ImpuestoResponse = components["schemas"]["F29ImpuestoResponse"];
 export type ContribuyenteResponse = components["schemas"]["ContribuyenteResponse"];
 export type F29GirosResponse = components["schemas"]["F29GirosResponse"];
+export type F29SyncResponse = components["schemas"]["F29SyncResponse"];
 
 /** Estado de un mes en el panel F29. El contrato tipa `meses[]` laxo
  *  (`{[k]: unknown}`); acá le damos forma según el handoff CC-API 2026-07-05. */
@@ -236,6 +237,18 @@ export function useSiiF29Giros(anio: number, mes: number, enabled = true) {
     enabled: enabled && valid,
     staleTime: 5 * 60 * 1000,
     retry: false,
+  });
+}
+
+/** `POST /api/sii/f29/sync?anio=` — enumera los F29 declarados del año y los
+ *  persiste (incremental). Tras un sync ok, `/f29/estado` y `/f29/anual` se llenan.
+ *  `status='in_progress'` = ya hay un sync corriendo para el tenant (no dispares
+ *  otro). NO retry. Invalida las queries F29 al terminar. */
+export function useSyncF29() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (anio: number) => api.post<F29SyncResponse>(`/api/sii/f29/sync?anio=${anio}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: siiKeys.all }),
   });
 }
 
