@@ -1754,6 +1754,66 @@ const siiHandlers = [
     ),
   ),
 
+  /* Panel F29 — estado por año (debe ir ANTES de `/f29/:folio` o lo captura). */
+  http.get("*/api/sii/f29/estado", ({ request }) => {
+    const anio = Number(new URL(request.url).searchParams.get("anio")) || 2026;
+    const curYear = 2026;
+    const curMonth = 5; // mayo (fixture determinista)
+    const meses = Array.from({ length: 12 }, (_, i) => {
+      const mes = i + 1;
+      const periodo = `${anio}-${String(mes).padStart(2, "0")}`;
+      let estado: string;
+      if (anio > curYear || (anio === curYear && mes > curMonth)) estado = "sin_periodo";
+      else if (anio === curYear && mes === curMonth) estado = "en_curso";
+      else if (anio === curYear && mes === curMonth - 1) estado = "por_declarar";
+      else if (anio === 2026 && mes === 3) estado = "no_declarado_vencido";
+      else estado = "declarado";
+      const declarado = estado === "declarado";
+      return {
+        mes,
+        periodo,
+        estado,
+        declarado,
+        folio: declarado ? 6000 + anio * 12 + mes : null,
+        saldo: declarado ? (mes % 4 === 0 ? null : mes * 10000) : null,
+        remanente: declarado ? 0 : null,
+        vencimiento: `${anio}-${String(mes).padStart(2, "0")}-12`,
+      };
+    });
+    return HttpResponse.json({ status: "ok", anio, meses, count: meses.length }, { status: 200 });
+  }),
+
+  /* Detalle F29 de un mes — con/sin IVA + impuesto trabajadores. */
+  http.get("*/api/sii/f29/impuesto", ({ request }) => {
+    const url = new URL(request.url);
+    const manual = url.searchParams.get("impuesto_trabajadores");
+    const impuesto = manual != null ? Number(manual) : 0;
+    const fuente = manual != null ? "manual" : "no_disponible";
+    const ivaDeb = 1_200_000;
+    const ivaCred = 800_000;
+    const ivaDet = ivaDeb - ivaCred; // 400.000
+    const ppm = 150_000;
+    return HttpResponse.json(
+      {
+        status: "ok",
+        periodo: `${url.searchParams.get("anio")}-${String(url.searchParams.get("mes")).padStart(2, "0")}`,
+        declarado: true,
+        folio: 6123,
+        iva_debito: ivaDeb,
+        iva_credito: ivaCred,
+        remanente: 0,
+        ppm,
+        impuesto_trabajadores: impuesto,
+        fuente_impuesto_trabajadores: fuente,
+        iva_determinado: ivaDet,
+        iva_postergable: ivaDet,
+        total_con_iva: ivaDet + ppm + impuesto,
+        total_sin_iva: ppm + impuesto,
+      },
+      { status: 200 },
+    );
+  }),
+
   http.get("*/api/sii/f29/:folio", ({ params }) => {
     const folio = Number(params.folio);
     if (!Number.isFinite(folio) || folio <= 0) {
