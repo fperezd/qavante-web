@@ -3,12 +3,7 @@
  * expande el rango a la lista de meses y consulta cada uno (orquestación en el
  * hook). Este módulo solo hace la aritmética de meses + los presets. */
 
-export type RangePreset =
-  | "mes_actual"
-  | "tres_meses"
-  | "seis_meses"
-  | "este_ano"
-  | "ano_anterior";
+export type RangePreset = "mes_actual" | "tres_meses" | "seis_meses" | "este_ano" | "ano_anterior";
 
 export interface PeriodRange {
   /** Mes inicial `YYYY-MM` (inclusive). */
@@ -44,6 +39,15 @@ export function orderRange(range: PeriodRange): PeriodRange {
   return comparePeriod(range.desde, range.hasta) <= 0
     ? range
     : { desde: range.hasta, hasta: range.desde };
+}
+
+/** ¿La fecha (ISO / `YYYY-MM-DD…`) cae dentro del rango (por mes, inclusive)?
+ *  Compara el `YYYY-MM` de la fecha contra [desde, hasta]. null/vacío → false. */
+export function isInPeriodRange(dateIso: string | null | undefined, range: PeriodRange): boolean {
+  if (!dateIso) return false;
+  const p = String(dateIso).slice(0, 7);
+  const { desde, hasta } = orderRange(range);
+  return comparePeriod(p, desde) >= 0 && comparePeriod(p, hasta) <= 0;
 }
 
 /** Expande un rango a la lista de meses `YYYY-MM` (inclusive), de viejo a nuevo.
@@ -83,10 +87,7 @@ export function defaultRange(now: Date = new Date()): PeriodRange {
   return presetRange("seis_meses", now);
 }
 
-const MESES = [
-  "ene", "feb", "mar", "abr", "may", "jun",
-  "jul", "ago", "sep", "oct", "nov", "dic",
-];
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 /** Etiqueta corta de un período: `2026-02` → `feb-2026`. */
 export function formatMonthLabel(period: string): string {

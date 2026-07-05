@@ -5,6 +5,7 @@ import {
   expandPeriodRange,
   formatMonthLabel,
   formatRangeLabel,
+  isInPeriodRange,
   matchingPreset,
   orderRange,
   presetRange,
@@ -62,6 +63,23 @@ describe("period-range · presets", () => {
   it("matchingPreset detecta el chip activo", () => {
     expect(matchingPreset({ desde: "2026-02", hasta: "2026-07" }, NOW)).toBe("seis_meses");
     expect(matchingPreset({ desde: "2026-04", hasta: "2026-06" }, NOW)).toBeNull();
+  });
+});
+
+describe("period-range · isInPeriodRange", () => {
+  const range = { desde: "2026-02", hasta: "2026-07" };
+  it("incluye los meses del rango (inclusive)", () => {
+    expect(isInPeriodRange("2026-02-01", range)).toBe(true);
+    expect(isInPeriodRange("2026-07-31", range)).toBe(true);
+    expect(isInPeriodRange("2026-04-15T10:00:00Z", range)).toBe(true);
+  });
+  it("excluye fuera del rango", () => {
+    expect(isInPeriodRange("2026-01-31", range)).toBe(false);
+    expect(isInPeriodRange("2026-08-01", range)).toBe(false);
+  });
+  it("null/vacío → false", () => {
+    expect(isInPeriodRange(null, range)).toBe(false);
+    expect(isInPeriodRange("", range)).toBe(false);
   });
 });
 

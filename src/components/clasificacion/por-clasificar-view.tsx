@@ -19,6 +19,8 @@ import {
   currencyByAccount,
   hasMixedCurrencies,
 } from "@/components/treasury/bank-account-filter";
+import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
+import { presetRange, isInPeriodRange, type PeriodRange } from "@/lib/period/period-range";
 import { formatMoney } from "@/lib/formatters/clp";
 import {
   useManagementAccountsTree,
@@ -91,7 +93,7 @@ export interface PorClasificarViewProps {
 }
 
 export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarViewProps = {}) {
-  const movementsQuery = useBankMovements({ status: "unclassified" });
+  const movementsQuery = useBankMovements({ status: "unclassified", limit: 500 });
   const canonicalQuery = useCanonicalCategories();
   const accountsQuery = useManagementAccountsTree();
   const bankAccountsQuery = useBankAccounts();
@@ -111,14 +113,21 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       setAccountId(accts[0]!.id);
     }
   }, [bankAccountsQuery.data, accountId]);
+  /* Filtro de rango de período (idéntico al Libro). Filtra los pendientes por la
+     fecha del movimiento; default el año en curso. */
+  const [range, setRange] = React.useState<PeriodRange>(() => presetRange("este_ano"));
+  const passes = React.useCallback(
+    (m: BankMovement) =>
+      (!accountId || m.bank_account_id === accountId) && isInPeriodRange(m.date, range),
+    [accountId, range],
+  );
   /* Triage por teclado (nivel dios): ↑↓ mueven la fila activa, Enter abre el
      drawer para clasificarla. `active` indexa `movements`; se acota cuando la
      lista cambia (al clasificar, la fila desaparece). */
   const [active, setActive] = React.useState(0);
   const listRef = React.useRef<HTMLUListElement>(null);
   const rawItems = movementsQuery.data?.items ?? [];
-  const itemCount = (accountId ? rawItems.filter((m) => m.bank_account_id === accountId) : rawItems)
-    .length;
+  const itemCount = rawItems.filter(passes).length;
   React.useEffect(() => {
     setActive((a) => Math.min(a, Math.max(0, itemCount - 1)));
   }, [itemCount]);
@@ -142,10 +151,10 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       return next.size === prev.size ? prev : next;
     });
   }, [movementsQuery.data]);
-  /* Al cambiar de cuenta, limpiar la selección del lote (eran de otra cuenta). */
+  /* Al cambiar de cuenta o de período, limpiar la selección del lote. */
   React.useEffect(() => {
     setChecked(new Set());
-  }, [accountId]);
+  }, [accountId, range]);
   /* Enfocar la lista cuando hay ítems y no hay drawer abierto → el teclado
      funciona de una (y vuelve a la lista al cerrar el drawer). */
   React.useEffect(() => {
@@ -190,9 +199,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
      formatear correcto (US$ vs $). El vacío global (celebración) se evalúa sobre
      TODAS las cuentas; el filtro por cuenta solo afecta lo que se muestra. */
   const currencyMap = currencyByAccount(bankAccounts);
-  const movements = accountId
-    ? allMovements.filter((m) => m.bank_account_id === accountId)
-    : allMovements;
+  const movements = allMovements.filter(passes);
   if (allMovements.length === 0) {
     return (
       <QavanteEmpty
@@ -356,16 +363,17 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           what="las cuentas de gestión — no vas a poder clasificar hasta resolverlo"
         />
       )}
-      {/* Selector de cuenta (no mezclar CLP/USD). Solo con >1 cuenta. */}
-      {bankAccounts.length > 1 && (
-        <div className="px-1">
+      {/* Filtro de rango de período (idéntico al Libro) + selector de cuenta. */}
+      <div className="flex flex-wrap items-center gap-3 px-1">
+        <PeriodRangeFilter value={range} onChange={setRange} />
+        {bankAccounts.length > 1 && (
           <BankAccountFilter accounts={bankAccounts} value={accountId} onChange={setAccountId} />
-        </div>
-      )}
+        )}
+      </div>
 
       {movements.length === 0 ? (
         <p className="rounded-xl border border-border bg-surface-muted px-4 py-6 text-center text-sm text-neutral-mid">
-          No hay movimientos por clasificar en esta cuenta.
+          No hay movimientos por clasificar con los filtros aplicados.
         </p>
       ) : (
         <>
