@@ -9,6 +9,7 @@ import {
   Coins,
   ListFilter,
   Briefcase,
+  Building2,
   ArrowRight,
 } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
@@ -53,6 +54,12 @@ export default function AdministracionPage() {
       </header>
 
       <div className="grid gap-4 md:grid-cols-2">
+        <SubModuleCard
+          href="/administracion/empresas"
+          icon={Building2}
+          title="Empresas"
+          description="Las empresas de tu cuenta: cambia entre ellas o agrega una nueva."
+        />
         <SubModuleCard
           href="/administracion/usuarios"
           icon={Users}
