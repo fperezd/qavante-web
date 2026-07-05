@@ -26,6 +26,8 @@ import {
   currencyByAccount,
   hasMixedCurrencies,
 } from "@/components/treasury/bank-account-filter";
+import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
+import { presetRange, isInPeriodRange, type PeriodRange } from "@/lib/period/period-range";
 import { formatMoney } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import { ClassificationDrawer, type ClassificationDraft } from "./classification-drawer";
@@ -53,51 +55,24 @@ const DIRECTION_LABEL: Record<string, string> = {
   debit: "Egreso",
 };
 
-/* Filtro de período con 3 modos. Backend solo soporta `period=YYYY-MM`
-   (brecha documentada — falta `date_from`/`date_to` server-side); para los
-   modos año y rango pasamos sin `period` y filtramos client-side sobre el
-   universo descargado (`limit:500`). */
-export type PeriodFilter =
-  | { kind: "month"; value: string } // value = "YYYY-MM" o ""
-  | { kind: "year"; value: string } // value = "YYYY" o ""
-  | { kind: "range"; from: string; to: string }; // YYYY-MM-DD c/u
-
+/* El período se maneja aparte con `PeriodRangeFilter` (idéntico al Libro): un
+   rango YYYY-MM que filtra client-side por la fecha del movimiento. El backend
+   solo soporta `period=YYYY-MM` (un mes) → con rango descargamos amplio
+   (`limit:500`) y filtramos acá. Los demás filtros (categoría/dirección/glosa)
+   viven en `Filters`. */
 interface Filters {
   canonicalCategory: string;
   searchText: string;
   direction: "todos" | "credit" | "debit";
-  period: PeriodFilter;
 }
-
-const DEFAULT_PERIOD: PeriodFilter = { kind: "month", value: "" };
 
 const DEFAULT_FILTERS: Filters = {
   canonicalCategory: "todos",
   searchText: "",
   direction: "todos",
-  period: DEFAULT_PERIOD,
 };
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
-
-function hasPeriodValue(p: PeriodFilter): boolean {
-  if (p.kind === "month" || p.kind === "year") return p.value !== "";
-  return p.from !== "" || p.to !== "";
-}
-
-function matchesPeriod(date: string, period: PeriodFilter): boolean {
-  if (period.kind === "month") {
-    if (!period.value) return true;
-    return date.startsWith(period.value);
-  }
-  if (period.kind === "year") {
-    if (!period.value) return true;
-    return date.startsWith(period.value);
-  }
-  if (period.from && date < period.from) return false;
-  if (period.to && date > period.to) return false;
-  return true;
-}
 
 function applyFilters(items: BankMovement[], filters: Filters): BankMovement[] {
   const text = filters.searchText.trim().toLowerCase();
@@ -108,7 +83,6 @@ function applyFilters(items: BankMovement[], filters: Filters): BankMovement[] {
     if (filters.direction !== "todos") {
       if (m.direction !== filters.direction) return false;
     }
-    if (!matchesPeriod(m.date, filters.period)) return false;
     if (text) {
       if (!m.description.toLowerCase().includes(text)) return false;
     }
@@ -139,22 +113,17 @@ export function ClasificadosView() {
       setAccountId(accts[0]!.id);
     }
   }, [bankAccountsQuery.data, accountId]);
+  /* Filtro de rango de período (idéntico al Libro). Default el año en curso.
+     Filtra client-side por la fecha del movimiento. */
+  const [range, setRange] = React.useState<PeriodRange>(() => presetRange("este_ano"));
   /* Reclasificación inline: el user hace click en una row → guardamos
      ref al movimiento + abrimos el drawer del §17 con el draft prellenado
      desde la clasificación actual (initialDraft). */
   const [reclasifyTarget, setReclasifyTarget] = React.useState<BankMovement | null>(null);
 
-  /* Solo el modo "month" se traduce a `period=YYYY-MM` server-side. Año y
-     rango filtran client-side sobre el universo descargado (brecha backend
-     documentada: faltan params `date_from`/`date_to`/`year` server-side). */
-  const serverPeriod =
-    filters.period.kind === "month" && filters.period.value ? filters.period.value : undefined;
-
-  const query = useBankMovements({
-    status: "classified",
-    ...(serverPeriod ? { period: serverPeriod } : {}),
-    limit: 500, // backend default; pedimos amplio para filtrar client-side
-  });
+  /* El backend solo filtra por un mes; con rango descargamos amplio y filtramos
+     client-side (por cuenta + rango + los filtros de categoría/dirección/glosa). */
+  const query = useBankMovements({ status: "classified", limit: 500 });
 
   const allItems = query.data?.items ?? [];
   const categoryItems = categoriesQuery.data?.items ?? [];
@@ -163,8 +132,11 @@ export function ClasificadosView() {
     [bankAccountsQuery.data],
   );
   const accountItems = React.useMemo(
-    () => (accountId ? allItems.filter((m) => m.bank_account_id === accountId) : allItems),
-    [allItems, accountId],
+    () =>
+      allItems.filter(
+        (m) => (!accountId || m.bank_account_id === accountId) && isInPeriodRange(m.date, range),
+      ),
+    [allItems, accountId, range],
   );
 
   const filtered = React.useMemo(
@@ -198,8 +170,7 @@ export function ClasificadosView() {
   const hasActiveFilters =
     filters.canonicalCategory !== "todos" ||
     filters.searchText !== "" ||
-    filters.direction !== "todos" ||
-    hasPeriodValue(filters.period);
+    filters.direction !== "todos";
 
   const categoryLabelByCode = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -314,6 +285,15 @@ export function ClasificadosView() {
 
   return (
     <div className="space-y-4">
+      {/* Filtro de rango de período (idéntico al Libro de Ventas). */}
+      <PeriodRangeFilter
+        value={range}
+        onChange={(r) => {
+          setRange(r);
+          setPage(1);
+        }}
+      />
+
       <ClasificadosStats
         items={filtered}
         isPartial={isPartial}
@@ -639,16 +619,7 @@ function FiltersPanel({ value, onChange, onReset, categories }: FiltersPanelProp
             <option value="debit">Egresos</option>
           </select>
         </div>
-        <div className="space-y-1 sm:col-span-2">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            Período
-          </label>
-          <PeriodControl
-            value={value.period}
-            onChange={(period) => onChange({ ...value, period })}
-          />
-        </div>
-        <div className="space-y-1">
+        <div className="space-y-1 sm:col-span-3">
           <label
             htmlFor="clasif-filter-search"
             className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
@@ -741,111 +712,6 @@ function PaginationBar({
           </QavanteButton>
         </div>
       </div>
-    </div>
-  );
-}
-
-interface PeriodControlProps {
-  value: PeriodFilter;
-  onChange: (next: PeriodFilter) => void;
-}
-
-const PERIOD_MODES: ReadonlyArray<{ kind: PeriodFilter["kind"]; label: string }> = [
-  { kind: "month", label: "Mes" },
-  { kind: "year", label: "Año" },
-  { kind: "range", label: "Rango" },
-];
-
-/* Control compuesto del filtro de período: segmented control para elegir
-   modo (Mes / Año / Rango) + el input correspondiente debajo. Inputs nativos
-   `<input type="month|date">` para no agregar deps. Cambiar de modo resetea
-   el valor del modo previo (evita estados ambiguos). */
-function PeriodControl({ value, onChange }: PeriodControlProps) {
-  function selectMode(kind: PeriodFilter["kind"]) {
-    if (kind === value.kind) return;
-    if (kind === "month") onChange({ kind: "month", value: "" });
-    else if (kind === "year") onChange({ kind: "year", value: "" });
-    else onChange({ kind: "range", from: "", to: "" });
-  }
-
-  const inputClass = cn(
-    "h-10 rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
-  );
-
-  return (
-    <div className="space-y-2">
-      <div
-        role="tablist"
-        aria-label="Modo de filtro de período"
-        className="inline-flex rounded-md border border-border bg-surface p-0.5"
-      >
-        {PERIOD_MODES.map((m) => {
-          const selected = m.kind === value.kind;
-          return (
-            <button
-              key={m.kind}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => selectMode(m.kind)}
-              className={cn(
-                "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                selected
-                  ? "bg-brand-primary text-surface"
-                  : "text-neutral-mid hover:text-neutral-dark",
-              )}
-            >
-              {m.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {value.kind === "month" && (
-        <input
-          type="month"
-          aria-label="Filtrar por mes"
-          value={value.value}
-          onChange={(e) => onChange({ kind: "month", value: e.target.value })}
-          className={cn(inputClass, "w-full")}
-        />
-      )}
-      {value.kind === "year" && (
-        <input
-          type="number"
-          inputMode="numeric"
-          min={2000}
-          max={2100}
-          step={1}
-          aria-label="Filtrar por año"
-          placeholder="2026"
-          value={value.value}
-          onChange={(e) => onChange({ kind: "year", value: e.target.value })}
-          className={cn(inputClass, "w-full")}
-        />
-      )}
-      {value.kind === "range" && (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            type="date"
-            aria-label="Desde"
-            value={value.from}
-            onChange={(e) => onChange({ ...value, from: e.target.value })}
-            className={cn(inputClass, "flex-1")}
-          />
-          <span className="text-xs text-neutral-mid" aria-hidden="true">
-            →
-          </span>
-          <input
-            type="date"
-            aria-label="Hasta"
-            value={value.to}
-            onChange={(e) => onChange({ ...value, to: e.target.value })}
-            className={cn(inputClass, "flex-1")}
-          />
-        </div>
-      )}
     </div>
   );
 }
