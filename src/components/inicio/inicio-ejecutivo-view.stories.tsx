@@ -20,8 +20,20 @@ const FIXTURE = {
     preliminary: false,
   },
   cash_today: { total: "9800000", last_updated: "2026-06-02T08:00:00Z", data_state: "available" },
-  cash_forecast: { min_14d: "5400000", min_30d: "2100000", days_of_cash: 42 },
-  cash_gap: { critical_obligations_14d: "6600000", projected_cash_14d: "5400000", has_gap: true },
+  cash_forecast: {
+    min_14d: "5400000",
+    min_30d: "2100000",
+    days_of_cash: 42,
+    last_updated: "2026-06-02T08:00:00Z",
+    source: "banco",
+  },
+  cash_gap: {
+    critical_obligations_14d: "6600000",
+    projected_cash_14d: "5400000",
+    has_gap: true,
+    last_updated: "2026-06-02T08:00:00Z",
+    source: "banco",
+  },
   overdue_collections: {
     total_receivable: "24800000",
     overdue: "7900000",
@@ -30,11 +42,15 @@ const FIXTURE = {
       { name: "Comercial del Sur Ltda", amount: "2400000" },
       { name: "Minera Atacama SA", amount: "1100000" },
     ],
+    last_updated: "2026-06-02T08:00:00Z",
+    source: "sii_rcv",
   },
   critical_payments: {
     due_7d: "3800000",
     due_14d: "6200000",
     next_critical: { label: "IVA / F29 mayo", due_date: "2026-06-12", amount: "2400000" },
+    last_updated: "2026-06-02T08:00:00Z",
+    source: "sii_rcv",
   },
   operational_result: {
     revenue: "18500000",

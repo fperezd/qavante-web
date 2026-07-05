@@ -150,19 +150,25 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         {/* Caja proyectada. */}
         <DashCard title="Caja proyectada" href="/caja/proyeccion" cta="Ver proyección">
           {data.cash_forecast ? (
-            <dl className="space-y-1.5 text-sm">
-              <Row
-                label="Mínima 14 días"
-                value={formatClp(parseAmount(data.cash_forecast.min_14d))}
+            <>
+              <dl className="space-y-1.5 text-sm">
+                <Row
+                  label="Mínima 14 días"
+                  value={formatClp(parseAmount(data.cash_forecast.min_14d))}
+                />
+                <Row
+                  label="Mínima 30 días"
+                  value={formatClp(parseAmount(data.cash_forecast.min_30d))}
+                />
+                {data.cash_forecast.days_of_cash != null && (
+                  <Row label="Días de caja" value={`~${data.cash_forecast.days_of_cash}`} />
+                )}
+              </dl>
+              <Freshness
+                updated={data.cash_forecast.last_updated}
+                source={data.cash_forecast.source}
               />
-              <Row
-                label="Mínima 30 días"
-                value={formatClp(parseAmount(data.cash_forecast.min_30d))}
-              />
-              {data.cash_forecast.days_of_cash != null && (
-                <Row label="Días de caja" value={`~${data.cash_forecast.days_of_cash}`} />
-              )}
-            </dl>
+            </>
           ) : (
             <NoData />
           )}
@@ -171,31 +177,34 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         {/* Brecha de caja. */}
         <DashCard title="Brecha de caja" href="/caja/proyeccion" cta="Ver detalle">
           {data.cash_gap ? (
-            data.cash_gap.has_gap ? (
-              <div className="flex items-start gap-2 text-sm text-danger-700">
-                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                <span>
-                  Te faltan{" "}
-                  <b className="tabular-nums">
-                    {formatClp(
-                      Math.max(
-                        0,
-                        parseAmount(data.cash_gap.critical_obligations_14d) -
-                          parseAmount(data.cash_gap.projected_cash_14d),
-                      ),
-                    )}
-                  </b>{" "}
-                  para tus pagos críticos de 14 días.
-                </span>
-              </div>
-            ) : (
-              <p className="flex items-start gap-2 text-sm text-success-700">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                <span>
-                  La caja proyectada cubre las obligaciones críticas de los próximos 14 días.
-                </span>
-              </p>
-            )
+            <>
+              {data.cash_gap.has_gap ? (
+                <div className="flex items-start gap-2 text-sm text-danger-700">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                  <span>
+                    Te faltan{" "}
+                    <b className="tabular-nums">
+                      {formatClp(
+                        Math.max(
+                          0,
+                          parseAmount(data.cash_gap.critical_obligations_14d) -
+                            parseAmount(data.cash_gap.projected_cash_14d),
+                        ),
+                      )}
+                    </b>{" "}
+                    para tus pagos críticos de 14 días.
+                  </span>
+                </div>
+              ) : (
+                <p className="flex items-start gap-2 text-sm text-success-700">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                  <span>
+                    La caja proyectada cubre las obligaciones críticas de los próximos 14 días.
+                  </span>
+                </p>
+              )}
+              <Freshness updated={data.cash_gap.last_updated} source={data.cash_gap.source} />
+            </>
           ) : (
             <NoData />
           )}
@@ -224,6 +233,10 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
                   </li>
                 ))}
               </ul>
+              <Freshness
+                updated={data.overdue_collections.last_updated}
+                source={data.overdue_collections.source}
+              />
             </>
           ) : (
             <NoData />
@@ -250,6 +263,10 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
                   {formatDateLike(data.critical_payments.next_critical.due_date)}
                 </p>
               )}
+              <Freshness
+                updated={data.critical_payments.last_updated}
+                source={data.critical_payments.source}
+              />
             </>
           ) : (
             <NoData />
