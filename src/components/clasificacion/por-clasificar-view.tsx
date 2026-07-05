@@ -24,7 +24,6 @@ import {
   useCreateDimensionAssignment,
 } from "@/lib/api/management";
 import type { SuggestRuleResponse } from "@/lib/api/classification-rules";
-import { formatClp } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import {
   ClassificationDrawer,
@@ -72,13 +71,15 @@ function LoadingSkeleton() {
   );
 }
 
-function movementSummary(m: BankMovement) {
+function movementSummary(m: BankMovement, currency?: string) {
+  const sign = m.direction === "credit" ? "+" : "−";
   return {
     date: m.date ? formatDate(new Date(m.date)) : "—",
     description: m.description,
     // §17.1: no mostrar número de cuenta completo.
     bankLabel: `Cuenta ····${m.bank_account_id.slice(-4)}`,
-    amountFormatted: formatClp(Number(m.amount) || 0),
+    // Dirección + moneda: un egreso no se ve igual que un ingreso.
+    amountFormatted: `${sign} ${formatMoney(Math.abs(Number(m.amount) || 0), currency)}`,
   };
 }
 
@@ -333,7 +334,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       /* Feedback de éxito: antes la fila simplemente desaparecía de la lista, lo
          que se podía leer como error. El toast confirma la acción. */
       toast.success("Movimiento clasificado", {
-        description: `${movement.description} · ${formatClp(Math.abs(Number(movement.amount) || 0))}`,
+        description: `${movement.description} · ${formatMoney(Math.abs(Number(movement.amount) || 0), currencyMap.get(movement.bank_account_id))}`,
       });
       setSelected(null);
       setFormError(undefined);
@@ -471,8 +472,17 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
                   >
                     {m.description}
                   </span>
-                  <span className="w-36 shrink-0 text-right text-sm font-medium tabular-nums text-neutral-dark">
-                    {formatMoney(Number(m.amount) || 0, currencyMap.get(m.bank_account_id))}
+                  <span
+                    className={cn(
+                      "w-36 shrink-0 text-right text-sm font-medium tabular-nums",
+                      m.direction === "credit" ? "text-success-700" : "text-neutral-dark",
+                    )}
+                  >
+                    {m.direction === "credit" ? "+" : "−"}{" "}
+                    {formatMoney(
+                      Math.abs(Number(m.amount) || 0),
+                      currencyMap.get(m.bank_account_id),
+                    )}
                   </span>
                   <QavanteButton
                     size="sm"
@@ -497,7 +507,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           key={selected.id}
           open
           onClose={closeDrawer}
-          movement={movementSummary(selected)}
+          movement={movementSummary(selected, currencyMap.get(selected.bank_account_id))}
           canonicalCategories={canonicalOptions}
           managementAccounts={accountOptions}
           dimensions={classificationDimensions}
