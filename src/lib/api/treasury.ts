@@ -33,6 +33,11 @@ export interface BankMovementsParams {
   status?: string;
   /** Período YYYY-MM. */
   period?: string;
+  /** Dirección del flujo: 'credit' (cobrar) / 'debit' (pagar). Filtro server-side
+   *  pendiente en el backend (handoff CC-API 2026-07-04); hasta que se publique,
+   *  las vistas filtran client-side. La fontanería queda lista: cuando exista el
+   *  param, el backend ignora los desconocidos, así que pasarlo es no-op seguro. */
+  direction?: "credit" | "debit";
   limit?: number;
   offset?: number;
 }
@@ -124,6 +129,7 @@ function buildBankMovementsQuery(p: BankMovementsParams): string {
   const s = new URLSearchParams();
   if (p.status) s.set("status", p.status);
   if (p.period) s.set("period", p.period);
+  if (p.direction) s.set("direction", p.direction);
   if (p.limit != null) s.set("limit", String(p.limit));
   if (p.offset != null) s.set("offset", String(p.offset));
   const qs = s.toString();
