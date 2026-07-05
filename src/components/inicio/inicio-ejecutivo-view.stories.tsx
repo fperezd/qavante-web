@@ -51,6 +51,8 @@ const FIXTURE = {
       deadline: "esta semana",
       cta_label: "Ver cobranza",
       cta_href: "/cobrar",
+      amount: "3200000",
+      impact_label: "vencido por cobrar",
     },
     {
       priority: 2,
@@ -58,6 +60,8 @@ const FIXTURE = {
       deadline: "12 jun",
       cta_label: "Ver pagos",
       cta_href: "/pagar",
+      amount: "1850000",
+      impact_label: "a pagar",
     },
   ],
   generated_at: "2026-06-02T12:00:00Z",

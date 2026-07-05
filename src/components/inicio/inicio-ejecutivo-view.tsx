@@ -306,6 +306,16 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
                   </span>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-neutral-dark">{a.reason}</p>
+                    {a.amount && (
+                      <p className="text-sm font-semibold tabular-nums text-neutral-dark">
+                        {formatClp(parseAmount(a.amount))}
+                        {a.impact_label && (
+                          <span className="ml-1 text-xs font-normal text-neutral-mid">
+                            {a.impact_label}
+                          </span>
+                        )}
+                      </p>
+                    )}
                     {a.deadline && <p className="text-xs text-neutral-mid">Plazo: {a.deadline}</p>}
                   </div>
                 </div>
