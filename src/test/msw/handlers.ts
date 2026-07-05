@@ -1770,6 +1770,22 @@ const siiHandlers = [
     return HttpResponse.json({ status: "not_found", rut, razon_social: null }, { status: 200 });
   }),
 
+  /* Sync F29 — enumera + persiste los F29 del año (incremental). */
+  http.post("*/api/sii/f29/sync", ({ request }) => {
+    const anio = Number(new URL(request.url).searchParams.get("anio")) || 2026;
+    return HttpResponse.json(
+      {
+        status: "ok",
+        anio,
+        folios_encontrados: 8,
+        ya_persistidos: 3,
+        persistidos_nuevos: 5,
+        errores: 0,
+      },
+      { status: 200 },
+    );
+  }),
+
   /* Panel F29 — estado por año (debe ir ANTES de `/f29/:folio` o lo captura). */
   http.get("*/api/sii/f29/estado", ({ request }) => {
     const anio = Number(new URL(request.url).searchParams.get("anio")) || 2026;

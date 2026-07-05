@@ -1,10 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Check } from "lucide-react";
-import { QavanteCard, QavanteInlineError } from "@/components/qavante";
+import { toast } from "sonner";
+import { Check, RefreshCw } from "lucide-react";
+import { QavanteCard, QavanteButton, QavanteInlineError } from "@/components/qavante";
 import { cn } from "@/lib/utils";
-import { useSiiF29EstadoMulti, type F29EstadoMes, type F29EstadoMesEstado } from "@/lib/api/sii";
+import {
+  useSiiF29EstadoMulti,
+  useSyncF29,
+  type F29EstadoMes,
+  type F29EstadoMesEstado,
+} from "@/lib/api/sii";
 import { F29MonthDetail } from "./f29-month-detail";
 
 /* Panel F29 (handoff CC-API 2026-07-05) — grilla estilo "Consulta Estado F29"
@@ -54,6 +60,44 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
   const results = useSiiF29EstadoMulti(years);
   const [selected, setSelected] = React.useState<SelectedCell | null>(null);
 
+  /* "Actualizar F29": sincroniza los años visibles (secuencial — el SII permite
+     un sync por tenant a la vez). Llena `/f29/estado` (los sin_dato pasan a real). */
+  const syncF29 = useSyncF29();
+  const [syncYear, setSyncYear] = React.useState<number | null>(null);
+  const syncing = syncYear !== null;
+
+  async function actualizar() {
+    if (syncing) return;
+    let ok = 0;
+    let errored = 0;
+    let inProgress = false;
+    for (const y of years) {
+      setSyncYear(y);
+      try {
+        const res = await syncF29.mutateAsync(y);
+        if (res.status === "in_progress") {
+          inProgress = true;
+          break;
+        }
+        ok += 1;
+      } catch {
+        errored += 1; // 502 del SII (best-effort) → seguimos con el resto
+      }
+    }
+    setSyncYear(null);
+    if (inProgress) {
+      toast.info("Actualización en curso", {
+        description: "Ya hay una sincronización de F29 corriendo. Espera unos minutos.",
+      });
+    } else if (errored > 0 && ok === 0) {
+      toast.error("No pudimos actualizar", {
+        description: "El SII no respondió. Intenta de nuevo en un rato.",
+      });
+    } else {
+      toast.success("F29 actualizados", { description: "Tu estado de F29 se actualizó." });
+    }
+  }
+
   /* year → (mes → F29EstadoMes). El contrato tipa `meses[]` laxo; lo afinamos. */
   const byYear = React.useMemo(() => {
     const map = new Map<number, Map<number, F29EstadoMes>>();
@@ -76,6 +120,16 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-neutral-mid">
+          Si ves &quot;sin dato&quot;, sincroniza para traer tus F29 del SII.
+        </p>
+        <QavanteButton size="sm" onClick={actualizar} loading={syncing} disabled={syncing}>
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          {syncing ? `Actualizando ${syncYear ?? ""}…` : "Actualizar F29"}
+        </QavanteButton>
+      </div>
+
       <QavanteCard variant="bordered" aria-label="Estado del F29 por período" role="region">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] border-collapse text-sm">
