@@ -15,12 +15,18 @@ import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-
 import { cn } from "@/lib/utils";
 import {
   useBankMovements,
+  useBankAccounts,
   useCanonicalCategories,
   useClassifyBankMovement,
   type BankMovement,
 } from "@/lib/api/treasury";
 import { useManagementAccountsTree } from "@/lib/api/management";
-import { formatClp } from "@/lib/formatters/clp";
+import {
+  BankAccountFilter,
+  currencyByAccount,
+  hasMixedCurrencies,
+} from "@/components/treasury/bank-account-filter";
+import { formatMoney } from "@/lib/formatters/clp";
 import { formatDate } from "@/lib/formatters/date";
 import { ClassificationDrawer, type ClassificationDraft } from "./classification-drawer";
 import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
@@ -118,10 +124,21 @@ export function ClasificadosView() {
   const categoriesQuery = useCanonicalCategories();
   const accountsQuery = useManagementAccountsTree();
   const classify = useClassifyBankMovement();
+  const bankAccountsQuery = useBankAccounts();
+  const bankAccounts = bankAccountsQuery.data?.items ?? [];
   const [filters, setFilters] = React.useState<Filters>(DEFAULT_FILTERS);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState<number>(20);
+  /* Filtro por cuenta (no mezclar CLP/USD). Con monedas mezcladas arranca en la
+     1ª cuenta; el monto de cada fila se muestra en la moneda de su cuenta. */
+  const [accountId, setAccountId] = React.useState("");
+  React.useEffect(() => {
+    const accts = bankAccountsQuery.data?.items ?? [];
+    if (accts.length > 1 && hasMixedCurrencies(accts) && !accountId) {
+      setAccountId(accts[0]!.id);
+    }
+  }, [bankAccountsQuery.data, accountId]);
   /* Reclasificación inline: el user hace click en una row → guardamos
      ref al movimiento + abrimos el drawer del §17 con el draft prellenado
      desde la clasificación actual (initialDraft). */
@@ -141,8 +158,26 @@ export function ClasificadosView() {
 
   const allItems = query.data?.items ?? [];
   const categoryItems = categoriesQuery.data?.items ?? [];
+  const currencyMap = React.useMemo(
+    () => currencyByAccount(bankAccountsQuery.data?.items ?? []),
+    [bankAccountsQuery.data],
+  );
+  const accountItems = React.useMemo(
+    () => (accountId ? allItems.filter((m) => m.bank_account_id === accountId) : allItems),
+    [allItems, accountId],
+  );
 
-  const filtered = React.useMemo(() => applyFilters(allItems, filters), [allItems, filters]);
+  const filtered = React.useMemo(
+    () => applyFilters(accountItems, filters),
+    [accountItems, filters],
+  );
+  /* Moneda para los totales: la del filtro de cuenta, o la del primer resultado
+     (todos comparten moneda cuando no hay mezcla). */
+  const displayCurrency = accountId
+    ? currencyMap.get(accountId)
+    : filtered[0]
+      ? currencyMap.get(filtered[0].bank_account_id)
+      : undefined;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paged = React.useMemo(
@@ -225,7 +260,7 @@ export function ClasificadosView() {
         onSuccess: () => {
           setReclasifyTarget(null);
           toast.success("Movimiento reclasificado", {
-            description: `${target.description} · ${formatClp(Math.abs(Number(target.amount) || 0))}`,
+            description: `${target.description} · ${formatMoney(Math.abs(Number(target.amount) || 0), currencyMap.get(target.bank_account_id))}`,
             ...(prevAccountId && {
               action: {
                 label: "Deshacer",
@@ -284,6 +319,7 @@ export function ClasificadosView() {
         isPartial={isPartial}
         categoriesById={categoriesLookup}
         accountsById={accountsLookup}
+        currency={displayCurrency}
         isLoading={query.isLoading}
         activeDirection={filters.direction === "todos" ? null : filters.direction}
         activeCanonicalCategory={
@@ -309,6 +345,14 @@ export function ClasificadosView() {
               Movimientos clasificados
             </span>
             <div className="flex flex-wrap items-center gap-2">
+              <BankAccountFilter
+                accounts={bankAccounts}
+                value={accountId}
+                onChange={(id) => {
+                  setAccountId(id);
+                  setPage(1);
+                }}
+              />
               <QavanteBadge variant="success">
                 {filtered.length} {filtered.length === 1 ? "movimiento" : "movimientos"}
                 {hasActiveFilters && allItems.length !== filtered.length && (
@@ -422,7 +466,10 @@ export function ClasificadosView() {
                           )}
                         >
                           {m.direction === "credit" ? "+" : "−"}{" "}
-                          {formatClp(Math.abs(Number(m.amount) || 0))}
+                          {formatMoney(
+                            Math.abs(Number(m.amount) || 0),
+                            currencyMap.get(m.bank_account_id),
+                          )}
                         </td>
                         <td className="py-2 text-right">
                           <QavanteButton
@@ -457,13 +504,14 @@ export function ClasificadosView() {
                           neto >= 0 ? "text-success-700" : "text-warning-700",
                         )}
                       >
-                        {neto >= 0 ? "+" : "−"} {formatClp(Math.abs(neto))}
+                        {neto >= 0 ? "+" : "−"} {formatMoney(Math.abs(neto), displayCurrency)}
                       </td>
                       <td className="py-2" />
                     </tr>
                     <tr className="text-xs text-neutral-mid">
                       <td colSpan={4} className="py-1 pr-3 text-right">
-                        Ingresos {formatClp(totalCredit)} · Egresos {formatClp(totalDebit)}
+                        Ingresos {formatMoney(totalCredit, displayCurrency)} · Egresos{" "}
+                        {formatMoney(totalDebit, displayCurrency)}
                       </td>
                       <td className="py-1" colSpan={2} />
                     </tr>
@@ -502,7 +550,10 @@ export function ClasificadosView() {
             date: reclasifyTarget.date ? formatDate(new Date(reclasifyTarget.date)) : "—",
             description: reclasifyTarget.description,
             bankLabel: `Cuenta ····${reclasifyTarget.bank_account_id.slice(-4)}`,
-            amountFormatted: formatClp(Math.abs(Number(reclasifyTarget.amount) || 0)),
+            amountFormatted: formatMoney(
+              Math.abs(Number(reclasifyTarget.amount) || 0),
+              currencyMap.get(reclasifyTarget.bank_account_id),
+            ),
           }}
           canonicalCategories={canonicalOptions}
           managementAccounts={accountOptions}
