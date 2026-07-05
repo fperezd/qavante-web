@@ -8,9 +8,12 @@ import { cn } from "@/lib/utils";
 import {
   useSiiF29EstadoMulti,
   useSyncF29,
+  useSiiContribuyente,
   type F29EstadoMes,
   type F29EstadoMesEstado,
 } from "@/lib/api/sii";
+import { useMe } from "@/lib/api/users";
+import { normalizeRut } from "@/lib/validators/rut";
 import { F29MonthDetail } from "./f29-month-detail";
 
 /* Panel F29 (handoff CC-API 2026-07-05) — grilla estilo "Consulta Estado F29"
@@ -33,8 +36,10 @@ const MESES = [
   "Diciembre",
 ];
 
-/** Cantidad de años hacia atrás (además del actual) en la grilla. */
+/** Años hacia atrás (además del actual) cuando no hay inicio de actividades. */
 const YEARS_BACK = 5;
+/** Tope de columnas para no dibujar una grilla enorme (empresas muy antiguas). */
+const MAX_YEARS = 10;
 
 const ESTADO_LABEL: Record<F29EstadoMesEstado, string> = {
   declarado: "Declarado",
@@ -52,9 +57,27 @@ interface SelectedCell {
 
 export function F29PanelView({ now = new Date() }: { now?: Date }) {
   const currentYear = now.getFullYear();
+
+  /* Acotar la grilla por inicio de actividades (CC-API #2): company_rut → SII
+     `/contribuyente` → `inicio_actividades`. Sin ese dato usamos el fallback de
+     `YEARS_BACK` años. Cap de MAX_YEARS para no dibujar una grilla enorme si la
+     empresa es muy antigua. */
+  const me = useMe();
+  const companyRut = me.data?.user.company_rut ?? "";
+  const contribuyente = useSiiContribuyente(
+    companyRut ? normalizeRut(companyRut) : "",
+    Boolean(companyRut),
+  );
+  const startYear = React.useMemo(() => {
+    const iso = contribuyente.data?.status === "ok" ? contribuyente.data.inicio_actividades : null;
+    const y = iso ? Number(String(iso).slice(0, 4)) : NaN;
+    const fromInicio =
+      Number.isInteger(y) && y >= 2000 && y <= currentYear ? y : currentYear - YEARS_BACK;
+    return Math.max(fromInicio, currentYear - MAX_YEARS + 1);
+  }, [contribuyente.data, currentYear]);
   const years = React.useMemo(
-    () => Array.from({ length: YEARS_BACK + 1 }, (_, i) => currentYear - i),
-    [currentYear],
+    () => Array.from({ length: currentYear - startYear + 1 }, (_, i) => currentYear - i),
+    [currentYear, startYear],
   );
 
   const results = useSiiF29EstadoMulti(years);
