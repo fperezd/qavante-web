@@ -22,3 +22,12 @@ export function isValidRut(rut: string): boolean {
   const expected = remainder === 11 ? "0" : remainder === 10 ? "K" : String(remainder);
   return expected === dv;
 }
+
+/** Normaliza un RUT a `cuerpo-DV` sin puntos, DV en mayúscula (ej.
+ *  `76.123.456-0` → `76123456-0`). Formato que espera el SII (`getstc`).
+ *  Si no hay al menos 2 caracteres válidos, devuelve el input tal cual. */
+export function normalizeRut(rut: string): string {
+  const clean = rut.replace(/[.\-\s]/g, "").toUpperCase();
+  if (clean.length < 2) return rut.trim();
+  return `${clean.slice(0, -1)}-${clean.slice(-1)}`;
+}

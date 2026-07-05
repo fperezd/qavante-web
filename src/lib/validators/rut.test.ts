@@ -4,7 +4,7 @@
    forms simultaneamente. */
 
 import { describe, expect, it } from "vitest";
-import { isValidRut } from "./rut";
+import { isValidRut, normalizeRut } from "./rut";
 
 describe("isValidRut — validador módulo 11", () => {
   describe("RUTs válidos canónicos", () => {
@@ -83,5 +83,20 @@ describe("isValidRut — validador módulo 11", () => {
       /* 11.111.111 tiene DV correcto "1"; un "K" no debe colar. */
       expect(isValidRut("11.111.111-K")).toBe(false);
     });
+  });
+});
+
+describe("normalizeRut — formato cuerpo-DV para el SII", () => {
+  it("saca puntos y deja el guión antes del DV", () => {
+    expect(normalizeRut("76.123.456-0")).toBe("76123456-0");
+    expect(normalizeRut("76123456-0")).toBe("76123456-0");
+    expect(normalizeRut("76123456K")).toBe("76123456-K");
+  });
+  it("pasa el DV a mayúscula", () => {
+    expect(normalizeRut("12.345.678-k")).toBe("12345678-K");
+  });
+  it("input muy corto → devuelve trim del original", () => {
+    expect(normalizeRut("7")).toBe("7");
+    expect(normalizeRut("  ")).toBe("");
   });
 });

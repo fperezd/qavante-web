@@ -47,7 +47,7 @@ export function EmpresasView() {
             {!creating && (
               <QavanteButton size="sm" onClick={() => setCreating(true)} disabled={busy}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Crear empresa
+                Agregar empresa
               </QavanteButton>
             )}
           </div>
@@ -105,10 +105,13 @@ export function EmpresasView() {
       </QavanteCard>
 
       {creating && (
-        <QavanteCard variant="bordered" header={<span className="font-medium">Nueva empresa</span>}>
+        <QavanteCard
+          variant="bordered"
+          header={<span className="font-medium">Agregar empresa</span>}
+        >
           <p className="mb-3 text-sm text-neutral-mid">
             Agrega otra empresa a tu cuenta. Según tu plan puede afectar lo que facturas — revisa
-            las condiciones antes de crear.
+            las condiciones antes de agregar.
           </p>
           <CreateCompanyForm
             pending={createTenant.isPending || switchTenant.isPending}

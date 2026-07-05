@@ -6,21 +6,30 @@ import { loginAs } from "./helpers";
    del usuario y abre el formulario de creación. MSW sirve /me/tenants. */
 
 test.describe("Flujo: Empresas (/administracion/empresas)", () => {
-  test("lista las empresas y abre el formulario de crear", async ({ page, context }) => {
+  test("agrega empresa: el RUT autocompleta la razón social desde el SII", async ({
+    page,
+    context,
+  }) => {
     await loginAs(context, "owner");
     await page.goto("/administracion/empresas");
 
     await expect(page.getByRole("heading", { level: 1, name: "Empresas" })).toBeVisible();
 
-    // El botón de crear vive acá (no en el header).
-    const crear = page.getByRole("button", { name: "Crear empresa" });
-    await expect(crear).toBeVisible();
+    // El botón de agregar vive acá (no en el header).
+    const agregar = page.getByRole("button", { name: "Agregar empresa" }).first();
+    await expect(agregar).toBeVisible();
+    await agregar.click();
 
-    await crear.click();
-    // Aparece el formulario de nueva empresa.
-    await expect(page.getByText("Nueva empresa")).toBeVisible();
-    await expect(page.getByLabel("Razón social")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Crear y entrar" })).toBeVisible();
+    // RUT obligatorio → al ingresarlo, trae la razón social del SII.
+    const rut = page.getByLabel("RUT de la empresa");
+    await rut.fill("76.123.456-0");
+    await rut.blur();
+
+    await expect(page.getByText("Datos traídos del SII")).toBeVisible();
+    await expect(page.getByLabel("Razón social")).toHaveValue("EMPRESA DEMO SPA");
+    // Campos nuevos presentes.
+    await expect(page.getByLabel(/Nombre comercial/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Agregar empresa" }).last()).toBeVisible();
   });
 
   test("el selector del header ya NO ofrece crear empresa", async ({ page, context }) => {

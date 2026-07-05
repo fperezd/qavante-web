@@ -34,6 +34,7 @@ export type F29Response = components["schemas"]["F29Response"];
 export type F29Period = components["schemas"]["F29Period"];
 export type F29EstadoResponse = components["schemas"]["F29EstadoResponse"];
 export type F29ImpuestoResponse = components["schemas"]["F29ImpuestoResponse"];
+export type ContribuyenteResponse = components["schemas"]["ContribuyenteResponse"];
 
 /** Estado de un mes en el panel F29. El contrato tipa `meses[]` laxo
  *  (`{[k]: unknown}`); acá le damos forma según el handoff CC-API 2026-07-05. */
@@ -84,6 +85,7 @@ export const siiKeys = {
   health: () => [...siiKeys.all, "health"] as const,
   f22Status: () => [...siiKeys.all, "f22-status"] as const,
   f29: (folio: number) => [...siiKeys.all, "f29", folio] as const,
+  contribuyente: (rut: string) => [...siiKeys.all, "contribuyente", rut] as const,
   f29Estado: (anio: number) => [...siiKeys.all, "f29-estado", anio] as const,
   f29Impuesto: (anio: number, mes: number, imp?: number) =>
     [...siiKeys.all, "f29-impuesto", anio, mes, imp ?? null] as const,
@@ -148,6 +150,22 @@ export function siiF29PdfUrl(folio: number): string | null {
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base) return null;
   return `${base}/api/sii/f29/${folio}/pdf`;
+}
+
+/** `GET /api/sii/contribuyente/{rut}` — situación tributaria pública por RUT
+ *  (razón social, giro, inicio de actividades) vía `getstc` del SII. No requiere
+ *  cert del tenant. `rut` debe venir normalizado (`normalizeRut`). Se usa para
+ *  autocompletar la razón social al agregar una empresa. `status='not_found'`
+ *  (HTTP 200) si el SII no tiene datos para el RUT. */
+export function useSiiContribuyente(rut: string, enabled = true) {
+  return useQuery({
+    queryKey: siiKeys.contribuyente(rut),
+    queryFn: () =>
+      api.get<ContribuyenteResponse>(`/api/sii/contribuyente/${encodeURIComponent(rut)}`),
+    enabled: enabled && rut.trim().length >= 3,
+    staleTime: 60 * 60 * 1000, // 1 h: razón social no cambia
+    retry: false,
+  });
 }
 
 /** `GET /api/sii/f29/estado?anio=` — los 12 meses de un año con su estado
