@@ -55,3 +55,16 @@ export const TodoVinculado: Story = {
     },
   },
 };
+
+export const NoDisponible: Story = {
+  name: "Endpoint no disponible (degradación con gracia)",
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("*/api/bank-movements/bice/accounts", () =>
+          HttpResponse.json({ detail: "unavailable" }, { status: 503 }),
+        ),
+      ],
+    },
+  },
+};

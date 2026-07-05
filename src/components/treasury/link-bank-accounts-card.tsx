@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { Link2, CheckCircle2, Landmark } from "lucide-react";
-import { QavanteCard, QavanteButton, QavanteBadge, QavanteInlineError } from "@/components/qavante";
+import { Link2, CheckCircle2, Landmark, RefreshCw } from "lucide-react";
+import { QavanteCard, QavanteButton, QavanteBadge } from "@/components/qavante";
 import {
   useBiceAccounts,
   useCreateBankAccount,
@@ -67,11 +67,25 @@ export function LinkBankAccountsCard() {
       {biceQuery.isLoading ? (
         <div className="h-16 animate-pulse rounded-lg bg-neutral-light/30" aria-busy="true" />
       ) : biceQuery.isError ? (
-        <QavanteInlineError
-          error={biceQuery.error}
-          what="las cuentas de tu banco"
-          onRetry={() => biceQuery.refetch()}
-        />
+        /* El endpoint que revisa cuentas nuevas (scrape en vivo del banco) a veces
+           no responde. Es una acción secundaria: el banco ya está conectado y esto
+           solo detecta cuentas por vincular. Degradamos con gracia — nota muteada
+           + reintentar discreto, sin el rojo alarmante de un error real. */
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-neutral-mid">
+          <span>
+            No pudimos revisar si hay cuentas nuevas por vincular en este momento. Tu banco sigue
+            conectado.
+          </span>
+          <QavanteButton
+            size="sm"
+            variant="ghost"
+            loading={biceQuery.isFetching}
+            onClick={() => biceQuery.refetch()}
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            Reintentar
+          </QavanteButton>
+        </div>
       ) : pending.length === 0 ? (
         <p className="flex items-center gap-2 text-sm text-success-700">
           <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
