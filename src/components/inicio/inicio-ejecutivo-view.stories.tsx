@@ -41,6 +41,8 @@ const FIXTURE = {
     gross_margin: "11100000",
     ebitda_proxy: "3900000",
     result: "3900000",
+    last_updated: "2026-06-02T08:00:00Z",
+    source: "sii_rcv",
   },
   priority_actions: [
     {

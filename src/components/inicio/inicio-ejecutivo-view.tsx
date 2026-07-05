@@ -273,6 +273,10 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
                 value={formatClp(parseAmount(data.operational_result.result))}
                 strong
               />
+              <Freshness
+                updated={data.operational_result.last_updated}
+                source={data.operational_result.source}
+              />
             </dl>
           ) : (
             <NoData />
@@ -433,12 +437,33 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
-/* Capa de confianza: frescura + estado del dato. Un número sin origen no se cree. */
-function Freshness({ updated, state }: { updated: string; state?: string }) {
+/* Etiqueta legible de la fuente del dato (Ola 3 #5: `source` = última sync de la
+   fuente). Fallback al valor crudo si no está mapeado. */
+const SOURCE_LABEL: Record<string, string> = {
+  banco: "Banco",
+  bice: "Banco",
+  sii_rcv: "SII",
+  sii: "SII",
+  buk: "BUK",
+};
+
+/* Capa de confianza: frescura + estado + fuente del dato. Un número sin origen no
+   se cree. `updated` puede venir null (dato sin timestamp) → no renderizamos nada. */
+function Freshness({
+  updated,
+  state,
+  source,
+}: {
+  updated?: string | null;
+  state?: string | null;
+  source?: string | null;
+}) {
+  if (!updated) return null;
   return (
     <p className="mt-1.5 inline-flex items-center gap-1 text-xs text-neutral-mid">
       <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
       Actualizado {formatDateTimeLike(updated)}
+      {source && ` · ${SOURCE_LABEL[source] ?? source}`}
       {state === "stale" && " · puede estar desactualizado"}
       {state === "estimated" && " · estimado"}
     </p>
