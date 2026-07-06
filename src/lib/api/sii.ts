@@ -156,6 +156,45 @@ export function siiF29PdfUrl(folio: number): string | null {
   return `${base}/api/sii/f29/${folio}/pdf`;
 }
 
+/** Base de la API para las URLs de PDF (GET directo del browser con cookies
+ *  httpOnly, mismo origen vía proxy). `null` si no está configurada. */
+function apiBase(): string | null {
+  return process.env.NEXT_PUBLIC_API_URL ?? null;
+}
+
+/** URL del PDF de una BHE — `GET /api/sii/bhe/pdf?periodo&folio&rut_emisor`.
+ *  El browser hace el GET directo. `null` si faltan datos o la base. */
+export function siiBhePdfUrl(args: {
+  periodo: string;
+  folio: number;
+  rutEmisor?: string | null;
+}): string | null {
+  const base = apiBase();
+  if (!base || !args.periodo || !(args.folio > 0)) return null;
+  const q = new URLSearchParams({ periodo: args.periodo, folio: String(args.folio) });
+  if (args.rutEmisor) q.set("rut_emisor", args.rutEmisor);
+  return `${base}/api/sii/bhe/pdf?${q.toString()}`;
+}
+
+/** URL del PDF de un DTE recibido (factura de proveedor) —
+ *  `GET /api/sii/dte-recibidos/pdf?desde&hasta&folio&rut_emisor`. */
+export function siiDteRecibidoPdfUrl(args: {
+  desde: string;
+  hasta: string;
+  folio: number;
+  rutEmisor?: string | null;
+}): string | null {
+  const base = apiBase();
+  if (!base || !args.desde || !args.hasta || !(args.folio > 0)) return null;
+  const q = new URLSearchParams({
+    desde: args.desde,
+    hasta: args.hasta,
+    folio: String(args.folio),
+  });
+  if (args.rutEmisor) q.set("rut_emisor", args.rutEmisor);
+  return `${base}/api/sii/dte-recibidos/pdf?${q.toString()}`;
+}
+
 /** `GET /api/sii/contribuyente/{rut}` — situación tributaria pública por RUT
  *  (razón social, giro, inicio de actividades) vía `getstc` del SII. No requiere
  *  cert del tenant. `rut` debe venir normalizado (`normalizeRut`). Se usa para

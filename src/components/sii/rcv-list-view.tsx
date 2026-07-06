@@ -376,6 +376,7 @@ export function RcvListView({
                 totals={totals}
                 partyLabel={copy.partyLabel}
                 hasActiveFilters={hasActiveFilters}
+                dteKind={kind}
               />
             )}
 

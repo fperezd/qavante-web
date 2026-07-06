@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   siiKeys,
   siiF29PdfUrl,
+  siiBhePdfUrl,
+  siiDteRecibidoPdfUrl,
   type SiiHealthResponse,
   type SourceStatusResponse,
   type F29Response,
@@ -76,6 +78,40 @@ describe("siiF29PdfUrl — helper", () => {
        el `ApiError('config_missing')` del client.ts en el mismo caso). */
     vi.stubEnv("NEXT_PUBLIC_API_URL", "");
     expect(siiF29PdfUrl(1234567890)).toBeNull();
+  });
+});
+
+describe("siiBhePdfUrl / siiDteRecibidoPdfUrl — helpers de PDF de DTE", () => {
+  beforeEach(() => vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:3000"));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("BHE: arma la URL con periodo/folio/rut_emisor", () => {
+    expect(siiBhePdfUrl({ periodo: "2026-05", folio: 7, rutEmisor: "21182791-2" })).toBe(
+      "http://localhost:3000/api/sii/bhe/pdf?periodo=2026-05&folio=7&rut_emisor=21182791-2",
+    );
+  });
+  it("BHE: sin rut_emisor lo omite; sin periodo o folio inválido → null", () => {
+    expect(siiBhePdfUrl({ periodo: "2026-05", folio: 7 })).toBe(
+      "http://localhost:3000/api/sii/bhe/pdf?periodo=2026-05&folio=7",
+    );
+    expect(siiBhePdfUrl({ periodo: "", folio: 7 })).toBeNull();
+    expect(siiBhePdfUrl({ periodo: "2026-05", folio: 0 })).toBeNull();
+  });
+  it("DTE recibido: arma la URL con desde/hasta/folio/rut_emisor", () => {
+    expect(
+      siiDteRecibidoPdfUrl({
+        desde: "2026-02-26",
+        hasta: "2026-02-26",
+        folio: 377,
+        rutEmisor: "90209000-2",
+      }),
+    ).toBe(
+      "http://localhost:3000/api/sii/dte-recibidos/pdf?desde=2026-02-26&hasta=2026-02-26&folio=377&rut_emisor=90209000-2",
+    );
+  });
+  it("DTE recibido: falta desde/hasta o folio inválido → null", () => {
+    expect(siiDteRecibidoPdfUrl({ desde: "", hasta: "2026-02-26", folio: 377 })).toBeNull();
+    expect(siiDteRecibidoPdfUrl({ desde: "2026-02-01", hasta: "2026-02-28", folio: 0 })).toBeNull();
   });
 });
 

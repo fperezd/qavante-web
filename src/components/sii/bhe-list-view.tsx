@@ -5,12 +5,13 @@ import { Briefcase, Inbox } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
-import type { BheRecibida, BheResponse } from "@/lib/api/sii";
+import { siiBhePdfUrl, type BheRecibida, type BheResponse } from "@/lib/api/sii";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
 import { formatPeriodLabel } from "./sii-period-form-schema";
+import { DteActions } from "./dte-actions";
 
 /* Vista BHE recibidas (Boletas de Honorarios Electrónicas que me cobran
    profesionales) — Sprint C1 PR-Sii3. Shape distinto a RCV: tiene
@@ -136,8 +137,11 @@ export function BheListView({
                   <th scope="col" className="py-2 pr-3 text-right font-semibold">
                     Retención
                   </th>
-                  <th scope="col" className="py-2 text-right font-semibold">
+                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
                     Líquido
+                  </th>
+                  <th scope="col" className="py-2 text-right font-semibold">
+                    DTE
                   </th>
                 </tr>
               </thead>
@@ -192,11 +196,21 @@ export function BheListView({
                     </td>
                     <td
                       className={cn(
-                        "py-2 text-right tabular-nums font-medium text-neutral-dark",
+                        "py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark",
                         b.anulada && "font-normal line-through",
                       )}
                     >
                       {typeof b.monto_liquido === "number" ? formatClp(b.monto_liquido) : "—"}
+                    </td>
+                    <td className="py-2 text-right">
+                      <DteActions
+                        url={siiBhePdfUrl({
+                          periodo: b.periodo ?? period ?? "",
+                          folio: b.folio ?? 0,
+                          rutEmisor: b.rut_emisor,
+                        })}
+                        label={`boleta ${b.folio ?? ""}`}
+                      />
                     </td>
                   </tr>
                 ))}
