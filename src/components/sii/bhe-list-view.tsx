@@ -12,6 +12,7 @@ import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
 import { formatPeriodLabel } from "./sii-period-form-schema";
 import { DteActions } from "./dte-actions";
+import { fechaToPeriodo } from "./dte-date";
 
 /* Vista BHE recibidas (Boletas de Honorarios Electrónicas que me cobran
    profesionales) — Sprint C1 PR-Sii3. Shape distinto a RCV: tiene
@@ -205,7 +206,10 @@ export function BheListView({
                     <td className="py-2 text-right">
                       <DteActions
                         url={siiBhePdfUrl({
-                          periodo: b.periodo ?? period ?? "",
+                          /* Período REAL de la boleta (YYYY-MM). En modo rango,
+                             `period` es un label `desde_hasta`, no un período →
+                             derivamos del `fecha_emision` de la boleta. */
+                          periodo: b.periodo ?? fechaToPeriodo(b.fecha_emision) ?? "",
                           folio: b.folio ?? 0,
                           rutEmisor: b.rut_emisor,
                         })}

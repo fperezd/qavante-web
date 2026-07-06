@@ -113,18 +113,19 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
     setSyncYear(null);
     // Una sola invalidación al final (evita el refetch-storm de la grilla).
     if (ok > 0) qc.invalidateQueries({ queryKey: siiKeys.all });
-    if (inProgress) {
-      toast.info("Actualización en curso", {
-        description: "Ya hay una sincronización de F29 corriendo. Espera unos minutos.",
-      });
-    } else if (ok === 0 && errored > 0) {
+    // Los errores se reportan SIEMPRE (aunque un año haya vuelto in_progress y
+    // cortado el loop): no ocultar que algún año falló.
+    if (ok === 0 && errored > 0) {
       toast.error("No pudimos actualizar", {
         description: "El SII no respondió. Intenta de nuevo en un rato.",
       });
     } else if (errored > 0) {
-      // Éxito parcial: no ocultar que algunos años fallaron.
       toast.warning("Actualización parcial", {
         description: `Algunos años no se pudieron traer del SII (${errored}). El resto se actualizó.`,
+      });
+    } else if (inProgress) {
+      toast.info("Actualización en curso", {
+        description: "Ya hay una sincronización de F29 corriendo. Espera unos minutos.",
       });
     } else {
       toast.success("F29 actualizados", { description: "Tu estado de F29 se actualizó." });

@@ -1,0 +1,35 @@
+/* Helpers de fecha para armar las URLs de PDF de DTE. PURO/testeable. El SII
+   entrega fechas como `DD/MM/YYYY`, `DD-MM-YYYY`, `DD.MM.YYYY` o `YYYY-MM-DD…`. */
+
+/** Normaliza a `YYYY-MM-DD`, o `null` si no parsea. */
+export function toIsoDate(fecha?: string | null): string | null {
+  if (!fecha) return null;
+  const s = fecha.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})/);
+  if (m) {
+    const [, d, mo, y] = m;
+    if (d && mo && y) return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return null;
+}
+
+/** `YYYY-MM` de una fecha (para el `periodo` del PDF de BHE), o `null`. */
+export function fechaToPeriodo(fecha?: string | null): string | null {
+  const iso = toIsoDate(fecha);
+  return iso ? iso.slice(0, 7) : null;
+}
+
+/** Primer y último día del mes de `fecha` (`{desde, hasta}` en `YYYY-MM-DD`), o
+ *  `null`. Se usa como ventana del PDF de DTE recibido: tolera que la fecha
+ *  mostrada (recepción) no sea exactamente la de emisión, mientras caigan en el
+ *  mismo mes. */
+export function monthBounds(fecha?: string | null): { desde: string; hasta: string } | null {
+  const iso = toIsoDate(fecha);
+  if (!iso) return null;
+  const [y, m] = iso.split("-").map(Number);
+  if (!y || !m) return null;
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const mm = String(m).padStart(2, "0");
+  return { desde: `${y}-${mm}-01`, hasta: `${y}-${mm}-${String(lastDay).padStart(2, "0")}` };
+}
