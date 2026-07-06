@@ -142,41 +142,59 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
     }
     setSyncYear(null);
     // Una sola invalidación al final (evita el refetch-storm de la grilla).
-    if (ok > 0) qc.invalidateQueries({ queryKey: siiKeys.all });
+    // También si quedó un sync corriendo (in_progress): puede estar poblando
+    // /f29/estado en segundo plano.
+    if (ok > 0 || inProgress) qc.invalidateQueries({ queryKey: siiKeys.all });
+
+    // Nota de fallos de request (5xx/red) — se reportan SIEMPRE, aun cuando otros
+    // años hayan tenido éxito (no ocultar que algún año no respondió).
+    const reqNote =
+      requestErrored > 0
+        ? ` (${requestErrored} ${requestErrored === 1 ? "año no respondió" : "años no respondieron"})`
+        : "";
 
     // Toast HONESTO: refleja qué pasó de verdad, en orden de severidad.
     if (ok === 0 && requestErrored > 0) {
       toast.error("No pudimos actualizar", { description: describeReqError(firstReqError) });
     } else if (neu > 0) {
       // Se bajó y persistió al menos un F29 nuevo → éxito real.
+      const failed =
+        siiErrors > 0
+          ? `${siiErrors} ${siiErrors === 1 ? "folio falló" : "folios fallaron"} al bajar. `
+          : "";
       toast.success(`Bajamos ${neu} F29 ${neu === 1 ? "nuevo" : "nuevos"} del SII`, {
-        description:
-          siiErrors > 0
-            ? `${siiErrors} ${siiErrors === 1 ? "folio falló" : "folios fallaron"} al bajar; el resto quedó al día.`
-            : "Tu estado de F29 se actualizó.",
+        description: `${failed}Tu estado de F29 se actualizó${reqNote}.`,
       });
     } else if (siiErrors > 0) {
       // No entró nada nuevo y hubo folios que fallaron → mostrar el motivo real.
       toast.warning(`${siiErrors} ${siiErrors === 1 ? "F29 falló" : "F29 fallaron"} al bajar`, {
         description: firstDetail
-          ? `${firstDetail.error}: ${firstDetail.detail}`
-          : "El SII rechazó algunos folios. Revisa tu conexión al SII e intenta de nuevo.",
+          ? `${firstDetail.error}: ${firstDetail.detail}${reqNote}`
+          : `El SII rechazó algunos folios. Revisa tu conexión al SII e intenta de nuevo${reqNote}.`,
+      });
+    } else if (inProgress) {
+      // Antes de "found === 0": un sync en curso deja los contadores en 0.
+      toast.info("Actualización en curso", {
+        description: "Ya hay una sincronización de F29 corriendo. Espera unos minutos.",
       });
     } else if (found === 0) {
       // El SII no reporta ningún F29 declarado en el rango → esto explica la
       // grilla vacía. No es un "éxito": lo decimos claro.
       toast.warning("El SII no reporta F29 en este rango", {
         description:
-          "No encontramos F29 declarados para estos años. Verifica que tu clave del SII esté conectada en Administración → Credenciales.",
+          requestErrored > 0
+            ? `Algunos años no respondieron${reqNote}. Revisa tu conexión al SII e intenta de nuevo.`
+            : "No encontramos F29 declarados para estos años. Verifica que tu clave del SII esté conectada en Administración → Credenciales.",
       });
-    } else if (inProgress) {
-      toast.info("Actualización en curso", {
-        description: "Ya hay una sincronización de F29 corriendo. Espera unos minutos.",
-      });
-    } else {
+    } else if (already > 0) {
       // found > 0 y todo ya estaba persistido → ya al día.
       toast.success("Tus F29 ya estaban al día", {
-        description: `${already} ${already === 1 ? "F29" : "F29"} ya estaban sincronizados.`,
+        description: `${already} ${already === 1 ? "F29 ya estaba sincronizado" : "F29 ya estaban sincronizados"}${reqNote}.`,
+      });
+    } else {
+      // found > 0 pero sin nuevos/ya-persistidos (backend viejo sin contadores).
+      toast.success("Sin F29 nuevos", {
+        description: `No hay F29 nuevos para bajar en el rango${reqNote}.`,
       });
     }
   }

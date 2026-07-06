@@ -7,9 +7,10 @@ describe("bank-balances-format · parseSaldo", () => {
     expect(parseSaldo("156.14")).toBe(156.14);
     expect(parseSaldo("0")).toBe(0);
   });
-  it("null/vacío/no-numérico → null", () => {
+  it("null/vacío/whitespace/no-numérico → null (no $0)", () => {
     expect(parseSaldo(null)).toBeNull();
     expect(parseSaldo("")).toBeNull();
+    expect(parseSaldo("   ")).toBeNull(); // en blanco NO es 0
     expect(parseSaldo("N/A")).toBeNull();
   });
 });

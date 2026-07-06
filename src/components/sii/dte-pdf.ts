@@ -4,7 +4,9 @@
    - Compras → `dte-recibidos/pdf` (la contraparte es el EMISOR/proveedor).
    - Ventas  → `dte-emitidos/pdf`  (la contraparte es el RECEPTOR/cliente, y el
      backend lo exige — qavante-api #501 lo habilitó por folio + rango).
-   Ambos toman la ventana del mes de la fecha de la fila (monthBounds). */
+   La ventana del PDF es la del rango consultado (`window`); si no viene, cae al
+   mes de emisión de la fila (`monthBounds`) — ver periodToPdfWindow para el
+   porqué del rango completo. */
 
 import { siiDteRecibidoPdfUrl, siiDteEmitidoPdfUrl } from "@/lib/api/sii";
 import type { RcvDoc } from "./rcv-grouped-item";

@@ -22,22 +22,35 @@ export interface CounterpartyShare {
 /** Concentración por contraparte (cliente/proveedor): top-N por monto bruto,
  *  excluyendo notas de crédito. `pct` es sobre el bruto del período. */
 export function concentrationByCounterparty(docs: RcvDoc[], topN = 5): CounterpartyShare[] {
-  const map = new Map<string, { name: string; total: number }>();
+  const map = new Map<string, { rut: string; name: string; total: number }>();
   let grand = 0;
   for (const d of docs) {
     if (isNotaCredito(d.tipo_doc)) continue;
-    const rut = d.rut_contraparte ?? "—";
+    // Clave por RUT; si no hay RUT, por razón social — así dos contrapartes
+    // distintas sin RUT no se funden en un único bucket "—".
+    const key = d.rut_contraparte ?? d.razon_social ?? "sin-identificar";
     const t = num(d.monto_total);
     grand += t;
-    const cur = map.get(rut) ?? { name: d.razon_social ?? "Sin nombre", total: 0 };
+    const cur = map.get(key) ?? {
+      rut: d.rut_contraparte ?? "—",
+      name: d.razon_social ?? "Sin nombre",
+      total: 0,
+    };
     cur.total += t;
-    map.set(rut, cur);
+    map.set(key, cur);
   }
   const denom = grand || 1;
-  return [...map.entries()]
-    .map(([rut, v]) => ({ rut, name: v.name, total: v.total, pct: (v.total / denom) * 100 }))
+  return [...map.values()]
+    .map((v) => ({ rut: v.rut, name: v.name, total: v.total, pct: (v.total / denom) * 100 }))
     .sort((a, b) => b.total - a.total)
     .slice(0, topN);
+}
+
+/** Escapa una celda CSV: entrecomilla si tiene separador/comillas/salto de línea
+ *  (convención RFC 4180 — duplica las comillas internas). */
+function csvCell(value: string | number): string {
+  const s = String(value);
+  return /[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 /** Serializa los documentos a CSV (separador `;` — convención Excel es-CL). */
@@ -49,11 +62,13 @@ export function docsToCsv(docs: RcvDoc[]): string {
       d.folio ?? "",
       d.fecha ?? "",
       d.rut_contraparte ?? "",
-      `"${(d.razon_social ?? "").replace(/"/g, '""')}"`,
+      d.razon_social ?? "",
       num(d.monto_neto),
       num(d.monto_iva),
       num(d.monto_total),
-    ].join(";"),
+    ]
+      .map(csvCell)
+      .join(";"),
   );
   return [headers.join(";"), ...rows].join("\r\n");
 }

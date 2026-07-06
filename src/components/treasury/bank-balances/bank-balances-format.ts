@@ -3,10 +3,13 @@
 
 import { formatMoney } from "@/lib/formatters/clp";
 
-/** Parsea el saldo-string del backend a número; `null` si no es un número válido. */
+/** Parsea el saldo-string del backend a número; `null` si no es un número válido.
+ *  Trim previo: un string en blanco NO es "$0", es "sin dato" (`Number(" ")` da 0). */
 export function parseSaldo(value: string | null | undefined): number | null {
-  if (value == null || value === "") return null;
-  const n = Number(value);
+  if (value == null) return null;
+  const s = value.trim();
+  if (s === "") return null;
+  const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
 

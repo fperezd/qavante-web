@@ -44,7 +44,11 @@ export function monthBounds(fecha?: string | null): { desde: string; hasta: stri
 export function periodToPdfWindow(period?: string | null): { desde: string; hasta: string } | null {
   if (!period) return null;
   const [a, b] = period.split("_");
-  const start = monthBounds(`${a}-01`);
-  const end = monthBounds(`${b ?? a}-01`);
-  return start && end ? { desde: start.desde, hasta: end.hasta } : null;
+  const p1 = monthBounds(`${a}-01`);
+  const p2 = monthBounds(`${b ?? a}-01`);
+  if (!p1 || !p2) return null;
+  // Ordenar por si el rango viene invertido (desde > hasta): la ventana del PDF
+  // debe tener desde <= hasta o el SII no la resuelve.
+  const [start, end] = p1.desde <= p2.desde ? [p1, p2] : [p2, p1];
+  return { desde: start.desde, hasta: end.hasta };
 }

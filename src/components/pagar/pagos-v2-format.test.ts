@@ -32,6 +32,10 @@ describe("pagos-v2-format · daysUntilDue", () => {
     expect(daysUntilDue(null, NOW)).toBeNull();
     expect(daysUntilDue("basura", NOW)).toBeNull();
   });
+  it("tolera fechas no-padded del backend (2026-7-5)", () => {
+    expect(daysUntilDue("2026-7-6", NOW)).toBe(0);
+    expect(daysUntilDue("2026-7-1", NOW)).toBe(-5);
+  });
 });
 
 describe("pagos-v2-format · vencido", () => {
@@ -70,5 +74,18 @@ describe("pagos-v2-format · overdueThenCritical", () => {
     ];
     const order = overdueThenCritical(items, NOW).map((i) => i.label);
     expect(order).toEqual(["vencido", "futuro-critico", "futuro-bajo"]);
+  });
+  it("no rompe con fechas nulas (desempate sin NaN) y no muta el input", () => {
+    const items = [
+      item({ label: "sin-fecha-1", due_date: "", criticality: "low" }),
+      item({ label: "sin-fecha-2", due_date: "", criticality: "low" }),
+      item({ label: "con-fecha", due_date: "2026-07-10", criticality: "low" }),
+    ];
+    const snapshot = items.map((i) => i.label);
+    const order = overdueThenCritical(items, NOW).map((i) => i.label);
+    // La con-fecha (no vencida) ordena antes que las sin-fecha; sin crashear.
+    expect(order[0]).toBe("con-fecha");
+    expect(order).toHaveLength(3);
+    expect(items.map((i) => i.label)).toEqual(snapshot); // input intacto
   });
 });
