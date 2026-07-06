@@ -276,25 +276,27 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         {/* Resultado operacional. */}
         <DashCard title="Resultado del mes" href="/gestion" cta="Ver gestión">
           {data.operational_result ? (
-            <dl className="space-y-1.5 text-sm">
-              <Row
-                label="Ingresos"
-                value={formatClp(parseAmount(data.operational_result.revenue))}
-              />
-              <Row
-                label="Margen bruto"
-                value={formatClp(parseAmount(data.operational_result.gross_margin))}
-              />
-              <Row
-                label="Resultado"
-                value={formatClp(parseAmount(data.operational_result.result))}
-                strong
-              />
+            <>
+              <dl className="space-y-1.5 text-sm">
+                <Row
+                  label="Ingresos"
+                  value={formatClp(parseAmount(data.operational_result.revenue))}
+                />
+                <Row
+                  label="Margen bruto"
+                  value={formatClp(parseAmount(data.operational_result.gross_margin))}
+                />
+                <Row
+                  label="Resultado"
+                  value={formatClp(parseAmount(data.operational_result.result))}
+                  strong
+                />
+              </dl>
               <Freshness
                 updated={data.operational_result.last_updated}
                 source={data.operational_result.source}
               />
-            </dl>
+            </>
           ) : (
             <NoData />
           )}
