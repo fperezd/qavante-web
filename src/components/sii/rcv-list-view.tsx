@@ -22,7 +22,11 @@ import {
   QavanteInput,
 } from "@/components/qavante";
 import { cn } from "@/lib/utils";
-import type { RcvComprasResponse, RcvVentasResponse } from "@/lib/api/sii";
+import {
+  siiDteRecibidoPdfUrl,
+  type RcvComprasResponse,
+  type RcvVentasResponse,
+} from "@/lib/api/sii";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
@@ -32,6 +36,8 @@ import { computeRcvTotals } from "./rcv-totals";
 import { agruparConReferencias, type EstadoDoc, type FacturaRow } from "./rcv-anuladas";
 import { RcvAsociadosModal } from "./rcv-asociados-modal";
 import { RcvDetalleGrid } from "./rcv-detalle-grid";
+import { DteActions } from "./dte-actions";
+import { monthBounds } from "./dte-date";
 import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-table";
 import type { GroupedItem, RcvDoc } from "./rcv-grouped-item";
 import { sortGroupedItems, toggleSort, type SortKey, type SortState } from "./rcv-sort";
@@ -357,6 +363,7 @@ export function RcvListView({
                   onSelect={setSelected}
                   sort={sort}
                   onToggleSort={onToggleSort}
+                  dteKind={kind}
                 />
                 <PaginationBar
                   page={currentPage}
@@ -457,6 +464,29 @@ interface GroupedTableProps {
   onSelect: (row: FacturaRow<RcvDoc>) => void;
   sort: SortState | null;
   onToggleSort: (key: SortKey) => void;
+  /** `compras` habilita la columna "DTE" (ver/descargar). */
+  dteKind?: RcvKind;
+}
+
+/** Celda DTE (ver/descargar) para un documento de compra. */
+function dteCell(doc: RcvDoc) {
+  const mb = monthBounds(doc.fecha);
+  const folio = doc.folio ?? 0;
+  return (
+    <DteActions
+      url={
+        mb
+          ? siiDteRecibidoPdfUrl({
+              desde: mb.desde,
+              hasta: mb.hasta,
+              folio,
+              rutEmisor: doc.rut_contraparte,
+            })
+          : null
+      }
+      label={`folio ${folio}`}
+    />
+  );
 }
 
 function GroupedTable({
@@ -467,7 +497,9 @@ function GroupedTable({
   onSelect,
   sort,
   onToggleSort,
+  dteKind,
 }: GroupedTableProps) {
+  const showDte = dteKind === "compras";
   return (
     <div className={stickyScroll}>
       <table className="w-full min-w-[760px] text-sm">
@@ -506,6 +538,11 @@ function GroupedTable({
             <th scope="col" className="py-2 font-semibold">
               Estado
             </th>
+            {showDte && (
+              <th scope="col" className="py-2 text-right font-semibold">
+                DTE
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -555,6 +592,7 @@ function GroupedTable({
                       : "—"}
                   </td>
                   <td className="py-2 text-[11px] text-neutral-mid">Nota de crédito</td>
+                  {showDte && <td className="py-2 text-right">{dteCell(d)}</td>}
                 </tr>
               );
             }
@@ -658,6 +696,7 @@ function GroupedTable({
                     <span className="text-neutral-mid">—</span>
                   )}
                 </td>
+                {showDte && <td className="py-2 text-right">{dteCell(f)}</td>}
               </tr>
             );
           })}
@@ -683,10 +722,11 @@ function GroupedTable({
               {formatClp(totals.total)}
             </td>
             <td className="py-2" />
+            {showDte && <td className="py-2" />}
           </tr>
           {totals.ncCount > 0 && (
             <tr className="text-[11px] text-neutral-mid">
-              <td colSpan={8} className="pb-2 pr-3">
+              <td colSpan={showDte ? 9 : 8} className="pb-2 pr-3">
                 Se descontaron {totals.ncCount}{" "}
                 {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
                 <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}
