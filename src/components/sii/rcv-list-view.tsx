@@ -32,6 +32,7 @@ import { computeRcvTotals } from "./rcv-totals";
 import { agruparConReferencias, type EstadoDoc, type FacturaRow } from "./rcv-anuladas";
 import { RcvAsociadosModal } from "./rcv-asociados-modal";
 import { RcvDetalleGrid } from "./rcv-detalle-grid";
+import { LibroKpisPanel } from "./libro-kpis/libro-kpis-panel";
 import { DteActions } from "./dte-actions";
 import { periodToPdfWindow } from "./dte-date";
 import { dtePdfUrlForDoc } from "./dte-pdf";
@@ -267,6 +268,10 @@ export function RcvListView({
 
       {period && query.data && allDocs.length === 0 && (
         <QavanteEmpty icon={Inbox} title={copy.emptyTitle} description={copy.emptyDescription} />
+      )}
+
+      {period && allDocs.length > 0 && (
+        <LibroKpisPanel docs={filteredDocs} kind={kind} periodo={period} />
       )}
 
       {period && allDocs.length > 0 && (
