@@ -15,8 +15,23 @@ import {
   type F29EstadoMesEstado,
 } from "@/lib/api/sii";
 import { useMe } from "@/lib/api/users";
+import { ApiError } from "@/lib/api/errors";
 import { normalizeRut } from "@/lib/validators/rut";
 import { F29MonthDetail } from "./f29-month-detail";
+
+/* Describe el error de un sync fallido con el dato real del backend (status +
+   code + motivo) en vez de un genérico — permite diagnosticar sin logs. */
+function describeReqError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 0) return "No pudimos conectar con el servidor. Revisa tu conexión.";
+    if (err.status === 504 || err.status === 408) {
+      return "El SII tardó demasiado y la conexión se cortó (timeout). Intenta de nuevo en un rato.";
+    }
+    const code = err.code ? ` · ${err.code}` : "";
+    return `El servidor respondió ${err.status}${code}. ${err.message}`;
+  }
+  return "El SII no respondió. Intenta de nuevo en un rato.";
+}
 
 /* Panel F29 (handoff CC-API 2026-07-05) — grilla estilo "Consulta Estado F29"
    del SII: meses en filas, años en columnas, semáforo por celda. Al clickear un
@@ -104,6 +119,7 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
     let already = 0;
     let siiErrors = 0; // folios que el SII no dejó bajar/parsear (best-effort)
     let firstDetail: { error: string; detail: string } | null = null;
+    let firstReqError: unknown = null; // primer error de request (5xx/red) para diagnóstico
     for (const y of years) {
       setSyncYear(y);
       try {
@@ -119,8 +135,9 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
         siiErrors += res.errores ?? 0;
         const det = res.errores_detalle?.[0];
         if (det && !firstDetail) firstDetail = { error: det.error, detail: det.detail };
-      } catch {
+      } catch (e) {
         requestErrored += 1; // 5xx/red → seguimos con el resto de los años
+        if (!firstReqError) firstReqError = e;
       }
     }
     setSyncYear(null);
@@ -129,9 +146,7 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
 
     // Toast HONESTO: refleja qué pasó de verdad, en orden de severidad.
     if (ok === 0 && requestErrored > 0) {
-      toast.error("No pudimos actualizar", {
-        description: "El SII no respondió. Intenta de nuevo en un rato.",
-      });
+      toast.error("No pudimos actualizar", { description: describeReqError(firstReqError) });
     } else if (neu > 0) {
       // Se bajó y persistió al menos un F29 nuevo → éxito real.
       toast.success(`Bajamos ${neu} F29 ${neu === 1 ? "nuevo" : "nuevos"} del SII`, {
