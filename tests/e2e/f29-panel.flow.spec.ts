@@ -46,6 +46,7 @@ test.describe("Flujo: panel F29 (/pagar/impuestos/f29)", () => {
     await expect(actualizar).toBeVisible();
     await actualizar.click();
 
-    await expect(page.getByText("F29 actualizados")).toBeVisible();
+    // Toast honesto: el MSW devuelve persistidos_nuevos>0 → reporta cuántos bajó.
+    await expect(page.getByText(/Bajamos \d+ F29 nuevos del SII/)).toBeVisible();
   });
 });

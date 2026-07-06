@@ -95,8 +95,15 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
   async function actualizar() {
     if (syncing) return;
     let ok = 0;
-    let errored = 0;
+    let requestErrored = 0; // años cuya request falló (red / 5xx del server)
     let inProgress = false;
+    // Números reales que reporta el backend (ADR-0063): no afirmar "actualizado"
+    // sin evidencia. Un sync puede volver status:ok con 0 folios encontrados.
+    let found = 0;
+    let neu = 0;
+    let already = 0;
+    let siiErrors = 0; // folios que el SII no dejó bajar/parsear (best-effort)
+    let firstDetail: { error: string; detail: string } | null = null;
     for (const y of years) {
       setSyncYear(y);
       try {
@@ -106,29 +113,56 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
           break;
         }
         ok += 1;
+        found += res.folios_encontrados ?? 0;
+        neu += res.persistidos_nuevos ?? 0;
+        already += res.ya_persistidos ?? 0;
+        siiErrors += res.errores ?? 0;
+        const det = res.errores_detalle?.[0];
+        if (det && !firstDetail) firstDetail = { error: det.error, detail: det.detail };
       } catch {
-        errored += 1; // 502 del SII (best-effort) → seguimos con el resto
+        requestErrored += 1; // 5xx/red → seguimos con el resto de los años
       }
     }
     setSyncYear(null);
     // Una sola invalidación al final (evita el refetch-storm de la grilla).
     if (ok > 0) qc.invalidateQueries({ queryKey: siiKeys.all });
-    // Los errores se reportan SIEMPRE (aunque un año haya vuelto in_progress y
-    // cortado el loop): no ocultar que algún año falló.
-    if (ok === 0 && errored > 0) {
+
+    // Toast HONESTO: refleja qué pasó de verdad, en orden de severidad.
+    if (ok === 0 && requestErrored > 0) {
       toast.error("No pudimos actualizar", {
         description: "El SII no respondió. Intenta de nuevo en un rato.",
       });
-    } else if (errored > 0) {
-      toast.warning("Actualización parcial", {
-        description: `Algunos años no se pudieron traer del SII (${errored}). El resto se actualizó.`,
+    } else if (neu > 0) {
+      // Se bajó y persistió al menos un F29 nuevo → éxito real.
+      toast.success(`Bajamos ${neu} F29 ${neu === 1 ? "nuevo" : "nuevos"} del SII`, {
+        description:
+          siiErrors > 0
+            ? `${siiErrors} ${siiErrors === 1 ? "folio falló" : "folios fallaron"} al bajar; el resto quedó al día.`
+            : "Tu estado de F29 se actualizó.",
+      });
+    } else if (siiErrors > 0) {
+      // No entró nada nuevo y hubo folios que fallaron → mostrar el motivo real.
+      toast.warning(`${siiErrors} ${siiErrors === 1 ? "F29 falló" : "F29 fallaron"} al bajar`, {
+        description: firstDetail
+          ? `${firstDetail.error}: ${firstDetail.detail}`
+          : "El SII rechazó algunos folios. Revisa tu conexión al SII e intenta de nuevo.",
+      });
+    } else if (found === 0) {
+      // El SII no reporta ningún F29 declarado en el rango → esto explica la
+      // grilla vacía. No es un "éxito": lo decimos claro.
+      toast.warning("El SII no reporta F29 en este rango", {
+        description:
+          "No encontramos F29 declarados para estos años. Verifica que tu clave del SII esté conectada en Administración → Credenciales.",
       });
     } else if (inProgress) {
       toast.info("Actualización en curso", {
         description: "Ya hay una sincronización de F29 corriendo. Espera unos minutos.",
       });
     } else {
-      toast.success("F29 actualizados", { description: "Tu estado de F29 se actualizó." });
+      // found > 0 y todo ya estaba persistido → ya al día.
+      toast.success("Tus F29 ya estaban al día", {
+        description: `${already} ${already === 1 ? "F29" : "F29"} ya estaban sincronizados.`,
+      });
     }
   }
 
