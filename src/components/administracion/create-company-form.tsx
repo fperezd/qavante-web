@@ -29,6 +29,10 @@ export function CreateCompanyForm({ pending, error, onCancel, onCreate }: Create
   const [touched, setTouched] = React.useState(false);
   /* RUT normalizado que dispara la consulta al SII (se setea al salir del campo). */
   const [lookupRut, setLookupRut] = React.useState("");
+  /* ¿La razón social vino del SII (no la tipeó el usuario)? Si el usuario cambia el
+     RUT después, limpiamos ese nombre autocompletado para no enviar RUT-nuevo con
+     nombre-viejo. Un nombre tipeado a mano se respeta. */
+  const [autoFilled, setAutoFilled] = React.useState(false);
 
   const rutValid = isValidRut(rut);
   const nameValid = legalName.trim().length >= 2;
@@ -41,8 +45,19 @@ export function CreateCompanyForm({ pending, error, onCancel, onCreate }: Create
   React.useEffect(() => {
     if (siiData?.status === "ok" && siiData.razon_social) {
       setLegalName(siiData.razon_social);
+      setAutoFilled(true);
     }
   }, [siiData]);
+
+  function onRutChange(v: string) {
+    setRut(v);
+    // El RUT cambió → el hint y (si aplica) el nombre autocompletado quedan stale.
+    setLookupRut("");
+    if (autoFilled) {
+      setLegalName("");
+      setAutoFilled(false);
+    }
+  }
 
   /* Preview local del logo (aún no se persiste — falta endpoint backend). */
   React.useEffect(() => {
@@ -74,6 +89,7 @@ export function CreateCompanyForm({ pending, error, onCancel, onCreate }: Create
 
   const siiNotFound = lookupRut.length > 0 && siiData?.status === "not_found";
   const siiFilled = siiData?.status === "ok" && Boolean(siiData.razon_social);
+  const siiError = lookupRut.length > 0 && (contribuyente.isError || siiData?.status === "error");
 
   return (
     <form onSubmit={submit} noValidate className="space-y-4">
@@ -88,7 +104,7 @@ export function CreateCompanyForm({ pending, error, onCancel, onCreate }: Create
             variant="rut"
             placeholder="76.123.456-0"
             value={rut}
-            onValueChange={setRut}
+            onValueChange={onRutChange}
             onBlur={lookupIfValid}
             invalid={touched && !rutValid}
             aria-describedby="cs-rut-hint"
@@ -103,6 +119,10 @@ export function CreateCompanyForm({ pending, error, onCancel, onCreate }: Create
               <span className="inline-flex items-center gap-1 text-success-700">
                 <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                 Datos traídos del SII
+              </span>
+            ) : siiError ? (
+              <span className="text-warning-700">
+                No pudimos consultar el SII. Ingresa la razón social a mano.
               </span>
             ) : siiNotFound ? (
               <span className="text-neutral-mid">
@@ -127,7 +147,10 @@ export function CreateCompanyForm({ pending, error, onCancel, onCreate }: Create
             id="cs-legal-name"
             placeholder="Tooxs Digital SpA"
             value={legalName}
-            onValueChange={setLegalName}
+            onValueChange={(v) => {
+              setLegalName(v);
+              setAutoFilled(false); // el usuario la editó → ya no es "del SII"
+            }}
             invalid={touched && !nameValid}
           />
           {touched && !nameValid && (
