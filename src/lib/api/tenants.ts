@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { usersKeys } from "./users";
 import type { components } from "./types";
 
 /* Capa de datos — N:M multi-empresa logueado (ADR-0049, qavante-api #351/#352/#354).
@@ -57,7 +58,8 @@ export function useUpdateTenant() {
     mutationFn: (body: UpdateTenantBody) => api.put<void>("/api/admin/tenant", { body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: tenantKeys.mine });
-      qc.invalidateQueries({ queryKey: ["me"] });
+      // `/api/me` (nombre en header/selector) → su key es ["users","me"], no ["me"].
+      qc.invalidateQueries({ queryKey: usersKeys.me() });
     },
   });
 }

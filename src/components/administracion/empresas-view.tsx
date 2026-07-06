@@ -53,7 +53,14 @@ export function EmpresasView() {
               Tus empresas
             </span>
             {!creating && (
-              <QavanteButton size="sm" onClick={() => setCreating(true)} disabled={busy}>
+              <QavanteButton
+                size="sm"
+                onClick={() => {
+                  setCreating(true);
+                  setEditing(false);
+                }}
+                disabled={busy}
+              >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Agregar empresa
               </QavanteButton>

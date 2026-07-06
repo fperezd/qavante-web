@@ -5,6 +5,7 @@ import { QavanteButton, QavanteInput } from "@/components/qavante";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { isValidRut, normalizeRut } from "@/lib/validators/rut";
+import type { UpdateTenantBody } from "@/lib/api/tenants";
 
 /* Editar los datos de la empresa ACTIVA (`PUT /api/admin/tenant`). Partial update:
    solo se envían razón social + RUT (que conocemos) y el nombre comercial SI el
@@ -18,7 +19,9 @@ export interface EditCompanyFormProps {
   pending: boolean;
   error: unknown;
   onCancel: () => void;
-  onSave: (body: { legal_name: string; rut: string | null; trade_name: string | null }) => void;
+  /** Recibe SOLO los campos a actualizar (partial): los vacíos se omiten para no
+   *  borrar en el backend (null = borrar en un partial update). */
+  onSave: (body: UpdateTenantBody) => void;
 }
 
 export function EditCompanyForm({
@@ -34,6 +37,13 @@ export function EditCompanyForm({
   const [tradeName, setTradeName] = React.useState("");
   const [touched, setTouched] = React.useState(false);
 
+  /* `initialRut` (de /api/me) puede llegar DESPUÉS de montar (cache fría). Si el
+     campo sigue vacío y llega el RUT real, lo poblamos — sin pisar lo que el
+     usuario ya tipeó. */
+  React.useEffect(() => {
+    if (initialRut) setRut((cur) => (cur === "" ? initialRut : cur));
+  }, [initialRut]);
+
   const nameValid = legalName.trim().length >= 2;
   // RUT opcional al editar (puede venir vacío si no lo teníamos); si hay, válido.
   const rutValid = rut.trim().length === 0 || isValidRut(rut);
@@ -43,12 +53,12 @@ export function EditCompanyForm({
     e.preventDefault();
     setTouched(true);
     if (!canSubmit) return;
-    onSave({
-      legal_name: legalName.trim(),
-      rut: rut.trim() ? normalizeRut(rut) : null,
-      // Solo si lo completó: vacío = no tocar el que exista en backend.
-      trade_name: tradeName.trim() || null,
-    });
+    /* Partial update: SOLO mandamos lo que tiene valor. Un campo vacío se OMITE
+       (no `null`), para no borrar en el backend lo que no tocamos. */
+    const body: UpdateTenantBody = { legal_name: legalName.trim() };
+    if (rut.trim()) body.rut = normalizeRut(rut);
+    if (tradeName.trim()) body.trade_name = tradeName.trim();
+    onSave(body);
   }
 
   return (

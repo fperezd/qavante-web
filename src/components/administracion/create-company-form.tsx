@@ -41,12 +41,14 @@ export function CreateCompanyForm({ pending, error, onCancel, onCreate }: Create
   const contribuyente = useSiiContribuyente(lookupRut, lookupRut.length > 0);
   const siiData = contribuyente.data;
 
-  /* Autocompletar la razón social cuando el SII responde con datos. */
+  /* Autocompletar la razón social cuando el SII responde — pero NO pisar un nombre
+     que el usuario ya tipeó (solo llenamos si el campo está vacío). */
   React.useEffect(() => {
-    if (siiData?.status === "ok" && siiData.razon_social) {
+    if (siiData?.status === "ok" && siiData.razon_social && legalName.trim() === "") {
       setLegalName(siiData.razon_social);
       setAutoFilled(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siiData]);
 
   function onRutChange(v: string) {
