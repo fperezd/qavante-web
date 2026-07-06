@@ -5,13 +5,12 @@
 > **Origen:** sesión de asesoría CEO/Controller sobre el documento
 > `Qavante_Health_Score_Documento_Tecnico_Completo.docx`.
 > **Ámbito:** este documento define la METODOLOGÍA (fórmulas, pesos, umbrales,
-> guardrails). El cálculo es **lógica de negocio del backend** (CLAUDE.md); el FE
-> solo muestra resultados vía contratos como
-> [`pulso-detail-contract.md`](../backend-contracts/pulso-detail-contract.md).
-> **Decisión formal en el backend:** ADR-0064 de qavante-api
-> (`docs/adr/0064-pulso-v2-cob-run-dpc-cal-y-health-score.md`), que reemplaza el
-> §2 del ADR-0033 (el composite runway/gap/data-quality/cobranza de
-> `dashboard_pulso.py`).
+> guardrails). El cálculo es **lógica de negocio de ESTE repo (backend)**.
+> Decisión formal: [ADR-0064](../adr/0064-pulso-v2-cob-run-dpc-cal-y-health-score.md),
+> que **reemplaza el §2 del ADR-0033** (composite runway/gap/data-quality/cobranza
+> implementado en `api/app/core/dashboard_pulso.py`).
+> El FE solo muestra resultados vía contratos (en qavante-web:
+> `docs/backend-contracts/pulso-detail-contract.md`).
 > **Espejo:** este archivo existe en ambos repos — qavante-web
 > `docs/scoring/pulso-y-health-score-spec-v1.md` y qavante-api
 > `docs/design/pulso-y-health-score-spec-v1.md` — y debe actualizarse en tándem.
@@ -130,13 +129,15 @@ Evita que un crédito recién girado pinte el PULSO de verde.
 | 0–19 | Crítico | `critical` |
 
 > **La definición anterior de Pulso queda REEMPLAZADA por esta spec** (decisión
-> de Fernando, 2026-07-05). Los componentes de ejemplo del contrato FE-first
-> (liquidez/cobranza/rentabilidad en `pulso-detail-contract.md`) eran
-> placeholders y **no deben considerarse**: la composición autoritativa del
-> Pulso es **COB / RUN / DPC / CAL** con la fórmula de §2.1. Del contrato solo
-> se conserva el *shape* de respuesta (genérico: `key/label/score/weight`) y los
-> 4 estados de display, que se colapsan desde las 5 bandas como indica la tabla;
-> los knock-outs fuerzan `critical`, coherente con la semántica ya documentada.
+> de Fernando, 2026-07-05). Esto cubre tanto el composite vigente en este repo
+> (ADR-0033 §2: runway 0.35 / gap 0.25 / data-quality 0.20 / cobranza 0.20,
+> `api/app/core/dashboard_pulso.py`) como los ejes de ejemplo del contrato
+> FE-first de qavante-web (liquidez/cobranza/rentabilidad): **no deben
+> considerarse**. La composición autoritativa del Pulso es **COB / RUN / DPC /
+> CAL** con la fórmula de §2.1. Del contrato FE solo se conserva el *shape* de
+> respuesta (genérico: `key/label/score/weight`) y los 4 estados de display, que
+> se colapsan desde las 5 bandas como indica la tabla; los knock-outs fuerzan
+> `critical`, coherente con la semántica ya documentada.
 
 ---
 
@@ -324,7 +325,37 @@ Reglas objetivas sobre los dos scores; convierten el índice en herramienta
 
 ---
 
-## 7. Puntos abiertos
+## 7. Persistencia: los scores quedan registrados en el tiempo
+
+Cada cálculo de PULSO y QHS se guarda como **serie temporal inmutable**. No
+confundir con la historia de *insumos* (§6.5): esto es la historia de
+*resultados* — cada score ya calculado, con fecha, versión de modelo,
+subíndices, drivers y confianza.
+
+**Por qué es requisito, no opcional:**
+
+- El QHS **lee su propio pasado**: la histéresis de bandas (§3.8) y la tendencia
+  (`delta` vs período anterior) necesitan el score anterior para calcular el
+  actual.
+- **Auditoría:** reconstruir "por qué en marzo era 72 y hoy 58" exige el snapshot
+  con su `model_version`. Recalibrar umbrales **no** cambia scores viejos.
+- **Backtesting** (§6.8) y la **gráfica de trayectoria** del dueño **son** la
+  serie persistida.
+
+**Modelo y reglas** (detalle de implementación en ADR-0064 §5):
+
+- Tablas `q_score_*` del doc Health Score §14 (`q_score_snapshot`,
+  `q_score_subindex`, `q_score_driver`, `q_score_quality`,
+  `q_score_model_version`) — migración aditiva nueva (no existe aún).
+- **Inmutable:** un score es un hecho fechado (como un asiento contable); nunca
+  se edita, cada cálculo es una fila nueva.
+- **Cadencia:** QHS **mensual** (retención permanente); PULSO diario pero con
+  *downsample* (≈90d diario → semanal), guardando siempre los días con knock-out.
+- Idempotencia por `UNIQUE (tenant, instrument, score_date, model_version)`.
+
+---
+
+## 8. Puntos abiertos
 
 > Auditoría de datos 2026-07-05: la captura NO es el cuello de botella. Ya
 > resuelto por lo que el backend captura hoy: **F29 real** (`f29_periods`),
@@ -335,16 +366,16 @@ Reglas objetivas sobre los dos scores; convierten el índice en herramienta
 > en el ADR-0064 §4 de qavante-api.
 
 - [ ] Validación de Fernando de pesos y umbrales v1.
-- [ ] CC-API: migrar el motor actual (`dashboard_pulso.py`, ADR-0033 §2) a
-  COB/RUN/DPC/CAL según esta spec — plan de transición en el ADR-0064 §3 de
-  qavante-api. Los `components[]` de ejemplo del contrato FE-first
-  (liquidez/cobranza/rentabilidad) quedan obsoletos y no deben implementarse.
+- [ ] CC-API: migrar `dashboard_pulso.py` del composite ADR-0033 §2 al motor
+  COB/RUN/DPC/CAL de esta spec (plan de transición en ADR-0064 §3).
 - [ ] **Gap 1 — `payer_payment_stats`** (historial de pago por pagador): habilita
   la probabilidad de pago de COB y la concentración mitigada de RES. Cómo: ADR-0064 §4.1.
 - [ ] **Gap 2 — `recurring_series`** (detector de recurrencia de egresos):
   alimenta RUN, DPC, gasto fijo (RES) y elasticidad (EXP). Cómo: ADR-0064 §4.2.
 - [ ] **Gap 3 — política de historia por tenant** (backfill RCV + cold start
   progresivo): habilita TRAY/GEN del QHS. Cómo: ADR-0064 §4.3.
+- [ ] **Persistencia — tablas `q_score_*`** (snapshots inmutables de PULSO/QHS):
+  migración aditiva nueva. Cómo: §7 + ADR-0064 §5.
 - [ ] Definir contrato del QHS (endpoint separado o extensión del dashboard).
 
 ---
