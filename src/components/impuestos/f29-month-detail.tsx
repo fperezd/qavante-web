@@ -170,7 +170,9 @@ export function F29MonthDetail({
                   className="flex flex-wrap items-center gap-2"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    const n = Number(draft.replace(/[^\d]/g, ""));
+                    const clean = draft.replace(/[^\d]/g, "");
+                    if (clean === "") return; // vacío ≠ $0 confirmado (no-op)
+                    const n = Number(clean);
                     if (Number.isFinite(n) && n >= 0) setManual(n);
                   }}
                 >
