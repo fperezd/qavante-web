@@ -195,6 +195,27 @@ export function siiDteRecibidoPdfUrl(args: {
   return `${base}/api/sii/dte-recibidos/pdf?${q.toString()}`;
 }
 
+/** URL del PDF de un DTE emitido (factura de venta) —
+ *  `GET /api/sii/dte-emitidos/pdf?desde&hasta&folio&rut_receptor` (qavante-api #501,
+ *  acepta folio + rango en vez del `codigo` opaco del Portal). El `rut_receptor`
+ *  —el cliente— es obligatorio en este endpoint. `null` si faltan datos o base. */
+export function siiDteEmitidoPdfUrl(args: {
+  desde: string;
+  hasta: string;
+  folio: number;
+  rutReceptor?: string | null;
+}): string | null {
+  const base = apiBase();
+  if (!base || !args.desde || !args.hasta || !(args.folio > 0) || !args.rutReceptor) return null;
+  const q = new URLSearchParams({
+    desde: args.desde,
+    hasta: args.hasta,
+    folio: String(args.folio),
+    rut_receptor: args.rutReceptor,
+  });
+  return `${base}/api/sii/dte-emitidos/pdf?${q.toString()}`;
+}
+
 /** `GET /api/sii/contribuyente/{rut}` — situación tributaria pública por RUT
  *  (razón social, giro, inicio de actividades) vía `getstc` del SII. No requiere
  *  cert del tenant. `rut` debe venir normalizado (`normalizeRut`). Se usa para

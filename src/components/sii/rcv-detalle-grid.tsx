@@ -9,9 +9,9 @@ import { tipoDocMeta } from "./tipo-doc";
 import { fechaSortKey } from "./rcv-sort";
 import type { computeRcvTotals } from "./rcv-totals";
 import type { RcvDoc } from "./rcv-grouped-item";
-import { siiDteRecibidoPdfUrl } from "@/lib/api/sii";
+import type { RcvKind } from "./rcv-list-view";
 import { DteActions } from "./dte-actions";
-import { monthBounds } from "./dte-date";
+import { dtePdfUrlForDoc } from "./dte-pdf";
 
 /* Grilla del Libro en modo "detalle" (lista plana): la tabla dinámica completa
    —ordenar (clic), mover columnas (arrastrar), filtrar por columna—. La vista
@@ -22,9 +22,10 @@ export interface RcvDetalleGridProps {
   totals: ReturnType<typeof computeRcvTotals>;
   partyLabel: string;
   hasActiveFilters: boolean;
-  /** `compras` habilita la columna "DTE" (ver/descargar el PDF del proveedor).
-   *  `ventas` la omite hasta que el backend acepte folio en dte-emitidos/pdf. */
-  dteKind?: "compras" | "ventas";
+  /** Habilita la columna "DTE" (ver/descargar el PDF): `compras` y `ventas`. */
+  dteKind?: RcvKind;
+  /** Ventana del rango consultado para armar la URL del PDF (ver dtePdfUrlForDoc). */
+  dteWindow?: { desde: string; hasta: string } | null;
 }
 
 export function RcvDetalleGrid({
@@ -33,6 +34,7 @@ export function RcvDetalleGrid({
   partyLabel,
   hasActiveFilters,
   dteKind,
+  dteWindow = null,
 }: RcvDetalleGridProps) {
   const columns = React.useMemo<ColumnDef<RcvDoc, unknown>[]>(
     () => [
@@ -125,7 +127,7 @@ export function RcvDetalleGrid({
             "—"
           ),
       },
-      ...(dteKind === "compras"
+      ...(dteKind !== undefined
         ? [
             {
               id: "dte",
@@ -134,20 +136,10 @@ export function RcvDetalleGrid({
               enableSorting: false,
               meta: { align: "right" as const },
               cell: ({ row }: { row: { original: RcvDoc } }) => {
-                const mb = monthBounds(row.original.fecha);
                 const folio = row.original.folio ?? 0;
                 return (
                   <DteActions
-                    url={
-                      mb
-                        ? siiDteRecibidoPdfUrl({
-                            desde: mb.desde,
-                            hasta: mb.hasta,
-                            folio,
-                            rutEmisor: row.original.rut_contraparte,
-                          })
-                        : null
-                    }
+                    url={dtePdfUrlForDoc(dteKind, row.original, dteWindow)}
                     label={`folio ${folio}`}
                   />
                 );
@@ -156,7 +148,7 @@ export function RcvDetalleGrid({
           ]
         : []),
     ],
-    [partyLabel, dteKind],
+    [partyLabel, dteKind, dteWindow],
   );
 
   return (

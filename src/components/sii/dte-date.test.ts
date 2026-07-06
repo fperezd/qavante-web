@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toIsoDate, fechaToPeriodo, monthBounds } from "./dte-date";
+import { toIsoDate, fechaToPeriodo, monthBounds, periodToPdfWindow } from "./dte-date";
 
 describe("dte-date · toIsoDate", () => {
   it("normaliza los formatos del SII a YYYY-MM-DD", () => {
@@ -35,5 +35,27 @@ describe("dte-date · monthBounds", () => {
   it("no parseable → null", () => {
     expect(monthBounds("x")).toBeNull();
     expect(monthBounds(null)).toBeNull();
+  });
+});
+
+describe("dte-date · periodToPdfWindow", () => {
+  it("rango YYYY-MM_YYYY-MM → primer día del primer mes, último del último", () => {
+    expect(periodToPdfWindow("2026-02_2026-07")).toEqual({
+      desde: "2026-02-01",
+      hasta: "2026-07-31",
+    });
+    // Rango que cruza fin de año + febrero bisiesto en el extremo.
+    expect(periodToPdfWindow("2028-01_2028-02")).toEqual({
+      desde: "2028-01-01",
+      hasta: "2028-02-29",
+    });
+  });
+  it("mes suelto YYYY-MM → ese mes completo", () => {
+    expect(periodToPdfWindow("2026-04")).toEqual({ desde: "2026-04-01", hasta: "2026-04-30" });
+  });
+  it("vacío/no parseable → null", () => {
+    expect(periodToPdfWindow(null)).toBeNull();
+    expect(periodToPdfWindow("")).toBeNull();
+    expect(periodToPdfWindow("basura")).toBeNull();
   });
 });
