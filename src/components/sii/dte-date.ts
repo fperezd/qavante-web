@@ -33,3 +33,18 @@ export function monthBounds(fecha?: string | null): { desde: string; hasta: stri
   const mm = String(m).padStart(2, "0");
   return { desde: `${y}-${mm}-01`, hasta: `${y}-${mm}-${String(lastDay).padStart(2, "0")}` };
 }
+
+/** Ventana `{desde, hasta}` (YYYY-MM-DD) para el PDF de un DTE a partir del
+ *  `period` del Libro. Acepta un rango `YYYY-MM_YYYY-MM` (primer día del primer
+ *  mes → último día del último) o un mes suelto `YYYY-MM`. Se usa el RANGO
+ *  COMPLETO seleccionado —no el mes de emisión de la fila— porque el endpoint
+ *  ubica el folio dentro de la ventana: una factura emitida un mes y registrada
+ *  en el RCV de otro (p. ej. emitida 30/01 y recibida en feb) no se encontraría
+ *  si consultáramos solo su mes de emisión. `null` si no parsea. */
+export function periodToPdfWindow(period?: string | null): { desde: string; hasta: string } | null {
+  if (!period) return null;
+  const [a, b] = period.split("_");
+  const start = monthBounds(`${a}-01`);
+  const end = monthBounds(`${b ?? a}-01`);
+  return start && end ? { desde: start.desde, hasta: end.hasta } : null;
+}

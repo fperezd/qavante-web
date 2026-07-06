@@ -22,11 +22,7 @@ import {
   QavanteInput,
 } from "@/components/qavante";
 import { cn } from "@/lib/utils";
-import {
-  siiDteRecibidoPdfUrl,
-  type RcvComprasResponse,
-  type RcvVentasResponse,
-} from "@/lib/api/sii";
+import { type RcvComprasResponse, type RcvVentasResponse } from "@/lib/api/sii";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
@@ -37,7 +33,8 @@ import { agruparConReferencias, type EstadoDoc, type FacturaRow } from "./rcv-an
 import { RcvAsociadosModal } from "./rcv-asociados-modal";
 import { RcvDetalleGrid } from "./rcv-detalle-grid";
 import { DteActions } from "./dte-actions";
-import { monthBounds } from "./dte-date";
+import { periodToPdfWindow } from "./dte-date";
+import { dtePdfUrlForDoc } from "./dte-pdf";
 import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-table";
 import type { GroupedItem, RcvDoc } from "./rcv-grouped-item";
 import { sortGroupedItems, toggleSort, type SortKey, type SortState } from "./rcv-sort";
@@ -176,6 +173,10 @@ export function RcvListView({
 }: RcvListViewProps) {
   const copy = COPY[kind];
   const allDocs = extractDocs(query.data, kind);
+  /* Ventana (desde/hasta) para armar la URL del PDF de cada DTE: el rango
+     COMPLETO consultado, no el mes de emisión de la fila (una factura emitida un
+     mes y registrada en el RCV de otro no se encontraría por su mes de emisión). */
+  const dteWindow = React.useMemo(() => periodToPdfWindow(period), [period]);
 
   const [filters, setFilters] = React.useState<Filters>(DEFAULT_FILTERS);
   const [filtersOpen, setFiltersOpen] = React.useState(false);
@@ -364,6 +365,7 @@ export function RcvListView({
                   sort={sort}
                   onToggleSort={onToggleSort}
                   dteKind={kind}
+                  dteWindow={dteWindow}
                 />
                 <PaginationBar
                   page={currentPage}
@@ -384,6 +386,7 @@ export function RcvListView({
                 partyLabel={copy.partyLabel}
                 hasActiveFilters={hasActiveFilters}
                 dteKind={kind}
+                dteWindow={dteWindow}
               />
             )}
 
@@ -464,29 +467,16 @@ interface GroupedTableProps {
   onSelect: (row: FacturaRow<RcvDoc>) => void;
   sort: SortState | null;
   onToggleSort: (key: SortKey) => void;
-  /** `compras` habilita la columna "DTE" (ver/descargar). */
+  /** Habilita la columna "DTE" (ver/descargar): `compras` y `ventas`. */
   dteKind?: RcvKind;
+  /** Ventana del rango consultado para armar la URL del PDF (ver dtePdfUrlForDoc). */
+  dteWindow?: { desde: string; hasta: string } | null;
 }
 
-/** Celda DTE (ver/descargar) para un documento de compra. */
-function dteCell(doc: RcvDoc) {
-  const mb = monthBounds(doc.fecha);
+/** Celda DTE (ver/descargar) de un documento del Libro (compras o ventas). */
+function dteCell(kind: RcvKind, doc: RcvDoc, window: { desde: string; hasta: string } | null) {
   const folio = doc.folio ?? 0;
-  return (
-    <DteActions
-      url={
-        mb
-          ? siiDteRecibidoPdfUrl({
-              desde: mb.desde,
-              hasta: mb.hasta,
-              folio,
-              rutEmisor: doc.rut_contraparte,
-            })
-          : null
-      }
-      label={`folio ${folio}`}
-    />
-  );
+  return <DteActions url={dtePdfUrlForDoc(kind, doc, window)} label={`folio ${folio}`} />;
 }
 
 function GroupedTable({
@@ -498,8 +488,9 @@ function GroupedTable({
   sort,
   onToggleSort,
   dteKind,
+  dteWindow = null,
 }: GroupedTableProps) {
-  const showDte = dteKind === "compras";
+  const showDte = dteKind !== undefined;
   return (
     <div className={stickyScroll}>
       <table className="w-full min-w-[760px] text-sm">
@@ -592,7 +583,7 @@ function GroupedTable({
                       : "—"}
                   </td>
                   <td className="py-2 text-[11px] text-neutral-mid">Nota de crédito</td>
-                  {showDte && <td className="py-2 text-right">{dteCell(d)}</td>}
+                  {dteKind && <td className="py-2 text-right">{dteCell(dteKind, d, dteWindow)}</td>}
                 </tr>
               );
             }
@@ -696,7 +687,7 @@ function GroupedTable({
                     <span className="text-neutral-mid">—</span>
                   )}
                 </td>
-                {showDte && <td className="py-2 text-right">{dteCell(f)}</td>}
+                {dteKind && <td className="py-2 text-right">{dteCell(dteKind, f, dteWindow)}</td>}
               </tr>
             );
           })}
