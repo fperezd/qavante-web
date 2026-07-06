@@ -44,11 +44,19 @@ const meTenantsState: Array<{
   is_active: boolean;
 }> = [
   {
+    id: "t_tooxs",
+    slug: "tooxs",
+    legal_name: "Tooxs Digital SpA",
+    role: "owner",
+    is_active: true,
+  },
+  {
+    // Presente pero inactivo: la vista/selector lo filtran (tapón MVP Tenant).
     id: "t_qavante_demo",
     slug: "qavante-demo",
     legal_name: "MVP Tenant",
     role: "owner",
-    is_active: true,
+    is_active: false,
   },
 ];
 
@@ -137,6 +145,14 @@ export const authHandlers = [
     }
     meTenantsState.forEach((t) => (t.is_active = t.id === target.id));
     return new HttpResponse(null, { status: 200, headers: { "Set-Cookie": SESSION_COOKIE } });
+  }),
+
+  /* Editar los datos de la empresa activa (PUT /api/admin/tenant). */
+  http.put("*/api/admin/tenant", async ({ request }) => {
+    const body = (await request.json()) as { legal_name?: string };
+    const act = meTenantsState.find((t) => t.is_active);
+    if (act && body?.legal_name) act.legal_name = body.legal_name;
+    return new HttpResponse(null, { status: 200 });
   }),
 
   http.post("*/api/onboarding/sync", () =>

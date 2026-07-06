@@ -32,6 +32,24 @@ test.describe("Flujo: Empresas (/administracion/empresas)", () => {
     await expect(page.getByRole("button", { name: "Agregar empresa" }).last()).toBeVisible();
   });
 
+  test("editar la empresa activa: abre el form y guarda", async ({ page, context }) => {
+    await loginAs(context, "owner");
+    await page.goto("/administracion/empresas");
+
+    // "Editar" vive en la empresa activa (En uso).
+    const editar = page.getByRole("button", { name: /Editar / });
+    await expect(editar).toBeVisible();
+    await editar.click();
+
+    // Aparece el form de edición pre-poblado.
+    const legalName = page.locator("#ec-legal-name");
+    await expect(legalName).toBeVisible();
+    await legalName.fill("Tooxs Digital SpA (editado)");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+
+    await expect(page.getByText("Empresa actualizada")).toBeVisible();
+  });
+
   test("el selector del header ya NO ofrece crear empresa", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/inicio");
