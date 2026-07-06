@@ -39,14 +39,23 @@ export function DteActions({ url, label }: { url: string | null; label?: string 
   );
 }
 
-const W = 320;
-const H = 420;
 const OPEN_DELAY = 280;
 const CLOSE_GRACE = 180;
+/* Tamaño objetivo del preview — grande y legible (aspecto ~carta), acotado al
+   viewport. El UX manda: un DTE tiene que poder LEERSE en el preview. */
+const MAX_W = 720;
+const VH_RATIO = 0.86;
+
+interface Pos {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
 
 function DtePreview({ url, suffix }: { url: string; suffix: string }) {
   const [open, setOpen] = React.useState(false);
-  const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = React.useState<Pos | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const openTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,9 +69,14 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
     const el = triggerRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const left = Math.max(8, Math.min(r.right - W, window.innerWidth - W - 8));
-    const top = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - H - 8));
-    setPos({ top, left });
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(MAX_W, vw - 24);
+    const height = Math.min(Math.round(vh * VH_RATIO), vh - 24);
+    // A la izquierda del ícono (van al borde derecho de la tabla), clampeado.
+    const left = Math.max(12, Math.min(r.right - width, vw - width - 12));
+    const top = Math.max(12, Math.min(r.bottom + 6, vh - height - 12));
+    setPos({ top, left, width, height });
   }
 
   function openSoon() {
@@ -125,7 +139,7 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
             role="dialog"
             aria-label={`Vista previa del DTE${suffix}`}
             className="fixed z-50 overflow-hidden rounded-lg border border-border bg-surface shadow-2xl"
-            style={{ top: pos.top, left: pos.left, width: W, height: H }}
+            style={{ top: pos.top, left: pos.left, width: pos.width, height: pos.height }}
             onMouseEnter={clearTimers}
             onMouseLeave={closeSoon}
           >
