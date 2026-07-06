@@ -56,13 +56,24 @@ describe("libro-kpis-format", () => {
     expect(concentrationByCounterparty([])).toHaveLength(0);
   });
 
+  it("no funde contrapartes distintas sin RUT (keyea por razón social)", () => {
+    const sinRut = [
+      { tipo_doc: 39, folio: 1, razon_social: "Cliente A", monto_total: 1000 },
+      { tipo_doc: 39, folio: 2, razon_social: "Cliente B", monto_total: 2000 },
+    ] as RcvDoc[];
+    const c = concentrationByCounterparty(sinRut, 5);
+    expect(c).toHaveLength(2); // no se funden en un único bucket "—"
+    expect(c.map((x) => x.name).sort()).toEqual(["Cliente A", "Cliente B"]);
+  });
+
   it("docsToCsv arma headers + filas con separador ; y escapa comillas", () => {
     const csv = docsToCsv(docs.slice(0, 1));
     const lines = csv.split("\r\n");
     expect(lines[0]).toBe("Tipo;Folio;Fecha;RUT;Razon social;Neto;IVA;Total");
     expect(lines[1]).toContain("76418976-0");
     expect(lines[1]).toContain("1190000");
-    expect(lines[1]).toContain('"Aguas de Antofagasta"');
+    // Sin caracteres especiales → sin comillas (RFC 4180).
+    expect(lines[1]).toContain("Aguas de Antofagasta");
   });
 
   it("docsToCsv escapa comillas dobles en la razón social", () => {

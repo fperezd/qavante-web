@@ -176,6 +176,27 @@ export function siiBhePdfUrl(args: {
   return `${base}/api/sii/bhe/pdf?${q.toString()}`;
 }
 
+/** Builder común de las URLs de PDF de DTE por rango (`desde&hasta&folio&<rut>`).
+ *  Los dos endpoints del SII (recibidos/emitidos) solo difieren en el path, el
+ *  nombre del param del RUT y si el RUT es obligatorio. `null` si faltan datos. */
+function dteRangoPdfUrl(
+  path: string,
+  args: { desde: string; hasta: string; folio: number; rut?: string | null },
+  rutParam: string,
+  rutRequired: boolean,
+): string | null {
+  const base = apiBase();
+  if (!base || !args.desde || !args.hasta || !(args.folio > 0)) return null;
+  if (rutRequired && !args.rut) return null;
+  const q = new URLSearchParams({
+    desde: args.desde,
+    hasta: args.hasta,
+    folio: String(args.folio),
+  });
+  if (args.rut) q.set(rutParam, args.rut);
+  return `${base}${path}?${q.toString()}`;
+}
+
 /** URL del PDF de un DTE recibido (factura de proveedor) —
  *  `GET /api/sii/dte-recibidos/pdf?desde&hasta&folio&rut_emisor`. */
 export function siiDteRecibidoPdfUrl(args: {
@@ -184,15 +205,12 @@ export function siiDteRecibidoPdfUrl(args: {
   folio: number;
   rutEmisor?: string | null;
 }): string | null {
-  const base = apiBase();
-  if (!base || !args.desde || !args.hasta || !(args.folio > 0)) return null;
-  const q = new URLSearchParams({
-    desde: args.desde,
-    hasta: args.hasta,
-    folio: String(args.folio),
-  });
-  if (args.rutEmisor) q.set("rut_emisor", args.rutEmisor);
-  return `${base}/api/sii/dte-recibidos/pdf?${q.toString()}`;
+  return dteRangoPdfUrl(
+    "/api/sii/dte-recibidos/pdf",
+    { desde: args.desde, hasta: args.hasta, folio: args.folio, rut: args.rutEmisor },
+    "rut_emisor",
+    false,
+  );
 }
 
 /** URL del PDF de un DTE emitido (factura de venta) —
@@ -205,15 +223,12 @@ export function siiDteEmitidoPdfUrl(args: {
   folio: number;
   rutReceptor?: string | null;
 }): string | null {
-  const base = apiBase();
-  if (!base || !args.desde || !args.hasta || !(args.folio > 0) || !args.rutReceptor) return null;
-  const q = new URLSearchParams({
-    desde: args.desde,
-    hasta: args.hasta,
-    folio: String(args.folio),
-    rut_receptor: args.rutReceptor,
-  });
-  return `${base}/api/sii/dte-emitidos/pdf?${q.toString()}`;
+  return dteRangoPdfUrl(
+    "/api/sii/dte-emitidos/pdf",
+    { desde: args.desde, hasta: args.hasta, folio: args.folio, rut: args.rutReceptor },
+    "rut_receptor",
+    true,
+  );
 }
 
 /** `GET /api/sii/contribuyente/{rut}` — situación tributaria pública por RUT

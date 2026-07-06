@@ -53,6 +53,12 @@ describe("dte-date · periodToPdfWindow", () => {
   it("mes suelto YYYY-MM → ese mes completo", () => {
     expect(periodToPdfWindow("2026-04")).toEqual({ desde: "2026-04-01", hasta: "2026-04-30" });
   });
+  it("rango invertido (desde > hasta) → ordena los extremos", () => {
+    expect(periodToPdfWindow("2026-06_2026-01")).toEqual({
+      desde: "2026-01-01",
+      hasta: "2026-06-30",
+    });
+  });
   it("vacío/no parseable → null", () => {
     expect(periodToPdfWindow(null)).toBeNull();
     expect(periodToPdfWindow("")).toBeNull();
