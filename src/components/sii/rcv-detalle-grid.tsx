@@ -11,19 +11,7 @@ import type { computeRcvTotals } from "./rcv-totals";
 import type { RcvDoc } from "./rcv-grouped-item";
 import { siiDteRecibidoPdfUrl } from "@/lib/api/sii";
 import { DteActions } from "./dte-actions";
-
-/** `DD/MM/YYYY` o `YYYY-MM-DD…` → `YYYY-MM-DD` (para el rango del PDF de DTE). */
-function toIsoDate(fecha?: string): string | null {
-  if (!fecha) return null;
-  const s = fecha.trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-  const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
-  if (m) {
-    const [, d, mo, y] = m;
-    if (d && mo && y) return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
-  }
-  return null;
-}
+import { monthBounds } from "./dte-date";
 
 /* Grilla del Libro en modo "detalle" (lista plana): la tabla dinámica completa
    —ordenar (clic), mover columnas (arrastrar), filtrar por columna—. La vista
@@ -146,15 +134,15 @@ export function RcvDetalleGrid({
               enableSorting: false,
               meta: { align: "right" as const },
               cell: ({ row }: { row: { original: RcvDoc } }) => {
-                const iso = toIsoDate(row.original.fecha);
+                const mb = monthBounds(row.original.fecha);
                 const folio = row.original.folio ?? 0;
                 return (
                   <DteActions
                     url={
-                      iso
+                      mb
                         ? siiDteRecibidoPdfUrl({
-                            desde: iso,
-                            hasta: iso,
+                            desde: mb.desde,
+                            hasta: mb.hasta,
                             folio,
                             rutEmisor: row.original.rut_contraparte,
                           })
