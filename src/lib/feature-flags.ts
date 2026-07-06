@@ -47,6 +47,7 @@ export const FEATURE_FLAGS = [
   "obligations",
   "syncStatus",
   "remuneraciones",
+  "bankBalances",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -106,6 +107,11 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      acepte cookie de sesión (hoy podría ser api-key-only → 401). Ver
      STATE_OF_THE_TRAIN. */
   remuneraciones: "/api/buk/employees",
+  /* Saldos de las cuentas de banco (Caja). FE-first contra `/api/bice/saldo`
+     (SaldoResponse: saldo contable + disponible por cuenta, CLP/USD). El
+     endpoint existe pero es api-key-only (401 "Falta X-Api-Key" con cookie);
+     activar cuando CC-API lo migre a require_session. Ver STATE_OF_THE_TRAIN. */
+  bankBalances: "/api/bice/saldo",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

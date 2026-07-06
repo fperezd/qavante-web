@@ -8,6 +8,7 @@ import {
   QavanteEmpty,
 } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { BankBalances } from "@/components/treasury/bank-balances/bank-balances";
 
 /* Landing del módulo Caja. Sprint C3 MVP cableó `/caja/proyeccion` con el
    reporte agregado de `/api/treasury/reports/cash-flow` — si el flag
@@ -16,7 +17,7 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
    vs caja mínima + acciones recomendadas quedan para wave 2 cuando el
    backend exponga los contratos. */
 export default function CajaPage() {
-  const { bankMovementClassification, cashFlowReport } = resolveFeatureFlags();
+  const { bankMovementClassification, cashFlowReport, bankBalances } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -24,6 +25,15 @@ export default function CajaPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Caja</h1>
         <p className="mt-1 text-sm text-neutral-mid">¿Me alcanza la caja y qué puedo hacer?</p>
       </header>
+
+      {bankBalances && (
+        <section aria-labelledby="saldos-section" className="space-y-3">
+          <h2 id="saldos-section" className="text-base font-semibold text-neutral-dark">
+            Saldos en banco
+          </h2>
+          <BankBalances />
+        </section>
+      )}
 
       {bankMovementClassification ? (
         <section aria-labelledby="movimientos-section" className="space-y-3">
