@@ -1083,6 +1083,12 @@ export interface paths {
          * SII: PDF (render propio) de un DTE emitido
          * @description Render propio del PDF de un DTE **emitido**: baja su XML (Obtener Envío) y lo dibuja
          *     con el timbre PDF417. Auth: certificado per-tenant (igual que `dte-emitidos`).
+         *
+         *     Dos modos (pasá UNO):
+         *     - **Por folio** (`folio` + `desde` + `hasta`): ubica el DTE por folio en el listado del rango
+         *       y resuelve su CODIGO internamente. Es el que usa Ventas — mismo URL-builder que
+         *       `dte-recibidos/pdf`/BHE.
+         *     - **Por código** (`codigo` + `tpo_doc`): la variante original (el CODIGO del listado Portal001).
          */
         get: operations["sii_dte_emitido_pdf"];
         put?: never;
@@ -7236,6 +7242,24 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * F29SyncErrorDetail
+         * @description Un folio que falló en el sync, con el motivo (para diagnosticar sin acceso a logs).
+         */
+        F29SyncErrorDetail: {
+            /** Folio */
+            folio: number;
+            /**
+             * Error
+             * @description Tipo de error: F29NotFoundError, F29FetchError, F29ParseError o identity_mismatch.
+             */
+            error: string;
+            /**
+             * Detail
+             * @description Mensaje del SII / motivo. Sin secretos.
+             */
+            detail: string;
+        };
+        /**
          * F29SyncResponse
          * @description Resultado de `POST /api/sii/f29/sync` — enumera folios del año y baja+persiste los que
          *     faltan (incremental por inmutabilidad, ADR-0063).
@@ -7271,6 +7295,11 @@ export interface components {
              * @default 0
              */
             errores: number;
+            /**
+             * Errores Detalle
+             * @description Muestra (≤20) de los folios que fallaron, con tipo y motivo — permite diagnosticar por qué un sync no persistió sin acceder a los logs del server.
+             */
+            errores_detalle?: components["schemas"]["F29SyncErrorDetail"][];
         } & {
             [key: string]: unknown;
         };
@@ -10396,7 +10425,7 @@ export interface components {
              * @description Estado operacional de la fuente.
              * @enum {string}
              */
-            state: "ok" | "stale" | "missing" | "error" | "unavailable";
+            state: "ok" | "syncing" | "stale" | "missing" | "error" | "unavailable";
             /**
              * Reason
              * @description Texto breve para el usuario explicando el estado. Obligatorio cuando state != 'ok'.
@@ -13025,12 +13054,18 @@ export interface operations {
     sii_dte_emitido_pdf: {
         parameters: {
             query: {
-                /** @description CODIGO del emitido (del listado de Portal001) */
-                codigo: string;
-                /** @description Tipo de DTE (33, 61, …) */
-                tpo_doc: number;
                 /** @description RUT del receptor (con guión) */
                 rut_receptor: string;
+                /** @description Folio del documento (modo por folio, como `dte-recibidos/pdf`). Requiere `desde`+`hasta`. Es lo que usa Ventas (el Libro de Ventas/RCV solo trae el folio). */
+                folio?: number | null;
+                /** @description Fecha desde YYYY-MM-DD (modo por folio) */
+                desde?: string | null;
+                /** @description Fecha hasta YYYY-MM-DD (modo por folio) */
+                hasta?: string | null;
+                /** @description CODIGO del emitido (listado Portal001). Modo alternativo; requiere `tpo_doc`. */
+                codigo?: string | null;
+                /** @description Tipo de DTE (33, 61, …). Requerido con `codigo`. */
+                tpo_doc?: number | null;
             };
             header?: never;
             path?: never;
