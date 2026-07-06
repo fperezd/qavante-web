@@ -65,7 +65,9 @@ COB_ratio = (Caja disponible + Cobros esperados ponderados 30d) / Egresos compro
   banco, no antes).
 - **Egresos comprometidos** = proveedores que vencen ≤30d + **nómina estimada** +
   **IVA/PPM del F29 estimado desde DTEs** (débito fiscal − crédito fiscal) +
-  **cotizaciones previsionales** + servicio de deuda ≤30d + recurrentes
+  **cotizaciones previsionales** + **deuda fiscal TGR** (cuotas de convenio de
+  pago e impuestos morosos — módulo TGR ya integrado:
+  `/api/tgr/movimientos-deudas`) + servicio de deuda ≤30d + recurrentes
   (arriendo, servicios).
 
 | COB_ratio | ≥1.5 | 1.2 | 1.0 | 0.8 | ≤0.6 |
@@ -230,6 +232,11 @@ Guardrails internos:
 - Factoring >40% de los cobros durante 6+ meses → penalización por dependencia
   estructural. Ojo con la identidad del pagador: cuando el cliente factoriza, el
   pagador observado en banco es el factor, no el cliente (afecta también RES).
+- **Deuda fiscal TGR** (fuente: módulo TGR, `movimientos-deudas`): impuestos
+  morosos o convenio de pago vigente = deuda senior con el Fisco — señal de
+  presión más grave que deuda bancaria equivalente. Deuda TGR nueva o creciente
+  penaliza DEBT + reason code propio (`DEBT_NEG_TGR`); un convenio al día que
+  amortiza se trata como servicio de deuda normal (las cuotas entran a COB/DPC).
 
 ### 3.6 EXP — Disciplina de gastos (15%)
 
