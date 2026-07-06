@@ -1,11 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Building2, Check, Plus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Building2, Check, Plus, Pencil, Loader2 } from "lucide-react";
 import { QavanteCard, QavanteButton, QavanteBadge, QavanteInlineError } from "@/components/qavante";
-import { useMyTenants, useSwitchTenant, useCreateTenant } from "@/lib/api/tenants";
+import { useMyTenants, useSwitchTenant, useCreateTenant, useUpdateTenant } from "@/lib/api/tenants";
+import { useMe } from "@/lib/api/users";
 import { ROLE_LABELS } from "@/components/administracion/role-labels";
 import { CreateCompanyForm } from "@/components/administracion/create-company-form";
+import { EditCompanyForm } from "@/components/administracion/edit-company-form";
 import type { UserRole } from "@/lib/auth/types";
 
 /* Administración → Empresas. Gestiona las empresas del usuario: listarlas,
@@ -16,14 +19,19 @@ import type { UserRole } from "@/lib/auth/types";
 
 export function EmpresasView() {
   const tenants = useMyTenants();
+  const me = useMe();
   const switchTenant = useSwitchTenant();
   const createTenant = useCreateTenant();
+  const updateTenant = useUpdateTenant();
   const [creating, setCreating] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
 
   const allItems = tenants.data?.tenants ?? [];
   // Ocultar el "MVP Tenant" de config (mismo tapón que el selector).
   const items = allItems.filter((t) => t.legal_name?.trim().toLowerCase() !== "mvp tenant");
-  const busy = switchTenant.isPending || createTenant.isPending;
+  const active = items.find((t) => t.is_active);
+  const companyRut = me.data?.user.company_rut ?? "";
+  const busy = switchTenant.isPending || createTenant.isPending || updateTenant.isPending;
 
   function reloadIntoTenant() {
     if (typeof window !== "undefined") window.location.reload();
@@ -78,10 +86,27 @@ export function EmpresasView() {
                   </p>
                 </div>
                 {t.is_active ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-success-700">
-                    <Check className="h-4 w-4" aria-hidden="true" />
-                    En uso
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-xs text-success-700">
+                      <Check className="h-4 w-4" aria-hidden="true" />
+                      En uso
+                    </span>
+                    {!editing && (
+                      <QavanteButton
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditing(true);
+                          setCreating(false);
+                        }}
+                        disabled={busy}
+                        aria-label={`Editar ${t.legal_name}`}
+                      >
+                        <Pencil className="h-4 w-4" aria-hidden="true" />
+                        Editar
+                      </QavanteButton>
+                    )}
+                  </div>
                 ) : (
                   <QavanteButton
                     size="sm"
@@ -103,6 +128,35 @@ export function EmpresasView() {
           </p>
         )}
       </QavanteCard>
+
+      {editing && active && (
+        <QavanteCard
+          variant="bordered"
+          header={<span className="font-medium">Editar {active.legal_name}</span>}
+        >
+          <p className="mb-3 text-sm text-neutral-mid">
+            Edita los datos de tu empresa activa. Deja el nombre comercial vacío si no lo quieres
+            cambiar.
+          </p>
+          <EditCompanyForm
+            initialLegalName={active.legal_name}
+            initialRut={companyRut}
+            pending={updateTenant.isPending}
+            error={updateTenant.error}
+            onCancel={() => setEditing(false)}
+            onSave={(body) =>
+              updateTenant.mutate(body, {
+                onSuccess: () => {
+                  setEditing(false);
+                  toast.success("Empresa actualizada", {
+                    description: "Los datos de tu empresa se guardaron.",
+                  });
+                },
+              })
+            }
+          />
+        </QavanteCard>
+      )}
 
       {creating && (
         <QavanteCard

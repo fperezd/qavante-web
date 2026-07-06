@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -13,6 +13,7 @@ export type MeTenantsResponse = components["schemas"]["MeTenantsResponse"];
 export type CreateTenantBody = components["schemas"]["CreateTenantRequest"];
 export type CreatedTenant = components["schemas"]["CreatedTenant"];
 export type SwitchTenantBody = components["schemas"]["SwitchTenantRequest"];
+export type UpdateTenantBody = components["schemas"]["TenantUpdateRequest"];
 
 export const tenantKeys = {
   mine: ["me", "tenants"] as const,
@@ -43,5 +44,20 @@ export function useSwitchTenant() {
 export function useCreateTenant() {
   return useMutation({
     mutationFn: (body: CreateTenantBody) => api.post<CreatedTenant>("/api/me/tenants", { body }),
+  });
+}
+
+/** `PUT /api/admin/tenant` — edita los datos de la empresa ACTIVA (sin path param:
+    el backend usa el tenant de la sesión). Partial update (todos los campos
+    opcionales). Al terminar invalida la lista de empresas y `/api/me` (el nombre
+    se muestra en el header/selector). NO retry. */
+export function useUpdateTenant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpdateTenantBody) => api.put<void>("/api/admin/tenant", { body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: tenantKeys.mine });
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
   });
 }
