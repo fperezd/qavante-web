@@ -243,12 +243,11 @@ export function useSiiF29Giros(anio: number, mes: number, enabled = true) {
 /** `POST /api/sii/f29/sync?anio=` — enumera los F29 declarados del año y los
  *  persiste (incremental). Tras un sync ok, `/f29/estado` y `/f29/anual` se llenan.
  *  `status='in_progress'` = ya hay un sync corriendo para el tenant (no dispares
- *  otro). NO retry. Invalida las queries F29 al terminar. */
+ *  otro). NO retry. NO invalida en cada mutación: cuando se sincronizan varios
+ *  años en un loop, el caller invalida UNA vez al final (evita el refetch-storm). */
 export function useSyncF29() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: (anio: number) => api.post<F29SyncResponse>(`/api/sii/f29/sync?anio=${anio}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: siiKeys.all }),
   });
 }
 

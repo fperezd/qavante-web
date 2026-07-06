@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Check, RefreshCw } from "lucide-react";
 import { QavanteCard, QavanteButton, QavanteInlineError } from "@/components/qavante";
@@ -9,6 +10,7 @@ import {
   useSiiF29EstadoMulti,
   useSyncF29,
   useSiiContribuyente,
+  siiKeys,
   type F29EstadoMes,
   type F29EstadoMesEstado,
 } from "@/lib/api/sii";
@@ -85,6 +87,7 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
 
   /* "Actualizar F29": sincroniza los años visibles (secuencial — el SII permite
      un sync por tenant a la vez). Llena `/f29/estado` (los sin_dato pasan a real). */
+  const qc = useQueryClient();
   const syncF29 = useSyncF29();
   const [syncYear, setSyncYear] = React.useState<number | null>(null);
   const syncing = syncYear !== null;
@@ -108,13 +111,20 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
       }
     }
     setSyncYear(null);
+    // Una sola invalidación al final (evita el refetch-storm de la grilla).
+    if (ok > 0) qc.invalidateQueries({ queryKey: siiKeys.all });
     if (inProgress) {
       toast.info("Actualización en curso", {
         description: "Ya hay una sincronización de F29 corriendo. Espera unos minutos.",
       });
-    } else if (errored > 0 && ok === 0) {
+    } else if (ok === 0 && errored > 0) {
       toast.error("No pudimos actualizar", {
         description: "El SII no respondió. Intenta de nuevo en un rato.",
+      });
+    } else if (errored > 0) {
+      // Éxito parcial: no ocultar que algunos años fallaron.
+      toast.warning("Actualización parcial", {
+        description: `Algunos años no se pudieron traer del SII (${errored}). El resto se actualizó.`,
       });
     } else {
       toast.success("F29 actualizados", { description: "Tu estado de F29 se actualizó." });
@@ -250,9 +260,11 @@ function StatusCell({
       </span>
     );
   }
-  /* Sin dato: vencido pero sin F29 sincronizado. NO es "no declaró" — no lo
-     pintamos rojo. Marca neutra (círculo hueco), no clickeable: sincronizá. */
-  if (estado === "sin_dato") {
+  /* Sin dato (o estado fuera de contrato): vencido pero sin F29 sincronizado, o un
+     `estado` que no reconocemos (el contrato tipa `meses[]` laxo). NO lo pintamos
+     rojo ni rendeamos un botón roto "undefined" — marca neutra, no clickeable. */
+  const CLICKABLE = ["declarado", "no_declarado_vencido", "por_declarar", "en_curso"];
+  if (estado === "sin_dato" || !CLICKABLE.includes(estado)) {
     return (
       <span
         className="inline-block h-3 w-3 rounded-full border border-neutral-mid/50"
