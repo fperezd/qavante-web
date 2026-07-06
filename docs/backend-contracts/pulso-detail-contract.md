@@ -1,5 +1,17 @@
 # Contrato esperado — Pulso detalle (Sprint C6/C7)
 
+> ⚠️ **Metodología actualizada 2026-07-05 (decisión de Fernando):** la
+> composición del Pulso está definida en
+> [`docs/scoring/pulso-y-health-score-spec-v1.md`](../scoring/pulso-y-health-score-spec-v1.md)
+> — componentes **COB / RUN / DPC / CAL** con fórmula
+> `0.40·COB + 0.25·RUN + 0.20·DPC + 0.15·CAL`. Formalizada en el backend como
+> **ADR-0064 de qavante-api**, que reemplaza el composite del ADR-0033 §2
+> (`dashboard_pulso.py`). Los ejes de ejemplo de este contrato
+> (liquidez/cobranza/rentabilidad) eran placeholders FE-first y quedan
+> **obsoletos** — CC-API implementa el motor según la spec. El *shape* de
+> respuesta y los 4 `status` de este contrato siguen vigentes (las 5 bandas
+> metodológicas se colapsan a los 4 estados según §2.7 de la spec).
+
 > ✅ **Verificado 2026-06-21 (CC-WEB):** shape vigente, idéntico a los types del FE (`src/lib/api/pulso.ts`). `status` ∈ critical|weak|stable|strong. **Pedido:** `trend[].period` en formato `"YYYY-MM"` (el FE lo muestra como mes-año). Construir contra esto — flip inmediato al exponerse.
 
 > **CC-WEB → CC-API. 2026-06-03.** Contrato **FE-first**: el FE construyó la
@@ -24,8 +36,10 @@
 - **El cálculo es lógica de negocio del BACKEND** (score, pesos, drivers, knock-outs).
   El FE **solo muestra** — no calcula nada (CLAUDE.md). `headline` es rule-based (NO LLM).
 - `score` 0–100; `status` ∈ `critical | weak | stable | strong` (knock-outs fuerzan `critical`).
-- `components[]`: los ejes del índice (liquidez, rentabilidad, cobranza, …), cada
-  uno con su sub-score 0–100 y su `weight` 0–1 (peso en el total).
+- `components[]`: los ejes del índice — **COB, RUN, DPC, CAL** según la spec de
+  scoring (los ejemplos liquidez/rentabilidad/cobranza de abajo son previos a la
+  spec y no deben implementarse) — cada uno con su sub-score 0–100 y su `weight`
+  0–1 (peso en el total).
 - `drivers[]`: factores que empujan el Pulso, con `direction` (+/−), `impact`
   (high/medium/low), explicación y CTA opcional a una ruta interna del FE.
 - `trend[]`: histórico del score por período (más reciente último).
