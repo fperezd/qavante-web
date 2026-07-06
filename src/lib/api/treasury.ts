@@ -27,6 +27,8 @@ export type BiceAccount = components["schemas"]["BankAccountLinkStatus"];
 export type BiceAccountsResponse =
   components["schemas"]["app__api__bank_ingest_bice__BankAccountsListResponse"];
 export type CreateBankAccountRequest = components["schemas"]["CreateBankAccountRequest"];
+export type SaldoResponse = components["schemas"]["SaldoResponse"];
+export type CuentaSaldo = components["schemas"]["CuentaSaldo"];
 
 export interface BankMovementsParams {
   /** 'unclassified' | 'classified' | undefined (todos). */
@@ -51,8 +53,23 @@ export const treasuryKeys = {
     [...treasuryKeys.all, "bank-movements", params] as const,
   bankAccounts: () => [...treasuryKeys.all, "bank-accounts"] as const,
   biceAccounts: () => [...treasuryKeys.all, "bice-accounts"] as const,
+  biceSaldo: () => [...treasuryKeys.all, "bice-saldo"] as const,
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
 };
+
+/** `GET /api/bice/saldo` — saldo contable + disponible por cuenta (CLP/USD).
+ *  ⚠️ Hoy api-key-only (401 "Falta X-Api-Key" con cookie) → gated `bankBalances`
+ *  (OFF) hasta que CC-API lo migre a require_session. `skipAuthRetry`: un 401 acá
+ *  NO debe expulsar al login (cae como error de la tarjeta). Tipos generados. */
+export function useBiceSaldo(enabled = true) {
+  return useQuery({
+    queryKey: treasuryKeys.biceSaldo(),
+    queryFn: () => api.get<SaldoResponse>("/api/bice/saldo", { skipAuthRetry: true }),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
 
 /** `GET /api/treasury/bank-accounts` — cuentas del tenant con su moneda. Para el
  *  selector de cuenta en Caja (no mezclar CLP/USD) y el formateo por moneda. */
