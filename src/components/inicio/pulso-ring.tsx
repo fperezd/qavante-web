@@ -37,6 +37,13 @@ const STATUS_TEXT: Record<PulsoStatus, string> = {
   critical: "text-danger-500",
 };
 
+/** Lookup con fallback a `stable`: el backend no valida el enum en runtime, un
+ *  `status` fuera de contrato NO debe dejar el anillo sin color ni el label en
+ *  "undefined". */
+function statusValue<T>(rec: Record<PulsoStatus, T>, status: PulsoStatus): T {
+  return (rec as Record<string, T>)[status] ?? rec.stable;
+}
+
 export interface PulsoRingProps {
   /** 0–100. */
   score: number;
@@ -48,14 +55,14 @@ export function PulsoRing({ score, status, className }: PulsoRingProps) {
   const clamped = Math.max(0, Math.min(100, score));
   const animated = useCountUp(clamped, 1200);
   const offset = CIRC * (1 - animated / 100);
-  const color = STATUS_COLOR[status];
+  const color = statusValue(STATUS_COLOR, status);
 
   return (
     <div
       className={cn("relative shrink-0", className)}
       style={{ width: SIZE, height: SIZE }}
       role="img"
-      aria-label={`Pulso del negocio: ${Math.round(clamped)} de 100, ${STATUS_LABEL[status]}`}
+      aria-label={`Pulso del negocio: ${Math.round(clamped)} de 100, ${statusValue(STATUS_LABEL, status)}`}
     >
       <svg
         width={SIZE}
@@ -88,16 +95,21 @@ export function PulsoRing({ score, status, className }: PulsoRingProps) {
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">
         <div>
-          <div className={cn("text-4xl font-bold tabular-nums leading-none", STATUS_TEXT[status])}>
+          <div
+            className={cn(
+              "text-4xl font-bold tabular-nums leading-none",
+              statusValue(STATUS_TEXT, status),
+            )}
+          >
             {Math.round(animated)}
           </div>
           <div
             className={cn(
               "mt-1 text-[11px] font-semibold uppercase tracking-wider",
-              STATUS_TEXT[status],
+              statusValue(STATUS_TEXT, status),
             )}
           >
-            {STATUS_LABEL[status]}
+            {statusValue(STATUS_LABEL, status)}
           </div>
         </div>
       </div>

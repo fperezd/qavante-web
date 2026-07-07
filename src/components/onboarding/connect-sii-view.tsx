@@ -29,7 +29,9 @@ export function ConnectSiiView() {
   const [touched, setTouched] = React.useState(false);
 
   const rutValid = isValidRut(rut);
-  const canSubmit = rutValid && password.length > 0;
+  // `>= 4` alinea con el dialog de Credenciales (misma clave SII); `!isPending`
+  // corta el doble-submit (Enter repetido antes de que React deshabilite).
+  const canSubmit = rutValid && password.length >= 4 && !save.isPending;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

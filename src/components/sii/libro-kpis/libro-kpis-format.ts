@@ -19,17 +19,19 @@ export interface CounterpartyShare {
   pct: number;
 }
 
-/** Concentración por contraparte (cliente/proveedor): top-N por monto bruto,
- *  excluyendo notas de crédito. `pct` es sobre el bruto del período. */
+/** Concentración por contraparte (cliente/proveedor): top-N por monto NETO
+ *  (las NC restan al total de su contraparte), `pct` sobre el neto del período —
+ *  así usa el MISMO neto que el hero y una contraparte anulada no aparece inflada. */
 export function concentrationByCounterparty(docs: RcvDoc[], topN = 5): CounterpartyShare[] {
   const map = new Map<string, { rut: string; name: string; total: number }>();
   let grand = 0;
   for (const d of docs) {
-    if (isNotaCredito(d.tipo_doc)) continue;
+    // NC RESTA (neteo); factura/boleta suma.
+    const sign = isNotaCredito(d.tipo_doc) ? -1 : 1;
     // Clave por RUT; si no hay RUT, por razón social — así dos contrapartes
     // distintas sin RUT no se funden en un único bucket "—".
     const key = d.rut_contraparte ?? d.razon_social ?? "sin-identificar";
-    const t = num(d.monto_total);
+    const t = sign * num(d.monto_total);
     grand += t;
     const cur = map.get(key) ?? {
       rut: d.rut_contraparte ?? "—",
@@ -40,10 +42,14 @@ export function concentrationByCounterparty(docs: RcvDoc[], topN = 5): Counterpa
     map.set(key, cur);
   }
   const denom = grand || 1;
-  return [...map.values()]
-    .map((v) => ({ rut: v.rut, name: v.name, total: v.total, pct: (v.total / denom) * 100 }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, topN);
+  return (
+    [...map.values()]
+      // Solo neto positivo (una contraparte totalmente anulada queda en <= 0).
+      .filter((v) => v.total > 0)
+      .map((v) => ({ rut: v.rut, name: v.name, total: v.total, pct: (v.total / denom) * 100 }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, topN)
+  );
 }
 
 /** Escapa una celda CSV: entrecomilla si tiene separador/comillas/salto de línea

@@ -15,28 +15,33 @@ export function usePrefersReducedMotion(): boolean {
   return reduce;
 }
 
-/** Anima un número de 0 → `target` con easing (ease-out cúbico). Devuelve el
- *  valor actual. Con reduce-motion, salta directo al target (sin animar).
- *  Nivel dios: las cifras "aparecen contando", no de golpe. */
+/** Anima un número → `target` con easing (ease-out cúbico). Devuelve el valor
+ *  actual. El primer montaje cuenta desde 0 ("aparecen contando"); cambios
+ *  posteriores de `target` INTERPOLAN desde el valor actual, no reinician a 0
+ *  (evita el parpadeo a $0 en cada refetch). Con reduce-motion, salta al target. */
 export function useCountUp(target: number, durationMs = 1100): number {
   const reduce = usePrefersReducedMotion();
   const [value, setValue] = React.useState(reduce ? target : 0);
+  // Espejo del valor mostrado, para arrancar la próxima animación desde acá.
+  const valueRef = React.useRef(value);
 
   React.useEffect(() => {
     if (reduce || !Number.isFinite(target)) {
+      valueRef.current = target;
       setValue(target);
       return;
     }
     let raf = 0;
     let start: number | null = null;
-    const from = 0;
+    const from = valueRef.current; // desde el valor actual, no siempre 0
     function tick(t: number) {
       if (start === null) start = t;
       const p = Math.min(1, (t - start) / durationMs);
       const eased = 1 - Math.pow(1 - p, 3);
-      setValue(from + (target - from) * eased);
+      const next = from + (target - from) * eased;
+      valueRef.current = p < 1 ? next : target;
+      setValue(valueRef.current);
       if (p < 1) raf = requestAnimationFrame(tick);
-      else setValue(target);
     }
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);

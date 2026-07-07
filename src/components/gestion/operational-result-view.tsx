@@ -251,7 +251,10 @@ function PnlRow({
           }
         >
           {negative ? "−" : ""}
-          {formatClp(parseAmount(value))}
+          {/* Magnitud cuando la fila es "negativa": el "−" de arriba es el
+              autoritativo. Evita "−−$300.000" si el backend manda el costo con
+              signo (formatClp ya antepone su propio menos a los negativos). */}
+          {formatClp(negative ? Math.abs(parseAmount(value)) : parseAmount(value))}
         </span>
       </dd>
     </div>
