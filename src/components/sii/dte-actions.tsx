@@ -18,24 +18,12 @@ import { Eye, Download } from "lucide-react";
 const iconCls =
   "inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-mid transition-colors hover:bg-surface-muted hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
 
-export function DteActions({
-  url,
-  label,
-  preview = true,
-}: {
-  url: string | null;
-  label?: string;
-  /** Muestra la vista previa al hover. `false` = solo descargar (para los
-   *  endpoints cuyo PDF aún NO permite framing cross-origin → el iframe daría
-   *  "rechazó la conexión"; hoy dte-recibidos/emitidos, ver STATE_OF_THE_TRAIN).
-   *  Cuando CC-API agregue `frame-ancestors` a esos PDFs, volver a `true`. */
-  preview?: boolean;
-}) {
+export function DteActions({ url, label }: { url: string | null; label?: string }) {
   if (!url) return <span className="text-xs text-neutral-light">—</span>;
   const suffix = label ? ` ${label}` : "";
   return (
     <span className="inline-flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-      {preview && <DtePreview url={url} suffix={suffix} />}
+      <DtePreview url={url} suffix={suffix} />
       <a
         href={url}
         download

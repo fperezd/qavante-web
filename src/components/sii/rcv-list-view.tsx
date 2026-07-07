@@ -481,11 +481,7 @@ interface GroupedTableProps {
 /** Celda DTE (ver/descargar) de un documento del Libro (compras o ventas). */
 function dteCell(kind: RcvKind, doc: RcvDoc, window: { desde: string; hasta: string } | null) {
   const folio = doc.folio ?? 0;
-  // preview={false}: el PDF de dte-recibidos/emitidos aún no permite framing
-  // (daría "rechazó la conexión") → solo descargar hasta el fix de CC-API.
-  return (
-    <DteActions url={dtePdfUrlForDoc(kind, doc, window)} label={`folio ${folio}`} preview={false} />
-  );
+  return <DteActions url={dtePdfUrlForDoc(kind, doc, window)} label={`folio ${folio}`} />;
 }
 
 function GroupedTable({
