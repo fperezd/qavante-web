@@ -13,6 +13,7 @@ import { SiiPeriodForm } from "./sii-period-form";
 import { formatPeriodLabel } from "./sii-period-form-schema";
 import { DteActions } from "./dte-actions";
 import { fechaToPeriodo } from "./dte-date";
+import { BheKpisPanel } from "./bhe-v2/bhe-kpis-panel";
 
 /* Vista BHE recibidas (Boletas de Honorarios Electrónicas que me cobran
    profesionales) — Sprint C1 PR-Sii3. Shape distinto a RCV: tiene
@@ -100,6 +101,10 @@ export function BheListView({
           title="Sin BHE en el período"
           description="No hay boletas de honorarios emitidas a tu favor en este período. Prueba con otro período."
         />
+      )}
+
+      {period && items.length > 0 && (
+        <BheKpisPanel items={items} periodo={headerLabel ?? formatPeriodLabel(period)} />
       )}
 
       {period && items.length > 0 && (
