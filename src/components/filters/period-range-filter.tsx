@@ -4,6 +4,7 @@ import * as React from "react";
 import { CalendarRange, ChevronDown } from "lucide-react";
 import { QavanteButton } from "@/components/qavante";
 import { cn } from "@/lib/utils";
+import { useDismiss } from "@/lib/hooks/use-dismiss";
 import {
   formatRangeLabel,
   matchingPreset,
@@ -40,25 +41,14 @@ export interface PeriodRangeFilterProps {
 export function PeriodRangeFilter({ value, onChange, now, hint }: PeriodRangeFilterProps) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<PeriodRange>(value);
-  const ref = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const close = React.useCallback(() => setOpen(false), []);
+  // Escape (con retorno de foco al trigger) + click afuera.
+  const ref = useDismiss<HTMLDivElement>(open, close, triggerRef);
 
   React.useEffect(() => {
     if (open) setDraft(value);
   }, [open, value]);
-
-  React.useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
 
   const activePreset = matchingPreset(value, now);
 
@@ -70,6 +60,7 @@ export function PeriodRangeFilter({ value, onChange, now, hint }: PeriodRangeFil
   return (
     <div className="relative inline-block" ref={ref}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="dialog"
