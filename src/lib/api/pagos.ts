@@ -40,8 +40,9 @@ export interface AccountsPayableResponse {
   due_14d: string;
   due_30d: string;
   /** Pagos + obligaciones próximos (proveedores, IVA/PPM/Previred/TGR, sueldos,
-   *  arriendos, deuda, leasing). */
-  items: PayableItem[];
+   *  arriendos, deuda, leasing). OPCIONAL en el contrato: el backend lo omite en
+   *  estado `partial` (devengado vacío) → la vista debe defaultear a []. */
+  items?: PayableItem[];
   /** Caja proyectada a 14 días (del cash-flow) para la relación contra caja;
    *  `null` si no se pudo calcular. */
   projected_cash_14d: string | null;

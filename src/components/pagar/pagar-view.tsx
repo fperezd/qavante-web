@@ -82,9 +82,11 @@ export function PagarView() {
 function Payable({ data }: { data: AccountsPayableResponse }) {
   // `now` estable por montaje (evita recomputar el bucketing en cada render).
   const now = React.useMemo(() => new Date(), []);
-  const items = React.useMemo(() => overdueThenCritical(data.items, now), [data.items, now]);
-  const overdue = React.useMemo(() => overdueTotal(data.items, now), [data.items, now]);
-  const subtotals = React.useMemo(() => subtotalsByCriticality(data.items), [data.items]);
+  // `items` es opcional en el contrato (backend lo omite en estado partial).
+  const rawItems = React.useMemo(() => data.items ?? [], [data.items]);
+  const items = React.useMemo(() => overdueThenCritical(rawItems, now), [rawItems, now]);
+  const overdue = React.useMemo(() => overdueTotal(rawItems, now), [rawItems, now]);
+  const subtotals = React.useMemo(() => subtotalsByCriticality(rawItems), [rawItems]);
   return (
     <div className="space-y-4">
       {isPartial(data) && <PartialDataBanner missingSources={data.missing_sources} />}

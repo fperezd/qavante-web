@@ -51,8 +51,10 @@ export interface AccountsReceivableResponse {
   /** % vencido sobre el total (string-decimal, ej. "32.0"). */
   overdue_pct: string;
   aging: ReceivableAging;
-  top_debtors: TopDebtor[];
-  overdue_documents: OverdueDocument[];
+  /** OPCIONALES en el contrato: el backend los omite en estado `partial`
+   *  (devengado vacío) → la vista debe defaultear a []. */
+  top_debtors?: TopDebtor[];
+  overdue_documents?: OverdueDocument[];
   confidence: "high" | "medium" | "low";
   data_state: "available" | "partial" | "estimated";
   /** Fuentes que faltan para completar el dato (ej. "Sincronización SII

@@ -152,10 +152,10 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
       </QavanteCard>
 
       {/* Top deudores. */}
-      {data.top_debtors.length > 0 && (
+      {(data.top_debtors ?? []).length > 0 && (
         <QavanteCard variant="bordered" header={<span className="font-medium">Top deudores</span>}>
           <ul className="divide-y divide-border">
-            {data.top_debtors.map((d) => (
+            {(data.top_debtors ?? []).map((d) => (
               <li
                 key={d.rut}
                 className="-mx-2 flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-surface-muted"
@@ -181,7 +181,7 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
       )}
 
       {/* Documentos vencidos. */}
-      {data.overdue_documents.length > 0 && (
+      {(data.overdue_documents ?? []).length > 0 && (
         <QavanteCard
           variant="bordered"
           header={<span className="font-medium">Documentos vencidos</span>}
@@ -208,7 +208,7 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
                 </tr>
               </thead>
               <tbody>
-                {data.overdue_documents.map((doc, i) => (
+                {(data.overdue_documents ?? []).map((doc, i) => (
                   <tr
                     key={i}
                     className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"

@@ -35,6 +35,12 @@ describe("formatClp", () => {
     expect(norm(formatClp(-0.4))).toBe("$0");
     expect(norm(formatClp(-0))).toBe("$0");
   });
+
+  it("no-finito (NaN/Infinity) → guion, NO $NaN/$∞", () => {
+    expect(formatClp(NaN)).toBe("—");
+    expect(formatClp(Infinity)).toBe("—");
+    expect(formatClp(-Infinity)).toBe("—");
+  });
 });
 
 describe("formatMoney", () => {
@@ -57,5 +63,14 @@ describe("formatMoney", () => {
 
   it("moneda desconocida no rompe (formato genérico con 2 decimales)", () => {
     expect(norm(formatMoney(1234.5, "XXX"))).toContain("1.234,50");
+  });
+
+  it("moneda vacía '' → CLP (no RangeError de Intl)", () => {
+    expect(norm(formatMoney(1000, ""))).toBe("$1.000");
+  });
+
+  it("no-finito → guion", () => {
+    expect(formatMoney(NaN, "CLP")).toBe("—");
+    expect(formatMoney(Infinity, "USD")).toBe("—");
   });
 });
