@@ -3,9 +3,9 @@
 import * as React from "react";
 import { Download, Users } from "lucide-react";
 import { QavanteButton, QavanteCard } from "@/components/qavante";
-import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
+import { KpiCell } from "@/components/ui/kpi-strip";
 import { computeRcvTotals } from "../rcv-totals";
 import type { RcvDoc } from "../rcv-grouped-item";
 import type { RcvKind } from "../rcv-list-view";
@@ -24,29 +24,6 @@ export interface LibroKpisPanelProps {
   kind: RcvKind;
   /** Período/rango en curso, para nombrar el CSV (ej. "2026-06" o "2026-02_2026-07"). */
   periodo?: string;
-}
-
-/** Celda compacta de KPI (tira densa, no una tarjeta por número). */
-function KpiCell({
-  label,
-  value,
-  valueClassName,
-  sub,
-}: {
-  label: string;
-  value: React.ReactNode;
-  valueClassName?: string;
-  sub?: React.ReactNode;
-}) {
-  return (
-    <div className="px-4 py-2.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
-      <p className={cn("mt-0.5 text-lg font-bold tabular-nums text-neutral-dark", valueClassName)}>
-        {value}
-      </p>
-      {sub != null && <div className="mt-0.5 text-xs text-neutral-mid">{sub}</div>}
-    </div>
-  );
 }
 
 export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
