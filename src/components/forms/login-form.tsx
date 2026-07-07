@@ -12,6 +12,7 @@ import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { isValidRut } from "@/lib/validators/rut";
+import { safeInternalPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 const schema = z.object({
@@ -24,7 +25,7 @@ type FormValues = z.infer<typeof schema>;
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/inicio";
+  const redirect = safeInternalPath(searchParams.get("redirect"));
   const [showPassword, setShowPassword] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
