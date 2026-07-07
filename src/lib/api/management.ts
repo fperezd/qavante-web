@@ -69,9 +69,12 @@ export function useManagementDimensions(opts: { onlyActive?: boolean; enabled?: 
   const onlyActive = opts.onlyActive ?? false;
   return useQuery({
     queryKey: managementKeys.dimensions(onlyActive),
+    // skipAuthRetry: el endpoint sigue api-key-only → un 401 con cookie NO debe
+    // expulsar al admin a /login (cae como error del query). Ver STATE_OF_THE_TRAIN.
     queryFn: () =>
       api.get<DimensionsListResponse>(
         `/api/management/dimensions${onlyActive ? "?only_active=true" : ""}`,
+        { skipAuthRetry: true },
       ),
     enabled: opts.enabled ?? true,
     staleTime: 30_000,
@@ -96,7 +99,9 @@ export function useClassificationDimensions(enabled: boolean): {
     queries: dims.map((d) => ({
       queryKey: managementKeys.dimensionValues(d.id),
       queryFn: () =>
-        api.get<DimensionValuesListResponse>(`/api/management/dimensions/${d.id}/values`),
+        api.get<DimensionValuesListResponse>(`/api/management/dimensions/${d.id}/values`, {
+          skipAuthRetry: true,
+        }),
       enabled: enabled && d.id !== "",
       staleTime: 30_000,
       retry: false,
@@ -119,7 +124,9 @@ export function useDimensionValues(dimensionId: string) {
   return useQuery({
     queryKey: managementKeys.dimensionValues(dimensionId),
     queryFn: () =>
-      api.get<DimensionValuesListResponse>(`/api/management/dimensions/${dimensionId}/values`),
+      api.get<DimensionValuesListResponse>(`/api/management/dimensions/${dimensionId}/values`, {
+        skipAuthRetry: true,
+      }),
     enabled: dimensionId !== "",
     staleTime: 30_000,
     retry: false,

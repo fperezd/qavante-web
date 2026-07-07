@@ -4,6 +4,7 @@
    credenciales. Tipos del OpenAPI generado (`./types`), nunca hand-rolled. */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { treasuryKeys } from "./treasury";
 import type { components } from "./types";
 
 export type BankCredentialStatus = components["schemas"]["BankCredentialStatus"];
@@ -60,6 +61,9 @@ export function useSyncBiceMovements() {
         cards: cards.status === "fulfilled",
       };
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["bank-movements"] }),
+    // La query real es `["treasury","bank-movements",params]` → invalidar
+    // `["bank-movements"]` NO matchea (bug). Invalida todo treasury (movimientos
+    // + agregados que el sync puebla).
+    onSuccess: () => qc.invalidateQueries({ queryKey: treasuryKeys.all }),
   });
 }
