@@ -48,6 +48,7 @@ export const FEATURE_FLAGS = [
   "syncStatus",
   "remuneraciones",
   "bankBalances",
+  "saludScreen",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -112,6 +113,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      endpoint existe pero es api-key-only (401 "Falta X-Api-Key" con cookie);
      activar cuando CC-API lo migre a require_session. Ver STATE_OF_THE_TRAIN. */
   bankBalances: "/api/bice/saldo",
+  /* Pantalla Salud (PULSO + Health Score, ADR-0064). FE-first: la vista
+     (`SaludView`) ya existe (prototipo, PR #476); la ruta queda gated OFF hasta
+     que CC-API exponga el motor v2 (qavante-api #492 PULSO / #495 QHS / #493
+     flip). Con el flag ON en dev renderiza la pantalla con datos de ejemplo;
+     el cableado a datos reales + tipos generados es qavante-web #487. */
+  saludScreen: "/api/management/salud",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
