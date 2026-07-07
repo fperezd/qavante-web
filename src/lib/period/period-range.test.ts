@@ -42,6 +42,13 @@ describe("period-range · aritmética", () => {
   it("expandPeriodRange respeta el cap de meses", () => {
     expect(expandPeriodRange({ desde: "2020-01", hasta: "2030-01" }, 12)).toHaveLength(12);
   });
+  it("al exceder el cap conserva los meses MÁS RECIENTES (incluye hasta, no desde)", () => {
+    const out = expandPeriodRange({ desde: "2020-01", hasta: "2026-12" }, 24);
+    expect(out).toHaveLength(24);
+    expect(out[out.length - 1]).toBe("2026-12"); // el extremo reciente se conserva
+    expect(out[0]).toBe("2025-01"); // arranca en hasta-23, no en 2020-01
+    expect(out).not.toContain("2020-01"); // el mes viejo se descarta, no el reciente
+  });
 });
 
 describe("period-range · presets", () => {

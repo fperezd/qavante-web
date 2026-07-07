@@ -24,18 +24,21 @@ export interface SortableDoc {
   monto_total?: number;
 }
 
-/** Convierte `DD/MM/YYYY` (o `YYYY-MM-DD`) en un número YYYYMMDD ordenable.
- *  Si no parsea, devuelve 0 (van al principio en asc). */
+function ymdNum(y: string, m: string, d: string): number {
+  return Number(`${y}${m.padStart(2, "0")}${d.padStart(2, "0")}`);
+}
+
+/** Convierte una fecha del SII en un número YYYYMMDD ordenable. Maneja TODOS los
+ *  formatos que entrega el SII (igual que `toIsoDate`): `YYYY-M-D` (ISO, con o sin
+ *  hora) y `DD/MM/YYYY`, `DD-MM-YYYY`, `DD.MM.YYYY` (con o sin padding). Si no
+ *  parsea, devuelve 0 (van al principio en asc). */
 export function fechaSortKey(fecha: string | undefined): number {
   if (!fecha) return 0;
-  const dmy = fecha.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (dmy && dmy[1] && dmy[2] && dmy[3]) {
-    return Number(`${dmy[3]}${dmy[2].padStart(2, "0")}${dmy[1].padStart(2, "0")}`);
-  }
-  const ymd = fecha.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (ymd && ymd[1] && ymd[2] && ymd[3]) {
-    return Number(`${ymd[1]}${ymd[2].padStart(2, "0")}${ymd[3].padStart(2, "0")}`);
-  }
+  const s = fecha.trim();
+  const ymd = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (ymd?.[1] && ymd[2] && ymd[3]) return ymdNum(ymd[1], ymd[2], ymd[3]);
+  const dmy = s.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})/);
+  if (dmy?.[1] && dmy[2] && dmy[3]) return ymdNum(dmy[3], dmy[2], dmy[1]);
   return 0;
 }
 

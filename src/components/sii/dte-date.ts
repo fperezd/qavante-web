@@ -1,17 +1,25 @@
 /* Helpers de fecha para armar las URLs de PDF de DTE. PURO/testeable. El SII
    entrega fechas como `DD/MM/YYYY`, `DD-MM-YYYY`, `DD.MM.YYYY` o `YYYY-MM-DD…`. */
 
-/** Normaliza a `YYYY-MM-DD`, o `null` si no parsea. */
+/** Normaliza a `YYYY-MM-DD`, o `null` si no parsea o el mes/día está fuera de
+ *  rango (p. ej. `32/13/2026` → null, para no armar una ventana de PDF absurda). */
 export function toIsoDate(fecha?: string | null): string | null {
   if (!fecha) return null;
   const s = fecha.trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-  const m = s.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})/);
-  if (m) {
-    const [, d, mo, y] = m;
-    if (d && mo && y) return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  let y: string | undefined, mo: string | undefined, d: string | undefined;
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) {
+    [, y, mo, d] = iso;
+  } else {
+    const m = s.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})/);
+    if (!m) return null;
+    [, d, mo, y] = m;
   }
-  return null;
+  if (!y || !mo || !d) return null;
+  const mn = Number(mo);
+  const dn = Number(d);
+  if (mn < 1 || mn > 12 || dn < 1 || dn > 31) return null;
+  return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 
 /** `YYYY-MM` de una fecha (para el `periodo` del PDF de BHE), o `null`. */

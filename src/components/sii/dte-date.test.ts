@@ -15,6 +15,12 @@ describe("dte-date · toIsoDate", () => {
     expect(toIsoDate("")).toBeNull();
     expect(toIsoDate("marzo 2026")).toBeNull();
   });
+  it("mes/día fuera de rango → null (no arma ventana absurda)", () => {
+    expect(toIsoDate("32/13/2026")).toBeNull();
+    expect(toIsoDate("2026-13-01")).toBeNull();
+    expect(toIsoDate("2026-05-40")).toBeNull();
+    expect(toIsoDate("00/05/2026")).toBeNull();
+  });
 });
 
 describe("dte-date · fechaToPeriodo", () => {
