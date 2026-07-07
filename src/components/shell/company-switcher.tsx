@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useMyTenants, useSwitchTenant } from "@/lib/api/tenants";
 import { ROLE_LABELS } from "@/components/administracion/role-labels";
+import { useDismiss } from "@/lib/hooks/use-dismiss";
 import type { UserRole } from "@/lib/auth/types";
 
 /* Selector de empresa (N:M, ADR-0049). Lista las empresas del usuario
@@ -19,7 +20,9 @@ export function CompanySwitcher() {
   const switchTenant = useSwitchTenant();
 
   const [open, setOpen] = React.useState(false);
-  const ref = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const close = React.useCallback(() => setOpen(false), []);
+  const ref = useDismiss<HTMLDivElement>(open, close, triggerRef);
 
   const allItems = tenants.data?.tenants ?? [];
   /* Parche temporal: ocultar el tenant de config "MVP Tenant" — trae datos de otra
@@ -51,16 +54,6 @@ export function CompanySwitcher() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIsMvp, items]);
 
-  // Cerrar al click afuera.
-  React.useEffect(() => {
-    if (!open) return undefined;
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
   function reloadIntoTenant() {
     // El switch re-emitió la cookie; recargar para que toda la app (incl. Server
     // Components que leen la sesión) caiga en la empresa nueva.
@@ -75,6 +68,7 @@ export function CompanySwitcher() {
   return (
     <div ref={ref} className="relative hidden md:block">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1 rounded-lg border border-border bg-surface/70 px-3 py-1.5 text-sm text-neutral-dark hover:bg-brand-primary-50"

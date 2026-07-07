@@ -3,6 +3,7 @@
 import * as React from "react";
 import { ArrowDownLeft, ArrowUpRight, List } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { rovingIndex } from "@/lib/a11y/roving";
 
 /* Control segmentado de dirección para las pantallas de Caja: filtra los
    movimientos por flujo de dinero. Vocabulario de negocio (pedido de Fernando +
@@ -36,21 +37,41 @@ export function DirectionSegment({
   onChange,
   "aria-label": ariaLabel = "Filtrar por dirección",
 }: DirectionSegmentProps) {
+  const btnRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+
+  /* Patrón WAI-ARIA radiogroup: las flechas mueven la selección (con wrap) y
+     enfocan el nuevo radio; solo el seleccionado está en el orden de tabulación
+     (roving tabindex), así el grupo se tabula como un control único. */
+  function onKeyDown(e: React.KeyboardEvent, idx: number) {
+    const next = rovingIndex(idx, e.key, OPTIONS.length);
+    if (next === null) return;
+    e.preventDefault();
+    const opt = OPTIONS[next];
+    if (!opt) return;
+    onChange(opt.id);
+    btnRefs.current[next]?.focus();
+  }
+
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
       className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-surface-muted p-0.5"
     >
-      {OPTIONS.map(({ id, label, icon: Icon }) => {
+      {OPTIONS.map(({ id, label, icon: Icon }, idx) => {
         const active = value === id;
         return (
           <button
             key={id}
+            ref={(el) => {
+              btnRefs.current[idx] = el;
+            }}
             type="button"
             role="radio"
             aria-checked={active}
+            tabIndex={active ? 0 : -1}
             onClick={() => onChange(id)}
+            onKeyDown={(e) => onKeyDown(e, idx)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",

@@ -106,7 +106,14 @@ export function DynamicTable<TData>({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border">
+      {/* tabIndex/role: la región con scroll horizontal debe poder enfocarse y
+          desplazarse con teclado (WCAG 2.1.1) y anunciarse como tabla. */}
+      <div
+        className="overflow-x-auto rounded-xl border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+        tabIndex={0}
+        role="region"
+        aria-label="Tabla (desplázate horizontalmente para ver más columnas)"
+      >
         <table className="w-full text-sm" style={{ minWidth }}>
           <thead>
             {table.getHeaderGroups().map((hg) => (
@@ -151,7 +158,10 @@ export function DynamicTable<TData>({
                             {sorted === "asc" ? (
                               <ArrowUp className="h-3 w-3 text-brand-primary" aria-hidden="true" />
                             ) : sorted === "desc" ? (
-                              <ArrowDown className="h-3 w-3 text-brand-primary" aria-hidden="true" />
+                              <ArrowDown
+                                className="h-3 w-3 text-brand-primary"
+                                aria-hidden="true"
+                              />
                             ) : (
                               <ChevronsUpDown className="h-3 w-3 opacity-30" aria-hidden="true" />
                             )}
@@ -165,6 +175,11 @@ export function DynamicTable<TData>({
                           value={(header.column.getFilterValue() as string) ?? ""}
                           onChange={(e) => header.column.setFilterValue(e.target.value)}
                           placeholder="Filtrar…"
+                          aria-label={`Filtrar por ${
+                            typeof header.column.columnDef.header === "string"
+                              ? header.column.columnDef.header
+                              : header.column.id
+                          }`}
                           className="mt-1.5 w-full rounded-md border border-border bg-surface px-2 py-1 text-xs font-normal normal-case tracking-normal text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                         />
                       )}
@@ -176,11 +191,20 @@ export function DynamicTable<TData>({
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted">
+              <tr
+                key={row.id}
+                className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted"
+              >
                 {row.getVisibleCells().map((cell) => {
                   const align = colAlign(cell.column.columnDef.meta);
                   return (
-                    <td key={cell.id} className={cn("px-3 py-2 text-neutral-dark", align && "text-right tabular-nums")}>
+                    <td
+                      key={cell.id}
+                      className={cn(
+                        "px-3 py-2 text-neutral-dark",
+                        align && "text-right tabular-nums",
+                      )}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   );
@@ -199,7 +223,8 @@ export function DynamicTable<TData>({
       </div>
 
       <p className="text-xs text-neutral-mid">
-        Clic en un título para ordenar · arrastra el ⠿ para mover columnas · botón «Filtros» para filtrar por columna.
+        Clic en un título para ordenar · arrastra el ⠿ para mover columnas · botón «Filtros» para
+        filtrar por columna.
       </p>
     </div>
   );

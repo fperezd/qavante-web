@@ -4,6 +4,7 @@ import * as React from "react";
 import { ChevronDown, RefreshCw } from "lucide-react";
 import { QavanteBadge } from "@/components/qavante";
 import { useSourcesStatus, aggregateSyncStatus, type SourceStatus } from "@/lib/api/sources-status";
+import { useDismiss } from "@/lib/hooks/use-dismiss";
 
 /* Indicador de sincronización (header, arriba a la derecha). Muestra el estado
    agregado de las fuentes (SII, banco, TGR, etc.) + la última actualización, y
@@ -45,16 +46,9 @@ const STATE_BADGE: Record<
 export function SyncStatusIndicator() {
   const query = useSourcesStatus();
   const [open, setOpen] = React.useState(false);
-  const ref = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (!open) return undefined;
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const close = React.useCallback(() => setOpen(false), []);
+  const ref = useDismiss<HTMLDivElement>(open, close, triggerRef);
 
   // Mientras carga o si falla, no mostramos un estado engañoso: ocultamos hasta
   // tener data (el header sigue limpio).
@@ -66,10 +60,11 @@ export function SyncStatusIndicator() {
   return (
     <div ref={ref} className="relative hidden md:block">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-neutral-mid hover:bg-brand-primary-50"
-        aria-haspopup="menu"
+        aria-haspopup="true"
         aria-expanded={open}
         aria-label={`Sincronización: ${LABEL[agg.level]}. Última: ${formatDateTime(agg.lastSync)}.`}
       >
@@ -83,7 +78,8 @@ export function SyncStatusIndicator() {
 
       {open && (
         <div
-          role="menu"
+          role="group"
+          aria-label="Estado de sincronización por fuente"
           className="absolute right-0 z-30 mt-1 w-80 rounded-xl border border-border bg-surface p-2 shadow-lg"
         >
           <div className="flex items-center justify-between px-1 pb-2 text-xs text-neutral-mid">

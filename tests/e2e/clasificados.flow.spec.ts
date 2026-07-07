@@ -46,4 +46,27 @@ test.describe("Flujo: Clasificados — filtro cobrar/pagar (/caja/clasificados)"
     await expect(ingresos.first()).toBeVisible();
     await expect(egresos.first()).toBeVisible();
   });
+
+  test("el segmentado se opera por teclado (flechas mueven la selección)", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/caja/clasificados");
+
+    const todos = page.getByRole("radio", { name: "Todos" });
+    const cobrar = page.getByRole("radio", { name: "Cobrar" });
+    await expect(todos).toBeVisible();
+
+    // Foco en "Todos" (roving tabindex) → flecha derecha selecciona "Cobrar".
+    await todos.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(cobrar).toHaveAttribute("aria-checked", "true");
+    // Los egresos se filtran (quedó en Cobrar) → la selección por teclado aplicó.
+    await expect(page.getByText("Egreso", { exact: true })).toHaveCount(0);
+
+    // Flecha izquierda vuelve a "Todos".
+    await page.keyboard.press("ArrowLeft");
+    await expect(todos).toHaveAttribute("aria-checked", "true");
+  });
 });
