@@ -17,10 +17,10 @@
 `GET /api/management/salud`
 
 - **Auth:** cookie `qavante_session` (sin `security` declarado, como `/api/me`).
-- **200** → el objeto de abajo (ambos instrumentos + matriz + drivers + decisiones
-  - confianza **en una sola llamada**). Preferimos un endpoint agregado para que el
-    FE no orqueste dos requests ni arme la matriz. Si CC-API prefiere dos endpoints
-    separados (pulso v2 + qhs), también sirve — avisen para ajustar el data layer.
+- **200** → el objeto de abajo (ambos instrumentos, matriz, drivers, decisiones y
+  confianza **en una sola llamada**). Preferimos un endpoint agregado para que el FE
+  no orqueste dos requests ni arme la matriz. Si CC-API prefiere dos endpoints
+  separados (pulso v2 + qhs), también sirve — avisen para ajustar el data layer.
 - **Cada sección puede venir vacía / null** si aún no hay cálculo: el FE muestra
   onboarding sin tumbar nada.
 
