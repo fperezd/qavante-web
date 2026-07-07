@@ -43,8 +43,12 @@ export function useSwitchTenant() {
 /** `POST /api/me/tenants` — crea una empresa nueva (el usuario queda owner; 201).
     NO cambia la empresa activa (para eso, switch). NO retry. */
 export function useCreateTenant() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateTenantBody) => api.post<CreatedTenant>("/api/me/tenants", { body }),
+    // Invalida la lista de empresas: si el switch encadenado falla (no recarga),
+    // la empresa recién creada igual aparece y el usuario no la duplica.
+    onSuccess: () => qc.invalidateQueries({ queryKey: tenantKeys.mine }),
   });
 }
 

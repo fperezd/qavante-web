@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { treasuryKeys } from "./treasury";
 import type { components } from "./types";
 
 /* Capa de datos — Cartola de tarjeta (importación). El usuario sube el PDF de la
@@ -26,7 +27,8 @@ export function useImportCardStatement() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["obligations"] });
       qc.invalidateQueries({ queryKey: ["foreign-purchases"] });
-      qc.invalidateQueries({ queryKey: ["bank-movements"] });
+      // `["bank-movements"]` no matchea la query real `["treasury","bank-movements",…]`.
+      qc.invalidateQueries({ queryKey: treasuryKeys.all });
     },
   });
 }

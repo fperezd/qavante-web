@@ -26,6 +26,8 @@
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { cobranzaKeys } from "./cobranza";
+import { pagosKeys } from "./pagos";
 import type { components } from "./types";
 
 export type SiiHealthResponse = components["schemas"]["SiiHealthResponse"];
@@ -408,6 +410,10 @@ export function useSyncSiiRcv() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sources-status"] });
       qc.invalidateQueries({ queryKey: siiKeys.all });
+      // sync-rcv puebla el devengado de Cobrar/Pagar (ADR-0055) → refrescarlos
+      // también, o los agregados quedan stale hasta staleTime/refocus.
+      qc.invalidateQueries({ queryKey: cobranzaKeys.all });
+      qc.invalidateQueries({ queryKey: pagosKeys.all });
     },
   });
 }
