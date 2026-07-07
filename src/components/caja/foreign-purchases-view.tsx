@@ -15,7 +15,7 @@ import {
   useClassifyForeignPurchase,
   type ForeignPurchaseItem,
 } from "@/lib/api/foreign-purchases";
-import { formatClp } from "@/lib/formatters/clp";
+import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 
 /* Compras al extranjero (Caja). Salen de la cartola de tarjeta. Cada una se
@@ -98,7 +98,9 @@ function PurchaseRow({ purchase: p }: { purchase: ForeignPurchaseItem }) {
           </p>
         </div>
         <div className="text-right">
-          <p className="font-medium tabular-nums text-neutral-dark">USD {p.amount_usd}</p>
+          <p className="font-medium tabular-nums text-neutral-dark">
+            {formatMoney(Number(p.amount_usd), "USD")}
+          </p>
           {p.clp_operative && (
             <p className="text-xs text-neutral-mid tabular-nums">
               {formatClp(Number(p.clp_operative))}

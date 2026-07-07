@@ -1,4 +1,6 @@
 export function formatClp(value: number) {
+  // No-finito (NaN/Infinity) → guion, no "$NaN"/"$∞" en una cifra financiera.
+  if (!Number.isFinite(value)) return "—";
   const abs = new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",
@@ -18,7 +20,11 @@ export function formatClp(value: number) {
    Negativos con el mismo menos tipográfico antes del símbolo ("−US$270,40").
    Moneda desconocida/ inválida → formato genérico "COD 1.234,50" (no rompe). */
 export function formatMoney(value: number, currency: string | null | undefined): string {
-  const cur = (currency ?? "CLP").toUpperCase();
+  // No-finito → guion (igual que formatClp) antes de tocar Intl.
+  if (!Number.isFinite(value)) return "—";
+  // `|| "CLP"`: cae a CLP también con string vacío "" (que `?? ` NO captura y
+  // rompería `Intl.NumberFormat({currency:""})` con RangeError).
+  const cur = (currency || "CLP").toUpperCase();
   if (cur === "CLP") return formatClp(value);
   try {
     const abs = new Intl.NumberFormat("es-CL", {
