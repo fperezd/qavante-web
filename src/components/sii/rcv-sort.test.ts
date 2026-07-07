@@ -20,6 +20,11 @@ describe("rcv-sort · fechaSortKey", () => {
     expect(fechaSortKey(undefined)).toBe(0);
     expect(fechaSortKey("basura")).toBe(0);
   });
+  it("también DD-MM-YYYY y DD.MM.YYYY del SII (antes caían a 0 → orden roto)", () => {
+    expect(fechaSortKey("15-06-2026")).toBe(20260615);
+    expect(fechaSortKey("15.06.2026")).toBe(20260615);
+    expect(fechaSortKey("5-6-2026")).toBe(20260605);
+  });
 });
 
 describe("rcv-sort · sortValue", () => {
@@ -60,7 +65,17 @@ describe("rcv-sort · sortDocs", () => {
 
 describe("rcv-sort · sortGroupedItems / docOf", () => {
   const items: GroupedItem[] = [
-    { t: "fac", row: { factura: { folio: 2, monto_total: 200 }, notas: [], neto: 200, estado: "vigente", matchExacto: true, sobreCredito: false } },
+    {
+      t: "fac",
+      row: {
+        factura: { folio: 2, monto_total: 200 },
+        notas: [],
+        neto: 200,
+        estado: "vigente",
+        matchExacto: true,
+        sobreCredito: false,
+      },
+    },
     { t: "nc", doc: { folio: 1, monto_total: 100 } },
   ];
   it("docOf extrae la factura o la NC huérfana", () => {
@@ -76,8 +91,14 @@ describe("rcv-sort · sortGroupedItems / docOf", () => {
 describe("rcv-sort · toggleSort", () => {
   it("none → asc → desc → none; cambiar de columna reinicia en asc", () => {
     expect(toggleSort(null, "folio")).toEqual({ key: "folio", dir: "asc" });
-    expect(toggleSort({ key: "folio", dir: "asc" }, "folio")).toEqual({ key: "folio", dir: "desc" });
+    expect(toggleSort({ key: "folio", dir: "asc" }, "folio")).toEqual({
+      key: "folio",
+      dir: "desc",
+    });
     expect(toggleSort({ key: "folio", dir: "desc" }, "folio")).toBeNull();
-    expect(toggleSort({ key: "folio", dir: "desc" }, "total")).toEqual({ key: "total", dir: "asc" });
+    expect(toggleSort({ key: "folio", dir: "desc" }, "total")).toEqual({
+      key: "total",
+      dir: "asc",
+    });
   });
 });

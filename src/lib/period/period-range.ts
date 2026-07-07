@@ -57,11 +57,16 @@ export function isInPeriodRange(dateIso: string | null | undefined, range: Perio
 }
 
 /** Expande un rango a la lista de meses `YYYY-MM` (inclusive), de viejo a nuevo.
- *  Cap de seguridad a 24 meses para no disparar demasiadas consultas. */
+ *  Cap de seguridad a 24 meses para no disparar demasiadas consultas. Si el rango
+ *  excede el cap, conserva los meses MÁS RECIENTES (arranca en `hasta-(cap-1)`, no
+ *  en `desde`) — antes truncaba desde el extremo reciente y ocultaba en silencio
+ *  justo los meses que el usuario mira. */
 export function expandPeriodRange(range: PeriodRange, maxMonths = 24): string[] {
   const { desde, hasta } = orderRange(range);
+  const capStart = addMonths(hasta, -(maxMonths - 1));
+  const start = comparePeriod(capStart, desde) > 0 ? capStart : desde;
   const out: string[] = [];
-  let cur = desde;
+  let cur = start;
   while (comparePeriod(cur, hasta) <= 0 && out.length < maxMonths) {
     out.push(cur);
     cur = addMonths(cur, 1);

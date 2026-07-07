@@ -24,7 +24,7 @@ import {
   useCreateDimensionAssignment,
 } from "@/lib/api/management";
 import type { SuggestRuleResponse } from "@/lib/api/classification-rules";
-import { formatDate } from "@/lib/formatters/date";
+import { formatDateLike } from "@/lib/formatters/date";
 import {
   ClassificationDrawer,
   type ClassificationDimension,
@@ -74,7 +74,7 @@ function LoadingSkeleton() {
 function movementSummary(m: BankMovement, currency?: string) {
   const sign = m.direction === "credit" ? "+" : "−";
   return {
-    date: m.date ? formatDate(new Date(m.date)) : "—",
+    date: m.date ? formatDateLike(m.date) : "—",
     description: m.description,
     // §17.1: no mostrar número de cuenta completo.
     bankLabel: `Cuenta ····${m.bank_account_id.slice(-4)}`,
@@ -464,7 +464,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
                     aria-label={`Seleccionar ${m.description}`}
                   />
                   <span className="w-24 shrink-0 text-sm text-neutral-mid">
-                    {m.date ? formatDate(new Date(m.date)) : "—"}
+                    {m.date ? formatDateLike(m.date) : "—"}
                   </span>
                   <span
                     className="min-w-0 flex-1 truncate text-sm text-neutral-dark"

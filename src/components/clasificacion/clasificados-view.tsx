@@ -30,7 +30,7 @@ import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { DirectionSegment } from "@/components/filters/direction-segment";
 import { presetRange, isInPeriodRange, type PeriodRange } from "@/lib/period/period-range";
 import { formatMoney } from "@/lib/formatters/clp";
-import { formatDate } from "@/lib/formatters/date";
+import { formatDateLike } from "@/lib/formatters/date";
 import { ClassificationDrawer, type ClassificationDraft } from "./classification-drawer";
 import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
 import { ClasificadosStats } from "./clasificados-stats";
@@ -440,7 +440,7 @@ export function ClasificadosView() {
                         className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
                       >
                         <td className="py-2 pr-3 text-neutral-dark">
-                          {m.date ? formatDate(new Date(m.date)) : "—"}
+                          {m.date ? formatDateLike(m.date) : "—"}
                         </td>
                         <td className="py-2 pr-3 text-neutral-dark" title={m.description}>
                           <span className="line-clamp-2 max-w-[320px]">{m.description}</span>
@@ -554,7 +554,7 @@ export function ClasificadosView() {
           open
           onClose={() => setReclasifyTarget(null)}
           movement={{
-            date: reclasifyTarget.date ? formatDate(new Date(reclasifyTarget.date)) : "—",
+            date: reclasifyTarget.date ? formatDateLike(reclasifyTarget.date) : "—",
             description: reclasifyTarget.description,
             bankLabel: `Cuenta ····${reclasifyTarget.bank_account_id.slice(-4)}`,
             amountFormatted: formatMoney(
