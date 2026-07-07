@@ -64,8 +64,10 @@ export function CommandPalette({ open, onOpenChange, userRole }: CommandPaletteP
       e.preventDefault();
       go(results[active]);
     } else if (e.key === "Home") {
+      e.preventDefault(); // que no salte también el cursor de texto del input
       setActive(0);
     } else if (e.key === "End") {
+      e.preventDefault();
       setActive(Math.max(0, results.length - 1));
     }
   }
