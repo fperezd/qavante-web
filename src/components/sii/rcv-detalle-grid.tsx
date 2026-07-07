@@ -141,6 +141,7 @@ export function RcvDetalleGrid({
                   <DteActions
                     url={dtePdfUrlForDoc(dteKind, row.original, dteWindow)}
                     label={`folio ${folio}`}
+                    preview={false}
                   />
                 );
               },
