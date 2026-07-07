@@ -223,6 +223,31 @@ describe("api — flujo de auth en 401", () => {
     await expect(api.get("/api/secure")).rejects.toMatchObject({ status: 401 });
     expect(refreshCalls).toBe(1);
   });
+
+  it("401 concurrentes comparten UN solo refresh (single-flight)", async () => {
+    /* Sin single-flight, N requests con 401 simultáneo disparan N refresh que
+       se pisan la rotación del refresh-token y expulsan una sesión válida. */
+    let refreshCalls = 0;
+    server.use(
+      http.post(`${BASE}/api/auth/refresh`, async () => {
+        refreshCalls += 1;
+        // Delay para que ambos 401 lleguen mientras el refresh está en vuelo.
+        await new Promise((r) => setTimeout(r, 20));
+        return new HttpResponse(null, { status: 200 });
+      }),
+      http.get(`${BASE}/api/a`, () => new HttpResponse(null, { status: 401 }), { once: true }),
+      http.get(`${BASE}/api/a`, () => HttpResponse.json({ v: "a" })),
+      http.get(`${BASE}/api/b`, () => new HttpResponse(null, { status: 401 }), { once: true }),
+      http.get(`${BASE}/api/b`, () => HttpResponse.json({ v: "b" })),
+    );
+    const [a, b] = await Promise.all([
+      api.get<{ v: string }>("/api/a"),
+      api.get<{ v: string }>("/api/b"),
+    ]);
+    expect(a).toEqual({ v: "a" });
+    expect(b).toEqual({ v: "b" });
+    expect(refreshCalls).toBe(1); // UN solo refresh compartido, no 2
+  });
 });
 
 describe("api — body JSON vacío o inválido (#2)", () => {

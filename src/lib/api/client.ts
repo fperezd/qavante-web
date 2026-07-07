@@ -10,17 +10,31 @@ export interface ApiRequestOptions extends Omit<RequestInit, "body" | "method"> 
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-async function tryRefresh(): Promise<boolean> {
-  try {
-    const r = await fetch(`${API_URL}/api/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-    });
-    return r.ok;
-  } catch {
-    return false;
-  }
+/* Single-flight: si ya hay un refresh en vuelo, los 401 concurrentes lo COMPARTEN
+   en vez de disparar N refresh en paralelo. Sin esto, cuando el dashboard lanza
+   varias requests juntas y el access-token expiró, cada 401 pedía su propio
+   /api/auth/refresh con la MISMA cookie; si el backend rota el refresh-token, el
+   primero rota y los demás presentan un token ya inválido → refresh falla →
+   expulsa a /login a un usuario con sesión válida. */
+let refreshInFlight: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const r = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      return r.ok;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
 }
 
 /* Redirige a /login preservando el destino. Guard: solo en browser y si no
@@ -94,7 +108,7 @@ async function request<T>(
       }
     }
     redirectToLogin();
-    throw new ApiError("Sesión expirada. Volvé a iniciar sesión.", 401, "unauthorized");
+    throw new ApiError("Sesión expirada. Vuelve a iniciar sesión.", 401, "unauthorized");
   }
 
   if (!response.ok) {
