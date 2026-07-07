@@ -56,6 +56,63 @@ describe("libro-kpis-format", () => {
     expect(concentrationByCounterparty([])).toHaveLength(0);
   });
 
+  it("las NC netean el total de su contraparte (mismo neto que el hero)", () => {
+    const conNc = [
+      {
+        tipo_doc: 33,
+        folio: 1,
+        rut_contraparte: "96572360-9",
+        razon_social: "Kaufmann",
+        monto_total: 2380000,
+      },
+      {
+        tipo_doc: 61,
+        folio: 2,
+        rut_contraparte: "96572360-9",
+        razon_social: "Kaufmann",
+        monto_total: 380000,
+      }, // NC
+      {
+        tipo_doc: 33,
+        folio: 3,
+        rut_contraparte: "76418976-0",
+        razon_social: "Aguas",
+        monto_total: 1000000,
+      },
+    ] as RcvDoc[];
+    const c = concentrationByCounterparty(conNc, 5);
+    const kauf = c.find((x) => x.rut === "96572360-9");
+    expect(kauf?.total).toBe(2000000); // 2.380.000 − 380.000
+  });
+
+  it("excluye una contraparte totalmente anulada (neto <= 0)", () => {
+    const anulada = [
+      {
+        tipo_doc: 33,
+        folio: 1,
+        rut_contraparte: "1-9",
+        razon_social: "Anulado",
+        monto_total: 500000,
+      },
+      {
+        tipo_doc: 61,
+        folio: 2,
+        rut_contraparte: "1-9",
+        razon_social: "Anulado",
+        monto_total: 500000,
+      }, // NC total
+      {
+        tipo_doc: 33,
+        folio: 3,
+        rut_contraparte: "2-7",
+        razon_social: "Vigente",
+        monto_total: 300000,
+      },
+    ] as RcvDoc[];
+    const c = concentrationByCounterparty(anulada, 5);
+    expect(c.map((x) => x.rut)).toEqual(["2-7"]); // Anulado (neto 0) no aparece
+  });
+
   it("no funde contrapartes distintas sin RUT (keyea por razón social)", () => {
     const sinRut = [
       { tipo_doc: 39, folio: 1, razon_social: "Cliente A", monto_total: 1000 },

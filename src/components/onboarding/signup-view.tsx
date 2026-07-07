@@ -128,7 +128,7 @@ export function SignupView() {
             render={({ field }) => (
               <QavanteInput
                 id="su-email"
-                placeholder="vos@empresa.cl"
+                placeholder="tu@empresa.cl"
                 value={field.value}
                 onValueChange={field.onChange}
                 onBlur={field.onBlur}

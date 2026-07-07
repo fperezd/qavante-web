@@ -24,7 +24,13 @@
  *   `'marzo 2026'`. El FE manda lo que tiene; el backend normaliza.
  *
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api } from "./client";
 import { cobranzaKeys } from "./cobranza";
 import { pagosKeys } from "./pagos";
@@ -299,6 +305,10 @@ export function useSiiF29Impuesto(
     enabled: enabled && valid,
     staleTime: 5 * 60 * 1000,
     retry: false,
+    // Al ingresar el impuesto manual cambia el queryKey → sin esto el detalle
+    // colapsa a skeleton (y el propio input desaparece bajo el cursor). Mantener
+    // los datos previos mientras recomputa.
+    placeholderData: keepPreviousData,
   });
 }
 
