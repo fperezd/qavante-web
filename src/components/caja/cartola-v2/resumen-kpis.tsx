@@ -15,26 +15,19 @@ import { resumenKpis, type CartolaKpi } from "./cartola-v2-fixtures";
  * pero: montos exactos (−$X, no "CLP -X"), tooltips accesibles por teclado, y una
  * frase de historia que un banco no da. */
 
+/* Monto calmo: el número siempre en neutro; una flecha chica y sobria carga la
+ * dirección (↗ sale / ↘ entra). El único rojo del bloque es el saldo negativo. */
 function DirectionalAmount({ kpi }: { kpi: CartolaKpi }) {
   const abs = Math.abs(kpi.value);
-  if (kpi.direction === "out") {
-    return (
-      <span className="inline-flex items-center gap-1 tabular-nums font-semibold text-danger-500">
-        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-        {formatClp(abs)}
-      </span>
-    );
-  }
-  if (kpi.direction === "in") {
-    return (
-      <span className="inline-flex items-center gap-1 tabular-nums font-semibold text-success-700">
-        <ArrowDownRight className="h-4 w-4" aria-hidden="true" />
-        {formatClp(abs)}
-      </span>
-    );
-  }
+  const Icon = kpi.direction === "out" ? ArrowUpRight : ArrowDownRight;
+  const iconTone = kpi.direction === "out" ? "text-danger-500" : "text-success-600";
   return (
-    <span className="tabular-nums font-semibold text-neutral-dark">{formatClp(kpi.value)}</span>
+    <span className="inline-flex items-center gap-1.5 tabular-nums font-semibold text-neutral-dark">
+      {kpi.direction && (
+        <Icon className={cn("h-3.5 w-3.5 shrink-0", iconTone)} aria-hidden="true" />
+      )}
+      {formatClp(kpi.direction ? abs : kpi.value)}
+    </span>
   );
 }
 
@@ -43,51 +36,64 @@ export function ResumenKpis({ storyline }: { storyline?: string }) {
   const negative = saldoFinal.value < 0;
 
   return (
-    <QavanteCard variant="bordered" className="overflow-hidden p-0">
+    <QavanteCard variant="bordered" className="overflow-hidden p-0 shadow-sm">
       {/* Hero: saldo final */}
-      <div className="flex flex-wrap items-end justify-between gap-4 p-5">
-        <div>
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+      <div className="flex flex-wrap items-start justify-between gap-6 p-6">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-mid">
             {saldoFinal.label}
             <InfoHint>{saldoFinal.hint}</InfoHint>
           </p>
           <p
             className={cn(
-              "mt-1 text-3xl font-bold leading-none tabular-nums",
-              negative ? "text-danger-500" : "text-neutral-dark",
+              "mt-2 text-2xl font-semibold leading-none tracking-tight tabular-nums",
+              negative ? "text-danger-600" : "text-neutral-dark",
             )}
           >
             <AmountCountUp value={saldoFinal.value} />
           </p>
-          {storyline && <p className="mt-2 max-w-md text-sm text-neutral-mid">{storyline}</p>}
+          {storyline && (
+            <p className="mt-2.5 max-w-md text-[13px] leading-relaxed text-neutral-mid">
+              {storyline}
+            </p>
+          )}
         </div>
         {saldoFinal.trend && (
-          <Sparkline
-            data={saldoFinal.trend}
-            tone={saldoFinal.tone ?? "brand"}
-            width={168}
-            height={48}
-          />
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <Sparkline
+              data={saldoFinal.trend}
+              tone={saldoFinal.tone ?? "brand"}
+              baseline={0}
+              width={176}
+              height={52}
+            />
+            <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-neutral-mid/70">
+              Saldo diario · 30 d
+            </span>
+          </div>
         )}
       </div>
 
-      {/* Grilla de KPIs secundarios */}
+      {/* Grilla de KPIs secundarios — separada por divisores finos. */}
       <div className="grid grid-cols-2 border-t border-border sm:grid-cols-4 sm:divide-x sm:divide-border">
         {secundarios.map((kpi, i) => (
           <div
             key={kpi.label}
-            className={cn("px-5 py-3.5", i >= 2 && "border-t border-border sm:border-t-0")}
+            className={cn(
+              "px-6 py-4",
+              i >= 2 && "border-t border-border sm:border-t-0",
+            )}
           >
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-mid">
               {kpi.label}
               <InfoHint>{kpi.hint}</InfoHint>
             </p>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="text-base">
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <span className="text-[15px]">
                 <DirectionalAmount kpi={kpi} />
               </span>
               {kpi.trend && (
-                <Sparkline data={kpi.trend} tone={kpi.tone ?? "neutral"} width={64} height={22} />
+                <Sparkline data={kpi.trend} tone="neutral" width={52} height={20} />
               )}
             </div>
           </div>
