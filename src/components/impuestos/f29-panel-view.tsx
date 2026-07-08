@@ -17,6 +17,7 @@ import {
 import { useMe } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/errors";
 import { normalizeRut } from "@/lib/validators/rut";
+import { f29SyncFailureToast } from "./f29-sync-message";
 import { F29MonthDetail } from "./f29-month-detail";
 
 /* Describe el error de un sync fallido con el dato real del backend (status +
@@ -166,12 +167,11 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
         description: `${failed}Tu estado de F29 se actualizó${reqNote}.`,
       });
     } else if (siiErrors > 0) {
-      // No entró nada nuevo y hubo folios que fallaron → mostrar el motivo real.
-      toast.warning(`${siiErrors} ${siiErrors === 1 ? "F29 falló" : "F29 fallaron"} al bajar`, {
-        description: firstDetail
-          ? `${firstDetail.error}: ${firstDetail.detail}${reqNote}`
-          : `El SII rechazó algunos folios. Revisa tu conexión al SII e intenta de nuevo${reqNote}.`,
-      });
+      // No entró nada nuevo y hubo folios que fallaron → motivo real, accionable.
+      // Para el patrón "el SII devolvió HTML en vez de PDF" (sesión SII caída) el
+      // helper da un mensaje en lenguaje de dueño + acción, sin ocultar el hecho.
+      const { title, description } = f29SyncFailureToast(siiErrors, firstDetail, reqNote);
+      toast.warning(title, { description });
     } else if (inProgress) {
       // Antes de "found === 0": un sync en curso deja los contadores en 0.
       toast.info("Actualización en curso", {
