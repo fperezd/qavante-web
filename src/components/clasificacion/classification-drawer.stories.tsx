@@ -1,5 +1,6 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { within, expect } from "storybook/test";
 import { ClassificationDrawer } from "./classification-drawer";
 import {
   CANONICAL_CATEGORIES_FIXTURE,
@@ -89,6 +90,34 @@ export const Saving: Story = {
 
 export const WithoutDimensions: Story = {
   args: { ...baseArgs, dimensions: [] },
+};
+
+/* Seguimiento del ciclo de vida (primitivo Timeline) — los pasos los arma el
+   contenedor con datos reales; acá se muestran los de "por clasificar". */
+export const ConSeguimiento: Story = {
+  name: "Con seguimiento (ciclo de vida)",
+  args: {
+    ...baseArgs,
+    lifecycle: [
+      {
+        status: "done",
+        title: "Detectado en tu banco",
+        children: "14-05-2026 · Cuenta ····1234",
+      },
+      {
+        status: "current",
+        title: "Por clasificar",
+        children: "Qavante no lo clasificó con confianza. Elige la categoría de gestión abajo.",
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Seguimiento")).toBeVisible();
+    await expect(canvas.getByText("Detectado en tu banco")).toBeVisible();
+    // Texto único del paso "en curso" (evita colisión con la categoría homónima).
+    await expect(canvas.getByText(/no lo clasificó con confianza/i)).toBeVisible();
+  },
 };
 
 /* #4: el error de guardado se renderiza DENTRO del drawer (arriba del footer),

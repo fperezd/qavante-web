@@ -3,6 +3,7 @@
 import * as React from "react";
 import { X } from "lucide-react";
 import { QavanteButton, QavanteCard } from "@/components/qavante";
+import { Timeline, type TimelineStep } from "@/components/ui/timeline";
 import { cn } from "@/lib/utils";
 import { CanonicalCategorySelect } from "./canonical-category-select";
 import { ManagementAccountSelect } from "./management-account-select";
@@ -61,6 +62,11 @@ export interface ClassificationDrawerProps {
   /** Override del título — útil para distinguir "Clasificar" vs
    *  "Reclasificar" / "Editar clasificación". Default "Clasificar movimiento". */
   title?: string;
+  /** Seguimiento del ciclo de vida del movimiento (detectado → sugerido →
+   *  clasificado). PRESENTACIONAL PURO: los pasos los arma el contenedor con
+   *  datos reales; el drawer solo los pinta con el primitivo `Timeline`. Si no
+   *  se pasa, no se renderiza nada. */
+  lifecycle?: TimelineStep[];
   /** Slot opcional para el banner §18.7 (sugerencia de regla). Se renderiza
    *  arriba de los selectores. PRESENTACIONAL PURO: el drawer no sabe nada
    *  del estado del banner — el contenedor lo monta con sus hooks. */
@@ -89,6 +95,7 @@ export function ClassificationDrawer({
   saving,
   initialDraft,
   title = "Clasificar movimiento",
+  lifecycle,
   suggestionBanner,
   error,
 }: ClassificationDrawerProps) {
@@ -172,6 +179,13 @@ export function ClassificationDrawer({
               </dd>
             </dl>
           </QavanteCard>
+
+          {lifecycle && lifecycle.length > 0 && (
+            <section className="space-y-3" aria-label="Seguimiento del movimiento">
+              <h3 className="text-sm font-medium text-neutral-dark">Seguimiento</h3>
+              <Timeline steps={lifecycle} />
+            </section>
+          )}
 
           {suggestionBanner}
 

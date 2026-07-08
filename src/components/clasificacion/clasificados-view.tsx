@@ -567,6 +567,27 @@ export function ClasificadosView() {
           dimensions={[]}
           saving={classify.isPending}
           title="Reclasificar movimiento"
+          lifecycle={[
+            {
+              status: "done",
+              title: "Detectado en tu banco",
+              children: reclasifyTarget.date ? formatDateLike(reclasifyTarget.date) : "—",
+            },
+            {
+              status: "done",
+              title: "Clasificado",
+              children: [
+                reclasifyTarget.management_account_id
+                  ? accountsLookup.get(reclasifyTarget.management_account_id)?.name
+                  : undefined,
+                reclasifyTarget.canonical_category
+                  ? categoryLabelByCode[reclasifyTarget.canonical_category]
+                  : undefined,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "Categoría de gestión asignada",
+            },
+          ]}
           initialDraft={reclasifyDraft}
           onSave={handleReclasifySave}
           onSaveAndCreateRule={(d) => {

@@ -508,6 +508,19 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           open
           onClose={closeDrawer}
           movement={movementSummary(selected, currencyMap.get(selected.bank_account_id))}
+          lifecycle={[
+            {
+              status: "done",
+              title: "Detectado en tu banco",
+              children: `${selected.date ? formatDateLike(selected.date) : "—"} · Cuenta ····${selected.bank_account_id.slice(-4)}`,
+            },
+            {
+              status: "current",
+              title: "Por clasificar",
+              children:
+                "Qavante no lo clasificó con confianza. Elige la categoría de gestión abajo.",
+            },
+          ]}
           canonicalCategories={canonicalOptions}
           managementAccounts={accountOptions}
           dimensions={classificationDimensions}
