@@ -119,9 +119,12 @@ export const ConCalendario: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // El progreso macro (Timeline) aparece con datos reales: 2 de 6 pagadas.
-    await waitFor(() => expect(canvas.getByText("Progreso del préstamo")).toBeVisible());
+    // Timeout holgado: en CI la query (MSW + react-query) tarda más que 1s.
+    await waitFor(() => expect(canvas.getByText(/2 de 6 cuotas pagadas/)).toBeVisible(), {
+      timeout: 8000,
+    });
+    await expect(canvas.getByText("Progreso del préstamo")).toBeVisible();
     await expect(canvas.getByText("Originado")).toBeVisible();
-    await expect(canvas.getByText(/2 de 6 cuotas pagadas/)).toBeVisible();
   },
 };
 export const Liquidada: Story = {
@@ -130,9 +133,10 @@ export const Liquidada: Story = {
   parameters: { msw: { handlers: [PAID] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText("Progreso del préstamo")).toBeVisible());
+    await waitFor(() => expect(canvas.getByText(/2 de 2 cuotas pagadas/)).toBeVisible(), {
+      timeout: 8000,
+    });
     await expect(canvas.getByText("Liquidado")).toBeVisible();
-    await expect(canvas.getByText(/2 de 2 cuotas pagadas/)).toBeVisible();
   },
 };
 export const Error: Story = { name: "No encontrada", parameters: { msw: { handlers: [ERROR] } } };
