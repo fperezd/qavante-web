@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { within, expect, waitFor } from "storybook/test";
 import { QavanteStatTile } from "./qavante-stat-tile";
 
 const meta = {
@@ -41,6 +42,23 @@ export const WithHint: Story = {
 export const Hero: Story = {
   name: "Tamaño hero",
   args: { label: "Líquido a pagar", value: "$14.982.804", size: "hero" },
+};
+
+export const WithInfo: Story = {
+  name: "Con ⓘ (explica la cifra)",
+  args: {
+    label: "Total por cobrar",
+    value: "$54.320.000",
+    info: "Todo lo que tus clientes te deben y aún no pagan, según las facturas que emitiste.",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    // El ⓘ abre por TECLADO (foco), no solo hover.
+    const hint = canvas.getByRole("button", { name: /Qué significa Total por cobrar/i });
+    hint.focus();
+    await waitFor(() => expect(body.getByText(/aún no pagan/i)).toBeVisible());
+  },
 };
 
 export const Grid: Story = {
