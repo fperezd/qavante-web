@@ -96,19 +96,23 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         <QavanteStatTile
           label="Total por pagar"
           value={<AmountCountUp value={parseAmount(data.total)} />}
+          info="Todo lo que le debes a tus proveedores y aún no pagas, según las facturas que recibiste."
         />
         <QavanteStatTile
           label="Próx. 7 días"
           value={<AmountCountUp value={parseAmount(data.due_7d)} />}
           tone="danger"
+          info="Lo que vence dentro de los próximos 7 días. Es tu compromiso de caja más inmediato."
         />
         <QavanteStatTile
           label="Próx. 14 días"
           value={<AmountCountUp value={parseAmount(data.due_14d)} />}
+          info="Lo que vence dentro de los próximos 14 días. Incluye lo de los próximos 7."
         />
         <QavanteStatTile
           label="Próx. 30 días"
           value={<AmountCountUp value={parseAmount(data.due_30d)} />}
+          info="Lo que vence dentro de los próximos 30 días. Incluye lo de los próximos 14."
         />
       </div>
 

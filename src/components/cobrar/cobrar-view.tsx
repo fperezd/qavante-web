@@ -109,16 +109,19 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
         <QavanteStatTile
           label="Total por cobrar"
           value={<AmountCountUp value={parseAmount(data.total)} />}
+          info="Todo lo que tus clientes te deben y aún no pagan, según las facturas que emitiste."
         />
         <QavanteStatTile
           label="Vencido"
           value={<AmountCountUp value={parseAmount(data.overdue)} />}
           tone="danger"
+          info="La parte de lo por cobrar cuyo plazo de pago ya pasó. Es la plata que deberías estar persiguiendo."
         />
         <QavanteStatTile
           label="% vencido"
           value={`${parseAmount(data.overdue_pct).toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`}
           tone="danger"
+          info="Qué parte del total por cobrar ya está vencida. Mientras más alto, más apretada tu cobranza."
         />
       </div>
 

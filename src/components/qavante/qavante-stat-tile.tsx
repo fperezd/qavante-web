@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/ui/info-hint";
 import { QavanteCard } from "./qavante-card";
 
 /* Tile de KPI unificado (Ola 2 · sistema de diseño). Reemplaza los `Metric`/
@@ -28,6 +29,9 @@ export interface QavanteStatTileProps {
   size?: "kpi" | "hero";
   /** Línea de apoyo bajo el valor (frescura, nota). Opcional. */
   hint?: React.ReactNode;
+  /** Explica la cifra en lenguaje de dueño; muestra un ⓘ accesible junto a la
+   *  etiqueta (abre al hover y al foco de teclado). Opcional. */
+  info?: React.ReactNode;
   className?: string;
 }
 
@@ -37,11 +41,15 @@ export function QavanteStatTile({
   tone = "default",
   size = "kpi",
   hint,
+  info,
   className,
 }: QavanteStatTileProps) {
   return (
     <QavanteCard variant="bordered" className={className}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
+      <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+        {label}
+        {info != null && <InfoHint label={`Qué significa ${label}`}>{info}</InfoHint>}
+      </p>
       <p
         className={cn(
           "mt-1 font-bold tabular-nums",
