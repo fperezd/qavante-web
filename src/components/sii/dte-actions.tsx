@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { Eye, Download } from "lucide-react";
+import { Eye, Download, FileWarning } from "lucide-react";
 
 /* Acciones de un DTE en una fila:
    - Ver: al pasar el mouse (o enfocar) sobre el ícono, muestra una VISTA PREVIA
@@ -13,7 +13,13 @@ import { Eye, Download } from "lucide-react";
      el atributo `download` no fuerza la descarga, así que abrimos en pestaña nueva
      para NO sacar al usuario de la app).
    Ambos apuntan al PDF del SII (GET directo del browser con cookies httpOnly).
-   Sin URL → guion. */
+   Sin URL → guion.
+
+   El preview usa `<object type="application/pdf">` (no `<img>`) con un FALLBACK
+   honesto: si el backend no entrega un PDF válido (p. ej. el SII devuelve una
+   página HTML), en vez del ícono críptico de "imagen rota" mostramos un mensaje
+   claro + botón de descarga. NO oculta el problema de fondo (que es backend, ver
+   handoff a CC-API): lo hace legible y deja una salida al usuario. */
 
 const iconCls =
   "inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-mid transition-colors hover:bg-surface-muted hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
@@ -143,7 +149,35 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
             onMouseEnter={clearTimers}
             onMouseLeave={closeSoon}
           >
-            <iframe src={url} title={`Vista previa del DTE${suffix}`} className="h-full w-full" />
+            <object
+              data={url}
+              type="application/pdf"
+              title={`Vista previa del DTE${suffix}`}
+              aria-label={`Vista previa del DTE${suffix}`}
+              className="h-full w-full"
+            >
+              {/* Fallback honesto: se ve cuando el navegador no puede renderizar
+                  el recurso como PDF (backend no entregó un PDF válido). */}
+              <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                <FileWarning className="h-9 w-9 text-neutral-mid" aria-hidden="true" />
+                <p className="text-sm font-medium text-neutral-dark">
+                  No pudimos mostrar la vista previa
+                </p>
+                <p className="max-w-[16rem] text-xs leading-relaxed text-neutral-mid">
+                  El SII no entregó este documento como PDF. Puedes descargarlo e intentar abrirlo.
+                </p>
+                <a
+                  href={url}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-xs font-medium text-surface transition-colors hover:bg-brand-primary-600"
+                >
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  Descargar DTE
+                </a>
+              </div>
+            </object>
           </div>,
           document.body,
         )}
