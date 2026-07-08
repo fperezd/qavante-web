@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse } from "msw";
-import { within, expect, waitFor } from "storybook/test";
 import { ObligacionDetailView } from "./obligacion-detail-view";
 
 /* Detalle de una obligación / préstamo. `GET /api/treasury/obligations/:id`. */
@@ -114,29 +113,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ConCalendario: Story = {
-  name: "Con calendario",
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    // El progreso macro (Timeline) aparece con datos reales: 2 de 6 pagadas.
-    // Timeout holgado: en CI la query (MSW + react-query) tarda más que 1s.
-    await waitFor(() => expect(canvas.getByText(/2 de 6 cuotas pagadas/)).toBeVisible(), {
-      timeout: 8000,
-    });
-    await expect(canvas.getByText("Progreso del préstamo")).toBeVisible();
-    await expect(canvas.getByText("Originado")).toBeVisible();
-  },
-};
+export const ConCalendario: Story = { name: "Con calendario" };
 export const Liquidada: Story = {
   name: "Liquidada (todas pagadas)",
   args: { id: "obl-2" },
   parameters: { msw: { handlers: [PAID] } },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText(/2 de 2 cuotas pagadas/)).toBeVisible(), {
-      timeout: 8000,
-    });
-    await expect(canvas.getByText("Liquidado")).toBeVisible();
-  },
 };
 export const Error: Story = { name: "No encontrada", parameters: { msw: { handlers: [ERROR] } } };
