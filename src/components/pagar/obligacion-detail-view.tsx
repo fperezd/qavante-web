@@ -4,9 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteInlineError } from "@/components/qavante";
+import { Timeline, type TimelineStep } from "@/components/ui/timeline";
 import { useObligationDetail, type ObligationInstallmentDetail } from "@/lib/api/obligations";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
+import { computeObligationProgress } from "./obligation-lifecycle";
 
 /* Detalle de una obligación / préstamo: cabecera + calendario de cuotas. Montos
    string-decimal → CLP; fechas YYYY-MM-DD → DD-MM-AAAA. Gated por `obligations`. */
@@ -85,10 +87,83 @@ export function ObligacionDetailView({ id }: { id: string }) {
             </dl>
           </QavanteCard>
 
+          <ProgressCard
+            installments={query.data.installments ?? []}
+            installmentsTotal={Number(query.data.obligation.installments_total) || undefined}
+            originationDate={query.data.obligation.origination_date}
+            principalFormatted={clp(query.data.obligation.principal_total)}
+          />
+
           <ScheduleTable installments={query.data.installments ?? []} />
         </>
       )}
     </div>
+  );
+}
+
+/* Progreso macro del préstamo como Timeline: Originado → En curso (cuota X/N,
+   próxima, vencidas) → Liquidado. Complementa la tabla densa con el "así vas"
+   de un vistazo. Solo estados derivados de datos reales (helper puro). */
+function ProgressCard({
+  installments,
+  installmentsTotal,
+  originationDate,
+  principalFormatted,
+}: {
+  installments: ObligationInstallmentDetail[];
+  installmentsTotal?: number;
+  originationDate: string;
+  principalFormatted: string;
+}) {
+  if (installments.length === 0) return null;
+  const p = computeObligationProgress(installments, installmentsTotal);
+
+  const originado: TimelineStep = {
+    status: "done",
+    title: "Originado",
+    children: `${formatDateLike(originationDate)} · Capital ${principalFormatted}`,
+  };
+
+  const steps: TimelineStep[] = p.settled
+    ? [
+        originado,
+        {
+          status: "done",
+          title: "Liquidado",
+          children: `${p.total} de ${p.total} cuotas pagadas${
+            p.payoffDate ? ` · última venció el ${formatDateLike(p.payoffDate)}` : ""
+          }`,
+        },
+      ]
+    : [
+        originado,
+        {
+          status: "current",
+          title: "En curso",
+          children: `${p.paidCount} de ${p.total} cuotas pagadas${
+            p.nextDueDate ? ` · próxima vence el ${formatDateLike(p.nextDueDate)}` : ""
+          }${
+            p.overdueCount > 0
+              ? ` · ${p.overdueCount} vencida${p.overdueCount > 1 ? "s" : ""}`
+              : ""
+          }`,
+        },
+        {
+          status: "pending",
+          title: "Liquidado",
+          children: p.payoffDate
+            ? `Término estimado: ${formatDateLike(p.payoffDate)}`
+            : "Al pagar todas las cuotas.",
+        },
+      ];
+
+  return (
+    <QavanteCard
+      variant="bordered"
+      header={<span className="font-medium">Progreso del préstamo</span>}
+    >
+      <Timeline steps={steps} />
+    </QavanteCard>
   );
 }
 
