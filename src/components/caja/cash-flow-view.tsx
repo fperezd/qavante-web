@@ -9,6 +9,7 @@ import {
   type CashFlowReportParams,
 } from "@/lib/api/treasury-reports";
 import { CashFlowFilters } from "./cash-flow-filters";
+import { CashFlowNetSummary } from "./cash-flow-net-summary";
 import { CashFlowTable } from "./cash-flow-table";
 
 /* Orquestador del cash flow report. Combina filtros + query + estados
@@ -48,7 +49,12 @@ export function CashFlowView() {
         />
       )}
 
-      {query.data && (query.data.buckets ?? []).length > 0 && <CashFlowTable data={query.data} />}
+      {query.data && (query.data.buckets ?? []).length > 0 && (
+        <>
+          <CashFlowNetSummary data={query.data} />
+          <CashFlowTable data={query.data} />
+        </>
+      )}
     </div>
   );
 }
