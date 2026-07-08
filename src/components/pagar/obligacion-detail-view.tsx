@@ -7,6 +7,7 @@ import { QavanteCard, QavanteBadge, QavanteInlineError } from "@/components/qava
 import { useObligationDetail, type ObligationInstallmentDetail } from "@/lib/api/obligations";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
+import { ObligationProgressCard } from "./obligation-progress-card";
 
 /* Detalle de una obligación / préstamo: cabecera + calendario de cuotas. Montos
    string-decimal → CLP; fechas YYYY-MM-DD → DD-MM-AAAA. Gated por `obligations`. */
@@ -84,6 +85,13 @@ export function ObligacionDetailView({ id }: { id: string }) {
               <Field label="Inicio">{formatDateLike(query.data.obligation.origination_date)}</Field>
             </dl>
           </QavanteCard>
+
+          <ObligationProgressCard
+            installments={query.data.installments ?? []}
+            installmentsTotal={Number(query.data.obligation.installments_total) || undefined}
+            originationDate={query.data.obligation.origination_date}
+            principalFormatted={clp(query.data.obligation.principal_total)}
+          />
 
           <ScheduleTable installments={query.data.installments ?? []} />
         </>
