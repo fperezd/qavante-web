@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { within, expect, waitFor } from "storybook/test";
+import { within, userEvent, expect, waitFor } from "storybook/test";
 import { ResumenKpis } from "./resumen-kpis";
 import { MovimientosGrid } from "./movimientos-grid";
 
@@ -54,5 +54,21 @@ export const TooltipAccesible: Story = {
     // Enfocar el ⓘ de "Saldo final" abre el tooltip (sin mouse).
     hints[0]!.focus();
     await waitFor(() => expect(body.getByText(/al cierre del período/i)).toBeVisible());
+  },
+};
+
+/** Test de interacción: al hacer clic en un movimiento, la fila se expande y
+ *  muestra el detalle + el seguimiento (timeline). */
+export const FilaExpandible: Story = {
+  render: () => <CartolaV2 />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const filas = canvas.getAllByRole("button", { expanded: false });
+    // La primera fila-movimiento (el resumen no tiene filas expandibles).
+    const fila = filas.find((b) => /Cargo Intereses Sobregiro/i.test(b.textContent ?? ""))!;
+    await userEvent.click(fila);
+    await expect(fila).toHaveAttribute("aria-expanded", "true");
+    await waitFor(() => expect(canvas.getByText("Seguimiento")).toBeVisible());
+    await expect(canvas.getByText("Detectado en tu banco")).toBeVisible();
   },
 };
