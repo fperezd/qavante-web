@@ -39,7 +39,12 @@ export const PreviewConFallback: Story = {
     );
     // El fallback honesto (mensaje + descarga) vive dentro del diálogo.
     const inDialog = within(dialog);
-    await expect(inDialog.getByText("No pudimos mostrar la vista previa")).toBeInTheDocument();
+    // El fetch del PDF falla en el test env (sin backend) → tras el loading,
+    // cae al fallback honesto (mensaje + descarga).
+    await waitFor(
+      () => expect(inDialog.getByText("No pudimos mostrar la vista previa")).toBeInTheDocument(),
+      { timeout: 8000 },
+    );
     await expect(inDialog.getByRole("link", { name: /Descargar DTE/i })).toBeInTheDocument();
   },
 };
