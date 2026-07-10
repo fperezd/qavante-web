@@ -10,6 +10,7 @@ import {
   useSyncBukPayroll,
 } from "@/lib/api/buk";
 import { useBankMovements, usePayrollPayday, useSetPayrollPayday } from "@/lib/api/treasury";
+import { ApiError } from "@/lib/api/errors";
 import { DotacionView } from "./dotacion-view";
 import { PlanillaView } from "./planilla-view";
 import { PayrollSyncBar } from "./payroll-sync-bar";
@@ -69,8 +70,11 @@ export function RemuneracionesView() {
     [bankQuery.data],
   );
   /* Hay planilla del período pero el detalle por empleado no está disponible
-     (sin permiso owner, o el conector aún no lo puebla) → la conciliación no
-     puede cruzar. */
+     → la conciliación no puede cruzar. Desde el fix de auth (CC-API #542) el
+     owner ya recibe el detalle; si sigue vacío es por permiso (no-owner, 403)
+     o porque no hay detalle ese mes. Distinguir da un mensaje honesto. */
+  const detalleForbidden =
+    payrollDetailQuery.error instanceof ApiError && payrollDetailQuery.error.status === 403;
   const detalleUnavailable =
     Boolean(payrollQuery.data?.totales) &&
     !payrollDetailQuery.isLoading &&
@@ -124,6 +128,7 @@ export function RemuneracionesView() {
             onPeriodChange={() => {}}
             query={payrollQuery}
             detalle={empleados}
+            detalleForbidden={detalleForbidden}
             periodForm={periodForm}
           />
           {period && payrollQuery.data?.totales && (
@@ -146,6 +151,7 @@ export function RemuneracionesView() {
           // detalleUnavailable ("falta el detalle"). Solo el banco es error real.
           error={bankQuery.error}
           detalleUnavailable={detalleUnavailable}
+          detalleForbidden={detalleForbidden}
           periodForm={periodForm}
         />
       )}

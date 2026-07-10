@@ -30,6 +30,9 @@ export interface PlanillaViewProps {
   /** Detalle por empleado (líquido individual, ADR-0057). [] si no hay/no-owner.
    *  Lo resuelve el page desde /api/buk/payroll/detail. */
   detalle?: EmployeePayroll[];
+  /** El detalle vino 403 (owner-only): distingue "solo para el dueño" de "sin
+   *  dato del período". Desde CC-API #542 el owner ya no recibe 403. */
+  detalleForbidden?: boolean;
   /** Selector de período custom (filtro de rango, idéntico al Libro). Reemplaza
    *  al SiiPeriodForm interno. Aditivo. */
   periodForm?: React.ReactNode;
@@ -40,6 +43,7 @@ export function PlanillaView({
   onPeriodChange,
   query,
   detalle = [],
+  detalleForbidden = false,
   periodForm,
 }: PlanillaViewProps) {
   const totales = query.data?.totales;
@@ -82,7 +86,14 @@ export function PlanillaView({
         />
       )}
 
-      {period && totales && <PlanillaTotales period={period} totales={totales} detalle={detalle} />}
+      {period && totales && (
+        <PlanillaTotales
+          period={period}
+          totales={totales}
+          detalle={detalle}
+          detalleForbidden={detalleForbidden}
+        />
+      )}
     </div>
   );
 }
@@ -91,10 +102,12 @@ function PlanillaTotales({
   period,
   totales,
   detalle,
+  detalleForbidden,
 }: {
   period: string;
   totales: PayrollTotales;
   detalle: EmployeePayroll[];
+  detalleForbidden: boolean;
 }) {
   const obligaciones = readPayrollObligaciones(totales as Record<string, unknown>);
   return (
@@ -150,9 +163,17 @@ function PlanillaTotales({
           <p className="flex items-start gap-1.5 text-xs text-neutral-mid">
             <Users className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             <span>
-              El <strong>detalle por empleado</strong> (líquido de cada trabajador, para conciliar
-              contra el banco) se está habilitando en el conector. Por ahora se muestran los totales
-              del período.
+              {detalleForbidden ? (
+                <>
+                  El <strong>detalle por empleado</strong> (líquido individual) es visible solo para
+                  el <strong>dueño</strong> de la cuenta. Se muestran los totales del período.
+                </>
+              ) : (
+                <>
+                  No hay <strong>detalle por empleado</strong> para este período. Se muestran los
+                  totales del período.
+                </>
+              )}
             </span>
           </p>
         )}
