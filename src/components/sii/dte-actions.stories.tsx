@@ -32,19 +32,24 @@ export const PreviewConFallback: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const body = within(document.body);
-    // El foco en el ojo abre el popover (portaleado a document.body).
-    canvas.getByRole("button", { name: /Vista previa del DTE/i }).focus();
-    const dialog = await waitFor(() =>
-      body.getByRole("dialog", { name: /Vista previa del DTE/i }),
-    );
-    // El fallback honesto (mensaje + descarga) vive dentro del diálogo.
-    const inDialog = within(dialog);
-    // El fetch del PDF falla en el test env (sin backend) → tras el loading,
-    // cae al fallback honesto (mensaje + descarga).
-    await waitFor(
-      () => expect(inDialog.getByText("No pudimos mostrar la vista previa")).toBeInTheDocument(),
-      { timeout: 8000 },
-    );
-    await expect(inDialog.getByRole("link", { name: /Descargar DTE/i })).toBeInTheDocument();
+    // Stub de fetch: determinista (rechaza) → cae al fallback sin depender de la
+    // red (un fetch real a api.qavante.com cuelga/varía en CI).
+    const originalFetch = window.fetch;
+    window.fetch = () => Promise.reject(new Error("test-no-network"));
+    try {
+      // El foco en el ojo abre el popover (portaleado a document.body).
+      canvas.getByRole("button", { name: /Vista previa del DTE/i }).focus();
+      const dialog = await waitFor(() =>
+        body.getByRole("dialog", { name: /Vista previa del DTE/i }),
+      );
+      const inDialog = within(dialog);
+      // Tras el loading, cae al fallback honesto (mensaje + descarga).
+      await waitFor(() =>
+        expect(inDialog.getByText("No pudimos mostrar la vista previa")).toBeInTheDocument(),
+      );
+      await expect(inDialog.getByRole("link", { name: /Descargar DTE/i })).toBeInTheDocument();
+    } finally {
+      window.fetch = originalFetch;
+    }
   },
 };
