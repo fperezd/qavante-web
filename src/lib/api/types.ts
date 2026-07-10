@@ -1544,6 +1544,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tgr/centro-pagos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * TGR: última deuda de Centro de Pagos clasificada (convenios vs sin-convenio)
+         * @description Último snapshot clasificado: convenios vigentes (cuotas pendientes/
+         *     atrasadas — atrasadas>0 = convenio en riesgo de caducar), giros vencidos
+         *     SIN convenio (la acción "pagar o convenir") y por vencer. Se refresca cada
+         *     vez que el helper local corre `POST /sync-centro-pagos`.
+         */
+        get: operations["tgr_centro_pagos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/direccion-trabajo/status": {
         parameters: {
             query?: never;
@@ -1697,6 +1720,29 @@ export interface paths {
          *     del movimiento. No escribe (el usuario la crea luego vía POST rules).
          */
         post: operations["bank_movements_suggest_rule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/bank-movements/apply-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aplica las reglas activas a los movimientos sin clasificar (batch determinista)
+         * @description Aplica las reglas activas del tenant a TODOS los movimientos sin clasificar (batch
+         *     determinista). Materializa los `financial_impacts` de los que matchean → así los reportes de
+         *     caja/gestión (que leen esa tabla) dejan de salir vacíos tras un import. Solo clasifica lo que
+         *     matchea una regla real; lo demás queda sin clasificar (sin default). Idempotente.
+         */
+        post: operations["treasury_bank_movements_apply_rules"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1932,6 +1978,32 @@ export interface paths {
          *     Requiere rol owner/admin.
          */
         post: operations["bank_ingest_bice_cards_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bank-movements/bice/backfill-historico": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * BICE: backfill del histórico de movimientos de una cuenta CLP (portal legacy)
+         * @description Baja el histórico de movimientos de una cuenta **CLP** desde el portal legacy
+         *     `www.bice.cl` (#521) y lo upserta idempotente en `treasury.bank_movements`.
+         *
+         *     Solo CLP (la USD vive en `banking.bice.cl`, #522). Usa la sesión `www.bice.cl` del
+         *     `storage_state` sembrado por el seed (mismo login que portalempresas, SSO). Por default el
+         *     rango termina a fin del mes anterior — el mes vigente lo cubre el sync provisorio, así el
+         *     período no se importa dos veces. `desde=null` baja el máximo que el banco permita.
+         */
+        post: operations["bank_ingest_bice_backfill_historico"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3679,6 +3751,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/tgr/session-watchdog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * TGR: verifica la frescura de la sesión de todos los tenants (cron 6h)
+         * @description Chequea el TTL de la sesión TGR de **todos** los tenants (local, sin red a
+         *     TGR) y refleja el estado en `connection_status`. Lo llama el cron cada 6 h con
+         *     `SERVER_API_KEY`. Idempotente; best-effort por tenant.
+         */
+        post: operations["admin_tgr_session_watchdog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/api-keys": {
         parameters: {
             query?: never;
@@ -4230,6 +4324,27 @@ export interface components {
             items: components["schemas"]["ApiKeyListItem"][];
         };
         /**
+         * ApplyRulesResponse
+         * @description Resumen de `POST /api/treasury/bank-movements/apply-rules` (batch determinista).
+         */
+        ApplyRulesResponse: {
+            /**
+             * Evaluados
+             * @description Movimientos sin clasificar evaluados contra las reglas.
+             */
+            evaluados: number;
+            /**
+             * Clasificados
+             * @description Movimientos que matchearon una regla y quedaron clasificados.
+             */
+            clasificados: number;
+            /**
+             * Sin Regla
+             * @description Movimientos que no matchearon ninguna regla (siguen sin clasificar).
+             */
+            sin_regla: number;
+        };
+        /**
          * ApplyTemplateRequest
          * @description Body de `POST /industry-templates/{template_code}/apply` (§14.1).
          */
@@ -4335,6 +4450,54 @@ export interface components {
             count: number;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * BackfillHistoricoRequest
+         * @description Body de `POST /backfill-historico`.
+         */
+        BackfillHistoricoRequest: {
+            /**
+             * External Id
+             * @description `numeroFormateado` de la cuenta CLP (de `GET /accounts`), ej. '07-04222-1'.
+             */
+            external_id: string;
+            /**
+             * Desde
+             * @description Fecha inicial. `null` = máximo histórico que el banco permita (loop-until-dry).
+             */
+            desde?: string | null;
+            /**
+             * Hasta
+             * @description Fecha final. `null` = fin del mes anterior (deja el mes vigente al sync provisorio, sin doble-importar).
+             */
+            hasta?: string | null;
+        };
+        /** BackfillHistoricoResponse */
+        BackfillHistoricoResponse: {
+            /** External Id */
+            external_id: string;
+            /** Found */
+            found: number;
+            /** Imported */
+            imported: number;
+            /** Windows Fetched */
+            windows_fetched: number;
+            /**
+             * Truncated Windows
+             * @description Ventanas con >500 movimientos que el portal capó (posible pérdida).
+             * @default 0
+             */
+            truncated_windows: number;
+            /**
+             * Reached Cap
+             * @description `true` si se cortó por el backstop de ventanas → histórico posiblemente incompleto.
+             * @default false
+             */
+            reached_cap: boolean;
+            /** Oldest Date */
+            oldest_date?: string | null;
+            /** Newest Date */
+            newest_date?: string | null;
         };
         /** BalanceData */
         BalanceData: {
@@ -5304,6 +5467,33 @@ export interface components {
              * @enum {string}
              */
             data_state: "available" | "stale" | "estimated";
+        };
+        /**
+         * CentroPagosResponse
+         * @description Último snapshot de deuda TGR de Centro de Pagos, clasificada.
+         */
+        CentroPagosResponse: {
+            /**
+             * Status
+             * @example ok
+             */
+            status: string;
+            /**
+             * Captured At
+             * @description Timestamp ISO de la captura del helper. None si nunca se sincronizó.
+             */
+            captured_at?: string | null;
+            /**
+             * Resumen
+             * @description Salida de `clasificar_centro_pagos`: convenios (cuotas pendientes/atrasadas/próxima cuota), giros sin convenio vencidos (la acción 'pagar o convenir') y por vencer, y deuda cubierta por convenio.
+             */
+            resumen?: {
+                [key: string]: unknown;
+            } | null;
+            /** Message */
+            message?: string | null;
+        } & {
+            [key: string]: unknown;
         };
         /** CertificadoErrorResponse */
         CertificadoErrorResponse: {
@@ -10845,6 +11035,34 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** TgrWatchdogResponse */
+        TgrWatchdogResponse: {
+            /**
+             * Tenants
+             * @description Tenants con sesión TGR guardada procesados.
+             */
+            tenants: number;
+            /**
+             * Vigentes
+             * @description Sesiones dentro del TTL (status → ok).
+             */
+            vigentes: number;
+            /**
+             * Vencidas
+             * @description Sesiones vencidas/ausentes (status → credential_invalid).
+             */
+            vencidas: number;
+            /**
+             * Skipped Consent
+             * @description Saltados por consent faltante/expirado.
+             */
+            skipped_consent: number;
+            /**
+             * Errors
+             * @description Errores best-effort (no abortan el resto).
+             */
+            errors: number;
+        };
         /** TopClient */
         TopClient: {
             /** Name */
@@ -13925,6 +14143,37 @@ export interface operations {
             };
         };
     };
+    tgr_centro_pagos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CentroPagosResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     direccion_trabajo_status: {
         parameters: {
             query?: never;
@@ -14120,6 +14369,44 @@ export interface operations {
             };
             /** @description Movimiento no existe en el tenant. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_bank_movements_apply_rules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen del batch: evaluados / clasificados / sin_regla. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyRulesResponse"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14563,6 +14850,55 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CardIngestResult"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bank_ingest_bice_backfill_historico: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackfillHistoricoRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackfillHistoricoResponse"];
+                };
+            };
+            /** @description La cuenta no está vinculada a treasury.bank_accounts. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No hay sesión BICE sembrada (correr el seed primero). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -18649,6 +18985,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_tgr_session_watchdog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TgrWatchdogResponse"];
                 };
             };
         };

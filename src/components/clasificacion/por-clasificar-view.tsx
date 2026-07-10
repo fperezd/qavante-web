@@ -11,9 +11,11 @@ import {
   useBankMovements,
   useBankAccounts,
   useClassifyBankMovement,
+  useApplyRules,
   useCanonicalCategories,
   type BankMovement,
 } from "@/lib/api/treasury";
+import { ApiError } from "@/lib/api/errors";
 import { BankAccountFilter, currencyByAccount } from "@/components/treasury/bank-account-filter";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { presetRange, isInPeriodRange, type PeriodRange } from "@/lib/period/period-range";
@@ -97,6 +99,41 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
   const classify = useClassifyBankMovement();
   const dims = useClassificationDimensions(dimensionsEnabled);
   const assign = useCreateDimensionAssignment();
+  const applyRules = useApplyRules();
+
+  /* "Aplicar reglas": clasifica en batch TODOS los movimientos sin clasificar
+     que matcheen una regla activa (backend #545). Solo toca lo que matchea una
+     regla real → puebla los financial_impacts que alimentan el reporte de caja. */
+  async function aplicarReglas() {
+    if (applyRules.isPending) return;
+    try {
+      const res = await applyRules.mutateAsync();
+      if (res.clasificados > 0) {
+        toast.success(
+          `Clasificamos ${res.clasificados} de ${res.evaluados} ${res.evaluados === 1 ? "movimiento" : "movimientos"} con tus reglas`,
+          {
+            description:
+              res.sin_regla > 0
+                ? `Quedan ${res.sin_regla} sin regla que matchee — clasifícalos a mano o crea más reglas.`
+                : "Tu reporte de caja se actualizó.",
+          },
+        );
+      } else {
+        toast.warning("Ninguno matcheó tus reglas", {
+          description:
+            res.evaluados === 0
+              ? "No hay movimientos sin clasificar."
+              : "Crea una regla clasificando un movimiento con «Guardar y crear regla», luego vuelve a aplicar.",
+        });
+      }
+    } catch (e) {
+      const status = e instanceof ApiError ? e.status : undefined;
+      toast.error(status === 403 ? "No tienes permiso para clasificar" : "No pudimos aplicar las reglas", {
+        description:
+          status === 403 ? "Tu rol es de solo lectura." : "Intenta de nuevo en un momento.",
+      });
+    }
+  }
 
   const [selected, setSelected] = React.useState<BankMovement | null>(null);
   const [formError, setFormError] = React.useState<string>();
@@ -368,6 +405,19 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
             allowAll
           />
         )}
+        {/* Aplica las reglas activas a TODOS los sin clasificar (no solo al
+            filtro) → puebla el reporte de caja. */}
+        <QavanteButton
+          size="sm"
+          variant="secondary"
+          className="ml-auto"
+          onClick={aplicarReglas}
+          loading={applyRules.isPending}
+          disabled={applyRules.isPending}
+        >
+          <ListChecks className="h-4 w-4" aria-hidden="true" />
+          Aplicar reglas
+        </QavanteButton>
       </div>
 
       {movements.length === 0 ? (

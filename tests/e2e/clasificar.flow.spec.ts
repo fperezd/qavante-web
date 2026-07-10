@@ -85,6 +85,21 @@ test.describe("Flujo: clasificar un movimiento (/caja/por-clasificar)", () => {
     await expect(page.getByText(/movimientos? clasificados?/i)).toBeVisible();
   });
 
+  test("aplicar reglas: batch clasifica los sin clasificar y confirma con toast", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/caja/por-clasificar");
+
+    const aplicar = page.getByRole("button", { name: "Aplicar reglas", exact: true });
+    await expect(aplicar).toBeVisible();
+    await aplicar.click();
+
+    // MSW devuelve clasificados:5 de evaluados:12 → toast de éxito con el conteo.
+    await expect(page.getByText(/Clasificamos 5 de 12 movimientos con tus reglas/)).toBeVisible();
+  });
+
   test("cancelar cierra el drawer sin guardar", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/caja/por-clasificar");

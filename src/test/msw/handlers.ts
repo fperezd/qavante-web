@@ -595,6 +595,11 @@ const treasuryHandlers = [
       { status: 200 },
     );
   }),
+  /* Aplica reglas activas a los sin clasificar (batch #545). Devuelve el
+     resumen evaluados/clasificados/sin_regla. */
+  http.post("*/api/treasury/bank-movements/apply-rules", () =>
+    HttpResponse.json({ evaluados: 12, clasificados: 5, sin_regla: 7 }, { status: 200 }),
+  ),
 ];
 
 /* Management — árbol de cuentas + dimensiones. Read-only. Fixtures con

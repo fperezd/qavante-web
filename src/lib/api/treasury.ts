@@ -18,6 +18,7 @@ export type CanonicalCategoriesResponse = components["schemas"]["CanonicalCatego
 export type BankMovement = components["schemas"]["BankMovement"];
 export type BankMovementsListResponse = components["schemas"]["BankMovementsListResponse"];
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
+export type ApplyRulesResponse = components["schemas"]["ApplyRulesResponse"];
 export type PayrollPaydayResponse = components["schemas"]["PayrollPaydayResponse"];
 export type PutPayrollPaydayRequest = components["schemas"]["PutPayrollPaydayRequest"];
 export type BankAccountItem = components["schemas"]["BankAccountItem"];
@@ -179,6 +180,24 @@ export function useClassifyBankMovement() {
          namespaces de query-key distintos (`classification-rules`,
          `treasury-reports`) que la invalidación de `treasury` no alcanza por
          prefijo → invalidarlos aparte (code-review #3). */
+      qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
+      qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
+    },
+  });
+}
+
+/** `POST /api/treasury/bank-movements/apply-rules` — aplica las reglas de
+ *  clasificación activas a TODOS los movimientos sin clasificar (batch
+ *  determinista, idempotente). Solo clasifica lo que matchea una regla REAL
+ *  (respeta "no default classification"). Al éxito puebla los financial_impacts
+ *  que alimentan los reportes de caja → invalida movimientos + reglas +
+ *  reportes. 403 si el rol no tiene permiso de escritura (ADR-0028). */
+export function useApplyRules() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<ApplyRulesResponse>("/api/treasury/bank-movements/apply-rules"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: treasuryKeys.all });
       qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
       qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
     },
