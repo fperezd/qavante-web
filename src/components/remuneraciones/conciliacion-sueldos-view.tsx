@@ -28,8 +28,11 @@ export interface ConciliacionSueldosViewProps {
   movimientos: BankDebitLike[];
   loading?: boolean;
   error?: unknown;
-  /** `true` si el payroll no trae `detalle` por empleado (contrato pendiente). */
+  /** `true` si el payroll no trae `detalle` por empleado. */
   detalleUnavailable?: boolean;
+  /** `true` si el detalle vino 403 (owner-only): distingue "solo para el dueño"
+   *  de "sin dato del período". Desde CC-API #542 el owner ya no recibe 403. */
+  detalleForbidden?: boolean;
   /** Selector de período custom (filtro de rango). Reemplaza al SiiPeriodForm. */
   periodForm?: React.ReactNode;
 }
@@ -42,6 +45,7 @@ export function ConciliacionSueldosView({
   loading = false,
   error = null,
   detalleUnavailable = false,
+  detalleForbidden = false,
   periodForm,
 }: ConciliacionSueldosViewProps) {
   const result = React.useMemo(
@@ -83,8 +87,12 @@ export function ConciliacionSueldosView({
       {period && !loading && error == null && detalleUnavailable && (
         <QavanteEmpty
           icon={HelpCircle}
-          title="Falta el detalle por empleado"
-          description="La conciliación necesita el líquido de cada trabajador. El detalle por empleado del conector de Remuneraciones se está habilitando; cuando esté, esta pantalla cruza sola contra el banco."
+          title={detalleForbidden ? "Detalle solo para el dueño" : "Falta el detalle por empleado"}
+          description={
+            detalleForbidden
+              ? "La conciliación necesita el líquido de cada trabajador. Ese detalle por empleado es visible solo para el dueño de la cuenta."
+              : "La conciliación necesita el líquido de cada trabajador, y no hay detalle por empleado para este período. Cuando el conector lo traiga, esta pantalla cruza sola contra el banco."
+          }
         />
       )}
 

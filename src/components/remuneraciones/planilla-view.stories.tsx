@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { fn } from "storybook/test";
+import { fn, within, expect } from "storybook/test";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { PlanillaView } from "./planilla-view";
 import type { PayrollResponse } from "@/lib/api/buk";
@@ -91,6 +91,18 @@ export const ConTotales: Story = {
 export const ConDetallePorEmpleado: Story = {
   name: "Con detalle por empleado (conciliación)",
   args: { period: "2026-03", query: buildQuery({ data: CON_DETALLE }) },
+};
+
+/* No-owner: el detalle vino 403 → mensaje honesto "solo para el dueño"
+   (distinto de "no hay dato"). Desde CC-API #542 el owner ya no cae acá. */
+export const DetalleSoloDueno: Story = {
+  name: "Detalle solo para el dueño (no-owner, 403)",
+  args: { period: "2026-03", query: buildQuery({ data: SUCCESS }), detalleForbidden: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/visible solo para el/i)).toBeInTheDocument();
+    await expect(canvas.getByText(/dueño/i)).toBeInTheDocument();
+  },
 };
 
 export const SinPlanilla: Story = {
