@@ -132,8 +132,9 @@ function StateWrap<T>({
 
 /* Vista de RANGO (varios meses): agregado del período + desglose grueso + mes a
    mes. El endpoint de rango no trae drivers ni variación (a diferencia del de un
-   mes) → no los mostramos (honesto, no inventamos). */
-function RangeResult({ data }: { data: OperationalResultReport }) {
+   mes) → no los mostramos (honesto, no inventamos). Exportado para testear en
+   aislamiento con props (ADR-0018), sin depender de la red. */
+export function RangeResult({ data }: { data: OperationalResultReport }) {
   const t = data.grand_total;
   const result = parseAmount(t.result);
   const buckets = data.buckets ?? [];
