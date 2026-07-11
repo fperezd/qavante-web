@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatPeriodLabel,
+  formatBucketLabel,
   formatPeriodMMYYYY,
   buildMonthOptions,
   isValidPeriod,
@@ -119,6 +120,33 @@ describe("formatPeriodLabel — period del backend a label es-CL", () => {
 
   it("formato desconocido → fallback string original", () => {
     expect(formatPeriodLabel("totalmente-otro-formato")).toBe("totalmente-otro-formato");
+  });
+});
+
+describe("formatBucketLabel — label del bucket según granularidad (fechas reales)", () => {
+  it("semana desde el lunes YYYY-MM-DD → 'Sem. 11–17 may' (no 'W1' ni fecha suelta)", () => {
+    expect(formatBucketLabel("2026-05-11", "week")).toBe("Sem. 11–17 may");
+  });
+
+  it("semana desde ISO YYYY-Www → mismo rango real de fechas", () => {
+    // ISO semana 20 de 2026 = lunes 11-may .. domingo 17-may.
+    expect(formatBucketLabel("2026-W20", "week")).toBe("Sem. 11–17 may");
+  });
+
+  it("semana que cruza de mes → 'Sem. 27 abr – 3 may'", () => {
+    expect(formatBucketLabel("2026-04-27", "week")).toBe("Sem. 27 abr – 3 may");
+  });
+
+  it("mes → 'may 2026' (igual que formatPeriodLabel)", () => {
+    expect(formatBucketLabel("2026-05", "month")).toBe("may 2026");
+  });
+
+  it("día → DD-MM-AAAA (convención de la app)", () => {
+    expect(formatBucketLabel("2026-05-13", "day")).toBe("13-05-2026");
+  });
+
+  it("formato de semana inesperado → fallback defensivo (no rompe)", () => {
+    expect(formatBucketLabel("basura", "week")).toBe("basura");
   });
 });
 

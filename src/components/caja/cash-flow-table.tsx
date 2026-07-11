@@ -5,7 +5,7 @@ import { AlertTriangle } from "lucide-react";
 import { QavanteCard, QavanteBadge } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import type { CashFlowBucket, CashFlowReportResponse } from "@/lib/api/treasury-reports";
-import { formatPeriodLabel, parseDecimal, normalizeNet } from "./cash-flow-format";
+import { formatPeriodLabel, formatBucketLabel, parseDecimal, normalizeNet } from "./cash-flow-format";
 
 export { formatPeriodLabel } from "./cash-flow-format";
 
@@ -81,7 +81,9 @@ export function CashFlowTable({ data }: CashFlowTableProps) {
                     key={b.period}
                     className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
                   >
-                    <td className="py-2 pr-3 text-neutral-dark">{formatPeriodLabel(b.period)}</td>
+                    <td className="py-2 pr-3 text-neutral-dark">
+                      {formatBucketLabel(b.period, data.granularity)}
+                    </td>
                     <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
                       {formatClp(inflow)}
                     </td>

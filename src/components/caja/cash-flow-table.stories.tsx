@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { within, expect } from "storybook/test";
 import { CashFlowTable } from "./cash-flow-table";
 import type { CashFlowReportResponse } from "@/lib/api/treasury-reports";
 
@@ -66,7 +67,14 @@ const sampleWeek: CashFlowReportResponse = {
 };
 
 export const Default: Story = {
+  name: "Semanal (fechas reales, no 'W1')",
   args: { data: sampleWeek },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // La semana se lee como rango de fechas reales, no un número de semana.
+    await expect(canvas.getByText("Sem. 11–17 may")).toBeVisible();
+    await expect(canvas.getByText("Sem. 4–10 may")).toBeVisible();
+  },
 };
 
 export const ConWarnings: Story = {
