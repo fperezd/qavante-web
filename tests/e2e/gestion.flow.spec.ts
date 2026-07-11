@@ -7,7 +7,7 @@ import { loginAs } from "./helpers";
    render del resultado + desglose + drivers + navegación de período. */
 
 test.describe("Flujo: Resultado Operacional (/gestion)", () => {
-  test("muestra el resultado, el badge y navega de período", async ({ page, context }) => {
+  test("muestra el resultado del mes y permite verlo por rango", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/gestion");
 
@@ -16,18 +16,23 @@ test.describe("Flujo: Resultado Operacional (/gestion)", () => {
     // Badge obligatorio (Maestro §7.5): no es contabilidad oficial.
     await expect(page.getByText(/no es contabilidad oficial/i)).toBeVisible();
 
-    // Resultado del mes + desglose (datos de MSW).
+    // Un mes por defecto: vista rica (desglose fino + drivers).
     await expect(page.getByText("Resultado operacional del mes")).toBeVisible();
     await expect(page.getByText("Ingresos")).toBeVisible();
     await expect(page.getByText("EBITDA (proxy)")).toBeVisible();
-    // Drivers (qué explica el resultado).
     await expect(page.getByText("Qué explica el resultado")).toBeVisible();
 
-    // Navegación de período: el label "mmm YYYY" cambia al ir al mes anterior.
-    const monthRe = /^(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic) \d{4}$/i;
-    const label = page.getByText(monthRe);
-    const before = await label.textContent();
-    await page.getByRole("button", { name: "Mes anterior" }).click();
-    await expect.poll(async () => (await label.textContent()) !== before).toBe(true);
+    // Selector de rango (pedido de Fernando): elegir "Tres meses" → vista de rango.
+    await page
+      .locator('button[aria-haspopup="dialog"]')
+      .filter({ hasText: /20\d{2}/ })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Elegir rango de períodos" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Tres meses" }).click();
+
+    // Vista de rango: total del período + mes a mes.
+    await expect(page.getByText("Resultado operacional del período")).toBeVisible();
+    await expect(page.getByText("Mes a mes")).toBeVisible();
   });
 });

@@ -1,26 +1,20 @@
 "use client";
 
 import * as React from "react";
-import {
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  Info,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import { AlertCircle, Info, TrendingDown, TrendingUp } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteEmpty } from "@/components/qavante";
-import { useOperationalResult, type OperationalResultResponse } from "@/lib/api/gestion";
+import {
+  useOperationalResult,
+  useOperationalResultReport,
+  type OperationalResultResponse,
+  type OperationalResultReport,
+} from "@/lib/api/gestion";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatClp } from "@/lib/formatters/clp";
-import {
-  parseAmount,
-  shiftPeriod,
-  formatPeriodLabel,
-  formatSignedPct,
-  variationTone,
-} from "./gestion-format";
+import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
+import { orderRange, type PeriodRange } from "@/lib/period/period-range";
+import { parseAmount, formatPeriodLabel, formatSignedPct, variationTone } from "./gestion-format";
 
 /* Resultado Operacional de Gestión (Sprint C5, Maestro §7.5). Container:
    resuelve el dato por período + monta la vista. Badge obligatorio "no es
@@ -50,32 +44,27 @@ const CONFIDENCE_VARIANT: Record<
 > = { high: "success", medium: "warning", low: "danger" };
 
 export function OperationalResultView({ initialPeriod }: OperationalResultViewProps) {
-  const [period, setPeriod] = React.useState(initialPeriod);
-  const query = useOperationalResult(period);
+  /* Selector de rango idéntico al resto de la app (pedido de Fernando: no solo
+     un mes). Default = mes actual (rango de un mes). Un mes → vista rica (con
+     desglose fino + drivers); varios meses → agregado del período + mes a mes. */
+  const [range, setRange] = React.useState<PeriodRange>(() => ({
+    desde: initialPeriod,
+    hasta: initialPeriod,
+  }));
+  const ordered = orderRange(range);
+  const single = ordered.desde === ordered.hasta;
+
+  // Solo una de las dos queries corre a la vez (la otra queda deshabilitada).
+  const monthQuery = useOperationalResult(single ? ordered.hasta : "");
+  const rangeQuery = useOperationalResultReport(ordered.desde, ordered.hasta, !single);
 
   const header = (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="Mes anterior"
-          onClick={() => setPeriod((p) => shiftPeriod(p, -1))}
-          className="rounded-md border border-border p-1.5 text-neutral-mid hover:bg-brand-primary-50 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        </button>
-        <span className="min-w-28 text-center text-sm font-medium capitalize text-neutral-dark">
-          {formatPeriodLabel(period)}
-        </span>
-        <button
-          type="button"
-          aria-label="Mes siguiente"
-          onClick={() => setPeriod((p) => shiftPeriod(p, 1))}
-          className="rounded-md border border-border p-1.5 text-neutral-mid hover:bg-brand-primary-50 hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </div>
+      <PeriodRangeFilter
+        value={range}
+        onChange={setRange}
+        hint="El resultado se calcula por mes; el rango suma los meses seleccionados."
+      />
       <QavanteBadge variant="default">
         Resultado de gestión · no es contabilidad oficial
       </QavanteBadge>
@@ -85,33 +74,154 @@ export function OperationalResultView({ initialPeriod }: OperationalResultViewPr
   return (
     <div className="space-y-4">
       {header}
-      {query.isLoading ? (
-        <LoadingSkeleton />
-      ) : query.isError ? (
-        query.error instanceof ApiError && query.error.isNotFound() ? (
-          <QavanteEmpty
-            title="Sin datos para este mes"
-            description="Todavía no hay resultado operacional para el período seleccionado. Prueba otro mes o vuelve cuando se sincronicen las fuentes."
-          />
-        ) : (
-          <div
-            role="alert"
-            className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
-          >
-            <AlertCircle
-              className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500"
-              aria-hidden="true"
-            />
-            <p>
-              {query.error instanceof ApiError
-                ? apiErrorToUserMessage(query.error)
-                : "No pudimos cargar el resultado operacional. Intenta nuevamente."}
-            </p>
+      {single ? (
+        <StateWrap
+          query={monthQuery}
+          emptyTitle="Sin datos para este mes"
+          emptyDescription="Todavía no hay resultado operacional para el mes seleccionado. Prueba otro mes o vuelve cuando se sincronicen las fuentes."
+        >
+          {(data) => <Result data={data} />}
+        </StateWrap>
+      ) : (
+        <StateWrap
+          query={rangeQuery}
+          emptyTitle="Sin datos para este período"
+          emptyDescription="Todavía no hay resultado operacional para el rango seleccionado. Prueba otro rango o vuelve cuando se sincronicen las fuentes."
+        >
+          {(data) => <RangeResult data={data} />}
+        </StateWrap>
+      )}
+    </div>
+  );
+}
+
+/* Estados canónicos (Anexo C) compartidos por las dos vistas: loading / 404 sin
+   datos / error / disponible. NO asume faltante = 0. */
+function StateWrap<T>({
+  query,
+  emptyTitle,
+  emptyDescription,
+  children,
+}: {
+  query: { isLoading: boolean; isError: boolean; error: unknown; data: T | undefined };
+  emptyTitle: string;
+  emptyDescription: string;
+  children: (data: T) => React.ReactNode;
+}) {
+  if (query.isLoading) return <LoadingSkeleton />;
+  if (query.isError) {
+    if (query.error instanceof ApiError && query.error.isNotFound()) {
+      return <QavanteEmpty title={emptyTitle} description={emptyDescription} />;
+    }
+    return (
+      <div
+        role="alert"
+        className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
+      >
+        <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
+        <p>
+          {query.error instanceof ApiError
+            ? apiErrorToUserMessage(query.error)
+            : "No pudimos cargar el resultado operacional. Intenta nuevamente."}
+        </p>
+      </div>
+    );
+  }
+  return query.data ? <>{children(query.data)}</> : null;
+}
+
+/* Vista de RANGO (varios meses): agregado del período + desglose grueso + mes a
+   mes. El endpoint de rango no trae drivers ni variación (a diferencia del de un
+   mes) → no los mostramos (honesto, no inventamos). Exportado para testear en
+   aislamiento con props (ADR-0018), sin depender de la red. */
+export function RangeResult({ data }: { data: OperationalResultReport }) {
+  const t = data.grand_total;
+  const result = parseAmount(t.result);
+  const buckets = data.buckets ?? [];
+  return (
+    <div className="space-y-4">
+      <QavanteCard variant="bordered">
+        <p className="text-sm text-neutral-mid">Resultado operacional del período</p>
+        <p
+          className={
+            "mt-1 text-3xl font-bold " + (result < 0 ? "text-danger-500" : "text-neutral-dark")
+          }
+        >
+          {formatClp(result)}
+        </p>
+        <p className="mt-1 text-xs text-neutral-mid">
+          {formatPeriodLabel(data.period_from)} – {formatPeriodLabel(data.period_to)} ·{" "}
+          {buckets.length} {buckets.length === 1 ? "mes" : "meses"}
+        </p>
+      </QavanteCard>
+
+      <QavanteCard
+        variant="bordered"
+        header={<span className="font-medium">Desglose del período</span>}
+      >
+        <dl className="divide-y divide-border/60 text-sm">
+          <PnlRow label="Ingresos" value={t.revenue} strong />
+          <PnlRow label="Costos directos" value={t.cogs} negative />
+          <PnlRow label="Margen bruto" value={t.gross_margin} strong />
+          <PnlRow label="Gastos" value={t.gasto} negative />
+          <PnlRow label="EBITDA (proxy)" value={t.ebitda_proxy} strong />
+          <PnlRow label="Resultado operacional" value={t.result} strong />
+        </dl>
+      </QavanteCard>
+
+      {buckets.length > 0 && (
+        <QavanteCard variant="bordered" header={<span className="font-medium">Mes a mes</span>}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] text-sm">
+              <thead>
+                <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                  <th scope="col" className="py-2 pr-3 font-semibold">
+                    Mes
+                  </th>
+                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
+                    Ingresos
+                  </th>
+                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
+                    Margen bruto
+                  </th>
+                  <th scope="col" className="py-2 text-right font-semibold">
+                    Resultado
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {buckets.map((b) => {
+                  const r = parseAmount(b.result);
+                  return (
+                    <tr
+                      key={b.period}
+                      className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted"
+                    >
+                      <td className="py-2 pr-3 capitalize text-neutral-dark">
+                        {formatPeriodLabel(b.period)}
+                      </td>
+                      <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+                        {formatClp(parseAmount(b.revenue))}
+                      </td>
+                      <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
+                        {formatClp(parseAmount(b.gross_margin))}
+                      </td>
+                      <td
+                        className={
+                          "py-2 text-right tabular-nums font-medium " +
+                          (r < 0 ? "text-danger-500" : "text-neutral-dark")
+                        }
+                      >
+                        {formatClp(r)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        )
-      ) : query.data ? (
-        <Result data={query.data} />
-      ) : null}
+        </QavanteCard>
+      )}
     </div>
   );
 }
