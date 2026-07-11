@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   QavanteCard,
   QavanteBadge,
@@ -27,6 +28,8 @@ import {
   subtotalsByCriticality,
   overdueThenCritical,
 } from "./pagos-v2-format";
+import { groupByCategory, categoryGroupLabel, shareOfTotal } from "./pagos-group";
+import type { PayableItem } from "@/lib/api/pagos";
 
 /* Pagar — cuentas por pagar (Sprint C4, Maestro §7.4): resumen (total + 7/14/30
    días), relación contra caja, y pagos/obligaciones (proveedores + IVA/PPM/
@@ -84,9 +87,11 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
   const now = React.useMemo(() => new Date(), []);
   // `items` es opcional en el contrato (backend lo omite en estado partial).
   const rawItems = React.useMemo(() => data.items ?? [], [data.items]);
-  const items = React.useMemo(() => overdueThenCritical(rawItems, now), [rawItems, now]);
   const overdue = React.useMemo(() => overdueTotal(rawItems, now), [rawItems, now]);
   const subtotals = React.useMemo(() => subtotalsByCriticality(rawItems), [rawItems]);
+  // Agrupación por categoría (eje universal: "en qué se va la plata").
+  const groups = React.useMemo(() => groupByCategory(rawItems), [rawItems]);
+  const total = parseAmount(data.total);
   return (
     <div className="space-y-4">
       {isPartial(data) && <PartialDataBanner missingSources={data.missing_sources} />}
@@ -164,67 +169,125 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         </p>
       )}
 
-      {/* Pagos y obligaciones. */}
-      <QavanteCard
-        variant="bordered"
-        header={<span className="font-medium">Pagos y obligaciones</span>}
-      >
-        <div className={stickyScroll}>
-          <table className="w-full min-w-[600px] text-sm">
-            <thead className={stickyHead}>
-              <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Pago / obligación
-                </th>
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Tipo
-                </th>
-                <th scope="col" className="py-2 pr-3 font-medium">
-                  Vence
-                </th>
-                <th scope="col" className="py-2 pr-3 text-right font-medium">
-                  Monto
-                </th>
-                <th scope="col" className="py-2 font-medium">
-                  Criticidad
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((it, i) => (
-                <tr
-                  key={i}
-                  className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
-                >
-                  <td className="py-2 pr-3 text-neutral-dark">
-                    <span className="block truncate" title={payableItemLabel(it)}>
-                      {payableItemLabel(it)}
+      {/* Pagos y obligaciones — agrupados por categoría (expandibles). */}
+      <PagosPorCategoria groups={groups} total={total} now={now} />
+    </div>
+  );
+}
+
+/* Grupos de pago por categoría: cada uno muestra su subtotal + concentración
+   (% del total) y se expande a sus ítems. Es el eje universal multi-tenant. */
+function PagosPorCategoria({
+  groups,
+  total,
+  now,
+}: {
+  groups: ReturnType<typeof groupByCategory>;
+  total: number;
+  now: Date;
+}) {
+  const [openCat, setOpenCat] = React.useState<string | null>(groups[0]?.category ?? null);
+  return (
+    <QavanteCard
+      variant="bordered"
+      header={<span className="font-medium">Pagos y obligaciones</span>}
+    >
+      <ul className="divide-y divide-border">
+        {groups.map((g) => {
+          const isOpen = openCat === g.category;
+          const pct = shareOfTotal(g.subtotal, total);
+          return (
+            <li key={g.category}>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => setOpenCat(isOpen ? null : g.category)}
+                className="-mx-2 flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-neutral-mid transition-transform",
+                      isOpen && "rotate-180",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="font-medium text-neutral-dark">
+                    {categoryGroupLabel(g.category)}
+                  </span>
+                  <span className="text-xs text-neutral-mid">
+                    {g.items.length} {g.items.length === 1 ? "ítem" : "ítems"}
+                  </span>
+                </div>
+                <div className="shrink-0 text-right tabular-nums">
+                  <span className="font-semibold text-neutral-dark">{formatClp(g.subtotal)}</span>
+                  {pct >= 0.5 && (
+                    <span className="ml-2 text-xs text-neutral-mid">
+                      {pct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}% del total
                     </span>
-                    <span className="text-xs text-neutral-mid">{it.source}</span>
-                  </td>
-                  <td className="py-2 pr-3 text-neutral-mid">
-                    {paymentCategoryLabel(it.category)}
-                  </td>
-                  <td className="py-2 pr-3 text-neutral-mid">
-                    <span className="inline-flex items-center gap-1.5">
-                      {formatDateLike(it.due_date)}
-                      {isOverdue(it, now) && <QavanteBadge variant="danger">Vencido</QavanteBadge>}
-                    </span>
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-                    {formatClp(parseAmount(it.amount))}
-                  </td>
-                  <td className="py-2">
-                    <QavanteBadge variant={CRIT_VARIANT[it.criticality]}>
-                      {CRIT_LABEL[it.criticality]}
-                    </QavanteBadge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </QavanteCard>
+                  )}
+                </div>
+              </button>
+              {isOpen && <CategoryItems items={g.items} now={now} />}
+            </li>
+          );
+        })}
+      </ul>
+    </QavanteCard>
+  );
+}
+
+/* Ítems de una categoría (ordenados vencido→crítico). */
+function CategoryItems({ items, now }: { items: PayableItem[]; now: Date }) {
+  const ordered = React.useMemo(() => overdueThenCritical(items, now), [items, now]);
+  return (
+    <div className={`mb-2 ml-6 ${stickyScroll}`}>
+      <table className="w-full min-w-[520px] text-sm">
+        <thead className={stickyHead}>
+          <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+            <th scope="col" className="py-1.5 pr-3 font-medium">
+              Pago / obligación
+            </th>
+            <th scope="col" className="py-1.5 pr-3 font-medium">
+              Vence
+            </th>
+            <th scope="col" className="py-1.5 pr-3 text-right font-medium">
+              Monto
+            </th>
+            <th scope="col" className="py-1.5 font-medium">
+              Criticidad
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {ordered.map((it, i) => (
+            <tr key={i} className="border-b border-border/50 last:border-b-0 hover:bg-surface-muted">
+              <td className="py-1.5 pr-3 text-neutral-dark">
+                <span className="block truncate" title={payableItemLabel(it)}>
+                  {it.counterparty_name ?? payableItemLabel(it)}
+                </span>
+                <span className="text-xs text-neutral-mid">
+                  {it.folio ? `${paymentCategoryLabel(it.category)} · folio ${it.folio}` : it.source}
+                </span>
+              </td>
+              <td className="py-1.5 pr-3 text-neutral-mid">
+                <span className="inline-flex items-center gap-1.5">
+                  {formatDateLike(it.due_date)}
+                  {isOverdue(it, now) && <QavanteBadge variant="danger">Vencido</QavanteBadge>}
+                </span>
+              </td>
+              <td className="py-1.5 pr-3 text-right tabular-nums text-neutral-dark">
+                {formatClp(parseAmount(it.amount))}
+              </td>
+              <td className="py-1.5">
+                <QavanteBadge variant={CRIT_VARIANT[it.criticality]}>
+                  {CRIT_LABEL[it.criticality]}
+                </QavanteBadge>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
