@@ -14,8 +14,15 @@ import { RemuneracionesView } from "@/components/remuneraciones/remuneraciones-v
 
    Flag OFF (default): QavanteEmpty informativo (patrón "MVP honesto" ADR-0013).
    Se activa en wrangler.toml cuando el conector BUK acepte cookie de sesión. */
-export default function RemuneracionesPage() {
+export default async function RemuneracionesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
   const { remuneraciones } = resolveFeatureFlags();
+  // Deep-link desde Pagar (ítem de nómina → su período). Solo YYYY-MM válido.
+  const { period } = await searchParams;
+  const initialPeriod = period && /^\d{4}-(0[1-9]|1[0-2])$/.test(period) ? period : undefined;
 
   return (
     <div className="space-y-6">
@@ -27,7 +34,7 @@ export default function RemuneracionesPage() {
       </header>
 
       {remuneraciones ? (
-        <RemuneracionesView />
+        <RemuneracionesView initialPeriod={initialPeriod} />
       ) : (
         <QavanteEmpty
           icon={Users}

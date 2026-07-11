@@ -21,10 +21,26 @@ test.describe("Flujo: Pagar (/pagar)", () => {
     await expect(page.getByText("Pagos y obligaciones")).toBeVisible();
     await expect(page.getByRole("button", { name: /Remuneraciones/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Impuestos/ })).toBeVisible();
-    // El grupo de mayor subtotal (Remuneraciones) abre por default.
-    await expect(page.getByText("Sueldos junio")).toBeVisible();
+    // El grupo de mayor subtotal (Remuneraciones) abre por default; su ítem de
+    // nómina se muestra con el label derivado del período ("Remuneraciones — …").
+    await expect(page.getByText(/Remuneraciones —/).first()).toBeVisible();
     // Expandir "Impuestos" → aparece su ítem.
     await page.getByRole("button", { name: /Impuestos/ }).click();
     await expect(page.getByText("IVA / F29 mayo")).toBeVisible();
+  });
+
+  test("ítem de nómina → drill-down al detalle por empleado (deep-link al período)", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/pagar");
+
+    // Remuneraciones abre por default (mayor subtotal) → su ítem trae el link.
+    const detalle = page.getByRole("link", { name: /Ver detalle por empleado/ }).first();
+    await expect(detalle).toBeVisible();
+    await detalle.click();
+    // Deep-link al período del ítem (payroll-202606 → 2026-06).
+    await expect(page).toHaveURL(/\/remuneraciones\?period=2026-06/);
   });
 });

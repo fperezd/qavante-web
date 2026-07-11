@@ -37,14 +37,17 @@ const TABS: ReadonlyArray<{ id: Tab; label: string; Icon: typeof Users }> = [
   { id: "conciliacion", label: "Conciliación", Icon: Landmark },
 ];
 
-export function RemuneracionesView() {
-  const [tab, setTab] = React.useState<Tab>("dotacion");
+export function RemuneracionesView({ initialPeriod }: { initialPeriod?: string } = {}) {
+  // Deep-link desde Pagar (ítem de nómina) → arranca en Planilla del período.
+  const [tab, setTab] = React.useState<Tab>(initialPeriod ? "planilla" : "dotacion");
   const [selected, setSelected] = React.useState<EmployeeSlim | null>(null);
   /* Filtro de rango idéntico al Libro (pedido de Fernando: consistente en toda la
      app). Planilla y Conciliación son operaciones POR MES (se registra/concilia
      un mes) → usan el mes final del rango (`range.hasta`); por defecto el mes
-     actual (rango de un mes). Auto-carga: arranca con datos, sin "Consultar". */
-  const [range, setRange] = React.useState<PeriodRange>(() => presetRange("mes_actual"));
+     actual (rango de un mes), o el período del deep-link. */
+  const [range, setRange] = React.useState<PeriodRange>(() =>
+    initialPeriod ? { desde: initialPeriod, hasta: initialPeriod } : presetRange("mes_actual"),
+  );
   const period = range.hasta;
 
   const employeesQuery = useBukEmployees();

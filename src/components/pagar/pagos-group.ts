@@ -46,3 +46,12 @@ export function categoryGroupLabel(category: string): string {
 export function shareOfTotal(amount: number, total: number): number {
   return total > 0 ? (amount / total) * 100 : 0;
 }
+
+/** Período 'YYYY-MM' de un ítem de nómina desde su `source_external_id`
+    ('payroll-YYYYMM' → 'YYYY-MM'), para linkear al detalle por empleado. `null`
+    si no matchea. PURO. */
+export function payrollPeriodFromExternalId(sourceExternalId?: string | null): string | null {
+  if (!sourceExternalId) return null;
+  const m = /payroll-(\d{4})(\d{2})$/.exec(sourceExternalId);
+  return m ? `${m[1]}-${m[2]}` : null;
+}

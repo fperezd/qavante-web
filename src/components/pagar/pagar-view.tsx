@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, CheckCircle2, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2, ChevronDown, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   QavanteCard,
@@ -28,7 +29,12 @@ import {
   subtotalsByCriticality,
   overdueThenCritical,
 } from "./pagos-v2-format";
-import { groupByCategory, categoryGroupLabel, shareOfTotal } from "./pagos-group";
+import {
+  groupByCategory,
+  categoryGroupLabel,
+  shareOfTotal,
+  payrollPeriodFromExternalId,
+} from "./pagos-group";
 import type { PayableItem } from "@/lib/api/pagos";
 
 /* Pagar — cuentas por pagar (Sprint C4, Maestro §7.4): resumen (total + 7/14/30
@@ -269,6 +275,8 @@ function CategoryItems({ items, now }: { items: PayableItem[]; now: Date }) {
                 <span className="text-xs text-neutral-mid">
                   {it.folio ? `${paymentCategoryLabel(it.category)} · folio ${it.folio}` : it.source}
                 </span>
+                {/* Drill-down de nómina → detalle por empleado de ese período. */}
+                <PayrollDetailLink item={it} />
               </td>
               <td className="py-1.5 pr-3 text-neutral-mid">
                 <span className="inline-flex items-center gap-1.5">
@@ -289,6 +297,24 @@ function CategoryItems({ items, now }: { items: PayableItem[]; now: Date }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/* Ítem de nómina → link al detalle por empleado de ese período (Remuneraciones).
+   El período se deriva del `source_external_id` ('payroll-YYYYMM'). */
+function PayrollDetailLink({ item }: { item: PayableItem }) {
+  if (item.category !== "payroll") return null;
+  const period = payrollPeriodFromExternalId(item.source_external_id);
+  if (!period) return null;
+  return (
+    <Link
+      href={`/remuneraciones?period=${period}`}
+      onClick={(e) => e.stopPropagation()}
+      className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+    >
+      <Users className="h-3 w-3" aria-hidden="true" />
+      Ver detalle por empleado
+    </Link>
   );
 }
 
