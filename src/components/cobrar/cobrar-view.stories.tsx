@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse, delay } from "msw";
-import { CobrarView } from "./cobrar-view";
+import { within, expect } from "storybook/test";
+import { CobrarView, DebtorInvoicesPanel } from "./cobrar-view";
+import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 
 /* Cobrar — cuentas por cobrar (Sprint C4). Container con `useAccountsReceivable`.
    Contrato FE-first (endpoint aún no existe) → MSW reproduce los estados. */
@@ -102,3 +104,39 @@ export const SinDeuda: Story = {
 };
 export const Cargando: Story = { parameters: { msw: { handlers: [LOADING] } } };
 export const Error500: Story = { name: "Error (500)", parameters: { msw: { handlers: [ERROR] } } };
+
+/* Panel expandido de un deudor (aislado, sin red): facturas del Libro + la nota
+   honesta de que la mora llega con los vencimientos del SII. */
+const DEBTOR_DOCS: RcvDoc[] = [
+  { folio: 1234, fecha: "2026-05-10", monto_total: 3200000, rut_contraparte: "76123456-7" },
+  { folio: 1198, fecha: "2026-04-02", monto_total: 1800000, rut_contraparte: "76123456-7" },
+];
+
+export const DeudorConFacturas: Story = {
+  name: "Deudor expandido — facturas + mora pendiente",
+  render: () => (
+    <div className="max-w-xl">
+      <DebtorInvoicesPanel docs={DEBTOR_DOCS} loading={false} error={false} siiEnabled />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("1234")).toBeInTheDocument();
+    await expect(canvas.getByText("$3.200.000")).toBeInTheDocument();
+    // Honestidad: la mora/saldo llega con los vencimientos del SII.
+    await expect(canvas.getByText(/días de mora por factura aparecen/i)).toBeInTheDocument();
+  },
+};
+
+export const DeudorSinFacturas: Story = {
+  name: "Deudor expandido — sin facturas en el rango",
+  render: () => (
+    <div className="max-w-xl">
+      <DebtorInvoicesPanel docs={[]} loading={false} error={false} siiEnabled />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Sin facturas de este cliente/i)).toBeInTheDocument();
+  },
+};

@@ -22,4 +22,21 @@ test.describe("Flujo: Cobrar (/cobrar)", () => {
     // Un deudor del fixture.
     await expect(page.getByText("Constructora Andes SpA").first()).toBeVisible();
   });
+
+  test("cada deudor es expandible → drill-down a sus facturas", async ({ page, context }) => {
+    await loginAs(context, "owner");
+    await page.goto("/cobrar");
+
+    const debtor = page.getByRole("button", { name: /Constructora Andes SpA/ });
+    await expect(debtor).toBeVisible();
+    await expect(debtor).toHaveAttribute("aria-expanded", "false");
+
+    // Clic → expande (acordeón) y muestra el panel de facturas del cliente.
+    await debtor.click();
+    await expect(debtor).toHaveAttribute("aria-expanded", "true");
+    // El panel aparece (facturas reales o el estado honesto sin/pendiente).
+    await expect(
+      page.getByText(/Cargando facturas|Sin facturas de este cliente|mora por factura/i).first(),
+    ).toBeVisible();
+  });
 });
