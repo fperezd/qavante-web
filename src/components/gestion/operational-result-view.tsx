@@ -5,16 +5,16 @@ import { AlertCircle, Info, TrendingDown, TrendingUp } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteEmpty } from "@/components/qavante";
 import {
   useOperationalResult,
-  useOperationalResultReport,
+  useOperationalResultBreakdown,
   type OperationalResultResponse,
-  type OperationalResultReport,
 } from "@/lib/api/gestion";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatClp } from "@/lib/formatters/clp";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { orderRange, type PeriodRange } from "@/lib/period/period-range";
-import { parseAmount, formatPeriodLabel, formatSignedPct, variationTone } from "./gestion-format";
+import { OperationalResultMatrix } from "./operational-result-matrix";
+import { parseAmount, formatSignedPct, variationTone } from "./gestion-format";
 
 /* Resultado Operacional de Gestión (Sprint C5, Maestro §7.5). Container:
    resuelve el dato por período + monta la vista. Badge obligatorio "no es
@@ -56,7 +56,9 @@ export function OperationalResultView({ initialPeriod }: OperationalResultViewPr
 
   // Solo una de las dos queries corre a la vez (la otra queda deshabilitada).
   const monthQuery = useOperationalResult(single ? ordered.hasta : "");
-  const rangeQuery = useOperationalResultReport(ordered.desde, ordered.hasta, !single);
+  const breakdownQuery = useOperationalResultBreakdown(ordered.desde, ordered.hasta, {
+    enabled: !single,
+  });
 
   const header = (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -84,11 +86,11 @@ export function OperationalResultView({ initialPeriod }: OperationalResultViewPr
         </StateWrap>
       ) : (
         <StateWrap
-          query={rangeQuery}
+          query={breakdownQuery}
           emptyTitle="Sin datos para este período"
           emptyDescription="Todavía no hay resultado operacional para el rango seleccionado. Prueba otro rango o vuelve cuando se sincronicen las fuentes."
         >
-          {(data) => <RangeResult data={data} />}
+          {(data) => <OperationalResultMatrix data={data} />}
         </StateWrap>
       )}
     </div>
@@ -128,102 +130,6 @@ function StateWrap<T>({
     );
   }
   return query.data ? <>{children(query.data)}</> : null;
-}
-
-/* Vista de RANGO (varios meses): agregado del período + desglose grueso + mes a
-   mes. El endpoint de rango no trae drivers ni variación (a diferencia del de un
-   mes) → no los mostramos (honesto, no inventamos). Exportado para testear en
-   aislamiento con props (ADR-0018), sin depender de la red. */
-export function RangeResult({ data }: { data: OperationalResultReport }) {
-  const t = data.grand_total;
-  const result = parseAmount(t.result);
-  const buckets = data.buckets ?? [];
-  return (
-    <div className="space-y-4">
-      <QavanteCard variant="bordered">
-        <p className="text-sm text-neutral-mid">Resultado operacional del período</p>
-        <p
-          className={
-            "mt-1 text-3xl font-bold " + (result < 0 ? "text-danger-500" : "text-neutral-dark")
-          }
-        >
-          {formatClp(result)}
-        </p>
-        <p className="mt-1 text-xs text-neutral-mid">
-          {formatPeriodLabel(data.period_from)} – {formatPeriodLabel(data.period_to)} ·{" "}
-          {buckets.length} {buckets.length === 1 ? "mes" : "meses"}
-        </p>
-      </QavanteCard>
-
-      <QavanteCard
-        variant="bordered"
-        header={<span className="font-medium">Desglose del período</span>}
-      >
-        <dl className="divide-y divide-border/60 text-sm">
-          <PnlRow label="Ingresos" value={t.revenue} strong />
-          <PnlRow label="Costos directos" value={t.cogs} negative />
-          <PnlRow label="Margen bruto" value={t.gross_margin} strong />
-          <PnlRow label="Gastos" value={t.gasto} negative />
-          <PnlRow label="EBITDA (proxy)" value={t.ebitda_proxy} strong />
-          <PnlRow label="Resultado operacional" value={t.result} strong />
-        </dl>
-      </QavanteCard>
-
-      {buckets.length > 0 && (
-        <QavanteCard variant="bordered" header={<span className="font-medium">Mes a mes</span>}>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[420px] text-sm">
-              <thead>
-                <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Mes
-                  </th>
-                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                    Ingresos
-                  </th>
-                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                    Margen bruto
-                  </th>
-                  <th scope="col" className="py-2 text-right font-semibold">
-                    Resultado
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {buckets.map((b) => {
-                  const r = parseAmount(b.result);
-                  return (
-                    <tr
-                      key={b.period}
-                      className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted"
-                    >
-                      <td className="py-2 pr-3 capitalize text-neutral-dark">
-                        {formatPeriodLabel(b.period)}
-                      </td>
-                      <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-                        {formatClp(parseAmount(b.revenue))}
-                      </td>
-                      <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-                        {formatClp(parseAmount(b.gross_margin))}
-                      </td>
-                      <td
-                        className={
-                          "py-2 text-right tabular-nums font-medium " +
-                          (r < 0 ? "text-danger-500" : "text-neutral-dark")
-                        }
-                      >
-                        {formatClp(r)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </QavanteCard>
-      )}
-    </div>
-  );
 }
 
 function Result({ data }: { data: OperationalResultResponse }) {

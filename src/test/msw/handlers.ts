@@ -2684,6 +2684,72 @@ const gestionHandlers = [
       { status: 200 },
     );
   }),
+  /* Estado de Resultados mensualizado (árbol, estilo Chipax). Deriva los meses
+     del rango y arma un árbol Ingresos/Costos/Margen con hijos. */
+  http.get("*/api/management/operational-result/breakdown", ({ request }) => {
+    const url = new URL(request.url);
+    const from = url.searchParams.get("period_from") ?? "2026-05";
+    const to = url.searchParams.get("period_to") ?? "2026-07";
+    const months: string[] = [];
+    let [y, m] = from.split("-").map(Number) as [number, number];
+    const [ty, tm] = to.split("-").map(Number) as [number, number];
+    while ((y < ty || (y === ty && m <= tm)) && months.length < 36) {
+      months.push(`${y}-${String(m).padStart(2, "0")}`);
+      if (++m > 12) {
+        m = 1;
+        y += 1;
+      }
+    }
+    const fill = (base: number) => months.map((_, i) => String(base + i * 100000));
+    const sumArr = (arr: string[]) => String(arr.reduce((a, b) => a + Number(b), 0));
+    const proyectos = fill(15000000);
+    const servicio = fill(6000000);
+    const sueldos = months.map((_, i) => String(-7000000 - i * 100000));
+    const ingresos = months.map((_, i) => String(Number(proyectos[i]) + Number(servicio[i])));
+    const margen = months.map((_, i) => String(Number(ingresos[i]) + Number(sueldos[i])));
+    return HttpResponse.json(
+      {
+        generated_at: "2026-07-11T12:00:00Z",
+        period_from: from,
+        period_to: to,
+        mode: url.searchParams.get("mode") ?? "por_cuenta",
+        months,
+        proforma_month: months[months.length - 1] ?? null,
+        rows: [
+          {
+            kind: "section",
+            key: "income",
+            label: "Total Ingresos",
+            by_month: ingresos,
+            total: sumArr(ingresos),
+            children: [
+              { kind: "account", key: "proyectos", label: "Proyectos", by_month: proyectos, total: sumArr(proyectos) },
+              { kind: "account", key: "servicio", label: "Servicio Mensual", by_month: servicio, total: sumArr(servicio) },
+            ],
+          },
+          {
+            kind: "section",
+            key: "costs",
+            label: "Total Costos",
+            by_month: sueldos,
+            total: sumArr(sueldos),
+            children: [
+              { kind: "account", key: "sueldos", label: "Sueldos", by_month: sueldos, total: sumArr(sueldos) },
+            ],
+          },
+          {
+            kind: "subtotal",
+            key: "gross_margin",
+            label: "Margen Bruto",
+            by_month: margen,
+            total: sumArr(margen),
+            pct_total: "60.0",
+          },
+        ],
+      },
+      { status: 200 },
+    );
+  }),
 ];
 
 /* Estado de las fuentes (indicador de sync del header). Seed con fuentes mixtas. */

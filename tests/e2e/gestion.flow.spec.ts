@@ -31,8 +31,12 @@ test.describe("Flujo: Resultado Operacional (/gestion)", () => {
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "Tres meses" }).click();
 
-    // Vista de rango: total del período + mes a mes.
-    await expect(page.getByText("Resultado operacional del período")).toBeVisible();
-    await expect(page.getByText("Mes a mes")).toBeVisible();
+    // Vista de rango: Estado de Resultados mensualizado (matriz Chipax) — filas
+    // jerárquicas + columna Total + mes en curso "(proforma)".
+    await expect(page.getByText("Total Ingresos")).toBeVisible();
+    await expect(page.getByText("Margen Bruto")).toBeVisible();
+    await expect(page.getByText("(proforma)")).toBeVisible();
+    // Fila hija (expandido por default).
+    await expect(page.getByText("Proyectos")).toBeVisible();
   });
 });
