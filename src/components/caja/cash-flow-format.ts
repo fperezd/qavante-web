@@ -59,6 +59,57 @@ export function formatPeriodLabel(period: string): string {
   return period;
 }
 
+/* ── Semana en idioma de dueño ─────────────────────────────────────────────
+   Un dueño de PYME no lee "W1"/"2026-W19"/"11-05-2026" como una semana. La
+   mostramos como RANGO DE FECHAS reales: "Sem. 11–17 may" (o "28 abr – 4 may"
+   si cruza de mes). Robusto a los formatos que puede mandar el backend. */
+
+/** Lunes (00:00 local) de la semana, desde un lunes YYYY-MM-DD o una semana ISO
+    YYYY-Www. `null` si no matchea. */
+function weekMondayFrom(period: string): Date | null {
+  const iso = /^(\d{4})-W(\d{2})$/i.exec(period);
+  if (iso) {
+    const year = Number(iso[1]);
+    const week = Number(iso[2]);
+    // ISO 8601: la semana 1 es la que contiene el 4 de enero. El lunes de esa
+    // semana + (week-1)·7 días = el lunes buscado.
+    const jan4 = new Date(year, 0, 4);
+    const jan4Dow = (jan4.getDay() + 6) % 7; // 0 = lunes … 6 = domingo
+    return new Date(year, 0, 4 - jan4Dow + (week - 1) * 7);
+  }
+  const ymd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(period);
+  if (ymd) return new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3]));
+  return null;
+}
+
+/** Lunes → "Sem. 11–17 may" (mismo mes) / "Sem. 28 abr – 4 may" (cruza mes). */
+function formatWeekRange(monday: Date): string {
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+  const dM = monday.getDate();
+  const dS = sunday.getDate();
+  const mM = MONTHS_ES_CL[monday.getMonth()];
+  const mS = MONTHS_ES_CL[sunday.getMonth()];
+  return mM === mS ? `Sem. ${dM}–${dS} ${mM}` : `Sem. ${dM} ${mM} – ${dS} ${mS}`;
+}
+
+/** Label de un bucket del reporte de caja, consciente de la granularidad:
+    - month → "may 2026"
+    - week  → "Sem. 11–17 may" (rango de fechas reales, no "W1")
+    - day   → "11-05-2026" (DD-MM-AAAA)
+    Fallback defensivo al string original. */
+export function formatBucketLabel(
+  period: string,
+  granularity?: "month" | "week" | "day",
+): string {
+  // Semana: rango de fechas reales (lunes a domingo).
+  if (granularity === "week") {
+    const monday = weekMondayFrom(period);
+    if (monday) return formatWeekRange(monday);
+  }
+  // Mes y día reutilizan la convención existente (may 2026 / DD-MM-AAAA).
+  return formatPeriodLabel(period);
+}
+
 /** "YYYY-MM" → "MM-YYYY" (ej. "2026-06" → "06-2026"). Para los selects y labels
     de rango: convención mes-año, nunca año-mes. Fallback al string original si
     no matchea el formato esperado. */
