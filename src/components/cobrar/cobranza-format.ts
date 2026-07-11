@@ -23,6 +23,14 @@ export function sortByUrgency<T extends { overdue: string; total: string }>(
   });
 }
 
+/* Participación (%) de un monto sobre el total — indicador de CONCENTRACIÓN de
+   control de gestión ("qué parte del total es esta contraparte"). Agnóstico al
+   tenant. `total<=0` → 0. PURO. */
+export function shareOfTotal(amount: string, total: string): number {
+  const t = parseAmount(total);
+  return t > 0 ? (parseAmount(amount) / t) * 100 : 0;
+}
+
 export interface AgingBar {
   key: keyof ReceivableAging;
   label: string;

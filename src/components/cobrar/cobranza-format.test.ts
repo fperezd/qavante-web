@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAmount, agingBars, sortByUrgency } from "./cobranza-format";
+import { parseAmount, agingBars, sortByUrgency, shareOfTotal } from "./cobranza-format";
 import type { ReceivableAging } from "@/lib/api/cobranza";
 
 describe("parseAmount", () => {
@@ -62,5 +62,16 @@ describe("sortByUrgency", () => {
     const copy = [...input];
     sortByUrgency(input);
     expect(input).toEqual(copy);
+  });
+});
+
+describe("shareOfTotal (concentración)", () => {
+  it("participación % del monto sobre el total", () => {
+    expect(shareOfTotal("50", "200")).toBe(25);
+    expect(shareOfTotal("83430109", "205417901")).toBeCloseTo(40.6, 1);
+  });
+  it("total 0 o inválido → 0 (sin división por cero)", () => {
+    expect(shareOfTotal("100", "0")).toBe(0);
+    expect(shareOfTotal("100", "")).toBe(0);
   });
 });
