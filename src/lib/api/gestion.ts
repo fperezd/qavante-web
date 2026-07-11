@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
+import type { components } from "./types";
 
 /* Capa de datos — Resultado Operacional de Gestión (Sprint C5, Documento
    Maestro §7.5 / §11.5).
@@ -63,14 +64,25 @@ export interface OperationalResultResponse {
   generated_at: string;
 }
 
+/* Reporte de rango (`GET /api/treasury/reports/operational-result`): buckets
+   mensuales + total del período. Tipos GENERADOS (regla 3). Da un desglose más
+   grueso (sin drivers/variación) que el de un mes; se usa cuando el rango abarca
+   varios meses. */
+export type OperationalResultReport =
+  components["schemas"]["OperationalResultReportResponse"];
+export type OperationalResultBucket = components["schemas"]["OperationalResultBucket"];
+export type OperationalResultTotals = components["schemas"]["OperationalResultTotals"];
+
 export const gestionKeys = {
   all: ["gestion"] as const,
   operationalResult: (period: string) =>
     [...gestionKeys.all, "operational-result", period] as const,
+  operationalResultReport: (from: string, to: string) =>
+    [...gestionKeys.all, "operational-result-report", from, to] as const,
 };
 
-/** `GET /api/management/operational-result?period=YYYY-MM`. Solo corre con
- *  `period` no vacío. NO retry (un 404/500 no se reintenta). */
+/** `GET /api/management/operational-result?period=YYYY-MM` — un mes (desglose
+ *  fino + drivers). Solo corre con `period` no vacío. NO retry. */
 export function useOperationalResult(period: string) {
   return useQuery({
     queryKey: gestionKeys.operationalResult(period),
@@ -79,6 +91,23 @@ export function useOperationalResult(period: string) {
         `/api/management/operational-result?period=${encodeURIComponent(period)}`,
       ),
     enabled: period !== "",
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `GET /api/treasury/reports/operational-result?period_from&period_to` — rango
+ *  de meses (buckets + total). `enabled` para correr solo en la vista de rango. */
+export function useOperationalResultReport(from: string, to: string, enabled = true) {
+  return useQuery({
+    queryKey: gestionKeys.operationalResultReport(from, to),
+    queryFn: () =>
+      api.get<OperationalResultReport>(
+        `/api/treasury/reports/operational-result?period_from=${encodeURIComponent(
+          from,
+        )}&period_to=${encodeURIComponent(to)}`,
+      ),
+    enabled: enabled && from !== "" && to !== "",
     staleTime: 30_000,
     retry: false,
   });

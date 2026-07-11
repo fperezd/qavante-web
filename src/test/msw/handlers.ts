@@ -2640,6 +2640,50 @@ const gestionHandlers = [
       { status: 200 },
     );
   }),
+  /* Reporte de RANGO (buckets mensuales + total). Deriva los meses entre
+     period_from y period_to. */
+  http.get("*/api/treasury/reports/operational-result", ({ request }) => {
+    const url = new URL(request.url);
+    const from = url.searchParams.get("period_from") ?? "2026-05";
+    const to = url.searchParams.get("period_to") ?? "2026-07";
+    const months: string[] = [];
+    let [y, m] = from.split("-").map(Number) as [number, number];
+    const [ty, tm] = to.split("-").map(Number) as [number, number];
+    while ((y < ty || (y === ty && m <= tm)) && months.length < 36) {
+      months.push(`${y}-${String(m).padStart(2, "0")}`);
+      if (++m > 12) {
+        m = 1;
+        y += 1;
+      }
+    }
+    const buckets = months.map((period, i) => ({
+      period,
+      revenue: String(8000000 + i * 500000),
+      cogs: "2000000",
+      gross_margin: String(6000000 + i * 500000),
+      gasto: "3000000",
+      ebitda_proxy: String(3000000 + i * 500000),
+      result: String(3000000 + i * 500000),
+    }));
+    const sum = (k: "revenue" | "cogs" | "gross_margin" | "gasto" | "ebitda_proxy" | "result") =>
+      String(buckets.reduce((a, b) => a + Number(b[k]), 0));
+    return HttpResponse.json(
+      {
+        period_from: from,
+        period_to: to,
+        buckets,
+        grand_total: {
+          revenue: sum("revenue"),
+          cogs: sum("cogs"),
+          gross_margin: sum("gross_margin"),
+          gasto: sum("gasto"),
+          ebitda_proxy: sum("ebitda_proxy"),
+          result: sum("result"),
+        },
+      },
+      { status: 200 },
+    );
+  }),
 ];
 
 /* Estado de las fuentes (indicador de sync del header). Seed con fuentes mixtas. */
