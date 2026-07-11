@@ -17,8 +17,14 @@ test.describe("Flujo: Pagar (/pagar)", () => {
     await expect(page.getByText("Próx. 7 días")).toBeVisible();
     // Relación contra caja: el fixture tiene covers_critical=false → alerta.
     await expect(page.getByText(/no alcanza/i)).toBeVisible();
-    // Tabla de pagos/obligaciones + una obligación del fixture.
+    // Pagos y obligaciones AGRUPADOS por categoría (eje universal multi-tenant).
     await expect(page.getByText("Pagos y obligaciones")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Remuneraciones/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Impuestos/ })).toBeVisible();
+    // El grupo de mayor subtotal (Remuneraciones) abre por default.
+    await expect(page.getByText("Sueldos junio")).toBeVisible();
+    // Expandir "Impuestos" → aparece su ítem.
+    await page.getByRole("button", { name: /Impuestos/ }).click();
     await expect(page.getByText("IVA / F29 mayo")).toBeVisible();
   });
 });

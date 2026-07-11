@@ -1749,6 +1749,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/bank-movements/classify-reconciled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clasifica los movimientos conciliados desde su documento (ADR-0067 A2)
+         * @description Clasifica los movimientos YA conciliados que siguen sin clasificar, derivando la categoría de
+         *     su documento matcheado (receivable→`client_collection`, payable→`supplier_payment`) — así lo
+         *     conciliado entra a la Caja (ADR-0067 Fase A2, conciliar→clasificar). Idempotente.
+         */
+        post: operations["treasury_bank_movements_classify_reconciled"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/bank-movements/detect-internal-transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Detecta y clasifica traspasos entre cuentas propias (ADR-0067 A1)
+         * @description Detecta traspasos internos entre cuentas propias (cargo cta A ↔ abono cta B, mismo monto,
+         *     ±3 días) y clasifica ambas patas como `internal_bank_transfer` — fuera de la caja, para que el
+         *     traspaso netee a cero en vez de inflar ingreso+egreso (ADR-0067 Fase A1). Idempotente.
+         */
+        post: operations["treasury_bank_movements_detect_internal_transfers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/bank-movements": {
         parameters: {
             query?: never;
@@ -8282,6 +8326,27 @@ export interface components {
             } | null;
         };
         /**
+         * InternalTransferResponse
+         * @description Resumen de `POST /api/treasury/bank-movements/detect-internal-transfers` (ADR-0067 A1).
+         */
+        InternalTransferResponse: {
+            /**
+             * Evaluados
+             * @description Movimientos sin clasificar evaluados.
+             */
+            evaluados: number;
+            /**
+             * Pares
+             * @description Pares de traspaso interno (cargo↔abono) detectados.
+             */
+            pares: number;
+            /**
+             * Clasificados
+             * @description Patas clasificadas como internal_bank_transfer (2 por par).
+             */
+            clasificados: number;
+        };
+        /**
          * LinkBankAccountRequest
          * @description Body de `POST /accounts/{external_id}/link`.
          */
@@ -9287,6 +9352,37 @@ export interface components {
              * @description Clave natural de la obligación (ej. 'payroll-202606'). Para las de categoría 'payroll' el FE deriva el período ('payroll-YYYYMM') para linkear al detalle por empleado (GET /api/buk/payroll/detail?period=).
              */
             source_external_id?: string | null;
+            /**
+             * Counterparty Name
+             * @description Razón social de la contraparte (proveedor). Null si no se conoce.
+             */
+            counterparty_name?: string | null;
+            /**
+             * Counterparty Rut
+             * @description RUT de la contraparte con DV (ej. '76454786-1'), derivado de la clave natural del RCV. Null para obligaciones sin RUT (nómina, o RCV sin RUT).
+             */
+            counterparty_rut?: string | null;
+            /**
+             * Folio
+             * @description Folio del DTE. Null cuando la obligación no es un DTE (ej. nómina).
+             */
+            folio?: number | null;
+            /**
+             * Tipo Dte
+             * @description Código de tipo DTE del SII (33=Factura, 46=F. Compra, 61=NC…). Null si no aplica.
+             */
+            tipo_dte?: number | null;
+            /**
+             * Currency
+             * @description Moneda ISO-4217 del `amount`. Hoy siempre 'CLP' (el RCV reporta en pesos; las compras en USD viven en el listado de compras extranjeras, no acá).
+             * @default CLP
+             */
+            currency: string;
+            /**
+             * Amount Clp
+             * @description `amount` convertido a CLP vía tipo de cambio, SOLO cuando `currency` != 'CLP'. Null cuando ya es CLP (usar `amount`) o cuando no hay tipo de cambio disponible.
+             */
+            amount_clp?: string | null;
         };
         /**
          * PayrollDetailEmployee
@@ -9956,6 +10052,27 @@ export interface components {
              * @default 0
              */
             processor_batch: number;
+        };
+        /**
+         * ReconciledClassifyResponse
+         * @description Resumen de `POST /api/treasury/bank-movements/classify-reconciled` (ADR-0067 A2).
+         */
+        ReconciledClassifyResponse: {
+            /**
+             * Evaluados
+             * @description Movimientos conciliados sin clasificar evaluados.
+             */
+            evaluados: number;
+            /**
+             * Clasificados
+             * @description Clasificados desde su documento (receivable→cobro, payable→pago).
+             */
+            clasificados: number;
+            /**
+             * Sin Categoria
+             * @description Conciliados que no se pudieron derivar a categoría/cuenta.
+             */
+            sin_categoria: number;
         };
         /** ReconciliationAlias */
         ReconciliationAlias: {
@@ -14403,6 +14520,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApplyRulesResponse"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_bank_movements_classify_reconciled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen del batch: evaluados / clasificados / sin_regla. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciledClassifyResponse"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_bank_movements_detect_internal_transfers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen del batch: evaluados / clasificados / sin_regla. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalTransferResponse"];
                 };
             };
             /** @description Rol sin permiso de escritura (ADR-0028, §20). */

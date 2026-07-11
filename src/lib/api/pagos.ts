@@ -30,6 +30,20 @@ export interface PayableItem {
   criticality: "high" | "medium" | "low";
   /** Fuente del dato en lenguaje humano (ej. "SII", "Previred", "Manual"). */
   source: string;
+  /** Clave natural (ej. 'payroll-202606' → deriva el período para el detalle). */
+  source_external_id?: string | null;
+  /** Identidad de la contraparte (CC-WEB #2, nullables). Razón social del proveedor. */
+  counterparty_name?: string | null;
+  /** RUT de la contraparte con DV. Null en obligaciones sin RUT (nómina). */
+  counterparty_rut?: string | null;
+  /** Folio del DTE. Null cuando la obligación no es un DTE. */
+  folio?: number | null;
+  /** Código de tipo DTE del SII (33=Factura, 46=F.Compra, 61=NC…). Null si no aplica. */
+  tipo_dte?: number | null;
+  /** Moneda ISO del `amount`. Hoy siempre 'CLP' (USD vive en compras extranjeras). */
+  currency?: string;
+  /** `amount` en CLP cuando `currency` != CLP; null si ya es CLP. */
+  amount_clp?: string | null;
 }
 
 export interface AccountsPayableResponse {
