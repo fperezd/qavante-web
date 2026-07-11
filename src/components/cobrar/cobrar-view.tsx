@@ -31,7 +31,7 @@ import { defaultRange } from "@/lib/period/period-range";
 import { cn } from "@/lib/utils";
 import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 import { useDebtorInvoices } from "./debtor-invoices";
-import { parseAmount, agingBars, sortByUrgency } from "./cobranza-format";
+import { parseAmount, agingBars, sortByUrgency, shareOfTotal } from "./cobranza-format";
 
 /* Cobrar — cuentas por cobrar (Sprint C4, Maestro §7.3): resumen, antigüedad de
    saldos (aging), top deudores y documentos vencidos. Container: resuelve el
@@ -171,7 +171,7 @@ function Receivable({
 
       {/* Top deudores — cada deudor expande a sus facturas (Libro de Ventas). */}
       {(data.top_debtors ?? []).length > 0 && (
-        <TopDebtors debtors={data.top_debtors ?? []} siiEnabled={siiEnabled} />
+        <TopDebtors debtors={data.top_debtors ?? []} total={data.total} siiEnabled={siiEnabled} />
       )}
 
       {/* Documentos vencidos. */}
@@ -236,7 +236,15 @@ function Receivable({
    facturas del Libro de Ventas (SII). Fetch lazy del rango (6 meses) cacheado por
    mes; se dispara al abrir el primer deudor. La mora/saldo pendiente por factura
    NO está (gap del backend: vencimientos del SII) → se dice honestamente. */
-function TopDebtors({ debtors, siiEnabled }: { debtors: TopDebtor[]; siiEnabled: boolean }) {
+function TopDebtors({
+  debtors,
+  total,
+  siiEnabled,
+}: {
+  debtors: TopDebtor[];
+  total: string;
+  siiEnabled: boolean;
+}) {
   const [openRut, setOpenRut] = React.useState<string | null>(null);
   const [everOpened, setEverOpened] = React.useState(false);
   const range = React.useMemo(() => defaultRange(), []);
@@ -251,6 +259,7 @@ function TopDebtors({ debtors, siiEnabled }: { debtors: TopDebtor[]; siiEnabled:
           const rut = normalizeRut(d.rut);
           const isOpen = openRut === rut;
           const docs = invoices.byRut.get(rut) ?? [];
+          const pct = shareOfTotal(d.total, total);
           return (
             <li key={d.rut}>
               <button
@@ -279,6 +288,12 @@ function TopDebtors({ debtors, siiEnabled }: { debtors: TopDebtor[]; siiEnabled:
                   <p className="font-semibold text-neutral-dark">
                     {formatClp(parseAmount(d.total))}
                   </p>
+                  {/* Concentración: qué parte del total por cobrar es este cliente. */}
+                  {pct >= 0.5 && (
+                    <p className="text-xs text-neutral-mid">
+                      {pct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}% del total
+                    </p>
+                  )}
                   {parseAmount(d.overdue) > 0 && (
                     <p className="text-xs font-medium text-danger-500">
                       {formatClp(parseAmount(d.overdue))} vencido
