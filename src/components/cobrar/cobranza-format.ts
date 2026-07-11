@@ -11,6 +11,18 @@ export function parseAmount(raw: string | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/* Ordena deudores por URGENCIA (herramienta de decisión: "¿a quién persigo
+   primero?"): primero el más vencido, y a igual vencido, el de mayor total.
+   PURO. No muta el array de entrada. */
+export function sortByUrgency<T extends { overdue: string; total: string }>(
+  items: ReadonlyArray<T>,
+): T[] {
+  return [...items].sort((a, b) => {
+    const ov = parseAmount(b.overdue) - parseAmount(a.overdue);
+    return ov !== 0 ? ov : parseAmount(b.total) - parseAmount(a.total);
+  });
+}
+
 export interface AgingBar {
   key: keyof ReceivableAging;
   label: string;

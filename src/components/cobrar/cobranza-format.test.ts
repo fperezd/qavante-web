@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAmount, agingBars } from "./cobranza-format";
+import { parseAmount, agingBars, sortByUrgency } from "./cobranza-format";
 import type { ReceivableAging } from "@/lib/api/cobranza";
 
 describe("parseAmount", () => {
@@ -42,5 +42,25 @@ describe("agingBars", () => {
       d90_plus: "0",
     };
     expect(agingBars(empty).every((b) => b.pct === 0)).toBe(true);
+  });
+});
+
+describe("sortByUrgency", () => {
+  const d = (name: string, overdue: string, total: string) => ({ name, overdue, total });
+
+  it("prioriza el más vencido (a igual vencido, mayor total)", () => {
+    const out = sortByUrgency([
+      d("A", "0", "9000000"),
+      d("B", "3000000", "5000000"),
+      d("C", "3000000", "8000000"),
+    ]);
+    expect(out.map((x) => x.name)).toEqual(["C", "B", "A"]);
+  });
+
+  it("no muta el array de entrada", () => {
+    const input = [d("A", "0", "1"), d("B", "5", "1")];
+    const copy = [...input];
+    sortByUrgency(input);
+    expect(input).toEqual(copy);
   });
 });

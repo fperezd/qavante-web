@@ -31,7 +31,7 @@ import { defaultRange } from "@/lib/period/period-range";
 import { cn } from "@/lib/utils";
 import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 import { useDebtorInvoices } from "./debtor-invoices";
-import { parseAmount, agingBars } from "./cobranza-format";
+import { parseAmount, agingBars, sortByUrgency } from "./cobranza-format";
 
 /* Cobrar — cuentas por cobrar (Sprint C4, Maestro §7.3): resumen, antigüedad de
    saldos (aging), top deudores y documentos vencidos. Container: resuelve el
@@ -241,11 +241,13 @@ function TopDebtors({ debtors, siiEnabled }: { debtors: TopDebtor[]; siiEnabled:
   const [everOpened, setEverOpened] = React.useState(false);
   const range = React.useMemo(() => defaultRange(), []);
   const invoices = useDebtorInvoices(range, siiEnabled && everOpened);
+  // Orden por urgencia: primero el más vencido (a quién perseguir primero).
+  const ordered = React.useMemo(() => sortByUrgency(debtors), [debtors]);
 
   return (
     <QavanteCard variant="bordered" header={<span className="font-medium">Top deudores</span>}>
       <ul className="divide-y divide-border">
-        {debtors.map((d) => {
+        {ordered.map((d) => {
           const rut = normalizeRut(d.rut);
           const isOpen = openRut === rut;
           const docs = invoices.byRut.get(rut) ?? [];
