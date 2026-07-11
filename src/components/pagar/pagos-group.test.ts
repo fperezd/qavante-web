@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { groupByCategory, categoryGroupLabel, shareOfTotal } from "./pagos-group";
+import {
+  groupByCategory,
+  categoryGroupLabel,
+  shareOfTotal,
+  payrollPeriodFromExternalId,
+} from "./pagos-group";
 import type { PayableItem } from "@/lib/api/pagos";
 
 const item = (category: PayableItem["category"], amount: string): PayableItem =>
@@ -28,5 +33,11 @@ describe("groupByCategory", () => {
   it("shareOfTotal: % del total, guard división por cero", () => {
     expect(shareOfTotal(30, 100)).toBe(30);
     expect(shareOfTotal(10, 0)).toBe(0);
+  });
+
+  it("payrollPeriodFromExternalId: 'payroll-YYYYMM' → 'YYYY-MM'", () => {
+    expect(payrollPeriodFromExternalId("payroll-202606")).toBe("2026-06");
+    expect(payrollPeriodFromExternalId("otra-cosa")).toBeNull();
+    expect(payrollPeriodFromExternalId(null)).toBeNull();
   });
 });

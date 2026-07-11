@@ -2245,6 +2245,7 @@ const accountsPayableFixture = {
       amount: "4200000",
       criticality: "high",
       source: "Previred",
+      source_external_id: "payroll-202606",
     },
     {
       label: "Proveedor Telefónica",
