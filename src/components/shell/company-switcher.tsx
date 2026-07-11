@@ -7,6 +7,11 @@ import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useMyTenants, useSwitchTenant } from "@/lib/api/tenants";
 import { ROLE_LABELS } from "@/components/administracion/role-labels";
 import { useDismiss } from "@/lib/hooks/use-dismiss";
+import {
+  pickPreferredTenant,
+  getPreferredTenantId,
+  setPreferredTenantId,
+} from "@/lib/tenant/preferred-tenant";
 import type { UserRole } from "@/lib/auth/types";
 
 /* Selector de empresa (N:M, ADR-0049). Lista las empresas del usuario
@@ -34,25 +39,41 @@ export function CompanySwitcher() {
   const items = allItems.filter((t) => !isMvp(t));
   const active = allItems.find((t) => t.is_active);
   const activeIsMvp = active != null && isMvp(active);
+  /* La empresa a la que volver: la ÚLTIMA que usaste (cookie), no una arbitraria
+     — clave en multi-empresa. Si ya no pertenecés a ella, cae en la primera. */
+  const preferred = React.useMemo(
+    () => pickPreferredTenant(items, getPreferredTenantId()),
+    [items],
+  );
   /* El label nunca muestra "MVP Tenant": si la sesión cayó en él, mostramos la
-     empresa real (la autocorrección de abajo va a cambiar a ella enseguida). */
-  const label = (activeIsMvp ? items[0]?.legal_name : active?.legal_name) ?? "Mi empresa";
+     empresa preferida (la autocorrección de abajo va a cambiar a ella enseguida).
+     Mientras cargan las empresas, "Cargando…" (no "Mi empresa" con datos vacíos). */
+  const label = tenants.isLoading
+    ? "Cargando…"
+    : ((activeIsMvp ? preferred?.legal_name : active?.legal_name) ?? "Mi empresa");
   const busy = switchTenant.isPending;
 
+  /* Recuerda la empresa activa real (cookie) para poder volver a ELLA si la
+     sesión cae al MVP tras un refresh/deploy. */
+  React.useEffect(() => {
+    if (active && !isMvp(active)) setPreferredTenantId(active.id);
+  }, [active]);
+
   /* Autocorrección del default: el backend arranca la sesión en el MVP Tenant.
-     Si la activa es el MVP y existe una empresa real, cambiamos a ella una sola
-     vez (el switch persiste en la cookie → al recargar la activa ya es la real,
-     así que no hay loop). Tapón hasta que CC-API corrija el default (PR #461). */
+     Si la activa es el MVP, cambiamos a la empresa PREFERIDA (la última usada) una
+     sola vez (el switch persiste en la cookie de sesión → al recargar la activa ya
+     es la real → no hay loop). Tapón hasta que CC-API corrija el default (PR #461). */
   const didAutoSwitch = React.useRef(false);
   React.useEffect(() => {
     if (didAutoSwitch.current || busy) return;
     if (!activeIsMvp) return;
-    const real = items[0];
+    const real = preferred;
     if (!real) return;
     didAutoSwitch.current = true;
+    setPreferredTenantId(real.id);
     switchTenant.mutate(real.id, { onSuccess: reloadIntoTenant });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIsMvp, items]);
+  }, [activeIsMvp, preferred]);
 
   function reloadIntoTenant() {
     // El switch re-emitió la cookie; recargar para que toda la app (incl. Server
@@ -62,6 +83,7 @@ export function CompanySwitcher() {
 
   function handleSwitch(tenantId: string) {
     if (busy) return;
+    setPreferredTenantId(tenantId); // recordar para el próximo arranque
     switchTenant.mutate(tenantId, { onSuccess: reloadIntoTenant });
   }
 
