@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { FileOutput } from "lucide-react";
+import { ChevronDown, FileOutput } from "lucide-react";
 import {
   QavanteCard,
   QavanteBadge,
@@ -12,7 +12,11 @@ import {
   AmountCountUp,
 } from "@/components/qavante";
 import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
-import { useAccountsReceivable, type AccountsReceivableResponse } from "@/lib/api/cobranza";
+import {
+  useAccountsReceivable,
+  type AccountsReceivableResponse,
+  type TopDebtor,
+} from "@/lib/api/cobranza";
 import {
   PartialDataBanner,
   SyncPendingState,
@@ -22,6 +26,11 @@ import {
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
+import { normalizeRut } from "@/lib/validators/rut";
+import { defaultRange } from "@/lib/period/period-range";
+import { cn } from "@/lib/utils";
+import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
+import { useDebtorInvoices } from "./debtor-invoices";
 import { parseAmount, agingBars } from "./cobranza-format";
 
 /* Cobrar — cuentas por cobrar (Sprint C4, Maestro §7.3): resumen, antigüedad de
@@ -70,7 +79,7 @@ export function CobrarView({ siiEnabled }: CobrarViewProps) {
           />
         )
       ) : query.data ? (
-        <Receivable data={query.data} />
+        <Receivable data={query.data} siiEnabled={siiEnabled} />
       ) : null}
 
       {siiEnabled && (
@@ -98,7 +107,13 @@ export function CobrarView({ siiEnabled }: CobrarViewProps) {
   );
 }
 
-function Receivable({ data }: { data: AccountsReceivableResponse }) {
+function Receivable({
+  data,
+  siiEnabled,
+}: {
+  data: AccountsReceivableResponse;
+  siiEnabled: boolean;
+}) {
   const bars = agingBars(data.aging);
   return (
     <div className="space-y-4">
@@ -154,33 +169,9 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
         </dl>
       </QavanteCard>
 
-      {/* Top deudores. */}
+      {/* Top deudores — cada deudor expande a sus facturas (Libro de Ventas). */}
       {(data.top_debtors ?? []).length > 0 && (
-        <QavanteCard variant="bordered" header={<span className="font-medium">Top deudores</span>}>
-          <ul className="divide-y divide-border">
-            {(data.top_debtors ?? []).map((d) => (
-              <li
-                key={d.rut}
-                className="-mx-2 flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm transition-colors hover:bg-surface-muted"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-neutral-dark">{d.name}</p>
-                  <p className="text-xs text-neutral-mid">{formatRut(d.rut)}</p>
-                </div>
-                <div className="shrink-0 text-right tabular-nums">
-                  <p className="font-semibold text-neutral-dark">
-                    {formatClp(parseAmount(d.total))}
-                  </p>
-                  {parseAmount(d.overdue) > 0 && (
-                    <p className="text-xs font-medium text-danger-500">
-                      {formatClp(parseAmount(d.overdue))} vencido
-                    </p>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </QavanteCard>
+        <TopDebtors debtors={data.top_debtors ?? []} siiEnabled={siiEnabled} />
       )}
 
       {/* Documentos vencidos. */}
@@ -237,6 +228,163 @@ function Receivable({ data }: { data: AccountsReceivableResponse }) {
           </div>
         </QavanteCard>
       )}
+    </div>
+  );
+}
+
+/* Top deudores con filas expandibles: al abrir un deudor, se muestran sus
+   facturas del Libro de Ventas (SII). Fetch lazy del rango (6 meses) cacheado por
+   mes; se dispara al abrir el primer deudor. La mora/saldo pendiente por factura
+   NO está (gap del backend: vencimientos del SII) → se dice honestamente. */
+function TopDebtors({ debtors, siiEnabled }: { debtors: TopDebtor[]; siiEnabled: boolean }) {
+  const [openRut, setOpenRut] = React.useState<string | null>(null);
+  const [everOpened, setEverOpened] = React.useState(false);
+  const range = React.useMemo(() => defaultRange(), []);
+  const invoices = useDebtorInvoices(range, siiEnabled && everOpened);
+
+  return (
+    <QavanteCard variant="bordered" header={<span className="font-medium">Top deudores</span>}>
+      <ul className="divide-y divide-border">
+        {debtors.map((d) => {
+          const rut = normalizeRut(d.rut);
+          const isOpen = openRut === rut;
+          const docs = invoices.byRut.get(rut) ?? [];
+          return (
+            <li key={d.rut}>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => {
+                  setEverOpened(true);
+                  setOpenRut(isOpen ? null : rut);
+                }}
+                className="-mx-2 flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 text-neutral-mid transition-transform",
+                      isOpen && "rotate-180",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-neutral-dark">{d.name}</p>
+                    <p className="text-xs text-neutral-mid">{formatRut(d.rut)}</p>
+                  </div>
+                </div>
+                <div className="shrink-0 text-right tabular-nums">
+                  <p className="font-semibold text-neutral-dark">
+                    {formatClp(parseAmount(d.total))}
+                  </p>
+                  {parseAmount(d.overdue) > 0 && (
+                    <p className="text-xs font-medium text-danger-500">
+                      {formatClp(parseAmount(d.overdue))} vencido
+                    </p>
+                  )}
+                </div>
+              </button>
+              {isOpen && (
+                <DebtorInvoicesPanel
+                  docs={docs}
+                  loading={invoices.isFetching}
+                  error={invoices.isError}
+                  siiEnabled={siiEnabled}
+                />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </QavanteCard>
+  );
+}
+
+/* Detalle expandido de un deudor: sus facturas del Libro (folio/fecha/monto).
+   Exportado para testear en aislamiento con props (ADR-0018), sin red. */
+export function DebtorInvoicesPanel({
+  docs,
+  loading,
+  error,
+  siiEnabled,
+}: {
+  docs: RcvDoc[];
+  loading: boolean;
+  error: boolean;
+  siiEnabled: boolean;
+}) {
+  const libroLink = (
+    <Link href="/cobrar/facturas-emitidas" className="text-brand-primary hover:underline">
+      Ver el Libro de Ventas completo
+    </Link>
+  );
+
+  let body: React.ReactNode;
+  if (!siiEnabled) {
+    body = (
+      <p className="text-xs text-neutral-mid">
+        Conecta el SII para ver las facturas de este cliente.
+      </p>
+    );
+  } else if (error) {
+    body = (
+      <p className="text-xs text-neutral-mid">
+        No pudimos traer las facturas del SII. Intenta de nuevo en un momento.
+      </p>
+    );
+  } else if (loading && docs.length === 0) {
+    body = <p className="text-xs text-neutral-mid">Cargando facturas del cliente…</p>;
+  } else if (docs.length === 0) {
+    body = (
+      <p className="text-xs text-neutral-mid">
+        Sin facturas de este cliente en los últimos 6 meses. {libroLink}.
+      </p>
+    );
+  } else {
+    const ordered = [...docs].sort((a, b) => String(b.fecha ?? "").localeCompare(String(a.fecha ?? "")));
+    body = (
+      <>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[360px] text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                <th scope="col" className="py-1.5 pr-3 font-semibold">
+                  Folio
+                </th>
+                <th scope="col" className="py-1.5 pr-3 font-semibold">
+                  Fecha
+                </th>
+                <th scope="col" className="py-1.5 text-right font-semibold">
+                  Monto
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {ordered.map((doc, i) => (
+                <tr key={`${doc.folio}-${i}`} className="border-b border-border/50 last:border-b-0">
+                  <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">{doc.folio ?? "—"}</td>
+                  <td className="py-1.5 pr-3 text-neutral-mid">
+                    {doc.fecha ? formatDateLike(doc.fecha) : "—"}
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums text-neutral-dark">
+                    {formatClp(Number(doc.monto_total) || 0)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-neutral-mid">
+          Facturas emitidas a este cliente (Libro de Ventas, últimos 6 meses). El saldo pendiente
+          y los días de mora por factura aparecen cuando el SII entregue las fechas de vencimiento.
+        </p>
+      </>
+    );
+  }
+
+  return (
+    <div className="mb-2 ml-6 rounded-lg border border-border bg-surface-muted/40 px-3 py-3">
+      {body}
     </div>
   );
 }
