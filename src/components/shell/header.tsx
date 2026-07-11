@@ -56,10 +56,14 @@ export function AppHeader({ onMenuClick, onOpenSearch, syncStatusEnabled }: AppH
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Logo Qavante */}
-      <div className="flex items-center gap-2">
+      {/* Logo Qavante — vuelve al Inicio (patrón estándar). */}
+      <Link
+        href="/inicio"
+        aria-label="Ir al Inicio"
+        className="flex items-center gap-2 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+      >
         <QavanteLogo variant="header" alt="Qavante" />
-      </div>
+      </Link>
 
       {/* Selector de empresa (N:M, ADR-0049): listar / cambiar / crear. */}
       <CompanySwitcher />
