@@ -133,8 +133,10 @@ export const RangoMultiMes: Story = {
   parameters: { msw: { handlers: [OK, RANGE_OK] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Arranca en un mes (vista rica).
-    await waitFor(() => expect(canvas.getByText("Resultado operacional del mes")).toBeVisible());
+    // Arranca en un mes (vista rica). Timeout holgado: en CI la query tarda >1s.
+    await waitFor(() => expect(canvas.getByText("Resultado operacional del mes")).toBeVisible(), {
+      timeout: 8000,
+    });
     // Abrir el selector de rango (único botón con aria-haspopup="dialog" en el canvas).
     const trigger = canvasElement.querySelector<HTMLButtonElement>(
       'button[aria-haspopup="dialog"]',
@@ -142,8 +144,9 @@ export const RangoMultiMes: Story = {
     await userEvent.click(trigger!);
     await userEvent.click(canvas.getByRole("button", { name: "Tres meses" }));
     // Vista de rango: total del período + mes a mes.
-    await waitFor(() =>
-      expect(canvas.getByText("Resultado operacional del período")).toBeVisible(),
+    await waitFor(
+      () => expect(canvas.getByText("Resultado operacional del período")).toBeVisible(),
+      { timeout: 8000 },
     );
     await expect(canvas.getByText("Mes a mes")).toBeVisible();
   },
