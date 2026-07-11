@@ -73,12 +73,21 @@ export type OperationalResultReport =
 export type OperationalResultBucket = components["schemas"]["OperationalResultBucket"];
 export type OperationalResultTotals = components["schemas"]["OperationalResultTotals"];
 
+/* Estado de Resultados mensualizado por categoría (árbol de cuentas del tenant),
+   estilo Chipax: meses en columnas, filas jerárquicas (Ingresos/Costos/Margen…),
+   mes en curso marcado `proforma`. Tipos GENERADOS (regla 3). */
+export type OperationalResultBreakdown =
+  components["schemas"]["OperationalResultBreakdownResponse"];
+export type BreakdownRow = components["schemas"]["BreakdownRow"];
+
 export const gestionKeys = {
   all: ["gestion"] as const,
   operationalResult: (period: string) =>
     [...gestionKeys.all, "operational-result", period] as const,
   operationalResultReport: (from: string, to: string) =>
     [...gestionKeys.all, "operational-result-report", from, to] as const,
+  operationalResultBreakdown: (from: string, to: string, mode: string) =>
+    [...gestionKeys.all, "operational-result-breakdown", from, to, mode] as const,
 };
 
 /** `GET /api/management/operational-result?period=YYYY-MM` — un mes (desglose
@@ -106,6 +115,30 @@ export function useOperationalResultReport(from: string, to: string, enabled = t
         `/api/treasury/reports/operational-result?period_from=${encodeURIComponent(
           from,
         )}&period_to=${encodeURIComponent(to)}`,
+      ),
+    enabled: enabled && from !== "" && to !== "",
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `GET /api/management/operational-result/breakdown` — Estado de Resultados
+ *  mensualizado por categoría (árbol), estilo Chipax. `mode` = eje de agrupación
+ *  (por_cuenta por defecto); `include_proforma` marca el mes en curso. */
+export function useOperationalResultBreakdown(
+  from: string,
+  to: string,
+  { mode = "por_cuenta", includeProforma = true, enabled = true } = {},
+) {
+  return useQuery({
+    queryKey: gestionKeys.operationalResultBreakdown(from, to, mode),
+    queryFn: () =>
+      api.get<OperationalResultBreakdown>(
+        `/api/management/operational-result/breakdown?period_from=${encodeURIComponent(
+          from,
+        )}&period_to=${encodeURIComponent(to)}&mode=${encodeURIComponent(mode)}&include_proforma=${
+          includeProforma ? "true" : "false"
+        }`,
       ),
     enabled: enabled && from !== "" && to !== "",
     staleTime: 30_000,
