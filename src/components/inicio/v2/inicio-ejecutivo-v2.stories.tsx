@@ -7,6 +7,7 @@ import { CobranzaRealizable } from "./cobranza-realizable";
 import { PagosTimeline } from "./pagos-timeline";
 import { ResultadoPreliminar } from "./resultado-preliminar";
 import { CalidadDato } from "./calidad-dato";
+import { AccionesList } from "./acciones-list";
 
 /* El Inicio Ejecutivo v2 armado end-to-end en el escenario de crisis: frase →
    3 termómetros → cockpit (Pulso + Plan de brecha) → grid de detalle → calidad.
@@ -180,6 +181,215 @@ export const Crisis: Story = {
         ctaLabel="Clasificar →"
       />
     ),
+  },
+};
+
+export const Sana: Story = {
+  name: "Empresa sana (ilustrativo)",
+  args: {
+    frase: (
+      <>
+        La caja cubre <b>3,2 meses</b> de operación y el resultado crece <b>+12%</b>. Sin pagos
+        en riesgo: es momento de mirar rentabilidad y crecimiento.
+      </>
+    ),
+    termometros: [
+      {
+        n: 2,
+        pregunta: "¿La empresa está ganando dinero?",
+        pill: "🟢 Sano",
+        pillTono: "ok",
+        destacado: "ok",
+        respuesta:
+          "Margen operacional 42% · resultado +$12,4M (↑12%). Costos estables · sin alzas relevantes.",
+        masLabel: "Ver rentabilidad →",
+      },
+      {
+        n: 3,
+        pregunta: "¿La empresa tiene ingresos futuros para crecer sin tensionar la caja?",
+        pill: "🟢 Favorable · estimado",
+        pillTono: "ok",
+        destacado: "ok",
+        respuesta:
+          "Señales favorables (estimación por recurrencia observada): recurrentes 72% · ventas +18% mensual · 1 cliente concentra 38%.",
+        masLabel: "Ver crecimiento →",
+      },
+      {
+        n: 1,
+        pregunta: "¿La caja cubre la operación?",
+        pill: "🟢 Holgado",
+        pillTono: "ok",
+        respuesta: "3,2 meses de caja. Sin pagos en riesgo.",
+        masLabel: "Ver caja →",
+      },
+    ],
+    pulso: {
+      score: 84,
+      status: "stable",
+      confianza: "Confianza de los datos: alta",
+      delta: "▲ de 71 a 84 en 30 días",
+      tendencia: [71, 70, 73, 72, 75, 74, 77, 79, 80, 82, 83, 84],
+      factores: [
+        { label: "Días de caja: 96", tono: "ok" },
+        { label: "Cobertura de pagos: 100%", tono: "ok" },
+        { label: "Vencido: $0", tono: "ok" },
+        { label: "Márgenes al alza", tono: "ok" },
+      ],
+    },
+    plan: (
+      <AccionesList
+        titulo="Qué hacer para crecer"
+        acciones={[
+          {
+            rank: 1,
+            titulo: "Las ventas crecen +18% mes a mes",
+            detalle: "Conviene sostener la caja para financiar el crecimiento (tendencia del SII)",
+            plazo: "Seguimiento",
+            cta: "Ver ventas →",
+          },
+          {
+            rank: 2,
+            titulo: "Excedente estimado sobre el colchón operativo",
+            detalle: "$22,0M — evaluar alternativas: reserva · prepagar deuda · crecimiento · invertir",
+            plazo: "Trimestre",
+            cta: "Ver alternativas →",
+          },
+          {
+            rank: 3,
+            titulo: "Un cliente concentra el 38% de las ventas",
+            detalle: "Riesgo de dependencia (dato del SII)",
+            plazo: "Estratégico",
+            cta: "Ver concentración →",
+          },
+        ]}
+      />
+    ),
+    grid: [
+      <ResultadoPreliminar
+        key="resultado"
+        resultado={12_400_000}
+        subtitulo="Resultado operacional · ↑12% vs mes anterior"
+        ingresos={29_500_000}
+        margenLabel="Margen operacional"
+        margen="42%"
+        extra={[
+          { label: "Costo que más creció", valor: "Sin alzas relevantes" },
+          { label: "Concentración de ventas", valor: "1 cliente · 38%" },
+        ]}
+      />,
+      <CajaProyeccion
+        key="caja"
+        cajaHoy={28_400_000}
+        subtitulo="Caja hoy · 3,2 meses de autonomía"
+        serie={[12_000_000, 15_000_000, 18_000_000, 21_000_000, 24_000_000, 26_500_000, 28_400_000]}
+        filas={[
+          { label: "Mínima a 30 días", valor: "$19.200.000", tono: "pos" },
+          { label: "Días de caja", valor: "96", tono: "pos" },
+          { label: "Colchón objetivo", valor: "✓ cubierto", tono: "pos" },
+        ]}
+        stamp="Caja hoy · Actualizado hoy · banco"
+      />,
+      <CobranzaRealizable
+        key="cobranza"
+        esperadoATiempo={34_000_000}
+        subtitulo="Cobranza esperada a tiempo · 14 días"
+        totalPorCobrar={180_000_000}
+        vencido={0}
+        segmentos={[
+          { label: "Alta prob. — pagan a tiempo", monto: 34_000_000, banda: "high" },
+          { label: "Probable", monto: 8_000_000, banda: "probable" },
+          { label: "Sin patrón claro", monto: 3_000_000, banda: "unknown" },
+        ]}
+      />,
+      <PagosTimeline
+        key="pagos"
+        total={14_200_000}
+        subtitulo="Cubiertos por la caja proyectada a su fecha de vencimiento"
+        pagos={[
+          { fecha: "Vence 30", nombre: "Remuneraciones", monto: 8_600_000, tipo: "cubierto" },
+          { fecha: "Vence día 20", nombre: "IVA / F29", monto: 4_200_000, tipo: "cubierto" },
+          { fecha: "Próx. 14 días", nombre: "Proveedores", monto: 1_400_000, tipo: "cubierto" },
+        ]}
+      />,
+    ],
+  },
+};
+
+export const ControlDeGestion: Story = {
+  name: "Lente control de gestión",
+  args: {
+    frase: (
+      <>
+        Vista de <b>control de gestión</b> — rentabilidad y márgenes primero. La continuidad
+        queda fijada abajo (nunca se oculta).
+      </>
+    ),
+    termometros: [
+      {
+        n: 2,
+        pregunta: "¿La empresa está ganando dinero?",
+        pill: "🟢 Positivo · foco",
+        pillTono: "ok",
+        destacado: "focus",
+        respuesta:
+          "Resultado +$7,9M · margen 89% (preliminar). Evolución de costos y concentración de ventas.",
+        masLabel: "Ver rentabilidad →",
+      },
+      {
+        n: 3,
+        pregunta: "¿La empresa tiene ingresos futuros para crecer sin tensionar la caja?",
+        pill: "🟢 Estimado",
+        pillTono: "ok",
+        respuesta: "Estimados según la recurrencia observada (SII).",
+        masLabel: "Ver crecimiento →",
+      },
+      {
+        n: 1,
+        pregunta: "¿La caja cubre la operación?",
+        pill: "🔴 Crítico · fijado",
+        pillTono: "crit",
+        destacado: "crit",
+        respuesta:
+          "Debe asegurar $9,96M a 14 días. No se oculta aunque se priorice la rentabilidad.",
+        masLabel: "Ver plan →",
+      },
+    ],
+    pulso: (Crisis.args as NonNullable<typeof Crisis.args>).pulso!,
+    plan: (
+      <AccionesList
+        titulo="Análisis de gestión · con lo que tenemos"
+        acciones={[
+          {
+            rank: 1,
+            titulo: "Un cliente concentra el 38% de las ventas",
+            detalle: "Ingreso expuesto: $3,4M/mes si ese cliente cae (dato del SII)",
+            plazo: "Estructural",
+            cta: "Ver concentración →",
+          },
+          {
+            rank: 2,
+            titulo: "Los servicios subieron 18% este mes",
+            detalle: "Impacto estimado en el margen del mes: −$0,6M (clasificación del SII)",
+            plazo: "Este mes",
+            plazoTono: "warn",
+            cta: "Ver costos →",
+          },
+          {
+            rank: 3,
+            titulo: "El ciclo de caja se alargó a 42 días",
+            detalle: "Capital de trabajo inmovilizado: ~$4,1M (cobra a 42d, paga a 28d — conciliación)",
+            plazo: "Seguimiento",
+            cta: "Ver cobranza →",
+          },
+        ]}
+        pin={{
+          texto: "⚠ Continuidad fijada — la empresa aún debe asegurar $9,96M a 14 días",
+          cta: "Ver plan →",
+        }}
+      />
+    ),
+    grid: (Crisis.args as NonNullable<typeof Crisis.args>).grid!,
+    calidad: (Crisis.args as NonNullable<typeof Crisis.args>).calidad,
   },
 };
 
