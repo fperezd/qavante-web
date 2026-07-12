@@ -30,10 +30,9 @@ type FormValues = z.infer<typeof schema>;
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved?: () => void;
 }
 
-export function SiiPersonCredentialDialog({ open, onOpenChange, onSaved }: Props) {
+export function SiiPersonCredentialDialog({ open, onOpenChange }: Props) {
   const put = usePutSiiPersonCredential();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
@@ -64,7 +63,6 @@ export function SiiPersonCredentialDialog({ open, onOpenChange, onSaved }: Props
         password: values.password,
         ...(values.name ? { name: values.name } : {}),
       });
-      onSaved?.();
       onOpenChange(false);
     } catch (err) {
       setSubmitError(err instanceof ApiError ? apiErrorToUserMessage(err) : "Error inesperado.");

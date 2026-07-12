@@ -13,7 +13,7 @@ import {
   BukCredentialCard,
 } from "@/components/credenciales";
 import { LinkBankAccountsCard } from "@/components/treasury/link-bank-accounts-card";
-import { useSiiCredential } from "@/lib/api/credentials";
+import { useSiiCredential, useSiiCredentials } from "@/lib/api/credentials";
 
 /* Pantalla Administración → Credenciales y conexiones. SII (Opción A, decisión
    Fernando 2026-05-18: UNA credencial por tenant `source_code=sii_rcv` + lista
@@ -23,6 +23,10 @@ import { useSiiCredential } from "@/lib/api/credentials";
    docs/contracts/sii-credentials-contract.md (qavante-api). */
 export default function CredencialesPage() {
   const { data, isLoading, isError, error } = useSiiCredential();
+  // Personas (representantes) registradas → para mostrar el RUT persistido en el
+  // card de la clave del representante. Query independiente: si falla, el card cae
+  // a su estado "sin configurar" (no tumba la pantalla).
+  const siiPersons = useSiiCredentials();
 
   return (
     <div className="space-y-6">
@@ -91,7 +95,7 @@ export default function CredencialesPage() {
                 por clave (facturas emitidas/recibidas como PDF, #553). Antes solo
                 se cargaba en el onboarding; acá se puede (re)ingresar/rotar cuando
                 la sesión del SII caduca (era el gap del dte_not_found = 0 docs). */}
-            <SiiPersonCredentialCard />
+            <SiiPersonCredentialCard persons={siiPersons.data?.persons} />
             {/* La credencial sola no alcanza: el acceso al SII requiere un
                 consentimiento legal explícito (sin él, las consultas dan 403). */}
             <SourceConsentCard sourceCode="sii_rcv" label="Autorización de acceso al SII" />

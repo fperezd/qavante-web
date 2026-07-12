@@ -20,6 +20,10 @@ export type CertificatesListResponse = components["schemas"]["CertificatesListRe
 export type CertificateUploadRequest = components["schemas"]["CertificateUploadRequest"];
 /** Body de `PUT /api/credentials/sii/person` — `{rut, name?, password}`. */
 export type PutSiiPersonRequest = components["schemas"]["PutSiiPersonRequest"];
+/** `GET /api/credentials/sii` — estado de la credencial SII (empresa + personas). */
+export type SiiCredentialsResponse = components["schemas"]["SiiCredentialsResponse"];
+/** Estado de una persona (representante) registrada: `{rut, name?, configured, last_rotated_at?}`. */
+export type SiiPersonStatus = components["schemas"]["SiiPersonStatus"];
 
 /** Source code único de la credencial de login SII (Opción A): UNA por tenant. */
 export const SII_SOURCE_CODE = "sii_rcv";
@@ -39,6 +43,7 @@ export const credentialsKeysV2 = {
   bukCredential: () =>
     [...credentialsKeysV2.all, "sources", BUK_SOURCE_CODE, "credential"] as const,
   certificates: () => [...credentialsKeysV2.all, "certificates"] as const,
+  siiCredentials: () => [...credentialsKeysV2.all, "sii-credentials"] as const,
 };
 
 /** `GET /api/admin/sources/sii_rcv/credential` — metadata de la credencial
@@ -69,9 +74,24 @@ export function usePutSiiCredential() {
  *  (`source sii_rcv`). Supera la nota "persons fuera de scope" (mayo): el endpoint
  *  existe desde el login MiPyme por-clave. La clave no se persiste en el FE (regla 6). */
 export function usePutSiiPersonCredential() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: PutSiiPersonRequest) =>
       api.put<void>("/api/credentials/sii/person", { body }),
+    // Tras guardar, refrescar el estado (persons[]) → el card muestra el RUT
+    // registrado de forma persistente (no efímera).
+    onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeysV2.siiCredentials() }),
+  });
+}
+
+/** `GET /api/credentials/sii` — estado de la credencial SII: empresa + personas
+ *  (representantes) registradas con su RUT/configured/last_rotated_at. */
+export function useSiiCredentials() {
+  return useQuery({
+    queryKey: credentialsKeysV2.siiCredentials(),
+    queryFn: () => api.get<SiiCredentialsResponse>("/api/credentials/sii"),
+    staleTime: 30_000,
+    retry: false,
   });
 }
 
