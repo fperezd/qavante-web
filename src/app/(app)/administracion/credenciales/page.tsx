@@ -4,6 +4,7 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { QavanteEmpty } from "@/components/qavante";
 import {
   SiiCredentialCard,
+  SiiPersonCredentialCard,
   CertificateListView,
   BankCredentialCard,
   CardStatementUpload,
@@ -86,6 +87,11 @@ export default function CredencialesPage() {
               Servicio de Impuestos Internos (SII)
             </h2>
             <SiiCredentialCard credential={data} />
+            {/* Clave del representante (persona autorizada) — la que baja el DTE
+                por clave (facturas emitidas/recibidas como PDF, #553). Antes solo
+                se cargaba en el onboarding; acá se puede (re)ingresar/rotar cuando
+                la sesión del SII caduca (era el gap del dte_not_found = 0 docs). */}
+            <SiiPersonCredentialCard />
             {/* La credencial sola no alcanza: el acceso al SII requiere un
                 consentimiento legal explícito (sin él, las consultas dan 403). */}
             <SourceConsentCard sourceCode="sii_rcv" label="Autorización de acceso al SII" />

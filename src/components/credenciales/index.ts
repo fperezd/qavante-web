@@ -3,6 +3,7 @@
    (persons[], 1 cert) se borró en PR-Cb2; ver docs/contracts/
    sii-credentials-contract.md (qavante-api) para el contrato vivo. */
 export { SiiCredentialCard } from "./sii-credential-card";
+export { SiiPersonCredentialCard } from "./sii-person-credential-card";
 export { BankCredentialCard } from "./bank-credential-card";
 export { CardStatementUpload } from "./card-statement-upload";
 export { SourceConsentCard } from "./source-consent-card";
