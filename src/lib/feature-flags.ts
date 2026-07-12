@@ -41,6 +41,7 @@ export const FEATURE_FLAGS = [
   "accountsReceivable",
   "accountsPayable",
   "dashboardSummary",
+  "inicioEjecutivoV2",
   "pulsoDetail",
   "assistant",
   "onboarding",
@@ -83,6 +84,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   /* Inicio Ejecutivo (Sprint C8) — el dashboard agregado. Endpoint FE-first
      esperado (aún no existe — ver brecha inicio-dashboard-summary). */
   dashboardSummary: "/api/dashboard/summary",
+  /* Inicio Ejecutivo v2 (rediseño aprobado 2026-07-12) — consume la misma fuente
+     base (`/api/dashboard/summary`) que dashboardSummary, pero lo que lo DISTINGUE
+     y lo enciende del todo es la Fase 2: `collection-forecast` (cobranza realizable
+     + plan de brecha). Ese es su endpoint de gating (FE-first, aún no existe). Con
+     el flag ON tiene prioridad sobre dashboardSummary; hoy OFF, degradación honesta. */
+  inicioEjecutivoV2: "/api/treasury/collection-forecast",
   /* Pulso detalle (Sprint C6/C7) — "¿por qué está así mi Pulso?". Endpoint
      FE-first esperado (aún no existe — ver pulso-detail-contract). */
   pulsoDetail: "/api/management/pulso",

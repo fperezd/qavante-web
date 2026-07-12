@@ -34,6 +34,11 @@ NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS = "true"
 # FE-first). Inicio Ejecutivo (C8) LIVE. La page es Server Component → el flag
 # resuelve en runtime del Worker.
 NEXT_PUBLIC_FF_DASHBOARD_SUMMARY = "true"
+# Inicio Ejecutivo v2 (rediseño aprobado 2026-07-12) — OFF: cableado a los contratos
+# que ya existen, con degradación honesta; se activa cuando CC-API entregue Fase 2
+# (collection-forecast, key_obligations, cash_sparkline, tendencia del Pulso). Con
+# ON tiene prioridad sobre DASHBOARD_SUMMARY (misma fuente /api/dashboard/summary).
+NEXT_PUBLIC_FF_INICIO_EJECUTIVO_V2 = "false"
 # Activadas 2026-06-21: CC-API confirmó que estos endpoints aceptan la cookie de
 # sesión (require_api_key_or_session; Mi-cuenta es cookie-only by design). Con
 # F9 permitiendo app.qavante.com/qavante.com y cookie Domain=.qavante.com, llega

@@ -97,23 +97,28 @@ export function PulsoCard({
         <PulsoRing score={score} status={status} />
       </div>
 
-      <div className="border-t border-border pt-3">
-        <div className="mb-1.5 flex items-baseline justify-between">
-          <span className="text-[11px] font-semibold text-neutral-mid">
-            Continuidad · últimos 30 días
-          </span>
-          <span className={cn("text-xs font-bold", statusValue(DELTA_TEXT, status))}>
-            {delta}
-          </span>
+      {/* La tendencia se muestra solo si hay serie (≥2 puntos): la serie de 30d
+          del Pulso (q_score) llega con el flip v2 — hasta entonces se omite el
+          bloque en vez de mostrar un caption vacío sin gráfico. */}
+      {tendencia.length >= 2 && (
+        <div className="border-t border-border pt-3">
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <span className="text-[11px] font-semibold text-neutral-mid">
+              Continuidad · últimos 30 días
+            </span>
+            <span className={cn("text-xs font-bold", statusValue(DELTA_TEXT, status))}>
+              {delta}
+            </span>
+          </div>
+          <Sparkline
+            data={tendencia}
+            tone={statusValue(SPARK_TONE, status)}
+            width={320}
+            height={44}
+            className="w-full"
+          />
         </div>
-        <Sparkline
-          data={tendencia}
-          tone={statusValue(SPARK_TONE, status)}
-          width={320}
-          height={44}
-          className="w-full"
-        />
-      </div>
+      )}
     </section>
   );
 }

@@ -1,0 +1,163 @@
+"use client";
+
+import * as React from "react";
+import { QavanteInlineError } from "@/components/qavante";
+import { useDashboardSummary, type DashboardSummaryV2 } from "@/lib/api/dashboard";
+import { formatClp } from "@/lib/formatters/clp";
+import { isEmptySummary, parseAmount } from "../dashboard-format";
+import { InicioEjecutivoV2 } from "./inicio-ejecutivo-v2";
+import { AccionesList, type Accion } from "./acciones-list";
+import { type Termometro } from "./termometros";
+import { CajaProyeccion } from "./caja-proyeccion";
+import { CobranzaRealizable } from "./cobranza-realizable";
+import { PagosTimeline } from "./pagos-timeline";
+import { ResultadoPreliminar } from "./resultado-preliminar";
+import {
+  mapBrechaTotal,
+  mapCaja,
+  mapCobranza,
+  mapFrase,
+  mapPagos,
+  mapPulso,
+  mapResultado,
+} from "./inicio-v2-map";
+
+/* Vista LIVE del Inicio Ejecutivo v2 (rediseño aprobado). Cablea los componentes
+   presentacionales al `GET /api/dashboard/summary` vía el mapper puro, gated por
+   `inicioEjecutivoV2` (OFF). Degradación honesta: cada pieza sin dato aún se omite
+   o cae a una versión simple — nunca inventa. Se enciende sola cuando CC-API
+   entrega Fase 2 (cobranza realizable, tendencia del Pulso, key_obligations,
+   cash_sparkline, señales de crecimiento). Container: NO se testea por Storybook
+   play (ADR-0018); la lógica vive testeada en `inicio-v2-map`. */
+
+export function InicioEjecutivoV2Live() {
+  const query = useDashboardSummary();
+
+  if (query.isLoading) return <LiveSkeleton />;
+  if (query.isError) {
+    return (
+      <QavanteInlineError error={query.error} what="tu resumen" onRetry={() => query.refetch()} />
+    );
+  }
+  const data = query.data;
+  if (!data || isEmptySummary(data)) return <EmptyState />;
+
+  return <Assembled data={data} />;
+}
+
+function Assembled({ data }: { data: DashboardSummaryV2 }) {
+  const pulso = mapPulso(data);
+  const caja = mapCaja(data);
+  const cobranza = mapCobranza(data);
+  const pagos = mapPagos(data, new Date());
+  const resultado = mapResultado(data);
+
+  const grid: React.ReactNode[] = [];
+  if (caja) grid.push(<CajaProyeccion key="caja" {...caja} />);
+  if (cobranza) grid.push(<CobranzaRealizable key="cobranza" {...cobranza} />);
+  if (pagos) grid.push(<PagosTimeline key="pagos" {...pagos} />);
+  if (resultado) grid.push(<ResultadoPreliminar key="resultado" {...resultado} />);
+
+  return (
+    <InicioEjecutivoV2
+      frase={mapFrase(data)}
+      termometros={buildTermometros(data)}
+      pulso={pulso ?? undefined}
+      plan={<AccionesList titulo="Qué hacer primero" acciones={buildAcciones(data)} />}
+      grid={grid}
+    />
+  );
+}
+
+/** Termómetros con dato real. Q1 (continuidad) y Q2 (rentabilidad) se responden
+ *  desde el summary; Q3 (crecimiento) se OMITE hasta que existan las señales del
+ *  SII (no se anuncia la carencia). */
+function buildTermometros(s: DashboardSummaryV2): Termometro[] {
+  const items: Termometro[] = [];
+
+  if (s.pulso || s.cash_gap) {
+    const hasGap = s.cash_gap?.has_gap ?? false;
+    const gap = mapBrechaTotal(s);
+    const crit = s.pulso?.status === "critical" || hasGap;
+    items.push({
+      n: 1,
+      pregunta: "¿La caja cubre la operación?",
+      pill: crit ? "🔴 Crítico" : "🟢 Holgado",
+      pillTono: crit ? "crit" : "ok",
+      destacado: crit ? "crit" : "ok",
+      respuesta:
+        hasGap && gap != null
+          ? `La empresa debe asegurar ${formatClp(gap)} para sus pagos de 14 días.`
+          : "La caja proyectada cubre las obligaciones críticas de los próximos 14 días.",
+      masLabel: "Ver plan ↓",
+    });
+  }
+
+  if (s.operational_result) {
+    const r = parseAmount(s.operational_result.result);
+    const ingresos = parseAmount(s.operational_result.revenue);
+    const margen = ingresos > 0 ? Math.round((r / ingresos) * 100) : null;
+    items.push({
+      n: 2,
+      pregunta: "¿La empresa está ganando dinero?",
+      pill: r >= 0 ? "🟢 Positivo" : "🔴 Pérdida",
+      pillTono: r >= 0 ? "ok" : "crit",
+      respuesta: `Resultado ${formatClp(r)}${margen != null ? ` · margen ${margen}%` : ""}.`,
+      masLabel: "Ver rentabilidad →",
+    });
+  }
+
+  return items;
+}
+
+/** "Qué hacer primero" desde `priority_actions` (dato del summary). El plan de
+ *  cierre de brecha cuantificado llega con collection-forecast (Fase 2). */
+function buildAcciones(s: DashboardSummaryV2): Accion[] {
+  return (s.priority_actions ?? []).slice(0, 3).map((a, i) => ({
+    rank: i + 1,
+    titulo: a.reason,
+    detalle: a.amount ? (
+      <>
+        <span className="font-bold tabular-nums text-neutral-dark">
+          {formatClp(parseAmount(a.amount))}
+        </span>
+        {a.impact_label ? ` ${a.impact_label}` : ""}
+      </>
+    ) : (
+      ""
+    ),
+    plazo: a.deadline ? `Plazo: ${a.deadline}` : "",
+    plazoTono: i === 0 ? "hot" : "neutral",
+    cta: a.cta_label,
+    critica: i === 0,
+  }));
+}
+
+function LiveSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-live="polite">
+      <div className="h-6 w-3/4 animate-pulse rounded bg-surface-muted" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-28 animate-pulse rounded-xl bg-surface-muted" />
+        ))}
+      </div>
+      <div className="grid gap-3.5 lg:grid-cols-2">
+        <div className="h-64 animate-pulse rounded-xl bg-surface-muted" />
+        <div className="h-64 animate-pulse rounded-xl bg-surface-muted" />
+      </div>
+      <span className="sr-only">Cargando tu resumen…</span>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-xl border border-border bg-surface p-8 text-center shadow-sm">
+      <p className="text-sm text-neutral-mid">
+        Aún no hay datos para tu Inicio. Conectá tus fuentes (SII, banco) y volvé cuando se
+        sincronicen.
+      </p>
+    </div>
+  );
+}
