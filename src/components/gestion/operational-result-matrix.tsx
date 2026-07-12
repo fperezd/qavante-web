@@ -13,10 +13,12 @@ import { flattenBreakdown, formatMonthColumn } from "./breakdown-format";
    mes en curso marcado "(proforma)". Las secciones/subtotales se expanden y
    contraen. Presentacional puro: recibe el breakdown ya resuelto. */
 
-/** Celda de monto: sin "$" (denso, como un EERR); 0 → "—"; negativos con "−". */
+/** Celda de monto: sin "$" (denso, como un EERR); 0 → "—"; negativos con el
+ *  "−" tipográfico (U+2212, convención de la casa), no el guion. */
 function fmtCell(v: string): string {
   const n = Math.round(parseAmount(v));
-  return n === 0 ? "—" : n.toLocaleString("es-CL");
+  if (n === 0) return "—";
+  return (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("es-CL");
 }
 
 export function OperationalResultMatrix({ data }: { data: OperationalResultBreakdown }) {
@@ -34,6 +36,18 @@ export function OperationalResultMatrix({ data }: { data: OperationalResultBreak
       else next.add(id);
       return next;
     });
+
+  /* 200 con rango sin datos → empty honesto, no una tabla con solo el header. */
+  if (flat.length === 0) {
+    return (
+      <QavanteCard variant="bordered">
+        <p className="py-6 text-center text-sm text-neutral-mid">
+          No hay resultado operacional para este período. Prueba otro rango o vuelve cuando se
+          sincronicen las fuentes.
+        </p>
+      </QavanteCard>
+    );
+  }
 
   return (
     <QavanteCard variant="bordered" className="overflow-hidden p-0">
@@ -92,9 +106,15 @@ export function OperationalResultMatrix({ data }: { data: OperationalResultBreak
                       <span className={cn(!strong && "text-neutral-mid")}>{f.row.label}</span>
                     </span>
                   </td>
-                  {f.row.by_month.map((v, i) => (
-                    <td key={i} className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
-                      {fmtCell(v)}
+                  {/* Iteramos sobre `months` (no `by_month`) para garantizar N
+                      columnas alineadas aunque el backend mande una fila con
+                      distinta cantidad de celdas. */}
+                  {months.map((m, i) => (
+                    <td
+                      key={m}
+                      className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums"
+                    >
+                      {fmtCell(f.row.by_month[i] ?? "0")}
                     </td>
                   ))}
                   <td className="whitespace-nowrap px-4 py-1.5 text-right font-medium tabular-nums">

@@ -29,3 +29,29 @@ export function setPreferredTenantId(id: string): void {
   if (typeof document === "undefined" || !id) return;
   document.cookie = `${COOKIE}=${encodeURIComponent(id)}; path=/; max-age=31536000; samesite=lax`;
 }
+
+/* Circuit-breaker del auto-switch: cuenta intentos de auto-corrección (cookie
+   corta que SOBREVIVE al reload). Si el backend queda pegado en el MVP aunque el
+   switch reporte éxito, evita el loop infinito de recargas. */
+const TRY_COOKIE = "qavante_switch_try";
+
+export function getSwitchAttempts(): number {
+  if (typeof document === "undefined") return 0;
+  const m = document.cookie.match(/(?:^|;\s*)qavante_switch_try=(\d+)/);
+  return m && m[1] ? Number(m[1]) : 0;
+}
+
+export function bumpSwitchAttempts(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${TRY_COOKIE}=${getSwitchAttempts() + 1}; path=/; max-age=60; samesite=lax`;
+}
+
+export function clearSwitchAttempts(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${TRY_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}
+
+/** ¿Ya intentamos auto-corregir demasiadas veces? (corta el loop de reload). */
+export function autoSwitchExhausted(): boolean {
+  return getSwitchAttempts() >= 2;
+}

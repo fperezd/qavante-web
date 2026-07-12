@@ -11,6 +11,9 @@ import {
   pickPreferredTenant,
   getPreferredTenantId,
   setPreferredTenantId,
+  bumpSwitchAttempts,
+  clearSwitchAttempts,
+  autoSwitchExhausted,
 } from "@/lib/tenant/preferred-tenant";
 import type { UserRole } from "@/lib/auth/types";
 
@@ -45,32 +48,44 @@ export function CompanySwitcher() {
     () => pickPreferredTenant(items, getPreferredTenantId()),
     [items],
   );
+  /* Si el auto-switch se agotó (backend pegado en MVP) o falló, NO mostramos el
+     nombre real sobre datos del MVP (mentiría) → prompteamos elegir empresa. */
+  const autoSwitchStuck = activeIsMvp && (autoSwitchExhausted() || switchTenant.isError);
   /* El label nunca muestra "MVP Tenant": si la sesión cayó en él, mostramos la
      empresa preferida (la autocorrección de abajo va a cambiar a ella enseguida).
-     Mientras cargan las empresas, "Cargando…" (no "Mi empresa" con datos vacíos). */
+     Mientras cargan las empresas, "Cargando…"; si el auto-switch quedó pegado,
+     "Elegí tu empresa" (honesto, no un nombre real sobre datos ajenos). */
   const label = tenants.isLoading
     ? "Cargando…"
-    : ((activeIsMvp ? preferred?.legal_name : active?.legal_name) ?? "Mi empresa");
+    : autoSwitchStuck
+      ? "Elegí tu empresa"
+      : ((activeIsMvp ? preferred?.legal_name : active?.legal_name) ?? "Mi empresa");
   const busy = switchTenant.isPending;
 
   /* Recuerda la empresa activa real (cookie) para poder volver a ELLA si la
-     sesión cae al MVP tras un refresh/deploy. */
+     sesión cae al MVP tras un refresh/deploy. Al aterrizar en una real, el loop
+     quedó resuelto → limpiamos el contador del circuit-breaker. */
   React.useEffect(() => {
-    if (active && !isMvp(active)) setPreferredTenantId(active.id);
+    if (active && !isMvp(active)) {
+      setPreferredTenantId(active.id);
+      clearSwitchAttempts();
+    }
   }, [active]);
 
   /* Autocorrección del default: el backend arranca la sesión en el MVP Tenant.
      Si la activa es el MVP, cambiamos a la empresa PREFERIDA (la última usada) una
-     sola vez (el switch persiste en la cookie de sesión → al recargar la activa ya
-     es la real → no hay loop). Tapón hasta que CC-API corrija el default (PR #461). */
+     sola vez por carga. Circuit-breaker (cookie que sobrevive el reload): si tras
+     un par de intentos la sesión SIGUE en MVP (backend pegado), paramos — nada de
+     loop infinito de recargas. Tapón hasta que CC-API corrija el default (#461). */
   const didAutoSwitch = React.useRef(false);
   React.useEffect(() => {
     if (didAutoSwitch.current || busy) return;
-    if (!activeIsMvp) return;
+    if (!activeIsMvp || autoSwitchExhausted()) return;
     const real = preferred;
     if (!real) return;
     didAutoSwitch.current = true;
     setPreferredTenantId(real.id);
+    bumpSwitchAttempts();
     switchTenant.mutate(real.id, { onSuccess: reloadIntoTenant });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIsMvp, preferred]);

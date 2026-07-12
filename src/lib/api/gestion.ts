@@ -64,15 +64,6 @@ export interface OperationalResultResponse {
   generated_at: string;
 }
 
-/* Reporte de rango (`GET /api/treasury/reports/operational-result`): buckets
-   mensuales + total del período. Tipos GENERADOS (regla 3). Da un desglose más
-   grueso (sin drivers/variación) que el de un mes; se usa cuando el rango abarca
-   varios meses. */
-export type OperationalResultReport =
-  components["schemas"]["OperationalResultReportResponse"];
-export type OperationalResultBucket = components["schemas"]["OperationalResultBucket"];
-export type OperationalResultTotals = components["schemas"]["OperationalResultTotals"];
-
 /* Estado de Resultados mensualizado por categoría (árbol de cuentas del tenant),
    estilo Chipax: meses en columnas, filas jerárquicas (Ingresos/Costos/Margen…),
    mes en curso marcado `proforma`. Tipos GENERADOS (regla 3). */
@@ -84,8 +75,6 @@ export const gestionKeys = {
   all: ["gestion"] as const,
   operationalResult: (period: string) =>
     [...gestionKeys.all, "operational-result", period] as const,
-  operationalResultReport: (from: string, to: string) =>
-    [...gestionKeys.all, "operational-result-report", from, to] as const,
   operationalResultBreakdown: (from: string, to: string, mode: string) =>
     [...gestionKeys.all, "operational-result-breakdown", from, to, mode] as const,
 };
@@ -100,23 +89,6 @@ export function useOperationalResult(period: string) {
         `/api/management/operational-result?period=${encodeURIComponent(period)}`,
       ),
     enabled: period !== "",
-    staleTime: 30_000,
-    retry: false,
-  });
-}
-
-/** `GET /api/treasury/reports/operational-result?period_from&period_to` — rango
- *  de meses (buckets + total). `enabled` para correr solo en la vista de rango. */
-export function useOperationalResultReport(from: string, to: string, enabled = true) {
-  return useQuery({
-    queryKey: gestionKeys.operationalResultReport(from, to),
-    queryFn: () =>
-      api.get<OperationalResultReport>(
-        `/api/treasury/reports/operational-result?period_from=${encodeURIComponent(
-          from,
-        )}&period_to=${encodeURIComponent(to)}`,
-      ),
-    enabled: enabled && from !== "" && to !== "",
     staleTime: 30_000,
     retry: false,
   });
