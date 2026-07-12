@@ -46,13 +46,16 @@ export function SiiPersonCredentialCard() {
             acá: la sesión del SII pudo caducar. La clave se encripta antes de guardarse.
           </p>
           <div className="flex justify-end pt-1">
+            {/* Etiquetas DISTINTAS de las del card del RCV ("Configurar"/"Cambiar
+                clave") a propósito: dos botones iguales lado a lado confunden, y el
+                e2e ancla el del RCV. */}
             {savedThisSession ? (
               <QavanteButton size="sm" variant="ghost" onClick={() => setOpen(true)}>
-                Cambiar clave
+                Actualizar clave
               </QavanteButton>
             ) : (
               <QavanteButton size="sm" onClick={() => setOpen(true)}>
-                Configurar
+                Ingresar clave
               </QavanteButton>
             )}
           </div>

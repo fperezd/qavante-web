@@ -31,6 +31,6 @@ export const Interaccion: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Clave del representante (SII)")).toBeInTheDocument();
     await expect(canvas.getByText(/descargar tus DTE|facturas emitidas y recibidas/)).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Configurar" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Ingresar clave" })).toBeInTheDocument();
   },
 };
