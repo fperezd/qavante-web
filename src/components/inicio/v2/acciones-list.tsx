@@ -24,9 +24,14 @@ export interface Accion {
   plazo: string;
   plazoTono?: PlazoTono;
   cta: string;
+  /** Ruta a la que navega el CTA (de `priority_action.cta_href`). Sin href → botón inerte. */
+  href?: string;
   /** Marca la acción como crítica (rank en rojo). */
   critica?: boolean;
 }
+
+const CTA_CLASS =
+  "mt-1 shrink-0 self-center whitespace-nowrap rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-[13px] font-semibold text-brand-primary";
 
 export interface AccionesListProps {
   titulo: string;
@@ -74,12 +79,15 @@ export function AccionesList({ titulo, acciones, pin, className }: AccionesListP
                 {a.plazo}
               </span>
             </div>
-            <button
-              type="button"
-              className="mt-1 shrink-0 self-center whitespace-nowrap rounded-lg border border-border-strong bg-surface px-3 py-1.5 text-[13px] font-semibold text-brand-primary"
-            >
-              {a.cta}
-            </button>
+            {a.href ? (
+              <a href={a.href} className={CTA_CLASS}>
+                {a.cta}
+              </a>
+            ) : (
+              <button type="button" className={CTA_CLASS}>
+                {a.cta}
+              </button>
+            )}
           </li>
         ))}
       </ol>

@@ -58,12 +58,18 @@ function Assembled({ data }: { data: DashboardSummaryV2 }) {
   if (pagos) grid.push(<PagosTimeline key="pagos" {...pagos} />);
   if (resultado) grid.push(<ResultadoPreliminar key="resultado" {...resultado} />);
 
+  const acciones = buildAcciones(data);
+
   return (
     <InicioEjecutivoV2
       frase={mapFrase(data)}
       termometros={buildTermometros(data)}
       pulso={pulso ?? undefined}
-      plan={<AccionesList titulo="Qué hacer primero" acciones={buildAcciones(data)} />}
+      plan={
+        acciones.length > 0 ? (
+          <AccionesList titulo="Qué hacer primero" acciones={acciones} />
+        ) : null
+      }
       grid={grid}
     />
   );
@@ -75,21 +81,24 @@ function Assembled({ data }: { data: DashboardSummaryV2 }) {
 function buildTermometros(s: DashboardSummaryV2): Termometro[] {
   const items: Termometro[] = [];
 
-  if (s.pulso || s.cash_gap) {
-    const hasGap = s.cash_gap?.has_gap ?? false;
-    const gap = mapBrechaTotal(s);
-    const crit = s.pulso?.status === "critical" || hasGap;
+  // Q1 continuidad — SOLO con el bloque `cash_gap` (el que dice si la caja cubre).
+  // El pill Y la respuesta salen de la MISMA fuente (la brecha), nunca del Pulso por
+  // separado: así no puede haber "🔴 Crítico" con texto "cubre", ni afirmar cobertura
+  // sin dato de caja.
+  if (s.cash_gap) {
+    const gap = mapBrechaTotal(s); // >0 si hay brecha real, null si no
+    const hasGap = gap != null;
     items.push({
       n: 1,
       pregunta: "¿La caja cubre la operación?",
-      pill: crit ? "🔴 Crítico" : "🟢 Holgado",
-      pillTono: crit ? "crit" : "ok",
-      destacado: crit ? "crit" : "ok",
-      respuesta:
-        hasGap && gap != null
-          ? `La empresa debe asegurar ${formatClp(gap)} para sus pagos de 14 días.`
-          : "La caja proyectada cubre las obligaciones críticas de los próximos 14 días.",
-      masLabel: "Ver plan ↓",
+      pill: hasGap ? "🔴 Crítico" : "🟢 Holgado",
+      pillTono: hasGap ? "crit" : "ok",
+      destacado: hasGap ? "crit" : "ok",
+      respuesta: hasGap
+        ? `La empresa debe asegurar ${formatClp(gap)} para sus pagos de 14 días.`
+        : "La caja proyectada cubre las obligaciones críticas de los próximos 14 días.",
+      masLabel: "Ver caja →",
+      masHref: "/caja/proyeccion",
     });
   }
 
@@ -104,6 +113,7 @@ function buildTermometros(s: DashboardSummaryV2): Termometro[] {
       pillTono: r >= 0 ? "ok" : "crit",
       respuesta: `Resultado ${formatClp(r)}${margen != null ? ` · margen ${margen}%` : ""}.`,
       masLabel: "Ver rentabilidad →",
+      masHref: "/gestion",
     });
   }
 
@@ -129,6 +139,7 @@ function buildAcciones(s: DashboardSummaryV2): Accion[] {
     plazo: a.deadline ? `Plazo: ${a.deadline}` : "",
     plazoTono: i === 0 ? "hot" : "neutral",
     cta: a.cta_label,
+    href: a.cta_href,
     critica: i === 0,
   }));
 }

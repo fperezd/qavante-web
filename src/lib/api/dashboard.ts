@@ -34,7 +34,7 @@ export type DashboardSummaryResponse = components["schemas"]["DashboardSummaryRe
    El v2 reordena la jerarquía (caja/runway al frente) y agrega las "3 fechas
    clave del mes" + tendencia de caja. Estos campos AÚN NO existen en el schema
    generado; son hand-rolled y opcionales (el backend los agregará — ver el
-   contrato). Mientras tanto vienen por MSW. Gated por `dashboardV2`. */
+   contrato). Mientras tanto vienen por MSW. Gated por `inicioEjecutivoV2`. */
 
 /** Estado de una obligación clave contra la caja proyectada. */
 export type ObligationCoverage = "covered" | "tight" | "uncovered";
