@@ -18,6 +18,8 @@ export type CredentialTestResponse = components["schemas"]["CredentialTestRespon
 export type CertificateMetadataResponse = components["schemas"]["CertificateMetadataResponse"];
 export type CertificatesListResponse = components["schemas"]["CertificatesListResponse"];
 export type CertificateUploadRequest = components["schemas"]["CertificateUploadRequest"];
+/** Body de `PUT /api/credentials/sii/person` — `{rut, name?, password}`. */
+export type PutSiiPersonRequest = components["schemas"]["PutSiiPersonRequest"];
 
 /** Source code único de la credencial de login SII (Opción A): UNA por tenant. */
 export const SII_SOURCE_CODE = "sii_rcv";
@@ -58,6 +60,18 @@ export function usePutSiiCredential() {
     mutationFn: (body: SiiCredentialPayload) =>
       api.post<CredentialPutResponse>(`/api/admin/sources/${SII_SOURCE_CODE}/credential`, { body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeysV2.siiCredential() }),
+  });
+}
+
+/** `PUT /api/credentials/sii/person` — clave del representante legal (persona
+ *  autorizada). Necesaria para el **DTE por clave** (emitidos/recibidos, #553): el
+ *  listado de DTEs del SII se baja con ESTA credencial, distinta de la del RCV
+ *  (`source sii_rcv`). Supera la nota "persons fuera de scope" (mayo): el endpoint
+ *  existe desde el login MiPyme por-clave. La clave no se persiste en el FE (regla 6). */
+export function usePutSiiPersonCredential() {
+  return useMutation({
+    mutationFn: (body: PutSiiPersonRequest) =>
+      api.put<void>("/api/credentials/sii/person", { body }),
   });
 }
 
