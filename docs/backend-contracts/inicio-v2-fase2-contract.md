@@ -101,6 +101,27 @@ Hoy: el orden de las tarjetas movibles del Inicio. **No puedo usar `localStorage
 
 ---
 
+## 4. Campos adicionales en `GET /api/dashboard/summary` (para la página completa)
+
+Al cablear la página live (gated OFF) encontré que, además de los 3 endpoints, la
+versión FIEL del Inicio v2 necesita unos campos más en el summary. **Prioridad
+marcada por Fernando** (ver el mensaje "PRIORIDAD Inicio v2" en STATE_OF_THE_TRAIN).
+
+**🔴 P1 — ya definidos en el contrato FE v2 (`src/lib/api/dashboard.ts`), solo poblar:**
+- **`key_obligations`**: hasta 3 fechas clave del mes (sueldos / impuestos mensuales /
+  imposiciones) → `[{ key, label, due_date, amount, coverage: "covered"|"tight"|"uncovered" }]`.
+  Enciende la card **Pagos con fechas** (el FE deriva el tag de postergabilidad de `coverage`).
+- **`cash_sparkline`**: `number[]` (serie de la caja proyectada, más reciente último) →
+  enciende el **sparkline de Caja**.
+
+**🟠 P2 — nuevos (del SII/banco, sin CRM):**
+- **Señales de crecimiento** (termómetro 3): `growth?: { recurring_revenue_pct, top_client_pct, sales_trend_mom_pct }`.
+- **Resultado**: `top_cost_increase?: { category, delta_pct }` (costo-por-categoría que más
+  creció MoM) + `unclassified?: { count, amount }` (movimientos sin clasificar → enciende el
+  bloque **Calidad de dato** y el rótulo **"margen preliminar"** con su rango).
+
+Shapes exactos a coordinar; el FE ya degrada su ausencia (omite la pieza, no inventa).
+
 ## Notas de integración (FE)
 
 - Los 3 son **opcionales para la página**: el Inicio v2 se activa (flag) cableado a

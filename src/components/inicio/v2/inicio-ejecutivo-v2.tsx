@@ -15,7 +15,8 @@ import { Termometros, type Termometro } from "./termometros";
 export interface InicioEjecutivoV2Props {
   frase: React.ReactNode;
   termometros: Termometro[];
-  pulso: PulsoCardProps;
+  /** Opcional: si el bloque Pulso no vino, el cockpit muestra solo el plan. */
+  pulso?: PulsoCardProps;
   /** <BrechaPlan/> en crisis, o la lista de acciones en sana/control. */
   plan: React.ReactNode;
   /** Las 4 tarjetas de detalle (Caja · Cobranza · Pagos · Resultado). */
@@ -41,8 +42,8 @@ export function InicioEjecutivoV2({
 
       <Termometros items={termometros} />
 
-      <div className="grid items-stretch gap-3.5 lg:grid-cols-2">
-        <PulsoCard {...pulso} />
+      <div className={cn("grid items-stretch gap-3.5", pulso && "lg:grid-cols-2")}>
+        {pulso && <PulsoCard {...pulso} />}
         {plan}
       </div>
 

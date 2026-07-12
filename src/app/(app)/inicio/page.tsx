@@ -3,6 +3,7 @@ import { QavanteEmpty } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { InicioMvpView } from "@/components/inicio/inicio-mvp-view";
 import { InicioEjecutivoView } from "@/components/inicio/inicio-ejecutivo-view";
+import { InicioEjecutivoV2Live } from "@/components/inicio/v2/inicio-ejecutivo-v2-live";
 
 /* Inicio Ejecutivo (Sprint C8). **Server Component** (como gestion/cobrar/pagar):
    resuelve el flag en runtime del Worker leyendo `NEXT_PUBLIC_FF_*` vía la
@@ -15,7 +16,7 @@ import { InicioEjecutivoView } from "@/components/inicio/inicio-ejecutivo-view";
    2. `inicioMvp` ON → el MVP de perfil (saludo + /api/me), interino.
    3. Default OFF → QavanteEmpty informativo "Sprint C8". */
 export default function InicioPage() {
-  const { inicioMvp, dashboardSummary } = resolveFeatureFlags();
+  const { inicioMvp, dashboardSummary, inicioEjecutivoV2 } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -24,7 +25,9 @@ export default function InicioPage() {
         <p className="mt-1 text-sm text-neutral-mid">¿Cómo está mi empresa hoy?</p>
       </header>
 
-      {dashboardSummary ? (
+      {inicioEjecutivoV2 ? (
+        <InicioEjecutivoV2Live />
+      ) : dashboardSummary ? (
         <InicioEjecutivoView />
       ) : inicioMvp ? (
         <InicioMvpView />
