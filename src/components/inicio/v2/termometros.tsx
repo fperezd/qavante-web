@@ -31,6 +31,8 @@ export interface Termometro {
   pillTono: PillTono;
   respuesta: React.ReactNode;
   masLabel: string;
+  /** Ruta del "ver más". Sin href → queda como texto (hint), no link. */
+  masHref?: string;
   destacado?: Destacado;
 }
 
@@ -66,9 +68,13 @@ export function Termometros({ items, className }: TermometrosProps) {
               {t.pill}
             </span>
             <p className="text-xs leading-relaxed text-neutral-mid">{t.respuesta}</p>
-            <span className="mt-1 text-xs font-semibold text-brand-primary">
-              {t.masLabel}
-            </span>
+            {t.masHref ? (
+              <a href={t.masHref} className="mt-1 text-xs font-semibold text-brand-primary">
+                {t.masLabel}
+              </a>
+            ) : (
+              <span className="mt-1 text-xs font-semibold text-brand-primary">{t.masLabel}</span>
+            )}
           </section>
         );
       })}

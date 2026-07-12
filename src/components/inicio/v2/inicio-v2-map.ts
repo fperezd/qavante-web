@@ -66,7 +66,7 @@ export function mapCaja(s: DashboardSummaryV2): CajaProyeccionProps | null {
     subtitulo: "Caja hoy · estimada",
     serie: s.cash_sparkline ?? [],
     filas,
-    stamp: stampOf(s.cash_today?.last_updated ?? f?.last_updated, f?.source ?? "banco"),
+    stamp: stampOf(s.cash_today?.last_updated ?? f?.last_updated, f?.source ?? null),
   };
 }
 
@@ -107,10 +107,15 @@ const COVERAGE_TAG: Record<string, Postergabilidad> = {
 export function mapPagos(s: DashboardSummaryV2, now: Date): PagosTimelineProps | null {
   const obs = s.key_obligations;
   if (!obs || obs.length === 0) return null;
-  const today = now.getTime();
+  // `due_date` es ISO date (YYYY-MM-DD). Comparamos por PARTES de fecha en local
+  // (no Date.parse, que da UTC-midnight) → un pago que vence HOY no queda "vencido"
+  // en Chile (UTC-3/-4) por el desfase horario.
+  const todayYmd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate(),
+  ).padStart(2, "0")}`;
   const pagos: PagoCritico[] = obs.slice(0, 3).map((o) => {
-    const venc = Date.parse(o.due_date);
-    const vencido = Number.isFinite(venc) && venc < today;
+    const dueYmd = (o.due_date ?? "").slice(0, 10);
+    const vencido = dueYmd !== "" && dueYmd < todayYmd;
     return {
       fecha: `${vencido ? "Venció" : "Vence"} ${formatDateLike(o.due_date)}`,
       nombre: o.label,

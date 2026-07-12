@@ -114,7 +114,7 @@ describe("mapCobranza (degradada sin Fase 2)", () => {
 });
 
 describe("mapPagos (key_obligations)", () => {
-  const now = new Date("2026-07-12");
+  const now = new Date(2026, 6, 12); // 12-jul-2026 LOCAL (determinista, sin UTC drift)
   it("mapea hasta 3 fechas clave; marca vencido y tag por cobertura", () => {
     const s = {
       ...emptySummary(),
@@ -132,6 +132,17 @@ describe("mapPagos (key_obligations)", () => {
     expect(p.pagos[1]!.tipo).toBe("negociable"); // tight
     expect(p.total).toBe(12814448);
     expect(p.totalEnRojo).toBe(true);
+  });
+  it("un pago que vence HOY NO está vencido (sin off-by-one de timezone)", () => {
+    const s = {
+      ...emptySummary(),
+      key_obligations: [
+        { key: "sueldos", label: "Remuneraciones", due_date: "2026-07-12", amount: "1000", coverage: "covered" },
+      ],
+    } as unknown as DashboardSummaryV2;
+    const p = mapPagos(s, now)!;
+    expect(p.pagos[0]!.vencido).toBe(false);
+    expect(p.pagos[0]!.fecha.startsWith("Vence")).toBe(true);
   });
   it("null si no vienen key_obligations (degrada a la vista)", () => {
     expect(mapPagos(emptySummary(), now)).toBeNull();
