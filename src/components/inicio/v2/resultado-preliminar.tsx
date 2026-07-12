@@ -46,6 +46,9 @@ export function ResultadoPreliminar({
 }: ResultadoPreliminarProps) {
   const pct =
     ingresos > 0 ? Math.min(100, Math.round((Math.abs(resultado) / ingresos) * 100)) : 0;
+  /* Una pérdida NO puede leerse como ganancia: color rojo cuando el resultado es
+     negativo (el `−$` del formatter no alcanza si el verde dice lo contrario). */
+  const negativo = resultado < 0;
 
   return (
     <section
@@ -55,7 +58,12 @@ export function ResultadoPreliminar({
       <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-mid">
         Resultado del mes
       </p>
-      <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight text-success-700">
+      <p
+        className={cn(
+          "mt-1 text-2xl font-extrabold tabular-nums tracking-tight",
+          negativo ? "text-danger-500" : "text-success-700",
+        )}
+      >
         {formatClp(resultado)}
       </p>
       <p className="mt-0.5 mb-3 text-xs text-neutral-mid">{subtitulo}</p>
@@ -75,13 +83,21 @@ export function ResultadoPreliminar({
         <div>
           <div className="mb-1 flex justify-between text-xs">
             <span className="text-neutral-mid">Resultado</span>
-            <span className="font-extrabold tabular-nums text-success-700">
+            <span
+              className={cn(
+                "font-extrabold tabular-nums",
+                negativo ? "text-danger-500" : "text-success-700",
+              )}
+            >
               {formatClp(resultado)}
             </span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-surface-muted">
             <div
-              className="h-full rounded-full bg-success-500"
+              className={cn(
+                "h-full rounded-full",
+                negativo ? "bg-danger-500" : "bg-success-500",
+              )}
               style={{ width: `${pct}%` }}
             />
           </div>
