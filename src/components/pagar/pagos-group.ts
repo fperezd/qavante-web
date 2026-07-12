@@ -11,13 +11,26 @@ export interface PayableGroup {
   subtotal: number;
 }
 
-/** Agrupa por categoría y ordena por subtotal desc (dónde se concentra el pago). */
+const KNOWN_CATEGORIES: ReadonlySet<string> = new Set([
+  "supplier",
+  "tax",
+  "payroll",
+  "rent",
+  "debt",
+  "leasing",
+  "other",
+]);
+
+/** Agrupa por categoría y ordena por subtotal desc (dónde se concentra el pago).
+    Una categoría que el backend agregue y el FE aún no conozca cae en "other" (un
+    solo grupo "Otros", no dos). */
 export function groupByCategory(items: ReadonlyArray<PayableItem>): PayableGroup[] {
   const map = new Map<PaymentCategory, PayableItem[]>();
   for (const it of items) {
-    const arr = map.get(it.category);
+    const category = (KNOWN_CATEGORIES.has(it.category) ? it.category : "other") as PaymentCategory;
+    const arr = map.get(category);
     if (arr) arr.push(it);
-    else map.set(it.category, [it]);
+    else map.set(category, [it]);
   }
   return [...map.entries()]
     .map(([category, groupItems]) => ({

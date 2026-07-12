@@ -30,6 +30,7 @@ import { normalizeRut } from "@/lib/validators/rut";
 import { defaultRange } from "@/lib/period/period-range";
 import { cn } from "@/lib/utils";
 import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
+import { fechaSortKey } from "@/components/sii/rcv-sort";
 import { useDebtorInvoices } from "./debtor-invoices";
 import { parseAmount, agingBars, sortByUrgency, shareOfTotal } from "./cobranza-format";
 
@@ -358,7 +359,9 @@ export function DebtorInvoicesPanel({
       </p>
     );
   } else {
-    const ordered = [...docs].sort((a, b) => String(b.fecha ?? "").localeCompare(String(a.fecha ?? "")));
+    // Orden cronológico real (desc): el SII emite `fecha` en varios formatos
+    // (ISO no-padded, DD/MM/YYYY…) → localeCompare del string cruda ordenaba mal.
+    const ordered = [...docs].sort((a, b) => fechaSortKey(b.fecha) - fechaSortKey(a.fecha));
     body = (
       <>
         <div className="overflow-x-auto">
