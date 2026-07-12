@@ -46,9 +46,20 @@ export interface PayableItem {
   amount_clp?: string | null;
 }
 
+/** Desglose crudo del total por moneda (sin convertir), para "(CLP $X + USD $Y)".
+ *  CC-API #560. CLP primero. */
+export interface PayableCurrencyTotal {
+  currency: string;
+  amount: string;
+}
+
 export interface AccountsPayableResponse {
-  /** Total por pagar. */
+  /** Total por pagar CONVERTIDO a CLP (TC vigente). Las monedas sin TC quedan
+   *  fuera y se avisan en `missing_sources` (CC-API #560). */
   total: string;
+  /** Desglose crudo por moneda (sin convertir) para mostrar "(CLP $X + USD $Y)"
+   *  al lado del total. Ausente/1 sola moneda → no se muestra el desglose. */
+  total_by_currency?: PayableCurrencyTotal[];
   /** Vence en los próximos 7 / 14 / 30 días (string-decimal). */
   due_7d: string;
   due_14d: string;

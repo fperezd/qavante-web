@@ -22,7 +22,12 @@ import {
 } from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
-import { parseAmount, payableItemLabel, paymentCategoryLabel } from "./pagos-format";
+import {
+  multiCurrencyNote,
+  parseAmount,
+  payableItemLabel,
+  paymentCategoryLabel,
+} from "./pagos-format";
 import {
   isOverdue,
   overdueTotal,
@@ -126,6 +131,17 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
           info="Lo que vence dentro de los próximos 30 días. Incluye lo de los próximos 14."
         />
       </div>
+
+      {/* Multimoneda (CC-API #560): el total va en CLP convertido; si hay USD u otra
+          moneda, mostramos el desglose crudo para que el dueño lo entienda. */}
+      {(() => {
+        const note = multiCurrencyNote(data.total_by_currency);
+        return note ? (
+          <p className="-mt-1 text-xs text-neutral-mid">
+            Total convertido a CLP · desglose: <span className="tabular-nums">{note}</span>
+          </p>
+        ) : null;
+      })()}
 
       {/* Vencido: lo que ya pasó su fecha (lo más urgente) — destacado en rojo. */}
       {overdue > 0 && (
