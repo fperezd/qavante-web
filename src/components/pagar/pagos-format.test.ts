@@ -1,5 +1,37 @@
 import { describe, it, expect } from "vitest";
-import { parseAmount, payableItemLabel, paymentCategoryLabel } from "./pagos-format";
+import {
+  multiCurrencyNote,
+  parseAmount,
+  payableItemLabel,
+  paymentCategoryLabel,
+} from "./pagos-format";
+
+describe("multiCurrencyNote", () => {
+  it("null con 0 o 1 moneda (no hay nada que desglosar)", () => {
+    expect(multiCurrencyNote(undefined)).toBeNull();
+    expect(multiCurrencyNote([])).toBeNull();
+    expect(multiCurrencyNote([{ currency: "CLP", amount: "1000" }])).toBeNull();
+  });
+
+  it("desglosa CLP + USD con símbolo y código", () => {
+    const note = multiCurrencyNote([
+      { currency: "CLP", amount: "12800000" },
+      { currency: "USD", amount: "2400.5" },
+    ]);
+    expect(note).toContain("(CLP)");
+    expect(note).toContain("(USD)");
+    expect(note).toContain(" + ");
+  });
+
+  it("tolera moneda vacía cayendo a CLP", () => {
+    expect(
+      multiCurrencyNote([
+        { currency: "", amount: "100" },
+        { currency: "USD", amount: "5" },
+      ]),
+    ).toContain("(CLP)");
+  });
+});
 
 describe("parseAmount", () => {
   it("string-decimal → number; vacío/inválido → 0", () => {

@@ -1163,16 +1163,39 @@ export interface paths {
         put?: never;
         /**
          * SII: llena receivables.due_date bajando el XML de cada DTE emitido (ADR-0037 §6.4)
-         * @description Para las ventas del período (RCV ya sincronizado), baja el XML del DTE emitido,
-         *     saca el vencimiento (`FchVenc`/`FchPago`) y llena `receivables.due_date` — el dato que
-         *     no viene en el RCV.
+         * @description Para las ventas del período (RCV ya sincronizado), baja el XML del DTE emitido por la
+         *     **clave del representante** (persona → empresa → firma central) usando el **CODIGO real**
+         *     del listado de emitidos, saca el vencimiento (`FchVenc`/`FchPago`) y llena
+         *     `receivables.due_date` — el dato que no viene en el RCV.
          *
-         *     ⚠️ WIP (2026-06-30): la descarga del XML todavía **no funciona end-to-end** — el
-         *     `dhdr_codigo` del RCV no es el `CODIGO` que espera `mipeGenDLNewEnvio.cgi` (ver
-         *     `_dte_emitidos.py` + `docs/runbooks/sii-postfirmadigital-capture.md`). Hoy devuelve
-         *     `enriched=0` (todos `no_xml`). Idempotente.
+         *     Reemplaza el path WIP que usaba el `dhdr_codigo` del RCV (que no es el CODIGO que espera
+         *     `mipeGenDLNewEnvio.cgi`). Sin credencial de persona → 412. Idempotente.
          */
         post: operations["sii_enrich_due_dates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/enrich-due-dates-recibidos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII: llena payables.due_date de compras desde el respaldo de recibidos (CC-WEB #3)
+         * @description Baja el respaldo XML de recibidos del rango (login por **clave del representante**:
+         *     persona → elegir empresa → firma central) y llena `payables.due_date` de compras con el
+         *     `FchVenc` (crédito) o la emisión (contado) del DTE — el vencimiento que el RCV no trae.
+         *     Matchea por `(tipo, folio, emisor_rut)`; los que no calzan se reportan como `no_match`
+         *     (honesto). Idempotente. Requiere credencial de persona (`PUT /credentials/sii/person`).
+         */
+        post: operations["sii_enrich_due_dates_recibidos"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4149,17 +4172,25 @@ export interface components {
          * @description Respuesta de `GET /api/treasury/accounts-payable` (pantalla Pagar).
          */
         AccountsPayableResponse: {
-            /** Total */
+            /**
+             * Total
+             * @description Total por pagar **convertido a CLP** al tipo de cambio vigente (para la cobertura de caja). El desglose crudo por moneda va en `total_by_currency`. Las monedas sin TC quedan fuera de este total (avisadas en `missing_sources`).
+             */
             total: string;
             /**
              * Due 7D
-             * @description Saldo que vence en ≤7 días (acumulativo, incl. vencido).
+             * @description Saldo que vence en ≤7 días (CLP, acumulativo, incl. vencido).
              */
             due_7d: string;
             /** Due 14D */
             due_14d: string;
             /** Due 30D */
             due_30d: string;
+            /**
+             * Total By Currency
+             * @description Desglose del total por pagar por moneda, SIN convertir — para mostrar '(CLP $X + USD $Y)' junto al total en CLP. CLP primero.
+             */
+            total_by_currency?: components["schemas"]["PayableCurrencyTotal"][];
             /** Items */
             items?: components["schemas"]["PayableItem"][];
             /**
@@ -4387,6 +4418,12 @@ export interface components {
              * @description Movimientos que no matchearon ninguna regla (siguen sin clasificar).
              */
             sin_regla: number;
+            /**
+             * Omitidos Transferencia
+             * @description Movimientos saltados por las reglas por ser probables patas de transferencia interna (RUT propio del tenant en la glosa) — los clasifica la detección de traspasos, no las reglas por keyword/monto. Evita el gasto-fantasma que no netea.
+             * @default 0
+             */
+            omitidos_transferencia: number;
         };
         /**
          * ApplyTemplateRequest
@@ -7002,6 +7039,49 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DueDateComprasEnrichResponse
+         * @description Resultado de `POST /api/sii/enrich-due-dates-recibidos` — baja el respaldo XML de
+         *     recibidos del rango (que YA trae el vencimiento) y llena `payables.due_date` (CC-WEB #3).
+         *
+         *     `no_match` = DTE del respaldo sin fila de payables que calce por `(tipo, folio, rut)`
+         *     (honesto: un descuadre de RUT/formato se ve acá, no se traga). `no_date` = sin
+         *     vencimiento ni contado.
+         */
+        DueDateComprasEnrichResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Enriched
+             * @default 0
+             */
+            enriched: number;
+            /**
+             * No Date
+             * @default 0
+             */
+            no_date: number;
+            /**
+             * No Match
+             * @default 0
+             */
+            no_match: number;
+            /**
+             * Skipped
+             * @default 0
+             */
+            skipped: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * DueDateEnrichResponse
          * @description Resultado de `POST /api/sii/enrich-due-dates` — baja el XML de cada DTE emitido
          *     (via `dhdr_codigo` del RCV) y llena `receivables.due_date` (ADR-0037 §6.4).
@@ -9317,6 +9397,22 @@ export interface components {
             role?: string | null;
             /** Status */
             status?: string | null;
+        };
+        /**
+         * PayableCurrencyTotal
+         * @description Total por pagar de UNA moneda, sin convertir — para el desglose '(CLP $X + USD $Y)'.
+         */
+        PayableCurrencyTotal: {
+            /**
+             * Currency
+             * @description Moneda ISO-4217 (ej. 'CLP', 'USD').
+             */
+            currency: string;
+            /**
+             * Amount
+             * @description Suma cruda del saldo pendiente en esa moneda (SIN convertir a CLP).
+             */
+            amount: string;
         };
         /**
          * PayableItem
@@ -13560,6 +13656,49 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DueDateEnrichResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sii_enrich_due_dates_recibidos: {
+        parameters: {
+            query: {
+                /** @description Fecha desde YYYY-MM-DD */
+                desde: string;
+                /** @description Fecha hasta YYYY-MM-DD */
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DueDateComprasEnrichResponse"];
+                };
+            };
+            /** @description Falta la clave del representante (person). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
