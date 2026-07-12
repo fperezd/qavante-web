@@ -1,0 +1,71 @@
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { within, expect } from "storybook/test";
+import { ResultadoPreliminar } from "./resultado-preliminar";
+
+/* Margen agregado marcado preliminar con rango del peor caso; señales de gestión
+   del SII (costo que más creció, concentración). Sin margen por cliente/producto. */
+
+const meta = {
+  title: "Inicio v2 / ResultadoPreliminar",
+  component: ResultadoPreliminar,
+  parameters: {
+    layout: "centered",
+    docs: {
+      description: {
+        component:
+          "Resultado + margen operacional agregado, marcado preliminar cuando faltan clasificar costos, con rango worst-case. Nada de margen por cliente (no hay costeo).",
+      },
+    },
+  },
+  decorators: [
+    (Story) => (
+      <div style={{ width: 380 }}>
+        <Story />
+      </div>
+    ),
+  ],
+} satisfies Meta<typeof ResultadoPreliminar>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Preliminar: Story = {
+  args: {
+    resultado: 7_926_679,
+    subtitulo: "Resultado operacional · julio",
+    ingresos: 8_855_032,
+    margenLabel: "Margen operacional preliminar",
+    margen: "89%",
+    caveat: "Puede cambiar al completar 195 movimientos por clasificar · impacto máx. pendiente $3,4M",
+    rango: "entre 51% y 89%",
+    extra: [
+      { label: "Costo que más creció", valor: "Servicios +18%", tono: "warn" },
+      { label: "Concentración de ventas", valor: "1 cliente · 38%" },
+    ],
+  },
+};
+
+export const Sana: Story = {
+  args: {
+    resultado: 12_400_000,
+    subtitulo: "Resultado operacional · ↑12% vs mes anterior",
+    ingresos: 29_500_000,
+    margenLabel: "Margen operacional",
+    margen: "42%",
+    extra: [
+      { label: "Costo que más creció", valor: "Sin alzas relevantes" },
+      { label: "Concentración de ventas", valor: "1 cliente · 38%" },
+    ],
+  },
+};
+
+export const Interaccion: Story = {
+  name: "Preliminar + rango honesto",
+  args: { ...Preliminar.args! },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Margen operacional preliminar")).toBeInTheDocument();
+    await expect(canvas.getByText("entre 51% y 89%")).toBeInTheDocument();
+    await expect(canvas.getByText(/impacto máx. pendiente/)).toBeInTheDocument();
+  },
+};
