@@ -228,7 +228,7 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
                   className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-xs font-medium text-surface transition-colors hover:bg-brand-primary-600"
                 >
                   <KeyRound className="h-4 w-4" aria-hidden="true" />
-                  Reconectar el SII
+                  Ir a Credenciales
                 </Link>
               </div>
             ) : (
