@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
-import type { CollectionForecastResponse } from "@/lib/api/treasury";
+import type { CollectionForecastResponse, CashCycleResponse } from "@/lib/api/treasury";
 import {
   mapPulso,
   mapCaja,
   mapBrechaTotal,
+  cicloCajaExtra,
   mapCobranza,
   mapCobranzaForecast,
   mapPlanBrecha,
@@ -229,6 +230,24 @@ describe("mapResultado", () => {
     expect(r.margenLabel).toBe("Margen operacional");
     expect(r.extra).toEqual([]);
     expect(r.caveat).toBeUndefined();
+  });
+});
+
+describe("cicloCajaExtra (Fase 2 · cash-cycle)", () => {
+  it("fila DSO/DPO cuando hay dato", () => {
+    expect(cicloCajaExtra({ dso_days: 42, dpo_days: 28 } as unknown as CashCycleResponse)).toEqual({
+      label: "Ciclo de caja (cobra / paga)",
+      valor: "42d / 28d",
+    });
+  });
+  it("null sin DSO calculable", () => {
+    expect(cicloCajaExtra(undefined)).toBeNull();
+    expect(cicloCajaExtra({ dso_days: null } as unknown as CashCycleResponse)).toBeNull();
+  });
+  it("DPO nulo → '—'", () => {
+    expect(
+      cicloCajaExtra({ dso_days: 42, dpo_days: null } as unknown as CashCycleResponse)!.valor,
+    ).toBe("42d / —");
   });
 });
 

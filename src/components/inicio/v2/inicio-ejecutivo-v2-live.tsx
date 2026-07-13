@@ -5,7 +5,9 @@ import { QavanteInlineError } from "@/components/qavante";
 import { useDashboardSummary, type DashboardSummaryV2 } from "@/lib/api/dashboard";
 import {
   useCollectionForecast,
+  useCashCycle,
   type CollectionForecastResponse,
+  type CashCycleResponse,
 } from "@/lib/api/treasury";
 import { formatClp } from "@/lib/formatters/clp";
 import { isEmptySummary, parseAmount } from "../dashboard-format";
@@ -20,6 +22,7 @@ import { ResultadoPreliminar } from "./resultado-preliminar";
 import {
   mapBrechaTotal,
   mapCaja,
+  cicloCajaExtra,
   mapCobranza,
   mapCobranzaForecast,
   mapFrase,
@@ -42,6 +45,7 @@ export function InicioEjecutivoV2Live() {
   // Fase 2: cobranza realizable. Query independiente que degrada solo (retry:false)
   // → si aún no responde, la Cobranza cae al total del summary (mapCobranza).
   const forecast = useCollectionForecast();
+  const cashCycle = useCashCycle();
 
   if (query.isLoading) return <LiveSkeleton />;
   if (query.isError) {
@@ -52,15 +56,17 @@ export function InicioEjecutivoV2Live() {
   const data = query.data;
   if (!data || isEmptySummary(data)) return <EmptyState />;
 
-  return <Assembled data={data} forecast={forecast.data} />;
+  return <Assembled data={data} forecast={forecast.data} cashCycle={cashCycle.data} />;
 }
 
 function Assembled({
   data,
   forecast,
+  cashCycle,
 }: {
   data: DashboardSummaryV2;
   forecast?: CollectionForecastResponse;
+  cashCycle?: CashCycleResponse;
 }) {
   const pulso = mapPulso(data);
   const caja = mapCaja(data);
@@ -69,6 +75,11 @@ function Assembled({
   const cobranza = forecast ? mapCobranzaForecast(forecast) : mapCobranza(data);
   const pagos = mapPagos(data, new Date());
   const resultado = mapResultado(data);
+  // Enriquecer el Resultado con el ciclo de caja (DSO/DPO) si cash-cycle respondió.
+  if (resultado) {
+    const ciclo = cicloCajaExtra(cashCycle);
+    if (ciclo) resultado.extra = [...resultado.extra, ciclo];
+  }
 
   const grid: React.ReactNode[] = [];
   if (caja) grid.push(<CajaProyeccion key="caja" {...caja} />);

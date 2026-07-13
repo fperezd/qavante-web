@@ -20,6 +20,9 @@ export type BankMovement = components["schemas"]["BankMovement"];
  *  #572). El `expected` de cada bucket = nominal ponderado por probabilidad de pago. */
 export type CollectionForecastResponse = components["schemas"]["CollectionForecastResponse"];
 export type ForecastBucket = components["schemas"]["ForecastBucket"];
+/** Ciclo de conversión de caja: DSO (días de cobro) / DPO (días de pago) / CCC
+ *  (CC-WEB Fase 2). Todos nullable si no hay ventana devengada suficiente. */
+export type CashCycleResponse = components["schemas"]["CashCycleResponse"];
 export type BankMovementsListResponse = components["schemas"]["BankMovementsListResponse"];
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
 export type ApplyRulesResponse = components["schemas"]["ApplyRulesResponse"];
@@ -61,6 +64,7 @@ export const treasuryKeys = {
   biceSaldo: () => [...treasuryKeys.all, "bice-saldo"] as const,
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
   collectionForecast: () => [...treasuryKeys.all, "collection-forecast"] as const,
+  cashCycle: () => [...treasuryKeys.all, "cash-cycle"] as const,
 };
 
 /** `GET /api/treasury/collection-forecast` — cobranza esperada por bucket de
@@ -70,6 +74,17 @@ export function useCollectionForecast() {
   return useQuery({
     queryKey: treasuryKeys.collectionForecast(),
     queryFn: () => api.get<CollectionForecastResponse>("/api/treasury/collection-forecast"),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `GET /api/treasury/cash-cycle` — ciclo de caja (DSO/DPO/CCC) para la señal de
+ *  gestión del Inicio v2. Cookie auth. NO retry (degrada solo). */
+export function useCashCycle() {
+  return useQuery({
+    queryKey: treasuryKeys.cashCycle(),
+    queryFn: () => api.get<CashCycleResponse>("/api/treasury/cash-cycle"),
     staleTime: 30_000,
     retry: false,
   });
