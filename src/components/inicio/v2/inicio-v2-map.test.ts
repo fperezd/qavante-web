@@ -7,6 +7,7 @@ import {
   mapBrechaTotal,
   mapCobranza,
   mapCobranzaForecast,
+  mapPlanBrecha,
   mapPagos,
   mapResultado,
   mapFrase,
@@ -141,6 +142,41 @@ describe("mapCobranzaForecast (Fase 2 · collection-forecast)", () => {
     expect(c.segmentos[0]!.monto).toBe(8_000_000); // usa expected, no nominal
     expect(c.totalPorCobrar).toBe(205_400_000); // nominal
     expect(c.vencido).toBe(0);
+  });
+});
+
+describe("mapPlanBrecha (Fase 2 · brecha + forecast)", () => {
+  // esperado a tiempo (≤14d) = 4M + 3M = 7M
+  const forecast = {
+    total_nominal: "100000000",
+    overdue: { nominal: "0", expected: "0" },
+    buckets: [
+      { label: "0-7d", nominal: "6000000", expected: "4000000", days_from: 0, days_to: 7 },
+      { label: "8-14d", nominal: "4000000", expected: "3000000", days_from: 8, days_to: 14 },
+      { label: "15-30d", nominal: "9000000", expected: "5000000", days_from: 15, days_to: 30 },
+    ],
+  } as unknown as import("@/lib/api/treasury").CollectionForecastResponse;
+
+  it("brecha parcial: acción cobrar (probable) + residual a financiar (por evaluar)", () => {
+    const p = mapPlanBrecha(10_000_000, forecast);
+    expect(p.brechaTotal).toBe(10_000_000);
+    expect(p.acciones).toHaveLength(2);
+    expect(p.acciones[0]!.impacto).toBe(7_000_000);
+    expect(p.acciones[0]!.estado).toBe("probable");
+    expect(p.acciones[0]!.brechaRestante).toBe(-3_000_000);
+    expect(p.acciones[1]!.impacto).toBe(3_000_000);
+    expect(p.acciones[1]!.estado).toBe("por_evaluar");
+    expect(p.acciones[1]!.restanteNota).toBe("si se aprueba");
+    expect(p.coberturaIdentificada).toBe(7_000_000);
+    expect(p.pendienteAsegurar).toBe(3_000_000);
+  });
+
+  it("brecha cubierta por la cobranza: 1 acción, sin pendiente", () => {
+    const p = mapPlanBrecha(5_000_000, forecast); // esperado 7M ≥ 5M
+    expect(p.acciones).toHaveLength(1);
+    expect(p.acciones[0]!.impacto).toBe(5_000_000); // min(7M, brecha)
+    expect(p.acciones[0]!.brechaRestante).toBe(0);
+    expect(p.pendienteAsegurar).toBe(0);
   });
 });
 
