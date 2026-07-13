@@ -3,6 +3,10 @@
 import * as React from "react";
 import { QavanteInlineError } from "@/components/qavante";
 import { useDashboardSummary, type DashboardSummaryV2 } from "@/lib/api/dashboard";
+import {
+  useCollectionForecast,
+  type CollectionForecastResponse,
+} from "@/lib/api/treasury";
 import { formatClp } from "@/lib/formatters/clp";
 import { isEmptySummary, parseAmount } from "../dashboard-format";
 import { InicioEjecutivoV2 } from "./inicio-ejecutivo-v2";
@@ -16,6 +20,7 @@ import {
   mapBrechaTotal,
   mapCaja,
   mapCobranza,
+  mapCobranzaForecast,
   mapFrase,
   mapPagos,
   mapPulso,
@@ -32,6 +37,9 @@ import {
 
 export function InicioEjecutivoV2Live() {
   const query = useDashboardSummary();
+  // Fase 2: cobranza realizable. Query independiente que degrada solo (retry:false)
+  // → si aún no responde, la Cobranza cae al total del summary (mapCobranza).
+  const forecast = useCollectionForecast();
 
   if (query.isLoading) return <LiveSkeleton />;
   if (query.isError) {
@@ -42,13 +50,21 @@ export function InicioEjecutivoV2Live() {
   const data = query.data;
   if (!data || isEmptySummary(data)) return <EmptyState />;
 
-  return <Assembled data={data} />;
+  return <Assembled data={data} forecast={forecast.data} />;
 }
 
-function Assembled({ data }: { data: DashboardSummaryV2 }) {
+function Assembled({
+  data,
+  forecast,
+}: {
+  data: DashboardSummaryV2;
+  forecast?: CollectionForecastResponse;
+}) {
   const pulso = mapPulso(data);
   const caja = mapCaja(data);
-  const cobranza = mapCobranza(data);
+  // Con collection-forecast (Fase 2) → cobranza realizable con segmentos; sin él,
+  // degrada al total por cobrar del summary.
+  const cobranza = forecast ? mapCobranzaForecast(forecast) : mapCobranza(data);
   const pagos = mapPagos(data, new Date());
   const resultado = mapResultado(data);
 

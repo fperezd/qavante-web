@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
+import type { CollectionForecastResponse } from "@/lib/api/treasury";
 import {
   mapPulso,
   mapCaja,
   mapBrechaTotal,
   mapCobranza,
+  mapCobranzaForecast,
   mapPagos,
   mapResultado,
   mapFrase,
@@ -110,6 +112,35 @@ describe("mapCobranza (degradada sin Fase 2)", () => {
     expect(c.vencido).toBe(0);
     expect(c.segmentos).toEqual([]);
     expect(c.subtitulo).toBe("Por cobrar");
+  });
+});
+
+describe("mapCobranzaForecast (Fase 2 · collection-forecast)", () => {
+  const forecast = {
+    as_of: "2026-07-12",
+    total_nominal: "205400000",
+    total_expected: "180000000",
+    overdue: { nominal: "0", expected: "0" },
+    sin_vencimiento: { nominal: "0", expected: "0" },
+    beyond_horizon: { nominal: "0", expected: "0" },
+    buckets: [
+      { label: "0-7d", nominal: "10000000", expected: "8000000", days_from: 0, days_to: 7 },
+      { label: "8-14d", nominal: "6000000", expected: "4000000", days_from: 8, days_to: 14 },
+      { label: "15-30d", nominal: "5000000", expected: "3000000", days_from: 15, days_to: 30 },
+      { label: "31-60d", nominal: "2000000", expected: "1000000", days_from: 31, days_to: 60 },
+    ],
+  } as unknown as CollectionForecastResponse;
+
+  it("esperado a tiempo = Σ expected de buckets ≤14d; segmentos ≤30d con banda por recencia", () => {
+    const c = mapCobranzaForecast(forecast);
+    expect(c.esperadoATiempo).toBe(12_000_000); // 8M (0-7) + 4M (8-14)
+    expect(c.segmentos).toHaveLength(3); // ≤30d (excluye 31-60)
+    expect(c.segmentos[0]!.banda).toBe("high"); // 0-7d
+    expect(c.segmentos[1]!.banda).toBe("probable"); // 8-14d
+    expect(c.segmentos[2]!.banda).toBe("unknown"); // 15-30d
+    expect(c.segmentos[0]!.monto).toBe(8_000_000); // usa expected, no nominal
+    expect(c.totalPorCobrar).toBe(205_400_000); // nominal
+    expect(c.vencido).toBe(0);
   });
 });
 

@@ -9,7 +9,8 @@
 import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
 import type { PulsoCardProps, PulsoFactor } from "./pulso-card";
 import type { CajaProyeccionProps, CajaFila } from "./caja-proyeccion";
-import type { CobranzaRealizableProps } from "./cobranza-realizable";
+import type { CobranzaRealizableProps, BandaCobro } from "./cobranza-realizable";
+import type { CollectionForecastResponse } from "@/lib/api/treasury";
 import type { PagosTimelineProps, PagoCritico, Postergabilidad } from "./pagos-timeline";
 import type { ResultadoPreliminarProps } from "./resultado-preliminar";
 import { parseAmount } from "../dashboard-format";
@@ -100,6 +101,30 @@ const COVERAGE_TAG: Record<string, Postergabilidad> = {
   tight: "negociable",
   uncovered: "sin_cobertura",
 };
+
+/** Cobranza REALIZABLE desde `collection-forecast` (Fase 2, #572). Lidera con lo
+ *  esperado a tiempo (Σ `expected` de los buckets ≤14 días — ya ponderado por la
+ *  probabilidad de pago del backend), muestra los buckets hasta 30d como segmentos, y
+ *  deja el total nominal + vencido como dato secundario. Reemplaza a `mapCobranza`
+ *  (degradada) cuando el endpoint responde. */
+export function mapCobranzaForecast(f: CollectionForecastResponse): CobranzaRealizableProps {
+  const buckets = f.buckets ?? [];
+  const banda = (daysTo: number): BandaCobro =>
+    daysTo <= 7 ? "high" : daysTo <= 14 ? "probable" : "unknown";
+  const esperadoATiempo = buckets
+    .filter((b) => b.days_to <= 14)
+    .reduce((s, b) => s + parseAmount(b.expected), 0);
+  const segmentos = buckets
+    .filter((b) => b.days_to <= 30)
+    .map((b) => ({ label: b.label, monto: parseAmount(b.expected), banda: banda(b.days_to) }));
+  return {
+    esperadoATiempo,
+    subtitulo: "Cobranza esperada a tiempo · próximos 14 días",
+    segmentos,
+    totalPorCobrar: parseAmount(f.total_nominal),
+    vencido: parseAmount(f.overdue.nominal),
+  };
+}
 
 /** Pagos con las 3 fechas clave. Usa `key_obligations` (campo v2: label + due_date
  *  + amount + coverage). `null` si el backend aún no las manda (degrada: la vista
