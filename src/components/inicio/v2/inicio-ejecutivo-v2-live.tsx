@@ -9,16 +9,19 @@ import {
   type CollectionForecastResponse,
   type CashCycleResponse,
 } from "@/lib/api/treasury";
+import { usePreferences, useUpdatePreferences } from "@/lib/api/preferences";
 import { formatClp } from "@/lib/formatters/clp";
 import { isEmptySummary, parseAmount } from "../dashboard-format";
 import { InicioEjecutivoV2 } from "./inicio-ejecutivo-v2";
 import { AccionesList, type Accion } from "./acciones-list";
 import { BrechaPlan } from "./brecha-plan";
+import { DraggableCard } from "./draggable-card";
 import { type Termometro } from "./termometros";
 import { CajaProyeccion } from "./caja-proyeccion";
 import { CobranzaRealizable } from "./cobranza-realizable";
 import { PagosTimeline } from "./pagos-timeline";
 import { ResultadoPreliminar } from "./resultado-preliminar";
+import { applyWidgetOrder, moveItem, readWidgetOrder, withWidgetOrder } from "./widget-order";
 import {
   mapBrechaTotal,
   mapCaja,
@@ -59,6 +62,13 @@ export function InicioEjecutivoV2Live() {
   return <Assembled data={data} forecast={forecast.data} cashCycle={cashCycle.data} />;
 }
 
+/** Una tarjeta reordenable del grid de detalle. */
+interface Widget {
+  id: string;
+  label: string;
+  node: React.ReactNode;
+}
+
 function Assembled({
   data,
   forecast,
@@ -68,6 +78,12 @@ function Assembled({
   forecast?: CollectionForecastResponse;
   cashCycle?: CashCycleResponse;
 }) {
+  // Prefs del usuario en la empresa activa: orden de las tarjetas (persistido).
+  const prefs = usePreferences();
+  const updatePrefs = useUpdatePreferences();
+  // Orden optimista local; hasta el primer arrastre, manda el guardado.
+  const [localOrder, setLocalOrder] = React.useState<string[] | null>(null);
+
   const pulso = mapPulso(data);
   const caja = mapCaja(data);
   // Con collection-forecast (Fase 2) → cobranza realizable con segmentos; sin él (o
@@ -81,11 +97,38 @@ function Assembled({
     if (ciclo) resultado.extra = [...resultado.extra, ciclo];
   }
 
-  const grid: React.ReactNode[] = [];
-  if (caja) grid.push(<CajaProyeccion key="caja" {...caja} />);
-  if (cobranza) grid.push(<CobranzaRealizable key="cobranza" {...cobranza} />);
-  if (pagos) grid.push(<PagosTimeline key="pagos" {...pagos} />);
-  if (resultado) grid.push(<ResultadoPreliminar key="resultado" {...resultado} />);
+  // Tarjetas presentes ESTE render (cada bloque sin dato se omite → omite lo ausente).
+  const widgets: Widget[] = [];
+  if (caja) widgets.push({ id: "caja", label: "Caja proyectada", node: <CajaProyeccion {...caja} /> });
+  if (cobranza)
+    widgets.push({ id: "cobranza", label: "Cobranza realizable", node: <CobranzaRealizable {...cobranza} /> });
+  if (pagos) widgets.push({ id: "pagos", label: "Pagos del mes", node: <PagosTimeline {...pagos} /> });
+  if (resultado)
+    widgets.push({ id: "resultado", label: "Resultado", node: <ResultadoPreliminar {...resultado} /> });
+
+  // Orden efectivo: el arrastre local (optimista) o, si no hubo, el guardado en prefs.
+  const savedOrder = readWidgetOrder(prefs.data?.preferences);
+  const ordered = applyWidgetOrder(widgets, localOrder ?? savedOrder);
+  // Reordena y persiste. Solo persiste si el GET de prefs tuvo éxito: el PUT REEMPLAZA
+  // el blob completo, así que escribir sobre un GET fallido pisaría el resto de prefs.
+  const reorder = (from: number, to: number) => {
+    const currentIds = ordered.map((w) => w.id);
+    const nextIds = moveItem(currentIds, from, to);
+    if (nextIds === currentIds) return; // moveItem devolvió el mismo ref = no-op / fuera de rango
+    setLocalOrder(nextIds);
+    if (prefs.isSuccess) updatePrefs.mutate(withWidgetOrder(prefs.data?.preferences, nextIds));
+  };
+  // Reordenable solo con ≥2 tarjetas; si hay una sola, se muestra sin asas.
+  const reorderable = ordered.length >= 2;
+  const grid: React.ReactNode[] = ordered.map((w, i) =>
+    reorderable ? (
+      <DraggableCard key={w.id} label={w.label} index={i} count={ordered.length} onMove={reorder}>
+        {w.node}
+      </DraggableCard>
+    ) : (
+      <React.Fragment key={w.id}>{w.node}</React.Fragment>
+    ),
+  );
 
   // Plan: con brecha real (cash_gap) + forecast → plan de cierre cuantificado
   // (BrechaPlan). Sin eso, cae a "Qué hacer primero" desde priority_actions.
