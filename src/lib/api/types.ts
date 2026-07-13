@@ -266,6 +266,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Prefs de UI del usuario en la empresa activa (layout movible)
+         * @description El blob de prefs del usuario, scopeado a la empresa activa (ctx.tenant_id + ctx.user_id).
+         *     Opaco: el backend no interpreta el contenido, solo lo devuelve.
+         */
+        get: operations["auth_me_preferences_get"];
+        /**
+         * Reemplaza las prefs de UI del usuario en la empresa activa
+         * @description Upsert del blob completo (reemplaza, no hace merge). Cualquier rol edita LO SUYO
+         *     (`ctx.user_id` del token). Devuelve lo guardado para que el FE refresque sin 2º request.
+         */
+        put: operations["auth_me_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/onboarding/status": {
         parameters: {
             query?: never;
@@ -2589,6 +2615,49 @@ export interface paths {
          *     dashboard, extendido a un rango. Read-only.
          */
         get: operations["treasury_reports_operational_result"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/cash-cycle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ciclo de conversión de caja (DSO / DPO / CCC)
+         * @description DSO/DPO/CCC del tenant. Los `*_days` van `null` cuando el denominador (ventas/COGS de la
+         *     ventana) es 0 o negativo — no se inventa el ratio.
+         */
+        get: operations["treasury_cash_cycle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/collection-forecast": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cobranza realizable (monto x probabilidad de pago, por vencimiento)
+         * @description Cobranza realizable: cada receivable vivo ponderado por la probabilidad de pago de su
+         *     pagador (0% si tiene atraso activo, 60% sin historial). Los sin `due_date` (RCV sin
+         *     sincronizar) van a `sin_vencimiento` — no se les inventa fecha.
+         */
+        get: operations["treasury_collection_forecast"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5324,6 +5393,70 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * CashCycleResponse
+         * @description Ciclo de conversión de caja: DSO / DPO / CCC (ADR-0033 derivados, Fase 2).
+         *
+         *     Los `*_days` van `null` cuando el denominador (ventas o COGS de la ventana) es 0 o negativo
+         *     (dominado por notas de crédito) — no se inventa el ratio. `ccc_days` es `null` si falta DSO.
+         */
+        CashCycleResponse: {
+            /**
+             * Dso Days
+             * @description Días de venta atrapados en cuentas por cobrar.
+             */
+            dso_days: number | null;
+            /**
+             * Dpo Days
+             * @description Días que se tarda en pagar a proveedores.
+             */
+            dpo_days: number | null;
+            /**
+             * Ccc Days
+             * @description Ciclo de conversión de caja = DSO - DPO.
+             */
+            ccc_days: number | null;
+            /**
+             * Ar Total
+             * @description Saldo vivo de cuentas por cobrar (CLP).
+             */
+            ar_total: string;
+            /**
+             * Ap Total
+             * @description Saldo vivo de cuentas por pagar (CLP, TC vigente).
+             */
+            ap_total: string;
+            /**
+             * Revenue Window
+             * @description Ventas netas devengadas de la ventana.
+             */
+            revenue_window: string;
+            /**
+             * Cogs Window
+             * @description COGS devengado de la ventana.
+             */
+            cogs_window: string;
+            /**
+             * Window Months
+             * @description Meses cerrados de la ventana.
+             */
+            window_months: number;
+            /**
+             * Window From
+             * @description 1º del primer mes de la ventana (YYYY-MM-DD).
+             */
+            window_from: string;
+            /**
+             * Window To
+             * @description 1º del último mes de la ventana (YYYY-MM-DD).
+             */
+            window_to: string;
+            /**
+             * As Of
+             * @description Fecha de cálculo (YYYY-MM-DD).
+             */
+            as_of: string;
+        };
+        /**
          * CashFlowBucket
          * @description Un punto temporal del reporte (mes / semana / día).
          */
@@ -5853,6 +5986,40 @@ export interface components {
             errores?: string[];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * CollectionForecastResponse
+         * @description Cobranza realizable: lo que se espera cobrar y cuándo, ponderado por la probabilidad de
+         *     pago de cada pagador. `overdue` = vencidos (prob 0 hasta que aparezcan en el banco);
+         *     `sin_vencimiento` = receivables del RCV sin fecha sincronizada (no se les inventa vencimiento).
+         */
+        CollectionForecastResponse: {
+            /**
+             * As Of
+             * @description Fecha de cálculo (YYYY-MM-DD).
+             */
+            as_of: string;
+            /**
+             * Total Nominal
+             * @description Σ outstanding de todos los receivables vivos (CLP).
+             */
+            total_nominal: string;
+            /**
+             * Total Expected
+             * @description Σ ponderado por probabilidad de pago (CLP).
+             */
+            total_expected: string;
+            /** @description Receivables ya vencidos (due < hoy). */
+            overdue: components["schemas"]["ForecastAmount"];
+            /** @description Receivables sin due_date (RCV sin sincronizar). */
+            sin_vencimiento: components["schemas"]["ForecastAmount"];
+            /**
+             * Buckets
+             * @description Buckets 0-7 / 8-14 / 15-30 / 31-60 / 61-90 días.
+             */
+            buckets: components["schemas"]["ForecastBucket"][];
+            /** @description Receivables con vencimiento > 90 días. */
+            beyond_horizon: components["schemas"]["ForecastAmount"];
         };
         /** CompanyCurrencySettings */
         CompanyCurrencySettings: {
@@ -8001,6 +8168,53 @@ export interface components {
             items: components["schemas"]["FinancialVersion"][];
         };
         /**
+         * ForecastAmount
+         * @description Monto nominal (Σ outstanding) vs esperado (Σ ponderado por prob de pago).
+         */
+        ForecastAmount: {
+            /**
+             * Nominal
+             * @description Σ outstanding de los receivables del bucket (CLP).
+             */
+            nominal: string;
+            /**
+             * Expected
+             * @description Σ ponderado por la probabilidad de pago del pagador.
+             */
+            expected: string;
+        };
+        /**
+         * ForecastBucket
+         * @description Bucket temporal de cobranza (por días hasta el vencimiento).
+         */
+        ForecastBucket: {
+            /**
+             * Nominal
+             * @description Σ outstanding de los receivables del bucket (CLP).
+             */
+            nominal: string;
+            /**
+             * Expected
+             * @description Σ ponderado por la probabilidad de pago del pagador.
+             */
+            expected: string;
+            /**
+             * Label
+             * @description Etiqueta del bucket (p.ej. '0-7d').
+             */
+            label: string;
+            /**
+             * Days From
+             * @description Días desde hoy, inicio del bucket (inclusive).
+             */
+            days_from: number;
+            /**
+             * Days To
+             * @description Días desde hoy, fin del bucket (inclusive).
+             */
+            days_to: number;
+        };
+        /**
          * ForeignPurchaseClassifyResponse
          * @description Respuesta de `POST /api/treasury/foreign-purchases/{id}/classify`.
          */
@@ -9691,6 +9905,26 @@ export interface components {
             };
         } & {
             [key: string]: unknown;
+        };
+        /** PreferencesRequest */
+        PreferencesRequest: {
+            /**
+             * Preferences
+             * @description Blob completo de prefs (reemplaza, no hace merge).
+             */
+            preferences: {
+                [key: string]: unknown;
+            };
+        };
+        /** PreferencesResponse */
+        PreferencesResponse: {
+            /**
+             * Preferences
+             * @description Blob opaco de prefs de UI del usuario en la empresa activa.
+             */
+            preferences: {
+                [key: string]: unknown;
+            };
         };
         /** PrepaymentLinkCreate */
         PrepaymentLinkCreate: {
@@ -12066,6 +12300,86 @@ export interface operations {
             };
         };
     };
+    auth_me_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Blob de prefs; `{}` si el usuario no guardó ninguna aún. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesResponse"];
+                };
+            };
+            /** @description Sin sesión o sesión inválida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auth_me_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description Prefs guardadas; devuelve el blob persistido. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesResponse"];
+                };
+            };
+            /** @description Sin sesión o sesión inválida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `preferences` faltante o no es un objeto. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     onboarding_status: {
         parameters: {
             query?: never;
@@ -13575,14 +13889,14 @@ export interface operations {
                     "application/pdf": unknown;
                 };
             };
-            /** @description No se encontró el DTE en el rango. */
+            /** @description Folio no está en el respaldo del rango (`dte_not_found`). */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Tenant sin certificado activo. */
+            /** @description Tenant sin certificado activo (`cert_missing`). */
             412: {
                 headers: {
                     [name: string]: unknown;
@@ -13597,6 +13911,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description El SII devolvió HTML/login en vez del respaldo XML — sesión SII caída (`sii_session_expired`). Distinto de folio inexistente; el FE debe pedir reconectar el SII. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -17015,6 +17336,69 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    treasury_cash_cycle: {
+        parameters: {
+            query?: {
+                /** @description Meses cerrados de la ventana (1-12; default 3). */
+                window_months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DSO/DPO/CCC sobre una ventana de meses cerrados. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashCycleResponse"];
+                };
+            };
+            /** @description window_months fuera de rango [1, 12]. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_collection_forecast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cobranza esperada bucketeada por vencimiento + overdue + sin fecha. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionForecastResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

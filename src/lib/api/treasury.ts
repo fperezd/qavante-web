@@ -16,6 +16,10 @@ import type { components } from "./types";
 export type CanonicalCategoryMeta = components["schemas"]["CanonicalCategoryMeta"];
 export type CanonicalCategoriesResponse = components["schemas"]["CanonicalCategoriesResponse"];
 export type BankMovement = components["schemas"]["BankMovement"];
+/** Cobranza esperada bucketeada por vencimiento + overdue + sin fecha (CC-WEB Fase 2,
+ *  #572). El `expected` de cada bucket = nominal ponderado por probabilidad de pago. */
+export type CollectionForecastResponse = components["schemas"]["CollectionForecastResponse"];
+export type ForecastBucket = components["schemas"]["ForecastBucket"];
 export type BankMovementsListResponse = components["schemas"]["BankMovementsListResponse"];
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
 export type ApplyRulesResponse = components["schemas"]["ApplyRulesResponse"];
@@ -56,7 +60,20 @@ export const treasuryKeys = {
   biceAccounts: () => [...treasuryKeys.all, "bice-accounts"] as const,
   biceSaldo: () => [...treasuryKeys.all, "bice-saldo"] as const,
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
+  collectionForecast: () => [...treasuryKeys.all, "collection-forecast"] as const,
 };
+
+/** `GET /api/treasury/collection-forecast` — cobranza esperada por bucket de
+ *  vencimiento (Fase 2 del Inicio v2). Enciende la card Cobranza realizable. Cookie
+ *  auth. NO retry (si la fuente falla, la vista degrada al total del summary). */
+export function useCollectionForecast() {
+  return useQuery({
+    queryKey: treasuryKeys.collectionForecast(),
+    queryFn: () => api.get<CollectionForecastResponse>("/api/treasury/collection-forecast"),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
 
 /** `GET /api/bice/saldo` — saldo contable + disponible por cuenta (CLP/USD).
  *  ⚠️ Hoy api-key-only (401 "Falta X-Api-Key" con cookie) → gated `bankBalances`
