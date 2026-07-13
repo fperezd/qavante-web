@@ -11,9 +11,9 @@ import type { PulsoCardProps, PulsoFactor } from "./pulso-card";
 import type { CajaProyeccionProps, CajaFila } from "./caja-proyeccion";
 import type { CobranzaRealizableProps, BandaCobro } from "./cobranza-realizable";
 import type { BrechaPlanProps, BrechaAccion } from "./brecha-plan";
-import type { CollectionForecastResponse } from "@/lib/api/treasury";
+import type { CollectionForecastResponse, CashCycleResponse } from "@/lib/api/treasury";
 import type { PagosTimelineProps, PagoCritico, Postergabilidad } from "./pagos-timeline";
-import type { ResultadoPreliminarProps } from "./resultado-preliminar";
+import type { ResultadoPreliminarProps, ResultadoExtra } from "./resultado-preliminar";
 import { parseAmount } from "../dashboard-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -219,6 +219,14 @@ export function mapResultado(s: DashboardSummaryV2): ResultadoPreliminarProps | 
     margen: margenPct != null ? `${margenPct}%` : "—",
     extra: [],
   };
+}
+
+/** Fila "ciclo de caja" (DSO/DPO) para la card Resultado, desde `cash-cycle`
+ *  (Fase 2). `null` si no hay DSO calculable (ventana devengada insuficiente). */
+export function cicloCajaExtra(c: CashCycleResponse | undefined): ResultadoExtra | null {
+  if (!c || c.dso_days == null) return null;
+  const dpo = c.dpo_days != null ? `${c.dpo_days}d` : "—";
+  return { label: "Ciclo de caja (cobra / paga)", valor: `${c.dso_days}d / ${dpo}` };
 }
 
 /** Frase ejecutiva rule-based (Anexo H.1). "" si no vino. */
