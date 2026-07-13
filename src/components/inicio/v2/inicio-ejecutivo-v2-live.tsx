@@ -70,9 +70,9 @@ function Assembled({
 }) {
   const pulso = mapPulso(data);
   const caja = mapCaja(data);
-  // Con collection-forecast (Fase 2) → cobranza realizable con segmentos; sin él,
-  // degrada al total por cobrar del summary.
-  const cobranza = forecast ? mapCobranzaForecast(forecast) : mapCobranza(data);
+  // Con collection-forecast (Fase 2) → cobranza realizable con segmentos; sin él (o
+  // forecast sin receivables → null), degrada al total por cobrar del summary.
+  const cobranza = (forecast ? mapCobranzaForecast(forecast) : null) ?? mapCobranza(data);
   const pagos = mapPagos(data, new Date());
   const resultado = mapResultado(data);
   // Enriquecer el Resultado con el ciclo de caja (DSO/DPO) si cash-cycle respondió.

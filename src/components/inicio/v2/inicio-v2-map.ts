@@ -154,18 +154,22 @@ export function mapPlanBrecha(
  *  probabilidad de pago del backend), muestra los buckets hasta 30d como segmentos, y
  *  deja el total nominal + vencido como dato secundario. Reemplaza a `mapCobranza`
  *  (degradada) cuando el endpoint responde. */
-export function mapCobranzaForecast(f: CollectionForecastResponse): CobranzaRealizableProps {
-  const buckets = f.buckets ?? [];
-  const banda = (daysTo: number): BandaCobro =>
-    daysTo <= 7 ? "high" : daysTo <= 14 ? "probable" : "unknown";
-  const segmentos = buckets
-    .filter((b) => b.days_to <= 30)
+export function mapCobranzaForecast(f: CollectionForecastResponse): CobranzaRealizableProps | null {
+  const totalPorCobrar = parseAmount(f.total_nominal);
+  // Sin cuentas por cobrar → omitir (contrato "omite lo ausente"): la vista cae a
+  // mapCobranza (que también degrada), no muestra una card de $0.
+  if (totalPorCobrar <= 0) return null;
+  const banda = (daysTo: number): BandaCobro => (daysTo <= 7 ? "high" : "probable");
+  // Segmentos ≤14d para RECONCILIAR con el headline "esperado a tiempo · 14 días":
+  // la suma de los segmentos = la cifra grande (0-7 + 8-14). Lo de >14d no entra.
+  const segmentos = (f.buckets ?? [])
+    .filter((b) => b.days_to <= 14)
     .map((b) => ({ label: b.label, monto: parseAmount(b.expected), banda: banda(b.days_to) }));
   return {
     esperadoATiempo: esperadoATiempo(f),
     subtitulo: "Cobranza esperada a tiempo · próximos 14 días",
     segmentos,
-    totalPorCobrar: parseAmount(f.total_nominal),
+    totalPorCobrar,
     vencido: parseAmount(f.overdue.nominal),
   };
 }

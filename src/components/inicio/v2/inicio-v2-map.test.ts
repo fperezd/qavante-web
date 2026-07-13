@@ -133,16 +133,21 @@ describe("mapCobranzaForecast (Fase 2 · collection-forecast)", () => {
     ],
   } as unknown as CollectionForecastResponse;
 
-  it("esperado a tiempo = Σ expected de buckets ≤14d; segmentos ≤30d con banda por recencia", () => {
-    const c = mapCobranzaForecast(forecast);
+  it("esperado a tiempo = Σ expected ≤14d; segmentos ≤14d reconcilian con el headline", () => {
+    const c = mapCobranzaForecast(forecast)!;
     expect(c.esperadoATiempo).toBe(12_000_000); // 8M (0-7) + 4M (8-14)
-    expect(c.segmentos).toHaveLength(3); // ≤30d (excluye 31-60)
+    expect(c.segmentos).toHaveLength(2); // solo ≤14d (excluye 15-30, 31-60)
     expect(c.segmentos[0]!.banda).toBe("high"); // 0-7d
     expect(c.segmentos[1]!.banda).toBe("probable"); // 8-14d
-    expect(c.segmentos[2]!.banda).toBe("unknown"); // 15-30d
-    expect(c.segmentos[0]!.monto).toBe(8_000_000); // usa expected, no nominal
+    expect(c.segmentos[0]!.monto).toBe(8_000_000); // expected, no nominal
+    // La suma de los segmentos = el headline (reconcilian, no confunde).
+    expect(c.segmentos[0]!.monto + c.segmentos[1]!.monto).toBe(c.esperadoATiempo);
     expect(c.totalPorCobrar).toBe(205_400_000); // nominal
     expect(c.vencido).toBe(0);
+  });
+  it("null cuando no hay cuentas por cobrar (total 0) — omite lo ausente", () => {
+    const zero = { ...forecast, total_nominal: "0" } as unknown as CollectionForecastResponse;
+    expect(mapCobranzaForecast(zero)).toBeNull();
   });
 });
 
