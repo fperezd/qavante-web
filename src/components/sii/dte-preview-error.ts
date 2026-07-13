@@ -64,10 +64,11 @@ export function classifyDtePreviewError(
   if (looksSession) {
     return {
       kind: "sii_session",
-      title: "La sesión con el SII expiró",
+      title: "El SII no entregó este documento",
       description:
-        "El SII pidió iniciar sesión en vez de entregar el documento. Reconectá el certificado " +
-        "del SII en Administración → Credenciales e intentá de nuevo.",
+        "El SII respondió con su página de inicio de sesión en vez del PDF (lo baja en vivo cada " +
+        "vez). Si ya reconectaste tus credenciales del SII en Administración → Credenciales, suele " +
+        "ser una caída temporal del SII: esperá unos minutos y reintentá.",
     };
   }
 
