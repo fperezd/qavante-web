@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
-import { Eye, Download, FileWarning, Loader2 } from "lucide-react";
+import { Eye, Download, FileWarning, Loader2, KeyRound } from "lucide-react";
+import { classifyDtePreviewError, type DtePreviewError } from "./dte-preview-error";
 
 /* Acciones de un DTE en una fila:
    - Ver: al pasar el mouse (o enfocar) sobre el ícono, muestra una VISTA PREVIA
@@ -67,6 +69,7 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
   const [pos, setPos] = React.useState<Pos | null>(null);
   const [state, setState] = React.useState<"loading" | "ready" | "error">("loading");
   const [blobUrl, setBlobUrl] = React.useState<string | null>(null);
+  const [cause, setCause] = React.useState<DtePreviewError>({ kind: "generic" });
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const openTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,9 +85,17 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
     fetch(url, { credentials: "include" })
       .then(async (res) => {
         const ct = (res.headers.get("content-type") ?? "").toLowerCase();
-        // Un error servido con 200 suele venir como HTML/JSON → no es un PDF.
+        // Un error servido con 200 suele venir como HTML/JSON → no es un PDF. Se lee
+        // el cuerpo para dar un surface HONESTO: si es sesión/certificado SII caído
+        // (el SII devuelve login, o el listado trae 0 docs) → CTA a Credenciales; si
+        // no, se muestra el motivo del backend. No se oculta el fallo.
         if (!res.ok || ct.includes("html") || ct.includes("json")) {
-          throw new Error(`no-pdf:${res.status}`);
+          const body = await res.text().catch(() => "");
+          if (!cancelled) {
+            setCause(classifyDtePreviewError(res.status, ct, body));
+            setState("error");
+          }
+          return;
         }
         const data = await res.blob();
         created = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
@@ -96,7 +107,11 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
         setState("ready");
       })
       .catch(() => {
-        if (!cancelled) setState("error");
+        // Fallo de red / fetch abortado: sin cuerpo que clasificar → genérico.
+        if (!cancelled) {
+          setCause({ kind: "generic" });
+          setState("error");
+        }
       });
     return () => {
       cancelled = true;
@@ -198,15 +213,36 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
                 <Loader2 className="h-6 w-6 animate-spin text-neutral-mid" aria-hidden="true" />
                 <span className="sr-only">Cargando la vista previa…</span>
               </div>
+            ) : cause.kind === "sii_session" ? (
+              /* Sesión/certificado SII caído: la causa real + la acción concreta
+                 (reconectar). NO se ofrece descargar: con la sesión caída también
+                 falla. CTA directo a Credenciales. */
+              <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                <KeyRound className="h-9 w-9 text-neutral-mid" aria-hidden="true" />
+                <p className="text-sm font-medium text-neutral-dark">{cause.title}</p>
+                <p className="max-w-[18rem] text-xs leading-relaxed text-neutral-mid">
+                  {cause.description}
+                </p>
+                <Link
+                  href="/administracion/credenciales"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-brand-primary px-3 py-1.5 text-xs font-medium text-surface transition-colors hover:bg-brand-primary-600"
+                >
+                  <KeyRound className="h-4 w-4" aria-hidden="true" />
+                  Reconectar el SII
+                </Link>
+              </div>
             ) : (
-              /* Fallback honesto: el PDF no se pudo traer/renderizar. */
+              /* Fallback honesto: si vino un motivo del backend, se muestra tal cual;
+                 si no, el genérico. En ambos se ofrece descargar. */
               <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
                 <FileWarning className="h-9 w-9 text-neutral-mid" aria-hidden="true" />
                 <p className="text-sm font-medium text-neutral-dark">
-                  No pudimos mostrar la vista previa
+                  {cause.kind === "backend" ? cause.title : "No pudimos mostrar la vista previa"}
                 </p>
-                <p className="max-w-[16rem] text-xs leading-relaxed text-neutral-mid">
-                  No pudimos traer este documento como PDF. Puedes descargarlo e intentar abrirlo.
+                <p className="max-w-[18rem] text-xs leading-relaxed text-neutral-mid">
+                  {cause.kind === "backend"
+                    ? cause.description
+                    : "No pudimos traer este documento como PDF. Puedes descargarlo e intentar abrirlo."}
                 </p>
                 <a
                   href={url}
