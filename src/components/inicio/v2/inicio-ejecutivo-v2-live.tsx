@@ -11,6 +11,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { isEmptySummary, parseAmount } from "../dashboard-format";
 import { InicioEjecutivoV2 } from "./inicio-ejecutivo-v2";
 import { AccionesList, type Accion } from "./acciones-list";
+import { BrechaPlan } from "./brecha-plan";
 import { type Termometro } from "./termometros";
 import { CajaProyeccion } from "./caja-proyeccion";
 import { CobranzaRealizable } from "./cobranza-realizable";
@@ -22,6 +23,7 @@ import {
   mapCobranza,
   mapCobranzaForecast,
   mapFrase,
+  mapPlanBrecha,
   mapPagos,
   mapPulso,
   mapResultado,
@@ -74,18 +76,23 @@ function Assembled({
   if (pagos) grid.push(<PagosTimeline key="pagos" {...pagos} />);
   if (resultado) grid.push(<ResultadoPreliminar key="resultado" {...resultado} />);
 
+  // Plan: con brecha real (cash_gap) + forecast → plan de cierre cuantificado
+  // (BrechaPlan). Sin eso, cae a "Qué hacer primero" desde priority_actions.
+  const brechaTotal = mapBrechaTotal(data);
+  const planBrecha = brechaTotal != null && forecast ? mapPlanBrecha(brechaTotal, forecast) : null;
   const acciones = buildAcciones(data);
+  const plan = planBrecha ? (
+    <BrechaPlan {...planBrecha} />
+  ) : acciones.length > 0 ? (
+    <AccionesList titulo="Qué hacer primero" acciones={acciones} />
+  ) : null;
 
   return (
     <InicioEjecutivoV2
       frase={mapFrase(data)}
       termometros={buildTermometros(data)}
       pulso={pulso ?? undefined}
-      plan={
-        acciones.length > 0 ? (
-          <AccionesList titulo="Qué hacer primero" acciones={acciones} />
-        ) : null
-      }
+      plan={plan}
       grid={grid}
     />
   );

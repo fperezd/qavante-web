@@ -10,6 +10,7 @@ import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
 import type { PulsoCardProps, PulsoFactor } from "./pulso-card";
 import type { CajaProyeccionProps, CajaFila } from "./caja-proyeccion";
 import type { CobranzaRealizableProps, BandaCobro } from "./cobranza-realizable";
+import type { BrechaPlanProps, BrechaAccion } from "./brecha-plan";
 import type { CollectionForecastResponse } from "@/lib/api/treasury";
 import type { PagosTimelineProps, PagoCritico, Postergabilidad } from "./pagos-timeline";
 import type { ResultadoPreliminarProps } from "./resultado-preliminar";
@@ -102,6 +103,52 @@ const COVERAGE_TAG: Record<string, Postergabilidad> = {
   uncovered: "sin_cobertura",
 };
 
+/** Suma el `expected` (ponderado por probabilidad de pago) de los buckets ≤14 días
+ *  del forecast = la cobranza realizable a tiempo. */
+function esperadoATiempo(f: CollectionForecastResponse): number {
+  return (f.buckets ?? [])
+    .filter((b) => b.days_to <= 14)
+    .reduce((s, b) => s + parseAmount(b.expected), 0);
+}
+
+/** Plan de cierre de brecha (Fase 2). Compone acciones REALES: (1) cobrar la cobranza
+ *  esperada a tiempo (impacto del forecast, estado "probable"); (2) si aún falta,
+ *  cubrir el residual con financiamiento ("por evaluar"). La brecha restante corre
+ *  acción a acción; el pie separa cobertura identificada de lo pendiente. Sin datos
+ *  inventados: el impacto de cobranza sale del forecast y el residual es aritmética. */
+export function mapPlanBrecha(
+  brechaTotal: number,
+  forecast: CollectionForecastResponse,
+): BrechaPlanProps {
+  const cobrar = Math.min(esperadoATiempo(forecast), brechaTotal);
+  const residual = Math.max(0, brechaTotal - cobrar);
+  const acciones: BrechaAccion[] = [
+    {
+      titulo: "Cobrar la cobranza esperada a tiempo",
+      impacto: cobrar,
+      fecha: "14 días",
+      estado: "probable",
+      brechaRestante: residual > 0 ? -residual : 0,
+    },
+  ];
+  if (residual > 0) {
+    acciones.push({
+      titulo: "Evaluar cobertura financiera (línea / factoring)",
+      impacto: residual,
+      fecha: "14 días",
+      estado: "por_evaluar",
+      brechaRestante: 0,
+      restanteNota: "si se aprueba",
+    });
+  }
+  return {
+    brechaTotal,
+    acciones,
+    coberturaIdentificada: cobrar,
+    pendienteAsegurar: residual,
+  };
+}
+
 /** Cobranza REALIZABLE desde `collection-forecast` (Fase 2, #572). Lidera con lo
  *  esperado a tiempo (Σ `expected` de los buckets ≤14 días — ya ponderado por la
  *  probabilidad de pago del backend), muestra los buckets hasta 30d como segmentos, y
@@ -111,14 +158,11 @@ export function mapCobranzaForecast(f: CollectionForecastResponse): CobranzaReal
   const buckets = f.buckets ?? [];
   const banda = (daysTo: number): BandaCobro =>
     daysTo <= 7 ? "high" : daysTo <= 14 ? "probable" : "unknown";
-  const esperadoATiempo = buckets
-    .filter((b) => b.days_to <= 14)
-    .reduce((s, b) => s + parseAmount(b.expected), 0);
   const segmentos = buckets
     .filter((b) => b.days_to <= 30)
     .map((b) => ({ label: b.label, monto: parseAmount(b.expected), banda: banda(b.days_to) }));
   return {
-    esperadoATiempo,
+    esperadoATiempo: esperadoATiempo(f),
     subtitulo: "Cobranza esperada a tiempo · próximos 14 días",
     segmentos,
     totalPorCobrar: parseAmount(f.total_nominal),
