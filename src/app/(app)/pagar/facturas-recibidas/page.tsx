@@ -1,6 +1,7 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { FacturasRecibidasView } from "./view";
+import { FacturasRecibidasViewV2 } from "./view-v2";
 
 /* `/pagar/facturas-recibidas` — Libro de Compras del SII (Sprint C1 PR-Sii3 +
    mejoras PR-Lib 2026-05-24). Vive bajo Pagar porque son facturas que me
@@ -9,7 +10,7 @@ import { FacturasRecibidasView } from "./view";
    "RCV Compras" (jerga técnica del API). Gateado por `siiQueries`
    (ADR-0008 + ADR-0012). */
 export default function PagarFacturasRecibidasPage() {
-  const { siiQueries } = resolveFeatureFlags();
+  const { siiQueries, libroComprasV2 } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -21,7 +22,15 @@ export default function PagarFacturasRecibidasPage() {
         </p>
       </header>
 
-      {siiQueries ? <FacturasRecibidasView /> : <FeatureUnavailableState />}
+      {siiQueries ? (
+        libroComprasV2 ? (
+          <FacturasRecibidasViewV2 />
+        ) : (
+          <FacturasRecibidasView />
+        )
+      ) : (
+        <FeatureUnavailableState />
+      )}
     </div>
   );
 }
