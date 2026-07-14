@@ -6,6 +6,8 @@ import {
   diaDelMes,
   docsHastaDiaDelMes,
   calcularComparativos,
+  nombreMes,
+  planComparativoPeriodos,
 } from "./libro-comparativos";
 import type { RcvDoc } from "../rcv-grouped-item";
 
@@ -108,5 +110,43 @@ describe("calcularComparativos", () => {
       diaCorte: 10,
     });
     expect(out[0]?.pct).toBeCloseTo(25); // (1000-800)/800
+  });
+});
+
+describe("nombreMes", () => {
+  it("nombra el mes en español", () => {
+    expect(nombreMes("2026-07")).toBe("julio");
+    expect(nombreMes("2026-01")).toBe("enero");
+    expect(nombreMes("2026-12")).toBe("diciembre");
+  });
+});
+
+describe("planComparativoPeriodos", () => {
+  it("planifica los meses a bajar para hoy 2026-07-15, rango feb–jul 2026", () => {
+    const plan = planComparativoPeriodos(
+      { desde: "2026-02", hasta: "2026-07" },
+      new Date(2026, 6, 15), // jul = mes 6 (0-based)
+    );
+    expect(plan.mesActual).toBe("2026-07");
+    expect(plan.mesAnterior).toBe("2026-06");
+    expect(plan.diaCorte).toBe(15);
+    expect(plan.labelMesAnterior).toBe("junio");
+    expect(plan.mesesAnio).toEqual(["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"]);
+    expect(plan.rango).toEqual(["2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"]);
+    expect(plan.rangoAnioAnterior).toEqual(["2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07"]);
+    // Unión única y ordenada: 2025-02..07 (6) + 2026-01..07 (7) = 13.
+    expect(plan.periodos).toHaveLength(13);
+    expect(plan.periodos[0]).toBe("2025-02");
+    expect(plan.periodos.at(-1)).toBe("2026-07");
+    expect(new Set(plan.periodos).size).toBe(plan.periodos.length); // sin duplicados
+  });
+
+  it("en enero el promedio anual se degrada (mesesAnio vacío)", () => {
+    const plan = planComparativoPeriodos(
+      { desde: "2026-01", hasta: "2026-01" },
+      new Date(2026, 0, 10), // enero
+    );
+    expect(plan.mesAnterior).toBe("2025-12");
+    expect(plan.mesesAnio).toEqual([]); // mes anterior cae en 2025 → sin promedio del año en curso
   });
 });

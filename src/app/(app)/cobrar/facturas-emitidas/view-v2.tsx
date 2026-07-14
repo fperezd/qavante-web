@@ -5,6 +5,7 @@ import { useQueries, type UseQueryResult } from "@tanstack/react-query";
 import { RcvListView } from "@/components/sii/rcv-list-view";
 import { VentasHero, type HeroSecundario } from "@/components/sii/libro-v2/ventas-hero";
 import { ConcentracionClientes } from "@/components/sii/libro-v2/concentracion-clientes";
+import { useVentasComparativos } from "@/components/sii/libro-v2/use-ventas-comparativos";
 import { computeRcvTotals } from "@/components/sii/rcv-totals";
 import { concentrationByCounterparty } from "@/components/sii/libro-kpis/libro-kpis-format";
 import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
@@ -39,6 +40,11 @@ function mesCorto(periodo: string, withYear = false): string {
 export function FacturasEmitidasViewV2() {
   const [range, setRange] = React.useState<PeriodRange>(() => defaultRange());
   const periods = React.useMemo(() => expandPeriodRange(range), [range]);
+  // "Hoy" estable por montaje (para los comparativos "misma fecha" / año).
+  const today = React.useMemo(() => new Date(), []);
+  // Los 3 comparativos del ritmo — calculados en el FE bajando los meses que faltan
+  // (deduplicados con los del rango). Cada uno se omite si sus meses no cargaron.
+  const { comparativos } = useVentasComparativos(range, today);
 
   const results = useQueries({
     queries: periods.map((periodo) => ({
@@ -128,6 +134,7 @@ export function FacturasEmitidasViewV2() {
           montoNeto={totals.neto}
           subtitulo={`Neto del período · ${docCount} ${docCount === 1 ? "documento emitido" : "documentos emitidos"}`}
           infoHint="Neto = bruto facturado − notas de crédito. El dato oficial de impuestos sigue siendo el F29."
+          comparativos={comparativos}
           serie={showSerie ? serie : undefined}
           serieMeses={showSerie ? perMonth.map((m) => mesCorto(m.periodo, multiYear)) : undefined}
           secundarios={secundarios}
