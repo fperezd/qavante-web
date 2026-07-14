@@ -39,15 +39,15 @@ NEXT_PUBLIC_FF_DASHBOARD_SUMMARY = "true"
 # (collection-forecast, key_obligations, cash_sparkline, tendencia del Pulso). Con
 # ON tiene prioridad sobre DASHBOARD_SUMMARY (misma fuente /api/dashboard/summary).
 NEXT_PUBLIC_FF_INICIO_EJECUTIVO_V2 = "false"
-# Libro de Ventas v2 (rediseño aprobado 2026-07-13) — OFF: reordena la pantalla a la
-# jerarquía del Inicio (respuesta de dueño arriba + tabla que sube + concentración top-10
-# lateral, sin toggle "Agrupar N/C"). Con OFF, el libro clásico queda intacto. Los 3
-# comparativos del ritmo degradan (se omiten) hasta que CC-API entregue el endpoint de
-# comparativos (ver libro-comparativos-contract); el hero muestra neto + sparkline del rango.
-NEXT_PUBLIC_FF_LIBRO_VENTAS_V2 = "false"
+# Libro de Ventas v2 (rediseño aprobado 2026-07-13) — ON (encendido 2026-07-14 por Fernando):
+# reordena la pantalla a la jerarquía del Inicio (respuesta de dueño arriba + tabla que sube +
+# concentración top-10 lateral, sin toggle "Agrupar N/C"). Volver al clásico = poner en "false".
+# Los 3 comparativos del ritmo se calculan en el FE (bajan los meses que faltan) y degradan por
+# comparativo si algún mes falla, hasta que CC-API entregue el endpoint (ver libro-comparativos-contract).
+NEXT_PUBLIC_FF_LIBRO_VENTAS_V2 = "true"
 # Libro de Compras v2 (mismo rediseño, análogo a Ventas) en /pagar/facturas-recibidas.
-# OFF: el libro clásico queda intacto. Flag independiente de Ventas.
-NEXT_PUBLIC_FF_LIBRO_COMPRAS_V2 = "false"
+# ON (encendido 2026-07-14). Flag independiente de Ventas.
+NEXT_PUBLIC_FF_LIBRO_COMPRAS_V2 = "true"
 # Activadas 2026-06-21: CC-API confirmó que estos endpoints aceptan la cookie de
 # sesión (require_api_key_or_session; Mi-cuenta es cookie-only by design). Con
 # F9 permitiendo app.qavante.com/qavante.com y cookie Domain=.qavante.com, llega
