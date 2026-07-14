@@ -50,6 +50,7 @@ export const FEATURE_FLAGS = [
   "remuneraciones",
   "bankBalances",
   "saludScreen",
+  "libroVentasV2",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -126,6 +127,13 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      flip). Con el flag ON en dev renderiza la pantalla con datos de ejemplo;
      el cableado a datos reales + tipos generados es qavante-web #487. */
   saludScreen: "/api/management/salud",
+  /* Libro de Ventas v2 (rediseño aprobado 2026-07-13) — reordena la pantalla a la
+     jerarquía del Inicio (respuesta de dueño arriba + tabla que sube + concentración
+     lateral). Lo que lo enciende del todo son los comparativos del ritmo, que se
+     piden como endpoint FE-first (aún no existe — ver libro-comparativos-contract).
+     Con el flag OFF: el libro clásico intacto; sin el endpoint, los comparativos
+     degradan (se omiten) y el hero muestra neto + sparkline del rango. */
+  libroVentasV2: "/api/sii/rcv/ventas/comparativos",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

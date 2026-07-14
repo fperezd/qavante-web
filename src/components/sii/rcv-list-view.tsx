@@ -85,6 +85,11 @@ export interface RcvListViewProps {
   /** Etiqueta del header (ej. "feb-2026 a jul-2026"). Reemplaza a
    *  `formatPeriodLabel(period)` cuando se provee (modo rango). */
   headerLabel?: string;
+  /** Modo "solo tabla" del Libro v2 (aditivo, default false → comportamiento previo):
+   *  oculta el filtro de período, el panel de KPIs y el toggle "Agrupar N/C" (los
+   *  aporta el shell v2 alrededor). La tabla mantiene el modo agrupado (anuladas con
+   *  su N/C + clic → detalle), sus filtros, paginación y estados. */
+  tableOnly?: boolean;
 }
 
 const COPY: Record<
@@ -171,6 +176,7 @@ export function RcvListView({
   query,
   periodForm,
   headerLabel,
+  tableOnly = false,
 }: RcvListViewProps) {
   const copy = COPY[kind];
   const allDocs = extractDocs(query.data, kind);
@@ -244,9 +250,10 @@ export function RcvListView({
 
   return (
     <div className="space-y-4">
-      {periodForm ?? (
-        <SiiPeriodForm onSubmit={onPeriodChange} loading={query.isFetching} hint={copy.hint} />
-      )}
+      {!tableOnly &&
+        (periodForm ?? (
+          <SiiPeriodForm onSubmit={onPeriodChange} loading={query.isFetching} hint={copy.hint} />
+        ))}
 
       {!period && (
         <QavanteEmpty
@@ -266,11 +273,11 @@ export function RcvListView({
 
       {period && query.isError && <QavanteInlineError error={query.error} what={copy.errorWhat} />}
 
-      {period && query.data && allDocs.length === 0 && (
+      {period && query.data && allDocs.length === 0 && !query.isLoading && !query.isError && (
         <QavanteEmpty icon={Inbox} title={copy.emptyTitle} description={copy.emptyDescription} />
       )}
 
-      {period && allDocs.length > 0 && (
+      {period && allDocs.length > 0 && !tableOnly && (
         <LibroKpisPanel docs={filteredDocs} kind={kind} periodo={period} />
       )}
 
@@ -292,32 +299,34 @@ export function RcvListView({
                     {anuladasCount} {anuladasCount === 1 ? "anulada" : "anuladas"}
                   </QavanteBadge>
                 )}
-                <QavanteButton
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setViewMode((m) => (m === "agrupado" ? "detalle" : "agrupado"));
-                    setPage(1);
-                  }}
-                  aria-pressed={viewMode === "agrupado"}
-                  title={
-                    viewMode === "agrupado"
-                      ? "Ver la lista plana, documento por documento"
-                      : "Agrupar las notas de crédito con su factura"
-                  }
-                >
-                  {viewMode === "agrupado" ? (
-                    <>
-                      <Rows3 className="h-3.5 w-3.5" aria-hidden="true" />
-                      Ver detalle
-                    </>
-                  ) : (
-                    <>
-                      <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-                      Agrupar N/C
-                    </>
-                  )}
-                </QavanteButton>
+                {!tableOnly && (
+                  <QavanteButton
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setViewMode((m) => (m === "agrupado" ? "detalle" : "agrupado"));
+                      setPage(1);
+                    }}
+                    aria-pressed={viewMode === "agrupado"}
+                    title={
+                      viewMode === "agrupado"
+                        ? "Ver la lista plana, documento por documento"
+                        : "Agrupar las notas de crédito con su factura"
+                    }
+                  >
+                    {viewMode === "agrupado" ? (
+                      <>
+                        <Rows3 className="h-3.5 w-3.5" aria-hidden="true" />
+                        Ver detalle
+                      </>
+                    ) : (
+                      <>
+                        <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+                        Agrupar N/C
+                      </>
+                    )}
+                  </QavanteButton>
+                )}
                 <QavanteButton
                   size="sm"
                   variant={filtersOpen || hasActiveFilters ? "secondary" : "ghost"}
