@@ -52,6 +52,7 @@ export const FEATURE_FLAGS = [
   "saludScreen",
   "libroVentasV2",
   "libroComprasV2",
+  "cajaV2",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -139,6 +140,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      recibidas`. Su endpoint de comparativos es el de compras. Flag independiente para
      poder encender Ventas y Compras por separado. */
   libroComprasV2: "/api/sii/rcv/compras/comparativos",
+  /* Caja v2 (rediseño aprobado 2026-07-14) — Resumen con la curva de saldo que cae y toca
+     el piso. Lo que lo distingue es la caja mínima (la línea del piso), su endpoint de
+     gating. Reusa el reporte de caja (cashFlowReport) para los netos; con OFF, el reporte
+     clásico queda intacto. La curva se deriva (saldo + netos) hasta que CC-API mande
+     running_balance/min_cash. */
+  cajaV2: "/api/treasury/cash-minimum",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
