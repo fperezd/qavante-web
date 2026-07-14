@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 
@@ -23,6 +23,8 @@ export interface SaldoPorBancoProps {
   total: number;
   /** Etiqueta del total (ej. "Total · 4 bancos"). */
   totalLabel?: string;
+  /** Aviso al pie (ej. "Conectá tu banco para ver el saldo por cuenta") cuando degrada. */
+  nota?: React.ReactNode;
   className?: string;
 }
 
@@ -31,6 +33,7 @@ export function SaldoPorBanco({
   bancos,
   total,
   totalLabel = "Total",
+  nota,
   className,
 }: SaldoPorBancoProps) {
   return (
@@ -63,6 +66,12 @@ export function SaldoPorBanco({
         <span className="text-[12.5px] text-neutral-mid">{totalLabel}</span>
         <span className="text-[14px] font-bold tabular-nums text-neutral-dark">{formatClp(total)}</span>
       </div>
+      {nota && (
+        <p className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-brand-primary">
+          <Plus className="size-3.5" aria-hidden="true" />
+          {nota}
+        </p>
+      )}
     </div>
   );
 }

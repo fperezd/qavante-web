@@ -50,3 +50,19 @@ export const Sana: Story = {
     subtitulo: "Saldo hoy en banco",
   },
 };
+
+/** Caja en negativo: el número mismo va en rojo y el tono es crítico (no un ✓ verde). */
+export const Negativa: Story = {
+  args: {
+    titulo: "La empresa tiene en caja",
+    saldo: -5_905_530,
+    runway: "Tu caja está hoy en negativo · 0 días de caja.",
+    runwayTono: "crit",
+    subtitulo: "Saldo hoy. Conectá tu banco para confirmar el saldo real por cuenta",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByText("−$5.905.530")).toBeInTheDocument(), { timeout: 3000 });
+    await expect(canvas.getByText(/en negativo/)).toBeInTheDocument();
+  },
+};

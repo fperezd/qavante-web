@@ -76,3 +76,23 @@ export const NoCruza: Story = {
     await expect(canvas.queryByText("Bajo el mínimo")).not.toBeInTheDocument();
   },
 };
+
+/** Degradado: sin caja mínima configurada y saldo negativo. En vez de inventar un piso en
+ *  $0 y pintar todo de rojo, muestra una referencia neutra de $0 y la curva. */
+export const SinMinimoNegativo: Story = {
+  args: {
+    serie: [
+      { label: "hoy", saldo: -5_905_530 },
+      { label: "2026-W27", saldo: -6_759_006 },
+      { label: "2026-W28", saldo: -6_774_558 },
+    ],
+    minimo: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Referencia neutra de $0 (no "Caja mínima" ni zona roja).
+    await expect(canvas.getByText("$0")).toBeInTheDocument();
+    await expect(canvas.queryByText("Caja mínima")).not.toBeInTheDocument();
+    await expect(canvas.getByText("hoy")).toBeInTheDocument();
+  },
+};

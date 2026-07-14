@@ -19,8 +19,9 @@ export interface CajaCurvaEvento {
 export interface CajaCurvaProps {
   /** Serie de saldo por período, más antiguo primero (el primero suele ser "hoy"). */
   serie: SaldoPunto[];
-  /** Línea de caja mínima. */
-  minimo: number;
+  /** Línea de caja mínima (el piso). `null`/omitida → no hay mínimo configurado: se dibuja
+   *  una referencia neutra de $0 en su lugar (sin la zona roja "bajo el mínimo"). */
+  minimo?: number | null;
   /** Eventos a marcar (línea vertical + etiqueta). */
   eventos?: CajaCurvaEvento[];
   /** Alto del gráfico en px (default 250). */
@@ -35,12 +36,19 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
   const id = React.useId();
   if (serie.length < 2) return null; // sin ≥2 puntos no hay curva
 
+  const hayMinimo = minimo != null;
+  // Referencia horizontal: la caja mínima si está configurada, si no el $0 (neutro).
+  const ref = hayMinimo ? minimo : 0;
+
   const H = height;
   const plotTop = 46;
   const plotBottom = H - 36;
   const saldos = serie.map((p) => p.saldo);
-  let top = Math.max(...saldos, minimo);
-  let bot = Math.min(...saldos, minimo);
+  // El dominio incluye la referencia (para que la línea se vea) y el $0 cuando hay
+  // saldos negativos (para contextualizar el negativo sin inventar un piso).
+  const domain = [...saldos, ref, ...(saldos.some((s) => s < 0) ? [0] : [])];
+  let top = Math.max(...domain);
+  let bot = Math.min(...domain);
   const span = top - bot || Math.abs(top) || 1;
   top += span * 0.12;
   bot -= span * 0.12;
@@ -52,7 +60,7 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
     .map((p, i) => `${i === 0 ? "M" : "L"}${xOf(i).toFixed(1)},${yOf(p.saldo).toFixed(1)}`)
     .join(" ");
   const area = `${line} L${xOf(serie.length - 1).toFixed(1)},${plotBottom} L${PADX},${plotBottom} Z`;
-  const minY = yOf(minimo);
+  const refY = yOf(ref);
   const bajoIdx = indiceMasBajo(saldos);
 
   return (
@@ -67,8 +75,8 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
     >
       <defs>
         <linearGradient id={`cf-${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--color-brand-primary)" stopOpacity="0.2" />
-          <stop offset="100%" stopColor="var(--color-brand-primary)" stopOpacity="0" />
+          <stop offset="0%" stopColor="var(--color-brand-primary)" stopOpacity="0.26" />
+          <stop offset="100%" stopColor="var(--color-brand-primary)" stopOpacity="0.02" />
         </linearGradient>
       </defs>
 
@@ -79,25 +87,49 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
         ))}
       </g>
 
-      {/* zona bajo el mínimo + línea de caja mínima */}
-      <rect
-        x={PADX}
-        y={minY}
-        width={W - PADX * 2}
-        height={Math.max(0, plotBottom - minY)}
-        fill="var(--color-danger-500)"
-        opacity="0.06"
-      />
-      <line
-        x1={PADX}
-        y1={minY}
-        x2={W - PADX}
-        y2={minY}
-        stroke="var(--color-danger-500)"
-        strokeWidth="1.5"
-        strokeDasharray="5 4"
-        opacity="0.7"
-      />
+      {hayMinimo ? (
+        <>
+          {/* zona bajo el mínimo (solo cuando hay mínimo real configurado) + su línea */}
+          <rect
+            x={PADX}
+            y={refY}
+            width={W - PADX * 2}
+            height={Math.max(0, plotBottom - refY)}
+            fill="var(--color-danger-500)"
+            opacity="0.06"
+          />
+          <line
+            x1={PADX}
+            y1={refY}
+            x2={W - PADX}
+            y2={refY}
+            stroke="var(--color-danger-500)"
+            strokeWidth="1.5"
+            strokeDasharray="5 4"
+            opacity="0.7"
+          />
+          <text x={W - PADX} y={refY - 5} textAnchor="end" fontSize="10" fontWeight="700" fill="var(--color-danger-500)">
+            Caja mínima
+          </text>
+        </>
+      ) : (
+        <>
+          {/* sin mínimo configurado: referencia neutra de $0 (no roja, no zona) */}
+          <line
+            x1={PADX}
+            y1={refY}
+            x2={W - PADX}
+            y2={refY}
+            stroke="var(--color-neutral-light)"
+            strokeWidth="1"
+            strokeDasharray="2 3"
+            opacity="0.8"
+          />
+          <text x={PADX + 2} y={refY - 5} fontSize="10" fontWeight="600" fill="var(--color-neutral-mid)">
+            $0
+          </text>
+        </>
+      )}
 
       {/* área + curva del saldo */}
       <path d={area} fill={`url(#cf-${id})`} />

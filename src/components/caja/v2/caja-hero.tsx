@@ -36,7 +36,13 @@ export function CajaHero({ titulo, saldo, runway, runwayTono = "ok", subtitulo, 
   return (
     <div className={cn("p-5", className)}>
       <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">{titulo}</p>
-      <p className="mt-1.5 text-[33px] font-extrabold leading-none tracking-tight text-neutral-dark tabular-nums">
+      <p
+        className={cn(
+          "mt-1.5 text-[33px] font-extrabold leading-none tracking-tight tabular-nums",
+          // Caja en negativo → el número mismo va en rojo (no un dato neutro más).
+          saldo < 0 ? "text-danger-500" : "text-neutral-dark",
+        )}
+      >
         <AmountCountUp value={saldo} />
       </p>
       <div className={cn("mt-3 flex items-start gap-2 text-[13px] font-semibold", TONO[runwayTono])}>
