@@ -44,6 +44,9 @@ export function CajaV2ResumenLive() {
   const minimo = cajaMinimoCLP(cm.data);
   const cruceIdx = minimo != null ? primerCruce(serie.map((s) => s.saldo), minimo) : null;
   const dias = dash.data?.cash_forecast?.days_of_cash ?? null;
+  // Caja en cero o negativa → tono crítico honesto (no un ✓ verde "alcanza ~0 días").
+  const negativa = saldoHoy <= 0;
+  const tono = negativa ? "crit" : cruceIdx != null ? "warn" : "ok";
 
   return (
     <CajaV2Resumen
@@ -51,21 +54,33 @@ export function CajaV2ResumenLive() {
         <CajaHero
           titulo="La empresa tiene en caja"
           saldo={saldoHoy}
-          runway={buildRunway(serie, cruceIdx, minimo, dias)}
-          runwayTono={cruceIdx != null ? "warn" : "ok"}
-          subtitulo="Saldo hoy en caja"
+          runway={negativa ? runwayNegativo(saldoHoy) : buildRunway(serie, cruceIdx, minimo, dias)}
+          runwayTono={tono}
+          subtitulo={negativa ? "Saldo hoy. Conectá tu banco para confirmar el saldo real por cuenta" : "Saldo hoy en caja"}
           infoHint="Saldo de tus cuentas hoy. La curva proyecta este saldo + las entradas y salidas esperadas del reporte de caja."
         />
       }
       bancos={
-        // Degradado: sin el detalle por banco (bice/saldo es api-key-only), se muestra el total.
-        <SaldoPorBanco titulo="Saldo disponible" bancos={[]} total={saldoHoy} totalLabel="Total en caja hoy" />
+        // Degradado: sin el detalle por banco (bice/saldo es api-key-only), se muestra el total
+        // + un aviso honesto para conectar el banco.
+        <SaldoPorBanco
+          titulo="Saldo disponible"
+          bancos={[]}
+          total={saldoHoy}
+          totalLabel="Total en caja hoy"
+          nota="Conectá tu banco para ver el saldo por cuenta"
+        />
       }
       flujo={<FlujoBlock cf={cf.data} minimo={minimo} />}
       curva={<CurvaCard serie={serie} minimo={minimo} cruceIdx={cruceIdx} />}
       movibles={buildMovibles(buckets, serie)}
     />
   );
+}
+
+function runwayNegativo(saldo: number): React.ReactNode {
+  if (saldo === 0) return "Sin caja disponible hoy · 0 días de caja.";
+  return "Tu caja está hoy en negativo · 0 días de caja.";
 }
 
 function buildRunway(
@@ -126,7 +141,7 @@ function CurvaCard({
         <h2 className="text-sm font-bold text-neutral-dark">Saldo proyectado</h2>
       </div>
       <div className="px-3 py-3">
-        <CajaCurva serie={serie} minimo={minimo ?? 0} eventos={eventos} />
+        <CajaCurva serie={serie} minimo={minimo} eventos={eventos} />
       </div>
       {cruceIdx != null && (
         <p className="mx-4 mb-4 rounded-lg border border-danger-500/30 bg-danger-500/[.06] px-3 py-2 text-[13px] text-neutral-dark">

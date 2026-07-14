@@ -47,3 +47,20 @@ export const CuatroBancos: Story = {
 export const Vacio: Story = {
   args: { bancos: [], total: 0, totalLabel: "Total" },
 };
+
+/** Degradado: sin el detalle por banco (bice/saldo api-key-only), se muestra el total + un
+ *  aviso honesto para conectar el banco. */
+export const SinBanco: Story = {
+  args: {
+    titulo: "Saldo disponible",
+    bancos: [],
+    total: -5_905_530,
+    totalLabel: "Total en caja hoy",
+    nota: "Conectá tu banco para ver el saldo por cuenta",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Conectá tu banco/)).toBeInTheDocument();
+    await expect(canvas.getByText("−$5.905.530")).toBeInTheDocument();
+  },
+};
