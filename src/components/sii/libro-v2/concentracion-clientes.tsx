@@ -74,7 +74,11 @@ export function ConcentracionClientes({
                 </span>
                 <span className="whitespace-nowrap text-[12.5px] font-bold tabular-nums text-neutral-dark">
                   {formatClp(it.monto)}{" "}
-                  <span className="font-semibold text-neutral-mid">{Math.round(it.pct)}%</span>
+                  {/* pct acotado a 0-100: la base es el neto del período (las NC restan);
+                      si el período netea ≤ 0, el % crudo puede dispararse/ser negativo. */}
+                  <span className="font-semibold text-neutral-mid">
+                    {Math.round(Math.max(0, Math.min(100, it.pct)))}%
+                  </span>
                 </span>
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted">
