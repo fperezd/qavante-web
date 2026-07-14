@@ -53,6 +53,7 @@ export const FEATURE_FLAGS = [
   "libroVentasV2",
   "libroComprasV2",
   "cajaV2",
+  "pagarV2",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -146,6 +147,14 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      clásico queda intacto. La curva se deriva (saldo + netos) hasta que CC-API mande
      running_balance/min_cash. */
   cajaV2: "/api/treasury/cash-minimum",
+  /* Pagar v2 (rediseño aprobado 2026-07-14) — respuesta de dueño (cuánto debe pagar +
+     ¿la caja alcanza?) + brecha de caja + las 3 del mes + vencimientos con postergabilidad
+     + mayores compromisos. Reusa `accounts-payable` (accountsPayable) para los datos; lo que
+     lo DISTINGUE y lo enciende del todo es la postergabilidad por ítem (hoy HEURÍSTICA en el
+     FE) y el plan de pago — ese es su endpoint de gating (FE-first, aún no existe). Con el
+     flag ON tiene prioridad sobre accountsPayable (mismo dato base); hoy OFF, el Pagar
+     clásico queda intacto. */
+  pagarV2: "/api/treasury/payment-plan",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

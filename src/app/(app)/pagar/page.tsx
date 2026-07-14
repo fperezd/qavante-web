@@ -9,6 +9,7 @@ import {
 } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { PagarView } from "@/components/pagar/pagar-view";
+import { PagarV2ViewLive } from "@/components/pagar/v2/pagar-v2-view-live";
 
 /* Pagar (Sprint C4). Server Component: resuelve los flags. `accountsPayable`
    ON → la pantalla completa (resumen + 7/14/30 + relación contra caja + pagos/
@@ -16,7 +17,7 @@ import { PagarView } from "@/components/pagar/pagar-view";
    Compras / Honorarios) se mantiene si `siiQueries`. Flag OFF → comportamiento
    previo (SII + placeholder C4). Sin `export const runtime` (regla 4). */
 export default function PagarPage() {
-  const { siiQueries, accountsPayable, obligations, remuneraciones } = resolveFeatureFlags();
+  const { siiQueries, accountsPayable, obligations, remuneraciones, pagarV2 } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -25,7 +26,9 @@ export default function PagarPage() {
         <p className="mt-1 text-sm text-neutral-mid">¿Qué debo pagar y qué pagos son críticos?</p>
       </header>
 
-      {accountsPayable && <PagarView />}
+      {/* `pagarV2` (rediseño 2026-07-14) tiene prioridad: respuesta de dueño + brecha de caja.
+         Requiere `accountsPayable` (misma fuente). Con OFF, el Pagar clásico intacto. */}
+      {pagarV2 && accountsPayable ? <PagarV2ViewLive /> : accountsPayable && <PagarView />}
 
       {(obligations || remuneraciones) && (
         <section aria-labelledby="obligations-section" className="space-y-3">
