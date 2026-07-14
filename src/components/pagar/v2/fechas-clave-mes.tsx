@@ -15,9 +15,11 @@ export interface FechaClave {
   monto: number;
   /** Fecha de vencimiento legible (ej. "13-jul"). */
   vence: string;
-  /** Días hasta el vencimiento (para "en N días"; ≤2 se resalta). */
+  /** Días hasta el vencimiento (negativo = vencido). "en N días" / "hace N días"; ≤2 se resalta. */
   enDias?: number;
   icono?: FechaClaveIcono;
+  /** Monto estimado (ej. F29 antes de que el SII lo emita) → badge "Estimación". */
+  estimado?: boolean;
   onClick?: () => void;
 }
 
@@ -54,7 +56,8 @@ export function FechasClaveMes({
       <div className="grid gap-3 sm:grid-cols-3">
         {items.map((it) => {
           const Icon = ICONO[it.icono ?? "impuestos"];
-          const soon = it.enDias != null && it.enDias <= 2;
+          const vencido = it.enDias != null && it.enDias < 0;
+          const soon = it.enDias != null && it.enDias >= 0 && it.enDias <= 2;
           return (
             <button
               key={it.id}
@@ -63,19 +66,38 @@ export function FechasClaveMes({
               className="group relative rounded-xl border border-border border-l-[3px] border-l-brand-primary bg-surface p-3.5 pr-8 text-left shadow-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
             >
               <ChevronRight className="absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-neutral-light group-hover:text-brand-primary" aria-hidden="true" />
-              <span className="flex items-center gap-1.5 text-[12.5px] font-bold text-neutral-dark">
+              <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-bold text-neutral-dark">
                 <Icon className="size-4 shrink-0 text-brand-primary" />
                 {it.label}
+                {it.estimado && (
+                  <span className="rounded-full bg-warning-500/10 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-warning-700">
+                    Estimación
+                  </span>
+                )}
               </span>
               <span className="mt-1.5 block text-[21px] font-extrabold tabular-nums text-neutral-dark">
                 {formatClp(it.monto)}
               </span>
               <span className="mt-0.5 block text-[12px] text-neutral-mid">
-                Vence <b className="text-neutral-dark">{it.vence}</b>
-                {it.enDias != null && (
+                {vencido ? (
                   <>
+                    Venció <b className="text-danger-500">{it.vence}</b>
                     {" · "}
-                    <span className={soon ? "font-bold text-danger-500" : ""}>en {it.enDias} día{it.enDias === 1 ? "" : "s"}</span>
+                    <span className="font-bold text-danger-500">
+                      hace {Math.abs(it.enDias as number)} día{Math.abs(it.enDias as number) === 1 ? "" : "s"}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Vence <b className="text-neutral-dark">{it.vence}</b>
+                    {it.enDias != null && (
+                      <>
+                        {" · "}
+                        <span className={soon ? "font-bold text-danger-500" : ""}>
+                          en {it.enDias} día{it.enDias === 1 ? "" : "s"}
+                        </span>
+                      </>
+                    )}
                   </>
                 )}
               </span>

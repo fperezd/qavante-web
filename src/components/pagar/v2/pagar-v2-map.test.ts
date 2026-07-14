@@ -70,6 +70,11 @@ describe("mapFechasClave", () => {
     expect(out.map((f) => f.id)).toEqual(["imposiciones", "impuestos", "sueldos"]);
     expect(out[0]?.monto).toBe(3_850_000);
   });
+  it("propaga el flag `estimated` del backend (ej. F29 estimado)", () => {
+    const items = [item({ label: "IVA F29", category: "tax", amount: "4200000", estimated: true })];
+    const out = mapFechasClave(items, NOW);
+    expect(out.find((f) => f.id === "impuestos")?.estimado).toBe(true);
+  });
 });
 
 describe("mapConcentracion", () => {
