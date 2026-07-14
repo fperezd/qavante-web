@@ -35,6 +35,13 @@ describe("pctCambio", () => {
     expect(pctCambio(0, 500)).toBeNull();
     expect(pctCambio(-100, 500)).toBeNull();
   });
+  it("null si actual es negativo (degenerado: una baja no supera −100%)", () => {
+    expect(pctCambio(1000, -500)).toBeNull(); // habría dado −150%
+    expect(pctCambio(100, -593)).toBeNull(); // el caso real "−693%"
+  });
+  it("actual = 0 sí vale (= −100%, no vendió nada)", () => {
+    expect(pctCambio(1000, 0)).toBe(-100);
+  });
 });
 
 describe("promedio", () => {

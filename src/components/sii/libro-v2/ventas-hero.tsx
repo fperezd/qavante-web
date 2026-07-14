@@ -90,7 +90,10 @@ export function VentasHero({
     <div
       className={cn(
         "grid items-stretch gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm",
-        "sm:grid-cols-2 lg:grid-cols-[1.15fr_0.95fr_1fr]",
+        // Sin sparkline (ej. un solo mes → sin tendencia) la grilla es de 2 columnas:
+        // así no queda una 3ª columna vacía mostrando el fondo gris.
+        "sm:grid-cols-2",
+        hasSerie ? "lg:grid-cols-[1.15fr_0.95fr_1fr]" : "lg:grid-cols-2",
         className,
       )}
     >

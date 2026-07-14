@@ -15,9 +15,9 @@ import { siiKeys, type RcvComprasResponse, type RcvVentasResponse } from "@/lib/
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import {
-  defaultRange,
   expandPeriodRange,
   formatRangeLabel,
+  presetRange,
   type PeriodRange,
 } from "@/lib/period/period-range";
 
@@ -67,7 +67,9 @@ function mesCorto(periodo: string, withYear = false): string {
 
 export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
   const copy = COPY[kind];
-  const [range, setRange] = React.useState<PeriodRange>(() => defaultRange());
+  // Inicial: el MES ACTUAL (pedido de Fernando 2026-07-14). El usuario amplía el rango
+  // con el filtro; los comparativos igual bajan los otros meses que necesitan.
+  const [range, setRange] = React.useState<PeriodRange>(() => presetRange("mes_actual"));
   const periods = React.useMemo(() => expandPeriodRange(range), [range]);
   const today = React.useMemo(() => new Date(), []);
   const { comparativos } = useLibroComparativos(kind, range, today);

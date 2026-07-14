@@ -22,9 +22,12 @@ export function nombreMes(periodo: string): string {
   return NOMBRES_MES[m - 1] ?? periodo;
 }
 
-/** % de cambio de `base` a `actual`. `null` si base ≤ 0 (sin comparación con sentido). */
+/** % de cambio de `base` a `actual` para cifras de NETO (ventas/compras). `null` si la
+ *  comparación es DEGENERADA: base ≤ 0 (sin base con sentido) o `actual` < 0 (un mes con
+ *  neto negativo —más NC que documentos— dispararía un % absurdo tipo −693%; una baja no
+ *  puede superar −100%). `actual` = 0 sí se permite (= −100%, "no vendió/compró nada"). */
 export function pctCambio(base: number, actual: number): number | null {
-  if (!(base > 0)) return null;
+  if (!(base > 0) || actual < 0) return null;
   return ((actual - base) / base) * 100;
 }
 
