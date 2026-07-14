@@ -9,6 +9,18 @@
 
 ---
 
+## Decisión (2026-07-14, Fernando)
+
+- **Pagar es ÚNICO para todas las industrias** — sin "modos" ni pantallas por rubro (se
+  descartó el "modo caja diaria"). Los ajustes útiles (horizonte día/semana/quincena/mes,
+  consolidación por proveedor, postergabilidad realista) son **mejoras del Pagar único** y
+  benefician a todos los rubros.
+- **El timing de la plata vive en Caja, no en Pagar.** La liquidación de tarjetas por
+  acreditar y las cobranzas esperadas (entradas), y los pagos de Previred/IVA/sueldos/
+  proveedores (salidas), son la **proyección de flujo de Caja**. Pagar responde "¿qué debo y
+  me alcanza?" **consumiendo** la caja proyectada que Caja calcula; no re-inventa el flujo ni
+  suma plata en tránsito como caja disponible (*identificada ≠ asegurada*).
+
 ## Veredicto: el núcleo es universal; 2 dimensiones se tensionan
 
 La pregunta que resuelve Pagar —*"¿cuánto debo, cuándo, me alcanza la caja, qué puedo
@@ -65,7 +77,7 @@ negociados; gastronomía compra insumos perecederos casi al contado.
 |---|---|---|---|
 | R1 | **Horizonte semanal** por defecto ("esta semana" en vez de 14 días) | ambos | FE |
 | R2 | **Consolidar el timeline por proveedor** (no 40 líneas del mismo proveedor de verdura; una fila "Proveedor X · 6 compras · próx. pago $Y") | ambos | FE |
-| R3 | **Liquidación de tarjetas en la caja proyectada** (Transbank/Getnet pendiente de acreditar T+1/T+2) — clave para la cobertura real de la semana | ambos | 🔴 backend (conector adquirente/banco) |
+| R3 | **Liquidación de tarjetas + timing de entradas/salidas** → vive en la pantalla **Caja** (proyección de flujo), NO en Pagar. Pagar solo consume la caja proyectada resultante. Plata en tránsito ≠ caja disponible. | ambos | 🔴 backend (adquirente) → **Caja** |
 | R4 | **Postergabilidad realista**: insumos perecederos = poco/no postergable (si no pagás, no te entregan); proveedores de inventario con plazo = negociable | gastronomía / retail | FE (heurística) + backend (flag) |
 | R5 | **Boletas en el lado de Ventas**: el grueso de la venta son boletas (tipo 39/41), no facturas → el Libro v2 "vendió" debe incluirlas | ambos | verificar RCV incluye boletas |
 | R6 | **Búsqueda + filtros** que escalen al volumen (por proveedor, categoría, monto) | ambos | FE |
@@ -76,7 +88,7 @@ negociados; gastronomía compra insumos perecederos casi al contado.
 - El **degradado honesto** evita ruido: un café sin leasing simplemente no ve esa categoría.
 
 ### Lo que necesita backend
-- **R3 (liquidación de tarjetas)**: sin esto, la "caja proyectada" subestima lo que realmente va a entrar esta semana (la venta con tarjeta de ayer/hoy acredita en T+1/T+2). Para gastronomía/retail —donde la caja es diaria— esto es **decisivo** para que la cobertura sea creíble. Requiere conector del adquirente (Transbank/Getnet/Mercado Pago) o leerlo del banco.
+- **R3 (liquidación de tarjetas)** se resuelve en **Caja**, no en Pagar (ver Decisión). Sin ese dato la caja proyectada subestima lo que va a entrar (la venta con tarjeta acredita en T+1/T+2) — decisivo para negocios de caja diaria. Requiere conector del adquirente (Transbank/Getnet/Mercado Pago) o leerlo del banco. Pagar solo **consume** la caja proyectada de Caja; no suma tarjetas en tránsito como disponible.
 - **R4 (flag de postergabilidad)** por ítem/categoría, idealmente.
 
 ---
@@ -85,8 +97,9 @@ negociados; gastronomía compra insumos perecederos casi al contado.
 
 - El diseño cubre bien el **~80% de las PYMEs** tal cual (servicios, mayorista, transporte,
   salud, y retail/gastronomía con los ajustes FE R1/R2/R4/R6).
-- **Retail/gastronomía**: el diferenciador real es **R3 (liquidación de tarjetas en la
-  caja)** — sin eso la cobertura miente en negocios de caja diaria. Escalar a CC-API.
+- **Retail/gastronomía**: el diferenciador real es la **liquidación de tarjetas (R3)**, que
+  se resuelve en **Caja** (el flujo), no en Pagar — sin ese dato la cobertura subestima en
+  negocios de caja diaria. Escalar a CC-API el conector del adquirente.
 - **Construcción/proyecto**: extensión con dimensión "obra" (reusa D1/D2) + estados de
   pago/retenciones — solo si se prioriza ese segmento.
 - Validar con **2-3 clientes** de rubros distintos antes de cerrar.
