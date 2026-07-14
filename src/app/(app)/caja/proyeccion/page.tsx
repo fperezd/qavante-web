@@ -1,6 +1,7 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { CashFlowView } from "@/components/caja/cash-flow-view";
+import { CajaV2ResumenLive } from "@/components/caja/v2/caja-v2-resumen-live";
 
 /* `/caja/proyeccion` — primer cableo Sprint C3 MVP. Muestra el reporte
    agregado del endpoint /api/treasury/reports/cash-flow tal cual viene del
@@ -10,7 +11,7 @@ import { CashFlowView } from "@/components/caja/cash-flow-view";
    cuando el usuario de prod tenga financial_impacts clasificados — ver
    ADR-0012). */
 export default function CajaProyeccionPage() {
-  const { cashFlowReport } = resolveFeatureFlags();
+  const { cashFlowReport, cajaV2 } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -22,7 +23,15 @@ export default function CajaProyeccionPage() {
         </p>
       </header>
 
-      {cashFlowReport ? <CashFlowView /> : <FeatureUnavailableState />}
+      {/* `cajaV2` (rediseño 2026-07-14) tiene prioridad: respuesta de dueño + curva de saldo.
+         Requiere `cashFlowReport` (misma fuente de netos). Con OFF, el reporte clásico. */}
+      {cajaV2 && cashFlowReport ? (
+        <CajaV2ResumenLive />
+      ) : cashFlowReport ? (
+        <CashFlowView />
+      ) : (
+        <FeatureUnavailableState />
+      )}
     </div>
   );
 }

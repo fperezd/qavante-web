@@ -48,6 +48,11 @@ NEXT_PUBLIC_FF_LIBRO_VENTAS_V2 = "true"
 # Libro de Compras v2 (mismo rediseño, análogo a Ventas) en /pagar/facturas-recibidas.
 # ON (encendido 2026-07-14). Flag independiente de Ventas.
 NEXT_PUBLIC_FF_LIBRO_COMPRAS_V2 = "true"
+# Caja v2 (rediseño aprobado 2026-07-14) — OFF: Resumen con la respuesta de dueño + la curva
+# de saldo que cae y toca el piso (derivada del saldo + netos del reporte de caja). Con OFF, el
+# reporte clásico /caja/proyeccion queda intacto. Saldo por banco degrada al total (bice/saldo
+# api-key-only). Se enciende cuando esté validado.
+NEXT_PUBLIC_FF_CAJA_V2 = "false"
 # Activadas 2026-06-21: CC-API confirmó que estos endpoints aceptan la cookie de
 # sesión (require_api_key_or_session; Mi-cuenta es cookie-only by design). Con
 # F9 permitiendo app.qavante.com/qavante.com y cookie Domain=.qavante.com, llega
