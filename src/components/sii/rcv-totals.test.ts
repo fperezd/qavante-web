@@ -37,4 +37,19 @@ describe("computeRcvTotals — neteo de notas de crédito", () => {
     const t = computeRcvTotals([{ tipo_doc: 33 }, { tipo_doc: 61, monto_total: undefined }]);
     expect(t.total).toBe(0);
   });
+
+  it("suma el exento por separado (exportaciones tipo 110), neteando NC", () => {
+    const t = computeRcvTotals([
+      { tipo_doc: 33, monto_neto: 1000 }, // afecto
+      { tipo_doc: 110, monto_exento: 5000 }, // exportación exenta
+      { tipo_doc: 61, monto_exento: 500 }, // NC exenta → resta del exento
+    ]);
+    expect(t.neto).toBe(1000); // afecto no cambia
+    expect(t.exento).toBe(4500); // 5000 − 500
+  });
+
+  it("exento = 0 cuando el backend no manda monto_exento (default seguro)", () => {
+    const t = computeRcvTotals([{ tipo_doc: 33, monto_neto: 1000, monto_total: 1190 }]);
+    expect(t.exento).toBe(0);
+  });
 });

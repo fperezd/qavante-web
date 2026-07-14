@@ -46,7 +46,7 @@ const COPY: Record<RcvKind, KindCopy> = {
     docSingular: "documento emitido",
     docPlural: "documentos emitidos",
     concentracion: "Concentración por cliente",
-    infoHint: "Neto = bruto facturado − notas de crédito. El dato oficial de impuestos sigue siendo el F29.",
+    infoHint: "Incluye ventas afectas + exportaciones exentas, menos notas de crédito. El dato oficial de impuestos (IVA) sigue siendo el F29.",
   },
   compras: {
     titulo: "La empresa compró",
@@ -54,7 +54,7 @@ const COPY: Record<RcvKind, KindCopy> = {
     docSingular: "documento recibido",
     docPlural: "documentos recibidos",
     concentracion: "Concentración por proveedor",
-    infoHint: "Neto = bruto − notas de crédito. El dato oficial de impuestos sigue siendo el F29.",
+    infoHint: "Incluye compras afectas + exentas, menos notas de crédito. El dato oficial de impuestos (IVA) sigue siendo el F29.",
   },
 };
 
@@ -91,11 +91,17 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
 
   const totals = computeRcvTotals(allDocs);
   const docCount = allDocs.length - totals.ncCount; // documentos, sin las NC
+  // "Vendió/compró" = afecto + EXENTO (exportaciones son venta). El exento es 0 hasta
+  // que el backend mande `monto_exento` en el slim (ver STATE_OF_THE_TRAIN 2026-07-14).
+  const venta = totals.neto + totals.exento;
 
   const isFetching = results.some((r) => r.isFetching);
   const anyError = results.some((r) => r.isError);
   const showHero = !isFetching && allDocs.length > 0;
-  const serie = perMonth.map((m) => computeRcvTotals(m.docs).neto);
+  const serie = perMonth.map((m) => {
+    const t = computeRcvTotals(m.docs);
+    return t.neto + t.exento;
+  });
   const showSerie = !isFetching && !anyError && serie.length >= 2;
   const firstYear = periods[0]?.slice(0, 4);
   const lastYear = periods[periods.length - 1]?.slice(0, 4);
@@ -151,7 +157,7 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
       {showHero && (
         <VentasHero
           titulo={copy.titulo}
-          montoNeto={totals.neto}
+          montoNeto={venta}
           subtitulo={`Neto del período · ${docCount} ${docCount === 1 ? copy.docSingular : copy.docPlural}`}
           infoHint={copy.infoHint}
           comparativos={comparativos}
