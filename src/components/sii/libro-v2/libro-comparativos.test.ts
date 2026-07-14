@@ -56,6 +56,10 @@ describe("netoDocs", () => {
     expect(netoDocs([fac(1000, "2026-07-01"), nc(300, "2026-07-05")])).toBe(700);
     expect(netoDocs([])).toBe(0);
   });
+  it("incluye el exento (exportaciones) además del afecto", () => {
+    const exp: RcvDoc = { tipo_doc: 110, monto_exento: 5000, fecha: "2026-07-03" };
+    expect(netoDocs([fac(1000, "2026-07-01"), exp])).toBe(6000); // 1000 afecto + 5000 exento
+  });
 });
 
 describe("diaDelMes", () => {

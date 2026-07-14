@@ -37,9 +37,11 @@ export function promedio(valores: number[]): number | null {
   return valores.reduce((s, v) => s + v, 0) / valores.length;
 }
 
-/** Neto (con NC ya neteadas) de un conjunto de documentos. */
+/** Venta/compra NETA de un conjunto de documentos: afecto + EXENTO (exportaciones),
+ *  con NC ya neteadas. El exento es 0 hasta que el backend lo mande en el slim. */
 export function netoDocs(docs: RcvDoc[]): number {
-  return computeRcvTotals(docs).neto;
+  const t = computeRcvTotals(docs);
+  return t.neto + t.exento;
 }
 
 /** Día del mes (1-31) de una fecha del SII en cualquier formato, o `null`. */

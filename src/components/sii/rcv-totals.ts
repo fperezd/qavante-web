@@ -19,11 +19,16 @@ export interface RcvDocLike {
   monto_neto?: number;
   monto_iva?: number;
   monto_total?: number;
+  /** Monto exento (exportaciones/ventas exentas). El slim del backend puede no
+   *  mandarlo aún → se trata como 0 (ver STATE_OF_THE_TRAIN 2026-07-14). */
+  monto_exento?: number;
 }
 
 export interface RcvTotals {
-  /** Neto neteado (NC restadas). */
+  /** Neto AFECTO neteado (NC restadas). */
   neto: number;
+  /** Monto EXENTO neteado (exportaciones/exentas). 0 si el backend no lo manda. */
+  exento: number;
   iva: number;
   total: number;
   /** Total bruto (sin NC). */
@@ -38,11 +43,12 @@ function mag(v: number | undefined): number {
 }
 
 export function computeRcvTotals(docs: RcvDocLike[]): RcvTotals {
-  let neto = 0, iva = 0, total = 0, grossTotal = 0, ncTotal = 0, ncCount = 0;
+  let neto = 0, exento = 0, iva = 0, total = 0, grossTotal = 0, ncTotal = 0, ncCount = 0;
   for (const d of docs) {
     const nc = isNotaCredito(d.tipo_doc);
     const sign = nc ? -1 : 1;
     neto += sign * mag(d.monto_neto);
+    exento += sign * mag(d.monto_exento);
     iva += sign * mag(d.monto_iva);
     total += sign * mag(d.monto_total);
     if (nc) {
@@ -52,5 +58,5 @@ export function computeRcvTotals(docs: RcvDocLike[]): RcvTotals {
       grossTotal += mag(d.monto_total);
     }
   }
-  return { neto, iva, total, grossTotal, ncTotal, ncCount };
+  return { neto, exento, iva, total, grossTotal, ncTotal, ncCount };
 }

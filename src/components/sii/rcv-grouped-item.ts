@@ -11,6 +11,8 @@ export interface RcvDoc {
   rut_contraparte?: string;
   razon_social?: string;
   monto_neto?: number;
+  /** Monto exento (exportaciones / ventas exentas). Puede no venir en el slim aún. */
+  monto_exento?: number;
   monto_iva?: number;
   monto_total?: number;
   /** Referencia del DTE (SII): la NC/ND apunta al documento que modifica. */
