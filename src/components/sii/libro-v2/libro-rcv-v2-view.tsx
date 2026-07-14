@@ -113,6 +113,11 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
     .filter((v): v is string => Boolean(v))
     .sort()
     .at(-1);
+  // `stale` = el SII no respondió y se sirvió cache (dato viejo). Se avisa junto al total.
+  const anyStale = results.some((r) => Boolean((r.data as RcvResp | undefined)?.stale));
+  const frescura = lastSynced
+    ? `Datos al ${formatDateLike(lastSynced)} · SII${anyStale ? " · desactualizado" : ""}`
+    : undefined;
 
   const secundarios: HeroSecundario[] = [
     { label: copy.ivaLabel, valor: formatClp(totals.iva), tono: "brand" },
@@ -141,11 +146,6 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
           hint="Los datos vienen del SII por mes; el rango consulta cada mes y los junta."
         />
         <div className="flex-1" />
-        {lastSynced && (
-          <span className="text-[12px] text-neutral-light">
-            Actualizado {formatDateLike(lastSynced)} · SII
-          </span>
-        )}
       </div>
 
       {showHero && (
@@ -158,6 +158,8 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
           serie={showSerie ? serie : undefined}
           serieMeses={showSerie ? perMonth.map((m) => mesCorto(m.periodo, multiYear)) : undefined}
           secundarios={secundarios}
+          frescura={frescura}
+          frescuraStale={anyStale}
         />
       )}
 

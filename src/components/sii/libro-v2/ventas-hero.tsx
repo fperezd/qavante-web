@@ -45,6 +45,11 @@ export interface VentasHeroProps {
   serieMeses?: string[];
   /** Cifras secundarias (se muestran las que haya). */
   secundarios: HeroSecundario[];
+  /** Sello de frescura del dato (ej. "Datos al 06-07-2026 · SII"). Se muestra junto al
+   *  número grande para que un total viejo NO parezca de hoy. */
+  frescura?: string;
+  /** Marca la frescura como advertencia (dato desactualizado / cache por fallo del SII). */
+  frescuraStale?: boolean;
   className?: string;
 }
 
@@ -81,6 +86,8 @@ export function VentasHero({
   serieCaption,
   serieMeses,
   secundarios,
+  frescura,
+  frescuraStale,
   className,
 }: VentasHeroProps) {
   const comps = (comparativos ?? []).slice(0, 3);
@@ -119,6 +126,16 @@ export function VentasHero({
             </>
           ) : null}
         </p>
+        {frescura && (
+          <p
+            className={cn(
+              "mt-1.5 text-[11.5px]",
+              frescuraStale ? "font-semibold text-warning-700" : "text-neutral-light",
+            )}
+          >
+            {frescura}
+          </p>
+        )}
       </div>
 
       {/* Columna 2 — tendencia mes a mes (se omite si no hay serie) */}
