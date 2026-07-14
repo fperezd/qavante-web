@@ -26,6 +26,8 @@ export interface Vencimiento {
   /** Monto en moneda de origen si es extranjera (ej. "US$1.240"). */
   montoOrigen?: string;
   postergabilidad?: Postergabilidad;
+  /** Monto estimado (ej. F29 antes de que el SII lo emita) → badge "Estimación". */
+  estimado?: boolean;
   onClick?: () => void;
 }
 
@@ -76,6 +78,11 @@ export function VencimientosTimeline({ items, className }: VencimientosTimelineP
                   {it.acreedor}
                   {tag && (
                     <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", tag.cls)}>{tag.label}</span>
+                  )}
+                  {it.estimado && (
+                    <span className="rounded-full bg-warning-500/10 px-2 py-0.5 text-[10.5px] font-bold text-warning-700">
+                      Estimación
+                    </span>
                   )}
                 </span>
                 {it.detalle && <span className="block truncate text-[11.5px] text-neutral-light">{it.detalle}</span>}

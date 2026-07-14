@@ -44,6 +44,9 @@ export interface PayableItem {
   currency?: string;
   /** `amount` en CLP cuando `currency` != CLP; null si ya es CLP. */
   amount_clp?: string | null;
+  /** Monto estimado por el backend (ej. F29 del período en curso antes de que el SII lo
+   *  emita; Previred proyectado). El FE lo muestra con el badge "Estimación". CC-API #TBD. */
+  estimated?: boolean;
 }
 
 /** Desglose crudo del total por moneda (sin convertir), para "(CLP $X + USD $Y)".

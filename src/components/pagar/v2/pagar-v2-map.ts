@@ -44,6 +44,7 @@ export function mapVencimientos(items: PayableItem[], now: Date): Vencimiento[] 
       monto: montoCLP(it),
       montoOrigen: extranjera ? formatMoney(parseAmount(it.amount), it.currency) : undefined,
       postergabilidad: postergabilidadDe(it),
+      estimado: it.estimated ?? false,
     };
   });
 }
@@ -58,7 +59,15 @@ export function mapFechasClave(items: PayableItem[], now: Date): FechaClave[] {
   const build = (item: PayableItem | undefined, id: string, label: string, icono: FechaClaveIcono): FechaClave | null => {
     if (!item) return null;
     const dias = daysUntilDue(item.due_date, now);
-    return { id, label, monto: montoCLP(item), vence: formatDateLike(item.due_date), enDias: dias ?? undefined, icono };
+    return {
+      id,
+      label,
+      monto: montoCLP(item),
+      vence: formatDateLike(item.due_date),
+      enDias: dias ?? undefined,
+      icono,
+      estimado: item.estimated ?? false,
+    };
   };
 
   return [
