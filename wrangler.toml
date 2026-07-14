@@ -45,6 +45,9 @@ NEXT_PUBLIC_FF_INICIO_EJECUTIVO_V2 = "false"
 # comparativos del ritmo degradan (se omiten) hasta que CC-API entregue el endpoint de
 # comparativos (ver libro-comparativos-contract); el hero muestra neto + sparkline del rango.
 NEXT_PUBLIC_FF_LIBRO_VENTAS_V2 = "false"
+# Libro de Compras v2 (mismo rediseño, análogo a Ventas) en /pagar/facturas-recibidas.
+# OFF: el libro clásico queda intacto. Flag independiente de Ventas.
+NEXT_PUBLIC_FF_LIBRO_COMPRAS_V2 = "false"
 # Activadas 2026-06-21: CC-API confirmó que estos endpoints aceptan la cookie de
 # sesión (require_api_key_or_session; Mi-cuenta es cookie-only by design). Con
 # F9 permitiendo app.qavante.com/qavante.com y cookie Domain=.qavante.com, llega

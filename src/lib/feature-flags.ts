@@ -51,6 +51,7 @@ export const FEATURE_FLAGS = [
   "bankBalances",
   "saludScreen",
   "libroVentasV2",
+  "libroComprasV2",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -134,6 +135,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      Con el flag OFF: el libro clásico intacto; sin el endpoint, los comparativos
      degradan (se omiten) y el hero muestra neto + sparkline del rango. */
   libroVentasV2: "/api/sii/rcv/ventas/comparativos",
+  /* Libro de Compras v2 (mismo rediseño, análogo a Ventas) en `/pagar/facturas-
+     recibidas`. Su endpoint de comparativos es el de compras. Flag independiente para
+     poder encender Ventas y Compras por separado. */
+  libroComprasV2: "/api/sii/rcv/compras/comparativos",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
