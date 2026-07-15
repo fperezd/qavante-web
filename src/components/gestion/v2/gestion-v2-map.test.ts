@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   mesCorto,
   margenOperacionalPct,
+  resultadoConfiable,
   mapHero,
   mapComparativos,
   mapCascada,
@@ -52,6 +53,26 @@ describe("margenOperacionalPct", () => {
   });
   it("0 con ingresos negativos (no invierte el signo)", () => {
     expect(margenOperacionalPct({ ...RESP, revenue: "-1000000", result: "-3000000" })).toBe(0);
+  });
+});
+
+describe("resultadoConfiable", () => {
+  it("confiable con un P&L normal", () => {
+    expect(resultadoConfiable(RESP)).toBe(true);
+  });
+  it("NO confiable si el resultado supera a los ingresos (margen > 100%)", () => {
+    // Caso real de prod: revenue 12.9M, costos ~0, result 13.2M → 102,5%.
+    expect(
+      resultadoConfiable({ ...RESP, revenue: "12907155", direct_cost: "0", labor_cost: "0", professional_fees: "0", recurring_expenses: "320938", result: "13228093" }),
+    ).toBe(false);
+  });
+  it("NO confiable si los costos clave llegan en $0 con ventas reales", () => {
+    expect(
+      resultadoConfiable({ ...RESP, direct_cost: "0", labor_cost: "0", professional_fees: "0", result: "9000000" }),
+    ).toBe(false);
+  });
+  it("no aplica la guarda sin ingresos (otro caso: vacío/parcial)", () => {
+    expect(resultadoConfiable({ ...RESP, revenue: "0" })).toBe(true);
   });
 });
 

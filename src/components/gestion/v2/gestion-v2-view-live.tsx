@@ -14,7 +14,8 @@ import { CascadaResultado } from "./cascada-resultado";
 import { DriversResultado } from "./drivers-resultado";
 import { TendenciaResultado } from "./tendencia-resultado";
 import { PulsoTira, type PulsoTono } from "./pulso-tira";
-import { mapHero, mapComparativos, mapCascada, mapDrivers, mapTendencia, margenOperacionalPct, type Comparativo } from "./gestion-v2-map";
+import { mapHero, mapComparativos, mapCascada, mapDrivers, mapTendencia, margenOperacionalPct, resultadoConfiable, type Comparativo } from "./gestion-v2-map";
+import { AlertTriangle } from "lucide-react";
 
 /* Vista LIVE de Gestión v2 (rediseño 2026-07-14), gated por `gestionV2` (OFF). Recibe el
    resultado del mes (ya resuelto por el container `OperationalResultView`) y compone la vista:
@@ -72,6 +73,10 @@ export function GestionV2ViewLive({ mes, period }: { mes: OperationalResultRespo
   const { from, to } = rango6(period);
   const breakdown = useOperationalResultBreakdown(from, to, { enabled: true });
   const dash = useDashboardSummary();
+
+  // El backend está mandando costos en $0 / un resultado > ingresos (margen imposible). NO
+  // mostramos la cascada confiada con números absurdos — degradamos honesto y lo dejamos visible.
+  if (!resultadoConfiable(mes)) return <DatosIncompletos mes={mes} />;
 
   const hero = mapHero(mes);
   const comparativos = mapComparativos(mes);
@@ -205,6 +210,45 @@ function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
           Faltan fuentes: {mes.missing_sources.join(", ")} (no se asumen en cero)
         </span>
       )}
+    </div>
+  );
+}
+
+/** Datos incompletos: el cálculo del backend llega inconsistente (costos en $0 / resultado >
+ *  ingresos). Somos honestos: no mostramos un resultado con confianza; explicamos qué falta y
+ *  dejamos los ingresos a la vista. Escalado al equipo de datos (no se asume 0). */
+function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
+  const revenue = parseAmount(mes.revenue);
+  const costos =
+    Math.abs(parseAmount(mes.direct_cost)) +
+    Math.abs(parseAmount(mes.labor_cost)) +
+    Math.abs(parseAmount(mes.professional_fees));
+  const sinCostos = costos < 1;
+  return (
+    <div className="space-y-4">
+      <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5">
+        <p className="inline-flex items-center gap-2 text-[13px] font-bold text-warning-700">
+          <AlertTriangle className="size-[18px] shrink-0" aria-hidden="true" />
+          No podemos mostrar tu resultado con confianza
+        </p>
+        <p className="mt-2 text-[13px] text-neutral-dark">
+          {sinCostos
+            ? "El cálculo llega sin costos (costos directos, remuneraciones y honorarios en $0), así que el resultado y el margen quedarían inflados."
+            : "El cálculo llega inconsistente (el resultado supera a los ingresos), así que el margen no es confiable."}{" "}
+          Es un problema de datos del backend, ya escalado — no lo mostramos como si fuera real.
+        </p>
+        <dl className="mt-3 flex flex-col text-[12.5px]">
+          <div className="flex items-baseline justify-between gap-3 py-1">
+            <dt className="text-neutral-mid">Ingresos del mes</dt>
+            <dd className="font-bold tabular-nums text-neutral-dark">{formatClp(revenue)}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 border-t border-dashed border-warning-500/30 py-1">
+            <dt className="text-neutral-mid">Costos que llegaron</dt>
+            <dd className={`font-bold tabular-nums ${sinCostos ? "text-danger-500" : "text-neutral-dark"}`}>{formatClp(costos)}</dd>
+          </div>
+        </dl>
+      </section>
+      <ConfianzaPie mes={mes} />
     </div>
   );
 }
