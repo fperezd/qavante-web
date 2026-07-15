@@ -22,7 +22,7 @@ const PNL: CascadaEntrada[] = [
   { id: "gl", label: "Gasto laboral", tipo: "resta", monto: 14_900_000 },
   { id: "ho", label: "Honorarios", tipo: "resta", monto: 2_300_000 },
   { id: "gr", label: "Gastos recurrentes", tipo: "resta", monto: 5_100_000 },
-  { id: "res", label: "Resultado operacional", tipo: "resultado", monto: 0 },
+  { id: "res", label: "Resultado operacional", tipo: "resultado", monto: 0, pct: 9.3 },
 ];
 
 export const Ganancia: Story = {
@@ -33,9 +33,12 @@ export const Ganancia: Story = {
     await expect(canvas.getByText("$48.200.000")).toBeInTheDocument();
     // Restas en negativo (U+2212).
     await expect(canvas.getByText("−$21.400.000")).toBeInTheDocument();
-    // El resultado final.
-    await expect(canvas.getByText("Resultado operacional")).toBeInTheDocument();
+    // "Resultado operacional" aparece como título y como fila final.
+    expect(canvas.getAllByText("Resultado operacional").length).toBeGreaterThanOrEqual(2);
     await expect(canvas.getByText("$4.500.000")).toBeInTheDocument();
+    // Margen bruto y margen neto en %.
+    await expect(canvas.getByText("55,6%")).toBeInTheDocument();
+    await expect(canvas.getByText("9,3%")).toBeInTheDocument();
   },
 };
 
@@ -47,7 +50,7 @@ export const Perdida: Story = {
       { id: "cd", label: "Costos directos", tipo: "resta", monto: 12_000_000 },
       { id: "mb", label: "Margen bruto", tipo: "subtotal", monto: 0, pct: 33.3 },
       { id: "gl", label: "Gasto laboral", tipo: "resta", monto: 9_000_000 },
-      { id: "res", label: "Resultado operacional", tipo: "resultado", monto: 0 },
+      { id: "res", label: "Resultado operacional", tipo: "resultado", monto: 0, pct: -16.7 },
     ],
   },
   play: async ({ canvasElement }) => {

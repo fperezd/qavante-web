@@ -11,6 +11,8 @@ import { computeCascada, type CascadaEntrada } from "./cascada-model";
 
 export interface CascadaResultadoProps {
   titulo?: string;
+  /** Bajada bajo el título (ej. "De dónde salió y a dónde se fue la plata"). */
+  subtitulo?: string;
   /** Secuencia del P&L (ver CascadaEntrada). */
   entradas: CascadaEntrada[];
   /** Texto de apoyo a la derecha del título. */
@@ -19,18 +21,22 @@ export interface CascadaResultadoProps {
 }
 
 export function CascadaResultado({
-  titulo = "De dónde salió y a dónde se fue la plata",
+  titulo = "Resultado operacional",
+  subtitulo,
   entradas,
-  hint = "cada línea → su detalle",
+  hint,
   className,
 }: CascadaResultadoProps) {
   const barras = computeCascada(entradas);
 
   return (
     <section className={cn("overflow-hidden rounded-xl border border-border bg-surface shadow-sm", className)} aria-label={titulo}>
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <h2 className="text-sm font-bold text-neutral-dark">{titulo}</h2>
-        <span className="ml-auto text-[11.5px] text-neutral-mid">{hint}</span>
+      <div className="border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-bold text-neutral-dark">{titulo}</h2>
+          {hint && <span className="ml-auto text-[11.5px] text-neutral-mid">{hint}</span>}
+        </div>
+        {subtitulo && <p className="mt-0.5 text-[11.5px] text-neutral-mid">{subtitulo}</p>}
       </div>
 
       <div className="px-3 py-2 sm:px-4">
@@ -60,7 +66,16 @@ export function CascadaResultado({
                 <span className="w-2.5 shrink-0 font-bold text-neutral-light">{op}</span>
                 <span className="truncate">{b.label}</span>
                 {b.pct != null && (
-                  <span className="shrink-0 rounded-full bg-brand-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-brand-primary">
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                      grand && !b.negativo
+                        ? "bg-success-500/10 text-success-700"
+                        : grand && b.negativo
+                          ? "bg-danger-500/10 text-danger-500"
+                          : "bg-brand-primary/10 text-brand-primary",
+                    )}
+                  >
                     {formatPct(b.pct)}
                   </span>
                 )}

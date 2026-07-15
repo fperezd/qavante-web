@@ -28,7 +28,7 @@ const PNL: CascadaEntrada[] = [
   { id: "gl", label: "Gasto laboral", tipo: "resta", monto: 14_900_000 },
   { id: "ho", label: "Honorarios", tipo: "resta", monto: 2_300_000 },
   { id: "gr", label: "Gastos recurrentes", tipo: "resta", monto: 5_100_000 },
-  { id: "res", label: "Resultado operacional", tipo: "resultado", monto: 0 },
+  { id: "res", label: "Resultado operacional", tipo: "resultado", monto: 0, pct: 9.3 },
 ];
 
 const margenes = (
