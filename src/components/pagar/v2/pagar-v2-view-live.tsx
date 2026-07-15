@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Wallet, Info } from "lucide-react";
 import { QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import { useAccountsPayable, type PayableItem, type AccountsPayableResponse } from "@/lib/api/pagos";
 import { parseAmount } from "../pagos-format";
-import { isOverdue, overdueTotal } from "../pagos-v2-format";
+import { isOverdue } from "../pagos-v2-format";
+import { payrollPeriodFromExternalId } from "../pagos-group";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { calcularBrecha } from "./brecha-caja-model";
 import { PagarV2View, type PagarMovible } from "./pagar-v2-view";
@@ -14,7 +16,19 @@ import { BrechaCaja } from "./brecha-caja";
 import { FechasClaveMes } from "./fechas-clave-mes";
 import { VencimientosTimeline } from "./vencimientos-timeline";
 import { ConcentracionClientes } from "@/components/sii/libro-v2/concentracion-clientes";
-import { mapVencimientos, mapFechasClave, mapConcentracion, mapBrecha } from "./pagar-v2-map";
+import { mapVencimientos, mapFechasClave, mapConcentracion, mapBrecha, overdueCLP, type OnClickDe } from "./pagar-v2-map";
+
+/** Destino del drill-down de un pago (regla "todo dato lleva a su detalle"). Sueldos →
+ *  detalle por empleado del período; impuestos → panel F29. Otros aún sin destino → sin link
+ *  (no se renderean clickeables). */
+function hrefDePago(item: PayableItem): string | undefined {
+  if (item.category === "payroll") {
+    const period = payrollPeriodFromExternalId(item.source_external_id);
+    return period ? `/remuneraciones?period=${period}` : "/remuneraciones";
+  }
+  if (item.category === "tax") return "/pagar/impuestos";
+  return undefined;
+}
 
 /* Vista LIVE de Pagar v2 (rediseño aprobado 2026-07-14), gated por `pagarV2` (OFF).
    Orquesta `accounts-payable` (contrato ya vivo) y compone `PagarV2View`. Todo lo que
@@ -32,6 +46,7 @@ function ahora(): Date {
 
 export function PagarV2ViewLive() {
   const ap = useAccountsPayable();
+  const router = useRouter();
 
   if (ap.isLoading) return <LiveSkeleton />;
   if (ap.isError) {
@@ -43,12 +58,20 @@ export function PagarV2ViewLive() {
   const montoTotal = parseAmount(resp?.total);
   if (montoTotal === 0 && items.length === 0) return <EmptyState missing={resp?.missing_sources} />;
 
+  // Total > 0 pero SIN detalle (backend omite `items` en `partial`): no fingimos "0 pagos" ni
+  // una cobertura tranquilizadora calculada sobre lista vacía. Mostramos el total + qué falta.
+  if (items.length === 0) return <PartialState montoTotal={montoTotal} missing={resp?.missing_sources} />;
+
   const now = ahora();
+  const onClickDe: OnClickDe = (item) => {
+    const href = hrefDePago(item);
+    return href ? () => router.push(href) : undefined;
+  };
   const brecha = mapBrecha(resp as AccountsPayableResponse, items, now);
   const cobertura = calcularBrecha(brecha.cajaProyectada, brecha.pagosCriticos);
   const vencidos = items.filter((it) => isOverdue(it, now)).length;
 
-  const fechas = mapFechasClave(items, now);
+  const fechas = mapFechasClave(items, now, onClickDe);
   const totalFechas = fechas.reduce((s, f) => s + f.monto, 0);
 
   return (
@@ -73,7 +96,7 @@ export function PagarV2ViewLive() {
       }
       secundarios={<Secundarios items={items} resp={resp} now={now} />}
       fechasClave={fechas.length > 0 ? <FechasClaveMes items={fechas} total={totalFechas} /> : <div />}
-      movibles={buildMovibles(items, vencidos)}
+      movibles={buildMovibles(items, vencidos, now, onClickDe)}
     />
   );
 }
@@ -109,7 +132,7 @@ function Secundarios({
   resp: AccountsPayableResponse | undefined;
   now: Date;
 }) {
-  const vencido = overdueTotal(items, now);
+  const vencido = overdueCLP(items, now);
   const prox7 = parseAmount(resp?.due_7d);
   const mes = parseAmount(resp?.due_30d);
   // Desglose por moneda extranjera (CC-API #560): la primera != CLP.
@@ -135,11 +158,10 @@ function Secundarios({
 }
 
 /** Cajas movibles: "Por vencer y vencidos" + "Mayores compromisos". Solo las que tienen dato. */
-function buildMovibles(items: PayableItem[], vencidos: number): PagarMovible[] {
-  const now = ahora();
+function buildMovibles(items: PayableItem[], vencidos: number, now: Date, onClickDe: OnClickDe): PagarMovible[] {
   const out: PagarMovible[] = [];
 
-  const vencimientos = mapVencimientos(items, now);
+  const vencimientos = mapVencimientos(items, now, onClickDe);
   if (vencimientos.length > 0) {
     out.push({
       id: "vencimientos",
@@ -182,6 +204,27 @@ function LiveSkeleton() {
       <div className="h-24 animate-pulse rounded-xl bg-surface-muted" />
       <div className="h-64 animate-pulse rounded-xl bg-surface-muted" />
       <span className="sr-only">Cargando tus cuentas por pagar…</span>
+    </div>
+  );
+}
+
+/** Parcial: hay un total por pagar pero el backend no mandó el detalle (`items`). Mostramos el
+ *  total honestamente + qué falta sincronizar, SIN una cobertura/brecha calculada en el vacío. */
+function PartialState({ montoTotal, missing }: { montoTotal: number; missing?: string[] }) {
+  const falta = missing && missing.length > 0 ? missing.join(" · ") : null;
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
+        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">La empresa debe pagar</p>
+        <p className="mt-1.5 text-[33px] font-extrabold leading-none tracking-tight text-neutral-dark tabular-nums">
+          {formatClp(montoTotal)}
+        </p>
+        <p className="mt-3 inline-flex items-start gap-1.5 text-[12.5px] text-neutral-mid">
+          <Info className="mt-px size-4 shrink-0 text-warning-700" aria-hidden="true" />
+          Todavía no llegó el detalle de tus pagos{falta ? ` (falta: ${falta})` : ""}. Cuando se sincronice
+          vas a ver acá tus vencimientos, las 3 del mes y cuánto de eso cubre tu caja.
+        </p>
+      </div>
     </div>
   );
 }

@@ -9,7 +9,7 @@
 
 import type { PayableItem, AccountsPayableResponse } from "@/lib/api/pagos";
 import { parseAmount, paymentCategoryLabel } from "../pagos-format";
-import { daysUntilDue, isOverdue, overdueTotal, overdueThenCritical } from "../pagos-v2-format";
+import { daysUntilDue, isOverdue, overdueThenCritical } from "../pagos-v2-format";
 import { categoryGroupLabel } from "../pagos-group";
 import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -31,8 +31,12 @@ export function montoCLP(item: PayableItem): number {
   return parseAmount(item.amount_clp ?? item.amount);
 }
 
+/** Resuelve el onClick (drill-down) de un ítem; el container lo provee (navegación). Devuelve
+ *  `undefined` para ítems sin destino → esos NO se renderean clickeables (sin afordance no-op). */
+export type OnClickDe = (item: PayableItem) => (() => void) | undefined;
+
 /** Vencimientos ordenados por urgencia (vencido → criticidad) con su postergabilidad. */
-export function mapVencimientos(items: PayableItem[], now: Date): Vencimiento[] {
+export function mapVencimientos(items: PayableItem[], now: Date, onClickDe?: OnClickDe): Vencimiento[] {
   return overdueThenCritical(items, now).map((it, i) => {
     const extranjera = (it.currency ?? "CLP").toUpperCase() !== "CLP";
     return {
@@ -45,12 +49,13 @@ export function mapVencimientos(items: PayableItem[], now: Date): Vencimiento[] 
       montoOrigen: extranjera ? formatMoney(parseAmount(it.amount), it.currency) : undefined,
       postergabilidad: postergabilidadDe(it),
       estimado: it.estimated ?? false,
+      onClick: onClickDe?.(it),
     };
   });
 }
 
 /** Las 3 fechas clave del mes (imposiciones · impuestos · sueldos), si están en los ítems. */
-export function mapFechasClave(items: PayableItem[], now: Date): FechaClave[] {
+export function mapFechasClave(items: PayableItem[], now: Date, onClickDe?: OnClickDe): FechaClave[] {
   const esPrevired = (i: PayableItem) => /previred|cotiza|imposicion|leyes sociales/i.test(`${i.source} ${i.label}`);
   const previred = items.find(esPrevired);
   const impuesto = items.find((i) => i.category === "tax");
@@ -67,6 +72,7 @@ export function mapFechasClave(items: PayableItem[], now: Date): FechaClave[] {
       enDias: dias ?? undefined,
       icono,
       estimado: item.estimated ?? false,
+      onClick: onClickDe?.(item),
     };
   };
 
@@ -87,7 +93,10 @@ export function mapConcentracion(items: PayableItem[], topN = 6): ConcentracionI
     map.set(key, prev);
   }
   const values = [...map.values()];
-  const total = values.reduce((s, v) => s + v.monto, 0) || 1;
+  // Base de participación: suma de los montos POSITIVOS. Evita el signo invertido / pct absurdo
+  // si el total netea ≤ 0 (p.ej. notas de crédito). El componente igual clampa el display a 0-100.
+  const base = values.reduce((s, v) => s + Math.max(0, v.monto), 0);
+  const total = base > 0 ? base : 1;
   return values
     .sort((a, b) => b.monto - a.monto)
     .slice(0, topN)
@@ -98,6 +107,12 @@ export interface BrechaInput {
   cajaProyectada: number;
   pagosCriticos: number;
   postergable: number;
+}
+
+/** Suma en CLP de lo vencido. Usa `montoCLP` (amount_clp para extranjeras), no el nominal
+ *  crudo de `overdueTotal` — así un vencido en USD no se cuenta como si fueran pesos. */
+export function overdueCLP(items: PayableItem[], now: Date): number {
+  return items.reduce((acc, it) => acc + (isOverdue(it, now) ? montoCLP(it) : 0), 0);
 }
 
 /** Insumos de la brecha: caja proyectada 14d (del backend) vs pagos críticos (vencido +
@@ -115,7 +130,7 @@ export function mapBrecha(resp: AccountsPayableResponse, items: PayableItem[], n
     .reduce((s, i) => s + montoCLP(i), 0);
   return {
     cajaProyectada: parseAmount(resp.projected_cash_14d),
-    pagosCriticos: overdueTotal(items, now) + criticos,
+    pagosCriticos: overdueCLP(items, now) + criticos,
     postergable,
   };
 }
