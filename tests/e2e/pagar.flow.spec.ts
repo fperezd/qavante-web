@@ -1,46 +1,39 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — Pagar / cuentas por pagar (Sprint C4). Pantalla FE-first contra MSW,
-   gated por `accountsPayable` (ON en el env de e2e). Valida resumen, la alerta
-   de relación contra caja, y la tabla de pagos/obligaciones. */
+/* Flujo — Pagar v2 (rediseño 2026-07-14, `pagarV2` ON en prod y en el env de e2e). Pantalla
+   FE-first contra MSW (accounts-payable). Valida la respuesta de dueño (cuánto debe pagar +
+   ¿la caja alcanza?), las 3 del mes, los vencimientos y el drill-down al detalle. */
 
-test.describe("Flujo: Pagar (/pagar)", () => {
-  test("muestra resumen, alerta de caja y pagos/obligaciones", async ({ page, context }) => {
+test.describe("Flujo: Pagar v2 (/pagar)", () => {
+  test("respuesta de dueño + las 3 del mes + vencimientos + mayores compromisos", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/pagar");
 
     await expect(page.getByRole("heading", { level: 1, name: "Pagar" })).toBeVisible();
 
-    // Resumen (MSW).
-    await expect(page.getByText("Total por pagar")).toBeVisible();
-    await expect(page.getByText("Próx. 7 días")).toBeVisible();
-    // Relación contra caja: el fixture tiene covers_critical=false → alerta.
-    await expect(page.getByText(/no alcanza/i)).toBeVisible();
-    // Pagos y obligaciones AGRUPADOS por categoría (eje universal multi-tenant).
-    await expect(page.getByText("Pagos y obligaciones")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Remuneraciones/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Impuestos/ })).toBeVisible();
-    // El grupo de mayor subtotal (Remuneraciones) abre por default; su ítem de
-    // nómina se muestra con el label derivado del período ("Remuneraciones — …").
-    await expect(page.getByText(/Remuneraciones —/).first()).toBeVisible();
-    // Expandir "Impuestos" → aparece su ítem.
-    await page.getByRole("button", { name: /Impuestos/ }).click();
-    await expect(page.getByText("IVA / F29 mayo")).toBeVisible();
+    // Hero "respuesta de dueño": cuánto debe pagar (total del fixture = $12.600.000).
+    await expect(page.getByText("La empresa debe pagar")).toBeVisible();
+    await expect(page.getByText("$12.600.000")).toBeVisible();
+
+    // Las 3 del mes (no se postergan): impuestos (F29) + imposiciones (Previred).
+    await expect(page.getByText(/no se postergan/i)).toBeVisible();
+
+    // Cajas movibles: vencimientos + mayores compromisos.
+    await expect(page.getByText("Por vencer y vencidos")).toBeVisible();
+    await expect(page.getByText("Mayores compromisos")).toBeVisible();
+    // Postergabilidad (heurística): impuestos/sueldos = No postergable.
+    await expect(page.getByText("No postergable").first()).toBeVisible();
   });
 
-  test("ítem de nómina → drill-down al detalle por empleado (deep-link al período)", async ({
-    page,
-    context,
-  }) => {
+  test("drill-down: el pago de sueldos lleva al detalle por empleado del período", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/pagar");
 
-    // Remuneraciones abre por default (mayor subtotal) → su ítem trae el link.
-    const detalle = page.getByRole("link", { name: /Ver detalle por empleado/ }).first();
-    await expect(detalle).toBeVisible();
-    await detalle.click();
-    // Deep-link al período del ítem (payroll-202606 → 2026-06).
+    // El ítem de nómina (source_external_id payroll-202606) es clickeable → deep-link al período.
+    const sueldos = page.getByRole("button", { name: /Sueldos junio/ }).first();
+    await expect(sueldos).toBeVisible();
+    await sueldos.click();
     await expect(page).toHaveURL(/\/remuneraciones\?period=2026-06/);
   });
 });
