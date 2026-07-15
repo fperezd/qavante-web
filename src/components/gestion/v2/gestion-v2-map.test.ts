@@ -50,6 +50,9 @@ describe("margenOperacionalPct", () => {
   it("0 si no hay ingresos", () => {
     expect(margenOperacionalPct({ ...RESP, revenue: "0" })).toBe(0);
   });
+  it("0 con ingresos negativos (no invierte el signo)", () => {
+    expect(margenOperacionalPct({ ...RESP, revenue: "-1000000", result: "-3000000" })).toBe(0);
+  });
 });
 
 describe("mapHero", () => {
@@ -70,6 +73,14 @@ describe("mapHero", () => {
   it("sin mes anterior → frase honesta de primer mes", () => {
     const h = mapHero({ ...RESP, variation: { vs_previous_month: null, vs_same_month_last_year: null } });
     expect(h.respuesta).toMatch(/Primer mes/);
+  });
+  it("no crashea si el backend omite `variation` (parcial)", () => {
+    const parcial = { ...RESP } as OperationalResultResponse;
+    // @ts-expect-error simulamos respuesta parcial sin `variation`
+    delete parcial.variation;
+    expect(() => mapHero(parcial)).not.toThrow();
+    expect(() => mapComparativos(parcial)).not.toThrow();
+    expect(mapComparativos(parcial)).toEqual([]);
   });
 });
 
@@ -93,6 +104,16 @@ describe("mapCascada", () => {
     expect(res.montoFirmado).toBe(4_500_000); // 48.2 − 21.4 − 14.9 − 2.3 − 5.1
     expect(barras.find((b) => b.id === "margen-bruto")!.pct).toBeCloseTo(55.6, 1);
     expect(res.pct).toBeCloseTo(9.34, 1);
+    expect(entradas.find((e) => e.id === "otros")).toBeUndefined(); // footea → sin "Otros"
+  });
+
+  it("inserta 'Otros' (ajuste firmado) si las líneas no footean a `result`", () => {
+    // result = 3.0M pero las 5 líneas dan 4.5M → ajuste = 3.0 − 4.5 = −1.5M (resta).
+    const entradas = mapCascada({ ...RESP, result: "3000000" });
+    const otros = entradas.find((e) => e.id === "otros");
+    expect(otros).toMatchObject({ tipo: "ajuste", monto: -1_500_000 });
+    const barras = computeCascada(entradas);
+    expect(barras.find((b) => b.id === "resultado")!.montoFirmado).toBe(3_000_000); // ahora footea
   });
 });
 
@@ -136,5 +157,26 @@ describe("mapTendencia", () => {
   it("degrada a [] si no hay pct_by_month", () => {
     const bd2 = { ...BD, rows: [{ kind: "subtotal", key: "x", label: "x", by_month: ["1"], total: "1" }] as OperationalResultBreakdown["rows"] };
     expect(mapTendencia(bd2)).toEqual([]);
+  });
+
+  it("degrada a [] si los arrays no alinean con months (no corre los meses)", () => {
+    const desalineado = {
+      ...BD,
+      rows: [
+        { kind: "subtotal", key: "operational_result", label: "Resultado operacional", by_month: ["4500000"], total: "4500000", pct_by_month: ["9.3"] },
+      ] as OperationalResultBreakdown["rows"],
+    };
+    expect(mapTendencia(desalineado)).toEqual([]); // months tiene 2, la fila 1
+  });
+
+  it("prefiere 'Resultado operacional' por sobre 'Margen operacional'", () => {
+    const conAmbos = {
+      ...BD,
+      rows: [
+        { kind: "subtotal", key: "gross_margin", label: "Margen operacional", by_month: ["10", "11"], total: "21", pct_by_month: ["10", "11"] },
+        { kind: "subtotal", key: "operational_result", label: "Resultado operacional", by_month: ["4000000", "4500000"], total: "8500000", pct_by_month: ["8.6", "9.3"] },
+      ] as OperationalResultBreakdown["rows"],
+    };
+    expect(mapTendencia(conAmbos)[1]?.margenPct).toBe(9.3); // el del resultado, no 11
   });
 });

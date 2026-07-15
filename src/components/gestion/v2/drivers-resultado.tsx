@@ -42,33 +42,45 @@ export function DriversResultado({ titulo = "Qué explica el resultado", items, 
             const Icon = up ? TrendingUp : TrendingDown;
             // "+$X" cuando mejora (formatClp no antepone el +); "−$X" cuando deteriora.
             const montoTexto = up ? `+${formatClp(Math.abs(it.impacto))}` : formatClp(-Math.abs(it.impacto));
-            return (
-              <li key={it.id}>
-                <button
-                  type="button"
-                  onClick={it.onClick}
-                  className="group relative grid w-full grid-cols-[30px_1fr_auto] items-start gap-3 px-4 py-3 pr-9 text-left transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            const clickable = typeof it.onClick === "function";
+            const rowClass = cn(
+              "group relative grid w-full grid-cols-[30px_1fr_auto] items-start gap-3 px-4 py-3 text-left",
+              clickable ? "pr-9 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" : "pr-4",
+            );
+            const content = (
+              <>
+                <span
+                  className={cn(
+                    "mt-0.5 grid size-[26px] place-items-center rounded-lg",
+                    up ? "bg-success-500/10 text-success-700" : "bg-danger-500/10 text-danger-500",
+                  )}
                 >
-                  <span
-                    className={cn(
-                      "mt-0.5 grid size-[26px] place-items-center rounded-lg",
-                      up ? "bg-success-500/10 text-success-700" : "bg-danger-500/10 text-danger-500",
-                    )}
-                  >
-                    <Icon className="size-[15px]" aria-hidden="true" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-bold text-neutral-dark">{it.concepto}</span>
-                    <span className="block text-[11.5px] text-neutral-mid">{it.explicacion}</span>
-                  </span>
-                  <span className={cn("whitespace-nowrap text-right text-[13px] font-extrabold tabular-nums", up ? "text-success-700" : "text-danger-500")}>
-                    {montoTexto}
-                  </span>
+                  <Icon className="size-[15px]" aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-bold text-neutral-dark">{it.concepto}</span>
+                  <span className="block text-[11.5px] text-neutral-mid">{it.explicacion}</span>
+                </span>
+                <span className={cn("whitespace-nowrap text-right text-[13px] font-extrabold tabular-nums", up ? "text-success-700" : "text-danger-500")}>
+                  {montoTexto}
+                </span>
+                {clickable && (
                   <ChevronRight
                     className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-neutral-light group-hover:text-brand-primary"
                     aria-hidden="true"
                   />
-                </button>
+                )}
+              </>
+            );
+            return (
+              <li key={it.id}>
+                {clickable ? (
+                  <button type="button" onClick={it.onClick} className={rowClass}>
+                    {content}
+                  </button>
+                ) : (
+                  <div className={rowClass}>{content}</div>
+                )}
               </li>
             );
           })}
