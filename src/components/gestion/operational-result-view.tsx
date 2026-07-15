@@ -14,6 +14,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { orderRange, type PeriodRange } from "@/lib/period/period-range";
 import { OperationalResultMatrix } from "./operational-result-matrix";
+import { GestionV2ViewLive } from "./v2/gestion-v2-view-live";
 import { parseAmount, formatSignedPct, variationTone } from "./gestion-format";
 
 /* Resultado Operacional de Gestión (Sprint C5, Maestro §7.5). Container:
@@ -25,6 +26,9 @@ import { parseAmount, formatSignedPct, variationTone } from "./gestion-format";
 export interface OperationalResultViewProps {
   /** Período inicial "YYYY-MM" (lo calcula la page en America/Santiago). */
   initialPeriod: string;
+  /** `gestionV2` ON → para un mes, la vista v2 (cascada + respuesta de dueño). El rango sigue
+   *  usando la matriz mensual. Default false = vista clásica. */
+  v2?: boolean;
 }
 
 const TONE_CLASS: Record<"up" | "down" | "flat", string> = {
@@ -43,7 +47,7 @@ const CONFIDENCE_VARIANT: Record<
   "success" | "warning" | "danger"
 > = { high: "success", medium: "warning", low: "danger" };
 
-export function OperationalResultView({ initialPeriod }: OperationalResultViewProps) {
+export function OperationalResultView({ initialPeriod, v2 = false }: OperationalResultViewProps) {
   /* Selector de rango idéntico al resto de la app (pedido de Fernando: no solo
      un mes). Default = mes actual (rango de un mes). Un mes → vista rica (con
      desglose fino + drivers); varios meses → agregado del período + mes a mes. */
@@ -82,7 +86,9 @@ export function OperationalResultView({ initialPeriod }: OperationalResultViewPr
           emptyTitle="Sin datos para este mes"
           emptyDescription="Todavía no hay resultado operacional para el mes seleccionado. Prueba otro mes o vuelve cuando se sincronicen las fuentes."
         >
-          {(data) => <Result data={data} />}
+          {(data) =>
+            v2 ? <GestionV2ViewLive mes={data} period={ordered.hasta} /> : <Result data={data} />
+          }
         </StateWrap>
       ) : (
         <StateWrap
