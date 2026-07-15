@@ -15,6 +15,7 @@ import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { orderRange, type PeriodRange } from "@/lib/period/period-range";
 import { OperationalResultMatrix } from "./operational-result-matrix";
 import { GestionV2ViewLive } from "./v2/gestion-v2-view-live";
+import { GestionV2RangoView } from "./v2/gestion-v2-rango-view";
 import { parseAmount, formatSignedPct, variationTone } from "./gestion-format";
 
 /* Resultado Operacional de Gestión (Sprint C5, Maestro §7.5). Container:
@@ -96,7 +97,7 @@ export function OperationalResultView({ initialPeriod, v2 = false }: Operational
           emptyTitle="Sin datos para este período"
           emptyDescription="Todavía no hay resultado operacional para el rango seleccionado. Prueba otro rango o vuelve cuando se sincronicen las fuentes."
         >
-          {(data) => <OperationalResultMatrix data={data} />}
+          {(data) => (v2 ? <GestionV2RangoView data={data} /> : <OperationalResultMatrix data={data} />)}
         </StateWrap>
       )}
     </div>

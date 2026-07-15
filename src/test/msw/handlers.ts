@@ -2708,6 +2708,10 @@ const gestionHandlers = [
     const sueldos = months.map((_, i) => String(-7000000 - i * 100000));
     const ingresos = months.map((_, i) => String(Number(proyectos[i]) + Number(servicio[i])));
     const margen = months.map((_, i) => String(Number(ingresos[i]) + Number(sueldos[i])));
+    const gastos = months.map((_, i) => String(-3000000 - i * 50000));
+    const resultado = months.map((_, i) => String(Number(margen[i]) + Number(gastos[i])));
+    const pctBy = (arr: string[]) =>
+      months.map((_, i) => (Number(ingresos[i]) > 0 ? ((Number(arr[i]) / Number(ingresos[i])) * 100).toFixed(1) : "0"));
     return HttpResponse.json(
       {
         generated_at: "2026-07-11T12:00:00Z",
@@ -2745,6 +2749,26 @@ const gestionHandlers = [
             by_month: margen,
             total: sumArr(margen),
             pct_total: "60.0",
+            pct_by_month: pctBy(margen),
+          },
+          {
+            kind: "section",
+            key: "opex",
+            label: "Gastos operacionales",
+            by_month: gastos,
+            total: sumArr(gastos),
+            children: [
+              { kind: "account", key: "recurrentes", label: "Gastos recurrentes", by_month: gastos, total: sumArr(gastos) },
+            ],
+          },
+          {
+            kind: "subtotal",
+            key: "operational_result",
+            label: "Resultado Operacional",
+            by_month: resultado,
+            total: sumArr(resultado),
+            pct_total: ((Number(sumArr(resultado)) / Number(sumArr(ingresos))) * 100).toFixed(1),
+            pct_by_month: pctBy(resultado),
           },
         ],
       },

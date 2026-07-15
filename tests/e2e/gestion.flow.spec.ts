@@ -33,12 +33,15 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "Tres meses" }).click();
 
-    // Vista de rango: Estado de Resultados mensualizado (matriz Chipax) — filas
-    // jerárquicas + columna Total + mes en curso "(proforma)".
+    // Vista de rango v2: respuesta de dueño del período + margen en el tiempo (protagonista)…
+    await expect(page.getByText("El negocio ganó en el período")).toBeVisible();
+    await expect(page.getByText("Márgenes del período")).toBeVisible();
+    await expect(page.getByText("Margen operacional en el tiempo")).toBeVisible();
+    // …y la matriz P&L mes a mes (Chipax) debajo — filas jerárquicas + "(proforma)".
     await expect(page.getByText("Total Ingresos")).toBeVisible();
-    await expect(page.getByText("Margen Bruto")).toBeVisible();
+    // exact: la fila de la matriz "Margen Bruto" ≠ el bloque v2 "Margen bruto".
+    await expect(page.getByText("Margen Bruto", { exact: true })).toBeVisible();
     await expect(page.getByText("(proforma)")).toBeVisible();
-    // Fila hija (expandido por default).
-    await expect(page.getByText("Proyectos")).toBeVisible();
+    await expect(page.getByText("Proyectos")).toBeVisible(); // fila hija, expandida por default
   });
 });
