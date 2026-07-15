@@ -27,12 +27,14 @@ export interface GestionV2ViewProps {
   comparativos: React.ReactNode;
   /** <CascadaResultado/> (fijo, destacado). */
   cascada: React.ReactNode;
-  /** Cajas secundarias reordenables (drivers, Pulso). */
+  /** Cajas secundarias reordenables (drivers, tendencia). */
   movibles: GestionMovible[];
+  /** Tira del Pulso al pie (fijo, opcional): el score ya vive en el header, acá va compacto. */
+  pulso?: React.ReactNode;
   className?: string;
 }
 
-export function GestionV2View({ hero, margenes, comparativos, cascada, movibles, className }: GestionV2ViewProps) {
+export function GestionV2View({ hero, margenes, comparativos, cascada, movibles, pulso, className }: GestionV2ViewProps) {
   const [order, setOrder] = React.useState<string[]>(() => movibles.map((m) => m.id));
 
   const ordered = React.useMemo(() => {
@@ -73,6 +75,9 @@ export function GestionV2View({ hero, margenes, comparativos, cascada, movibles,
           ),
         )}
       </div>
+
+      {/* Tira del Pulso al pie (el número grande ya vive en el header) */}
+      {pulso}
     </div>
   );
 }
