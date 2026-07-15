@@ -1,13 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — Resultado Operacional de Gestión (Sprint C5). Pantalla construida
-   FE-first contra MSW (el endpoint backend aún no existe), gated por
-   `operationalResult` (ON en el env de e2e para poder testearla). Valida
-   render del resultado + desglose + drivers + navegación de período. */
+/* Flujo — Resultado Operacional de Gestión v2 (rediseño 2026-07-14, `gestionV2` ON en prod y en
+   el env de e2e). Un mes → la vista v2 (respuesta de dueño + cascada + drivers); el rango sigue
+   con la matriz mensual clásica. Contra MSW (operational-result + breakdown + dashboard). */
 
-test.describe("Flujo: Resultado Operacional (/gestion)", () => {
-  test("muestra el resultado del mes y permite verlo por rango", async ({ page, context }) => {
+test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
+  test("un mes muestra la respuesta de dueño + cascada; el rango muestra la matriz", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/gestion");
 
@@ -16,11 +15,14 @@ test.describe("Flujo: Resultado Operacional (/gestion)", () => {
     // Badge obligatorio (Maestro §7.5): no es contabilidad oficial.
     await expect(page.getByText(/no es contabilidad oficial/i)).toBeVisible();
 
-    // Un mes por defecto: vista rica (desglose fino + drivers).
-    await expect(page.getByText("Resultado operacional del mes")).toBeVisible();
+    // Un mes por defecto: vista v2 — respuesta de dueño (result del fixture = $3.900.000) + cascada.
+    await expect(page.getByText("El negocio ganó este mes")).toBeVisible();
+    // El resultado ($3.900.000) aparece en el hero Y en la cascada — coinciden (footing correcto).
+    await expect.poll(() => page.getByText("$3.900.000").count()).toBeGreaterThanOrEqual(2);
     await expect(page.getByText("Ingresos")).toBeVisible();
-    await expect(page.getByText("EBITDA (proxy)")).toBeVisible();
+    await expect(page.getByText("$18.500.000")).toBeVisible(); // Ingresos, único
     await expect(page.getByText("Qué explica el resultado")).toBeVisible();
+    await expect(page.getByText("Más ventas que el mes anterior.")).toBeVisible(); // driver (texto único)
 
     // Selector de rango (pedido de Fernando): elegir "Tres meses" → vista de rango.
     await page

@@ -72,9 +72,10 @@ export default defineConfig({
       NEXT_PUBLIC_FF_ACCOUNTS_RECEIVABLE: "true",
       NEXT_PUBLIC_FF_ACCOUNTS_PAYABLE: "true",
       /* v2 encendidos en prod (wrangler.toml): el e2e debe espejar lo que ven los usuarios.
-         Con estos ON, /pagar y /caja/proyeccion renderean las vistas v2 (no las clásicas). */
+         Con estos ON, /pagar, /caja/proyeccion y /gestion (un mes) renderean las vistas v2. */
       NEXT_PUBLIC_FF_CAJA_V2: "true",
       NEXT_PUBLIC_FF_PAGAR_V2: "true",
+      NEXT_PUBLIC_FF_GESTION_V2: "true",
       NEXT_PUBLIC_FF_DASHBOARD_SUMMARY: "true",
       NEXT_PUBLIC_FF_PULSO_DETAIL: "true",
       NEXT_PUBLIC_FF_ASSISTANT: "true",
