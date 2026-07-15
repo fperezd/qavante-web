@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Banknote } from "lucide-react";
+import { Banknote, Plus } from "lucide-react";
 import { QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import { useDashboardSummary } from "@/lib/api/dashboard";
 import { defaultCashFlowRange, useCashFlowReport, type CashFlowBucket } from "@/lib/api/treasury-reports";
@@ -37,8 +37,15 @@ export function CajaV2ResumenLive() {
   }
 
   const buckets = (cf.data?.buckets ?? []) as CashFlowBucket[];
-  const saldoHoy = parseAmount(dash.data?.cash_today?.total);
-  if (saldoHoy === 0 && buckets.length === 0) return <EmptyState />;
+  // `cash_today` es un bloque NULLABLE del summary (banco no conectado / fuente caída / 500 del
+  // dashboard). Faltante ≠ 0 (§13): NO colapsamos un saldo desconocido a $0 "en negativo".
+  const cashTotal = dash.data?.cash_today?.total;
+  const saldoConocido = cashTotal != null;
+  const saldoHoy = parseAmount(cashTotal);
+  if (!saldoConocido && buckets.length === 0) return <EmptyState />;
+
+  // Sin saldo base: mostramos honestamente los flujos conocidos, sin inventar un saldo/curva.
+  if (!saldoConocido) return <SinSaldoBase cf={cf.data} buckets={buckets} />;
 
   const serie = serieDesdeCashFlow(saldoHoy, buckets, labelBucketCorto);
   const minimo = cajaMinimoCLP(cm.data);
@@ -133,7 +140,6 @@ function CurvaCard({
   minimo: number | null;
   cruceIdx: number | null;
 }) {
-  if (serie.length < 2) return null;
   const eventos = cruceIdx != null ? [{ indice: cruceIdx, label: "Bajo el mínimo", tono: "crit" as const }] : [];
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
@@ -141,7 +147,13 @@ function CurvaCard({
         <h2 className="text-sm font-bold text-neutral-dark">Saldo proyectado</h2>
       </div>
       <div className="px-3 py-3">
-        <CajaCurva serie={serie} minimo={minimo} eventos={eventos} />
+        {serie.length < 2 ? (
+          <p className="px-2 py-8 text-center text-xs text-neutral-mid">
+            Aún no hay suficientes períodos para proyectar la curva de saldo.
+          </p>
+        ) : (
+          <CajaCurva serie={serie} minimo={minimo} eventos={eventos} />
+        )}
       </div>
       {cruceIdx != null && (
         <p className="mx-4 mb-4 rounded-lg border border-danger-500/30 bg-danger-500/[.06] px-3 py-2 text-[13px] text-neutral-dark">
@@ -152,19 +164,22 @@ function CurvaCard({
   );
 }
 
-/** Tabla de buckets con SALDO AL CIERRE (la columna que hoy falta): saldo al cierre del
- *  bucket i = serie[i+1] (serie[0] es "hoy"). */
-function buildMovibles(buckets: CashFlowBucket[], serie: SaldoPunto[]): CajaMovible[] {
-  const tabla = (
+/** Tabla de entradas/salidas por período. Con `serie` agrega la columna SALDO AL CIERRE
+ *  (saldo al cierre del bucket i = serie[i+1], serie[0] es "hoy"); sin `serie` (no hay saldo
+ *  base conocido) omite esa columna en vez de inventar un cierre desde $0. */
+function FlowsTable({ buckets, serie }: { buckets: CashFlowBucket[]; serie?: SaldoPunto[] }) {
+  const conCierre = serie != null;
+  const cols = conCierre ? ["Período", "Entra", "Sale", "Neto", "Saldo al cierre"] : ["Período", "Entra", "Sale", "Neto"];
+  return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="border-b border-border px-4 py-3">
         <h2 className="text-sm font-bold text-neutral-dark">Entradas y salidas · por período</h2>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] tabular-nums">
+        <table className="w-full min-w-[440px] tabular-nums">
           <thead>
             <tr>
-              {["Período", "Entra", "Sale", "Neto", "Saldo al cierre"].map((h, i) => (
+              {cols.map((h, i) => (
                 <th
                   key={h}
                   className={`px-4 py-2 text-[10.5px] font-bold uppercase tracking-wide text-neutral-mid ${i === 0 ? "text-left" : "text-right"}`}
@@ -175,26 +190,55 @@ function buildMovibles(buckets: CashFlowBucket[], serie: SaldoPunto[]): CajaMovi
             </tr>
           </thead>
           <tbody>
-            {buckets.map((b, i) => {
-              const saldo = serie[i + 1]?.saldo ?? 0;
-              return (
-                <tr key={b.period} className="border-t border-border">
-                  <td className="px-4 py-2 text-[13px]">{labelBucketCorto(b.period)}</td>
-                  <td className="px-4 py-2 text-right text-[13px] text-success-700">{formatClp(parseAmount(b.total_inflow))}</td>
-                  <td className="px-4 py-2 text-right text-[13px] text-danger-500">
-                    {formatClp(-Math.abs(parseAmount(b.total_outflow)))}
-                  </td>
-                  <td className="px-4 py-2 text-right text-[13px]">{formatClp(parseAmount(b.net))}</td>
-                  <td className="px-4 py-2 text-right text-[13px] font-bold">{formatClp(saldo)}</td>
-                </tr>
-              );
-            })}
+            {buckets.map((b, i) => (
+              <tr key={`${b.period}-${i}`} className="border-t border-border">
+                <td className="px-4 py-2 text-[13px]">{labelBucketCorto(b.period)}</td>
+                <td className="px-4 py-2 text-right text-[13px] text-success-700">{formatClp(parseAmount(b.total_inflow))}</td>
+                <td className="px-4 py-2 text-right text-[13px] text-danger-500">
+                  {formatClp(-Math.abs(parseAmount(b.total_outflow)))}
+                </td>
+                <td className="px-4 py-2 text-right text-[13px]">{formatClp(parseAmount(b.net))}</td>
+                {conCierre && (
+                  <td className="px-4 py-2 text-right text-[13px] font-bold">{formatClp(serie![i + 1]?.saldo ?? 0)}</td>
+                )}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
     </div>
   );
-  return [{ id: "flujo-semanal", label: "Entradas y salidas", node: tabla }];
+}
+
+function buildMovibles(buckets: CashFlowBucket[], serie: SaldoPunto[]): CajaMovible[] {
+  return [{ id: "flujo-semanal", label: "Entradas y salidas", node: <FlowsTable buckets={buckets} serie={serie} /> }];
+}
+
+/** Panel honesto cuando NO hay saldo base conocido (banco no conectado / dashboard sin dato):
+ *  muestra los flujos que sí conocemos (del reporte de caja) y pide conectar el banco, en vez
+ *  de renderear un saldo "$0 en negativo" o una curva proyectada desde cero (§13). */
+function SinSaldoBase({ cf, buckets }: { cf: ReturnType<typeof useCashFlowReport>["data"]; buckets: CashFlowBucket[] }) {
+  return (
+    <div className="space-y-4">
+      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm sm:grid sm:grid-cols-2">
+        <div className="p-5">
+          <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">La empresa tiene en caja</p>
+          <p className="mt-1.5 text-[22px] font-bold text-neutral-mid">Sin dato de saldo</p>
+          <p className="mt-3 inline-flex items-start gap-1.5 text-[13px] font-semibold text-brand-primary">
+            <Plus className="mt-px size-4 shrink-0" aria-hidden="true" />
+            Conecta tu banco para ver tu saldo real y proyectar tu caja.
+          </p>
+          <p className="mt-2.5 text-[12.5px] text-neutral-mid">
+            El flujo de acá abajo (entradas y salidas) sí viene de tus movimientos.
+          </p>
+        </div>
+        <div className="border-t border-border sm:border-l sm:border-t-0">
+          <FlujoBlock cf={cf} minimo={null} />
+        </div>
+      </div>
+      <FlowsTable buckets={buckets} />
+    </div>
+  );
 }
 
 function LiveSkeleton() {

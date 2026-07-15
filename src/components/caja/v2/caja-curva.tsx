@@ -62,14 +62,18 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
   const area = `${line} L${xOf(serie.length - 1).toFixed(1)},${plotBottom} L${PADX},${plotBottom} Z`;
   const refY = yOf(ref);
   const bajoIdx = indiceMasBajo(saldos);
+  // El punto más bajo se marca en ROJO solo si realmente cae bajo la caja mínima; si no hay
+  // mínimo configurado (o el piso nunca se cruza) es un mínimo sano → color neutro, no alarma.
+  const bajoCrit = hayMinimo && bajoIdx != null && (saldos[bajoIdx] as number) < ref;
 
   return (
+    // Escala UNIFORME (sin preserveAspectRatio="none"): antes el "none" estiraba el eje X y
+    // distorsionaba los <text> (Caja mínima / $0 / etiquetas). Ahora el SVG escala a lo ancho
+    // manteniendo proporción (alto auto desde el viewBox), así el texto no se deforma.
     <svg
       viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
       width="100%"
-      height={H}
-      className={cn("block", className)}
+      className={cn("block h-auto w-full", className)}
       role="img"
       aria-label="Curva de saldo proyectado"
     >
@@ -177,12 +181,14 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
       />
       {bajoIdx != null && (
         <>
-          <circle cx={xOf(bajoIdx)} cy={yOf(saldos[bajoIdx] as number)} r="6.5" fill="var(--color-danger-500)" fillOpacity="0.18" />
+          {bajoCrit && (
+            <circle cx={xOf(bajoIdx)} cy={yOf(saldos[bajoIdx] as number)} r="6.5" fill="var(--color-danger-500)" fillOpacity="0.18" />
+          )}
           <circle
             cx={xOf(bajoIdx)}
             cy={yOf(saldos[bajoIdx] as number)}
             r="3.6"
-            fill="var(--color-danger-500)"
+            fill={bajoCrit ? "var(--color-danger-500)" : "var(--color-brand-primary)"}
             stroke="var(--color-surface)"
             strokeWidth="1.5"
           />
