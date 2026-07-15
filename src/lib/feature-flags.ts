@@ -54,6 +54,7 @@ export const FEATURE_FLAGS = [
   "libroComprasV2",
   "cajaV2",
   "pagarV2",
+  "gestionV2",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -155,6 +156,13 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      flag ON tiene prioridad sobre accountsPayable (mismo dato base); hoy OFF, el Pagar
      clásico queda intacto. */
   pagarV2: "/api/treasury/payment-plan",
+  /* Gestión v2 (rediseño aprobado 2026-07-14) — respuesta de dueño + la cascada del resultado
+     (waterfall) + drivers + margen en el tiempo + tira del Pulso. Reusa `operational-result`
+     (operationalResult) para el mes; lo que lo DISTINGUE y habilita la tendencia de margen es el
+     breakdown por rango (`operational-result/breakdown`, real/generado) — ese es su endpoint de
+     gating. Con ON y en modo un-mes tiene prioridad sobre la vista clásica; el rango sigue con la
+     matriz. Hoy OFF (el endpoint del mes es FE-first, aún no existe en prod). */
+  gestionV2: "/api/management/operational-result/breakdown",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
