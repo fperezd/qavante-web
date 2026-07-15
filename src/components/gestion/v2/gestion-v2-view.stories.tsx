@@ -4,6 +4,8 @@ import { GestionV2View, type GestionMovible } from "./gestion-v2-view";
 import { ResultadoHero } from "./resultado-hero";
 import { CascadaResultado } from "./cascada-resultado";
 import { DriversResultado } from "./drivers-resultado";
+import { TendenciaResultado } from "./tendencia-resultado";
+import { PulsoTira } from "./pulso-tira";
 import type { CascadaEntrada } from "./cascada-model";
 
 /* Pantalla de Gestión v2 ensamblada: respuesta de dueño (resultado + márgenes + comparativos)
@@ -69,22 +71,6 @@ const comparativos = (
   </div>
 );
 
-const pulsoCard = (
-  <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-    <div className="border-b border-border px-4 py-3">
-      <h2 className="text-sm font-bold text-neutral-dark">Pulso del negocio</h2>
-    </div>
-    <div className="p-4 text-center">
-      <div className="text-[46px] font-extrabold leading-none tabular-nums text-danger-500">27</div>
-      <div className="mt-1.5 inline-block rounded-full bg-danger-500/10 px-2.5 py-0.5 text-[11px] font-bold text-danger-500">Débil</div>
-      <p className="mt-3 rounded-lg border border-border bg-surface-muted px-3 py-2.5 text-left text-[12px] text-neutral-dark">
-        Ganás en resultado, pero tu Pulso está débil: <b className="text-warning-700">la caja está en rojo</b>. El
-        resultado es <b>devengado</b> — lo facturado, no lo cobrado.
-      </p>
-    </div>
-  </div>
-);
-
 const MOVIBLES: GestionMovible[] = [
   {
     id: "drivers",
@@ -100,8 +86,37 @@ const MOVIBLES: GestionMovible[] = [
       />
     ),
   },
-  { id: "pulso", label: "Pulso del negocio", node: pulsoCard },
+  {
+    id: "tendencia",
+    label: "Resultado en el tiempo",
+    node: (
+      <TendenciaResultado
+        puntos={[
+          { periodo: "feb", resultado: 2_800_000 },
+          { periodo: "mar", resultado: 3_100_000 },
+          { periodo: "abr", resultado: 2_400_000 },
+          { periodo: "may", resultado: 3_900_000 },
+          { periodo: "jun", resultado: 4_000_000 },
+          { periodo: "jul", resultado: 4_500_000, actual: true },
+        ]}
+      />
+    ),
+  },
 ];
+
+const pulsoTira = (
+  <PulsoTira
+    score={27}
+    estado="Pulso débil"
+    tono="bad"
+    insight={
+      <>
+        Ganás en resultado, pero tu Pulso está débil: <b className="text-warning-700">la caja está en rojo</b>. El
+        resultado es <b>devengado</b> — lo facturado, no lo cobrado.
+      </>
+    }
+  />
+);
 
 export const Completa: Story = {
   args: {
@@ -118,18 +133,22 @@ export const Completa: Story = {
     comparativos,
     cascada: <CascadaResultado entradas={PNL} />,
     movibles: MOVIBLES,
+    pulso: pulsoTira,
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("El negocio ganó este mes")).toBeInTheDocument();
-    // "$4.500.000" aparece 3 veces (hero + EBITDA + resultado de la cascada).
+    // "$4.500.000" aparece varias veces (hero + EBITDA + resultado de la cascada).
     await waitFor(() => expect(canvas.getAllByText("$4.500.000").length).toBeGreaterThanOrEqual(2), { timeout: 3000 });
     // La cascada.
     await expect(canvas.getByText("Ingresos")).toBeInTheDocument();
     await expect(canvas.getByText("−$21.400.000")).toBeInTheDocument();
-    // Cajas movibles: drivers + Pulso, con asa.
+    // Cajas movibles: drivers + tendencia, con asa.
     await expect(canvas.getByText("Ventas")).toBeInTheDocument();
-    await expect(canvas.getByText("Pulso del negocio")).toBeInTheDocument();
+    await expect(canvas.getByText("Resultado en el tiempo")).toBeInTheDocument();
     expect(canvas.getAllByRole("button", { name: /hacia abajo/ })).toHaveLength(2);
+    // Pulso como tira (no número gigante) con el insight y el link.
+    await expect(canvas.getByText("Pulso débil")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Ver por qué/ })).toBeInTheDocument();
   },
 };
