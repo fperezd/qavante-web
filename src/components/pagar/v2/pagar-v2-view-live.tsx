@@ -195,7 +195,7 @@ function EmptyState({ missing }: { missing?: string[] }) {
       description={
         falta
           ? `Falta sincronizar: ${falta}. Cuando llegue el detalle vas a ver acá tus vencimientos, las 3 del mes y la brecha de caja.`
-          : "Conectá tu SII y tu banco para ver tus vencimientos, las 3 del mes y cuánto de eso cubre tu caja."
+          : "Conecta tu SII y tu banco para ver tus vencimientos, las 3 del mes y cuánto de eso cubre tu caja."
       }
     />
   );

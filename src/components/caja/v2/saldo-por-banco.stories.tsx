@@ -56,11 +56,11 @@ export const SinBanco: Story = {
     bancos: [],
     total: -5_905_530,
     totalLabel: "Total en caja hoy",
-    nota: "Conectá tu banco para ver el saldo por cuenta",
+    nota: "Conecta tu banco para ver el saldo por cuenta",
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(/Conectá tu banco/)).toBeInTheDocument();
+    await expect(canvas.getByText(/Conecta tu banco/)).toBeInTheDocument();
     await expect(canvas.getByText("−$5.905.530")).toBeInTheDocument();
   },
 };

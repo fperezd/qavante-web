@@ -56,7 +56,7 @@ export function CajaV2ResumenLive() {
           saldo={saldoHoy}
           runway={negativa ? runwayNegativo(saldoHoy) : buildRunway(serie, cruceIdx, minimo, dias)}
           runwayTono={tono}
-          subtitulo={negativa ? "Saldo hoy. Conectá tu banco para confirmar el saldo real por cuenta" : "Saldo hoy en caja"}
+          subtitulo={negativa ? "Saldo hoy. Conecta tu banco para confirmar el saldo real por cuenta" : "Saldo hoy en caja"}
           infoHint="Saldo de tus cuentas hoy. La curva proyecta este saldo + las entradas y salidas esperadas del reporte de caja."
         />
       }
@@ -68,7 +68,7 @@ export function CajaV2ResumenLive() {
           bancos={[]}
           total={saldoHoy}
           totalLabel="Total en caja hoy"
-          nota="Conectá tu banco para ver el saldo por cuenta"
+          nota="Conecta tu banco para ver el saldo por cuenta"
         />
       }
       flujo={<FlujoBlock cf={cf.data} minimo={minimo} />}
@@ -145,7 +145,7 @@ function CurvaCard({
       </div>
       {cruceIdx != null && (
         <p className="mx-4 mb-4 rounded-lg border border-danger-500/30 bg-danger-500/[.06] px-3 py-2 text-[13px] text-neutral-dark">
-          El <b>{serie[cruceIdx]?.label}</b> la caja cae bajo tu mínimo. Adelantá una cobranza o postergá un pago.
+          El <b>{serie[cruceIdx]?.label}</b> la caja cae bajo tu mínimo. Adelanta una cobranza o posterga un pago.
         </p>
       )}
     </div>
@@ -212,7 +212,7 @@ function EmptyState() {
     <QavanteEmpty
       icon={Banknote}
       title="Aún no hay datos de caja"
-      description="Conectá tu banco y el SII para ver tu saldo, la proyección y cuándo la caja toca su mínimo."
+      description="Conecta tu banco y el SII para ver tu saldo, la proyección y cuándo la caja toca su mínimo."
     />
   );
 }
