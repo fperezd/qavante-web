@@ -23,7 +23,7 @@ export interface SaldoPorBancoProps {
   total: number;
   /** Etiqueta del total (ej. "Total · 4 bancos"). */
   totalLabel?: string;
-  /** Aviso al pie (ej. "Conectá tu banco para ver el saldo por cuenta") cuando degrada. */
+  /** Aviso al pie (ej. "Conecta tu banco para ver el saldo por cuenta") cuando degrada. */
   nota?: React.ReactNode;
   className?: string;
 }

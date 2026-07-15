@@ -58,7 +58,7 @@ export const Negativa: Story = {
     saldo: -5_905_530,
     runway: "Tu caja está hoy en negativo · 0 días de caja.",
     runwayTono: "crit",
-    subtitulo: "Saldo hoy. Conectá tu banco para confirmar el saldo real por cuenta",
+    subtitulo: "Saldo hoy. Conecta tu banco para confirmar el saldo real por cuenta",
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

@@ -243,7 +243,7 @@ function EmptyState() {
   return (
     <div className="rounded-xl border border-border bg-surface p-8 text-center shadow-sm">
       <p className="text-sm text-neutral-mid">
-        Aún no hay datos para tu Inicio. Conectá tus fuentes (SII, banco) y volvé cuando se
+        Aún no hay datos para tu Inicio. Conecta tus fuentes (SII, banco) y volvé cuando se
         sincronicen.
       </p>
     </div>

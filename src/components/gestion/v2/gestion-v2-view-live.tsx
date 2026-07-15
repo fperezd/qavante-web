@@ -127,13 +127,13 @@ function insightTension(resultado: number, status: PulsoStatus): React.ReactNode
   if (resultado >= 0 && debil) {
     return (
       <>
-        Ganás en resultado, pero tu Pulso está {status === "critical" ? "crítico" : "débil"}. El resultado es{" "}
+        Ganas en resultado, pero tu Pulso está {status === "critical" ? "crítico" : "débil"}. El resultado es{" "}
         <b>devengado</b> — lo facturado, no lo cobrado.
       </>
     );
   }
   if (resultado < 0) {
-    return <>El resultado del mes fue negativo. Mirá qué lo explica y cómo viene tu caja.</>;
+    return <>El resultado del mes fue negativo. Mira qué lo explica y cómo viene tu caja.</>;
   }
   return <>Resultado positivo y Pulso {status === "strong" ? "fuerte" : "estable"}: el negocio viene sólido.</>;
 }

@@ -111,7 +111,7 @@ const pulsoTira = (
     tono="bad"
     insight={
       <>
-        Ganás en resultado, pero tu Pulso está débil: <b className="text-warning-700">la caja está en rojo</b>. El
+        Ganas en resultado, pero tu Pulso está débil: <b className="text-warning-700">la caja está en rojo</b>. El
         resultado es <b>devengado</b> — lo facturado, no lo cobrado.
       </>
     }
