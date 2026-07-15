@@ -150,19 +150,18 @@ function Margenes({ mes }: { mes: OperationalResultResponse }) {
       <dd className="font-bold tabular-nums text-neutral-dark">{v}</dd>
     </div>
   );
+  // Siempre bruto y neto, cada uno en $ y % (pedido de Fernando).
+  const margen = (monto: number, pct: number) => (
+    <>
+      {formatClp(monto)} · <span className="text-neutral-mid">{fmtPct(pct)}</span>
+    </>
+  );
   return (
     <div className="p-5">
       <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">Márgenes</p>
       <dl className="mt-2 flex flex-col text-[12.5px]">
-        {row(
-          "Margen bruto",
-          <>
-            {formatClp(parseAmount(mes.gross_margin))} · <span className="text-neutral-mid">{fmtPct(parseAmount(mes.gross_margin_pct))}</span>
-          </>,
-          false,
-        )}
-        {row("Margen operacional", fmtPct(margenOperacionalPct(mes)))}
-        {row("EBITDA (proxy)", formatClp(parseAmount(mes.ebitda_proxy)))}
+        {row("Margen bruto", margen(parseAmount(mes.gross_margin), parseAmount(mes.gross_margin_pct)), false)}
+        {row("Margen neto", margen(parseAmount(mes.result), margenOperacionalPct(mes)))}
       </dl>
     </div>
   );
