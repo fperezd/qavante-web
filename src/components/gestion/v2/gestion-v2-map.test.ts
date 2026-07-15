@@ -1,0 +1,140 @@
+import { describe, it, expect } from "vitest";
+import {
+  mesCorto,
+  margenOperacionalPct,
+  mapHero,
+  mapComparativos,
+  mapCascada,
+  mapDrivers,
+  mapTendencia,
+} from "./gestion-v2-map";
+import { computeCascada } from "./cascada-model";
+import type { OperationalResultResponse, OperationalResultBreakdown } from "@/lib/api/gestion";
+
+const RESP: OperationalResultResponse = {
+  period: "2026-07",
+  revenue: "48200000",
+  direct_cost: "21400000",
+  gross_margin: "26800000",
+  gross_margin_pct: "55.6",
+  labor_cost: "14900000",
+  professional_fees: "2300000",
+  recurring_expenses: "5100000",
+  ebitda_proxy: "4500000",
+  result: "4500000",
+  variation: {
+    vs_previous_month: { amount: "500000", pct: "12.5" },
+    vs_same_month_last_year: { amount: "1140000", pct: "34.0" },
+  },
+  drivers: [
+    { direction: "improves", concept: "Ventas", impact: "3200000", explanation: "Subieron 8%." },
+    { direction: "worsens", concept: "Sueldos", impact: "1100000", explanation: "Sumaste 1 persona." },
+  ],
+  confidence: "high",
+  data_state: "available",
+  missing_sources: [],
+  generated_at: "2026-07-14T12:00:00Z",
+};
+
+describe("mesCorto", () => {
+  it("YYYY-MM → mes corto", () => {
+    expect(mesCorto("2026-07")).toBe("jul");
+    expect(mesCorto("2026-01-15")).toBe("ene");
+  });
+});
+
+describe("margenOperacionalPct", () => {
+  it("resultado / ingresos * 100", () => {
+    expect(margenOperacionalPct(RESP)).toBeCloseTo(9.34, 1);
+  });
+  it("0 si no hay ingresos", () => {
+    expect(margenOperacionalPct({ ...RESP, revenue: "0" })).toBe(0);
+  });
+});
+
+describe("mapHero", () => {
+  it("ganó → título y tono ok, frase de variación", () => {
+    const h = mapHero(RESP);
+    expect(h.titulo).toBe("El negocio ganó este mes");
+    expect(h.resultado).toBe(4_500_000);
+    expect(h.respuesta).toMatch(/12,5% mejor/);
+    expect(h.respuestaTono).toBe("ok");
+  });
+  it("perdió → título y número negativo", () => {
+    const h = mapHero({ ...RESP, result: "-3000000", variation: { vs_previous_month: { amount: "-1", pct: "-20" }, vs_same_month_last_year: null } });
+    expect(h.titulo).toBe("El negocio perdió este mes");
+    expect(h.resultado).toBe(-3_000_000);
+    expect(h.respuesta).toMatch(/peor/);
+    expect(h.respuestaTono).toBe("bad");
+  });
+  it("sin mes anterior → frase honesta de primer mes", () => {
+    const h = mapHero({ ...RESP, variation: { vs_previous_month: null, vs_same_month_last_year: null } });
+    expect(h.respuesta).toMatch(/Primer mes/);
+  });
+});
+
+describe("mapComparativos", () => {
+  it("mapea los que existen", () => {
+    const c = mapComparativos(RESP);
+    expect(c).toHaveLength(2);
+    expect(c[0]).toEqual({ label: "vs. mes anterior", pct: 12.5 });
+  });
+  it("degrada si falta uno", () => {
+    const c = mapComparativos({ ...RESP, variation: { vs_previous_month: { amount: "1", pct: "5" }, vs_same_month_last_year: null } });
+    expect(c).toHaveLength(1);
+  });
+});
+
+describe("mapCascada", () => {
+  it("footea a `result` y trae margen bruto y neto en %", () => {
+    const entradas = mapCascada(RESP);
+    const barras = computeCascada(entradas);
+    const res = barras.find((b) => b.id === "resultado")!;
+    expect(res.montoFirmado).toBe(4_500_000); // 48.2 − 21.4 − 14.9 − 2.3 − 5.1
+    expect(barras.find((b) => b.id === "margen-bruto")!.pct).toBeCloseTo(55.6, 1);
+    expect(res.pct).toBeCloseTo(9.34, 1);
+  });
+});
+
+describe("mapDrivers", () => {
+  it("mapea concepto/impacto/dirección", () => {
+    const d = mapDrivers(RESP);
+    expect(d[0]).toMatchObject({ direccion: "improves", concepto: "Ventas", impacto: 3_200_000 });
+    expect(d[1]?.direccion).toBe("worsens");
+  });
+});
+
+describe("mapTendencia", () => {
+  const BD: OperationalResultBreakdown = {
+    generated_at: "2026-07-14T12:00:00Z",
+    period_from: "2026-06",
+    period_to: "2026-07",
+    mode: "por_cuenta",
+    months: ["2026-06", "2026-07"],
+    proforma_month: "2026-07",
+    rows: [
+      { kind: "section", key: "income", label: "Ingresos", by_month: ["46000000", "48200000"], total: "94200000" },
+      {
+        kind: "subtotal",
+        key: "operational_result",
+        label: "Resultado operacional",
+        by_month: ["4000000", "4500000"],
+        total: "8500000",
+        pct_by_month: ["8.6", "9.3"],
+        pct_total: "9.0",
+      },
+    ] as OperationalResultBreakdown["rows"],
+  };
+
+  it("saca el margen por mes de la fila de resultado y marca el mes en curso", () => {
+    const t = mapTendencia(BD);
+    expect(t).toHaveLength(2);
+    expect(t[0]).toEqual({ periodo: "jun", margenPct: 8.6, resultado: 4_000_000, actual: false });
+    expect(t[1]).toEqual({ periodo: "jul", margenPct: 9.3, resultado: 4_500_000, actual: true });
+  });
+
+  it("degrada a [] si no hay pct_by_month", () => {
+    const bd2 = { ...BD, rows: [{ kind: "subtotal", key: "x", label: "x", by_month: ["1"], total: "1" }] as OperationalResultBreakdown["rows"] };
+    expect(mapTendencia(bd2)).toEqual([]);
+  });
+});
