@@ -2,16 +2,19 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 
-/* TendenciaResultado — el resultado operacional de los últimos meses en mini-barras: contesta
-   "¿voy mejorando o empeorando?". Junto a los drivers (qué cambió ESTE mes) cierra la lectura.
-   Presentacional (SVG sin libs); barras verdes si hay ganancia, rojas si hay pérdida; el mes en
-   curso resaltado. Alimentado por la serie del breakdown por rango (que ya existe). */
+/* TendenciaResultado — el MARGEN operacional de los últimos meses en mini-barras: contesta
+   "¿estoy siendo más o menos rentable?" (independiente de si vendí más o menos — eso lo dice
+   el $ del hero). Junto a los drivers (qué cambió ESTE mes) cierra la lectura. Presentacional
+   (SVG sin libs); barras verdes si el margen es positivo, rojas si es negativo; el mes en curso
+   resaltado. El % por mes ya lo trae el breakdown por rango (pct_by_month del resultado). */
 
 export interface TendenciaPunto {
   /** Etiqueta corta del período (ej. "jul"). */
   periodo: string;
-  /** Resultado operacional del mes (firmado). */
-  resultado: number;
+  /** Margen operacional del mes (%, ej. 9.3). */
+  margenPct: number;
+  /** Resultado del mes en CLP (secundario, opcional; se muestra chico bajo el %). */
+  resultado?: number;
   /** Marca el mes en curso (parcial) → se resalta. */
   actual?: boolean;
 }
@@ -27,26 +30,24 @@ const H = 118;
 const PAD_T = 18;
 const PAD_B = 20;
 
-/** Monto abreviado en millones ($4,5M / −$3,0M) para no saturar las etiquetas. */
-function abreviar(v: number): string {
-  const millones = v / 1_000_000;
-  const num = Math.abs(millones).toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-  return `${v < 0 ? "−" : ""}$${num}M`;
+function fmtPct(v: number): string {
+  return `${v.toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
-export function TendenciaResultado({ titulo = "Resultado en el tiempo", puntos, className }: TendenciaResultadoProps) {
+export function TendenciaResultado({ titulo = "Margen operacional en el tiempo", puntos, className }: TendenciaResultadoProps) {
   const vacio = puntos.length === 0;
-  const vals = puntos.map((p) => p.resultado);
+  const vals = puntos.map((p) => p.margenPct);
   const maxV = Math.max(0, ...vals);
   const minV = Math.min(0, ...vals);
   const span = maxV - minV || Math.abs(maxV) || 1;
-  const top = maxV + span * 0.16;
-  const bot = minV - span * 0.16;
+  const top = maxV + span * 0.18;
+  const bot = minV - span * 0.18;
   const plotH = H - PAD_T - PAD_B;
   const yOf = (v: number) => PAD_T + ((top - v) / (top - bot)) * plotH;
   const y0 = yOf(0);
   const colW = puntos.length > 0 ? W / puntos.length : W;
   const barW = Math.min(30, colW * 0.5);
+  const ultimo = puntos[puntos.length - 1];
 
   return (
     <section className={cn("overflow-hidden rounded-xl border border-border bg-surface shadow-sm", className)} aria-label={titulo}>
@@ -62,31 +63,23 @@ export function TendenciaResultado({ titulo = "Resultado en el tiempo", puntos, 
             <line x1="0" y1={y0} x2={W} y2={y0} stroke="var(--color-border)" strokeWidth="1" />
             {puntos.map((p, i) => {
               const cx = i * colW + colW / 2;
-              const yv = yOf(p.resultado);
+              const yv = yOf(p.margenPct);
               const y = Math.min(y0, yv);
               const h = Math.max(2, Math.abs(yv - y0));
-              const neg = p.resultado < 0;
+              const neg = p.margenPct < 0;
               const fill = neg ? "var(--color-danger-500)" : "var(--color-success-600)";
               return (
                 <g key={p.periodo + i}>
-                  <rect
-                    x={cx - barW / 2}
-                    y={y}
-                    width={barW}
-                    height={h}
-                    rx="3"
-                    fill={fill}
-                    opacity={p.actual ? 1 : 0.55}
-                  />
+                  <rect x={cx - barW / 2} y={y} width={barW} height={h} rx="3" fill={fill} opacity={p.actual ? 1 : 0.55} />
                   <text
                     x={cx}
                     y={neg ? y0 + 12 : y - 4}
                     textAnchor="middle"
-                    fontSize="8.5"
+                    fontSize="8.8"
                     fontWeight={p.actual ? 700 : 400}
                     fill={p.actual ? "var(--color-neutral-dark)" : "var(--color-neutral-mid)"}
                   >
-                    {abreviar(p.resultado)}
+                    {fmtPct(p.margenPct)}
                   </text>
                   <text
                     x={cx}
@@ -102,10 +95,13 @@ export function TendenciaResultado({ titulo = "Resultado en el tiempo", puntos, 
               );
             })}
           </svg>
-          <p className="mt-1 px-1 text-[11.5px] text-neutral-mid">
-            Último mes <b className="text-neutral-dark">{formatClp(puntos[puntos.length - 1]!.resultado)}</b>
-            {puntos[puntos.length - 1]!.actual && " · en curso"}
-          </p>
+          {ultimo && (
+            <p className="mt-1 px-1 text-[11.5px] text-neutral-mid">
+              Último mes <b className="text-neutral-dark">{fmtPct(ultimo.margenPct)}</b>
+              {ultimo.resultado != null && <> · {formatClp(ultimo.resultado)}</>}
+              {ultimo.actual && " · en curso"}
+            </p>
+          )}
         </div>
       )}
     </section>
