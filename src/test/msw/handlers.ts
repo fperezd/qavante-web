@@ -2888,8 +2888,39 @@ const bukHandlers = [
   ),
 ];
 
+/* Caja v2 — reporte de caja (buckets semanales) + caja mínima. Contrato ya vivo en prod
+   (cashFlowReport ON); acá permite que la vista Caja v2 (cajaV2 ON en e2e) renderee la curva
+   derivada + el saldo por período contra datos realistas. Ver caja-v2-map / caja-v2-resumen-live. */
+const cashFlowReportFixture = {
+  period_from: "2026-07",
+  period_to: "2026-08",
+  granularity: "week",
+  financial_layer: "committed",
+  group_by: "none",
+  currency: "functional",
+  currency_code: "CLP",
+  buckets: [
+    { period: "2026-07-14", total_inflow: "1600000", total_outflow: "2400000", net: "-800000", row_count: 6 },
+    { period: "2026-07-21", total_inflow: "500000", total_outflow: "1900000", net: "-1400000", row_count: 4 },
+    { period: "2026-07-28", total_inflow: "3200000", total_outflow: "1100000", net: "2100000", row_count: 7 },
+    { period: "2026-08-04", total_inflow: "800000", total_outflow: "2600000", net: "-1800000", row_count: 5 },
+  ],
+  grand_total: { inflow: "6100000", outflow: "8000000", net: "-1900000", row_count: 22 },
+  excluded_attention: 0,
+};
+
+const cashMinimumFixture = {
+  thresholds: [{ currency_code: "CLP", amount: "3000000", updated_at: "2026-07-01T00:00:00Z" }],
+};
+
+const cajaV2Handlers = [
+  http.get("*/api/treasury/reports/cash-flow", () => HttpResponse.json(cashFlowReportFixture, { status: 200 })),
+  http.get("*/api/treasury/cash-minimum", () => HttpResponse.json(cashMinimumFixture, { status: 200 })),
+];
+
 export const handlers = [
   ...authHandlers,
+  ...cajaV2Handlers,
   ...bukHandlers,
   ...sourcesStatusHandlers,
   ...usersHandlers,
