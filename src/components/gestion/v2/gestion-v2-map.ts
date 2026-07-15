@@ -29,6 +29,25 @@ export function mesCorto(period: string): string {
   return MESES[idx] ?? period;
 }
 
+/** ¿El resultado operacional es plausible como para MOSTRARLO con confianza? El backend a veces
+ *  manda los costos en $0 (no fluyen las remuneraciones / costos) y un `result` MAYOR que los
+ *  ingresos (margen > 100%, imposible). En esos casos NO mostramos una cascada confiada —
+ *  degradamos honesto (§13: "no asumir 0" también aplica hacia arriba). Es surface honesto de un
+ *  problema de datos del backend, no un parche. */
+export function resultadoConfiable(resp: OperationalResultResponse): boolean {
+  const rev = parseAmount(resp.revenue);
+  if (rev <= 0) return true; // sin ingresos = otro caso (vacío/parcial), esta guarda no aplica
+  // Resultado > ingresos ⇒ margen > 100% ⇒ imposible operacionalmente.
+  if (parseAmount(resp.result) > rev) return false;
+  // Costos clave en $0 con ventas reales ⇒ faltan (típicamente las remuneraciones no llegaron).
+  const costosClave =
+    Math.abs(parseAmount(resp.direct_cost)) +
+    Math.abs(parseAmount(resp.labor_cost)) +
+    Math.abs(parseAmount(resp.professional_fees));
+  if (costosClave < 1) return false;
+  return true;
+}
+
 /** Margen operacional % = resultado / ingresos * 100 (0 si no hay ingresos positivos: con
  *  revenue ≤ 0 el % no tiene sentido y dividir invertiría el signo). */
 export function margenOperacionalPct(resp: OperationalResultResponse): number {
