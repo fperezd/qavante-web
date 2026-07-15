@@ -88,16 +88,16 @@ const MOVIBLES: GestionMovible[] = [
   },
   {
     id: "tendencia",
-    label: "Resultado en el tiempo",
+    label: "Margen en el tiempo",
     node: (
       <TendenciaResultado
         puntos={[
-          { periodo: "feb", resultado: 2_800_000 },
-          { periodo: "mar", resultado: 3_100_000 },
-          { periodo: "abr", resultado: 2_400_000 },
-          { periodo: "may", resultado: 3_900_000 },
-          { periodo: "jun", resultado: 4_000_000 },
-          { periodo: "jul", resultado: 4_500_000, actual: true },
+          { periodo: "feb", margenPct: 6.5, resultado: 2_800_000 },
+          { periodo: "mar", margenPct: 7.0, resultado: 3_100_000 },
+          { periodo: "abr", margenPct: 5.2, resultado: 2_400_000 },
+          { periodo: "may", margenPct: 8.4, resultado: 3_900_000 },
+          { periodo: "jun", margenPct: 8.6, resultado: 4_000_000 },
+          { periodo: "jul", margenPct: 9.3, resultado: 4_500_000, actual: true },
         ]}
       />
     ),
@@ -143,9 +143,9 @@ export const Completa: Story = {
     // La cascada.
     await expect(canvas.getByText("Ingresos")).toBeInTheDocument();
     await expect(canvas.getByText("−$21.400.000")).toBeInTheDocument();
-    // Cajas movibles: drivers + tendencia, con asa.
+    // Cajas movibles: drivers + tendencia de margen, con asa.
     await expect(canvas.getByText("Ventas")).toBeInTheDocument();
-    await expect(canvas.getByText("Resultado en el tiempo")).toBeInTheDocument();
+    await expect(canvas.getByText("Margen operacional en el tiempo")).toBeInTheDocument();
     expect(canvas.getAllByRole("button", { name: /hacia abajo/ })).toHaveLength(2);
     // Pulso como tira (no número gigante) con el insight y el link.
     await expect(canvas.getByText("Pulso débil")).toBeInTheDocument();
