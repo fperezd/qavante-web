@@ -20,24 +20,41 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const noop = () => {};
+
 export const PorUrgencia: Story = {
   args: {
     items: [
-      { id: "1", vencido: true, fecha: "10-07", acreedor: "COMERCIAL KAUFMANN S.A.", detalle: "Proveedor · factura 8842", monto: 2_100_000, postergabilidad: "negociable" },
-      { id: "2", fecha: "13-07", acreedor: "Previred — cotizaciones", detalle: "Leyes sociales · junio", monto: 3_850_000, postergabilidad: "no_postergable" },
-      { id: "3", fecha: "15-07", acreedor: "Google Cloud", detalle: "Servicio · compra extranjera", monto: 1_190_000, montoOrigen: "US$1.240", postergabilidad: "negociable" },
-      { id: "4", fecha: "20-07", acreedor: "F29 — IVA a pagar", detalle: "Impuesto SII · junio", monto: 4_200_000, postergabilidad: "no_postergable" },
-      { id: "5", fecha: "25-07", acreedor: "DIVEIMPORT S.A.", detalle: "Proveedor · factura 1043", monto: 3_400_000, postergabilidad: "cubierto" },
+      // Con onClick (drill-down cableado por el container) → clickeable.
+      { id: "1", vencido: true, fecha: "10-07", acreedor: "COMERCIAL KAUFMANN S.A.", detalle: "Proveedor · factura 8842", monto: 2_100_000, postergabilidad: "negociable", onClick: noop },
+      { id: "2", fecha: "13-07", acreedor: "Previred — cotizaciones", detalle: "Leyes sociales · junio", monto: 3_850_000, postergabilidad: "no_postergable", onClick: noop },
+      { id: "3", fecha: "15-07", acreedor: "Google Cloud", detalle: "Servicio · compra extranjera", monto: 1_190_000, montoOrigen: "US$1.240", postergabilidad: "negociable", onClick: noop },
+      { id: "4", fecha: "20-07", acreedor: "F29 — IVA a pagar", detalle: "Impuesto SII · junio", monto: 4_200_000, postergabilidad: "no_postergable", onClick: noop },
+      { id: "5", fecha: "25-07", acreedor: "DIVEIMPORT S.A.", detalle: "Proveedor · factura 1043", monto: 3_400_000, postergabilidad: "cubierto", onClick: noop },
     ],
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Vencido arriba, con acceso al detalle.
+    // Con onClick → clickeable (botón con acceso al detalle).
     await expect(canvas.getByRole("button", { name: /COMERCIAL KAUFMANN/ })).toBeInTheDocument();
     // Postergabilidades.
     await expect(canvas.getAllByText("No postergable")).toHaveLength(2);
     await expect(canvas.getByText("Cubierto")).toBeInTheDocument();
     // Multimoneda: USD de origen visible.
     await expect(canvas.getByText("US$1.240")).toBeInTheDocument();
+  },
+};
+
+/** Sin onClick (ítems sin destino todavía): NO se renderean como botones (sin afordance no-op). */
+export const SinDestino: Story = {
+  args: {
+    items: [
+      { id: "1", fecha: "20-07", acreedor: "F29 — IVA a pagar", detalle: "Impuesto SII", monto: 4_200_000, postergabilidad: "no_postergable" },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("F29 — IVA a pagar")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button")).not.toBeInTheDocument();
   },
 };

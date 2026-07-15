@@ -1,5 +1,6 @@
 import * as React from "react";
 import { ShieldCheck, Receipt, Users, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 
 /* FechasClaveMes — las 3 obligaciones canónicas del mes de una PYME chilena: imposiciones
@@ -58,16 +59,20 @@ export function FechasClaveMes({
           const Icon = ICONO[it.icono ?? "impuestos"];
           const vencido = it.enDias != null && it.enDias < 0;
           const soon = it.enDias != null && it.enDias >= 0 && it.enDias <= 2;
-          return (
-            <button
-              key={it.id}
-              type="button"
-              onClick={it.onClick}
-              className="group relative rounded-xl border border-border border-l-[3px] border-l-brand-primary bg-surface p-3.5 pr-8 text-left shadow-sm transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-            >
-              <ChevronRight className="absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-neutral-light group-hover:text-brand-primary" aria-hidden="true" />
+          const clickable = typeof it.onClick === "function";
+          const cardClass = cn(
+            "group relative rounded-xl border border-border border-l-[3px] border-l-brand-primary bg-surface p-3.5 text-left shadow-sm",
+            clickable
+              ? "pr-8 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+              : "pr-3.5",
+          );
+          const content = (
+            <>
+              {clickable && (
+                <ChevronRight className="absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-neutral-light group-hover:text-brand-primary" aria-hidden="true" />
+              )}
               <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-bold text-neutral-dark">
-                <Icon className="size-4 shrink-0 text-brand-primary" />
+                <Icon className="size-4 shrink-0 text-brand-primary" aria-hidden="true" />
                 {it.label}
                 {it.estimado && (
                   <span className="rounded-full bg-warning-500/10 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-warning-700">
@@ -101,7 +106,16 @@ export function FechasClaveMes({
                   </>
                 )}
               </span>
+            </>
+          );
+          return clickable ? (
+            <button key={it.id} type="button" onClick={it.onClick} className={cardClass}>
+              {content}
             </button>
+          ) : (
+            <div key={it.id} className={cardClass}>
+              {content}
+            </div>
           );
         })}
       </div>
