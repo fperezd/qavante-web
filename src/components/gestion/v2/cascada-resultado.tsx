@@ -43,7 +43,9 @@ export function CascadaResultado({
         {barras.map((b) => {
           const total = b.tipo === "subtotal" || b.tipo === "resultado";
           const grand = b.tipo === "resultado";
-          const op = b.tipo === "resta" ? "−" : total ? "=" : " ";
+          const clickable = typeof b.onClick === "function";
+          const opAjuste = b.montoFirmado < 0 ? "−" : "+";
+          const op = total ? "=" : b.tipo === "resta" ? "−" : b.tipo === "ajuste" ? opAjuste : " ";
           const montoTono = grand
             ? b.negativo
               ? "text-danger-500"
@@ -51,17 +53,14 @@ export function CascadaResultado({
             : b.montoFirmado < 0
               ? "text-danger-500"
               : "text-neutral-dark";
-          return (
-            <button
-              key={b.id}
-              type="button"
-              onClick={b.onClick}
-              className={cn(
-                "group relative grid w-full grid-cols-[minmax(120px,150px)_1fr_minmax(96px,120px)] items-center gap-3 rounded-lg px-1.5 py-2 text-left transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
-                total && "bg-brand-primary/[.06]",
-                grand && "mt-1 bg-success-500/10",
-              )}
-            >
+          const rowClass = cn(
+            "group relative grid w-full grid-cols-[minmax(120px,150px)_1fr_minmax(96px,120px)] items-center gap-3 rounded-lg px-1.5 py-2 text-left",
+            clickable && "transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+            total && "bg-brand-primary/[.06]",
+            grand && (b.negativo ? "mt-1 bg-danger-500/10" : "mt-1 bg-success-500/10"),
+          );
+          const content = (
+            <>
               <span className={cn("flex items-center gap-1.5 text-[12.5px]", total ? "font-extrabold text-neutral-dark" : "text-neutral-dark")}>
                 <span className="w-2.5 shrink-0 font-bold text-neutral-light">{op}</span>
                 <span className="truncate">{b.label}</span>
@@ -92,13 +91,22 @@ export function CascadaResultado({
                 {formatClp(b.montoFirmado)}
               </span>
 
-              {!total && (
+              {clickable && !total && (
                 <ChevronRight
                   className="pointer-events-none absolute right-0.5 top-1/2 size-4 -translate-y-1/2 text-neutral-light opacity-0 transition-opacity group-hover:opacity-100"
                   aria-hidden="true"
                 />
               )}
+            </>
+          );
+          return clickable ? (
+            <button key={b.id} type="button" onClick={b.onClick} className={rowClass}>
+              {content}
             </button>
+          ) : (
+            <div key={b.id} className={rowClass}>
+              {content}
+            </div>
           );
         })}
       </div>
@@ -109,11 +117,15 @@ export function CascadaResultado({
 function barClass(tipo: string, negativo: boolean): string {
   if (tipo === "ingreso") return "bg-brand-primary/80";
   if (tipo === "resta") return "bg-danger-500/45";
+  if (tipo === "ajuste") return "bg-neutral-mid/40"; // conciliación "Otros" (neutro)
   if (tipo === "resultado") return negativo ? "bg-danger-500" : "bg-success-600";
   return "bg-brand-primary"; // subtotal
 }
 
+/** % con 1 decimal, signo tipográfico (−) para negativos. NO se clampa a [0,100]: un margen
+ *  negativo (mes en pérdida) debe verse como tal, no como "0%". */
 function formatPct(pct: number): string {
-  const r = Math.round(Math.max(0, Math.min(100, pct)) * 10) / 10;
-  return `${r.toLocaleString("es-CL")}%`;
+  const r = Math.round(pct * 10) / 10;
+  const abs = Math.abs(r).toLocaleString("es-CL", { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+  return `${r < 0 ? "−" : ""}${abs}%`;
 }

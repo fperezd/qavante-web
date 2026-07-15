@@ -31,7 +31,9 @@ const PAD_T = 18;
 const PAD_B = 20;
 
 function fmtPct(v: number): string {
-  return `${v.toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  // Signo tipográfico (−) para negativos, consistente con formatClp (no el hyphen-minus de es-CL).
+  const abs = Math.abs(v).toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return `${v < 0 ? "−" : ""}${abs}%`;
 }
 
 export function TendenciaResultado({ titulo = "Margen operacional en el tiempo", puntos, className }: TendenciaResultadoProps) {

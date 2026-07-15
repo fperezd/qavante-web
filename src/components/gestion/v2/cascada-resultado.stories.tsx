@@ -56,5 +56,8 @@ export const Perdida: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("−$3.000.000")).toBeInTheDocument();
+    // El margen neto negativo se muestra como tal (−16,7%), NO clampeado a "0%".
+    await expect(canvas.getByText("−16,7%")).toBeInTheDocument();
+    await expect(canvas.queryByText("0%")).not.toBeInTheDocument();
   },
 };

@@ -59,4 +59,18 @@ describe("computeCascada", () => {
   it("un ítem chico conserva un ancho mínimo visible", () => {
     expect(by("ho").width).toBeGreaterThanOrEqual(0.8); // honorarios ~4.8%
   });
+
+  it("una línea de ajuste FIRMADA suma o resta según su signo", () => {
+    const conAjuste = computeCascada([
+      { id: "ing", label: "Ingresos", tipo: "ingreso", monto: 10_000_000 },
+      { id: "otros", label: "Otros", tipo: "ajuste", monto: -1_500_000 }, // resta
+      { id: "otros2", label: "Otros +", tipo: "ajuste", monto: 500_000 }, // suma
+      { id: "res", label: "Resultado", tipo: "resultado", monto: 0 },
+    ]);
+    const ajusteNeg = conAjuste.find((b) => b.id === "otros")!;
+    expect(ajusteNeg.montoFirmado).toBe(-1_500_000); // firmado, no -abs
+    expect(conAjuste.find((b) => b.id === "otros2")!.montoFirmado).toBe(500_000);
+    // 10 − 1.5 + 0.5 = 9
+    expect(conAjuste.find((b) => b.id === "res")!.montoFirmado).toBe(9_000_000);
+  });
 });

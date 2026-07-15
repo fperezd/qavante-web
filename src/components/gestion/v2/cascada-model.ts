@@ -7,14 +7,15 @@
    direct_cost, gross_margin, labor_cost, professional_fees, recurring_expenses, result);
    no inventa datos. Montos en CLP (números; el string-decimal se parsea antes). */
 
-export type CascadaTipo = "ingreso" | "resta" | "subtotal" | "resultado";
+export type CascadaTipo = "ingreso" | "resta" | "ajuste" | "subtotal" | "resultado";
 
 export interface CascadaEntrada {
   id: string;
   label: string;
   tipo: CascadaTipo;
-  /** Monto en CLP. Para `resta` es la magnitud (positiva) que se descuenta; para
-   *  `subtotal`/`resultado` se ignora (el valor se deriva del acumulado). */
+  /** Monto en CLP. Para `resta` es la magnitud (positiva) que se descuenta; para `ajuste` es
+   *  FIRMADO (+ suma, − resta), p.ej. la conciliación "Otros" para que la cascada foote al
+   *  resultado del backend; para `subtotal`/`resultado` se ignora (se deriva del acumulado). */
   monto: number;
   /** % opcional para un pill (ej. margen bruto como % de ingresos). */
   pct?: number;
@@ -51,6 +52,11 @@ export function computeCascada(entradas: CascadaEntrada[]): CascadaBarra[] {
       end = running;
       running -= e.monto;
       start = running;
+    } else if (e.tipo === "ajuste") {
+      // Ajuste firmado: + suma, − resta. Barra flotante entre el acumulado previo y el nuevo.
+      start = running;
+      running += e.monto;
+      end = running;
     } else {
       // subtotal / resultado: barra total desde 0 hasta el acumulado actual.
       start = 0;
@@ -75,7 +81,13 @@ export function computeCascada(entradas: CascadaEntrada[]): CascadaBarra[] {
       width = clamp(((hi - Math.max(0, lo)) / max) * 100, 0.8, 100);
     }
     const montoFirmado =
-      r.e.tipo === "ingreso" ? r.e.monto : r.e.tipo === "resta" ? -Math.abs(r.e.monto) : r.acumulado;
+      r.e.tipo === "ingreso"
+        ? r.e.monto
+        : r.e.tipo === "resta"
+          ? -Math.abs(r.e.monto)
+          : r.e.tipo === "ajuste"
+            ? r.e.monto // ya viene firmado
+            : r.acumulado;
     return {
       ...r.e,
       montoFirmado,
