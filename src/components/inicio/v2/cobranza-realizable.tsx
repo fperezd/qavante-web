@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { CardLink } from "./card-link";
 
 /* CobranzaRealizable (Inicio Ejecutivo v2). Lidera con lo que ENTRA a tiempo
    (estimado por comportamiento de pago, no el total por cobrar) y lo segmenta por
@@ -34,6 +35,11 @@ export interface CobranzaRealizableProps {
   totalPorCobrar: number;
   /** Monto vencido (0 = al día → se muestra en verde). */
   vencido: number;
+  /** Aviso honesto de POR QUÉ está degradada (ej. falló el forecast). Sin nota → no se muestra. */
+  nota?: React.ReactNode;
+  /** Salida al detalle (regla "todo dato lleva a su detalle"). Sin href → sin link. */
+  href?: string;
+  cta?: string;
   className?: string;
 }
 
@@ -43,6 +49,9 @@ export function CobranzaRealizable({
   segmentos,
   totalPorCobrar,
   vencido,
+  nota,
+  href,
+  cta,
   className,
 }: CobranzaRealizableProps) {
   const alDia = Math.round(vencido) === 0;
@@ -82,6 +91,14 @@ export function CobranzaRealizable({
           {alDia ? "$0 vencido" : `${formatClp(vencido)} vencido`}
         </span>
       </p>
+
+      {nota && (
+        <p className="mt-2 rounded-md border border-warning-500/30 bg-warning-500/[.07] px-2.5 py-1.5 text-[11px] text-neutral-dark">
+          {nota}
+        </p>
+      )}
+
+      <CardLink href={href} cta={cta ?? "Ver cobranza"} contexto="Cobranza" />
     </section>
   );
 }
