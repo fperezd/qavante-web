@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { expect } from "storybook/test";
 import { http, HttpResponse } from "msw";
 import { PreviredCredentialCard } from "./previred-credential-card";
 
@@ -48,4 +49,25 @@ export const SinConfigurar: Story = { name: "Sin configurar" };
 export const YaConfigurada: Story = {
   name: "Ya configurada",
   parameters: { msw: { handlers: [getCredential(true), SAVE] } },
+};
+
+/** Se puede escribir: el RUT se formatea solo y el botón se habilita al tener RUT válido + clave.
+ *  Esto NO depende de MSW (es lógica de cliente), por eso sí lleva `play`. */
+export const SeEscribeYHabilita: Story = {
+  name: "Se escribe y habilita",
+  play: async ({ canvas, userEvent }) => {
+    const rut = await canvas.findByLabelText(/RUT del representante legal/i);
+    const clave = await canvas.findByLabelText(/Clave de Previred/i);
+    const boton = await canvas.findByRole("button", { name: /Conectar Previred/i });
+
+    await expect(boton).toBeDisabled();
+
+    await userEvent.type(rut, "111111111");
+    await expect(rut).toHaveValue("11.111.111-1"); // se formatea mientras escribe
+    await expect(boton).toBeDisabled(); // falta la clave
+
+    await userEvent.type(clave, "secreta");
+    await expect(clave).toHaveValue("secreta");
+    await expect(boton).toBeEnabled();
+  },
 };
