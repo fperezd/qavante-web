@@ -2,10 +2,14 @@ import type { SourceStatus } from "@/lib/api/sources-status";
 
 /* "Sin sincronizar todavía" ≠ "no pudimos preguntar" (§13: faltante ≠ 0).
 
-   `GET /api/sources/status` es api-key-only → con cookie da 401, `data` queda undefined y la línea
-   afirmaba "Sin sincronizar todavía" SIEMPRE, aunque la fuente hubiera sincronizado. Está vivo en
-   prod en las tarjetas del banco y del SII. Esta función solo deja afirmar cuando de verdad
-   sabemos: si no pudimos preguntar, no se muestra nada (callar es honesto; mentir no).
+   Corrección (16-07-2026): al abrir este fix me apoyé en el comentario de `sources-status.ts`, que
+   decía que el endpoint era api-key-only. Lo sondeé contra prod y es FALSO: `/api/sources/status`
+   acepta cookie (devuelve `no_session`, no `"Falta X-Api-Key."`). O sea, la línea NO estaba
+   mintiendo en prod como afirmé en el PR #582.
+
+   La función igual vale, y por eso queda: distingue "nunca sincronizó" de "no pudimos preguntar",
+   que es correcto ante CUALQUIER error (500, red caída, sesión vencida) y no solo ante el 401 que
+   yo creía. Si no sabemos, no se muestra nada: callar es honesto; mentir no.
 
    Ojo con los códigos: la misma fuente se llama `bice` acá y `bank_bice` en el consent. Si el
    código no viene en la respuesta, tampoco afirmamos. */

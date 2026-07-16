@@ -115,10 +115,9 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      migre a require_session. Ver STATE_OF_THE_TRAIN (gaps de auth). */
   syncStatus: "/api/sources/status",
   /* Remuneraciones (RRHH / planilla) — dotación + totales de planilla desde BUK.
-     FE-first contra `/api/buk/employees` (existe en el OpenAPI). CC-API está
-     construyendo Remuneraciones en paralelo; activar cuando el conector BUK
-     acepte cookie de sesión (hoy podría ser api-key-only → 401). Ver
-     STATE_OF_THE_TRAIN. */
+     `/api/buk/employees` acepta cookie de sesión — sondeado contra prod el 16-07-2026 (devuelve
+     `no_session`, no "Falta X-Api-Key."). El flag ya está ON. La duda del comentario viejo
+     ("podría ser api-key-only") quedó saldada. */
   remuneraciones: "/api/buk/employees",
   /* Saldos de las cuentas de banco (Caja). FE-first contra `/api/bice/saldo`
      (SaldoResponse: saldo contable + disponible por cuenta, CLP/USD). El
