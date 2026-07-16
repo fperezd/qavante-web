@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { fn } from "storybook/test";
+import { expect, fn, within } from "storybook/test";
 import { RoleSelect } from "./role-select";
 
 const meta = {
@@ -68,5 +68,38 @@ export const OwnerExcluded: Story = {
           "Cuando el invitador NO es owner, no puede asignar role=owner — se filtra del listado.",
       },
     },
+  },
+};
+
+/* Los dos plays de abajo blindan la regla "solo un owner asigna owner". Son posibles porque
+   RoleSelect es presentacional (recibe props, no hace fetch): no dependen de MSW, que el runner
+   de Storybook no intercepta. */
+
+/** El invitador NO es owner → "Dueño" no está entre las opciones. */
+export const OwnerExcluidoPlay: Story = {
+  name: "Owner excluido (admin invitando)",
+  args: { value: "", excludeOwnerWhenNotOwner: true, currentUserRole: "admin" },
+  play: async ({ canvasElement }) => {
+    const select = within(canvasElement).getByRole("combobox");
+    const opciones = within(select)
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    expect(opciones).not.toContain("Dueño");
+    expect(opciones).toContain("Administrador");
+  },
+};
+
+/** El invitador SÍ es owner → puede asignar "Dueño" (transferir propiedad).
+ *  Esta rama estaba MUERTA en prod: /administracion/usuarios nunca pasaba `currentUserRole`,
+ *  así que llegaba undefined y ni el dueño podía. */
+export const OwnerPuedeAsignarOwner: Story = {
+  name: "Owner sí puede asignar owner",
+  args: { value: "", excludeOwnerWhenNotOwner: true, currentUserRole: "owner" },
+  play: async ({ canvasElement }) => {
+    const select = within(canvasElement).getByRole("combobox");
+    const opciones = within(select)
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    expect(opciones).toContain("Dueño");
   },
 };
