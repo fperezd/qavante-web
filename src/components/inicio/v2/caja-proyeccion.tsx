@@ -16,8 +16,10 @@ export interface CajaFila {
 }
 
 export interface CajaProyeccionProps {
-  cajaHoy: number;
-  /** "Caja hoy · estimada". */
+  /** Saldo de hoy. `null` = NO lo sabemos (el bloque `cash_today` no vino): se muestra
+   *  "Sin dato" en neutro, nunca un "$0" (faltante ≠ 0, §13). */
+  cajaHoy: number | null;
+  /** "Caja hoy" / "Caja hoy · estimada" / "Caja hoy · desactualizada" según data_state. */
   subtitulo: string;
   /** Serie de la caja proyectada (curva). */
   serie: number[];
@@ -41,7 +43,9 @@ export function CajaProyeccion({
   stamp,
   className,
 }: CajaProyeccionProps) {
-  const negativa = cajaHoy < 0;
+  // Saldo desconocido (banco caído / bloque ausente) ≠ saldo cero. Nunca pintamos $0 en verde.
+  const desconocida = cajaHoy == null;
+  const negativa = !desconocida && cajaHoy < 0;
   return (
     <section
       className={cn("rounded-xl border border-border bg-surface p-5 shadow-sm", className)}
@@ -51,16 +55,16 @@ export function CajaProyeccion({
       <p
         className={cn(
           "mt-1 text-2xl font-extrabold tabular-nums tracking-tight",
-          negativa ? "text-danger-500" : "text-success-700",
+          desconocida ? "text-neutral-mid" : negativa ? "text-danger-500" : "text-success-700",
         )}
       >
-        {formatClp(cajaHoy)}
+        {desconocida ? "Sin dato" : formatClp(cajaHoy)}
       </p>
       <p className="mt-0.5 text-xs text-neutral-mid">{subtitulo}</p>
 
       <Sparkline
         data={serie}
-        tone={negativa ? "danger" : "success"}
+        tone={desconocida ? "neutral" : negativa ? "danger" : "success"}
         baseline={0}
         width={320}
         height={52}

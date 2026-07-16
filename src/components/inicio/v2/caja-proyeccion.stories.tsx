@@ -63,3 +63,24 @@ export const Interaccion: Story = {
     await expect(canvas.getByText("Días de caja")).toBeInTheDocument();
   },
 };
+
+/** Banco caído / bloque `cash_today` ausente: el saldo es DESCONOCIDO. Nunca "$0" (menos en
+ *  verde) — faltante ≠ 0 (§13). Las mínimas del forecast sí se muestran (esas sí llegaron). */
+export const SinDatoDeSaldo: Story = {
+  args: {
+    cajaHoy: null,
+    subtitulo: "Sin dato de saldo · conecta tu banco",
+    serie: [],
+    filas: [
+      { label: "Mínima a 14 días", valor: "−$5.737.505", tono: "neg" },
+      { label: "Días de caja", valor: "~0", tono: "neg" },
+    ],
+    stamp: "Actualizado 08-07 20:00 · banco",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Sin dato")).toBeInTheDocument();
+    await expect(canvas.queryByText("$0")).not.toBeInTheDocument();
+    await expect(canvas.getByText(/conecta tu banco/i)).toBeInTheDocument();
+  },
+};

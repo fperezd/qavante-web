@@ -50,9 +50,19 @@ export function mapPulso(s: DashboardSummaryV2): PulsoCardProps | null {
 
 /** Caja consolidada: hoy + mínimas 14/30 + días. Sparkline solo si el backend
  *  mandó `cash_sparkline` (campo v2); si no, se omite (Sparkline degrada solo). */
+/** Subtítulo honesto del saldo según la frescura que declara el backend (§13: un saldo viejo o
+ *  estimado no puede verse igual que uno fresco; y sin bloque, no hay saldo). */
+function subtituloCaja(cash: DashboardSummaryV2["cash_today"]): string {
+  if (!cash) return "Sin dato de saldo · conecta tu banco";
+  if (cash.data_state === "stale") return "Caja hoy · desactualizada";
+  if (cash.data_state === "estimated") return "Caja hoy · estimada";
+  return "Caja hoy";
+}
+
 export function mapCaja(s: DashboardSummaryV2): CajaProyeccionProps | null {
   if (!s.cash_today && !s.cash_forecast) return null;
-  const cajaHoy = parseAmount(s.cash_today?.total);
+  // Faltante ≠ 0: sin bloque `cash_today` el saldo es DESCONOCIDO (null), no cero.
+  const cajaHoy = s.cash_today ? parseAmount(s.cash_today.total) : null;
   const filas: CajaFila[] = [];
   const f = s.cash_forecast;
   if (f) {
@@ -65,20 +75,37 @@ export function mapCaja(s: DashboardSummaryV2): CajaProyeccionProps | null {
   }
   return {
     cajaHoy,
-    subtitulo: "Caja hoy · estimada",
+    subtitulo: subtituloCaja(s.cash_today),
     serie: s.cash_sparkline ?? [],
     filas,
     stamp: stampOf(s.cash_today?.last_updated ?? f?.last_updated, f?.source ?? null),
   };
 }
 
-/** Brecha total a 14 días (positivo) desde cash_gap. `null` si no hay gap o el
- *  bloque no vino. Alimenta el título del plan; las acciones las compone la vista. */
-export function mapBrechaTotal(s: DashboardSummaryV2): number | null {
+/** Estado de cobertura de la brecha a 14 días. `has_gap` del backend es la FUENTE DE VERDAD (él
+ *  sabe del valle intra-período y del colchón de caja mínima; nosotros solo vemos el saldo al día
+ *  14). El FE nunca puede degradar un `has_gap: true` a "holgado": si el backend declara brecha
+ *  pero nuestra resta no la ve, quedamos en `indeterminado` (ni alarma ni tranquilidad falsa). */
+export type EstadoBrecha =
+  | { tipo: "sin_dato" } // el bloque cash_gap no vino
+  | { tipo: "cubierto" } // el backend dice que NO hay brecha
+  | { tipo: "brecha"; monto: number } // hay brecha y la pudimos cuantificar
+  | { tipo: "indeterminado" }; // el backend dice que hay brecha pero no la podemos cuantificar
+
+export function mapEstadoBrecha(s: DashboardSummaryV2): EstadoBrecha {
   const g = s.cash_gap;
-  if (!g || !g.has_gap) return null;
+  if (!g) return { tipo: "sin_dato" };
+  if (!g.has_gap) return { tipo: "cubierto" };
   const gap = parseAmount(g.critical_obligations_14d) - parseAmount(g.projected_cash_14d);
-  return gap > 0 ? gap : null;
+  return gap > 0 ? { tipo: "brecha", monto: gap } : { tipo: "indeterminado" };
+}
+
+/** Brecha total a 14 días (positivo) cuando se pudo cuantificar; `null` en el resto de los casos.
+ *  Alimenta el título del plan. Para el termómetro usar `mapEstadoBrecha` (distingue "cubierto"
+ *  de "hay brecha pero no la podemos cuantificar"). */
+export function mapBrechaTotal(s: DashboardSummaryV2): number | null {
+  const e = mapEstadoBrecha(s);
+  return e.tipo === "brecha" ? e.monto : null;
 }
 
 /** Cobranza. DEGRADADA sin Fase 2: sin segmentos por comportamiento → muestra el
@@ -122,15 +149,18 @@ export function mapPlanBrecha(
 ): BrechaPlanProps {
   const cobrar = Math.min(esperadoATiempo(forecast), brechaTotal);
   const residual = Math.max(0, brechaTotal - cobrar);
-  const acciones: BrechaAccion[] = [
-    {
+  const acciones: BrechaAccion[] = [];
+  // Solo si la cobranza a tiempo aporta algo: una acción de "+$0 · Probable" es ruido que
+  // encabeza el plan con un paso que no mueve la aguja.
+  if (cobrar > 0) {
+    acciones.push({
       titulo: "Cobrar la cobranza esperada a tiempo",
       impacto: cobrar,
       fecha: "14 días",
       estado: "probable",
       brechaRestante: residual > 0 ? -residual : 0,
-    },
-  ];
+    });
+  }
   if (residual > 0) {
     acciones.push({
       titulo: "Evaluar cobertura financiera (línea / factoring)",
@@ -206,6 +236,16 @@ export function mapPagos(s: DashboardSummaryV2, now: Date): PagosTimelineProps |
   };
 }
 
+/** Margen operacional % SOLO si es plausible. Un |resultado| mayor que los ingresos es imposible
+ *  (⇒ faltan costos: el mismo bug de datos que destapamos en Gestión, donde el backend manda
+ *  labor_cost/direct_cost en $0). Ante eso devolvemos `null` y la vista muestra "—" en vez de un
+ *  "margen 1000%". No se inventa ni se clampa: se omite. */
+export function margenPlausiblePct(resultado: number, ingresos: number): number | null {
+  if (ingresos <= 0) return null;
+  if (Math.abs(resultado) > ingresos) return null;
+  return Math.round((resultado / ingresos) * 100);
+}
+
 /** Resultado. Margen computado (resultado/ingresos). SIN "preliminar"/rango/extra:
  *  esas señales (costos sin clasificar, costo que más creció, concentración) no
  *  están en el summary → se omiten (no se afirma un margen preliminar sin saberlo). */
@@ -214,7 +254,7 @@ export function mapResultado(s: DashboardSummaryV2): ResultadoPreliminarProps | 
   if (!r) return null;
   const resultado = parseAmount(r.result);
   const ingresos = parseAmount(r.revenue);
-  const margenPct = ingresos > 0 ? Math.round((resultado / ingresos) * 100) : null;
+  const margenPct = margenPlausiblePct(resultado, ingresos);
   return {
     resultado,
     subtitulo: "Resultado operacional del mes",

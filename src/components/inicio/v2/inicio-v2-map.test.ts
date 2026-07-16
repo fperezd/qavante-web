@@ -5,6 +5,8 @@ import {
   mapPulso,
   mapCaja,
   mapBrechaTotal,
+  mapEstadoBrecha,
+  margenPlausiblePct,
   cicloCajaExtra,
   mapCobranza,
   mapCobranzaForecast,
@@ -87,19 +89,65 @@ describe("mapCaja", () => {
     const s = { ...emptySummary(), cash_today: { total: "1000", last_updated: "2026-07-08", data_state: "available" } } as unknown as DashboardSummaryV2;
     expect(mapCaja(s)!.serie).toEqual([]);
   });
+
+  it("SIN cash_today (banco caído) → saldo DESCONOCIDO (null), no $0 (faltante ≠ 0)", () => {
+    const s = {
+      ...emptySummary(),
+      cash_forecast: { min_14d: "-100", min_30d: "-100", days_of_cash: 0, last_updated: "2026-07-08", source: "banco" },
+    } as unknown as DashboardSummaryV2;
+    const c = mapCaja(s)!;
+    expect(c.cajaHoy).toBeNull(); // ← nunca 0
+    expect(c.subtitulo).toMatch(/Sin dato de saldo/);
+  });
+
+  it("el subtítulo refleja la frescura que declara el backend", () => {
+    const base = { ...emptySummary(), cash_forecast: null };
+    const con = (state: string) =>
+      mapCaja({ ...base, cash_today: { total: "1000", last_updated: "2026-07-08", data_state: state } } as unknown as DashboardSummaryV2)!.subtitulo;
+    expect(con("available")).toBe("Caja hoy");
+    expect(con("stale")).toBe("Caja hoy · desactualizada");
+    expect(con("estimated")).toBe("Caja hoy · estimada");
+  });
 });
 
-describe("mapBrechaTotal", () => {
+describe("mapBrechaTotal / mapEstadoBrecha", () => {
   it("brecha = obligaciones − caja proyectada, solo si has_gap y > 0", () => {
     const s = {
       ...emptySummary(),
       cash_gap: { has_gap: true, critical_obligations_14d: "4218622", projected_cash_14d: "-5737505" },
     } as unknown as DashboardSummaryV2;
     expect(mapBrechaTotal(s)).toBe(9956127);
+    expect(mapEstadoBrecha(s)).toEqual({ tipo: "brecha", monto: 9956127 });
   });
   it("null cuando no hay gap", () => {
     const s = { ...emptySummary(), cash_gap: { has_gap: false } } as unknown as DashboardSummaryV2;
     expect(mapBrechaTotal(s)).toBeNull();
+    expect(mapEstadoBrecha(s)).toEqual({ tipo: "cubierto" });
+  });
+  it("has_gap TRUE pero nuestra resta no la ve → 'indeterminado', NUNCA 'cubierto'", () => {
+    // El backend sabe del valle intra-período / caja mínima; nosotros solo el saldo al día 14.
+    const s = {
+      ...emptySummary(),
+      cash_gap: { has_gap: true, critical_obligations_14d: "4218622", projected_cash_14d: "9000000" },
+    } as unknown as DashboardSummaryV2;
+    expect(mapEstadoBrecha(s)).toEqual({ tipo: "indeterminado" });
+    expect(mapBrechaTotal(s)).toBeNull(); // no cuantificable
+  });
+  it("sin bloque cash_gap → sin_dato (no se afirma cobertura)", () => {
+    expect(mapEstadoBrecha(emptySummary())).toEqual({ tipo: "sin_dato" });
+  });
+});
+
+describe("margenPlausiblePct", () => {
+  it("margen normal", () => {
+    expect(margenPlausiblePct(4_500_000, 48_200_000)).toBe(9);
+  });
+  it("null si |resultado| > ingresos (imposible: faltan costos)", () => {
+    expect(margenPlausiblePct(13_228_093, 12_907_155)).toBeNull(); // el caso real de prod
+    expect(margenPlausiblePct(-50_000_000, 1_000_000)).toBeNull();
+  });
+  it("null sin ingresos", () => {
+    expect(margenPlausiblePct(100, 0)).toBeNull();
   });
 });
 

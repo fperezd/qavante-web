@@ -24,6 +24,8 @@ import { ResultadoPreliminar } from "./resultado-preliminar";
 import { applyWidgetOrder, moveItem, readWidgetOrder, withWidgetOrder } from "./widget-order";
 import {
   mapBrechaTotal,
+  mapEstadoBrecha,
+  margenPlausiblePct,
   mapCaja,
   cicloCajaExtra,
   mapCobranza,
@@ -162,18 +164,25 @@ function buildTermometros(s: DashboardSummaryV2): Termometro[] {
   // El pill Y la respuesta salen de la MISMA fuente (la brecha), nunca del Pulso por
   // separado: así no puede haber "🔴 Crítico" con texto "cubre", ni afirmar cobertura
   // sin dato de caja.
-  if (s.cash_gap) {
-    const gap = mapBrechaTotal(s); // >0 si hay brecha real, null si no
-    const hasGap = gap != null;
+  // `has_gap` del backend manda: el FE NUNCA degrada una brecha declarada a "holgado" (él ve el
+  // valle intra-período y la caja mínima; nosotros solo el saldo al día 14). Si declara brecha y
+  // nuestra resta no la cuantifica → "sin confirmar", ni alarma ni tranquilidad falsa.
+  const estadoBrecha = mapEstadoBrecha(s);
+  if (estadoBrecha.tipo !== "sin_dato") {
+    const crit = estadoBrecha.tipo === "brecha";
+    const indet = estadoBrecha.tipo === "indeterminado";
     items.push({
       n: 1,
       pregunta: "¿La caja cubre la operación?",
-      pill: hasGap ? "🔴 Crítico" : "🟢 Holgado",
-      pillTono: hasGap ? "crit" : "ok",
-      destacado: hasGap ? "crit" : "ok",
-      respuesta: hasGap
-        ? `La empresa debe asegurar ${formatClp(gap)} para sus pagos de 14 días.`
-        : "La caja proyectada cubre las obligaciones críticas de los próximos 14 días.",
+      pill: crit ? "🔴 Crítico" : indet ? "⚠️ Sin confirmar" : "🟢 Holgado",
+      pillTono: crit ? "crit" : indet ? "warn" : "ok",
+      // "focus" para lo indeterminado: llama la atención sin afirmar ni crítico ni cubierto.
+      destacado: crit ? "crit" : indet ? "focus" : "ok",
+      respuesta: crit
+        ? `La empresa debe asegurar ${formatClp(estadoBrecha.monto)} para sus pagos de 14 días.`
+        : indet
+          ? "Hay una brecha de caja declarada, pero no podemos cuantificarla con los datos de hoy."
+          : "La caja proyectada cubre las obligaciones críticas de los próximos 14 días.",
       masLabel: "Ver caja →",
       masHref: "/caja/proyeccion",
     });
@@ -182,7 +191,8 @@ function buildTermometros(s: DashboardSummaryV2): Termometro[] {
   if (s.operational_result) {
     const r = parseAmount(s.operational_result.result);
     const ingresos = parseAmount(s.operational_result.revenue);
-    const margen = ingresos > 0 ? Math.round((r / ingresos) * 100) : null;
+    // Guard: |resultado| > ingresos ⇒ dato inconsistente (faltan costos) → no afirmamos margen.
+    const margen = margenPlausiblePct(r, ingresos);
     items.push({
       n: 2,
       pregunta: "¿La empresa está ganando dinero?",
