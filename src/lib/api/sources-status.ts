@@ -7,10 +7,11 @@ import type { components } from "./types";
    estado operacional + última sincronización + motivo. Alimenta el indicador de
    sync del header.
 
-   ⚠️ `GET /api/sources/status` existe pero es **api-key-only** (no acepta la
-   cookie de sesión → 401 "Falta X-Api-Key"). FE-first: construido contra el
-   contrato; gated por `syncStatus` (OFF) hasta que CC-API lo migre a
-   require_session. Tipos generados (regla 3). */
+   ✅ Acepta cookie de sesión. Sondeado contra prod el 16-07-2026: sin auth devuelve
+   `{"code":"no_session"}` — no `"Falta X-Api-Key."`, que es lo que responden los endpoints
+   api-key-only (p.ej. `/api/bice/saldo`). CC-API lo migró a require_session y el comentario
+   viejo quedó mintiendo: decía api-key-only y por eso acá se daba por muerto. El flag
+   `syncStatus` ya está ON en prod. Tipos generados (regla 3). */
 
 export type SourceStatus = components["schemas"]["SourceStatusResponse"];
 export type SourcesStatusListResponse = components["schemas"]["SourcesStatusListResponse"];
