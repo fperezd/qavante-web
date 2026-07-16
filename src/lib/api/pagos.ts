@@ -44,8 +44,19 @@ export interface PayableItem {
   currency?: string;
   /** `amount` en CLP cuando `currency` != CLP; null si ya es CLP. */
   amount_clp?: string | null;
-  /** Monto estimado por el backend (ej. F29 del período en curso antes de que el SII lo
-   *  emita; Previred proyectado). El FE lo muestra con el badge "Estimación". CC-API #TBD. */
+  /** Monto estimado por el backend (ej. F29 del período en curso antes de que el SII lo emita;
+   *  Previred proyectado). El FE lo muestra con el badge "Estimación" (fechas-clave-mes,
+   *  vencimientos-timeline).
+   *
+   *  ⚠️ FE-first: **el backend NO manda este campo**. Verificado contra el openapi vivo de prod el
+   *  16-07-2026 — `PayableItem` trae label, category, due_date, amount, criticality, source,
+   *  source_external_id, counterparty_name, counterparty_rut, folio, tipo_dte, currency,
+   *  amount_clp. No hay `estimated`. Como esta interfaz es hand-rolled, el compilador igual acepta
+   *  `it.estimated`: llega `undefined` → `estimado: false` → **el badge nunca se ve en prod**.
+   *
+   *  No es un bug del FE: el cálculo del F29/Previred estimado está escalado a CC-API
+   *  (STATE_OF_THE_TRAIN, 2026-07-14). El día que lo manden, el badge aparece solo. Antes decía
+   *  "CC-API #TBD", que no apuntaba a nada. */
   estimated?: boolean;
 }
 
