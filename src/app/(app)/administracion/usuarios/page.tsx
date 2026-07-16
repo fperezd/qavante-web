@@ -4,7 +4,8 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { UserPlus, Users, AlertCircle } from "lucide-react";
 import { QavanteEmpty, QavanteButton } from "@/components/qavante";
-import { useUsers, type User } from "@/lib/api/users";
+import { useMe, useUsers, type User } from "@/lib/api/users";
+import { asUserRole } from "@/lib/auth/types";
 import { UsersTable } from "@/components/administracion/users-table";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -36,6 +37,13 @@ const SuspendUserDialog = dynamic(
      estado de error con copys del Anexo C.3 mientras BE no esté arriba. */
 export default function UsuariosPage() {
   const usersQuery = useUsers();
+  /* Rol del usuario logueado: gobierna si se puede asignar `owner` (solo un owner transfiere la
+     propiedad). Sin esto, `currentUserRole` llegaba undefined a la tabla y al dialog → la rama
+     "salvo que vos seas owner" de users-table.tsx era código muerto y NADIE podía asignar owner,
+     ni el dueño. Query aparte: si /api/me falla, la lista igual se ve (y sin rol se cae a la rama
+     conservadora, que es la segura). */
+  const me = useMe();
+  const currentUserRole = asUserRole(me.data?.user.role);
   const [inviteOpen, setInviteOpen] = React.useState(false);
   const [suspendTarget, setSuspendTarget] = React.useState<User | null>(null);
 
@@ -76,10 +84,18 @@ export default function UsuariosPage() {
       )}
 
       {usersQuery.data && usersQuery.data.items.length > 0 && (
-        <UsersTable users={usersQuery.data.items} onSuspendClick={(u) => setSuspendTarget(u)} />
+        <UsersTable
+          users={usersQuery.data.items}
+          currentUserRole={currentUserRole}
+          onSuspendClick={(u) => setSuspendTarget(u)}
+        />
       )}
 
-      <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} />
+      <InviteUserDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        currentUserRole={currentUserRole}
+      />
 
       <SuspendUserDialog
         user={suspendTarget}
