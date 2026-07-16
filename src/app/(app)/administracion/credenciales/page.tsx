@@ -12,6 +12,7 @@ import {
   SiiSyncCard,
   BukCredentialCard,
   PreviredCredentialCard,
+  PreviredEstadoConexion,
 } from "@/components/credenciales";
 import { LinkBankAccountsCard } from "@/components/treasury/link-bank-accounts-card";
 import { useSiiCredential, useSiiCredentials } from "@/lib/api/credentials";
@@ -70,14 +71,15 @@ export default function CredencialesPage() {
         <h2 id="previred-heading" className="text-base font-semibold text-neutral-dark">
           Cotizaciones (Previred)
         </h2>
-        {/* ADR-0070: con la credencial registrada, las cotizaciones NO pagadas pasan a ser una
-            obligación real en Pagar (Previred ya sabe qué está pagado → solo se persiste lo que
-            no). El registro dispara el on-connect del sync, igual que BUK.
-
-            Dos pasos, como BUK: sin consent el sync NO corre. `previred` no está en la lista de
+        {/* Dos pasos, como BUK: sin consent el sync NO corre. `previred` no está en la lista de
             fuentes públicas de `_consent_required` (backend), así que `canonical_sync` levanta
             ConsentMissingError y deja connection_status="consent_missing" — la credencial se
-            vería "Configurado" y las cotizaciones no llegarían nunca. */}
+            vería "Configurado" y las cotizaciones no llegarían nunca.
+
+            Cada card muestra su propio badge verde, así que con uno de los dos pasos hecho la
+            sección se leía como "listo" (reporte de Fernando 16-07-2026: autorizó y el formulario
+            quedó vacío). El resumen de arriba deriva UN estado de los dos. */}
+        <PreviredEstadoConexion />
         <PreviredCredentialCard />
         <SourceConsentCard sourceCode="previred" label="Autorización de acceso a Previred" />
       </section>
