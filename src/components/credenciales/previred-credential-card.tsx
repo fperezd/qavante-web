@@ -11,7 +11,9 @@ import {
 } from "@/components/qavante";
 import { usePreviredCredential, usePutPreviredCredential } from "@/lib/api/credentials";
 import { isValidRut, normalizeRut } from "@/lib/validators/rut";
+import { formatDateLike } from "@/lib/formatters/date";
 import { PasswordInput } from "./password-input";
+import { debeMostrarForm } from "./previred-estado-conexion-model";
 
 /* Credencial de Previred. El backend la declara con `expected_keys = (username, password)`, donde
    `username` es el RUT del REPRESENTANTE LEGAL (no el de la empresa) y `password` su clave.
@@ -32,6 +34,7 @@ import { PasswordInput } from "./password-input";
 export function PreviredCredentialCard() {
   const { data, isLoading, isError, error } = usePreviredCredential();
   const put = usePutPreviredCredential();
+  const [editando, setEditando] = React.useState(false);
   const [rut, setRut] = React.useState("");
   const [clave, setClave] = React.useState("");
 
@@ -40,12 +43,25 @@ export function PreviredCredentialCard() {
   const puedeGuardar = rutOk && clave.trim() !== "";
   // El error de RUT solo cuando ya escribió algo (no al abrir la pantalla).
   const rutInvalido = rut.trim() !== "" && !rutOk;
+  // Configurada → el formulario NO queda a la vista (igual que banco y SII): resumen + "Cambiar".
+  // La decisión vive en el modelo puro (con unit tests): acá no se puede testear porque el runner
+  // de Storybook no corre MSW → `is_active` nunca llega true.
+  const mostrarForm = debeMostrarForm({ editando, claveActiva: active, cargando: isLoading });
+
+  function cerrar() {
+    setEditando(false);
+    setRut("");
+    setClave("");
+  }
 
   function guardar() {
     if (!puedeGuardar) return;
     put.mutate(
       { username: normalizeRut(rut), password: clave },
-      { onSuccess: () => setClave("") }, // el RUT queda a la vista; la clave nunca
+      // Guardada → cierra y limpia. La clave no queda en el navegador (regla 6) y el RUT tampoco
+      // tiene por qué: el backend no lo devuelve, así que dejarlo a la vista era un espejismo del
+      // estado local (tras un F5 quedaba el campo vacío con el badge "Configurado").
+      { onSuccess: cerrar },
     );
   }
 
@@ -69,50 +85,79 @@ export function PreviredCredentialCard() {
       <div className="space-y-3">
         <p className="text-sm text-neutral-mid">
           {active
-            ? "La credencial de Previred está configurada. Puedes reemplazarla si cambiaste la clave."
+            ? "La credencial de Previred está configurada. Si cambiaste la clave en Previred, reemplázala acá."
             : "Guarda la clave con que Previred te deja entrar, para que Qavante pueda consultar en nombre de tu empresa. Es el RUT del representante legal (no el de la empresa) y su clave. La guardamos cifrada; no queda en el navegador."}
         </p>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <label htmlFor="previred-rut" className="block text-xs font-medium text-neutral-dark">
-              RUT del representante legal
-            </label>
-            <QavanteInput
-              id="previred-rut"
-              variant="rut"
-              value={rut}
-              onValueChange={setRut}
-              placeholder="12.345.678-9"
-              autoComplete="off"
-              invalid={rutInvalido}
-              aria-describedby={rutInvalido ? "previred-rut-error" : undefined}
-            />
-            {rutInvalido && (
-              <p id="previred-rut-error" className="text-xs text-danger-500">
-                RUT inválido — revisa el dígito verificador.
-              </p>
-            )}
-          </div>
+        {active && data?.created_at && !mostrarForm && (
+          <p className="text-xs text-neutral-mid">Configurada: {formatDateLike(data.created_at)}</p>
+        )}
 
-          <div className="space-y-1">
-            <label htmlFor="previred-clave" className="block text-xs font-medium text-neutral-dark">
-              Clave de Previred
-            </label>
-            <PasswordInput
-              id="previred-clave"
-              value={clave}
-              onChange={(e) => setClave(e.target.value)}
-              placeholder={active ? "Nueva clave para reemplazar" : "Clave de Previred"}
-              autoComplete="off"
-              aria-label="Clave de Previred"
-            />
+        {!mostrarForm && (
+          <div className="flex justify-end">
+            <QavanteButton size="sm" variant="ghost" onClick={() => setEditando(true)}>
+              Cambiar credenciales
+            </QavanteButton>
           </div>
-        </div>
+        )}
 
-        <QavanteButton onClick={guardar} loading={put.isPending} disabled={!puedeGuardar}>
-          {active ? "Reemplazar credencial" : "Conectar Previred"}
-        </QavanteButton>
+        {mostrarForm && (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label
+                  htmlFor="previred-rut"
+                  className="block text-xs font-medium text-neutral-dark"
+                >
+                  RUT del representante legal
+                </label>
+                <QavanteInput
+                  id="previred-rut"
+                  variant="rut"
+                  value={rut}
+                  onValueChange={setRut}
+                  placeholder="12.345.678-9"
+                  autoComplete="off"
+                  invalid={rutInvalido}
+                  aria-describedby={rutInvalido ? "previred-rut-error" : undefined}
+                />
+                {rutInvalido && (
+                  <p id="previred-rut-error" className="text-xs text-danger-500">
+                    RUT inválido — revisa el dígito verificador.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label
+                  htmlFor="previred-clave"
+                  className="block text-xs font-medium text-neutral-dark"
+                >
+                  Clave de Previred
+                </label>
+                <PasswordInput
+                  id="previred-clave"
+                  value={clave}
+                  onChange={(e) => setClave(e.target.value)}
+                  placeholder={active ? "Nueva clave para reemplazar" : "Clave de Previred"}
+                  autoComplete="off"
+                  aria-label="Clave de Previred"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <QavanteButton onClick={guardar} loading={put.isPending} disabled={!puedeGuardar}>
+                {active ? "Reemplazar credencial" : "Conectar Previred"}
+              </QavanteButton>
+              {editando && (
+                <QavanteButton size="sm" variant="ghost" onClick={cerrar}>
+                  Cancelar
+                </QavanteButton>
+              )}
+            </div>
+          </>
+        )}
 
         {put.isSuccess && !put.isPending && (
           <p className="text-xs text-success-700">Credencial guardada.</p>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estadoConexionPrevired } from "./previred-estado-conexion-model";
+import { debeMostrarForm, estadoConexionPrevired } from "./previred-estado-conexion-model";
 
 const base = { cargando: false, error: false, claveActiva: false, permisoValido: false };
 
@@ -46,5 +46,30 @@ describe("estadoConexionPrevired", () => {
     expect(r.tono).toBe("ok");
     // El sync todavía no está cableado en CC-API (ADR-0070 §Wiring): no prometer Pagar.
     expect(r.detalle).toMatch(/no aparecen en Pagar|falta activar la sincronización/i);
+  });
+});
+
+describe("debeMostrarForm", () => {
+  const base = { editando: false, claveActiva: false, cargando: false };
+
+  it("sin configurar: el formulario se muestra", () => {
+    expect(debeMostrarForm(base)).toBe(true);
+  });
+
+  // Lo que pidió Fernando: configurada → los campos no quedan a la vista.
+  it("configurada: el formulario NO queda a la vista", () => {
+    expect(debeMostrarForm({ ...base, claveActiva: true })).toBe(false);
+  });
+
+  it("configurada + 'Cambiar credenciales': se abre", () => {
+    expect(debeMostrarForm({ ...base, claveActiva: true, editando: true })).toBe(true);
+  });
+
+  it("mientras carga no se muestra (evita el parpadeo)", () => {
+    expect(debeMostrarForm({ ...base, cargando: true })).toBe(false);
+  });
+
+  it("editando gana sobre cargando: no le cerramos el form en la cara al usuario", () => {
+    expect(debeMostrarForm({ ...base, editando: true, cargando: true })).toBe(true);
   });
 });
