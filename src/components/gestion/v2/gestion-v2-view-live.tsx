@@ -14,7 +14,7 @@ import { CascadaResultado } from "./cascada-resultado";
 import { DriversResultado } from "./drivers-resultado";
 import { TendenciaResultado } from "./tendencia-resultado";
 import { PulsoTira, type PulsoTono } from "./pulso-tira";
-import { mapHero, mapComparativos, mapCascada, mapDrivers, mapTendencia, margenOperacionalPct, resultadoConfiable, type Comparativo } from "./gestion-v2-map";
+import { mapHero, mapComparativos, mapCascada, mapDrivers, mapTendencia, margenOperacionalPct, resultadoConfiable, tendenciaConfiable, type Comparativo } from "./gestion-v2-map";
 import { AlertTriangle } from "lucide-react";
 
 /* Vista LIVE de Gestión v2 (rediseño 2026-07-14), gated por `gestionV2` (OFF). Recibe el
@@ -88,7 +88,8 @@ export function GestionV2ViewLive({ mes, period }: { mes: OperationalResultRespo
   const movibles: GestionMovible[] = [
     { id: "drivers", label: "Qué explica el resultado", node: <DriversResultado items={drivers} /> },
   ];
-  if (tendencia.length >= 2) {
+  // Solo si la serie es plausible (algún mes con margen > 100% = mismo bug de costos $0 → se omite).
+  if (tendencia.length >= 2 && tendenciaConfiable(tendencia)) {
     movibles.push({ id: "tendencia", label: "Margen en el tiempo", node: <TendenciaResultado puntos={tendencia} /> });
   }
 
