@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { CardLink } from "./card-link";
 
 /* ResultadoPreliminar (Inicio Ejecutivo v2). Muestra resultado + margen operacional
    AGREGADO, marcado preliminar cuando faltan clasificar costos, con el rango del
@@ -30,6 +31,9 @@ export interface ResultadoPreliminarProps {
   /** "entre 51% y 89%" — rango según pendientes por clasificar. */
   rango?: string;
   extra: ResultadoExtra[];
+  /** Salida al detalle (regla "todo dato lleva a su detalle"). Sin href → sin link. */
+  href?: string;
+  cta?: string;
   className?: string;
 }
 
@@ -42,6 +46,8 @@ export function ResultadoPreliminar({
   caveat,
   rango,
   extra,
+  href,
+  cta,
   className,
 }: ResultadoPreliminarProps) {
   const pct =
@@ -130,6 +136,8 @@ export function ResultadoPreliminar({
           </span>
         </div>
       ))}
+
+      <CardLink href={href} cta={cta ?? "Ver gestión"} contexto="Resultado del mes" />
     </section>
   );
 }

@@ -19,7 +19,9 @@ export interface InicioEjecutivoV2Props {
   pulso?: PulsoCardProps;
   /** <BrechaPlan/> en crisis, o la lista de acciones en sana/control. */
   plan: React.ReactNode;
-  /** Las 4 tarjetas de detalle (Caja · Cobranza · Pagos · Resultado). */
+  /** Las 4 tarjetas de detalle (Caja · Cobranza · Pagos · Resultado). Cada elemento DEBE traer
+   *  su `key` estable (por id de widget, no por índice): la grilla es reordenable y con keys de
+   *  índice React desmonta/remonta las tarjetas movidas, y el foco del teclado se pierde. */
   grid: React.ReactNode[];
   calidad?: React.ReactNode;
   className?: string;
@@ -47,11 +49,9 @@ export function InicioEjecutivoV2({
         {plan}
       </div>
 
-      <div className="grid gap-3.5 sm:grid-cols-2">
-        {grid.map((card, i) => (
-          <React.Fragment key={i}>{card}</React.Fragment>
-        ))}
-      </div>
+      {/* Se renderea el array tal cual: cada tarjeta ya trae su key estable (w.id). Envolverlas
+          en un Fragment con key={i} descartaba esas keys y remontaba todo al reordenar. */}
+      <div className="grid gap-3.5 sm:grid-cols-2">{grid}</div>
 
       {calidad}
     </div>

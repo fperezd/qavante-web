@@ -2,6 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { Sparkline } from "@/components/ui/sparkline";
+import { CardLink } from "./card-link";
 
 /* CajaProyeccion (Inicio Ejecutivo v2). Fusiona "caja hoy + proyectada + brecha" en
    una sola card (antes eran 3 puertas a la misma pantalla): saldo de hoy, curva
@@ -26,6 +27,9 @@ export interface CajaProyeccionProps {
   filas: CajaFila[];
   /** "Actualizado 08-07 20:00 · banco". */
   stamp: string;
+  /** Salida al detalle (regla "todo dato lleva a su detalle"). Sin href → sin link. */
+  href?: string;
+  cta?: string;
   className?: string;
 }
 
@@ -41,6 +45,8 @@ export function CajaProyeccion({
   serie,
   filas,
   stamp,
+  href,
+  cta,
   className,
 }: CajaProyeccionProps) {
   // Saldo desconocido (banco caído / bloque ausente) ≠ saldo cero. Nunca pintamos $0 en verde.
@@ -81,6 +87,8 @@ export function CajaProyeccion({
       ))}
 
       <p className="mt-3 text-[11px] text-neutral-mid">🕒 {stamp}</p>
+
+      <CardLink href={href} cta={cta ?? "Ver caja"} contexto="Caja" />
     </section>
   );
 }

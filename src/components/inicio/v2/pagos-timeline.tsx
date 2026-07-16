@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { CardLink } from "./card-link";
 
 /* Pagos críticos — vencidos y próximos (Inicio Ejecutivo v2). Muestra SIEMPRE los
    vencimientos del período con su fecha (pedido de Fernando) y clasifica cada uno
@@ -51,6 +52,9 @@ export interface PagosTimelineProps {
   pagos: PagoCritico[];
   /** El total en rojo cuando la caja no lo cubre (crisis). */
   totalEnRojo?: boolean;
+  /** Salida al detalle (regla "todo dato lleva a su detalle"). Sin href → sin link. */
+  href?: string;
+  cta?: string;
   className?: string;
 }
 
@@ -59,6 +63,8 @@ export function PagosTimeline({
   subtitulo,
   pagos,
   totalEnRojo,
+  href,
+  cta,
   className,
 }: PagosTimelineProps) {
   return (
@@ -126,6 +132,8 @@ export function PagosTimeline({
           </li>
         ))}
       </ol>
+
+      <CardLink href={href} cta={cta ?? "Ver pagos"} contexto="Pagos críticos" />
     </section>
   );
 }

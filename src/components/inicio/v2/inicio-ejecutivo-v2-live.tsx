@@ -61,7 +61,14 @@ export function InicioEjecutivoV2Live() {
   const data = query.data;
   if (!data || isEmptySummary(data)) return <EmptyState />;
 
-  return <Assembled data={data} forecast={forecast.data} cashCycle={cashCycle.data} />;
+  return (
+    <Assembled
+      data={data}
+      forecast={forecast.data}
+      forecastFallo={forecast.isError}
+      cashCycle={cashCycle.data}
+    />
+  );
 }
 
 /** Una tarjeta reordenable del grid de detalle. */
@@ -74,10 +81,13 @@ interface Widget {
 function Assembled({
   data,
   forecast,
+  forecastFallo,
   cashCycle,
 }: {
   data: DashboardSummaryV2;
   forecast?: CollectionForecastResponse;
+  /** El forecast FALLÓ (≠ no disponible): la cobranza degrada y lo decimos, no lo tapamos. */
+  forecastFallo?: boolean;
   cashCycle?: CashCycleResponse;
 }) {
   // Prefs del usuario en la empresa activa: orden de las tarjetas (persistido).
@@ -91,6 +101,11 @@ function Assembled({
   // Con collection-forecast (Fase 2) → cobranza realizable con segmentos; sin él (o
   // forecast sin receivables → null), degrada al total por cobrar del summary.
   const cobranza = (forecast ? mapCobranzaForecast(forecast) : null) ?? mapCobranza(data);
+  // Si el forecast falló, la cobranza cae al total nominal: se dice, no se hace pasar por
+  // "lo realizable" (§13 — un error no puede verse igual que un dato que no existe).
+  if (cobranza && forecastFallo && !forecast) {
+    cobranza.nota = "No pudimos estimar la cobranza realizable ahora; abajo va el total por cobrar.";
+  }
   const pagos = mapPagos(data, new Date());
   const resultado = mapResultado(data);
   // Enriquecer el Resultado con el ciclo de caja (DSO/DPO) si cash-cycle respondió.
@@ -99,14 +114,34 @@ function Assembled({
     if (ciclo) resultado.extra = [...resultado.extra, ciclo];
   }
 
-  // Tarjetas presentes ESTE render (cada bloque sin dato se omite → omite lo ausente).
+  // Tarjetas presentes ESTE render (cada bloque sin dato se omite → omite lo ausente). Cada una
+  // lleva a su detalle (regla "todo dato lleva a su detalle"): mismos destinos que el Inicio v1,
+  // que los tenía y el v2 había perdido (Cobranza y Pagos quedaban sin salida).
   const widgets: Widget[] = [];
-  if (caja) widgets.push({ id: "caja", label: "Caja proyectada", node: <CajaProyeccion {...caja} /> });
+  if (caja)
+    widgets.push({
+      id: "caja",
+      label: "Caja proyectada",
+      node: <CajaProyeccion {...caja} href="/caja/proyeccion" cta="Ver caja" />,
+    });
   if (cobranza)
-    widgets.push({ id: "cobranza", label: "Cobranza realizable", node: <CobranzaRealizable {...cobranza} /> });
-  if (pagos) widgets.push({ id: "pagos", label: "Pagos del mes", node: <PagosTimeline {...pagos} /> });
+    widgets.push({
+      id: "cobranza",
+      label: "Cobranza realizable",
+      node: <CobranzaRealizable {...cobranza} href="/cobrar" cta="Ver cobranza" />,
+    });
+  if (pagos)
+    widgets.push({
+      id: "pagos",
+      label: "Pagos del mes",
+      node: <PagosTimeline {...pagos} href="/pagar" cta="Ver pagos" />,
+    });
   if (resultado)
-    widgets.push({ id: "resultado", label: "Resultado", node: <ResultadoPreliminar {...resultado} /> });
+    widgets.push({
+      id: "resultado",
+      label: "Resultado",
+      node: <ResultadoPreliminar {...resultado} href="/gestion" cta="Ver gestión" />,
+    });
 
   // Orden efectivo: el arrastre local (optimista) o, si no hubo, el guardado en prefs.
   const savedOrder = readWidgetOrder(prefs.data?.preferences);
