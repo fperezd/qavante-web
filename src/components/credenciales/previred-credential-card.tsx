@@ -13,10 +13,15 @@ import { usePreviredCredential, usePutPreviredCredential } from "@/lib/api/crede
 import { isValidRut, normalizeRut } from "@/lib/validators/rut";
 import { PasswordInput } from "./password-input";
 
-/* Credencial de Previred (ADR-0070: cotizaciones → obligación real en Pagar). El backend la
-   declara con `expected_keys = (username, password)`, donde `username` es el RUT del
-   REPRESENTANTE LEGAL (no el de la empresa) y `password` su clave de Previred. Registrarla
-   dispara el on-connect del sync (mismo patrón que BUK).
+/* Credencial de Previred. El backend la declara con `expected_keys = (username, password)`, donde
+   `username` es el RUT del REPRESENTANTE LEGAL (no el de la empresa) y `password` su clave.
+
+   OJO con la copy: ADR-0070 planea que las cotizaciones no pagadas se vuelvan obligación en Pagar,
+   pero eso NO está construido (verificado 16-07-2026 en qavante-api: el `upsert_cotizacion_payable`
+   y el wiring de §Wiring —cron 6h + on-connect— no existen; `/api/previred/cotizaciones` es
+   `require_api_key` e `include_in_schema=False`). Registrar la credencial hoy NO hace aparecer
+   nada en Pagar → no prometerlo acá (§13, faltante ≠ 0). El estado honesto de los dos pasos lo
+   muestra `PreviredEstadoConexion`.
 
    La clave NO se almacena en el FE (regla 6): se manda al backend, que la cifra. El RUT se
    normaliza antes de enviar (el backend tolera con/sin puntos, pero no le mandamos basura).
@@ -65,7 +70,7 @@ export function PreviredCredentialCard() {
         <p className="text-sm text-neutral-mid">
           {active
             ? "La credencial de Previred está configurada. Puedes reemplazarla si cambiaste la clave."
-            : "Conecta Previred para que tus cotizaciones aparezcan como obligación en Pagar. Es el RUT del representante legal (no el de la empresa) y su clave de Previred. La guardamos cifrada; no queda en el navegador."}
+            : "Guarda la clave con que Previred te deja entrar, para que Qavante pueda consultar en nombre de tu empresa. Es el RUT del representante legal (no el de la empresa) y su clave. La guardamos cifrada; no queda en el navegador."}
         </p>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -110,9 +115,7 @@ export function PreviredCredentialCard() {
         </QavanteButton>
 
         {put.isSuccess && !put.isPending && (
-          <p className="text-xs text-success-700">
-            Credencial guardada. Vamos a traer tus cotizaciones y aparecerán en Pagar.
-          </p>
+          <p className="text-xs text-success-700">Credencial guardada.</p>
         )}
         {put.isError && <QavanteInlineError error={put.error} what="la credencial de Previred" />}
         {isError && (
