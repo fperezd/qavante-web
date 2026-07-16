@@ -11,6 +11,7 @@ import {
   SourceConsentCard,
   SiiSyncCard,
   BukCredentialCard,
+  PreviredCredentialCard,
 } from "@/components/credenciales";
 import { LinkBankAccountsCard } from "@/components/treasury/link-bank-accounts-card";
 import { useSiiCredential, useSiiCredentials } from "@/lib/api/credentials";
@@ -63,6 +64,16 @@ export default function CredencialesPage() {
             lectura de la dotación/planilla (sin él, 403 "Consent missing"). */}
         <BukCredentialCard />
         <SourceConsentCard sourceCode="buk" label="Autorización de acceso a Remuneraciones (BUK)" />
+      </section>
+
+      <section aria-labelledby="previred-heading" className="space-y-2">
+        <h2 id="previred-heading" className="text-base font-semibold text-neutral-dark">
+          Cotizaciones (Previred)
+        </h2>
+        {/* ADR-0070: con la credencial registrada, las cotizaciones NO pagadas pasan a ser una
+            obligación real en Pagar (Previred ya sabe qué está pagado → solo se persiste lo que
+            no). El registro dispara el on-connect del sync, igual que BUK. */}
+        <PreviredCredentialCard />
       </section>
 
       {isLoading && (

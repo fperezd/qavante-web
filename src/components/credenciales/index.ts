@@ -8,6 +8,7 @@ export { BankCredentialCard } from "./bank-credential-card";
 export { CardStatementUpload } from "./card-statement-upload";
 export { SourceConsentCard } from "./source-consent-card";
 export { BukCredentialCard } from "./buk-credential-card";
+export { PreviredCredentialCard } from "./previred-credential-card";
 export { SourceLastSync } from "./source-last-sync";
 export { SiiSyncCard } from "./sii-sync-card";
 export { SiiCredentialDialog } from "./sii-credential-dialog";
