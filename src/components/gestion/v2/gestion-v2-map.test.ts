@@ -8,6 +8,7 @@ import {
   mapCascada,
   mapDrivers,
   mapTendencia,
+  tendenciaConfiable,
 } from "./gestion-v2-map";
 import { computeCascada } from "./cascada-model";
 import type { OperationalResultResponse, OperationalResultBreakdown } from "@/lib/api/gestion";
@@ -73,6 +74,15 @@ describe("resultadoConfiable", () => {
   });
   it("no aplica la guarda sin ingresos (otro caso: vacío/parcial)", () => {
     expect(resultadoConfiable({ ...RESP, revenue: "0" })).toBe(true);
+  });
+});
+
+describe("tendenciaConfiable", () => {
+  it("confiable con márgenes normales", () => {
+    expect(tendenciaConfiable([{ periodo: "jun", margenPct: 8.6 }, { periodo: "jul", margenPct: 9.3 }])).toBe(true);
+  });
+  it("NO confiable si algún mes tiene margen > 100% (bug de costos)", () => {
+    expect(tendenciaConfiable([{ periodo: "jun", margenPct: 47 }, { periodo: "jul", margenPct: 102.5 }])).toBe(false);
   });
 });
 

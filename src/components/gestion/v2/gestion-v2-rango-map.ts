@@ -5,7 +5,7 @@
 
 import type { OperationalResultBreakdown, BreakdownRow } from "@/lib/api/gestion";
 import { parseAmount } from "../gestion-format";
-import { mapTendencia } from "./gestion-v2-map";
+import { mapTendencia, tendenciaConfiable } from "./gestion-v2-map";
 import type { TendenciaPunto } from "./tendencia-resultado";
 
 /** Aplana el árbol de filas del breakdown (secciones con hijos → lista). */
@@ -103,5 +103,7 @@ function mesCortoDe(period: string): string {
 export function rangoConfiable(bd: OperationalResultBreakdown): boolean {
   const r = mapRangoResumen(bd);
   if (r.ingresos <= 0) return true; // otro caso (vacío/parcial)
-  return r.neto.monto <= r.ingresos;
+  // Agregado: resultado del período > ingresos (imposible). Y por mes: algún margen > 100%
+  // (mismo bug de costos en $0). Cualquiera de los dos ⇒ no confiable.
+  return r.neto.monto <= r.ingresos && tendenciaConfiable(r.tendencia);
 }

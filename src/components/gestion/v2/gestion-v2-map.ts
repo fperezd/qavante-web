@@ -144,6 +144,13 @@ export function mapDrivers(resp: OperationalResultResponse): DriverItem[] {
   }));
 }
 
+/** ¿La serie de márgenes es plausible? Un margen > 100% es imposible (resultado > ingresos ⇒
+ *  costos faltantes). Si algún mes es implausible, la tendencia entera es sospechosa (mismo bug
+ *  de datos del backend) → no se muestra. */
+export function tendenciaConfiable(puntos: TendenciaPunto[]): boolean {
+  return puntos.every((p) => p.margenPct <= 100);
+}
+
 /** Tendencia del MARGEN operacional por mes, desde el breakdown por rango. Busca la fila
  *  subtotal del resultado (por key/label), y usa su `pct_by_month` (margen) + `by_month` ($).
  *  Degrada a [] si no encuentra la fila o faltan los %. */
