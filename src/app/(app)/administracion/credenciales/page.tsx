@@ -72,8 +72,14 @@ export default function CredencialesPage() {
         </h2>
         {/* ADR-0070: con la credencial registrada, las cotizaciones NO pagadas pasan a ser una
             obligación real en Pagar (Previred ya sabe qué está pagado → solo se persiste lo que
-            no). El registro dispara el on-connect del sync, igual que BUK. */}
+            no). El registro dispara el on-connect del sync, igual que BUK.
+
+            Dos pasos, como BUK: sin consent el sync NO corre. `previred` no está en la lista de
+            fuentes públicas de `_consent_required` (backend), así que `canonical_sync` levanta
+            ConsentMissingError y deja connection_status="consent_missing" — la credencial se
+            vería "Configurado" y las cotizaciones no llegarían nunca. */}
         <PreviredCredentialCard />
+        <SourceConsentCard sourceCode="previred" label="Autorización de acceso a Previred" />
       </section>
 
       {isLoading && (
