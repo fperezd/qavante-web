@@ -45,11 +45,13 @@ type Story = StoryObj<typeof meta>;
 /** Sin configurar: pide RUT del representante legal + clave. */
 export const SinConfigurar: Story = { name: "Sin configurar" };
 
-/** Ya configurada: badge en verde y el botón pasa a "Reemplazar credencial". */
+/** Ya configurada: resumen + "Cambiar credenciales". El formulario NO queda a la vista (igual que
+ *  banco y SII) — el backend no devuelve el RUT, así que dejarlo puesto era estado local nomás. */
 export const YaConfigurada: Story = {
   name: "Ya configurada",
   parameters: { msw: { handlers: [getCredential(true), SAVE] } },
 };
+
 
 /** Se puede escribir: el RUT se formatea solo y el botón se habilita al tener RUT válido + clave.
  *  Esto NO depende de MSW (es lógica de cliente), por eso sí lleva `play`. */

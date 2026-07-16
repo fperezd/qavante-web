@@ -68,3 +68,18 @@ export function estadoConexionPrevired(e: EntradaConexionPrevired): EstadoConexi
     detalle: "Faltan los dos pasos: guardar la clave y autorizar el acceso.",
   };
 }
+
+/* ¿Se muestra el formulario de credenciales? Una vez configurada, NO queda a la vista: resumen +
+   "Cambiar credenciales", igual que banco y SII (reporte de Fernando, 16-07-2026). Acá porque es
+   la decisión que él pidió y merece test; en el componente no se puede testear (el runner de
+   Storybook no corre MSW → `is_active` nunca llega true). */
+export function debeMostrarForm(e: {
+  editando: boolean;
+  claveActiva: boolean;
+  cargando: boolean;
+}): boolean {
+  if (e.editando) return true;
+  // Mientras carga no: evita mostrarlo un instante y esconderlo al llegar la respuesta.
+  if (e.cargando) return false;
+  return !e.claveActiva;
+}
