@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { ApiError } from "@/lib/api/errors";
 import type { ReconcileResponse, ReviewItem } from "@/lib/api/reconciliation";
 import {
   documentoLabel,
   esCobro,
+  interpretarErrorConciliar,
   mapCola,
   mapFila,
   parseScore,
@@ -164,5 +166,29 @@ describe("resumenReconcile", () => {
     expect(r.autoConciliados).toBe(0);
     expect(r.paraRevisar).toBe(0);
     expect(r.mensaje).toMatch(/No encontré movimientos nuevos/);
+  });
+});
+
+describe("interpretarErrorConciliar", () => {
+  it("404 not_in_review: marca que la cola quedó vieja y hay que refrescar", () => {
+    const r = interpretarErrorConciliar(new ApiError("x", 404, "not_in_review"));
+    expect(r.yaNoEnRevision).toBe(true);
+    expect(r.mensaje).toMatch(/ya no estaba en revisión/i);
+  });
+
+  it("404 sin code también cuenta como ya-no-en-revisión", () => {
+    expect(interpretarErrorConciliar(new ApiError("x", 404)).yaNoEnRevision).toBe(true);
+  });
+
+  it("otro ApiError (500) con detalle real lo surfacea, y NO refresca", () => {
+    const r = interpretarErrorConciliar(new ApiError("El documento ya estaba pagado", 500));
+    expect(r.yaNoEnRevision).toBe(false);
+    expect(r.mensaje).toBe("El documento ya estaba pagado"); // apiErrorToUserMessage surfacea el detalle
+  });
+
+  it("error no-Api (red caída, throw plano) cae a un mensaje seguro", () => {
+    const r = interpretarErrorConciliar(new Error("network"));
+    expect(r.yaNoEnRevision).toBe(false);
+    expect(r.mensaje).toMatch(/No pudimos completar/i);
   });
 });

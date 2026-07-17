@@ -3,6 +3,8 @@ import type {
   ReviewItem,
   ReviewQueueResponse,
 } from "@/lib/api/reconciliation";
+import { ApiError } from "@/lib/api/errors";
+import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 
@@ -111,6 +113,29 @@ export function resumenReconcile(res: ReconcileResponse): ResumenReconcile {
 
 function conciliados(n: number): string {
   return n === 1 ? "1 movimiento" : `${n} movimientos`;
+}
+
+export type ErrorConciliar = {
+  /** El movimiento ya no estaba en la cola (404 not_in_review): la cola que vemos quedó vieja. */
+  yaNoEnRevision: boolean;
+  mensaje: string;
+};
+
+/** Interpreta el error de una acción de conciliación en lenguaje de dueño, mostrando la razón REAL
+ *  del backend en vez de un genérico "intentá de nuevo" (surface honesto). Distingue el caso
+ *  esperado —el movimiento ya no está en revisión (lo concilió el cron o quedó vieja la cola)— para
+ *  refrescar en vez de solo quejarse. */
+export function interpretarErrorConciliar(err: unknown): ErrorConciliar {
+  if (err instanceof ApiError && (err.code === "not_in_review" || err.status === 404)) {
+    return {
+      yaNoEnRevision: true,
+      mensaje: "Ese movimiento ya no estaba en revisión (quizás ya se concilió). Actualicé la cola.",
+    };
+  }
+  if (err instanceof ApiError) {
+    return { yaNoEnRevision: false, mensaje: apiErrorToUserMessage(err) };
+  }
+  return { yaNoEnRevision: false, mensaje: "No pudimos completar la acción. Intentá de nuevo." };
 }
 
 function mensajeReconcile(auto: number, revisar: number): string {

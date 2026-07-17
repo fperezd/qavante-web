@@ -13,7 +13,13 @@ import {
 } from "@/lib/api/reconciliation";
 import { ColaConciliacion } from "./cola-conciliacion";
 import { ReconciliarAhora } from "./reconciliar-ahora";
-import { mapCola, resumenReconcile, todosLosIds, type ResumenReconcile } from "./reconciliacion-cola-map";
+import {
+  interpretarErrorConciliar,
+  mapCola,
+  resumenReconcile,
+  todosLosIds,
+  type ResumenReconcile,
+} from "./reconciliacion-cola-map";
 
 /* Contenedor LIVE de la cola de conciliación, gated por `reconciliationReview` (OFF). Orquesta la
    cola (`review`) + las 3 mutaciones (confirm / reject / confirm-batch) y compone `ColaConciliacion`.
@@ -85,11 +91,21 @@ export function ColaConciliacionLive() {
     );
   }
 
+  function manejarError(err: unknown) {
+    const { yaNoEnRevision, mensaje } = interpretarErrorConciliar(err);
+    if (yaNoEnRevision) {
+      toast.warning(mensaje);
+      review.refetch(); // la cola quedó vieja → traé la real
+    } else {
+      toast.error(mensaje);
+    }
+  }
+
   function onConfirmar(id: string) {
     marcar(id, true);
     confirmar.mutate(id, {
       onSuccess: () => toast.success("Conciliado."),
-      onError: () => toast.error("No pudimos conciliar ese movimiento. Intentá de nuevo."),
+      onError: manejarError,
       onSettled: () => marcar(id, false),
     });
   }
@@ -98,7 +114,7 @@ export function ColaConciliacionLive() {
     marcar(id, true);
     rechazar.mutate(id, {
       onSuccess: () => toast.success("Descartado. El movimiento queda sin conciliar."),
-      onError: () => toast.error("No pudimos descartar esa sugerencia. Intentá de nuevo."),
+      onError: manejarError,
       onSettled: () => marcar(id, false),
     });
   }
@@ -113,7 +129,7 @@ export function ColaConciliacionLive() {
           toast.success(`Conciliamos ${res.confirmed}.`);
         }
       },
-      onError: () => toast.error("No pudimos conciliar en lote. Intentá de nuevo."),
+      onError: manejarError,
     });
   }
 
