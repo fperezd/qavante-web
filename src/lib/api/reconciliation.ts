@@ -21,6 +21,7 @@ export type SuggestionsResponse = components["schemas"]["SuggestionsResponse"];
 export type CounterpartySuggestion = components["schemas"]["CounterpartySuggestion"];
 export type ConfirmResponse = components["schemas"]["app__api__reconciliation__ConfirmResponse"];
 export type ConfirmBatchResponse = components["schemas"]["ConfirmBatchResponse"];
+export type ReconcileResponse = components["schemas"]["ReconcileResponse"];
 
 export const reconciliationKeys = {
   all: ["reconciliation"] as const,
@@ -91,6 +92,17 @@ export function useConfirmReconciliationBatch() {
       api.post<ConfirmBatchResponse>("/api/treasury/reconciliation/confirm-batch", {
         body: { movement_ids: movementIds },
       }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: reconciliationKeys.review() }),
+  });
+}
+
+/** `POST /api/treasury/reconcile` — corre el motor sobre los movimientos sin conciliar. Idempotente:
+ *  auto-aplica los matches con score >=90 y deja los 60-90 en la cola. Refresca la cola al terminar
+ *  (los nuevos a revisar aparecen solos). No tiene body. */
+export function useRunReconcile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<ReconcileResponse>("/api/treasury/reconcile"),
     onSuccess: () => qc.invalidateQueries({ queryKey: reconciliationKeys.review() }),
   });
 }

@@ -1,4 +1,8 @@
-import type { ReviewItem, ReviewQueueResponse } from "@/lib/api/reconciliation";
+import type {
+  ReconcileResponse,
+  ReviewItem,
+  ReviewQueueResponse,
+} from "@/lib/api/reconciliation";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 
@@ -84,4 +88,42 @@ export function mapCola(resp: ReviewQueueResponse | undefined): FilaCola[] {
 /** Todos los ids de la cola, para "Conciliar todas (N)". */
 export function todosLosIds(filas: FilaCola[]): string[] {
   return filas.map((f) => f.id);
+}
+
+export type ResumenReconcile = {
+  /** Movimientos que el motor concilió solo (matches de alta confianza). */
+  autoConciliados: number;
+  /** Movimientos que quedaron en la cola de revisión (confianza media). */
+  paraRevisar: number;
+  /** Mensaje en lenguaje de dueño para el toast/aviso post-corrida. */
+  mensaje: string;
+};
+
+/** Resume el resultado de correr el motor (`POST /reconcile`) en lenguaje de dueño. Solo expone lo
+ *  accionable: cuánto se concilió solo (matched + consolidated) y cuánto quedó para revisar. El
+ *  resto de los contadores del motor (excluidos, ambiguos, sin candidato, retención IVA, etc.) es
+ *  detalle interno y no se le muestra al dueño. */
+export function resumenReconcile(res: ReconcileResponse): ResumenReconcile {
+  const auto = (res.matched ?? 0) + (res.consolidated ?? 0);
+  const revisar = res.review ?? 0;
+  return { autoConciliados: auto, paraRevisar: revisar, mensaje: mensajeReconcile(auto, revisar) };
+}
+
+function conciliados(n: number): string {
+  return n === 1 ? "1 movimiento" : `${n} movimientos`;
+}
+
+function mensajeReconcile(auto: number, revisar: number): string {
+  if (auto > 0 && revisar > 0) {
+    return `Concilié ${conciliados(auto)} automáticamente y dejé ${revisar} para que revises.`;
+  }
+  if (auto > 0) {
+    return `Concilié ${conciliados(auto)} automáticamente. No quedó nada para revisar.`;
+  }
+  if (revisar > 0) {
+    return revisar === 1
+      ? "Encontré 1 movimiento para que revises."
+      : `Encontré ${revisar} movimientos para que revises.`;
+  }
+  return "No encontré movimientos nuevos para conciliar.";
 }

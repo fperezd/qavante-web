@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { ReviewItem } from "@/lib/api/reconciliation";
+import type { ReconcileResponse, ReviewItem } from "@/lib/api/reconciliation";
 import {
   documentoLabel,
   esCobro,
   mapCola,
   mapFila,
   parseScore,
+  resumenReconcile,
   scoreTexto,
   todosLosIds,
 } from "./reconciliacion-cola-map";
@@ -116,5 +117,52 @@ describe("mapCola", () => {
 describe("todosLosIds", () => {
   it("devuelve los ids en orden", () => {
     expect(todosLosIds(mapCola({ count: 2, items: [item({ movement_id: "a", suggestion: { score: "65" } }), item({ movement_id: "b", suggestion: { score: "88" } })] }))).toEqual(["b", "a"]);
+  });
+});
+
+describe("resumenReconcile", () => {
+  const res = (over: Partial<ReconcileResponse> = {}): ReconcileResponse => ({
+    matched: 0,
+    consolidated: 0,
+    review: 0,
+    excluded: 0,
+    ambiguous: 0,
+    no_candidate: 0,
+    iva_retention: 0,
+    nc_netting: 0,
+    holding: 0,
+    prepago_applied: 0,
+    processor_batch: 0,
+    ...over,
+  });
+
+  it("auto + para revisar: menciona los dos números", () => {
+    const r = resumenReconcile(res({ matched: 8, consolidated: 2, review: 5 }));
+    expect(r.autoConciliados).toBe(10); // matched + consolidated
+    expect(r.paraRevisar).toBe(5);
+    expect(r.mensaje).toMatch(/10 movimientos automáticamente.*5 para que revises/);
+  });
+
+  it("solo auto: no promete cola", () => {
+    const r = resumenReconcile(res({ matched: 3 }));
+    expect(r.mensaje).toMatch(/3 movimientos automáticamente.*No quedó nada para revisar/);
+  });
+
+  it("solo para revisar: singular correcto", () => {
+    expect(resumenReconcile(res({ review: 1 })).mensaje).toBe(
+      "Encontré 1 movimiento para que revises.",
+    );
+  });
+
+  it("nada nuevo: lo dice sin inventar", () => {
+    expect(resumenReconcile(res()).mensaje).toMatch(/No encontré movimientos nuevos/);
+  });
+
+  it("ignora los contadores internos del motor (excluidos/ambiguos/etc.)", () => {
+    // Solo movió categorías internas → para el dueño no hubo nada accionable.
+    const r = resumenReconcile(res({ excluded: 4, ambiguous: 2, no_candidate: 7, iva_retention: 3 }));
+    expect(r.autoConciliados).toBe(0);
+    expect(r.paraRevisar).toBe(0);
+    expect(r.mensaje).toMatch(/No encontré movimientos nuevos/);
   });
 });
