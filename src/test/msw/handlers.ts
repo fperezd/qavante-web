@@ -2942,9 +2942,86 @@ const cajaV2Handlers = [
   http.get("*/api/treasury/cash-minimum", () => HttpResponse.json(cashMinimumFixture, { status: 200 })),
 ];
 
+/* Cola de conciliación (ADR-0036/0042). Handlers DETERMINISTAS a propósito: `review` devuelve
+   siempre el mismo seed y las mutaciones responden éxito sin mutar la cola. Así el e2e no depende
+   de estado que se filtre entre tests ni entre retries (MSW en browser no se resetea por test). */
+const reconciliationReviewSeed = [
+  {
+    movement_id: "rec-mv-1",
+    date: "2026-07-12",
+    amount: "1250000",
+    description: "TRANSFERENCIA RECIBIDA COMERCIAL LOS ANDES",
+    suggestion: {
+      document_kind: "receivable",
+      document_id: "r1",
+      name: "Comercial Los Andes SpA",
+      score: "86",
+    },
+  },
+  {
+    movement_id: "rec-mv-2",
+    date: "2026-07-11",
+    amount: "340000",
+    description: "PAGO PROVEEDOR",
+    suggestion: {
+      document_kind: "payable",
+      document_id: "p1",
+      name: "Distribuidora del Sur Ltda",
+      score: "72",
+    },
+  },
+  {
+    movement_id: "rec-mv-3",
+    date: "2026-07-10",
+    amount: "89900",
+    description: "CARGO PAC",
+    suggestion: { document_kind: "payable", document_id: null, name: null, score: "64" },
+  },
+];
+
+const reconciliationHandlers = [
+  http.get("*/api/treasury/reconciliation/review", () =>
+    HttpResponse.json(
+      { items: reconciliationReviewSeed, count: reconciliationReviewSeed.length },
+      { status: 200 },
+    ),
+  ),
+  http.get("*/api/treasury/reconciliation/:movementId/suggestions", ({ params }) =>
+    HttpResponse.json(
+      {
+        movement_id: params.movementId,
+        suggestions: [
+          { rut: "76123456-0", name: "Comercial Los Andes SpA", score: "86" },
+          { rut: "77987654-3", name: "Los Andes Retail Ltda", score: "61" },
+        ],
+      },
+      { status: 200 },
+    ),
+  ),
+  http.post("*/api/treasury/reconciliation/:movementId/confirm", ({ params }) =>
+    HttpResponse.json({ movement_id: params.movementId, status: "confirmed" }, { status: 200 }),
+  ),
+  http.post("*/api/treasury/reconciliation/:movementId/reject", ({ params }) =>
+    HttpResponse.json({ movement_id: params.movementId, status: "rejected" }, { status: 200 }),
+  ),
+  http.post("*/api/treasury/reconciliation/confirm-batch", async ({ request }) => {
+    const body = (await request.json()) as { movement_ids: string[] };
+    const ids = body.movement_ids ?? [];
+    return HttpResponse.json(
+      {
+        confirmed: ids.length,
+        failed: 0,
+        results: ids.map((id) => ({ movement_id: id, status: "confirmed" })),
+      },
+      { status: 200 },
+    );
+  }),
+];
+
 export const handlers = [
   ...authHandlers,
   ...cajaV2Handlers,
+  ...reconciliationHandlers,
   ...bukHandlers,
   ...sourcesStatusHandlers,
   ...usersHandlers,
