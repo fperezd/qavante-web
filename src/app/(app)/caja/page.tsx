@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Banknote, CheckCircle2, Globe, Inbox, TrendingUp } from "lucide-react";
+import { ArrowLeftRight, Banknote, CheckCircle2, Globe, Inbox, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   FeatureUnavailableState,
@@ -17,7 +17,8 @@ import { BankBalances } from "@/components/treasury/bank-balances/bank-balances"
    vs caja mínima + acciones recomendadas quedan para wave 2 cuando el
    backend exponga los contratos. */
 export default function CajaPage() {
-  const { bankMovementClassification, cashFlowReport, bankBalances } = resolveFeatureFlags();
+  const { bankMovementClassification, cashFlowReport, bankBalances, reconciliationReview } =
+    resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -65,6 +66,16 @@ export default function CajaPage() {
               badge="Tarjeta"
               badgeVariant="info"
             />
+            {reconciliationReview && (
+              <CajaSubCard
+                href="/caja/conciliacion"
+                icon={ArrowLeftRight}
+                title="Conciliación"
+                description="Movimientos que calzan con un documento pero sin certeza. Confirmalos de a un clic."
+                badge="Acción pendiente"
+                badgeVariant="warning"
+              />
+            )}
           </div>
         </section>
       ) : (

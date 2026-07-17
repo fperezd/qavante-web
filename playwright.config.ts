@@ -84,6 +84,9 @@ export default defineConfig({
       /* Remuneraciones (BUK) — LIVE en prod (wrangler.toml). Cubierto por e2e
          contra MSW (dotación + planilla). */
       NEXT_PUBLIC_FF_REMUNERACIONES: "true",
+      /* Cola de conciliación — OFF en prod (feature nueva, sin validar todavía). Acá ON para
+         testear la pantalla ya construida detrás del flag; es "adelanto", no drift de prod. */
+      NEXT_PUBLIC_FF_RECONCILIATION_REVIEW: "true",
     },
   },
 });

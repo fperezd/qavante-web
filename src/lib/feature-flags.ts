@@ -55,6 +55,7 @@ export const FEATURE_FLAGS = [
   "cajaV2",
   "pagarV2",
   "gestionV2",
+  "reconciliationReview",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -162,6 +163,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      gating. Con ON y en modo un-mes tiene prioridad sobre la vista clásica; el rango sigue con la
      matriz. Hoy OFF (el endpoint del mes es FE-first, aún no existe en prod). */
   gestionV2: "/api/management/operational-result/breakdown",
+  /* Cola de conciliación (ADR-0036/0042) — el motor auto-aplica los matches con score >=90 y deja
+     los 60-90 en una cola de revisión de 1 clic (confirmar/rechazar/conciliar todas). La pantalla
+     nueva la consume; su endpoint de gating es la cola misma. Hoy OFF hasta validar en prod. */
+  reconciliationReview: "/api/treasury/reconciliation/review",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
