@@ -9,9 +9,11 @@ import {
   useConfirmReconciliationBatch,
   useReconciliationReview,
   useRejectReconciliation,
+  useRunReconcile,
 } from "@/lib/api/reconciliation";
 import { ColaConciliacion } from "./cola-conciliacion";
-import { mapCola, todosLosIds } from "./reconciliacion-cola-map";
+import { ReconciliarAhora } from "./reconciliar-ahora";
+import { mapCola, resumenReconcile, todosLosIds, type ResumenReconcile } from "./reconciliacion-cola-map";
 
 /* Contenedor LIVE de la cola de conciliación, gated por `reconciliationReview` (OFF). Orquesta la
    cola (`review`) + las 3 mutaciones (confirm / reject / confirm-batch) y compone `ColaConciliacion`.
@@ -23,9 +25,12 @@ export function ColaConciliacionLive() {
   const confirmar = useConfirmReconciliation();
   const rechazar = useRejectReconciliation();
   const batch = useConfirmReconciliationBatch();
+  const correr = useRunReconcile();
 
   // Ids con una mutación individual en curso → deshabilitan sus botones.
   const [enCurso, setEnCurso] = React.useState<ReadonlySet<string>>(new Set());
+  // Resultado de la última corrida del motor (persiste hasta la próxima).
+  const [ultimoResumen, setUltimoResumen] = React.useState<ResumenReconcile | null>(null);
   const marcar = React.useCallback((id: string, activo: boolean) => {
     setEnCurso((prev) => {
       const next = new Set(prev);
@@ -34,6 +39,25 @@ export function ColaConciliacionLive() {
       return next;
     });
   }, []);
+
+  function onReconciliar() {
+    correr.mutate(undefined, {
+      onSuccess: (res) => {
+        const resumen = resumenReconcile(res);
+        setUltimoResumen(resumen);
+        toast.success(resumen.mensaje);
+      },
+      onError: () => toast.error("No pudimos correr la conciliación. Intentá de nuevo."),
+    });
+  }
+
+  const toolbar = (
+    <ReconciliarAhora
+      onReconciliar={onReconciliar}
+      corriendo={correr.isPending}
+      ultimoResumen={ultimoResumen}
+    />
+  );
 
   if (review.isLoading) return <LiveSkeleton />;
   if (review.isError) {
@@ -50,11 +74,14 @@ export function ColaConciliacionLive() {
 
   if (filas.length === 0) {
     return (
-      <QavanteEmpty
-        icon={CheckCircle2}
-        title="No hay nada que revisar"
-        description="Qavante concilió solo lo que pudo con certeza. Cuando aparezca un movimiento que calce con un documento pero sin seguridad, va a esperarte acá."
-      />
+      <div className="space-y-4">
+        {toolbar}
+        <QavanteEmpty
+          icon={CheckCircle2}
+          title="No hay nada que revisar"
+          description="Qavante concilió solo lo que pudo con certeza. Cuando aparezca un movimiento que calce con un documento pero sin seguridad, va a esperarte acá."
+        />
+      </div>
     );
   }
 
@@ -91,14 +118,17 @@ export function ColaConciliacionLive() {
   }
 
   return (
-    <ColaConciliacion
-      filas={filas}
-      onConfirmar={onConfirmar}
-      onRechazar={onRechazar}
-      onConciliarTodas={onConciliarTodas}
-      pendientes={enCurso}
-      conciliandoTodas={batch.isPending}
-    />
+    <div className="space-y-4">
+      {toolbar}
+      <ColaConciliacion
+        filas={filas}
+        onConfirmar={onConfirmar}
+        onRechazar={onRechazar}
+        onConciliarTodas={onConciliarTodas}
+        pendientes={enCurso}
+        conciliandoTodas={batch.isPending}
+      />
+    </div>
   );
 }
 

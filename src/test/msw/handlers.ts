@@ -2980,6 +2980,24 @@ const reconciliationReviewSeed = [
 ];
 
 const reconciliationHandlers = [
+  http.post("*/api/treasury/reconcile", () =>
+    HttpResponse.json(
+      {
+        matched: 9,
+        consolidated: 1,
+        review: 3,
+        excluded: 2,
+        ambiguous: 0,
+        no_candidate: 1,
+        iva_retention: 0,
+        nc_netting: 0,
+        holding: 0,
+        prepago_applied: 0,
+        processor_batch: 0,
+      },
+      { status: 200 },
+    ),
+  ),
   http.get("*/api/treasury/reconciliation/review", () =>
     HttpResponse.json(
       { items: reconciliationReviewSeed, count: reconciliationReviewSeed.length },

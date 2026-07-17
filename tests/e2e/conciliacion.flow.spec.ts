@@ -44,4 +44,20 @@ test.describe("Flujo: cola de conciliación (/caja/conciliacion)", () => {
 
     await expect(page.getByText("Conciliamos 3.")).toBeVisible();
   });
+
+  test("'Conciliar ahora' corre el motor y resume el resultado en lenguaje de dueño", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/caja/conciliacion");
+
+    await page.getByRole("button", { name: /Conciliar ahora/i }).click();
+
+    // matched 9 + consolidated 1 = 10 automáticos; review 3 a revisar. El mensaje aparece dos
+    // veces (resumen inline + toast) → basta con que alguno esté visible.
+    await expect(
+      page.getByText(/Concilié 10 movimientos automáticamente y dejé 3 para que revises/).first(),
+    ).toBeVisible();
+  });
 });
