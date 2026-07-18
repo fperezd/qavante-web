@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 
@@ -67,8 +67,8 @@ export function SaldoPorBanco({
         <span className="text-[14px] font-bold tabular-nums text-neutral-dark">{formatClp(total)}</span>
       </div>
       {nota && (
-        <p className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-brand-primary">
-          <Plus className="size-3.5" aria-hidden="true" />
+        <p className="mt-2 inline-flex items-center gap-1.5 text-[11.5px] text-neutral-mid">
+          <Info className="size-3.5 shrink-0" aria-hidden="true" />
           {nota}
         </p>
       )}

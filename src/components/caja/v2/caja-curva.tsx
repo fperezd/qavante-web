@@ -44,14 +44,18 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
   const plotTop = 46;
   const plotBottom = H - 36;
   const saldos = serie.map((p) => p.saldo);
-  // El dominio incluye la referencia (para que la línea se vea) y el $0 cuando hay
-  // saldos negativos (para contextualizar el negativo sin inventar un piso).
-  const domain = [...saldos, ref, ...(saldos.some((s) => s < 0) ? [0] : [])];
+  // Encuadre SOBRE LOS DATOS (+ el mínimo si existe, que es el piso y hay que verlo). El $0
+  // de contexto NO se fuerza al dominio: si queda muy por encima de una caja profundamente
+  // negativa y plana, aplastaría la curva contra el piso y dejaría el gráfico casi vacío. En
+  // ese caso encuadramos la tendencia — el hero ya comunica el negativo en rojo.
+  const domain = hayMinimo ? [...saldos, ref] : [...saldos];
   let top = Math.max(...domain);
   let bot = Math.min(...domain);
   const span = top - bot || Math.abs(top) || 1;
-  top += span * 0.12;
-  bot -= span * 0.12;
+  top += span * 0.15;
+  bot -= span * 0.15;
+  // La referencia ($0 o mínimo) se dibuja solo si cae dentro del encuadre.
+  const refDentro = ref <= top && ref >= bot;
 
   const xOf = (i: number) => PADX + (i * (W - PADX * 2)) / (serie.length - 1);
   const yOf = (v: number) => plotTop + ((top - v) / (top - bot)) * (plotBottom - plotTop);
@@ -116,7 +120,7 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
             Caja mínima
           </text>
         </>
-      ) : (
+      ) : refDentro ? (
         <>
           {/* sin mínimo configurado: referencia neutra de $0 (no roja, no zona) */}
           <line
@@ -133,7 +137,7 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
             $0
           </text>
         </>
-      )}
+      ) : null}
 
       {/* área + curva del saldo */}
       <path d={area} fill={`url(#cf-${id})`} />
