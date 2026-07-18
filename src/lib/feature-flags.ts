@@ -78,26 +78,23 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      respecto de inicio) es cerrar sesión — ese es el endpoint que justifica
      habilitar el flag y lo mantiene 1-a-1 en el mapping. */
   miCuenta: "/api/auth/logout",
-  /* Resultado Operacional de Gestión (Sprint C5). Endpoint FE-first esperado
-     del backend (aún no existe — ver brecha gestion-operational-result). */
+  /* Resultado Operacional de Gestión (Sprint C5). Endpoint VIVO en prod (acepta cookie, sondeado
+     2026-07-17). El flag está ON; el dato de fondo aún excluye remuneraciones (gap CC-API, A1). */
   operationalResult: "/api/management/operational-result",
-  /* Cobrar — cuentas por cobrar (Sprint C4). Endpoint FE-first esperado (aún
-     no existe — ver brecha cobrar-accounts-receivable). */
+  /* Cobrar — cuentas por cobrar (Sprint C4). Endpoint VIVO en prod (acepta cookie). Flag ON. */
   accountsReceivable: "/api/treasury/accounts-receivable",
-  /* Pagar — cuentas por pagar (Sprint C4). Endpoint FE-first esperado (aún no
-     existe — ver brecha pagar-accounts-payable). */
+  /* Pagar — cuentas por pagar (Sprint C4). Endpoint VIVO en prod (acepta cookie). Flag ON. */
   accountsPayable: "/api/treasury/accounts-payable",
-  /* Inicio Ejecutivo (Sprint C8) — el dashboard agregado. Endpoint FE-first
-     esperado (aún no existe — ver brecha inicio-dashboard-summary). */
+  /* Inicio Ejecutivo (Sprint C8) — el dashboard agregado. Endpoint VIVO en prod (acepta cookie). */
   dashboardSummary: "/api/dashboard/summary",
-  /* Inicio Ejecutivo v2 (rediseño aprobado 2026-07-12) — consume la misma fuente
-     base (`/api/dashboard/summary`) que dashboardSummary, pero lo que lo DISTINGUE
-     y lo enciende del todo es la Fase 2: `collection-forecast` (cobranza realizable
-     + plan de brecha). Ese es su endpoint de gating (FE-first, aún no existe). Con
-     el flag ON tiene prioridad sobre dashboardSummary; hoy OFF, degradación honesta. */
+  /* Inicio Ejecutivo v2 (rediseño aprobado 2026-07-12) — consume la misma fuente base
+     (`/api/dashboard/summary`) que dashboardSummary; su endpoint de gating `collection-forecast`
+     también está VIVO (acepta cookie, sondeado). Sigue OFF por otra razón: los campos que lo
+     DISTINGUEN (key_obligations/cash_sparkline/cash_delta_pct) NO existen en el schema (gap CC-API,
+     B2) → hoy el v2 se vería igual al v1. Encender recién cuando esos campos lleguen. */
   inicioEjecutivoV2: "/api/treasury/collection-forecast",
-  /* Pulso detalle (Sprint C6/C7) — "¿por qué está así mi Pulso?". Endpoint
-     FE-first esperado (aún no existe — ver pulso-detail-contract). */
+  /* Pulso detalle (Sprint C6/C7) — "¿por qué está así mi Pulso?". Endpoint VIVO en prod (acepta
+     cookie). Flag ON. El cálculo del score es del backend; el FE solo muestra. */
   pulsoDetail: "/api/management/pulso",
   /* Asistente Qavante (Sprint C9, Anexo G) — chat read-only. Endpoint FE-first
      esperado (aún no existe — wire format en ADR-0004). */

@@ -69,8 +69,9 @@ export function useManagementDimensions(opts: { onlyActive?: boolean; enabled?: 
   const onlyActive = opts.onlyActive ?? false;
   return useQuery({
     queryKey: managementKeys.dimensions(onlyActive),
-    // skipAuthRetry: el endpoint sigue api-key-only → un 401 con cookie NO debe
-    // expulsar al admin a /login (cae como error del query). Ver STATE_OF_THE_TRAIN.
+    // `/api/management/dimensions` YA acepta cookie (sondeado 2026-07-17: devuelve no_session, no
+    // "Falta X-Api-Key"). Mantengo skipAuthRetry como defensa barata: si alguna vez diera 401, NO
+    // debe expulsar al admin a /login (cae como error del query).
     queryFn: () =>
       api.get<DimensionsListResponse>(
         `/api/management/dimensions${onlyActive ? "?only_active=true" : ""}`,
@@ -85,9 +86,9 @@ export function useManagementDimensions(opts: { onlyActive?: boolean; enabled?: 
 /** Dimensiones activas+visibles con sus valores, para el selector de vistas en
  *  el drawer de clasificación. Compone `useManagementDimensions` + `useQueries`
  *  (un GET de valores por dimensión). Todo gateado por `enabled` (el flag
- *  `managementDimensions`): con `enabled=false` no dispara NINGÚN request —
- *  importante porque el endpoint sigue api-key-only y un 401 con cookie podría
- *  gatillar el redirect a /login del cliente. */
+ *  `managementDimensions`): con `enabled=false` no dispara NINGÚN request. El
+ *  endpoint ya acepta cookie (sondeado 2026-07-17); el gateo por `enabled` sigue
+ *  siendo útil para no pedir dimensiones cuando el drawer no las necesita. */
 export function useClassificationDimensions(enabled: boolean): {
   data: Array<{ dimension: ManagementDimension; values: ManagementDimensionValue[] }>;
   isLoading: boolean;

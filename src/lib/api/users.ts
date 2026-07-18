@@ -1,7 +1,7 @@
-/* Tipos + hooks de TanStack Query para los endpoints de C0-14 (User CRUD + invitaciones).
-   Alineado con [docs/backend-contracts/c0-auth-and-users.md § 3]. Backend todavía
-   no expone estos endpoints (qavante-api#58 + C0-11). La UI compila y renderiza
-   estados de error/vacío con copys de Anexo C.3 mientras BE no esté arriba. */
+/* Tipos + hooks de TanStack Query para User CRUD + invitaciones + permisos.
+   Alineado con [docs/backend-contracts/c0-auth-and-users.md § 3]. Endpoints VIVOS en prod y
+   aceptan cookie (verificado 2026-07-17): GET/POST /api/users, PATCH /api/users/{id},
+   GET /api/me, GET /api/users/me/permissions. */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import { ApiError } from "./errors";

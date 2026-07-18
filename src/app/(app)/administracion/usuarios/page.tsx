@@ -31,11 +31,10 @@ const SuspendUserDialog = dynamic(
 );
 
 /* /app/administracion/usuarios (C0-15).
-   - Permiso: admin/owner. El gating fino vive en GET /api/users (403 backend)
-     y en el sidebar (oculta el módulo). Esta página no re-implementa el gate.
-   - Backend endpoints (qavante-api): GET /api/users, POST /api/users,
-     PATCH /api/users/{id} — pendientes hasta C0-14. La UI renderiza el
-     estado de error con copys del Anexo C.3 mientras BE no esté arriba. */
+   - Permiso: gobernado por permisos reales (`/api/users/me/permissions`, ver #591) + 403 backend
+     en GET /api/users + el sidebar (oculta el módulo).
+   - Backend endpoints VIVOS en prod (aceptan cookie): GET/POST /api/users, PATCH /api/users/{id},
+     GET /api/users/me/permissions. */
 export default function UsuariosPage() {
   const usersQuery = useUsers();
   /* Rol del usuario logueado: gobierna si se puede asignar `owner` (solo un owner transfiere la
@@ -146,8 +145,7 @@ function ErrorState({ error }: { error: unknown }) {
         <p className="font-medium">No pudimos cargar la lista</p>
         <p className="mt-1 text-neutral-mid">{message}</p>
         <p className="mt-2 text-xs text-neutral-mid">
-          Si el problema persiste, los endpoints de Users CRUD están pendientes en backend (issue
-          qavante-api C0-14).
+          Reintenta en unos segundos. Si el problema persiste, avisa a soporte.
         </p>
       </div>
     </div>
