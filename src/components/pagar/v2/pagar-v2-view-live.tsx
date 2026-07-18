@@ -92,6 +92,9 @@ export function PagarV2ViewLive() {
           pagosCriticos={brecha.pagosCriticos}
           dias={14}
           postergable={brecha.postergable}
+          // Hoy la postergabilidad la infiere el FE por tipo de pago (heurística); el backend aún
+          // no manda un flag por documento (A3, escalado). Cuando llegue, pasar `false`.
+          postergabilidadEstimada
         />
       }
       secundarios={<Secundarios items={items} resp={resp} now={now} />}
