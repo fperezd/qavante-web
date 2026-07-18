@@ -23,6 +23,8 @@ const RESP: OperationalResultResponse = {
   professional_fees: "2300000",
   recurring_expenses: "5100000",
   ebitda_proxy: "4500000",
+  financial_expense: "0",
+  unclassified: "0",
   result: "4500000",
   variation: {
     vs_previous_month: { amount: "500000", pct: "12.5" },

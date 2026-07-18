@@ -17,52 +17,14 @@ import type { components } from "./types";
    parsea con `parseDecimal`. "Resultado de gestión, no contabilidad oficial"
    es un badge del FE (no viene del backend). */
 
-export interface OperationalResultVariation {
-  /** Variación absoluta (string-decimal CLP). */
-  amount: string;
-  /** Variación porcentual (string-decimal, ej. "12.5" = +12,5%). */
-  pct: string;
-}
-
-export interface OperationalResultDriver {
-  /** `improves` ⇒ mejora el resultado; `worsens` ⇒ lo deteriora. */
-  direction: "improves" | "worsens";
-  /** Concepto en lenguaje humano (ej. "Ventas", "Sueldos"). */
-  concept: string;
-  /** Impacto en el resultado (string-decimal CLP). */
-  impact: string;
-  /** Explicación corta de por qué. */
-  explanation: string;
-}
-
-export interface OperationalResultResponse {
-  /** Período "YYYY-MM". */
-  period: string;
-  revenue: string;
-  direct_cost: string;
-  gross_margin: string;
-  /** Margen bruto % (string-decimal, ej. "42.3"). */
-  gross_margin_pct: string;
-  labor_cost: string;
-  professional_fees: string;
-  recurring_expenses: string;
-  ebitda_proxy: string;
-  /** Resultado operacional del mes. */
-  result: string;
-  variation: {
-    vs_previous_month: OperationalResultVariation | null;
-    vs_same_month_last_year: OperationalResultVariation | null;
-  };
-  drivers: OperationalResultDriver[];
-  confidence: "high" | "medium" | "low";
-  /** Estado del dato (Anexo C estados canónicos): completo / parcial /
-   *  estimado. `loading`/`error`/`missing` los maneja la query, no el shape. */
-  data_state: "available" | "partial" | "estimated";
-  /** Fuentes faltantes que bajan la confianza (Maestro §7.5: "no se asume 0"). */
-  missing_sources: string[];
-  /** Frescura del cálculo (ISO date-time). */
-  generated_at: string;
-}
+/* Tipos GENERADOS del OpenAPI (regla 3). Antes eran hand-rolled FE-first; CC-API ya shipeó el
+   contrato, así que se adoptan los generados (barrido de higiene 2026-07, C1). Ojo con el generado
+   vs el viejo hand-rolled: `variation` es un objeto con `vs_previous_month`/`vs_same_month_last_year`
+   OPCIONALES (`?`), `drivers` es OPCIONAL, y hay campos extra (`financial_expense`, `unclassified`).
+   Los consumidores ya guardan con `?.`/`?? []`. */
+export type OperationalResultVariation = components["schemas"]["ResultVariation"];
+export type OperationalResultDriver = components["schemas"]["OperationalDriver"];
+export type OperationalResultResponse = components["schemas"]["OperationalResultResponse"];
 
 /* Estado de Resultados mensualizado por categoría (árbol de cuentas del tenant),
    estilo Chipax: meses en columnas, filas jerárquicas (Ingresos/Costos/Margen…),
