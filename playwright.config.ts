@@ -75,7 +75,6 @@ export default defineConfig({
          Con estos ON, /pagar, /caja/proyeccion y /gestion (un mes) renderean las vistas v2. */
       NEXT_PUBLIC_FF_CAJA_V2: "true",
       NEXT_PUBLIC_FF_PAGAR_V2: "true",
-      NEXT_PUBLIC_FF_GESTION_V2: "true",
       NEXT_PUBLIC_FF_DASHBOARD_SUMMARY: "true",
       NEXT_PUBLIC_FF_PULSO_DETAIL: "true",
       NEXT_PUBLIC_FF_ASSISTANT: "true",

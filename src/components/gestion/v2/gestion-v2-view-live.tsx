@@ -17,7 +17,7 @@ import { PulsoTira, type PulsoTono } from "./pulso-tira";
 import { mapHero, mapComparativos, mapCascada, mapDrivers, mapTendencia, margenOperacionalPct, resultadoConfiable, tendenciaConfiable, type Comparativo } from "./gestion-v2-map";
 import { AlertTriangle } from "lucide-react";
 
-/* Vista LIVE de Gestión v2 (rediseño 2026-07-14), gated por `gestionV2` (OFF). Recibe el
+/* Vista LIVE de Gestión v2 (rediseño 2026-07-14), la única vista de Gestión (el clásico se retiró). Recibe el
    resultado del mes (ya resuelto por el container `OperationalResultView`) y compone la vista:
    hero (respuesta de dueño) + márgenes + comparativos + la cascada del resultado + drivers +
    la tendencia de margen (del breakdown por rango) + la tira del Pulso (mismo dato del header).
