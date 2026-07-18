@@ -226,6 +226,12 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
     return <QavanteInlineError error={movementsQuery.error} what="los movimientos" />;
 
   const allMovements = movementsQuery.data?.items ?? [];
+  /* Alcance parcial: el backend reporta más sin clasificar de los que trajimos con `limit:500`.
+     Sin este aviso, un usuario que clasifica los 500 visibles cree que "no queda nada" (mismo
+     patrón honesto que Clasificados, que ya lo declara). El vacío-celebración de abajo se evalúa
+     sobre lo cargado, así que también hay que decir que hay más. */
+  const totalSinClasificar = movementsQuery.data?.total ?? allMovements.length;
+  const hayMas = totalSinClasificar > allMovements.length;
   /* Filtro por cuenta (no mezclar monedas) + moneda de cada movimiento para
      formatear correcto (US$ vs $). El vacío global (celebración) se evalúa sobre
      TODAS las cuentas; el filtro por cuenta solo afecta lo que se muestra. */
@@ -419,6 +425,18 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           Aplicar reglas
         </QavanteButton>
       </div>
+
+      {hayMas && (
+        <p
+          role="status"
+          className="rounded-lg border border-warning-200 bg-warning-50 px-3 py-2 text-xs text-warning-700"
+        >
+          Mostramos los primeros{" "}
+          <span className="font-semibold tabular-nums">{allMovements.length}</span> de{" "}
+          <span className="font-semibold tabular-nums">{totalSinClasificar}</span> movimientos sin
+          clasificar. Clasificá estos y volvé a cargar para ver el resto.
+        </p>
+      )}
 
       {movements.length === 0 ? (
         <p className="rounded-xl border border-border bg-surface-muted px-4 py-6 text-center text-sm text-neutral-mid">
