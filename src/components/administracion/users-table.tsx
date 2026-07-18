@@ -15,11 +15,12 @@ import { cn } from "@/lib/utils";
 
 interface UsersTableProps {
   users: User[];
-  currentUserRole?: UserRole;
+  /** ¿Puede el logueado asignar el rol Dueño? Lo decide la página desde permisos reales (permiso `*`). */
+  canAssignOwner?: boolean;
   onSuspendClick: (user: User) => void;
 }
 
-export function UsersTable({ users, currentUserRole, onSuspendClick }: UsersTableProps) {
+export function UsersTable({ users, canAssignOwner, onSuspendClick }: UsersTableProps) {
   const update = useUpdateUser();
   const [editingRole, setEditingRole] = React.useState<string | null>(null);
 
@@ -44,9 +45,7 @@ export function UsersTable({ users, currentUserRole, onSuspendClick }: UsersTabl
         header: "Rol",
         cell: ({ row }) => {
           const u = row.original;
-          const roleOptions = ASSIGNABLE_ROLES.filter(
-            (r) => r !== "owner" || currentUserRole === "owner",
-          );
+          const roleOptions = ASSIGNABLE_ROLES.filter((r) => r !== "owner" || canAssignOwner);
           /* Solo es editable si el rol ACTUAL está entre los asignables por el
              usuario actual. owner (salvo que vos seas owner) y technical_admin
              NO se editan acá: un <select> controlado sin <option> que matchee
@@ -145,7 +144,7 @@ export function UsersTable({ users, currentUserRole, onSuspendClick }: UsersTabl
         },
       },
     ],
-    [editingRole, update, currentUserRole, onSuspendClick],
+    [editingRole, update, canAssignOwner, onSuspendClick],
   );
 
   const table = useReactTable({ data: users, columns, getCoreRowModel: getCoreRowModel() });

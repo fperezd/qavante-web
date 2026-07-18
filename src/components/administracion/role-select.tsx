@@ -12,8 +12,9 @@ interface RoleSelectProps {
   disabled?: boolean;
   invalid?: boolean;
   "aria-label"?: string;
-  excludeOwnerWhenNotOwner?: boolean;
-  currentUserRole?: UserRole;
+  /** ¿Puede el usuario logueado asignar el rol Dueño? Lo decide la PÁGINA desde los permisos reales
+   *  del backend (permiso `*`), no el componente. Default true (mostrar owner). */
+  canAssignOwner?: boolean;
 }
 
 /* Native <select> con styling Qavante. Para C0-15 alcanza sin recurrir a Base UI
@@ -25,14 +26,12 @@ export function RoleSelect({
   onChange,
   disabled,
   invalid,
-  excludeOwnerWhenNotOwner,
-  currentUserRole,
+  canAssignOwner = true,
   ...props
 }: RoleSelectProps) {
-  const roles =
-    excludeOwnerWhenNotOwner && currentUserRole !== "owner"
-      ? ASSIGNABLE_ROLES.filter((r) => r !== "owner")
-      : ASSIGNABLE_ROLES;
+  const roles = canAssignOwner
+    ? ASSIGNABLE_ROLES
+    : ASSIGNABLE_ROLES.filter((r) => r !== "owner");
 
   return (
     <select

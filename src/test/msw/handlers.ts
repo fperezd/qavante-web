@@ -96,6 +96,10 @@ export const authHandlers = [
     });
   }),
 
+  /* Permisos reales del rol (registry PERMISSIONS_BY_ROLE). La sesión sembrada es owner → wildcard. */
+  http.get("*/api/users/me/permissions", () =>
+    HttpResponse.json({ permissions: ["*"], role: "owner" }, { status: 200 }),
+  ),
   http.get("*/api/me", () => {
     return HttpResponse.json({
       user: {

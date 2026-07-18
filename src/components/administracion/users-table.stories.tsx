@@ -60,7 +60,7 @@ const meta = {
   },
   args: {
     onSuspendClick: fn(),
-    currentUserRole: "owner",
+    canAssignOwner: true,
   },
 } satisfies Meta<typeof UsersTable>;
 
@@ -96,7 +96,7 @@ export const SuspendedOnly: Story = {
 };
 
 export const AsAdminNotOwner: Story = {
-  args: { users: SEED_USERS, currentUserRole: "admin" },
+  args: { users: SEED_USERS, canAssignOwner: false },
   parameters: {
     docs: {
       description: {
