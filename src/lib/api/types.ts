@@ -3635,6 +3635,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/f29/remanente-seed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * F29: consulta el seed del remanente inicial del tenant (ADR-0069 Fase 2)
+         * @description Devuelve el seed del remanente inicial del tenant. `exists=false` (con montos en 0) si no
+         *     tiene uno cargado. Con `SERVER_API_KEY`.
+         */
+        get: operations["admin_f29_remanente_seed_get"];
+        put?: never;
+        /**
+         * F29: carga/reemplaza el seed del remanente inicial del tenant (ADR-0069 Fase 2)
+         * @description Carga o reemplaza el seed del remanente inicial (uno por tenant). Con `SERVER_API_KEY`.
+         *     Idempotente. `remanente` = crédito fiscal acumulado arrastrado HACIA `(period_year, period_month)`.
+         */
+        post: operations["admin_f29_remanente_seed_put"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/notifications/expiries": {
         parameters: {
             query?: never;
@@ -3682,6 +3708,27 @@ export interface paths {
          *       - Resend respondió error → outcome=error con detalles.
          */
         post: operations["admin_notifications_dispatch_email"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/pulso/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * PULSO v2: persiste el snapshot del día de todos los tenants (cron, ADR-0064 §5)
+         * @description Persiste el snapshot del pulso v2 del día de **todos** los tenants con caja. Lo llama el
+         *     cron con `SERVER_API_KEY`. Idempotente (recalcular el día upserta); best-effort por tenant.
+         */
+        post: operations["admin_pulso_snapshot"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3748,6 +3795,32 @@ export interface paths {
         get: operations["admin_role_permissions"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/sii/backfill-rcv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII: re-sync completo del devengado (AR/AP) desde el RCV histórico (ADR-0064 §4.3)
+         * @description Backfill del devengado de un tenant desde el RCV. Con `SERVER_API_KEY`. Idempotente.
+         *
+         *     - **Background (default):** responde **202** con los períodos planificados; el trabajo corre
+         *       después. Para el re-sync operativo ("todo 2026").
+         *     - **Diagnóstico (`diagnostic=true`):** corre **síncrono** y responde **200** con el desglose
+         *       por período (docs + neto por lado) para reconciliar contra el export del SII y ver si el
+         *       fetch sub-trae. Acotado a 13 períodos (son llamadas secuenciales al SII → puede tardar).
+         */
+        post: operations["admin_sii_backfill_rcv"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4648,6 +4721,71 @@ export interface components {
             oldest_date?: string | null;
             /** Newest Date */
             newest_date?: string | null;
+        };
+        /** BackfillRcvRequest */
+        BackfillRcvRequest: {
+            /**
+             * Tenant Id
+             * Format: uuid
+             * @description Tenant cuyo devengado se re-sincroniza.
+             */
+            tenant_id: string;
+            /**
+             * Periodo Desde
+             * @description Rango explícito: período inicial `YYYY-MM` (inclusive).
+             */
+            periodo_desde?: string | null;
+            /**
+             * Periodo Hasta
+             * @description Rango explícito: período final `YYYY-MM` (inclusive).
+             */
+            periodo_hasta?: string | null;
+            /**
+             * Max Months
+             * @description Backfill hacia atrás: N meses desde hoy (default 36). Ignorado si se da rango.
+             */
+            max_months?: number | null;
+            /**
+             * Diagnostic
+             * @description Si es true, corre SÍNCRONO y devuelve la reconciliación por período (docs + neto por lado) para comparar contra el export oficial del SII. Máx. 13 períodos (acotá el rango) — son llamadas secuenciales al SII.
+             * @default false
+             */
+            diagnostic: boolean;
+        };
+        /** BackfillRcvResponse */
+        BackfillRcvResponse: {
+            /**
+             * Status
+             * @description `scheduled` (background) o `completed` (diagnóstico síncrono).
+             */
+            status: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Periods Planned
+             * @description Cantidad de períodos que se intentarán.
+             */
+            periods_planned: number;
+            /**
+             * Periods
+             * @description Períodos planificados (nuevo→viejo).
+             */
+            periods: string[];
+            /**
+             * Mode
+             * @description `range` (rango explícito) o `lookback` (planner N meses).
+             */
+            mode: string;
+            /**
+             * Diagnostic
+             * @description Solo con `diagnostic=true`: `{per_period:[{periodo,ventas_docs,compras_docs,monto_neto_ventas,monto_neto_compras}], total_*, receivables, payables, errors, retried_ok, errored_periods:[{periodo,side,code,message}], consent_missing}`. `errored_periods` dice POR QUÉ falló cada período que quedó erroreado tras los reintentos.
+             */
+            diagnostic?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** BalanceData */
         BalanceData: {
@@ -6040,6 +6178,8 @@ export interface components {
             reporting_currency_codes?: string[];
             /** Default Exchange Rate Source */
             default_exchange_rate_source?: string | null;
+            /** Cost Profile */
+            cost_profile?: string | null;
             /**
              * Updated At
              * Format: date-time
@@ -9834,6 +9974,11 @@ export interface components {
              * @default 0
              */
             empleados_contados: number;
+            /**
+             * Total Cotizaciones
+             * @default 0
+             */
+            total_cotizaciones: number;
         };
         /** PenalizacionAplicadaResponse */
         PenalizacionAplicadaResponse: {
@@ -10129,6 +10274,29 @@ export interface components {
             cta_label?: string | null;
             /** Cta Href */
             cta_href?: string | null;
+        };
+        /** PulsoSnapshotResponse */
+        PulsoSnapshotResponse: {
+            /**
+             * Tenants
+             * @description Tenants con caja procesados.
+             */
+            tenants: number;
+            /**
+             * Snapshots
+             * @description Snapshots persistidos (idempotente por día).
+             */
+            snapshots: number;
+            /**
+             * Skipped
+             * @description Saltados (sin saldo computable al momento).
+             */
+            skipped: number;
+            /**
+             * Errors
+             * @description Errores best-effort (no abortan el resto).
+             */
+            errors: number;
         };
         /** PulsoTrendPoint */
         PulsoTrendPoint: {
@@ -10469,6 +10637,56 @@ export interface components {
              * @description Períodos por tenant (mes actual + N-1 anteriores).
              */
             periods: number;
+        };
+        /** RemanenteSeedRequest */
+        RemanenteSeedRequest: {
+            /**
+             * Tenant Id
+             * Format: uuid
+             * @description Tenant cuyo remanente inicial se siembra.
+             */
+            tenant_id: string;
+            /**
+             * Period Year
+             * @description Año del período HACIA el cual arrastra.
+             */
+            period_year: number;
+            /**
+             * Period Month
+             * @description Mes del período HACIA el cual arrastra.
+             */
+            period_month: number;
+            /**
+             * Remanente
+             * @description Remanente de crédito fiscal acumulado (CLP, >= 0) arrastrado HACIA ese período.
+             */
+            remanente: number;
+            /**
+             * Note
+             * @description De dónde salió el dato (ej. 'propuesta F29 feb-2026', 'contador').
+             */
+            note?: string | null;
+        };
+        /** RemanenteSeedResponse */
+        RemanenteSeedResponse: {
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Period Year */
+            period_year: number;
+            /** Period Month */
+            period_month: number;
+            /** Remanente */
+            remanente: number;
+            /** Note */
+            note?: string | null;
+            /**
+             * Exists
+             * @description `false` si el tenant no tiene seed cargado (GET).
+             */
+            exists: boolean;
         };
         /**
          * ResendVerificationRequest
@@ -19344,6 +19562,71 @@ export interface operations {
             };
         };
     };
+    admin_f29_remanente_seed_get: {
+        parameters: {
+            query: {
+                /** @description Tenant cuyo seed se consulta. */
+                tenant_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemanenteSeedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_f29_remanente_seed_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RemanenteSeedRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemanenteSeedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_notifications_expiries: {
         parameters: {
             query?: {
@@ -19408,6 +19691,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_pulso_snapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulsoSnapshotResponse"];
                 };
             };
         };
@@ -19482,6 +19785,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RolePermissionsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_sii_backfill_rcv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackfillRcvRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackfillRcvResponse"];
                 };
             };
             /** @description Validation Error */

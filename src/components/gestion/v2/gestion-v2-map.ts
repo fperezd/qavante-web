@@ -135,7 +135,7 @@ export function mapCascada(resp: OperationalResultResponse): CascadaEntrada[] {
 
 /** Drivers "qué explica el resultado". */
 export function mapDrivers(resp: OperationalResultResponse): DriverItem[] {
-  return resp.drivers.map((d, i) => ({
+  return (resp.drivers ?? []).map((d, i) => ({
     id: `${d.concept}-${i}`,
     direccion: d.direction,
     concepto: d.concept,
