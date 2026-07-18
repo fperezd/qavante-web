@@ -216,16 +216,13 @@ function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
   );
 }
 
-/** Datos incompletos: el cálculo del backend llega inconsistente (costos en $0 / resultado >
- *  ingresos). Somos honestos: no mostramos un resultado con confianza; explicamos qué falta y
- *  dejamos los ingresos a la vista. Escalado al equipo de datos (no se asume 0). */
+/** Datos incompletos: único disparador = el resultado iguala o supera a los ingresos (margen ≥ 100%,
+ *  imposible; típicamente un gasto revertido o mal clasificado infla el resultado). Somos honestos:
+ *  no mostramos un resultado con confianza; explicamos qué pasa y dejamos ingresos y resultado a la
+ *  vista (para que se vea el desajuste). Escalado al equipo de datos (no se asume 0). */
 function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
   const revenue = parseAmount(mes.revenue);
-  const costos =
-    Math.abs(parseAmount(mes.direct_cost)) +
-    Math.abs(parseAmount(mes.labor_cost)) +
-    Math.abs(parseAmount(mes.professional_fees));
-  const sinCostos = costos < 1;
+  const result = parseAmount(mes.result);
   return (
     <div className="space-y-4">
       <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5">
@@ -234,10 +231,10 @@ function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
           No podemos mostrar tu resultado con confianza
         </p>
         <p className="mt-2 text-[13px] text-neutral-dark">
-          {sinCostos
-            ? "El cálculo llega sin costos (costos directos, remuneraciones y honorarios en $0), así que el resultado y el margen quedarían inflados."
-            : "El cálculo llega inconsistente (el resultado supera a los ingresos), así que el margen no es confiable."}{" "}
-          Es un problema de datos del backend, ya escalado — no lo mostramos como si fuera real.
+          El resultado del mes iguala o supera a tus ingresos, lo que daría un margen imposible (100%
+          o más). Suele pasar cuando un gasto se revierte o llega mal clasificado ese mes, así que el
+          resultado queda inflado. Es un problema de datos del backend, ya escalado — no lo mostramos
+          como si fuera real.
         </p>
         <dl className="mt-3 flex flex-col text-[12.5px]">
           <div className="flex items-baseline justify-between gap-3 py-1">
@@ -245,8 +242,8 @@ function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
             <dd className="font-bold tabular-nums text-neutral-dark">{formatClp(revenue)}</dd>
           </div>
           <div className="flex items-baseline justify-between gap-3 border-t border-dashed border-warning-500/30 py-1">
-            <dt className="text-neutral-mid">Costos que llegaron</dt>
-            <dd className={`font-bold tabular-nums ${sinCostos ? "text-danger-500" : "text-neutral-dark"}`}>{formatClp(costos)}</dd>
+            <dt className="text-neutral-mid">Resultado que llegó</dt>
+            <dd className="font-bold tabular-nums text-danger-500">{formatClp(result)}</dd>
           </div>
         </dl>
       </section>

@@ -64,15 +64,20 @@ describe("resultadoConfiable", () => {
     expect(resultadoConfiable(RESP)).toBe(true);
   });
   it("NO confiable si el resultado supera a los ingresos (margen > 100%)", () => {
-    // Caso real de prod: revenue 12.9M, costos ~0, result 13.2M → 102,5%.
+    // Caso real de prod (Tooxs jul-2026): revenue 18,74M, result 18,93M → 101% (gasto revertido).
     expect(
-      resultadoConfiable({ ...RESP, revenue: "12907155", direct_cost: "0", labor_cost: "0", professional_fees: "0", recurring_expenses: "320938", result: "13228093" }),
+      resultadoConfiable({ ...RESP, revenue: "18739791", direct_cost: "0", labor_cost: "0", professional_fees: "0", recurring_expenses: "-194098", result: "18933889" }),
     ).toBe(false);
   });
-  it("NO confiable si los costos clave llegan en $0 con ventas reales", () => {
+  it("NO confiable si el resultado IGUALA a los ingresos (margen 100% ⇒ costos netos ≤ 0)", () => {
+    expect(resultadoConfiable({ ...RESP, revenue: "10000000", result: "10000000" })).toBe(false);
+  });
+  it("SÍ confiable aunque los costos vengan agrupados en recurring_expenses (empresa de servicios)", () => {
+    // Caso real de prod (Tooxs jun-2026): sin direct_cost/labor/fees propios (todo en recurring),
+    // margen 40% plausible. El guard viejo lo degradaba por mirar solo los 3 buckets clave.
     expect(
-      resultadoConfiable({ ...RESP, direct_cost: "0", labor_cost: "0", professional_fees: "0", result: "9000000" }),
-    ).toBe(false);
+      resultadoConfiable({ ...RESP, revenue: "25845693", direct_cost: "0", labor_cost: "0", professional_fees: "0", recurring_expenses: "13705506", result: "10325814" }),
+    ).toBe(true);
   });
   it("no aplica la guarda sin ingresos (otro caso: vacío/parcial)", () => {
     expect(resultadoConfiable({ ...RESP, revenue: "0" })).toBe(true);

@@ -29,22 +29,22 @@ export function mesCorto(period: string): string {
   return MESES[idx] ?? period;
 }
 
-/** ¿El resultado operacional es plausible como para MOSTRARLO con confianza? El backend a veces
- *  manda los costos en $0 (no fluyen las remuneraciones / costos) y un `result` MAYOR que los
- *  ingresos (margen > 100%, imposible). En esos casos NO mostramos una cascada confiada —
- *  degradamos honesto (§13: "no asumir 0" también aplica hacia arriba). Es surface honesto de un
- *  problema de datos del backend, no un parche. */
+/** ¿El resultado operacional es plausible como para MOSTRARLO con confianza? Única implausibilidad
+ *  DURA: `result` ≥ `revenue` ⇒ margen ≥ 100% ⇒ los costos netos del mes fueron ≤ 0, imposible
+ *  operacionalmente (típico: un gasto se revierte o llega mal clasificado y el resultado queda
+ *  inflado por encima de los ingresos). En ese caso degradamos honesto (§13).
+ *
+ *  Lo que NO hacemos (y antes sí, mal): exigir costos en los buckets `direct_cost`/`labor_cost`/
+ *  `professional_fees`. Una empresa de servicios (p. ej. Tooxs) los tiene legítimamente en $0 —
+ *  sus costos viven en `recurring_expenses` — y el backend lo avisa en `missing_sources`
+ *  ("agrupado en recurring_expenses") con `data_state: available`. Confiar en esos buckets
+ *  degradaba TODOS los meses de una empresa de servicios y mostraba un "$0 de costos" falso.
+ *  Para la calidad del dato confiamos en `confidence`/`missing_sources` (los surface el pie). */
 export function resultadoConfiable(resp: OperationalResultResponse): boolean {
   const rev = parseAmount(resp.revenue);
   if (rev <= 0) return true; // sin ingresos = otro caso (vacío/parcial), esta guarda no aplica
-  // Resultado > ingresos ⇒ margen > 100% ⇒ imposible operacionalmente.
-  if (parseAmount(resp.result) > rev) return false;
-  // Costos clave en $0 con ventas reales ⇒ faltan (típicamente las remuneraciones no llegaron).
-  const costosClave =
-    Math.abs(parseAmount(resp.direct_cost)) +
-    Math.abs(parseAmount(resp.labor_cost)) +
-    Math.abs(parseAmount(resp.professional_fees));
-  if (costosClave < 1) return false;
+  // Resultado ≥ ingresos ⇒ margen ≥ 100% ⇒ costos netos ≤ 0 ⇒ imposible operacionalmente.
+  if (parseAmount(resp.result) >= rev) return false;
   return true;
 }
 
