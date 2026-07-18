@@ -17,10 +17,21 @@ export interface BrechaCajaProps {
   dias?: number;
   /** Cuánto de la brecha es postergable/negociable (para el insight). */
   postergable?: number;
+  /** `true` mientras la postergabilidad la INFIERE el FE por tipo de pago (no un flag por documento
+   *  del backend). Muestra una nota honesta. El contenedor lo apaga cuando CC-API mande el flag
+   *  real (A3). Default false: sin marca salvo que el contenedor la pida. */
+  postergabilidadEstimada?: boolean;
   className?: string;
 }
 
-export function BrechaCaja({ cajaProyectada, pagosCriticos, dias = 14, postergable = 0, className }: BrechaCajaProps) {
+export function BrechaCaja({
+  cajaProyectada,
+  pagosCriticos,
+  dias = 14,
+  postergable = 0,
+  postergabilidadEstimada = false,
+  className,
+}: BrechaCajaProps) {
   const b = calcularBrecha(cajaProyectada, pagosCriticos);
   const residual = brechaResidual(b.faltante, postergable);
 
@@ -60,6 +71,13 @@ export function BrechaCaja({ cajaProyectada, pagosCriticos, dias = 14, postergab
       ) : (
         <p className="mt-3 text-[12.5px] font-semibold text-danger-500">
           Faltan {formatClp(b.faltante)} para cubrir los pagos críticos.
+        </p>
+      )}
+
+      {postergabilidadEstimada && pagosCriticos > 0 && (
+        <p className="mt-2 text-[11px] leading-snug text-neutral-mid">
+          Qué es crítico y qué es postergable lo estima Qavante por tipo de pago; todavía no viene
+          marcado por documento.
         </p>
       )}
     </section>

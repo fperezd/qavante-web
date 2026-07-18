@@ -52,3 +52,33 @@ export const Cubre: Story = {
     await expect(canvas.getByText(/holgura \$1\.900\.000/)).toBeInTheDocument();
   },
 };
+
+/** A3 interino: mientras la postergabilidad la infiere el FE (no un flag del backend), se avisa. */
+export const PostergabilidadEstimada: Story = {
+  args: {
+    cajaProyectada: 9_400_000,
+    pagosCriticos: 18_100_000,
+    dias: 14,
+    postergable: 5_500_000,
+    postergabilidadEstimada: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/lo estima Qavante por tipo de pago/)).toBeInTheDocument();
+  },
+};
+
+/** Con el flag apagado (cuando CC-API mande la postergabilidad real) NO se muestra la nota. */
+export const SinNotaCuandoNoEstimada: Story = {
+  args: {
+    cajaProyectada: 9_400_000,
+    pagosCriticos: 18_100_000,
+    dias: 14,
+    postergable: 5_500_000,
+    postergabilidadEstimada: false,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByText(/lo estima Qavante por tipo de pago/)).not.toBeInTheDocument();
+  },
+};
