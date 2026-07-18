@@ -1,7 +1,7 @@
 "use client";
 
-import { Loader2, AlertCircle } from "lucide-react";
-import { QavanteEmpty } from "@/components/qavante";
+import { Loader2 } from "lucide-react";
+import { QavanteInlineError } from "@/components/qavante";
 import {
   SiiCredentialCard,
   SiiPersonCredentialCard,
@@ -84,51 +84,42 @@ export default function CredencialesPage() {
         <SourceConsentCard sourceCode="previred" label="Autorización de acceso a Previred" />
       </section>
 
-      {isLoading && (
-        <div className="flex items-center gap-2 text-sm text-neutral-mid">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          Cargando credenciales…
-        </div>
-      )}
+      {/* La sección SII se renderea SIEMPRE. Antes todo (incluidos los certificados y la clave del
+          representante) colgaba de que el GET de la credencial SII resolviera: si ese GET fallaba,
+          desaparecían también los certificados, que no dependen de él. Ahora solo la tarjeta de la
+          credencial gatea por ese query; las demás sub-tarjetas tienen su propio fetch. */}
+      <section aria-labelledby="sii-credential-heading" className="space-y-2">
+        <h2 id="sii-credential-heading" className="text-base font-semibold text-neutral-dark">
+          Servicio de Impuestos Internos (SII)
+        </h2>
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-neutral-mid">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            Cargando la credencial del SII…
+          </div>
+        ) : isError ? (
+          <QavanteInlineError error={error} what="la credencial del SII" />
+        ) : data ? (
+          <SiiCredentialCard credential={data} />
+        ) : null}
+        {/* Clave del representante (persona autorizada) — la que baja el DTE
+            por clave (facturas emitidas/recibidas como PDF, #553). Antes solo
+            se cargaba en el onboarding; acá se puede (re)ingresar/rotar cuando
+            la sesión del SII caduca (era el gap del dte_not_found = 0 docs). */}
+        <SiiPersonCredentialCard persons={siiPersons.data?.persons} />
+        {/* La credencial sola no alcanza: el acceso al SII requiere un
+            consentimiento legal explícito (sin él, las consultas dan 403). */}
+        <SourceConsentCard sourceCode="sii_rcv" label="Autorización de acceso al SII" />
+        <SiiSyncCard />
+      </section>
 
-      {isError && (
-        <QavanteEmpty
-          icon={AlertCircle}
-          title="No pudimos cargar las credenciales"
-          description={
-            error instanceof Error
-              ? `${error.message}. Prueba refrescar la página.`
-              : "Prueba refrescar la página. Si persiste, contacta a soporte."
-          }
-        />
-      )}
-
-      {data && (
-        <div className="space-y-6">
-          <section aria-labelledby="sii-credential-heading" className="space-y-2">
-            <h2 id="sii-credential-heading" className="text-base font-semibold text-neutral-dark">
-              Servicio de Impuestos Internos (SII)
-            </h2>
-            <SiiCredentialCard credential={data} />
-            {/* Clave del representante (persona autorizada) — la que baja el DTE
-                por clave (facturas emitidas/recibidas como PDF, #553). Antes solo
-                se cargaba en el onboarding; acá se puede (re)ingresar/rotar cuando
-                la sesión del SII caduca (era el gap del dte_not_found = 0 docs). */}
-            <SiiPersonCredentialCard persons={siiPersons.data?.persons} />
-            {/* La credencial sola no alcanza: el acceso al SII requiere un
-                consentimiento legal explícito (sin él, las consultas dan 403). */}
-            <SourceConsentCard sourceCode="sii_rcv" label="Autorización de acceso al SII" />
-            <SiiSyncCard />
-          </section>
-
-          <section aria-labelledby="certificates-heading" className="space-y-2">
-            <h2 id="certificates-heading" className="text-base font-semibold text-neutral-dark">
-              Certificados digitales
-            </h2>
-            <CertificateListView />
-          </section>
-        </div>
-      )}
+      {/* Certificados: fetch propio (useCertificatesList), independiente de la credencial SII. */}
+      <section aria-labelledby="certificates-heading" className="space-y-2">
+        <h2 id="certificates-heading" className="text-base font-semibold text-neutral-dark">
+          Certificados digitales
+        </h2>
+        <CertificateListView />
+      </section>
     </div>
   );
 }
