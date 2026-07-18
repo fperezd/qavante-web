@@ -77,22 +77,44 @@ export const NoCruza: Story = {
   },
 };
 
-/** Degradado: sin caja mínima configurada y saldo negativo. En vez de inventar un piso en
- *  $0 y pintar todo de rojo, muestra una referencia neutra de $0 y la curva. */
+/** Degradado: sin caja mínima configurada y caja profundamente negativa y plana (caso real).
+ *  Antes se forzaba el $0 al dominio y la curva quedaba aplastada contra el piso, con ~80% del
+ *  gráfico vacío. Ahora encuadramos la TENDENCIA (el hero ya comunica el negativo en rojo): la
+ *  línea usa el alto, sin un $0 lejano ni el vacío. */
 export const SinMinimoNegativo: Story = {
   args: {
     serie: [
-      { label: "hoy", saldo: -5_905_530 },
-      { label: "2026-W27", saldo: -6_759_006 },
-      { label: "2026-W28", saldo: -6_774_558 },
+      { label: "hoy", saldo: -3_935_682 },
+      { label: "2026-W27", saldo: -4_512_310 },
+      { label: "2026-W28", saldo: -4_804_710 },
     ],
     minimo: null,
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Referencia neutra de $0 (no "Caja mínima" ni zona roja).
-    await expect(canvas.getByText("$0")).toBeInTheDocument();
+    // El $0 lejano ya NO se fuerza (evita el gráfico casi vacío); se encuadra la tendencia.
+    await expect(canvas.queryByText("$0")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Caja mínima")).not.toBeInTheDocument();
     await expect(canvas.getByText("hoy")).toBeInTheDocument();
+    await expect(canvas.getByText("2026-W28")).toBeInTheDocument();
+  },
+};
+
+/** Sin mínimo pero la caja CRUZA el cero (parte positiva y cae a negativa): ahí el $0 sí es
+ *  relevante y se dibuja como referencia neutra (no roja, sin zona). */
+export const SinMinimoCruzaCero: Story = {
+  args: {
+    serie: [
+      { label: "hoy", saldo: 3_200_000 },
+      { label: "20-jul", saldo: 1_400_000 },
+      { label: "27-jul", saldo: -600_000 },
+      { label: "03-ago", saldo: -1_800_000 },
+    ],
+    minimo: null,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("$0")).toBeInTheDocument();
+    await expect(canvas.queryByText("Caja mínima")).not.toBeInTheDocument();
   },
 };

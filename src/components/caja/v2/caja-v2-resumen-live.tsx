@@ -63,19 +63,20 @@ export function CajaV2ResumenLive() {
           saldo={saldoHoy}
           runway={negativa ? runwayNegativo(saldoHoy) : buildRunway(serie, cruceIdx, minimo, dias)}
           runwayTono={tono}
-          subtitulo={negativa ? "Saldo hoy. Conecta tu banco para confirmar el saldo real por cuenta" : "Saldo hoy en caja"}
+          subtitulo="Saldo hoy en caja"
           infoHint="Saldo de tus cuentas hoy. La curva proyecta este saldo + las entradas y salidas esperadas del reporte de caja."
         />
       }
       bancos={
-        // Degradado: sin el detalle por banco (bice/saldo es api-key-only), se muestra el total
-        // + un aviso honesto para conectar el banco.
+        // Degradado: el banco SÍ está conectado (es la fuente del saldo), pero el detalle POR
+        // CUENTA no llega porque bice/saldo es api-key-only. Mostramos el total + un aviso honesto
+        // (no "conecta tu banco", que sería falso: ya está conectado).
         <SaldoPorBanco
           titulo="Saldo disponible"
           bancos={[]}
           total={saldoHoy}
           totalLabel="Total en caja hoy"
-          nota="Conecta tu banco para ver el saldo por cuenta"
+          nota="El saldo por cada cuenta todavía no está disponible"
         />
       }
       flujo={<FlujoBlock cf={cf.data} minimo={minimo} />}
