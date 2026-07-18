@@ -25,4 +25,18 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
     // Columna derivada que la tabla clásica no tiene.
     await expect(page.getByText("Saldo al cierre")).toBeVisible();
   });
+
+  test("la landing /caja encabeza con el Resumen v2 + herramientas debajo", async ({ page, context }) => {
+    await loginAs(context, "owner");
+    await page.goto("/caja");
+
+    await expect(page.getByRole("heading", { level: 1, name: "Caja" })).toBeVisible();
+    // v2 arriba: respuesta de dueño + curva (contesta el "¿me alcanza?" del título).
+    await expect(page.getByText("La empresa tiene en caja")).toBeVisible();
+    await expect(page.getByText("Saldo proyectado")).toBeVisible();
+    // Herramientas debajo (Movimientos bancarios).
+    await expect(page.getByText("Por clasificar")).toBeVisible();
+    // La card "Reporte de caja" es redundante con el v2 arriba → se omite.
+    await expect(page.getByText("Reporte de caja")).toHaveCount(0);
+  });
 });
