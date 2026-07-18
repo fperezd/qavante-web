@@ -5,13 +5,13 @@ import type { components } from "./types";
 /* Capa de datos — Resultado Operacional de Gestión (Sprint C5, Documento
    Maestro §7.5 / §11.5).
 
-   ⚠️ Contrato FE-FIRST. El endpoint `GET /api/management/operational-result`
-   AÚN NO existe en el backend (verificado: no está en el OpenAPI generado).
-   Estos tipos están hand-rolled como el contrato ESPERADO, documentado en
-   `docs/backend-contracts/gestion-operational-result-contract.md` (handoff a
-   CC-API). Cuando el backend lo exponga, `npm run generate:api` reemplaza
-   estos tipos por los de `types.ts` (regla 3). Gated por el flag
-   `operationalResult` (OFF en prod) → en prod este hook NO corre.
+   El endpoint `GET /api/management/operational-result` está VIVO en prod y acepta cookie
+   (sondeado 2026-07-17). El flag `operationalResult` está ON → este hook SÍ corre en prod.
+
+   ⚠️ Deuda pendiente (plan de cierre C1): estos tipos siguen HAND-ROLLED en vez de generados
+   (rompe la regla 3). Cierre = `npm run generate:api` y reemplazar por los de `types.ts`.
+   ⚠️ Gap de dato (plan de cierre A1, CC-API): el resultado se calcula solo del RCV → NO incluye
+   remuneraciones → sale inflado (`result > revenue`). El FE lo degrada honesto en Gestión v2.
 
    Montos como string-decimal (igual que el resto del API treasury); el FE
    parsea con `parseDecimal`. "Resultado de gestión, no contabilidad oficial"
