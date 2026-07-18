@@ -27,10 +27,11 @@ type InviteFormValues = z.infer<typeof inviteSchema>;
 interface InviteUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentUserRole?: UserRole;
+  /** ¿Puede el logueado asignar el rol Dueño? Lo decide la página desde permisos reales. */
+  canAssignOwner?: boolean;
 }
 
-export function InviteUserDialog({ open, onOpenChange, currentUserRole }: InviteUserDialogProps) {
+export function InviteUserDialog({ open, onOpenChange, canAssignOwner }: InviteUserDialogProps) {
   const invite = useInviteUser();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
@@ -156,8 +157,7 @@ export function InviteUserDialog({ open, onOpenChange, currentUserRole }: Invite
                     value={field.value as UserRole | ""}
                     onChange={field.onChange}
                     invalid={Boolean(errors.role)}
-                    excludeOwnerWhenNotOwner
-                    currentUserRole={currentUserRole}
+                    canAssignOwner={canAssignOwner}
                   />
                 )}
               />

@@ -24,11 +24,11 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Open: Story = {
-  args: { currentUserRole: "owner" },
+  args: { canAssignOwner: true },
 };
 
 export const OpenAsAdmin: Story = {
-  args: { currentUserRole: "admin" },
+  args: { canAssignOwner: false },
   parameters: {
     docs: {
       description: {
@@ -40,7 +40,7 @@ export const OpenAsAdmin: Story = {
 };
 
 export const Closed: Story = {
-  args: { open: false, currentUserRole: "owner" },
+  args: { open: false, canAssignOwner: true },
   parameters: {
     docs: {
       description: {

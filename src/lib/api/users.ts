@@ -57,9 +57,24 @@ const usersKeys = {
   all: ["users"] as const,
   list: (params: UsersListParams) => [...usersKeys.all, "list", params] as const,
   me: () => [...usersKeys.all, "me"] as const,
+  myPermissions: () => [...usersKeys.all, "me", "permissions"] as const,
 };
 
 export { usersKeys };
+
+export type PermissionsResponse = components["schemas"]["PermissionsResponse"];
+
+/** `GET /api/users/me/permissions` — permisos reales del rol del usuario logueado
+ *  (`{ permissions: string[], role }`, del registry `PERMISSIONS_BY_ROLE`). Cualquier rol puede
+ *  llamarlo (solo expone lo propio). Reemplaza el adivinar permisos con tablas hardcodeadas. */
+export function useMyPermissions() {
+  return useQuery({
+    queryKey: usersKeys.myPermissions(),
+    queryFn: () => api.get<PermissionsResponse>("/api/users/me/permissions"),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
 
 function buildListQuery(params: UsersListParams): string {
   const search = new URLSearchParams();

@@ -4,8 +4,9 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { UserPlus, Users, AlertCircle } from "lucide-react";
 import { QavanteEmpty, QavanteButton } from "@/components/qavante";
-import { useMe, useUsers, type User } from "@/lib/api/users";
+import { useMe, useMyPermissions, useUsers, type User } from "@/lib/api/users";
 import { asUserRole } from "@/lib/auth/types";
+import { hasPermission, PERM_ASIGNAR_OWNER } from "@/lib/auth/permissions";
 import { UsersTable } from "@/components/administracion/users-table";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -43,7 +44,17 @@ export default function UsuariosPage() {
      ni el dueño. Query aparte: si /api/me falla, la lista igual se ve (y sin rol se cae a la rama
      conservadora, que es la segura). */
   const me = useMe();
+  /* Permisos REALES del backend (registry PERMISSIONS_BY_ROLE), en vez de adivinar por rol con
+     tablas hardcodeadas en el FE (el "falso permiso" del audit §13.4). El owner trae el wildcard `*`.
+     Fallback al rol solo si /me/permissions no cargó, para no bloquear al owner ante un fetch caído. */
+  const perms = useMyPermissions();
   const currentUserRole = asUserRole(me.data?.user.role);
+  const canAssignOwner = perms.data
+    ? hasPermission(perms.data.permissions, PERM_ASIGNAR_OWNER)
+    : currentUserRole === "owner";
+  // Mostrar "Invitar" salvo que los permisos digan explícitamente que no puede. Sin permisos → se
+  // muestra (el backend igual impone 403 en POST /api/users): no escondemos la acción por un fetch caído.
+  const canInvite = perms.data ? hasPermission(perms.data.permissions, "users.invite") : true;
   const [inviteOpen, setInviteOpen] = React.useState(false);
   const [suspendTarget, setSuspendTarget] = React.useState<User | null>(null);
 
@@ -56,13 +67,15 @@ export default function UsuariosPage() {
             ¿Quién accede a la información de mi empresa?
           </p>
         </div>
-        <QavanteButton
-          onClick={() => setInviteOpen(true)}
-          disabled={usersQuery.isLoading || usersQuery.isError}
-        >
-          <UserPlus className="h-4 w-4" />
-          Invitar usuario
-        </QavanteButton>
+        {canInvite && (
+          <QavanteButton
+            onClick={() => setInviteOpen(true)}
+            disabled={usersQuery.isLoading || usersQuery.isError}
+          >
+            <UserPlus className="h-4 w-4" />
+            Invitar usuario
+          </QavanteButton>
+        )}
       </header>
 
       {usersQuery.isLoading && <LoadingSkeleton />}
@@ -86,16 +99,12 @@ export default function UsuariosPage() {
       {usersQuery.data && usersQuery.data.items.length > 0 && (
         <UsersTable
           users={usersQuery.data.items}
-          currentUserRole={currentUserRole}
+          canAssignOwner={canAssignOwner}
           onSuspendClick={(u) => setSuspendTarget(u)}
         />
       )}
 
-      <InviteUserDialog
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
-        currentUserRole={currentUserRole}
-      />
+      <InviteUserDialog open={inviteOpen} onOpenChange={setInviteOpen} canAssignOwner={canAssignOwner} />
 
       <SuspendUserDialog
         user={suspendTarget}

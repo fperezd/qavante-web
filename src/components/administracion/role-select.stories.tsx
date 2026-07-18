@@ -32,7 +32,7 @@ const meta = {
     },
     disabled: { control: "boolean" },
     invalid: { control: "boolean" },
-    excludeOwnerWhenNotOwner: { control: "boolean" },
+    canAssignOwner: { control: "boolean" },
   },
 } satisfies Meta<typeof RoleSelect>;
 
@@ -58,8 +58,7 @@ export const Invalid: Story = {
 export const OwnerExcluded: Story = {
   args: {
     value: "",
-    excludeOwnerWhenNotOwner: true,
-    currentUserRole: "admin",
+    canAssignOwner: false,
   },
   parameters: {
     docs: {
@@ -78,7 +77,7 @@ export const OwnerExcluded: Story = {
 /** El invitador NO es owner → "Dueño" no está entre las opciones. */
 export const OwnerExcluidoPlay: Story = {
   name: "Owner excluido (admin invitando)",
-  args: { value: "", excludeOwnerWhenNotOwner: true, currentUserRole: "admin" },
+  args: { value: "", canAssignOwner: false },
   play: async ({ canvasElement }) => {
     const select = within(canvasElement).getByRole("combobox");
     const opciones = within(select)
@@ -90,11 +89,10 @@ export const OwnerExcluidoPlay: Story = {
 };
 
 /** El invitador SÍ es owner → puede asignar "Dueño" (transferir propiedad).
- *  Esta rama estaba MUERTA en prod: /administracion/usuarios nunca pasaba `currentUserRole`,
- *  así que llegaba undefined y ni el dueño podía. */
+ *  Ahora la página deriva `canAssignOwner` de los permisos reales (permiso `*`), no del rol. */
 export const OwnerPuedeAsignarOwner: Story = {
   name: "Owner sí puede asignar owner",
-  args: { value: "", excludeOwnerWhenNotOwner: true, currentUserRole: "owner" },
+  args: { value: "", canAssignOwner: true },
   play: async ({ canvasElement }) => {
     const select = within(canvasElement).getByRole("combobox");
     const opciones = within(select)
