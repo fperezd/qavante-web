@@ -9,6 +9,7 @@ import {
 } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { BankBalances } from "@/components/treasury/bank-balances/bank-balances";
+import { CajaV2ResumenLive } from "@/components/caja/v2/caja-v2-resumen-live";
 
 /* Landing del módulo Caja. Sprint C3 MVP cableó `/caja/proyeccion` con el
    reporte agregado de `/api/treasury/reports/cash-flow` — si el flag
@@ -17,7 +18,7 @@ import { BankBalances } from "@/components/treasury/bank-balances/bank-balances"
    vs caja mínima + acciones recomendadas quedan para wave 2 cuando el
    backend exponga los contratos. */
 export default function CajaPage() {
-  const { bankMovementClassification, cashFlowReport, bankBalances, reconciliationReview } =
+  const { bankMovementClassification, cashFlowReport, bankBalances, reconciliationReview, cajaV2 } =
     resolveFeatureFlags();
 
   return (
@@ -26,6 +27,11 @@ export default function CajaPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Caja</h1>
         <p className="mt-1 text-sm text-neutral-mid">¿Me alcanza la caja y qué puedo hacer?</p>
       </header>
+
+      {/* Caja v2 (rediseño 2026-07-14): la respuesta de dueño + la curva de saldo encabezan la
+          página (contestan el "¿me alcanza?" del título); las cards de abajo quedan como
+          herramientas. Con `cajaV2` OFF o sin reporte de caja, la landing cae al menú clásico. */}
+      {cajaV2 && cashFlowReport && <CajaV2ResumenLive />}
 
       {bankBalances && (
         <section aria-labelledby="saldos-section" className="space-y-3">
@@ -82,7 +88,10 @@ export default function CajaPage() {
         <FeatureUnavailableState />
       )}
 
-      {cashFlowReport ? (
+      {/* "Caja proyectada" como card sólo cuando el v2 NO encabeza (fallback): con el v2 arriba
+          apunta a lo mismo (redundante), así que se omite. */}
+      {!(cajaV2 && cashFlowReport) &&
+        (cashFlowReport ? (
         <section aria-labelledby="proyeccion-section" className="space-y-3">
           <h2 id="proyeccion-section" className="text-base font-semibold text-neutral-dark">
             Caja proyectada
@@ -104,7 +113,7 @@ export default function CajaPage() {
           title="Caja proyectada"
           description="Aquí vas a ver tu flujo de caja, la brecha frente a tu caja mínima, las columnas de cobros, pagos, sueldos, impuestos y deuda, y acciones recomendadas. Muy pronto disponible."
         />
-      )}
+        ))}
     </div>
   );
 }
