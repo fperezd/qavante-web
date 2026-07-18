@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — Resultado Operacional de Gestión v2 (rediseño 2026-07-14, `gestionV2` ON en prod y en
-   el env de e2e). Un mes → la vista v2 (respuesta de dueño + cascada + drivers); el rango sigue
-   con la matriz mensual clásica. Contra MSW (operational-result + breakdown + dashboard). */
+/* Flujo — Resultado Operacional de Gestión (rediseño 2026-07-14; la vista v2 es la única desde que
+   se retiró la clásica). Un mes → respuesta de dueño + cascada + drivers; el rango → hero de período
+   + margen en el tiempo + matriz. Contra MSW (operational-result + breakdown + dashboard). */
 
 test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
   test("un mes muestra la respuesta de dueño + cascada; el rango muestra la matriz", async ({ page, context }) => {

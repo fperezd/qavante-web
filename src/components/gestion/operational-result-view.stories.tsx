@@ -87,23 +87,6 @@ const FIXTURE = {
   generated_at: "2026-06-01T12:00:00Z",
 };
 
-const OK = http.get(PATH, () => HttpResponse.json(FIXTURE, { status: 200 }));
-const NEGATIVO = http.get(PATH, () =>
-  HttpResponse.json(
-    {
-      ...FIXTURE,
-      result: "-1200000",
-      ebitda_proxy: "-1200000",
-      confidence: "low",
-      missing_sources: ["Previred"],
-      variation: {
-        vs_previous_month: { amount: "-1800000", pct: "-45.0" },
-        vs_same_month_last_year: null,
-      },
-    },
-    { status: 200 },
-  ),
-);
 const LOADING = http.get(PATH, async () => {
   await delay("infinite");
   return HttpResponse.json(FIXTURE, { status: 200 });
@@ -123,10 +106,9 @@ const meta = {
     docs: {
       description: {
         component:
-          "Resultado Operacional de Gestión (Sprint C5, Maestro §7.5). Badge obligatorio 'no es contabilidad oficial', desglose P&L, variación mes/año, drivers (rule-based) y confianza + fuentes faltantes. Estados canónicos vía MSW. Contrato FE-first (endpoint aún no existe en backend).",
+          "Container del Resultado Operacional de Gestión (Sprint C5, Maestro §7.5): selector de rango + estados canónicos (loading / 404 sin datos / error) y, con dato, monta la vista v2 (la única desde que se retiró la clásica). La vista con dato es un container (fetch + navegación) → se cubre por e2e, no acá; estas stories muestran los ESTADOS y la matriz de rango.",
       },
     },
-    msw: { handlers: [OK] },
   },
   args: { initialPeriod: "2026-05" },
 } satisfies Meta<typeof OperationalResultView>;
@@ -134,14 +116,6 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Disponible: Story = {
-  name: "Disponible (resultado positivo)",
-  parameters: { msw: { handlers: [OK] } },
-};
-export const ResultadoNegativo: Story = {
-  name: "Resultado negativo + confianza baja + fuente faltante",
-  parameters: { msw: { handlers: [NEGATIVO] } },
-};
 export const Cargando: Story = { parameters: { msw: { handlers: [LOADING] } } };
 export const SinDatos: Story = {
   name: "Sin datos del período (404)",
