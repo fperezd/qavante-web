@@ -88,7 +88,10 @@ function CajaV2Contenido({
   if (!saldoConocido && allBuckets.length === 0) return <EmptyState />;
 
   // Sin saldo base: mostramos honestamente los flujos conocidos del período, sin inventar saldo/curva.
-  if (!saldoConocido) return <SinSaldoBase buckets={allBuckets} granularity={granularity} />;
+  // Si el saldo falta por un ERROR del dashboard (no porque el banco esté sin conectar), el copy lo dice
+  // (§13 / no ocultar un error como dato faltante).
+  if (!saldoConocido)
+    return <SinSaldoBase buckets={allBuckets} granularity={granularity} saldoError={dash.isError} />;
 
   // La curva muestra la TRAYECTORIA del saldo sobre el rango, anclada en el saldo de hoy: reconstruye
   // los períodos pasados hacia atrás y proyecta los futuros hacia adelante (sin doble conteo). Un
@@ -285,17 +288,34 @@ function buildMovibles(
 /** Panel honesto cuando NO hay saldo base conocido (banco no conectado / dashboard sin dato):
  *  muestra los flujos que sí conocemos (del reporte de caja) y pide conectar el banco, en vez
  *  de renderear un saldo "$0 en negativo" o una curva proyectada desde cero (§13). */
-function SinSaldoBase({ buckets, granularity }: { buckets: CashFlowBucket[]; granularity: CashFlowGranularity }) {
+function SinSaldoBase({
+  buckets,
+  granularity,
+  saldoError = false,
+}: {
+  buckets: CashFlowBucket[];
+  granularity: CashFlowGranularity;
+  /** El saldo falta por un ERROR del dashboard, no porque el banco esté sin conectar. Copy honesto
+   *  distinto (no "conecta tu banco", que sería falso). */
+  saldoError?: boolean;
+}) {
   return (
     <div className="space-y-4">
       <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm sm:grid sm:grid-cols-2">
         <div className="p-5">
           <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">La empresa tiene en caja</p>
           <p className="mt-1.5 text-[22px] font-bold text-neutral-mid">Sin dato de saldo</p>
-          <p className="mt-3 inline-flex items-start gap-1.5 text-[13px] font-semibold text-brand-primary">
-            <Plus className="mt-px size-4 shrink-0" aria-hidden="true" />
-            Conecta tu banco para ver tu saldo real y proyectar tu caja.
-          </p>
+          {saldoError ? (
+            <p className="mt-3 inline-flex items-start gap-1.5 text-[13px] font-semibold text-warning-700">
+              <Plus className="mt-px size-4 shrink-0 rotate-45" aria-hidden="true" />
+              No pudimos traer tu saldo ahora (hubo un error). Reintentá en un momento.
+            </p>
+          ) : (
+            <p className="mt-3 inline-flex items-start gap-1.5 text-[13px] font-semibold text-brand-primary">
+              <Plus className="mt-px size-4 shrink-0" aria-hidden="true" />
+              Conecta tu banco para ver tu saldo real y proyectar tu caja.
+            </p>
+          )}
           <p className="mt-2.5 text-[12.5px] text-neutral-mid">
             El flujo de acá abajo (entradas y salidas) sí viene de tus movimientos.
           </p>
