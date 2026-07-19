@@ -58,11 +58,13 @@ export function currentPeriodSantiago(now: Date): string {
   return `${y}-${mo}`;
 }
 
-/** `pct` string-decimal → "+12,5%" / "-7,1%" / "0%". Signo explícito salvo 0. */
+/** `pct` string-decimal → "+12,5%" / "-7,1%" / "0%". Signo explícito salvo 0. El signo se decide
+ *  sobre el valor YA REDONDEADO a 1 decimal: un 0,03% que se muestra como "0" no lleva "+". */
 export function formatSignedPct(raw: string): string {
-  const n = parseAmount(raw);
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`;
+  // `|| 0` normaliza el −0 (Math.round(−0.4) = −0, y (−0).toLocaleString da "-0").
+  const r = Math.round(parseAmount(raw) * 10) / 10 || 0;
+  const sign = r > 0 ? "+" : "";
+  return `${sign}${r.toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`;
 }
 
 /** Tono de una variación: una variación POSITIVA del resultado es buena

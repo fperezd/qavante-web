@@ -58,6 +58,10 @@ describe("formatSignedPct", () => {
     expect(formatSignedPct("-7.1")).toBe("-7,1%");
     expect(formatSignedPct("0")).toBe("0%");
   });
+  it("una variación que redondea a 0 NO lleva '+' (el signo calza con lo mostrado)", () => {
+    expect(formatSignedPct("0.03")).toBe("0%"); // no "+0%"
+    expect(formatSignedPct("-0.04")).toBe("0%"); // no "-0%"
+  });
 });
 
 describe("variationTone", () => {
