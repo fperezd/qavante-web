@@ -87,6 +87,12 @@ export default defineConfig({
       /* Cola de conciliación — OFF en prod (feature nueva, sin validar todavía). Acá ON para
          testear la pantalla ya construida detrás del flag; es "adelanto", no drift de prod. */
       NEXT_PUBLIC_FF_RECONCILIATION_REVIEW: "true",
+      /* Config de Administración + Mi cuenta — ON en prod (wrangler.toml). El e2e espeja
+         prod para poder hacer smoke de que cada pantalla renderea su vista (no el placeholder). */
+      NEXT_PUBLIC_FF_MULTI_CURRENCY: "true",
+      NEXT_PUBLIC_FF_INDUSTRY_TEMPLATES: "true",
+      NEXT_PUBLIC_FF_MANAGEMENT_DIMENSIONS: "true",
+      NEXT_PUBLIC_FF_MI_CUENTA: "true",
     },
   },
 });
