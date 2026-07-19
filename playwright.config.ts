@@ -80,6 +80,7 @@ export default defineConfig({
       NEXT_PUBLIC_FF_ASSISTANT: "true",
       /* Panel F29 (SII) — FE-first contra el backend ya listo; cubierto por e2e. */
       NEXT_PUBLIC_FF_SII_QUERIES: "true",
+      NEXT_PUBLIC_FF_OBLIGATIONS: "true",
       /* Remuneraciones (BUK) — LIVE en prod (wrangler.toml). Cubierto por e2e
          contra MSW (dotación + planilla). */
       NEXT_PUBLIC_FF_REMUNERACIONES: "true",
