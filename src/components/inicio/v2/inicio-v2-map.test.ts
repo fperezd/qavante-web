@@ -133,6 +133,16 @@ describe("mapBrechaTotal / mapEstadoBrecha", () => {
     expect(mapEstadoBrecha(s)).toEqual({ tipo: "indeterminado" });
     expect(mapBrechaTotal(s)).toBeNull(); // no cuantificable
   });
+  it("SIN obligaciones críticas ($0) y caja negativa → 'indeterminado', NO una brecha falsa", () => {
+    // Caso real Tooxs: críticas=0, caja=−3.935.682. El faltante (críticas−caja) daría $3,9M,
+    // pero es la caja negativa, no una brecha de pagos → no dispara el plan de cierre.
+    const s = {
+      ...emptySummary(),
+      cash_gap: { has_gap: true, critical_obligations_14d: "0", projected_cash_14d: "-3935682.15" },
+    } as unknown as DashboardSummaryV2;
+    expect(mapEstadoBrecha(s)).toEqual({ tipo: "indeterminado" });
+    expect(mapBrechaTotal(s)).toBeNull();
+  });
   it("sin bloque cash_gap → sin_dato (no se afirma cobertura)", () => {
     expect(mapEstadoBrecha(emptySummary())).toEqual({ tipo: "sin_dato" });
   });
