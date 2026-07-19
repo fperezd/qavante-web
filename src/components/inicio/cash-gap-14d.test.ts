@@ -11,6 +11,12 @@ describe("describeCashGap14d", () => {
     expect(describeCashGap14d(5_000_000, -1_000_000)).toEqual({ kind: "shortfall", faltante: 6_000_000 });
   });
 
+  it("con críticas pero caja que SÍ las cubre (faltante 0) → declared, NO 'shortfall $0'", () => {
+    // has_gap=true del backend pero nuestra resta ve cobertura → no afirmar "te faltan $0".
+    expect(describeCashGap14d(5_000_000, 6_000_000)).toEqual({ kind: "declared" });
+    expect(describeCashGap14d(5_000_000, 5_000_000)).toEqual({ kind: "declared" });
+  });
+
   it("SIN obligaciones críticas ($0) y caja negativa → overdraft, NO 'faltante para pagos críticos'", () => {
     // El caso real de Tooxs: críticas=0, caja=−3.935.682. No es brecha contra pagos: es caja negativa.
     expect(describeCashGap14d(0, -3_935_682)).toEqual({ kind: "overdraft", projected: -3_935_682 });

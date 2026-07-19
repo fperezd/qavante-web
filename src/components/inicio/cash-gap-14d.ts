@@ -18,7 +18,13 @@ export type CashGap14d =
   | { kind: "declared" };
 
 export function describeCashGap14d(critical: number, projected: number): CashGap14d {
-  if (critical > 0) return { kind: "shortfall", faltante: Math.max(0, critical - projected) };
+  if (critical > 0) {
+    const faltante = Math.max(0, critical - projected);
+    // Hay críticas pero la caja SÍ las cubre (faltante 0): el backend declaró brecha igual
+    // (valle intra-período / caja mínima que nosotros no vemos). NO decimos "te faltan $0".
+    if (faltante > 0) return { kind: "shortfall", faltante };
+    return { kind: "declared" };
+  }
   if (projected < 0) return { kind: "overdraft", projected };
   return { kind: "declared" };
 }
