@@ -42,6 +42,9 @@ export function scoreTexto(raw: string | null | undefined): string {
 export type FilaCola = {
   id: string;
   fecha: string;
+  /** Fecha CRUDA del backend (ISO `YYYY-MM-DD`) — para ORDENAR cronológicamente. La `fecha`
+   *  formateada ("DD-MM-YYYY") no sirve para ordenar (compararía por día del mes). */
+  fechaISO: string;
   /** Monto con signo según dirección: cobro entra (+), pago sale (−). Formateado CLP. */
   montoTexto: string;
   esCobro: boolean;
@@ -64,6 +67,7 @@ export function mapFila(item: ReviewItem): FilaCola {
   return {
     id: item.movement_id,
     fecha: formatDateLike(item.date),
+    fechaISO: item.date ?? "",
     montoTexto: formatClp(cobro ? valor : -valor),
     esCobro: cobro,
     glosaBanco: item.description?.trim() || "Sin glosa",
@@ -80,7 +84,8 @@ export function mapFila(item: ReviewItem): FilaCola {
 export function mapCola(resp: ReviewQueueResponse | undefined): FilaCola[] {
   const filas = (resp?.items ?? []).map(mapFila);
   return filas.sort((a, b) => {
-    if (a.score == null && b.score == null) return a.fecha < b.fecha ? 1 : -1;
+    // Sin score: los más recientes primero, por la fecha ISO cruda (cronológica), NO la formateada.
+    if (a.score == null && b.score == null) return a.fechaISO < b.fechaISO ? 1 : -1;
     if (a.score == null) return 1;
     if (b.score == null) return -1;
     return b.score - a.score;
