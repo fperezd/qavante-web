@@ -8,7 +8,6 @@ import {
   defaultCashFlowRange,
   useCashFlowReport,
   type CashFlowBucket,
-  type CashFlowReportParams,
   type CashFlowGranularity,
 } from "@/lib/api/treasury-reports";
 import { useCashMinimum } from "@/lib/api/cash-minimum";
@@ -20,7 +19,8 @@ import { SaldoPorBanco } from "./saldo-por-banco";
 import { CajaCurva } from "./caja-curva";
 import { serieDesdeCashFlow, cajaMinimoCLP, bucketsDesdeHoy, flujoDeBuckets } from "./caja-v2-map";
 import { formatBucketLabel } from "@/components/caja/cash-flow-format";
-import { CashFlowFilters } from "@/components/caja/cash-flow-filters";
+import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
+import { orderRange, type PeriodRange } from "@/lib/period/period-range";
 import { primerCruce, type SaldoPunto } from "./caja-curva-model";
 
 /* Vista LIVE de la pestaña "Resumen" de Caja v2 (rediseño 2026-07-14), gated por `cajaV2`
@@ -31,21 +31,32 @@ import { primerCruce, type SaldoPunto } from "./caja-curva-model";
    Container: NO se testea por Storybook play (ADR-0018); la lógica vive en `caja-v2-map`. */
 
 export function CajaV2ResumenLive() {
-  // Selector de períodos (rango + granularidad + capa) — reusado del reporte clásico, que el v2
-  // había dejado afuera. Al aplicar, el reporte se re-consulta y la curva/flujo se recalculan.
-  const [params, setParams] = React.useState<CashFlowReportParams>(() => ({
-    ...defaultCashFlowRange(),
+  // Selector de RANGO — el estándar de la app (`PeriodRangeFilter`, con presets Mes actual / Tres
+  // meses / Este año…), el mismo que usan Gestión y el Libro. El v2 había metido un selector
+  // ad-hoc del cash-flow clásico; se unifica al estándar. La granularidad queda en "week" (la curva
+  // se arma por semana) y la capa en "committed"; el usuario elige el RANGO.
+  const [range, setRange] = React.useState<PeriodRange>(() => {
+    const d = defaultCashFlowRange();
+    return { desde: d.period_from, hasta: d.period_to };
+  });
+  const dash = useDashboardSummary();
+  const ordered = orderRange(range);
+  const cf = useCashFlowReport({
+    period_from: ordered.desde,
+    period_to: ordered.hasta,
     granularity: "week",
     financial_layer: "committed",
-  }));
-  const dash = useDashboardSummary();
-  const cf = useCashFlowReport(params);
+  });
   const cm = useCashMinimum();
 
   return (
     <div className="space-y-4">
-      <CashFlowFilters value={params} onChange={setParams} loading={cf.isFetching} />
-      <CajaV2Contenido dash={dash} cf={cf} cm={cm} granularity={params.granularity ?? "week"} />
+      <PeriodRangeFilter
+        value={range}
+        onChange={setRange}
+        hint="El rango arma el reporte de caja; la curva proyecta de hoy en adelante."
+      />
+      <CajaV2Contenido dash={dash} cf={cf} cm={cm} granularity="week" />
     </div>
   );
 }
