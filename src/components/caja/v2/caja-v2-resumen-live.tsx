@@ -17,7 +17,7 @@ import { CajaV2Resumen, type CajaMovible } from "./caja-v2-resumen";
 import { CajaHero } from "./caja-hero";
 import { SaldoPorBanco } from "./saldo-por-banco";
 import { CajaCurva } from "./caja-curva";
-import { serieDesdeCashFlow, cajaMinimoCLP, bucketsDesdeHoy, flujoDeBuckets } from "./caja-v2-map";
+import { serieAnclada, cajaMinimoCLP, flujoDeBuckets } from "./caja-v2-map";
 import { formatBucketLabel } from "@/components/caja/cash-flow-format";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { orderRange, type PeriodRange } from "@/lib/period/period-range";
@@ -54,7 +54,7 @@ export function CajaV2ResumenLive() {
       <PeriodRangeFilter
         value={range}
         onChange={setRange}
-        hint="El rango define el período consultado; la curva proyecta de hoy en adelante."
+        hint="El rango define el período; la curva muestra la evolución del saldo."
       />
       <CajaV2Contenido dash={dash} cf={cf} cm={cm} granularity="week" />
     </div>
@@ -80,10 +80,6 @@ function CajaV2Contenido({
   }
 
   const allBuckets = (cf.data?.buckets ?? []) as CashFlowBucket[];
-  // La PROYECCIÓN (curva) arranca DESDE HOY: descarta los períodos ya pasados (sus flujos ya están
-  // dentro del saldo de hoy → re-aplicarlos sería doble conteo). El FLUJO y la TABLA muestran el
-  // período real (allBuckets) — es dato útil aunque haya ocurrido.
-  const buckets = bucketsDesdeHoy(allBuckets, granularity);
   // `cash_today` es un bloque NULLABLE del summary (banco no conectado / fuente caída / 500 del
   // dashboard). Faltante ≠ 0 (§13): NO colapsamos un saldo desconocido a $0 "en negativo".
   const cashTotal = dash.data?.cash_today?.total;
@@ -94,7 +90,11 @@ function CajaV2Contenido({
   // Sin saldo base: mostramos honestamente los flujos conocidos del período, sin inventar saldo/curva.
   if (!saldoConocido) return <SinSaldoBase buckets={allBuckets} granularity={granularity} />;
 
-  const serie = serieDesdeCashFlow(saldoHoy, buckets, (p) => formatBucketLabel(p, granularity));
+  // La curva muestra la TRAYECTORIA del saldo sobre el rango, anclada en el saldo de hoy: reconstruye
+  // los períodos pasados hacia atrás y proyecta los futuros hacia adelante (sin doble conteo). Un
+  // punto por período; el FLUJO agrega el total del rango (allBuckets).
+  const now = new Date();
+  const serie = serieAnclada(saldoHoy, allBuckets, granularity, now, (p) => formatBucketLabel(p, granularity));
   const minimo = cajaMinimoCLP(cm.data);
   const cruceIdx = minimo != null ? primerCruce(serie.map((s) => s.saldo), minimo) : null;
   const dias = dash.data?.cash_forecast?.days_of_cash ?? null;
@@ -129,11 +129,8 @@ function CajaV2Contenido({
       flujo={<FlujoBlock flujo={flujoDeBuckets(allBuckets)} minimo={minimo} />}
       curva={<CurvaCard serie={serie} minimo={minimo} cruceIdx={cruceIdx} />}
       movibles={
-        // Tabla del período real (allBuckets). El "saldo al cierre" (proyección acumulada) solo
-        // tiene sentido si TODOS los buckets son futuros; con períodos pasados, se omite la columna.
-        allBuckets.length > 0
-          ? buildMovibles(allBuckets, buckets.length === allBuckets.length ? serie : undefined, granularity)
-          : []
+        // Tabla del período (allBuckets); el "saldo al cierre" usa la trayectoria anclada (serie[i]).
+        allBuckets.length > 0 ? buildMovibles(allBuckets, serie, granularity) : []
       }
     />
   );
@@ -200,8 +197,7 @@ function CurvaCard({
       <div className="px-3 py-3">
         {serie.length < 2 ? (
           <p className="px-2 py-8 text-center text-[13px] text-neutral-mid">
-            No hay flujos comprometidos de hoy en adelante para proyectar tu caja. Aparecen acá
-            cuando el reporte tenga entradas o salidas futuras.
+            Elegí un rango con al menos dos períodos para ver la evolución del saldo.
           </p>
         ) : (
           <CajaCurva serie={serie} minimo={minimo} eventos={eventos} />
@@ -216,9 +212,9 @@ function CurvaCard({
   );
 }
 
-/** Tabla de entradas/salidas por período. Con `serie` agrega la columna SALDO AL CIERRE
- *  (saldo al cierre del bucket i = serie[i+1], serie[0] es "hoy"); sin `serie` (no hay saldo
- *  base conocido) omite esa columna en vez de inventar un cierre desde $0. */
+/** Tabla de entradas/salidas por período. Con `serie` (la trayectoria anclada) agrega la columna
+ *  SALDO AL CIERRE — el saldo al cierre del bucket i = serie[i]; sin `serie` (no hay saldo base
+ *  conocido) omite esa columna en vez de inventar un cierre desde $0. */
 function FlowsTable({
   buckets,
   serie,
@@ -259,7 +255,7 @@ function FlowsTable({
                 </td>
                 <td className="px-4 py-2 text-right text-[13px]">{formatClp(parseAmount(b.net))}</td>
                 {conCierre && (
-                  <td className="px-4 py-2 text-right text-[13px] font-bold">{formatClp(serie![i + 1]?.saldo ?? 0)}</td>
+                  <td className="px-4 py-2 text-right text-[13px] font-bold">{formatClp(serie![i]?.saldo ?? 0)}</td>
                 )}
               </tr>
             ))}
