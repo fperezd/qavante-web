@@ -68,6 +68,23 @@ export const PostergabilidadEstimada: Story = {
   },
 };
 
+/** Sin caja proyectada (backend no la calculó): NO se inventa "$0 / faltan $X"; se muestran
+ *  los críticos y se dice que falta el dato de caja (§13, faltante ≠ 0). */
+export const SinCajaProyectada: Story = {
+  args: {
+    cajaProyectada: null,
+    pagosCriticos: 18_100_000,
+    dias: 14,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/falta la caja proyectada/i)).toBeInTheDocument();
+    await expect(canvas.getByText("$18.100.000")).toBeInTheDocument();
+    // NO debe afirmar un faltante calculado sobre caja $0.
+    await expect(canvas.queryByText(/Faltan \$/)).not.toBeInTheDocument();
+  },
+};
+
 /** Con el flag apagado (cuando CC-API mande la postergabilidad real) NO se muestra la nota. */
 export const SinNotaCuandoNoEstimada: Story = {
   args: {

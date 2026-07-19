@@ -103,4 +103,12 @@ describe("mapBrecha", () => {
     expect(b.pagosCriticos).toBe(6_200_000); // 2M vencido + 4.2M F29
     expect(b.postergable).toBe(1_000_000);
   });
+
+  it("projected_cash_14d null → cajaProyectada null (NO $0: faltante ≠ 0, §13)", () => {
+    const items = [item({ label: "F29", category: "tax", due_date: "2026-07-20", amount: "4200000" })];
+    const resp = { projected_cash_14d: null } as unknown as AccountsPayableResponse;
+    const b = mapBrecha(resp, items, NOW);
+    expect(b.cajaProyectada).toBeNull(); // el backend no la calculó → desconocida, no cero
+    expect(b.pagosCriticos).toBe(4_200_000);
+  });
 });

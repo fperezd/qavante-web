@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AmountCountUp } from "@/components/qavante/amount-count-up";
 import { InfoHint } from "@/components/ui/info-hint";
@@ -8,7 +8,7 @@ import { InfoHint } from "@/components/ui/info-hint";
    importa (¿la caja alcanza?). Pagar mira ADELANTE (compromiso futuro + cobertura), por
    eso no lleva sparkline. Presentacional; la cobertura llega ya armada. Baranda. */
 
-export type CoberturaTono = "ok" | "bad";
+export type CoberturaTono = "ok" | "bad" | "neutral";
 
 export interface PagarHeroProps {
   /** Antetítulo, ej. "La empresa debe pagar". */
@@ -33,7 +33,8 @@ export function PagarHero({
   infoHint,
   className,
 }: PagarHeroProps) {
-  const Icon = coberturaTono === "ok" ? CheckCircle2 : AlertTriangle;
+  const Icon =
+    coberturaTono === "ok" ? CheckCircle2 : coberturaTono === "neutral" ? HelpCircle : AlertTriangle;
   return (
     <div className={cn("p-5", className)}>
       <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">{titulo}</p>
@@ -43,7 +44,11 @@ export function PagarHero({
       <div
         className={cn(
           "mt-3 flex items-start gap-2 text-[13px] font-semibold",
-          coberturaTono === "ok" ? "text-success-700" : "text-danger-500",
+          coberturaTono === "ok"
+            ? "text-success-700"
+            : coberturaTono === "neutral"
+              ? "text-neutral-mid"
+              : "text-danger-500",
         )}
       >
         <Icon className="mt-px size-[18px] shrink-0" aria-hidden="true" />

@@ -104,7 +104,9 @@ export function mapConcentracion(items: PayableItem[], topN = 6): ConcentracionI
 }
 
 export interface BrechaInput {
-  cajaProyectada: number;
+  /** Caja proyectada a 14 días. `null` si el backend no la pudo calcular
+   *  (`projected_cash_14d: null`) — NO se degrada a $0 (faltante ≠ 0, §13). */
+  cajaProyectada: number | null;
   pagosCriticos: number;
   postergable: number;
 }
@@ -129,7 +131,9 @@ export function mapBrecha(resp: AccountsPayableResponse, items: PayableItem[], n
     .filter((i) => postergabilidadDe(i) === "negociable" && dentroDe14(i))
     .reduce((s, i) => s + montoCLP(i), 0);
   return {
-    cajaProyectada: parseAmount(resp.projected_cash_14d),
+    // null (no calculable) ≠ $0: si lo tratáramos como cero, mostraríamos un "faltan $X"
+    // seguro sobre una caja que no conocemos. Solo parseamos si hay dato.
+    cajaProyectada: resp.projected_cash_14d == null ? null : parseAmount(resp.projected_cash_14d),
     pagosCriticos: overdueCLP(items, now) + criticos,
     postergable,
   };
