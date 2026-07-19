@@ -93,8 +93,9 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
           <p className="text-sm text-neutral-mid">Sin documentos en el período.</p>
         ) : (
           <ul className="space-y-2.5">
-            {conc.map((c) => (
-              <li key={c.rut} className="space-y-1">
+            {conc.map((c, i) => (
+              // key: el RUT si viene; sin RUT ("—"), nombre+índice para no colisionar dos partes.
+              <li key={c.rut !== "—" ? c.rut : `${c.name}-${i}`} className="space-y-1">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate">
                     <span className="font-medium text-neutral-dark">{c.name}</span>
@@ -103,14 +104,14 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
                   <span className="shrink-0 tabular-nums text-neutral-dark">
                     {formatClp(c.total)}
                     <span className="ml-1 text-xs text-neutral-mid">
-                      ({c.pct.toLocaleString("es-CL", { maximumFractionDigits: 0 })}%)
+                      ({Math.max(0, Math.min(100, c.pct)).toLocaleString("es-CL", { maximumFractionDigits: 0 })}%)
                     </span>
                   </span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-neutral-light/40">
                   <div
                     className="h-full rounded-full bg-brand-primary/70"
-                    style={{ width: `${Math.min(c.pct, 100)}%` }}
+                    style={{ width: `${Math.max(0, Math.min(100, c.pct))}%` }}
                   />
                 </div>
               </li>
