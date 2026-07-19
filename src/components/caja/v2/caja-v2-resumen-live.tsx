@@ -37,18 +37,20 @@ export function CajaV2ResumenLive() {
     return <QavanteInlineError error={cf.error} what="el reporte de caja" onRetry={() => cf.refetch()} />;
   }
 
-  // Proyección DESDE HOY: descartamos las semanas ya pasadas (sus flujos ya están dentro del saldo
-  // de hoy → re-aplicarlos sería doble conteo). Si no queda ninguna, la curva degrada honesto.
-  const buckets = bucketsDesdeHoy((cf.data?.buckets ?? []) as CashFlowBucket[]);
+  const allBuckets = (cf.data?.buckets ?? []) as CashFlowBucket[];
+  // La PROYECCIÓN (curva) arranca DESDE HOY: descarta las semanas ya pasadas (sus flujos ya están
+  // dentro del saldo de hoy → re-aplicarlos sería doble conteo). El FLUJO y la TABLA del período,
+  // en cambio, muestran el mes real (allBuckets) — es dato útil aunque haya ocurrido.
+  const buckets = bucketsDesdeHoy(allBuckets);
   // `cash_today` es un bloque NULLABLE del summary (banco no conectado / fuente caída / 500 del
   // dashboard). Faltante ≠ 0 (§13): NO colapsamos un saldo desconocido a $0 "en negativo".
   const cashTotal = dash.data?.cash_today?.total;
   const saldoConocido = cashTotal != null;
   const saldoHoy = parseAmount(cashTotal);
-  if (!saldoConocido && buckets.length === 0) return <EmptyState />;
+  if (!saldoConocido && allBuckets.length === 0) return <EmptyState />;
 
-  // Sin saldo base: mostramos honestamente los flujos conocidos, sin inventar un saldo/curva.
-  if (!saldoConocido) return <SinSaldoBase buckets={buckets} />;
+  // Sin saldo base: mostramos honestamente los flujos conocidos del mes, sin inventar un saldo/curva.
+  if (!saldoConocido) return <SinSaldoBase buckets={allBuckets} />;
 
   const serie = serieDesdeCashFlow(saldoHoy, buckets, (p) => formatBucketLabel(p, "week"));
   const minimo = cajaMinimoCLP(cm.data);
@@ -82,9 +84,15 @@ export function CajaV2ResumenLive() {
           nota="El saldo por cada cuenta todavía no está disponible"
         />
       }
-      flujo={<FlujoBlock flujo={flujoDeBuckets(buckets)} minimo={minimo} />}
+      flujo={<FlujoBlock flujo={flujoDeBuckets(allBuckets)} minimo={minimo} />}
       curva={<CurvaCard serie={serie} minimo={minimo} cruceIdx={cruceIdx} />}
-      movibles={buildMovibles(buckets, serie)}
+      movibles={
+        // Tabla del mes real (allBuckets). El "saldo al cierre" (proyección acumulada) solo tiene
+        // sentido si TODOS los buckets son futuros; con semanas pasadas, se omite esa columna.
+        allBuckets.length > 0
+          ? buildMovibles(allBuckets, buckets.length === allBuckets.length ? serie : undefined)
+          : []
+      }
     />
   );
 }
@@ -212,7 +220,7 @@ function FlowsTable({ buckets, serie }: { buckets: CashFlowBucket[]; serie?: Sal
   );
 }
 
-function buildMovibles(buckets: CashFlowBucket[], serie: SaldoPunto[]): CajaMovible[] {
+function buildMovibles(buckets: CashFlowBucket[], serie?: SaldoPunto[]): CajaMovible[] {
   return [{ id: "flujo-semanal", label: "Entradas y salidas", node: <FlowsTable buckets={buckets} serie={serie} /> }];
 }
 
