@@ -26,6 +26,9 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     await page.getByRole("tab", { name: "Planilla" }).click();
     await expect(page.getByText("Total haberes")).toBeVisible();
     await expect(page.getByText("Líquido a pagar")).toBeVisible();
+    // Impuesto de remuneraciones (IUSC) — viene del F29 (/sii/f29/impuesto), NO del payroll.
+    await expect(page.getByText("Impuestos (F29)")).toBeVisible();
+    await expect(page.getByText("$618.000")).toBeVisible();
     await expect(page.getByText("Detalle por empleado")).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Haberes" })).toBeVisible();
     await expect(page.getByText("Carla Muñoz Vera")).toBeVisible();

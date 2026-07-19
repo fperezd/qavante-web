@@ -94,12 +94,20 @@ export const ConTotales: Story = {
 
 export const ConDetallePorEmpleado: Story = {
   name: "Con detalle por empleado (conciliación)",
-  args: { period: "2026-03", query: buildQuery({ data: CON_DETALLE }), detalle: DETALLE_EMPLEADOS },
+  args: {
+    period: "2026-03",
+    query: buildQuery({ data: CON_DETALLE }),
+    detalle: DETALLE_EMPLEADOS,
+    // El impuesto de remuneraciones (IUSC) llega del F29 (código 48), no del payroll.
+    impuestoF29: 415934,
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // El total haberes (bruto) del período y la columna de haberes por empleado se muestran.
     await expect(canvas.getByText("Total haberes")).toBeInTheDocument();
     await expect(canvas.getByRole("columnheader", { name: "Haberes" })).toBeInTheDocument();
+    // El impuesto F29 (prop, desde /sii/f29/impuesto) gana sobre el total del payroll.
+    await expect(canvas.getByText("$415.934")).toBeInTheDocument();
   },
 };
 

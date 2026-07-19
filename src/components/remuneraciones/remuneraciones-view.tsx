@@ -10,6 +10,7 @@ import {
   useSyncBukPayroll,
 } from "@/lib/api/buk";
 import { useBankMovements, usePayrollPayday, useSetPayrollPayday } from "@/lib/api/treasury";
+import { useSiiF29Impuesto } from "@/lib/api/sii";
 import { ApiError } from "@/lib/api/errors";
 import { DotacionView } from "./dotacion-view";
 import { PlanillaView } from "./planilla-view";
@@ -54,6 +55,20 @@ export function RemuneracionesView({ initialPeriod }: { initialPeriod?: string }
   const payrollQuery = useBukPayroll({ period: period ?? "" });
   const payrollDetailQuery = useBukPayrollDetail(period);
   const bankQuery = useBankMovements({ period: period ?? "" });
+
+  /* Impuesto de remuneraciones (IUSC, código 48) — NO viene en el payroll de BUK;
+     se declara en el F29. Lo traemos de `/api/sii/f29/impuesto` (fuente BUK) para la
+     tarjeta "Impuestos (F29)" de la Planilla. period = "YYYY-MM". */
+  const [anioRaw, mesRaw] = (period ?? "").split("-");
+  const anio = Number(anioRaw) || 0;
+  const mes = Number(mesRaw) || 0;
+  const f29ImpuestoQuery = useSiiF29Impuesto(anio, mes, undefined, Boolean(period));
+  const impuestoF29 = React.useMemo<number | null | undefined>(() => {
+    const d = f29ImpuestoQuery.data;
+    if (!d) return undefined; // todavía no resuelto → la Planilla cae al total del payroll
+    // Sin dato del período (no_disponible) → null ("En preparación"), no un 0 engañoso.
+    return d.fuente_impuesto_trabajadores === "no_disponible" ? null : d.impuesto_trabajadores;
+  }, [f29ImpuestoQuery.data]);
 
   /* Detalle por empleado (ADR-0057, owner-only). Alimenta la tabla por empleado
      de Planilla y la Conciliación de sueldos. */
@@ -132,6 +147,7 @@ export function RemuneracionesView({ initialPeriod }: { initialPeriod?: string }
             query={payrollQuery}
             detalle={empleados}
             detalleForbidden={detalleForbidden}
+            impuestoF29={impuestoF29}
             periodForm={periodForm}
           />
           {period && payrollQuery.data?.totales && (

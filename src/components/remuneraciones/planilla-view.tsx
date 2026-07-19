@@ -35,6 +35,11 @@ export interface PlanillaViewProps {
   /** El detalle vino 403 (owner-only): distingue "solo para el dueño" de "sin
    *  dato del período". Desde CC-API #542 el owner ya no recibe 403. */
   detalleForbidden?: boolean;
+  /** Impuesto de remuneraciones (IUSC, código 48 del F29) del período. NO viene en
+   *  el payroll de BUK — el page lo resuelve desde `/api/sii/f29/impuesto`
+   *  (`impuesto_trabajadores`, fuente BUK). `undefined` = el page no lo pasó (se cae
+   *  al viejo total del payroll); `null` = consultado pero sin dato → "En preparación". */
+  impuestoF29?: number | null;
   /** Selector de período custom (filtro de rango, idéntico al Libro). Reemplaza
    *  al SiiPeriodForm interno. Aditivo. */
   periodForm?: React.ReactNode;
@@ -46,6 +51,7 @@ export function PlanillaView({
   query,
   detalle = [],
   detalleForbidden = false,
+  impuestoF29,
   periodForm,
 }: PlanillaViewProps) {
   const totales = query.data?.totales;
@@ -94,6 +100,7 @@ export function PlanillaView({
           totales={totales}
           detalle={detalle}
           detalleForbidden={detalleForbidden}
+          impuestoF29={impuestoF29}
         />
       )}
     </div>
@@ -105,13 +112,18 @@ function PlanillaTotales({
   totales,
   detalle,
   detalleForbidden,
+  impuestoF29,
 }: {
   period: string;
   totales: PayrollTotales;
   detalle: EmployeePayroll[];
   detalleForbidden: boolean;
+  impuestoF29?: number | null;
 }) {
   const obligaciones = readPayrollObligaciones(totales as Record<string, unknown>);
+  // El impuesto de remuneraciones (IUSC) NO viene en el payroll de BUK; llega del F29
+  // (código 48, `/api/sii/f29/impuesto`). Si el page lo pasó, gana sobre el payroll.
+  const impuesto = impuestoF29 !== undefined ? impuestoF29 : obligaciones.impuestoF29;
   // Haberes agregados (bruto del período). El campo existe en PayrollTotales; si viniera
   // 0/ausente (conector sin poblarlo) no mostramos el bloque, para no leerse como "$0 de sueldos".
   const totalHaberes =
@@ -166,8 +178,8 @@ function PlanillaTotales({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Metric
             label="Impuestos (F29)"
-            value={obligaciones.impuestoF29}
-            help="Impuesto de remuneraciones (Impuesto Único de 2ª Categoría) a enterar en el F29."
+            value={impuesto}
+            help="Impuesto de remuneraciones (Impuesto Único de 2ª Categoría, código 48) a enterar en el F29."
           />
           <Metric
             label="Imposiciones (Previred)"
@@ -175,11 +187,11 @@ function PlanillaTotales({
             help="Cotizaciones previsionales del período (AFP, salud y seguro de cesantía) a pagar en Previred."
           />
         </div>
-        {(obligaciones.impuestoF29 === null || obligaciones.previred === null) && (
+        {(impuesto === null || obligaciones.previred === null) && (
           <p className="text-xs text-neutral-mid">
             Los montos de <strong>impuestos</strong> e <strong>imposiciones</strong> se están
-            habilitando en el conector de Remuneraciones (vienen de BUK). En cuanto lleguen, se
-            muestran acá.
+            habilitando (el impuesto viene del F29; las imposiciones, de BUK). En cuanto haya dato
+            del período, se muestran acá.
           </p>
         )}
 
