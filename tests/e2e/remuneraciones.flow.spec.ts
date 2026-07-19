@@ -24,8 +24,10 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     // Planilla: auto-carga (filtro de rango, mes actual) → totales agregados +
     // detalle por empleado (ADR-0057).
     await page.getByRole("tab", { name: "Planilla" }).click();
+    await expect(page.getByText("Total haberes")).toBeVisible();
     await expect(page.getByText("Líquido a pagar")).toBeVisible();
     await expect(page.getByText("Detalle por empleado")).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Haberes" })).toBeVisible();
     await expect(page.getByText("Carla Muñoz Vera")).toBeVisible();
 
     // Barra de registro a Pagar (ADR-0056) + confirmación previa (anti-duplicado).

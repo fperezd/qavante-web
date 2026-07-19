@@ -16,6 +16,10 @@ export interface EmployeePayroll {
   id: string;
   nombre: string;
   rut: string | null;
+  /** Total haberes del período (bruto: imponibles + no imponibles, antes de descuentos).
+   *  Contrato FE-first: si el detalle de BUK todavía no lo trae por empleado, queda null y
+   *  la columna no se muestra (no inventa $0). */
+  haberes: number | null;
   /** Líquido del período (lo que se paga → cruza contra el banco). null si falta. */
   liquido: number | null;
 }
@@ -49,6 +53,7 @@ export function normalizePayrollDetalle(
       id: idRaw != null ? String(idRaw) : "",
       nombre: str(r.nombre) ?? str(r.full_name) ?? str(r.name) ?? "Sin nombre",
       rut: str(r.rut),
+      haberes: firstNum(r.total_haberes, r.haberes, r.haber_total, r.total_haber),
       liquido: firstNum(r.liquido, r.monto_liquido, r.total_liquido, r.liquid),
     };
   });
@@ -96,6 +101,17 @@ export function readPayrollObligaciones(
 /** Suma los líquidos del detalle (para cuadrar contra el total agregado). */
 export function sumLiquido(rows: EmployeePayroll[]): number {
   return rows.reduce((acc, r) => acc + (r.liquido ?? 0), 0);
+}
+
+/** ¿El detalle trae haberes por empleado? (Basta uno con dato: el backend los expone
+ *  todos o ninguno.) Si es false, la columna de haberes no se muestra. */
+export function tieneHaberesPorEmpleado(rows: EmployeePayroll[]): boolean {
+  return rows.some((r) => r.haberes !== null);
+}
+
+/** Suma los haberes del detalle (para el pie de la tabla). Ignora nulls. */
+export function sumHaberes(rows: EmployeePayroll[]): number {
+  return rows.reduce((acc, r) => acc + (r.haberes ?? 0), 0);
 }
 
 /** ¿La suma del detalle cuadra con el total agregado del período? (Tolerancia

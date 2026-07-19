@@ -2893,10 +2893,12 @@ const bukHandlers = [
       {
         status: "ok",
         period: "2026-06",
+        // `total_haberes` por empleado (bruto) es contrato FE-first (pendiente CC-API en
+        // /payroll/detail). El FE lo lee tolerante; suma 18.450.000 = el total agregado.
         empleados: [
-          { employee_id: 1, nombre: "Ana Pérez Soto", rut: "12.345.678-9", liquido: 5000000 },
-          { employee_id: 2, nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", liquido: 5000000 },
-          { employee_id: 3, nombre: "Carla Muñoz Vera", rut: "15.111.222-3", liquido: 4330000 },
+          { employee_id: 1, nombre: "Ana Pérez Soto", rut: "12.345.678-9", total_haberes: 6300000, liquido: 5000000 },
+          { employee_id: 2, nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", total_haberes: 6300000, liquido: 5000000 },
+          { employee_id: 3, nombre: "Carla Muñoz Vera", rut: "15.111.222-3", total_haberes: 5850000, liquido: 4330000 },
         ],
       },
       { status: 200 },

@@ -13,7 +13,9 @@ import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import {
   detalleCuadra,
   readPayrollObligaciones,
+  sumHaberes,
   sumLiquido,
+  tieneHaberesPorEmpleado,
   type EmployeePayroll,
 } from "./payroll-detalle";
 
@@ -110,6 +112,12 @@ function PlanillaTotales({
   detalleForbidden: boolean;
 }) {
   const obligaciones = readPayrollObligaciones(totales as Record<string, unknown>);
+  // Haberes agregados (bruto del período). El campo existe en PayrollTotales; si viniera
+  // 0/ausente (conector sin poblarlo) no mostramos el bloque, para no leerse como "$0 de sueldos".
+  const totalHaberes =
+    typeof totales.total_haberes === "number" && totales.total_haberes > 0
+      ? totales.total_haberes
+      : null;
   return (
     <QavanteCard
       variant="bordered"
@@ -124,19 +132,37 @@ function PlanillaTotales({
       }
     >
       <div className="space-y-4">
-        {/* Líquido = figura principal */}
-        <div className="rounded-xl bg-brand-primary-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-primary-700">
-            Líquido a pagar
-          </p>
-          <p className="mt-1 text-3xl font-bold tabular-nums text-brand-deep">
-            {formatClp(totales.total_liquido)}
-          </p>
+        {/* Total haberes (bruto) → Líquido (neto): lo que gana el equipo antes y después de
+            descuentos. Si el conector no pobló los haberes, se muestra solo el líquido. */}
+        <div className={totalHaberes !== null ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : ""}>
+          {totalHaberes !== null && (
+            <div className="rounded-xl border border-border bg-surface-muted p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-neutral-mid">
+                Total haberes
+              </p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-neutral-dark">
+                {formatClp(totalHaberes)}
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-neutral-mid">
+                Lo que gana el equipo antes de descuentos (imponibles + no imponibles).
+              </p>
+            </div>
+          )}
+          <div className="rounded-xl bg-brand-primary-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-primary-700">
+              Líquido a pagar
+            </p>
+            <p className="mt-1 text-3xl font-bold tabular-nums text-brand-deep">
+              {formatClp(totales.total_liquido)}
+            </p>
+            <p className="mt-1 text-[11px] leading-snug text-neutral-mid">
+              Lo que se deposita, después de descuentos.
+            </p>
+          </div>
         </div>
 
         {/* Además del líquido, la planilla genera dos desembolsos: el impuesto de
-            remuneraciones que se entera en el F29 y las cotizaciones a Previred.
-            Es lo útil de mostrar (haberes/descuentos/imponible no aportan). */}
+            remuneraciones que se entera en el F29 y las cotizaciones a Previred. */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Metric
             label="Impuestos (F29)"
@@ -194,6 +220,8 @@ function DetalleEmpleados({
 }) {
   const cuadra = detalleCuadra(detalle, totalLiquido);
   const suma = sumLiquido(detalle);
+  const conHaberes = tieneHaberesPorEmpleado(detalle);
+  const sumaHaberes = sumHaberes(detalle);
 
   return (
     <div className="space-y-2">
@@ -220,7 +248,7 @@ function DetalleEmpleados({
       </div>
 
       <div className={stickyScroll}>
-        <table className="w-full min-w-[520px] text-sm">
+        <table className={"w-full text-sm " + (conHaberes ? "min-w-[640px]" : "min-w-[520px]")}>
           <thead className={stickyHead}>
             <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
               <th scope="col" className="py-2 pr-3 font-semibold">
@@ -229,6 +257,11 @@ function DetalleEmpleados({
               <th scope="col" className="py-2 pr-3 font-semibold">
                 RUT
               </th>
+              {conHaberes && (
+                <th scope="col" className="py-2 pr-3 text-right font-semibold">
+                  Haberes
+                </th>
+              )}
               <th scope="col" className="py-2 text-right font-semibold">
                 Líquido
               </th>
@@ -244,6 +277,11 @@ function DetalleEmpleados({
                 <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
                   {e.rut ? formatRut(e.rut) : "—"}
                 </td>
+                {conHaberes && (
+                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+                    {e.haberes !== null ? formatClp(e.haberes) : "—"}
+                  </td>
+                )}
                 <td className="py-2 text-right tabular-nums font-medium text-neutral-dark">
                   {e.liquido !== null ? formatClp(e.liquido) : "—"}
                 </td>
@@ -258,6 +296,11 @@ function DetalleEmpleados({
               >
                 Suma del detalle
               </td>
+              {conHaberes && (
+                <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+                  {formatClp(sumaHaberes)}
+                </td>
+              )}
               <td className="py-2 text-right tabular-nums text-neutral-dark">{formatClp(suma)}</td>
             </tr>
           </tfoot>

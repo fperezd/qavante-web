@@ -3,7 +3,9 @@ import {
   detalleCuadra,
   normalizePayrollDetalle,
   readPayrollObligaciones,
+  sumHaberes,
   sumLiquido,
+  tieneHaberesPorEmpleado,
   type EmployeePayroll,
 } from "./payroll-detalle";
 import type { PayrollResponse } from "@/lib/api/buk";
@@ -18,24 +20,58 @@ describe("payroll-detalle · normalizePayrollDetalle", () => {
     expect(normalizePayrollDetalle({ status: "ok" } as PayrollResponse)).toEqual([]);
   });
 
-  it("lee employee_id/nombre/rut/liquido", () => {
+  it("lee employee_id/nombre/rut/haberes/liquido", () => {
     const rows = normalizePayrollDetalle(
-      resp([{ employee_id: 7, nombre: "Ana Pérez", rut: "12.345.678-9", liquido: 850000 }]),
+      resp([
+        {
+          employee_id: 7,
+          nombre: "Ana Pérez",
+          rut: "12.345.678-9",
+          total_haberes: 1100000,
+          liquido: 850000,
+        },
+      ]),
     );
-    expect(rows).toEqual([{ id: "7", nombre: "Ana Pérez", rut: "12.345.678-9", liquido: 850000 }]);
+    expect(rows).toEqual([
+      { id: "7", nombre: "Ana Pérez", rut: "12.345.678-9", haberes: 1100000, liquido: 850000 },
+    ]);
   });
 
-  it("tolera nombres alternativos (id/full_name/monto_liquido)", () => {
+  it("tolera nombres alternativos (id/full_name/monto_liquido/haberes)", () => {
     const rows = normalizePayrollDetalle(
-      resp([{ id: "9", full_name: "Beto", monto_liquido: 700000 }]),
+      resp([{ id: "9", full_name: "Beto", haberes: 900000, monto_liquido: 700000 }]),
     );
-    expect(rows[0]).toEqual({ id: "9", nombre: "Beto", rut: null, liquido: 700000 });
+    expect(rows[0]).toEqual({ id: "9", nombre: "Beto", rut: null, haberes: 900000, liquido: 700000 });
   });
 
-  it("tolera líquido/rut ausentes → null", () => {
-    const rows = normalizePayrollDetalle(resp([{ employee_id: 1, nombre: "X" }]));
-    expect(rows[0]?.liquido).toBeNull();
-    expect(rows[0]?.rut).toBeNull();
+  it("tolera haberes/líquido/rut ausentes → null (el detalle solo trae líquido)", () => {
+    const rows = normalizePayrollDetalle(resp([{ employee_id: 1, nombre: "X", liquido: 500000 }]));
+    expect(rows[0]?.haberes).toBeNull();
+    const sinLiquido = normalizePayrollDetalle(resp([{ employee_id: 1, nombre: "X" }]));
+    expect(sinLiquido[0]?.liquido).toBeNull();
+    expect(sinLiquido[0]?.rut).toBeNull();
+  });
+});
+
+describe("payroll-detalle · haberes por empleado", () => {
+  const conHaberes: EmployeePayroll[] = [
+    { id: "1", nombre: "A", rut: null, haberes: 600000, liquido: 500000 },
+    { id: "2", nombre: "B", rut: null, haberes: 400000, liquido: 300000 },
+    { id: "3", nombre: "C", rut: null, haberes: null, liquido: null },
+  ];
+  const soloLiquido: EmployeePayroll[] = [
+    { id: "1", nombre: "A", rut: null, haberes: null, liquido: 500000 },
+  ];
+
+  it("tieneHaberesPorEmpleado: true si al menos uno trae haberes", () => {
+    expect(tieneHaberesPorEmpleado(conHaberes)).toBe(true);
+    expect(tieneHaberesPorEmpleado(soloLiquido)).toBe(false);
+    expect(tieneHaberesPorEmpleado([])).toBe(false);
+  });
+
+  it("sumHaberes ignora nulls", () => {
+    expect(sumHaberes(conHaberes)).toBe(1000000);
+    expect(sumHaberes(soloLiquido)).toBe(0);
   });
 });
 
@@ -71,9 +107,9 @@ describe("payroll-detalle · readPayrollObligaciones", () => {
 
 describe("payroll-detalle · sumLiquido / detalleCuadra", () => {
   const rows: EmployeePayroll[] = [
-    { id: "1", nombre: "A", rut: null, liquido: 500000 },
-    { id: "2", nombre: "B", rut: null, liquido: 300000 },
-    { id: "3", nombre: "C", rut: null, liquido: null },
+    { id: "1", nombre: "A", rut: null, haberes: null, liquido: 500000 },
+    { id: "2", nombre: "B", rut: null, haberes: null, liquido: 300000 },
+    { id: "3", nombre: "C", rut: null, haberes: null, liquido: null },
   ];
 
   it("sumLiquido ignora nulls", () => {
