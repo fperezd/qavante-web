@@ -15,6 +15,7 @@ import type { CollectionForecastResponse, CashCycleResponse } from "@/lib/api/tr
 import type { PagosTimelineProps, PagoCritico, Postergabilidad } from "./pagos-timeline";
 import type { ResultadoPreliminarProps, ResultadoExtra } from "./resultado-preliminar";
 import { parseAmount } from "../dashboard-format";
+import { describeCashGap14d } from "../cash-gap-14d";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 
@@ -96,8 +97,16 @@ export function mapEstadoBrecha(s: DashboardSummaryV2): EstadoBrecha {
   const g = s.cash_gap;
   if (!g) return { tipo: "sin_dato" };
   if (!g.has_gap) return { tipo: "cubierto" };
-  const gap = parseAmount(g.critical_obligations_14d) - parseAmount(g.projected_cash_14d);
-  return gap > 0 ? { tipo: "brecha", monto: gap } : { tipo: "indeterminado" };
+  // "Brecha" (dispara el plan de cierre = cobrar + financiar obligaciones) SOLO si hay
+  // obligaciones críticas reales y la caja no alcanza. Con críticas en $0 el `faltante` sería
+  // la caja negativa, no una brecha de pagos → NO es un plan a ejecutar (queda indeterminado).
+  const gap = describeCashGap14d(
+    parseAmount(g.critical_obligations_14d),
+    parseAmount(g.projected_cash_14d),
+  );
+  return gap.kind === "shortfall" && gap.faltante > 0
+    ? { tipo: "brecha", monto: gap.faltante }
+    : { tipo: "indeterminado" };
 }
 
 /** Brecha total a 14 días (positivo) cuando se pudo cuantificar; `null` en el resto de los casos.
