@@ -13,8 +13,10 @@ import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import {
   detalleCuadra,
   readPayrollObligaciones,
+  sumCostoEmpresa,
   sumHaberes,
   sumLiquido,
+  tieneCostoEmpresa,
   tieneHaberesPorEmpleado,
   type EmployeePayroll,
 } from "./payroll-detalle";
@@ -130,6 +132,17 @@ function PlanillaTotales({
     typeof totales.total_haberes === "number" && totales.total_haberes > 0
       ? totales.total_haberes
       : null;
+  // Costo empresa del período: el payroll no trae un agregado, pero el detalle sí lo trae
+  // por empleado (costo_empresa) → lo sumamos. null si el detalle no está (no-owner/sin dato).
+  const costoEmpresaTotal = tieneCostoEmpresa(detalle) ? sumCostoEmpresa(detalle) : null;
+  // Tarjetas grandes visibles: Líquido siempre; Haberes y Costo empresa si hay dato.
+  const bigCards = 1 + (totalHaberes !== null ? 1 : 0) + (costoEmpresaTotal !== null ? 1 : 0);
+  const bigGrid =
+    bigCards >= 3
+      ? "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      : bigCards === 2
+        ? "grid grid-cols-1 gap-3 sm:grid-cols-2"
+        : "";
   return (
     <QavanteCard
       variant="bordered"
@@ -144,9 +157,9 @@ function PlanillaTotales({
       }
     >
       <div className="space-y-4">
-        {/* Total haberes (bruto) → Líquido (neto): lo que gana el equipo antes y después de
-            descuentos. Si el conector no pobló los haberes, se muestra solo el líquido. */}
-        <div className={totalHaberes !== null ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : ""}>
+        {/* Lo que gana el equipo (haberes → líquido) y lo que le cuesta a la empresa (costo
+            empresa = líquido + leyes sociales). Se muestran las tarjetas que tienen dato. */}
+        <div className={bigGrid}>
           {totalHaberes !== null && (
             <div className="rounded-xl border border-border bg-surface-muted p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-neutral-mid">
@@ -171,6 +184,19 @@ function PlanillaTotales({
               Lo que se deposita, después de descuentos.
             </p>
           </div>
+          {costoEmpresaTotal !== null && (
+            <div className="rounded-xl border border-border bg-surface-muted p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-neutral-mid">
+                Costo empresa
+              </p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-neutral-dark">
+                {formatClp(costoEmpresaTotal)}
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-neutral-mid">
+                Lo que le cuesta el equipo a la empresa: líquido + leyes sociales.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Además del líquido, la planilla genera dos desembolsos: el impuesto de
@@ -234,6 +260,9 @@ function DetalleEmpleados({
   const suma = sumLiquido(detalle);
   const conHaberes = tieneHaberesPorEmpleado(detalle);
   const sumaHaberes = sumHaberes(detalle);
+  const conCosto = tieneCostoEmpresa(detalle);
+  const sumaCosto = sumCostoEmpresa(detalle);
+  const anchas = (conHaberes ? 1 : 0) + (conCosto ? 1 : 0); // columnas $ extra sobre Líquido
 
   return (
     <div className="space-y-2">
@@ -260,7 +289,7 @@ function DetalleEmpleados({
       </div>
 
       <div className={stickyScroll}>
-        <table className={"w-full text-sm " + (conHaberes ? "min-w-[640px]" : "min-w-[520px]")}>
+        <table className={"w-full text-sm " + (anchas >= 2 ? "min-w-[720px]" : anchas === 1 ? "min-w-[640px]" : "min-w-[520px]")}>
           <thead className={stickyHead}>
             <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
               <th scope="col" className="py-2 pr-3 font-semibold">
@@ -272,6 +301,11 @@ function DetalleEmpleados({
               {conHaberes && (
                 <th scope="col" className="py-2 pr-3 text-right font-semibold">
                   Haberes
+                </th>
+              )}
+              {conCosto && (
+                <th scope="col" className="py-2 pr-3 text-right font-semibold">
+                  Costo empresa
                 </th>
               )}
               <th scope="col" className="py-2 text-right font-semibold">
@@ -294,6 +328,11 @@ function DetalleEmpleados({
                     {e.haberes !== null ? formatClp(e.haberes) : "—"}
                   </td>
                 )}
+                {conCosto && (
+                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+                    {e.costoEmpresa !== null ? formatClp(e.costoEmpresa) : "—"}
+                  </td>
+                )}
                 <td className="py-2 text-right tabular-nums font-medium text-neutral-dark">
                   {e.liquido !== null ? formatClp(e.liquido) : "—"}
                 </td>
@@ -311,6 +350,11 @@ function DetalleEmpleados({
               {conHaberes && (
                 <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
                   {formatClp(sumaHaberes)}
+                </td>
+              )}
+              {conCosto && (
+                <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+                  {formatClp(sumaCosto)}
                 </td>
               )}
               <td className="py-2 text-right tabular-nums text-neutral-dark">{formatClp(suma)}</td>

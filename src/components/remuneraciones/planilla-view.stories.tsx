@@ -56,9 +56,9 @@ const CON_DETALLE = {
 /* El detalle por empleado lo resuelve el page (desde /api/buk/payroll/detail) y lo pasa
    como prop `detalle` — no viaja dentro de `query.data`. Trae haberes + líquido por persona. */
 const DETALLE_EMPLEADOS: EmployeePayroll[] = [
-  { id: "1", nombre: "Ana Pérez Soto", rut: "12.345.678-9", haberes: 1580000, liquido: 1200000 },
-  { id: "2", nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", haberes: 1320000, liquido: 1000000 },
-  { id: "3", nombre: "Carla Muñoz Vera", rut: "15.111.222-3", haberes: 900000, liquido: 700000 },
+  { id: "1", nombre: "Ana Pérez Soto", rut: "12.345.678-9", haberes: 1580000, costoEmpresa: 1720000, liquido: 1200000 },
+  { id: "2", nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", haberes: 1320000, costoEmpresa: 1450000, liquido: 1000000 },
+  { id: "3", nombre: "Carla Muñoz Vera", rut: "15.111.222-3", haberes: 900000, costoEmpresa: 980000, liquido: 700000 },
 ];
 
 const meta = {
@@ -106,6 +106,9 @@ export const ConDetallePorEmpleado: Story = {
     // El total haberes (bruto) del período y la columna de haberes por empleado se muestran.
     await expect(canvas.getByText("Total haberes")).toBeInTheDocument();
     await expect(canvas.getByRole("columnheader", { name: "Haberes" })).toBeInTheDocument();
+    // Costo empresa: tarjeta agregada + columna por empleado ("Costo empresa" aparece en
+    // ambas → verificamos la columna por rol, que es inequívoca).
+    await expect(canvas.getByRole("columnheader", { name: "Costo empresa" })).toBeInTheDocument();
     // El impuesto F29 (prop, desde /sii/f29/impuesto) gana sobre el total del payroll.
     await expect(canvas.getByText("$415.934")).toBeInTheDocument();
   },
