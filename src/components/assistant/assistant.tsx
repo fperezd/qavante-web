@@ -229,9 +229,9 @@ function AssistantBubble({
     <div className="flex flex-col items-start gap-1.5">
       {turn.tools_used.length > 0 && (
         <ul className="flex flex-wrap gap-1.5">
-          {turn.tools_used.map((tool) => (
+          {turn.tools_used.map((tool, i) => (
             <li
-              key={tool}
+              key={`${tool}-${i}`}
               className="inline-flex items-center gap-1 rounded-full bg-neutral-light/40 px-2 py-0.5 text-[11px] text-neutral-mid"
             >
               <Search className="h-3 w-3" aria-hidden="true" />
@@ -245,8 +245,8 @@ function AssistantBubble({
       </p>
       {turn.sources.length > 0 && (
         <ul className="flex flex-wrap gap-2 pl-1">
-          {turn.sources.map((s) => (
-            <li key={s.url}>
+          {turn.sources.map((s, i) => (
+            <li key={`${s.url}-${i}`}>
               <Link
                 href={s.url}
                 className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"

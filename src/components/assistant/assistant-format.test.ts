@@ -29,15 +29,20 @@ describe("sanitizeAssistantContent — defensa en profundidad ADR-0004", () => {
     ).toBe("Tu caja es $4,2M.");
   });
 
-  it("elimina tags <thinking> sueltos (apertura sin cierre)", () => {
-    expect(sanitizeAssistantContent("Hola <thinking> fuga")).toBe("Hola  fuga".trim());
+  it("apertura <thinking> SIN cierre → corta hasta el final (no filtra el razonamiento)", () => {
+    // Antes quedaba "Hola  fuga" (la prosa colada seguía visible). Ahora falla cerrado.
+    expect(sanitizeAssistantContent("Hola <thinking> fuga")).toBe("Hola");
   });
 
-  it("elimina marcador markdown **Thinking:**", () => {
-    expect(sanitizeAssistantContent("**Thinking:** interno\nTu resultado mejoró.")).toContain(
+  it("marcador **Thinking:** → elimina el marcador Y su línea de razonamiento, deja la respuesta", () => {
+    expect(sanitizeAssistantContent("**Thinking:** interno\nTu resultado mejoró.")).toBe(
       "Tu resultado mejoró.",
     );
-    expect(sanitizeAssistantContent("**Thinking:** interno")).not.toMatch(/thinking/i);
+    // El caso de fuga real: razonamiento + doble salto + respuesta.
+    expect(
+      sanitizeAssistantContent("**Thinking:** el cliente debe $2M, sugerir cobrar.\n\nTienes $2M en mora."),
+    ).toBe("Tienes $2M en mora.");
+    expect(sanitizeAssistantContent("**Thinking:** interno")).toBe("");
   });
 
   it("es case-insensitive con los marcadores", () => {
