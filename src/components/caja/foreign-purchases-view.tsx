@@ -51,7 +51,10 @@ export function ForeignPurchasesView() {
     );
   }
 
-  const pending = items.filter((p) => p.needs_review).length;
+  // El estado de CLASIFICACIÓN es `status`, no `needs_review` (que es un flag de resolución del
+  // tipo de cambio). Una compra con el FX resuelto pero sin clasificar (`status: "sin_clasificar"`)
+  // debe seguir apareciendo como pendiente.
+  const pending = items.filter((p) => p.status !== "clasificada").length;
 
   return (
     <QavanteCard
@@ -109,7 +112,7 @@ function PurchaseRow({ purchase: p }: { purchase: ForeignPurchaseItem }) {
         </div>
       </div>
 
-      {p.needs_review ? (
+      {p.status !== "clasificada" ? (
         <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
           <div className="min-w-[8rem] flex-1 space-y-1">
             <label htmlFor={`concept-${p.id}`} className="text-xs text-neutral-mid">

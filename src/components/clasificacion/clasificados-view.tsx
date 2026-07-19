@@ -174,8 +174,11 @@ export function ClasificadosView() {
     () => sumAmount(filtered.filter((m) => m.direction === "credit")),
     [filtered],
   );
+  // Los débitos llegan con monto NEGATIVO (contrato del banco). Para el neto y el "Egresos"
+  // del pie se usa la MAGNITUD (como las celdas de fila y el bloque Stats, que ya hacen Math.abs);
+  // si no, `neto = credit − (−debit)` daba credit+|debit| (signo y magnitud equivocados).
   const totalDebit = React.useMemo(
-    () => sumAmount(filtered.filter((m) => m.direction === "debit")),
+    () => Math.abs(sumAmount(filtered.filter((m) => m.direction === "debit"))),
     [filtered],
   );
   const neto = totalCredit - totalDebit;
