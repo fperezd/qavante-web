@@ -53,10 +53,13 @@ export interface VentasHeroProps {
   className?: string;
 }
 
-/** "+8%" / "−8%" con el menos tipográfico (U+2212), como el resto de las cifras. */
+/** "+8%" / "−8%" con el menos tipográfico (U+2212), como el resto de las cifras. Una variación
+ *  que redondea a 0 (ej. −0,3%) se muestra como "0%" SIN signo — no "+0%" (que con Math.round(−0.3)
+ *  = −0 daba signo "+" contra una flecha roja hacia abajo). */
 function formatPct(pct: number): string {
   const rounded = Math.round(pct);
-  return `${rounded >= 0 ? "+" : "−"}${Math.abs(rounded)}%`;
+  if (rounded === 0) return "0%";
+  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded)}%`;
 }
 
 function Comparativo({ pct, label }: HeroComparativo) {
