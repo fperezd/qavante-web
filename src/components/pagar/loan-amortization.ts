@@ -32,6 +32,9 @@ export function loanPreview(
   return {
     monthlyPayment,
     totalToPay,
-    totalInterest: totalToPay - principal,
+    // El interés no puede ser negativo: con tasa 0 es exactamente 0; el resto sería el drift de
+    // redondear la cuota (que lo absorbe la última cuota en el calendario real). Clamp a ≥ 0 para
+    // no mostrar un "−$1" fantasma en préstamos sin interés.
+    totalInterest: Math.max(0, totalToPay - principal),
   };
 }

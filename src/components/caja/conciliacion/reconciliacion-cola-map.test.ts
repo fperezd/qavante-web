@@ -103,6 +103,19 @@ describe("mapCola", () => {
     expect(mapCola(resp).map((f) => f.id)).toEqual(["b", "a", "c"]);
   });
 
+  it("sin score, ordena por fecha ISO cronológica (más reciente primero), no por día del mes", () => {
+    // Bug viejo: comparaba la fecha formateada "DD-MM-YYYY" → "05-01-2026" < "30-12-2025"
+    // (por el día 05 < 30) ponía dic-2025 como "más reciente". Con la fecha ISO cruda se ordena bien.
+    const resp = {
+      count: 2,
+      items: [
+        item({ movement_id: "viejo", date: "2025-12-30", suggestion: { score: null } }),
+        item({ movement_id: "nuevo", date: "2026-01-05", suggestion: { score: null } }),
+      ],
+    };
+    expect(mapCola(resp).map((f) => f.id)).toEqual(["nuevo", "viejo"]);
+  });
+
   it("respuesta vacía o undefined → []", () => {
     expect(mapCola(undefined)).toEqual([]);
     expect(mapCola({ count: 0, items: [] })).toEqual([]);

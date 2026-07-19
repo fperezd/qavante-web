@@ -9,6 +9,12 @@ describe("loanPreview — amortización francesa", () => {
     expect(p?.totalInterest).toBe(0);
   });
 
+  it("sin interés con capital que no divide exacto: interés = 0, no un −$1 fantasma", () => {
+    const p = loanPreview(1000000, 0, 3); // 1.000.000 / 3 = 333.333,33 → cuota 333.333
+    expect(p?.monthlyPayment).toBe(333333);
+    expect(p?.totalInterest).toBe(0); // antes: 999.999 − 1.000.000 = −1
+  });
+
   it("con interés mensual: cuota > capital/n y hay interés total", () => {
     const p = loanPreview(12000000, 0.015, 12);
     expect(p).not.toBeNull();
