@@ -29,18 +29,26 @@ export function toolLabel(tool: string): string {
    backend falla. NO toca el resto del texto (es conservador: solo marcadores
    inequívocos, sin heurísticas tipo `palabra(` que mutilarían prosa legítima). */
 const THINKING_BLOCK = /<thinking>[\s\S]*?<\/thinking>/gi;
-const THINKING_TAG = /<\/?thinking>/gi;
-const THINKING_MD = /\*\*\s*thinking\s*:?\s*\*\*/gi;
+// Apertura sin cierre → todo lo que le sigue es razonamiento colado: se elimina HASTA EL FINAL
+// (antes solo se quitaba el tag y la prosa quedaba visible — la fuga que documentaba el test).
+const THINKING_UNCLOSED = /<thinking>[\s\S]*$/i;
+// Un `</thinking>` suelto (sin apertura).
+const THINKING_STRAY_CLOSE = /<\/thinking>/gi;
+// Marcador markdown `**Thinking:**` + el RESTO DE SU LÍNEA (donde vive el razonamiento). Se corta
+// hasta el `\n` (no hasta `\n\n`, que mutilaría la respuesta si va en el párrafo siguiente).
+const THINKING_MD_LINE = /\*\*\s*thinking\s*:?\s*\*\*[^\n]*(?:\n|$)/gi;
 
-/** Sanitiza el `content` del asistente antes de mostrarlo: elimina bloques y
-   marcadores de reasoning (`<thinking>…</thinking>`, `**Thinking:**`) y normaliza
-   espacios. Idempotente. Texto sin marcadores → sin cambios (salvo trim). */
+/** Sanitiza el `content` del asistente antes de mostrarlo (defensa en profundidad, ADR-0004):
+   elimina bloques y marcadores de reasoning y su contenido, y normaliza espacios. Idempotente.
+   Falla CERRADO ante marcadores mal formados (tag sin cerrar / `**Thinking:**` prefijo) — prefiere
+   cortar de más antes que filtrar el razonamiento. Texto sin marcadores → sin cambios (salvo trim). */
 export function sanitizeAssistantContent(content: string | null | undefined): string {
   if (!content) return "";
   return content
     .replace(THINKING_BLOCK, "")
-    .replace(THINKING_TAG, "")
-    .replace(THINKING_MD, "")
+    .replace(THINKING_UNCLOSED, "")
+    .replace(THINKING_STRAY_CLOSE, "")
+    .replace(THINKING_MD_LINE, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
