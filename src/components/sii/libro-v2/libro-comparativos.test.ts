@@ -3,6 +3,7 @@ import {
   pctCambio,
   promedio,
   netoDocs,
+  netosYoY,
   diaDelMes,
   docsHastaDiaDelMes,
   calcularComparativos,
@@ -121,6 +122,27 @@ describe("calcularComparativos", () => {
       diaCorte: 10,
     });
     expect(out[0]?.pct).toBeCloseTo(25); // (1000-800)/800
+  });
+});
+
+describe("netosYoY (mes en curso truncado a la fecha de corte)", () => {
+  const byPeriod: Record<string, RcvDoc[]> = {
+    "2026-06": [fac(1000, "2026-06-30")], // mes del rango, completo
+    "2026-07": [fac(500, "2026-07-05"), fac(700, "2026-07-25")], // mes EN CURSO: solo el del día 5
+    "2025-06": [fac(900, "2025-06-30")],
+    "2025-07": [fac(400, "2025-07-05"), fac(600, "2025-07-25")], // jul del año pasado: solo el del día 5
+  };
+  const docsDe = (p: string) => byPeriod[p] ?? [];
+
+  it("trunca el mes actual Y su contraparte del año pasado a diaCorte; el resto va completo", () => {
+    const out = netosYoY(["2026-06", "2026-07"], ["2025-06", "2025-07"], docsDe, "2026-07", 10);
+    expect(out.netoPeriodo).toBe(1500); // 1000 (jun) + 500 (jul ≤ día 10)
+    expect(out.netoPeriodoAnioAnterior).toBe(1300); // 900 (jun) + 400 (jul ≤ día 10)
+  });
+
+  it("si el mes actual NO está en el rango, todos los meses van completos", () => {
+    const out = netosYoY(["2026-06"], ["2025-06"], docsDe, "2026-07", 10);
+    expect(out).toEqual({ netoPeriodo: 1000, netoPeriodoAnioAnterior: 900 });
   });
 });
 
