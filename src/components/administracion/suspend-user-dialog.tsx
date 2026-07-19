@@ -26,6 +26,9 @@ export function SuspendUserDialog({ user, open, onOpenChange }: SuspendUserDialo
 
   const target: "active" | "suspended" = user.status === "suspended" ? "active" : "suspended";
   const isReactivating = target === "active";
+  // Un invitado (aún no aceptó) no tiene sesión que cerrar: la acción es CANCELAR la invitación
+  // (el backend solo ofrece status active/suspended → suspenderlo la revoca). Copy honesta aparte.
+  const isInvited = user.status === "invited";
 
   async function onConfirm() {
     if (!user) return;
@@ -54,7 +57,7 @@ export function SuspendUserDialog({ user, open, onOpenChange }: SuspendUserDialo
           <div className="mb-4 flex items-start justify-between">
             <Dialog.Title className="flex items-center gap-2 text-lg font-semibold text-neutral-dark">
               {!isReactivating && <AlertTriangle className="h-5 w-5 text-warning-500" />}
-              {isReactivating ? "Reactivar usuario" : "Suspender usuario"}
+              {isReactivating ? "Reactivar usuario" : isInvited ? "Cancelar invitación" : "Suspender usuario"}
             </Dialog.Title>
             <Dialog.Close
               aria-label="Cerrar"
@@ -68,6 +71,11 @@ export function SuspendUserDialog({ user, open, onOpenChange }: SuspendUserDialo
               <>
                 <strong>{user.name ?? user.email}</strong> va a poder volver a iniciar sesión y
                 acceder según su rol ({user.role}).
+              </>
+            ) : isInvited ? (
+              <>
+                <strong>{user.name ?? user.email}</strong> ya no va a poder aceptar la invitación ni
+                acceder a la empresa.
               </>
             ) : (
               <>
@@ -96,7 +104,7 @@ export function SuspendUserDialog({ user, open, onOpenChange }: SuspendUserDialo
               loading={update.isPending}
               onClick={onConfirm}
             >
-              {isReactivating ? "Reactivar" : "Suspender"}
+              {isReactivating ? "Reactivar" : isInvited ? "Cancelar invitación" : "Suspender"}
             </QavanteButton>
           </div>
         </Dialog.Popup>

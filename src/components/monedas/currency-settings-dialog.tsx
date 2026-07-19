@@ -91,6 +91,21 @@ export function CurrencySettingsDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportingKey, defaultReporting, setValue]);
 
+  /* Espejo del anterior: si la moneda FUNCIONAL pasa a ser una que también está tildada como
+     moneda de reporte, su checkbox desaparece (excludeCode) pero el código queda en la lista → el
+     refine "la funcional no puede ser de reporte" bloquea el submit y el user no puede destildarla
+     (dead-end). La sacamos automáticamente. Converge: al quedar fuera, no vuelve a dispararse. */
+  React.useEffect(() => {
+    if (functionalCode && reportingCodes.includes(functionalCode)) {
+      setValue(
+        "reporting_currency_codes",
+        reportingCodes.filter((c) => c !== functionalCode),
+        { shouldDirty: true, shouldValidate: true },
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [functionalCode, reportingKey, setValue]);
+
   async function onSubmit(values: SettingsFormValues) {
     setSubmitError(null);
     try {
