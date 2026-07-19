@@ -36,21 +36,38 @@ export function serieDesdeCashFlow(
   ];
 }
 
-/** ¿El bucket semanal ya terminó ANTES de `now`? Se usa para proyectar SOLO desde hoy hacia
- *  adelante: un bucket cuya semana ya pasó no debe re-aplicarse al saldo de hoy (ese flujo ya
- *  está dentro del saldo → doble conteo). No parseable → false (no lo descartamos). */
-export function bucketSemanalPasado(period: string, now: Date): boolean {
-  const monday = weekMondayFrom(period);
-  if (!monday) return false;
-  // Fin de la semana (exclusivo) = lunes + 7 días. Si ya llegó/pasó, la semana quedó atrás.
-  const finSemana = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7);
-  return finSemana <= now;
+type CFGranularity = "week" | "month" | "day";
+
+/** Fin (exclusivo) del bucket según la granularidad. `null` si el `period` no matchea el formato. */
+function bucketFin(period: string, granularity: CFGranularity): Date | null {
+  if (granularity === "week") {
+    const m = weekMondayFrom(period);
+    return m ? new Date(m.getFullYear(), m.getMonth(), m.getDate() + 7) : null;
+  }
+  if (granularity === "month") {
+    const mm = /^(\d{4})-(\d{2})$/.exec(period);
+    return mm ? new Date(Number(mm[1]), Number(mm[2]), 1) : null; // 1° del mes siguiente
+  }
+  const dd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(period);
+  return dd ? new Date(Number(dd[1]), Number(dd[2]) - 1, Number(dd[3]) + 1) : null;
+}
+
+/** ¿El bucket ya terminó ANTES de `now`? Se usa para proyectar SOLO desde hoy hacia adelante:
+ *  un bucket cuyo período ya pasó no debe re-aplicarse al saldo de hoy (ese flujo ya está dentro
+ *  del saldo → doble conteo). No parseable → false (no lo descartamos). */
+export function bucketPasado(period: string, granularity: CFGranularity, now: Date): boolean {
+  const fin = bucketFin(period, granularity);
+  return fin != null && fin <= now;
 }
 
 /** Filtra los buckets del reporte a los que NO terminaron antes de hoy: la proyección arranca
- *  DESDE HOY, no desde el inicio del mes. Evita el doble conteo de semanas pasadas. */
-export function bucketsDesdeHoy(buckets: CashFlowBucket[], now: Date = new Date()): CashFlowBucket[] {
-  return buckets.filter((b) => !bucketSemanalPasado(b.period, now));
+ *  DESDE HOY, no desde el inicio del período. Evita el doble conteo de buckets pasados. */
+export function bucketsDesdeHoy(
+  buckets: CashFlowBucket[],
+  granularity: CFGranularity = "week",
+  now: Date = new Date(),
+): CashFlowBucket[] {
+  return buckets.filter((b) => !bucketPasado(b.period, granularity, now));
 }
 
 /** Suma entra/sale/neto de una lista de buckets — para recomputar el flujo del período tras

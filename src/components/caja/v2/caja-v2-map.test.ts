@@ -3,7 +3,7 @@ import {
   serieDesdeCashFlow,
   labelBucketCorto,
   cajaMinimoCLP,
-  bucketSemanalPasado,
+  bucketPasado,
   bucketsDesdeHoy,
   flujoDeBuckets,
 } from "./caja-v2-map";
@@ -39,27 +39,40 @@ describe("serieDesdeCashFlow", () => {
   });
 });
 
-describe("bucketSemanalPasado (proyectar desde hoy)", () => {
-  const now = new Date(2026, 6, 18); // 18-jul-2026 (dentro de la semana 14–20 jul)
-  it("una semana ya terminada es pasada", () => {
-    expect(bucketSemanalPasado("2026-07-07", now)).toBe(true);
+describe("bucketPasado (proyectar desde hoy)", () => {
+  const now = new Date(2026, 6, 18); // 18-jul-2026 (dentro de la semana 14–20 jul, mes jul)
+  it("semana ya terminada → pasada", () => {
+    expect(bucketPasado("2026-07-07", "week", now)).toBe(true);
   });
-  it("la semana en curso (contiene hoy) NO es pasada", () => {
-    expect(bucketSemanalPasado("2026-07-14", now)).toBe(false);
+  it("semana en curso (contiene hoy) → NO pasada", () => {
+    expect(bucketPasado("2026-07-14", "week", now)).toBe(false);
   });
-  it("una semana futura NO es pasada", () => {
-    expect(bucketSemanalPasado("2026-07-21", now)).toBe(false);
+  it("semana futura → NO pasada", () => {
+    expect(bucketPasado("2026-07-21", "week", now)).toBe(false);
+  });
+  it("mes: junio ya terminó → pasado; julio (en curso) → no", () => {
+    expect(bucketPasado("2026-06", "month", now)).toBe(true);
+    expect(bucketPasado("2026-07", "month", now)).toBe(false);
+  });
+  it("día: ayer → pasado; hoy → no", () => {
+    expect(bucketPasado("2026-07-17", "day", now)).toBe(true);
+    expect(bucketPasado("2026-07-18", "day", now)).toBe(false);
   });
   it("período no parseable → false (no se descarta)", () => {
-    expect(bucketSemanalPasado("2026-07", now)).toBe(false);
+    expect(bucketPasado("basura", "week", now)).toBe(false);
   });
 });
 
 describe("bucketsDesdeHoy", () => {
-  it("descarta semanas pasadas, conserva la actual + futuras", () => {
+  it("semanal: descarta pasadas, conserva la actual + futuras", () => {
     const now = new Date(2026, 6, 18);
     const bs = [bucket("2026-06-30", "1"), bucket("2026-07-07", "2"), bucket("2026-07-14", "3"), bucket("2026-07-21", "4")];
-    expect(bucketsDesdeHoy(bs, now).map((b) => b.period)).toEqual(["2026-07-14", "2026-07-21"]);
+    expect(bucketsDesdeHoy(bs, "week", now).map((b) => b.period)).toEqual(["2026-07-14", "2026-07-21"]);
+  });
+  it("mensual: descarta los meses ya cerrados", () => {
+    const now = new Date(2026, 6, 18);
+    const bs = [bucket("2026-06", "1"), bucket("2026-07", "2"), bucket("2026-08", "3")];
+    expect(bucketsDesdeHoy(bs, "month", now).map((b) => b.period)).toEqual(["2026-07", "2026-08"]);
   });
 });
 
