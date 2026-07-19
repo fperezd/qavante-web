@@ -65,8 +65,9 @@ export function formatPeriodLabel(period: string): string {
    si cruza de mes). Robusto a los formatos que puede mandar el backend. */
 
 /** Lunes (00:00 local) de la semana, desde un lunes YYYY-MM-DD o una semana ISO
-    YYYY-Www. `null` si no matchea. */
-function weekMondayFrom(period: string): Date | null {
+    YYYY-Www. `null` si no matchea. Exportada: el Caja v2 la usa para filtrar
+    semanas pasadas (proyectar desde hoy) además de para el label. */
+export function weekMondayFrom(period: string): Date | null {
   const iso = /^(\d{4})-W(\d{2})$/i.exec(period);
   if (iso) {
     const year = Number(iso[1]);
