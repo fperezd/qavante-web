@@ -63,11 +63,17 @@ export function ImportView() {
             <p className="text-sm text-neutral-dark">¡Listo! Tu información está cargándose.</p>
             {sync.data?.sources && (
               <ul className="space-y-1 text-xs text-neutral-mid">
-                {(["sii", "bank"] as const).map((src) => (
-                  <li key={src}>
-                    {SOURCE_LABEL[src]}: {STATUS_TEXT[sync.data!.sources[src].status]}
-                  </li>
-                ))}
+                {(["sii", "bank"] as const).map((src) => {
+                  // Guard: el sync puede volver con solo una fuente (ej. banco no conectado) →
+                  // no derefear un `sources[src]` ausente (crashearía la última pantalla).
+                  const s = sync.data!.sources[src];
+                  if (!s) return null;
+                  return (
+                    <li key={src}>
+                      {SOURCE_LABEL[src]}: {STATUS_TEXT[s.status]}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </>

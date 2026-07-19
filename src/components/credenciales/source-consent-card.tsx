@@ -50,6 +50,25 @@ export function SourceConsentCard({ sourceCode, label }: { sourceCode: string; l
     >
       {status.isLoading ? (
         <p className="text-sm text-neutral-mid">Cargando el estado de la autorización…</p>
+      ) : status.isError ? (
+        // "No pudimos preguntar" ≠ "falta autorizar": si el GET falla NO afirmamos que falta el
+        // consentimiento (invitaría a re-otorgar algo que quizás ya está). Mostramos el error + reintento.
+        <div
+          className="flex items-start gap-2 rounded-lg border border-danger-500/40 bg-danger-500/10 p-2.5 text-sm text-danger-500"
+          role="alert"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          <div className="space-y-2">
+            <p>
+              {status.error instanceof ApiError
+                ? apiErrorToUserMessage(status.error)
+                : "No pudimos consultar el estado de la autorización."}
+            </p>
+            <QavanteButton size="sm" loading={status.isFetching} onClick={() => status.refetch()}>
+              Reintentar
+            </QavanteButton>
+          </div>
+        </div>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm">
