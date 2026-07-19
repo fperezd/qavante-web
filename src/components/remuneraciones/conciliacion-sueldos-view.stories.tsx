@@ -8,9 +8,9 @@ import type { BankDebitLike } from "./payroll-conciliacion";
    banco. Presentacional: recibe los dos conjuntos ya resueltos. */
 
 const EMPLEADOS: EmployeePayroll[] = [
-  { id: "1", nombre: "Ana Pérez Soto", rut: "12.345.678-9", liquido: 1200000 },
-  { id: "2", nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", liquido: 1000000 },
-  { id: "3", nombre: "Carla Muñoz Vera", rut: "15.111.222-3", liquido: 700000 },
+  { id: "1", nombre: "Ana Pérez Soto", rut: "12.345.678-9", haberes: null, liquido: 1200000 },
+  { id: "2", nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", haberes: null, liquido: 1000000 },
+  { id: "3", nombre: "Carla Muñoz Vera", rut: "15.111.222-3", haberes: null, liquido: 700000 },
 ];
 
 const DEBITOS_OK: BankDebitLike[] = [

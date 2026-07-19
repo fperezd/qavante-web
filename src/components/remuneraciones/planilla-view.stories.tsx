@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { fn, within, expect } from "storybook/test";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { PlanillaView } from "./planilla-view";
+import type { EmployeePayroll } from "./payroll-detalle";
 import type { PayrollResponse } from "@/lib/api/buk";
 
 /* PlanillaView — totales agregados de remuneraciones del período (BUK).
@@ -50,12 +51,15 @@ const CON_DETALLE = {
     total_previred: 720000,
     empleados_contados: 3,
   },
-  detalle: [
-    { employee_id: 1, nombre: "Ana Pérez Soto", rut: "12.345.678-9", liquido: 1200000 },
-    { employee_id: 2, nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", liquido: 1000000 },
-    { employee_id: 3, nombre: "Carla Muñoz Vera", rut: "15.111.222-3", liquido: 700000 },
-  ],
 } as unknown as PayrollResponse;
+
+/* El detalle por empleado lo resuelve el page (desde /api/buk/payroll/detail) y lo pasa
+   como prop `detalle` — no viaja dentro de `query.data`. Trae haberes + líquido por persona. */
+const DETALLE_EMPLEADOS: EmployeePayroll[] = [
+  { id: "1", nombre: "Ana Pérez Soto", rut: "12.345.678-9", haberes: 1580000, liquido: 1200000 },
+  { id: "2", nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", haberes: 1320000, liquido: 1000000 },
+  { id: "3", nombre: "Carla Muñoz Vera", rut: "15.111.222-3", haberes: 900000, liquido: 700000 },
+];
 
 const meta = {
   title: "Capa 2 / Remuneraciones / PlanillaView",
@@ -90,7 +94,13 @@ export const ConTotales: Story = {
 
 export const ConDetallePorEmpleado: Story = {
   name: "Con detalle por empleado (conciliación)",
-  args: { period: "2026-03", query: buildQuery({ data: CON_DETALLE }) },
+  args: { period: "2026-03", query: buildQuery({ data: CON_DETALLE }), detalle: DETALLE_EMPLEADOS },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // El total haberes (bruto) del período y la columna de haberes por empleado se muestran.
+    await expect(canvas.getByText("Total haberes")).toBeInTheDocument();
+    await expect(canvas.getByRole("columnheader", { name: "Haberes" })).toBeInTheDocument();
+  },
 };
 
 /* No-owner: el detalle vino 403 → mensaje honesto "solo para el dueño"

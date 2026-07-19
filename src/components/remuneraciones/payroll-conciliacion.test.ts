@@ -10,6 +10,7 @@ const emp = (id: string, nombre: string, liquido: number | null): EmployeePayrol
   id,
   nombre,
   rut: null,
+  haberes: null,
   liquido,
 });
 const deb = (id: string, amount: string | number, direction = "debit"): BankDebitLike => ({
