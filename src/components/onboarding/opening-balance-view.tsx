@@ -30,7 +30,11 @@ export function OpeningBalanceView() {
       router.push(NEXT);
       return;
     }
-    const as_of_date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD (hoy)
+    // "Hoy" en Chile, no en UTC: toISOString() daría mañana de noche (Santiago es UTC−3/−4).
+    // en-CA formatea como YYYY-MM-DD.
+    const as_of_date = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(
+      new Date(),
+    );
     save.mutate(
       { amount: digits, currency: "CLP", as_of_date },
       { onSuccess: () => router.push(NEXT) },

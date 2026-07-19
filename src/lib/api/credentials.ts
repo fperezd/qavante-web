@@ -66,12 +66,17 @@ export function useSiiCredential() {
   });
 }
 
-/** `POST /api/admin/sources/sii_rcv/credential` — guarda/rota la credencial. */
+/** `POST /api/admin/sources/sii_rcv/credential` — guarda/rota la credencial.
+ *  `skipAuthRetry`: igual que el banco, durante el onboarding un 401 acá es rechazo persistente
+ *  del endpoint (api-key-only), no expiración → cae como ApiError inline en vez de expulsar al login. */
 export function usePutSiiCredential() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: SiiCredentialPayload) =>
-      api.post<CredentialPutResponse>(`/api/admin/sources/${SII_SOURCE_CODE}/credential`, { body }),
+      api.post<CredentialPutResponse>(`/api/admin/sources/${SII_SOURCE_CODE}/credential`, {
+        body,
+        skipAuthRetry: true,
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: credentialsKeysV2.siiCredential() }),
   });
 }

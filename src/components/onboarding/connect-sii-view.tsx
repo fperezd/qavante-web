@@ -82,7 +82,7 @@ export function ConnectSiiView() {
             placeholder="Tu clave del SII"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            invalid={touched && password.length === 0}
+            invalid={touched && password.length < 4}
           />
         </div>
 
