@@ -25,6 +25,7 @@ import { useDashboardSummary, type DashboardSummaryResponse } from "@/lib/api/da
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike, formatDateTimeLike } from "@/lib/formatters/date";
 import { parseAmount, confidenceLabel, isEmptySummary } from "./dashboard-format";
+import { describeCashGap14d } from "./cash-gap-14d";
 import { PulsoRing } from "./pulso-ring";
 
 /* Inicio Ejecutivo (Sprint C8, Maestro §7.1): "¿Cómo está mi empresa hoy?".
@@ -181,19 +182,25 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
               {data.cash_gap.has_gap ? (
                 <div className="flex items-start gap-2 text-sm text-danger-700">
                   <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                  <span>
-                    Te faltan{" "}
-                    <b className="tabular-nums">
-                      {formatClp(
-                        Math.max(
-                          0,
-                          parseAmount(data.cash_gap.critical_obligations_14d) -
-                            parseAmount(data.cash_gap.projected_cash_14d),
-                        ),
-                      )}
-                    </b>{" "}
-                    para tus pagos críticos de 14 días.
-                  </span>
+                  {(() => {
+                    const gap = describeCashGap14d(
+                      parseAmount(data.cash_gap.critical_obligations_14d),
+                      parseAmount(data.cash_gap.projected_cash_14d),
+                    );
+                    return gap.kind === "shortfall" ? (
+                      <span>
+                        Te faltan <b className="tabular-nums">{formatClp(gap.faltante)}</b> para tus
+                        pagos críticos de 14 días.
+                      </span>
+                    ) : gap.kind === "overdraft" ? (
+                      <span>
+                        Tu caja proyectada de 14 días está en{" "}
+                        <b className="tabular-nums">{formatClp(gap.projected)}</b> (bajo cero).
+                      </span>
+                    ) : (
+                      <span>Hay una brecha de caja declarada para los próximos 14 días.</span>
+                    );
+                  })()}
                 </div>
               ) : (
                 <p className="flex items-start gap-2 text-sm text-success-700">
@@ -361,7 +368,9 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
    acción — protagonista; el desglose (críticas / caja) es respaldo, más chico.
    Clickeable al detalle de proyección. Solo se muestra cuando hay brecha. */
 function CashGapBanner({ critical, projected }: { critical: number; projected: number }) {
-  const faltante = Math.max(0, critical - projected);
+  // Copy honesto: con obligaciones críticas en $0, el "faltante" no es una brecha contra
+  // pagos (no los hay) sino la caja proyectada en negativo. Ver describeCashGap14d.
+  const gap = describeCashGap14d(critical, projected);
   return (
     <Link
       href="/caja/proyeccion"
@@ -378,14 +387,34 @@ function CashGapBanner({ critical, projected }: { critical: number; projected: n
           />
           <div>
             <p className="text-sm font-semibold text-danger-700">
-              Te faltan <span className="tabular-nums">{formatClp(faltante)}</span> para cubrir tus
-              pagos críticos de los próximos 14 días
+              {gap.kind === "shortfall" ? (
+                <>
+                  Te faltan <span className="tabular-nums">{formatClp(gap.faltante)}</span> para
+                  cubrir tus pagos críticos de los próximos 14 días
+                </>
+              ) : gap.kind === "overdraft" ? (
+                <>
+                  Tu caja proyectada a 14 días está bajo cero:{" "}
+                  <span className="tabular-nums">{formatClp(gap.projected)}</span>
+                </>
+              ) : (
+                <>Hay una brecha de caja declarada para los próximos 14 días</>
+              )}
             </p>
             <p className="mt-0.5 text-xs text-neutral-mid">
-              Obligaciones críticas{" "}
-              <span className="tabular-nums text-neutral-dark">{formatClp(critical)}</span> · caja
-              proyectada{" "}
-              <span className="tabular-nums text-neutral-dark">{formatClp(projected)}</span>
+              {gap.kind === "overdraft" ? (
+                <>
+                  Sin pagos críticos registrados en 14 días · caja proyectada{" "}
+                  <span className="tabular-nums text-neutral-dark">{formatClp(projected)}</span>
+                </>
+              ) : (
+                <>
+                  Obligaciones críticas{" "}
+                  <span className="tabular-nums text-neutral-dark">{formatClp(critical)}</span> ·
+                  caja proyectada{" "}
+                  <span className="tabular-nums text-neutral-dark">{formatClp(projected)}</span>
+                </>
+              )}
             </p>
           </div>
         </div>

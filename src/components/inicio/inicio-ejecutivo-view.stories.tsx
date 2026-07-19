@@ -143,6 +143,24 @@ const LOADING = http.get(PATH, async () => {
 const ERROR = http.get(PATH, () =>
   HttpResponse.json({ code: "internal_error", detail: "Falló." }, { status: 500 }),
 );
+/* Caso real Tooxs (2026-07-19): sin obligaciones críticas ($0) y caja proyectada NEGATIVA.
+   El banner NO debe decir "te faltan $X para tus pagos críticos" (no hay pagos críticos);
+   debe decir la verdad: la caja proyectada está bajo cero. Ver describeCashGap14d. */
+const CAJA_NEGATIVA = http.get(PATH, () =>
+  HttpResponse.json(
+    {
+      ...FIXTURE,
+      cash_gap: {
+        critical_obligations_14d: "0",
+        projected_cash_14d: "-3935682.15",
+        has_gap: true,
+        last_updated: "2026-07-18T00:00:00Z",
+        source: "bank",
+      },
+    },
+    { status: 200 },
+  ),
+);
 
 const meta = {
   title: "Capa 2 / Inicio / InicioEjecutivoView",
@@ -177,3 +195,7 @@ export const Vacio: Story = {
 };
 export const Cargando: Story = { parameters: { msw: { handlers: [LOADING] } } };
 export const Error500: Story = { name: "Error (500)", parameters: { msw: { handlers: [ERROR] } } };
+export const CajaNegativaSinCriticas: Story = {
+  name: "Caja negativa sin obligaciones críticas (overdraft)",
+  parameters: { msw: { handlers: [CAJA_NEGATIVA] } },
+};
