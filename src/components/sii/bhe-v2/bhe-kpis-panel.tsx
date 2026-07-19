@@ -7,7 +7,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { KpiCell, KpiStrip } from "@/components/ui/kpi-strip";
 import type { BheRecibida } from "@/lib/api/sii";
-import { bheTotals, concentrationByEmisor } from "./bhe-v2-format";
+import { bheTotals, concentrationByEmisor, anioDePeriodo, retencionHonorariosLabel } from "./bhe-v2-format";
 
 /* Panel BHE (control de gestión) montado arriba de la tabla de Honorarios
  * recibidos. Saca la RETENCIÓN acumulada del pie a un KPI destacado (es plata que
@@ -54,8 +54,10 @@ export function BheKpisPanel({ items, periodo }: { items: BheRecibida[]; periodo
           }
         >
           <ul className="space-y-2.5">
-            {conc.map((c) => (
-              <li key={c.rut} className="space-y-1">
+            {conc.map((c, i) => (
+              // key: el RUT si viene; si falta ("—"), nombre + índice para no colisionar
+              // dos profesionales sin RUT.
+              <li key={c.rut !== "—" ? c.rut : `${c.name}-${i}`} className="space-y-1">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate">
                     <span className="font-medium text-neutral-dark">{c.name}</span>
@@ -82,7 +84,8 @@ export function BheKpisPanel({ items, periodo }: { items: BheRecibida[]; periodo
 
       <p className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-mid">
         <Receipt className="h-3.5 w-3.5" aria-hidden="true" />
-        La retención del 13,75% (2026) la retienes tú y la enteras al SII en el F29 del período.{" "}
+        La retención del {retencionHonorariosLabel(anioDePeriodo(periodo, new Date().getFullYear()))}{" "}
+        la retienes tú y la enteras al SII en el F29 del período.{" "}
         <QavanteBadge variant="warning">Recordatorio tributario</QavanteBadge>
       </p>
     </div>

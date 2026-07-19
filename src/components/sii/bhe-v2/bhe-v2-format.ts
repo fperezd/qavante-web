@@ -8,6 +8,33 @@ function num(v: number | null | undefined): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
 }
 
+/** Tasa legal de retención de honorarios (2ª categoría) por año, según el aumento gradual de la
+ *  Ley 21.133. El MONTO real siempre sale de la boleta del SII; esto es solo para el recordatorio
+ *  tributario, así que no puede quedar "congelado" en un año equivocado. */
+const RETENCION_HONORARIOS_PCT: Record<number, number> = {
+  2020: 10.75, 2021: 11.5, 2022: 12.25, 2023: 13, 2024: 13.75,
+  2025: 14.5, 2026: 15.25, 2027: 16, 2028: 17,
+};
+
+/** Tasa de retención de honorarios del `year` (ej. `15.25` para 2026). Tope 17% desde 2028;
+ *  para años previos al calendario, cae al piso conocido. */
+export function retencionHonorariosPct(year: number): number {
+  return RETENCION_HONORARIOS_PCT[year] ?? (year >= 2028 ? 17 : 10.75);
+}
+
+/** Año de un período `YYYY-MM` (o cualquier string que empiece con el año); `fallbackYear` si
+ *  no se puede parsear. */
+export function anioDePeriodo(periodo: string | undefined, fallbackYear: number): number {
+  const y = Number((periodo ?? "").slice(0, 4));
+  return Number.isFinite(y) && y > 2000 ? y : fallbackYear;
+}
+
+/** Texto del recordatorio: "15,25% (2026)" para el año dado. */
+export function retencionHonorariosLabel(year: number): string {
+  const pct = retencionHonorariosPct(year).toLocaleString("es-CL", { maximumFractionDigits: 2 });
+  return `${pct}% (${year})`;
+}
+
 export interface BheTotals {
   bruto: number;
   retencion: number;
