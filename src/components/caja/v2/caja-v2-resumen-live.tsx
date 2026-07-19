@@ -54,7 +54,7 @@ export function CajaV2ResumenLive() {
       <PeriodRangeFilter
         value={range}
         onChange={setRange}
-        hint="El rango arma el reporte de caja; la curva proyecta de hoy en adelante."
+        hint="El rango define el período consultado; la curva proyecta de hoy en adelante."
       />
       <CajaV2Contenido dash={dash} cf={cf} cm={cm} granularity="week" />
     </div>
