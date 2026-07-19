@@ -17,11 +17,11 @@ import { CajaV2Resumen, type CajaMovible } from "./caja-v2-resumen";
 import { CajaHero } from "./caja-hero";
 import { SaldoPorBanco } from "./saldo-por-banco";
 import { CajaCurva } from "./caja-curva";
-import { serieAnclada, cajaMinimoCLP, flujoDeBuckets } from "./caja-v2-map";
+import { serieAnclada, cajaMinimoCLP, flujoDeBuckets, primerCruceFuturo } from "./caja-v2-map";
 import { formatBucketLabel } from "@/components/caja/cash-flow-format";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { orderRange, type PeriodRange } from "@/lib/period/period-range";
-import { primerCruce, type SaldoPunto } from "./caja-curva-model";
+import { type SaldoPunto } from "./caja-curva-model";
 
 /* Vista LIVE de la pestaña "Resumen" de Caja v2 (rediseño 2026-07-14), gated por `cajaV2`
    (OFF). Orquesta dashboard (saldo hoy + runway) + reporte de caja (netos → la curva
@@ -96,7 +96,9 @@ function CajaV2Contenido({
   const now = new Date();
   const serie = serieAnclada(saldoHoy, allBuckets, granularity, now, (p) => formatBucketLabel(p, granularity));
   const minimo = cajaMinimoCLP(cm.data);
-  const cruceIdx = minimo != null ? primerCruce(serie.map((s) => s.saldo), minimo) : null;
+  // El cruce "bajo el mínimo" cuenta solo DESDE HOY hacia adelante: un dip reconstruido en un
+  // período ya pasado no es accionable (no se puede adelantar cobranza para una semana que terminó).
+  const cruceIdx = primerCruceFuturo(serie, allBuckets, granularity, now, minimo);
   const dias = dash.data?.cash_forecast?.days_of_cash ?? null;
   // Caja en cero o negativa → tono crítico honesto (no un ✓ verde "alcanza ~0 días").
   const negativa = saldoHoy <= 0;

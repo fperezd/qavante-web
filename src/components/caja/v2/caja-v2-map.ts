@@ -115,6 +115,26 @@ export function serieAnclada(
   return buckets.map((b, i) => ({ label: label(b.period), saldo: (cum[i] ?? 0) + offset }));
 }
 
+/** Índice del primer período NO pasado cuyo saldo cae ESTRICTAMENTE bajo el mínimo — el cruce
+ *  ACCIONABLE. La serie anclada reconstruye períodos pasados; un dip reconstruido en una semana
+ *  que ya terminó NO es un cruce a advertir ("adelanta una cobranza" no aplica al pasado). Solo
+ *  cuenta de hoy en adelante. `null` si no hay mínimo o no hay cruce futuro. */
+export function primerCruceFuturo(
+  serie: SaldoPunto[],
+  buckets: CashFlowBucket[],
+  granularity: CFGranularity,
+  now: Date,
+  minimo: number | null,
+): number | null {
+  if (minimo == null) return null;
+  for (let i = 0; i < serie.length; i++) {
+    const b = buckets[i];
+    if (b && bucketPasado(b.period, granularity, now)) continue; // ignora los períodos ya pasados
+    if ((serie[i]?.saldo ?? Number.POSITIVE_INFINITY) < minimo) return i;
+  }
+  return null;
+}
+
 /** Caja mínima en CLP desde el endpoint cash-minimum, o `null` si no hay umbral CLP. */
 export function cajaMinimoCLP(cm: CashMinimumResponse | undefined): number | null {
   const t = (cm?.thresholds ?? []).find((x) => (x.currency_code ?? "").toUpperCase() === "CLP");

@@ -7,9 +7,11 @@ import {
   bucketPasado,
   bucketsDesdeHoy,
   flujoDeBuckets,
+  primerCruceFuturo,
 } from "./caja-v2-map";
 import type { CashFlowBucket } from "@/lib/api/treasury-reports";
 import type { CashMinimumResponse } from "@/lib/api/cash-minimum";
+import type { SaldoPunto } from "./caja-curva-model";
 
 const bucket = (period: string, net: string): CashFlowBucket =>
   ({ period, net, total_inflow: "0", total_outflow: "0", row_count: 0 }) as CashFlowBucket;
@@ -53,6 +55,24 @@ describe("serieAnclada (trayectoria anclada en el saldo de hoy)", () => {
   });
   it("sin buckets → []", () => {
     expect(serieAnclada(1_000, [], "week", now, lbl)).toEqual([]);
+  });
+});
+
+describe("primerCruceFuturo (cruce bajo el mínimo, solo desde hoy)", () => {
+  const now = new Date(2026, 6, 19); // 19-jul-2026
+  const pt = (saldo: number): SaldoPunto => ({ label: "x", saldo });
+  it("ignora el dip reconstruido en un período ya pasado", () => {
+    const bs = [bucket("2026-06-29", "0"), bucket("2026-07-27", "0")]; // pasado, futuro
+    const serie = [pt(1_000), pt(5_000)]; // el pasado cae bajo el mínimo, el futuro no
+    expect(primerCruceFuturo(serie, bs, "week", now, 4_000)).toBeNull();
+  });
+  it("detecta el cruce en un período futuro", () => {
+    const bs = [bucket("2026-06-29", "0"), bucket("2026-07-20", "0"), bucket("2026-07-27", "0")];
+    const serie = [pt(5_000), pt(5_000), pt(2_000)]; // cruza en el 3º (futuro)
+    expect(primerCruceFuturo(serie, bs, "week", now, 4_000)).toBe(2);
+  });
+  it("sin mínimo → null", () => {
+    expect(primerCruceFuturo([pt(1)], [bucket("2026-07-20", "0")], "week", now, null)).toBeNull();
   });
 });
 
