@@ -41,7 +41,9 @@ export function CajaCurva({ serie, minimo, eventos = [], height = 250, className
   const ref = hayMinimo ? minimo : 0;
 
   const H = height;
-  const plotTop = 46;
+  // El tope reserva espacio para las etiquetas de eventos (que se dibujan arriba de la curva).
+  // Sin eventos no hay nada que reservar → tope chico, así la curva no queda con un vacío arriba.
+  const plotTop = eventos.length > 0 ? 46 : 18;
   const plotBottom = H - 36;
   const saldos = serie.map((p) => p.saldo);
   // Encuadre SOBRE LOS DATOS (+ el mínimo si existe, que es el piso y hay que verlo). El $0
