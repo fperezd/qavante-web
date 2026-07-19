@@ -84,6 +84,37 @@ export function flujoDeBuckets(buckets: CashFlowBucket[]): { entra: number; sale
   return { entra, sale, neto };
 }
 
+/** Serie del saldo ANCLADA en el saldo de hoy, sobre TODOS los buckets del rango. Reconstruye el
+ *  saldo al cierre de cada período: el último bucket YA PASADO cierra ≈ al saldo de hoy (ese flujo
+ *  ya está en el saldo), los anteriores se reconstruyen hacia atrás y los futuros se proyectan hacia
+ *  adelante. Así el gráfico muestra la TRAYECTORIA (de dónde viene la caja + a dónde va) sin el doble
+ *  conteo de re-aplicar flujos pasados al saldo de hoy. Un punto por bucket (cierre del período). */
+export function serieAnclada(
+  saldoHoy: number,
+  buckets: CashFlowBucket[],
+  granularity: CFGranularity,
+  now: Date,
+  label: (period: string) => string,
+): SaldoPunto[] {
+  if (buckets.length === 0) return [];
+  // Cumulativo de netos desde el inicio del rango.
+  const cum: number[] = [];
+  let acc = 0;
+  for (const b of buckets) {
+    acc += parseAmount(b.net);
+    cum.push(acc);
+  }
+  // Índice del último bucket ya pasado: su cierre ancla en el saldo de hoy. Si todos son futuros
+  // (-1), el ancla es 0 → todo se proyecta desde el saldo de hoy.
+  let lastPast = -1;
+  buckets.forEach((b, i) => {
+    if (bucketPasado(b.period, granularity, now)) lastPast = i;
+  });
+  const base = lastPast >= 0 ? (cum[lastPast] ?? 0) : 0;
+  const offset = saldoHoy - base;
+  return buckets.map((b, i) => ({ label: label(b.period), saldo: (cum[i] ?? 0) + offset }));
+}
+
 /** Caja mínima en CLP desde el endpoint cash-minimum, o `null` si no hay umbral CLP. */
 export function cajaMinimoCLP(cm: CashMinimumResponse | undefined): number | null {
   const t = (cm?.thresholds ?? []).find((x) => (x.currency_code ?? "").toUpperCase() === "CLP");

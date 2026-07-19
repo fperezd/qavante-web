@@ -64,8 +64,8 @@ export function CajaV2Resumen({ hero, bancos, flujo, curva, movibles, className 
       {/* Baranda: la curva (fija) */}
       {curva}
 
-      {/* Cajas movibles */}
-      <div className="grid items-start gap-4 md:grid-cols-2">
+      {/* Cajas movibles — a 2 columnas solo si hay ≥2; con una sola, ancho completo (sin vacío). */}
+      <div className={cn("grid items-start gap-4", ordered.length >= 2 && "md:grid-cols-2")}>
         {ordered.map((m, i) =>
           reorderable ? (
             <DraggableCard key={m.id} label={m.label} index={i} count={ordered.length} onMove={reorder}>

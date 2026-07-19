@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   serieDesdeCashFlow,
+  serieAnclada,
   labelBucketCorto,
   cajaMinimoCLP,
   bucketPasado,
@@ -36,6 +37,22 @@ describe("serieDesdeCashFlow", () => {
   });
   it("sin buckets → solo el punto de hoy", () => {
     expect(serieDesdeCashFlow(5_000, [])).toEqual([{ label: "hoy", saldo: 5_000 }]);
+  });
+});
+
+describe("serieAnclada (trayectoria anclada en el saldo de hoy)", () => {
+  const now = new Date(2026, 6, 19); // 19-jul-2026
+  const lbl = (p: string) => p;
+  it("reconstruye hacia atrás: el último bucket pasado cierra en el saldo de hoy", () => {
+    const bs = [bucket("2026-06-29", "-853476"), bucket("2026-07-06", "-15552")]; // dos semanas pasadas
+    expect(serieAnclada(-3_935_682, bs, "week", now, lbl).map((p) => p.saldo)).toEqual([-3_920_130, -3_935_682]);
+  });
+  it("proyecta hacia adelante si todos son futuros", () => {
+    const bs = [bucket("2026-07-20", "500"), bucket("2026-07-27", "-300")]; // dos semanas futuras
+    expect(serieAnclada(1_000, bs, "week", now, lbl).map((p) => p.saldo)).toEqual([1_500, 1_200]);
+  });
+  it("sin buckets → []", () => {
+    expect(serieAnclada(1_000, [], "week", now, lbl)).toEqual([]);
   });
 });
 
