@@ -15,6 +15,7 @@ import type { HeroComparativo } from "./ventas-hero";
 import {
   calcularComparativos,
   netoDocs,
+  netosYoY,
   planComparativoPeriodos,
   type ComparativosInput,
 } from "./libro-comparativos";
@@ -75,10 +76,12 @@ export function useLibroComparativos(
     input.netosDelAnio = plan.mesesAnio.map((p) => netoDocs(docs(p)));
   }
 
-  // (3) vs. año anterior — necesita el rango completo Y su equivalente del año pasado.
+  // (3) vs. año anterior — necesita el rango completo Y su equivalente del año pasado. El mes en
+  //     curso (si está en el rango) se trunca a la fecha de corte en ambos años (no parcial vs completo).
   if (plan.rango.every(has) && plan.rangoAnioAnterior.every(has)) {
-    input.netoPeriodo = plan.rango.reduce((s, p) => s + netoDocs(docs(p)), 0);
-    input.netoPeriodoAnioAnterior = plan.rangoAnioAnterior.reduce((s, p) => s + netoDocs(docs(p)), 0);
+    const yoy = netosYoY(plan.rango, plan.rangoAnioAnterior, docs, plan.mesActual, plan.diaCorte);
+    input.netoPeriodo = yoy.netoPeriodo;
+    input.netoPeriodoAnioAnterior = yoy.netoPeriodoAnioAnterior;
   }
 
   return {

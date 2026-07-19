@@ -61,6 +61,30 @@ export function docsHastaDiaDelMes(docs: RcvDoc[], diaLimite: number): RcvDoc[] 
   });
 }
 
+/** Netos del rango y de su equivalente 12 meses atrás, para el YoY. El mes EN CURSO
+ *  (`mesActual`) está INCOMPLETO: se trunca ESE mes —y su contraparte del año pasado— a
+ *  `diaCorte`, para no comparar un mes parcial contra uno completo (que sesga la baja, ej.
+ *  "−41%" cuando el mes recién va a la mitad). El resto de los meses van completos. `docsDe`
+ *  devuelve los docs ya cargados de cada período. */
+export function netosYoY(
+  rango: string[],
+  rangoAnioAnterior: string[],
+  docsDe: (period: string) => RcvDoc[],
+  mesActual: string,
+  diaCorte: number,
+): { netoPeriodo: number; netoPeriodoAnioAnterior: number } {
+  let netoPeriodo = 0;
+  let netoPeriodoAnioAnterior = 0;
+  rango.forEach((p, i) => {
+    const parcial = p === mesActual; // el mes en curso se compara "hasta la misma fecha"
+    const acota = (ds: RcvDoc[]) => (parcial ? docsHastaDiaDelMes(ds, diaCorte) : ds);
+    netoPeriodo += netoDocs(acota(docsDe(p)));
+    const pAnt = rangoAnioAnterior[i];
+    if (pAnt != null) netoPeriodoAnioAnterior += netoDocs(acota(docsDe(pAnt)));
+  });
+  return { netoPeriodo, netoPeriodoAnioAnterior };
+}
+
 export interface ComparativosInput {
   /** Docs del mes en curso (para el comparativo "misma fecha"). */
   mesActual?: RcvDoc[];
