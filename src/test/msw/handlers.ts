@@ -1863,8 +1863,10 @@ const siiHandlers = [
   http.get("*/api/sii/f29/impuesto", ({ request }) => {
     const url = new URL(request.url);
     const manual = url.searchParams.get("impuesto_trabajadores");
-    const impuesto = manual != null ? Number(manual) : 0;
-    const fuente = manual != null ? "manual" : "no_disponible";
+    // Por defecto la fuente es BUK (así llega en prod para Tooxs: el IUSC/código 48 lo
+    // provee BUK); `manual` solo cuando el usuario pasa el override.
+    const impuesto = manual != null ? Number(manual) : 618000;
+    const fuente = manual != null ? "manual" : "buk";
     const ivaDeb = 1_200_000;
     const ivaCred = 800_000;
     const ivaDet = ivaDeb - ivaCred; // 400.000
@@ -2879,8 +2881,8 @@ const bukHandlers = [
           total_descuentos: 4120000,
           total_liquido: 14330000,
           total_imponible: 16800000,
-          // Desembolsos que acompañan a la planilla (contrato FE-first, ADR pendiente CC-API):
-          total_impuesto: 620000, // impuesto de remuneraciones a enterar en el F29
+          // El impuesto de remuneraciones (IUSC) NO viene en el payroll de BUK — llega del
+          // F29 (`/api/sii/f29/impuesto`). Acá solo las cotizaciones (Previred).
           total_previred: 3510000, // cotizaciones previsionales (Previred)
           empleados_contados: 3,
         },
