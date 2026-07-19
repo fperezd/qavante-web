@@ -9,8 +9,9 @@ import { calcularBrecha, brechaResidual } from "./brecha-caja-model";
    Presentacional; la aritmética vive en `brecha-caja-model`. */
 
 export interface BrechaCajaProps {
-  /** Caja proyectada al horizonte (ej. projected_cash_14d). */
-  cajaProyectada: number;
+  /** Caja proyectada al horizonte (ej. projected_cash_14d). `null` si el backend no la
+   *  pudo calcular → se degrada honesto (no se muestra "faltan $X" sobre una caja de $0). */
+  cajaProyectada: number | null;
   /** Pagos críticos del horizonte (vencido + no postergables por vencer). */
   pagosCriticos: number;
   /** Horizonte en días (default 14). */
@@ -32,6 +33,26 @@ export function BrechaCaja({
   postergabilidadEstimada = false,
   className,
 }: BrechaCajaProps) {
+  // Sin caja proyectada (backend no la calculó): NO calculamos cobertura ni "faltan $X" sobre
+  // un $0 inventado. Mostramos los críticos y decimos que falta el dato de caja (§13).
+  if (cajaProyectada == null) {
+    return (
+      <section className={cn("p-5", className)} aria-label="Brecha de caja">
+        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+          Caja vs. pagos críticos · {dias} días
+        </p>
+        <p className="mt-3 text-[12.5px] font-semibold text-neutral-dark">
+          Pagos críticos {dias}d:{" "}
+          <b className="tabular-nums">{formatClp(pagosCriticos)}</b>
+        </p>
+        <p className="mt-2 text-[12px] leading-snug text-neutral-mid">
+          Todavía no podemos calcular la brecha: falta la caja proyectada a {dias} días (conecta tu
+          banco o espera la sincronización).
+        </p>
+      </section>
+    );
+  }
+
   const b = calcularBrecha(cajaProyectada, pagosCriticos);
   const residual = brechaResidual(b.faltante, postergable);
 

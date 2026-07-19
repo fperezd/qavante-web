@@ -68,7 +68,12 @@ export function PagarV2ViewLive() {
     return href ? () => router.push(href) : undefined;
   };
   const brecha = mapBrecha(resp as AccountsPayableResponse, items, now);
-  const cobertura = calcularBrecha(brecha.cajaProyectada, brecha.pagosCriticos);
+  // Sin caja proyectada (null) no calculamos cobertura: no afirmamos "la caja no alcanza"
+  // sobre un $0 inventado. La línea del hero degrada a neutral.
+  const cobertura =
+    brecha.cajaProyectada == null
+      ? null
+      : calcularBrecha(brecha.cajaProyectada, brecha.pagosCriticos);
   const vencidos = items.filter((it) => isOverdue(it, now)).length;
 
   const fechas = mapFechasClave(items, now, onClickDe);
@@ -80,8 +85,12 @@ export function PagarV2ViewLive() {
         <PagarHero
           titulo="La empresa debe pagar"
           montoTotal={montoTotal}
-          cobertura={coberturaLinea(cobertura.cubre, cobertura.faltante, cobertura.holgura)}
-          coberturaTono={cobertura.cubre ? "ok" : "bad"}
+          cobertura={
+            cobertura
+              ? coberturaLinea(cobertura.cubre, cobertura.faltante, cobertura.holgura)
+              : "Aún no podemos decir si la caja alcanza: falta la caja proyectada a 14 días."
+          }
+          coberturaTono={cobertura ? (cobertura.cubre ? "ok" : "bad") : "neutral"}
           subtitulo={subtitulo(items.length, vencidos)}
           infoHint="Total de pagos y obligaciones pendientes (proveedores, impuestos, cotizaciones, sueldos, arriendos y deuda). La cobertura compara la caja proyectada a 14 días contra lo que no se puede postergar."
         />
