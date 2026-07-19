@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { bheTotals, concentrationByEmisor } from "./bhe-v2-format";
+import {
+  bheTotals,
+  concentrationByEmisor,
+  retencionHonorariosPct,
+  retencionHonorariosLabel,
+  anioDePeriodo,
+} from "./bhe-v2-format";
 import type { BheRecibida } from "@/lib/api/sii";
 
 function bhe(p: Partial<BheRecibida>): BheRecibida {
@@ -55,5 +61,27 @@ describe("bhe-v2-format · concentrationByEmisor", () => {
       bhe({ rut_emisor: undefined, nombre_emisor: "Beto", monto_liquido: 200 }),
     ]);
     expect(c).toHaveLength(2);
+  });
+});
+
+describe("bhe-v2-format · retención de honorarios (Ley 21.133)", () => {
+  it("tasa por año del aumento gradual", () => {
+    expect(retencionHonorariosPct(2024)).toBe(13.75);
+    expect(retencionHonorariosPct(2025)).toBe(14.5);
+    expect(retencionHonorariosPct(2026)).toBe(15.25);
+    expect(retencionHonorariosPct(2027)).toBe(16);
+  });
+  it("tope 17% desde 2028", () => {
+    expect(retencionHonorariosPct(2028)).toBe(17);
+    expect(retencionHonorariosPct(2030)).toBe(17);
+  });
+  it("label en formato chileno con el año", () => {
+    expect(retencionHonorariosLabel(2026)).toBe("15,25% (2026)");
+    expect(retencionHonorariosLabel(2027)).toBe("16% (2027)");
+  });
+  it("anioDePeriodo parsea YYYY-MM o cae al fallback", () => {
+    expect(anioDePeriodo("2026-07", 2000)).toBe(2026);
+    expect(anioDePeriodo(undefined, 2026)).toBe(2026);
+    expect(anioDePeriodo("basura", 2026)).toBe(2026);
   });
 });

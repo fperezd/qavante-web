@@ -6,6 +6,7 @@ import { BheListView } from "@/components/sii/bhe-list-view";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { api } from "@/lib/api/client";
 import { siiKeys, type BheResponse, type BheRecibida } from "@/lib/api/sii";
+import { anioDePeriodo, retencionHonorariosLabel } from "./bhe-v2/bhe-v2-format";
 import {
   defaultRange,
   expandPeriodRange,
@@ -58,7 +59,7 @@ export function BheRangeView() {
         <PeriodRangeFilter
           value={range}
           onChange={setRange}
-          hint="La retención del 13,75% (2026) la pagas tú en el F29. El rango consulta cada mes del SII y los junta."
+          hint={`La retención del ${retencionHonorariosLabel(anioDePeriodo(range.hasta, new Date().getFullYear()))} la pagas tú en el F29. El rango consulta cada mes del SII y los junta.`}
         />
       }
     />
