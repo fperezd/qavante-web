@@ -1,0 +1,156 @@
+import { describe, it, expect } from "vitest";
+import {
+  parseSiiDate,
+  addDays,
+  daysBetween,
+  estadoDoc,
+  readTerminos,
+  termFor,
+  isTermCustom,
+  withTerm,
+  withoutTerm,
+  withDefaultTerm,
+  buildMaestro,
+  totalesMaestro,
+  TERMINO_DEFAULT,
+  TERMINOS_KEY,
+  type DocConVencimiento,
+} from "./terminos-pago";
+
+// Hoy fijo para tests deterministas: 2026-07-20.
+const HOY = new Date(2026, 6, 20);
+
+describe("parseSiiDate", () => {
+  it("DD/MM/YYYY (formato RCV)", () => {
+    const d = parseSiiDate("24/06/2026")!;
+    expect([d.getFullYear(), d.getMonth(), d.getDate()]).toEqual([2026, 5, 24]);
+  });
+  it("ISO YYYY-MM-DD (ignora hora)", () => {
+    const d = parseSiiDate("2026-06-24T00:00:00Z")!;
+    expect([d.getFullYear(), d.getMonth(), d.getDate()]).toEqual([2026, 5, 24]);
+  });
+  it("inválida / vacía → null", () => {
+    expect(parseSiiDate("31/02/2026")).toBeNull(); // 31 de feb no existe
+    expect(parseSiiDate("")).toBeNull();
+    expect(parseSiiDate(null)).toBeNull();
+    expect(parseSiiDate("nope")).toBeNull();
+  });
+});
+
+describe("addDays / daysBetween", () => {
+  it("suma calendario y cruza mes", () => {
+    const d = addDays(new Date(2026, 5, 24), 30); // 24 jun + 30 = 24 jul
+    expect([d.getMonth(), d.getDate()]).toEqual([6, 24]);
+  });
+  it("daysBetween firmado", () => {
+    expect(daysBetween(new Date(2026, 6, 20), new Date(2026, 6, 25))).toBe(5);
+    expect(daysBetween(new Date(2026, 6, 25), new Date(2026, 6, 20))).toBe(-5);
+  });
+});
+
+describe("estadoDoc", () => {
+  it("vencido / por_vencer / vigente / sin_fecha", () => {
+    expect(estadoDoc(new Date(2026, 6, 10), HOY)).toBe("vencido"); // 10 jul < hoy
+    expect(estadoDoc(new Date(2026, 6, 25), HOY)).toBe("por_vencer"); // en 5 días
+    expect(estadoDoc(new Date(2026, 7, 30), HOY)).toBe("vigente"); // lejos
+    expect(estadoDoc(null, HOY)).toBe("sin_fecha");
+  });
+});
+
+describe("prefs de términos", () => {
+  it("readTerminos rellena defaults (30/30/5) y descarta basura", () => {
+    const t = readTerminos(undefined);
+    expect(t.ventas.default).toBe(30);
+    expect(t.compras.default).toBe(30);
+    expect(t.honorarios.default).toBe(5);
+    expect(t.ventas.byRut).toEqual({});
+    // basura → ignora, mantiene default
+    const t2 = readTerminos({ [TERMINOS_KEY]: { ventas: { default: "nope", byRut: ["x"] } } });
+    expect(t2.ventas.default).toBe(30);
+  });
+
+  it("termFor: override por rut gana al default; normaliza el rut", () => {
+    const blob = withTerm(undefined, "ventas", "96.572.360-9", 45);
+    const t = readTerminos(blob);
+    expect(termFor(t, "ventas", "96572360-9")).toBe(45);
+    expect(termFor(t, "ventas", "96.572.360-9")).toBe(45); // mismo rut, otro formato
+    expect(termFor(t, "ventas", "otro-rut")).toBe(30); // sin override → default
+    expect(isTermCustom(t, "ventas", "96572360-9")).toBe(true);
+    expect(isTermCustom(t, "ventas", "otro")).toBe(false);
+  });
+
+  it("withoutTerm vuelve al default; withDefaultTerm cambia el default del tipo", () => {
+    const marked = withTerm(undefined, "compras", "77111222-3", 60);
+    const undone = withoutTerm(marked, "compras", "77111222-3");
+    expect(termFor(readTerminos(undone), "compras", "77111222-3")).toBe(30);
+
+    const changed = withDefaultTerm(undefined, "honorarios", 10);
+    expect(readTerminos(changed).honorarios.default).toBe(10);
+    expect(readTerminos(changed).ventas.default).toBe(30); // no toca los otros
+  });
+
+  it("with* preservan el resto del blob (reemplaza, no mergea → superset)", () => {
+    const blob = { otra_pref: "x", ...withTerm(undefined, "ventas", "1-9", 15) };
+    const next = withTerm(blob, "ventas", "2-7", 20);
+    expect(next.otra_pref).toBe("x");
+    const t = readTerminos(next);
+    expect(termFor(t, "ventas", "1-9")).toBe(15);
+    expect(termFor(t, "ventas", "2-7")).toBe(20);
+  });
+});
+
+describe("buildMaestro", () => {
+  const docs: DocConVencimiento[] = [
+    // Kaufmann: 2 facturas. Con término 30 desde emisión:
+    { rut: "96572360-9", name: "COMERCIAL KAUFMANN S.A.", fecha: "01/06/2026", monto: 5_000_000, folio: 1 }, // vence 01/07 → VENCIDO
+    { rut: "96572360-9", name: "COMERCIAL KAUFMANN S.A.", fecha: "01/07/2026", monto: 3_000_000, folio: 2 }, // vence 31/07 → vigente
+    // Diveimport: 1 factura reciente, término 30.
+    { rut: "55555555-5", name: "DIVEIMPORT S.A.", fecha: "18/07/2026", monto: 1_000_000, folio: 3 }, // vence 17/08 → vigente
+  ];
+
+  it("agrega por contraparte, deriva vencimiento y clasifica estado", () => {
+    const t = readTerminos(undefined); // ventas default 30
+    const m = buildMaestro(docs, t, "ventas", HOY);
+    const kauf = m.find((c) => c.rut === "96572360-9")!;
+    expect(kauf.docCount).toBe(2);
+    expect(kauf.total).toBe(8_000_000);
+    expect(kauf.vencido).toBe(5_000_000); // solo la del 01/06
+    expect(kauf.termino).toBe(30);
+    // próximo vencimiento no vencido = 31/07 (la factura 2)
+    expect(kauf.proximoVencimiento).not.toBeNull();
+    expect(kauf.proximoVencimiento!.getMonth()).toBe(6); // julio
+  });
+
+  it("ordena contrapartes por vencido desc (a quién perseguir primero)", () => {
+    const t = readTerminos(undefined);
+    const m = buildMaestro(docs, t, "ventas", HOY);
+    expect(m[0]!.rut).toBe("96572360-9"); // Kaufmann tiene vencido; Diveimport no
+  });
+
+  it("el override de término mueve el vencimiento (término más largo → deja de estar vencido)", () => {
+    // Con término 90 para Kaufmann, la factura del 01/06 vence 30/08 → ya no vencida.
+    const blob = withTerm(undefined, "ventas", "96572360-9", 90);
+    const m = buildMaestro(docs, readTerminos(blob), "ventas", HOY);
+    const kauf = m.find((c) => c.rut === "96572360-9")!;
+    expect(kauf.vencido).toBe(0);
+    expect(kauf.terminoCustom).toBe(true);
+  });
+
+  it("totalesMaestro suma el conjunto", () => {
+    const t = readTerminos(undefined);
+    const tot = totalesMaestro(buildMaestro(docs, t, "ventas", HOY));
+    expect(tot.total).toBe(9_000_000);
+    expect(tot.vencido).toBe(5_000_000);
+    expect(tot.contrapartes).toBe(2);
+    expect(tot.docs).toBe(3);
+  });
+
+  it("default por tipo: honorarios usa 5 días", () => {
+    expect(TERMINO_DEFAULT.honorarios).toBe(5);
+    const bhe: DocConVencimiento[] = [
+      { rut: "12345678-9", name: "Juan Prof", fecha: "18/07/2026", monto: 500_000, folio: 9 }, // +5 = 23/07 → por_vencer
+    ];
+    const m = buildMaestro(bhe, readTerminos(undefined), "honorarios", HOY);
+    expect(m[0]!.docs[0]!.estado).toBe("por_vencer");
+  });
+});
