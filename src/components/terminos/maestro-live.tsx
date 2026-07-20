@@ -13,8 +13,17 @@ import {
   withTerm,
   withoutTerm,
   withDefaultTerm,
+  readPagados,
+  isPagado,
+  withPagado,
+  withoutPagado,
   type MaestroKind,
 } from "./terminos-pago";
+
+/** Fecha de HOY en America/Santiago como ISO "YYYY-MM-DD". */
+function todayISO(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
+}
 
 /* Contenedor del maestro (clientes/proveedores/honorarios). Cablea los documentos del
    año (useMaestroDocs) + los términos de las prefs al motor puro (buildMaestro) y persiste
@@ -57,7 +66,11 @@ export function MaestroLive({
   const today = React.useMemo(() => new Date(), []);
 
   const terminos = React.useMemo(() => readTerminos(prefs.data?.preferences), [prefs.data]);
-  const cps = React.useMemo(() => buildMaestro(docs, terminos, kind, today), [docs, terminos, kind, today]);
+  const pagados = React.useMemo(() => readPagados(prefs.data?.preferences), [prefs.data]);
+  const cps = React.useMemo(
+    () => buildMaestro(docs, terminos, kind, today, pagados),
+    [docs, terminos, kind, today, pagados],
+  );
   const totals = React.useMemo(() => totalesMaestro(cps), [cps]);
 
   const persist = (blob: PreferencesBlob) => {
@@ -67,12 +80,18 @@ export function MaestroLive({
       });
       return;
     }
-    updatePrefs.mutate(blob, { onError: () => toast.error("No pudimos guardar el término.") });
+    updatePrefs.mutate(blob, { onError: () => toast.error("No pudimos guardar el cambio.") });
   };
   const onSetTerm = (rut: string, days: number) =>
     persist(withTerm(prefs.data?.preferences, kind, rut, days));
   const onResetTerm = (rut: string) => persist(withoutTerm(prefs.data?.preferences, kind, rut));
   const onSetDefault = (days: number) => persist(withDefaultTerm(prefs.data?.preferences, kind, days));
+  const onTogglePagado = (rut: string, folio: number | string | null) => {
+    const blob = isPagado(pagados, kind, rut, folio)
+      ? withoutPagado(prefs.data?.preferences, kind, rut, folio)
+      : withPagado(prefs.data?.preferences, kind, rut, folio, todayISO());
+    persist(blob);
+  };
 
   if (isFetching && docs.length === 0) return <MaestroSkeleton />;
   if (docs.length === 0) {
@@ -98,6 +117,7 @@ export function MaestroLive({
       onSetTerm={onSetTerm}
       onResetTerm={onResetTerm}
       onSetDefault={onSetDefault}
+      onTogglePagado={onTogglePagado}
       pending={updatePrefs.isPending}
       periodosLabel={periodosLabel(periods)}
       titulo={titulo}

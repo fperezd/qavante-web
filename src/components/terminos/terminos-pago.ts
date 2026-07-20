@@ -184,6 +184,66 @@ export function withDefaultTerm(
   return { ...(blob ?? {}), [TERMINOS_KEY]: next };
 }
 
+/* ── "Marcar pagado" por documento — persistido en prefs (#571) ────────────────
+ * Como el backend aún no da el estado por documento, el usuario puede marcar a mano
+ * qué facturas ya cobró/pagó. Un doc pagado sale del vencido/por vencer → el total
+ * refleja lo REALMENTE adeudado. Mapa `docKey → fecha ISO`. */
+
+export const PAGADOS_KEY = "docs_pagados";
+
+/** rut normalizado → fecha ISO en que se marcó pagado. */
+export type PagadosMap = Record<string, string>;
+
+/** Clave estable de un documento: tipo + rut + folio (folio solo es único por emisor). */
+export function docKey(kind: MaestroKind, rut: string, folio: number | string | null | undefined): string {
+  return `${kind}:${normalizeRut(rut)}:${folio ?? ""}`;
+}
+
+/** Lee el mapa de pagados del blob. Defensivo (blob es `unknown`). PURO. */
+export function readPagados(blob: PreferencesBlob | undefined): PagadosMap {
+  const v = blob?.[PAGADOS_KEY];
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const out: PagadosMap = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === "string") out[k] = val;
+  }
+  return out;
+}
+
+/** ¿Este documento está marcado pagado? */
+export function isPagado(
+  map: PagadosMap,
+  kind: MaestroKind,
+  rut: string,
+  folio: number | string | null | undefined,
+): boolean {
+  return typeof map[docKey(kind, rut, folio)] === "string";
+}
+
+/** Blob COMPLETO marcando el documento pagado en `isoDate`. PURO. */
+export function withPagado(
+  blob: PreferencesBlob | undefined,
+  kind: MaestroKind,
+  rut: string,
+  folio: number | string | null | undefined,
+  isoDate: string,
+): PreferencesBlob {
+  const cur = readPagados(blob);
+  return { ...(blob ?? {}), [PAGADOS_KEY]: { ...cur, [docKey(kind, rut, folio)]: isoDate } };
+}
+
+/** Blob COMPLETO desmarcando (deshacer pagado). PURO. */
+export function withoutPagado(
+  blob: PreferencesBlob | undefined,
+  kind: MaestroKind,
+  rut: string,
+  folio: number | string | null | undefined,
+): PreferencesBlob {
+  const cur = { ...readPagados(blob) };
+  delete cur[docKey(kind, rut, folio)];
+  return { ...(blob ?? {}), [PAGADOS_KEY]: cur };
+}
+
 /* ── Agregación: docs → maestro por contraparte ───────────────────────────────*/
 
 export interface DocMaestro {
@@ -195,6 +255,8 @@ export interface DocMaestro {
   estado: EstadoDoc;
   /** Días para vencer (negativo = días vencido). null si sin fecha. */
   diasParaVencer: number | null;
+  /** Marcado pagado a mano (fuera del vencido/por vencer). */
+  pagado: boolean;
 }
 
 export interface ContraparteMaestro {
@@ -208,6 +270,8 @@ export interface ContraparteMaestro {
   porVencer: number;
   /** Suma de documentos vigentes. */
   vigente: number;
+  /** Suma de documentos marcados pagados (fuera del vencido/por vencer/vigente). */
+  pagado: number;
   /** Término aplicado (días). */
   termino: number;
   /** ¿El término es un override (≠ default)? */
@@ -225,6 +289,7 @@ export function buildMaestro(
   terminos: TerminosResueltos,
   kind: MaestroKind,
   today: Date,
+  pagados: PagadosMap = {},
 ): ContraparteMaestro[] {
   const byRut = new Map<string, ContraparteMaestro>();
 
@@ -237,6 +302,7 @@ export function buildMaestro(
     const estado = estadoDoc(vencimiento, today);
     const diasParaVencer = vencimiento ? daysBetween(today, vencimiento) : null;
     const monto = Number.isFinite(d.monto) ? d.monto : 0;
+    const pagado = isPagado(pagados, kind, rut, d.folio);
 
     const doc: DocMaestro = {
       folio: d.folio ?? null,
@@ -246,6 +312,7 @@ export function buildMaestro(
       vencimiento,
       estado,
       diasParaVencer,
+      pagado,
     };
 
     let cp = byRut.get(rut);
@@ -258,6 +325,7 @@ export function buildMaestro(
         vencido: 0,
         porVencer: 0,
         vigente: 0,
+        pagado: 0,
         termino,
         terminoCustom: isTermCustom(terminos, kind, rut),
         proximoVencimiento: null,
@@ -267,13 +335,17 @@ export function buildMaestro(
     }
     cp.docCount += 1;
     cp.total += monto;
-    if (estado === "vencido") cp.vencido += monto;
-    else if (estado === "por_vencer") cp.porVencer += monto;
-    else if (estado === "vigente") cp.vigente += monto;
-    // Próximo vencimiento = el más cercano en el futuro (no vencido).
-    if (vencimiento && estado !== "vencido") {
-      if (!cp.proximoVencimiento || vencimiento < cp.proximoVencimiento) {
-        cp.proximoVencimiento = vencimiento;
+    // Un doc pagado sale del vencido/por vencer/vigente y no cuenta para el próximo.
+    if (pagado) {
+      cp.pagado += monto;
+    } else {
+      if (estado === "vencido") cp.vencido += monto;
+      else if (estado === "por_vencer") cp.porVencer += monto;
+      else if (estado === "vigente") cp.vigente += monto;
+      if (vencimiento && estado !== "vencido") {
+        if (!cp.proximoVencimiento || vencimiento < cp.proximoVencimiento) {
+          cp.proximoVencimiento = vencimiento;
+        }
       }
     }
     cp.docs.push(doc);
@@ -304,9 +376,10 @@ export function totalesMaestro(cps: ReadonlyArray<ContraparteMaestro>) {
       vencido: acc.vencido + c.vencido,
       porVencer: acc.porVencer + c.porVencer,
       vigente: acc.vigente + c.vigente,
+      pagado: acc.pagado + c.pagado,
       contrapartes: acc.contrapartes + 1,
       docs: acc.docs + c.docCount,
     }),
-    { total: 0, vencido: 0, porVencer: 0, vigente: 0, contrapartes: 0, docs: 0 },
+    { total: 0, vencido: 0, porVencer: 0, vigente: 0, pagado: 0, contrapartes: 0, docs: 0 },
   );
 }

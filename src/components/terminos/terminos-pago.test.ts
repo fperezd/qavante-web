@@ -12,8 +12,13 @@ import {
   withDefaultTerm,
   buildMaestro,
   totalesMaestro,
+  readPagados,
+  isPagado,
+  withPagado,
+  withoutPagado,
   TERMINO_DEFAULT,
   TERMINOS_KEY,
+  PAGADOS_KEY,
   type DocConVencimiento,
 } from "./terminos-pago";
 
@@ -99,6 +104,20 @@ describe("prefs de términos", () => {
   });
 });
 
+describe("pagados (prefs)", () => {
+  it("readPagados defensivo + round-trip with/without", () => {
+    expect(readPagados(undefined)).toEqual({});
+    expect(readPagados({ [PAGADOS_KEY]: "nope" })).toEqual({});
+    const marked = withPagado(undefined, "compras", "77.111.222-3", 1002, "2026-07-20");
+    expect(isPagado(readPagados(marked), "compras", "77111222-3", 1002)).toBe(true);
+    // distinto folio / distinto tipo → no está pagado
+    expect(isPagado(readPagados(marked), "compras", "77111222-3", 9999)).toBe(false);
+    expect(isPagado(readPagados(marked), "ventas", "77111222-3", 1002)).toBe(false);
+    const undone = withoutPagado(marked, "compras", "77111222-3", 1002);
+    expect(isPagado(readPagados(undone), "compras", "77111222-3", 1002)).toBe(false);
+  });
+});
+
 describe("buildMaestro", () => {
   const docs: DocConVencimiento[] = [
     // Kaufmann: 2 facturas. Con término 30 desde emisión:
@@ -143,6 +162,19 @@ describe("buildMaestro", () => {
     expect(tot.vencido).toBe(5_000_000);
     expect(tot.contrapartes).toBe(2);
     expect(tot.docs).toBe(3);
+  });
+
+  it("un doc marcado pagado sale del vencido y cuenta como pagado", () => {
+    const t = readTerminos(undefined);
+    // Marcar pagada la factura vencida de Kaufmann (folio 1).
+    const pagados = readPagados(withPagado(undefined, "ventas", "96572360-9", 1, "2026-07-20"));
+    const m = buildMaestro(docs, t, "ventas", HOY, pagados);
+    const kauf = m.find((c) => c.rut === "96572360-9")!;
+    expect(kauf.vencido).toBe(0); // la única vencida quedó pagada
+    expect(kauf.pagado).toBe(5_000_000);
+    expect(kauf.total).toBe(8_000_000); // el total no cambia
+    const docPagada = kauf.docs.find((d) => d.folio === 1)!;
+    expect(docPagada.pagado).toBe(true);
   });
 
   it("default por tipo: honorarios usa 5 días", () => {
