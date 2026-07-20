@@ -347,26 +347,51 @@ export function buildMaestro(
       byRut.set(rut, cp);
     }
     cp.docCount += 1;
-    cp.total += monto;
-    // Un doc pagado sale del vencido/por vencer/vigente y no cuenta para el próximo.
-    if (pagado) {
-      cp.pagado += monto;
-    } else {
-      if (estado === "vencido") cp.vencido += monto;
-      else if (estado === "por_vencer") cp.porVencer += monto;
-      else if (estado === "vigente") cp.vigente += monto;
-      if (vencimiento && estado !== "vencido") {
-        if (!cp.proximoVencimiento || vencimiento < cp.proximoVencimiento) {
-          cp.proximoVencimiento = vencimiento;
-        }
-      }
-    }
+    cp.total += monto; // neto (facturas − NC)
     cp.docs.push(doc);
   }
 
   const list = [...byRut.values()];
-  // Ordenar los docs de cada contraparte de MÁS NUEVO a más antiguo (por emisión).
   for (const cp of list) {
+    // Buckets desde las FACTURAS (docs no pagados, no NC). Las NC se netean después
+    // contra los buckets de MÁS VIEJO a más nuevo (vencido → por vencer → vigente):
+    // una NC suele acreditar una factura antigua, así el vencido nunca supera el total
+    // neto. Pagados/conciliados salen aparte. Sobre-crédito (NC > facturas) → buckets 0
+    // y el exceso queda reflejado en el total (Opción A, fiel al F29: no se filtra).
+    let fVencido = 0,
+      fPorVencer = 0,
+      fVigente = 0,
+      ncPend = 0,
+      pagadoSum = 0;
+    let proximo: Date | null = null;
+    for (const d of cp.docs) {
+      if (d.pagado) {
+        pagadoSum += d.monto;
+        continue;
+      }
+      if (d.esNotaCredito) {
+        ncPend += Math.abs(d.monto);
+        continue;
+      }
+      if (d.estado === "vencido") fVencido += d.monto;
+      else if (d.estado === "por_vencer") fPorVencer += d.monto;
+      else if (d.estado === "vigente") fVigente += d.monto;
+      if (d.vencimiento && d.estado !== "vencido") {
+        if (!proximo || d.vencimiento < proximo) proximo = d.vencimiento;
+      }
+    }
+    let r = ncPend;
+    const tv = Math.min(r, fVencido);
+    cp.vencido = fVencido - tv;
+    r -= tv;
+    const tp = Math.min(r, fPorVencer);
+    cp.porVencer = fPorVencer - tp;
+    r -= tp;
+    const tg = Math.min(r, fVigente);
+    cp.vigente = fVigente - tg;
+    cp.pagado = pagadoSum;
+    cp.proximoVencimiento = proximo;
+    // Documentos de MÁS NUEVO a más antiguo (por emisión) para el detalle.
     cp.docs.sort((a, b) => sortByEmisionDesc(a.fechaEmision, b.fechaEmision));
   }
   // Contrapartes: primero las de más vencido; a igual vencido, mayor total.

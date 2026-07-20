@@ -175,6 +175,20 @@ describe("buildMaestro", () => {
     expect(nc.monto).toBe(-2_000_000); // firmado negativo
   });
 
+  it("la NC 'por vencer' netea el VENCIDO primero (caso TD Synnex): vencido ≤ total", () => {
+    const conNC: DocConVencimiento[] = [
+      // factura vieja VENCIDA (18/03 + 30 = 17/04 < hoy)
+      { rut: "77915170-0", name: "TD", fecha: "18/03/2026", monto: 5_663_148, folio: 26015, tipoDoc: 33 },
+      // NC reciente ("por vencer" por su fecha) que acredita la vieja
+      { rut: "77915170-0", name: "TD", fecha: "23/06/2026", monto: 4_000_000, folio: 3241, tipoDoc: 61 },
+    ];
+    const k = buildMaestro(conNC, readTerminos(undefined), "compras", HOY)[0]!;
+    expect(k.total).toBe(1_663_148); // 5.663.148 − 4.000.000
+    expect(k.vencido).toBe(1_663_148); // la NC netea el vencido de más viejo a más nuevo
+    expect(k.porVencer).toBe(0);
+    expect(k.vencido).toBeLessThanOrEqual(k.total); // nunca vencido > total
+  });
+
   it("la NC neta aunque el SII la mande positiva o negativa (por magnitud)", () => {
     const neg: DocConVencimiento[] = [
       { rut: "1-9", name: "X", fecha: "01/06/2026", monto: -2_000_000, folio: 9, tipoDoc: 61 },
