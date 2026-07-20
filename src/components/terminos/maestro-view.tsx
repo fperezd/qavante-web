@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, RotateCcw } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 import { InfoHint } from "@/components/ui/info-hint";
 import { formatClp } from "@/lib/formatters/clp";
@@ -27,11 +27,20 @@ export interface MaestroContrapartesProps {
   /** "clientes" | "proveedores" | "profesionales". */
   contrapartePlural: string;
   cps: ContraparteMaestro[];
-  totals: { total: number; vencido: number; porVencer: number; contrapartes: number; docs: number };
+  totals: {
+    total: number;
+    vencido: number;
+    porVencer: number;
+    pagado: number;
+    contrapartes: number;
+    docs: number;
+  };
   defaultTerm: number;
   onSetTerm: (rut: string, days: number) => void;
   onResetTerm: (rut: string) => void;
   onSetDefault: (days: number) => void;
+  /** Marca/desmarca un documento como pagado (persiste en prefs). */
+  onTogglePagado: (rut: string, folio: number | string | null) => void;
   pending?: boolean;
   /** Etiqueta del rango consultado, ej. "ene–jul 2026". */
   periodosLabel?: string;
@@ -49,6 +58,7 @@ export function MaestroContrapartes({
   onSetTerm,
   onResetTerm,
   onSetDefault,
+  onTogglePagado,
   pending,
   periodosLabel,
   titulo,
@@ -66,8 +76,8 @@ export function MaestroContrapartes({
             <InfoHint label="Cómo se calcula el vencimiento">
               El SII no entrega las fechas de vencimiento, así que las derivamos:{" "}
               <b>vencimiento = emisión + término de pago</b>. Ajusta el término por contraparte para
-              tener control. El vencido se calcula sobre lo facturado{periodosLabel ? ` (${periodosLabel})` : ""} —
-              no descuenta cobros/pagos ya hechos.
+              tener control. El vencido se calcula sobre lo facturado{periodosLabel ? ` (${periodosLabel})` : ""};
+              marca <b>“pagado”</b> los documentos ya saldados y salen del vencido.
             </InfoHint>
           </span>
           <DefaultTermControl defaultTerm={defaultTerm} onSetDefault={onSetDefault} pending={pending} />
@@ -78,7 +88,11 @@ export function MaestroContrapartes({
 
       {/* Resumen. */}
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Resumen label="Facturado" value={formatClp(totals.total)} />
+        <Resumen
+          label="Facturado"
+          value={formatClp(totals.total)}
+          sub={totals.pagado > 0 ? `${formatClp(totals.pagado)} pagado` : undefined}
+        />
         <Resumen label="Vencido" value={formatClp(totals.vencido)} tone="danger" />
         <Resumen label="Por vencer" value={formatClp(totals.porVencer)} tone="warn" />
         <Resumen label={contrapartePlural} value={`${totals.contrapartes}`} sub={`${totals.docs} docs`} />
@@ -110,6 +124,7 @@ export function MaestroContrapartes({
                   onToggle={() => setOpenRut(openRut === cp.rut ? null : cp.rut)}
                   onSetTerm={onSetTerm}
                   onResetTerm={onResetTerm}
+                  onTogglePagado={onTogglePagado}
                   pending={pending}
                 />
               ))}
@@ -172,6 +187,7 @@ function ContraparteRow({
   onToggle,
   onSetTerm,
   onResetTerm,
+  onTogglePagado,
   pending,
 }: {
   cp: ContraparteMaestro;
@@ -179,6 +195,7 @@ function ContraparteRow({
   onToggle: () => void;
   onSetTerm: (rut: string, days: number) => void;
   onResetTerm: (rut: string) => void;
+  onTogglePagado: (rut: string, folio: number | string | null) => void;
   pending?: boolean;
 }) {
   return (
@@ -240,7 +257,7 @@ function ContraparteRow({
       {isOpen && (
         <tr>
           <td colSpan={6} className="bg-surface-muted/30 px-3 py-2">
-            <DocDetail cp={cp} />
+            <DocDetail cp={cp} onTogglePagado={onTogglePagado} pending={pending} />
           </td>
         </tr>
       )}
@@ -248,36 +265,79 @@ function ContraparteRow({
   );
 }
 
-function DocDetail({ cp }: { cp: ContraparteMaestro }) {
+function DocDetail({
+  cp,
+  onTogglePagado,
+  pending,
+}: {
+  cp: ContraparteMaestro;
+  onTogglePagado: (rut: string, folio: number | string | null) => void;
+  pending?: boolean;
+}) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[420px] text-[12.5px]">
+      <table className="w-full min-w-[480px] text-[12.5px]">
         <thead>
           <tr className="border-b border-border text-left text-[10.5px] font-semibold uppercase tracking-wider text-neutral-mid">
             <th className="py-1 pr-3 font-semibold">Folio</th>
             <th className="py-1 pr-3 font-semibold">Emisión</th>
             <th className="py-1 pr-3 font-semibold">Vence</th>
             <th className="py-1 pr-3 font-semibold">Estado</th>
-            <th className="py-1 text-right font-semibold">Monto</th>
+            <th className="py-1 pr-3 text-right font-semibold">Monto</th>
+            <th className="py-1 text-right font-semibold">Pagado</th>
           </tr>
         </thead>
         <tbody>
           {cp.docs.map((d, i) => {
             const meta = ESTADO_META[d.estado];
             return (
-              <tr key={`${d.folio ?? "x"}-${i}`} className="border-b border-border/50 last:border-b-0">
+              <tr
+                key={`${d.folio ?? "x"}-${i}`}
+                className={cn("border-b border-border/50 last:border-b-0", d.pagado && "opacity-60")}
+              >
                 <td className="py-1 pr-3 tabular-nums text-neutral-dark">{d.folio ?? "—"}</td>
                 <td className="py-1 pr-3 text-neutral-mid">{d.fechaEmision ? formatDateLike(d.fecha) : d.fecha || "—"}</td>
                 <td className="py-1 pr-3 text-neutral-mid">
                   {d.vencimiento ? formatDateLike(d.vencimiento.toISOString().slice(0, 10)) : "—"}
                 </td>
                 <td className="py-1 pr-3">
-                  <span className={cn("inline-block rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold", meta.cls)}>
-                    {meta.label}
-                    {d.estado === "vencido" && d.diasParaVencer != null && ` ${Math.abs(d.diasParaVencer)}d`}
-                  </span>
+                  {d.pagado ? (
+                    <span className="inline-block rounded-full bg-success-500/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-success-700">
+                      Pagado
+                    </span>
+                  ) : (
+                    <span className={cn("inline-block rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold", meta.cls)}>
+                      {meta.label}
+                      {d.estado === "vencido" && d.diasParaVencer != null && ` ${Math.abs(d.diasParaVencer)}d`}
+                    </span>
+                  )}
                 </td>
-                <td className="py-1 text-right tabular-nums text-neutral-dark">{formatClp(d.monto)}</td>
+                <td className={cn("py-1 pr-3 text-right tabular-nums text-neutral-dark", d.pagado && "line-through")}>
+                  {formatClp(d.monto)}
+                </td>
+                <td className="py-1 text-right">
+                  <button
+                    type="button"
+                    onClick={() => onTogglePagado(cp.rut, d.folio)}
+                    disabled={pending}
+                    aria-pressed={d.pagado}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+                      d.pagado
+                        ? "border-success-500/40 bg-success-500/10 text-success-700"
+                        : "border-border bg-surface text-neutral-mid hover:border-brand-primary hover:text-brand-primary",
+                    )}
+                  >
+                    {d.pagado ? (
+                      <>
+                        <Check className="size-3" aria-hidden="true" />
+                        Pagado
+                      </>
+                    ) : (
+                      "Marcar pagado"
+                    )}
+                  </button>
+                </td>
               </tr>
             );
           })}

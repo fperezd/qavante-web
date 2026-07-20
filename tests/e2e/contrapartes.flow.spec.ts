@@ -15,6 +15,9 @@ test.describe("Flujo: submenús de contrapartes", () => {
     await expect(page.getByText("Cliente A SA").first()).toBeVisible();
     // Término editable por cliente.
     await expect(page.getByLabel(/Término de pago de Cliente A SA/).first()).toBeVisible();
+    // Expandir el cliente → detalle de documentos con "marcar pagado" por factura.
+    await page.getByRole("button", { name: /Cliente A SA/ }).first().click();
+    await expect(page.getByRole("button", { name: "Marcar pagado" }).first()).toBeVisible();
   });
 
   test("Pagar → Proveedores (/pagar/proveedores)", async ({ page, context }) => {
