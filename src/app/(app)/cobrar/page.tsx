@@ -9,6 +9,7 @@ import {
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { CobrarView } from "@/components/cobrar/cobrar-view";
 import { CobrarV2Live } from "@/components/cobrar/v2/cobrar-v2-live";
+import { MaestroLive } from "@/components/terminos/maestro-live";
 
 /* Cobrar (Sprint C4). Server Component: resuelve los flags. `cobrarV2` ON → la
    respuesta de dueño ("a quién le cobras primero") + acciones reales de cobranza
@@ -27,6 +28,9 @@ export default function CobrarPage() {
           <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
         </header>
         <CobrarV2Live siiEnabled={siiQueries} />
+        {/* Maestro de clientes: control de vencimientos derivados (emisión + término
+            editable) sobre las ventas del SII este año. Requiere SII conectado. */}
+        {siiQueries && <MaestroLive kind="ventas" />}
       </div>
     );
   }
