@@ -77,7 +77,7 @@ export function MaestroContrapartes({
               El SII no entrega las fechas de vencimiento, así que las derivamos:{" "}
               <b>vencimiento = emisión + término de pago</b>. Ajusta el término por contraparte para
               tener control. El vencido se calcula sobre lo facturado{periodosLabel ? ` (${periodosLabel})` : ""};
-              marca <b>“pagado”</b> los documentos ya saldados y salen del vencido.
+              marca <b>“conciliado”</b> los documentos ya cruzados con el banco/pago y salen del vencido.
             </InfoHint>
           </span>
           <DefaultTermControl defaultTerm={defaultTerm} onSetDefault={onSetDefault} pending={pending} />
@@ -91,7 +91,7 @@ export function MaestroContrapartes({
         <Resumen
           label="Facturado"
           value={formatClp(totals.total)}
-          sub={totals.pagado > 0 ? `${formatClp(totals.pagado)} pagado` : undefined}
+          sub={totals.pagado > 0 ? `${formatClp(totals.pagado)} conciliado` : undefined}
         />
         <Resumen label="Vencido" value={formatClp(totals.vencido)} tone="danger" />
         <Resumen label="Por vencer" value={formatClp(totals.porVencer)} tone="warn" />
@@ -284,7 +284,7 @@ function DocDetail({
             <th className="py-1 pr-3 font-semibold">Vence</th>
             <th className="py-1 pr-3 font-semibold">Estado</th>
             <th className="py-1 pr-3 text-right font-semibold">Monto</th>
-            <th className="py-1 text-right font-semibold">Pagado</th>
+            <th className="py-1 text-right font-semibold">Conciliación</th>
           </tr>
         </thead>
         <tbody>
@@ -303,7 +303,7 @@ function DocDetail({
                 <td className="py-1 pr-3">
                   {d.pagado ? (
                     <span className="inline-block rounded-full bg-success-500/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-success-700">
-                      Pagado
+                      Conciliado
                     </span>
                   ) : (
                     <span className={cn("inline-block rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold", meta.cls)}>
@@ -331,10 +331,10 @@ function DocDetail({
                     {d.pagado ? (
                       <>
                         <Check className="size-3" aria-hidden="true" />
-                        Pagado
+                        Conciliado
                       </>
                     ) : (
-                      "Marcar pagado"
+                      "Marcar conciliado"
                     )}
                   </button>
                 </td>
