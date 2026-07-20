@@ -189,6 +189,23 @@ describe("buildMaestro", () => {
     expect(k.vencido).toBeLessThanOrEqual(k.total); // nunca vencido > total
   });
 
+  it("una NC con ref anula su factura: quedan juntas (NC sigue a la factura) + estado anulada", () => {
+    const conRef: DocConVencimiento[] = [
+      { rut: "1-9", name: "X", fecha: "01/06/2026", monto: 5_000_000, folio: 100, tipoDoc: 33 },
+      { rut: "1-9", name: "X", fecha: "10/06/2026", monto: 5_000_000, folio: 200, tipoDoc: 61, refFolio: 100, refTipoDoc: 33 },
+    ];
+    const k = buildMaestro(conRef, readTerminos(undefined), "compras", HOY)[0]!;
+    expect(k.total).toBe(0); // 5M − 5M
+    expect(k.vencido).toBe(0);
+    // La factura y su NC quedan contiguas: factura primero, NC (anula N° 100) debajo.
+    expect(k.docs[0]!.folio).toBe(100);
+    expect(k.docs[0]!.esNotaCredito).toBe(false);
+    expect(k.docs[0]!.anulacion).toBe("anulada");
+    expect(k.docs[1]!.folio).toBe(200);
+    expect(k.docs[1]!.esNotaCredito).toBe(true);
+    expect(k.docs[1]!.refFolio).toBe(100);
+  });
+
   it("la NC neta aunque el SII la mande positiva o negativa (por magnitud)", () => {
     const neg: DocConVencimiento[] = [
       { rut: "1-9", name: "X", fecha: "01/06/2026", monto: -2_000_000, folio: 9, tipoDoc: 61 },
