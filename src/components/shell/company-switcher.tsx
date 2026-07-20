@@ -54,11 +54,11 @@ export function CompanySwitcher() {
   /* El label nunca muestra "MVP Tenant": si la sesión cayó en él, mostramos la
      empresa preferida (la autocorrección de abajo va a cambiar a ella enseguida).
      Mientras cargan las empresas, "Cargando…"; si el auto-switch quedó pegado,
-     "Elegí tu empresa" (honesto, no un nombre real sobre datos ajenos). */
+     "Elige tu empresa" (honesto, no un nombre real sobre datos ajenos). */
   const label = tenants.isLoading
     ? "Cargando…"
     : autoSwitchStuck
-      ? "Elegí tu empresa"
+      ? "Elige tu empresa"
       : ((activeIsMvp ? preferred?.legal_name : active?.legal_name) ?? "Mi empresa");
   const busy = switchTenant.isPending;
 

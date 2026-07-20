@@ -434,7 +434,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           Mostramos los primeros{" "}
           <span className="font-semibold tabular-nums">{allMovements.length}</span> de{" "}
           <span className="font-semibold tabular-nums">{totalSinClasificar}</span> movimientos sin
-          clasificar. Clasificá estos y volvé a cargar para ver el resto.
+          clasificar. Clasifica estos y vuelve a cargar para ver el resto.
         </p>
       )}
 
