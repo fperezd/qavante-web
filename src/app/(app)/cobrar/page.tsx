@@ -8,14 +8,28 @@ import {
 } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { CobrarView } from "@/components/cobrar/cobrar-view";
+import { CobrarV2Live } from "@/components/cobrar/v2/cobrar-v2-live";
 
-/* Cobrar (Sprint C4). Server Component: resuelve los flags. `accountsReceivable`
-   ON → la pantalla completa (resumen + aging + top deudores + documentos,
-   contrato FE-first); el link al Libro de Ventas SII va dentro (si `siiQueries`).
-   Flag OFF → comportamiento previo (card SII + placeholder C4). Sin
-   `export const runtime` (regla 4). */
+/* Cobrar (Sprint C4). Server Component: resuelve los flags. `cobrarV2` ON → la
+   respuesta de dueño ("a quién le cobras primero") + acciones reales de cobranza
+   (tiene prioridad sobre la vista clásica, mismo dato base). `accountsReceivable`
+   ON → la pantalla clásica (resumen + aging + top deudores + documentos). Flag OFF
+   → comportamiento previo (card SII + placeholder C4). Sin `export const runtime`
+   (regla 4). */
 export default function CobrarPage() {
-  const { siiQueries, accountsReceivable } = resolveFeatureFlags();
+  const { siiQueries, accountsReceivable, cobrarV2 } = resolveFeatureFlags();
+
+  if (cobrarV2) {
+    return (
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
+          <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
+        </header>
+        <CobrarV2Live siiEnabled={siiQueries} />
+      </div>
+    );
+  }
 
   if (accountsReceivable) {
     return (
