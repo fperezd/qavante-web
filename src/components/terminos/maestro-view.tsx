@@ -52,6 +52,7 @@ export interface MaestroContrapartesProps {
 }
 
 export function MaestroContrapartes({
+  kind,
   contrapartePlural,
   cps,
   totals,
@@ -66,6 +67,7 @@ export function MaestroContrapartes({
   subtitulo,
 }: MaestroContrapartesProps) {
   const [openRut, setOpenRut] = React.useState<string | null>(null);
+  const saldoLabel = kind === "ventas" ? "Por cobrar" : "Por pagar";
 
   return (
     <QavanteCard
@@ -77,8 +79,9 @@ export function MaestroContrapartes({
             <InfoHint label="Cómo se calcula el vencimiento">
               El SII no entrega las fechas de vencimiento, así que las derivamos:{" "}
               <b>vencimiento = emisión + término de pago</b>. Ajusta el término por contraparte para
-              tener control. El vencido se calcula sobre lo facturado{periodosLabel ? ` (${periodosLabel})` : ""};
-              marca <b>“conciliado”</b> los documentos ya cruzados con el banco/pago y salen del vencido.
+              tener control. Sobre lo facturado{periodosLabel ? ` (${periodosLabel})` : ""}, net de notas de
+              crédito: marca <b>“conciliado”</b> los documentos ya cruzados con el banco/pago y bajan tu{" "}
+              {saldoLabel.toLowerCase()}.
             </InfoHint>
           </span>
           <DefaultTermControl defaultTerm={defaultTerm} onSetDefault={onSetDefault} pending={pending} />
@@ -90,9 +93,13 @@ export function MaestroContrapartes({
       {/* Resumen. */}
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Resumen
-          label="Facturado"
-          value={formatClp(totals.total)}
-          sub={totals.pagado > 0 ? `${formatClp(totals.pagado)} conciliado` : undefined}
+          label={saldoLabel}
+          value={formatClp(totals.total - totals.pagado)}
+          sub={
+            totals.pagado > 0
+              ? `de ${formatClp(totals.total)} facturado · ${formatClp(totals.pagado)} conciliado`
+              : `de ${formatClp(totals.total)} facturado`
+          }
         />
         <Resumen label="Vencido" value={formatClp(totals.vencido)} tone="danger" />
         <Resumen label="Por vencer" value={formatClp(totals.porVencer)} tone="warn" />
@@ -110,7 +117,7 @@ export function MaestroContrapartes({
               <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
                 <th className="py-2 pr-3 font-semibold">Contraparte</th>
                 <th className="py-2 pr-3 text-right font-semibold">Docs</th>
-                <th className="py-2 pr-3 text-right font-semibold">Total</th>
+                <th className="py-2 pr-3 text-right font-semibold">{saldoLabel}</th>
                 <th className="py-2 pr-3 text-center font-semibold">Término</th>
                 <th className="py-2 pr-3 text-right font-semibold">Vencido</th>
                 <th className="py-2 text-right font-semibold">Próximo</th>
@@ -220,7 +227,7 @@ function ContraparteRow({
           </button>
         </td>
         <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">{cp.docCount}</td>
-        <td className="py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark">{formatClp(cp.total)}</td>
+        <td className="py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark">{formatClp(cp.total - cp.pagado)}</td>
         <td className="py-2 pr-3">
           <div className="flex items-center justify-center gap-1">
             <TermInput
