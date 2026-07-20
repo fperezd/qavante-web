@@ -72,8 +72,8 @@ export const Clientes: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Maestro de clientes")).toBeInTheDocument();
     await expect(canvas.getByText("COMERCIAL KAUFMANN S.A.")).toBeInTheDocument();
-    // El vencido derivado se muestra.
-    await expect(canvas.getByText("$5.000.000")).toBeInTheDocument();
+    // El vencido derivado se muestra (aparece en el resumen y en la fila → getAllByText).
+    await expect(canvas.getAllByText("$5.000.000").length).toBeGreaterThan(0);
     // Input de término editable por contraparte.
     await expect(
       canvas.getByLabelText(/Término de pago de COMERCIAL KAUFMANN/),
