@@ -59,6 +59,13 @@ NEXT_PUBLIC_FF_CAJA_V2 = "true"
 # (accountsPayable) para el dato. Con ON tiene prioridad sobre el Pagar clásico. La postergabilidad es
 # HEURÍSTICA hasta que CC-API mande el flag por ítem (brecha abierta). Volver al clásico = "false".
 NEXT_PUBLIC_FF_PAGAR_V2 = "true"
+# Cobrar v2 (rediseño 2026-07-19) — ON (encendido 2026-07-19 por Fernando): respuesta de dueño
+# ("a quién le cobras primero") + acciones reales de cobranza (copiar recordatorio chileno,
+# WhatsApp/mail sin destinatario, marcar gestionado persistido en prefs #571). Reusa
+# accounts-receivable. Dos modos honestos: urgencia (hay mora) / concentración (sin vencimientos del
+# SII — caso Tooxs hoy: prioriza por tamaño y lo dice). Con ON tiene prioridad sobre el Cobrar
+# clásico. Volver al clásico = poner en "false".
+NEXT_PUBLIC_FF_COBRAR_V2 = "true"
 # (Gestión v2 dejó de ser un flag: la vista clásica se retiró y v2 es la única. Antes vivía acá
 # NEXT_PUBLIC_FF_GESTION_V2; se removió al retirar el clásico — el flag quedaba muerto.)
 # Cola de conciliación (ADR-0036/0042) — pantalla /caja/conciliacion + card en la landing de Caja.
