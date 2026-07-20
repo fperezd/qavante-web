@@ -6,19 +6,18 @@ import { QavanteCard, QavanteButton } from "@/components/qavante";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useSyncSiiRcv } from "@/lib/api/sii";
-import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { currentPeriodSantiago } from "@/components/gestion/gestion-format";
-import { addMonths, expandPeriodRange } from "@/lib/period/period-range";
+import { expandPeriodRange } from "@/lib/period/period-range";
 import { SourceLastSync } from "./source-last-sync";
 
-/* Sincronizar SII (RCV compras/ventas). El endpoint es por período (mes), así que:
-   - Sync normal: mes anterior + mes en curso (2 meses) → mantiene el año al día
-     a medida que llegan documentos del mes actual.
-   - "Sincronizar todo {año}": enero → mes en curso, uno por uno (secuencial, para
-     no golpear al SII), tolerante a meses sin datos. Para la primera carga o si
-     faltan meses hacia atrás. El año es SIEMPRE el año calendario en curso
-     (America/Santiago), nunca hardcodeado.
-   Requiere consentimiento `sii_rcv`; si falta, el error lo explica. */
+/* Sincronizar el AÑO del SII (RCV compras/ventas). El sync del día a día (SII + banco)
+   vive en "Actualizar todo" del header — acá queda SOLO el backfill del año completo
+   (pedido de Fernando 2026-07-20: la sincronización recurrente arriba, en Credenciales
+   solo lo del año). El endpoint es por período (mes): enero → mes en curso, uno por uno
+   (secuencial, para no golpear al SII), tolerante a meses sin datos. Para la primera carga
+   o si faltan meses hacia atrás — llena los maestros / Cobrar / Pagar. El año es SIEMPRE el
+   año calendario en curso (America/Santiago), nunca hardcodeado. Requiere consentimiento
+   `sii_rcv`; si falta, el error lo explica. */
 
 type SyncRun = {
   done: number;
@@ -31,9 +30,7 @@ type SyncRun = {
 export function SiiSyncCard() {
   const sync = useSyncSiiRcv();
   const currentPeriod = currentPeriodSantiago(new Date()); // "YYYY-MM" del mes en curso
-  const prevPeriod = addMonths(currentPeriod, -1); // mes anterior
   const year = currentPeriod.slice(0, 4); // año calendario en curso
-  const recentMonths = [prevPeriod, currentPeriod]; // sync normal
   const [run, setRun] = React.useState<SyncRun | null>(null);
 
   async function runSync(months: string[]) {
@@ -66,21 +63,21 @@ export function SiiSyncCard() {
       header={
         <div className="flex items-center gap-2">
           <Landmark className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-          <span>Sincronizar SII</span>
+          <span>Sincronizar el año (SII)</span>
         </div>
       }
     >
       <div className="space-y-3">
         <p className="text-sm text-neutral-mid">
-          Trae tus compras y ventas del SII. Normalmente sincroniza el{" "}
-          <strong>mes anterior y el actual</strong> ({formatPeriodLabel(prevPeriod)} y{" "}
-          {formatPeriodLabel(currentPeriod)}). La primera vez, o si te faltan meses hacia atrás, usa{" "}
-          <strong>Sincronizar todo {year}</strong> para traer el año completo.
+          Trae el <strong>año completo</strong> de compras y ventas del SII ({year}, enero → hoy).
+          Úsalo para la primera carga o si te faltan meses hacia atrás — es lo que llena tus maestros
+          de Clientes, Proveedores y Honorarios. El día a día se actualiza con{" "}
+          <strong>Actualizar todo</strong> (arriba a la derecha).
         </p>
 
         <SourceLastSync sourceCode="sii_rcv" />
 
-        {/* Progreso / resultado del sync (normal o del año). */}
+        {/* Progreso / resultado del backfill del año. */}
         {run && run.running && (
           <div className="flex items-start gap-2 rounded-lg border border-brand-primary/30 bg-brand-primary-50 p-2.5 text-sm text-brand-primary-700">
             <RefreshCw className="mt-0.5 h-4 w-4 flex-shrink-0 animate-spin" aria-hidden="true" />
@@ -113,26 +110,15 @@ export function SiiSyncCard() {
           </div>
         )}
 
-        <div className="flex flex-wrap justify-end gap-2">
-          <QavanteButton
-            size="sm"
-            variant="secondary"
-            disabled={Boolean(run?.running)}
-            onClick={() =>
-              runSync(expandPeriodRange({ desde: `${year}-01`, hasta: currentPeriod }))
-            }
-          >
-            <CalendarRange className="h-4 w-4" aria-hidden="true" />
-            Sincronizar todo {year}
-          </QavanteButton>
+        <div className="flex justify-end">
           <QavanteButton
             size="sm"
             loading={Boolean(run?.running)}
             disabled={Boolean(run?.running)}
-            onClick={() => runSync(recentMonths)}
+            onClick={() => runSync(expandPeriodRange({ desde: `${year}-01`, hasta: currentPeriod }))}
           >
-            <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            Sincronizar SII
+            <CalendarRange className="h-4 w-4" aria-hidden="true" />
+            Sincronizar todo {year}
           </QavanteButton>
         </div>
       </div>
