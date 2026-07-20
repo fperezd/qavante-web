@@ -13,6 +13,7 @@
 
 import type { PreferencesBlob } from "@/lib/api/preferences";
 import { normalizeRut } from "@/lib/validators/rut";
+import { isNotaCredito } from "@/components/sii/tipo-doc";
 
 export type MaestroKind = "ventas" | "compras" | "honorarios";
 
@@ -32,9 +33,11 @@ export interface DocConVencimiento {
   name: string;
   /** Fecha de emisión: "DD/MM/YYYY" (RCV) o ISO "YYYY-MM-DD". */
   fecha: string;
-  /** Monto del documento (CLP). */
+  /** Monto del documento (CLP, magnitud; el signo lo aplica el motor según el tipo). */
   monto: number;
   folio?: number | string | null;
+  /** Código de tipo de documento del SII (33 factura, 61 NC, 56 ND…). Las NC restan. */
+  tipoDoc?: number;
 }
 
 /* ── Fechas ────────────────────────────────────────────────────────────────── */
@@ -255,8 +258,12 @@ export interface DocMaestro {
   estado: EstadoDoc;
   /** Días para vencer (negativo = días vencido). null si sin fecha. */
   diasParaVencer: number | null;
-  /** Marcado pagado a mano (fuera del vencido/por vencer). */
+  /** Marcado pagado/conciliado a mano (fuera del vencido/por vencer). */
   pagado: boolean;
+  /** Código de tipo de documento del SII (para mostrar Factura/NC/etc.). */
+  tipoDoc: number | null;
+  /** ¿Es Nota de Crédito? (resta; `monto` viene negativo). */
+  esNotaCredito: boolean;
 }
 
 export interface ContraparteMaestro {
@@ -301,7 +308,11 @@ export function buildMaestro(
     const vencimiento = emision ? addDays(emision, termino) : null;
     const estado = estadoDoc(vencimiento, today);
     const diasParaVencer = vencimiento ? daysBetween(today, vencimiento) : null;
-    const monto = Number.isFinite(d.monto) ? d.monto : 0;
+    // Nota de Crédito RESTA (neteo, fiel al SII/F29): normaliza por magnitud y le da
+    // signo negativo. El resto (facturas, boletas, notas de DÉBITO) suma.
+    const esNC = isNotaCredito(d.tipoDoc);
+    const montoAbs = Math.abs(Number.isFinite(d.monto) ? d.monto : 0);
+    const monto = esNC ? -montoAbs : montoAbs;
     const pagado = isPagado(pagados, kind, rut, d.folio);
 
     const doc: DocMaestro = {
@@ -313,6 +324,8 @@ export function buildMaestro(
       estado,
       diasParaVencer,
       pagado,
+      tipoDoc: d.tipoDoc ?? null,
+      esNotaCredito: esNC,
     };
 
     let cp = byRut.get(rut);
