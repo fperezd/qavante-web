@@ -2228,6 +2228,24 @@ const cobranzaHandlers = [
   ),
 ];
 
+/* Preferencias de UI del usuario (#571). Blob opaco stateful: el PUT REEMPLAZA el
+   blob completo (no mergea), como el contrato real. Lo usan el orden de widgets del
+   Inicio v2 y el "marcar gestionado" de Cobrar v2. En e2e cada contexto de browser
+   reinicia MSW → el blob arranca vacío por test. */
+let preferencesBlob: Record<string, unknown> = {};
+const preferencesHandlers = [
+  http.get("*/api/me/preferences", () =>
+    HttpResponse.json({ preferences: preferencesBlob }, { status: 200 }),
+  ),
+  http.put("*/api/me/preferences", async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as {
+      preferences?: Record<string, unknown>;
+    };
+    preferencesBlob = body?.preferences ?? {};
+    return HttpResponse.json({ preferences: preferencesBlob }, { status: 200 });
+  }),
+];
+
 /* Pagar — cuentas por pagar (Sprint C4, contrato FE-first). Endpoint real aún
    no existe (ver docs/backend-contracts/pagar-accounts-payable-contract.md). */
 const accountsPayableFixture = {
@@ -3057,6 +3075,7 @@ export const handlers = [
   ...managementHandlers,
   ...gestionHandlers,
   ...cobranzaHandlers,
+  ...preferencesHandlers,
   ...pagosHandlers,
   ...dashboardHandlers,
   ...pulsoHandlers,
