@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Banknote, Plus } from "lucide-react";
 import { QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import { useDashboardSummary } from "@/lib/api/dashboard";
@@ -202,7 +203,7 @@ function CurvaCard({
       <div className="px-3 py-3">
         {serie.length < 2 ? (
           <p className="px-2 py-8 text-center text-[13px] text-neutral-mid">
-            Elegí un rango con al menos dos períodos para ver la evolución del saldo.
+            Elige un rango con al menos dos períodos para ver la evolución del saldo.
           </p>
         ) : (
           <CajaCurva serie={serie} minimo={minimo} eventos={eventos} />
@@ -210,7 +211,15 @@ function CurvaCard({
       </div>
       {cruceIdx != null && (
         <p className="mx-4 mb-4 rounded-lg border border-danger-500/30 bg-danger-500/[.06] px-3 py-2 text-[13px] text-neutral-dark">
-          El <b>{serie[cruceIdx]?.label}</b> la caja cae bajo tu mínimo. Adelanta una cobranza o posterga un pago.
+          El <b>{serie[cruceIdx]?.label}</b> la caja cae bajo tu mínimo.{" "}
+          <Link href="/cobrar" className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+            Adelanta una cobranza
+          </Link>{" "}
+          o{" "}
+          <Link href="/pagar" className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+            posterga un pago
+          </Link>
+          .
         </p>
       )}
     </div>
