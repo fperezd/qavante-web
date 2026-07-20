@@ -352,17 +352,18 @@ export function buildMaestro(
   }
 
   const list = [...byRut.values()];
-  // Ordenar los docs de cada contraparte por vencimiento asc (lo más urgente arriba).
+  // Ordenar los docs de cada contraparte de MÁS NUEVO a más antiguo (por emisión).
   for (const cp of list) {
-    cp.docs.sort((a, b) => sortByVenc(a.vencimiento, b.vencimiento));
+    cp.docs.sort((a, b) => sortByEmisionDesc(a.fechaEmision, b.fechaEmision));
   }
   // Contrapartes: primero las de más vencido; a igual vencido, mayor total.
   list.sort((a, b) => (b.vencido - a.vencido) || (b.total - a.total));
   return list;
 }
 
-function sortByVenc(a: Date | null, b: Date | null): number {
-  if (a && b) return a.getTime() - b.getTime();
+/** Ordena por fecha de emisión DESC (más nuevo primero); sin fecha, al final. */
+function sortByEmisionDesc(a: Date | null, b: Date | null): number {
+  if (a && b) return b.getTime() - a.getTime();
   if (a) return -1;
   if (b) return 1;
   return 0;

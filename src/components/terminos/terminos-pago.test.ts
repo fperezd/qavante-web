@@ -140,6 +140,13 @@ describe("buildMaestro", () => {
     expect(kauf.proximoVencimiento!.getMonth()).toBe(6); // julio
   });
 
+  it("ordena los documentos de más nuevo a más antiguo (por emisión)", () => {
+    const m = buildMaestro(docs, readTerminos(undefined), "ventas", HOY);
+    const kauf = m.find((c) => c.rut === "96572360-9")!;
+    expect(kauf.docs[0]!.folio).toBe(2); // 01/07 (más nuevo)
+    expect(kauf.docs[1]!.folio).toBe(1); // 01/06
+  });
+
   it("ordena contrapartes por vencido desc (a quién perseguir primero)", () => {
     const t = readTerminos(undefined);
     const m = buildMaestro(docs, t, "ventas", HOY);
