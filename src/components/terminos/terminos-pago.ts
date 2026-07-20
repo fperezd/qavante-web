@@ -14,6 +14,7 @@
 import type { PreferencesBlob } from "@/lib/api/preferences";
 import { normalizeRut } from "@/lib/validators/rut";
 import { isNotaCredito } from "@/components/sii/tipo-doc";
+import { agruparConReferencias } from "@/components/sii/rcv-anuladas";
 
 export type MaestroKind = "ventas" | "compras" | "honorarios";
 
@@ -38,6 +39,10 @@ export interface DocConVencimiento {
   folio?: number | string | null;
   /** Código de tipo de documento del SII (33 factura, 61 NC, 56 ND…). Las NC restan. */
   tipoDoc?: number;
+  /** Folio del documento que esta NC/ND modifica (SII `ref_folio`) — para vincular NC↔factura. */
+  refFolio?: number;
+  /** Tipo del documento referenciado (SII `ref_tipo_doc`). */
+  refTipoDoc?: number;
 }
 
 /* ── Fechas ────────────────────────────────────────────────────────────────── */
@@ -264,6 +269,12 @@ export interface DocMaestro {
   tipoDoc: number | null;
   /** ¿Es Nota de Crédito? (resta; `monto` viene negativo). */
   esNotaCredito: boolean;
+  /** Para una NC: folio de la factura que anula (se muestra "anula N° X"). null si huérfana. */
+  refFolio: number | string | null;
+  /** Para una factura con NC vinculadas: si quedó totalmente anulada o parcialmente. */
+  anulacion: "anulada" | "parcial" | null;
+  /** Neto de la factura tras sus NC (solo cuando `anulacion` != null). */
+  neto: number | null;
 }
 
 export interface ContraparteMaestro {
@@ -298,102 +309,157 @@ export function buildMaestro(
   today: Date,
   pagados: PagadosMap = {},
 ): ContraparteMaestro[] {
-  const byRut = new Map<string, ContraparteMaestro>();
-
+  // Agrupar los documentos por contraparte.
+  const byRut = new Map<string, DocConVencimiento[]>();
   for (const d of docs) {
     const rut = normalizeRut(String(d.rut ?? ""));
     if (!rut) continue;
-    const termino = termFor(terminos, kind, rut);
-    const emision = parseSiiDate(d.fecha);
-    const vencimiento = emision ? addDays(emision, termino) : null;
-    const estado = estadoDoc(vencimiento, today);
-    const diasParaVencer = vencimiento ? daysBetween(today, vencimiento) : null;
-    // Nota de Crédito RESTA (neteo, fiel al SII/F29): normaliza por magnitud y le da
-    // signo negativo. El resto (facturas, boletas, notas de DÉBITO) suma.
-    const esNC = isNotaCredito(d.tipoDoc);
-    const montoAbs = Math.abs(Number.isFinite(d.monto) ? d.monto : 0);
-    const monto = esNC ? -montoAbs : montoAbs;
-    const pagado = isPagado(pagados, kind, rut, d.folio);
-
-    const doc: DocMaestro = {
-      folio: d.folio ?? null,
-      fecha: d.fecha,
-      fechaEmision: emision,
-      monto,
-      vencimiento,
-      estado,
-      diasParaVencer,
-      pagado,
-      tipoDoc: d.tipoDoc ?? null,
-      esNotaCredito: esNC,
-    };
-
-    let cp = byRut.get(rut);
-    if (!cp) {
-      cp = {
-        rut,
-        name: d.name || rut,
-        docCount: 0,
-        total: 0,
-        vencido: 0,
-        porVencer: 0,
-        vigente: 0,
-        pagado: 0,
-        termino,
-        terminoCustom: isTermCustom(terminos, kind, rut),
-        proximoVencimiento: null,
-        docs: [],
-      };
-      byRut.set(rut, cp);
-    }
-    cp.docCount += 1;
-    cp.total += monto; // neto (facturas − NC)
-    cp.docs.push(doc);
+    const arr = byRut.get(rut);
+    if (arr) arr.push(d);
+    else byRut.set(rut, [d]);
   }
 
-  const list = [...byRut.values()];
-  for (const cp of list) {
-    // Buckets desde las FACTURAS (docs no pagados, no NC). Las NC se netean después
-    // contra los buckets de MÁS VIEJO a más nuevo (vencido → por vencer → vigente):
-    // una NC suele acreditar una factura antigua, así el vencido nunca supera el total
-    // neto. Pagados/conciliados salen aparte. Sobre-crédito (NC > facturas) → buckets 0
-    // y el exceso queda reflejado en el total (Opción A, fiel al F29: no se filtra).
-    let fVencido = 0,
-      fPorVencer = 0,
-      fVigente = 0,
-      ncPend = 0,
+  const list: ContraparteMaestro[] = [];
+  for (const [rut, cpDocs] of byRut) {
+    const termino = termFor(terminos, kind, rut);
+    const name = cpDocs.find((d) => d.name)?.name || rut;
+
+    // Vincular NC ↔ factura por la referencia del DTE (reusa la lógica del Libro):
+    // cada factura conoce las NC que la modifican; las NC sin factura quedan "huérfanas".
+    const grouped = agruparConReferencias(
+      cpDocs.map((d) => ({
+        tipo_doc: d.tipoDoc,
+        folio: typeof d.folio === "number" ? d.folio : undefined,
+        fecha: d.fecha,
+        monto_total: Math.abs(Number.isFinite(d.monto) ? d.monto : 0),
+        rut_contraparte: rut,
+        ref_folio: d.refFolio,
+        ref_tipo_doc: d.refTipoDoc,
+      })),
+    );
+
+    const docsOut: DocMaestro[] = [];
+    let total = 0,
+      vencido = 0,
+      porVencer = 0,
+      vigente = 0,
       pagadoSum = 0;
     let proximo: Date | null = null;
-    for (const d of cp.docs) {
-      if (d.pagado) {
-        pagadoSum += d.monto;
-        continue;
+
+    // Facturas de MÁS NUEVA a más antigua; cada una seguida de sus NC vinculadas (así
+    // se lee que una anula a la otra).
+    const rowsSorted = [...grouped.rows].sort((a, b) =>
+      sortByEmisionDesc(parseSiiDate(a.factura.fecha), parseSiiDate(b.factura.fecha)),
+    );
+    for (const row of rowsSorted) {
+      const f = row.factura;
+      const fFolio = f.folio ?? null;
+      const em = parseSiiDate(f.fecha);
+      const venc = em ? addDays(em, termino) : null;
+      const estado = estadoDoc(venc, today);
+      const pagadoF = isPagado(pagados, kind, rut, fFolio);
+      const anulacion = row.notas.length === 0 ? null : row.estado === "anulada" ? "anulada" : "parcial";
+
+      total += row.neto; // neto de la factura tras sus NC (puede ser ≤ 0)
+      if (pagadoF) {
+        pagadoSum += row.neto;
+      } else {
+        const contrib = Math.max(0, row.neto); // sobre-crédito → 0 en buckets
+        if (estado === "vencido") vencido += contrib;
+        else if (estado === "por_vencer") porVencer += contrib;
+        else if (estado === "vigente") vigente += contrib;
+        if (venc && estado !== "vencido") {
+          if (!proximo || venc < proximo) proximo = venc;
+        }
       }
-      if (d.esNotaCredito) {
-        ncPend += Math.abs(d.monto);
-        continue;
-      }
-      if (d.estado === "vencido") fVencido += d.monto;
-      else if (d.estado === "por_vencer") fPorVencer += d.monto;
-      else if (d.estado === "vigente") fVigente += d.monto;
-      if (d.vencimiento && d.estado !== "vencido") {
-        if (!proximo || d.vencimiento < proximo) proximo = d.vencimiento;
+
+      docsOut.push({
+        folio: fFolio,
+        fecha: f.fecha ?? "",
+        fechaEmision: em,
+        monto: Math.abs(Number.isFinite(f.monto_total) ? f.monto_total : 0),
+        vencimiento: venc,
+        estado,
+        diasParaVencer: venc ? daysBetween(today, venc) : null,
+        pagado: pagadoF,
+        tipoDoc: f.tipo_doc ?? null,
+        esNotaCredito: false,
+        refFolio: null,
+        anulacion,
+        neto: anulacion ? row.neto : null,
+      });
+      for (const nc of row.notas) {
+        const emN = parseSiiDate(nc.fecha);
+        const vN = emN ? addDays(emN, termino) : null;
+        docsOut.push({
+          folio: nc.folio ?? null,
+          fecha: nc.fecha ?? "",
+          fechaEmision: emN,
+          monto: -Math.abs(Number.isFinite(nc.monto_total) ? nc.monto_total : 0),
+          vencimiento: vN,
+          estado: estadoDoc(vN, today),
+          diasParaVencer: null,
+          pagado: false,
+          tipoDoc: nc.tipo_doc ?? null,
+          esNotaCredito: true,
+          refFolio: fFolio,
+          anulacion: null,
+          neto: null,
+        });
       }
     }
-    let r = ncPend;
-    const tv = Math.min(r, fVencido);
-    cp.vencido = fVencido - tv;
+
+    // NC huérfanas (sin factura vinculada): restan del total y se netean de más viejo a
+    // más nuevo contra los buckets. Se muestran al final del detalle.
+    let orphanNc = 0;
+    for (const nc of grouped.notasHuerfanas) {
+      const mnc = Math.abs(Number.isFinite(nc.monto_total) ? nc.monto_total : 0);
+      orphanNc += mnc;
+      total -= mnc;
+      const emN = parseSiiDate(nc.fecha);
+      const vN = emN ? addDays(emN, termino) : null;
+      docsOut.push({
+        folio: nc.folio ?? null,
+        fecha: nc.fecha ?? "",
+        fechaEmision: emN,
+        monto: -mnc,
+        vencimiento: vN,
+        estado: estadoDoc(vN, today),
+        diasParaVencer: null,
+        pagado: false,
+        tipoDoc: nc.tipo_doc ?? null,
+        esNotaCredito: true,
+        refFolio: null,
+        anulacion: null,
+        neto: null,
+      });
+    }
+    let r = orphanNc;
+    const tv = Math.min(r, vencido);
+    vencido -= tv;
     r -= tv;
-    const tp = Math.min(r, fPorVencer);
-    cp.porVencer = fPorVencer - tp;
+    const tp = Math.min(r, porVencer);
+    porVencer -= tp;
     r -= tp;
-    const tg = Math.min(r, fVigente);
-    cp.vigente = fVigente - tg;
-    cp.pagado = pagadoSum;
-    cp.proximoVencimiento = proximo;
-    // Documentos de MÁS NUEVO a más antiguo (por emisión) para el detalle.
-    cp.docs.sort((a, b) => sortByEmisionDesc(a.fechaEmision, b.fechaEmision));
+    const tg = Math.min(r, vigente);
+    vigente -= tg;
+
+    list.push({
+      rut,
+      name,
+      docCount: cpDocs.length,
+      total,
+      vencido,
+      porVencer,
+      vigente,
+      pagado: pagadoSum,
+      termino,
+      terminoCustom: isTermCustom(terminos, kind, rut),
+      proximoVencimiento: proximo,
+      docs: docsOut,
+    });
   }
+
   // Contrapartes: primero las de más vencido; a igual vencido, mayor total.
   list.sort((a, b) => (b.vencido - a.vencido) || (b.total - a.total));
   return list;

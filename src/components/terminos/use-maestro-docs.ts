@@ -54,6 +54,8 @@ function adaptRcv(docs: ReadonlyArray<RcvDoc>): DocConVencimiento[] {
     monto: Number(d.monto_total) || 0,
     folio: d.folio ?? null,
     tipoDoc: typeof d.tipo_doc === "number" ? d.tipo_doc : undefined,
+    refFolio: typeof d.ref_folio === "number" ? d.ref_folio : undefined,
+    refTipoDoc: typeof d.ref_tipo_doc === "number" ? d.ref_tipo_doc : undefined,
   }));
 }
 

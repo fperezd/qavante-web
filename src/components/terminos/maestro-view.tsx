@@ -295,9 +295,19 @@ function DocDetail({
             return (
               <tr
                 key={`${d.folio ?? "x"}-${i}`}
-                className={cn("border-b border-border/50 last:border-b-0", d.pagado && "opacity-60")}
+                className={cn(
+                  "border-b border-border/50 last:border-b-0",
+                  d.pagado && "opacity-60",
+                  d.esNotaCredito && d.refFolio != null && "bg-warning-500/[.04]",
+                )}
               >
-                <td className="py-1 pr-3 tabular-nums text-neutral-dark">{d.folio ?? "—"}</td>
+                <td className="py-1 pr-3 tabular-nums text-neutral-dark">
+                  {d.esNotaCredito && d.refFolio != null ? (
+                    <span className="text-neutral-mid">↳ {d.folio ?? "—"}</span>
+                  ) : (
+                    (d.folio ?? "—")
+                  )}
+                </td>
                 <td className="py-1 pr-3">
                   <span
                     title={tipoDocMeta(d.tipoDoc).label}
@@ -321,8 +331,16 @@ function DocDetail({
                       Conciliado
                     </span>
                   ) : d.esNotaCredito ? (
-                    <span className="inline-block rounded-full bg-neutral-light/40 px-1.5 py-0.5 text-[10.5px] font-semibold text-neutral-mid">
-                      Crédito
+                    <span className="text-[10.5px] font-semibold text-neutral-mid">
+                      {d.refFolio != null ? `anula N° ${d.refFolio}` : "Crédito"}
+                    </span>
+                  ) : d.anulacion === "anulada" ? (
+                    <span className="inline-block rounded-full bg-danger-500/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-danger-500">
+                      Anulada
+                    </span>
+                  ) : d.anulacion === "parcial" ? (
+                    <span className="inline-block rounded-full bg-warning-500/15 px-1.5 py-0.5 text-[10.5px] font-semibold text-warning-700">
+                      Parcial
                     </span>
                   ) : (
                     <span className={cn("inline-block rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold", meta.cls)}>
@@ -335,7 +353,7 @@ function DocDetail({
                   className={cn(
                     "py-1 pr-3 text-right tabular-nums",
                     d.esNotaCredito ? "text-warning-700" : "text-neutral-dark",
-                    d.pagado && "line-through",
+                    (d.pagado || d.anulacion === "anulada") && "line-through",
                   )}
                 >
                   {formatClp(d.monto)}
