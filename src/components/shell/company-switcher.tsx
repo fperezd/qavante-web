@@ -7,6 +7,7 @@ import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useMyTenants, useSwitchTenant } from "@/lib/api/tenants";
 import { ROLE_LABELS } from "@/components/administracion/role-labels";
 import { useDismiss } from "@/lib/hooks/use-dismiss";
+import { cn } from "@/lib/utils";
 import {
   pickPreferredTenant,
   getPreferredTenantId,
@@ -23,7 +24,11 @@ import type { UserRole } from "@/lib/auth/types";
    el nuevo tenant. CREAR una empresa NO vive acá: es configuración (ligada al plan)
    → Administración → Empresas (pedido de Fernando 2026-07-05). */
 
-export function CompanySwitcher() {
+/** `variant`: "header" (desktop, en la barra superior) o "mobile" (dentro del
+ *  drawer de navegación — el header lo oculta en móvil). Mismo comportamiento;
+ *  cambia solo dónde se muestra y el ancho del dropdown. */
+export function CompanySwitcher({ variant = "header" }: { variant?: "header" | "mobile" } = {}) {
+  const isMobile = variant === "mobile";
   const tenants = useMyTenants();
   const switchTenant = useSwitchTenant();
 
@@ -103,12 +108,15 @@ export function CompanySwitcher() {
   }
 
   return (
-    <div ref={ref} className="relative hidden md:block">
+    <div ref={ref} className={cn("relative", isMobile ? "block md:hidden" : "hidden md:block")}>
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 rounded-lg border border-border bg-surface/70 px-3 py-1.5 text-sm text-neutral-dark hover:bg-brand-primary-50"
+        className={cn(
+          "flex items-center gap-1 rounded-lg border border-border bg-surface/70 px-3 py-1.5 text-sm text-neutral-dark hover:bg-brand-primary-50",
+          isMobile && "w-full justify-between",
+        )}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Empresa activa: ${label}. Cambiar de empresa.`}
@@ -121,7 +129,10 @@ export function CompanySwitcher() {
       {open && (
         <div
           role="menu"
-          className="absolute left-0 z-30 mt-1 w-72 rounded-xl border border-border bg-surface p-1.5 shadow-lg"
+          className={cn(
+            "absolute left-0 z-30 mt-1 rounded-xl border border-border bg-surface p-1.5 shadow-lg",
+            isMobile ? "w-full" : "w-72",
+          )}
         >
           {tenants.isLoading && (
             <div className="flex items-center gap-2 px-2 py-2 text-sm text-neutral-mid">

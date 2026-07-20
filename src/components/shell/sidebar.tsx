@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CompanySwitcher } from "./company-switcher";
 import type { UserRole } from "@/lib/auth/types";
 
 type ModuleLink = {
@@ -126,6 +127,13 @@ export function AppSidebar({
           >
             <X className="h-5 w-5" />
           </button>
+        </div>
+
+        {/* Selector de empresa (N:M) en el drawer móvil — en desktop vive en el
+            header, que lo oculta en móvil. Sin esto, quien tiene varias empresas
+            no podía cambiarla desde el teléfono. */}
+        <div className="border-b border-border px-3 py-3 md:hidden">
+          <CompanySwitcher variant="mobile" />
         </div>
 
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
