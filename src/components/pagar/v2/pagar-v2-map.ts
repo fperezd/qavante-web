@@ -8,6 +8,7 @@
    flag de postergabilidad por ítem (brecha abierta, escalada); cuando llegue, se usa. */
 
 import type { PayableItem, AccountsPayableResponse } from "@/lib/api/pagos";
+import type { ContraparteMaestro } from "@/components/terminos/terminos-pago";
 import { parseAmount, paymentCategoryLabel } from "../pagos-format";
 import { daysUntilDue, isOverdue, overdueThenCritical } from "../pagos-v2-format";
 import { categoryGroupLabel } from "../pagos-group";
@@ -29,6 +30,37 @@ export function postergabilidadDe(item: PayableItem): Postergabilidad {
 /** Monto en CLP del ítem: `amount_clp` si es moneda extranjera, si no `amount`. */
 export function montoCLP(item: PayableItem): number {
   return parseAmount(item.amount_clp ?? item.amount);
+}
+
+/** Convierte una contraparte del maestro (compras/honorarios) en un PayableItem con el NETO
+ *  por pagar (facturado net NC − conciliado) y la fecha del vencimiento derivado más urgente
+ *  (el más temprano de sus docs no conciliados no-NC). `null` si no queda saldo. PURO. */
+export function cpToPayableItem(cp: ContraparteMaestro, source: string): PayableItem | null {
+  const neto = cp.total - cp.pagado;
+  if (neto <= 0) return null;
+  let due: Date | null = null;
+  for (const d of cp.docs) {
+    if (d.pagado || d.esNotaCredito || !d.vencimiento) continue;
+    if (!due || d.vencimiento < due) due = d.vencimiento;
+  }
+  return {
+    label: cp.name,
+    category: "supplier",
+    due_date: due ? due.toISOString().slice(0, 10) : "",
+    amount: String(Math.round(neto)),
+    criticality: cp.vencido > 0 ? "high" : "medium",
+    source,
+    counterparty_name: cp.name,
+    counterparty_rut: cp.rut,
+  };
+}
+
+/** Suma en CLP de los ítems que vencen dentro de `maxDias` (0..maxDias, sin los vencidos). PURO. */
+export function sumItemsHasta(items: PayableItem[], now: Date, maxDias: number): number {
+  return items.reduce((s, it) => {
+    const d = daysUntilDue(it.due_date, now);
+    return d != null && d >= 0 && d <= maxDias ? s + montoCLP(it) : s;
+  }, 0);
 }
 
 /** Resuelve el onClick (drill-down) de un ítem; el container lo provee (navegación). Devuelve
@@ -119,7 +151,11 @@ export function overdueCLP(items: PayableItem[], now: Date): number {
 
 /** Insumos de la brecha: caja proyectada 14d (del backend) vs pagos críticos (vencido +
  *  no postergables que vencen ≤14d), y cuánto de eso es postergable. */
-export function mapBrecha(resp: AccountsPayableResponse, items: PayableItem[], now: Date): BrechaInput {
+export function mapBrecha(
+  resp: AccountsPayableResponse | null | undefined,
+  items: PayableItem[],
+  now: Date,
+): BrechaInput {
   const dentroDe14 = (i: PayableItem) => {
     const d = daysUntilDue(i.due_date, now);
     return d != null && d >= 0 && d <= 14;
@@ -133,7 +169,7 @@ export function mapBrecha(resp: AccountsPayableResponse, items: PayableItem[], n
   return {
     // null (no calculable) ≠ $0: si lo tratáramos como cero, mostraríamos un "faltan $X"
     // seguro sobre una caja que no conocemos. Solo parseamos si hay dato.
-    cajaProyectada: resp.projected_cash_14d == null ? null : parseAmount(resp.projected_cash_14d),
+    cajaProyectada: resp?.projected_cash_14d == null ? null : parseAmount(resp.projected_cash_14d),
     pagosCriticos: overdueCLP(items, now) + criticos,
     postergable,
   };
