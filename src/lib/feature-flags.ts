@@ -54,6 +54,7 @@ export const FEATURE_FLAGS = [
   "libroComprasV2",
   "cajaV2",
   "pagarV2",
+  "cobrarV2",
   "reconciliationReview",
 ] as const;
 
@@ -152,6 +153,14 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      flag ON tiene prioridad sobre accountsPayable (mismo dato base); hoy OFF, el Pagar
      clásico queda intacto. */
   pagarV2: "/api/treasury/payment-plan",
+  /* Cobrar v2 (rediseño 2026-07-19) — respuesta de dueño: "a quién le cobras primero" + acciones
+     reales de cobranza (copiar recordatorio en chileno, WhatsApp/mail, marcar gestionado persistido
+     en prefs). Reusa `accounts-receivable` (accountsReceivable) para los datos; degrada honesto en
+     dos modos según haya o no vencimientos del SII (urgencia vs. concentración). Lo que lo ENCIENDE
+     del todo es el plan de cobranza por vencimiento (FE-first, aún no existe) — ese es su endpoint de
+     gating, el que lo pasa de "concentración" a "urgencia". Con ON tiene prioridad sobre la vista
+     clásica de Cobrar; hoy OFF, el Cobrar clásico queda intacto. */
+  cobrarV2: "/api/treasury/collection-plan",
   /* Cola de conciliación (ADR-0036/0042) — el motor auto-aplica los matches con score >=90 y deja
      los 60-90 en una cola de revisión de 1 clic (confirmar/rechazar/conciliar todas). La pantalla
      nueva la consume; su endpoint de gating es la cola misma. Hoy OFF hasta validar en prod. */
