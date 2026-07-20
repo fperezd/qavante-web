@@ -7,6 +7,7 @@ import { InfoHint } from "@/components/ui/info-hint";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { formatDateLike } from "@/lib/formatters/date";
+import { tipoDocMeta } from "@/components/sii/tipo-doc";
 import { cn } from "@/lib/utils";
 import type { ContraparteMaestro, EstadoDoc, MaestroKind } from "./terminos-pago";
 
@@ -280,6 +281,7 @@ function DocDetail({
         <thead>
           <tr className="border-b border-border text-left text-[10.5px] font-semibold uppercase tracking-wider text-neutral-mid">
             <th className="py-1 pr-3 font-semibold">Folio</th>
+            <th className="py-1 pr-3 font-semibold">Tipo</th>
             <th className="py-1 pr-3 font-semibold">Emisión</th>
             <th className="py-1 pr-3 font-semibold">Vence</th>
             <th className="py-1 pr-3 font-semibold">Estado</th>
@@ -296,6 +298,19 @@ function DocDetail({
                 className={cn("border-b border-border/50 last:border-b-0", d.pagado && "opacity-60")}
               >
                 <td className="py-1 pr-3 tabular-nums text-neutral-dark">{d.folio ?? "—"}</td>
+                <td className="py-1 pr-3">
+                  <span
+                    title={tipoDocMeta(d.tipoDoc).label}
+                    className={cn(
+                      "inline-block rounded px-1.5 py-0.5 text-[10px] font-bold",
+                      d.esNotaCredito
+                        ? "bg-warning-500/15 text-warning-700"
+                        : "bg-neutral-light/40 text-neutral-mid",
+                    )}
+                  >
+                    {tipoDocMeta(d.tipoDoc).abbr}
+                  </span>
+                </td>
                 <td className="py-1 pr-3 text-neutral-mid">{d.fechaEmision ? formatDateLike(d.fecha) : d.fecha || "—"}</td>
                 <td className="py-1 pr-3 text-neutral-mid">
                   {d.vencimiento ? formatDateLike(d.vencimiento.toISOString().slice(0, 10)) : "—"}
@@ -305,6 +320,10 @@ function DocDetail({
                     <span className="inline-block rounded-full bg-success-500/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-success-700">
                       Conciliado
                     </span>
+                  ) : d.esNotaCredito ? (
+                    <span className="inline-block rounded-full bg-neutral-light/40 px-1.5 py-0.5 text-[10.5px] font-semibold text-neutral-mid">
+                      Crédito
+                    </span>
                   ) : (
                     <span className={cn("inline-block rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold", meta.cls)}>
                       {meta.label}
@@ -312,7 +331,13 @@ function DocDetail({
                     </span>
                   )}
                 </td>
-                <td className={cn("py-1 pr-3 text-right tabular-nums text-neutral-dark", d.pagado && "line-through")}>
+                <td
+                  className={cn(
+                    "py-1 pr-3 text-right tabular-nums",
+                    d.esNotaCredito ? "text-warning-700" : "text-neutral-dark",
+                    d.pagado && "line-through",
+                  )}
+                >
                   {formatClp(d.monto)}
                 </td>
                 <td className="py-1 text-right">

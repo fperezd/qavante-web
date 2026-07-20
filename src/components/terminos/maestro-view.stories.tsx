@@ -14,6 +14,8 @@ const doc = (over: Partial<DocMaestro>): DocMaestro => ({
   estado: "vencido",
   diasParaVencer: -19,
   pagado: false,
+  tipoDoc: 33,
+  esNotaCredito: false,
   ...over,
 });
 

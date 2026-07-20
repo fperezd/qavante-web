@@ -53,6 +53,7 @@ function adaptRcv(docs: ReadonlyArray<RcvDoc>): DocConVencimiento[] {
     fecha: d.fecha ?? "",
     monto: Number(d.monto_total) || 0,
     folio: d.folio ?? null,
+    tipoDoc: typeof d.tipo_doc === "number" ? d.tipo_doc : undefined,
   }));
 }
 

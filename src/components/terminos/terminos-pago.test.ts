@@ -162,6 +162,28 @@ describe("buildMaestro", () => {
     expect(kauf.terminoCustom).toBe(true);
   });
 
+  it("una Nota de Crédito (tipo 61) RESTA del total y del vencido; suma su magnitud", () => {
+    const conNC: DocConVencimiento[] = [
+      { rut: "96572360-9", name: "K", fecha: "01/06/2026", monto: 5_000_000, folio: 1, tipoDoc: 33 }, // factura vencida
+      { rut: "96572360-9", name: "K", fecha: "05/06/2026", monto: 2_000_000, folio: 2, tipoDoc: 61 }, // NC vencida
+    ];
+    const k = buildMaestro(conNC, readTerminos(undefined), "ventas", HOY)[0]!;
+    expect(k.total).toBe(3_000_000); // 5M − 2M
+    expect(k.vencido).toBe(3_000_000); // ambos vencidos → neto 3M
+    const nc = k.docs.find((d) => d.folio === 2)!;
+    expect(nc.esNotaCredito).toBe(true);
+    expect(nc.monto).toBe(-2_000_000); // firmado negativo
+  });
+
+  it("la NC neta aunque el SII la mande positiva o negativa (por magnitud)", () => {
+    const neg: DocConVencimiento[] = [
+      { rut: "1-9", name: "X", fecha: "01/06/2026", monto: -2_000_000, folio: 9, tipoDoc: 61 },
+    ];
+    const k = buildMaestro(neg, readTerminos(undefined), "ventas", HOY)[0]!;
+    expect(k.docs[0]!.monto).toBe(-2_000_000); // magnitud 2M con signo NC
+    expect(k.total).toBe(-2_000_000);
+  });
+
   it("totalesMaestro suma el conjunto", () => {
     const t = readTerminos(undefined);
     const tot = totalesMaestro(buildMaestro(docs, t, "ventas", HOY));
