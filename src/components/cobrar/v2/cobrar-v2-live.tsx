@@ -21,6 +21,8 @@ import { defaultRange } from "@/lib/period/period-range";
 import { formatClp } from "@/lib/formatters/clp";
 import { parseAmount, agingBars } from "../cobranza-format";
 import { useDebtorInvoices } from "../debtor-invoices";
+import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
+import { readTerminos, readPagados, buildMaestro } from "@/components/terminos/terminos-pago";
 import { CobrarHero } from "./cobrar-hero";
 import { CobranzaAcciones } from "./cobranza-acciones";
 import { CobrarV2View, ResumenCobranza, DeudorRow } from "./cobrar-v2-view";
@@ -89,8 +91,39 @@ function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; sii
     () => readGestionado(prefs.data?.preferences),
     [prefs.data],
   );
-  const debtors = data.top_debtors ?? [];
-  const grandTotal = parseAmount(data.total);
+  const rawDebtors = data.top_debtors ?? [];
+
+  // Conexión con "Clientes": lo que marcaste conciliado allá (RCV del año) REBAJA el
+  // "por cobrar" de acá. Reusa `buildMaestro` para el conciliado por cliente (cp.pagado).
+  // Degrada solo: si el RCV aún no cargó, no ajusta (muestra el total pleno).
+  const ventasDocs = useMaestroDocs("ventas");
+  const { conciliadoPorRut, totalConciliado } = React.useMemo(() => {
+    const porRut = new Map<string, number>();
+    if (ventasDocs.docs.length === 0) return { conciliadoPorRut: porRut, totalConciliado: 0 };
+    const terminos = readTerminos(prefs.data?.preferences);
+    const pagadosMap = readPagados(prefs.data?.preferences);
+    const cps = buildMaestro(ventasDocs.docs, terminos, "ventas", new Date(), pagadosMap);
+    let tot = 0;
+    for (const cp of cps) {
+      const c = Math.max(0, cp.pagado);
+      if (c > 0) {
+        porRut.set(cp.rut, c);
+        tot += c;
+      }
+    }
+    return { conciliadoPorRut: porRut, totalConciliado: tot };
+  }, [ventasDocs.docs, prefs.data]);
+
+  // Deudores con el total rebajado por lo conciliado.
+  const debtors = React.useMemo(
+    () =>
+      rawDebtors.map((d) => {
+        const conc = conciliadoPorRut.get(normalizeRut(d.rut)) ?? 0;
+        return conc > 0 ? { ...d, total: String(Math.max(0, parseAmount(d.total) - conc)) } : d;
+      }),
+    [rawDebtors, conciliadoPorRut],
+  );
+  const grandTotal = Math.max(0, parseAmount(data.total) - totalConciliado);
   // Modo GLOBAL (para el resumen): ¿hay algún vencido en la cartera? El hero usa el
   // modo del deudor priorizado (que puede quedar en concentración si el único vencido
   // ya está gestionado) — por eso se calcula aparte.
@@ -238,6 +271,7 @@ function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; sii
           overdue={parseAmount(data.overdue)}
           overduePct={parseAmount(data.overdue_pct)}
           mode={globalMode}
+          conciliado={totalConciliado}
         />
       }
       aging={agingBars(data.aging)}
