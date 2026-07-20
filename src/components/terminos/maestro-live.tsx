@@ -42,7 +42,15 @@ function periodosLabel(periods: string[]): string {
   return `${a.mes}–${b.mes} ${b.y}`;
 }
 
-export function MaestroLive({ kind }: { kind: MaestroKind }) {
+export function MaestroLive({
+  kind,
+  titulo,
+  subtitulo,
+}: {
+  kind: MaestroKind;
+  titulo?: string;
+  subtitulo?: React.ReactNode;
+}) {
   const { docs, periods, isFetching, isError } = useMaestroDocs(kind);
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
@@ -92,6 +100,8 @@ export function MaestroLive({ kind }: { kind: MaestroKind }) {
       onSetDefault={onSetDefault}
       pending={updatePrefs.isPending}
       periodosLabel={periodosLabel(periods)}
+      titulo={titulo}
+      subtitulo={subtitulo}
     />
   );
 }

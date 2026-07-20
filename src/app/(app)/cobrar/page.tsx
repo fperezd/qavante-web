@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownToLine, FileOutput } from "lucide-react";
+import { ArrowDownToLine, FileOutput, Users } from "lucide-react";
 import {
   FeatureUnavailableState,
   QavanteBadge,
@@ -9,7 +9,6 @@ import {
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { CobrarView } from "@/components/cobrar/cobrar-view";
 import { CobrarV2Live } from "@/components/cobrar/v2/cobrar-v2-live";
-import { MaestroLive } from "@/components/terminos/maestro-live";
 
 /* Cobrar (Sprint C4). Server Component: resuelve los flags. `cobrarV2` ON → la
    respuesta de dueño ("a quién le cobras primero") + acciones reales de cobranza
@@ -28,9 +27,30 @@ export default function CobrarPage() {
           <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
         </header>
         <CobrarV2Live siiEnabled={siiQueries} />
-        {/* Maestro de clientes: control de vencimientos derivados (emisión + término
-            editable) sobre las ventas del SII este año. Requiere SII conectado. */}
-        {siiQueries && <MaestroLive kind="ventas" />}
+        {/* Submenú "Clientes": todos los del año con sus vencimientos derivados
+            (sub-ruta /cobrar/clientes). Requiere SII conectado. */}
+        {siiQueries && (
+          <Link
+            href="/cobrar/clientes"
+            className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+          >
+            <QavanteCard
+              variant="bordered"
+              className="transition-all duration-150 group-hover:-translate-y-0.5 group-hover:border-brand-primary/50 group-hover:shadow-lg"
+              header={
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-brand-primary" aria-hidden="true" />
+                  <span className="font-medium">Clientes</span>
+                </div>
+              }
+            >
+              <p className="text-sm text-neutral-mid">
+                Todos tus clientes del año y el vencimiento de cada venta (término editable). No solo
+                lo pendiente por cobrar.
+              </p>
+            </QavanteCard>
+          </Link>
+        )}
       </div>
     );
   }
