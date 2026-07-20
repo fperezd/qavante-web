@@ -91,42 +91,49 @@ function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; sii
     () => readGestionado(prefs.data?.preferences),
     [prefs.data],
   );
-  const rawDebtors = data.top_debtors ?? [];
-
-  // Conexión con "Clientes": lo que marcaste conciliado allá (RCV del año) REBAJA el
-  // "por cobrar" de acá. Reusa `buildMaestro` para el conciliado por cliente (cp.pagado).
-  // Degrada solo: si el RCV aún no cargó, no ajusta (muestra el total pleno).
+  // UNIFICACIÓN de las fuentes de cobranza: la fuente primaria es el RCV del año (la MISMA
+  // base que "Clientes") — completo, por-documento, net de NC, con conciliado descontado y
+  // el vencimiento DERIVADO del término. `accounts-receivable` queda como respaldo si el RCV
+  // aún no cargó. Así Cobrar y Clientes muestran exactamente lo mismo, y el vencido derivado
+  // enciende el modo urgencia (antes atascado en "concentración" esperando al SII).
   const ventasDocs = useMaestroDocs("ventas");
-  const { conciliadoPorRut, totalConciliado } = React.useMemo(() => {
-    const porRut = new Map<string, number>();
-    if (ventasDocs.docs.length === 0) return { conciliadoPorRut: porRut, totalConciliado: 0 };
+  const cps = React.useMemo(() => {
+    if (ventasDocs.docs.length === 0) return [];
     const terminos = readTerminos(prefs.data?.preferences);
     const pagadosMap = readPagados(prefs.data?.preferences);
-    const cps = buildMaestro(ventasDocs.docs, terminos, "ventas", new Date(), pagadosMap);
-    let tot = 0;
-    for (const cp of cps) {
-      const c = Math.max(0, cp.pagado);
-      if (c > 0) {
-        porRut.set(cp.rut, c);
-        tot += c;
-      }
-    }
-    return { conciliadoPorRut: porRut, totalConciliado: tot };
+    return buildMaestro(ventasDocs.docs, terminos, "ventas", new Date(), pagadosMap);
   }, [ventasDocs.docs, prefs.data]);
-
-  // Deudores con el total rebajado por lo conciliado.
-  const debtors = React.useMemo(
-    () =>
-      rawDebtors.map((d) => {
-        const conc = conciliadoPorRut.get(normalizeRut(d.rut)) ?? 0;
-        return conc > 0 ? { ...d, total: String(Math.max(0, parseAmount(d.total) - conc)) } : d;
-      }),
-    [rawDebtors, conciliadoPorRut],
+  const useRcv = cps.length > 0;
+  const totalConciliado = React.useMemo(
+    () => cps.reduce((s, cp) => s + Math.max(0, cp.pagado), 0),
+    [cps],
   );
-  const grandTotal = Math.max(0, parseAmount(data.total) - totalConciliado);
-  // Modo GLOBAL (para el resumen): ¿hay algún vencido en la cartera? El hero usa el
-  // modo del deudor priorizado (que puede quedar en concentración si el único vencido
-  // ya está gestionado) — por eso se calcula aparte.
+
+  // Deudores: del maestro RCV (por cobrar = facturado net NC − conciliado; vencido derivado)
+  // o del accounts-receivable si el RCV no cargó (respaldo).
+  const debtors: TopDebtor[] = React.useMemo(() => {
+    if (useRcv) {
+      return cps.map((cp) => ({
+        name: cp.name,
+        rut: cp.rut,
+        total: String(Math.max(0, cp.total - cp.pagado)),
+        overdue: String(Math.max(0, cp.vencido)),
+      }));
+    }
+    return data.top_debtors ?? [];
+  }, [useRcv, cps, data.top_debtors]);
+
+  const grandTotal = useRcv
+    ? debtors.reduce((s, d) => s + parseAmount(d.total), 0)
+    : parseAmount(data.total);
+  const totalVencido = useRcv
+    ? debtors.reduce((s, d) => s + parseAmount(d.overdue), 0)
+    : parseAmount(data.overdue);
+  const overduePct = grandTotal > 0 ? (totalVencido / grandTotal) * 100 : 0;
+
+  // Modo GLOBAL (para el resumen): con el vencido derivado del RCV, casi siempre hay mora
+  // → urgencia. El hero usa el modo del deudor priorizado (que puede caer en concentración
+  // si el único con mora ya está gestionado) — por eso se calcula aparte.
   const anyOverdue = debtors.some((d) => parseAmount(d.overdue) > 0);
   const globalMode: PrioridadMode = anyOverdue ? "urgencia" : "concentracion";
 
@@ -208,7 +215,7 @@ function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; sii
       }
       infoHint={
         prioridad.mode === "urgencia"
-          ? "Priorizamos por mora: primero el que más te debe vencido."
+          ? "Priorizamos por mora derivada del término de pago (emisión + término). Ajusta los términos por cliente en Clientes."
           : "Sin vencimientos del SII, priorizamos por tamaño de la deuda. Cuando lleguen las fechas, la pantalla prioriza por mora sola."
       }
       acciones={
@@ -268,15 +275,15 @@ function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; sii
       resumen={
         <ResumenCobranza
           total={grandTotal}
-          overdue={parseAmount(data.overdue)}
-          overduePct={parseAmount(data.overdue_pct)}
+          overdue={totalVencido}
+          overduePct={overduePct}
           mode={globalMode}
           conciliado={totalConciliado}
         />
       }
-      aging={agingBars(data.aging)}
+      aging={useRcv ? undefined : agingBars(data.aging)}
       deudores={deudores}
-      banner={isPartial(data) ? <PartialDataBanner missingSources={data.missing_sources} /> : undefined}
+      banner={!useRcv && isPartial(data) ? <PartialDataBanner missingSources={data.missing_sources} /> : undefined}
       siiEnabled={siiEnabled}
     />
   );
