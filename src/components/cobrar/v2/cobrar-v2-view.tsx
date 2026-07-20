@@ -120,12 +120,18 @@ export interface ResumenCobranzaProps {
   overduePct: number;
   /** `concentracion` = sin vencimientos todavía. */
   mode: "urgencia" | "concentracion";
+  /** Monto ya marcado conciliado (en Clientes) que se descontó del total. */
+  conciliado?: number;
 }
 
-export function ResumenCobranza({ total, overdue, overduePct, mode }: ResumenCobranzaProps) {
+export function ResumenCobranza({ total, overdue, overduePct, mode, conciliado = 0 }: ResumenCobranzaProps) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <Stat label="Total por cobrar" value={<AmountCountUp value={total} />} />
+      <Stat
+        label="Total por cobrar"
+        value={<AmountCountUp value={total} />}
+        sub={conciliado > 0 ? `menos ${formatClp(conciliado)} conciliado` : undefined}
+      />
       {mode === "urgencia" ? (
         <>
           <Stat label="Vencido" value={<AmountCountUp value={overdue} />} tone="danger" />
@@ -154,7 +160,17 @@ export function ResumenCobranza({ total, overdue, overduePct, mode }: ResumenCob
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: React.ReactNode; tone?: "danger" }) {
+function Stat({
+  label,
+  value,
+  tone,
+  sub,
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: "danger";
+  sub?: string;
+}) {
   return (
     <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{label}</p>
@@ -166,6 +182,7 @@ function Stat({ label, value, tone }: { label: string; value: React.ReactNode; t
       >
         {value}
       </p>
+      {sub && <p className="mt-0.5 text-[11px] text-success-700">{sub}</p>}
     </div>
   );
 }
