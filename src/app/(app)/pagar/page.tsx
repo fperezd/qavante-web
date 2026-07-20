@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { ArrowUpFromLine, Briefcase, FileInput, Landmark, Receipt, Users } from "lucide-react";
+import {
+  ArrowUpFromLine,
+  Briefcase,
+  Building2,
+  FileInput,
+  Landmark,
+  Receipt,
+  Users,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
   FeatureUnavailableState,
@@ -29,6 +37,32 @@ export default function PagarPage() {
       {/* `pagarV2` (rediseño 2026-07-14) tiene prioridad: respuesta de dueño + brecha de caja.
          Requiere `accountsPayable` (misma fuente). Con OFF, el Pagar clásico intacto. */}
       {pagarV2 && accountsPayable ? <PagarV2ViewLive /> : accountsPayable && <PagarView />}
+
+      {/* Submenú: Proveedores + Honorarios — TODOS los del año (no solo lo pendiente),
+          con el vencimiento derivado (emisión + término editable). Fuente: SII. */}
+      {siiQueries && (
+        <section aria-labelledby="contrapartes-section" className="space-y-3">
+          <h2 id="contrapartes-section" className="text-base font-semibold text-neutral-dark">
+            Proveedores y honorarios
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <SiiSubCard
+              href="/pagar/proveedores"
+              icon={Building2}
+              title="Proveedores"
+              description="Todos tus proveedores del año y el vencimiento de cada compra (término editable). No solo lo pendiente por pagar."
+              badge="Todo 2026"
+            />
+            <SiiSubCard
+              href="/pagar/honorarios"
+              icon={Briefcase}
+              title="Honorarios"
+              description="Todos los profesionales que te emitieron BHE este año y su vencimiento (término 5 días, editable)."
+              badge="Todo 2026"
+            />
+          </div>
+        </section>
+      )}
 
       {(obligations || remuneraciones) && (
         <section aria-labelledby="obligations-section" className="space-y-3">

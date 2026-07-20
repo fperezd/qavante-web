@@ -61,6 +61,8 @@ const meta = {
     onResetTerm: () => {},
     onSetDefault: () => {},
     periodosLabel: "ene–jul 2026",
+    titulo: "Clientes",
+    subtitulo: "Todos los clientes con ventas registradas este año — no solo lo pendiente por cobrar.",
   },
 } satisfies Meta<typeof MaestroContrapartes>;
 
@@ -70,7 +72,7 @@ type Story = StoryObj<typeof meta>;
 export const Clientes: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Maestro de clientes")).toBeInTheDocument();
+    await expect(canvas.getByText("Clientes")).toBeInTheDocument();
     await expect(canvas.getByText("COMERCIAL KAUFMANN S.A.")).toBeInTheDocument();
     // El vencido derivado se muestra (aparece en el resumen y en la fila → getAllByText).
     await expect(canvas.getAllByText("$5.000.000").length).toBeGreaterThan(0);

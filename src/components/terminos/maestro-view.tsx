@@ -35,6 +35,10 @@ export interface MaestroContrapartesProps {
   pending?: boolean;
   /** Etiqueta del rango consultado, ej. "ene–jul 2026". */
   periodosLabel?: string;
+  /** Título del encabezado. Default: "Maestro de {plural}". */
+  titulo?: string;
+  /** Bajada bajo el encabezado (ej. "Todos los del año, no solo lo pendiente"). */
+  subtitulo?: React.ReactNode;
 }
 
 export function MaestroContrapartes({
@@ -47,6 +51,8 @@ export function MaestroContrapartes({
   onSetDefault,
   pending,
   periodosLabel,
+  titulo,
+  subtitulo,
 }: MaestroContrapartesProps) {
   const [openRut, setOpenRut] = React.useState<string | null>(null);
 
@@ -56,7 +62,7 @@ export function MaestroContrapartes({
       header={
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="flex items-center gap-2 font-medium">
-            Maestro de {contrapartePlural}
+            {titulo ?? `Maestro de ${contrapartePlural}`}
             <InfoHint label="Cómo se calcula el vencimiento">
               El SII no entrega las fechas de vencimiento, así que las derivamos:{" "}
               <b>vencimiento = emisión + término de pago</b>. Ajusta el término por contraparte para
@@ -68,6 +74,8 @@ export function MaestroContrapartes({
         </div>
       }
     >
+      {subtitulo && <p className="mb-3 text-[12.5px] text-neutral-mid">{subtitulo}</p>}
+
       {/* Resumen. */}
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Resumen label="Facturado" value={formatClp(totals.total)} />
