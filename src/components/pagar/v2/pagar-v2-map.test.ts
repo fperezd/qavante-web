@@ -6,8 +6,11 @@ import {
   mapFechasClave,
   mapConcentracion,
   mapBrecha,
+  cpToPayableItem,
+  sumItemsHasta,
 } from "./pagar-v2-map";
 import type { PayableItem, AccountsPayableResponse } from "@/lib/api/pagos";
+import type { ContraparteMaestro, DocMaestro } from "@/components/terminos/terminos-pago";
 
 const NOW = new Date(2026, 6, 14); // 14-jul-2026
 
@@ -110,5 +113,77 @@ describe("mapBrecha", () => {
     const b = mapBrecha(resp, items, NOW);
     expect(b.cajaProyectada).toBeNull(); // el backend no la calculó → desconocida, no cero
     expect(b.pagosCriticos).toBe(4_200_000);
+  });
+});
+
+const docM = (over: Partial<DocMaestro>): DocMaestro => ({
+  folio: 1,
+  fecha: "01/06/2026",
+  fechaEmision: new Date(2026, 5, 1),
+  monto: 1_000_000,
+  vencimiento: new Date(2026, 6, 1),
+  estado: "vencido",
+  diasParaVencer: -13,
+  pagado: false,
+  tipoDoc: 33,
+  esNotaCredito: false,
+  refFolio: null,
+  anulacion: null,
+  neto: null,
+  ...over,
+});
+const cpM = (over: Partial<ContraparteMaestro>): ContraparteMaestro => ({
+  rut: "77111222-3",
+  name: "Proveedor X",
+  docCount: 1,
+  total: 1_000_000,
+  vencido: 1_000_000,
+  porVencer: 0,
+  vigente: 0,
+  pagado: 0,
+  termino: 30,
+  terminoCustom: false,
+  proximoVencimiento: null,
+  docs: [docM({})],
+  ...over,
+});
+
+describe("cpToPayableItem", () => {
+  it("neto por pagar + due del vencimiento más urgente; high si hay vencido", () => {
+    const it = cpToPayableItem(cpM({}), "SII · compras")!;
+    expect(it.category).toBe("supplier");
+    expect(it.amount).toBe("1000000");
+    expect(it.criticality).toBe("high"); // vencido > 0
+    expect(it.due_date).toBe("2026-07-01");
+    expect(it.counterparty_rut).toBe("77111222-3");
+  });
+  it("null si no queda saldo (todo conciliado)", () => {
+    expect(cpToPayableItem(cpM({ total: 1_000_000, pagado: 1_000_000 }), "SII")).toBeNull();
+  });
+  it("ignora NC y conciliados para la fecha; usa el más temprano no conciliado", () => {
+    const cp = cpM({
+      total: 3_000_000,
+      vencido: 0,
+      docs: [
+        docM({ folio: 1, esNotaCredito: true, vencimiento: new Date(2026, 4, 1) }),
+        docM({ folio: 2, pagado: true, vencimiento: new Date(2026, 4, 15) }),
+        docM({ folio: 3, vencimiento: new Date(2026, 7, 10), estado: "vigente" }),
+      ],
+    });
+    const it = cpToPayableItem(cp, "SII")!;
+    expect(it.criticality).toBe("medium"); // vencido 0
+    expect(it.due_date).toBe("2026-08-10");
+  });
+});
+
+describe("sumItemsHasta", () => {
+  it("suma los que vencen en [0, maxDias]; excluye vencidos y fuera de ventana", () => {
+    const items = [
+      item({ due_date: "2026-07-10", amount: "100" }), // vencido (antes de NOW) → excluye
+      item({ due_date: "2026-07-18", amount: "200" }), // en 4 días → ≤7
+      item({ due_date: "2026-07-25", amount: "400" }), // en 11 días → solo ≤30
+    ];
+    expect(sumItemsHasta(items, NOW, 7)).toBe(200);
+    expect(sumItemsHasta(items, NOW, 30)).toBe(600);
   });
 });

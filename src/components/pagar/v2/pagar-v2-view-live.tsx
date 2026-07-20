@@ -2,9 +2,16 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, Info } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { QavanteEmpty, QavanteInlineError } from "@/components/qavante";
-import { useAccountsPayable, type PayableItem, type AccountsPayableResponse } from "@/lib/api/pagos";
+import {
+  useAccountsPayable,
+  type PayableItem,
+  type PayableCurrencyTotal,
+} from "@/lib/api/pagos";
+import { usePreferences } from "@/lib/api/preferences";
+import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
+import { buildMaestro, readTerminos, readPagados } from "@/components/terminos/terminos-pago";
 import { parseAmount } from "../pagos-format";
 import { isOverdue } from "../pagos-v2-format";
 import { payrollPeriodFromExternalId } from "../pagos-group";
@@ -16,7 +23,17 @@ import { BrechaCaja } from "./brecha-caja";
 import { FechasClaveMes } from "./fechas-clave-mes";
 import { VencimientosTimeline } from "./vencimientos-timeline";
 import { ConcentracionClientes } from "@/components/sii/libro-v2/concentracion-clientes";
-import { mapVencimientos, mapFechasClave, mapConcentracion, mapBrecha, overdueCLP, type OnClickDe } from "./pagar-v2-map";
+import {
+  mapVencimientos,
+  mapFechasClave,
+  mapConcentracion,
+  mapBrecha,
+  overdueCLP,
+  montoCLP,
+  cpToPayableItem,
+  sumItemsHasta,
+  type OnClickDe,
+} from "./pagar-v2-map";
 
 /** Destino del drill-down de un pago (regla "todo dato lleva a su detalle"). Sueldos →
  *  detalle por empleado del período; impuestos → panel F29. Otros aún sin destino → sin link
@@ -46,28 +63,51 @@ function ahora(): Date {
 
 export function PagarV2ViewLive() {
   const ap = useAccountsPayable();
+  const comprasDocs = useMaestroDocs("compras");
+  const honorariosDocs = useMaestroDocs("honorarios");
+  const prefs = usePreferences();
   const router = useRouter();
+  const now = React.useMemo(() => ahora(), []);
 
-  if (ap.isLoading) return <LiveSkeleton />;
-  if (ap.isError) {
+  // UNIFICACIÓN: los PROVEEDORES salen del maestro RCV compras (net NC, conciliado, vencido
+  // derivado) y los HONORARIOS del BHE — el detalle que accounts-payable OMITE (partial) y que
+  // sobreestima al no netear NC. Sueldos/impuestos/manuales se toman de accounts-payable (no-DTE).
+  // El total se recalcula desde los ítems combinados; accounts-payable NO trae items 'supplier'
+  // → sin doble-conteo.
+  const { supplierItems, honorariosItems } = React.useMemo(() => {
+    const terminos = readTerminos(prefs.data?.preferences);
+    const pagados = readPagados(prefs.data?.preferences);
+    const cCps = comprasDocs.docs.length
+      ? buildMaestro(comprasDocs.docs, terminos, "compras", now, pagados)
+      : [];
+    const hCps = honorariosDocs.docs.length
+      ? buildMaestro(honorariosDocs.docs, terminos, "honorarios", now, pagados)
+      : [];
+    const notNull = (x: PayableItem | null): x is PayableItem => x != null;
+    return {
+      supplierItems: cCps.map((cp) => cpToPayableItem(cp, "SII · compras")).filter(notNull),
+      honorariosItems: hCps.map((cp) => cpToPayableItem(cp, "SII · honorarios")).filter(notNull),
+    };
+  }, [comprasDocs.docs, honorariosDocs.docs, prefs.data, now]);
+
+  const rcvItems = supplierItems.length + honorariosItems.length;
+  if (ap.isLoading && rcvItems === 0) return <LiveSkeleton />;
+  if (ap.isError && rcvItems === 0) {
     return <QavanteInlineError error={ap.error} what="tus cuentas por pagar" onRetry={() => ap.refetch()} />;
   }
 
   const resp = ap.data;
-  const items = resp?.items ?? [];
-  const montoTotal = parseAmount(resp?.total);
+  // accounts-payable aporta lo NO-proveedor (sueldos, impuestos, arriendos, deuda, manuales).
+  const apItems = (resp?.items ?? []).filter((it) => it.category !== "supplier");
+  const items = [...apItems, ...supplierItems, ...honorariosItems];
+  const montoTotal = items.reduce((s, it) => s + montoCLP(it), 0);
   if (montoTotal === 0 && items.length === 0) return <EmptyState missing={resp?.missing_sources} />;
 
-  // Total > 0 pero SIN detalle (backend omite `items` en `partial`): no fingimos "0 pagos" ni
-  // una cobertura tranquilizadora calculada sobre lista vacía. Mostramos el total + qué falta.
-  if (items.length === 0) return <PartialState montoTotal={montoTotal} missing={resp?.missing_sources} />;
-
-  const now = ahora();
   const onClickDe: OnClickDe = (item) => {
     const href = hrefDePago(item);
     return href ? () => router.push(href) : undefined;
   };
-  const brecha = mapBrecha(resp as AccountsPayableResponse, items, now);
+  const brecha = mapBrecha(resp, items, now);
   // Sin caja proyectada (null) no calculamos cobertura: no afirmamos "la caja no alcanza"
   // sobre un $0 inventado. La línea del hero degrada a neutral.
   const cobertura =
@@ -75,6 +115,8 @@ export function PagarV2ViewLive() {
       ? null
       : calcularBrecha(brecha.cajaProyectada, brecha.pagosCriticos);
   const vencidos = items.filter((it) => isOverdue(it, now)).length;
+  const due7 = sumItemsHasta(items, now, 7);
+  const due30 = sumItemsHasta(items, now, 30);
 
   const fechas = mapFechasClave(items, now, onClickDe);
   const totalFechas = fechas.reduce((s, f) => s + f.monto, 0);
@@ -92,7 +134,7 @@ export function PagarV2ViewLive() {
           }
           coberturaTono={cobertura ? (cobertura.cubre ? "ok" : "bad") : "neutral"}
           subtitulo={subtitulo(items.length, vencidos)}
-          infoHint="Total de pagos y obligaciones pendientes (proveedores, impuestos, cotizaciones, sueldos, arriendos y deuda). La cobertura compara la caja proyectada a 14 días contra lo que no se puede postergar."
+          infoHint="Total de pagos y obligaciones pendientes: proveedores (net de notas de crédito) y honorarios del SII, más impuestos, cotizaciones, sueldos, arriendos y deuda. La cobertura compara la caja proyectada a 14 días contra lo que no se puede postergar."
         />
       }
       brecha={
@@ -106,7 +148,7 @@ export function PagarV2ViewLive() {
           postergabilidadEstimada
         />
       }
-      secundarios={<Secundarios items={items} resp={resp} now={now} />}
+      secundarios={<Secundarios items={items} due7={due7} due30={due30} usd={resp?.total_by_currency} now={now} />}
       fechasClave={fechas.length > 0 ? <FechasClaveMes items={fechas} total={totalFechas} /> : <div />}
       movibles={buildMovibles(items, vencidos, now, onClickDe)}
     />
@@ -134,21 +176,26 @@ function subtitulo(total: number, vencidos: number): string {
   return partes.join(" · ");
 }
 
-/** Desglose secundario: vencido / próximos 7d / este mes / en dólares (si hay). */
+/** Desglose secundario: vencido / próximos 7d / este mes / en dólares (si hay). Los montos por
+ *  ventana se recalculan desde los ítems combinados (no de accounts-payable, que sobreestima). */
 function Secundarios({
   items,
-  resp,
+  due7,
+  due30,
+  usd,
   now,
 }: {
   items: PayableItem[];
-  resp: AccountsPayableResponse | undefined;
+  due7: number;
+  due30: number;
+  usd?: PayableCurrencyTotal[];
   now: Date;
 }) {
   const vencido = overdueCLP(items, now);
-  const prox7 = parseAmount(resp?.due_7d);
-  const mes = parseAmount(resp?.due_30d);
+  const prox7 = due7;
+  const mes = due30;
   // Desglose por moneda extranjera (CC-API #560): la primera != CLP.
-  const usd = resp?.total_by_currency?.find((c) => c.currency.toUpperCase() !== "CLP");
+  const usdItem = usd?.find((c) => c.currency.toUpperCase() !== "CLP");
 
   const row = (k: string, v: string, tono: string, dashed = true) => (
     <div className={`flex items-baseline justify-between gap-3 py-1.5 ${dashed ? "border-t border-dashed border-border" : ""}`}>
@@ -163,7 +210,7 @@ function Secundarios({
         {row("Vencido", formatClp(vencido), vencido > 0 ? "text-danger-500" : "text-neutral-dark", false)}
         {row("Próximos 7 días", formatClp(prox7), "text-warning-700")}
         {row("Este mes", formatClp(mes), "text-neutral-dark")}
-        {usd && row("En dólares", formatMoney(parseAmount(usd.amount), usd.currency), "text-brand-primary")}
+        {usdItem && row("En dólares", formatMoney(parseAmount(usdItem.amount), usdItem.currency), "text-brand-primary")}
       </dl>
     </div>
   );
@@ -216,27 +263,6 @@ function LiveSkeleton() {
       <div className="h-24 animate-pulse rounded-xl bg-surface-muted" />
       <div className="h-64 animate-pulse rounded-xl bg-surface-muted" />
       <span className="sr-only">Cargando tus cuentas por pagar…</span>
-    </div>
-  );
-}
-
-/** Parcial: hay un total por pagar pero el backend no mandó el detalle (`items`). Mostramos el
- *  total honestamente + qué falta sincronizar, SIN una cobertura/brecha calculada en el vacío. */
-function PartialState({ montoTotal, missing }: { montoTotal: number; missing?: string[] }) {
-  const falta = missing && missing.length > 0 ? missing.join(" · ") : null;
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
-        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">La empresa debe pagar</p>
-        <p className="mt-1.5 text-[33px] font-extrabold leading-none tracking-tight text-neutral-dark tabular-nums">
-          {formatClp(montoTotal)}
-        </p>
-        <p className="mt-3 inline-flex items-start gap-1.5 text-[12.5px] text-neutral-mid">
-          <Info className="mt-px size-4 shrink-0 text-warning-700" aria-hidden="true" />
-          Todavía no llegó el detalle de tus pagos{falta ? ` (falta: ${falta})` : ""}. Cuando se sincronice
-          vas a ver acá tus vencimientos, las 3 del mes y cuánto de eso cubre tu caja.
-        </p>
-      </div>
     </div>
   );
 }
