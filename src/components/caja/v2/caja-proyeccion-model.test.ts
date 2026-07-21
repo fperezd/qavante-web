@@ -79,9 +79,14 @@ describe("movimientosDeMaestro", () => {
     expect(movs.map((m) => m.monto)).toEqual([-1_000_000, 200_000]);
   });
 
-  it("past-due (vencido, impago) → fecha efectiva = hoy (día 0)", () => {
-    const cp = cpM([docM({ vencimiento: new Date(2026, 5, 1) })]); // 1-jun, ya venció
-    const movs = movimientosDeMaestro([cp], 1, "cobranza", HOY, 120);
+  it("past-due más viejo que la gracia → EXCLUIDO (default grace 0; ya pagado, ya en cash_today)", () => {
+    const cp = cpM([docM({ vencimiento: new Date(2026, 5, 1) })]); // 1-jun, ~50d vencido
+    expect(movimientosDeMaestro([cp], 1, "cobranza", HOY, 120)).toHaveLength(0);
+  });
+
+  it("past-due DENTRO de la gracia → incluido, fecha efectiva = hoy", () => {
+    const cp = cpM([docM({ vencimiento: new Date(2026, 6, 18) })]); // 18-jul, 3d vencido
+    const movs = movimientosDeMaestro([cp], 1, "cobranza", HOY, 120, 7); // grace 7d
     expect(movs).toHaveLength(1);
     expect(movs[0]?.fecha.getTime()).toBe(HOY.getTime());
   });
@@ -107,6 +112,10 @@ describe("movimientosDeObligaciones", () => {
       ["IVA F29", -1_800_000, "impuesto"],
       ["Sueldos", -4_200_000, "sueldos"],
     ]);
+  });
+
+  it("obligación past-due vieja → excluida (default grace 0; ya pagada)", () => {
+    expect(movimientosDeObligaciones([item({ due_date: "2026-05-01" })], HOY, 120)).toHaveLength(0);
   });
 });
 

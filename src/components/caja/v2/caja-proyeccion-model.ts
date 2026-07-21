@@ -19,28 +19,42 @@ export function fechaCortaLabel(d: Date): string {
   return `${d.getDate()}-${MESES[d.getMonth()] ?? ""}`;
 }
 
-/** Fecha efectiva del movimiento: si ya venció (past-due, sigue impago) lo tratamos como "hoy"
- *  (plata esperada ya), si no, su vencimiento. PURO. */
-function fechaEfectiva(vencimiento: Date, hoy: Date): Date {
-  return daysBetween(hoy, vencimiento) < 0 ? hoy : vencimiento;
+/** Fecha efectiva del movimiento DENTRO de la ventana [hoy − gracia, hoy + horizonte], o `null` si
+ *  cae fuera. Un vencimiento futuro va en su fecha; uno past-due DENTRO de la gracia se trata como
+ *  "hoy" (aún pendiente); uno past-due MÁS VIEJO que la gracia se EXCLUYE — casi seguro ya pagado
+ *  (ya está reflejado en el cash_today) y contarlo de nuevo duplicaría plata ya gastada. Validación
+ *  real Tooxs 2026-07-21: sin este filtro, ~$37M de compras viejas ya pagadas inflaban el piso a
+ *  −$43M irreal. PURO. */
+function fechaEnVentana(
+  vencimiento: Date,
+  hoy: Date,
+  graceDias: number,
+  horizonteDias: number,
+): Date | null {
+  const d = daysBetween(hoy, vencimiento);
+  if (d < -graceDias || d > horizonteDias) return null;
+  return d < 0 ? hoy : vencimiento;
 }
 
-/** Movimientos forward de un maestro (cobranzas o pagos). Cada doc NO pagado con vencimiento se
- *  vuelve un movimiento en su fecha efectiva. `signo` +1 = cobranza (entra), −1 = pago (sale); las
- *  NC ya vienen con `monto` de signo opuesto en el doc → netean solas. Solo dentro del horizonte. */
+/** Movimientos forward de un maestro (cobranzas o pagos). Cada doc NO pagado con vencimiento en la
+ *  ventana [hoy − gracia, hoy + horizonte] se vuelve un movimiento. `signo` +1 = cobranza (entra),
+ *  −1 = pago (sale); las NC ya vienen con `monto` de signo opuesto en el doc → netean solas.
+ *  `graceDias` acota el past-due que se incluye (default 0 = solo futuro; el past-due viejo se
+ *  excluye porque ya está en el cash_today). */
 export function movimientosDeMaestro(
   cps: ContraparteMaestro[],
   signo: 1 | -1,
   tipo: MovTipo,
   hoy: Date,
   horizonteDias: number,
+  graceDias = 0,
 ): MovimientoCaja[] {
   const out: MovimientoCaja[] = [];
   for (const cp of cps) {
     for (const doc of cp.docs) {
       if (doc.pagado || doc.vencimiento == null) continue;
-      const efectiva = fechaEfectiva(doc.vencimiento, hoy);
-      if (daysBetween(hoy, efectiva) > horizonteDias) continue;
+      const efectiva = fechaEnVentana(doc.vencimiento, hoy, graceDias, horizonteDias);
+      if (efectiva == null) continue;
       const monto = signo * doc.monto; // doc.monto ya signado (NC negativo)
       if (monto === 0) continue;
       out.push({
@@ -63,20 +77,22 @@ function tipoDeCategoria(cat: PayableItem["category"] | undefined): MovTipo {
 }
 
 /** Movimientos forward de las obligaciones desde accounts-payable (F29/Previred/sueldos/arriendo…):
- *  cada item con `due_date` → un pago (outflow) en su fecha efectiva, dentro del horizonte. Se le
- *  pasan SOLO los ítems que no vienen del maestro (categoría ≠ supplier) para no doble-contar. */
+ *  cada item con `due_date` en la ventana [hoy − gracia, hoy + horizonte] → un pago (outflow). Se le
+ *  pasan SOLO los ítems que no vienen del maestro (categoría ≠ supplier) para no doble-contar. El
+ *  past-due viejo se excluye (ya pagado, ya en el cash_today). */
 export function movimientosDeObligaciones(
   items: PayableItem[],
   hoy: Date,
   horizonteDias: number,
+  graceDias = 0,
 ): MovimientoCaja[] {
   const out: MovimientoCaja[] = [];
   for (const it of items) {
     if (!it.due_date) continue;
     const venc = new Date(it.due_date);
     if (Number.isNaN(venc.getTime())) continue;
-    const efectiva = fechaEfectiva(venc, hoy);
-    if (daysBetween(hoy, efectiva) > horizonteDias) continue;
+    const efectiva = fechaEnVentana(venc, hoy, graceDias, horizonteDias);
+    if (efectiva == null) continue;
     const monto = -Math.abs(parseAmount(it.amount)); // outflow
     if (monto === 0) continue;
     out.push({
