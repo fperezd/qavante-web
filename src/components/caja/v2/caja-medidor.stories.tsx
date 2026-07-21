@@ -84,6 +84,6 @@ export const SinDato: Story = {
     await expect(
       c.getByText("Todavía no hay suficiente movimiento para proyectar"),
     ).toBeInTheDocument();
-    await expect(c.getByText(/Actualizá el banco/)).toBeInTheDocument();
+    await expect(c.getByText(/Actualiza el banco/)).toBeInTheDocument();
   },
 };
