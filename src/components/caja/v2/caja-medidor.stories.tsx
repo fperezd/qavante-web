@@ -68,7 +68,8 @@ export const Holgada: Story = {
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await expect(c.getByText("Caja holgada")).toBeInTheDocument();
+    await expect(c.getByText("Caja holgada")).toBeInTheDocument(); // badge (único)
+    await expect(c.getByText("Te alcanza de sobra")).toBeInTheDocument(); // titular distinto
   },
 };
 

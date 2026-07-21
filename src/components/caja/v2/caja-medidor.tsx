@@ -159,7 +159,7 @@ function titular(m: DiasCaja, ref: number): { headline: string; detalle: string 
   }
   if (m.estado === "ajustado")
     return { headline: `Te alcanza ${dLabel(m.diasHastaMinimo ?? 0)}`, detalle };
-  return { headline: "Caja holgada", detalle };
+  return { headline: "Te alcanza de sobra", detalle };
 }
 
 export interface CajaMedidorProps {
