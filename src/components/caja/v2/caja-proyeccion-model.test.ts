@@ -4,6 +4,7 @@ import {
   movimientosDeObligaciones,
   proyeccionDeMovimientos,
   hayProyeccion,
+  movimientosPorSemana,
   fechaCortaLabel,
 } from "./caja-proyeccion-model";
 import type { ContraparteMaestro, DocMaestro } from "@/components/terminos/terminos-pago";
@@ -172,5 +173,29 @@ describe("hayProyeccion", () => {
 describe("fechaCortaLabel", () => {
   it("formatea DD-mmm", () => {
     expect(fechaCortaLabel(new Date(2026, 6, 14))).toBe("14-jul");
+  });
+});
+
+describe("movimientosPorSemana", () => {
+  const mov = (dia: number, monto: number): MovimientoCaja => ({
+    fecha: new Date(2026, 6, 21 + dia),
+    fechaLabel: `+${dia}`,
+    label: "m",
+    monto,
+  });
+
+  it("suma el neto por bucket de 7 días desde hoy; ordena; etiqueta la semana", () => {
+    // día 0 y 3 → semana 0; día 8 → semana 1
+    const out = movimientosPorSemana(
+      [mov(0, 1_000_000), mov(3, -400_000), mov(8, -2_000_000)],
+      HOY,
+    );
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ label: "Esta semana", monto: 600_000, tipo: "cobranza" });
+    expect(out[1]).toMatchObject({ label: "Sem +1", monto: -2_000_000, tipo: "otro" });
+  });
+
+  it("vacío → vacío", () => {
+    expect(movimientosPorSemana([], HOY)).toEqual([]);
   });
 });

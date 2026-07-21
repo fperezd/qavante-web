@@ -6,7 +6,7 @@
    y los pasos de la cascada. Validación real 2026-07-20: el cash-flow de Tooxs es histórico (25
    buckets ene→hoy) sin futuro → la proyección tiene que venir de acá. Ver caja-v3 memory. */
 
-import { daysBetween, type ContraparteMaestro } from "@/components/terminos/terminos-pago";
+import { daysBetween, addDays, type ContraparteMaestro } from "@/components/terminos/terminos-pago";
 import { parseAmount } from "@/components/inicio/dashboard-format";
 import type { MovimientoCaja, MovTipo } from "./caja-cascada-model";
 import type { DiasCaja, EstadoCaja } from "./caja-dias-model";
@@ -154,4 +154,27 @@ export function proyeccionDeMovimientos(
  *  futuro derivado; si no, no hay nada que proyectar → el caller muestra el estado honesto. */
 export function hayProyeccion(movimientos: MovimientoCaja[]): boolean {
   return movimientos.length > 0;
+}
+
+/** Agrupa los movimientos por SEMANA (bucket de 7 días desde hoy) para que la CASCADA sea legible:
+ *  con decenas de docs por vencimiento, una barra por doc queda ilegible. Cada semana → un
+ *  movimiento con el NETO de la semana y su fecha de inicio. El medidor sigue usando los movimientos
+ *  individuales (acumulado exacto); esto es solo para el gráfico. Ordenado por semana. PURO. */
+export function movimientosPorSemana(movimientos: MovimientoCaja[], hoy: Date): MovimientoCaja[] {
+  const porSemana = new Map<number, { fecha: Date; monto: number }>();
+  for (const m of movimientos) {
+    const semana = Math.floor(Math.max(0, daysBetween(hoy, m.fecha)) / 7);
+    const prev = porSemana.get(semana);
+    if (prev) prev.monto += m.monto;
+    else porSemana.set(semana, { fecha: addDays(hoy, semana * 7), monto: m.monto });
+  }
+  return [...porSemana.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([semana, v]) => ({
+      fecha: v.fecha,
+      fechaLabel: fechaCortaLabel(v.fecha),
+      label: semana === 0 ? "Esta semana" : `Sem +${semana}`,
+      monto: v.monto,
+      tipo: v.monto >= 0 ? ("cobranza" as const) : ("otro" as const),
+    }));
 }

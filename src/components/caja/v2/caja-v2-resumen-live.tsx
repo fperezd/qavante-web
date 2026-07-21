@@ -19,6 +19,9 @@ import { CajaHero } from "./caja-hero";
 import { SaldoPorBanco } from "./saldo-por-banco";
 import { CajaCurva } from "./caja-curva";
 import { serieAnclada, cajaMinimoCLP, flujoDeBuckets, primerCruceFuturo } from "./caja-v2-map";
+import { CajaProyeccionLive } from "./caja-proyeccion-live";
+import { fechaCortaLabel } from "./caja-proyeccion-model";
+import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { formatBucketLabel } from "@/components/caja/cash-flow-format";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { orderRange, type PeriodRange } from "@/lib/period/period-range";
@@ -77,7 +80,9 @@ function CajaV2Contenido({
 }) {
   if (cf.isLoading || dash.isLoading) return <LiveSkeleton />;
   if (cf.isError) {
-    return <QavanteInlineError error={cf.error} what="el reporte de caja" onRetry={() => cf.refetch()} />;
+    return (
+      <QavanteInlineError error={cf.error} what="el reporte de caja" onRetry={() => cf.refetch()} />
+    );
   }
 
   const allBuckets = (cf.data?.buckets ?? []) as CashFlowBucket[];
@@ -92,13 +97,17 @@ function CajaV2Contenido({
   // Si el saldo falta por un ERROR del dashboard (no porque el banco esté sin conectar), el copy lo dice
   // (§13 / no ocultar un error como dato faltante).
   if (!saldoConocido)
-    return <SinSaldoBase buckets={allBuckets} granularity={granularity} saldoError={dash.isError} />;
+    return (
+      <SinSaldoBase buckets={allBuckets} granularity={granularity} saldoError={dash.isError} />
+    );
 
   // La curva muestra la TRAYECTORIA del saldo sobre el rango, anclada en el saldo de hoy: reconstruye
   // los períodos pasados hacia atrás y proyecta los futuros hacia adelante (sin doble conteo). Un
   // punto por período; el FLUJO agrega el total del rango (allBuckets).
   const now = new Date();
-  const serie = serieAnclada(saldoHoy, allBuckets, granularity, now, (p) => formatBucketLabel(p, granularity));
+  const serie = serieAnclada(saldoHoy, allBuckets, granularity, now, (p) =>
+    formatBucketLabel(p, granularity),
+  );
   const minimo = cajaMinimoCLP(cm.data);
   // El cruce "bajo el mínimo" cuenta solo DESDE HOY hacia adelante: un dip reconstruido en un
   // período ya pasado no es accionable (no se puede adelantar cobranza para una semana que terminó).
@@ -107,6 +116,23 @@ function CajaV2Contenido({
   // Caja en cero o negativa → tono crítico honesto (no un ✓ verde "alcanza ~0 días").
   const negativa = saldoHoy <= 0;
   const tono = negativa ? "crit" : cruceIdx != null ? "warn" : "ok";
+
+  // Caja v3 (gated `cajaV3`, OFF por default): reemplaza la curva histórica por el medidor de días +
+  // cascada, derivados de los VENCIMIENTOS (no del cash-flow histórico, que no proyecta el futuro).
+  const { cajaV3 } = resolveFeatureFlags();
+  const ct = dash.data?.cash_today;
+  const saldoStale = ct?.data_state === "stale";
+  const ultimaSync = ct?.last_updated ? fechaCortaLabel(new Date(ct.last_updated)) : null;
+  const curvaSlot = cajaV3 ? (
+    <CajaProyeccionLive
+      saldoHoy={saldoHoy}
+      minimo={minimo}
+      saldoStale={saldoStale}
+      ultimaSync={ultimaSync}
+    />
+  ) : (
+    <CurvaCard serie={serie} minimo={minimo} cruceIdx={cruceIdx} />
+  );
 
   return (
     <CajaV2Resumen
@@ -133,7 +159,7 @@ function CajaV2Contenido({
         />
       }
       flujo={<FlujoBlock flujo={flujoDeBuckets(allBuckets)} minimo={minimo} />}
-      curva={<CurvaCard serie={serie} minimo={minimo} cruceIdx={cruceIdx} />}
+      curva={curvaSlot}
       movibles={
         // Tabla del período (allBuckets); el "saldo al cierre" usa la trayectoria anclada (serie[i]).
         allBuckets.length > 0 ? buildMovibles(allBuckets, serie, granularity) : []
@@ -165,7 +191,13 @@ function buildRunway(
   return "La caja cubre el período proyectado.";
 }
 
-function FlujoBlock({ flujo, minimo }: { flujo: { entra: number; sale: number; neto: number }; minimo: number | null }) {
+function FlujoBlock({
+  flujo,
+  minimo,
+}: {
+  flujo: { entra: number; sale: number; neto: number };
+  minimo: number | null;
+}) {
   const { entra, sale, neto } = flujo;
   const row = (k: string, v: string, tono?: string) => (
     <div className="flex items-baseline justify-between gap-3 border-t border-dashed border-border py-1.5 first:border-t-0">
@@ -178,7 +210,11 @@ function FlujoBlock({ flujo, minimo }: { flujo: { entra: number; sale: number; n
       <dl className="flex flex-col text-[13px]">
         {row("Entra (período)", formatClp(entra), "text-success-700")}
         {row("Sale (período)", formatClp(-Math.abs(sale)), "text-danger-500")}
-        {row("Neto del período", formatClp(neto), neto < 0 ? "text-danger-500" : "text-neutral-dark")}
+        {row(
+          "Neto del período",
+          formatClp(neto),
+          neto < 0 ? "text-danger-500" : "text-neutral-dark",
+        )}
         {minimo != null && row("Tu caja mínima", formatClp(minimo))}
       </dl>
     </div>
@@ -194,7 +230,8 @@ function CurvaCard({
   minimo: number | null;
   cruceIdx: number | null;
 }) {
-  const eventos = cruceIdx != null ? [{ indice: cruceIdx, label: "Bajo el mínimo", tono: "crit" as const }] : [];
+  const eventos =
+    cruceIdx != null ? [{ indice: cruceIdx, label: "Bajo el mínimo", tono: "crit" as const }] : [];
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
@@ -212,11 +249,17 @@ function CurvaCard({
       {cruceIdx != null && (
         <p className="mx-4 mb-4 rounded-lg border border-danger-500/30 bg-danger-500/[.06] px-3 py-2 text-[13px] text-neutral-dark">
           El <b>{serie[cruceIdx]?.label}</b> la caja cae bajo tu mínimo.{" "}
-          <Link href="/cobrar" className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+          <Link
+            href="/cobrar"
+            className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+          >
             Adelanta una cobranza
           </Link>{" "}
           o{" "}
-          <Link href="/pagar" className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+          <Link
+            href="/pagar"
+            className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+          >
             posterga un pago
           </Link>
           .
@@ -239,7 +282,9 @@ function FlowsTable({
   granularity: CashFlowGranularity;
 }) {
   const conCierre = serie != null;
-  const cols = conCierre ? ["Período", "Entra", "Sale", "Neto", "Saldo al cierre"] : ["Período", "Entra", "Sale", "Neto"];
+  const cols = conCierre
+    ? ["Período", "Entra", "Sale", "Neto", "Saldo al cierre"]
+    : ["Período", "Entra", "Sale", "Neto"];
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="border-b border-border px-4 py-3">
@@ -262,14 +307,22 @@ function FlowsTable({
           <tbody>
             {buckets.map((b, i) => (
               <tr key={`${b.period}-${i}`} className="border-t border-border">
-                <td className="px-4 py-2 text-[13px]">{formatBucketLabel(b.period, granularity)}</td>
-                <td className="px-4 py-2 text-right text-[13px] text-success-700">{formatClp(parseAmount(b.total_inflow))}</td>
+                <td className="px-4 py-2 text-[13px]">
+                  {formatBucketLabel(b.period, granularity)}
+                </td>
+                <td className="px-4 py-2 text-right text-[13px] text-success-700">
+                  {formatClp(parseAmount(b.total_inflow))}
+                </td>
                 <td className="px-4 py-2 text-right text-[13px] text-danger-500">
                   {formatClp(-Math.abs(parseAmount(b.total_outflow)))}
                 </td>
-                <td className="px-4 py-2 text-right text-[13px]">{formatClp(parseAmount(b.net))}</td>
+                <td className="px-4 py-2 text-right text-[13px]">
+                  {formatClp(parseAmount(b.net))}
+                </td>
                 {conCierre && (
-                  <td className="px-4 py-2 text-right text-[13px] font-bold">{formatClp(serie![i]?.saldo ?? 0)}</td>
+                  <td className="px-4 py-2 text-right text-[13px] font-bold">
+                    {formatClp(serie![i]?.saldo ?? 0)}
+                  </td>
                 )}
               </tr>
             ))}
@@ -312,7 +365,9 @@ function SinSaldoBase({
     <div className="space-y-4">
       <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm sm:grid sm:grid-cols-2">
         <div className="p-5">
-          <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">La empresa tiene en caja</p>
+          <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+            La empresa tiene en caja
+          </p>
           <p className="mt-1.5 text-[22px] font-bold text-neutral-mid">Sin dato de saldo</p>
           {saldoError ? (
             <p className="mt-3 inline-flex items-start gap-1.5 text-[13px] font-semibold text-warning-700">
