@@ -91,6 +91,9 @@ export function CajaProyeccionLive({
     minimo,
   ]);
 
+  // Sin las prefs (conciliaciones) la proyección trataría docs ya pagados como movimientos → esperar.
+  if (prefs.isLoading) return null;
+
   return (
     <CajaProyeccionView
       proyeccion={proyeccion}
@@ -98,6 +101,7 @@ export function CajaProyeccionLive({
       movimientos={movimientosCascada}
       ultimaSync={ultimaSync}
       saldoStale={saldoStale}
+      ocultarSaldoHoy // el hero del Resumen ya muestra el saldo de hoy → no repetirlo en el medidor
     />
   );
 }

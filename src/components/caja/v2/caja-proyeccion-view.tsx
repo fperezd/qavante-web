@@ -22,6 +22,8 @@ export interface CajaProyeccionViewProps {
   ultimaSync?: string | null;
   /** El `cash_today` viene stale (banco sin sincronizar reciente) → avisamos honesto. */
   saldoStale?: boolean;
+  /** Oculta el "Saldo hoy" del medidor (el hero de la pantalla ya lo muestra → no repetir). */
+  ocultarSaldoHoy?: boolean;
   className?: string;
 }
 
@@ -31,6 +33,7 @@ export function CajaProyeccionView({
   movimientos,
   ultimaSync,
   saldoStale,
+  ocultarSaldoHoy,
   className,
 }: CajaProyeccionViewProps) {
   // Sin proyección forward (ni movimientos ni días) → estado honesto, no una curva inventada.
@@ -40,7 +43,7 @@ export function CajaProyeccionView({
 
   return (
     <div className={cn("space-y-5", className)}>
-      <CajaMedidor model={proyeccion} minimo={minimo} />
+      <CajaMedidor model={proyeccion} minimo={minimo} ocultarSaldoHoy={ocultarSaldoHoy} />
 
       {saldoStale && ultimaSync && (
         <p className="text-xs text-neutral-mid">

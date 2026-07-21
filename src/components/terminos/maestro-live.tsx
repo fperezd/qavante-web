@@ -36,7 +36,20 @@ const PLURAL: Record<MaestroKind, string> = {
   honorarios: "profesionales",
 };
 
-const MESES_ABR = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const MESES_ABR = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
 
 /** ["2026-01", …, "2026-07"] → "ene–jul 2026". */
 function periodosLabel(periods: string[]): string {
@@ -85,7 +98,8 @@ export function MaestroLive({
   const onSetTerm = (rut: string, days: number) =>
     persist(withTerm(prefs.data?.preferences, kind, rut, days));
   const onResetTerm = (rut: string) => persist(withoutTerm(prefs.data?.preferences, kind, rut));
-  const onSetDefault = (days: number) => persist(withDefaultTerm(prefs.data?.preferences, kind, days));
+  const onSetDefault = (days: number) =>
+    persist(withDefaultTerm(prefs.data?.preferences, kind, days));
   const onTogglePagado = (rut: string, folio: number | string | null) => {
     const blob = isPagado(pagados, kind, rut, folio)
       ? withoutPagado(prefs.data?.preferences, kind, rut, folio)
@@ -93,6 +107,9 @@ export function MaestroLive({
     persist(blob);
   };
 
+  // Esperar a las PREFS (conciliaciones/términos): sin ellas, buildMaestro trata todos los docs como
+  // impagos → contrapartes ya conciliadas aparecerían debiendo (race cazada en prod).
+  if (prefs.isLoading) return <MaestroSkeleton />;
   if (isFetching && docs.length === 0) return <MaestroSkeleton />;
   if (docs.length === 0) {
     return (

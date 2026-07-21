@@ -158,6 +158,12 @@ function Assembled({
   const copyTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   React.useEffect(() => () => clearTimeout(copyTimer.current), []);
 
+  // Esperar a que carguen las PREFS (conciliaciones) antes de mostrar la lista: sin ellas,
+  // `buildMaestro` trata TODOS los docs como impagos → contrapartes ya cobradas/conciliadas
+  // aparecerían debiendo (race real cazada en prod: TEPILLE/TESTGROUP mostraban su factura ya
+  // conciliada). Skeleton hasta que las prefs estén (o fallen).
+  if (prefs.isLoading) return <LoadingSkeleton />;
+
   const remFor = (d: TopDebtor) =>
     reminderText({
       name: d.name,
