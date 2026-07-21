@@ -30,7 +30,13 @@ export function CascadaResultado({
   const barras = computeCascada(entradas);
 
   return (
-    <section className={cn("overflow-hidden rounded-xl border border-border bg-surface shadow-sm", className)} aria-label={titulo}>
+    <section
+      className={cn(
+        "overflow-hidden rounded-xl border border-border bg-surface shadow-sm",
+        className,
+      )}
+      aria-label={titulo}
+    >
       <div className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-bold text-neutral-dark">{titulo}</h2>
@@ -39,7 +45,7 @@ export function CascadaResultado({
         {subtitulo && <p className="mt-0.5 text-[11.5px] text-neutral-mid">{subtitulo}</p>}
       </div>
 
-      <div className="px-3 py-2 sm:px-4">
+      <div className="qv-stagger-bars px-3 py-2 sm:px-4">
         {barras.map((b) => {
           const total = b.tipo === "subtotal" || b.tipo === "resultado";
           const grand = b.tipo === "resultado";
@@ -55,13 +61,19 @@ export function CascadaResultado({
               : "text-neutral-dark";
           const rowClass = cn(
             "group relative grid w-full grid-cols-[minmax(120px,150px)_1fr_minmax(96px,120px)] items-center gap-3 rounded-lg px-1.5 py-2 text-left",
-            clickable && "transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+            clickable &&
+              "transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
             total && "bg-brand-primary/[.06]",
             grand && (b.negativo ? "mt-1 bg-danger-500/10" : "mt-1 bg-success-500/10"),
           );
           const content = (
             <>
-              <span className={cn("flex items-center gap-1.5 text-[12.5px]", total ? "font-extrabold text-neutral-dark" : "text-neutral-dark")}>
+              <span
+                className={cn(
+                  "flex items-center gap-1.5 text-[12.5px]",
+                  total ? "font-extrabold text-neutral-dark" : "text-neutral-dark",
+                )}
+              >
                 <span className="w-2.5 shrink-0 font-bold text-neutral-light">{op}</span>
                 <span className="truncate">{b.label}</span>
                 {b.pct != null && (
@@ -82,12 +94,21 @@ export function CascadaResultado({
 
               <span className="relative h-[22px]" aria-hidden="true">
                 <span
-                  className={cn("absolute top-0 h-full rounded", barClass(b.tipo, b.negativo))}
+                  className={cn(
+                    "animate-qv-grow-x absolute top-0 h-full rounded",
+                    barClass(b.tipo, b.negativo),
+                  )}
                   style={{ left: `${b.left}%`, width: `${b.width}%` }}
                 />
               </span>
 
-              <span className={cn("text-right text-[13px] font-bold tabular-nums", montoTono, grand && "text-[15px]")}>
+              <span
+                className={cn(
+                  "text-right text-[13px] font-bold tabular-nums",
+                  montoTono,
+                  grand && "text-[15px]",
+                )}
+              >
                 {formatClp(b.montoFirmado)}
               </span>
 
@@ -114,18 +135,27 @@ export function CascadaResultado({
   );
 }
 
+/* Gradiente por barra (profundidad premium) + glow en el resultado. El degradado va del color
+   pleno (borde de arranque) a translúcido, dando volumen sin cambiar la semántica del color. */
 function barClass(tipo: string, negativo: boolean): string {
-  if (tipo === "ingreso") return "bg-brand-primary/80";
-  if (tipo === "resta") return "bg-danger-500/45";
-  if (tipo === "ajuste") return "bg-neutral-mid/40"; // conciliación "Otros" (neutro)
-  if (tipo === "resultado") return negativo ? "bg-danger-500" : "bg-success-600";
-  return "bg-brand-primary"; // subtotal
+  if (tipo === "ingreso")
+    return "bg-gradient-to-r from-brand-primary to-brand-primary/55 shadow-sm";
+  if (tipo === "resta") return "bg-gradient-to-r from-danger-500/75 to-danger-500/35 shadow-sm";
+  if (tipo === "ajuste") return "bg-gradient-to-r from-neutral-mid/55 to-neutral-mid/25"; // "Otros" (neutro)
+  if (tipo === "resultado")
+    return negativo
+      ? "bg-gradient-to-r from-danger-500 to-danger-500/65 shadow-md shadow-danger-500/40"
+      : "bg-gradient-to-r from-success-600 to-success-500/65 shadow-md shadow-success-500/40";
+  return "bg-gradient-to-r from-brand-primary to-brand-primary/60 shadow-sm"; // subtotal
 }
 
 /** % con 1 decimal, signo tipográfico (−) para negativos. NO se clampa a [0,100]: un margen
  *  negativo (mes en pérdida) debe verse como tal, no como "0%". */
 function formatPct(pct: number): string {
   const r = Math.round(pct * 10) / 10;
-  const abs = Math.abs(r).toLocaleString("es-CL", { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+  const abs = Math.abs(r).toLocaleString("es-CL", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  });
   return `${r < 0 ? "−" : ""}${abs}%`;
 }
