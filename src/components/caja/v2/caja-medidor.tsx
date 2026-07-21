@@ -146,12 +146,12 @@ function dLabel(d: number): string {
 function titular(m: DiasCaja, ref: number): { headline: string; detalle: string } {
   const recup =
     m.diasRecuperacion != null
-      ? `, te recuperás en ${dLabel(m.diasRecuperacion)}`
+      ? `, te recuperas en ${dLabel(m.diasRecuperacion)}`
       : ", sin recuperación en el horizonte";
   const pisoBajo = m.piso != null && m.piso.saldo < ref;
   const detalle = pisoBajo
     ? `Piso ${formatClp(m.piso!.saldo)} en ${dLabel(m.piso!.dia)}${recup}.`
-    : `No bajás de tu caja mínima en los próximos ${Math.round(m.horizonteDias)} días.`;
+    : `No bajas de tu caja mínima en los próximos ${Math.round(m.horizonteDias)} días.`;
 
   if (m.estado === "critico") {
     if (m.saldoHoy < 0) return { headline: "Tu caja está en rojo hoy", detalle };
@@ -281,7 +281,7 @@ export function CajaMedidorSinDato({ ultimaSync, className }: CajaMedidorSinDato
       <p className="text-base font-semibold">Todavía no hay suficiente movimiento para proyectar</p>
       <p className="max-w-sm text-sm text-neutral-mid">
         {ultimaSync ? `Banco sincronizado por última vez el ${ultimaSync}. ` : ""}
-        Actualizá el banco para ver cuántos días te alcanza la caja.
+        Actualiza el banco para ver cuántos días te alcanza la caja.
       </p>
     </div>
   );

@@ -30,11 +30,11 @@ const docM = (over: Partial<DocMaestro>): DocMaestro => ({
   ...over,
 });
 
-const cpM = (docs: DocMaestro[], name = "Cliente X"): ContraparteMaestro => ({
+const cpM = (docs: DocMaestro[], over: Partial<ContraparteMaestro> = {}): ContraparteMaestro => ({
   rut: "77111222-3",
-  name,
+  name: "Cliente X",
   docCount: docs.length,
-  total: 0,
+  total: docs.reduce((s, d) => s + d.monto, 0), // net de NC (montos ya signados); buildMaestro lo calcula
   vencido: 0,
   porVencer: 0,
   vigente: 0,
@@ -43,6 +43,7 @@ const cpM = (docs: DocMaestro[], name = "Cliente X"): ContraparteMaestro => ({
   terminoCustom: false,
   proximoVencimiento: null,
   docs,
+  ...over,
 });
 
 const item = (over: Partial<PayableItem>): PayableItem =>
@@ -57,26 +58,55 @@ const item = (over: Partial<PayableItem>): PayableItem =>
   }) as PayableItem;
 
 describe("movimientosDeMaestro", () => {
-  it("un movimiento por doc no pagado; la NC netea (monto opuesto); salta pagados y sin fecha", () => {
+  it("UN movimiento por contraparte = neto pendiente (NC ya neteada en total)", () => {
     const cp = cpM([
       docM({ folio: 1, monto: 1_000_000 }),
-      docM({ folio: 2, monto: -300_000, esNotaCredito: true }), // NC
-      docM({ folio: 3, monto: 500_000, pagado: true }), // pagado → fuera
-      docM({ folio: 4, monto: 500_000, vencimiento: null }), // sin fecha → fuera
-    ]);
+      docM({ folio: 2, monto: -300_000, esNotaCredito: true }), // NC → ya restada en total
+    ]); // total = 700_000
     const movs = movimientosDeMaestro([cp], 1, "cobranza", HOY, 120);
-    expect(movs.map((m) => m.monto)).toEqual([1_000_000, -300_000]); // factura + NC (netea)
-    expect(movs[0]?.tipo).toBe("cobranza");
-    expect(movs[0]?.label).toBe("Cliente X");
+    expect(movs).toHaveLength(1);
+    expect(movs[0]).toMatchObject({ monto: 700_000, tipo: "cobranza", label: "Cliente X" });
   });
 
-  it("signo −1 invierte (pagos: factura sale, NC suma)", () => {
+  it("signo −1 invierte (pago sale por el neto)", () => {
     const cp = cpM([
       docM({ monto: 1_000_000 }),
       docM({ folio: 2, monto: -200_000, esNotaCredito: true }),
-    ]);
+    ]); // total 800_000
     const movs = movimientosDeMaestro([cp], -1, "proveedor", HOY, 120);
-    expect(movs.map((m) => m.monto)).toEqual([-1_000_000, 200_000]);
+    expect(movs.map((m) => m.monto)).toEqual([-800_000]);
+  });
+
+  it("neto ≤ 0 (NC ≥ facturas, ej NC de compra huérfana) → SIN movimiento fantasma", () => {
+    // Caso real Tooxs: TD Synnex tenía NC de compra > facturas → antes emitía +$26,8M de ingreso falso.
+    const cp = cpM([docM({ monto: -500_000, esNotaCredito: true })], { total: -500_000 });
+    expect(movimientosDeMaestro([cp], -1, "proveedor", HOY, 120)).toHaveLength(0);
+  });
+
+  it("pagado (conciliado) descuenta del neto → si el neto queda 0, no proyecta", () => {
+    const cp = cpM([docM({ monto: 1_000_000 })], { total: 1_000_000, pagado: 1_000_000 });
+    expect(movimientosDeMaestro([cp], 1, "cobranza", HOY, 120)).toHaveLength(0);
+  });
+
+  it("coloca el neto en el vencimiento MÁS TEMPRANO de sus docs en la ventana", () => {
+    const cp = cpM([
+      docM({ folio: 1, monto: 600_000, vencimiento: new Date(2026, 7, 10) }), // 10-ago
+      docM({ folio: 2, monto: 400_000, vencimiento: new Date(2026, 6, 25) }), // 25-jul (más temprano)
+    ]); // total 1_000_000
+    const movs = movimientosDeMaestro([cp], 1, "cobranza", HOY, 120);
+    expect(movs).toHaveLength(1);
+    expect(movs[0]?.monto).toBe(1_000_000);
+    expect(movs[0]?.fecha.getTime()).toBe(new Date(2026, 6, 25).getTime());
+  });
+
+  it("la NC no aporta su fecha: si solo un doc no-NC en ventana define el vencimiento", () => {
+    const cp = cpM([
+      docM({ folio: 1, monto: 1_000_000, vencimiento: new Date(2026, 7, 1) }), // factura 1-ago
+      docM({ folio: 2, monto: -300_000, esNotaCredito: true, vencimiento: new Date(2026, 6, 22) }),
+    ]); // total 700_000; la NC vence antes pero NO cuenta como fecha
+    const movs = movimientosDeMaestro([cp], 1, "cobranza", HOY, 120);
+    expect(movs).toHaveLength(1);
+    expect(movs[0]?.fecha.getTime()).toBe(new Date(2026, 7, 1).getTime());
   });
 
   it("past-due más viejo que la gracia → EXCLUIDO (default grace 0; ya pagado, ya en cash_today)", () => {

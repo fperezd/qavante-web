@@ -1,7 +1,7 @@
 /* Modelo PURO del "medidor de días de caja" (sin React → testeable). Deriva, a partir de la
    serie de saldo proyectado (la misma de `caja-curva-model`) + la caja mínima, las respuestas
    que el medidor muestra: cuántos días te alcanza la caja hasta tocar la mínima / el $0, el piso
-   (saldo más bajo y a cuántos días), y cuándo te recuperás. Interpola los tramos (semanales por
+   (saldo más bajo y a cuántos días), y cuándo te recuperas. Interpola los tramos (semanales por
    default) a DÍAS, que es como el dueño lee "¿me alcanza?".
 
    El primer punto de la serie es "hoy" (día 0). `diasPorPunto` es el ancho del bucket: 7 semanal,

@@ -47,7 +47,7 @@ export function CajaProyeccionView({
 
       {saldoStale && ultimaSync && (
         <p className="text-xs text-neutral-mid">
-          Proyección sobre el saldo del banco al {ultimaSync} (última sincronización). Actualizá el
+          Proyección sobre el saldo del banco al {ultimaSync} (última sincronización). Actualiza el
           banco para el saldo de hoy.
         </p>
       )}

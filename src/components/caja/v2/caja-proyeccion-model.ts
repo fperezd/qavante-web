@@ -36,11 +36,37 @@ function fechaEnVentana(
   return d < 0 ? hoy : vencimiento;
 }
 
-/** Movimientos forward de un maestro (cobranzas o pagos). Cada doc NO pagado con vencimiento en la
- *  ventana [hoy − gracia, hoy + horizonte] se vuelve un movimiento. `signo` +1 = cobranza (entra),
- *  −1 = pago (sale); las NC ya vienen con `monto` de signo opuesto en el doc → netean solas.
- *  `graceDias` acota el past-due que se incluye (default 0 = solo futuro; el past-due viejo se
- *  excluye porque ya está en el cash_today). */
+/** Vencimiento efectivo más temprano de una contraparte dentro de la ventana [hoy − gracia,
+ *  hoy + horizonte]: el primer doc NO pagado y NO nota de crédito cuyo vencimiento cae en la
+ *  ventana. `null` si ninguno cae (todo past-due más viejo que la gracia, o todo fuera del horizonte). */
+function primerVencimientoEnVentana(
+  cp: ContraparteMaestro,
+  hoy: Date,
+  graceDias: number,
+  horizonteDias: number,
+): Date | null {
+  let best: Date | null = null;
+  for (const doc of cp.docs) {
+    if (doc.pagado || doc.esNotaCredito || doc.vencimiento == null) continue;
+    const efec = fechaEnVentana(doc.vencimiento, hoy, graceDias, horizonteDias);
+    if (efec == null) continue;
+    if (best == null || efec.getTime() < best.getTime()) best = efec;
+  }
+  return best;
+}
+
+/** Movimientos forward de un maestro (cobranzas o pagos): UNO por contraparte = su neto pendiente
+ *  (`total − pagado`, que ya netea TODAS las notas de crédito —vinculadas y huérfanas—), colocado en
+ *  su vencimiento más temprano en la ventana [hoy − gracia, hoy + horizonte]. `signo` +1 = cobranza
+ *  (entra), −1 = pago (sale).
+ *
+ *  Antes se emitía UN movimiento por documento con `signo * doc.monto`: eso inflaba la caja porque una
+ *  NC de compra (monto negativo × −1) aparecía como ENTRADA positiva, y si la factura ya estaba pagada
+ *  la NC huérfana quedaba como ingreso falso (caso real Tooxs: TD Synnex +$26,8M fantasma → cascada
+ *  +$38M irreal y medidor demasiado optimista). Netear por contraparte lo elimina.
+ *
+ *  `graceDias` acota el past-due que se incluye (default 0 = solo futuro; el past-due viejo ya está en
+ *  el cash_today). Si el neto es real pero ningún vencimiento cae en la ventana, la contraparte se omite. */
 export function movimientosDeMaestro(
   cps: ContraparteMaestro[],
   signo: 1 | -1,
@@ -51,20 +77,17 @@ export function movimientosDeMaestro(
 ): MovimientoCaja[] {
   const out: MovimientoCaja[] = [];
   for (const cp of cps) {
-    for (const doc of cp.docs) {
-      if (doc.pagado || doc.vencimiento == null) continue;
-      const efectiva = fechaEnVentana(doc.vencimiento, hoy, graceDias, horizonteDias);
-      if (efectiva == null) continue;
-      const monto = signo * doc.monto; // doc.monto ya signado (NC negativo)
-      if (monto === 0) continue;
-      out.push({
-        fecha: efectiva,
-        fechaLabel: fechaCortaLabel(efectiva),
-        label: cp.name,
-        monto,
-        tipo,
-      });
-    }
+    const neto = cp.total - cp.pagado; // pendiente real (NC ya neteadas); ≤0 = nada por cobrar/pagar
+    if (neto <= 0) continue;
+    const efectiva = primerVencimientoEnVentana(cp, hoy, graceDias, horizonteDias);
+    if (efectiva == null) continue;
+    out.push({
+      fecha: efectiva,
+      fechaLabel: fechaCortaLabel(efectiva),
+      label: cp.name,
+      monto: signo * neto,
+      tipo,
+    });
   }
   return out;
 }
