@@ -98,6 +98,7 @@ export function CajaProyeccionLive({
       movimientos={movimientosCascada}
       ultimaSync={ultimaSync}
       saldoStale={saldoStale}
+      ocultarSaldoHoy // el hero del Resumen ya muestra el saldo de hoy → no repetirlo en el medidor
     />
   );
 }

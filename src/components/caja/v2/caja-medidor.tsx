@@ -168,11 +168,20 @@ export interface CajaMedidorProps {
   minimo: number | null;
   /** Tope del medidor en días. */
   max?: number;
+  /** Oculta la cifra "Saldo hoy" del readout (cuando el hero de la pantalla ya la muestra → evita
+   *  repetir el mismo número). Default false. */
+  ocultarSaldoHoy?: boolean;
   className?: string;
 }
 
 /** Tarjeta completa: gauge + titular + detalle + cifras clave (piso / mínima / saldo hoy). */
-export function CajaMedidor({ model, minimo, max = 60, className }: CajaMedidorProps) {
+export function CajaMedidor({
+  model,
+  minimo,
+  max = 60,
+  ocultarSaldoHoy = false,
+  className,
+}: CajaMedidorProps) {
   const ref = minimo ?? 0;
   const aguja = diasParaAguja(model, max);
   const centro =
@@ -227,15 +236,17 @@ export function CajaMedidor({ model, minimo, max = 60, className }: CajaMedidorP
               <dd className="text-lg font-bold">{formatClp(minimo)}</dd>
             </div>
           )}
-          <div>
-            <dt className="text-xs text-neutral-mid">Saldo hoy</dt>
-            <dd
-              className="text-lg font-bold"
-              style={{ color: model.saldoHoy < 0 ? "var(--color-danger-500)" : undefined }}
-            >
-              {formatClp(model.saldoHoy)}
-            </dd>
-          </div>
+          {!ocultarSaldoHoy && (
+            <div>
+              <dt className="text-xs text-neutral-mid">Saldo hoy</dt>
+              <dd
+                className="text-lg font-bold"
+                style={{ color: model.saldoHoy < 0 ? "var(--color-danger-500)" : undefined }}
+              >
+                {formatClp(model.saldoHoy)}
+              </dd>
+            </div>
+          )}
         </dl>
       </div>
     </section>

@@ -57,7 +57,11 @@ export function CajaV2ResumenLive({ cajaV3 = false }: { cajaV3?: boolean }) {
       <PeriodRangeFilter
         value={range}
         onChange={setRange}
-        hint="El rango define el período; la curva muestra la evolución del saldo."
+        hint={
+          cajaV3
+            ? "El rango define los flujos y la tabla del período. La proyección de días de caja de arriba es a futuro (desde hoy)."
+            : "El rango define el período; la curva muestra la evolución del saldo."
+        }
       />
       <CajaV2Contenido dash={dash} cf={cf} cm={cm} granularity="week" cajaV3={cajaV3} />
     </div>
