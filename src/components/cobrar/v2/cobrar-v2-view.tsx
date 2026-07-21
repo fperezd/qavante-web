@@ -19,12 +19,14 @@ import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
    contenedor (`cobrar-v2-live`) le pasa el hero ya armado + la lista de deudores como
    filas y este solo compone el layout. Testeable en aislamiento (ADR-0018). */
 
+/* Gradiente vertical por segmento (look de "tubo", profundidad premium) sin cambiar la escala
+   de color por antigüedad (verde reciente → rojo +90d). */
 const AGING_COLOR: Record<string, string> = {
-  current: "bg-success-500",
-  d1_30: "bg-warning-700/40",
-  d31_60: "bg-warning-700/70",
-  d61_90: "bg-danger-500/70",
-  d90_plus: "bg-danger-500",
+  current: "bg-gradient-to-b from-success-500 to-success-600",
+  d1_30: "bg-gradient-to-b from-warning-700/40 to-warning-700/55",
+  d31_60: "bg-gradient-to-b from-warning-700/70 to-warning-700/85",
+  d61_90: "bg-gradient-to-b from-danger-500/70 to-danger-500/85",
+  d90_plus: "bg-gradient-to-b from-danger-500 to-danger-600",
 };
 
 export interface CobrarV2ViewProps {
@@ -42,7 +44,14 @@ export interface CobrarV2ViewProps {
   siiEnabled?: boolean;
 }
 
-export function CobrarV2View({ hero, resumen, aging, deudores, banner, siiEnabled }: CobrarV2ViewProps) {
+export function CobrarV2View({
+  hero,
+  resumen,
+  aging,
+  deudores,
+  banner,
+  siiEnabled,
+}: CobrarV2ViewProps) {
   return (
     <div className="space-y-4">
       {banner}
@@ -57,7 +66,10 @@ export function CobrarV2View({ hero, resumen, aging, deudores, banner, siiEnable
       {aging && aging.some((b) => b.amount > 0) && <AgingCard bars={aging} />}
 
       {/* A quién cobrarle — deudores ordenados por prioridad, con acciones. */}
-      <QavanteCard variant="bordered" header={<span className="font-medium">A quién cobrarle</span>}>
+      <QavanteCard
+        variant="bordered"
+        header={<span className="font-medium">A quién cobrarle</span>}
+      >
         {deudores}
       </QavanteCard>
 
@@ -88,21 +100,28 @@ export function CobrarV2View({ hero, resumen, aging, deudores, banner, siiEnable
 
 function AgingCard({ bars }: { bars: AgingBar[] }) {
   return (
-    <QavanteCard variant="bordered" header={<span className="font-medium">Antigüedad de saldos</span>}>
-      <div className="flex h-3 w-full overflow-hidden rounded-full bg-neutral-light/40">
-        {bars.map((b) => (
-          <div
-            key={b.key}
-            className={AGING_COLOR[b.key]}
-            style={{ width: `${b.pct}%` }}
-            title={`${b.label}: ${formatClp(b.amount)}`}
-          />
-        ))}
+    <QavanteCard
+      variant="bordered"
+      header={<span className="font-medium">Antigüedad de saldos</span>}
+    >
+      <div className="h-3 w-full overflow-hidden rounded-full bg-neutral-light/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]">
+        <div className="animate-qv-grow-x flex h-full w-full origin-left">
+          {bars.map((b) => (
+            <div
+              key={b.key}
+              className={AGING_COLOR[b.key]}
+              style={{ width: `${b.pct}%` }}
+              title={`${b.label}: ${formatClp(b.amount)}`}
+            />
+          ))}
+        </div>
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-5">
         {bars.map((b) => (
           <div key={b.key} className="flex flex-col">
-            <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">{b.label}</dt>
+            <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+              {b.label}
+            </dt>
             <dd className="font-semibold tabular-nums text-neutral-dark">{formatClp(b.amount)}</dd>
           </div>
         ))}
@@ -124,7 +143,13 @@ export interface ResumenCobranzaProps {
   conciliado?: number;
 }
 
-export function ResumenCobranza({ total, overdue, overduePct, mode, conciliado = 0 }: ResumenCobranzaProps) {
+export function ResumenCobranza({
+  total,
+  overdue,
+  overduePct,
+  mode,
+  conciliado = 0,
+}: ResumenCobranzaProps) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <Stat
@@ -217,9 +242,24 @@ export interface DeudorRowProps {
 
 export function DeudorRow(props: DeudorRowProps) {
   const {
-    name, rut, total, overdue, pct, gestionado,
-    onCopiar, copiado, waHref, mailtoHref, onToggleGestionado, gestionadoPending,
-    isOpen, onToggleOpen, docs, invoicesLoading, invoicesError, siiEnabled,
+    name,
+    rut,
+    total,
+    overdue,
+    pct,
+    gestionado,
+    onCopiar,
+    copiado,
+    waHref,
+    mailtoHref,
+    onToggleGestionado,
+    gestionadoPending,
+    isOpen,
+    onToggleOpen,
+    docs,
+    invoicesLoading,
+    invoicesError,
+    siiEnabled,
   } = props;
 
   return (
@@ -232,7 +272,10 @@ export function DeudorRow(props: DeudorRowProps) {
           className="-mx-2 flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary"
         >
           <ChevronDown
-            className={cn("h-4 w-4 shrink-0 text-neutral-mid transition-transform", isOpen && "rotate-180")}
+            className={cn(
+              "h-4 w-4 shrink-0 text-neutral-mid transition-transform",
+              isOpen && "rotate-180",
+            )}
             aria-hidden="true"
           />
           <span className="min-w-0">

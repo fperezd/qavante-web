@@ -42,8 +42,7 @@ export function BrechaCaja({
           Caja vs. pagos críticos · {dias} días
         </p>
         <p className="mt-3 text-[12.5px] font-semibold text-neutral-dark">
-          Pagos críticos {dias}d:{" "}
-          <b className="tabular-nums">{formatClp(pagosCriticos)}</b>
+          Pagos críticos {dias}d: <b className="tabular-nums">{formatClp(pagosCriticos)}</b>
         </p>
         <p className="mt-2 text-[12px] leading-snug text-neutral-mid">
           Todavía no podemos calcular la brecha: falta la caja proyectada a {dias} días (conecta tu
@@ -62,9 +61,9 @@ export function BrechaCaja({
         Caja vs. pagos críticos · {dias} días
       </p>
 
-      <div className="mt-3 h-[26px] overflow-hidden rounded-lg border border-border bg-danger-500/10">
+      <div className="mt-3 h-[26px] overflow-hidden rounded-lg border border-border bg-danger-500/10 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]">
         <div
-          className="h-full rounded-l-lg bg-gradient-to-r from-brand-primary to-brand-primary/80"
+          className="animate-qv-grow-x h-full origin-left rounded-l-lg bg-gradient-to-r from-brand-primary to-brand-primary/80 shadow-[2px_0_8px] shadow-brand-primary/30"
           style={{ width: `${b.pctCubierto}%` }}
         />
       </div>
@@ -72,11 +71,13 @@ export function BrechaCaja({
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-neutral-mid">
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-block size-2.5 rounded-[3px] bg-brand-primary" />
-          Caja {dias}d <b className="font-bold tabular-nums text-neutral-dark">{formatClp(cajaProyectada)}</b>
+          Caja {dias}d{" "}
+          <b className="font-bold tabular-nums text-neutral-dark">{formatClp(cajaProyectada)}</b>
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-block size-2.5 rounded-[3px] bg-danger-500" />
-          Críticos {dias}d <b className="font-bold tabular-nums text-neutral-dark">{formatClp(pagosCriticos)}</b>
+          Críticos {dias}d{" "}
+          <b className="font-bold tabular-nums text-neutral-dark">{formatClp(pagosCriticos)}</b>
         </span>
       </div>
 
@@ -86,8 +87,8 @@ export function BrechaCaja({
         </p>
       ) : postergable > 0 ? (
         <p className="mt-3 rounded-lg border border-warning-500/30 bg-warning-500/10 px-2.5 py-1.5 text-[12px] text-neutral-dark">
-          De la brecha, <b className="text-warning-700">{formatClp(postergable)} es postergable</b> → si se empujan
-          esos pagos, la brecha real baja a <b>{formatClp(residual)}</b>.
+          De la brecha, <b className="text-warning-700">{formatClp(postergable)} es postergable</b>{" "}
+          → si se empujan esos pagos, la brecha real baja a <b>{formatClp(residual)}</b>.
         </p>
       ) : (
         <p className="mt-3 text-[12.5px] font-semibold text-danger-500">
