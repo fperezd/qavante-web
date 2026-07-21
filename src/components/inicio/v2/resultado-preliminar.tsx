@@ -50,8 +50,7 @@ export function ResultadoPreliminar({
   cta,
   className,
 }: ResultadoPreliminarProps) {
-  const pct =
-    ingresos > 0 ? Math.min(100, Math.round((Math.abs(resultado) / ingresos) * 100)) : 0;
+  const pct = ingresos > 0 ? Math.min(100, Math.round((Math.abs(resultado) / ingresos) * 100)) : 0;
   /* Una pérdida NO puede leerse como ganancia: color rojo cuando el resultado es
      negativo (el `−$` del formatter no alcanza si el verde dice lo contrario). */
   const negativo = resultado < 0;
@@ -74,7 +73,7 @@ export function ResultadoPreliminar({
       </p>
       <p className="mt-0.5 mb-3 text-xs text-neutral-mid">{subtitulo}</p>
 
-      <div className="flex flex-col gap-2.5">
+      <div className="qv-stagger-bars flex flex-col gap-2.5">
         <div>
           <div className="mb-1 flex justify-between text-xs">
             <span className="text-neutral-mid">Ingresos</span>
@@ -83,7 +82,10 @@ export function ResultadoPreliminar({
             </span>
           </div>
           <div className="h-3 overflow-hidden rounded-full bg-surface-muted">
-            <div className="h-full rounded-full bg-brand-primary" style={{ width: "100%" }} />
+            <div
+              className="animate-qv-grow-x h-full rounded-full bg-gradient-to-r from-brand-primary to-brand-primary/65 shadow-sm"
+              style={{ width: "100%" }}
+            />
           </div>
         </div>
         <div>
@@ -101,8 +103,10 @@ export function ResultadoPreliminar({
           <div className="h-3 overflow-hidden rounded-full bg-surface-muted">
             <div
               className={cn(
-                "h-full rounded-full",
-                negativo ? "bg-danger-500" : "bg-success-500",
+                "animate-qv-grow-x h-full rounded-full shadow-sm",
+                negativo
+                  ? "bg-gradient-to-r from-danger-500 to-danger-500/65"
+                  : "bg-gradient-to-r from-success-500 to-success-500/65",
               )}
               style={{ width: `${pct}%` }}
             />
@@ -114,9 +118,7 @@ export function ResultadoPreliminar({
         <span className="text-neutral-mid">{margenLabel}</span>
         <span className="font-bold tabular-nums text-neutral-dark">{margen}</span>
       </div>
-      {caveat && (
-        <p className="text-[11px] leading-relaxed text-warning-700">⚠ {caveat}</p>
-      )}
+      {caveat && <p className="text-[11px] leading-relaxed text-warning-700">⚠ {caveat}</p>}
       {rango && (
         <div className="flex items-baseline justify-between py-1 text-[13.5px]">
           <span className="text-neutral-mid">Margen potencial (según pendientes)</span>
