@@ -80,17 +80,20 @@ export function CobrarV2Live({ siiEnabled }: { siiEnabled: boolean }) {
   return <Assembled data={data} siiEnabled={siiEnabled} />;
 }
 
-function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; siiEnabled: boolean }) {
+function Assembled({
+  data,
+  siiEnabled,
+}: {
+  data: AccountsReceivableResponse;
+  siiEnabled: boolean;
+}) {
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
   const range = React.useMemo(() => defaultRange(), []);
   const [everOpened, setEverOpened] = React.useState(false);
   const invoices = useDebtorInvoices(range, siiEnabled && everOpened);
 
-  const gestionadoMap = React.useMemo(
-    () => readGestionado(prefs.data?.preferences),
-    [prefs.data],
-  );
+  const gestionadoMap = React.useMemo(() => readGestionado(prefs.data?.preferences), [prefs.data]);
   // UNIFICACIÓN de las fuentes de cobranza: la fuente primaria es el RCV del año (la MISMA
   // base que "Clientes") — completo, por-documento, net de NC, con conciliado descontado y
   // el vencimiento DERIVADO del término. `accounts-receivable` queda como respaldo si el RCV
@@ -113,12 +116,18 @@ function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; sii
   // o del accounts-receivable si el RCV no cargó (respaldo).
   const debtors: TopDebtor[] = React.useMemo(() => {
     if (useRcv) {
-      return cps.map((cp) => ({
-        name: cp.name,
-        rut: cp.rut,
-        total: String(Math.max(0, cp.total - cp.pagado)),
-        overdue: String(Math.max(0, cp.vencido)),
-      }));
+      // Solo los que AÚN deben (por cobrar > 0). Las contrapartes del maestro que quedaron en $0
+      // —totalmente cobradas/conciliadas o con NC que anula la factura— no van en "a quién cobrarle"
+      // (mostrarlas confunde: dicen "cóbrale a X" cuando X ya no debe). El directorio completo con los
+      // $0 vive en la pantalla Clientes, no acá.
+      return cps
+        .filter((cp) => Math.round(cp.total - cp.pagado) > 0)
+        .map((cp) => ({
+          name: cp.name,
+          rut: cp.rut,
+          total: String(Math.max(0, cp.total - cp.pagado)),
+          overdue: String(Math.max(0, cp.vencido)),
+        }));
     }
     return data.top_debtors ?? [];
   }, [useRcv, cps, data.top_debtors]);
@@ -137,7 +146,10 @@ function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; sii
   const anyOverdue = debtors.some((d) => parseAmount(d.overdue) > 0);
   const globalMode: PrioridadMode = anyOverdue ? "urgencia" : "concentracion";
 
-  const ordered = React.useMemo(() => sortDebtors(debtors, gestionadoMap), [debtors, gestionadoMap]);
+  const ordered = React.useMemo(
+    () => sortDebtors(debtors, gestionadoMap),
+    [debtors, gestionadoMap],
+  );
   const pendientes = ordered.filter((d) => !isGestionado(gestionadoMap, d.rut));
   const prioridad = pickPrioridad({ ...data, top_debtors: pendientes });
 
@@ -165,9 +177,10 @@ function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; sii
       });
     };
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(ok).catch(() =>
-        toast.error("No pudimos copiar. Intenta de nuevo."),
-      );
+      navigator.clipboard
+        .writeText(text)
+        .then(ok)
+        .catch(() => toast.error("No pudimos copiar. Intenta de nuevo."));
     } else {
       toast.error("Tu navegador no permite copiar automáticamente.");
     }
@@ -283,7 +296,11 @@ function Assembled({ data, siiEnabled }: { data: AccountsReceivableResponse; sii
       }
       aging={useRcv ? undefined : agingBars(data.aging)}
       deudores={deudores}
-      banner={!useRcv && isPartial(data) ? <PartialDataBanner missingSources={data.missing_sources} /> : undefined}
+      banner={
+        !useRcv && isPartial(data) ? (
+          <PartialDataBanner missingSources={data.missing_sources} />
+        ) : undefined
+      }
       siiEnabled={siiEnabled}
     />
   );
