@@ -53,10 +53,13 @@ NEXT_PUBLIC_FF_LIBRO_COMPRAS_V2 = "true"
 # reporte de caja). Con OFF, el reporte clásico /caja/proyeccion queda intacto. Saldo por banco
 # degrada al total (bice/saldo api-key-only). Volver al clásico = poner en "false".
 NEXT_PUBLIC_FF_CAJA_V2 = "true"
-# Caja v3 (rediseño visual 2026-07-20) — OFF hasta validar en prod. Reemplaza la curva de "Saldo
-# proyectado" por un medidor de días de caja + cascada de próximos movimientos, derivados de los
-# vencimientos (mismo motor que Cobrar/Pagar). Con OFF, la curva clásica del Resumen queda intacta.
-NEXT_PUBLIC_FF_CAJA_V3 = "false"
+# Caja v3 (rediseño visual 2026-07-20) — ON (encendido 2026-07-21 por Fernando, tras validación live
+# contra Tooxs + fix #661 del doble-conteo past-due). Reemplaza la curva de "Saldo proyectado" por un
+# medidor de días de caja + cascada de próximos movimientos, derivados de los vencimientos (mismo
+# motor que Cobrar/Pagar), con estado honesto si no hay proyección. La proyección usa un grace de 7d
+# para el past-due (heurístico hasta que CC-API dé el estado "pagado" por documento vía conciliación
+# bancaria — escalado). Volver al clásico = "false".
+NEXT_PUBLIC_FF_CAJA_V3 = "true"
 # Pagar v2 (rediseño aprobado 2026-07-14) — ON (encendido 2026-07-14 por Fernando): respuesta de
 # dueño (cuánto debe pagar + ¿la caja alcanza?) + brecha de caja + las 3 del mes (imposiciones/
 # impuestos/sueldos) + vencimientos con postergabilidad + mayores compromisos. Reusa accounts-payable
