@@ -23,6 +23,10 @@ import type { MovimientoCaja } from "./caja-cascada-model";
    (ADR-0018); la lógica vive en `caja-proyeccion-model` (con unit tests). */
 
 const HORIZONTE_DIAS = 120; // ~4 meses de proyección forward
+// Gracia de past-due: incluimos vencimientos vencidos hasta hace 7 días (aún probablemente pendientes);
+// los más viejos se excluyen porque casi seguro ya se pagaron y están en el cash_today (contarlos de
+// nuevo duplica plata ya gastada — validación real Tooxs 2026-07-21: sin esto el piso daba −$43M irreal).
+const GRACE_DIAS = 7;
 // Obligaciones reales de accounts-payable que SÍ son pagos futuros (el resto es ruido o duplica el maestro).
 const OBLIG_CATS = new Set(["payroll", "tax", "rent", "debt", "leasing"]);
 
@@ -66,10 +70,10 @@ export function CajaProyeccionLive({
     const obligaciones = (ap.data?.items ?? []).filter((i) => OBLIG_CATS.has(i.category ?? ""));
 
     const movs: MovimientoCaja[] = [
-      ...movimientosDeMaestro(cobranzas, 1, "cobranza", now, HORIZONTE_DIAS),
-      ...movimientosDeMaestro(proveedores, -1, "proveedor", now, HORIZONTE_DIAS),
-      ...movimientosDeMaestro(honorarios, -1, "otro", now, HORIZONTE_DIAS),
-      ...movimientosDeObligaciones(obligaciones, now, HORIZONTE_DIAS),
+      ...movimientosDeMaestro(cobranzas, 1, "cobranza", now, HORIZONTE_DIAS, GRACE_DIAS),
+      ...movimientosDeMaestro(proveedores, -1, "proveedor", now, HORIZONTE_DIAS, GRACE_DIAS),
+      ...movimientosDeMaestro(honorarios, -1, "otro", now, HORIZONTE_DIAS, GRACE_DIAS),
+      ...movimientosDeObligaciones(obligaciones, now, HORIZONTE_DIAS, GRACE_DIAS),
     ];
 
     // Medidor: acumulado sobre TODOS los movimientos (exacto). Cascada: agregados por semana (legible).
