@@ -202,6 +202,20 @@ html {
   animation-delay: 0.33s;
 }
 
+/* Barras verticales que crecen desde el eje (tendencia). El consumidor fija el origen con
+   origin-bottom (barra positiva, crece hacia arriba) u origin-top (negativa, hacia abajo). */
+@keyframes qv-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.animate-qv-grow-y {
+  animation: qv-grow-y 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
 /* "Respirar": latido sutil para el Pulso — el número más importante, vivo. */
 @keyframes qv-breathe {
   0%,
@@ -227,6 +241,7 @@ html {
   .animate-qv-fade-up,
   .qv-stagger > *,
   .animate-qv-grow-x,
+  .animate-qv-grow-y,
   .animate-qv-breathe {
     animation: none;
   }
