@@ -91,6 +91,9 @@ export function CajaProyeccionLive({
     minimo,
   ]);
 
+  // Sin las prefs (conciliaciones) la proyección trataría docs ya pagados como movimientos → esperar.
+  if (prefs.isLoading) return null;
+
   return (
     <CajaProyeccionView
       proyeccion={proyeccion}

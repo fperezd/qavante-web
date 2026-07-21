@@ -4,11 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Wallet } from "lucide-react";
 import { QavanteEmpty, QavanteInlineError } from "@/components/qavante";
-import {
-  useAccountsPayable,
-  type PayableItem,
-  type PayableCurrencyTotal,
-} from "@/lib/api/pagos";
+import { useAccountsPayable, type PayableItem, type PayableCurrencyTotal } from "@/lib/api/pagos";
 import { usePreferences } from "@/lib/api/preferences";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import { buildMaestro, readTerminos, readPagados } from "@/components/terminos/terminos-pago";
@@ -91,9 +87,18 @@ export function PagarV2ViewLive() {
   }, [comprasDocs.docs, honorariosDocs.docs, prefs.data, now]);
 
   const rcvItems = supplierItems.length + honorariosItems.length;
+  // Esperar a las PREFS (conciliaciones): sin ellas, buildMaestro trata las compras/honorarios como
+  // impagas → obligaciones ya pagadas se contarían de nuevo (race).
+  if (prefs.isLoading) return <LiveSkeleton />;
   if (ap.isLoading && rcvItems === 0) return <LiveSkeleton />;
   if (ap.isError && rcvItems === 0) {
-    return <QavanteInlineError error={ap.error} what="tus cuentas por pagar" onRetry={() => ap.refetch()} />;
+    return (
+      <QavanteInlineError
+        error={ap.error}
+        what="tus cuentas por pagar"
+        onRetry={() => ap.refetch()}
+      />
+    );
   }
 
   const resp = ap.data;
@@ -148,8 +153,18 @@ export function PagarV2ViewLive() {
           postergabilidadEstimada
         />
       }
-      secundarios={<Secundarios items={items} due7={due7} due30={due30} usd={resp?.total_by_currency} now={now} />}
-      fechasClave={fechas.length > 0 ? <FechasClaveMes items={fechas} total={totalFechas} /> : <div />}
+      secundarios={
+        <Secundarios
+          items={items}
+          due7={due7}
+          due30={due30}
+          usd={resp?.total_by_currency}
+          now={now}
+        />
+      }
+      fechasClave={
+        fechas.length > 0 ? <FechasClaveMes items={fechas} total={totalFechas} /> : <div />
+      }
       movibles={buildMovibles(items, vencidos, now, onClickDe)}
     />
   );
@@ -198,7 +213,9 @@ function Secundarios({
   const usdItem = usd?.find((c) => c.currency.toUpperCase() !== "CLP");
 
   const row = (k: string, v: string, tono: string, dashed = true) => (
-    <div className={`flex items-baseline justify-between gap-3 py-1.5 ${dashed ? "border-t border-dashed border-border" : ""}`}>
+    <div
+      className={`flex items-baseline justify-between gap-3 py-1.5 ${dashed ? "border-t border-dashed border-border" : ""}`}
+    >
       <dt className="text-neutral-mid">{k}</dt>
       <dd className={`font-bold tabular-nums ${tono}`}>{v}</dd>
     </div>
@@ -207,17 +224,32 @@ function Secundarios({
   return (
     <div className="p-5">
       <dl className="flex flex-col text-[13px]">
-        {row("Vencido", formatClp(vencido), vencido > 0 ? "text-danger-500" : "text-neutral-dark", false)}
+        {row(
+          "Vencido",
+          formatClp(vencido),
+          vencido > 0 ? "text-danger-500" : "text-neutral-dark",
+          false,
+        )}
         {row("Próximos 7 días", formatClp(prox7), "text-warning-700")}
         {row("Este mes", formatClp(mes), "text-neutral-dark")}
-        {usdItem && row("En dólares", formatMoney(parseAmount(usdItem.amount), usdItem.currency), "text-brand-primary")}
+        {usdItem &&
+          row(
+            "En dólares",
+            formatMoney(parseAmount(usdItem.amount), usdItem.currency),
+            "text-brand-primary",
+          )}
       </dl>
     </div>
   );
 }
 
 /** Cajas movibles: "Por vencer y vencidos" + "Mayores compromisos". Solo las que tienen dato. */
-function buildMovibles(items: PayableItem[], vencidos: number, now: Date, onClickDe: OnClickDe): PagarMovible[] {
+function buildMovibles(
+  items: PayableItem[],
+  vencidos: number,
+  now: Date,
+  onClickDe: OnClickDe,
+): PagarMovible[] {
   const out: PagarMovible[] = [];
 
   const vencimientos = mapVencimientos(items, now, onClickDe);
@@ -249,7 +281,13 @@ function buildMovibles(items: PayableItem[], vencidos: number, now: Date, onClic
     out.push({
       id: "compromisos",
       label: "Mayores compromisos",
-      node: <ConcentracionClientes titulo="Mayores compromisos" items={compromisos} emptyLabel="Sin pagos en el período." />,
+      node: (
+        <ConcentracionClientes
+          titulo="Mayores compromisos"
+          items={compromisos}
+          emptyLabel="Sin pagos en el período."
+        />
+      ),
     });
   }
 
