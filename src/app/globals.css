@@ -165,6 +165,43 @@ html {
   animation-delay: 0.27s;
 }
 
+/* Barras que crecen desde su borde (waterfall, tendencia, aging, cobertura). Se combina con
+   .qv-stagger-bars para escalonar. transform-origin lo fija el consumidor (left/right). */
+@keyframes qv-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.animate-qv-grow-x {
+  animation: qv-grow-x 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  transform-origin: left center;
+}
+/* Stagger para grupos de barras (cascada, tendencia): cada barra crece un pelín después. */
+.qv-stagger-bars > *:nth-child(1) .animate-qv-grow-x {
+  animation-delay: 0.03s;
+}
+.qv-stagger-bars > *:nth-child(2) .animate-qv-grow-x {
+  animation-delay: 0.08s;
+}
+.qv-stagger-bars > *:nth-child(3) .animate-qv-grow-x {
+  animation-delay: 0.13s;
+}
+.qv-stagger-bars > *:nth-child(4) .animate-qv-grow-x {
+  animation-delay: 0.18s;
+}
+.qv-stagger-bars > *:nth-child(5) .animate-qv-grow-x {
+  animation-delay: 0.23s;
+}
+.qv-stagger-bars > *:nth-child(6) .animate-qv-grow-x {
+  animation-delay: 0.28s;
+}
+.qv-stagger-bars > *:nth-child(7) .animate-qv-grow-x {
+  animation-delay: 0.33s;
+}
+
 /* "Respirar": latido sutil para el Pulso — el número más importante, vivo. */
 @keyframes qv-breathe {
   0%,
@@ -189,6 +226,7 @@ html {
   }
   .animate-qv-fade-up,
   .qv-stagger > *,
+  .animate-qv-grow-x,
   .animate-qv-breathe {
     animation: none;
   }
