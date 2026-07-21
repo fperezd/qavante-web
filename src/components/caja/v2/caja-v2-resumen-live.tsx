@@ -21,7 +21,6 @@ import { CajaCurva } from "./caja-curva";
 import { serieAnclada, cajaMinimoCLP, flujoDeBuckets, primerCruceFuturo } from "./caja-v2-map";
 import { CajaProyeccionLive } from "./caja-proyeccion-live";
 import { fechaCortaLabel } from "./caja-proyeccion-model";
-import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { formatBucketLabel } from "@/components/caja/cash-flow-format";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { orderRange, type PeriodRange } from "@/lib/period/period-range";
@@ -34,7 +33,7 @@ import { type SaldoPunto } from "./caja-curva-model";
    por banco degrada al total (bice/saldo es api-key-only) hasta que CC-API lo cookie-gatee.
    Container: NO se testea por Storybook play (ADR-0018); la lógica vive en `caja-v2-map`. */
 
-export function CajaV2ResumenLive() {
+export function CajaV2ResumenLive({ cajaV3 = false }: { cajaV3?: boolean }) {
   // Selector de RANGO — el estándar de la app (`PeriodRangeFilter`, con presets Mes actual / Tres
   // meses / Este año…), el mismo que usan Gestión y el Libro. El v2 había metido un selector
   // ad-hoc del cash-flow clásico; se unifica al estándar. La granularidad queda en "week" (la curva
@@ -60,7 +59,7 @@ export function CajaV2ResumenLive() {
         onChange={setRange}
         hint="El rango define el período; la curva muestra la evolución del saldo."
       />
-      <CajaV2Contenido dash={dash} cf={cf} cm={cm} granularity="week" />
+      <CajaV2Contenido dash={dash} cf={cf} cm={cm} granularity="week" cajaV3={cajaV3} />
     </div>
   );
 }
@@ -72,11 +71,13 @@ function CajaV2Contenido({
   cf,
   cm,
   granularity,
+  cajaV3,
 }: {
   dash: ReturnType<typeof useDashboardSummary>;
   cf: ReturnType<typeof useCashFlowReport>;
   cm: ReturnType<typeof useCashMinimum>;
   granularity: CashFlowGranularity;
+  cajaV3: boolean;
 }) {
   if (cf.isLoading || dash.isLoading) return <LiveSkeleton />;
   if (cf.isError) {
@@ -117,9 +118,10 @@ function CajaV2Contenido({
   const negativa = saldoHoy <= 0;
   const tono = negativa ? "crit" : cruceIdx != null ? "warn" : "ok";
 
-  // Caja v3 (gated `cajaV3`, OFF por default): reemplaza la curva histórica por el medidor de días +
-  // cascada, derivados de los VENCIMIENTOS (no del cash-flow histórico, que no proyecta el futuro).
-  const { cajaV3 } = resolveFeatureFlags();
+  // Caja v3 (gated `cajaV3`): reemplaza la curva histórica por el medidor de días + cascada, derivados
+  // de los VENCIMIENTOS (no del cash-flow histórico, que no proyecta el futuro). El flag lo resuelve
+  // la PÁGINA (server) y llega por prop — resolverlo acá (cliente) no funciona: `process.env[clave
+  // dinámica]` no se inlinea en el bundle del browser.
   const ct = dash.data?.cash_today;
   const saldoStale = ct?.data_state === "stale";
   const ultimaSync = ct?.last_updated ? fechaCortaLabel(new Date(ct.last_updated)) : null;
