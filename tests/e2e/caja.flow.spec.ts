@@ -12,9 +12,10 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Caja proyectada" })).toBeVisible();
 
-    // Hero "respuesta de dueño": saldo de hoy (cash_today del fixture = $9.800.000).
+    // Hero "respuesta de dueño": saldo de hoy (cash_today del fixture = $9.800.000). El monto
+    // aparece en el hero y en la tabla → scopeamos con .first() (strict mode si no).
     await expect(page.getByText("La empresa tiene en caja")).toBeVisible();
-    await expect(page.getByText("$9.800.000")).toBeVisible();
+    await expect(page.getByText("$9.800.000").first()).toBeVisible();
 
     // Saldo disponible (degradado a total: bice/saldo es api-key-only).
     await expect(page.getByText("Total en caja hoy")).toBeVisible();
@@ -26,7 +27,10 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
     await expect(page.getByText("Saldo al cierre")).toBeVisible();
   });
 
-  test("la landing /caja encabeza con el Resumen v2 + herramientas debajo", async ({ page, context }) => {
+  test("la landing /caja encabeza con el Resumen v2 + herramientas debajo", async ({
+    page,
+    context,
+  }) => {
     await loginAs(context, "owner");
     await page.goto("/caja");
 
