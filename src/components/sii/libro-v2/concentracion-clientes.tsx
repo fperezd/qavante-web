@@ -43,7 +43,10 @@ export function ConcentracionClientes({
   const top = items.slice(0, max);
   return (
     <section
-      className={cn("overflow-hidden rounded-xl border border-border bg-surface shadow-sm", className)}
+      className={cn(
+        "overflow-hidden rounded-xl border border-border bg-surface shadow-sm",
+        className,
+      )}
       aria-label={titulo}
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
@@ -65,11 +68,14 @@ export function ConcentracionClientes({
       {top.length === 0 ? (
         <p className="px-4 py-6 text-center text-xs text-neutral-mid">{emptyLabel}</p>
       ) : (
-        <ul className="divide-y divide-border">
+        <ul className="qv-stagger-bars divide-y divide-border">
           {top.map((it, i) => (
             <li key={`${it.rut ?? it.nombre}-${i}`} className="px-4 py-2.5">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-[12.5px] font-semibold text-neutral-dark" title={it.nombre}>
+                <span
+                  className="truncate text-[12.5px] font-semibold text-neutral-dark"
+                  title={it.nombre}
+                >
                   {it.nombre}
                 </span>
                 <span className="whitespace-nowrap text-[12.5px] font-bold tabular-nums text-neutral-dark">
@@ -83,7 +89,7 @@ export function ConcentracionClientes({
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted">
                 <div
-                  className="h-full rounded-full bg-brand-primary/70"
+                  className="animate-qv-grow-x h-full rounded-full bg-gradient-to-r from-brand-primary to-brand-primary/45"
                   style={{ width: `${Math.max(2, Math.min(100, it.pct))}%` }}
                 />
               </div>
