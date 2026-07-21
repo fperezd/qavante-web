@@ -86,9 +86,9 @@ export function PagosTimeline({
       <p className="mt-0.5 text-xs text-neutral-mid">{subtitulo}</p>
 
       <ol className="relative mt-4 pl-[18px]">
-        {/* Riel vertical del timeline. */}
+        {/* Riel vertical del timeline — gradiente sutil (más presente arriba, se desvanece abajo). */}
         <span
-          className="absolute left-[5px] top-1.5 bottom-1.5 w-0.5 bg-border-strong"
+          className="absolute left-[5px] top-1.5 bottom-1.5 w-0.5 rounded-full bg-gradient-to-b from-brand-primary/30 to-border"
           aria-hidden="true"
         />
         {pagos.map((p, i) => (
@@ -96,7 +96,9 @@ export function PagosTimeline({
             <span
               className={cn(
                 "absolute left-[-16px] top-3 h-2.5 w-2.5 rounded-full border-2 bg-surface",
-                p.vencido ? "border-danger-500 bg-danger-500" : "border-neutral-mid",
+                p.vencido
+                  ? "border-danger-500 bg-danger-500 shadow-[0_0_6px] shadow-danger-500/50"
+                  : "border-neutral-mid",
               )}
               aria-hidden="true"
             />

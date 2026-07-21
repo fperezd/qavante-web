@@ -25,8 +25,8 @@ function Dot({ status }: { status: TimelineStatus }) {
   }
   if (status === "current") {
     return (
-      <span className="grid h-[18px] w-[18px] place-items-center rounded-full border-2 border-brand-primary bg-surface">
-        <span className="h-1.5 w-1.5 rounded-full bg-brand-primary" />
+      <span className="grid h-[18px] w-[18px] place-items-center rounded-full border-2 border-brand-primary bg-surface shadow-[0_0_0_3px] shadow-brand-primary/20">
+        <span className="animate-qv-breathe h-1.5 w-1.5 rounded-full bg-brand-primary" />
       </span>
     );
   }
@@ -46,10 +46,16 @@ export function Timeline({ steps }: { steps: TimelineStep[] }) {
     <ol className="space-y-5">
       {steps.map((s, i) => (
         <li key={i} className="relative pl-7">
-          {/* Línea vertical entre puntos (no en el último). */}
+          {/* Línea vertical entre puntos (no en el último). Tras un paso completado, se pinta con
+              un gradiente verde (progreso recorrido); si no, neutra. */}
           {i < steps.length - 1 && (
             <span
-              className="absolute left-[8px] top-5 h-[calc(100%+4px)] w-px bg-border"
+              className={cn(
+                "absolute left-[8px] top-5 h-[calc(100%+4px)] w-px",
+                s.status === "done"
+                  ? "bg-gradient-to-b from-success-500 to-success-500/25"
+                  : "bg-border",
+              )}
               aria-hidden="true"
             />
           )}

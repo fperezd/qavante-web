@@ -66,11 +66,15 @@ export function VencimientosTimeline({ items, className }: VencimientosTimelineP
               )}
             >
               {it.vencido ? "Venció" : "Vence"}
-              <span className="block text-[10.5px] font-semibold text-neutral-light">{it.fecha}</span>
+              <span className="block text-[10.5px] font-semibold text-neutral-light">
+                {it.fecha}
+              </span>
               <span
                 className={cn(
                   "absolute -right-[5px] top-1/2 size-2.5 -translate-y-1/2 rounded-full border-2 border-surface",
-                  it.vencido ? "bg-danger-500" : "bg-brand-primary",
+                  it.vencido
+                    ? "bg-danger-500 shadow-[0_0_6px] shadow-danger-500/50"
+                    : "bg-brand-primary shadow-[0_0_5px] shadow-brand-primary/40",
                 )}
                 aria-hidden="true"
               />
@@ -80,20 +84,32 @@ export function VencimientosTimeline({ items, className }: VencimientosTimelineP
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13.5px] font-semibold text-neutral-dark">
                 {it.acreedor}
-                {tag && <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", tag.cls)}>{tag.label}</span>}
+                {tag && (
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", tag.cls)}>
+                    {tag.label}
+                  </span>
+                )}
                 {it.estimado && (
                   <span className="rounded-full bg-warning-500/10 px-2 py-0.5 text-[10.5px] font-bold text-warning-700">
                     Estimación
                   </span>
                 )}
               </span>
-              {it.detalle && <span className="block truncate text-[11.5px] text-neutral-light">{it.detalle}</span>}
+              {it.detalle && (
+                <span className="block truncate text-[11.5px] text-neutral-light">
+                  {it.detalle}
+                </span>
+              )}
             </span>
 
             {/* monto */}
             <span className="whitespace-nowrap text-right">
-              <span className="block text-[14px] font-bold tabular-nums text-neutral-dark">{formatClp(it.monto)}</span>
-              {it.montoOrigen && <span className="block text-[11px] text-neutral-light">{it.montoOrigen}</span>}
+              <span className="block text-[14px] font-bold tabular-nums text-neutral-dark">
+                {formatClp(it.monto)}
+              </span>
+              {it.montoOrigen && (
+                <span className="block text-[11px] text-neutral-light">{it.montoOrigen}</span>
+              )}
             </span>
 
             {clickable && (
