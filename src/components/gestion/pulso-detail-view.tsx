@@ -82,7 +82,7 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
           variant="bordered"
           header={<span className="font-medium">Qué compone tu Pulso</span>}
         >
-          <ul className="space-y-3">
+          <ul className="qv-stagger-bars space-y-3">
             {data.components.map((c) => (
               <li key={c.key}>
                 <div className="flex items-baseline justify-between gap-2 text-sm">
@@ -94,7 +94,7 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
                 </div>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-neutral-light/40">
                   <div
-                    className="h-full rounded-full bg-brand-primary"
+                    className="animate-qv-grow-x h-full rounded-full bg-gradient-to-r from-brand-primary to-brand-primary/55"
                     style={{ width: scoreBarWidth(c.score) }}
                   />
                 </div>
@@ -120,7 +120,7 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
               <div key={t.period} className="flex flex-1 flex-col items-center gap-1">
                 <div className="flex h-24 w-full items-end">
                   <div
-                    className="w-full rounded-t bg-brand-primary/70"
+                    className="animate-qv-grow-y w-full origin-bottom rounded-t bg-gradient-to-t from-brand-primary to-brand-primary/50"
                     style={{ height: scoreBarWidth(t.score) }}
                   />
                 </div>
