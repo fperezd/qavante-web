@@ -53,6 +53,7 @@ export const FEATURE_FLAGS = [
   "libroVentasV2",
   "libroComprasV2",
   "cajaV2",
+  "cajaV3",
   "pagarV2",
   "cobrarV2",
   "reconciliationReview",
@@ -145,6 +146,14 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      clásico queda intacto. La curva se deriva (saldo + netos) hasta que CC-API mande
      running_balance/min_cash. */
   cajaV2: "/api/treasury/cash-minimum",
+  /* Caja v3 (rediseño visual 2026-07-20) — reemplaza la curva de "Saldo proyectado" (una recta
+     sobre el cash-flow histórico, que no proyecta el futuro) por un MEDIDOR de días de caja +
+     CASCADA de próximos movimientos, ambos derivados de los VENCIMIENTOS (cobranzas del maestro AR
+     + obligaciones del maestro AP + payroll/tax/rent/debt/leasing de accounts-payable). Su endpoint
+     de gating es la proyección de caja forward (FE-first, aún no existe — hoy el FE la deriva de los
+     vencimientos, mismo motor que Cobrar/Pagar). Con ON reemplaza la curva del Resumen; hoy OFF, la
+     curva clásica queda intacta. Estado honesto si no hay proyección forward. */
+  cajaV3: "/api/treasury/cash-projection",
   /* Pagar v2 (rediseño aprobado 2026-07-14) — respuesta de dueño (cuánto debe pagar +
      ¿la caja alcanza?) + brecha de caja + las 3 del mes + vencimientos con postergabilidad
      + mayores compromisos. Reusa `accounts-payable` (accountsPayable) para los datos; lo que
