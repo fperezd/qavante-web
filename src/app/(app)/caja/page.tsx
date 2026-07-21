@@ -18,8 +18,14 @@ import { CajaV2ResumenLive } from "@/components/caja/v2/caja-v2-resumen-live";
    vs caja mínima + acciones recomendadas quedan para wave 2 cuando el
    backend exponga los contratos. */
 export default function CajaPage() {
-  const { bankMovementClassification, cashFlowReport, bankBalances, reconciliationReview, cajaV2 } =
-    resolveFeatureFlags();
+  const {
+    bankMovementClassification,
+    cashFlowReport,
+    bankBalances,
+    reconciliationReview,
+    cajaV2,
+    cajaV3,
+  } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -31,7 +37,7 @@ export default function CajaPage() {
       {/* Caja v2 (rediseño 2026-07-14): la respuesta de dueño + la curva de saldo encabezan la
           página (contestan el "¿me alcanza?" del título); las cards de abajo quedan como
           herramientas. Con `cajaV2` OFF o sin reporte de caja, la landing cae al menú clásico. */}
-      {cajaV2 && cashFlowReport && <CajaV2ResumenLive />}
+      {cajaV2 && cashFlowReport && <CajaV2ResumenLive cajaV3={cajaV3} />}
 
       {bankBalances && (
         <section aria-labelledby="saldos-section" className="space-y-3">
@@ -92,27 +98,27 @@ export default function CajaPage() {
           apunta a lo mismo (redundante), así que se omite. */}
       {!(cajaV2 && cashFlowReport) &&
         (cashFlowReport ? (
-        <section aria-labelledby="proyeccion-section" className="space-y-3">
-          <h2 id="proyeccion-section" className="text-base font-semibold text-neutral-dark">
-            Caja proyectada
-          </h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <CajaSubCard
-              href="/caja/proyeccion"
-              icon={TrendingUp}
-              title="Reporte de caja"
-              description="Entradas y salidas agregadas por período. Default ≈13 semanas con granularidad semanal sobre la capa comprometida."
-              badge="Proyección"
-              badgeVariant="info"
-            />
-          </div>
-        </section>
-      ) : (
-        <QavanteEmpty
-          icon={Banknote}
-          title="Caja proyectada"
-          description="Aquí vas a ver tu flujo de caja, la brecha frente a tu caja mínima, las columnas de cobros, pagos, sueldos, impuestos y deuda, y acciones recomendadas. Muy pronto disponible."
-        />
+          <section aria-labelledby="proyeccion-section" className="space-y-3">
+            <h2 id="proyeccion-section" className="text-base font-semibold text-neutral-dark">
+              Caja proyectada
+            </h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <CajaSubCard
+                href="/caja/proyeccion"
+                icon={TrendingUp}
+                title="Reporte de caja"
+                description="Entradas y salidas agregadas por período. Default ≈13 semanas con granularidad semanal sobre la capa comprometida."
+                badge="Proyección"
+                badgeVariant="info"
+              />
+            </div>
+          </section>
+        ) : (
+          <QavanteEmpty
+            icon={Banknote}
+            title="Caja proyectada"
+            description="Aquí vas a ver tu flujo de caja, la brecha frente a tu caja mínima, las columnas de cobros, pagos, sueldos, impuestos y deuda, y acciones recomendadas. Muy pronto disponible."
+          />
         ))}
     </div>
   );
