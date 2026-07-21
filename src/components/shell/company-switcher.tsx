@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Loader2 } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useMyTenants, useSwitchTenant } from "@/lib/api/tenants";
@@ -95,6 +95,18 @@ export function CompanySwitcher({ variant = "header" }: { variant?: "header" | "
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIsMvp, preferred]);
 
+  /* Si quedamos pegados en el MVP (auto-switch agotado) y hay empresas reales para
+     elegir, abrimos el selector UNA vez: el chip rojo solo es fácil de no ver, y la
+     pantalla igual muestra datos ajenos → hay que empujar la elección, no esconderla. */
+  const didAutoOpen = React.useRef(false);
+  React.useEffect(() => {
+    if (didAutoOpen.current) return;
+    if (autoSwitchStuck && items.length > 0) {
+      didAutoOpen.current = true;
+      setOpen(true);
+    }
+  }, [autoSwitchStuck, items.length]);
+
   function reloadIntoTenant() {
     // El switch re-emitió la cookie; recargar para que toda la app (incl. Server
     // Components que leen la sesión) caiga en la empresa nueva.
@@ -114,16 +126,27 @@ export function CompanySwitcher({ variant = "header" }: { variant?: "header" | "
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex items-center gap-1 rounded-lg border border-border bg-surface/70 px-3 py-1.5 text-sm text-neutral-dark hover:bg-brand-primary-50",
+          "flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm",
+          autoSwitchStuck
+            ? "border-danger-500/40 bg-danger-50 font-semibold text-danger-500 hover:opacity-90"
+            : "border-border bg-surface/70 text-neutral-dark hover:bg-brand-primary-50",
           isMobile && "w-full justify-between",
         )}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Empresa activa: ${label}. Cambiar de empresa.`}
+        aria-label={
+          autoSwitchStuck
+            ? "No pudimos cargar tu empresa. Elige una de la lista."
+            : `Empresa activa: ${label}. Cambiar de empresa.`
+        }
         title={label}
       >
+        {autoSwitchStuck && <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />}
         <span className="max-w-[14rem] truncate">{label}</span>
-        <ChevronDown className="h-4 w-4 text-neutral-mid" aria-hidden="true" />
+        <ChevronDown
+          className={cn("h-4 w-4", autoSwitchStuck ? "text-danger-500" : "text-neutral-mid")}
+          aria-hidden="true"
+        />
       </button>
 
       {open && (
@@ -144,6 +167,12 @@ export function CompanySwitcher({ variant = "header" }: { variant?: "header" | "
           {tenants.isError && (
             <p className="px-2 py-2 text-sm text-danger-500" role="alert">
               No pudimos cargar tus empresas.
+            </p>
+          )}
+
+          {autoSwitchStuck && items.length > 0 && (
+            <p className="px-2 pb-1.5 pt-1 text-xs text-neutral-mid">
+              Estos datos no son de tu empresa. Elige la tuya para ver los tuyos:
             </p>
           )}
 
