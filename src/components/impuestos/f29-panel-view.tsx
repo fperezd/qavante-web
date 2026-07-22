@@ -10,6 +10,7 @@ import {
   useSiiF29EstadoMulti,
   useSyncF29,
   useSiiContribuyente,
+  useSiiF29Giros,
   siiKeys,
   type F29EstadoMes,
   type F29EstadoMesEstado,
@@ -101,6 +102,21 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
 
   const results = useSiiF29EstadoMulti(years);
   const [selected, setSelected] = React.useState<SelectedCell | null>(null);
+
+  /* (i) de "IVA postergado" en la grilla: el `/f29/estado` todavía NO trae el flag (escalado a CC-API
+     — la fuente es el F29 declarado). Mientras tanto, al abrir un mes el detalle consulta los Giros; acá
+     reusamos ESA consulta (misma query key → sin llamada extra al SII) para marcar la celda, así la grilla
+     no contradice al detalle. Acumulamos por celda: los meses que fuiste abriendo quedan marcados. Cuando
+     CC-API incluya `postergado_iva` en el estado, TODOS los meses se marcan solos. */
+  const [girosByCell, setGirosByCell] = React.useState<Record<string, string | null>>({});
+  const girosSel = useSiiF29Giros(selected?.anio ?? 0, selected?.mes ?? 1, selected != null);
+  React.useEffect(() => {
+    if (!selected || girosSel.data?.postergado_iva !== true) return;
+    const key = `${selected.anio}-${selected.mes}`;
+    setGirosByCell((prev) =>
+      key in prev ? prev : { ...prev, [key]: girosSel.data?.vencimiento_postergado ?? null },
+    );
+  }, [selected, girosSel.data]);
 
   /* "Actualizar F29": sincroniza los años visibles (secuencial — el SII permite
      un sync por tenant a la vez). Llena `/f29/estado` (los sin_dato pasan a real). */
@@ -269,12 +285,16 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
                       const cell = byYear.get(y)?.get(mes);
                       const loading = anyLoading && !cell;
                       const isSelected = selected?.anio === y && selected?.mes === mes;
+                      const gk = `${y}-${mes}`;
+                      const girosPostergado =
+                        gk in girosByCell ? { vencimiento: girosByCell[gk] ?? null } : undefined;
                       return (
                         <td key={y} className="px-2 py-1.5 text-center">
                           <StatusCell
                             cell={cell}
                             loading={loading}
                             selected={isSelected}
+                            girosPostergado={girosPostergado}
                             onSelect={() => setSelected({ anio: y, mes })}
                           />
                         </td>
@@ -309,11 +329,15 @@ function StatusCell({
   cell,
   loading,
   selected,
+  girosPostergado,
   onSelect,
 }: {
   cell?: F29EstadoMes;
   loading: boolean;
   selected: boolean;
+  /** Postergación derivada de los Giros (cuando el detalle ya la consultó) — hasta que `/f29/estado`
+   *  traiga `postergado_iva`. `null` en `vencimiento` = postergado sin fecha leída. */
+  girosPostergado?: { vencimiento: string | null };
   onSelect: () => void;
 }) {
   if (loading) {
@@ -347,12 +371,11 @@ function StatusCell({
   // Declarado pero con el IVA postergado: sigue verde (declaró) + un (i) que lo explica y da el
   // vencimiento diferido. El dato viene de la Consulta de Giros (hoy vía `/f29/estado` si el backend lo
   // incluye — escalado). Al clickear, el detalle muestra la postergación completa.
-  const postergado = estado === "declarado" && cell.postergado_iva === true;
-  const vencePost = postergado
-    ? cell.vencimiento_postergado
-      ? `, vence el ${formatDateLike(cell.vencimiento_postergado)}`
-      : ""
-    : "";
+  // Postergado si el estado ya lo trae (backend, cuando llegue) o si el detalle ya lo consultó vía Giros.
+  const postergado =
+    estado === "declarado" && (cell.postergado_iva === true || girosPostergado != null);
+  const vencPostRaw = cell.vencimiento_postergado ?? girosPostergado?.vencimiento ?? null;
+  const vencePost = postergado && vencPostRaw ? `, vence el ${formatDateLike(vencPostRaw)}` : "";
   const title = postergado
     ? `Declarado · IVA postergado${vencePost}`
     : `${ESTADO_LABEL[estado]}${cell.folio ? ` · folio ${cell.folio}` : ""}`;
