@@ -15,6 +15,8 @@ const estado = http.get("*/api/sii/f29/estado", ({ request }) => {
     else if (anio === 2026 && mes === 3) e = "no_declarado_vencido";
     else if (anio < 2024) e = "sin_dato";
     const declarado = e === "declarado";
+    // Enero 2026: declarado pero con el IVA postergado → verde + (i) con el vencimiento diferido.
+    const postergado = declarado && anio === 2026 && mes === 1;
     return {
       mes,
       periodo: `${anio}-${String(mes).padStart(2, "0")}`,
@@ -24,6 +26,8 @@ const estado = http.get("*/api/sii/f29/estado", ({ request }) => {
       saldo: declarado ? mes * 10000 : null,
       remanente: declarado ? 0 : null,
       vencimiento: `${anio}-${String(mes).padStart(2, "0")}-12`,
+      postergado_iva: postergado,
+      vencimiento_postergado: postergado ? `${anio}-03-20` : null,
     };
   });
   return HttpResponse.json({ status: "ok", anio, meses, count: 12 });
