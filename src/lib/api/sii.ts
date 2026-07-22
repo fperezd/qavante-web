@@ -65,6 +65,11 @@ export interface F29EstadoMes {
   saldo: number | null;
   remanente: number | null;
   vencimiento: string | null;
+  /** Declarado pero con el IVA POSTERGADO (Consulta de Giros). Opcional: hoy solo lo trae `/f29/giros`
+   *  por-período; escalado para que `/f29/estado` lo incluya y la grilla lo marque sin golpear el SII. */
+  postergado_iva?: boolean;
+  /** Fecha diferida del IVA postergado (ISO). Acompaña a `postergado_iva`. */
+  vencimiento_postergado?: string | null;
 }
 export type BheResponse = components["schemas"]["BheResponse"];
 export type BheRecibida = components["schemas"]["BheRecibida"];

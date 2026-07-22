@@ -17,6 +17,7 @@ import {
 import { useMe } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/errors";
 import { normalizeRut } from "@/lib/validators/rut";
+import { formatDateLike } from "@/lib/formatters/date";
 import { f29SyncFailureToast } from "./f29-sync-message";
 import { F29MonthDetail } from "./f29-month-detail";
 
@@ -343,22 +344,45 @@ function StatusCell({
   }
 
   const ringSel = selected ? "ring-2 ring-brand-primary ring-offset-1" : "";
-  const title = `${ESTADO_LABEL[estado]}${cell.folio ? ` · folio ${cell.folio}` : ""}`;
+  // Declarado pero con el IVA postergado: sigue verde (declaró) + un (i) que lo explica y da el
+  // vencimiento diferido. El dato viene de la Consulta de Giros (hoy vía `/f29/estado` si el backend lo
+  // incluye — escalado). Al clickear, el detalle muestra la postergación completa.
+  const postergado = estado === "declarado" && cell.postergado_iva === true;
+  const vencePost = postergado
+    ? cell.vencimiento_postergado
+      ? `, vence el ${formatDateLike(cell.vencimiento_postergado)}`
+      : ""
+    : "";
+  const title = postergado
+    ? `Declarado · IVA postergado${vencePost}`
+    : `${ESTADO_LABEL[estado]}${cell.folio ? ` · folio ${cell.folio}` : ""}`;
 
   return (
     <button
       type="button"
       onClick={onSelect}
       title={title}
-      aria-label={`${ESTADO_LABEL[estado]} — ver detalle`}
+      aria-label={
+        postergado
+          ? `Declarado con IVA postergado${vencePost} — ver detalle`
+          : `${ESTADO_LABEL[estado]} — ver detalle`
+      }
       className={cn(
         "inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
         ringSel,
       )}
     >
       {estado === "declarado" && (
-        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-success-500 text-surface">
+        <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-success-500 text-surface">
           <Check className="h-3.5 w-3.5" aria-hidden="true" />
+          {postergado && (
+            <span
+              className="absolute -right-1.5 -top-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full bg-warning-500 text-[8px] font-bold leading-none text-surface ring-1 ring-surface"
+              aria-hidden="true"
+            >
+              i
+            </span>
+          )}
         </span>
       )}
       {estado === "no_declarado_vencido" && (
@@ -382,6 +406,18 @@ function Legend() {
           <Check className="h-2.5 w-2.5" />
         </span>
         Declarado
+      </LegendItem>
+      <LegendItem>
+        <span className="relative inline-flex h-4 w-4 items-center justify-center rounded-full bg-success-500 text-surface">
+          <Check className="h-2.5 w-2.5" />
+          <span
+            className="absolute -right-1 -top-1 inline-flex h-2.5 w-2.5 items-center justify-center rounded-full bg-warning-500 text-[7px] font-bold leading-none text-surface ring-1 ring-surface"
+            aria-hidden="true"
+          >
+            i
+          </span>
+        </span>
+        Declarado · IVA postergado
       </LegendItem>
       <LegendItem>
         <span className="inline-block h-3 w-3 rounded-full border border-neutral-mid/50" />
