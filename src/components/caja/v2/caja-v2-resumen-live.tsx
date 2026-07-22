@@ -52,19 +52,29 @@ export function CajaV2ResumenLive({ cajaV3 = false }: { cajaV3?: boolean }) {
   });
   const cm = useCashMinimum();
 
+  // El selector vive JUNTO a lo que gobierna (los flujos + la tabla del período), abajo — el medidor y
+  // la cascada de arriba son a futuro (desde hoy) y no dependen del rango. Antes iba arriba solo por un
+  // tema técnico (que no parpadeara al recargar); ya resuelto con `keepPreviousData` en el hook.
+  const periodoSelector = (
+    <PeriodRangeFilter
+      value={range}
+      onChange={setRange}
+      hint={
+        cajaV3
+          ? "El rango define los flujos y la tabla de acá abajo. El medidor y la cascada de arriba son a futuro (desde hoy)."
+          : "El rango define el período; la curva muestra la evolución del saldo."
+      }
+    />
+  );
   return (
-    <div className="space-y-4">
-      <PeriodRangeFilter
-        value={range}
-        onChange={setRange}
-        hint={
-          cajaV3
-            ? "El rango define los flujos y la tabla del período. La proyección de días de caja de arriba es a futuro (desde hoy)."
-            : "El rango define el período; la curva muestra la evolución del saldo."
-        }
-      />
-      <CajaV2Contenido dash={dash} cf={cf} cm={cm} granularity="week" cajaV3={cajaV3} />
-    </div>
+    <CajaV2Contenido
+      dash={dash}
+      cf={cf}
+      cm={cm}
+      granularity="week"
+      cajaV3={cajaV3}
+      periodoSelector={periodoSelector}
+    />
   );
 }
 
@@ -76,12 +86,14 @@ function CajaV2Contenido({
   cm,
   granularity,
   cajaV3,
+  periodoSelector,
 }: {
   dash: ReturnType<typeof useDashboardSummary>;
   cf: ReturnType<typeof useCashFlowReport>;
   cm: ReturnType<typeof useCashMinimum>;
   granularity: CashFlowGranularity;
   cajaV3: boolean;
+  periodoSelector: React.ReactNode;
 }) {
   if (cf.isLoading || dash.isLoading) return <LiveSkeleton />;
   if (cf.isError) {
@@ -103,7 +115,12 @@ function CajaV2Contenido({
   // (§13 / no ocultar un error como dato faltante).
   if (!saldoConocido)
     return (
-      <SinSaldoBase buckets={allBuckets} granularity={granularity} saldoError={dash.isError} />
+      <SinSaldoBase
+        buckets={allBuckets}
+        granularity={granularity}
+        saldoError={dash.isError}
+        periodoSelector={periodoSelector}
+      />
     );
 
   // La curva muestra la TRAYECTORIA del saldo sobre el rango, anclada en el saldo de hoy: reconstruye
@@ -177,6 +194,7 @@ function CajaV2Contenido({
       }
       flujo={<FlujoBlock flujo={flujoDeBuckets(allBuckets)} minimo={minimo} />}
       curva={curvaSlot}
+      periodoSelector={periodoSelector}
       movibles={
         // Tabla del período (allBuckets); el "saldo al cierre" usa la trayectoria anclada (serie[i]).
         allBuckets.length > 0 ? buildMovibles(allBuckets, serie, granularity) : []
@@ -371,12 +389,14 @@ function SinSaldoBase({
   buckets,
   granularity,
   saldoError = false,
+  periodoSelector,
 }: {
   buckets: CashFlowBucket[];
   granularity: CashFlowGranularity;
   /** El saldo falta por un ERROR del dashboard, no porque el banco esté sin conectar. Copy honesto
    *  distinto (no "conecta tu banco", que sería falso). */
   saldoError?: boolean;
+  periodoSelector?: React.ReactNode;
 }) {
   return (
     <div className="space-y-4">
@@ -405,6 +425,7 @@ function SinSaldoBase({
           <FlujoBlock flujo={flujoDeBuckets(buckets)} minimo={null} />
         </div>
       </div>
+      {periodoSelector != null && periodoSelector}
       <FlowsTable buckets={buckets} granularity={granularity} />
     </div>
   );

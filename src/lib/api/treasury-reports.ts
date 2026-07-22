@@ -12,7 +12,7 @@
  * Scope MVP (alineado a addendum frontend-v2 §25.3): exponer el reporte agregado
  * tal cual viene, sin inventar "caja mínima" ni "acciones recomendadas" en FE.
  * Esos quedan para Fase 2 cuando el backend entregue contrato. */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -86,6 +86,9 @@ export function useCashFlowReport(params: CashFlowReportParams) {
        el usuario clasifica movimientos nuevos. Refresh on focus alcanza. */
     staleTime: 30_000,
     retry: false,
+    /* Al cambiar de período mantenemos los datos previos (no volvemos a skeleton) → el cambio no
+       parpadea y el selector puede vivir junto a la tabla que gobierna, sin desaparecer. */
+    placeholderData: keepPreviousData,
     /* Habilita el fetch sólo si los dos extremos del rango están seteados. La
        UI puede montar el componente antes de que el usuario elija periodo. */
     enabled: Boolean(params.period_from && params.period_to),
