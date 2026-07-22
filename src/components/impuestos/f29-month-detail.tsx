@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { X, Info, FileText } from "lucide-react";
+import { toast } from "sonner";
+import { X, Info, FileText, Loader2 } from "lucide-react";
 import {
   QavanteCard,
   QavanteButton,
@@ -49,6 +50,41 @@ export function F29MonthDetail({
   const girosData = giros.isError ? undefined : giros.data;
   const postergado = girosData?.postergado_iva === true;
   const pagado = girosData?.estado === "sin_giro" && data?.declarado === true;
+
+  /* El PDF del F29 lo baja el backend del SII EN VIVO cada vez (medido: 1,9s a 22s, sin cache). Un
+     `<a target=_blank>` dejaba una pestaña en blanco sin feedback → parecía colgado. Abrimos la pestaña
+     con un aviso "bajando…" y traemos el PDF por fetch+blob; al llegar, redirigimos la pestaña al PDF.
+     La causa raíz (cachear el PDF, que es INMUTABLE una vez declarado) está escalada a CC-API. */
+  const [pdfLoading, setPdfLoading] = React.useState(false);
+  async function verF29Pdf() {
+    const url = data?.folio ? siiF29PdfUrl(data.folio) : null;
+    if (!url || pdfLoading) return;
+    const win = typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
+    if (win) {
+      win.document.title = "Cargando F29…";
+      win.document.body.style.cssText =
+        "margin:0;font:16px system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:#5d6b86;text-align:center;padding:1rem";
+      win.document.body.textContent = "Bajando tu F29 del SII… puede tardar unos segundos.";
+    }
+    setPdfLoading(true);
+    try {
+      const res = await fetch(url, { credentials: "include" });
+      const ct = (res.headers.get("content-type") ?? "").toLowerCase();
+      if (!res.ok || !ct.includes("pdf")) throw new Error("no-pdf");
+      const blobUrl = URL.createObjectURL(await res.blob());
+      if (win) win.location.href = blobUrl;
+      else window.open(blobUrl, "_blank");
+    } catch {
+      if (win)
+        win.document.body.textContent =
+          "No pudimos abrir el F29. Cierra esta pestaña e intenta de nuevo.";
+      toast.error("No pudimos abrir el F29", {
+        description: "El SII no respondió a tiempo. Intenta de nuevo en un momento.",
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   return (
     <QavanteCard
@@ -144,17 +180,27 @@ export function F29MonthDetail({
             </dl>
           </div>
 
-          {/* Drill-down: ver el Certificado Solemne (PDF) del F29 en el SII. */}
+          {/* Drill-down: ver el Certificado Solemne (PDF). Lo baja el backend del SII en vivo (lento y
+              variable) → feedback de carga + aviso honesto, no una pestaña en blanco muda. */}
           {data.folio && siiF29PdfUrl(data.folio) && (
-            <a
-              href={siiF29PdfUrl(data.folio) ?? undefined}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-            >
-              <FileText className="h-4 w-4" aria-hidden="true" />
-              Ver F29 (PDF) en el SII
-            </a>
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={verF29Pdf}
+                disabled={pdfLoading}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-70"
+              >
+                {pdfLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <FileText className="h-4 w-4" aria-hidden="true" />
+                )}
+                {pdfLoading ? "Bajando F29 del SII…" : "Ver F29 (PDF) en el SII"}
+              </button>
+              <p className="text-xs text-neutral-mid">
+                Viene del SII en vivo — puede tardar unos segundos.
+              </p>
+            </div>
           )}
 
           {/* Input manual cuando no hay fuente confiable del impuesto trabajadores. */}
