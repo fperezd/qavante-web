@@ -42,15 +42,18 @@ export function CajaProyeccionView({
   }
 
   return (
-    <div className={cn("space-y-5", className)}>
-      <CajaMedidor model={proyeccion} minimo={minimo} ocultarSaldoHoy={ocultarSaldoHoy} />
-
-      {saldoStale && ultimaSync && (
-        <p className="text-xs text-neutral-mid">
-          Proyección sobre el saldo del banco al {ultimaSync} (última sincronización). Actualiza el
-          banco para el saldo de hoy.
-        </p>
-      )}
+    // Medidor a la IZQUIERDA, cascada a la DERECHA, en la misma línea (en xl+); apilados en pantallas
+    // más chicas para no apretar el medidor. Antes iban uno arriba del otro.
+    <div className={cn("grid gap-6 xl:grid-cols-2 xl:items-center", className)}>
+      <div>
+        <CajaMedidor model={proyeccion} minimo={minimo} ocultarSaldoHoy={ocultarSaldoHoy} />
+        {saldoStale && ultimaSync && (
+          <p className="mt-3 text-xs text-neutral-mid">
+            Proyección sobre el saldo del banco al {ultimaSync} (última sincronización). Actualiza
+            el banco para el saldo de hoy.
+          </p>
+        )}
+      </div>
 
       <section aria-label="Próximos movimientos">
         <h3 className="mb-2 text-sm font-semibold text-neutral-dark">
