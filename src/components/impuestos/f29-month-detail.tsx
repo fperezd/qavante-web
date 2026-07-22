@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { X, Info, FileText, Loader2 } from "lucide-react";
 import {
@@ -13,7 +14,7 @@ import {
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
-import { useSiiF29Impuesto, useSiiF29Giros, siiF29PdfUrl } from "@/lib/api/sii";
+import { useSiiF29Impuesto, useSiiF29Giros, siiF29PdfUrl, siiKeys } from "@/lib/api/sii";
 
 /* Detalle F29 de un mes (handoff CC-API): dos montos lado a lado — pagar todo
    (`total_con_iva`) vs postergar el IVA (`total_sin_iva`) — + desglose e input
@@ -54,13 +55,18 @@ export function F29MonthDetail({
   /* El PDF del F29 lo baja el backend del SII EN VIVO cada vez (medido: 1,9s a 22s, sin cache). Un
      `<a target=_blank>` dejaba una pestaña en blanco sin feedback → parecía colgado. Abrimos la pestaña
      con un aviso "bajando…" y traemos el PDF por fetch+blob; al llegar, redirigimos la pestaña al PDF.
-     La causa raíz (cachear el PDF, que es INMUTABLE una vez declarado) está escalada a CC-API. */
+     CACHE por sesión: el PDF es INMUTABLE → lo bajamos UNA vez (fetchQuery con staleTime Infinity) y
+     reusamos el blob; reabrir el mismo F29 es instantáneo. El cache permanente/para-todos es backend
+     (guardar el PDF), escalado a CC-API (#705). */
+  const qc = useQueryClient();
   const [pdfLoading, setPdfLoading] = React.useState(false);
   async function verF29Pdf() {
-    const url = data?.folio ? siiF29PdfUrl(data.folio) : null;
-    if (!url || pdfLoading) return;
+    const folio = data?.folio;
+    const url = folio ? siiF29PdfUrl(folio) : null;
+    if (!folio || !url || pdfLoading) return;
+    const cached = qc.getQueryData<string>(siiKeys.f29Pdf(folio));
     const win = typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
-    if (win) {
+    if (win && !cached) {
       win.document.title = "Cargando F29…";
       win.document.body.style.cssText =
         "margin:0;font:16px system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;color:#5d6b86;text-align:center;padding:1rem";
@@ -68,10 +74,18 @@ export function F29MonthDetail({
     }
     setPdfLoading(true);
     try {
-      const res = await fetch(url, { credentials: "include" });
-      const ct = (res.headers.get("content-type") ?? "").toLowerCase();
-      if (!res.ok || !ct.includes("pdf")) throw new Error("no-pdf");
-      const blobUrl = URL.createObjectURL(await res.blob());
+      // Baja UNA vez y reusa: si ya está en cache, `fetchQuery` devuelve el blob sin volver al SII.
+      const blobUrl = await qc.fetchQuery({
+        queryKey: siiKeys.f29Pdf(folio),
+        queryFn: async () => {
+          const res = await fetch(url, { credentials: "include" });
+          const ct = (res.headers.get("content-type") ?? "").toLowerCase();
+          if (!res.ok || !ct.includes("pdf")) throw new Error("no-pdf");
+          return URL.createObjectURL(await res.blob());
+        },
+        staleTime: Infinity,
+        gcTime: Infinity,
+      });
       if (win) win.location.href = blobUrl;
       else window.open(blobUrl, "_blank");
     } catch {

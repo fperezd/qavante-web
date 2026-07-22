@@ -106,6 +106,8 @@ export const siiKeys = {
   f29Impuesto: (anio: number, mes: number, imp?: number) =>
     [...siiKeys.all, "f29-impuesto", anio, mes, imp ?? null] as const,
   f29Giros: (anio: number, mes: number) => [...siiKeys.all, "f29-giros", anio, mes] as const,
+  /** Blob del PDF del F29 cacheado por sesión (inmutable) → no re-bajarlo del SII en cada apertura. */
+  f29Pdf: (folio: number) => [...siiKeys.all, "f29-pdf", folio] as const,
   bhe: (params: SiiPeriodoParams) => [...siiKeys.all, "bhe", params] as const,
   rcvCompras: (params: SiiRcvParams) => [...siiKeys.all, "rcv-compras", params] as const,
   rcvVentas: (params: SiiRcvParams) => [...siiKeys.all, "rcv-ventas", params] as const,
