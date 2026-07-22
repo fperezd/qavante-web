@@ -282,20 +282,20 @@ function FlujoBlock({
     </div>
   ) : null;
 
-  // Degradado honesto: no mostramos "Entra/Sale del período" como certeza cuando falta clasificar la
-  // mayor parte del ingreso. Lo clasificado queda como dato tentativo ("hasta ahora"), no la respuesta.
+  // Degradado honesto: cuando falta clasificar la mayor parte del ingreso NO mostramos "Entra/Sale del
+  // período" — ni el parcial clasificado (un $1,6M sobre ~$63M reales no aporta, solo ancla mal). Solo el
+  // estado honesto + qué falta clasificar (Fernando: "¿aporta algo ese número si no está todo clasificado?").
   if (incompleto) {
     return (
       <div className="p-5">
         <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
           Flujo del período
         </p>
-        <p className="mt-1 text-[20px] font-bold text-neutral-mid">Incompleto</p>
-        {avisoSinClasificar}
-        <p className="mt-2.5 text-[11.5px] text-neutral-mid">
-          Clasificado hasta ahora: entra <span className="tabular-nums">{formatClp(entra)}</span> ·
-          sale <span className="tabular-nums">{formatClp(-Math.abs(sale))}</span>
+        <p className="mt-1 text-[20px] font-bold text-neutral-mid">Falta clasificar</p>
+        <p className="mt-1.5 text-[12.5px] text-neutral-mid">
+          No podemos mostrar tu entra/sale del período hasta clasificar los movimientos del banco.
         </p>
+        {avisoSinClasificar}
       </div>
     );
   }
