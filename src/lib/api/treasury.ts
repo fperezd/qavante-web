@@ -5,7 +5,7 @@
  * equivocado — `classify` es **PATCH** (no POST) y `ClassifyMovementRequest`
  * NO lleva `dimension_assignments` (asignar dimensión = endpoint aparte).
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import { classificationRulesKeys } from "./classification-rules";
 import { treasuryReportsKeys } from "./treasury-reports";
@@ -195,6 +195,71 @@ export function useBankMovements(params: BankMovementsParams = {}) {
     staleTime: 30_000,
     retry: false,
   });
+}
+
+/** Meses `YYYY-MM` en el rango [from, to] inclusive (máx 24, guarda anti-runaway). PURO. */
+export function monthsInRange(from?: string, to?: string): string[] {
+  if (!from || !to) return [];
+  const [fy, fm] = from.split("-").map(Number);
+  const [ty, tm] = to.split("-").map(Number);
+  if (!fy || !fm || !ty || !tm) return [];
+  const out: string[] = [];
+  let y = fy;
+  let m = fm;
+  for (let i = 0; i < 24 && (y < ty || (y === ty && m <= tm)); i += 1) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return out;
+}
+
+export interface UnclassifiedSummary {
+  /** Cantidad de movimientos sin clasificar en el rango. */
+  count: number;
+  /** Suma de las ENTRADAS sin clasificar (lo que NO está reflejado en el flujo "committed"). */
+  inflow: number;
+  isLoading: boolean;
+}
+
+/** Resumen de movimientos SIN CLASIFICAR en el rango (una consulta por mes, `useQueries`). El reporte
+ *  de caja usa el layer "committed" = solo lo clasificado → esto expone cuánto queda AFUERA, para
+ *  avisarlo honesto (validación real Tooxs 2026-07-22: julio tenía $61,5M sin clasificar vs $1,6M
+ *  clasificado). El `inflow` suma lo fetcheado por mes (limit 500) — exacto salvo backlog gigante. */
+export function useUnclassifiedInRange(from?: string, to?: string): UnclassifiedSummary {
+  const months = monthsInRange(from, to);
+  const results = useQueries({
+    queries: months.map((period) => {
+      const params: BankMovementsParams = { status: "unclassified", period, limit: 500 };
+      return {
+        queryKey: treasuryKeys.bankMovements(params),
+        queryFn: () =>
+          api.get<BankMovementsListResponse>(
+            `/api/bank-movements${buildBankMovementsQuery(params)}`,
+          ),
+        staleTime: 30_000,
+        retry: false,
+      };
+    }),
+  });
+  let count = 0;
+  let inflow = 0;
+  let isLoading = false;
+  for (const r of results) {
+    if (r.isLoading) isLoading = true;
+    const data = r.data;
+    if (!data) continue;
+    count += data.total ?? data.items.length;
+    for (const mv of data.items) {
+      const a = Number(mv.amount) || 0;
+      const esEntrada = mv.direction ? mv.direction === "credit" : a > 0;
+      if (esEntrada) inflow += Math.abs(a);
+    }
+  }
+  return { count, inflow, isLoading };
 }
 
 /** `PATCH /api/bank-movements/{id}/classify` — clasifica/reclasifica.
