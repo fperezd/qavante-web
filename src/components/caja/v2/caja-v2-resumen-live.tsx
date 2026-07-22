@@ -12,6 +12,7 @@ import {
   type CashFlowGranularity,
 } from "@/lib/api/treasury-reports";
 import { useCashMinimum } from "@/lib/api/cash-minimum";
+import { useUnclassifiedInRange, type UnclassifiedSummary } from "@/lib/api/treasury";
 import { parseAmount } from "@/components/inicio/dashboard-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { CajaV2Resumen, type CajaMovible } from "./caja-v2-resumen";
@@ -51,6 +52,10 @@ export function CajaV2ResumenLive({ cajaV3 = false }: { cajaV3?: boolean }) {
     financial_layer: "committed",
   });
   const cm = useCashMinimum();
+  // Movimientos sin clasificar del rango: el flujo "committed" solo cuenta lo clasificado → avisamos
+  // cuánto queda afuera para que "Entra/Sale del período" no mienta por omisión (validado: julio Tooxs
+  // tenía $61,5M sin clasificar vs $1,6M clasificado). Escalado a CC-API para clasificación automática.
+  const sinClasificar = useUnclassifiedInRange(ordered.desde, ordered.hasta);
 
   // El selector vive JUNTO a lo que gobierna (los flujos + la tabla del período), abajo — el medidor y
   // la cascada de arriba son a futuro (desde hoy) y no dependen del rango. Antes iba arriba solo por un
@@ -74,6 +79,7 @@ export function CajaV2ResumenLive({ cajaV3 = false }: { cajaV3?: boolean }) {
       granularity="week"
       cajaV3={cajaV3}
       periodoSelector={periodoSelector}
+      sinClasificar={sinClasificar}
     />
   );
 }
@@ -87,6 +93,7 @@ function CajaV2Contenido({
   granularity,
   cajaV3,
   periodoSelector,
+  sinClasificar,
 }: {
   dash: ReturnType<typeof useDashboardSummary>;
   cf: ReturnType<typeof useCashFlowReport>;
@@ -94,6 +101,7 @@ function CajaV2Contenido({
   granularity: CashFlowGranularity;
   cajaV3: boolean;
   periodoSelector: React.ReactNode;
+  sinClasificar: UnclassifiedSummary;
 }) {
   if (cf.isLoading || dash.isLoading) return <LiveSkeleton />;
   if (cf.isError) {
@@ -192,7 +200,13 @@ function CajaV2Contenido({
           />
         )
       }
-      flujo={<FlujoBlock flujo={flujoDeBuckets(allBuckets)} minimo={minimo} />}
+      flujo={
+        <FlujoBlock
+          flujo={flujoDeBuckets(allBuckets)}
+          minimo={minimo}
+          sinClasificar={sinClasificar}
+        />
+      }
       curva={curvaSlot}
       periodoSelector={periodoSelector}
       movibles={
@@ -229,9 +243,12 @@ function buildRunway(
 function FlujoBlock({
   flujo,
   minimo,
+  sinClasificar,
 }: {
   flujo: { entra: number; sale: number; neto: number };
   minimo: number | null;
+  /** Movimientos sin clasificar del período (no cuentan en "committed") — se avisan honesto. */
+  sinClasificar?: UnclassifiedSummary;
 }) {
   const { entra, sale, neto } = flujo;
   const row = (k: string, v: string, tono?: string) => (
@@ -240,6 +257,7 @@ function FlujoBlock({
       <dd className={`font-bold tabular-nums ${tono ?? "text-neutral-dark"}`}>{v}</dd>
     </div>
   );
+  const hayPendientes = sinClasificar != null && sinClasificar.count > 0;
   return (
     <div className="p-5">
       <dl className="flex flex-col text-[13px]">
@@ -252,6 +270,24 @@ function FlujoBlock({
         )}
         {minimo != null && row("Tu caja mínima", formatClp(minimo))}
       </dl>
+      {hayPendientes && (
+        // Honestidad: el flujo solo cuenta lo clasificado. Si hay movimientos sin clasificar, el número
+        // real es MAYOR → lo avisamos con el impacto y un acceso directo a clasificarlos.
+        <div className="mt-3 rounded-lg border border-warning-500/30 bg-warning-500/[.07] px-3 py-2 text-[12px] leading-snug text-neutral-dark">
+          <b className="font-semibold">
+            {sinClasificar!.count} {sinClasificar!.count === 1 ? "movimiento" : "movimientos"} sin
+            clasificar
+          </b>
+          {sinClasificar!.inflow > 0 ? ` (~${formatClp(sinClasificar!.inflow)} en entradas)` : ""}{" "}
+          no están en este flujo.{" "}
+          <Link
+            href="/caja/por-clasificar"
+            className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+          >
+            Ir a clasificar →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

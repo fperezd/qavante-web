@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   treasuryKeys,
+  monthsInRange,
   type CanonicalCategoryMeta,
   type BankMovementsListResponse,
   type BankMovement,
@@ -26,6 +27,23 @@ describe("treasuryKeys", () => {
     expect(treasuryKeys.bankMovements({ status: "unclassified" })).not.toEqual(
       treasuryKeys.bankMovements({ status: "classified" }),
     );
+  });
+});
+
+describe("monthsInRange", () => {
+  it("expande el rango inclusive, mismo año y cruzando año", () => {
+    expect(monthsInRange("2026-07", "2026-08")).toEqual(["2026-07", "2026-08"]);
+    expect(monthsInRange("2026-01", "2026-03")).toEqual(["2026-01", "2026-02", "2026-03"]);
+    expect(monthsInRange("2025-11", "2026-01")).toEqual(["2025-11", "2025-12", "2026-01"]);
+  });
+  it("un solo mes → un elemento; from>to → vacío; sin extremos → vacío", () => {
+    expect(monthsInRange("2026-07", "2026-07")).toEqual(["2026-07"]);
+    expect(monthsInRange("2026-08", "2026-07")).toEqual([]);
+    expect(monthsInRange(undefined, "2026-07")).toEqual([]);
+    expect(monthsInRange("2026-07", undefined)).toEqual([]);
+  });
+  it("acota a 24 meses (guarda anti-runaway)", () => {
+    expect(monthsInRange("2020-01", "2030-01").length).toBe(24);
   });
 });
 
