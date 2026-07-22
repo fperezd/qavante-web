@@ -34,8 +34,8 @@ test.describe("Flujo: panel F29 (/pagar/impuestos/f29)", () => {
     await expect(detail).toBeVisible();
     await expect(detail.getByText("Pagar todo")).toBeVisible();
     await expect(detail.getByText("Postergar el IVA")).toBeVisible();
-    // Drill-down al PDF del F29 en el SII.
-    await expect(detail.getByRole("link", { name: /Ver F29 \(PDF\)/ })).toBeVisible();
+    // Drill-down al PDF del F29 en el SII (botón: baja por fetch+blob con feedback de carga).
+    await expect(detail.getByRole("button", { name: /Ver F29 \(PDF\)/ })).toBeVisible();
   });
 
   test("botón Actualizar F29 dispara el sync y confirma con toast", async ({ page, context }) => {
