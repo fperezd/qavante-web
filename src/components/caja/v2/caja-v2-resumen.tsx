@@ -29,6 +29,10 @@ export interface CajaV2ResumenProps {
   flujo: React.ReactNode;
   /** La curva de saldo, ya envuelta con su encabezado/leyenda (fija). */
   curva: React.ReactNode;
+  /** Selector de período (rango), renderizado JUSTO ANTES de las cajas movibles ("Entradas y salidas
+   *  · por período" es la tabla que gobierna). El medidor/cascada de arriba son a futuro (no dependen
+   *  del rango) → el selector vive con lo que sí controla. `null` lo omite. */
+  periodoSelector?: React.ReactNode;
   /** Cajas secundarias reordenables. */
   movibles: CajaMovible[];
   className?: string;
@@ -39,6 +43,7 @@ export function CajaV2Resumen({
   bancos,
   flujo,
   curva,
+  periodoSelector,
   movibles,
   className,
 }: CajaV2ResumenProps) {
@@ -76,6 +81,9 @@ export function CajaV2Resumen({
 
       {/* Baranda: la curva (fija) */}
       {curva}
+
+      {/* Selector de período — vive con la tabla que gobierna, no arriba (el medidor/cascada son a futuro). */}
+      {periodoSelector != null && periodoSelector}
 
       {/* Cajas movibles — a 2 columnas solo si hay ≥2; con una sola, ancho completo (sin vacío). */}
       <div className={cn("grid items-start gap-4", ordered.length >= 2 && "md:grid-cols-2")}>
