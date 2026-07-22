@@ -258,6 +258,48 @@ function FlujoBlock({
     </div>
   );
   const hayPendientes = sinClasificar != null && sinClasificar.count > 0;
+  // El flujo "committed" solo cuenta lo CLASIFICADO. Si lo sin clasificar es una porción material del
+  // ingreso (>20%), mostrar el número clasificado como "Entra del período" MIENTE por omisión → lo
+  // degradamos a "Incompleto" (patrón §13: no mostrar cifras sin confianza). Validado: Tooxs julio $1,6M
+  // clasificado vs $61,5M sin clasificar → mostrar $1,6M como el flujo era engañoso.
+  const totalIn = entra + (sinClasificar?.inflow ?? 0);
+  const incompleto = hayPendientes && totalIn > 0 && sinClasificar!.inflow / totalIn > 0.2;
+
+  const avisoSinClasificar = hayPendientes ? (
+    <div className="mt-3 rounded-lg border border-warning-500/30 bg-warning-500/[.07] px-3 py-2 text-[12px] leading-snug text-neutral-dark">
+      <b className="font-semibold">
+        {sinClasificar!.count} {sinClasificar!.count === 1 ? "movimiento" : "movimientos"} sin
+        clasificar
+      </b>
+      {sinClasificar!.inflow > 0 ? ` (~${formatClp(sinClasificar!.inflow)} en entradas)` : ""}{" "}
+      {incompleto ? "no están contados." : "no están en este flujo."}{" "}
+      <Link
+        href="/caja/por-clasificar"
+        className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+      >
+        Ir a clasificar →
+      </Link>
+    </div>
+  ) : null;
+
+  // Degradado honesto: no mostramos "Entra/Sale del período" como certeza cuando falta clasificar la
+  // mayor parte del ingreso. Lo clasificado queda como dato tentativo ("hasta ahora"), no la respuesta.
+  if (incompleto) {
+    return (
+      <div className="p-5">
+        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+          Flujo del período
+        </p>
+        <p className="mt-1 text-[20px] font-bold text-neutral-mid">Incompleto</p>
+        {avisoSinClasificar}
+        <p className="mt-2.5 text-[11.5px] text-neutral-mid">
+          Clasificado hasta ahora: entra <span className="tabular-nums">{formatClp(entra)}</span> ·
+          sale <span className="tabular-nums">{formatClp(-Math.abs(sale))}</span>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-5">
       <dl className="flex flex-col text-[13px]">
@@ -270,24 +312,7 @@ function FlujoBlock({
         )}
         {minimo != null && row("Tu caja mínima", formatClp(minimo))}
       </dl>
-      {hayPendientes && (
-        // Honestidad: el flujo solo cuenta lo clasificado. Si hay movimientos sin clasificar, el número
-        // real es MAYOR → lo avisamos con el impacto y un acceso directo a clasificarlos.
-        <div className="mt-3 rounded-lg border border-warning-500/30 bg-warning-500/[.07] px-3 py-2 text-[12px] leading-snug text-neutral-dark">
-          <b className="font-semibold">
-            {sinClasificar!.count} {sinClasificar!.count === 1 ? "movimiento" : "movimientos"} sin
-            clasificar
-          </b>
-          {sinClasificar!.inflow > 0 ? ` (~${formatClp(sinClasificar!.inflow)} en entradas)` : ""}{" "}
-          no están en este flujo.{" "}
-          <Link
-            href="/caja/por-clasificar"
-            className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-          >
-            Ir a clasificar →
-          </Link>
-        </div>
-      )}
+      {avisoSinClasificar}
     </div>
   );
 }
