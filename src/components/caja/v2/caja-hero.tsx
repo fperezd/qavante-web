@@ -15,8 +15,9 @@ export interface CajaHeroProps {
   titulo: string;
   /** Saldo total disponible hoy. */
   saldo: number;
-  /** Línea de runway ("Alcanza ~4 semanas · el 11-ago cae bajo tu mínimo"). */
-  runway: React.ReactNode;
+  /** Línea de runway ("Alcanza ~4 semanas · el 11-ago cae bajo tu mínimo"). `null` la oculta —
+   *  cuando el medidor de días de caja (Caja v3) ya cuenta ese mismo estado abajo, no se repite. */
+  runway?: React.ReactNode;
   /** Tono de la línea de runway (color + ícono). Default "ok". */
   runwayTono?: RunwayTono;
   /** Pie del número de oro (ej. "Saldo hoy en banco"). */
@@ -31,7 +32,15 @@ const TONO: Record<RunwayTono, string> = {
   crit: "text-danger-500",
 };
 
-export function CajaHero({ titulo, saldo, runway, runwayTono = "ok", subtitulo, infoHint, className }: CajaHeroProps) {
+export function CajaHero({
+  titulo,
+  saldo,
+  runway,
+  runwayTono = "ok",
+  subtitulo,
+  infoHint,
+  className,
+}: CajaHeroProps) {
   const Icon = runwayTono === "ok" ? CheckCircle2 : AlertTriangle;
   return (
     <div className={cn("p-5", className)}>
@@ -45,12 +54,16 @@ export function CajaHero({ titulo, saldo, runway, runwayTono = "ok", subtitulo, 
       >
         <AmountCountUp value={saldo} />
       </p>
-      <div className={cn("mt-3 flex items-start gap-2 text-[13px] font-semibold", TONO[runwayTono])}>
-        <Icon className="mt-px size-[18px] shrink-0" aria-hidden="true" />
-        <span>{runway}</span>
-      </div>
+      {runway != null && (
+        <div
+          className={cn("mt-3 flex items-start gap-2 text-[13px] font-semibold", TONO[runwayTono])}
+        >
+          <Icon className="mt-px size-[18px] shrink-0" aria-hidden="true" />
+          <span>{runway}</span>
+        </div>
+      )}
       {subtitulo != null && (
-        <p className="mt-2.5 text-[12.5px] text-neutral-mid">
+        <p className={cn("text-[12.5px] text-neutral-mid", runway != null ? "mt-2.5" : "mt-3")}>
           {subtitulo}
           {infoHint ? (
             <>
