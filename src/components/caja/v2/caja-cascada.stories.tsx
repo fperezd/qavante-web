@@ -56,8 +56,8 @@ export const ConPisoNegativo: Story = {
     await expect(c.getByText("Kaufmann")).toBeInTheDocument();
     await expect(c.getByText("Proyectado")).toBeInTheDocument();
     await expect(c.getByText("30-jul")).toBeInTheDocument();
-    // el camino toca negativo → marca el piso
-    await expect(c.getByText("piso")).toBeInTheDocument();
+    // el camino toca negativo → la barra de salida (rojo) se renderiza
+    await expect(c.getByText("Proveedores")).toBeInTheDocument();
   },
 };
 
@@ -73,7 +73,6 @@ export const SiempreEnVerde: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByText("Proyectado")).toBeInTheDocument();
-    // nunca toca negativo → sin marca de piso
-    await expect(c.queryByText("piso")).toBeNull();
+    await expect(c.getByText("Cobranzas")).toBeInTheDocument();
   },
 };

@@ -19,6 +19,15 @@ export function fechaCortaLabel(d: Date): string {
   return `${d.getDate()}-${MESES[d.getMonth()] ?? ""}`;
 }
 
+/** Rango legible de una semana: `21–27 jul` (mismo mes) o `28 jul–3 ago` (cruza mes). Se usa en la
+ *  cascada para que "Esta semana" muestre el RANGO y no un día suelto que coincide con "hoy". */
+export function rangoSemanaLabel(start: Date, end: Date): string {
+  const m1 = MESES[start.getMonth()] ?? "";
+  const m2 = MESES[end.getMonth()] ?? "";
+  if (m1 === m2) return `${start.getDate()}–${end.getDate()} ${m2}`;
+  return `${start.getDate()} ${m1}–${end.getDate()} ${m2}`;
+}
+
 /** Fecha efectiva del movimiento DENTRO de la ventana [hoy − gracia, hoy + horizonte], o `null` si
  *  cae fuera. Un vencimiento futuro va en su fecha; uno past-due DENTRO de la gracia se trata como
  *  "hoy" (aún pendiente); uno past-due MÁS VIEJO que la gracia se EXCLUYE — casi seguro ya pagado
@@ -211,7 +220,8 @@ export function movimientosPorSemana(movimientos: MovimientoCaja[], hoy: Date): 
     .sort((a, b) => a[0] - b[0])
     .map(([semana, v]) => ({
       fecha: v.fecha,
-      fechaLabel: fechaCortaLabel(v.fecha),
+      // Rango de la semana ("21–27 jul"), no un día suelto: "Esta semana · 21-jul" coincidía con "hoy".
+      fechaLabel: rangoSemanaLabel(v.fecha, addDays(v.fecha, 6)),
       label: semana === 0 ? "Esta semana" : `Sem +${semana}`,
       monto: v.monto,
       tipo: v.monto >= 0 ? ("cobranza" as const) : ("otro" as const),

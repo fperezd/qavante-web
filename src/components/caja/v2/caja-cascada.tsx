@@ -2,7 +2,6 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import {
   construirCascada,
-  pisoCascada,
   rangoCascada,
   type MovimientoCaja,
   type PasoCascada,
@@ -67,7 +66,6 @@ export function CajaCascada({
   const cxOf = (i: number) => PADL + (i + 0.5) * slot;
   const yOf = (v: number) => plotTop + ((top - v) / (top - bot)) * (plotBottom - plotTop);
 
-  const piso = pisoCascada(pasos);
   const y0 = yOf(0);
 
   // Ticks "lindos" del eje Y (5 líneas incl. el $0).
@@ -78,7 +76,7 @@ export function CajaCascada({
     <svg
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
-      className={cn("block h-auto w-full", className)}
+      className={cn("mx-auto block h-auto w-full max-w-[640px]", className)}
       role="img"
       aria-label="Cascada de caja: de saldo hoy a proyectado por fecha"
     >
@@ -195,30 +193,6 @@ export function CajaCascada({
           </g>
         );
       })}
-
-      {/* piso */}
-      {piso && piso.saldo < 0 && (
-        <>
-          <circle
-            cx={cxOf(piso.indice)}
-            cy={yOf(piso.saldo)}
-            r="5.5"
-            fill="none"
-            stroke="var(--color-danger-500)"
-            strokeWidth="1.6"
-          />
-          <text
-            x={cxOf(piso.indice)}
-            y={yOf(piso.saldo) + 18}
-            textAnchor="middle"
-            fontSize="9"
-            fontWeight="700"
-            fill="var(--color-danger-500)"
-          >
-            piso
-          </text>
-        </>
-      )}
     </svg>
   );
 }

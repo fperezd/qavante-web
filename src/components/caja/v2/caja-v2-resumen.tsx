@@ -22,8 +22,9 @@ export interface CajaMovible {
 export interface CajaV2ResumenProps {
   /** <CajaHero/> — la respuesta de dueño (fija). */
   hero: React.ReactNode;
-  /** <SaldoPorBanco/> (fijo). */
-  bancos: React.ReactNode;
+  /** <SaldoPorBanco/> (fijo). `null` lo oculta — en Caja v3 el saldo ya vive en el hero, así que
+   *  "Saldo disponible · Total en caja hoy" repetía el mismo número; sin él la baranda va a 2 cols. */
+  bancos?: React.ReactNode;
   /** Bloque de flujo del período (entra/sale/neto/mínima) (fijo). */
   flujo: React.ReactNode;
   /** La curva de saldo, ya envuelta con su encabezado/leyenda (fija). */
@@ -33,7 +34,14 @@ export interface CajaV2ResumenProps {
   className?: string;
 }
 
-export function CajaV2Resumen({ hero, bancos, flujo, curva, movibles, className }: CajaV2ResumenProps) {
+export function CajaV2Resumen({
+  hero,
+  bancos,
+  flujo,
+  curva,
+  movibles,
+  className,
+}: CajaV2ResumenProps) {
   const [order, setOrder] = React.useState<string[]>(() => movibles.map((m) => m.id));
 
   // Orden efectivo, robusto ante cambios en `movibles` (ids nuevos van al final).
@@ -54,10 +62,15 @@ export function CajaV2Resumen({ hero, bancos, flujo, curva, movibles, className 
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Baranda: hero + bancos + flujo (fijo) */}
-      <div className="grid items-stretch gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-2 lg:grid-cols-[1fr_1fr_0.9fr]">
+      {/* Baranda: hero + (bancos) + flujo (fijo). Sin bancos (Caja v3) → 2 columnas. */}
+      <div
+        className={cn(
+          "grid items-stretch gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-2",
+          bancos != null && "lg:grid-cols-[1fr_1fr_0.9fr]",
+        )}
+      >
         <div className="bg-surface">{hero}</div>
-        <div className="bg-surface">{bancos}</div>
+        {bancos != null && <div className="bg-surface">{bancos}</div>}
         <div className="bg-surface">{flujo}</div>
       </div>
 
@@ -68,7 +81,13 @@ export function CajaV2Resumen({ hero, bancos, flujo, curva, movibles, className 
       <div className={cn("grid items-start gap-4", ordered.length >= 2 && "md:grid-cols-2")}>
         {ordered.map((m, i) =>
           reorderable ? (
-            <DraggableCard key={m.id} label={m.label} index={i} count={ordered.length} onMove={reorder}>
+            <DraggableCard
+              key={m.id}
+              label={m.label}
+              index={i}
+              count={ordered.length}
+              onMove={reorder}
+            >
               {m.node}
             </DraggableCard>
           ) : (

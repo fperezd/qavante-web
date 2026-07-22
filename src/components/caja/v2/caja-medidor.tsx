@@ -74,7 +74,7 @@ export function CajaMedidorGauge({
 
   return (
     <svg
-      viewBox="0 0 260 200"
+      viewBox="0 0 260 206"
       className={cn("block h-auto w-full", className)}
       role="img"
       aria-label={`Medidor: ${centro} días de caja`}
@@ -113,12 +113,13 @@ export function CajaMedidorGauge({
         d={`M${base1[0]},${base1[1]} L${tip[0]},${tip[1]} L${base2[0]},${base2[1]} Z`}
         fill={col}
       />
-      <circle cx={cx} cy={cy} r="7" fill={col} stroke="var(--color-surface)" strokeWidth="2" />
+      <circle cx={cx} cy={cy} r="6" fill={col} stroke="var(--color-surface)" strokeWidth="2" />
+      {/* El número va CLARAMENTE debajo del pivote (no pegado a la aguja): antes se leía "sobre" ella. */}
       <text
         x={cx}
-        y={cy + 44}
+        y={cy + 52}
         textAnchor="middle"
-        fontSize="42"
+        fontSize="40"
         fontWeight="800"
         fill="currentColor"
       >
@@ -126,9 +127,9 @@ export function CajaMedidorGauge({
       </text>
       <text
         x={cx}
-        y={cy + 62}
+        y={cy + 70}
         textAnchor="middle"
-        fontSize="12"
+        fontSize="11.5"
         fill="var(--color-neutral-mid)"
         letterSpacing="0.04em"
       >
@@ -149,8 +150,9 @@ function titular(m: DiasCaja, ref: number): { headline: string; detalle: string 
       ? `, te recuperas en ${dLabel(m.diasRecuperacion)}`
       : ", sin recuperación en el horizonte";
   const pisoBajo = m.piso != null && m.piso.saldo < ref;
+  // El monto del piso vive UNA vez, en la cifra "Piso proyectado" de abajo → acá solo el cuándo.
   const detalle = pisoBajo
-    ? `Piso ${formatClp(m.piso!.saldo)} en ${dLabel(m.piso!.dia)}${recup}.`
+    ? `Toca su punto más bajo en ${dLabel(m.piso!.dia)}${recup}.`
     : `No bajas de tu caja mínima en los próximos ${Math.round(m.horizonteDias)} días.`;
 
   if (m.estado === "critico") {

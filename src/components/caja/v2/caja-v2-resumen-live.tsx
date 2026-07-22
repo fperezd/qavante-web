@@ -146,23 +146,34 @@ function CajaV2Contenido({
         <CajaHero
           titulo="La empresa tiene en caja"
           saldo={saldoHoy}
-          runway={negativa ? runwayNegativo(saldoHoy) : buildRunway(serie, cruceIdx, minimo, dias)}
+          // Caja v3: el medidor de días de caja ya cuenta el runway/estado abajo → no repetirlo acá.
+          runway={
+            cajaV3
+              ? undefined
+              : negativa
+                ? runwayNegativo(saldoHoy)
+                : buildRunway(serie, cruceIdx, minimo, dias)
+          }
           runwayTono={tono}
           subtitulo="Saldo hoy en caja"
-          infoHint="Saldo de tus cuentas hoy. La curva proyecta este saldo + las entradas y salidas esperadas del reporte de caja."
+          infoHint="Saldo de tus cuentas hoy. La proyección de abajo parte de este saldo + los vencimientos esperados (cobranzas y obligaciones)."
         />
       }
       bancos={
-        // Degradado: el banco SÍ está conectado (es la fuente del saldo), pero el detalle POR
-        // CUENTA no llega porque bice/saldo es api-key-only. Total + aviso honesto (no "conecta tu
-        // banco", que sería falso: ya está conectado).
-        <SaldoPorBanco
-          titulo="Saldo disponible"
-          bancos={[]}
-          total={saldoHoy}
-          totalLabel="Total en caja hoy"
-          nota="El saldo por cada cuenta todavía no está disponible"
-        />
+        // Caja v3: el saldo ya vive en el hero → "Saldo disponible · Total en caja hoy" repetía el
+        // mismo número. Se oculta (la baranda pasa a 2 columnas). En v2 clásico se mantiene.
+        cajaV3 ? null : (
+          // Degradado: el banco SÍ está conectado (es la fuente del saldo), pero el detalle POR
+          // CUENTA no llega porque bice/saldo es api-key-only. Total + aviso honesto (no "conecta tu
+          // banco", que sería falso: ya está conectado).
+          <SaldoPorBanco
+            titulo="Saldo disponible"
+            bancos={[]}
+            total={saldoHoy}
+            totalLabel="Total en caja hoy"
+            nota="El saldo por cada cuenta todavía no está disponible"
+          />
+        )
       }
       flujo={<FlujoBlock flujo={flujoDeBuckets(allBuckets)} minimo={minimo} />}
       curva={curvaSlot}
