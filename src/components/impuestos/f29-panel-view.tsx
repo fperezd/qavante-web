@@ -10,12 +10,12 @@ import {
   useSiiF29EstadoMulti,
   useSyncF29,
   useSiiContribuyente,
-  useSiiF29Giros,
-  useSiiF29GirosMulti,
   siiKeys,
   type F29EstadoMes,
   type F29EstadoMesEstado,
+  type F29GirosResponse,
 } from "@/lib/api/sii";
+import { api } from "@/lib/api/client";
 import { useMe } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/errors";
 import { normalizeRut } from "@/lib/validators/rut";
@@ -104,20 +104,10 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
   const results = useSiiF29EstadoMulti(years);
   const [selected, setSelected] = React.useState<SelectedCell | null>(null);
 
-  /* (i) de "IVA postergado" en la grilla: el `/f29/estado` todavía NO trae el flag (escalado a CC-API
-     — la fuente es el F29 declarado). Mientras tanto, al abrir un mes el detalle consulta los Giros; acá
-     reusamos ESA consulta (misma query key → sin llamada extra al SII) para marcar la celda, así la grilla
-     no contradice al detalle. Acumulamos por celda: los meses que fuiste abriendo quedan marcados. Cuando
-     CC-API incluya `postergado_iva` en el estado, TODOS los meses se marcan solos. */
+  /* (i) de "IVA postergado" en la grilla: el `/f29/estado` todavía NO trae el flag (escalado a CC-API,
+     #703 — la fuente es el F29 declarado). Mientras tanto lo derivamos de los Giros. Mapa por celda
+     `${anio}-${mes}` → vencimiento; se puebla con la PRECARGA secuencial de abajo. */
   const [girosByCell, setGirosByCell] = React.useState<Record<string, string | null>>({});
-  const girosSel = useSiiF29Giros(selected?.anio ?? 0, selected?.mes ?? 1, selected != null);
-  React.useEffect(() => {
-    if (!selected || girosSel.data?.postergado_iva !== true) return;
-    const key = `${selected.anio}-${selected.mes}`;
-    setGirosByCell((prev) =>
-      key in prev ? prev : { ...prev, [key]: girosSel.data?.vencimiento_postergado ?? null },
-    );
-  }, [selected, girosSel.data]);
 
   /* "Actualizar F29": sincroniza los años visibles (secuencial — el SII permite
      un sync por tenant a la vez). Llena `/f29/estado` (los sin_dato pasan a real). */
@@ -231,15 +221,50 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
 
   /* PRECARGA de la postergación (Giros) de los meses declarados del AÑO EN CURSO → los (i) aparecen sin
      abrir cada mes. Acotado al año actual (donde la postergación está activa; en años pasados el
-     vencimiento diferido ya pasó) para no golpear el SII con toda la grilla. Se completa/reemplaza cuando
-     `/f29/estado` traiga `postergado_iva` (#703). La celda combina esto con lo que se abrió a mano. */
+     vencimiento diferido ya pasó) para no golpear el SII con toda la grilla. Fix limpio (todos, sin
+     scrapear) = `postergado_iva` en `/f29/estado` (#703). */
   const declaredCurrentYear = React.useMemo(() => {
     const inner = byYear.get(currentYear);
     return inner
       ? [...inner.values()].filter((m) => m.estado === "declarado").map((m) => m.mes)
       : [];
   }, [byYear, currentYear]);
-  const girosMulti = useSiiF29GirosMulti(currentYear, declaredCurrentYear);
+  /* El SII SERIALIZA la Consulta de Giros: pedir varios meses EN PARALELO devuelve 502 en todos menos
+     uno (verificado). Por eso los traemos UNO POR UNO, y solo cuando NO hay un detalle abierto (que
+     también consulta Giros → colisionaría). `fetchQuery` cachea (los meses ya vistos son instantáneos y
+     comparten cache con el detalle). Los (i) aparecen progresivamente. Un mes que dé 502 se salta (se
+     puede abrir a mano). */
+  const declaredKey = declaredCurrentYear.join(",");
+  React.useEffect(() => {
+    if (selected != null || declaredCurrentYear.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      for (const mes of declaredCurrentYear) {
+        if (cancelled) return;
+        try {
+          const data = await qc.fetchQuery({
+            queryKey: siiKeys.f29Giros(currentYear, mes),
+            queryFn: () =>
+              api.get<F29GirosResponse>(`/api/sii/f29/giros?anio=${currentYear}&mes=${mes}`),
+            staleTime: 5 * 60 * 1000,
+            retry: false,
+          });
+          if (!cancelled && data?.postergado_iva === true) {
+            const key = `${currentYear}-${mes}`;
+            setGirosByCell((prev) =>
+              key in prev ? prev : { ...prev, [key]: data.vencimiento_postergado ?? null },
+            );
+          }
+        } catch {
+          /* 502 / SII flaky: saltamos ese mes. */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, declaredKey, currentYear]);
 
   const anyLoading = results.some((r) => r.isLoading);
   const allError = results.length > 0 && results.every((r) => r.isError);
@@ -299,16 +324,8 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
                       const loading = anyLoading && !cell;
                       const isSelected = selected?.anio === y && selected?.mes === mes;
                       const gk = `${y}-${mes}`;
-                      // Postergado si: lo abriste a mano (girosByCell, cualquier año) o lo trajo la
-                      // precarga del año en curso (girosMulti).
-                      const vencPost =
-                        gk in girosByCell
-                          ? girosByCell[gk]
-                          : y === currentYear && mes in girosMulti
-                            ? girosMulti[mes]
-                            : undefined;
                       const girosPostergado =
-                        vencPost !== undefined ? { vencimiento: vencPost ?? null } : undefined;
+                        gk in girosByCell ? { vencimiento: girosByCell[gk] ?? null } : undefined;
                       return (
                         <td key={y} className="px-2 py-1.5 text-center">
                           <StatusCell

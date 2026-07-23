@@ -334,31 +334,6 @@ export function useSiiF29Giros(anio: number, mes: number, enabled = true) {
   });
 }
 
-/** Giros (postergación del IVA) de varios meses de un año — para PRECARGAR y marcar la postergación en
- *  la grilla F29 sin abrir cada mes. Comparte `queryKey` con `useSiiF29Giros` (el detalle no re-fetchea).
- *  ACOTAR `meses` a lo declarado del año en curso: la postergación en vivo se scrapea por-período del SII
- *  (lento/flaky), no conviene pedirla para toda la grilla — el fix limpio es `postergado_iva` en el estado
- *  (#703). Devuelve `{ [mes]: vencimiento|null }` SOLO para los meses con IVA postergado. */
-export function useSiiF29GirosMulti(anio: number, meses: number[]): Record<number, string | null> {
-  const results = useQueries({
-    queries: meses.map((mes) => ({
-      queryKey: siiKeys.f29Giros(anio, mes),
-      queryFn: () => api.get<F29GirosResponse>(`/api/sii/f29/giros?anio=${anio}&mes=${mes}`),
-      enabled: Number.isInteger(anio) && anio > 0 && mes >= 1 && mes <= 12,
-      staleTime: 5 * 60 * 1000,
-      retry: false,
-    })),
-  });
-  const out: Record<number, string | null> = {};
-  results.forEach((r, i) => {
-    const mes = meses[i];
-    if (mes != null && r.data?.postergado_iva === true) {
-      out[mes] = r.data.vencimiento_postergado ?? null;
-    }
-  });
-  return out;
-}
-
 /** `POST /api/sii/f29/sync?anio=` — enumera los F29 declarados del año y los
  *  persiste (incremental). Tras un sync ok, `/f29/estado` y `/f29/anual` se llenan.
  *  `status='in_progress'` = ya hay un sync corriendo para el tenant (no dispares
