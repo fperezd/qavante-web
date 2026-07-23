@@ -11,6 +11,7 @@ import {
   useSyncF29,
   useSiiContribuyente,
   useSiiF29Giros,
+  useSiiF29GirosMulti,
   siiKeys,
   type F29EstadoMes,
   type F29EstadoMesEstado,
@@ -228,6 +229,18 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
     return map;
   }, [results, years]);
 
+  /* PRECARGA de la postergación (Giros) de los meses declarados del AÑO EN CURSO → los (i) aparecen sin
+     abrir cada mes. Acotado al año actual (donde la postergación está activa; en años pasados el
+     vencimiento diferido ya pasó) para no golpear el SII con toda la grilla. Se completa/reemplaza cuando
+     `/f29/estado` traiga `postergado_iva` (#703). La celda combina esto con lo que se abrió a mano. */
+  const declaredCurrentYear = React.useMemo(() => {
+    const inner = byYear.get(currentYear);
+    return inner
+      ? [...inner.values()].filter((m) => m.estado === "declarado").map((m) => m.mes)
+      : [];
+  }, [byYear, currentYear]);
+  const girosMulti = useSiiF29GirosMulti(currentYear, declaredCurrentYear);
+
   const anyLoading = results.some((r) => r.isLoading);
   const allError = results.length > 0 && results.every((r) => r.isError);
   const firstError = results.find((r) => r.isError)?.error;
@@ -286,8 +299,16 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
                       const loading = anyLoading && !cell;
                       const isSelected = selected?.anio === y && selected?.mes === mes;
                       const gk = `${y}-${mes}`;
+                      // Postergado si: lo abriste a mano (girosByCell, cualquier año) o lo trajo la
+                      // precarga del año en curso (girosMulti).
+                      const vencPost =
+                        gk in girosByCell
+                          ? girosByCell[gk]
+                          : y === currentYear && mes in girosMulti
+                            ? girosMulti[mes]
+                            : undefined;
                       const girosPostergado =
-                        gk in girosByCell ? { vencimiento: girosByCell[gk] ?? null } : undefined;
+                        vencPost !== undefined ? { vencimiento: vencPost ?? null } : undefined;
                       return (
                         <td key={y} className="px-2 py-1.5 text-center">
                           <StatusCell
