@@ -1718,7 +1718,9 @@ export interface paths {
          *
          *     `status=unclassified` es el caso default de la pantalla (los que
          *     afectan el Índice de Confianza). El `total` permite al frontend
-         *     pintar la paginación sin un segundo request.
+         *     pintar la paginación sin un segundo request. Filtros de Caja (barrido V1):
+         *     `direction` (cobrar/pagar), rango `period_from`/`period_to`, y `bank_account_id`
+         *     (para el selector de cuenta que evita mezclar CLP/USD).
          */
         get: operations["bank_movements_list"];
         put?: never;
@@ -1855,7 +1857,9 @@ export interface paths {
          *
          *     `status=unclassified` es el caso default de la pantalla (los que
          *     afectan el Índice de Confianza). El `total` permite al frontend
-         *     pintar la paginación sin un segundo request.
+         *     pintar la paginación sin un segundo request. Filtros de Caja (barrido V1):
+         *     `direction` (cobrar/pagar), rango `period_from`/`period_to`, y `bank_account_id`
+         *     (para el selector de cuenta que evita mezclar CLP/USD).
          */
         get: operations["treasury_bank_movements_list"];
         put?: never;
@@ -3714,6 +3718,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/treasury/payroll-settlements/{period}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado de conciliación de nómina por trabajador (período YYYYMM)
+         * @description Estado por trabajador (liquido / pagado / saldo / status) + outstanding del período.
+         *     Hace `seed` idempotente desde `payroll_worker_lines` antes de leer.
+         */
+        get: operations["admin_payroll_settlements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/treasury/payroll-reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Concilia un pago a trabajadores de nómina (dry-run por defecto; owner/admin)
+         * @description Aplica (o previsualiza) un pago a los trabajadores del período, parcial-aware. Si a un
+         *     trabajador se le paga parcial, su saldo queda pendiente para otra transferencia. Con
+         *     `worker_ruts` se acota la asignación (manual); sin ellos se auto-sugiere (all/subset/partial).
+         */
+        post: operations["admin_payroll_reconcile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/pulso/snapshot": {
         parameters: {
             query?: never;
@@ -3729,6 +3776,49 @@ export interface paths {
          *     cron con `SERVER_API_KEY`. Idempotente (recalcular el día upserta); best-effort por tenant.
          */
         post: operations["admin_pulso_snapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/treasury/rcv-duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista filas RCV duplicadas por drift de key (READ-ONLY; owner/admin)
+         * @description Sin `supplier`: grupos `document_ref` con >1 `source_external_id` distinto (duplicados por
+         *     drift). Con `supplier`: TODAS las filas de esa contraparte (para ver huérfanas con
+         *     document_ref NULL/otro formato). READ-ONLY — para decidir a ojo cuáles zerear.
+         */
+        get: operations["admin_rcv_duplicates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/treasury/dedup-rcv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Zerea una lista explícita de keys RCV huérfanas (dry-run por defecto; owner/admin)
+         * @description Previsualiza (o aplica, si `dry_run=False`) el zereo de las `source_external_ids` dadas.
+         *     Sólo toca filas existentes; reversible (audit `treasury.dedup_rcv`).
+         */
+        post: operations["admin_dedup_rcv"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3795,6 +3885,28 @@ export interface paths {
         get: operations["admin_role_permissions"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/treasury/settle-historical": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Settle histórico de Pagar/Cobrar (dry-run por defecto; owner/admin)
+         * @description Previsualiza (o aplica, si `dry_run=False`) el cierre del arrastre histórico de
+         *     obligaciones. Devuelve el plan: qué se cerraría (por tabla, con montos) y qué se
+         *     excluye (con motivo). El commit es reversible (audit registra el estado previo).
+         */
+        post: operations["admin_settle_historical"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4943,20 +5055,20 @@ export interface components {
             management_account_id?: string | null;
             /**
              * Reconciliation Status
+             * @description Estado de conciliación. Conocidos: unmatched, suggested, matched, rejected, review, excluded, prepago, processor_batch.
              * @default unmatched
-             * @enum {string}
              */
-            reconciliation_status: "unmatched" | "suggested" | "matched" | "rejected";
+            reconciliation_status: string;
             /** Match Score */
             match_score?: string | null;
             /** Matched Document Id */
             matched_document_id?: string | null;
             /**
              * Data Status
+             * @description Estado del dato. Conocidos: available, stale, inconsistent, missing, requires_attention.
              * @default available
-             * @enum {string}
              */
-            data_status: "available" | "stale" | "inconsistent" | "missing";
+            data_status: string;
             /**
              * Imported At
              * Format: date-time
@@ -7129,6 +7241,25 @@ export interface components {
             /** Latency Ms */
             latency_ms?: number | null;
         };
+        /** DedupRcvRequest */
+        DedupRcvRequest: {
+            /**
+             * Side
+             * @description 'compras' (payables) o 'ventas' (receivables).
+             */
+            side: string;
+            /**
+             * Source External Ids
+             * @description Keys EXPLÍCITAS a zerear (los huérfanos confirmados por inspección).
+             */
+            source_external_ids: string[];
+            /**
+             * Dry Run
+             * @description True (default): sólo previsualiza, NO muta nada.
+             * @default true
+             */
+            dry_run: boolean;
+        };
         /**
          * DimensionAssignment
          * @description Asignación de un valor de dimensión a una entidad.
@@ -7703,6 +7834,18 @@ export interface components {
             /** Folio */
             folio?: number | null;
             /**
+             * Derivado
+             * @description True cuando iva_debito/iva_credito vienen de la DERIVACIÓN del RCV (mes sin F29 declarado con folio), NO de un F29 presentado. Un derivado es estimación, no la declaración oficial del SII.
+             * @default false
+             */
+            derivado: boolean;
+            /**
+             * Incompleto
+             * @description True cuando `derivado` y el `iva_credito` derivado es < 0 — señal de devengado de compras incompleto/stale (faltan facturas del período). El FE NO debe mostrar el impuesto derivado como cifra tributaria firme; conviene re-sincronizar el RCV.
+             * @default false
+             */
+            incompleto: boolean;
+            /**
              * Iva Debito
              * @default 0
              */
@@ -7910,6 +8053,12 @@ export interface components {
              * @default 0
              */
             persistidos_nuevos: number;
+            /**
+             * Persistidos Folio Solo
+             * @description F29 declarados persistidos SOLO con folio + estado del enumerador (el PDF no bajó/parseó → montos NULL). El mes NO queda `sin_dato` pese a fallar el PDF (BUG-1b).
+             * @default 0
+             */
+            persistidos_folio_solo: number;
             /**
              * Errores
              * @description Folios que fallaron al bajar/parsear (best-effort).
@@ -9568,6 +9717,11 @@ export interface components {
             proforma_month?: string | null;
             /** Rows */
             rows: components["schemas"]["BreakdownRow"][];
+            /**
+             * Warnings
+             * @description Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activá una cuenta de costo y clasificá las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verificá re-emisiones pendientes.
+             */
+            warnings?: string[];
         };
         /**
          * OperationalResultBucket
@@ -9663,6 +9817,11 @@ export interface components {
             data_state: "available" | "partial" | "estimated";
             /** Missing Sources */
             missing_sources?: string[];
+            /**
+             * Sources
+             * @description Frescura por fuente del P&L (RCV, nómina, honorarios): present + synced_at + flag de staleness. `missing_sources` sigue como resumen legible derivado.
+             */
+            sources?: components["schemas"]["SourceFreshness"][];
             /**
              * Generated At
              * Format: date-time
@@ -9894,6 +10053,35 @@ export interface components {
              * @description Regla vigente legible: 'último día hábil' o 'día N'.
              */
             effective_rule: string;
+        };
+        /** PayrollReconcileRequest */
+        PayrollReconcileRequest: {
+            /**
+             * Period
+             * @description Período de la nómina, YYYYMM.
+             */
+            period: string;
+            /**
+             * Amount
+             * @description Monto del pago (de un movimiento bancario).
+             */
+            amount: number;
+            /**
+             * Dry Run
+             * @description True (default): solo previsualiza, NO muta.
+             * @default true
+             */
+            dry_run: boolean;
+            /**
+             * Bank Movement Id
+             * @description Movimiento bancario que pagó (para el link reversible).
+             */
+            bank_movement_id?: string | null;
+            /**
+             * Worker Ruts
+             * @description Asignación manual a estos trabajadores (Chipax); None = auto-sugerir.
+             */
+            worker_ruts?: string[] | null;
         };
         /** PayrollResponse */
         PayrollResponse: {
@@ -10456,6 +10644,11 @@ export interface components {
              * @default 0
              */
             payables_upserted: number;
+            /**
+             * Payables Zeroed
+             * @default 0
+             */
+            payables_zeroed: number;
         } & {
             [key: string]: unknown;
         };
@@ -10749,6 +10942,12 @@ export interface components {
             name?: string | null;
             /** Score */
             score?: string | null;
+            /**
+             * Document Count
+             * @description Cuántos documentos cubre la sugerencia. Subset-sum / NC-netting cubren N y se aplican TODOS al confirmar (no 1:1) — el FE debe mostrar 'N documentos'. 1 en el resto de los paths. ADR-0076 P0.
+             * @default 1
+             */
+            document_count: number;
         };
         /** RolePermissionsResponse */
         RolePermissionsResponse: {
@@ -11044,6 +11243,38 @@ export interface components {
              */
             as_of_date: string;
         };
+        /** SettleHistoricalRequest */
+        SettleHistoricalRequest: {
+            /**
+             * Cutoff Date
+             * Format: date
+             * @description Cierra obligaciones con due_date <= esta fecha.
+             */
+            cutoff_date: string;
+            /**
+             * Dry Run
+             * @description True (default): solo previsualiza, NO muta nada.
+             * @default true
+             */
+            dry_run: boolean;
+            /**
+             * Exclude Source Providers
+             * @description source_providers que se MANTIENEN abiertos (deuda real, ej. TGR).
+             */
+            exclude_source_providers?: string[];
+            /**
+             * Exclude Counterparty Patterns
+             * @description Patrones ILIKE de contraparte a mantener abiertos (ej. '%infostore%').
+             */
+            exclude_counterparty_patterns?: string[];
+            /**
+             * Keep Last N By Pattern
+             * @description Mantener las últimas N por patrón, due_date desc (ej. {'%synnex%': 2}).
+             */
+            keep_last_n_by_pattern?: {
+                [key: string]: number;
+            };
+        };
         /**
          * SignupRequest
          * @description Body de `POST /api/auth/signup` (onboarding O-1, ADR-0047).
@@ -11217,6 +11448,42 @@ export interface components {
             datasets?: components["schemas"]["DatasetResponse"][];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * SourceFreshness
+         * @description Frescura de una fuente de datos del P&L (RCV, nómina, honorarios).
+         *
+         *     Hace observable que un `status=ready` puede estar sirviendo data VIEJA: `synced_at`
+         *     dice cuándo se refrescó la fuente para el período, y `stale=True` marca un período EN
+         *     CURSO con data demasiado antigua (viejo ≠ verdad; feedback de frescura de fuentes).
+         */
+        SourceFreshness: {
+            /**
+             * Code
+             * @description Identificador de la fuente: rcv | payroll | fees.
+             */
+            code: string;
+            /**
+             * Label
+             * @description Etiqueta legible de la fuente.
+             */
+            label: string;
+            /**
+             * Present
+             * @description Hay data de esta fuente para el período.
+             */
+            present: boolean;
+            /**
+             * Synced At
+             * @description Última sincronización de la fuente para el período (UTC).
+             */
+            synced_at?: string | null;
+            /**
+             * Stale
+             * @description Período EN CURSO con data sincronizada hace demasiado (>24h) → puede estar incompleta. En meses cerrados es siempre False (la data ya no cambia).
+             * @default false
+             */
+            stale: boolean;
         };
         /** SourceResponse */
         SourceResponse: {
@@ -15058,6 +15325,14 @@ export interface operations {
                 status?: string | null;
                 /** @description Período YYYY-MM (filtra por mes calendario del movimiento). */
                 period?: string | null;
+                /** @description Rango: mes inicial YYYY-MM (inclusive). Combinar con period_to (ej. 3 meses). */
+                period_from?: string | null;
+                /** @description Rango: mes final YYYY-MM (inclusive). Independiente de `period`. */
+                period_to?: string | null;
+                /** @description Dirección: 'credit' (cobrar) | 'debit' (pagar). Omitir = ambas. */
+                direction?: string | null;
+                /** @description Filtra por cuenta bancaria (selector CLP/USD; no mezclar monedas). */
+                bank_account_id?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -15301,6 +15576,14 @@ export interface operations {
                 status?: string | null;
                 /** @description Período YYYY-MM (filtra por mes calendario del movimiento). */
                 period?: string | null;
+                /** @description Rango: mes inicial YYYY-MM (inclusive). Combinar con period_to (ej. 3 meses). */
+                period_from?: string | null;
+                /** @description Rango: mes final YYYY-MM (inclusive). Independiente de `period`. */
+                period_to?: string | null;
+                /** @description Dirección: 'credit' (cobrar) | 'debit' (pagar). Omitir = ambas. */
+                direction?: string | null;
+                /** @description Filtra por cuenta bancaria (selector CLP/USD; no mezclar monedas). */
+                bank_account_id?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -19695,6 +19978,86 @@ export interface operations {
             };
         };
     };
+    admin_payroll_settlements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Período YYYYMM. */
+                period: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_payroll_reconcile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayrollReconcileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Rol sin permiso (owner/admin/technical_admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_pulso_snapshot: {
         parameters: {
             query?: never;
@@ -19711,6 +20074,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PulsoSnapshotResponse"];
+                };
+            };
+        };
+    };
+    admin_rcv_duplicates: {
+        parameters: {
+            query?: {
+                /** @description 'compras' (payables) o 'ventas' (receivables). */
+                side?: string;
+                /** @description Si se pasa, lista TODAS las filas cuya contraparte matchea (ILIKE) — para ver huérfanas que no agrupan por document_ref. Sin esto: grupos duplicados por key. */
+                supplier?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Rol sin permiso (owner/admin/technical_admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_dedup_rcv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DedupRcvRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Rol sin permiso (owner/admin/technical_admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -19786,6 +20238,50 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RolePermissionsResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_settle_historical: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettleHistoricalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Rol sin permiso (requiere owner/admin/technical_admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

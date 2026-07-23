@@ -7,7 +7,12 @@ import { formatClp } from "@/lib/formatters/clp";
 import { ResultadoHero, type ResultadoTono } from "./resultado-hero";
 import { TendenciaResultado } from "./tendencia-resultado";
 import { OperationalResultMatrix } from "../operational-result-matrix";
-import { mapRangoResumen, rangoConfiable, type RangoResumen } from "./gestion-v2-rango-map";
+import {
+  mapRangoResumen,
+  rangoConfiable,
+  warningLabel,
+  type RangoResumen,
+} from "./gestion-v2-rango-map";
 
 /* Vista de RANGO de Gestión v2 (varios meses). Misma familia visual que el modo un-mes, pero la
    pieza central es la COMPARACIÓN en el tiempo (no la cascada de un mes): respuesta de dueño del
@@ -29,6 +34,8 @@ export function GestionV2RangoView({ data }: { data: OperationalResultBreakdown 
 
   return (
     <div className="space-y-4">
+      <ResultadoWarnings warnings={data.warnings} />
+
       {/* Baranda: respuesta de dueño del período (resultado + márgenes + ritmo) */}
       <div className="grid items-stretch gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-2 lg:grid-cols-[1.15fr_1fr_1fr]">
         <div className="bg-surface">
@@ -65,14 +72,18 @@ function fraseRango(tendencia: RangoResumen["tendencia"]): { texto: string; tono
   if (tendencia.length < 2) return { texto: "Resultado acumulado del período.", tono: "ok" };
   const first = tendencia[0]!.margenPct;
   const last = tendencia[tendencia.length - 1]!.margenPct;
-  if (last > first) return { texto: `El margen viene subiendo (${fmtPct(first)} → ${fmtPct(last)}).`, tono: "ok" };
-  if (last < first) return { texto: `El margen viene bajando (${fmtPct(first)} → ${fmtPct(last)}).`, tono: "bad" };
+  if (last > first)
+    return { texto: `El margen viene subiendo (${fmtPct(first)} → ${fmtPct(last)}).`, tono: "ok" };
+  if (last < first)
+    return { texto: `El margen viene bajando (${fmtPct(first)} → ${fmtPct(last)}).`, tono: "bad" };
   return { texto: "El margen se mantiene estable en el período.", tono: "warn" };
 }
 
 function Margenes({ resumen }: { resumen: RangoResumen }) {
   const row = (k: string, monto: number, pct: number, dashed = true) => (
-    <div className={`flex items-baseline justify-between gap-3 py-1.5 ${dashed ? "border-t border-dashed border-border" : ""}`}>
+    <div
+      className={`flex items-baseline justify-between gap-3 py-1.5 ${dashed ? "border-t border-dashed border-border" : ""}`}
+    >
       <dt className="text-neutral-mid">{k}</dt>
       <dd className="font-bold tabular-nums text-neutral-dark">
         {formatClp(monto)} · <span className="text-neutral-mid">{fmtPct(pct)}</span>
@@ -81,14 +92,19 @@ function Margenes({ resumen }: { resumen: RangoResumen }) {
   );
   return (
     <div className="p-5">
-      <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">Márgenes del período</p>
+      <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+        Márgenes del período
+      </p>
       <dl className="mt-2 flex flex-col text-[12.5px]">
         {row("Margen bruto", resumen.bruto.monto, resumen.bruto.pct, false)}
         {row("Margen neto", resumen.neto.monto, resumen.neto.pct)}
       </dl>
       {resumen.mejorMes && (
         <p className="mt-2.5 text-[12px] text-neutral-mid">
-          Mejor mes: <b className="text-neutral-dark">{resumen.mejorMes.periodo} · {fmtPct(resumen.mejorMes.pct)}</b>
+          Mejor mes:{" "}
+          <b className="text-neutral-dark">
+            {resumen.mejorMes.periodo} · {fmtPct(resumen.mejorMes.pct)}
+          </b>
         </p>
       )}
     </div>
@@ -97,19 +113,27 @@ function Margenes({ resumen }: { resumen: RangoResumen }) {
 
 function Ritmo({ resumen }: { resumen: RangoResumen }) {
   const { tendencia } = resumen;
-  const sube = tendencia.length >= 2 && tendencia[tendencia.length - 1]!.margenPct > tendencia[0]!.margenPct;
-  const baja = tendencia.length >= 2 && tendencia[tendencia.length - 1]!.margenPct < tendencia[0]!.margenPct;
+  const sube =
+    tendencia.length >= 2 && tendencia[tendencia.length - 1]!.margenPct > tendencia[0]!.margenPct;
+  const baja =
+    tendencia.length >= 2 && tendencia[tendencia.length - 1]!.margenPct < tendencia[0]!.margenPct;
   return (
     <div className="p-5">
-      <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">Cómo viene el ritmo</p>
+      <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+        Cómo viene el ritmo
+      </p>
       <dl className="mt-2.5 flex flex-col gap-2.5 text-[12.5px]">
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-neutral-mid">Ingresos del período</dt>
-          <dd className="font-bold tabular-nums text-neutral-dark">{formatClp(resumen.ingresos)}</dd>
+          <dd className="font-bold tabular-nums text-neutral-dark">
+            {formatClp(resumen.ingresos)}
+          </dd>
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-neutral-mid">Tendencia del margen</dt>
-          <dd className={`font-bold ${sube ? "text-success-700" : baja ? "text-danger-500" : "text-neutral-mid"}`}>
+          <dd
+            className={`font-bold ${sube ? "text-success-700" : baja ? "text-danger-500" : "text-neutral-mid"}`}
+          >
             {sube ? "↑ sube" : baja ? "↓ baja" : "→ estable"}
           </dd>
         </div>
@@ -128,16 +152,45 @@ function RangoIncompleto({ data }: { data: OperationalResultBreakdown }) {
           No podemos mostrar el resultado del período con confianza
         </p>
         <p className="mt-2 text-[13px] text-neutral-dark">
-          El cálculo llega inconsistente (el resultado supera a los ingresos o faltan costos). Es un problema de datos del
-          backend, ya escalado — abajo dejamos la matriz cruda para inspección, sin márgenes inventados.
+          El cálculo llega inconsistente (el resultado supera a los ingresos o faltan costos). Es un
+          problema de datos del backend, ya escalado — abajo dejamos la matriz cruda para
+          inspección, sin márgenes inventados.
         </p>
       </section>
+      <ResultadoWarnings warnings={data.warnings} />
       <OperationalResultMatrix data={data} />
     </div>
   );
 }
 
+/** Avisos del backend sobre el cálculo del resultado (`breakdown.warnings`, CC-API #691) — ej. ingresos
+ *  sin costo de venta → margen inflado. Traducidos a lenguaje de dueño; sin avisos, no rendea nada. */
+function ResultadoWarnings({ warnings }: { warnings?: string[] | null }) {
+  if (!warnings || warnings.length === 0) return null;
+  return (
+    <div
+      role="note"
+      className="rounded-xl border border-warning-500/30 bg-warning-500/[.07] p-3 text-[13px] text-neutral-dark"
+    >
+      <p className="inline-flex items-center gap-1.5 font-semibold text-warning-700">
+        <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+        {warnings.length === 1
+          ? "Un aviso sobre este resultado"
+          : `${warnings.length} avisos sobre este resultado`}
+      </p>
+      <ul className="mt-1.5 list-disc space-y-1 pl-5">
+        {warnings.map((w, i) => (
+          <li key={i}>{warningLabel(w)}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function fmtPct(v: number): string {
-  const abs = Math.abs(v).toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const abs = Math.abs(v).toLocaleString("es-CL", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
   return `${v < 0 ? "−" : ""}${abs}%`;
 }

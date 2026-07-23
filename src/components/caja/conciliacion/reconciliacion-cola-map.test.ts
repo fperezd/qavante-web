@@ -30,6 +30,7 @@ const item = (
       document_id: "doc1",
       name: "Comercial Los Andes",
       score: "78",
+      document_count: 1,
       ...suggestion,
     },
   };
@@ -122,7 +123,13 @@ describe("mapCola", () => {
   });
 
   it("no muta la entrada", () => {
-    const resp = { count: 2, items: [item({ movement_id: "a", suggestion: { score: "65" } }), item({ movement_id: "b", suggestion: { score: "88" } })] };
+    const resp = {
+      count: 2,
+      items: [
+        item({ movement_id: "a", suggestion: { score: "65" } }),
+        item({ movement_id: "b", suggestion: { score: "88" } }),
+      ],
+    };
     const antes = resp.items.map((i) => i.movement_id);
     mapCola(resp);
     expect(resp.items.map((i) => i.movement_id)).toEqual(antes);
@@ -131,7 +138,17 @@ describe("mapCola", () => {
 
 describe("todosLosIds", () => {
   it("devuelve los ids en orden", () => {
-    expect(todosLosIds(mapCola({ count: 2, items: [item({ movement_id: "a", suggestion: { score: "65" } }), item({ movement_id: "b", suggestion: { score: "88" } })] }))).toEqual(["b", "a"]);
+    expect(
+      todosLosIds(
+        mapCola({
+          count: 2,
+          items: [
+            item({ movement_id: "a", suggestion: { score: "65" } }),
+            item({ movement_id: "b", suggestion: { score: "88" } }),
+          ],
+        }),
+      ),
+    ).toEqual(["b", "a"]);
   });
 });
 
@@ -175,7 +192,9 @@ describe("resumenReconcile", () => {
 
   it("ignora los contadores internos del motor (excluidos/ambiguos/etc.)", () => {
     // Solo movió categorías internas → para el dueño no hubo nada accionable.
-    const r = resumenReconcile(res({ excluded: 4, ambiguous: 2, no_candidate: 7, iva_retention: 3 }));
+    const r = resumenReconcile(
+      res({ excluded: 4, ambiguous: 2, no_candidate: 7, iva_retention: 3 }),
+    );
     expect(r.autoConciliados).toBe(0);
     expect(r.paraRevisar).toBe(0);
     expect(r.mensaje).toMatch(/No encontré movimientos nuevos/);

@@ -10,7 +10,13 @@ const meta = {
   title: "Propuestas / Gestión / Rango (varios meses)",
   component: GestionV2RangoView,
   parameters: { layout: "fullscreen", nextjs: { appDirectory: true } },
-  decorators: [(Story) => <div className="mx-auto max-w-[1120px] p-6"><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div className="mx-auto max-w-[1120px] p-6">
+        <Story />
+      </div>
+    ),
+  ],
 } satisfies Meta<typeof GestionV2RangoView>;
 
 export default meta;
@@ -25,12 +31,46 @@ const BD: OperationalResultBreakdown = {
   proforma_month: "2026-07",
   rows: [
     {
-      kind: "section", key: "income", label: "Total Ingresos", by_month: ["15200000", "16800000", "18500000"], total: "50500000",
-      children: [{ kind: "account", key: "proyectos", label: "Proyectos", by_month: ["11000000", "12000000", "13000000"], total: "36000000" }],
+      kind: "section",
+      key: "income",
+      label: "Total Ingresos",
+      by_month: ["15200000", "16800000", "18500000"],
+      total: "50500000",
+      children: [
+        {
+          kind: "account",
+          key: "proyectos",
+          label: "Proyectos",
+          by_month: ["11000000", "12000000", "13000000"],
+          total: "36000000",
+        },
+      ],
     },
-    { kind: "section", key: "costs", label: "Total Costos", by_month: ["-6100000", "-6700000", "-7400000"], total: "-20200000" },
-    { kind: "subtotal", key: "gross_margin", label: "Margen Bruto", by_month: ["9100000", "10100000", "11100000"], total: "30300000", pct_total: "60.0", pct_by_month: ["59.9", "60.1", "60.0"] },
-    { kind: "subtotal", key: "operational_result", label: "Resultado Operacional", by_month: ["3100000", "3900000", "4500000"], total: "11500000", pct_total: "22.8", pct_by_month: ["20.4", "23.2", "24.3"] },
+    {
+      kind: "section",
+      key: "costs",
+      label: "Total Costos",
+      by_month: ["-6100000", "-6700000", "-7400000"],
+      total: "-20200000",
+    },
+    {
+      kind: "subtotal",
+      key: "gross_margin",
+      label: "Margen Bruto",
+      by_month: ["9100000", "10100000", "11100000"],
+      total: "30300000",
+      pct_total: "60.0",
+      pct_by_month: ["59.9", "60.1", "60.0"],
+    },
+    {
+      kind: "subtotal",
+      key: "operational_result",
+      label: "Resultado Operacional",
+      by_month: ["3100000", "3900000", "4500000"],
+      total: "11500000",
+      pct_total: "22.8",
+      pct_by_month: ["20.4", "23.2", "24.3"],
+    },
   ] as OperationalResultBreakdown["rows"],
 };
 
@@ -54,12 +94,32 @@ export const DatosIncompletos: Story = {
       ...BD,
       rows: [
         BD.rows[0],
-        { kind: "subtotal", key: "operational_result", label: "Resultado Operacional", by_month: ["1"], total: "60000000" },
+        {
+          kind: "subtotal",
+          key: "operational_result",
+          label: "Resultado Operacional",
+          by_month: ["1"],
+          total: "60000000",
+        },
       ] as OperationalResultBreakdown["rows"],
     },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(/No podemos mostrar el resultado del período con confianza/)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/No podemos mostrar el resultado del período con confianza/),
+    ).toBeInTheDocument();
+  },
+};
+
+/** Con avisos del cálculo (CC-API #691): el backend marca que el margen puede estar distorsionado. */
+export const ConAvisos: Story = {
+  args: { data: { ...BD, warnings: ["product_income_without_cogs"] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Un aviso sobre este resultado")).toBeInTheDocument();
+    await expect(canvas.getByText(/costo de venta/i)).toBeInTheDocument();
+    // El resultado igual se muestra (el aviso es un caveat, no bloquea).
+    await expect(canvas.getByText("El negocio ganó en el período")).toBeInTheDocument();
   },
 };

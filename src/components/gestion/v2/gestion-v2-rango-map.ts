@@ -8,6 +8,17 @@ import { parseAmount } from "../gestion-format";
 import { mapTendencia, tendenciaConfiable } from "./gestion-v2-map";
 import type { TendenciaPunto } from "./tendencia-resultado";
 
+/* Avisos del cálculo (`OperationalResultBreakdown.warnings`, CC-API #691): el backend marca cuándo el
+   resultado puede estar distorsionado (ej. ingresos de productos sin costo de venta → margen inflado).
+   Traducimos el código a lenguaje de dueño; el desconocido se muestra tal cual (no inventamos). */
+const WARNING_LABEL: Record<string, string> = {
+  product_income_without_cogs:
+    "Hay ingresos de productos sin costo de venta asociado, así que el margen puede verse más alto de lo real.",
+};
+export function warningLabel(code: string): string {
+  return WARNING_LABEL[code.trim()] ?? code;
+}
+
 /** Aplana el árbol de filas del breakdown (secciones con hijos → lista). */
 function aplanar(rows: BreakdownRow[]): BreakdownRow[] {
   const out: BreakdownRow[] = [];
@@ -23,7 +34,9 @@ function aplanar(rows: BreakdownRow[]): BreakdownRow[] {
 
 /** Última fila (subtotal/sección) que matchea el regex por key+label (la de más abajo del P&L). */
 function ultimaFila(flat: BreakdownRow[], re: RegExp): BreakdownRow | null {
-  const hits = flat.filter((r) => (r.kind === "subtotal" || r.kind === "section") && re.test(`${r.key} ${r.label}`));
+  const hits = flat.filter(
+    (r) => (r.kind === "subtotal" || r.kind === "section") && re.test(`${r.key} ${r.label}`),
+  );
   return hits[hits.length - 1] ?? null;
 }
 
@@ -92,7 +105,20 @@ export function mapRangoResumen(bd: OperationalResultBreakdown): RangoResumen {
 
 /** "2026-07" → "jul" (local para no exportar de más; equivalente a mesCorto). */
 function mesCortoDe(period: string): string {
-  const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  const MESES = [
+    "ene",
+    "feb",
+    "mar",
+    "abr",
+    "may",
+    "jun",
+    "jul",
+    "ago",
+    "sep",
+    "oct",
+    "nov",
+    "dic",
+  ];
   const m = period.match(/^\d{4}-(\d{2})/);
   const idx = m ? Number(m[1]) - 1 : NaN;
   return MESES[idx] ?? period;
