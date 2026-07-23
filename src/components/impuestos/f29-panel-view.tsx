@@ -10,6 +10,7 @@ import {
   useSiiF29EstadoMulti,
   useSyncF29,
   useSiiContribuyente,
+  useSiiF29Giros,
   siiKeys,
   type F29EstadoMes,
   type F29EstadoMesEstado,
@@ -108,6 +109,16 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
      #703 — la fuente es el F29 declarado). Mientras tanto lo derivamos de los Giros. Mapa por celda
      `${anio}-${mes}` → vencimiento; se puebla con la PRECARGA secuencial de abajo. */
   const [girosByCell, setGirosByCell] = React.useState<Record<string, string | null>>({});
+  /* Al abrir un mes, su Giros se consulta (detalle). Reflejamos esa postergación en la celda también —
+     respaldo del prefetch: marcar SIEMPRE al clickear, sin depender de que la precarga haya llegado. */
+  const girosSel = useSiiF29Giros(selected?.anio ?? 0, selected?.mes ?? 1, selected != null);
+  React.useEffect(() => {
+    if (!selected || girosSel.data?.postergado_iva !== true) return;
+    const key = `${selected.anio}-${selected.mes}`;
+    setGirosByCell((prev) =>
+      key in prev ? prev : { ...prev, [key]: girosSel.data?.vencimiento_postergado ?? null },
+    );
+  }, [selected, girosSel.data]);
 
   /* "Actualizar F29": sincroniza los años visibles (secuencial — el SII permite
      un sync por tenant a la vez). Llena `/f29/estado` (los sin_dato pasan a real). */
