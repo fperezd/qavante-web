@@ -60,16 +60,23 @@ export function CajaV2ResumenLive({ cajaV3 = false }: { cajaV3?: boolean }) {
   // El selector vive JUNTO a lo que gobierna (los flujos + la tabla del período), abajo — el medidor y
   // la cascada de arriba son a futuro (desde hoy) y no dependen del rango. Antes iba arriba solo por un
   // tema técnico (que no parpadeara al recargar); ya resuelto con `keepPreviousData` en el hook.
+  /* Avisos del propio reporte de caja (`CashFlowReportResponse.warnings`): el backend marca cuándo el
+     flujo del período puede estar distorsionado y el FE los ignoraba. Van junto al selector, que es lo
+     que gobierna esos números. Código desconocido → se muestra tal cual (no inventamos traducción). */
+  const cfWarnings = cf.data?.warnings ?? [];
   const periodoSelector = (
-    <PeriodRangeFilter
-      value={range}
-      onChange={setRange}
-      hint={
-        cajaV3
-          ? "El rango define los flujos y la tabla de acá abajo. El medidor y la cascada de arriba son a futuro (desde hoy)."
-          : "El rango define el período; la curva muestra la evolución del saldo."
-      }
-    />
+    <div className="space-y-2">
+      <PeriodRangeFilter
+        value={range}
+        onChange={setRange}
+        hint={
+          cajaV3
+            ? "El rango define los flujos y la tabla de acá abajo. El medidor y la cascada de arriba son a futuro (desde hoy)."
+            : "El rango define el período; la curva muestra la evolución del saldo."
+        }
+      />
+      <AvisosDelReporte warnings={cfWarnings} />
+    </div>
   );
   return (
     <CajaV2Contenido
@@ -238,6 +245,30 @@ function buildRunway(
   }
   if (dias != null) return `Alcanza ~${dias} días con la caja actual.`;
   return "La caja cubre el período proyectado.";
+}
+
+/** Avisos que el propio reporte de caja trae (`CashFlowReportResponse.warnings`): el backend marca
+ *  cuándo el flujo del período puede estar distorsionado. Se muestran tal cual (aún no hay catálogo de
+ *  códigos; no inventamos traducción). Sin avisos no rendea nada. */
+function AvisosDelReporte({ warnings }: { warnings: string[] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <div
+      role="note"
+      className="rounded-lg border border-warning-500/30 bg-warning-500/[.07] px-3 py-2 text-[12px] leading-snug text-neutral-dark"
+    >
+      <b className="font-semibold text-warning-700">
+        {warnings.length === 1
+          ? "Un aviso sobre este período"
+          : `${warnings.length} avisos sobre este período`}
+      </b>
+      <ul className="mt-1 list-disc space-y-0.5 pl-5">
+        {warnings.map((w, i) => (
+          <li key={i}>{w}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function FlujoBlock({
