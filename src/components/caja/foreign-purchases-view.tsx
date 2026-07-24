@@ -15,15 +15,39 @@ import {
   useClassifyForeignPurchase,
   type ForeignPurchaseItem,
 } from "@/lib/api/foreign-purchases";
+import { useCanonicalCategories } from "@/lib/api/treasury";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
+import { cn } from "@/lib/utils";
 
 /* Compras al extranjero (Caja). Salen de la cartola de tarjeta. Cada una se
    clasifica con concepto + categoría. Montos: USD crudo (string), CLP operativo
-   con formatClp; fechas DD-MM-AAAA. */
+   con formatClp; fechas DD-MM-AAAA.
+
+   La categoría NO es texto libre: es una categoría canónica del backend
+   (`/canonical-categories`, mismo catálogo que usa la clasificación de banco).
+   Filtramos a las de salida (`cashflow_group === "cash_out"`) porque una compra
+   con tarjeta al extranjero es siempre un gasto. Guardamos el `code` canónico
+   (no el label) para que el dato sea consistente y agregable. */
+
+const SELECT_CLASS = cn(
+  "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+);
 
 export function ForeignPurchasesView() {
   const query = useForeignPurchases();
+  const catsQuery = useCanonicalCategories();
+
+  const categories = React.useMemo(
+    () => (catsQuery.data?.items ?? []).filter((c) => c.cashflow_group === "cash_out"),
+    [catsQuery.data],
+  );
+  const categoryLabel = React.useMemo(() => {
+    const byCode = new Map(categories.map((c) => [c.code, c.label]));
+    // Fallback al string crudo: compras clasificadas antes con texto libre.
+    return (code: string | null | undefined) => (code ? (byCode.get(code) ?? code) : "");
+  }, [categories]);
 
   if (query.isLoading) {
     return (
@@ -70,14 +94,29 @@ export function ForeignPurchasesView() {
     >
       <ul className="divide-y divide-border">
         {items.map((p) => (
-          <PurchaseRow key={p.id} purchase={p} />
+          <PurchaseRow
+            key={p.id}
+            purchase={p}
+            categories={categories}
+            categoryLabel={categoryLabel}
+          />
         ))}
       </ul>
     </QavanteCard>
   );
 }
 
-function PurchaseRow({ purchase: p }: { purchase: ForeignPurchaseItem }) {
+type CategoryOption = { code: string; label: string };
+
+function PurchaseRow({
+  purchase: p,
+  categories,
+  categoryLabel,
+}: {
+  purchase: ForeignPurchaseItem;
+  categories: CategoryOption[];
+  categoryLabel: (code: string | null | undefined) => string;
+}) {
   const classify = useClassifyForeignPurchase();
   const [concept, setConcept] = React.useState(p.concept ?? "");
   const [category, setCategory] = React.useState(p.category ?? "");
@@ -87,7 +126,7 @@ function PurchaseRow({ purchase: p }: { purchase: ForeignPurchaseItem }) {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
-    classify.mutate({ id: p.id, concept: concept.trim(), category: category.trim() });
+    classify.mutate({ id: p.id, concept: concept.trim(), category });
   }
 
   return (
@@ -129,12 +168,19 @@ function PurchaseRow({ purchase: p }: { purchase: ForeignPurchaseItem }) {
             <label htmlFor={`category-${p.id}`} className="text-xs text-neutral-mid">
               Categoría
             </label>
-            <QavanteInput
+            <select
               id={`category-${p.id}`}
-              placeholder="Gastos operativos"
               value={category}
-              onValueChange={setCategory}
-            />
+              onChange={(e) => setCategory(e.target.value)}
+              className={SELECT_CLASS}
+            >
+              <option value="">Elige una categoría…</option>
+              {categories.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
           </div>
           <QavanteButton type="submit" size="sm" loading={classify.isPending} disabled={!canSubmit}>
             Clasificar
@@ -144,7 +190,7 @@ function PurchaseRow({ purchase: p }: { purchase: ForeignPurchaseItem }) {
         <div className="flex items-center gap-2 text-sm">
           <QavanteBadge variant="success">Clasificada</QavanteBadge>
           {p.concept && <span className="text-neutral-dark">{p.concept}</span>}
-          {p.category && <span className="text-neutral-mid">· {p.category}</span>}
+          {p.category && <span className="text-neutral-mid">· {categoryLabel(p.category)}</span>}
         </div>
       )}
 
