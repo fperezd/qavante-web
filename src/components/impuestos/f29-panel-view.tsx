@@ -10,13 +10,10 @@ import {
   useSiiF29EstadoMulti,
   useSyncF29,
   useSiiContribuyente,
-  useSiiF29Giros,
   siiKeys,
   type F29EstadoMes,
   type F29EstadoMesEstado,
-  type F29GirosResponse,
 } from "@/lib/api/sii";
-import { api } from "@/lib/api/client";
 import { useMe } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/errors";
 import { normalizeRut } from "@/lib/validators/rut";
@@ -106,20 +103,13 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
   const results = useSiiF29EstadoMulti(years);
   const [selected, setSelected] = React.useState<SelectedCell | null>(null);
 
-  /* (i) de "IVA postergado" en la grilla: el `/f29/estado` todavía NO trae el flag (escalado a CC-API,
-     #703 — la fuente es el F29 declarado). Mientras tanto lo derivamos de los Giros. Mapa por celda
-     `${anio}-${mes}` → vencimiento; se puebla con la PRECARGA secuencial de abajo. */
-  const [girosByCell, setGirosByCell] = React.useState<Record<string, string | null>>({});
-  /* Al abrir un mes, su Giros se consulta (detalle). Reflejamos esa postergación en la celda también —
-     respaldo del prefetch: marcar SIEMPRE al clickear, sin depender de que la precarga haya llegado. */
-  const girosSel = useSiiF29Giros(selected?.anio ?? 0, selected?.mes ?? 1, selected != null);
-  React.useEffect(() => {
-    if (!selected || girosSel.data?.postergado_iva !== true) return;
-    const key = `${selected.anio}-${selected.mes}`;
-    setGirosByCell((prev) =>
-      key in prev ? prev : { ...prev, [key]: girosSel.data?.vencimiento_postergado ?? null },
-    );
-  }, [selected, girosSel.data]);
+  /* El (i) de "IVA postergado" en la grilla sale SOLO de `cell.postergado_iva` (backend, `/f29/estado`).
+     La postergación es dato del F29 declarado (código 755) → es trabajo del backend derivarla y persistirla,
+     NO del FE raspar la Consulta de Giros en vivo. Escalado con evidencia: hoy el estado devuelve un FALSO
+     NEGATIVO (dice `False` donde el SII dice `True`) — qavante-api #708/#714/#715. Hasta que el backend lo
+     arregle, el (i) NO se muestra en la grilla, y eso es CORRECTO: dejamos el síntoma visible en vez de
+     taparlo con un scrape lento (~2min) y flaky. El detalle del mes sí muestra la postergación (una consulta
+     al abrir, on-demand). */
 
   /* "Actualizar F29": sincroniza los años visibles (secuencial — el SII permite
      un sync por tenant a la vez). Llena `/f29/estado` (los sin_dato pasan a real). */
@@ -231,64 +221,6 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
     return map;
   }, [results, years]);
 
-  /* PRECARGA de la postergación (Giros) de TODOS los meses declarados (decisión de Fernando: prefiere
-     esperar y verlos completos, en vez de que la ausencia de (i) mienta en los años viejos).
-     El SII SERIALIZA la Consulta de Giros: pedirlos EN PARALELO devuelve 502 en todos menos uno
-     (verificado). Por eso van UNO POR UNO (~2s c/u), año en curso primero y después hacia atrás, y solo
-     cuando NO hay un detalle abierto (que también consulta Giros → colisionaría). `fetchQuery` cachea y
-     salteamos los ya consultados, así que reentrar es instantáneo; un 502 se salta. Se vuelve
-     innecesario cuando `/f29/estado` traiga `postergado_iva` (#703). */
-  const declaredCells = React.useMemo(() => {
-    const out: { anio: number; mes: number }[] = [];
-    // `years` viene descendente desde el actual → el año en curso se consulta primero.
-    for (const anio of years) {
-      const inner = byYear.get(anio);
-      if (!inner) continue;
-      for (const m of [...inner.values()].sort((a, b) => a.mes - b.mes)) {
-        if (m.estado === "declarado") out.push({ anio, mes: m.mes });
-      }
-    }
-    return out;
-  }, [byYear, years]);
-  /* Consultados (éxito o 502) — ref para saltarlos al reanudar sin re-render, + contador para el aviso
-     de progreso (así el verde no se lee como "ya sabemos que no está postergado"). */
-  const checkedRef = React.useRef<Set<string>>(new Set());
-  const [checkedCount, setCheckedCount] = React.useState(0);
-  const declaredKey = declaredCells.map((c) => `${c.anio}-${c.mes}`).join(",");
-  React.useEffect(() => {
-    if (selected != null || declaredCells.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      for (const { anio, mes } of declaredCells) {
-        if (cancelled) return;
-        const key = `${anio}-${mes}`;
-        if (checkedRef.current.has(key)) continue;
-        try {
-          const data = await qc.fetchQuery({
-            queryKey: siiKeys.f29Giros(anio, mes),
-            queryFn: () => api.get<F29GirosResponse>(`/api/sii/f29/giros?anio=${anio}&mes=${mes}`),
-            staleTime: 5 * 60 * 1000,
-            retry: false,
-          });
-          if (!cancelled && data?.postergado_iva === true) {
-            setGirosByCell((prev) =>
-              key in prev ? prev : { ...prev, [key]: data.vencimiento_postergado ?? null },
-            );
-          }
-        } catch {
-          /* 502 / SII flaky: saltamos ese mes (se puede abrir a mano). */
-        }
-        checkedRef.current.add(key);
-        if (!cancelled) setCheckedCount(checkedRef.current.size);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, declaredKey]);
-  const girosPendientes = declaredCells.length - checkedCount;
-
   const anyLoading = results.some((r) => r.isLoading);
   const allError = results.length > 0 && results.every((r) => r.isError);
   const firstError = results.find((r) => r.isError)?.error;
@@ -308,23 +240,6 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
           {syncing ? `Actualizando ${syncYear ?? ""}…` : "Actualizar F29"}
         </QavanteButton>
       </div>
-
-      {/* Honestidad: mientras consultamos, la ausencia de (i) NO significa "sin postergar" — todavía no
-          lo sabemos. El SII entrega los Giros de a uno, así que avisamos el avance. */}
-      {girosPendientes > 0 && (
-        <p
-          role="status"
-          className="rounded-lg border border-border bg-surface-muted px-3 py-2 text-xs text-neutral-mid"
-        >
-          Consultando las postergaciones de IVA al SII…{" "}
-          <span className="tabular-nums">
-            {checkedCount} de {declaredCells.length}
-          </span>{" "}
-          meses. El SII las entrega de a una, así que los avisos de{" "}
-          <b className="font-semibold text-neutral-dark">IVA postergado</b> van apareciendo de a
-          poco — hasta que termine, un mes en verde todavía puede estar postergado.
-        </p>
-      )}
 
       <QavanteCard variant="bordered" aria-label="Estado del F29 por período" role="region">
         <div className="overflow-x-auto">
@@ -363,16 +278,12 @@ export function F29PanelView({ now = new Date() }: { now?: Date }) {
                       const cell = byYear.get(y)?.get(mes);
                       const loading = anyLoading && !cell;
                       const isSelected = selected?.anio === y && selected?.mes === mes;
-                      const gk = `${y}-${mes}`;
-                      const girosPostergado =
-                        gk in girosByCell ? { vencimiento: girosByCell[gk] ?? null } : undefined;
                       return (
                         <td key={y} className="px-2 py-1.5 text-center">
                           <StatusCell
                             cell={cell}
                             loading={loading}
                             selected={isSelected}
-                            girosPostergado={girosPostergado}
                             onSelect={() => setSelected({ anio: y, mes })}
                           />
                         </td>
@@ -407,15 +318,11 @@ function StatusCell({
   cell,
   loading,
   selected,
-  girosPostergado,
   onSelect,
 }: {
   cell?: F29EstadoMes;
   loading: boolean;
   selected: boolean;
-  /** Postergación derivada de los Giros (cuando el detalle ya la consultó) — hasta que `/f29/estado`
-   *  traiga `postergado_iva`. `null` en `vencimiento` = postergado sin fecha leída. */
-  girosPostergado?: { vencimiento: string | null };
   onSelect: () => void;
 }) {
   if (loading) {
@@ -446,13 +353,11 @@ function StatusCell({
   }
 
   const ringSel = selected ? "ring-2 ring-brand-primary ring-offset-1" : "";
-  // Declarado pero con el IVA postergado: sigue verde (declaró) + un (i) que lo explica y da el
-  // vencimiento diferido. El dato viene de la Consulta de Giros (hoy vía `/f29/estado` si el backend lo
-  // incluye — escalado). Al clickear, el detalle muestra la postergación completa.
-  // Postergado si el estado ya lo trae (backend, cuando llegue) o si el detalle ya lo consultó vía Giros.
-  const postergado =
-    estado === "declarado" && (cell.postergado_iva === true || girosPostergado != null);
-  const vencPostRaw = cell.vencimiento_postergado ?? girosPostergado?.vencimiento ?? null;
+  // Declarado con el IVA postergado: sigue verde (declaró) + un (i) que lo explica y da el vencimiento
+  // diferido. El dato es del backend (`/f29/estado.postergado_iva`, código 755 del F29 declarado). El FE
+  // NO lo deriva raspando Giros — si el estado no lo trae, no se muestra (síntoma visible, no parche).
+  const postergado = estado === "declarado" && cell.postergado_iva === true;
+  const vencPostRaw = cell.vencimiento_postergado ?? null;
   const vencePost = postergado && vencPostRaw ? `, vence el ${formatDateLike(vencPostRaw)}` : "";
   /* Total a pagar del F29 (viene en la celda de `/f29/estado` como `saldo`; null = declarado sin monto
      conocido, NO $0). En la grilla se muestra COMPACTO ($1,2M) para no romper el semáforo; el EXACTO va
