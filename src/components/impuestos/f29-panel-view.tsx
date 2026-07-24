@@ -21,6 +21,7 @@ import { useMe } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/errors";
 import { normalizeRut } from "@/lib/validators/rut";
 import { formatDateLike } from "@/lib/formatters/date";
+import { formatClp, formatClpCompact } from "@/lib/formatters/clp";
 import { f29SyncFailureToast } from "./f29-sync-message";
 import { F29MonthDetail } from "./f29-month-detail";
 
@@ -453,9 +454,15 @@ function StatusCell({
     estado === "declarado" && (cell.postergado_iva === true || girosPostergado != null);
   const vencPostRaw = cell.vencimiento_postergado ?? girosPostergado?.vencimiento ?? null;
   const vencePost = postergado && vencPostRaw ? `, vence el ${formatDateLike(vencPostRaw)}` : "";
-  const title = postergado
-    ? `Declarado · IVA postergado${vencePost}`
-    : `${ESTADO_LABEL[estado]}${cell.folio ? ` · folio ${cell.folio}` : ""}`;
+  /* Total a pagar del F29 (viene en la celda de `/f29/estado` como `saldo`; null = declarado sin monto
+     conocido, NO $0). En la grilla se muestra COMPACTO ($1,2M) para no romper el semáforo; el EXACTO va
+     acá en el tooltip y completo en el detalle. */
+  const saldoExacto =
+    estado === "declarado" && cell.saldo != null ? ` · Total a pagar ${formatClp(cell.saldo)}` : "";
+  const title =
+    (postergado
+      ? `Declarado · IVA postergado${vencePost}`
+      : `${ESTADO_LABEL[estado]}${cell.folio ? ` · folio ${cell.folio}` : ""}`) + saldoExacto;
 
   return (
     <button
@@ -463,27 +470,36 @@ function StatusCell({
       onClick={onSelect}
       title={title}
       aria-label={
-        postergado
-          ? `Declarado con IVA postergado${vencePost} — ver detalle`
-          : `${ESTADO_LABEL[estado]} — ver detalle`
+        (postergado
+          ? `Declarado con IVA postergado${vencePost}`
+          : ESTADO_LABEL[estado]) +
+        saldoExacto +
+        " — ver detalle"
       }
       className={cn(
-        "inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+        "inline-flex min-h-7 min-w-7 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-0.5 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
         ringSel,
       )}
     >
       {estado === "declarado" && (
-        <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-success-500 text-surface">
-          <Check className="h-3.5 w-3.5" aria-hidden="true" />
-          {postergado && (
-            <span
-              className="absolute -right-1.5 -top-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full bg-warning-500 text-[8px] font-bold leading-none text-surface ring-1 ring-surface"
-              aria-hidden="true"
-            >
-              i
+        <>
+          <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-success-500 text-surface">
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            {postergado && (
+              <span
+                className="absolute -right-1.5 -top-1.5 inline-flex h-3 w-3 items-center justify-center rounded-full bg-warning-500 text-[8px] font-bold leading-none text-surface ring-1 ring-surface"
+                aria-hidden="true"
+              >
+                i
+              </span>
+            )}
+          </span>
+          {cell.saldo != null && (
+            <span className="text-[10px] leading-none tabular-nums text-neutral-mid" aria-hidden="true">
+              {formatClpCompact(cell.saldo)}
             </span>
           )}
-        </span>
+        </>
       )}
       {estado === "no_declarado_vencido" && (
         <span className="text-[11px] font-bold text-danger-500">ND</span>

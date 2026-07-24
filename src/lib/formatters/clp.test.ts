@@ -3,7 +3,7 @@
    de formato que importan para mostrar plata: sin decimales, agrupación
    con punto, símbolo $. */
 import { describe, expect, it } from "vitest";
-import { formatClp, formatMoney } from "./clp";
+import { formatClp, formatClpCompact, formatMoney } from "./clp";
 
 /* Quita cualquier espacio (incluido el NBSP que algunas versiones de ICU
    meten entre símbolo y número) para que los asserts no sean frágiles. */
@@ -40,6 +40,34 @@ describe("formatClp", () => {
     expect(formatClp(NaN)).toBe("—");
     expect(formatClp(Infinity)).toBe("—");
     expect(formatClp(-Infinity)).toBe("—");
+  });
+});
+
+describe("formatClpCompact", () => {
+  it("millones → $X,XM (una decimal, coma es-CL)", () => {
+    expect(norm(formatClpCompact(1_200_000))).toBe("$1,2M");
+    expect(norm(formatClpCompact(12_300_000))).toBe("$12,3M");
+    expect(norm(formatClpCompact(1_000_000))).toBe("$1M");
+  });
+
+  it("miles → $XK (redondea)", () => {
+    expect(norm(formatClpCompact(980_000))).toBe("$980K");
+    expect(norm(formatClpCompact(1_500))).toBe("$2K");
+  });
+
+  it("bajo mil → cae al exacto (formatClp)", () => {
+    expect(norm(formatClpCompact(999))).toBe("$999");
+    expect(norm(formatClpCompact(0))).toBe("$0");
+  });
+
+  it("negativos: menos tipográfico antes del símbolo", () => {
+    expect(norm(formatClpCompact(-1_200_000))).toBe("−$1,2M");
+    expect(norm(formatClpCompact(-980_000))).toBe("−$980K");
+  });
+
+  it("no-finito → guion", () => {
+    expect(formatClpCompact(NaN)).toBe("—");
+    expect(formatClpCompact(Infinity)).toBe("—");
   });
 });
 

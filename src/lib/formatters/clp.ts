@@ -13,6 +13,26 @@ export function formatClp(value: number) {
   return value < 0 && Math.round(value) !== 0 ? `−${abs}` : abs;
 }
 
+/* CLP COMPACTO para vistas densas (grillas donde el exacto no cabe): "$1,2M",
+   "$980K", "$1.234". El monto EXACTO va aparte (tooltip + detalle), nunca se pierde.
+   Para cifras de acción (Caja, movimientos) usar `formatClp` — Fernando prefiere el
+   exacto ahí; el compacto es solo un apoyo de escaneo. PURO. */
+export function formatClpCompact(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  const sign = value < 0 && Math.round(value) !== 0 ? "−" : "";
+  if (abs >= 1_000_000) {
+    const s = (Math.round(abs / 100_000) / 10).toLocaleString("es-CL", {
+      maximumFractionDigits: 1,
+    });
+    return `${sign}$${s}M`;
+  }
+  if (abs >= 1_000) {
+    return `${sign}$${Math.round(abs / 1_000).toLocaleString("es-CL")}K`;
+  }
+  return formatClp(value);
+}
+
 /* Formateador consciente de la moneda. Regla (pedido de Fernando):
      - CLP  → "$1.234"      (punto de miles, SIN decimales) = formatClp.
      - USD/otras → "US$1.234,50" (punto de miles, coma decimal, DOS decimales,
