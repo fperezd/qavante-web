@@ -19,6 +19,7 @@ import {
   useCanonicalCategories,
   useClassifyBankMovement,
   type BankMovement,
+  type ClassifyMovementRequest,
 } from "@/lib/api/treasury";
 import { useManagementAccountsTree } from "@/lib/api/management";
 import {
@@ -234,14 +235,17 @@ export function ClasificadosView() {
     /* Clasificación previa (para el "Deshacer": re-aplicar los valores que tenía).
        Es un undo real y seguro — vuelve a PATCH la categoría anterior. */
     const prevAccountId = target.management_account_id;
-    const prevCategory = target.canonical_category ?? null;
+    // `canonical_category` del movimiento es string (read drift-proof, api#670); el body de classify
+    // espera la categoría canónica del enum → casteamos al tipo de escritura.
+    const prevCategory = (target.canonical_category ??
+      null) as ClassifyMovementRequest["canonical_category"];
     classify.mutate(
       {
         movementId: target.id,
         body: {
           management_account_id: draft.managementAccountId,
           canonical_category:
-            (draft.canonicalCategory as BankMovement["canonical_category"]) ?? null,
+            (draft.canonicalCategory as ClassifyMovementRequest["canonical_category"]) ?? null,
           notes: draft.notes || null,
           create_rule: false,
         },
