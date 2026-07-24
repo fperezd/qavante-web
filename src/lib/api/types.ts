@@ -727,11 +727,20 @@ export interface paths {
          *     `declarado` (con folio + saldo) / `sin_dato` / `no_declarado_vencido` / `por_declarar` /
          *     `en_curso` / `sin_periodo`.
          *
+         *     **IVA postergado** (código 755 del F29 declarado): cada mes trae `postergado_iva` (bool),
+         *     `monto_postergado` (CLP; `null` = el F29 del mes no se parseó ⇒ **no se sabe**, `0` = parseado
+         *     sin postergación) y `vencimiento_postergado` (ISO, solo si postergó — día 20 del mes M+3
+         *     corrido al lunes si cae fin de semana). ⚠️ Ese monto **NO está** dentro de `saldo` (el código
+         *     91 lo excluye cuando se posterga): son dos obligaciones distintas con vencimientos distintos.
+         *     El corrimiento NO modela feriados (ver `f29_repo.f29_postergado_due_date`).
+         *
          *     ⚠️ **No afirma "no declaró" sin sincronizar:** si el tenant no tiene F29 sincronizados del año,
          *     los meses vencidos van **`sin_dato`** (no `no_declarado_vencido`) — afirmar "no declaró" sin
          *     haber sincronizado es un falso alarmante (dato faltante ≠ "no declaró"). El
          *     `no_declarado_vencido` autoritativo requiere la Consulta de Estado del SII (aún no cableada, ver
-         *     `docs/spikes/f29-consulta-estado.md`). Postergación/pago vía Consulta de Giros (`/f29/giros`).
+         *     `docs/spikes/f29-consulta-estado.md`). La **confirmación de pago** (del saldo o del IVA
+         *     postergado) sigue siendo la Consulta de Giros en vivo (`/f29/giros`) — este endpoint NO afirma
+         *     "pagado".
          */
         get: operations["sii_f29_estado"];
         put?: never;
@@ -5049,8 +5058,11 @@ export interface components {
              * @enum {string}
              */
             direction: "credit" | "debit";
-            /** @description Categoría canónica del movimiento (Addendum §7.2). NULL = sin clasificar. */
-            canonical_category?: components["schemas"]["CanonicalCategory"] | null;
+            /**
+             * Canonical Category
+             * @description Categoría canónica del movimiento (Addendum §7.2). NULL = sin clasificar.
+             */
+            canonical_category?: string | null;
             /** Management Account Id */
             management_account_id?: string | null;
             /**
@@ -7753,7 +7765,7 @@ export interface components {
             anio: number;
             /**
              * Meses
-             * @description Los 12 meses con {mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento}. estado ∈ declarado / sin_dato (vencido pero sin sincronizar → NO se afirma 'no declaró') / no_declarado_vencido (solo con evidencia) / por_declarar / en_curso / sin_periodo.
+             * @description Los 12 meses con {anio, mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento, postergado_iva, monto_postergado, vencimiento_postergado}. estado ∈ declarado / sin_dato (vencido pero sin sincronizar → NO se afirma 'no declaró') / no_declarado_vencido (solo con evidencia) / por_declarar / en_curso / sin_periodo. postergado_iva (bool) = el F29 del mes declaró el código 755 ('Postergacion pago IVA') con monto > 0 → el IVA NO está incluido en `saldo` (código 91) y se debe aparte; monto_postergado (int|null) = ese monto en CLP (null = el F29 del mes no se parseó, NO SE SABE; 0 = parseado sin postergación); vencimiento_postergado (ISO YYYY-MM-DD|null) = día 20 del mes M+3 corrido al lunes si cae fin de semana, solo cuando postergado_iva.
              */
             meses?: {
                 [key: string]: unknown;
@@ -7927,6 +7939,11 @@ export interface components {
             remanente?: number | null;
             /** Total A Pagar */
             total_a_pagar?: number | null;
+            /**
+             * Postergacion Iva
+             * @description Código 755 del F29 ('Postergacion pago IVA'): monto de IVA cuyo pago se postergó (CLP). None = el F29 del mes no se parseó (NO SE SABE — dato faltante ≠ 'no postergó'); 0 = parseado sin postergación; >0 = monto diferido (vence el día 20 del mes M+3). No está incluido en total_a_pagar (código 91).
+             */
+            postergacion_iva?: number | null;
         } & {
             [key: string]: unknown;
         };
@@ -7992,6 +8009,11 @@ export interface components {
             remanente?: number | null;
             /** Total A Pagar */
             total_a_pagar?: number | null;
+            /**
+             * Postergacion Iva
+             * @description Código 755 del F29 ('Postergacion pago IVA'): monto de IVA cuyo pago se postergó (CLP). Dato explícito del formulario, NO derivado. Cuando > 0, el código 89 (IMP. DETERM. IVA) es 0 y total_a_pagar (código 91) solo trae PPM + retenciones — el IVA sigue debiéndose, con vencimiento diferido al día 20 del mes M+3. None = el código no aparece en el PDF (no postergó, o no se parseó).
+             */
+            postergacion_iva?: number | null;
             /** Code */
             code?: string | null;
             /** Message */

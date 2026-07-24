@@ -14,6 +14,7 @@ import {
   useApplyRules,
   useCanonicalCategories,
   type BankMovement,
+  type ClassifyMovementRequest,
 } from "@/lib/api/treasury";
 import { ApiError } from "@/lib/api/errors";
 import { BankAccountFilter, currencyByAccount } from "@/components/treasury/bank-account-filter";
@@ -284,9 +285,8 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           movementId: ids[i]!,
           body: {
             management_account_id: bulkAccountId,
-            canonical_category: (bulkCanonical || null) as
-              | BankMovement["canonical_category"]
-              | null,
+            canonical_category: (bulkCanonical ||
+              null) as ClassifyMovementRequest["canonical_category"],
             notes: null,
             create_rule: false,
           },
@@ -353,7 +353,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
         body: {
           management_account_id: draft.managementAccountId,
           canonical_category:
-            (draft.canonicalCategory as BankMovement["canonical_category"]) ?? null,
+            (draft.canonicalCategory as ClassifyMovementRequest["canonical_category"]) ?? null,
           notes: draft.notes || null,
           create_rule: createRule,
         },
