@@ -24,9 +24,10 @@ test.describe("Flujo: panel F29 (/pagar/impuestos/f29)", () => {
     // Fila de un mes.
     await expect(grid.getByRole("rowheader", { name: "Enero" })).toBeVisible();
 
-    // Clic en un mes declarado → abre el detalle.
+    // Clic en un mes declarado → abre el detalle. El accessible name puede incluir el total a pagar
+    // ("Declarado · Total a pagar $X — ver detalle"), así que matcheamos de forma tolerante.
     await grid
-      .getByRole("button", { name: /Declarado — ver detalle/ })
+      .getByRole("button", { name: /Declarado.* — ver detalle/ })
       .first()
       .click();
 
