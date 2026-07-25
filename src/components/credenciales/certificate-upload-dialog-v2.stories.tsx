@@ -9,7 +9,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Upload de certificado digital .pfx — Opción A (multi-holder, `POST /api/admin/certificates`). Acepta password, password_hint opcional y rut_holder opcional (si se omite, el backend intenta extraerlo del subject del certificado).",
+          "Upload de certificado digital .pfx — Opción A (multi-holder, `POST /api/admin/certificates`). Acepta password y rut_holder OBLIGATORIO (el backend no siempre puede extraerlo del subject; el RUT se normaliza a `cuerpo-DV` sin puntos antes de enviar).",
       },
     },
     layout: "centered",
