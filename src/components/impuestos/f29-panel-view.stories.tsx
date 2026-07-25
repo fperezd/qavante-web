@@ -49,6 +49,7 @@ const impuesto = http.get("*/api/sii/f29/impuesto", ({ request }) => {
     fuente_impuesto_trabajadores: manual != null ? "manual" : "no_disponible",
     iva_determinado: 400_000,
     iva_postergable: 400_000,
+    iva_postergado: 0,
     total_con_iva: 400_000 + 150_000 + imp,
     total_sin_iva: 150_000 + imp,
   });

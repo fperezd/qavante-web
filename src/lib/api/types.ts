@@ -7899,6 +7899,12 @@ export interface components {
              */
             iva_postergable: number;
             /**
+             * Iva Postergado
+             * @description Código 755 del F29 declarado: el IVA que la declaración YA postergó (0 si no postergó o el período no está declarado). Con esto > 0 el `total_a_pagar` ya EXCLUYE ese IVA → mostrar 'IVA postergado: $X', no 'no hay IVA postergable'.
+             * @default 0
+             */
+            iva_postergado: number;
+            /**
              * Total Con Iva
              * @description Pagar todo (IVA + PPM + trabajadores).
              * @default 0
