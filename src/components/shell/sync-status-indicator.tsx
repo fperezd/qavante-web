@@ -56,6 +56,15 @@ export function SyncStatusIndicator() {
 
   const sources = query.data.sources ?? [];
   const agg = aggregateSyncStatus(sources);
+  /* El dropdown muestra solo lo CONECTADO (ok/stale/error, lo que realmente alimenta datos), ordenado por
+     severidad. Las "unavailable" (Fase 2, no implementadas) se ocultan; las "missing" (sin conectar) se
+     resumen en una línea sutil al pie → el error real (ej. tu banco caído) deja de estar enterrado entre
+     8 fuentes fantasma (auditoría UX F-03/F-07). */
+  const SEV: Record<string, number> = { error: 0, stale: 1, ok: 2 };
+  const connected = sources
+    .filter((s) => s.state === "error" || s.state === "stale" || s.state === "ok")
+    .sort((a, b) => (SEV[a.state] ?? 3) - (SEV[b.state] ?? 3));
+  const sinConectar = sources.filter((s) => s.state === "missing").length;
 
   return (
     <div ref={ref} className="relative hidden md:block">
@@ -97,14 +106,19 @@ export function SyncStatusIndicator() {
             </button>
           </div>
 
-          {sources.length === 0 ? (
+          {connected.length === 0 ? (
             <p className="px-1 py-2 text-sm text-neutral-mid">No hay fuentes conectadas todavía.</p>
           ) : (
             <ul className="max-h-80 space-y-1 overflow-y-auto">
-              {sources.map((s) => (
+              {connected.map((s) => (
                 <SourceRow key={s.source} source={s} />
               ))}
             </ul>
+          )}
+          {sinConectar > 0 && (
+            <p className="border-t border-border/60 px-1 pt-2 text-xs text-neutral-mid">
+              {sinConectar} {sinConectar === 1 ? "fuente sin conectar" : "fuentes sin conectar"}.
+            </p>
           )}
         </div>
       )}

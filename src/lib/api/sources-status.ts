@@ -53,9 +53,17 @@ export function aggregateSyncStatus(sources: SourceStatus[]): SyncAggregate {
   let problemCount = 0;
 
   for (const s of sources) {
-    if (s.state === "error") level = "error";
-    else if (s.state !== "ok" && level !== "error") level = "warning";
-    if (s.state !== "ok") problemCount += 1;
+    /* "missing" (sin conectar) y "unavailable" (no implementada en Fase 1) NO son errores del dueño:
+       no deben pintar el header rojo/ámbar. Solo lo CONECTADO que falla ("error") o quedó viejo
+       ("stale") cuenta. Antes, cualquier no-ok metía "warning" → el header vivía en alarma por 8
+       fuentes de Fase 2 que el tenant nunca va a conectar (auditoría UX F-03). */
+    if (s.state === "error") {
+      level = "error";
+      problemCount += 1;
+    } else if (s.state === "stale") {
+      if (level !== "error") level = "warning";
+      problemCount += 1;
+    }
     if (s.last_sync && (!lastSync || s.last_sync > lastSync)) lastSync = s.last_sync;
   }
 
