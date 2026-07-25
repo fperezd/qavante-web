@@ -17,6 +17,7 @@
 
 import type { AccountsReceivableResponse, TopDebtor } from "@/lib/api/cobranza";
 import type { PreferencesBlob } from "@/lib/api/preferences";
+import type { DocMaestro } from "@/components/terminos/terminos-pago";
 import { normalizeRut } from "@/lib/validators/rut";
 import { formatClp } from "@/lib/formatters/clp";
 import { parseAmount, sortByUrgency, shareOfTotal } from "../cobranza-format";
@@ -147,6 +148,63 @@ export function withoutGestionado(blob: PreferencesBlob | undefined, rut: string
   return { ...(blob ?? {}), [GESTIONADO_KEY]: cur };
 }
 
+/* ── Gestionado POR DOCUMENTO (factura) ────────────────────────────────────────
+ * Paralelo al gestionado por deudor, pero granular: cada factura se puede marcar
+ * gestionada aparte (mapa `rut:folio` → ISO). Independiente del gestionado del
+ * deudor (marcar el cliente NO marca sus facturas, ni al revés). */
+
+export const GESTIONADO_DOCS_KEY = "cobranza_gestionado_docs";
+
+/** Clave estable de un documento para el gestionado: `rutNormalizado:folio`. */
+export function docGestionadoKey(rut: string, folio: number | string | null | undefined): string {
+  return `${normalizeRut(rut)}:${folio ?? ""}`;
+}
+
+/** Lee el mapa de facturas gestionadas del blob (defensivo, igual que `readGestionado`). */
+export function readGestionadoDocs(blob: PreferencesBlob | undefined): GestionadoMap {
+  const v = blob?.[GESTIONADO_DOCS_KEY];
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const out: GestionadoMap = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === "string") out[k] = val;
+  }
+  return out;
+}
+
+/** ¿Esta factura (rut+folio) está marcada gestionada? */
+export function isGestionadoDoc(
+  map: GestionadoMap,
+  rut: string,
+  folio: number | string | null | undefined,
+): boolean {
+  return typeof map[docGestionadoKey(rut, folio)] === "string";
+}
+
+/** Blob COMPLETO con la factura marcada gestionada en `isoDate` (reemplaza, no mergea). */
+export function withGestionadoDoc(
+  blob: PreferencesBlob | undefined,
+  rut: string,
+  folio: number | string | null | undefined,
+  isoDate: string,
+): PreferencesBlob {
+  const cur = readGestionadoDocs(blob);
+  return {
+    ...(blob ?? {}),
+    [GESTIONADO_DOCS_KEY]: { ...cur, [docGestionadoKey(rut, folio)]: isoDate },
+  };
+}
+
+/** Blob COMPLETO con la factura desmarcada (deshacer). */
+export function withoutGestionadoDoc(
+  blob: PreferencesBlob | undefined,
+  rut: string,
+  folio: number | string | null | undefined,
+): PreferencesBlob {
+  const cur = { ...readGestionadoDocs(blob) };
+  delete cur[docGestionadoKey(rut, folio)];
+  return { ...(blob ?? {}), [GESTIONADO_DOCS_KEY]: cur };
+}
+
 /** Orden de la lista de deudores para el gerente: primero los PENDIENTES (por
  *  urgencia si hay mora, si no por tamaño), y al fondo los ya gestionados
  *  (preservando su orden relativo). PURO — no muta la entrada. */
@@ -159,4 +217,17 @@ export function sortDebtors(
   const pend = base.filter((d) => !isGestionado(gestionado, d.rut));
   const done = base.filter((d) => isGestionado(gestionado, d.rut));
   return [...pend, ...done];
+}
+
+/** Peor mora del deudor: los días del documento MÁS vencido (el `diasParaVencer` más negativo del
+ *  maestro). Ignora NC, pagados y sin fecha. Devuelve un entero POSITIVO = días de mora del más
+ *  atrasado, o `null` si ninguno está vencido. Se muestra en la fila colapsada ("Vencida hace N
+ *  días") como señal de mora de un vistazo, sin expandir. PURO. */
+export function peorMoraDias(docs: ReadonlyArray<DocMaestro>): number | null {
+  let peor: number | null = null; // el `diasParaVencer` más negativo
+  for (const d of docs) {
+    if (d.esNotaCredito || d.pagado || d.diasParaVencer == null) continue;
+    if (d.diasParaVencer < 0 && (peor === null || d.diasParaVencer < peor)) peor = d.diasParaVencer;
+  }
+  return peor === null ? null : -peor;
 }

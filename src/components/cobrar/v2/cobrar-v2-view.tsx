@@ -12,6 +12,7 @@ import { formatDate, formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
 import type { AgingBar } from "../cobranza-format";
 import { CobranzaAcciones } from "./cobranza-acciones";
+import { peorMoraDias, isGestionadoDoc, type GestionadoMap } from "./cobrar-v2-map";
 import type { DocMaestro } from "@/components/terminos/terminos-pago";
 
 /* CobrarV2View — el armazón presentacional de Cobrar v2 (rediseño 2026-07-19). El
@@ -235,6 +236,9 @@ export interface DeudorRowProps {
   isOpen: boolean;
   onToggleOpen: () => void;
   docs: DocMaestro[];
+  /** Facturas gestionadas (mapa `rut:folio`→ISO) + toggle por documento. */
+  gestionadoDocs: GestionadoMap;
+  onToggleDoc: (folio: number | string | null) => void;
 }
 
 export function DeudorRow(props: DeudorRowProps) {
@@ -254,7 +258,12 @@ export function DeudorRow(props: DeudorRowProps) {
     isOpen,
     onToggleOpen,
     docs,
+    gestionadoDocs,
+    onToggleDoc,
   } = props;
+
+  // Mora "de un vistazo" (sin expandir): los días del documento más vencido.
+  const mora = peorMoraDias(docs);
 
   return (
     <li className={cn("py-1", gestionado != null && "opacity-70")}>
@@ -294,7 +303,10 @@ export function DeudorRow(props: DeudorRowProps) {
             </p>
           )}
           {overdue > 0 && (
-            <p className="text-xs font-medium text-danger-500">{formatClp(overdue)} vencido</p>
+            <p className="text-xs font-medium text-danger-500">
+              {formatClp(overdue)} vencido
+              {mora != null && ` · hace ${mora} ${mora === 1 ? "día" : "días"}`}
+            </p>
           )}
         </div>
       </div>
@@ -312,7 +324,14 @@ export function DeudorRow(props: DeudorRowProps) {
         />
       </div>
 
-      {isOpen && <DeudorDocsPanel docs={docs} />}
+      {isOpen && (
+        <DeudorDocsPanel
+          docs={docs}
+          rut={rut}
+          gestionadoDocs={gestionadoDocs}
+          onToggleDoc={onToggleDoc}
+        />
+      )}
     </li>
   );
 }
@@ -320,13 +339,23 @@ export function DeudorRow(props: DeudorRowProps) {
 /* Documentos del deudor (del maestro): folio + emisión + vencimiento DERIVADO (emisión + término de
    pago) + días de mora vs hoy + monto. Las NC se muestran restando (monto negativo), sin semántica de
    vencimiento. Es la misma fuente que el "vencido" de la fila → los números cuadran. */
-function DeudorDocsPanel({ docs }: { docs: DocMaestro[] }) {
+function DeudorDocsPanel({
+  docs,
+  rut,
+  gestionadoDocs,
+  onToggleDoc,
+}: {
+  docs: DocMaestro[];
+  rut: string;
+  gestionadoDocs: GestionadoMap;
+  onToggleDoc: (folio: number | string | null) => void;
+}) {
   if (docs.length === 0) {
     return <p className="py-2 pl-6 text-xs text-neutral-mid">No hay documentos para mostrar.</p>;
   }
   return (
     <div className="mt-1 overflow-x-auto pl-6">
-      <table className="w-full min-w-[440px] text-xs">
+      <table className="w-full min-w-[500px] text-xs">
         <thead>
           <tr className="text-left text-[11px] uppercase tracking-wider text-neutral-mid">
             <th scope="col" className="py-1 pr-3 font-semibold">
@@ -341,37 +370,70 @@ function DeudorDocsPanel({ docs }: { docs: DocMaestro[] }) {
             <th scope="col" className="py-1 pr-3 font-semibold">
               Días
             </th>
-            <th scope="col" className="py-1 text-right font-semibold">
+            <th scope="col" className="py-1 pr-3 text-right font-semibold">
               Monto
+            </th>
+            <th scope="col" className="py-1 text-right font-semibold">
+              <span className="sr-only">Gestión</span>
             </th>
           </tr>
         </thead>
         <tbody>
-          {docs.map((doc, i) => (
-            <tr key={`${doc.folio}-${i}`} className="border-t border-border/40">
-              <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">
-                {doc.esNotaCredito ? "NC " : ""}
-                {doc.folio ?? "—"}
-              </td>
-              <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
-                {doc.fechaEmision ? formatDate(doc.fechaEmision) : "—"}
-              </td>
-              <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
-                {doc.vencimiento ? formatDate(doc.vencimiento) : "—"}
-              </td>
-              <td className="py-1.5 pr-3 tabular-nums">
-                <DiasVencimiento doc={doc} />
-              </td>
-              <td
-                className={cn(
-                  "py-1.5 text-right tabular-nums",
-                  doc.esNotaCredito ? "text-neutral-mid" : "text-neutral-dark",
-                )}
+          {docs.map((doc, i) => {
+            const gestionada = !doc.esNotaCredito && isGestionadoDoc(gestionadoDocs, rut, doc.folio);
+            return (
+              <tr
+                key={`${doc.folio}-${i}`}
+                className={cn("border-t border-border/40", gestionada && "opacity-55")}
               >
-                {formatClp(doc.monto)}
-              </td>
-            </tr>
-          ))}
+                <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">
+                  {doc.esNotaCredito ? "NC " : ""}
+                  {doc.folio ?? "—"}
+                </td>
+                <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
+                  {doc.fechaEmision ? formatDate(doc.fechaEmision) : "—"}
+                </td>
+                <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
+                  {doc.vencimiento ? formatDate(doc.vencimiento) : "—"}
+                </td>
+                <td className="py-1.5 pr-3 tabular-nums">
+                  {gestionada ? (
+                    <span className="text-neutral-mid">Gestionada</span>
+                  ) : (
+                    <DiasVencimiento doc={doc} />
+                  )}
+                </td>
+                <td
+                  className={cn(
+                    "py-1.5 pr-3 text-right tabular-nums",
+                    doc.esNotaCredito ? "text-neutral-mid" : "text-neutral-dark",
+                  )}
+                >
+                  {formatClp(doc.monto)}
+                </td>
+                <td className="py-1.5 text-right">
+                  {/* Las NC no se gestionan (restan, no se cobran). */}
+                  {!doc.esNotaCredito && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleDoc(doc.folio)}
+                      aria-pressed={gestionada}
+                      title={gestionada ? "Reabrir esta factura" : "Marcar esta factura gestionada"}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+                        gestionada
+                          ? "text-success-700 hover:bg-success-500/10"
+                          : "text-neutral-mid hover:bg-surface-muted hover:text-neutral-dark",
+                      )}
+                    >
+                      <CircleCheck className="size-3.5" aria-hidden="true" />
+                      {gestionada ? "Gestionada" : "Marcar"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
