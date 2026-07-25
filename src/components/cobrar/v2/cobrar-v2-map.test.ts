@@ -10,9 +10,31 @@ import {
   withGestionado,
   withoutGestionado,
   sortDebtors,
+  peorMoraDias,
   GESTIONADO_KEY,
 } from "./cobrar-v2-map";
 import type { AccountsReceivableResponse, TopDebtor } from "@/lib/api/cobranza";
+import type { DocMaestro } from "@/components/terminos/terminos-pago";
+
+/* Solo importan los campos que lee `peorMoraDias`; el resto es relleno mínimo. */
+function doc(over: Partial<DocMaestro>): DocMaestro {
+  return {
+    folio: 1,
+    fecha: "",
+    fechaEmision: null,
+    monto: 0,
+    vencimiento: null,
+    estado: "vigente",
+    diasParaVencer: null,
+    pagado: false,
+    tipoDoc: 33,
+    esNotaCredito: false,
+    refFolio: null,
+    anulacion: null,
+    neto: null,
+    ...over,
+  };
+}
 
 const debtor = (over: Partial<TopDebtor> & { name: string; total: string }): TopDebtor => ({
   rut: "11111111-1",
@@ -145,5 +167,36 @@ describe("sortDebtors", () => {
   it("sin gestionados = orden por tamaño (concentración) intacto", () => {
     const out = sortDebtors([CORREOS, KAUFMANN, DIVEIMPORT], {});
     expect(out.map((d) => d.name)).toEqual([KAUFMANN.name, DIVEIMPORT.name, CORREOS.name]);
+  });
+});
+
+describe("peorMoraDias", () => {
+  it("devuelve los días (positivos) del documento MÁS vencido", () => {
+    expect(
+      peorMoraDias([
+        doc({ diasParaVencer: -10 }),
+        doc({ diasParaVencer: -44 }), // el más atrasado
+        doc({ diasParaVencer: 5 }),
+      ]),
+    ).toBe(44);
+  });
+
+  it("null si ninguno está vencido (todos por vencer o vigentes)", () => {
+    expect(peorMoraDias([doc({ diasParaVencer: 3 }), doc({ diasParaVencer: 20 })])).toBe(null);
+  });
+
+  it("ignora NC, pagados y sin fecha de vencimiento", () => {
+    expect(
+      peorMoraDias([
+        doc({ diasParaVencer: -99, esNotaCredito: true }), // NC vieja: no cuenta
+        doc({ diasParaVencer: -80, pagado: true }), // ya pagada: no cuenta
+        doc({ diasParaVencer: null }), // sin fecha: no cuenta
+        doc({ diasParaVencer: -12 }), // única real
+      ]),
+    ).toBe(12);
+  });
+
+  it("lista vacía → null", () => {
+    expect(peorMoraDias([])).toBe(null);
   });
 });

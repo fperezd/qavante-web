@@ -17,6 +17,7 @@
 
 import type { AccountsReceivableResponse, TopDebtor } from "@/lib/api/cobranza";
 import type { PreferencesBlob } from "@/lib/api/preferences";
+import type { DocMaestro } from "@/components/terminos/terminos-pago";
 import { normalizeRut } from "@/lib/validators/rut";
 import { formatClp } from "@/lib/formatters/clp";
 import { parseAmount, sortByUrgency, shareOfTotal } from "../cobranza-format";
@@ -159,4 +160,17 @@ export function sortDebtors(
   const pend = base.filter((d) => !isGestionado(gestionado, d.rut));
   const done = base.filter((d) => isGestionado(gestionado, d.rut));
   return [...pend, ...done];
+}
+
+/** Peor mora del deudor: los días del documento MÁS vencido (el `diasParaVencer` más negativo del
+ *  maestro). Ignora NC, pagados y sin fecha. Devuelve un entero POSITIVO = días de mora del más
+ *  atrasado, o `null` si ninguno está vencido. Se muestra en la fila colapsada ("Vencida hace N
+ *  días") como señal de mora de un vistazo, sin expandir. PURO. */
+export function peorMoraDias(docs: ReadonlyArray<DocMaestro>): number | null {
+  let peor: number | null = null; // el `diasParaVencer` más negativo
+  for (const d of docs) {
+    if (d.esNotaCredito || d.pagado || d.diasParaVencer == null) continue;
+    if (d.diasParaVencer < 0 && (peor === null || d.diasParaVencer < peor)) peor = d.diasParaVencer;
+  }
+  return peor === null ? null : -peor;
 }

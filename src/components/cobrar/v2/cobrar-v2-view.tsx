@@ -12,6 +12,7 @@ import { formatDate, formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
 import type { AgingBar } from "../cobranza-format";
 import { CobranzaAcciones } from "./cobranza-acciones";
+import { peorMoraDias } from "./cobrar-v2-map";
 import type { DocMaestro } from "@/components/terminos/terminos-pago";
 
 /* CobrarV2View — el armazón presentacional de Cobrar v2 (rediseño 2026-07-19). El
@@ -256,6 +257,9 @@ export function DeudorRow(props: DeudorRowProps) {
     docs,
   } = props;
 
+  // Mora "de un vistazo" (sin expandir): los días del documento más vencido.
+  const mora = peorMoraDias(docs);
+
   return (
     <li className={cn("py-1", gestionado != null && "opacity-70")}>
       <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
@@ -294,7 +298,10 @@ export function DeudorRow(props: DeudorRowProps) {
             </p>
           )}
           {overdue > 0 && (
-            <p className="text-xs font-medium text-danger-500">{formatClp(overdue)} vencido</p>
+            <p className="text-xs font-medium text-danger-500">
+              {formatClp(overdue)} vencido
+              {mora != null && ` · hace ${mora} ${mora === 1 ? "día" : "días"}`}
+            </p>
           )}
         </div>
       </div>
