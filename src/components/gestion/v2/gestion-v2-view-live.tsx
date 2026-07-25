@@ -199,10 +199,12 @@ const CONF_VARIANT: Record<OperationalResultResponse["confidence"], "success" | 
   low: "danger",
 };
 
-/** Pie de confianza + fuentes faltantes (§13: no se asume 0). */
+/** Pie de confianza + fuentes faltantes (§13: no se asume 0). Va como footer con label y separador
+ *  para que califique al resultado con contexto — antes era un chip suelto huérfano (auditoría UX F-09). */
 function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-mid">
+    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 text-xs text-neutral-mid">
+      <span className="font-medium text-neutral-dark">Confianza de este resultado:</span>
       <QavanteBadge variant={CONF_VARIANT[mes.confidence]}>{CONF_LABEL[mes.confidence]}</QavanteBadge>
       {(mes.missing_sources ?? []).length > 0 && (
         <span className="inline-flex items-center gap-1">
