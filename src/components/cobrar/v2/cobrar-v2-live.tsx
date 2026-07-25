@@ -17,12 +17,15 @@ import {
   isSyncPending,
 } from "@/components/treasury/sync-pending-state";
 import { normalizeRut } from "@/lib/validators/rut";
-import { defaultRange } from "@/lib/period/period-range";
 import { formatClp } from "@/lib/formatters/clp";
 import { parseAmount, agingBars } from "../cobranza-format";
-import { useDebtorInvoices } from "../debtor-invoices";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
-import { readTerminos, readPagados, buildMaestro } from "@/components/terminos/terminos-pago";
+import {
+  readTerminos,
+  readPagados,
+  buildMaestro,
+  type DocMaestro,
+} from "@/components/terminos/terminos-pago";
 import { CobrarHero } from "./cobrar-hero";
 import { CobranzaAcciones } from "./cobranza-acciones";
 import { CobrarV2View, ResumenCobranza, DeudorRow } from "./cobrar-v2-view";
@@ -89,9 +92,6 @@ function Assembled({
 }) {
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
-  const range = React.useMemo(() => defaultRange(), []);
-  const [everOpened, setEverOpened] = React.useState(false);
-  const invoices = useDebtorInvoices(range, siiEnabled && everOpened);
 
   const gestionadoMap = React.useMemo(() => readGestionado(prefs.data?.preferences), [prefs.data]);
   // UNIFICACIÓN de las fuentes de cobranza: la fuente primaria es el RCV del año (la MISMA
@@ -107,6 +107,14 @@ function Assembled({
     return buildMaestro(ventasDocs.docs, terminos, "ventas", new Date(), pagadosMap);
   }, [ventasDocs.docs, prefs.data]);
   const useRcv = cps.length > 0;
+  /* Docs por RUT para el panel expandido: los `DocMaestro` del maestro (folio + emisión + vencimiento
+     DERIVADO + días de mora). Misma fuente que el vencido de la fila → los números cuadran, y sin un
+     fetch aparte (antes era `useDebtorInvoices`, que traía RcvDoc crudo sin vencimiento). */
+  const docsByRut = React.useMemo(() => {
+    const m = new Map<string, DocMaestro[]>();
+    for (const cp of cps) m.set(normalizeRut(cp.rut), cp.docs);
+    return m;
+  }, [cps]);
   const totalConciliado = React.useMemo(
     () => cps.reduce((s, cp) => s + Math.max(0, cp.pagado), 0),
     [cps],
@@ -274,14 +282,8 @@ function Assembled({
             onToggleGestionado={() => toggleGestionado(d)}
             gestionadoPending={updatePrefs.isPending}
             isOpen={openRut === rut}
-            onToggleOpen={() => {
-              setEverOpened(true);
-              setOpenRut(openRut === rut ? null : rut);
-            }}
-            docs={invoices.byRut.get(rut) ?? []}
-            invoicesLoading={invoices.isFetching}
-            invoicesError={invoices.isError}
-            siiEnabled={siiEnabled}
+            onToggleOpen={() => setOpenRut(openRut === rut ? null : rut)}
+            docs={docsByRut.get(rut) ?? []}
           />
         );
       })}

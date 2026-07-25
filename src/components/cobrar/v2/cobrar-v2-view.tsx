@@ -8,12 +8,11 @@ import { AmountCountUp } from "@/components/qavante/amount-count-up";
 import { InfoHint } from "@/components/ui/info-hint";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
-import { formatDateLike } from "@/lib/formatters/date";
+import { formatDate, formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
 import type { AgingBar } from "../cobranza-format";
 import { CobranzaAcciones } from "./cobranza-acciones";
-import { DebtorInvoicesPanel } from "../cobrar-view";
-import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
+import type { DocMaestro } from "@/components/terminos/terminos-pago";
 
 /* CobrarV2View — el armazón presentacional de Cobrar v2 (rediseño 2026-07-19). El
    contenedor (`cobrar-v2-live`) le pasa el hero ya armado + la lista de deudores como
@@ -231,13 +230,11 @@ export interface DeudorRowProps {
   mailtoHref: string;
   onToggleGestionado: () => void;
   gestionadoPending?: boolean;
-  /** Expansión a facturas (Libro de Ventas). */
+  /** Expansión a los documentos del deudor. Vienen del MAESTRO (mismo cálculo que el vencido de
+   *  arriba) → cada uno con su vencimiento DERIVADO y los días de mora. */
   isOpen: boolean;
   onToggleOpen: () => void;
-  docs: RcvDoc[];
-  invoicesLoading: boolean;
-  invoicesError: boolean;
-  siiEnabled: boolean;
+  docs: DocMaestro[];
 }
 
 export function DeudorRow(props: DeudorRowProps) {
@@ -257,9 +254,6 @@ export function DeudorRow(props: DeudorRowProps) {
     isOpen,
     onToggleOpen,
     docs,
-    invoicesLoading,
-    invoicesError,
-    siiEnabled,
   } = props;
 
   return (
@@ -318,14 +312,80 @@ export function DeudorRow(props: DeudorRowProps) {
         />
       </div>
 
-      {isOpen && (
-        <DebtorInvoicesPanel
-          docs={docs}
-          loading={invoicesLoading}
-          error={invoicesError}
-          siiEnabled={siiEnabled}
-        />
-      )}
+      {isOpen && <DeudorDocsPanel docs={docs} />}
     </li>
   );
+}
+
+/* Documentos del deudor (del maestro): folio + emisión + vencimiento DERIVADO (emisión + término de
+   pago) + días de mora vs hoy + monto. Las NC se muestran restando (monto negativo), sin semántica de
+   vencimiento. Es la misma fuente que el "vencido" de la fila → los números cuadran. */
+function DeudorDocsPanel({ docs }: { docs: DocMaestro[] }) {
+  if (docs.length === 0) {
+    return <p className="py-2 pl-6 text-xs text-neutral-mid">No hay documentos para mostrar.</p>;
+  }
+  return (
+    <div className="mt-1 overflow-x-auto pl-6">
+      <table className="w-full min-w-[440px] text-xs">
+        <thead>
+          <tr className="text-left text-[11px] uppercase tracking-wider text-neutral-mid">
+            <th scope="col" className="py-1 pr-3 font-semibold">
+              Folio
+            </th>
+            <th scope="col" className="py-1 pr-3 font-semibold">
+              Emisión
+            </th>
+            <th scope="col" className="py-1 pr-3 font-semibold">
+              Vence
+            </th>
+            <th scope="col" className="py-1 pr-3 font-semibold">
+              Días
+            </th>
+            <th scope="col" className="py-1 text-right font-semibold">
+              Monto
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {docs.map((doc, i) => (
+            <tr key={`${doc.folio}-${i}`} className="border-t border-border/40">
+              <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">
+                {doc.esNotaCredito ? "NC " : ""}
+                {doc.folio ?? "—"}
+              </td>
+              <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
+                {doc.fechaEmision ? formatDate(doc.fechaEmision) : "—"}
+              </td>
+              <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
+                {doc.vencimiento ? formatDate(doc.vencimiento) : "—"}
+              </td>
+              <td className="py-1.5 pr-3 tabular-nums">
+                <DiasVencimiento doc={doc} />
+              </td>
+              <td
+                className={cn(
+                  "py-1.5 text-right tabular-nums",
+                  doc.esNotaCredito ? "text-neutral-mid" : "text-neutral-dark",
+                )}
+              >
+                {formatClp(doc.monto)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* Días de mora del documento (negativo del maestro = vencida hace N; positivo = vence en N). Las NC y
+   los docs sin fecha no tienen vencimiento → guion. */
+function DiasVencimiento({ doc }: { doc: DocMaestro }) {
+  if (doc.esNotaCredito || doc.diasParaVencer == null) {
+    return <span className="text-neutral-mid">—</span>;
+  }
+  const d = doc.diasParaVencer;
+  if (d < 0) return <span className="font-medium text-danger-500">Vencida hace {-d} d</span>;
+  if (d === 0) return <span className="font-medium text-warning-700">Vence hoy</span>;
+  return <span className="text-neutral-mid">En {d} d</span>;
 }

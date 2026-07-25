@@ -23,7 +23,10 @@ test.describe("Flujo: Cobrar v2 unificado (/cobrar)", () => {
     await expect(page.getByText("A quién cobrarle")).toBeVisible();
   });
 
-  test("un deudor expande → drill-down a sus facturas", async ({ page, context }) => {
+  test("un deudor expande → drill-down a sus documentos (folio/emisión/vencimiento/días)", async ({
+    page,
+    context,
+  }) => {
     await loginAs(context, "owner");
     await page.goto("/cobrar");
 
@@ -32,9 +35,9 @@ test.describe("Flujo: Cobrar v2 unificado (/cobrar)", () => {
     await expect(debtor).toBeVisible();
     await debtor.click();
     await expect(debtor).toHaveAttribute("aria-expanded", "true");
-    await expect(
-      page.getByText(/Cargando facturas|Sin facturas de este cliente|mora por factura/i).first(),
-    ).toBeVisible();
+    // El panel expandido lista los documentos del maestro con su vencimiento DERIVADO y días de mora.
+    await expect(page.getByRole("columnheader", { name: "Vence" }).first()).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Días" }).first()).toBeVisible();
   });
 
   test("marcar gestionado persiste y aparece el chip", async ({ page, context }) => {
