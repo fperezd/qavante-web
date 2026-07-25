@@ -11,6 +11,10 @@ import {
   withoutGestionado,
   sortDebtors,
   peorMoraDias,
+  readGestionadoDocs,
+  isGestionadoDoc,
+  withGestionadoDoc,
+  withoutGestionadoDoc,
   GESTIONADO_KEY,
 } from "./cobrar-v2-map";
 import type { AccountsReceivableResponse, TopDebtor } from "@/lib/api/cobranza";
@@ -198,5 +202,29 @@ describe("peorMoraDias", () => {
 
   it("lista vacía → null", () => {
     expect(peorMoraDias([])).toBe(null);
+  });
+});
+
+describe("gestionado por documento (factura)", () => {
+  it("marca y detecta una factura por rut+folio; normaliza el RUT", () => {
+    const blob = withGestionadoDoc(undefined, "76.114.300-K", 421, "2026-07-25");
+    expect(isGestionadoDoc(readGestionadoDocs(blob), "76114300-K", 421)).toBe(true);
+    // Otro folio del mismo deudor NO está gestionado.
+    expect(isGestionadoDoc(readGestionadoDocs(blob), "76114300-K", 419)).toBe(false);
+  });
+
+  it("desmarca (withoutGestionadoDoc) sin tocar otras facturas", () => {
+    let blob = withGestionadoDoc(undefined, "1-9", 100, "2026-07-25");
+    blob = withGestionadoDoc(blob, "1-9", 200, "2026-07-25");
+    blob = withoutGestionadoDoc(blob, "1-9", 100);
+    const map = readGestionadoDocs(blob);
+    expect(isGestionadoDoc(map, "1-9", 100)).toBe(false);
+    expect(isGestionadoDoc(map, "1-9", 200)).toBe(true);
+  });
+
+  it("es independiente del gestionado por deudor (claves distintas)", () => {
+    const blob = withGestionadoDoc(undefined, "1-9", 100, "2026-07-25");
+    // El gestionado por deudor NO se ve afectado.
+    expect(isGestionado(readGestionado(blob), "1-9")).toBe(false);
   });
 });

@@ -38,6 +38,10 @@ import {
   isGestionado,
   withGestionado,
   withoutGestionado,
+  readGestionadoDocs,
+  isGestionadoDoc,
+  withGestionadoDoc,
+  withoutGestionadoDoc,
   sortDebtors,
   type PrioridadMode,
 } from "./cobrar-v2-map";
@@ -94,6 +98,10 @@ function Assembled({
   const updatePrefs = useUpdatePreferences();
 
   const gestionadoMap = React.useMemo(() => readGestionado(prefs.data?.preferences), [prefs.data]);
+  const gestionadoDocsMap = React.useMemo(
+    () => readGestionadoDocs(prefs.data?.preferences),
+    [prefs.data],
+  );
   // UNIFICACIÓN de las fuentes de cobranza: la fuente primaria es el RCV del año (la MISMA
   // base que "Clientes") — completo, por-documento, net de NC, con conciliado descontado y
   // el vencimiento DERIVADO del término. `accounts-receivable` queda como respaldo si el RCV
@@ -218,6 +226,23 @@ function Assembled({
     });
   };
 
+  /* Gestionado por FACTURA (granular): marca/desmarca un documento aparte del deudor. */
+  const toggleGestionadoDoc = (rut: string, folio: number | string | null) => {
+    if (!prefs.isSuccess) {
+      toast.error("No pudimos guardar", {
+        description: "No cargaron tus preferencias; recarga e intenta de nuevo.",
+      });
+      return;
+    }
+    const already = isGestionadoDoc(gestionadoDocsMap, rut, folio);
+    const blob = already
+      ? withoutGestionadoDoc(prefs.data?.preferences, rut, folio)
+      : withGestionadoDoc(prefs.data?.preferences, rut, folio, todayISO());
+    updatePrefs.mutate(blob, {
+      onError: () => toast.error("No pudimos guardar el cambio."),
+    });
+  };
+
   const hero = prioridad ? (
     <CobrarHero
       antetitulo={prioridad.mode === "urgencia" ? "Cóbrale primero a" : "Tu mayor cobranza"}
@@ -284,6 +309,8 @@ function Assembled({
             isOpen={openRut === rut}
             onToggleOpen={() => setOpenRut(openRut === rut ? null : rut)}
             docs={docsByRut.get(rut) ?? []}
+            gestionadoDocs={gestionadoDocsMap}
+            onToggleDoc={(folio) => toggleGestionadoDoc(d.rut, folio)}
           />
         );
       })}

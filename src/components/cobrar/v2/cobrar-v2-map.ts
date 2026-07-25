@@ -148,6 +148,63 @@ export function withoutGestionado(blob: PreferencesBlob | undefined, rut: string
   return { ...(blob ?? {}), [GESTIONADO_KEY]: cur };
 }
 
+/* ── Gestionado POR DOCUMENTO (factura) ────────────────────────────────────────
+ * Paralelo al gestionado por deudor, pero granular: cada factura se puede marcar
+ * gestionada aparte (mapa `rut:folio` → ISO). Independiente del gestionado del
+ * deudor (marcar el cliente NO marca sus facturas, ni al revés). */
+
+export const GESTIONADO_DOCS_KEY = "cobranza_gestionado_docs";
+
+/** Clave estable de un documento para el gestionado: `rutNormalizado:folio`. */
+export function docGestionadoKey(rut: string, folio: number | string | null | undefined): string {
+  return `${normalizeRut(rut)}:${folio ?? ""}`;
+}
+
+/** Lee el mapa de facturas gestionadas del blob (defensivo, igual que `readGestionado`). */
+export function readGestionadoDocs(blob: PreferencesBlob | undefined): GestionadoMap {
+  const v = blob?.[GESTIONADO_DOCS_KEY];
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const out: GestionadoMap = {};
+  for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof val === "string") out[k] = val;
+  }
+  return out;
+}
+
+/** ¿Esta factura (rut+folio) está marcada gestionada? */
+export function isGestionadoDoc(
+  map: GestionadoMap,
+  rut: string,
+  folio: number | string | null | undefined,
+): boolean {
+  return typeof map[docGestionadoKey(rut, folio)] === "string";
+}
+
+/** Blob COMPLETO con la factura marcada gestionada en `isoDate` (reemplaza, no mergea). */
+export function withGestionadoDoc(
+  blob: PreferencesBlob | undefined,
+  rut: string,
+  folio: number | string | null | undefined,
+  isoDate: string,
+): PreferencesBlob {
+  const cur = readGestionadoDocs(blob);
+  return {
+    ...(blob ?? {}),
+    [GESTIONADO_DOCS_KEY]: { ...cur, [docGestionadoKey(rut, folio)]: isoDate },
+  };
+}
+
+/** Blob COMPLETO con la factura desmarcada (deshacer). */
+export function withoutGestionadoDoc(
+  blob: PreferencesBlob | undefined,
+  rut: string,
+  folio: number | string | null | undefined,
+): PreferencesBlob {
+  const cur = { ...readGestionadoDocs(blob) };
+  delete cur[docGestionadoKey(rut, folio)];
+  return { ...(blob ?? {}), [GESTIONADO_DOCS_KEY]: cur };
+}
+
 /** Orden de la lista de deudores para el gerente: primero los PENDIENTES (por
  *  urgencia si hay mora, si no por tamaño), y al fondo los ya gestionados
  *  (preservando su orden relativo). PURO — no muta la entrada. */
