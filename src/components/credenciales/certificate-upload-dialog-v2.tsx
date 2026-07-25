@@ -15,17 +15,16 @@ import { isValidRut, normalizeRut } from "@/lib/validators/rut";
 
 /* Upload de certificado digital (.pfx) — Opción A multi-holder. La password
    del .pfx se usa para extraer metadata; NO se almacena (regla 6).
-   rut_holder es opcional: el backend intenta extraerlo del subject; si no
-   puede, lo exige (422). password_hint es ayuda visual del usuario. */
+   rut_holder es OBLIGATORIO: aunque el backend intente extraerlo del subject,
+   no siempre puede (certs sin el RUT en el serialNumber), así que lo pedimos
+   siempre en vez de fallar con un 422. */
 
 const schema = z.object({
   password: z.string().min(1, "Password del .pfx requerida"),
-  password_hint: z.string().max(200).optional().or(z.literal("")),
   rut_holder: z
     .string()
-    .optional()
-    .refine((v) => !v || isValidRut(v), "RUT inválido")
-    .or(z.literal("")),
+    .min(1, "Ingresa el RUT del titular del certificado")
+    .refine((v) => isValidRut(v), "RUT inválido"),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -69,13 +68,13 @@ export function CertificateUploadDialogV2({ open, onOpenChange }: Props) {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { password: "", password_hint: "", rut_holder: "" },
+    defaultValues: { password: "", rut_holder: "" },
     mode: "onBlur",
   });
 
   React.useEffect(() => {
     if (!open) {
-      reset({ password: "", password_hint: "", rut_holder: "" });
+      reset({ password: "", rut_holder: "" });
       setFile(null);
       setSubmitError(null);
       /* El diálogo se desmonta lazy (queda open=false montado) → la mutación
@@ -101,11 +100,9 @@ export function CertificateUploadDialogV2({ open, onOpenChange }: Props) {
       await upload.mutateAsync({
         pfx_base64,
         password: values.password,
-        password_hint: values.password_hint || null,
         // El backend exige el RUT en formato `cuerpo-DV` sin puntos ("12345678-9"); el input lo
-        // muestra con puntos ("5.031.807-9"). Sin normalizar, el backend devuelve 422. isValidRut
-        // ya lo aceptó con puntos en el schema; acá lo dejamos en el formato que espera el server.
-        rut_holder: values.rut_holder ? normalizeRut(values.rut_holder) : null,
+        // muestra con puntos ("5.031.807-9"). Sin normalizar, el backend devuelve 422.
+        rut_holder: normalizeRut(values.rut_holder),
       });
       onOpenChange(false);
     } catch (err) {
@@ -173,19 +170,8 @@ export function CertificateUploadDialogV2({ open, onOpenChange }: Props) {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="cert-hint" className="text-sm font-medium text-neutral-dark">
-                Pista para recordar la clave <span className="text-neutral-mid">(opcional)</span>
-              </label>
-              <QavanteInput
-                id="cert-hint"
-                placeholder="Ej: 'la del banco'"
-                {...register("password_hint")}
-              />
-            </div>
-
-            <div className="space-y-1">
               <label htmlFor="cert-rut" className="text-sm font-medium text-neutral-dark">
-                RUT del titular <span className="text-neutral-mid">(opcional)</span>
+                RUT del titular
               </label>
               <Controller
                 control={control}
@@ -194,7 +180,7 @@ export function CertificateUploadDialogV2({ open, onOpenChange }: Props) {
                   <QavanteInput
                     id="cert-rut"
                     variant="rut"
-                    placeholder="Si se omite, se intenta extraer del certificado"
+                    placeholder="Ej: 12.345.678-9"
                     value={field.value ?? ""}
                     onValueChange={field.onChange}
                     onBlur={field.onBlur}
