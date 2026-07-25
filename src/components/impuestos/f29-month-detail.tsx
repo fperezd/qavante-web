@@ -49,7 +49,9 @@ export function F29MonthDetail({
      ante error → si `giros` falla, no mostramos badge (estado base). */
   const giros = useSiiF29Giros(anio, mes);
   const girosData = giros.isError ? undefined : giros.data;
-  const postergado = girosData?.postergado_iva === true;
+  /* Postergado: primero el dato PERSISTIDO y autoritativo (`iva_postergado` del F29 declarado, #716);
+     cae a la Consulta de Giros en vivo como respaldo. Así el badge se ve aunque el SII esté caído. */
+  const postergado = (data?.iva_postergado ?? 0) > 0 || girosData?.postergado_iva === true;
   const pagado = girosData?.estado === "sin_giro" && data?.declarado === true;
 
   /* El PDF del F29 lo baja el backend del SII EN VIVO cada vez (medido: 1,9s a 22s, sin cache). Un
@@ -142,35 +144,46 @@ export function F29MonthDetail({
         <p className="text-sm text-neutral-mid">Sin datos para este período.</p>
       ) : (
         <div className="space-y-4">
-          {/* Dos opciones de pago lado a lado. */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <PayOption
-              tone="full"
-              label="Pagar todo"
-              amount={data.total_con_iva}
-              hint="Incluye el IVA determinado del período."
-            />
-            <PayOption
-              tone="defer"
-              label="Postergar el IVA"
-              amount={data.total_sin_iva}
-              hint={
-                data.iva_postergable > 0
-                  ? `Postergás ${formatClp(data.iva_postergable)} de IVA (vence en ~2 meses).`
-                  : "No hay IVA postergable este período."
-              }
-            />
-          </div>
-
-          {/* Si el SII ya registra el IVA postergado, lo mostramos como hecho. */}
-          {postergado && girosData && (
-            <div className="rounded-lg border border-warning-500/30 bg-warning-500/10 p-3 text-sm text-warning-700">
-              IVA ya postergado
-              {girosData.iva_postergado != null ? ` de ${formatClp(girosData.iva_postergado)}` : ""}
-              {girosData.vencimiento_postergado
-                ? ` · vence el ${formatDateLike(girosData.vencimiento_postergado)}`
-                : ""}
-              .
+          {data.iva_postergado > 0 ? (
+            /* El período YA postergó el IVA (código 755 del F29 declarado, dato persistido). La decisión
+               está tomada → NO mostramos las dos opciones (darían el mismo monto: el `total_a_pagar` ya
+               excluye el IVA). Un panel claro: el IVA diferido se debe APARTE. El vencimiento sale de la
+               Consulta de Giros si está disponible (el /f29/impuesto no lo trae). */
+            <div className="rounded-xl border border-warning-500/30 bg-warning-500/10 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-warning-700">
+                IVA postergado
+              </p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-warning-700">
+                {formatClp(data.iva_postergado)}
+              </p>
+              <p className="mt-1 text-xs text-warning-700">
+                Este período difirió el pago del IVA
+                {girosData?.vencimiento_postergado
+                  ? ` · vence el ${formatDateLike(girosData.vencimiento_postergado)}`
+                  : ""}
+                . El total a pagar del F29 ({formatClp(data.total_con_iva)}) ya NO lo incluye — el IVA
+                se debe aparte.
+              </p>
+            </div>
+          ) : (
+            /* Aún no postergó: dos opciones de pago (decisión hacia adelante). */
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <PayOption
+                tone="full"
+                label="Pagar todo"
+                amount={data.total_con_iva}
+                hint="Incluye el IVA determinado del período."
+              />
+              <PayOption
+                tone="defer"
+                label="Postergar el IVA"
+                amount={data.total_sin_iva}
+                hint={
+                  data.iva_postergable > 0
+                    ? `Postergás ${formatClp(data.iva_postergable)} de IVA (vence en ~2 meses).`
+                    : "No hay IVA postergable este período."
+                }
+              />
             </div>
           )}
 

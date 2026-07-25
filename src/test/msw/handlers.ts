@@ -1885,6 +1885,7 @@ const siiHandlers = [
         fuente_impuesto_trabajadores: fuente,
         iva_determinado: ivaDet,
         iva_postergable: ivaDet,
+        iva_postergado: 0, // este período no postergó (decisión hacia adelante disponible)
         total_con_iva: ivaDet + ppm + impuesto,
         total_sin_iva: ppm + impuesto,
       },
