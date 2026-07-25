@@ -39,4 +39,25 @@ describe("aggregateSyncStatus", () => {
     expect(r.lastSync).toBeNull();
     expect(r.problemCount).toBe(0);
   });
+
+  it("'missing'/'unavailable' NO pintan el header (Fase 2 / sin conectar ≠ error del dueño)", () => {
+    const r = aggregateSyncStatus([
+      src({ state: "ok" }),
+      src({ source: "sii_f22", state: "unavailable" }),
+      src({ source: "tgr", state: "missing" }),
+      src({ source: "ine_advanced", state: "missing" }),
+    ]);
+    expect(r.level).toBe("ok");
+    expect(r.problemCount).toBe(0);
+  });
+
+  it("un error real gana aunque haya varias missing/unavailable de ruido", () => {
+    const r = aggregateSyncStatus([
+      src({ source: "bice", state: "error" }),
+      src({ source: "sii_f22", state: "unavailable" }),
+      src({ source: "tgr", state: "missing" }),
+    ]);
+    expect(r.level).toBe("error");
+    expect(r.problemCount).toBe(1); // solo el error cuenta, no las de ruido
+  });
 });
