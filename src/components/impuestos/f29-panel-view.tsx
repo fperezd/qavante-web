@@ -63,7 +63,7 @@ const MAX_YEARS = 10;
 
 const ESTADO_LABEL: Record<F29EstadoMesEstado, string> = {
   declarado: "Declarado",
-  sin_dato: "Sin dato (sincronizá)",
+  sin_dato: "Sin dato (sincroniza)",
   no_declarado_vencido: "No declarado (vencido)",
   por_declarar: "Por declarar",
   en_curso: "En curso",
@@ -346,8 +346,8 @@ function StatusCell({
     return (
       <span
         className="inline-block h-3 w-3 rounded-full border border-neutral-mid/50"
-        title="Sin dato — sincronizá tus F29 para ver el estado real"
-        aria-label="Sin dato, sincronizá"
+        title="Sin dato — sincroniza tus F29 para ver el estado real"
+        aria-label="Sin dato, sincroniza"
       />
     );
   }
@@ -375,9 +375,7 @@ function StatusCell({
       onClick={onSelect}
       title={title}
       aria-label={
-        (postergado
-          ? `Declarado con IVA postergado${vencePost}`
-          : ESTADO_LABEL[estado]) +
+        (postergado ? `Declarado con IVA postergado${vencePost}` : ESTADO_LABEL[estado]) +
         saldoExacto +
         " — ver detalle"
       }
@@ -400,7 +398,10 @@ function StatusCell({
             )}
           </span>
           {cell.saldo != null && (
-            <span className="text-[10px] leading-none tabular-nums text-neutral-mid" aria-hidden="true">
+            <span
+              className="text-[10px] leading-none tabular-nums text-neutral-mid"
+              aria-hidden="true"
+            >
               {formatClpCompact(cell.saldo)}
             </span>
           )}
@@ -442,7 +443,7 @@ function Legend() {
       </LegendItem>
       <LegendItem>
         <span className="inline-block h-3 w-3 rounded-full border border-neutral-mid/50" />
-        Sin dato (sincronizá)
+        Sin dato (sincroniza)
       </LegendItem>
       <LegendItem>
         <span className="text-[11px] font-bold text-danger-500">ND</span>
