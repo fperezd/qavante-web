@@ -46,3 +46,14 @@ export const Gestionado: Story = {
     await expect(canvas.getByRole("button", { name: /Reabrir/ })).toBeInTheDocument();
   },
 };
+
+/* Tono "quiet" (filas de deudor): mismas acciones, pero el primario "Copiar recordatorio" va en
+   outline para no repetir 14 veces el botón azul relleno (el foco es el hero). Auditoría UX F-06. */
+export const Quiet: Story = {
+  args: { copiado: false, gestionado: null, size: "sm", tone: "quiet" },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: /Copiar recordatorio/ })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Marcar gestionado/ })).toBeInTheDocument();
+  },
+};
