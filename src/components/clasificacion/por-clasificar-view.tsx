@@ -157,6 +157,9 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
      drawer para clasificarla. `active` indexa `movements`; se acota cuando la
      lista cambia (al clasificar, la fila desaparece). */
   const [active, setActive] = React.useState(0);
+  /* Cuántas filas renderizamos (auditoría UX F-05): con 200+ sin clasificar, pintar TODAS de una es
+     un muro paralizante. Mostramos las más GRANDES primero (ordenadas por monto) de a tandas. */
+  const [visibleCount, setVisibleCount] = React.useState(30);
   const listRef = React.useRef<HTMLUListElement>(null);
   const rawItems = movementsQuery.data?.items ?? [];
   const itemCount = rawItems.filter(passes).length;
@@ -237,7 +240,12 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
      formatear correcto (US$ vs $). El vacío global (celebración) se evalúa sobre
      TODAS las cuentas; el filtro por cuenta solo afecta lo que se muestra. */
   const currencyMap = currencyByAccount(bankAccounts);
-  const movements = allMovements.filter(passes);
+  /* Ordenados por monto DESC: clasificar los grandes primero = el 80% de la plata en el 20% de las
+     filas (auditoría UX F-05). `visible` acota el render a la tanda actual. */
+  const movements = allMovements
+    .filter(passes)
+    .sort((a, b) => (Math.abs(Number(b.amount) || 0) - Math.abs(Number(a.amount) || 0)));
+  const visible = movements.slice(0, visibleCount);
   if (allMovements.length === 0) {
     return (
       <QavanteEmpty
@@ -266,9 +274,9 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       return next;
     });
   }
-  const allChecked = movements.length > 0 && movements.every((m) => checked.has(m.id));
+  const allChecked = visible.length > 0 && visible.every((m) => checked.has(m.id));
   function toggleAll() {
-    setChecked(allChecked ? new Set() : new Set(movements.map((m) => m.id)));
+    setChecked(allChecked ? new Set() : new Set(visible.map((m) => m.id)));
   }
 
   /* Aplica UNA categoría a todos los seleccionados (secuencial, tolerante a
@@ -314,18 +322,19 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
     if (selected) return;
     if (e.key === "ArrowDown" || e.key === "j") {
       e.preventDefault();
-      setActive((a) => Math.min(a + 1, movements.length - 1));
+      // La nav se mueve dentro de lo RENDERIZADO (`visible`); al llegar al final, "Mostrar más".
+      setActive((a) => Math.min(a + 1, visible.length - 1));
     } else if (e.key === "ArrowUp" || e.key === "k") {
       e.preventDefault();
       setActive((a) => Math.max(a - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const m = movements[active];
+      const m = visible[active];
       if (m) openFor(m);
     } else if (e.key === " ") {
       // Espacio: marca/desmarca la fila activa para el lote.
       e.preventDefault();
-      const m = movements[active];
+      const m = visible[active];
       if (m) toggleCheck(m.id);
     }
   }
@@ -500,12 +509,12 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
             ref={listRef}
             role="listbox"
             aria-label="Movimientos por clasificar"
-            aria-activedescendant={movements[active] ? `mov-${movements[active].id}` : undefined}
+            aria-activedescendant={visible[active] ? `mov-${visible[active].id}` : undefined}
             tabIndex={0}
             onKeyDown={onListKeyDown}
             className="divide-y divide-border rounded-xl border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
           >
-            {movements.map((m, idx) => {
+            {visible.map((m, idx) => {
               const isActive = idx === active;
               return (
                 <li
@@ -567,6 +576,21 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
               );
             })}
           </ul>
+          <div className="flex flex-col items-center gap-1 pt-1 text-xs text-neutral-mid">
+            {movements.length > visible.length && (
+              <QavanteButton
+                size="sm"
+                variant="ghost"
+                onClick={() => setVisibleCount((n) => n + 50)}
+              >
+                Mostrar 50 más
+              </QavanteButton>
+            )}
+            <p className="tabular-nums">
+              Mostrando {visible.length} de {movements.length} · ordenados por monto (los grandes
+              primero)
+            </p>
+          </div>
         </>
       )}
 
