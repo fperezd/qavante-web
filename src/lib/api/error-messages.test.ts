@@ -37,6 +37,17 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
   });
 
+  it("detalle con jerga de dev (seed-cert / SII_CERT_PATH) → mensaje limpio, NO el crudo", () => {
+    const raw =
+      "Credenciales SII inválidas o sin autorización para el RUT de la empresa. Cert .pfx no disponible. Subilo via POST /api/sii/seed-cert (body: {cert_b64, password}) o seteá SII_CERT_PATH en el entorno.";
+    const out = apiErrorToUserMessage(new ApiError(raw, 400));
+    expect(out).toBe(
+      "El SII no aceptó las credenciales para sincronizar el RUT de tu empresa: no está autorizado o falta un certificado válido del SII. Revisa tu clave y tu certificado del SII en Administración → Credenciales.",
+    );
+    expect(out).not.toContain("seed-cert");
+    expect(out).not.toContain("SII_CERT_PATH");
+  });
+
   it("403 sin detalle útil → genérico 'no tienes permisos'", () => {
     expect(apiErrorToUserMessage(new ApiError("Error 403", 403))).toBe(
       "No tienes permisos para realizar esta acción.",

@@ -30,6 +30,15 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
       return "No pudimos verificar el captcha. Recárgalo e intenta de nuevo.";
   }
 
+  /* El backend a veces filtra el `detail` con instrucciones de DEV (endpoints internos, variables de
+     entorno) — eso NUNCA va al dueño. Caso conocido: el sync del SII cuando el RUT de la empresa no
+     está autorizado o falta el certificado del SII (el detalle menciona `seed-cert`/`SII_CERT_PATH`/
+     `cert_b64`). Damos un mensaje limpio y accionable en su lugar (surface honesto, no ocultamos el
+     problema — decimos qué pasa y dónde mirar). */
+  if (/seed-cert|sii_cert_path|cert_b64/i.test(err.message ?? "")) {
+    return "El SII no aceptó las credenciales para sincronizar el RUT de tu empresa: no está autorizado o falta un certificado válido del SII. Revisa tu clave y tu certificado del SII en Administración → Credenciales.";
+  }
+
   if (err.isNetworkError()) {
     return "Parece que perdiste conexión. Verifica tu internet.";
   }
