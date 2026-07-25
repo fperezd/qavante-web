@@ -11,7 +11,7 @@ import { PasswordInput } from "./password-input";
 import { useUploadCertificatePfx } from "@/lib/api/credentials";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
-import { isValidRut } from "@/lib/validators/rut";
+import { isValidRut, normalizeRut } from "@/lib/validators/rut";
 
 /* Upload de certificado digital (.pfx) — Opción A multi-holder. La password
    del .pfx se usa para extraer metadata; NO se almacena (regla 6).
@@ -102,7 +102,10 @@ export function CertificateUploadDialogV2({ open, onOpenChange }: Props) {
         pfx_base64,
         password: values.password,
         password_hint: values.password_hint || null,
-        rut_holder: values.rut_holder || null,
+        // El backend exige el RUT en formato `cuerpo-DV` sin puntos ("12345678-9"); el input lo
+        // muestra con puntos ("5.031.807-9"). Sin normalizar, el backend devuelve 422. isValidRut
+        // ya lo aceptó con puntos en el schema; acá lo dejamos en el formato que espera el server.
+        rut_holder: values.rut_holder ? normalizeRut(values.rut_holder) : null,
       });
       onOpenChange(false);
     } catch (err) {
