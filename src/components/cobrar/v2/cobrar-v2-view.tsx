@@ -314,6 +314,7 @@ export function DeudorRow(props: DeudorRowProps) {
       <div className="pl-6">
         <CobranzaAcciones
           size="sm"
+          tone="quiet"
           onCopiar={onCopiar}
           copiado={copiado}
           waHref={waHref}

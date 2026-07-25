@@ -29,6 +29,9 @@ export interface CobranzaAccionesProps {
   gestionadoPending?: boolean;
   /** "sm" para las filas de deudor; "md" (default) para el hero. */
   size?: "sm" | "md";
+  /** "primary" (default, hero): "Copiar recordatorio" relleno azul. "quiet" (filas): todo outline,
+   *  para que el primario NO se repita 14 veces y la lista tenga UN solo foco (el hero). */
+  tone?: "primary" | "quiet";
   className?: string;
 }
 
@@ -41,9 +44,11 @@ export function CobranzaAcciones({
   onToggleGestionado,
   gestionadoPending = false,
   size = "md",
+  tone = "primary",
   className,
 }: CobranzaAccionesProps) {
   const sm = size === "sm";
+  const quiet = tone === "quiet";
   const btn = cn(
     "inline-flex items-center gap-1.5 rounded-lg border font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1",
     sm ? "px-2.5 py-1 text-[12px]" : "px-3 py-1.5 text-[13px]",
@@ -60,7 +65,9 @@ export function CobranzaAcciones({
           btn,
           copiado
             ? "border-success-500/40 bg-success-500/10 text-success-700"
-            : "border-brand-primary bg-brand-primary text-surface hover:bg-brand-primary-600",
+            : quiet
+              ? "border-border bg-surface text-brand-primary hover:bg-brand-primary-50"
+              : "border-brand-primary bg-brand-primary text-surface hover:bg-brand-primary-600",
         )}
       >
         {copiado ? (
