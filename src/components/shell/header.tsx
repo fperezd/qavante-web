@@ -5,6 +5,7 @@ import { Bell, Menu, Search } from "lucide-react";
 import { QavanteBadge, QavanteLogo } from "@/components/qavante";
 import { useMe } from "@/lib/api/users";
 import { useDashboardSummary } from "@/lib/api/dashboard";
+import { pulsoStatusLabel } from "@/components/inicio/dashboard-format";
 import { CompanySwitcher } from "./company-switcher";
 import { SyncStatusIndicator } from "./sync-status-indicator";
 import { SyncAllButton } from "./sync-all-button";
@@ -96,13 +97,14 @@ export function AppHeader({ onMenuClick, onOpenSearch, syncStatusEnabled }: AppH
           <Link
             href="/inicio"
             className="hidden items-center gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 md:flex"
-            aria-label={`Pulso de tu empresa: ${pulso.score} puntos. Ver Inicio.`}
+            aria-label={`Pulso de tu empresa: ${pulso.score} puntos, ${pulsoStatusLabel(pulso.status)}. Ver Inicio.`}
           >
             <span className="text-xs text-neutral-mid" aria-hidden="true">
               Pulso
             </span>
+            {/* Score + palabra de estado: "50" solo era opaco (¿bueno? ¿malo?) — auditoría UX F-09. */}
             <QavanteBadge variant={PULSO_VARIANT[pulso.status] ?? "info"} aria-hidden="true">
-              {pulso.score}
+              {pulso.score} · {pulsoStatusLabel(pulso.status)}
             </QavanteBadge>
           </Link>
         )}
