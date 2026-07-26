@@ -17,8 +17,10 @@ import { PagarV2View, type PagarMovible } from "./pagar-v2-view";
 import { PagarHero } from "./pagar-hero";
 import { BrechaCaja } from "./brecha-caja";
 import { FechasClaveMes } from "./fechas-clave-mes";
-import { VencimientosTimeline } from "./vencimientos-timeline";
+import { VencimientosTimeline, type Vencimiento } from "./vencimientos-timeline";
 import { ConcentracionClientes } from "@/components/sii/libro-v2/concentracion-clientes";
+import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
+import { SortBar } from "@/components/filters/sort-bar";
 import {
   mapVencimientos,
   mapFechasClave,
@@ -57,6 +59,14 @@ function ahora(): Date {
   return new Date();
 }
 
+/* Columnas ordenables de "Por vencer y vencidos" (regla de producto). Por defecto
+   (sortKey null) respeta el orden CURADO por urgencia; el usuario puede reordenar. */
+const VENC_COLS: SortColumn<Vencimiento>[] = [
+  { key: "vencimiento", kind: "date", get: (v) => v.dueDate ?? null },
+  { key: "monto", kind: "number", get: (v) => v.monto },
+  { key: "acreedor", kind: "text", get: (v) => v.acreedor },
+];
+
 export function PagarV2ViewLive() {
   const ap = useAccountsPayable();
   const comprasDocs = useMaestroDocs("compras");
@@ -64,6 +74,7 @@ export function PagarV2ViewLive() {
   const prefs = usePreferences();
   const router = useRouter();
   const now = React.useMemo(() => ahora(), []);
+  const vencSort = useTableSort(VENC_COLS, null);
 
   // UNIFICACIÓN: los PROVEEDORES salen del maestro RCV compras (net NC, conciliado, vencido
   // derivado) y los HONORARIOS del BHE — el detalle que accounts-payable OMITE (partial) y que
@@ -126,6 +137,24 @@ export function PagarV2ViewLive() {
   const fechas = mapFechasClave(items, now, onClickDe);
   const totalFechas = fechas.reduce((s, f) => s + f.monto, 0);
 
+  // "Por vencer y vencidos": curado por urgencia por defecto, reordenable por el usuario.
+  const vencimientos = mapVencimientos(items, now, onClickDe);
+  const vencimientosSorted = vencSort.sorted(vencimientos);
+  const vencSortControl =
+    vencimientos.length > 1 ? (
+      <SortBar
+        options={[
+          { key: "urgencia", label: "Urgencia" },
+          { key: "vencimiento", label: "Vencimiento" },
+          { key: "monto", label: "Monto" },
+          { key: "acreedor", label: "Acreedor" },
+        ]}
+        activeKey={vencSort.sortKey ?? "urgencia"}
+        dir={vencSort.sortDir}
+        onSelect={(key) => (key === "urgencia" ? vencSort.reset() : vencSort.toggle(key))}
+      />
+    ) : null;
+
   return (
     <PagarV2View
       hero={
@@ -165,7 +194,7 @@ export function PagarV2ViewLive() {
       fechasClave={
         fechas.length > 0 ? <FechasClaveMes items={fechas} total={totalFechas} /> : <div />
       }
-      movibles={buildMovibles(items, vencidos, now, onClickDe)}
+      movibles={buildMovibles(items, vencidos, vencimientosSorted, vencSortControl)}
     />
   );
 }
@@ -247,12 +276,11 @@ function Secundarios({
 function buildMovibles(
   items: PayableItem[],
   vencidos: number,
-  now: Date,
-  onClickDe: OnClickDe,
+  vencimientos: Vencimiento[],
+  sortControl: React.ReactNode,
 ): PagarMovible[] {
   const out: PagarMovible[] = [];
 
-  const vencimientos = mapVencimientos(items, now, onClickDe);
   if (vencimientos.length > 0) {
     out.push({
       id: "vencimientos",
@@ -269,6 +297,7 @@ function buildMovibles(
                 {vencidos} {vencidos === 1 ? "vencido" : "vencidos"}
               </span>
             )}
+            {sortControl && <div className="ml-auto">{sortControl}</div>}
           </div>
           <VencimientosTimeline items={vencimientos} />
         </div>
