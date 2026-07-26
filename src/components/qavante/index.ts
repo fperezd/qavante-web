@@ -16,3 +16,4 @@ export {
   type QavanteSource,
 } from "./qavante-source-tag";
 export { QavanteLogo, type QavanteLogoProps, type QavanteLogoVariant } from "./qavante-logo";
+export { SortHeader, type SortHeaderProps } from "./sort-header";
