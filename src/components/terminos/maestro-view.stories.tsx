@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { within, expect } from "storybook/test";
+import { within, expect, userEvent } from "storybook/test";
 import { MaestroContrapartes } from "./maestro-view";
 import type { ContraparteMaestro, DocMaestro } from "./terminos-pago";
 
@@ -36,7 +36,15 @@ const kaufmann: ContraparteMaestro = {
   proximoVencimiento: new Date(2026, 6, 31),
   docs: [
     doc({ folio: 1 }),
-    doc({ folio: 2, fecha: "01/07/2026", fechaEmision: new Date(2026, 6, 1), monto: 3_000_000, vencimiento: new Date(2026, 6, 31), estado: "vigente", diasParaVencer: 11 }),
+    doc({
+      folio: 2,
+      fecha: "01/07/2026",
+      fechaEmision: new Date(2026, 6, 1),
+      monto: 3_000_000,
+      vencimiento: new Date(2026, 6, 31),
+      estado: "vigente",
+      diasParaVencer: 11,
+    }),
   ],
 };
 
@@ -52,7 +60,15 @@ const diveimport: ContraparteMaestro = {
   termino: 45,
   terminoCustom: true,
   proximoVencimiento: new Date(2026, 7, 1),
-  docs: [doc({ folio: 3, monto: 1_000_000, vencimiento: new Date(2026, 7, 1), estado: "vigente", diasParaVencer: 12 })],
+  docs: [
+    doc({
+      folio: 3,
+      monto: 1_000_000,
+      vencimiento: new Date(2026, 7, 1),
+      estado: "vigente",
+      diasParaVencer: 12,
+    }),
+  ],
 };
 
 const meta = {
@@ -63,7 +79,14 @@ const meta = {
     kind: "ventas",
     contrapartePlural: "clientes",
     cps: [kaufmann, diveimport],
-    totals: { total: 9_000_000, vencido: 5_000_000, porVencer: 0, pagado: 0, contrapartes: 2, docs: 3 },
+    totals: {
+      total: 9_000_000,
+      vencido: 5_000_000,
+      porVencer: 0,
+      pagado: 0,
+      contrapartes: 2,
+      docs: 3,
+    },
     defaultTerm: 30,
     onSetTerm: () => {},
     onResetTerm: () => {},
@@ -71,7 +94,8 @@ const meta = {
     onTogglePagado: () => {},
     periodosLabel: "ene–jul 2026",
     titulo: "Clientes",
-    subtitulo: "Todos los clientes con ventas registradas este año — no solo lo pendiente por cobrar.",
+    subtitulo:
+      "Todos los clientes con ventas registradas este año — no solo lo pendiente por cobrar.",
   },
 } satisfies Meta<typeof MaestroContrapartes>;
 
@@ -86,8 +110,23 @@ export const Clientes: Story = {
     // El vencido derivado se muestra (aparece en el resumen y en la fila → getAllByText).
     await expect(canvas.getAllByText("$5.000.000").length).toBeGreaterThan(0);
     // Input de término editable por contraparte.
-    await expect(
-      canvas.getByLabelText(/Término de pago de COMERCIAL KAUFMANN/),
-    ).toHaveValue(30);
+    await expect(canvas.getByLabelText(/Término de pago de COMERCIAL KAUFMANN/)).toHaveValue(30);
+  },
+};
+
+/** Grilla ordenable: por defecto saldo desc; las cabeceras cambian el orden. */
+export const OrdenColumnas: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const primeraContraparte = () =>
+      canvas.getAllByText(/KAUFMANN|DIVEIMPORT/)[0]?.textContent ?? "";
+    // Por defecto: saldo desc → Kaufmann ($8M) antes que Diveimport ($1M).
+    await expect(primeraContraparte()).toMatch(/KAUFMANN/);
+    // Clic en "Contraparte" (asc, A→Z): "COMERCIAL…" (C) sigue antes que "DIVEIMPORT" (D).
+    await userEvent.click(canvas.getByRole("button", { name: /Ordenar por Contraparte/ }));
+    await expect(primeraContraparte()).toMatch(/KAUFMANN/);
+    // Segundo clic → desc (Z→A): Diveimport primero.
+    await userEvent.click(canvas.getByRole("button", { name: /Ordenar por Contraparte/ }));
+    await expect(primeraContraparte()).toMatch(/DIVEIMPORT/);
   },
 };
