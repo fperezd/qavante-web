@@ -17,6 +17,8 @@ import {
   isSyncPending,
 } from "@/components/treasury/sync-pending-state";
 import { normalizeRut } from "@/lib/validators/rut";
+import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
+import { SortBar } from "@/components/filters/sort-bar";
 import { formatClp } from "@/lib/formatters/clp";
 import { parseAmount, agingBars } from "../cobranza-format";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
@@ -43,6 +45,7 @@ import {
   withGestionadoDoc,
   withoutGestionadoDoc,
   sortDebtors,
+  peorMoraDias,
   type PrioridadMode,
 } from "./cobrar-v2-map";
 
@@ -166,6 +169,38 @@ function Assembled({
     () => sortDebtors(debtors, gestionadoMap),
     [debtors, gestionadoMap],
   );
+  /* Orden de la LISTA de deudores. Por defecto (sortKey null) respeta el ranking
+     curado de `ordered` (a quién cobrar primero); el usuario puede reordenar por
+     nombre/monto/vencido/mora. El hero (la recomendación) NO se toca. */
+  const debtorCols = React.useMemo<SortColumn<TopDebtor>[]>(
+    () => [
+      { key: "nombre", kind: "text", get: (d) => d.name },
+      { key: "monto", kind: "number", get: (d) => parseAmount(d.total) },
+      { key: "vencido", kind: "number", get: (d) => parseAmount(d.overdue) },
+      {
+        key: "mora",
+        kind: "number",
+        get: (d) => peorMoraDias(docsByRut.get(normalizeRut(d.rut)) ?? []) ?? null,
+      },
+    ],
+    [docsByRut],
+  );
+  const debtorSort = useTableSort(debtorCols, null);
+  const displayed = debtorSort.sorted(ordered);
+  const sortControl = (
+    <SortBar
+      options={[
+        { key: "prioridad", label: "Prioridad" },
+        { key: "vencido", label: "Vencido" },
+        { key: "mora", label: "Mora" },
+        { key: "monto", label: "Monto" },
+        { key: "nombre", label: "Nombre" },
+      ]}
+      activeKey={debtorSort.sortKey ?? "prioridad"}
+      dir={debtorSort.sortDir}
+      onSelect={(key) => (key === "prioridad" ? debtorSort.reset() : debtorSort.toggle(key))}
+    />
+  );
   const pendientes = ordered.filter((d) => !isGestionado(gestionadoMap, d.rut));
   const prioridad = pickPrioridad({ ...data, top_debtors: pendientes });
 
@@ -288,7 +323,7 @@ function Assembled({
 
   const deudores = (
     <ul className="divide-y divide-border">
-      {ordered.map((d) => {
+      {displayed.map((d) => {
         const rut = normalizeRut(d.rut);
         const text = remFor(d);
         return (
@@ -320,6 +355,7 @@ function Assembled({
   return (
     <CobrarV2View
       hero={hero}
+      sortControl={sortControl}
       resumen={
         <ResumenCobranza
           total={grandTotal}

@@ -38,6 +38,8 @@ export interface CobrarV2ViewProps {
   aging?: AgingBar[];
   /** Filas de deudores (cada una con sus acciones), ya construidas por el contenedor. */
   deudores: React.ReactNode;
+  /** Barra "Ordenar por" (opcional): el default es el orden curado por prioridad. */
+  sortControl?: React.ReactNode;
   /** Banner de datos parciales (falta sincronizar). */
   banner?: React.ReactNode;
   /** Acceso al Libro de Ventas SII (si `siiQueries`). */
@@ -49,6 +51,7 @@ export function CobrarV2View({
   resumen,
   aging,
   deudores,
+  sortControl,
   banner,
   siiEnabled,
 }: CobrarV2ViewProps) {
@@ -65,10 +68,15 @@ export function CobrarV2View({
 
       {aging && aging.some((b) => b.amount > 0) && <AgingCard bars={aging} />}
 
-      {/* A quién cobrarle — deudores ordenados por prioridad, con acciones. */}
+      {/* A quién cobrarle — por defecto ordenados por prioridad; el usuario puede reordenar. */}
       <QavanteCard
         variant="bordered"
-        header={<span className="font-medium">A quién cobrarle</span>}
+        header={
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-medium">A quién cobrarle</span>
+            {sortControl}
+          </div>
+        }
       >
         {deudores}
       </QavanteCard>
@@ -381,7 +389,8 @@ function DeudorDocsPanel({
         </thead>
         <tbody>
           {docs.map((doc, i) => {
-            const gestionada = !doc.esNotaCredito && isGestionadoDoc(gestionadoDocs, rut, doc.folio);
+            const gestionada =
+              !doc.esNotaCredito && isGestionadoDoc(gestionadoDocs, rut, doc.folio);
             return (
               <tr
                 key={`${doc.folio}-${i}`}
