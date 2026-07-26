@@ -68,13 +68,18 @@ export function sumItemsHasta(items: PayableItem[], now: Date, maxDias: number):
 export type OnClickDe = (item: PayableItem) => (() => void) | undefined;
 
 /** Vencimientos ordenados por urgencia (vencido → criticidad) con su postergabilidad. */
-export function mapVencimientos(items: PayableItem[], now: Date, onClickDe?: OnClickDe): Vencimiento[] {
+export function mapVencimientos(
+  items: PayableItem[],
+  now: Date,
+  onClickDe?: OnClickDe,
+): Vencimiento[] {
   return overdueThenCritical(items, now).map((it, i) => {
     const extranjera = (it.currency ?? "CLP").toUpperCase() !== "CLP";
     return {
       id: it.source_external_id ?? `${it.label}-${i}`,
       vencido: isOverdue(it, now),
       fecha: formatDateLike(it.due_date),
+      dueDate: it.due_date ?? null,
       acreedor: it.counterparty_name ?? it.label,
       detalle: [paymentCategoryLabel(it.category), it.source].filter(Boolean).join(" · "),
       monto: montoCLP(it),
@@ -87,13 +92,23 @@ export function mapVencimientos(items: PayableItem[], now: Date, onClickDe?: OnC
 }
 
 /** Las 3 fechas clave del mes (imposiciones · impuestos · sueldos), si están en los ítems. */
-export function mapFechasClave(items: PayableItem[], now: Date, onClickDe?: OnClickDe): FechaClave[] {
-  const esPrevired = (i: PayableItem) => /previred|cotiza|imposicion|leyes sociales/i.test(`${i.source} ${i.label}`);
+export function mapFechasClave(
+  items: PayableItem[],
+  now: Date,
+  onClickDe?: OnClickDe,
+): FechaClave[] {
+  const esPrevired = (i: PayableItem) =>
+    /previred|cotiza|imposicion|leyes sociales/i.test(`${i.source} ${i.label}`);
   const previred = items.find(esPrevired);
   const impuesto = items.find((i) => i.category === "tax");
   const sueldos = items.find((i) => i.category === "payroll" && i !== previred);
 
-  const build = (item: PayableItem | undefined, id: string, label: string, icono: FechaClaveIcono): FechaClave | null => {
+  const build = (
+    item: PayableItem | undefined,
+    id: string,
+    label: string,
+    icono: FechaClaveIcono,
+  ): FechaClave | null => {
     if (!item) return null;
     const dias = daysUntilDue(item.due_date, now);
     return {

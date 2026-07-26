@@ -16,8 +16,10 @@ export interface Vencimiento {
   id: string;
   /** true si ya venció (se resalta en rojo). */
   vencido?: boolean;
-  /** Fecha corta (ej. "13-07"). */
+  /** Fecha corta para mostrar (ej. "13-07"). */
   fecha: string;
+  /** Fecha de vencimiento cruda (ISO) para ordenar; null si no hay. */
+  dueDate?: string | null;
   /** Nombre del acreedor/obligación. */
   acreedor: string;
   /** Sub-línea (ej. "Proveedor · factura 8842"). */
