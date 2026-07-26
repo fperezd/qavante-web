@@ -10,7 +10,9 @@ import {
   QavanteEmpty,
   QavanteInlineError,
   QavanteInput,
+  SortHeader,
 } from "@/components/qavante";
+import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-table";
 import { cn } from "@/lib/utils";
 import {
@@ -75,6 +77,15 @@ const DEFAULT_FILTERS: Filters = {
 };
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
+
+/* Columnas ordenables de la grilla de clasificados (regla de producto). Por
+   defecto: fecha, más nueva primero (es la lista cronológica de auditoría). */
+const SORT_COLUMNS: SortColumn<BankMovement>[] = [
+  { key: "fecha", kind: "date", get: (m) => m.date },
+  { key: "glosa", kind: "text", get: (m) => m.description },
+  { key: "categoria", kind: "text", get: (m) => m.canonical_category ?? "" },
+  { key: "monto", kind: "number", get: (m) => Math.abs(Number(m.amount) || 0) },
+];
 
 function applyFilters(items: BankMovement[], filters: Filters): BankMovement[] {
   const text = filters.searchText.trim().toLowerCase();
@@ -157,6 +168,14 @@ export function ClasificadosView() {
     () => applyFilters(accountItems, filters),
     [accountItems, filters],
   );
+  /* Orden de la grilla (por defecto fecha, más nueva primero; regla de producto).
+     Al cambiar de columna se vuelve a la página 1 (mostrar el nuevo tope). */
+  const sort = useTableSort(SORT_COLUMNS, "fecha");
+  const sorted = React.useMemo(() => sort.sorted(filtered), [sort, filtered]);
+  const toggleSort = (key: string) => {
+    sort.toggle(key);
+    setPage(1);
+  };
   /* Moneda para los totales: la del filtro de cuenta, o la del primer resultado
      (todos comparten moneda cuando no hay mezcla). */
   const displayCurrency = accountId
@@ -167,8 +186,8 @@ export function ClasificadosView() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paged = React.useMemo(
-    () => filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-    [filtered, currentPage, pageSize],
+    () => sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [sorted, currentPage, pageSize],
   );
 
   const totalCredit = React.useMemo(
@@ -419,21 +438,47 @@ export function ClasificadosView() {
               <div className={stickyScroll}>
                 <table className="w-full min-w-[720px] text-[13px]">
                   <thead className={stickyHead}>
-                    <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                      <th scope="col" className="py-2 pr-3 font-semibold">
-                        Fecha
+                    <tr className="border-b border-border-strong text-left">
+                      <th scope="col" className="py-2 pr-3">
+                        <SortHeader
+                          label="Fecha"
+                          active={sort.sortKey === "fecha"}
+                          dir={sort.sortDir}
+                          onClick={() => toggleSort("fecha")}
+                        />
                       </th>
-                      <th scope="col" className="py-2 pr-3 font-semibold">
-                        Glosa
+                      <th scope="col" className="py-2 pr-3">
+                        <SortHeader
+                          label="Glosa"
+                          active={sort.sortKey === "glosa"}
+                          dir={sort.sortDir}
+                          onClick={() => toggleSort("glosa")}
+                        />
                       </th>
-                      <th scope="col" className="py-2 pr-3 font-semibold">
-                        Categoría
+                      <th scope="col" className="py-2 pr-3">
+                        <SortHeader
+                          label="Categoría"
+                          active={sort.sortKey === "categoria"}
+                          dir={sort.sortDir}
+                          onClick={() => toggleSort("categoria")}
+                        />
                       </th>
-                      <th scope="col" className="py-2 pr-3 font-semibold">
+                      <th
+                        scope="col"
+                        className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+                      >
                         Dir.
                       </th>
-                      <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                        Monto
+                      <th scope="col" className="py-2 pr-3">
+                        <div className="flex justify-end">
+                          <SortHeader
+                            label="Monto"
+                            align="right"
+                            active={sort.sortKey === "monto"}
+                            dir={sort.sortDir}
+                            onClick={() => toggleSort("monto")}
+                          />
+                        </div>
                       </th>
                       <th scope="col" className="py-2 font-semibold">
                         <span className="sr-only">Acciones</span>
@@ -583,16 +628,17 @@ export function ClasificadosView() {
             {
               status: "done",
               title: "Clasificado",
-              children: [
-                reclasifyTarget.management_account_id
-                  ? accountsLookup.get(reclasifyTarget.management_account_id)?.name
-                  : undefined,
-                reclasifyTarget.canonical_category
-                  ? categoryLabelByCode[reclasifyTarget.canonical_category]
-                  : undefined,
-              ]
-                .filter(Boolean)
-                .join(" · ") || "Categoría de gestión asignada",
+              children:
+                [
+                  reclasifyTarget.management_account_id
+                    ? accountsLookup.get(reclasifyTarget.management_account_id)?.name
+                    : undefined,
+                  reclasifyTarget.canonical_category
+                    ? categoryLabelByCode[reclasifyTarget.canonical_category]
+                    : undefined,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "Categoría de gestión asignada",
             },
           ]}
           initialDraft={reclasifyDraft}
