@@ -3393,6 +3393,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/banks/keepwarm-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bancos: keep-warm de la sesión de TODOS los conectores x tenants (cron genérico)
+         * @description Toca la sesión cacheada de cada banco registrado en cada tenant conectado, **sin** login.
+         *     Un solo cron liviano (cada ~20 min) para todos los bancos. Best-effort por (banco, tenant).
+         */
+        post: operations["admin_banks_keepwarm_all"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/banks/sync-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bancos: sincroniza la cartola de TODOS los conectores x tenants (cron genérico)
+         * @description Sincroniza la cartola de cada banco registrado en cada tenant conectado. El re-login
+         *     server-side on-demand ocurre dentro del sync si la sesión expiró. Best-effort por (banco,
+         *     tenant); `consent` faltante NO cuenta como error.
+         */
+        post: operations["admin_banks_sync_all"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/bice/sync-all": {
         parameters: {
             query?: never;
@@ -5114,6 +5157,31 @@ export interface components {
              * @description Total de movimientos que matchean el filtro (sin paginar).
              */
             total: number;
+        };
+        /**
+         * BanksMaintenanceResponse
+         * @description Resumen del run. `banks` trae el desglose por `source_code` (stats libres por conector).
+         */
+        BanksMaintenanceResponse: {
+            /**
+             * Total Tenants
+             * @description Suma de tenants procesados across bancos.
+             */
+            total_tenants: number;
+            /**
+             * Errors
+             * @description Errores best-effort totales (no abortan el resto).
+             */
+            errors: number;
+            /**
+             * Banks
+             * @description Desglose por banco: {source_code: {tenants, alive/synced/..., errors}}.
+             */
+            banks?: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
         };
         /**
          * BheRecibida
@@ -7765,7 +7833,7 @@ export interface components {
             anio: number;
             /**
              * Meses
-             * @description Los 12 meses con {anio, mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento, postergado_iva, monto_postergado, vencimiento_postergado}. estado ∈ declarado / sin_dato (vencido pero sin sincronizar → NO se afirma 'no declaró') / no_declarado_vencido (solo con evidencia) / por_declarar / en_curso / sin_periodo. postergado_iva (bool) = el F29 del mes declaró el código 755 ('Postergacion pago IVA') con monto > 0 → el IVA NO está incluido en `saldo` (código 91) y se debe aparte; monto_postergado (int|null) = ese monto en CLP (null = el F29 del mes no se parseó, NO SE SABE; 0 = parseado sin postergación); vencimiento_postergado (ISO YYYY-MM-DD|null) = día 20 del mes M+3 corrido al lunes si cae fin de semana, solo cuando postergado_iva.
+             * @description Los 12 meses con {anio, mes, periodo, estado, declarado, folio, saldo, remanente, vencimiento, postergado_iva, monto_postergado, vencimiento_postergado}. estado ∈ declarado / sin_dato (vencido pero sin sincronizar → NO se afirma 'no declaró') / no_declarado_vencido (solo con evidencia) / por_declarar / en_curso / sin_periodo. postergado_iva (bool|null) = el F29 del mes declaró el código 755 ('Postergacion pago IVA') con monto > 0 → el IVA NO está incluido en `saldo` (código 91) y se debe aparte. **null = NO SE SABE** (F29 no parseado / folio-solo; NO afirmar 'no postergó'); False = parseado, no postergó. monto_postergado (int|null) = ese monto en CLP (null = el F29 del mes no se parseó, NO SE SABE; 0 = parseado sin postergación); vencimiento_postergado (ISO YYYY-MM-DD|null) = día 20 del mes M+3 corrido al lunes si cae fin de semana, solo cuando postergado_iva.
              */
             meses?: {
                 [key: string]: unknown;
@@ -7804,9 +7872,9 @@ export interface components {
             estado: string;
             /**
              * Postergado Iva
-             * @default false
+             * @description El F29 del mes postergó el IVA (código 755): True = sí; False = no (parseado, 0); **None = no se sabe** (F29 no parseado / folio-solo — NO afirmar 'no postergó' sobre dato ausente; el FE usa /f29/giros como ground-truth). CC-WEB #715.
              */
-            postergado_iva: boolean;
+            postergado_iva?: boolean | null;
             /**
              * Iva Postergado
              * @description Monto del IVA postergado (None si no hay o no se pudo leer).
@@ -9883,8 +9951,11 @@ export interface components {
         OverdueCollections: {
             /** Total Receivable */
             total_receivable: string;
-            /** Overdue */
-            overdue: string;
+            /**
+             * Overdue
+             * @description Monto vencido por cobrar. **None = no se sabe** (los documentos no tienen vencimiento cargado — el SII no lo da; ver `/f29/giros`/Cobrar que lo DERIVAN de emisión+término). El FE debe mostrar 'sin dato', NO '$0' (un $0 con vencimientos ausentes miente 'al día'). Un número = piso real de lo vencido conocido (CC-WEB 2026-07-25).
+             */
+            overdue?: string | null;
             /** Top Clients */
             top_clients?: components["schemas"]["TopClient"][];
             /** Last Updated */
@@ -19382,6 +19453,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_banks_keepwarm_all: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BanksMaintenanceResponse"];
+                };
+            };
+        };
+    };
+    admin_banks_sync_all: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BanksMaintenanceResponse"];
                 };
             };
         };

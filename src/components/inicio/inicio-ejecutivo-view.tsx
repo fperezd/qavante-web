@@ -221,25 +221,46 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         <DashCard title="Cobranza vencida" href="/cobrar" cta="Ver cobranza">
           {data.overdue_collections ? (
             <>
-              <p className="text-sm">
-                <span className="text-xl font-bold tabular-nums text-danger-500">
-                  {formatClp(parseAmount(data.overdue_collections.overdue))}
-                </span>{" "}
-                <span className="text-neutral-mid">
-                  vencido de{" "}
-                  <span className="tabular-nums">
-                    {formatClp(parseAmount(data.overdue_collections.total_receivable))}
-                  </span>
-                </span>
-              </p>
-              <ul className="mt-2 space-y-1 text-xs text-neutral-mid">
-                {(data.overdue_collections.top_clients ?? []).slice(0, 3).map((c) => (
-                  <li key={c.name} className="flex justify-between gap-2">
-                    <span className="truncate">{c.name}</span>
-                    <span className="tabular-nums">{formatClp(parseAmount(c.amount))}</span>
-                  </li>
-                ))}
-              </ul>
+              {data.overdue_collections.overdue == null ? (
+                /* El SII no entrega los vencimientos (data_state parcial) → el backend manda
+                   `overdue: null`. NO lo pintamos como "$0" (mentiría "estás al día"): decimos
+                   "sin dato" honesto y dejamos el total por cobrar a la vista. */
+                <>
+                  <p className="text-sm">
+                    <span className="text-xl font-bold text-neutral-dark">Sin dato</span>{" "}
+                    <span className="text-neutral-mid">de vencido</span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-neutral-mid">
+                    de{" "}
+                    <span className="tabular-nums">
+                      {formatClp(parseAmount(data.overdue_collections.total_receivable))}
+                    </span>{" "}
+                    por cobrar · el SII aún no entrega los vencimientos
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm">
+                    <span className="text-xl font-bold tabular-nums text-danger-500">
+                      {formatClp(parseAmount(data.overdue_collections.overdue))}
+                    </span>{" "}
+                    <span className="text-neutral-mid">
+                      vencido de{" "}
+                      <span className="tabular-nums">
+                        {formatClp(parseAmount(data.overdue_collections.total_receivable))}
+                      </span>
+                    </span>
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs text-neutral-mid">
+                    {(data.overdue_collections.top_clients ?? []).slice(0, 3).map((c) => (
+                      <li key={c.name} className="flex justify-between gap-2">
+                        <span className="truncate">{c.name}</span>
+                        <span className="tabular-nums">{formatClp(parseAmount(c.amount))}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
               <Freshness
                 updated={data.overdue_collections.last_updated}
                 source={data.overdue_collections.source}

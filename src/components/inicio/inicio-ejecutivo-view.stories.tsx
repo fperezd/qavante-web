@@ -162,6 +162,25 @@ const CAJA_NEGATIVA = http.get(PATH, () =>
   ),
 );
 
+/* Caso real Tooxs (2026-07-26): el SII no entrega los vencimientos de los DTE →
+   el backend manda `overdue: null` (no "$0"). La tarjeta debe decir "Sin dato de
+   vencido" con el total por cobrar a la vista, NO "$0 vencido" (que mentiría "al día"). */
+const VENCIDO_SIN_DATO = http.get(PATH, () =>
+  HttpResponse.json(
+    {
+      ...FIXTURE,
+      overdue_collections: {
+        total_receivable: "343366683",
+        overdue: null,
+        top_clients: [],
+        last_updated: "2026-07-26T00:00:00Z",
+        source: "sii_rcv",
+      },
+    },
+    { status: 200 },
+  ),
+);
+
 const meta = {
   title: "Capa 2 / Inicio / InicioEjecutivoView",
   component: InicioEjecutivoView,
@@ -192,6 +211,10 @@ export const PrimerDrop: Story = {
 export const Vacio: Story = {
   name: "Sin datos (empresa nueva)",
   parameters: { msw: { handlers: [VACIO] } },
+};
+export const VencidoSinDato: Story = {
+  name: "Cobranza: vencido sin dato (SII sin vencimientos)",
+  parameters: { msw: { handlers: [VENCIDO_SIN_DATO] } },
 };
 export const Cargando: Story = { parameters: { msw: { handlers: [LOADING] } } };
 export const Error500: Story = { name: "Error (500)", parameters: { msw: { handlers: [ERROR] } } };
