@@ -3,7 +3,14 @@
 import * as React from "react";
 import { Wallet, Inbox, Users, CheckCircle2, AlertTriangle } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
+import {
+  QavanteBadge,
+  QavanteCard,
+  QavanteEmpty,
+  QavanteInlineError,
+  SortHeader,
+} from "@/components/qavante";
+import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-table";
 import type { PayrollResponse, PayrollTotales } from "@/lib/api/buk";
 import { formatClp } from "@/lib/formatters/clp";
@@ -20,6 +27,15 @@ import {
   tieneHaberesPorEmpleado,
   type EmployeePayroll,
 } from "./payroll-detalle";
+
+/* Columnas ordenables del detalle por empleado (regla de producto). Sin columna
+   de fecha → por defecto Empleado A→Z (roster); los montos ordenables a un clic. */
+const SORT_COLUMNS: SortColumn<EmployeePayroll>[] = [
+  { key: "empleado", kind: "text", get: (e) => e.nombre },
+  { key: "haberes", kind: "number", get: (e) => e.haberes ?? null },
+  { key: "costo", kind: "number", get: (e) => e.costoEmpresa ?? null },
+  { key: "liquido", kind: "number", get: (e) => e.liquido ?? null },
+];
 
 /* Planilla — totales del período (BUK) + detalle por empleado (líquido) para
    conciliación bancaria. El detalle por empleado (`payroll.detalle`) es contrato
@@ -263,6 +279,9 @@ function DetalleEmpleados({
   const conCosto = tieneCostoEmpresa(detalle);
   const sumaCosto = sumCostoEmpresa(detalle);
   const anchas = (conHaberes ? 1 : 0) + (conCosto ? 1 : 0); // columnas $ extra sobre Líquido
+  /* Orden de la grilla (por defecto Empleado A→Z; sin fecha, es un roster). */
+  const sort = useTableSort(SORT_COLUMNS, "empleado");
+  const detalleSorted = sort.sorted(detalle);
 
   return (
     <div className="space-y-2">
@@ -289,32 +308,69 @@ function DetalleEmpleados({
       </div>
 
       <div className={stickyScroll}>
-        <table className={"w-full text-sm " + (anchas >= 2 ? "min-w-[720px]" : anchas === 1 ? "min-w-[640px]" : "min-w-[520px]")}>
+        <table
+          className={
+            "w-full text-sm " +
+            (anchas >= 2 ? "min-w-[720px]" : anchas === 1 ? "min-w-[640px]" : "min-w-[520px]")
+          }
+        >
           <thead className={stickyHead}>
-            <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-              <th scope="col" className="py-2 pr-3 font-semibold">
-                Empleado
+            <tr className="border-b border-border-strong text-left">
+              <th scope="col" className="py-2 pr-3">
+                <SortHeader
+                  label="Empleado"
+                  active={sort.sortKey === "empleado"}
+                  dir={sort.sortDir}
+                  onClick={() => sort.toggle("empleado")}
+                />
               </th>
-              <th scope="col" className="py-2 pr-3 font-semibold">
+              <th
+                scope="col"
+                className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+              >
                 RUT
               </th>
               {conHaberes && (
-                <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                  Haberes
+                <th scope="col" className="py-2 pr-3">
+                  <div className="flex justify-end">
+                    <SortHeader
+                      label="Haberes"
+                      align="right"
+                      active={sort.sortKey === "haberes"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("haberes")}
+                    />
+                  </div>
                 </th>
               )}
               {conCosto && (
-                <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                  Costo empresa
+                <th scope="col" className="py-2 pr-3">
+                  <div className="flex justify-end">
+                    <SortHeader
+                      label="Costo empresa"
+                      align="right"
+                      active={sort.sortKey === "costo"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("costo")}
+                    />
+                  </div>
                 </th>
               )}
-              <th scope="col" className="py-2 text-right font-semibold">
-                Líquido
+              <th scope="col" className="py-2">
+                <div className="flex justify-end">
+                  <SortHeader
+                    label="Líquido"
+                    align="right"
+                    active={sort.sortKey === "liquido"}
+                    dir={sort.sortDir}
+                    onClick={() => sort.toggle("liquido")}
+                  />
+                </div>
               </th>
             </tr>
           </thead>
           <tbody>
-            {detalle.map((e, i) => (
+            {detalleSorted.map((e, i) => (
               <tr
                 key={e.id || `${e.nombre}-${i}`}
                 className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted"
