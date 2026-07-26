@@ -9,10 +9,21 @@ import {
   QavanteEmpty,
   QavanteInlineError,
   QavanteInput,
+  SortHeader,
 } from "@/components/qavante";
+import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { cn } from "@/lib/utils";
 import type { EmployeesListResponse } from "@/lib/api/buk";
 import { filterEmployees, normalizeEmployee, type EmployeeSlim } from "./buk-format";
+
+/* Columnas ordenables de la dotación (regla de producto). Todo texto → por
+   defecto Nombre A→Z (roster). */
+const SORT_COLUMNS: SortColumn<EmployeeSlim>[] = [
+  { key: "nombre", kind: "text", get: (e) => e.fullName },
+  { key: "rut", kind: "text", get: (e) => e.rut ?? "" },
+  { key: "cargo", kind: "text", get: (e) => e.role ?? "" },
+  { key: "email", kind: "text", get: (e) => e.email ?? "" },
+];
 
 /* Dotación — lista de empleados del BUK (sección Remuneraciones). Presentacional:
    recibe la query por prop (el page invoca useBukEmployees). Filtro por texto es
@@ -34,6 +45,9 @@ export function DotacionView({ query, onSelect }: DotacionViewProps) {
     [query.data],
   );
   const filtered = React.useMemo(() => filterEmployees(employees, search), [employees, search]);
+  /* Orden de la grilla (por defecto Nombre A→Z; roster de empleados). */
+  const sort = useTableSort(SORT_COLUMNS, "nombre");
+  const sortedFiltered = sort.sorted(filtered);
 
   if (query.isLoading) {
     return (
@@ -100,23 +114,43 @@ export function DotacionView({ query, onSelect }: DotacionViewProps) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
-                <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Nombre
+                <tr className="border-b border-border-strong text-left">
+                  <th scope="col" className="py-2 pr-3">
+                    <SortHeader
+                      label="Nombre"
+                      active={sort.sortKey === "nombre"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("nombre")}
+                    />
                   </th>
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    RUT
+                  <th scope="col" className="py-2 pr-3">
+                    <SortHeader
+                      label="RUT"
+                      active={sort.sortKey === "rut"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("rut")}
+                    />
                   </th>
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Cargo
+                  <th scope="col" className="py-2 pr-3">
+                    <SortHeader
+                      label="Cargo"
+                      active={sort.sortKey === "cargo"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("cargo")}
+                    />
                   </th>
-                  <th scope="col" className="py-2 font-semibold">
-                    Email
+                  <th scope="col" className="py-2">
+                    <SortHeader
+                      label="Email"
+                      active={sort.sortKey === "email"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("email")}
+                    />
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((e, i) => {
+                {sortedFiltered.map((e, i) => {
                   const clickable = Boolean(onSelect);
                   return (
                     <tr
