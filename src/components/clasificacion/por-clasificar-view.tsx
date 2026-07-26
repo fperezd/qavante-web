@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { Dialog } from "@base-ui/react/dialog";
 import { CheckCircle2, ListChecks, RefreshCw } from "lucide-react";
-import { QavanteEmpty, QavanteButton, QavanteInlineError } from "@/components/qavante";
+import { QavanteEmpty, QavanteButton, QavanteInlineError, SortHeader } from "@/components/qavante";
+import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { cn } from "@/lib/utils";
 import {
   useBankMovements,
@@ -39,6 +40,14 @@ import {
   toCanonicalCategoryOptions,
   toDimensionValueOptions,
 } from "./adapters";
+
+/* Columnas ordenables de la grilla (regla de producto: fecha/nombre/monto).
+   Por defecto: fecha, más nueva primero (`useTableSort` arranca las fechas DESC). */
+const SORT_COLUMNS: SortColumn<BankMovement>[] = [
+  { key: "fecha", kind: "date", get: (m) => m.date },
+  { key: "descripcion", kind: "text", get: (m) => m.description },
+  { key: "monto", kind: "number", get: (m) => Math.abs(Number(m.amount) || 0) },
+];
 
 /* Lazy: separa Base UI Dialog + RHF + zod del First Load de
    /caja/por-clasificar. Solo se descarga si el user pide crear regla
@@ -129,10 +138,13 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       }
     } catch (e) {
       const status = e instanceof ApiError ? e.status : undefined;
-      toast.error(status === 403 ? "No tienes permiso para clasificar" : "No pudimos aplicar las reglas", {
-        description:
-          status === 403 ? "Tu rol es de solo lectura." : "Intenta de nuevo en un momento.",
-      });
+      toast.error(
+        status === 403 ? "No tienes permiso para clasificar" : "No pudimos aplicar las reglas",
+        {
+          description:
+            status === 403 ? "Tu rol es de solo lectura." : "Intenta de nuevo en un momento.",
+        },
+      );
     }
   }
 
@@ -158,8 +170,11 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
      lista cambia (al clasificar, la fila desaparece). */
   const [active, setActive] = React.useState(0);
   /* Cuántas filas renderizamos (auditoría UX F-05): con 200+ sin clasificar, pintar TODAS de una es
-     un muro paralizante. Mostramos las más GRANDES primero (ordenadas por monto) de a tandas. */
+     un muro paralizante. Mostramos de a tandas, en el orden de la columna activa (por defecto fecha). */
   const [visibleCount, setVisibleCount] = React.useState(30);
+  /* Ordenamiento de la grilla (fecha/nombre/monto). Por defecto fecha, más nueva
+     primero (regla de producto); el monto —los grandes primero, F-05— queda a un clic. */
+  const sort = useTableSort(SORT_COLUMNS, "fecha");
   const listRef = React.useRef<HTMLUListElement>(null);
   const rawItems = movementsQuery.data?.items ?? [];
   const itemCount = rawItems.filter(passes).length;
@@ -240,11 +255,9 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
      formatear correcto (US$ vs $). El vacío global (celebración) se evalúa sobre
      TODAS las cuentas; el filtro por cuenta solo afecta lo que se muestra. */
   const currencyMap = currencyByAccount(bankAccounts);
-  /* Ordenados por monto DESC: clasificar los grandes primero = el 80% de la plata en el 20% de las
-     filas (auditoría UX F-05). `visible` acota el render a la tanda actual. */
-  const movements = allMovements
-    .filter(passes)
-    .sort((a, b) => (Math.abs(Number(b.amount) || 0) - Math.abs(Number(a.amount) || 0)));
+  /* Ordenado según la columna activa (por defecto fecha, más nueva primero; regla de
+     producto). `visible` acota el render a la tanda actual (F-05, evita el muro). */
+  const movements = sort.sorted(allMovements.filter(passes));
   const visible = movements.slice(0, visibleCount);
   if (allMovements.length === 0) {
     return (
@@ -505,6 +518,45 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
               </div>
             </div>
           )}
+          {/* Cabeceras ordenables (alineadas con las columnas de cada fila). */}
+          <div className="flex items-center gap-4 px-3 pt-1">
+            <span className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="w-24 shrink-0">
+              <SortHeader
+                label="Fecha"
+                active={sort.sortKey === "fecha"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("fecha")}
+              />
+            </span>
+            <span className="min-w-0 flex-1">
+              <SortHeader
+                label="Movimiento"
+                active={sort.sortKey === "descripcion"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("descripcion")}
+              />
+            </span>
+            <span className="flex w-36 shrink-0 justify-end">
+              <SortHeader
+                label="Monto"
+                align="right"
+                active={sort.sortKey === "monto"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("monto")}
+              />
+            </span>
+            {/* Placeholder invisible del botón "Clasificar" para alinear la cabecera de Monto. */}
+            <QavanteButton
+              size="sm"
+              variant="secondary"
+              className="invisible"
+              tabIndex={-1}
+              aria-hidden="true"
+            >
+              Clasificar
+            </QavanteButton>
+          </div>
           <ul
             ref={listRef}
             role="listbox"
@@ -587,8 +639,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
               </QavanteButton>
             )}
             <p className="tabular-nums">
-              Mostrando {visible.length} de {movements.length} · ordenados por monto (los grandes
-              primero)
+              Mostrando {visible.length} de {movements.length}
             </p>
           </div>
         </>
