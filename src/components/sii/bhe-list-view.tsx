@@ -3,7 +3,14 @@
 import * as React from "react";
 import { Briefcase, Inbox } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
+import {
+  QavanteBadge,
+  QavanteCard,
+  QavanteEmpty,
+  QavanteInlineError,
+  SortHeader,
+} from "@/components/qavante";
+import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
 import { siiBhePdfUrl, type BheRecibida, type BheResponse } from "@/lib/api/sii";
 import { cn } from "@/lib/utils";
@@ -14,6 +21,18 @@ import { formatPeriodLabel } from "./sii-period-form-schema";
 import { DteActions } from "./dte-actions";
 import { fechaToPeriodo } from "./dte-date";
 import { BheKpisPanel } from "./bhe-v2/bhe-kpis-panel";
+
+/* Columnas ordenables de la grilla BHE (regla de producto). Por defecto: fecha,
+   más nueva primero (lista cronológica de boletas). El folio y los montos son
+   numéricos; el emisor, texto. */
+const SORT_COLUMNS: SortColumn<BheRecibida>[] = [
+  { key: "fecha", kind: "date", get: (b) => b.fecha_emision },
+  { key: "emisor", kind: "text", get: (b) => b.nombre_emisor ?? "" },
+  { key: "folio", kind: "number", get: (b) => (b.folio != null ? Number(b.folio) : null) },
+  { key: "bruto", kind: "number", get: (b) => b.monto_bruto ?? null },
+  { key: "retencion", kind: "number", get: (b) => b.retencion ?? null },
+  { key: "liquido", kind: "number", get: (b) => b.monto_liquido ?? null },
+];
 
 /* Vista BHE recibidas (Boletas de Honorarios Electrónicas que me cobran
    profesionales) — Sprint C1 PR-Sii3. Shape distinto a RCV: tiene
@@ -64,6 +83,9 @@ export function BheListView({
   const liquidoTotal = sumLiquido(items);
   const retencionTotal = sumRetencion(items);
   const anuladasCount = items.filter((b) => b.anulada).length;
+  /* Orden de la grilla (por defecto fecha, más nueva primero; regla de producto). */
+  const sort = useTableSort(SORT_COLUMNS, "fecha");
+  const sortedItems = sort.sorted(items);
 
   return (
     <div className="space-y-4">
@@ -127,32 +149,74 @@ export function BheListView({
           <div className={stickyScroll}>
             <table className="w-full min-w-[600px] text-sm">
               <thead className={stickyHead}>
-                <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Fecha
+                <tr className="border-b border-border-strong text-left">
+                  <th scope="col" className="py-2 pr-3">
+                    <SortHeader
+                      label="Fecha"
+                      active={sort.sortKey === "fecha"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("fecha")}
+                    />
                   </th>
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Emisor
+                  <th scope="col" className="py-2 pr-3">
+                    <SortHeader
+                      label="Emisor"
+                      active={sort.sortKey === "emisor"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("emisor")}
+                    />
                   </th>
-                  <th scope="col" className="py-2 pr-3 font-semibold">
-                    Folio
+                  <th scope="col" className="py-2 pr-3">
+                    <SortHeader
+                      label="Folio"
+                      active={sort.sortKey === "folio"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("folio")}
+                    />
                   </th>
-                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                    Bruto
+                  <th scope="col" className="py-2 pr-3">
+                    <div className="flex justify-end">
+                      <SortHeader
+                        label="Bruto"
+                        align="right"
+                        active={sort.sortKey === "bruto"}
+                        dir={sort.sortDir}
+                        onClick={() => sort.toggle("bruto")}
+                      />
+                    </div>
                   </th>
-                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                    Retención
+                  <th scope="col" className="py-2 pr-3">
+                    <div className="flex justify-end">
+                      <SortHeader
+                        label="Retención"
+                        align="right"
+                        active={sort.sortKey === "retencion"}
+                        dir={sort.sortDir}
+                        onClick={() => sort.toggle("retencion")}
+                      />
+                    </div>
                   </th>
-                  <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                    Líquido
+                  <th scope="col" className="py-2 pr-3">
+                    <div className="flex justify-end">
+                      <SortHeader
+                        label="Líquido"
+                        align="right"
+                        active={sort.sortKey === "liquido"}
+                        dir={sort.sortDir}
+                        onClick={() => sort.toggle("liquido")}
+                      />
+                    </div>
                   </th>
-                  <th scope="col" className="py-2 text-right font-semibold">
+                  <th
+                    scope="col"
+                    className="py-2 text-right text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+                  >
                     DTE
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((b, i) => (
+                {sortedItems.map((b, i) => (
                   <tr
                     key={`${b.folio ?? "x"}-${b.rut_emisor ?? i}`}
                     className={cn(
