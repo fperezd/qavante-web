@@ -60,23 +60,29 @@ export function sortItems<T>(items: T[], column: SortColumn<T> | undefined, dir:
 }
 
 export interface TableSort<T> {
-  sortKey: string;
+  /** Columna activa, o `null` en modo "curado" (aún sin ordenar por columna). */
+  sortKey: string | null;
   sortDir: SortDir;
   /** Ordena por `key`; si ya era la columna activa, invierte la dirección. */
   toggle: (key: string) => void;
-  /** Devuelve una copia ordenada (no muta el arreglo original). */
+  /** Vuelve al estado inicial (útil para restaurar el orden curado, sortKey=null). */
+  reset: () => void;
+  /** Devuelve una copia ordenada (no muta el arreglo original). Con `sortKey`
+      null devuelve los ítems tal cual (respeta el orden que ya traían). */
   sorted: (items: T[]) => T[];
 }
 
 export function useTableSort<T>(
   columns: SortColumn<T>[],
-  defaultKey: string,
+  /** Columna inicial, o `null` para arrancar SIN ordenar (respeta el orden
+      curado que ya trae la lista, ej. "a quién cobrar primero"). */
+  defaultKey: string | null,
   initialDir?: SortDir,
 ): TableSort<T> {
   const colByKey = React.useMemo(() => new Map(columns.map((c) => [c.key, c])), [columns]);
-  const [sortKey, setSortKey] = React.useState(defaultKey);
+  const [sortKey, setSortKey] = React.useState<string | null>(defaultKey);
   const [sortDir, setSortDir] = React.useState<SortDir>(
-    initialDir ?? naturalDir(colByKey.get(defaultKey)?.kind ?? "text"),
+    initialDir ?? naturalDir((defaultKey ? colByKey.get(defaultKey) : undefined)?.kind ?? "text"),
   );
 
   const toggle = React.useCallback(
@@ -93,10 +99,17 @@ export function useTableSort<T>(
     [colByKey, sortKey],
   );
 
+  const reset = React.useCallback(() => {
+    setSortKey(defaultKey);
+    setSortDir(
+      initialDir ?? naturalDir((defaultKey ? colByKey.get(defaultKey) : undefined)?.kind ?? "text"),
+    );
+  }, [colByKey, defaultKey, initialDir]);
+
   const sorted = React.useCallback(
-    (items: T[]) => sortItems(items, colByKey.get(sortKey), sortDir),
+    (items: T[]) => sortItems(items, sortKey ? colByKey.get(sortKey) : undefined, sortDir),
     [colByKey, sortKey, sortDir],
   );
 
-  return { sortKey, sortDir, toggle, sorted };
+  return { sortKey, sortDir, toggle, reset, sorted };
 }
