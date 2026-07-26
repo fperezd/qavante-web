@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { within, expect } from "storybook/test";
+import { within, expect, userEvent } from "storybook/test";
 import { VencimientosTimeline } from "./vencimientos-timeline";
 
 /* "Por vencer y vencidos": pagos por urgencia con su postergabilidad, clickeables. */
@@ -26,11 +26,53 @@ export const PorUrgencia: Story = {
   args: {
     items: [
       // Con onClick (drill-down cableado por el container) → clickeable.
-      { id: "1", vencido: true, fecha: "10-07", acreedor: "COMERCIAL KAUFMANN S.A.", detalle: "Proveedor · factura 8842", monto: 2_100_000, postergabilidad: "negociable", onClick: noop },
-      { id: "2", fecha: "13-07", acreedor: "Previred — cotizaciones", detalle: "Leyes sociales · junio", monto: 3_850_000, postergabilidad: "no_postergable", onClick: noop },
-      { id: "3", fecha: "15-07", acreedor: "Google Cloud", detalle: "Servicio · compra extranjera", monto: 1_190_000, montoOrigen: "US$1.240", postergabilidad: "negociable", onClick: noop },
-      { id: "4", fecha: "20-07", acreedor: "F29 — IVA a pagar", detalle: "Impuesto SII · junio", monto: 4_200_000, postergabilidad: "no_postergable", onClick: noop },
-      { id: "5", fecha: "25-07", acreedor: "DIVEIMPORT S.A.", detalle: "Proveedor · factura 1043", monto: 3_400_000, postergabilidad: "cubierto", onClick: noop },
+      {
+        id: "1",
+        vencido: true,
+        fecha: "10-07",
+        acreedor: "COMERCIAL KAUFMANN S.A.",
+        detalle: "Proveedor · factura 8842",
+        monto: 2_100_000,
+        postergabilidad: "negociable",
+        onClick: noop,
+      },
+      {
+        id: "2",
+        fecha: "13-07",
+        acreedor: "Previred — cotizaciones",
+        detalle: "Leyes sociales · junio",
+        monto: 3_850_000,
+        postergabilidad: "no_postergable",
+        onClick: noop,
+      },
+      {
+        id: "3",
+        fecha: "15-07",
+        acreedor: "Google Cloud",
+        detalle: "Servicio · compra extranjera",
+        monto: 1_190_000,
+        montoOrigen: "US$1.240",
+        postergabilidad: "negociable",
+        onClick: noop,
+      },
+      {
+        id: "4",
+        fecha: "20-07",
+        acreedor: "F29 — IVA a pagar",
+        detalle: "Impuesto SII · junio",
+        monto: 4_200_000,
+        postergabilidad: "no_postergable",
+        onClick: noop,
+      },
+      {
+        id: "5",
+        fecha: "25-07",
+        acreedor: "DIVEIMPORT S.A.",
+        detalle: "Proveedor · factura 1043",
+        monto: 3_400_000,
+        postergabilidad: "cubierto",
+        onClick: noop,
+      },
     ],
   },
   play: async ({ canvasElement }) => {
@@ -45,11 +87,46 @@ export const PorUrgencia: Story = {
   },
 };
 
+/** Muro: muchos vencimientos (Tooxs tiene 50+) → se acota a 25 y el resto queda tras "Mostrar más". */
+export const Muro: Story = {
+  args: {
+    items: Array.from({ length: 30 }, (_, i) => ({
+      id: `m${i + 1}`,
+      vencido: i < 10,
+      fecha: "15-07",
+      acreedor: `Proveedor ${i + 1}`,
+      detalle: `Factura ${1000 + i}`,
+      monto: 3_000_000 - i * 10_000,
+      postergabilidad: "negociable" as const,
+      onClick: noop,
+    })),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // De entrada solo 25: el ítem 30 no está y aparece el resumen + el botón.
+    await expect(canvas.queryByRole("button", { name: /Proveedor 30/ })).not.toBeInTheDocument();
+    await expect(canvas.getByText(/Mostrando 25 de 30/)).toBeInTheDocument();
+    const masBtn = canvas.getByRole("button", { name: /Mostrar 25 más/ });
+    await userEvent.click(masBtn);
+    // Tras el clic: el ítem 30 aparece y el botón desaparece (ya no hay más).
+    await expect(canvas.getByRole("button", { name: /Proveedor 30/ })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /Mostrar 25 más/ })).not.toBeInTheDocument();
+    await expect(canvas.getByText(/Mostrando 30 de 30/)).toBeInTheDocument();
+  },
+};
+
 /** Sin onClick (ítems sin destino todavía): NO se renderean como botones (sin afordance no-op). */
 export const SinDestino: Story = {
   args: {
     items: [
-      { id: "1", fecha: "20-07", acreedor: "F29 — IVA a pagar", detalle: "Impuesto SII", monto: 4_200_000, postergabilidad: "no_postergable" },
+      {
+        id: "1",
+        fecha: "20-07",
+        acreedor: "F29 — IVA a pagar",
+        detalle: "Impuesto SII",
+        monto: 4_200_000,
+        postergabilidad: "no_postergable",
+      },
     ],
   },
   play: async ({ canvasElement }) => {
