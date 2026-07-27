@@ -65,20 +65,28 @@ export function computeCascada(entradas: CascadaEntrada[]): CascadaBarra[] {
     return { e, start, end, acumulado: running };
   });
 
-  // Paso 2: escala al monto mayor de la trayectoria (normalmente los ingresos).
-  const max = Math.max(1, ...raw.map((r) => Math.max(Math.abs(r.start), Math.abs(r.end))));
+  // Paso 2: escala al DOMINIO completo [min, max] de la trayectoria — incluye el 0 y los tramos
+  // NEGATIVOS (meses de pérdida). `pos(v)` mapea un valor crudo a % del eje. Con solo positivos
+  // min=0 → `pos(v)=v/max` → idéntico a escalar por el máximo (el caso común no cambia). El bug
+  // anterior recortaba lo que caía bajo cero (`Math.max(0, lo)`) → barras de pérdida encogidas.
+  const vals = raw.flatMap((r) => [r.start, r.end]);
+  const domMin = Math.min(0, ...vals);
+  const domMax = Math.max(0, ...vals);
+  const span = Math.max(1, domMax - domMin);
+  const pos = (v: number) => clamp(((v - domMin) / span) * 100, 0, 100);
 
   return raw.map((r) => {
     let left: number;
     let width: number;
     if (r.e.tipo === "subtotal" || r.e.tipo === "resultado") {
-      left = 0;
-      width = clamp((Math.abs(r.end) / max) * 100, 0.8, 100);
+      // Barra total: del 0 al acumulado (a la izquierda del 0 si es pérdida).
+      left = pos(Math.min(0, r.end));
+      width = clamp(pos(Math.max(0, r.end)) - pos(Math.min(0, r.end)), 0.8, 100);
     } else {
       const lo = Math.min(r.start, r.end);
       const hi = Math.max(r.start, r.end);
-      left = clamp((Math.max(0, lo) / max) * 100, 0, 100);
-      width = clamp(((hi - Math.max(0, lo)) / max) * 100, 0.8, 100);
+      left = pos(lo);
+      width = clamp(pos(hi) - pos(lo), 0.8, 100);
     }
     const montoFirmado =
       r.e.tipo === "ingreso"

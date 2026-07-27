@@ -60,6 +60,28 @@ describe("computeCascada", () => {
     expect(by("ho").width).toBeGreaterThanOrEqual(0.8); // honorarios ~4.8%
   });
 
+  it("mes de PÉRDIDA: las restas bajo cero muestran su magnitud real (no se recortan al eje 0)", () => {
+    // Ingresos 10M − costos 4M (acum 6M) − gasto laboral 8M (acum −2M, CRUZA cero) − honorarios 1M
+    // (acum −3M, ENTERO negativo). Dominio [−3M, 10M], span 13M.
+    const out = computeCascada([
+      { id: "ing", label: "Ingresos", tipo: "ingreso", monto: 10_000_000 },
+      { id: "cd", label: "Costos", tipo: "resta", monto: 4_000_000 },
+      { id: "mb", label: "Margen", tipo: "subtotal", monto: 0 },
+      { id: "gl", label: "Gasto laboral", tipo: "resta", monto: 8_000_000 },
+      { id: "ho", label: "Honorarios", tipo: "resta", monto: 1_000_000 },
+      { id: "res", label: "Resultado", tipo: "resultado", monto: 0 },
+    ]);
+    const b = (id: string) => out.find((x) => x.id === id)!;
+    // Gasto laboral cruza el cero: ancho = magnitud completa 8M/13M ≈ 61.5% (antes se recortaba).
+    expect(b("gl").width).toBeCloseTo((8_000_000 / 13_000_000) * 100, 0);
+    // Honorarios entero bajo cero: ancho real 1M/13M ≈ 7.7% (antes colapsaba al stub de 0,8%).
+    expect(b("ho").width).toBeCloseTo((1_000_000 / 13_000_000) * 100, 0);
+    expect(b("ho").width).toBeGreaterThan(1);
+    // El resultado (−3M) sigue marcado como pérdida.
+    expect(b("res").negativo).toBe(true);
+    expect(b("res").montoFirmado).toBe(-3_000_000);
+  });
+
   it("una línea de ajuste FIRMADA suma o resta según su signo", () => {
     const conAjuste = computeCascada([
       { id: "ing", label: "Ingresos", tipo: "ingreso", monto: 10_000_000 },
