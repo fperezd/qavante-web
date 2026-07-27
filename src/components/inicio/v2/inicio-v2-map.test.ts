@@ -74,7 +74,13 @@ describe("mapCaja", () => {
     const s = {
       ...emptySummary(),
       cash_today: { total: "-1518883", last_updated: "2026-07-08", data_state: "estimated" },
-      cash_forecast: { min_14d: "-5737505", min_30d: "-5737505", days_of_cash: 0, last_updated: "2026-07-08", source: "banco" },
+      cash_forecast: {
+        min_14d: "-5737505",
+        min_30d: "-5737505",
+        days_of_cash: 0,
+        last_updated: "2026-07-08",
+        source: "banco",
+      },
       cash_sparkline: [100, -50, -200],
     } as unknown as DashboardSummaryV2;
     const c = mapCaja(s)!;
@@ -86,14 +92,23 @@ describe("mapCaja", () => {
   });
 
   it("sin cash_sparkline → serie vacía (degrada, no inventa)", () => {
-    const s = { ...emptySummary(), cash_today: { total: "1000", last_updated: "2026-07-08", data_state: "available" } } as unknown as DashboardSummaryV2;
+    const s = {
+      ...emptySummary(),
+      cash_today: { total: "1000", last_updated: "2026-07-08", data_state: "available" },
+    } as unknown as DashboardSummaryV2;
     expect(mapCaja(s)!.serie).toEqual([]);
   });
 
   it("SIN cash_today (banco caído) → saldo DESCONOCIDO (null), no $0 (faltante ≠ 0)", () => {
     const s = {
       ...emptySummary(),
-      cash_forecast: { min_14d: "-100", min_30d: "-100", days_of_cash: 0, last_updated: "2026-07-08", source: "banco" },
+      cash_forecast: {
+        min_14d: "-100",
+        min_30d: "-100",
+        days_of_cash: 0,
+        last_updated: "2026-07-08",
+        source: "banco",
+      },
     } as unknown as DashboardSummaryV2;
     const c = mapCaja(s)!;
     expect(c.cajaHoy).toBeNull(); // ← nunca 0
@@ -103,7 +118,10 @@ describe("mapCaja", () => {
   it("el subtítulo refleja la frescura que declara el backend", () => {
     const base = { ...emptySummary(), cash_forecast: null };
     const con = (state: string) =>
-      mapCaja({ ...base, cash_today: { total: "1000", last_updated: "2026-07-08", data_state: state } } as unknown as DashboardSummaryV2)!.subtitulo;
+      mapCaja({
+        ...base,
+        cash_today: { total: "1000", last_updated: "2026-07-08", data_state: state },
+      } as unknown as DashboardSummaryV2)!.subtitulo;
     expect(con("available")).toBe("Caja hoy");
     expect(con("stale")).toBe("Caja hoy · desactualizada");
     expect(con("estimated")).toBe("Caja hoy · estimada");
@@ -114,7 +132,11 @@ describe("mapBrechaTotal / mapEstadoBrecha", () => {
   it("brecha = obligaciones − caja proyectada, solo si has_gap y > 0", () => {
     const s = {
       ...emptySummary(),
-      cash_gap: { has_gap: true, critical_obligations_14d: "4218622", projected_cash_14d: "-5737505" },
+      cash_gap: {
+        has_gap: true,
+        critical_obligations_14d: "4218622",
+        projected_cash_14d: "-5737505",
+      },
     } as unknown as DashboardSummaryV2;
     expect(mapBrechaTotal(s)).toBe(9956127);
     expect(mapEstadoBrecha(s)).toEqual({ tipo: "brecha", monto: 9956127 });
@@ -128,7 +150,11 @@ describe("mapBrechaTotal / mapEstadoBrecha", () => {
     // El backend sabe del valle intra-período / caja mínima; nosotros solo el saldo al día 14.
     const s = {
       ...emptySummary(),
-      cash_gap: { has_gap: true, critical_obligations_14d: "4218622", projected_cash_14d: "9000000" },
+      cash_gap: {
+        has_gap: true,
+        critical_obligations_14d: "4218622",
+        projected_cash_14d: "9000000",
+      },
     } as unknown as DashboardSummaryV2;
     expect(mapEstadoBrecha(s)).toEqual({ tipo: "indeterminado" });
     expect(mapBrechaTotal(s)).toBeNull(); // no cuantificable
@@ -172,6 +198,16 @@ describe("mapCobranza (degradada sin Fase 2)", () => {
     expect(c.vencido).toBe(0);
     expect(c.segmentos).toEqual([]);
     expect(c.subtitulo).toBe("Por cobrar");
+  });
+
+  it("overdue null (SII sin vencimientos) → vencido null, NO 0 (no mentir 'al día')", () => {
+    const s = {
+      ...emptySummary(),
+      overdue_collections: { total_receivable: "205400000", overdue: null },
+    } as unknown as DashboardSummaryV2;
+    const c = mapCobranza(s)!;
+    expect(c.totalPorCobrar).toBe(205400000);
+    expect(c.vencido).toBeNull(); // parseAmount(null) daría 0; debe preservar el null
   });
 });
 
@@ -250,8 +286,20 @@ describe("mapPagos (key_obligations)", () => {
     const s = {
       ...emptySummary(),
       key_obligations: [
-        { key: "sueldos", label: "Remuneraciones", due_date: "2026-06-30", amount: "8600000", coverage: "uncovered" },
-        { key: "impuestos_mensuales", label: "IVA / F29", due_date: "2026-07-20", amount: "4214448", coverage: "tight" },
+        {
+          key: "sueldos",
+          label: "Remuneraciones",
+          due_date: "2026-06-30",
+          amount: "8600000",
+          coverage: "uncovered",
+        },
+        {
+          key: "impuestos_mensuales",
+          label: "IVA / F29",
+          due_date: "2026-07-20",
+          amount: "4214448",
+          coverage: "tight",
+        },
       ],
     } as unknown as DashboardSummaryV2;
     const p = mapPagos(s, now)!;
@@ -268,7 +316,13 @@ describe("mapPagos (key_obligations)", () => {
     const s = {
       ...emptySummary(),
       key_obligations: [
-        { key: "sueldos", label: "Remuneraciones", due_date: "2026-07-12", amount: "1000", coverage: "covered" },
+        {
+          key: "sueldos",
+          label: "Remuneraciones",
+          due_date: "2026-07-12",
+          amount: "1000",
+          coverage: "covered",
+        },
       ],
     } as unknown as DashboardSummaryV2;
     const p = mapPagos(s, now)!;
@@ -284,7 +338,12 @@ describe("mapResultado", () => {
   it("margen computado; sin preliminar/rango/extra (no están en el summary)", () => {
     const s = {
       ...emptySummary(),
-      operational_result: { revenue: "8855032", gross_margin: "8855032", ebitda_proxy: "0", result: "7926679" },
+      operational_result: {
+        revenue: "8855032",
+        gross_margin: "8855032",
+        ebitda_proxy: "0",
+        result: "7926679",
+      },
     } as unknown as DashboardSummaryV2;
     const r = mapResultado(s)!;
     expect(r.resultado).toBe(7926679);
