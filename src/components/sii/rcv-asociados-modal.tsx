@@ -66,9 +66,9 @@ export function RcvAsociadosModal({
           {row.sobreCredito && (
             <p className="mb-3 rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-500">
               <strong>Revisar:</strong> las {row.notas.length} notas de crédito (
-              {formatClp(ncTotal)}) superan el monto de la factura ({formatClp(facturaTotal)}). Suele
-              ser un error de referencia en el SII (varias NC apuntando al mismo folio). La factura
-              se considera anulada; el exceso conviene revisarlo con tu contador.
+              {formatClp(ncTotal)}) superan el monto de la factura ({formatClp(facturaTotal)}).
+              Suele ser un error de referencia en el SII (varias NC apuntando al mismo folio). La
+              factura se considera anulada; el exceso conviene revisarlo con tu contador.
             </p>
           )}
           {!row.matchExacto && !row.sobreCredito && (
@@ -92,14 +92,19 @@ export function RcvAsociadosModal({
                   const meta = tipoDocMeta(d.tipo_doc ?? null);
                   const isNC = i > 0;
                   return (
-                    <tr key={`${d.folio}-${i}`} className="border-b border-border/50 last:border-b-0">
+                    <tr
+                      key={`${d.folio}-${i}`}
+                      className="border-b border-border/50 last:border-b-0"
+                    >
                       <td className="py-2.5 pr-3">
                         <QavanteBadge variant={isNC ? "danger" : "success"}>
                           {meta.abbr} {d.folio}
                         </QavanteBadge>
                       </td>
                       <td className="py-2.5 pr-3">
-                        <span className="block text-neutral-dark">{d.razon_social ?? "Sin nombre"}</span>
+                        <span className="block text-neutral-dark">
+                          {d.razon_social ?? "Sin nombre"}
+                        </span>
                         {d.rut_contraparte && (
                           <span className="block font-mono text-xs text-neutral-mid">
                             {d.rut_contraparte}
@@ -108,7 +113,9 @@ export function RcvAsociadosModal({
                       </td>
                       <td className="py-2.5 pr-3 text-neutral-dark">{formatDateLike(d.fecha)}</td>
                       <td className="py-2.5 text-right tabular-nums text-neutral-dark">
-                        {formatClp(d.monto_total ?? 0)}
+                        {/* "—" honesto si el doc no trae monto (convención del módulo
+                            RCV), en vez de "$0" que aparentaría un documento en cero. */}
+                        {typeof d.monto_total === "number" ? formatClp(d.monto_total) : "—"}
                       </td>
                     </tr>
                   );
