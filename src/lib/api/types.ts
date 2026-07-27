@@ -2383,6 +2383,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/payroll-workers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Trabajadores del período con su costo y la cuenta asignada (clasificación) */
+        get: operations["payroll_workers_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/payroll-workers/{worker_rut}/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Asigna/cambia la cuenta de un empleado (owner/admin) */
+        put: operations["payroll_worker_set_account"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/payroll-workers/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Asigna la MISMA cuenta a varios empleados (masivo, owner/admin) */
+        patch: operations["payroll_workers_bulk_set_account"];
+        trace?: never;
+    };
     "/api/treasury/cost-classification": {
         parameters: {
             query?: never;
@@ -4781,6 +4832,14 @@ export interface components {
             /** Dimensions Existing */
             dimensions_existing: number;
         };
+        /** AssignAccountRequest */
+        AssignAccountRequest: {
+            /**
+             * Account Code
+             * @description Código de cuenta del plan (ej. 'direct_cost.direct_labor').
+             */
+            account_code: string;
+        };
         /** AssignmentsListResponse */
         AssignmentsListResponse: {
             /** Items */
@@ -5539,6 +5598,27 @@ export interface components {
             } | null;
         } & {
             [key: string]: unknown;
+        };
+        /** BulkAssignRequest */
+        BulkAssignRequest: {
+            /**
+             * Worker Ruts
+             * @description RUTs de los trabajadores a clasificar.
+             */
+            worker_ruts: string[];
+            /**
+             * Account Code
+             * @description Cuenta a asignar a todos.
+             */
+            account_code: string;
+        };
+        /** BulkAssignResponse */
+        BulkAssignResponse: {
+            /**
+             * Assigned
+             * @description Cantidad de trabajadores asignados.
+             */
+            assigned: number;
         };
         /**
          * CanonicalCategoriesResponse
@@ -10267,6 +10347,21 @@ export interface components {
              */
             total_cotizaciones: number;
         };
+        /** PayrollWorkersResponse */
+        PayrollWorkersResponse: {
+            /**
+             * Period
+             * @description Período YYYY-MM.
+             */
+            period: string;
+            /** Workers */
+            workers: components["schemas"]["WorkerClassification"][];
+            /**
+             * Unclassified Count
+             * @description Trabajadores sin cuenta asignada (su costo cae en gasto admin por default → el margen puede estar subestimado hasta clasificarlos).
+             */
+            unclassified_count: number;
+        };
         /** PenalizacionAplicadaResponse */
         PenalizacionAplicadaResponse: {
             /**
@@ -12281,6 +12376,28 @@ export interface components {
         VerifyEmailRequest: {
             /** Token */
             token: string;
+        };
+        /** WorkerClassification */
+        WorkerClassification: {
+            /** Worker Rut */
+            worker_rut: string;
+            /** Worker Name */
+            worker_name?: string | null;
+            /**
+             * Costo Empresa
+             * @description Costo empresa del período (string-decimal).
+             */
+            costo_empresa: string;
+            /**
+             * Account Code
+             * @description Cuenta asignada, o null si sin clasificar.
+             */
+            account_code?: string | null;
+            /**
+             * Account Name
+             * @description Nombre legible de la cuenta asignada.
+             */
+            account_name?: string | null;
         };
         /** CertificateUploadResponse */
         app__api__admin__certificates__CertificateUploadResponse: {
@@ -16871,6 +16988,141 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PayrollPaydayResponse"];
                 };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payroll_workers_list: {
+        parameters: {
+            query: {
+                /** @description Período YYYY-MM. */
+                period: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollWorkersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payroll_worker_set_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description RUT del trabajador (como viene en la nómina). */
+                worker_rut: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerClassification"];
+                };
+            };
+            /** @description La cuenta no existe en el plan del tenant. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    payroll_workers_bulk_set_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkAssignRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkAssignResponse"];
+                };
+            };
+            /** @description La cuenta no existe en el plan del tenant. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Rol sin permiso (owner/admin). */
             403: {

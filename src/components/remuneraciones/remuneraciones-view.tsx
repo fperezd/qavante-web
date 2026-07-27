@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Users, Wallet, Landmark } from "lucide-react";
+import { Users, Wallet, Landmark, Tags } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   useBukEmployees,
@@ -10,10 +11,18 @@ import {
   useSyncBukPayroll,
 } from "@/lib/api/buk";
 import { useBankMovements, usePayrollPayday, useSetPayrollPayday } from "@/lib/api/treasury";
+import {
+  usePayrollWorkers,
+  useSetWorkerAccount,
+  useBulkSetWorkerAccount,
+} from "@/lib/api/payroll-workers";
+import { useManagementAccountsTree } from "@/lib/api/management";
 import { useSiiF29Impuesto } from "@/lib/api/sii";
 import { ApiError } from "@/lib/api/errors";
 import { DotacionView } from "./dotacion-view";
 import { PlanillaView } from "./planilla-view";
+import { ClasificacionCuentasView } from "./clasificacion-cuentas-view";
+import { payrollCuentaOptions } from "./payroll-cuentas";
 import { PayrollSyncBar } from "./payroll-sync-bar";
 import { EmpleadoDetalle } from "./empleado-detalle";
 import { ConciliacionSueldosView } from "./conciliacion-sueldos-view";
@@ -30,11 +39,12 @@ import type { EmployeeSlim } from "./buk-format";
    banco). Invoca los hooks BUK + movimientos bancarios. Montado por la page
    solo con el flag `remuneraciones` ON. */
 
-type Tab = "dotacion" | "planilla" | "conciliacion";
+type Tab = "dotacion" | "planilla" | "clasificacion" | "conciliacion";
 
 const TABS: ReadonlyArray<{ id: Tab; label: string; Icon: typeof Users }> = [
   { id: "dotacion", label: "Dotación", Icon: Users },
   { id: "planilla", label: "Planilla", Icon: Wallet },
+  { id: "clasificacion", label: "Clasificación", Icon: Tags },
   { id: "conciliacion", label: "Conciliación", Icon: Landmark },
 ];
 
@@ -94,9 +104,7 @@ export function RemuneracionesView({ initialPeriod }: { initialPeriod?: string }
   const detalleForbidden =
     payrollDetailQuery.error instanceof ApiError && payrollDetailQuery.error.status === 403;
   const detalleUnavailable =
-    Boolean(payrollQuery.data?.totales) &&
-    !payrollDetailQuery.isLoading &&
-    empleados.length === 0;
+    Boolean(payrollQuery.data?.totales) && !payrollDetailQuery.isLoading && empleados.length === 0;
 
   /* Filtro de rango idéntico al Libro. La planilla trabaja por mes → se usa el
      mes final del rango; el hint lo aclara. */
@@ -159,6 +167,9 @@ export function RemuneracionesView({ initialPeriod }: { initialPeriod?: string }
           )}
         </div>
       )}
+      {tab === "clasificacion" && (
+        <ClasificacionCuentasLive period={period} periodForm={periodForm} />
+      )}
       {tab === "conciliacion" && (
         <ConciliacionSueldosView
           period={period}
@@ -177,6 +188,66 @@ export function RemuneracionesView({ initialPeriod }: { initialPeriod?: string }
 
       <EmpleadoDetalle employee={selected} onClose={() => setSelected(null)} />
     </div>
+  );
+}
+
+/* Contenedor de la clasificación de remuneraciones por cuenta (ADR-0079): trae los
+   trabajadores del período + el árbol de cuentas, cablea las mutations (individual y
+   masiva) y muestra la vista. La asignación es persistente (se hereda cada mes). */
+function ClasificacionCuentasLive({
+  period,
+  periodForm,
+}: {
+  period: string;
+  periodForm: React.ReactNode;
+}) {
+  const workersQuery = usePayrollWorkers(period, Boolean(period));
+  const accountsQuery = useManagementAccountsTree();
+  const setAccount = useSetWorkerAccount();
+  const bulkSet = useBulkSetWorkerAccount();
+
+  const options = React.useMemo(
+    () => payrollCuentaOptions(accountsQuery.data?.items ?? []),
+    [accountsQuery.data],
+  );
+
+  const errMsg = (e: unknown) =>
+    e instanceof ApiError && e.status === 403
+      ? "Tu rol es de solo lectura — no podés clasificar."
+      : "No pudimos guardar la clasificación. Intenta de nuevo.";
+
+  const onAssign = (workerRut: string, accountCode: string) =>
+    setAccount.mutate(
+      { workerRut, accountCode },
+      {
+        onSuccess: () => toast.success("Cuenta asignada"),
+        onError: (e) => toast.error("No se pudo asignar", { description: errMsg(e) }),
+      },
+    );
+  const onBulkAssign = (workerRuts: string[], accountCode: string) =>
+    bulkSet.mutate(
+      { workerRuts, accountCode },
+      {
+        onSuccess: () =>
+          toast.success(
+            `${workerRuts.length} ${workerRuts.length === 1 ? "trabajador clasificado" : "trabajadores clasificados"}`,
+          ),
+        onError: (e) => toast.error("No se pudo asignar en lote", { description: errMsg(e) }),
+      },
+    );
+
+  return (
+    <ClasificacionCuentasView
+      workers={workersQuery.data?.workers ?? []}
+      options={options}
+      unclassifiedCount={workersQuery.data?.unclassified_count ?? 0}
+      loading={workersQuery.isLoading}
+      error={workersQuery.error}
+      pending={setAccount.isPending || bulkSet.isPending}
+      onAssign={onAssign}
+      onBulkAssign={onBulkAssign}
+      periodForm={periodForm}
+    />
   );
 }
 
