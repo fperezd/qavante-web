@@ -5,6 +5,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Plus, X, TriangleAlert } from "lucide-react";
 import { QavanteButton } from "@/components/qavante";
 import { cn } from "@/lib/utils";
+import { formatClp } from "@/lib/formatters/clp";
 import { agruparCuentaOptions, type CuentaOption } from "./payroll-cuentas";
 import type { AllocationIn } from "@/lib/api/payroll-workers";
 
@@ -25,6 +26,9 @@ export interface AllocationEditorDialogProps {
   initial?: AllocationIn[];
   /** Meses "rige desde" (YYYY-MM, más nuevo primero). El primero es el default. */
   months: { value: string; label: string }[];
+  /** Costo empresa a repartir (solo en modo individual): muestra los $ por fila
+   *  además del %. En lote no aplica (son varios costos distintos) → undefined. */
+  baseAmount?: number;
   pending?: boolean;
   onSave: (allocations: AllocationIn[], effectiveFrom: string) => void;
 }
@@ -61,6 +65,7 @@ export function AllocationEditorDialog({
   options,
   initial,
   months,
+  baseAmount,
   pending,
   onSave,
 }: AllocationEditorDialogProps) {
@@ -144,6 +149,14 @@ export function AllocationEditorDialog({
                   />
                   <span className="text-[12.5px] text-neutral-mid">%</span>
                 </div>
+                {baseAmount != null && (
+                  <span
+                    className="w-24 shrink-0 text-right text-[11.5px] tabular-nums text-neutral-mid"
+                    aria-label={`Monto del reparto ${i + 1}`}
+                  >
+                    {formatClp(Math.round((baseAmount * (Number(r.pct) || 0)) / 100))}
+                  </span>
+                )}
                 {rows.length > 1 && (
                   <button
                     type="button"
