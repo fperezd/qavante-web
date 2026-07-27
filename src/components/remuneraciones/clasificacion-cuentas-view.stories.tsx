@@ -112,6 +112,21 @@ export const Split: Story = {
   },
 };
 
+export const Ordenable: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const orden = () => canvas.getAllByRole("row").map((r) => r.textContent ?? "");
+    const idx = (rows: string[], name: string) => rows.findIndex((t) => t.includes(name));
+    // Default curado = costo empresa desc → Fernando ($6,9M) va antes que Mirko ($2,9M).
+    const inicial = orden();
+    await expect(idx(inicial, "Fernando")).toBeLessThan(idx(inicial, "Mirko"));
+    // Un clic en "Costo empresa" invierte a asc → Mirko primero.
+    await userEvent.click(canvas.getByRole("button", { name: /Ordenar por Costo empresa/ }));
+    const asc = orden();
+    await expect(idx(asc, "Mirko")).toBeLessThan(idx(asc, "Fernando"));
+  },
+};
+
 export const TodosClasificados: Story = {
   args: {
     unclassifiedCount: 0,

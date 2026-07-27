@@ -10,6 +10,8 @@ import {
   QavanteInlineError,
 } from "@/components/qavante";
 import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
+import { SortHeader } from "@/components/qavante/sort-header";
+import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { cn } from "@/lib/utils";
@@ -85,6 +87,18 @@ export function ClasificacionCuentasView({
 }: ClasificacionCuentasViewProps) {
   const [checked, setChecked] = React.useState<Set<string>>(new Set());
   const [dialog, setDialog] = React.useState<DialogState>({ modo: "cerrado" });
+
+  // Grilla ordenable (regla de producto). Default curado = costo empresa desc
+  // (el más caro arriba, que es donde primero conviene clasificar bien).
+  const sortCols = React.useMemo<SortColumn<WorkerClassification>[]>(
+    () => [
+      { key: "empleado", kind: "text", get: (w) => w.worker_name ?? w.worker_rut },
+      { key: "costo", kind: "number", get: (w) => parseMonto(w.costo_empresa) },
+    ],
+    [],
+  );
+  const sort = useTableSort(sortCols, "costo");
+  const sortedWorkers = React.useMemo(() => sort.sorted(workers), [sort, workers]);
 
   // Al cambiar la lista (otro período), limpiar la selección.
   const rutsKey = workers.map((w) => w.worker_rut).join(",");
@@ -200,10 +214,21 @@ export function ClasificacionCuentasView({
                     </th>
                   )}
                   <th scope="col" className="py-2 pr-3 font-semibold">
-                    Empleado
+                    <SortHeader
+                      label="Empleado"
+                      active={sort.sortKey === "empleado"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("empleado")}
+                    />
                   </th>
                   <th scope="col" className="py-2 pr-3 text-right font-semibold">
-                    Costo empresa
+                    <SortHeader
+                      label="Costo empresa"
+                      align="right"
+                      active={sort.sortKey === "costo"}
+                      dir={sort.sortDir}
+                      onClick={() => sort.toggle("costo")}
+                    />
                   </th>
                   <th scope="col" className="py-2 pr-3 font-semibold">
                     Clasificación
@@ -214,7 +239,7 @@ export function ClasificacionCuentasView({
                 </tr>
               </thead>
               <tbody>
-                {workers.map((w) => (
+                {sortedWorkers.map((w) => (
                   <tr
                     key={w.worker_rut}
                     className={cn(
