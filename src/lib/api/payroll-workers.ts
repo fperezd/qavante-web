@@ -3,14 +3,19 @@ import { api } from "./client";
 import { gestionKeys } from "./gestion";
 import type { components } from "./types";
 
-/* Clasificación de remuneraciones por empleado (ADR-0079). Cada trabajador se
-   asigna a una cuenta del plan: `direct_cost.*` = costo de servicio (arriba del
-   margen) · `operating_expense.*` = gasto (debajo). Sin clasificar cae en gasto
-   admin por default → NO infla el margen; `unclassified_count` avisa cuántos
-   faltan. Cambia el Margen Bruto (100% falso → real); el resultado/EBITDA NO. */
+/* Clasificación de remuneraciones por empleado (ADR-0079 v2, #743). Cada trabajador
+   reparte su costo en una o varias cuentas del plan por % (`allocations`, Σ=100):
+   `direct_cost.*` = costo de servicio (arriba del margen) · `operating_expense.*` =
+   gasto (debajo). La asignación es FECHADA: rige desde `effective_from` (YYYY-MM)
+   hacia adelante hasta la próxima. Sin clasificar cae en gasto admin por default →
+   NO infla el margen; `unclassified_count` avisa. Cambia el Margen Bruto (100%
+   falso → real); el resultado/EBITDA NO. */
 
 export type WorkerClassification = components["schemas"]["WorkerClassification"];
 export type PayrollWorkersResponse = components["schemas"]["PayrollWorkersResponse"];
+export type AllocationOut = components["schemas"]["AllocationOut"];
+/** Reparto a enviar: cuenta + %. El caso simple = 1 cuenta al 100%. */
+export type AllocationIn = { account_code: string; pct: number };
 
 export const payrollWorkersKeys = {
   all: ["payroll-workers"] as const,
@@ -35,24 +40,42 @@ function invalidateAfterAssign(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: gestionKeys.all });
 }
 
-export function useSetWorkerAccount() {
+/** Asigna/cambia el reparto de UN trabajador, efectivo desde `effectiveFrom` (YYYY-MM). */
+export function useSetWorkerAllocations() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ workerRut, accountCode }: { workerRut: string; accountCode: string }) =>
+    mutationFn: ({
+      workerRut,
+      allocations,
+      effectiveFrom,
+    }: {
+      workerRut: string;
+      allocations: AllocationIn[];
+      effectiveFrom: string;
+    }) =>
       api.put<WorkerClassification>(
-        `/api/treasury/payroll-workers/${encodeURIComponent(workerRut)}/account`,
-        { body: { account_code: accountCode } },
+        `/api/treasury/payroll-workers/${encodeURIComponent(workerRut)}/allocations`,
+        { body: { allocations, effective_from: effectiveFrom } },
       ),
     onSuccess: () => invalidateAfterAssign(qc),
   });
 }
 
-export function useBulkSetWorkerAccount() {
+/** Asigna el MISMO reparto a varios trabajadores, efectivo desde `effectiveFrom`. */
+export function useBulkSetWorkerAllocations() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ workerRuts, accountCode }: { workerRuts: string[]; accountCode: string }) =>
-      api.patch<{ updated: number } | unknown>(`/api/treasury/payroll-workers/account`, {
-        body: { worker_ruts: workerRuts, account_code: accountCode },
+    mutationFn: ({
+      workerRuts,
+      allocations,
+      effectiveFrom,
+    }: {
+      workerRuts: string[];
+      allocations: AllocationIn[];
+      effectiveFrom: string;
+    }) =>
+      api.patch<{ updated: number } | unknown>(`/api/treasury/payroll-workers/allocations`, {
+        body: { worker_ruts: workerRuts, allocations, effective_from: effectiveFrom },
       }),
     onSuccess: () => invalidateAfterAssign(qc),
   });
