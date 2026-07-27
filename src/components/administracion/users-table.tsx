@@ -1,8 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useReactTable, getCoreRowModel, flexRender, type ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  flexRender,
+  type ColumnDef,
+  type SortingState,
+  type Column,
+} from "@tanstack/react-table";
+import { MoreHorizontal, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { StatusBadge } from "./status-badge";
@@ -23,6 +31,9 @@ interface UsersTableProps {
 export function UsersTable({ users, canAssignOwner, onSuspendClick }: UsersTableProps) {
   const update = useUpdateUser();
   const [editingRole, setEditingRole] = React.useState<string | null>(null);
+  /* Orden de la grilla (regla de producto: toda grilla ordenable). Por defecto
+     Nombre A→Z (roster); "Último login" es fecha → primer clic más nueva primero. */
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: "name", desc: false }]);
 
   const columns = React.useMemo<ColumnDef<User>[]>(
     () => [
@@ -102,6 +113,8 @@ export function UsersTable({ users, canAssignOwner, onSuspendClick }: UsersTable
       {
         accessorKey: "last_login_at",
         header: "Último login",
+        // Fecha → primer clic muestra la más nueva primero (regla de producto).
+        sortDescFirst: true,
         cell: ({ row }) => {
           const v = row.original.last_login_at;
           if (!v) return <span className="text-sm text-neutral-mid">—</span>;
@@ -120,6 +133,7 @@ export function UsersTable({ users, canAssignOwner, onSuspendClick }: UsersTable
       {
         id: "actions",
         header: () => <span className="sr-only">Acciones</span>,
+        enableSorting: false,
         cell: ({ row }) => {
           const u = row.original;
           const label =
@@ -147,7 +161,14 @@ export function UsersTable({ users, canAssignOwner, onSuspendClick }: UsersTable
     [editingRole, update, canAssignOwner, onSuspendClick],
   );
 
-  const table = useReactTable({ data: users, columns, getCoreRowModel: getCoreRowModel() });
+  const table = useReactTable({
+    data: users,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
 
   return (
     <div className="overflow-hidden rounded-lg border border-neutral-light bg-surface">
@@ -156,8 +177,19 @@ export function UsersTable({ users, canAssignOwner, onSuspendClick }: UsersTable
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id}>
               {hg.headers.map((h) => (
-                <th key={h.id} className="px-4 py-3">
-                  {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                <th key={h.id} className="px-4 py-3" aria-sort={ariaSort(h.column)}>
+                  {h.isPlaceholder ? null : h.column.getCanSort() ? (
+                    <button
+                      type="button"
+                      onClick={h.column.getToggleSortingHandler()}
+                      className="group inline-flex items-center gap-1 uppercase tracking-wide transition-colors hover:text-neutral-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                    >
+                      {flexRender(h.column.columnDef.header, h.getContext())}
+                      <SortArrow dir={h.column.getIsSorted()} />
+                    </button>
+                  ) : (
+                    flexRender(h.column.columnDef.header, h.getContext())
+                  )}
                 </th>
               ))}
             </tr>
@@ -182,5 +214,25 @@ export function UsersTable({ users, canAssignOwner, onSuspendClick }: UsersTable
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** `aria-sort` del `<th>`: solo para columnas ordenables (undefined = sin atributo). */
+function ariaSort(column: Column<User, unknown>): "ascending" | "descending" | "none" | undefined {
+  if (!column.getCanSort()) return undefined;
+  const s = column.getIsSorted();
+  return s === "asc" ? "ascending" : s === "desc" ? "descending" : "none";
+}
+
+/** Flecha del header: ↑/↓ cuando la columna es la activa, ↕ tenue si es ordenable pero inactiva. */
+function SortArrow({ dir }: { dir: "asc" | "desc" | false }) {
+  if (dir === "asc") return <ArrowUp className="size-3.5 text-brand-primary" aria-hidden="true" />;
+  if (dir === "desc")
+    return <ArrowDown className="size-3.5 text-brand-primary" aria-hidden="true" />;
+  return (
+    <ChevronsUpDown
+      className="size-3.5 text-neutral-light group-hover:text-neutral-mid"
+      aria-hidden="true"
+    />
   );
 }
