@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { within, expect, userEvent, fn } from "storybook/test";
+import { within, screen, expect, userEvent, fn } from "storybook/test";
 import { ClasificacionCuentasView } from "./clasificacion-cuentas-view";
 import type { CuentaOption } from "./payroll-cuentas";
+import type { WorkerClassification } from "@/lib/api/payroll-workers";
 
-/* Clasificación de remuneraciones por empleado (ADR-0079): costo de servicio vs gasto. */
+/* Clasificación de remuneraciones por empleado (ADR-0079 v2): reparto por cuenta + split + fechado. */
 
 const OPTIONS: CuentaOption[] = [
   { code: "direct_cost.direct_labor", label: "Mano de obra directa", grupo: "costo" },
@@ -14,31 +15,44 @@ const OPTIONS: CuentaOption[] = [
   },
 ];
 
+const MONTHS = [
+  { value: "2026-07", label: "julio 2026" },
+  { value: "2026-06", label: "junio 2026" },
+  { value: "2026-05", label: "mayo 2026" },
+];
+
+const WORKERS: WorkerClassification[] = [
+  {
+    worker_rut: "6906706-0",
+    worker_name: "Fernando Pérez",
+    costo_empresa: "6906706",
+    allocations: [],
+  },
+  {
+    worker_rut: "2915291-1",
+    worker_name: "Mirko González",
+    costo_empresa: "2915291",
+    allocations: [
+      {
+        account_code: "direct_cost.direct_labor",
+        account_name: "Mano de obra directa",
+        pct: "100",
+      },
+    ],
+  },
+];
+
 const meta = {
   title: "Capa 2 / Remuneraciones / ClasificacionCuentasView",
   component: ClasificacionCuentasView,
   parameters: { layout: "padded" },
   args: {
     options: OPTIONS,
+    months: MONTHS,
     unclassifiedCount: 1,
     onAssign: fn(),
     onBulkAssign: fn(),
-    workers: [
-      {
-        worker_rut: "6906706-0",
-        worker_name: "Fernando Pérez",
-        costo_empresa: "6906706",
-        account_code: null,
-        account_name: null,
-      },
-      {
-        worker_rut: "2915291-1",
-        worker_name: "Mirko González",
-        costo_empresa: "2915291",
-        account_code: "direct_cost.direct_labor",
-        account_name: "Mano de obra directa",
-      },
-    ],
+    workers: WORKERS,
   },
 } satisfies Meta<typeof ClasificacionCuentasView>;
 
@@ -48,47 +62,60 @@ type Story = StoryObj<typeof meta>;
 export const ConSinClasificar: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    // Los trabajadores se listan + el aviso de sin clasificar.
     await expect(canvas.getByText("Fernando Pérez")).toBeInTheDocument();
     await expect(canvas.getByText(/1 sin clasificar/)).toBeInTheDocument();
-    // Asignar una cuenta en la fila de Fernando → onAssign(rut, code).
-    const sel = canvas.getByRole("combobox", { name: /Cuenta de Fernando/ });
-    await userEvent.selectOptions(sel, "operating_expense.admin_payroll");
+    // Mirko ya está clasificado (muestra su cuenta).
+    await expect(canvas.getByText("Mano de obra directa")).toBeInTheDocument();
+    // Abrir el diálogo de Fernando (sin clasificar) → elegir cuenta → guardar.
+    await userEvent.click(canvas.getByRole("button", { name: /Clasificar a Fernando/ }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await userEvent.selectOptions(
+      dialog.getByRole("combobox", { name: /Cuenta del reparto 1/ }),
+      "operating_expense.admin_payroll",
+    );
+    await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+    // onAssign(rut, allocations 100%, effective_from = mes actual por defecto).
     await expect(args.onAssign).toHaveBeenCalledWith(
       "6906706-0",
-      "operating_expense.admin_payroll",
+      [{ account_code: "operating_expense.admin_payroll", pct: 100 }],
+      "2026-07",
     );
   },
 };
 
-export const Masivo: Story = {
+export const Split: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    // Seleccionar un trabajador → aparece la barra de lote.
-    await userEvent.click(canvas.getByRole("checkbox", { name: /Seleccionar Fernando/ }));
-    await expect(canvas.getByText(/1 seleccionado/)).toBeInTheDocument();
-    // Elegir cuenta del lote + asignar → onBulkAssign(ruts, code).
+    // Editar a Mirko → repartir 60/40 en dos cuentas.
+    await userEvent.click(canvas.getByRole("button", { name: /Clasificar a Mirko/ }));
+    const dialog = within(await screen.findByRole("dialog"));
+    // Fila 1 = su cuenta actual (100%). Bajar a 60 y agregar la segunda al 40.
+    const pct1 = dialog.getByRole("spinbutton", { name: /Porcentaje del reparto 1/ });
+    await userEvent.clear(pct1);
+    await userEvent.type(pct1, "60");
+    await userEvent.click(dialog.getByRole("button", { name: /Agregar cuenta/ }));
     await userEvent.selectOptions(
-      canvas.getByRole("combobox", { name: "Cuenta para los seleccionados" }),
-      "direct_cost.direct_labor",
+      dialog.getByRole("combobox", { name: /Cuenta del reparto 2/ }),
+      "operating_expense.admin_payroll",
     );
-    await userEvent.click(canvas.getByRole("button", { name: /Asignar a 1/ }));
-    await expect(args.onBulkAssign).toHaveBeenCalledWith(["6906706-0"], "direct_cost.direct_labor");
+    const pct2 = dialog.getByRole("spinbutton", { name: /Porcentaje del reparto 2/ });
+    await userEvent.type(pct2, "40");
+    await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+    await expect(args.onAssign).toHaveBeenCalledWith(
+      "2915291-1",
+      [
+        { account_code: "direct_cost.direct_labor", pct: 60 },
+        { account_code: "operating_expense.admin_payroll", pct: 40 },
+      ],
+      "2026-07",
+    );
   },
 };
 
 export const TodosClasificados: Story = {
   args: {
     unclassifiedCount: 0,
-    workers: [
-      {
-        worker_rut: "2915291-1",
-        worker_name: "Mirko González",
-        costo_empresa: "2915291",
-        account_code: "direct_cost.direct_labor",
-        account_name: "Mano de obra directa",
-      },
-    ],
+    workers: [WORKERS[1]!],
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

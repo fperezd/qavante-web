@@ -13,8 +13,9 @@ import {
 import { useBankMovements, usePayrollPayday, useSetPayrollPayday } from "@/lib/api/treasury";
 import {
   usePayrollWorkers,
-  useSetWorkerAccount,
-  useBulkSetWorkerAccount,
+  useSetWorkerAllocations,
+  useBulkSetWorkerAllocations,
+  type AllocationIn,
 } from "@/lib/api/payroll-workers";
 import { useManagementAccountsTree } from "@/lib/api/management";
 import { useSiiF29Impuesto } from "@/lib/api/sii";
@@ -203,30 +204,52 @@ function ClasificacionCuentasLive({
 }) {
   const workersQuery = usePayrollWorkers(period, Boolean(period));
   const accountsQuery = useManagementAccountsTree();
-  const setAccount = useSetWorkerAccount();
-  const bulkSet = useBulkSetWorkerAccount();
+  const setAlloc = useSetWorkerAllocations();
+  const bulkSet = useBulkSetWorkerAllocations();
 
   const options = React.useMemo(
     () => payrollCuentaOptions(accountsQuery.data?.items ?? []),
     [accountsQuery.data],
   );
 
+  // Meses "rige desde" (effective_from): el actual + 11 hacia atrás; el actual es el default.
+  const months = React.useMemo(() => {
+    const m = /^(\d{4})-(\d{2})$/.exec(period ?? "");
+    if (!m) return [];
+    const y0 = Number(m[1]);
+    const mo0 = Number(m[2]);
+    const out: { value: string; label: string }[] = [];
+    for (let i = 0; i < 12; i++) {
+      let yy = y0;
+      let mm = mo0 - i;
+      while (mm <= 0) {
+        mm += 12;
+        yy -= 1;
+      }
+      const v = `${yy}-${String(mm).padStart(2, "0")}`;
+      out.push({ value: v, label: formatPeriodLabel(v) });
+    }
+    return out;
+  }, [period]);
+
   const errMsg = (e: unknown) =>
     e instanceof ApiError && e.status === 403
       ? "Tu rol es de solo lectura — no podés clasificar."
-      : "No pudimos guardar la clasificación. Intenta de nuevo.";
+      : e instanceof ApiError && e.status === 400
+        ? "El reparto no es válido (revisa las cuentas y que sume 100%)."
+        : "No pudimos guardar la clasificación. Intenta de nuevo.";
 
-  const onAssign = (workerRut: string, accountCode: string) =>
-    setAccount.mutate(
-      { workerRut, accountCode },
+  const onAssign = (workerRut: string, allocations: AllocationIn[], effectiveFrom: string) =>
+    setAlloc.mutate(
+      { workerRut, allocations, effectiveFrom },
       {
-        onSuccess: () => toast.success("Cuenta asignada"),
-        onError: (e) => toast.error("No se pudo asignar", { description: errMsg(e) }),
+        onSuccess: () => toast.success("Clasificación guardada"),
+        onError: (e) => toast.error("No se pudo guardar", { description: errMsg(e) }),
       },
     );
-  const onBulkAssign = (workerRuts: string[], accountCode: string) =>
+  const onBulkAssign = (workerRuts: string[], allocations: AllocationIn[], effectiveFrom: string) =>
     bulkSet.mutate(
-      { workerRuts, accountCode },
+      { workerRuts, allocations, effectiveFrom },
       {
         onSuccess: () =>
           toast.success(
@@ -240,10 +263,11 @@ function ClasificacionCuentasLive({
     <ClasificacionCuentasView
       workers={workersQuery.data?.workers ?? []}
       options={options}
+      months={months}
       unclassifiedCount={workersQuery.data?.unclassified_count ?? 0}
       loading={workersQuery.isLoading}
       error={workersQuery.error}
-      pending={setAccount.isPending || bulkSet.isPending}
+      pending={setAlloc.isPending || bulkSet.isPending}
       onAssign={onAssign}
       onBulkAssign={onBulkAssign}
       periodForm={periodForm}

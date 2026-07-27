@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Inbox, ListChecks, TriangleAlert } from "lucide-react";
+import { Inbox, ListChecks, TriangleAlert, Pencil } from "lucide-react";
 import {
   QavanteBadge,
   QavanteButton,
@@ -13,27 +13,29 @@ import { stickyScroll, stickyHead } from "@/components/table/sticky-table";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { cn } from "@/lib/utils";
-import type { WorkerClassification } from "@/lib/api/payroll-workers";
-import { agruparCuentaOptions, type CuentaOption } from "./payroll-cuentas";
+import type { WorkerClassification, AllocationIn, AllocationOut } from "@/lib/api/payroll-workers";
+import { AllocationEditorDialog } from "./allocation-editor-dialog";
+import type { CuentaOption } from "./payroll-cuentas";
 
-/* Clasificación de remuneraciones por empleado (ADR-0079). Tabla estilo Chipax:
-   cada trabajador (ordenado por costo desc) se asigna a una cuenta del plan
-   —costo de servicio (sube el margen) o gasto—, individual o en lote. La
-   asignación es persistente (se hereda cada mes). Presentacional: el contenedor
-   pasa los datos + handlers (las mutations viven en `payroll-workers`). */
+/* Clasificación de remuneraciones por empleado (ADR-0079 v2, #743). Tabla estilo
+   Chipax: cada trabajador (ordenado por costo desc) reparte su costo en 1..N cuentas
+   por % (costo de servicio / gasto), individual o en lote, con un mes DESDE EL QUE
+   rige (backdating). Presentacional: el contenedor pasa datos + opciones + meses +
+   handlers (las mutations viven en `payroll-workers`). */
 
 export interface ClasificacionCuentasViewProps {
   workers: WorkerClassification[];
   options: CuentaOption[];
+  /** Meses "rige desde" (YYYY-MM, más nuevo primero); el primero es el default. */
+  months: { value: string; label: string }[];
   unclassifiedCount: number;
   loading?: boolean;
   error?: unknown;
-  /** Solo owner/admin pueden asignar; si es de solo lectura se deshabilitan los selects. */
+  /** Solo owner/admin pueden asignar; de solo lectura → sin botones de edición. */
   canEdit?: boolean;
   pending?: boolean;
-  onAssign: (workerRut: string, accountCode: string) => void;
-  onBulkAssign: (workerRuts: string[], accountCode: string) => void;
-  /** Selector de período (reusado del contenedor). */
+  onAssign: (workerRut: string, allocations: AllocationIn[], effectiveFrom: string) => void;
+  onBulkAssign: (workerRuts: string[], allocations: AllocationIn[], effectiveFrom: string) => void;
   periodForm?: React.ReactNode;
 }
 
@@ -41,55 +43,37 @@ function parseMonto(raw: string): number {
   return Number(raw) || 0;
 }
 
-/** Select de cuenta con optgroups (costo / gasto). "Sin clasificar" es placeholder
-    no seleccionable: el contrato no permite des-asignar (solo cambiar de cuenta). */
-function CuentaSelect({
-  value,
-  options,
-  onChange,
-  disabled,
-  ariaLabel,
-}: {
-  value: string | null | undefined;
-  options: CuentaOption[];
-  onChange: (code: string) => void;
-  disabled?: boolean;
-  ariaLabel: string;
-}) {
-  const grupos = agruparCuentaOptions(options);
+/** Reparto actual como texto: "Sin clasificar" / la cuenta (1 al 100%) / "60% A · 40% B". */
+function ResumenAlloc({ allocations }: { allocations?: AllocationOut[] | null }) {
+  if (!allocations || allocations.length === 0)
+    return <span className="font-medium text-warning-700">Sin clasificar</span>;
+  if (allocations.length === 1) {
+    const a = allocations[0]!;
+    return <span className="text-neutral-dark">{a.account_name ?? a.account_code}</span>;
+  }
   return (
-    <select
-      value={value ?? ""}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      onChange={(e) => {
-        const code = e.target.value;
-        if (code) onChange(code);
-      }}
-      className={cn(
-        "w-full max-w-[280px] rounded-md border bg-surface px-2 py-1 text-[12.5px] text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50",
-        value ? "border-border" : "border-warning-500/50 bg-warning-500/[.04]",
-      )}
-    >
-      <option value="" disabled>
-        Sin clasificar
-      </option>
-      {grupos.map((g) => (
-        <optgroup key={g.grupo} label={g.label}>
-          {g.options.map((o) => (
-            <option key={o.code} value={o.code}>
-              {o.label}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
+    <span className="text-neutral-dark">
+      {allocations
+        .map((a) => `${Math.round(Number(a.pct))}% ${a.account_name ?? a.account_code}`)
+        .join(" · ")}
+    </span>
   );
 }
+
+/** AllocationOut[] → AllocationIn[] (para prellenar el diálogo al editar). */
+function toIn(allocations?: AllocationOut[] | null): AllocationIn[] {
+  return (allocations ?? []).map((a) => ({ account_code: a.account_code, pct: Number(a.pct) }));
+}
+
+type DialogState =
+  | { modo: "cerrado" }
+  | { modo: "individual"; worker: WorkerClassification }
+  | { modo: "lote"; ruts: string[] };
 
 export function ClasificacionCuentasView({
   workers,
   options,
+  months,
   unclassifiedCount,
   loading,
   error,
@@ -100,9 +84,9 @@ export function ClasificacionCuentasView({
   periodForm,
 }: ClasificacionCuentasViewProps) {
   const [checked, setChecked] = React.useState<Set<string>>(new Set());
-  const [bulkAccount, setBulkAccount] = React.useState("");
+  const [dialog, setDialog] = React.useState<DialogState>({ modo: "cerrado" });
 
-  // Al cambiar la lista (otro período), limpiar la selección para no arrastrar RUTs viejos.
+  // Al cambiar la lista (otro período), limpiar la selección.
   const rutsKey = workers.map((w) => w.worker_rut).join(",");
   React.useEffect(() => {
     setChecked(new Set());
@@ -119,12 +103,26 @@ export function ClasificacionCuentasView({
   const toggleAll = () =>
     setChecked(allChecked ? new Set() : new Set(workers.map((w) => w.worker_rut)));
 
-  const runBulk = () => {
-    if (!bulkAccount || checked.size === 0) return;
-    onBulkAssign([...checked], bulkAccount);
+  const cerrar = () => setDialog({ modo: "cerrado" });
+  const guardar = (allocations: AllocationIn[], effectiveFrom: string) => {
+    if (dialog.modo === "individual")
+      onAssign(dialog.worker.worker_rut, allocations, effectiveFrom);
+    else if (dialog.modo === "lote") onBulkAssign(dialog.ruts, allocations, effectiveFrom);
     setChecked(new Set());
-    setBulkAccount("");
+    cerrar();
   };
+
+  const dialogInitial = dialog.modo === "individual" ? toIn(dialog.worker.allocations) : [];
+  const dialogTitle =
+    dialog.modo === "individual"
+      ? `Clasificar a ${dialog.worker.worker_name ?? dialog.worker.worker_rut}`
+      : dialog.modo === "lote"
+        ? `Clasificar ${dialog.ruts.length} ${dialog.ruts.length === 1 ? "trabajador" : "trabajadores"}`
+        : "";
+  const dialogSubtitle =
+    dialog.modo === "individual" ? (
+      <>Costo empresa: {formatClp(parseMonto(dialog.worker.costo_empresa))}</>
+    ) : undefined;
 
   return (
     <div className="space-y-3">
@@ -163,8 +161,8 @@ export function ClasificacionCuentasView({
         >
           <p className="mb-3 text-[12.5px] text-neutral-mid">
             Asigná cada persona a una cuenta: <b>costo de servicio</b> (quien entrega el servicio,
-            sube el margen) o <b>gasto</b> (administración, bajo el margen). Se asigna una vez y se
-            hereda cada mes. Lo que quede sin clasificar cae en gasto admin (no infla el margen).
+            sube el margen) o <b>gasto</b> (administración). Podés repartir en varias (split) y
+            elegir desde qué mes rige. La asignación se hereda a los meses siguientes.
           </p>
 
           {/* Barra de acción en lote. */}
@@ -174,16 +172,13 @@ export function ClasificacionCuentasView({
                 <ListChecks className="size-4 text-brand-primary" aria-hidden="true" />
                 {checked.size} seleccionado{checked.size === 1 ? "" : "s"}
               </span>
-              <div className="ml-auto flex items-center gap-2">
-                <CuentaSelect
-                  value={bulkAccount || null}
-                  options={options}
-                  onChange={setBulkAccount}
+              <div className="ml-auto">
+                <QavanteButton
+                  size="sm"
+                  onClick={() => setDialog({ modo: "lote", ruts: [...checked] })}
                   disabled={pending}
-                  ariaLabel="Cuenta para los seleccionados"
-                />
-                <QavanteButton size="sm" onClick={runBulk} disabled={pending || !bulkAccount}>
-                  Asignar a {checked.size}
+                >
+                  Clasificar {checked.size}
                 </QavanteButton>
               </div>
             </div>
@@ -210,8 +205,11 @@ export function ClasificacionCuentasView({
                   <th scope="col" className="py-2 pr-3 text-right font-semibold">
                     Costo empresa
                   </th>
+                  <th scope="col" className="py-2 pr-3 font-semibold">
+                    Clasificación
+                  </th>
                   <th scope="col" className="py-2 font-semibold">
-                    Cuenta
+                    <span className="sr-only">Acciones</span>
                   </th>
                 </tr>
               </thead>
@@ -246,14 +244,22 @@ export function ClasificacionCuentasView({
                     <td className="py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark">
                       {formatClp(parseMonto(w.costo_empresa))}
                     </td>
-                    <td className="py-2">
-                      <CuentaSelect
-                        value={w.account_code}
-                        options={options}
-                        onChange={(code) => onAssign(w.worker_rut, code)}
-                        disabled={!canEdit || pending}
-                        ariaLabel={`Cuenta de ${w.worker_name ?? w.worker_rut}`}
-                      />
+                    <td className="py-2 pr-3 text-[12.5px]">
+                      <ResumenAlloc allocations={w.allocations} />
+                    </td>
+                    <td className="py-2 text-right">
+                      {canEdit && (
+                        <QavanteButton
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setDialog({ modo: "individual", worker: w })}
+                          disabled={pending}
+                          aria-label={`Clasificar a ${w.worker_name ?? w.worker_rut}`}
+                        >
+                          <Pencil className="mr-1 size-3.5" aria-hidden="true" />
+                          {w.allocations && w.allocations.length > 0 ? "Editar" : "Clasificar"}
+                        </QavanteButton>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -262,6 +268,18 @@ export function ClasificacionCuentasView({
           </div>
         </QavanteCard>
       )}
+
+      <AllocationEditorDialog
+        open={dialog.modo !== "cerrado"}
+        onClose={cerrar}
+        title={dialogTitle}
+        subtitle={dialogSubtitle}
+        options={options}
+        initial={dialogInitial}
+        months={months}
+        pending={pending}
+        onSave={guardar}
+      />
     </div>
   );
 }

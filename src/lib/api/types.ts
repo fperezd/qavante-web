@@ -2390,7 +2390,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Trabajadores del período con su costo y la cuenta asignada (clasificación) */
+        /** Trabajadores del período con su costo y el reparto efectivo por cuenta */
         get: operations["payroll_workers_list"];
         put?: never;
         post?: never;
@@ -2400,7 +2400,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/treasury/payroll-workers/{worker_rut}/account": {
+    "/api/treasury/payroll-workers/{worker_rut}/allocations": {
         parameters: {
             query?: never;
             header?: never;
@@ -2408,8 +2408,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Asigna/cambia la cuenta de un empleado (owner/admin) */
-        put: operations["payroll_worker_set_account"];
+        /** Asigna/cambia el reparto de un empleado desde un período (owner/admin) */
+        put: operations["payroll_worker_set_allocations"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2417,7 +2417,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/treasury/payroll-workers/account": {
+    "/api/treasury/payroll-workers/allocations": {
         parameters: {
             query?: never;
             header?: never;
@@ -2430,8 +2430,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Asigna la MISMA cuenta a varios empleados (masivo, owner/admin) */
-        patch: operations["payroll_workers_bulk_set_account"];
+        /** Asigna el MISMO reparto a varios empleados desde un período (masivo, owner/admin) */
+        patch: operations["payroll_workers_bulk_set_allocations"];
         trace?: never;
     };
     "/api/treasury/cost-classification": {
@@ -4699,6 +4699,32 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** AllocationIn */
+        AllocationIn: {
+            /**
+             * Account Code
+             * @description Código de cuenta del plan (ej. 'direct_cost.direct_labor').
+             */
+            account_code: string;
+            /**
+             * Pct
+             * @description Porcentaje del costo_empresa a esta cuenta (0..100).
+             * @default 100
+             */
+            pct: number | string;
+        };
+        /** AllocationOut */
+        AllocationOut: {
+            /** Account Code */
+            account_code: string;
+            /** Account Name */
+            account_name?: string | null;
+            /**
+             * Pct
+             * @description Porcentaje asignado (string-decimal).
+             */
+            pct: string;
+        };
         /** ApiKeyCreateRequest */
         ApiKeyCreateRequest: {
             /** Name */
@@ -4832,13 +4858,18 @@ export interface components {
             /** Dimensions Existing */
             dimensions_existing: number;
         };
-        /** AssignAccountRequest */
-        AssignAccountRequest: {
+        /** AssignAllocationsRequest */
+        AssignAllocationsRequest: {
             /**
-             * Account Code
-             * @description Código de cuenta del plan (ej. 'direct_cost.direct_labor').
+             * Allocations
+             * @description Reparto por cuenta (Σ pct = 100). Caso simple = 1 cuenta al 100%.
              */
-            account_code: string;
+            allocations: components["schemas"]["AllocationIn"][];
+            /**
+             * Effective From
+             * @description Período YYYY-MM desde el que rige (hacia adelante hasta que otra lo supere).
+             */
+            effective_from: string;
         };
         /** AssignmentsListResponse */
         AssignmentsListResponse: {
@@ -5602,15 +5633,20 @@ export interface components {
         /** BulkAssignRequest */
         BulkAssignRequest: {
             /**
+             * Allocations
+             * @description Reparto por cuenta (Σ pct = 100). Caso simple = 1 cuenta al 100%.
+             */
+            allocations: components["schemas"]["AllocationIn"][];
+            /**
+             * Effective From
+             * @description Período YYYY-MM desde el que rige (hacia adelante hasta que otra lo supere).
+             */
+            effective_from: string;
+            /**
              * Worker Ruts
-             * @description RUTs de los trabajadores a clasificar.
+             * @description RUTs de los trabajadores a clasificar con el mismo reparto.
              */
             worker_ruts: string[];
-            /**
-             * Account Code
-             * @description Cuenta a asignar a todos.
-             */
-            account_code: string;
         };
         /** BulkAssignResponse */
         BulkAssignResponse: {
@@ -10171,6 +10207,12 @@ export interface components {
              * @description `amount` convertido a CLP vía tipo de cambio, SOLO cuando `currency` != 'CLP'. Null cuando ya es CLP (usar `amount`) o cuando no hay tipo de cambio disponible.
              */
             amount_clp?: string | null;
+            /**
+             * Reclamado
+             * @description La factura fue RECLAMADA en el SII por el receptor (rechazada) → no cuenta como costo/crédito (su monto está en $0). El FE debe mostrar una 'R' de reclamada donde aparezca el documento (transparencia: no excluir en silencio).
+             * @default false
+             */
+            reclamado: boolean;
         };
         /**
          * PayrollDetailEmployee
@@ -10358,7 +10400,7 @@ export interface components {
             workers: components["schemas"]["WorkerClassification"][];
             /**
              * Unclassified Count
-             * @description Trabajadores sin cuenta asignada (su costo cae en gasto admin por default → el margen puede estar subestimado hasta clasificarlos).
+             * @description Trabajadores sin allocation efectiva (su costo cae en gasto admin por default → el margen puede estar subestimado hasta clasificarlos).
              */
             unclassified_count: number;
         };
@@ -12389,15 +12431,10 @@ export interface components {
              */
             costo_empresa: string;
             /**
-             * Account Code
-             * @description Cuenta asignada, o null si sin clasificar.
+             * Allocations
+             * @description Reparto efectivo para el período (vacío = sin clasificar → gasto admin por default).
              */
-            account_code?: string | null;
-            /**
-             * Account Name
-             * @description Nombre legible de la cuenta asignada.
-             */
-            account_name?: string | null;
+            allocations?: components["schemas"]["AllocationOut"][];
         };
         /** CertificateUploadResponse */
         app__api__admin__certificates__CertificateUploadResponse: {
@@ -17041,7 +17078,7 @@ export interface operations {
             };
         };
     };
-    payroll_worker_set_account: {
+    payroll_worker_set_allocations: {
         parameters: {
             query?: never;
             header?: never;
@@ -17055,7 +17092,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AssignAccountRequest"];
+                "application/json": components["schemas"]["AssignAllocationsRequest"];
             };
         };
         responses: {
@@ -17068,7 +17105,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkerClassification"];
                 };
             };
-            /** @description La cuenta no existe en el plan del tenant. */
+            /** @description Cuenta inexistente, cuenta repetida o los % no suman 100. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17093,7 +17130,7 @@ export interface operations {
             };
         };
     };
-    payroll_workers_bulk_set_account: {
+    payroll_workers_bulk_set_allocations: {
         parameters: {
             query?: never;
             header?: never;
@@ -17117,7 +17154,7 @@ export interface operations {
                     "application/json": components["schemas"]["BulkAssignResponse"];
                 };
             };
-            /** @description La cuenta no existe en el plan del tenant. */
+            /** @description Cuenta inexistente, cuenta repetida o los % no suman 100. */
             400: {
                 headers: {
                     [name: string]: unknown;
