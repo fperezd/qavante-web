@@ -59,9 +59,17 @@ const base = (top: TopDebtor[]): AccountsReceivableResponse => ({
 });
 
 // Datos reales Tooxs (2026-07-20): sin vencimientos → todos overdue 0.
-const KAUFMANN = debtor({ name: "COMERCIAL KAUFMANN S.A.", rut: "96572360-9", total: "89204419.00" });
+const KAUFMANN = debtor({
+  name: "COMERCIAL KAUFMANN S.A.",
+  rut: "96572360-9",
+  total: "89204419.00",
+});
 const DIVEIMPORT = debtor({ name: "DIVEIMPORT S.A.", rut: "55555555-5", total: "30182477.00" });
-const CORREOS = debtor({ name: "EMPRESA DE CORREOS DE CHILE", rut: "60503000-9", total: "9345186.00" });
+const CORREOS = debtor({
+  name: "EMPRESA DE CORREOS DE CHILE",
+  rut: "60503000-9",
+  total: "9345186.00",
+});
 
 describe("sortByTotal", () => {
   it("mayor total primero, sin mutar la entrada", () => {
@@ -102,7 +110,12 @@ describe("pickPrioridad", () => {
 
 describe("reminderText", () => {
   it("modo concentración menciona nombre y total, tono formal chileno (sin voseo)", () => {
-    const t = reminderText({ name: "COMERCIAL KAUFMANN S.A.", total: 89204419, overdue: 0, mode: "concentracion" });
+    const t = reminderText({
+      name: "COMERCIAL KAUFMANN S.A.",
+      total: 89204419,
+      overdue: 0,
+      mode: "concentracion",
+    });
     expect(t).toContain("Estimados COMERCIAL KAUFMANN S.A.:");
     expect(t).toContain("$89.204.419");
     expect(t).not.toMatch(/vencid/i); // sin mora conocida no habla de vencidos
@@ -111,7 +124,12 @@ describe("reminderText", () => {
   });
 
   it("modo urgencia menciona lo vencido y el total", () => {
-    const t = reminderText({ name: "Cliente X", total: 10000000, overdue: 4000000, mode: "urgencia" });
+    const t = reminderText({
+      name: "Cliente X",
+      total: 10000000,
+      overdue: 4000000,
+      mode: "urgencia",
+    });
     expect(t).toContain("$4.000.000");
     expect(t).toContain("$10.000.000");
     expect(t).toMatch(/vencid/i);
@@ -202,6 +220,20 @@ describe("peorMoraDias", () => {
 
   it("lista vacía → null", () => {
     expect(peorMoraDias([])).toBe(null);
+  });
+
+  it("ignora facturas ANULADAS al 100% (neto 0): no son 'la más vencida'", () => {
+    // Una anulada vieja (−60) no debe ganar sobre la única deuda real (−12).
+    expect(
+      peorMoraDias([
+        doc({ diasParaVencer: -60, anulacion: "anulada" }),
+        doc({ diasParaVencer: -12 }),
+      ]),
+    ).toBe(12);
+    // Si TODO está anulado, no hay mora.
+    expect(peorMoraDias([doc({ diasParaVencer: -30, anulacion: "anulada" })])).toBe(null);
+    // Una anulación PARCIAL sí queda como deuda viva (sigue contando).
+    expect(peorMoraDias([doc({ diasParaVencer: -15, anulacion: "parcial" })])).toBe(15);
   });
 });
 

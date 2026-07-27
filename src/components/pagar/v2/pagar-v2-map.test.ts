@@ -33,14 +33,18 @@ describe("postergabilidadDe", () => {
   });
   it("baja criticidad = cubierto; resto = negociable", () => {
     expect(postergabilidadDe(item({ category: "supplier", criticality: "low" }))).toBe("cubierto");
-    expect(postergabilidadDe(item({ category: "supplier", criticality: "medium" }))).toBe("negociable");
+    expect(postergabilidadDe(item({ category: "supplier", criticality: "medium" }))).toBe(
+      "negociable",
+    );
     expect(postergabilidadDe(item({ category: "rent", criticality: "high" }))).toBe("negociable");
   });
 });
 
 describe("montoCLP", () => {
   it("usa amount_clp si es moneda extranjera", () => {
-    expect(montoCLP(item({ currency: "USD", amount: "1240", amount_clp: "1190000" }))).toBe(1_190_000);
+    expect(montoCLP(item({ currency: "USD", amount: "1240", amount_clp: "1190000" }))).toBe(
+      1_190_000,
+    );
   });
   it("usa amount si es CLP", () => {
     expect(montoCLP(item({ amount: "5000" }))).toBe(5000);
@@ -51,7 +55,15 @@ describe("mapVencimientos", () => {
   it("pone el vencido primero y setea postergabilidad + USD de origen", () => {
     const items = [
       item({ label: "F29", category: "tax", due_date: "2026-07-20", amount: "4200000" }),
-      item({ label: "Google", category: "supplier", due_date: "2026-07-10", amount: "1240", currency: "USD", amount_clp: "1190000", counterparty_name: "Google Cloud" }),
+      item({
+        label: "Google",
+        category: "supplier",
+        due_date: "2026-07-10",
+        amount: "1240",
+        currency: "USD",
+        amount_clp: "1190000",
+        counterparty_name: "Google Cloud",
+      }),
     ];
     const out = mapVencimientos(items, NOW);
     expect(out[0]?.vencido).toBe(true); // Google venció (10-jul)
@@ -65,9 +77,21 @@ describe("mapVencimientos", () => {
 describe("mapFechasClave", () => {
   it("arma imposiciones / impuestos / sueldos si están", () => {
     const items = [
-      item({ label: "Cotizaciones Previred", category: "payroll", source: "Previred", amount: "3850000", due_date: "2026-07-13" }),
+      item({
+        label: "Cotizaciones Previred",
+        category: "payroll",
+        source: "Previred",
+        amount: "3850000",
+        due_date: "2026-07-13",
+      }),
       item({ label: "IVA F29", category: "tax", amount: "4200000", due_date: "2026-07-20" }),
-      item({ label: "Sueldos julio", category: "payroll", source: "Manual", amount: "8900000", due_date: "2026-07-30" }),
+      item({
+        label: "Sueldos julio",
+        category: "payroll",
+        source: "Manual",
+        amount: "8900000",
+        due_date: "2026-07-30",
+      }),
     ];
     const out = mapFechasClave(items, NOW);
     expect(out.map((f) => f.id)).toEqual(["imposiciones", "impuestos", "sueldos"]);
@@ -96,7 +120,12 @@ describe("mapConcentracion", () => {
 describe("mapBrecha", () => {
   it("caja proyectada vs (vencido + no-postergables ≤14d); postergable aparte", () => {
     const items = [
-      item({ label: "prov vencido", category: "supplier", due_date: "2026-07-10", amount: "2000000" }), // vencido
+      item({
+        label: "prov vencido",
+        category: "supplier",
+        due_date: "2026-07-10",
+        amount: "2000000",
+      }), // vencido
       item({ label: "F29", category: "tax", due_date: "2026-07-20", amount: "4200000" }), // crítico ≤14d
       item({ label: "prov neg", category: "supplier", due_date: "2026-07-17", amount: "1000000" }), // negociable ≤14d
     ];
@@ -108,7 +137,9 @@ describe("mapBrecha", () => {
   });
 
   it("projected_cash_14d null → cajaProyectada null (NO $0: faltante ≠ 0, §13)", () => {
-    const items = [item({ label: "F29", category: "tax", due_date: "2026-07-20", amount: "4200000" })];
+    const items = [
+      item({ label: "F29", category: "tax", due_date: "2026-07-20", amount: "4200000" }),
+    ];
     const resp = { projected_cash_14d: null } as unknown as AccountsPayableResponse;
     const b = mapBrecha(resp, items, NOW);
     expect(b.cajaProyectada).toBeNull(); // el backend no la calculó → desconocida, no cero
@@ -173,6 +204,18 @@ describe("cpToPayableItem", () => {
     const it = cpToPayableItem(cp, "SII")!;
     expect(it.criticality).toBe("medium"); // vencido 0
     expect(it.due_date).toBe("2026-08-10");
+  });
+  it("ignora facturas ANULADAS al 100% para la fecha (no priorizan un pago que no se debe)", () => {
+    const cp = cpM({
+      total: 2_000_000,
+      vencido: 0,
+      docs: [
+        docM({ folio: 1, anulacion: "anulada", vencimiento: new Date(2026, 3, 1) }), // anulada vieja
+        docM({ folio: 2, vencimiento: new Date(2026, 7, 10), estado: "vigente" }), // deuda real
+      ],
+    });
+    const it = cpToPayableItem(cp, "SII")!;
+    expect(it.due_date).toBe("2026-08-10"); // la vigente, NO la anulada de abril
   });
 });
 

@@ -40,7 +40,9 @@ export function cpToPayableItem(cp: ContraparteMaestro, source: string): Payable
   if (neto <= 0) return null;
   let due: Date | null = null;
   for (const d of cp.docs) {
-    if (d.pagado || d.esNotaCredito || !d.vencimiento) continue;
+    // Una factura ANULADA al 100% por NC (neto 0) no es deuda viva: no debe fijar el vencimiento
+    // "más urgente" (si no, una anulada vieja pone el ítem como vencido y lo prioriza de más).
+    if (d.pagado || d.esNotaCredito || d.anulacion === "anulada" || !d.vencimiento) continue;
     if (!due || d.vencimiento < due) due = d.vencimiento;
   }
   return {

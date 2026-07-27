@@ -121,8 +121,20 @@ describe("pagados (prefs)", () => {
 describe("buildMaestro", () => {
   const docs: DocConVencimiento[] = [
     // Kaufmann: 2 facturas. Con término 30 desde emisión:
-    { rut: "96572360-9", name: "COMERCIAL KAUFMANN S.A.", fecha: "01/06/2026", monto: 5_000_000, folio: 1 }, // vence 01/07 → VENCIDO
-    { rut: "96572360-9", name: "COMERCIAL KAUFMANN S.A.", fecha: "01/07/2026", monto: 3_000_000, folio: 2 }, // vence 31/07 → vigente
+    {
+      rut: "96572360-9",
+      name: "COMERCIAL KAUFMANN S.A.",
+      fecha: "01/06/2026",
+      monto: 5_000_000,
+      folio: 1,
+    }, // vence 01/07 → VENCIDO
+    {
+      rut: "96572360-9",
+      name: "COMERCIAL KAUFMANN S.A.",
+      fecha: "01/07/2026",
+      monto: 3_000_000,
+      folio: 2,
+    }, // vence 31/07 → vigente
     // Diveimport: 1 factura reciente, término 30.
     { rut: "55555555-5", name: "DIVEIMPORT S.A.", fecha: "18/07/2026", monto: 1_000_000, folio: 3 }, // vence 17/08 → vigente
   ];
@@ -164,8 +176,22 @@ describe("buildMaestro", () => {
 
   it("una Nota de Crédito (tipo 61) RESTA del total y del vencido; suma su magnitud", () => {
     const conNC: DocConVencimiento[] = [
-      { rut: "96572360-9", name: "K", fecha: "01/06/2026", monto: 5_000_000, folio: 1, tipoDoc: 33 }, // factura vencida
-      { rut: "96572360-9", name: "K", fecha: "05/06/2026", monto: 2_000_000, folio: 2, tipoDoc: 61 }, // NC vencida
+      {
+        rut: "96572360-9",
+        name: "K",
+        fecha: "01/06/2026",
+        monto: 5_000_000,
+        folio: 1,
+        tipoDoc: 33,
+      }, // factura vencida
+      {
+        rut: "96572360-9",
+        name: "K",
+        fecha: "05/06/2026",
+        monto: 2_000_000,
+        folio: 2,
+        tipoDoc: 61,
+      }, // NC vencida
     ];
     const k = buildMaestro(conNC, readTerminos(undefined), "ventas", HOY)[0]!;
     expect(k.total).toBe(3_000_000); // 5M − 2M
@@ -178,9 +204,23 @@ describe("buildMaestro", () => {
   it("la NC 'por vencer' netea el VENCIDO primero (caso TD Synnex): vencido ≤ total", () => {
     const conNC: DocConVencimiento[] = [
       // factura vieja VENCIDA (18/03 + 30 = 17/04 < hoy)
-      { rut: "77915170-0", name: "TD", fecha: "18/03/2026", monto: 5_663_148, folio: 26015, tipoDoc: 33 },
+      {
+        rut: "77915170-0",
+        name: "TD",
+        fecha: "18/03/2026",
+        monto: 5_663_148,
+        folio: 26015,
+        tipoDoc: 33,
+      },
       // NC reciente ("por vencer" por su fecha) que acredita la vieja
-      { rut: "77915170-0", name: "TD", fecha: "23/06/2026", monto: 4_000_000, folio: 3241, tipoDoc: 61 },
+      {
+        rut: "77915170-0",
+        name: "TD",
+        fecha: "23/06/2026",
+        monto: 4_000_000,
+        folio: 3241,
+        tipoDoc: 61,
+      },
     ];
     const k = buildMaestro(conNC, readTerminos(undefined), "compras", HOY)[0]!;
     expect(k.total).toBe(1_663_148); // 5.663.148 − 4.000.000
@@ -192,7 +232,16 @@ describe("buildMaestro", () => {
   it("una NC con ref anula su factura: quedan juntas (NC sigue a la factura) + estado anulada", () => {
     const conRef: DocConVencimiento[] = [
       { rut: "1-9", name: "X", fecha: "01/06/2026", monto: 5_000_000, folio: 100, tipoDoc: 33 },
-      { rut: "1-9", name: "X", fecha: "10/06/2026", monto: 5_000_000, folio: 200, tipoDoc: 61, refFolio: 100, refTipoDoc: 33 },
+      {
+        rut: "1-9",
+        name: "X",
+        fecha: "10/06/2026",
+        monto: 5_000_000,
+        folio: 200,
+        tipoDoc: 61,
+        refFolio: 100,
+        refTipoDoc: 33,
+      },
     ];
     const k = buildMaestro(conRef, readTerminos(undefined), "compras", HOY)[0]!;
     expect(k.total).toBe(0); // 5M − 5M
@@ -204,6 +253,28 @@ describe("buildMaestro", () => {
     expect(k.docs[1]!.folio).toBe(200);
     expect(k.docs[1]!.esNotaCredito).toBe(true);
     expect(k.docs[1]!.refFolio).toBe(100);
+  });
+
+  it("una factura FUTURA anulada al 100% no cuenta como próximo vencimiento (neto 0)", () => {
+    // Factura del 18/07 (vence 17/08, futura vs HOY 20/07) anulada por su NC → neto 0.
+    const conRef: DocConVencimiento[] = [
+      { rut: "1-9", name: "X", fecha: "18/07/2026", monto: 1_000_000, folio: 300, tipoDoc: 33 },
+      {
+        rut: "1-9",
+        name: "X",
+        fecha: "18/07/2026",
+        monto: 1_000_000,
+        folio: 301,
+        tipoDoc: 61,
+        refFolio: 300,
+        refTipoDoc: 33,
+      },
+    ];
+    const k = buildMaestro(conRef, readTerminos(undefined), "compras", HOY)[0]!;
+    expect(k.total).toBe(0);
+    expect(k.docs.find((d) => d.folio === 300)!.anulacion).toBe("anulada");
+    // Antes del fix el próximo apuntaba al 17/08 de la factura anulada; ahora es null (no hay deuda futura real).
+    expect(k.proximoVencimiento).toBeNull();
   });
 
   it("la NC neta aunque el SII la mande positiva o negativa (por magnitud)", () => {
