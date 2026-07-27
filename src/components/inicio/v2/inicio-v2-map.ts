@@ -221,12 +221,20 @@ export function mapCobranzaForecast(f: CollectionForecastResponse): CobranzaReal
   const segmentos = (f.buckets ?? [])
     .filter((b) => b.days_to <= 14)
     .map((b) => ({ label: b.label, monto: parseAmount(b.expected), banda: banda(b.days_to) }));
+  // Vencido HONESTO (espeja #718/#731): un receivable sin `due_date` sincronizada
+  // NO entra en `overdue`, entra en `sin_vencimiento` → si mostramos `overdue=0`
+  // como "$0 vencido — al día" con cuentas de vencimiento desconocido, mentimos.
+  // Si hay vencido real, lo mostramos; si no, pero hay receivables sin fecha,
+  // `null` = "sin dato" (no "al día"); solo $0 real cuando todo tiene fecha.
+  const overdueNominal = parseAmount(f.overdue.nominal);
+  const sinVencimiento = parseAmount(f.sin_vencimiento.nominal);
+  const vencido = overdueNominal > 0 ? overdueNominal : sinVencimiento > 0 ? null : 0;
   return {
     esperadoATiempo: esperadoATiempo(f),
     subtitulo: "Cobranza esperada a tiempo · próximos 14 días",
     segmentos,
     totalPorCobrar,
-    vencido: parseAmount(f.overdue.nominal),
+    vencido,
   };
 }
 
