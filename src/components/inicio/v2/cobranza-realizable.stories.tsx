@@ -53,3 +53,14 @@ export const Interaccion: Story = {
     await expect(canvas.getByText("$0 vencido")).toBeInTheDocument();
   },
 };
+
+export const VencidoSinDato: Story = {
+  name: "Vencido sin dato (SII sin vencimientos)",
+  args: { ...Crisis.args!, vencido: null },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // No debe decir "$0 vencido" (mentiría "al día"); dice "sin dato de vencido".
+    await expect(canvas.queryByText("$0 vencido")).not.toBeInTheDocument();
+    await expect(canvas.getByText(/sin dato de vencido/)).toBeInTheDocument();
+  },
+};

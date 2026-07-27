@@ -37,8 +37,10 @@ export function stampOf(updated?: string | null, source?: string | null): string
 export function mapPulso(s: DashboardSummaryV2): PulsoCardProps | null {
   if (!s.pulso) return null;
   const factores: PulsoFactor[] = [];
-  if (s.pulso.top_driver_positive) factores.push({ label: s.pulso.top_driver_positive, tono: "ok" });
-  if (s.pulso.top_driver_negative) factores.push({ label: s.pulso.top_driver_negative, tono: "crit" });
+  if (s.pulso.top_driver_positive)
+    factores.push({ label: s.pulso.top_driver_positive, tono: "ok" });
+  if (s.pulso.top_driver_negative)
+    factores.push({ label: s.pulso.top_driver_negative, tono: "crit" });
   return {
     score: s.pulso.score,
     status: s.pulso.status,
@@ -67,11 +69,24 @@ export function mapCaja(s: DashboardSummaryV2): CajaProyeccionProps | null {
   const filas: CajaFila[] = [];
   const f = s.cash_forecast;
   if (f) {
-    const t = (v: string | null | undefined): CajaFila["tono"] => (parseAmount(v) < 0 ? "neg" : "pos");
-    filas.push({ label: "Mínima a 14 días", valor: formatClp(parseAmount(f.min_14d)), tono: t(f.min_14d) });
-    filas.push({ label: "Mínima a 30 días", valor: formatClp(parseAmount(f.min_30d)), tono: t(f.min_30d) });
+    const t = (v: string | null | undefined): CajaFila["tono"] =>
+      parseAmount(v) < 0 ? "neg" : "pos";
+    filas.push({
+      label: "Mínima a 14 días",
+      valor: formatClp(parseAmount(f.min_14d)),
+      tono: t(f.min_14d),
+    });
+    filas.push({
+      label: "Mínima a 30 días",
+      valor: formatClp(parseAmount(f.min_30d)),
+      tono: t(f.min_30d),
+    });
     if (f.days_of_cash != null) {
-      filas.push({ label: "Días de caja", valor: `~${f.days_of_cash}`, tono: f.days_of_cash <= 0 ? "neg" : "pos" });
+      filas.push({
+        label: "Días de caja",
+        valor: `~${f.days_of_cash}`,
+        tono: f.days_of_cash <= 0 ? "neg" : "pos",
+      });
     }
   }
   return {
@@ -129,7 +144,9 @@ export function mapCobranza(s: DashboardSummaryV2): CobranzaRealizableProps | nu
     subtitulo: "Por cobrar",
     segmentos: [],
     totalPorCobrar: total,
-    vencido: parseAmount(c.overdue),
+    // `overdue: null` = el SII no entrega vencimientos → "sin dato", NO $0 (que mentiría "al día").
+    // Espeja el fix de la vista v1 (#718). parseAmount(null) daría 0 → hay que preservar el null.
+    vencido: c.overdue == null ? null : parseAmount(c.overdue),
   };
 }
 
