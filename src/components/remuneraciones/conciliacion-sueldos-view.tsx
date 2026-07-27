@@ -3,6 +3,8 @@
 import * as React from "react";
 import { Landmark, CheckCircle2, UserX, HelpCircle, Inbox } from "lucide-react";
 import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
+import { SortHeader } from "@/components/qavante/sort-header";
+import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -107,9 +109,7 @@ export function ConciliacionSueldosView({
       {period && !loading && error == null && !detalleUnavailable && empleados.length > 0 && (
         <>
           <ResumenCard period={period} resumen={resumen} />
-          {result.matched.length > 0 && (
-            <ConciliadosTable matched={result.matched} />
-          )}
+          {result.matched.length > 0 && <ConciliadosTable matched={result.matched} />}
           {result.unmatchedEmpleados.length > 0 && (
             <PendientesTable empleados={result.unmatchedEmpleados} />
           )}
@@ -174,25 +174,55 @@ function ResumenCard({
   );
 }
 
-function ConciliadosTable({
-  matched,
-}: {
-  matched: ReturnType<typeof matchPayrollToBank>["matched"];
-}) {
+type Matched = ReturnType<typeof matchPayrollToBank>["matched"];
+
+function ConciliadosTable({ matched }: { matched: Matched }) {
+  const cols = React.useMemo<SortColumn<Matched[number]>[]>(
+    () => [
+      { key: "empleado", kind: "text", get: (m) => m.empleado.nombre },
+      { key: "liquido", kind: "number", get: (m) => m.empleado.liquido },
+      { key: "debito", kind: "date", get: (m) => m.movimiento.date },
+    ],
+    [],
+  );
+  const sort = useTableSort(cols, "empleado");
+  const rows = React.useMemo(() => sort.sorted(matched), [sort, matched]);
   return (
     <Section icon={CheckCircle2} title="Conciliados" count={matched.length} tone="success">
       <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            <th className="py-2 pr-3 font-semibold">Empleado</th>
+            <th className="py-2 pr-3 font-semibold">
+              <SortHeader
+                label="Empleado"
+                active={sort.sortKey === "empleado"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("empleado")}
+              />
+            </th>
             <th className="py-2 pr-3 font-semibold">RUT</th>
-            <th className="py-2 pr-3 text-right font-semibold">Líquido</th>
-            <th className="py-2 pr-3 font-semibold">Débito banco</th>
+            <th className="py-2 pr-3 text-right font-semibold">
+              <SortHeader
+                label="Líquido"
+                align="right"
+                active={sort.sortKey === "liquido"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("liquido")}
+              />
+            </th>
+            <th className="py-2 pr-3 font-semibold">
+              <SortHeader
+                label="Débito banco"
+                active={sort.sortKey === "debito"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("debito")}
+              />
+            </th>
             <th className="py-2 font-semibold">Glosa</th>
           </tr>
         </thead>
         <tbody>
-          {matched.map(({ empleado, movimiento }, i) => (
+          {rows.map(({ empleado, movimiento }, i) => (
             <tr
               key={`${empleado.id}-${movimiento.id}-${i}`}
               className="border-b border-border/60 last:border-b-0"
@@ -217,18 +247,43 @@ function ConciliadosTable({
 }
 
 function PendientesTable({ empleados }: { empleados: EmployeePayroll[] }) {
+  const cols = React.useMemo<SortColumn<EmployeePayroll>[]>(
+    () => [
+      { key: "empleado", kind: "text", get: (e) => e.nombre },
+      { key: "liquido", kind: "number", get: (e) => e.liquido },
+    ],
+    [],
+  );
+  // Default: líquido desc → el sueldo más grande sin pagar arriba (lo más urgente).
+  const sort = useTableSort(cols, "liquido");
+  const rows = React.useMemo(() => sort.sorted(empleados), [sort, empleados]);
   return (
     <Section icon={UserX} title="Empleados sin débito" count={empleados.length} tone="warning">
       <table className="w-full min-w-[420px] text-sm">
         <thead>
           <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            <th className="py-2 pr-3 font-semibold">Empleado</th>
+            <th className="py-2 pr-3 font-semibold">
+              <SortHeader
+                label="Empleado"
+                active={sort.sortKey === "empleado"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("empleado")}
+              />
+            </th>
             <th className="py-2 pr-3 font-semibold">RUT</th>
-            <th className="py-2 text-right font-semibold">Líquido</th>
+            <th className="py-2 text-right font-semibold">
+              <SortHeader
+                label="Líquido"
+                align="right"
+                active={sort.sortKey === "liquido"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("liquido")}
+              />
+            </th>
           </tr>
         </thead>
         <tbody>
-          {empleados.map((e, i) => (
+          {rows.map((e, i) => (
             <tr key={`${e.id}-${i}`} className="border-b border-border/60 last:border-b-0">
               <td className="py-2 pr-3 text-neutral-dark">{e.nombre}</td>
               <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
@@ -246,18 +301,43 @@ function PendientesTable({ empleados }: { empleados: EmployeePayroll[] }) {
 }
 
 function DebitosSinAsignarTable({ debitos }: { debitos: BankDebitLike[] }) {
+  const cols = React.useMemo<SortColumn<BankDebitLike>[]>(
+    () => [
+      { key: "fecha", kind: "date", get: (d) => d.date },
+      { key: "monto", kind: "number", get: (d) => Math.abs(Number(d.amount) || 0) },
+    ],
+    [],
+  );
+  // Default: fecha desc (débito más reciente arriba, regla de grillas por fecha).
+  const sort = useTableSort(cols, "fecha");
+  const rows = React.useMemo(() => sort.sorted(debitos), [sort, debitos]);
   return (
     <Section icon={HelpCircle} title="Débitos sin empleado" count={debitos.length} tone="muted">
       <table className="w-full min-w-[420px] text-sm">
         <thead>
           <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            <th className="py-2 pr-3 font-semibold">Fecha</th>
+            <th className="py-2 pr-3 font-semibold">
+              <SortHeader
+                label="Fecha"
+                active={sort.sortKey === "fecha"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("fecha")}
+              />
+            </th>
             <th className="py-2 pr-3 font-semibold">Glosa</th>
-            <th className="py-2 text-right font-semibold">Monto</th>
+            <th className="py-2 text-right font-semibold">
+              <SortHeader
+                label="Monto"
+                align="right"
+                active={sort.sortKey === "monto"}
+                dir={sort.sortDir}
+                onClick={() => sort.toggle("monto")}
+              />
+            </th>
           </tr>
         </thead>
         <tbody>
-          {debitos.map((d, i) => (
+          {rows.map((d, i) => (
             <tr key={`${d.id}-${i}`} className="border-b border-border/60 last:border-b-0">
               <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(d.date)}</td>
               <td className="py-2 pr-3 text-neutral-dark">{d.description ?? "—"}</td>
