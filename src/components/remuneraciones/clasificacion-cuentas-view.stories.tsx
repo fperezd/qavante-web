@@ -69,6 +69,8 @@ export const ConSinClasificar: Story = {
     // Abrir el diálogo de Fernando (sin clasificar) → elegir cuenta → guardar.
     await userEvent.click(canvas.getByRole("button", { name: /Clasificar a Fernando/ }));
     const dialog = within(await screen.findByRole("dialog"));
+    // El costo de Fernando ($6.906.706) al 100% se muestra en pesos junto al %.
+    await expect(dialog.getByLabelText("Monto del reparto 1")).toHaveTextContent("6.906.706");
     await userEvent.selectOptions(
       dialog.getByRole("combobox", { name: /Cuenta del reparto 1/ }),
       "operating_expense.admin_payroll",
@@ -93,6 +95,8 @@ export const Split: Story = {
     const pct1 = dialog.getByRole("spinbutton", { name: /Porcentaje del reparto 1/ });
     await userEvent.clear(pct1);
     await userEvent.type(pct1, "60");
+    // El 60% del costo de Mirko ($2.915.291) = $1.749.175 se refleja en pesos.
+    await expect(dialog.getByLabelText("Monto del reparto 1")).toHaveTextContent("1.749.175");
     await userEvent.click(dialog.getByRole("button", { name: /Agregar cuenta/ }));
     await userEvent.selectOptions(
       dialog.getByRole("combobox", { name: /Cuenta del reparto 2/ }),

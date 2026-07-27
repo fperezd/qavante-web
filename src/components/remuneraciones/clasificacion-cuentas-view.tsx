@@ -137,6 +137,9 @@ export function ClasificacionCuentasView({
     dialog.modo === "individual" ? (
       <>Costo empresa: {formatClp(parseMonto(dialog.worker.costo_empresa))}</>
     ) : undefined;
+  // Solo en individual hay un costo único que repartir → mostramos los $ por fila.
+  const dialogBase =
+    dialog.modo === "individual" ? parseMonto(dialog.worker.costo_empresa) : undefined;
 
   return (
     <div className="space-y-3">
@@ -302,6 +305,7 @@ export function ClasificacionCuentasView({
         options={options}
         initial={dialogInitial}
         months={months}
+        baseAmount={dialogBase}
         pending={pending}
         onSave={guardar}
       />
