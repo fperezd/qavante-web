@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, Check, ChevronDown, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Loader2, Star } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useMyTenants, useSwitchTenant } from "@/lib/api/tenants";
@@ -12,6 +12,9 @@ import {
   pickPreferredTenant,
   getPreferredTenantId,
   setPreferredTenantId,
+  getDefaultTenantId,
+  setDefaultTenantId,
+  clearDefaultTenantId,
   bumpSwitchAttempts,
   clearSwitchAttempts,
   autoSwitchExhausted,
@@ -47,12 +50,26 @@ export function CompanySwitcher({ variant = "header" }: { variant?: "header" | "
   const items = allItems.filter((t) => !isMvp(t));
   const active = allItems.find((t) => t.is_active);
   const activeIsMvp = active != null && isMvp(active);
-  /* La empresa a la que volver: la ÚLTIMA que usaste (cookie), no una arbitraria
-     — clave en multi-empresa. Si ya no pertenecés a ella, cae en la primera. */
+  /* Empresa PREDETERMINADA que el usuario eligió a propósito (★). Estado para
+     re-renderizar al marcarla (la cookie sola no dispara render). Se lee en el
+     cliente tras montar (SSR no ve cookies). Interino en cookie hasta que CC-API
+     persista `default_tenant_id` (#749). */
+  const [defaultId, setDefaultId] = React.useState<string | null>(null);
+  React.useEffect(() => setDefaultId(getDefaultTenantId()), []);
+  /* La empresa a la que volver: la PREDETERMINADA si la elegiste; si no, la ÚLTIMA
+     usada (cookie); si no, la primera real. Clave en multi-empresa. */
   const preferred = React.useMemo(
-    () => pickPreferredTenant(items, getPreferredTenantId()),
-    [items],
+    () => pickPreferredTenant(items, defaultId ?? getPreferredTenantId()),
+    [items, defaultId],
   );
+  const marcarDefault = (id: string) => {
+    setDefaultTenantId(id);
+    setDefaultId(id);
+  };
+  const quitarDefault = () => {
+    clearDefaultTenantId();
+    setDefaultId(null);
+  };
   /* Si el auto-switch se agotó (backend pegado en MVP) o falló, NO mostramos el
      nombre real sobre datos del MVP (mentiría) → prompteamos elegir empresa. */
   const autoSwitchStuck = activeIsMvp && (autoSwitchExhausted() || switchTenant.isError);
@@ -176,26 +193,68 @@ export function CompanySwitcher({ variant = "header" }: { variant?: "header" | "
             </p>
           )}
 
-          {items.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="menuitem"
-              disabled={busy}
-              onClick={() => (t.is_active ? setOpen(false) : handleSwitch(t.id))}
-              className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm text-neutral-dark hover:bg-brand-primary-50 disabled:opacity-50"
-            >
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{t.legal_name}</span>
-                <span className="block text-xs text-neutral-mid">
-                  {ROLE_LABELS[t.role as UserRole] ?? t.role}
-                </span>
-              </span>
-              {t.is_active && (
-                <Check className="h-4 w-4 flex-shrink-0 text-brand-primary" aria-label="Activa" />
-              )}
-            </button>
-          ))}
+          {items.map((t) => {
+            const isDefault = t.id === defaultId;
+            return (
+              <div key={t.id} className="flex items-center gap-1">
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={busy}
+                  onClick={() => (t.is_active ? setOpen(false) : handleSwitch(t.id))}
+                  className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm text-neutral-dark hover:bg-brand-primary-50 disabled:opacity-50"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">
+                      {t.legal_name}
+                      {isDefault && (
+                        <span className="ml-1.5 text-[11px] font-normal text-warning-700">
+                          · predeterminada
+                        </span>
+                      )}
+                    </span>
+                    <span className="block text-xs text-neutral-mid">
+                      {ROLE_LABELS[t.role as UserRole] ?? t.role}
+                    </span>
+                  </span>
+                  {t.is_active && (
+                    <Check
+                      className="h-4 w-4 flex-shrink-0 text-brand-primary"
+                      aria-label="Activa"
+                    />
+                  )}
+                </button>
+                {/* Marcar como empresa por defecto (★) — solo tiene sentido con >1. */}
+                {items.length > 1 && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => (isDefault ? quitarDefault() : marcarDefault(t.id))}
+                    aria-pressed={isDefault}
+                    aria-label={
+                      isDefault
+                        ? `${t.legal_name} es tu empresa por defecto. Quitar.`
+                        : `Hacer a ${t.legal_name} tu empresa por defecto.`
+                    }
+                    title={
+                      isDefault
+                        ? "Tu empresa por defecto (clic para quitar)"
+                        : "Hacer predeterminada"
+                    }
+                    className="flex-shrink-0 rounded-md p-1.5 hover:bg-brand-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50"
+                  >
+                    <Star
+                      className={cn(
+                        "h-4 w-4",
+                        isDefault ? "fill-warning-500 text-warning-500" : "text-neutral-mid",
+                      )}
+                      aria-hidden="true"
+                    />
+                  </button>
+                )}
+              </div>
+            );
+          })}
 
           {switchTenant.isError && (
             <p className="px-2 py-1 text-xs text-danger-500" role="alert">
