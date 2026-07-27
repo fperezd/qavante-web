@@ -255,6 +255,29 @@ describe("buildMaestro", () => {
     expect(k.docs[1]!.refFolio).toBe(100);
   });
 
+  it("una NC vinculada que SOBRE-acredita su factura no deja vencido > saldo (re-balance)", () => {
+    // #1 vencida $5M; #2 vigente $2M con una NC de $3M que la referencia (sobre-crédito de $1M).
+    const docs: DocConVencimiento[] = [
+      { rut: "1-9", name: "X", fecha: "01/06/2026", monto: 5_000_000, folio: 1, tipoDoc: 33 },
+      { rut: "1-9", name: "X", fecha: "15/07/2026", monto: 2_000_000, folio: 2, tipoDoc: 33 },
+      {
+        rut: "1-9",
+        name: "X",
+        fecha: "16/07/2026",
+        monto: 3_000_000,
+        folio: 3,
+        tipoDoc: 61,
+        refFolio: 2,
+        refTipoDoc: 33,
+      },
+    ];
+    const k = buildMaestro(docs, readTerminos(undefined), "compras", HOY)[0]!;
+    expect(k.total).toBe(4_000_000); // 5M + 2M − 3M
+    // El exceso de $1M de la NC (que pisó el bucket de #2 en 0) baja el vencido de $5M a $4M.
+    expect(k.vencido).toBe(4_000_000);
+    expect(k.vencido).toBeLessThanOrEqual(k.total); // invariante restaurada
+  });
+
   it("una factura FUTURA anulada al 100% no cuenta como próximo vencimiento (neto 0)", () => {
     // Factura del 18/07 (vence 17/08, futura vs HOY 20/07) anulada por su NC → neto 0.
     const conRef: DocConVencimiento[] = [

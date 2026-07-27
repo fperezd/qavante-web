@@ -347,6 +347,10 @@ export function buildMaestro(
       porVencer = 0,
       vigente = 0,
       pagadoSum = 0;
+    // Exceso de NC VINCULADAS que sobre-acreditan su factura (neto < 0): como el bucket de esa
+    // factura se pisa en 0, ese crédito sobrante debe restarse de OTRAS facturas (igual que una NC
+    // huérfana). Si no, quedaría vencido > saldo. Se acumula acá y entra al re-balance de abajo.
+    let excesoVinculado = 0;
     let proximo: Date | null = null;
 
     // Facturas de MÁS NUEVA a más antigua; cada una seguida de sus NC vinculadas (así
@@ -372,6 +376,7 @@ export function buildMaestro(
         if (estado === "vencido") vencido += contrib;
         else if (estado === "por_vencer") porVencer += contrib;
         else if (estado === "vigente") vigente += contrib;
+        if (row.neto < 0) excesoVinculado += -row.neto; // sobre-crédito → al pool de re-balance
         // Solo cuenta como "próximo a vencer" si queda saldo real (neto > 0): una factura
         // anulada al 100% / sobre-acreditada (neto ≤ 0) no es una obligación futura.
         if (venc && estado !== "vencido" && row.neto > 0) {
@@ -440,7 +445,7 @@ export function buildMaestro(
         neto: null,
       });
     }
-    let r = orphanNc;
+    let r = orphanNc + excesoVinculado;
     const tv = Math.min(r, vencido);
     vencido -= tv;
     r -= tv;
