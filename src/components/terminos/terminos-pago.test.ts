@@ -278,6 +278,24 @@ describe("buildMaestro", () => {
     expect(k.vencido).toBeLessThanOrEqual(k.total); // invariante restaurada
   });
 
+  it("propaga `reclamado` del RCV al DocMaestro (para pintar la R)", () => {
+    const docs: DocConVencimiento[] = [
+      {
+        rut: "1-9",
+        name: "X",
+        fecha: "01/06/2026",
+        monto: 0,
+        folio: 500,
+        tipoDoc: 33,
+        reclamado: true,
+      },
+      { rut: "1-9", name: "X", fecha: "02/06/2026", monto: 1_000_000, folio: 501, tipoDoc: 33 },
+    ];
+    const k = buildMaestro(docs, readTerminos(undefined), "compras", HOY)[0]!;
+    expect(k.docs.find((d) => d.folio === 500)!.reclamado).toBe(true);
+    expect(k.docs.find((d) => d.folio === 501)!.reclamado).toBe(false);
+  });
+
   it("una factura FUTURA anulada al 100% no cuenta como próximo vencimiento (neto 0)", () => {
     // Factura del 18/07 (vence 17/08, futura vs HOY 20/07) anulada por su NC → neto 0.
     const conRef: DocConVencimiento[] = [

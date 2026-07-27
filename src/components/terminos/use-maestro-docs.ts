@@ -56,6 +56,7 @@ function adaptRcv(docs: ReadonlyArray<RcvDoc>): DocConVencimiento[] {
     tipoDoc: typeof d.tipo_doc === "number" ? d.tipo_doc : undefined,
     refFolio: typeof d.ref_folio === "number" ? d.ref_folio : undefined,
     refTipoDoc: typeof d.ref_tipo_doc === "number" ? d.ref_tipo_doc : undefined,
+    reclamado: d.reclamado === true, // "R" de reclamada (#744); null/ausente (cache viejo) → false
   }));
 }
 
@@ -79,7 +80,8 @@ export function useMaestroDocs(kind: MaestroKind, enabled = true): MaestroDocsSt
   const results = useQueries({
     queries: periods.map((periodo) => ({
       queryKey: queryKey(kind, periodo),
-      queryFn: () => api.get<RcvVentasResponse | RcvComprasResponse | BheResponse>(endpoint(kind, periodo)),
+      queryFn: () =>
+        api.get<RcvVentasResponse | RcvComprasResponse | BheResponse>(endpoint(kind, periodo)),
       staleTime: 10 * 60 * 1000,
       retry: false,
       enabled,

@@ -9,6 +9,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { formatDateLike } from "@/lib/formatters/date";
 import { tipoDocMeta } from "@/components/sii/tipo-doc";
+import { ReclamadaBadge } from "@/components/sii/reclamada-badge";
 import { cn } from "@/lib/utils";
 import type { ContraparteMaestro, EstadoDoc, MaestroKind } from "./terminos-pago";
 
@@ -399,11 +400,14 @@ function DocDetail({
                 )}
               >
                 <td className="py-1 pr-3 tabular-nums text-neutral-dark">
-                  {d.esNotaCredito && d.refFolio != null ? (
-                    <span className="text-neutral-mid">↳ {d.folio ?? "—"}</span>
-                  ) : (
-                    (d.folio ?? "—")
-                  )}
+                  <span className="inline-flex items-center gap-1.5">
+                    {d.esNotaCredito && d.refFolio != null ? (
+                      <span className="text-neutral-mid">↳ {d.folio ?? "—"}</span>
+                    ) : (
+                      (d.folio ?? "—")
+                    )}
+                    {d.reclamado && <ReclamadaBadge />}
+                  </span>
                 </td>
                 <td className="py-1 pr-3">
                   <span
