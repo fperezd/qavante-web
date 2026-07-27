@@ -6,7 +6,12 @@
    y los pasos de la cascada. Validación real 2026-07-20: el cash-flow de Tooxs es histórico (25
    buckets ene→hoy) sin futuro → la proyección tiene que venir de acá. Ver caja-v3 memory. */
 
-import { daysBetween, addDays, type ContraparteMaestro } from "@/components/terminos/terminos-pago";
+import {
+  daysBetween,
+  addDays,
+  parseSiiDate,
+  type ContraparteMaestro,
+} from "@/components/terminos/terminos-pago";
 import { parseAmount } from "@/components/inicio/dashboard-format";
 import type { MovimientoCaja, MovTipo } from "./caja-cascada-model";
 import type { DiasCaja, EstadoCaja } from "./caja-dias-model";
@@ -121,8 +126,12 @@ export function movimientosDeObligaciones(
   const out: MovimientoCaja[] = [];
   for (const it of items) {
     if (!it.due_date) continue;
-    const venc = new Date(it.due_date);
-    if (Number.isNaN(venc.getTime())) continue;
+    // El due_date es date-only ISO ("YYYY-MM-DD"). `new Date(str)` lo parsea como UTC medianoche
+    // y `daysBetween` lee componentes LOCALES → en Chile (UTC negativo) la obligación caía un día
+    // antes (todas: F29/sueldos/arriendo/deuda). Se usa el parser LOCAL del maestro (consistente
+    // con `addDays`/`buildMaestro`, que ya son fechas locales).
+    const venc = parseSiiDate(it.due_date);
+    if (!venc) continue;
     const efectiva = fechaEnVentana(venc, hoy, graceDias, horizonteDias);
     if (efectiva == null) continue;
     const monto = -Math.abs(parseAmount(it.amount)); // outflow
