@@ -22,6 +22,7 @@ import {
   QavanteInput,
 } from "@/components/qavante";
 import { cn } from "@/lib/utils";
+import { ReclamadaBadge } from "@/components/sii/reclamada-badge";
 import { type RcvComprasResponse, type RcvVentasResponse } from "@/lib/api/sii";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -640,7 +641,10 @@ function GroupedTable({
                   </span>
                 </td>
                 <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
-                  <span className={cn(anulada && "line-through")}>{f.folio ?? "—"}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className={cn(anulada && "line-through")}>{f.folio ?? "—"}</span>
+                    {f.reclamado === true && <ReclamadaBadge />}
+                  </span>
                 </td>
                 <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(f.fecha)}</td>
                 <td className="py-2 pr-3">

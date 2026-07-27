@@ -43,6 +43,8 @@ export interface DocConVencimiento {
   refFolio?: number;
   /** Tipo del documento referenciado (SII `ref_tipo_doc`). */
   refTipoDoc?: number;
+  /** El receptor RECLAMÓ el documento en el SII → no cuenta (monto $0); el FE pinta una "R". */
+  reclamado?: boolean;
 }
 
 /* ── Fechas ────────────────────────────────────────────────────────────────── */
@@ -278,6 +280,8 @@ export interface DocMaestro {
   anulacion: "anulada" | "parcial" | null;
   /** Neto de la factura tras sus NC (solo cuando `anulacion` != null). */
   neto: number | null;
+  /** El receptor RECLAMÓ el documento en el SII → no cuenta (monto $0); el FE pinta una "R". */
+  reclamado?: boolean;
 }
 
 export interface ContraparteMaestro {
@@ -338,6 +342,7 @@ export function buildMaestro(
         rut_contraparte: rut,
         ref_folio: d.refFolio,
         ref_tipo_doc: d.refTipoDoc,
+        reclamado: d.reclamado === true, // se preserva en la fila agrupada (genérico) → DocMaestro
       })),
     );
 
@@ -398,6 +403,7 @@ export function buildMaestro(
         refFolio: null,
         anulacion,
         neto: anulacion ? row.neto : null,
+        reclamado: f.reclamado === true,
       });
       for (const nc of row.notas) {
         const emN = parseSiiDate(nc.fecha);
