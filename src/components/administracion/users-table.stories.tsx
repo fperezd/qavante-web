@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { fn } from "storybook/test";
+import { fn, within, expect, userEvent } from "storybook/test";
 import { UsersTable } from "./users-table";
 import type { User } from "@/lib/api/users";
 
@@ -69,6 +69,22 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: { users: SEED_USERS },
+};
+
+/** Grilla ordenable: por defecto Nombre A→Z; clic en una cabecera reordena. */
+export const OrdenColumnas: Story = {
+  args: { users: SEED_USERS },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const primeraFila = () => canvas.getAllByRole("row")[1]?.textContent ?? "";
+    const email = canvas.getByRole("button", { name: /Email/ });
+    // Clic en Email (asc) → "asistente@empresa.cl" primero (A→Z).
+    await userEvent.click(email);
+    await expect(primeraFila()).toMatch(/asistente@empresa\.cl/);
+    // Segundo clic (desc) → "fernando@tooxs.com" primero (Z→A) → confirma el toggle.
+    await userEvent.click(email);
+    await expect(primeraFila()).toMatch(/fernando@tooxs\.com/);
+  },
 };
 
 export const Empty: Story = {
