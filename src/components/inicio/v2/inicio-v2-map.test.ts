@@ -243,6 +243,24 @@ describe("mapCobranzaForecast (Fase 2 · collection-forecast)", () => {
     const zero = { ...forecast, total_nominal: "0" } as unknown as CollectionForecastResponse;
     expect(mapCobranzaForecast(zero)).toBeNull();
   });
+  it("overdue 0 pero receivables SIN fecha (sin_vencimiento>0) → vencido null, NO 0 (no mentir 'al día')", () => {
+    const conSinFecha = {
+      ...forecast,
+      overdue: { nominal: "0", expected: "0" },
+      sin_vencimiento: { nominal: "30000000", expected: "0" },
+    } as unknown as CollectionForecastResponse;
+    // Hay $30M de cuentas por cobrar de vencimiento desconocido → no sabemos si están
+    // vencidas; pintar "$0 vencido — al día" mentiría (espeja #718/#731).
+    expect(mapCobranzaForecast(conSinFecha)!.vencido).toBeNull();
+  });
+  it("overdue>0 → muestra el vencido real aunque también haya sin_vencimiento", () => {
+    const conVencido = {
+      ...forecast,
+      overdue: { nominal: "12000000", expected: "0" },
+      sin_vencimiento: { nominal: "5000000", expected: "0" },
+    } as unknown as CollectionForecastResponse;
+    expect(mapCobranzaForecast(conVencido)!.vencido).toBe(12_000_000);
+  });
 });
 
 describe("mapPlanBrecha (Fase 2 · brecha + forecast)", () => {
