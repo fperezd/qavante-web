@@ -147,6 +147,18 @@ describe("movimientosDeObligaciones", () => {
   it("obligación past-due vieja → excluida (default grace 0; ya pagada)", () => {
     expect(movimientosDeObligaciones([item({ due_date: "2026-05-01" })], HOY, 120)).toHaveLength(0);
   });
+
+  it("parsea el due_date como fecha LOCAL (no UTC): cae en su día de calendario, sin off-by-one", () => {
+    const [mov] = movimientosDeObligaciones(
+      [item({ label: "Sueldo", category: "payroll", amount: "1000000", due_date: "2026-07-27" })],
+      HOY,
+      120,
+    );
+    // Con el parseo UTC previo, en zona negativa (Chile) caía el 26; debe ser el 27 (local).
+    expect([mov!.fecha.getFullYear(), mov!.fecha.getMonth(), mov!.fecha.getDate()]).toEqual([
+      2026, 6, 27,
+    ]);
+  });
 });
 
 describe("proyeccionDeMovimientos", () => {
