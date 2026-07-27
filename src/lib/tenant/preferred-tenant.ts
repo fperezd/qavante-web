@@ -30,6 +30,31 @@ export function setPreferredTenantId(id: string): void {
   document.cookie = `${COOKIE}=${encodeURIComponent(id)}; path=/; max-age=31536000; samesite=lax`;
 }
 
+/* Empresa PREDETERMINADA elegida a propósito por el usuario (distinta de "la
+   última usada"): con >1 empresa, cuál quiere ver al entrar. Gana sobre la
+   última usada en el auto-switch. Interino en cookie hasta que CC-API persista
+   `default_tenant_id` en el usuario (ask #749); ahí el FE lee el del backend. */
+const DEFAULT_COOKIE = "qavante_tenant_default";
+
+/** Id de la empresa marcada como predeterminada por el usuario. `null` si ninguna. */
+export function getDefaultTenantId(): string | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(/(?:^|;\s*)qavante_tenant_default=([^;]+)/);
+  return m && m[1] ? decodeURIComponent(m[1]) : null;
+}
+
+/** Marca (o cambia) la empresa predeterminada del usuario (cookie a 1 año). */
+export function setDefaultTenantId(id: string): void {
+  if (typeof document === "undefined" || !id) return;
+  document.cookie = `${DEFAULT_COOKIE}=${encodeURIComponent(id)}; path=/; max-age=31536000; samesite=lax`;
+}
+
+/** Quita la marca de predeterminada (vuelve a "la última usada"). */
+export function clearDefaultTenantId(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${DEFAULT_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}
+
 /* Circuit-breaker del auto-switch: cuenta intentos de auto-corrección (cookie
    corta que SOBREVIVE al reload). Si el backend queda pegado en el MVP aunque el
    switch reporte éxito, evita el loop infinito de recargas. */
