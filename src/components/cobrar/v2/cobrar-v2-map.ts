@@ -226,7 +226,10 @@ export function sortDebtors(
 export function peorMoraDias(docs: ReadonlyArray<DocMaestro>): number | null {
   let peor: number | null = null; // el `diasParaVencer` más negativo
   for (const d of docs) {
-    if (d.esNotaCredito || d.pagado || d.diasParaVencer == null) continue;
+    // Una factura ANULADA al 100% (neto 0) no está vencida: no debe contar como "la más vencida"
+    // (si no, muestra "Vencida hace N días" sobre un documento que ya no debe nada).
+    if (d.esNotaCredito || d.pagado || d.anulacion === "anulada" || d.diasParaVencer == null)
+      continue;
     if (d.diasParaVencer < 0 && (peor === null || d.diasParaVencer < peor)) peor = d.diasParaVencer;
   }
   return peor === null ? null : -peor;

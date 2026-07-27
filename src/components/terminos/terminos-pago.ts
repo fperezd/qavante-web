@@ -83,11 +83,7 @@ export type EstadoDoc = "vigente" | "por_vencer" | "vencido" | "sin_fecha";
 
 /** Estado de un documento respecto a HOY. `por_vencer` = vence dentro de `umbral`
  *  días (default 7). Sin fecha de emisión parseable → "sin_fecha". PURO. */
-export function estadoDoc(
-  vencimiento: Date | null,
-  today: Date,
-  umbralPorVencer = 7,
-): EstadoDoc {
+export function estadoDoc(vencimiento: Date | null, today: Date, umbralPorVencer = 7): EstadoDoc {
   if (!vencimiento) return "sin_fecha";
   const dias = daysBetween(today, vencimiento);
   if (dias < 0) return "vencido";
@@ -160,7 +156,10 @@ export function withTerm(
   const cur = readTerminos(blob);
   const next: TerminosResueltos = {
     ...cur,
-    [kind]: { ...cur[kind], byRut: { ...cur[kind].byRut, [normalizeRut(rut)]: Math.max(0, Math.round(days)) } },
+    [kind]: {
+      ...cur[kind],
+      byRut: { ...cur[kind].byRut, [normalizeRut(rut)]: Math.max(0, Math.round(days)) },
+    },
   };
   return { ...(blob ?? {}), [TERMINOS_KEY]: next };
 }
@@ -203,7 +202,11 @@ export const PAGADOS_KEY = "docs_pagados";
 export type PagadosMap = Record<string, string>;
 
 /** Clave estable de un documento: tipo + rut + folio (folio solo es único por emisor). */
-export function docKey(kind: MaestroKind, rut: string, folio: number | string | null | undefined): string {
+export function docKey(
+  kind: MaestroKind,
+  rut: string,
+  folio: number | string | null | undefined,
+): string {
   return `${kind}:${normalizeRut(rut)}:${folio ?? ""}`;
 }
 
@@ -358,7 +361,8 @@ export function buildMaestro(
       const venc = em ? addDays(em, termino) : null;
       const estado = estadoDoc(venc, today);
       const pagadoF = isPagado(pagados, kind, rut, fFolio);
-      const anulacion = row.notas.length === 0 ? null : row.estado === "anulada" ? "anulada" : "parcial";
+      const anulacion =
+        row.notas.length === 0 ? null : row.estado === "anulada" ? "anulada" : "parcial";
 
       total += row.neto; // neto de la factura tras sus NC (puede ser ≤ 0)
       if (pagadoF) {
@@ -368,7 +372,9 @@ export function buildMaestro(
         if (estado === "vencido") vencido += contrib;
         else if (estado === "por_vencer") porVencer += contrib;
         else if (estado === "vigente") vigente += contrib;
-        if (venc && estado !== "vencido") {
+        // Solo cuenta como "próximo a vencer" si queda saldo real (neto > 0): una factura
+        // anulada al 100% / sobre-acreditada (neto ≤ 0) no es una obligación futura.
+        if (venc && estado !== "vencido" && row.neto > 0) {
           if (!proximo || venc < proximo) proximo = venc;
         }
       }
@@ -461,7 +467,7 @@ export function buildMaestro(
   }
 
   // Contrapartes: primero las de más vencido; a igual vencido, mayor total.
-  list.sort((a, b) => (b.vencido - a.vencido) || (b.total - a.total));
+  list.sort((a, b) => b.vencido - a.vencido || b.total - a.total);
   return list;
 }
 
