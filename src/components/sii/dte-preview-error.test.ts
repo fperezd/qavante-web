@@ -3,8 +3,13 @@ import { parseSiiErrorBody, classifyDtePreviewError } from "./dte-preview-error"
 
 describe("parseSiiErrorBody", () => {
   it("lee { detail: { code, message } }", () => {
-    const body = JSON.stringify({ detail: { code: "sii_session_expired", message: "el SII devolvió HTML" } });
-    expect(parseSiiErrorBody(body)).toEqual({ code: "sii_session_expired", message: "el SII devolvió HTML" });
+    const body = JSON.stringify({
+      detail: { code: "sii_session_expired", message: "el SII devolvió HTML" },
+    });
+    expect(parseSiiErrorBody(body)).toEqual({
+      code: "sii_session_expired",
+      message: "el SII devolvió HTML",
+    });
   });
 
   it("lee { detail: 'texto' }", () => {
@@ -23,7 +28,10 @@ describe("parseSiiErrorBody", () => {
 describe("classifyDtePreviewError", () => {
   it("sii_session_expired (recibidos) → reconectar certificado", () => {
     const body = JSON.stringify({
-      detail: { code: "sii_session_expired", message: "el SII devolvió HTML/login en vez del respaldo XML de recibidos" },
+      detail: {
+        code: "sii_session_expired",
+        message: "el SII devolvió HTML/login en vez del respaldo XML de recibidos",
+      },
     });
     const out = classifyDtePreviewError(502, "application/json", body);
     expect(out.kind).toBe("sii_session");
@@ -32,22 +40,42 @@ describe("classifyDtePreviewError", () => {
     }
   });
 
+  it("sii_clave_auth_failed (ventas/emitidos) → CTA a reingresar la Clave Tributaria", () => {
+    const body = JSON.stringify({
+      detail: {
+        code: "sii_clave_auth_failed",
+        message: "Login con la clave del representante falló (revisar clave).",
+      },
+    });
+    const out = classifyDtePreviewError(412, "application/json", body);
+    expect(out.kind).toBe("sii_session"); // enruta al CTA "Ir a Credenciales"
+    if (out.kind === "sii_session") {
+      expect(out.title).toMatch(/Clave Tributaria/);
+      expect(out.description).toMatch(/Credenciales/);
+    }
+  });
+
   it("dte_not_found con 'listado trajo 0 documentos' → sesión caída (no folio inexistente)", () => {
     const body = JSON.stringify({
       detail: {
         code: "dte_not_found",
-        message: "folio 373 no está en el listado de emitidos (el listado trajo 0 documento(s); revisá la sesión/certificado del SII)",
+        message:
+          "folio 373 no está en el listado de emitidos (el listado trajo 0 documento(s); revisá la sesión/certificado del SII)",
       },
     });
     expect(classifyDtePreviewError(404, "application/json", body).kind).toBe("sii_session");
   });
 
   it("el SII devuelve HTML (login) → sesión caída", () => {
-    expect(classifyDtePreviewError(200, "text/html; charset=utf-8", "<html>…</html>").kind).toBe("sii_session");
+    expect(classifyDtePreviewError(200, "text/html; charset=utf-8", "<html>…</html>").kind).toBe(
+      "sii_session",
+    );
   });
 
   it("dte_not_found de un folio realmente inexistente (sin señal de sesión) → backend crudo", () => {
-    const body = JSON.stringify({ detail: { code: "dte_not_found", message: "el folio 999 no existe en el rango consultado" } });
+    const body = JSON.stringify({
+      detail: { code: "dte_not_found", message: "el folio 999 no existe en el rango consultado" },
+    });
     const out = classifyDtePreviewError(404, "application/json", body);
     expect(out.kind).toBe("backend");
     if (out.kind === "backend") expect(out.description).toMatch(/no existe en el rango/);

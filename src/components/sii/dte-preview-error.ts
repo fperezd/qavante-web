@@ -39,6 +39,11 @@ export function parseSiiErrorBody(body: string): ParsedBody {
 /** Códigos del backend que significan "hay que reconectar la sesión/certificado". */
 const SESSION_CODES = new Set(["sii_session_expired", "sii_not_connected", "sii_auth_failed"]);
 
+/** Códigos de "el SII rechazó tu CLAVE TRIBUTARIA del representante" (los DTE
+ *  EMITIDOS/ventas se bajan logueando con la clave, no con el certificado). La
+ *  acción es reingresar la clave en Credenciales → CTA distinta a la de sesión. */
+const CLAVE_CODES = new Set(["sii_clave_auth_failed", "sii_clave_invalid", "sii_clave_not_found"]);
+
 /** Clasifica el fallo del preview a partir del status, el content-type y el cuerpo. */
 export function classifyDtePreviewError(
   status: number,
@@ -48,6 +53,19 @@ export function classifyDtePreviewError(
   const ct = (contentType ?? "").toLowerCase();
   const { code, message } = parseSiiErrorBody(body);
   const text = `${message ?? ""} ${body ?? ""}`.toLowerCase();
+
+  // La Clave Tributaria del representante no fue aceptada por el SII (ventas/emitidos).
+  // NO es una caída temporal: la clave está mal/vencida → reingresarla en Credenciales.
+  if ((code != null && CLAVE_CODES.has(code)) || text.includes("clave del representante")) {
+    return {
+      kind: "sii_session",
+      title: "El SII rechazó tu Clave Tributaria",
+      description:
+        "Los documentos EMITIDOS (ventas) se bajan iniciando sesión en el SII con la Clave " +
+        "Tributaria del representante legal, y el SII no la aceptó. Revisá o reingresá la clave en " +
+        "Administración → Credenciales y reintentá.",
+    };
+  }
 
   const looksSession =
     (code != null && SESSION_CODES.has(code)) ||
