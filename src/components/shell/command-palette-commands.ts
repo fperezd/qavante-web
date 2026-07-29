@@ -15,6 +15,7 @@ import {
   Briefcase,
   Receipt,
   Landmark,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@/lib/auth/types";
@@ -128,6 +129,14 @@ export const COMMANDS: ReadonlyArray<Command> = [
     href: "/caja/proyeccion",
     Icon: TrendingUp,
     keywords: "flujo proyeccion brecha",
+  },
+  {
+    id: "previred",
+    label: "Previred",
+    group: "Tesorería",
+    href: "/pagar/previred",
+    Icon: ShieldCheck,
+    keywords: "imposiciones cotizaciones afp salud cesantia previsional",
   },
   {
     id: "obligaciones",
