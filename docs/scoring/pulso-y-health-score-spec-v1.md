@@ -362,7 +362,55 @@ subíndices, drivers y confianza.
 
 ---
 
-## 8. Puntos abiertos
+## 8. Diccionario de UI — cómo se nombra esto en pantalla
+
+> Regla de oro (Anexo F, Voice & Tone): **la pantalla habla el idioma del dueño
+> de pyme chilena**. Los términos técnicos, códigos de componente y reason codes
+> viven en el backend y en esta spec — **nunca en la UI**. Pesos concretos antes
+> que ratios; preguntas antes que sustantivos técnicos. CC-API y CC-WEB usan
+> estas traducciones tal cual (el backend las emite en `headline`/`drivers`;
+> el FE no re-traduce). Referencia visual: mockup "Salud v3" (sesión CC-WEB
+> 2026-07-06).
+
+| Concepto interno (spec / motor) | Texto en pantalla (es-CL) |
+|---|---|
+| PULSO (instrumento) | "Pulso — **¿Te alcanza la plata este mes?**" · tag "se mide todos los días" |
+| QHS (instrumento) | "Health Score — **¿Tu empresa mejora o se deteriora?**" · tag "se mide al cierre de cada mes" |
+| COB — Cobertura de compromisos 30d | **Cobertura de pagos** |
+| RUN — Runway operativo | **Autonomía de caja** (nunca "runway") |
+| DPC — Días hasta el punto crítico | **Días de holgura**; narrativa: "el apretón llegaría el día N" |
+| CAL — Calidad del flujo entrante | **Calidad de ingresos** |
+| Knock-out | **Alerta grave** |
+| Snapshot mensual | **cierre de mes** ("Health Score de cada cierre de mes") |
+| `model_version` | no se muestra; a lo sumo "método de cálculo v1.0" en el pie de página |
+| Ratio de cobertura (ej. 0,9×) | monto en pesos: **"te faltarían unos $450.000"** |
+| DSCR (ej. 1,45×) | **"tu caja genera $1,45 por cada $1 de cuota"** |
+| Elasticidad gasto/ingreso (ej. 1,4) | **"por cada $100 nuevos que cobras, sumaste $140 de gasto fijo"** |
+| Ponderación de cobro (ej. 60%) | **"ese cobro lo contamos a medias hasta verlo en el banco"** |
+| Reason codes (`RISK_NEG_01`…) | **nunca en pantalla**; chips por categoría: Impuestos · Cobranza · Gastos · Deuda · Concentración |
+| Matching DTE↔banco | **cruce entre cobros y facturas** |
+| Data Confidence | **Confianza del dato** + "califica el diagnóstico, no la salud" |
+| Matriz PULSO×QHS (cuadrantes) | **Apretón pasajero** · **Crecer e invertir** · **Se desangra lento** · **Crisis** |
+| Semáforo de decisiones (veredictos) | **Sí** · **Con margen justo** · **Todavía no** · **No por ahora** |
+| Bandas PULSO | Holgado · Estable · Ajustado · Tenso · Crítico |
+| Bandas QHS | Muy sana · Sana con alertas · En observación · Vulnerable · Riesgo alto |
+| F29 / IVA | "El **IVA** de [mes] vence el [día]: $[monto]" (la sigla F29 puede aparecer como apoyo; "IVA" lidera) |
+| Umbral mínimo de caja | **mínimo seguro** |
+
+Reglas de redacción:
+
+1. **Ratios → pesos.** Todo múltiplo o porcentaje financiero se traduce a plata
+   concreta o a una frase de comparación cotidiana.
+2. **Títulos de sección = la pregunta que el dueño se hace** ("¿Dónde estás
+   parado hoy?", "¿Por qué está así?", "¿Puedo tomar esta decisión hoy?").
+3. **Códigos jamás visibles** (componentes, reason codes, versiones de modelo).
+4. La frase **"medimos caja, no contabilidad"** siempre visible (pie o tooltip).
+5. Los drivers hablan en segunda persona y con evidencia: qué pasó, cuánto es
+   en pesos, cuántos puntos mueve y qué hacer.
+
+---
+
+## 9. Puntos abiertos
 
 > Auditoría de datos 2026-07-05: la captura NO es el cuello de botella. Ya
 > resuelto por lo que el backend captura hoy: **F29 real** (`f29_periods`),
