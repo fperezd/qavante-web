@@ -11,7 +11,7 @@ test.describe("Flujo: Libro de Compras (/pagar/facturas-recibidas)", () => {
     await loginAs(context, "owner");
     await page.goto("/pagar/facturas-recibidas");
 
-    await expect(page.getByRole("heading", { name: "Libro de Compras" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Facturas de compra" })).toBeVisible();
     await expect(page.getByText("Proveedor SpA").first()).toBeVisible();
     await expect(page.getByText("Insumos Chile Ltda").first()).toBeVisible();
   });

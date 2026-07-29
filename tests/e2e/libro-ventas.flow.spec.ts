@@ -10,7 +10,7 @@ test.describe("Flujo: Libro de Ventas (/cobrar/facturas-emitidas)", () => {
     await loginAs(context, "owner");
     await page.goto("/cobrar/facturas-emitidas");
 
-    await expect(page.getByRole("heading", { name: "Libro de Ventas" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Facturas de venta" })).toBeVisible();
     await expect(page.getByText("Cliente A SA").first()).toBeVisible();
     await expect(page.getByText("Cliente B Ltda").first()).toBeVisible();
   });

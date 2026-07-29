@@ -7,9 +7,9 @@ import { matches, visibleCommands } from "./command-palette-commands";
 
 const f29 = { label: "F29", group: "SII", keywords: "impuestos iva ppm declaracion mensual" };
 const ventas = {
-  label: "Libro de Ventas",
+  label: "Facturas de venta",
   group: "SII",
-  keywords: "sii ventas facturas emitidas rcv",
+  keywords: "sii ventas facturas emitidas libro rcv",
 };
 
 describe("command-palette · matches", () => {

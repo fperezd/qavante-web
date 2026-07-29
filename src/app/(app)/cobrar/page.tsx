@@ -1,56 +1,38 @@
 import Link from "next/link";
-import { ArrowDownToLine, FileOutput, Users } from "lucide-react";
-import {
-  FeatureUnavailableState,
-  QavanteBadge,
-  QavanteCard,
-  QavanteEmpty,
-} from "@/components/qavante";
+import { ArrowDownToLine, FileText, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { FeatureUnavailableState, QavanteEmpty } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { CobrarView } from "@/components/cobrar/cobrar-view";
 import { CobrarV2Live } from "@/components/cobrar/v2/cobrar-v2-live";
 
-/* Cobrar (Sprint C4). Server Component: resuelve los flags. `cobrarV2` ON → la
-   respuesta de dueño ("a quién le cobras primero") + acciones reales de cobranza
-   (tiene prioridad sobre la vista clásica, mismo dato base). `accountsReceivable`
-   ON → la pantalla clásica (resumen + aging + top deudores + documentos). Flag OFF
-   → comportamiento previo (card SII + placeholder C4). Sin `export const runtime`
-   (regla 4). */
+/* Cobrar (Sprint C4). Server Component: resuelve los flags. La IA usa LENGUAJE DE
+   DUEÑO (pedido de Fernando 2026-07-28): arriba y a mano "Ver facturas" (lo que
+   antes era el "Libro de Ventas (SII)", jerga de contador enterrada al fondo) y
+   "Clientes"; debajo el hero de prioridad ("a quién le cobras primero"). Sin
+   `export const runtime` (regla 4). */
 export default function CobrarPage() {
   const { siiQueries, accountsReceivable, cobrarV2 } = resolveFeatureFlags();
 
   if (cobrarV2) {
     return (
       <div className="space-y-6">
-        <header>
-          <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
-          <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
+            <p className="mt-1 text-sm text-neutral-mid">
+              ¿Quién me debe y qué debo cobrar primero?
+            </p>
+          </div>
+          {/* Accesos arriba, en lenguaje de dueño (antes "Libro de Ventas" al fondo). */}
+          {siiQueries && (
+            <div className="flex flex-wrap gap-2">
+              <QuickLink href="/cobrar/facturas-emitidas" icon={FileText} label="Ver facturas" />
+              <QuickLink href="/cobrar/clientes" icon={Users} label="Clientes" />
+            </div>
+          )}
         </header>
         <CobrarV2Live siiEnabled={siiQueries} />
-        {/* Submenú "Clientes": todos los del año con sus vencimientos derivados
-            (sub-ruta /cobrar/clientes). Requiere SII conectado. */}
-        {siiQueries && (
-          <Link
-            href="/cobrar/clientes"
-            className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
-          >
-            <QavanteCard
-              variant="bordered"
-              className="transition-all duration-150 group-hover:-translate-y-0.5 group-hover:border-brand-primary/50 group-hover:shadow-lg"
-              header={
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-                  <span className="font-medium">Clientes</span>
-                </div>
-              }
-            >
-              <p className="text-sm text-neutral-mid">
-                Todos tus clientes del año y el vencimiento de cada venta (término editable). No solo
-                lo pendiente por cobrar.
-              </p>
-            </QavanteCard>
-          </Link>
-        )}
       </div>
     );
   }
@@ -69,43 +51,17 @@ export default function CobrarPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
-        <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
+          <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
+        </div>
+        {siiQueries && (
+          <QuickLink href="/cobrar/facturas-emitidas" icon={FileText} label="Ver facturas" />
+        )}
       </header>
 
-      {siiQueries ? (
-        <section aria-labelledby="sii-section" className="space-y-3">
-          <h2 id="sii-section" className="text-base font-semibold text-neutral-dark">
-            Desde el SII
-          </h2>
-          <Link
-            href="/cobrar/facturas-emitidas"
-            className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
-          >
-            <QavanteCard
-              variant="bordered"
-              className="transition-colors hover:border-brand-primary/40"
-              header={
-                <div className="flex items-center gap-2">
-                  <FileOutput className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-                  <span className="font-medium">Libro de Ventas</span>
-                </div>
-              }
-            >
-              <div className="space-y-2">
-                <QavanteBadge variant="success">SII</QavanteBadge>
-                <p className="text-sm text-neutral-mid">
-                  Documentos de venta del SII por período: facturas, notas y boletas que le emitiste
-                  a tus clientes.
-                </p>
-              </div>
-            </QavanteCard>
-          </Link>
-        </section>
-      ) : (
-        <FeatureUnavailableState />
-      )}
+      {!siiQueries && <FeatureUnavailableState />}
 
       <QavanteEmpty
         icon={ArrowDownToLine}
@@ -113,5 +69,18 @@ export default function CobrarPage() {
         description="Aquí vas a ver tus documentos por cobrar ordenados por prioridad, la cobranza vencida, la antigüedad de saldos y acciones sugeridas por cliente. Muy pronto disponible."
       />
     </div>
+  );
+}
+
+/** Acceso secundario arriba (pill): "Ver facturas", "Clientes". */
+function QuickLink({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-1.5 text-sm font-medium text-neutral-dark transition-colors hover:border-brand-primary/50 hover:bg-brand-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+    >
+      <Icon className="h-4 w-4 text-brand-primary" aria-hidden="true" />
+      {label}
+    </Link>
   );
 }
