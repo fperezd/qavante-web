@@ -33,7 +33,7 @@ export type GestionSeccion = "margenes" | "costos" | "tendencia" | "comparativo"
 
 const TITULO: Record<GestionSeccion, string> = {
   margenes: "Márgenes",
-  costos: "En qué se va la plata",
+  costos: "Costos y gastos",
   tendencia: "Tendencia",
   comparativo: "Comparativo",
 };

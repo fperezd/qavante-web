@@ -54,7 +54,7 @@ const PAGAR_CHILDREN: ReadonlyArray<SubLink> = [
 const GESTION_CHILDREN: ReadonlyArray<SubLink> = [
   { href: "/gestion", label: "Resultado del mes" },
   { href: "/gestion/margenes", label: "Márgenes" },
-  { href: "/gestion/costos", label: "En qué se va la plata" },
+  { href: "/gestion/costos", label: "Costos y gastos" },
   { href: "/gestion/tendencia", label: "Tendencia" },
   { href: "/gestion/comparativo", label: "Comparativo" },
 ];
