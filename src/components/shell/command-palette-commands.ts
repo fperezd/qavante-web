@@ -140,19 +140,19 @@ export const COMMANDS: ReadonlyArray<Command> = [
 
   {
     id: "ventas",
-    label: "Libro de Ventas",
+    label: "Facturas de venta",
     group: "SII",
     href: "/cobrar/facturas-emitidas",
     Icon: FileOutput,
-    keywords: "sii ventas facturas emitidas rcv",
+    keywords: "sii ventas facturas emitidas libro rcv",
   },
   {
     id: "compras",
-    label: "Libro de Compras",
+    label: "Facturas de compra",
     group: "SII",
     href: "/pagar/facturas-recibidas",
     Icon: FileInput,
-    keywords: "sii compras facturas recibidas rcv",
+    keywords: "sii compras facturas recibidas libro rcv",
   },
   {
     id: "honorarios",

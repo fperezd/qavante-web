@@ -19,9 +19,9 @@ test.describe("Flujo: command palette (⌘K)", () => {
     const input = page.getByPlaceholder("Buscar pantalla o acción…");
     await expect(input).toBeVisible();
 
-    // Filtrar y abrir el Libro de Compras.
+    // Filtrar y abrir las Facturas de compra.
     await input.fill("compras");
-    await expect(page.getByRole("option", { name: /Libro de Compras/ })).toBeVisible();
+    await expect(page.getByRole("option", { name: /Facturas de compra/ })).toBeVisible();
     await input.press("Enter");
 
     await expect(page).toHaveURL(/\/pagar\/facturas-recibidas/);
