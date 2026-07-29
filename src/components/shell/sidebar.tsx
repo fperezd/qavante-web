@@ -52,7 +52,7 @@ const PAGAR_CHILDREN: ReadonlyArray<SubLink> = [
    2026-07-28): separan lo que hoy vive apretado en /gestion. "Resultado del mes"
    es el propio /gestion. */
 const GESTION_CHILDREN: ReadonlyArray<SubLink> = [
-  { href: "/gestion", label: "Resultado del mes" },
+  { href: "/gestion", label: "Resultado" },
   { href: "/gestion/margenes", label: "Márgenes" },
   { href: "/gestion/costos", label: "Costos y gastos" },
   { href: "/gestion/tendencia", label: "Tendencia" },
