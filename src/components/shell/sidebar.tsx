@@ -8,8 +8,8 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   LineChart,
-  Users,
   Settings,
+  ChevronDown,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -17,12 +17,16 @@ import { cn } from "@/lib/utils";
 import { CompanySwitcher } from "./company-switcher";
 import type { UserRole } from "@/lib/auth/types";
 
+type SubLink = { href: string; label: string; needsRemun?: boolean };
+
 type ModuleLink = {
   href: string;
   label: string;
   Icon: LucideIcon;
   /* Roles que ven este módulo. undefined = todos los roles autenticados. */
   visibleFor?: ReadonlyArray<UserRole>;
+  /* Sub-ítems que se despliegan cuando la sección está activa (ej. Pagar). */
+  children?: ReadonlyArray<SubLink>;
 };
 
 type NavGroup = { label: string; items: ReadonlyArray<ModuleLink> };
@@ -32,16 +36,29 @@ type NavGroup = { label: string; items: ReadonlyArray<ModuleLink> };
    gate del sidebar es UX (no defensa de seguridad). Match a la matriz Anexo C.4. */
 const ADMIN_ROLES: ReadonlyArray<UserRole> = ["owner", "admin", "technical_admin"];
 
-/* Navegación agrupada por dominio (refresh v1.2): las labels de sección dan
-   jerarquía visual. Los hrefs/labels de los links NO cambian (contrato e2e). */
+/* Sub-ítems de Pagar, en el orden de Fernando (2026-07-28): "a quién le pago",
+   en lenguaje de dueño. Remuneraciones y Previred dependen del flag `remuneraciones`
+   (BUK) → se filtran si está OFF. Los otros existen siempre (la página degrada). */
+const PAGAR_CHILDREN: ReadonlyArray<SubLink> = [
+  { href: "/pagar/proveedores", label: "Proveedores" },
+  { href: "/pagar/honorarios", label: "Honorarios" },
+  { href: "/remuneraciones", label: "Remuneraciones", needsRemun: true },
+  { href: "/pagar/previred", label: "Previred", needsRemun: true },
+  { href: "/pagar/impuestos", label: "Impuestos y TGR" },
+  { href: "/pagar/obligaciones", label: "Préstamos" },
+];
+
+/* Navegación agrupada por dominio. "Cobros y pagos" (antes "Tesorería", jerga
+   contable — pedido de Fernando 2026-07-28). Pagar despliega sus sub-ítems al
+   entrar en la sección. Los hrefs de los links NO cambian (contrato e2e). */
 const NAV_GROUPS: ReadonlyArray<NavGroup> = [
   { label: "Principal", items: [{ href: "/inicio", label: "Inicio", Icon: Home }] },
   {
-    label: "Tesorería",
+    label: "Cobros y pagos",
     items: [
       { href: "/caja", label: "Caja", Icon: Banknote },
       { href: "/cobrar", label: "Cobrar", Icon: ArrowDownToLine },
-      { href: "/pagar", label: "Pagar", Icon: ArrowUpFromLine },
+      { href: "/pagar", label: "Pagar", Icon: ArrowUpFromLine, children: PAGAR_CHILDREN },
     ],
   },
   { label: "Análisis", items: [{ href: "/gestion", label: "Gestión", Icon: LineChart }] },
@@ -58,19 +75,12 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
   },
 ];
 
-/* Grupo Remuneraciones (RRHH). Gateado por el flag `remuneraciones` (se inyecta
-   solo cuando el layout lo pasa ON) → con el flag OFF el nav no cambia nada. */
-const EQUIPO_GROUP: NavGroup = {
-  label: "Equipo",
-  items: [{ href: "/remuneraciones", label: "Remuneraciones", Icon: Users }],
-};
-
 export interface AppSidebarProps {
   mobileOpen: boolean;
   onCloseMobile: () => void;
   userRole?: UserRole;
-  /** `remuneraciones` ON → inyecta el grupo Equipo (Remuneraciones) en el nav.
-     Lo resuelve el layout (server). OFF/undefined → el nav no cambia. */
+  /** `remuneraciones` ON → muestra los sub-ítems de Pagar Remuneraciones + Previred
+     (fuente BUK). Lo resuelve el layout (server). OFF/undefined → no se muestran. */
   remuneracionesEnabled?: boolean;
 }
 
@@ -82,19 +92,21 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
 
-  /* Inserta el grupo Equipo después de Análisis (antes de Configuración) solo si
-     el flag está ON. */
-  const sourceGroups = remuneracionesEnabled
-    ? [...NAV_GROUPS.slice(0, 3), EQUIPO_GROUP, ...NAV_GROUPS.slice(3)]
-    : NAV_GROUPS;
-
   /* Defensa pasiva: si userRole es undefined (sesión rota / fallback), mostramos
      los módulos sin restricción de rol — el módulo gated sigue siendo accesible
      por URL pero la página renderea error/no-data del backend. */
   const canSee = (m: ModuleLink) => !m.visibleFor || (userRole && m.visibleFor.includes(userRole));
-  const groups = sourceGroups
-    .map((g) => ({ ...g, items: g.items.filter(canSee) }))
-    .filter((g) => g.items.length > 0);
+  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
+    (g) => g.items.length > 0,
+  );
+
+  const linkCls = (active: boolean) =>
+    cn(
+      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
+      active
+        ? "bg-brand-deep text-white shadow-sm"
+        : "text-neutral-mid hover:bg-brand-primary-50 hover:text-brand-primary-700",
+    );
 
   return (
     <>
@@ -143,24 +155,76 @@ export function AppSidebar({
                 {group.label}
               </p>
               <div className="space-y-1">
-                {group.items.map(({ href, label, Icon }) => {
+                {group.items.map((item) => {
+                  const { href, label, Icon, children } = item;
                   const active = pathname === href || pathname.startsWith(`${href}/`);
+
+                  if (!children) {
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={onCloseMobile}
+                        className={linkCls(active)}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                        {label}
+                      </Link>
+                    );
+                  }
+
+                  // Ítem con sub-ítems (Pagar). Se despliega cuando la sección está
+                  // activa: alguna ruta /pagar/* o /remuneraciones (Remuneraciones
+                  // vive fuera de /pagar pero es su sub-ítem).
+                  const subs = children.filter((c) => !c.needsRemun || remuneracionesEnabled);
+                  const expanded =
+                    pathname.startsWith(href) || subs.some((c) => pathname.startsWith(c.href));
+                  const parentActive = pathname === href;
                   return (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={onCloseMobile}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
-                        active
-                          ? "bg-brand-deep text-white shadow-sm"
-                          : "text-neutral-mid hover:bg-brand-primary-50 hover:text-brand-primary-700",
+                    <div key={href}>
+                      <Link
+                        href={href}
+                        onClick={onCloseMobile}
+                        className={linkCls(parentActive)}
+                        aria-current={parentActive ? "page" : undefined}
+                        aria-expanded={expanded}
+                      >
+                        <Icon className="h-4 w-4" aria-hidden="true" />
+                        <span className="flex-1">{label}</span>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 transition-transform",
+                            expanded ? "rotate-0" : "-rotate-90",
+                          )}
+                          aria-hidden="true"
+                        />
+                      </Link>
+                      {expanded && subs.length > 0 && (
+                        <div className="mt-1 space-y-1 border-l border-border pl-3 ml-4">
+                          {subs.map((c) => {
+                            const cActive =
+                              pathname === c.href || pathname.startsWith(`${c.href}/`);
+                            return (
+                              <Link
+                                key={c.href}
+                                href={c.href}
+                                onClick={onCloseMobile}
+                                className={cn(
+                                  "block rounded-lg px-3 py-1.5 text-sm transition-all",
+                                  cActive
+                                    ? "bg-brand-primary-50 font-medium text-brand-primary-700"
+                                    : "text-neutral-mid hover:bg-brand-primary-50 hover:text-brand-primary-700",
+                                )}
+                                aria-current={cActive ? "page" : undefined}
+                              >
+                                {c.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
                       )}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      <Icon className="h-4 w-4" aria-hidden="true" />
-                      {label}
-                    </Link>
+                    </div>
                   );
                 })}
               </div>
