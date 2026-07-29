@@ -77,7 +77,7 @@ export default function PagarPage() {
           )}
           {remuneraciones && (
             <BucketCard
-              href="/remuneraciones"
+              href="/pagar/previred"
               icon={ShieldCheck}
               title="Previred"
               description="Las imposiciones del mes — AFP, salud y cesantía — y su vencimiento."
