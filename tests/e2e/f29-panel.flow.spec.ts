@@ -15,7 +15,7 @@ test.describe("Flujo: panel F29 (/pagar/impuestos/f29)", () => {
     await page.goto("/pagar/impuestos/f29");
 
     await expect(
-      page.getByRole("heading", { level: 1, name: "F29 — Estado por período" }),
+      page.getByRole("heading", { level: 1, name: "Impuestos Mensuales" }),
     ).toBeVisible();
 
     // La grilla (region con la tabla de estado).
