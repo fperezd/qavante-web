@@ -46,7 +46,7 @@ export default function PagarImpuestosPage() {
             header={
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-                <span className="font-medium">F29 — Declaración mensual</span>
+                <span className="font-medium">Impuestos Mensuales</span>
               </div>
             }
           >
@@ -66,7 +66,7 @@ export default function PagarImpuestosPage() {
           header={
             <div className="flex items-center gap-2">
               <Lock className="h-4 w-4 text-neutral-mid" aria-hidden="true" />
-              <span className="font-medium text-neutral-mid">F22 — Declaración anual</span>
+              <span className="font-medium text-neutral-mid">Impuestos Anuales</span>
             </div>
           }
         >

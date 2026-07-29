@@ -164,11 +164,11 @@ export const COMMANDS: ReadonlyArray<Command> = [
   },
   {
     id: "f29",
-    label: "F29",
+    label: "Impuestos Mensuales",
     group: "SII",
     href: "/pagar/impuestos/f29",
     Icon: Receipt,
-    keywords: "impuestos iva ppm declaracion mensual",
+    keywords: "f29 impuestos iva ppm declaracion mensual",
   },
   {
     id: "pulso",

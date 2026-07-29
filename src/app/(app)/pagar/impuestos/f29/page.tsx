@@ -19,10 +19,10 @@ export default function PagarImpuestosF29Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">F29 — Estado por período</h1>
+        <h1 className="text-2xl font-bold text-neutral-dark">Impuestos Mensuales</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          El estado de tu F29 mes a mes (como en el SII). Haz clic en un mes para ver cuánto pagar
-          si declaras todo o si postergas el IVA.
+          El estado de tus impuestos mes a mes (como en el SII). Haz clic en un mes para ver cuánto
+          pagar si declaras todo o si postergas el IVA.
         </p>
       </header>
 

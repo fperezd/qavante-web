@@ -5,7 +5,11 @@ import { matches, visibleCommands } from "./command-palette-commands";
    por label, grupo y keywords, con múltiples términos en AND (sin importar el
    orden). */
 
-const f29 = { label: "F29", group: "SII", keywords: "impuestos iva ppm declaracion mensual" };
+const f29 = {
+  label: "Impuestos Mensuales",
+  group: "SII",
+  keywords: "f29 impuestos iva ppm declaracion mensual",
+};
 const ventas = {
   label: "Facturas de venta",
   group: "SII",
