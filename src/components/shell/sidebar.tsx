@@ -48,6 +48,17 @@ const PAGAR_CHILDREN: ReadonlyArray<SubLink> = [
   { href: "/pagar/obligaciones", label: "Préstamos" },
 ];
 
+/* Sub-ítems de Gestión (top 5 de análisis para el dueño, pedido de Fernando
+   2026-07-28): separan lo que hoy vive apretado en /gestion. "Resultado del mes"
+   es el propio /gestion. */
+const GESTION_CHILDREN: ReadonlyArray<SubLink> = [
+  { href: "/gestion", label: "Resultado" },
+  { href: "/gestion/margenes", label: "Márgenes" },
+  { href: "/gestion/costos", label: "Costos y gastos" },
+  { href: "/gestion/tendencia", label: "Tendencia" },
+  { href: "/gestion/comparativo", label: "Comparativo" },
+];
+
 /* Navegación agrupada por dominio. "Cobros y pagos" (antes "Tesorería", jerga
    contable — pedido de Fernando 2026-07-28). Pagar despliega sus sub-ítems al
    entrar en la sección. Los hrefs de los links NO cambian (contrato e2e). */
@@ -61,7 +72,10 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
       { href: "/pagar", label: "Pagar", Icon: ArrowUpFromLine, children: PAGAR_CHILDREN },
     ],
   },
-  { label: "Análisis", items: [{ href: "/gestion", label: "Gestión", Icon: LineChart }] },
+  {
+    label: "Análisis",
+    items: [{ href: "/gestion", label: "Gestión", Icon: LineChart, children: GESTION_CHILDREN }],
+  },
   {
     label: "Configuración",
     items: [
@@ -178,9 +192,15 @@ export function AppSidebar({
                   // activa: alguna ruta /pagar/* o /remuneraciones (Remuneraciones
                   // vive fuera de /pagar pero es su sub-ítem).
                   const subs = children.filter((c) => !c.needsRemun || remuneracionesEnabled);
-                  const expanded =
-                    pathname.startsWith(href) || subs.some((c) => pathname.startsWith(c.href));
-                  const parentActive = pathname === href;
+                  // Un hijo se activa por su ruta; el hijo-índice (href === el del
+                  // padre, ej. "Resultado del mes" = /gestion) SOLO por match exacto
+                  // (si no, se prendería en /gestion/margenes también).
+                  const childMatch = (c: SubLink) =>
+                    pathname === c.href || (c.href !== href && pathname.startsWith(`${c.href}/`));
+                  const expanded = pathname.startsWith(href) || subs.some(childMatch);
+                  // Si un sub-ítem "posee" la ruta exacta (ej. Resultado del mes = /gestion),
+                  // no doble-resaltamos el padre.
+                  const parentActive = pathname === href && !subs.some((c) => pathname === c.href);
                   return (
                     <div key={href}>
                       <Link
@@ -203,8 +223,7 @@ export function AppSidebar({
                       {expanded && subs.length > 0 && (
                         <div className="mt-1 space-y-1 border-l border-border pl-3 ml-4">
                           {subs.map((c) => {
-                            const cActive =
-                              pathname === c.href || pathname.startsWith(`${c.href}/`);
+                            const cActive = childMatch(c);
                             return (
                               <Link
                                 key={c.href}
