@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Lock } from "lucide-react";
+import { FileText, Landmark, Lock } from "lucide-react";
 import { FeatureUnavailableState, QavanteBadge, QavanteCard } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
@@ -78,6 +78,27 @@ export default function PagarImpuestosPage() {
             </p>
           </div>
         </QavanteCard>
+
+        <Link
+          href="/pagar/impuestos/tgr"
+          className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+        >
+          <QavanteCard
+            variant="bordered"
+            className="h-full transition-colors hover:border-brand-primary/40"
+            header={
+              <div className="flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-brand-primary" aria-hidden="true" />
+                <span className="font-medium">Deudas TGR</span>
+              </div>
+            }
+          >
+            <p className="text-sm text-neutral-mid">
+              Tus deudas con la Tesorería (TGR): giros, multas, PPM e IVA impago, con su saldo y
+              vencimiento, y el certificado de deudas en PDF.
+            </p>
+          </QavanteCard>
+        </Link>
       </div>
     </div>
   );

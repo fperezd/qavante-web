@@ -180,6 +180,14 @@ export const COMMANDS: ReadonlyArray<Command> = [
     keywords: "f29 impuestos iva ppm declaracion mensual",
   },
   {
+    id: "tgr",
+    label: "Deudas TGR",
+    group: "SII",
+    href: "/pagar/impuestos/tgr",
+    Icon: Landmark,
+    keywords: "tgr tesoreria deudas fiscales giros multas certificado",
+  },
+  {
     id: "pulso",
     label: "Pulso Empresa",
     group: "SII",
