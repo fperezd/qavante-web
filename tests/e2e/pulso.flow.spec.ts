@@ -25,7 +25,8 @@ test.describe("Flujo: Pulso detalle (/gestion/pulso)", () => {
     await expect(page.getByText("Lo que pesa")).toBeVisible();
     await expect(page.getByText("Cobranza lenta")).toBeVisible();
 
-    // Tendencia.
-    await expect(page.getByText("Tendencia")).toBeVisible();
+    // Tendencia (scopeado al contenido: el sidebar ahora tiene un link "Tendencia"
+    // —sub-ítem de Gestión— que también matchea el texto).
+    await expect(page.locator("#main-content").getByText("Tendencia")).toBeVisible();
   });
 });
