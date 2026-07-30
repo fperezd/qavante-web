@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Calendar, Minus } from "lucide-react";
 import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/qavante";
 import { Sparkline } from "@/components/ui/sparkline";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
-import { presetRange, type PeriodRange } from "@/lib/period/period-range";
+import { type PeriodRange } from "@/lib/period/period-range";
+import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import {
   useOperationalResult,
   useOperationalResultBreakdown,
@@ -54,33 +55,50 @@ export function GestionSeccionView({
   seccion: GestionSeccion;
   initialPeriod: string;
 }) {
-  const [range, setRange] = React.useState<PeriodRange>(() =>
-    initialPeriod ? { desde: initialPeriod, hasta: initialPeriod } : presetRange("mes_actual"),
+  const isTendencia = seccion === "tendencia";
+  // Tendencia = RANGO (varios meses); el resto = UN mes (el selector debe reflejarlo,
+  // pedido de Fernando: antes un picker de rango sobre una vista de un mes confundía).
+  const [period, setPeriod] = React.useState(initialPeriod);
+  const [range, setRange] = React.useState<PeriodRange>(() => ({
+    desde: periodoMenos(initialPeriod, 5),
+    hasta: initialPeriod,
+  }));
+  const months = React.useMemo(
+    () => Array.from({ length: 24 }, (_, i) => periodoMenos(initialPeriod, i)),
+    [initialPeriod],
   );
-  const period = range.hasta;
 
   const needsMes = seccion === "margenes" || seccion === "costos" || seccion === "comparativo";
-  // Márgenes y tendencia usan 6 meses (sparkline / gráfico); costos, solo el mes.
-  const spark = seccion === "margenes" || seccion === "tendencia";
-  const bdFrom = spark ? periodoMenos(period, 5) : period;
+  // Ventana del breakdown: tendencia = el rango elegido; márgenes = 6 meses (sparkline);
+  // costos = solo el mes.
+  const bdFrom = isTendencia
+    ? range.desde
+    : seccion === "margenes"
+      ? periodoMenos(period, 5)
+      : period;
+  const bdTo = isTendencia ? range.hasta : period;
 
   const mesQuery = useOperationalResult(needsMes ? period : "");
   const prevQuery = useOperationalResult(seccion === "comparativo" ? periodoMenos(period, 1) : "");
   const yoyQuery = useOperationalResult(seccion === "comparativo" ? periodoMenos(period, 12) : "");
-  const bdQuery = useOperationalResultBreakdown(bdFrom, period, {
-    enabled: seccion === "costos" || seccion === "tendencia" || seccion === "margenes",
+  const bdQuery = useOperationalResultBreakdown(bdFrom, bdTo, {
+    enabled: seccion === "costos" || isTendencia || seccion === "margenes",
   });
 
   // La query "principal" para loading/error de la sección.
-  const q = seccion === "tendencia" ? bdQuery : mesQuery;
+  const q = isTendencia ? bdQuery : mesQuery;
 
   return (
     <div className="space-y-4">
-      <PeriodRangeFilter
-        value={range}
-        onChange={setRange}
-        hint={seccion === "tendencia" ? "Muestra los 6 meses hasta el mes elegido." : undefined}
-      />
+      {isTendencia ? (
+        <PeriodRangeFilter
+          value={range}
+          onChange={setRange}
+          hint="Cada barra es un mes. Cambiá el rango para ver más o menos meses."
+        />
+      ) : (
+        <MonthPicker value={period} onChange={setPeriod} months={months} />
+      )}
 
       {q.isError ? (
         <QavanteInlineError error={q.error} what={`${TITULO[seccion]} de Gestión`} />
@@ -369,6 +387,37 @@ function SinDato({ label }: { label: string }) {
     <p className="rounded-xl border border-dashed border-border bg-surface-muted/30 p-6 text-center text-sm text-neutral-mid">
       Sin datos suficientes para mostrar {label} en este período. Probá con otro mes.
     </p>
+  );
+}
+
+/** Selector de UN mes (para Márgenes/Costos/Comparativo: son vistas de un mes,
+    no de rango). Dropdown nativo con los últimos meses, etiqueta "julio 2026". */
+function MonthPicker({
+  value,
+  onChange,
+  months,
+}: {
+  value: string;
+  onChange: (m: string) => void;
+  months: string[];
+}) {
+  return (
+    <label className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm">
+      <Calendar className="h-4 w-4 text-neutral-mid" aria-hidden="true" />
+      <span className="sr-only">Mes</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-transparent font-medium text-neutral-dark focus-visible:outline-none"
+        aria-label="Elegir mes"
+      >
+        {months.map((m) => (
+          <option key={m} value={m}>
+            {formatPeriodLabel(m)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
