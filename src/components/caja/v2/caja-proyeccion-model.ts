@@ -213,6 +213,33 @@ export function hayProyeccion(movimientos: MovimientoCaja[]): boolean {
   return movimientos.length > 0;
 }
 
+/** Causa del punto más bajo: una salida que empuja la caja hacia el piso. */
+export interface CausaQuiebre {
+  label: string;
+  /** Monto FIRMADO (negativo = egreso). */
+  monto: number;
+  fechaLabel: string;
+  tipo?: MovTipo;
+}
+
+/** Top N causas del quiebre = los mayores EGRESOS que ocurren hasta el día del piso (inclusive),
+ *  rankeados por monto. Responde "¿qué me lleva al punto más bajo?" (visión Parte 1: el punto de
+ *  quiebre con sus causas principales). Solo egresos (monto < 0); las cobranzas no hunden la caja.
+ *  Usa los movimientos INDIVIDUALES (con label real: "F29", nombre del proveedor), no los semanales.
+ *  PURO. */
+export function causasDelPiso(
+  movimientos: MovimientoCaja[],
+  hoy: Date,
+  pisoDia: number,
+  n = 3,
+): CausaQuiebre[] {
+  return movimientos
+    .filter((m) => m.monto < 0 && daysBetween(hoy, m.fecha) <= pisoDia)
+    .sort((a, b) => a.monto - b.monto) // el más negativo primero
+    .slice(0, n)
+    .map((m) => ({ label: m.label, monto: m.monto, fechaLabel: m.fechaLabel, tipo: m.tipo }));
+}
+
 /** Agrupa los movimientos por SEMANA (bucket de 7 días desde hoy) para que la CASCADA sea legible:
  *  con decenas de docs por vencimiento, una barra por doc queda ilegible. Cada semana → un
  *  movimiento con el NETO de la semana y su fecha de inicio. El medidor sigue usando los movimientos

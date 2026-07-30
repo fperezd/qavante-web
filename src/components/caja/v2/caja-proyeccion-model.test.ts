@@ -6,6 +6,7 @@ import {
   hayProyeccion,
   movimientosPorSemana,
   fechaCortaLabel,
+  causasDelPiso,
 } from "./caja-proyeccion-model";
 import type { ContraparteMaestro, DocMaestro } from "@/components/terminos/terminos-pago";
 import type { MovimientoCaja } from "./caja-cascada-model";
@@ -259,5 +260,37 @@ describe("movimientosPorSemana", () => {
 
   it("vacío → vacío", () => {
     expect(movimientosPorSemana([], HOY)).toEqual([]);
+  });
+});
+
+describe("causasDelPiso", () => {
+  const mov = (
+    dia: number,
+    monto: number,
+    label: string,
+    tipo?: MovimientoCaja["tipo"],
+  ): MovimientoCaja => ({
+    fecha: new Date(2026, 6, 21 + dia),
+    fechaLabel: `+${dia}`,
+    label,
+    monto,
+    tipo,
+  });
+
+  it("rankea los mayores egresos hasta el día del piso, ignora cobranzas y lo posterior al piso", () => {
+    const movs = [
+      mov(2, 1_000_000, "Cobranza cliente", "cobranza"), // ingreso → se ignora
+      mov(3, -9_200_000, "F29", "impuesto"),
+      mov(3, -2_000_000, "Proveedor A", "proveedor"),
+      mov(5, -5_000_000, "Sueldos", "sueldos"),
+      mov(40, -8_000_000, "Proveedor tardío", "proveedor"), // después del piso (día 30) → fuera
+    ];
+    const out = causasDelPiso(movs, HOY, 30, 3);
+    expect(out.map((c) => c.label)).toEqual(["F29", "Sueldos", "Proveedor A"]);
+    expect(out[0]).toMatchObject({ monto: -9_200_000, tipo: "impuesto", fechaLabel: "+3" });
+  });
+
+  it("sin egresos hasta el piso → vacío", () => {
+    expect(causasDelPiso([mov(1, 500_000, "Cobranza", "cobranza")], HOY, 10)).toEqual([]);
   });
 });

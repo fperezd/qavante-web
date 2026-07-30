@@ -7,6 +7,7 @@ import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import { readTerminos, readPagados, buildMaestro } from "@/components/terminos/terminos-pago";
 import { CajaProyeccionView } from "./caja-proyeccion-view";
 import {
+  causasDelPiso,
   movimientosDeMaestro,
   movimientosDeObligaciones,
   movimientosPorSemana,
@@ -53,7 +54,7 @@ export function CajaProyeccionLive({
   const honorariosDocs = useMaestroDocs("honorarios");
   const ap = useAccountsPayable();
 
-  const { proyeccion, movimientosCascada } = React.useMemo(() => {
+  const { proyeccion, movimientosCascada, causas } = React.useMemo(() => {
     const now = new Date();
     const terminos = readTerminos(prefs.data?.preferences);
     const pagados = readPagados(prefs.data?.preferences);
@@ -77,9 +78,12 @@ export function CajaProyeccionLive({
     ];
 
     // Medidor: acumulado sobre TODOS los movimientos (exacto). Cascada: agregados por semana (legible).
+    const proy = proyeccionDeMovimientos(saldoHoy, movs, now, minimo);
     return {
-      proyeccion: proyeccionDeMovimientos(saldoHoy, movs, now, minimo),
+      proyeccion: proy,
       movimientosCascada: movimientosPorSemana(movs, now),
+      // Causas del piso: los mayores egresos INDIVIDUALES hasta el día del punto más bajo (label real).
+      causas: proy?.piso ? causasDelPiso(movs, now, proy.piso.dia, 3) : [],
     };
   }, [
     ventasDocs.docs,
@@ -99,6 +103,7 @@ export function CajaProyeccionLive({
       proyeccion={proyeccion}
       minimo={minimo}
       movimientos={movimientosCascada}
+      causas={causas}
       ultimaSync={ultimaSync}
       saldoStale={saldoStale}
       ocultarSaldoHoy // el hero del Resumen ya muestra el saldo de hoy → no repetirlo en el medidor
