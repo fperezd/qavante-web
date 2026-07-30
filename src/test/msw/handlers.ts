@@ -2736,7 +2736,9 @@ const gestionHandlers = [
     const gastos = months.map((_, i) => String(-3000000 - i * 50000));
     const resultado = months.map((_, i) => String(Number(margen[i]) + Number(gastos[i])));
     const pctBy = (arr: string[]) =>
-      months.map((_, i) => (Number(ingresos[i]) > 0 ? ((Number(arr[i]) / Number(ingresos[i])) * 100).toFixed(1) : "0"));
+      months.map((_, i) =>
+        Number(ingresos[i]) > 0 ? ((Number(arr[i]) / Number(ingresos[i])) * 100).toFixed(1) : "0",
+      );
     return HttpResponse.json(
       {
         generated_at: "2026-07-11T12:00:00Z",
@@ -2753,8 +2755,20 @@ const gestionHandlers = [
             by_month: ingresos,
             total: sumArr(ingresos),
             children: [
-              { kind: "account", key: "proyectos", label: "Proyectos", by_month: proyectos, total: sumArr(proyectos) },
-              { kind: "account", key: "servicio", label: "Servicio Mensual", by_month: servicio, total: sumArr(servicio) },
+              {
+                kind: "account",
+                key: "proyectos",
+                label: "Proyectos",
+                by_month: proyectos,
+                total: sumArr(proyectos),
+              },
+              {
+                kind: "account",
+                key: "servicio",
+                label: "Servicio Mensual",
+                by_month: servicio,
+                total: sumArr(servicio),
+              },
             ],
           },
           {
@@ -2764,7 +2778,13 @@ const gestionHandlers = [
             by_month: sueldos,
             total: sumArr(sueldos),
             children: [
-              { kind: "account", key: "sueldos", label: "Sueldos", by_month: sueldos, total: sumArr(sueldos) },
+              {
+                kind: "account",
+                key: "sueldos",
+                label: "Sueldos",
+                by_month: sueldos,
+                total: sumArr(sueldos),
+              },
             ],
           },
           {
@@ -2783,7 +2803,13 @@ const gestionHandlers = [
             by_month: gastos,
             total: sumArr(gastos),
             children: [
-              { kind: "account", key: "recurrentes", label: "Gastos recurrentes", by_month: gastos, total: sumArr(gastos) },
+              {
+                kind: "account",
+                key: "recurrentes",
+                label: "Gastos recurrentes",
+                by_month: gastos,
+                total: sumArr(gastos),
+              },
             ],
           },
           {
@@ -2917,9 +2943,30 @@ const bukHandlers = [
         // Por empleado: `costo_empresa` (líquido + leyes sociales) lo trae BUK real;
         // `total_haberes` es contrato FE-first (pendiente CC-API). El FE lee ambos tolerante.
         empleados: [
-          { employee_id: 1, nombre: "Ana Pérez Soto", rut: "12.345.678-9", total_haberes: 6300000, costo_empresa: 6500000, liquido: 5000000 },
-          { employee_id: 2, nombre: "Benjamín Rojas Díaz", rut: "9.876.543-2", total_haberes: 6300000, costo_empresa: 6500000, liquido: 5000000 },
-          { employee_id: 3, nombre: "Carla Muñoz Vera", rut: "15.111.222-3", total_haberes: 5850000, costo_empresa: 5630000, liquido: 4330000 },
+          {
+            employee_id: 1,
+            nombre: "Ana Pérez Soto",
+            rut: "12.345.678-9",
+            total_haberes: 6300000,
+            costo_empresa: 6500000,
+            liquido: 5000000,
+          },
+          {
+            employee_id: 2,
+            nombre: "Benjamín Rojas Díaz",
+            rut: "9.876.543-2",
+            total_haberes: 6300000,
+            costo_empresa: 6500000,
+            liquido: 5000000,
+          },
+          {
+            employee_id: 3,
+            nombre: "Carla Muñoz Vera",
+            rut: "15.111.222-3",
+            total_haberes: 5850000,
+            costo_empresa: 5630000,
+            liquido: 4330000,
+          },
         ],
       },
       { status: 200 },
@@ -2951,10 +2998,34 @@ const cashFlowReportFixture = {
   currency: "functional",
   currency_code: "CLP",
   buckets: [
-    { period: "2026-07-14", total_inflow: "1600000", total_outflow: "2400000", net: "-800000", row_count: 6 },
-    { period: "2026-07-21", total_inflow: "500000", total_outflow: "1900000", net: "-1400000", row_count: 4 },
-    { period: "2026-07-28", total_inflow: "3200000", total_outflow: "1100000", net: "2100000", row_count: 7 },
-    { period: "2026-08-04", total_inflow: "800000", total_outflow: "2600000", net: "-1800000", row_count: 5 },
+    {
+      period: "2026-07-14",
+      total_inflow: "1600000",
+      total_outflow: "2400000",
+      net: "-800000",
+      row_count: 6,
+    },
+    {
+      period: "2026-07-21",
+      total_inflow: "500000",
+      total_outflow: "1900000",
+      net: "-1400000",
+      row_count: 4,
+    },
+    {
+      period: "2026-07-28",
+      total_inflow: "3200000",
+      total_outflow: "1100000",
+      net: "2100000",
+      row_count: 7,
+    },
+    {
+      period: "2026-08-04",
+      total_inflow: "800000",
+      total_outflow: "2600000",
+      net: "-1800000",
+      row_count: 5,
+    },
   ],
   grand_total: { inflow: "6100000", outflow: "8000000", net: "-1900000", row_count: 22 },
   excluded_attention: 0,
@@ -2964,9 +3035,30 @@ const cashMinimumFixture = {
   thresholds: [{ currency_code: "CLP", amount: "3000000", updated_at: "2026-07-01T00:00:00Z" }],
 };
 
+/* Ciclo de caja (DSO/DPO/CCC) — alimenta Gestión → Ciclo de caja (CicloCajaView).
+   Caso realista: cobra a 48d, paga a 30d ⇒ 18 días de plata atrapada (CCC>0). */
+const cashCycleFixture = {
+  dso_days: 48,
+  dpo_days: 30,
+  ccc_days: 18,
+  ar_total: "42000000",
+  ap_total: "18500000",
+  revenue_window: "111000000",
+  cogs_window: "40000000",
+  window_months: 3,
+  window_from: "2026-05-01",
+  window_to: "2026-07-01",
+  as_of: "2026-07-29",
+};
+
 const cajaV2Handlers = [
-  http.get("*/api/treasury/reports/cash-flow", () => HttpResponse.json(cashFlowReportFixture, { status: 200 })),
-  http.get("*/api/treasury/cash-minimum", () => HttpResponse.json(cashMinimumFixture, { status: 200 })),
+  http.get("*/api/treasury/reports/cash-flow", () =>
+    HttpResponse.json(cashFlowReportFixture, { status: 200 }),
+  ),
+  http.get("*/api/treasury/cash-minimum", () =>
+    HttpResponse.json(cashMinimumFixture, { status: 200 }),
+  ),
+  http.get("*/api/treasury/cash-cycle", () => HttpResponse.json(cashCycleFixture, { status: 200 })),
 ];
 
 /* Cola de conciliación (ADR-0036/0042). Handlers DETERMINISTAS a propósito: `review` devuelve

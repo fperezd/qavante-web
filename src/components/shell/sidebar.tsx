@@ -57,6 +57,7 @@ const GESTION_CHILDREN: ReadonlyArray<SubLink> = [
   { href: "/gestion/costos", label: "Costos y gastos" },
   { href: "/gestion/tendencia", label: "Tendencia" },
   { href: "/gestion/comparativo", label: "Comparativo" },
+  { href: "/gestion/ciclo-de-caja", label: "Ciclo de caja" },
 ];
 
 /* Navegación agrupada por dominio. "Cobros y pagos" (antes "Tesorería", jerga
