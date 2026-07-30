@@ -1,7 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, expect } from "storybook/test";
 import { CajaProyeccionView } from "./caja-proyeccion-view";
-import { causasDelPiso, proyeccionDeMovimientos } from "./caja-proyeccion-model";
+import {
+  causasDelPiso,
+  movimientosPorSemana,
+  proyeccionDeMovimientos,
+} from "./caja-proyeccion-model";
 import type { MovimientoCaja } from "./caja-cascada-model";
 
 /* CajaProyeccionView — el rediseño del "Saldo proyectado" del Caja v3: medidor de días + cascada de
@@ -83,17 +87,16 @@ const BREAK_MOVS: MovimientoCaja[] = [
   mov(35, "Cliente B", 6_900_000),
 ];
 
+const BREAK_PROY = proyeccionDeMovimientos(3_000_000, BREAK_MOVS, HOY, null);
+
 export const ConCausasDeQuiebre: Story = {
   args: {
-    proyeccion: proyeccionDeMovimientos(3_000_000, BREAK_MOVS, HOY, null),
+    proyeccion: BREAK_PROY,
     minimo: null,
-    movimientos: BREAK_MOVS,
-    causas: causasDelPiso(
-      BREAK_MOVS,
-      HOY,
-      proyeccionDeMovimientos(3_000_000, BREAK_MOVS, HOY, null)?.piso?.dia ?? 0,
-      3,
-    ),
+    // Como en prod: la cascada recibe los movimientos SEMANALES (labels "Esta semana"/"Sem +N"),
+    // no los individuales — así "F29" solo aparece en el bloque de causas (no se duplica).
+    movimientos: movimientosPorSemana(BREAK_MOVS, HOY),
+    causas: causasDelPiso(BREAK_MOVS, HOY, BREAK_PROY?.piso?.dia ?? 0, 3),
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
