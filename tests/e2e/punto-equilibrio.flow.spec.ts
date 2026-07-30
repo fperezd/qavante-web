@@ -18,9 +18,10 @@ test.describe("Flujo: Punto de equilibrio (/gestion/punto-equilibrio)", () => {
     // Hero: el piso de venta mensual.
     await expect(main.getByText(/Necesitas vender .* al mes para no perder/i)).toBeVisible();
 
-    // Los tres números.
+    // Los tres números (labels de los tiles; "Vas en" exact para no chocar con el hero
+    // "Vas en $18.500.000 — …", y "Punto de equilibrio" con .first() por el h1).
     await expect(main.getByText("Punto de equilibrio").first()).toBeVisible();
-    await expect(main.getByText("Vas en")).toBeVisible();
+    await expect(main.getByText("Vas en", { exact: true })).toBeVisible();
     await expect(main.getByText("Margen de contribución")).toBeVisible();
 
     // Composición + la nota honesta de aproximación.
