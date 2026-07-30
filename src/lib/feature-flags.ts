@@ -172,7 +172,8 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   cobrarV2: "/api/treasury/collection-plan",
   /* Cola de conciliación (ADR-0036/0042) — el motor auto-aplica los matches con score >=90 y deja
      los 60-90 en una cola de revisión de 1 clic (confirmar/rechazar/conciliar todas). La pantalla
-     nueva la consume; su endpoint de gating es la cola misma. Hoy OFF hasta validar en prod. */
+     nueva la consume; su endpoint de gating es la cola misma. LIVE en prod desde 2026-07-17
+     (`NEXT_PUBLIC_FF_RECONCILIATION_REVIEW="true"` en wrangler.toml). */
   reconciliationReview: "/api/treasury/reconciliation/review",
 };
 
