@@ -9,6 +9,7 @@ import {
   mapDrivers,
   mapTendencia,
   tendenciaConfiable,
+  evaluarTendenciaMargen,
 } from "./gestion-v2-map";
 import { computeCascada } from "./cascada-model";
 import type { OperationalResultResponse, OperationalResultBreakdown } from "@/lib/api/gestion";
@@ -32,7 +33,12 @@ const RESP: OperationalResultResponse = {
   },
   drivers: [
     { direction: "improves", concept: "Ventas", impact: "3200000", explanation: "Subieron 8%." },
-    { direction: "worsens", concept: "Sueldos", impact: "1100000", explanation: "Sumaste 1 persona." },
+    {
+      direction: "worsens",
+      concept: "Sueldos",
+      impact: "1100000",
+      explanation: "Sumaste 1 persona.",
+    },
   ],
   confidence: "high",
   data_state: "available",
@@ -66,7 +72,15 @@ describe("resultadoConfiable", () => {
   it("NO confiable si el resultado supera a los ingresos (margen > 100%)", () => {
     // Caso real de prod (Tooxs jul-2026): revenue 18,74M, result 18,93M → 101% (gasto revertido).
     expect(
-      resultadoConfiable({ ...RESP, revenue: "18739791", direct_cost: "0", labor_cost: "0", professional_fees: "0", recurring_expenses: "-194098", result: "18933889" }),
+      resultadoConfiable({
+        ...RESP,
+        revenue: "18739791",
+        direct_cost: "0",
+        labor_cost: "0",
+        professional_fees: "0",
+        recurring_expenses: "-194098",
+        result: "18933889",
+      }),
     ).toBe(false);
   });
   it("NO confiable si el resultado IGUALA a los ingresos (margen 100% ⇒ costos netos ≤ 0)", () => {
@@ -76,7 +90,15 @@ describe("resultadoConfiable", () => {
     // Caso real de prod (Tooxs jun-2026): sin direct_cost/labor/fees propios (todo en recurring),
     // margen 40% plausible. El guard viejo lo degradaba por mirar solo los 3 buckets clave.
     expect(
-      resultadoConfiable({ ...RESP, revenue: "25845693", direct_cost: "0", labor_cost: "0", professional_fees: "0", recurring_expenses: "13705506", result: "10325814" }),
+      resultadoConfiable({
+        ...RESP,
+        revenue: "25845693",
+        direct_cost: "0",
+        labor_cost: "0",
+        professional_fees: "0",
+        recurring_expenses: "13705506",
+        result: "10325814",
+      }),
     ).toBe(true);
   });
   it("no aplica la guarda sin ingresos (otro caso: vacío/parcial)", () => {
@@ -86,10 +108,20 @@ describe("resultadoConfiable", () => {
 
 describe("tendenciaConfiable", () => {
   it("confiable con márgenes normales", () => {
-    expect(tendenciaConfiable([{ periodo: "jun", margenPct: 8.6 }, { periodo: "jul", margenPct: 9.3 }])).toBe(true);
+    expect(
+      tendenciaConfiable([
+        { periodo: "jun", margenPct: 8.6 },
+        { periodo: "jul", margenPct: 9.3 },
+      ]),
+    ).toBe(true);
   });
   it("NO confiable si algún mes tiene margen > 100% (bug de costos)", () => {
-    expect(tendenciaConfiable([{ periodo: "jun", margenPct: 47 }, { periodo: "jul", margenPct: 102.5 }])).toBe(false);
+    expect(
+      tendenciaConfiable([
+        { periodo: "jun", margenPct: 47 },
+        { periodo: "jul", margenPct: 102.5 },
+      ]),
+    ).toBe(false);
   });
 });
 
@@ -102,14 +134,21 @@ describe("mapHero", () => {
     expect(h.respuestaTono).toBe("ok");
   });
   it("perdió → título y número negativo", () => {
-    const h = mapHero({ ...RESP, result: "-3000000", variation: { vs_previous_month: { amount: "-1", pct: "-20" }, vs_same_month_last_year: null } });
+    const h = mapHero({
+      ...RESP,
+      result: "-3000000",
+      variation: { vs_previous_month: { amount: "-1", pct: "-20" }, vs_same_month_last_year: null },
+    });
     expect(h.titulo).toBe("El negocio perdió este mes");
     expect(h.resultado).toBe(-3_000_000);
     expect(h.respuesta).toMatch(/peor/);
     expect(h.respuestaTono).toBe("bad");
   });
   it("sin mes anterior → frase honesta de primer mes", () => {
-    const h = mapHero({ ...RESP, variation: { vs_previous_month: null, vs_same_month_last_year: null } });
+    const h = mapHero({
+      ...RESP,
+      variation: { vs_previous_month: null, vs_same_month_last_year: null },
+    });
     expect(h.respuesta).toMatch(/Primer mes/);
   });
   it("no crashea si el backend omite `variation` (parcial)", () => {
@@ -129,7 +168,10 @@ describe("mapComparativos", () => {
     expect(c[0]).toEqual({ label: "vs. mes anterior", pct: 12.5 });
   });
   it("degrada si falta uno", () => {
-    const c = mapComparativos({ ...RESP, variation: { vs_previous_month: { amount: "1", pct: "5" }, vs_same_month_last_year: null } });
+    const c = mapComparativos({
+      ...RESP,
+      variation: { vs_previous_month: { amount: "1", pct: "5" }, vs_same_month_last_year: null },
+    });
     expect(c).toHaveLength(1);
   });
 });
@@ -172,7 +214,13 @@ describe("mapTendencia", () => {
     months: ["2026-06", "2026-07"],
     proforma_month: "2026-07",
     rows: [
-      { kind: "section", key: "income", label: "Ingresos", by_month: ["46000000", "48200000"], total: "94200000" },
+      {
+        kind: "section",
+        key: "income",
+        label: "Ingresos",
+        by_month: ["46000000", "48200000"],
+        total: "94200000",
+      },
       {
         kind: "subtotal",
         key: "operational_result",
@@ -193,7 +241,12 @@ describe("mapTendencia", () => {
   });
 
   it("degrada a [] si no hay pct_by_month", () => {
-    const bd2 = { ...BD, rows: [{ kind: "subtotal", key: "x", label: "x", by_month: ["1"], total: "1" }] as OperationalResultBreakdown["rows"] };
+    const bd2 = {
+      ...BD,
+      rows: [
+        { kind: "subtotal", key: "x", label: "x", by_month: ["1"], total: "1" },
+      ] as OperationalResultBreakdown["rows"],
+    };
     expect(mapTendencia(bd2)).toEqual([]);
   });
 
@@ -201,7 +254,14 @@ describe("mapTendencia", () => {
     const desalineado = {
       ...BD,
       rows: [
-        { kind: "subtotal", key: "operational_result", label: "Resultado operacional", by_month: ["4500000"], total: "4500000", pct_by_month: ["9.3"] },
+        {
+          kind: "subtotal",
+          key: "operational_result",
+          label: "Resultado operacional",
+          by_month: ["4500000"],
+          total: "4500000",
+          pct_by_month: ["9.3"],
+        },
       ] as OperationalResultBreakdown["rows"],
     };
     expect(mapTendencia(desalineado)).toEqual([]); // months tiene 2, la fila 1
@@ -211,10 +271,56 @@ describe("mapTendencia", () => {
     const conAmbos = {
       ...BD,
       rows: [
-        { kind: "subtotal", key: "gross_margin", label: "Margen operacional", by_month: ["10", "11"], total: "21", pct_by_month: ["10", "11"] },
-        { kind: "subtotal", key: "operational_result", label: "Resultado operacional", by_month: ["4000000", "4500000"], total: "8500000", pct_by_month: ["8.6", "9.3"] },
+        {
+          kind: "subtotal",
+          key: "gross_margin",
+          label: "Margen operacional",
+          by_month: ["10", "11"],
+          total: "21",
+          pct_by_month: ["10", "11"],
+        },
+        {
+          kind: "subtotal",
+          key: "operational_result",
+          label: "Resultado operacional",
+          by_month: ["4000000", "4500000"],
+          total: "8500000",
+          pct_by_month: ["8.6", "9.3"],
+        },
       ] as OperationalResultBreakdown["rows"],
     };
     expect(mapTendencia(conAmbos)[1]?.margenPct).toBe(9.3); // el del resultado, no 11
+  });
+});
+
+describe("evaluarTendenciaMargen", () => {
+  const pt = (margenPct: number, i: number) => ({
+    periodo: `2026-0${i}`,
+    margenPct,
+    resultado: 0,
+  });
+
+  it("deterioro material (baja ≥ 3pp) → veredicto baja con desde/hasta/meses", () => {
+    const v = evaluarTendenciaMargen([pt(82, 1), pt(80, 2), pt(78, 3)]);
+    expect(v).not.toBeNull();
+    expect(v!.baja).toBe(true);
+    expect(v!.desde).toBe(82);
+    expect(v!.hasta).toBe(78);
+    expect(v!.meses).toBe(2);
+  });
+
+  it("mejora material (sube ≥ 3pp) → baja=false", () => {
+    const v = evaluarTendenciaMargen([pt(70, 1), pt(75, 2)]);
+    expect(v!.baja).toBe(false);
+    expect(v!.deltaPp).toBe(5);
+  });
+
+  it("cambio inmaterial (< 3pp) → null (sin ruido)", () => {
+    expect(evaluarTendenciaMargen([pt(80, 1), pt(78.5, 2)])).toBeNull();
+  });
+
+  it("menos de 2 puntos → null", () => {
+    expect(evaluarTendenciaMargen([pt(80, 1)])).toBeNull();
+    expect(evaluarTendenciaMargen([])).toBeNull();
   });
 });

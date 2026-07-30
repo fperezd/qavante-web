@@ -78,7 +78,10 @@ export function mapHero(resp: OperationalResultResponse): HeroData {
 }
 
 /** Frase de la variación vs. mes anterior ("12,5% mejor que el mes pasado"). */
-function fraseVariacion(v: OperationalResultVariation | null, gano: boolean): { texto: string; tono: ResultadoTono } {
+function fraseVariacion(
+  v: OperationalResultVariation | null,
+  gano: boolean,
+): { texto: string; tono: ResultadoTono } {
   if (!v) return { texto: "Primer mes con datos comparables.", tono: gano ? "ok" : "bad" };
   const pct = parseAmount(v.pct);
   const mejor = pct >= 0;
@@ -98,8 +101,13 @@ export interface Comparativo {
 export function mapComparativos(resp: OperationalResultResponse): Comparativo[] {
   const out: Comparativo[] = [];
   const { vs_previous_month, vs_same_month_last_year } = resp.variation ?? {};
-  if (vs_previous_month) out.push({ label: "vs. mes anterior", pct: parseAmount(vs_previous_month.pct) });
-  if (vs_same_month_last_year) out.push({ label: "vs. mismo mes año anterior", pct: parseAmount(vs_same_month_last_year.pct) });
+  if (vs_previous_month)
+    out.push({ label: "vs. mes anterior", pct: parseAmount(vs_previous_month.pct) });
+  if (vs_same_month_last_year)
+    out.push({
+      label: "vs. mismo mes año anterior",
+      pct: parseAmount(vs_same_month_last_year.pct),
+    });
   return out;
 }
 
@@ -120,7 +128,13 @@ export function mapCascada(resp: OperationalResultResponse): CascadaEntrada[] {
   const entradas: CascadaEntrada[] = [
     { id: "ingresos", label: "Ingresos", tipo: "ingreso", monto: revenue },
     { id: "costos", label: "Costos directos", tipo: "resta", monto: dc },
-    { id: "margen-bruto", label: "Margen bruto", tipo: "subtotal", monto: 0, pct: parseAmount(resp.gross_margin_pct) },
+    {
+      id: "margen-bruto",
+      label: "Margen bruto",
+      tipo: "subtotal",
+      monto: 0,
+      pct: parseAmount(resp.gross_margin_pct),
+    },
     { id: "laboral", label: "Gasto laboral", tipo: "resta", monto: lc },
     { id: "honorarios", label: "Honorarios", tipo: "resta", monto: pf },
     { id: "gastos", label: "Gastos recurrentes", tipo: "resta", monto: re },
@@ -129,7 +143,13 @@ export function mapCascada(resp: OperationalResultResponse): CascadaEntrada[] {
   if (Math.abs(ajuste) >= 1) {
     entradas.push({ id: "otros", label: "Otros", tipo: "ajuste", monto: ajuste });
   }
-  entradas.push({ id: "resultado", label: "Resultado operacional", tipo: "resultado", monto: 0, pct: margenOperacionalPct(resp) });
+  entradas.push({
+    id: "resultado",
+    label: "Resultado operacional",
+    tipo: "resultado",
+    monto: 0,
+    pct: margenOperacionalPct(resp),
+  });
   return entradas;
 }
 
@@ -149,6 +169,28 @@ export function mapDrivers(resp: OperationalResultResponse): DriverItem[] {
  *  de datos del backend) → no se muestra. */
 export function tendenciaConfiable(puntos: TendenciaPunto[]): boolean {
   return puntos.every((p) => p.margenPct <= 100);
+}
+
+/** Veredicto de deterioro/mejora del margen: compara el margen del primer mes de la ventana vs el
+ *  último. `null` si hay <2 puntos o el cambio es inmaterial (< `umbralPp` puntos porcentuales) →
+ *  no se muestra alerta (evita ruido en meses estables). PURO. */
+export interface VeredictoMargen {
+  baja: boolean;
+  deltaPp: number;
+  desde: number;
+  hasta: number;
+  meses: number;
+}
+export function evaluarTendenciaMargen(
+  puntos: TendenciaPunto[],
+  umbralPp = 3,
+): VeredictoMargen | null {
+  if (puntos.length < 2) return null;
+  const desde = puntos[0]!.margenPct;
+  const hasta = puntos[puntos.length - 1]!.margenPct;
+  const deltaPp = hasta - desde;
+  if (Math.abs(deltaPp) < umbralPp) return null;
+  return { baja: deltaPp < 0, deltaPp, desde, hasta, meses: puntos.length - 1 };
 }
 
 /** Tendencia del MARGEN operacional por mes, desde el breakdown por rango. Busca la fila
