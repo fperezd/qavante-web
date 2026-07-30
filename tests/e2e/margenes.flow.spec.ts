@@ -21,8 +21,9 @@ test.describe("Flujo: Márgenes (/gestion/margenes)", () => {
     await expect(main.getByText("Costo de ventas").first()).toBeVisible();
     await expect(main.getByText("Margen neto", { exact: true })).toBeVisible();
 
-    // El bloque nuevo "de cada $100".
+    // El bloque nuevo "de cada $100". "Te queda" exact: el subtítulo de la página dice
+    // "¿Cuánto te queda de cada peso…" (substring), el label del segmento es exactamente "Te queda".
     await expect(main.getByText("De cada $100 que vendes, ¿dónde queda?")).toBeVisible();
-    await expect(main.getByText("Te queda")).toBeVisible();
+    await expect(main.getByText("Te queda", { exact: true })).toBeVisible();
   });
 });
