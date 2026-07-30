@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +23,6 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = safeInternalPath(searchParams.get("redirect"));
   const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +46,13 @@ export function LoginForm() {
         body: { rut: values.rut, password: values.password },
         skipAuthRetry: true,
       });
-      router.push(redirect);
+      /* Navegación DURA (no `router.push`): tras setear la cookie de sesión, el
+         middleware que gatea /inicio necesita re-evaluarse con la cookie fresca.
+         Una navegación soft de Next no la toma de forma confiable (queda pensando
+         o rebota a /login). Un full-load garantiza que middleware + Server
+         Components lean la sesión nueva (mismo patrón que el selector de empresa). */
+      window.location.assign(redirect);
+      return; // dejamos el botón en "cargando" hasta que la página se recargue
     } catch (err) {
       if (err instanceof ApiError) {
         setSubmitError(apiErrorToUserMessage(err, "login"));
