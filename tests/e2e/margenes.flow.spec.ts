@@ -15,9 +15,11 @@ test.describe("Flujo: Márgenes (/gestion/margenes)", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Márgenes" })).toBeVisible();
 
     const main = page.locator("#main-content");
-    await expect(main.getByText("Margen bruto")).toBeVisible();
+    // exact: "Margen bruto" también aparece en el caption del sparkline ("… · últimos N meses");
+    // "Costo de ventas" está en el tile Y en el desglose de $100 → .first().
+    await expect(main.getByText("Margen bruto", { exact: true })).toBeVisible();
     await expect(main.getByText("Costo de ventas").first()).toBeVisible();
-    await expect(main.getByText("Margen neto")).toBeVisible();
+    await expect(main.getByText("Margen neto", { exact: true })).toBeVisible();
 
     // El bloque nuevo "de cada $100".
     await expect(main.getByText("De cada $100 que vendes, ¿dónde queda?")).toBeVisible();
