@@ -188,6 +188,14 @@ function Margenes({
         />
       </div>
 
+      {rev > 0 && neto >= 0 && (
+        <DeCada100
+          costoPct={costoPct}
+          gastosPct={Math.max(0, brutoPct - netoPct)}
+          quedaPct={netoPct}
+        />
+      )}
+
       {serie.length >= 2 && (
         <div className="rounded-xl border border-border bg-surface p-5">
           <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
@@ -200,6 +208,54 @@ function Margenes({
       )}
       <ConfianzaPie mes={mes} />
     </div>
+  );
+}
+
+/* "De cada $100 que vendes, ¿dónde queda?" — traduce los tres márgenes a una barra intuitiva de
+   dueño (costo de ventas + gastos + lo que queda = $100). Solo en meses con resultado ≥ 0, para no
+   pintar una barra con segmento negativo. Los % ya vienen calculados (suman ~100). */
+function DeCada100({
+  costoPct,
+  gastosPct,
+  quedaPct,
+}: {
+  costoPct: number;
+  gastosPct: number;
+  quedaPct: number;
+}) {
+  const seg = (label: string, pct: number, dotClass: string) => (
+    <div className="flex items-center justify-between text-sm">
+      <span className="flex items-center gap-2 text-neutral-mid">
+        <span className={`inline-block h-2.5 w-2.5 rounded-sm ${dotClass}`} aria-hidden="true" />
+        {label}
+      </span>
+      <span className="font-semibold tabular-nums text-neutral-dark">
+        {formatClp(Math.round(pct))}
+      </span>
+    </div>
+  );
+  return (
+    <section className="rounded-xl border border-border bg-surface p-5">
+      <h2 className="text-sm font-bold text-neutral-dark">
+        De cada $100 que vendes, ¿dónde queda?
+      </h2>
+      <div
+        className="mt-3 flex h-4 w-full overflow-hidden rounded-full bg-neutral-light/30"
+        role="img"
+        aria-label={`De cada $100: ${Math.round(costoPct)} costo de ventas, ${Math.round(
+          gastosPct,
+        )} gastos, ${Math.round(quedaPct)} te queda`}
+      >
+        <span className="h-full bg-neutral-mid/50" style={{ width: `${costoPct}%` }} />
+        <span className="h-full bg-warning-500/70" style={{ width: `${gastosPct}%` }} />
+        <span className="h-full bg-success-700/80" style={{ width: `${quedaPct}%` }} />
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {seg("Costo de ventas", costoPct, "bg-neutral-mid/50")}
+        {seg("Gastos (laboral, honorarios, recurrentes)", gastosPct, "bg-warning-500/70")}
+        {seg("Te queda", quedaPct, "bg-success-700/80")}
+      </div>
+    </section>
   );
 }
 
