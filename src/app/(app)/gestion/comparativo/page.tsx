@@ -1,7 +1,7 @@
 import { LineChart } from "lucide-react";
 import { QavanteEmpty } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
-import { GestionSeccionView } from "@/components/gestion/v2/gestion-seccion-view";
+import { ComparativoView } from "@/components/gestion/v2/comparativo-view";
 import { currentPeriodSantiago } from "@/components/gestion/gestion-format";
 
 /* Gestión → Comparativo (sub-menú, pedido de Fernando 2026-07-28). Gated
@@ -18,7 +18,7 @@ export default function Page() {
       </header>
 
       {operationalResult ? (
-        <GestionSeccionView seccion="comparativo" initialPeriod={initialPeriod} />
+        <ComparativoView initialPeriod={initialPeriod} />
       ) : (
         <QavanteEmpty icon={LineChart} title="Comparativo" description="Muy pronto disponible." />
       )}
