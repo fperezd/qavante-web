@@ -7,12 +7,12 @@ import {
   useOperationalResult,
   useOperationalResultBreakdown,
   type OperationalResultResponse,
-  type OperationalResultBreakdown,
 } from "@/lib/api/gestion";
 import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { resultadoConfiable } from "./gestion-v2-map";
+import { mapRangoResumen, type RangoResumen } from "./gestion-v2-rango-map";
 
 /* Comparativo RICO (pedido de Fernando 2026-07-28, "las 5"): además del mes vs
    mes anterior / año anterior, las comparaciones potentes de control de gestión —
@@ -39,19 +39,14 @@ function ymd(period: string): { y: number; m: number } {
   return { y: Number(mm?.[1] ?? 0), m: Number(mm?.[2] ?? 1) };
 }
 
-/** Total (del rango) de una fila del breakdown por `key` (revenue/gross_margin/result). */
-function filaTotal(bd: OperationalResultBreakdown | undefined, key: string): number {
-  if (!bd) return 0;
-  const planas: OperationalResultBreakdown["rows"] = [];
-  const aplanar = (rs: OperationalResultBreakdown["rows"]) => {
-    for (const r of rs) {
-      planas.push(r);
-      if (r.children?.length) aplanar(r.children);
-    }
-  };
-  aplanar(bd.rows ?? []);
-  const fila = planas.find((r) => r.key === key);
-  return fila ? parseAmount(fila.total) : 0;
+/** Agregado del rango por métrica, vía el mapper canónico del P&L (`mapRangoResumen`), que
+   localiza cada fila por key+label+kind (ingresos = /income|ingreso/i, etc.) — NO por `key`
+   literal, que en el breakdown no es "revenue" y devolvía 0 (bug del $0 en Ingresos YTD). */
+function pick(r: RangoResumen | null, key: string): number {
+  if (!r) return 0;
+  if (key === "revenue") return r.ingresos;
+  if (key === "gross_margin") return r.bruto.monto;
+  return r.neto.monto; // result
 }
 
 function fmtPct(v: number): string {
@@ -91,6 +86,24 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
   const qCur = useOperationalResultBreakdown(periodoMenos(period, 2), period);
   const qPrev = useOperationalResultBreakdown(periodoMenos(period, 5), periodoMenos(period, 3));
   const qLy = useOperationalResultBreakdown(periodoMenos(period, 14), periodoMenos(period, 12));
+
+  // Resúmenes por rango (mapper canónico del P&L; memoizados por respuesta).
+  const rYtd = React.useMemo(() => (ytd.data ? mapRangoResumen(ytd.data) : null), [ytd.data]);
+  const rYtdLy = React.useMemo(
+    () => (ytdLy.data ? mapRangoResumen(ytdLy.data) : null),
+    [ytdLy.data],
+  );
+  const rAvg12 = React.useMemo(
+    () => (avg12.data ? mapRangoResumen(avg12.data) : null),
+    [avg12.data],
+  );
+  const nAvg12 = avg12.data?.months?.length ?? 12; // meses reales del rango (no asumir 12)
+  const rQCur = React.useMemo(() => (qCur.data ? mapRangoResumen(qCur.data) : null), [qCur.data]);
+  const rQPrev = React.useMemo(
+    () => (qPrev.data ? mapRangoResumen(qPrev.data) : null),
+    [qPrev.data],
+  );
+  const rQLy = React.useMemo(() => (qLy.data ? mapRangoResumen(qLy.data) : null), [qLy.data]);
 
   return (
     <div className="space-y-5">
@@ -140,8 +153,8 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {METRICAS.map((mt) => {
-                const a = filaTotal(ytd.data, mt.key);
-                const b = filaTotal(ytdLy.data, mt.key);
+                const a = pick(rYtd, mt.key);
+                const b = pick(rYtdLy, mt.key);
                 return (
                   <QavanteStatTile
                     key={mt.key}
@@ -167,7 +180,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {METRICAS.map((mt) => {
                 const a = parseAmount(cur.data![mt.key]);
-                const prom = filaTotal(avg12.data, mt.key) / 12;
+                const prom = pick(rAvg12, mt.key) / nAvg12;
                 return (
                   <QavanteStatTile
                     key={mt.key}
@@ -188,7 +201,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {METRICAS.map((mt) => {
-                const a = filaTotal(qCur.data, mt.key);
+                const a = pick(rQCur, mt.key);
                 return (
                   <QavanteStatTile
                     key={mt.key}
@@ -197,13 +210,10 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                     tone={a >= 0 ? "default" : "danger"}
                     hint={
                       <span className="flex flex-col gap-0.5">
-                        <Delta
-                          label="vs trim. anterior"
-                          v={varPct(a, filaTotal(qPrev.data, mt.key))}
-                        />
+                        <Delta label="vs trim. anterior" v={varPct(a, pick(rQPrev, mt.key))} />
                         <Delta
                           label="vs mismo trim. año pasado"
-                          v={varPct(a, filaTotal(qLy.data, mt.key))}
+                          v={varPct(a, pick(rQLy, mt.key))}
                         />
                       </span>
                     }
