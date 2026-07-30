@@ -1,7 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, expect } from "storybook/test";
 import { CajaProyeccionView } from "./caja-proyeccion-view";
-import { proyeccionDeMovimientos } from "./caja-proyeccion-model";
+import {
+  causasDelPiso,
+  movimientosPorSemana,
+  proyeccionDeMovimientos,
+} from "./caja-proyeccion-model";
 import type { MovimientoCaja } from "./caja-cascada-model";
 
 /* CajaProyeccionView — el rediseño del "Saldo proyectado" del Caja v3: medidor de días + cascada de
@@ -71,6 +75,33 @@ export const ConSaldoStale: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByText(/Proyección sobre el saldo del banco al 18-jul/)).toBeInTheDocument();
+  },
+};
+
+/* Con quiebre: la caja toca negativo → aparece el bloque "Qué te lleva al punto más bajo"
+   con los mayores egresos hasta el piso (F29 + Sueldos + Proveedores). */
+const BREAK_MOVS: MovimientoCaja[] = [
+  mov(9, "Sueldos", -6_800_000),
+  { ...mov(12, "F29", -9_200_000), tipo: "impuesto" },
+  mov(20, "Proveedores", -5_100_000),
+  mov(35, "Cliente B", 6_900_000),
+];
+
+const BREAK_PROY = proyeccionDeMovimientos(3_000_000, BREAK_MOVS, HOY, null);
+
+export const ConCausasDeQuiebre: Story = {
+  args: {
+    proyeccion: BREAK_PROY,
+    minimo: null,
+    // Como en prod: la cascada recibe los movimientos SEMANALES (labels "Esta semana"/"Sem +N"),
+    // no los individuales — así "F29" solo aparece en el bloque de causas (no se duplica).
+    movimientos: movimientosPorSemana(BREAK_MOVS, HOY),
+    causas: causasDelPiso(BREAK_MOVS, HOY, BREAK_PROY?.piso?.dia ?? 0, 3),
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    await expect(c.getByText("Qué te lleva al punto más bajo")).toBeInTheDocument();
+    await expect(c.getByText("F29")).toBeInTheDocument();
   },
 };
 
