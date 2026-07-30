@@ -1,33 +1,29 @@
 "use client";
 
 import * as React from "react";
-import { Info, AlertTriangle } from "lucide-react";
-import { QavanteBadge, QavanteInlineError } from "@/components/qavante";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/qavante";
+import { Sparkline } from "@/components/ui/sparkline";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { presetRange, type PeriodRange } from "@/lib/period/period-range";
 import {
   useOperationalResult,
   useOperationalResultBreakdown,
   type OperationalResultResponse,
+  type OperationalResultBreakdown,
 } from "@/lib/api/gestion";
-import { parseAmount, formatSignedPct } from "../gestion-format";
+import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { OperationalResultMatrix } from "../operational-result-matrix";
-import { TendenciaResultado } from "./tendencia-resultado";
-import {
-  mapComparativos,
-  mapTendencia,
-  margenOperacionalPct,
-  resultadoConfiable,
-  tendenciaConfiable,
-} from "./gestion-v2-map";
+import { TendenciaResultado, type TendenciaPunto } from "./tendencia-resultado";
+import { mapTendencia, margenOperacionalPct, mesCorto, resultadoConfiable } from "./gestion-v2-map";
 
-/* Sub-pantallas FOCALIZADAS de Gestión (pedido de Fernando 2026-07-28): el
-   sub-menú separa lo que hoy vive apretado en /gestion en su propia vista.
-   REUSA los componentes + mappers + hooks ya testeados (NO toca la vista P&L
-   `gestion-v2-view-live`, la más sensible). Conserva la guarda honesta: si el
-   resultado no es confiable (margen ≥ 100%), no muestra márgenes/comparativo/
-   tendencia con números absurdos. `/gestion` (Resultado del mes) queda como está. */
+/* Sub-pantallas FOCALIZADAS y RICAS de Gestión (pedido de Fernando 2026-07-28):
+   el sub-menú separa lo que vivía apretado en /gestion; cada una con cards KPI +
+   un visual + drill-down, sin tocar la vista P&L `gestion-v2-view-live`. Reusa
+   QavanteStatTile, Sparkline, OperationalResultMatrix, TendenciaResultado y los
+   mappers testeados. Conserva la guarda de honestidad (margen ≥100% ⇒ no mostrar
+   cifras infladas). react-query dedupe → sin fetch de más. */
 
 export type GestionSeccion = "margenes" | "costos" | "tendencia" | "comparativo";
 
@@ -38,7 +34,7 @@ const TITULO: Record<GestionSeccion, string> = {
   comparativo: "Comparativo",
 };
 
-/** Rango de 6 meses que termina en `period` (para tendencia). Puro. */
+/** Resta `n` meses a "YYYY-MM" (aritmética pura). */
 function periodoMenos(period: string, n: number): string {
   const m = period.match(/^(\d{4})-(\d{2})/);
   if (!m) return period;
@@ -63,20 +59,20 @@ export function GestionSeccionView({
   );
   const period = range.hasta;
 
-  // Costos y tendencia necesitan el desglose (breakdown); márgenes/comparativo el mes.
-  const needsMes = seccion === "margenes" || seccion === "comparativo";
-  const needsBreakdown = seccion === "costos" || seccion === "tendencia";
-  const rangoBreakdown =
-    seccion === "tendencia"
-      ? { from: periodoMenos(period, 5), to: period }
-      : { from: period, to: period };
+  const needsMes = seccion === "margenes" || seccion === "costos" || seccion === "comparativo";
+  // Márgenes y tendencia usan 6 meses (sparkline / gráfico); costos, solo el mes.
+  const spark = seccion === "margenes" || seccion === "tendencia";
+  const bdFrom = spark ? periodoMenos(period, 5) : period;
 
   const mesQuery = useOperationalResult(needsMes ? period : "");
-  const breakdownQuery = useOperationalResultBreakdown(rangoBreakdown.from, rangoBreakdown.to, {
-    enabled: needsBreakdown,
+  const prevQuery = useOperationalResult(seccion === "comparativo" ? periodoMenos(period, 1) : "");
+  const yoyQuery = useOperationalResult(seccion === "comparativo" ? periodoMenos(period, 12) : "");
+  const bdQuery = useOperationalResultBreakdown(bdFrom, period, {
+    enabled: seccion === "costos" || seccion === "tendencia" || seccion === "margenes",
   });
 
-  const q = needsMes ? mesQuery : breakdownQuery;
+  // La query "principal" para loading/error de la sección.
+  const q = seccion === "tendencia" ? bdQuery : mesQuery;
 
   return (
     <div className="space-y-4">
@@ -87,21 +83,20 @@ export function GestionSeccionView({
       />
 
       {q.isError ? (
-        <QavanteInlineError
-          error={q.error}
-          what={`el ${TITULO[seccion].toLowerCase()} de Gestión`}
-        />
+        <QavanteInlineError error={q.error} what={`${TITULO[seccion]} de Gestión`} />
       ) : q.isFetching && !q.data ? (
         <div
           className="h-40 animate-pulse rounded-xl bg-neutral-light/30"
           aria-busy="true"
-          aria-label={`Cargando ${TITULO[seccion].toLowerCase()}`}
+          aria-label={`Cargando ${TITULO[seccion]}`}
         />
       ) : (
         <SeccionBody
           seccion={seccion}
-          mes={needsMes ? mesQuery.data : undefined}
-          breakdown={needsBreakdown ? breakdownQuery.data : undefined}
+          mes={mesQuery.data}
+          prev={prevQuery.data}
+          yoy={yoyQuery.data}
+          breakdown={bdQuery.data}
         />
       )}
     </div>
@@ -111,86 +106,224 @@ export function GestionSeccionView({
 function SeccionBody({
   seccion,
   mes,
+  prev,
+  yoy,
   breakdown,
 }: {
   seccion: GestionSeccion;
   mes?: OperationalResultResponse;
-  breakdown?: ReturnType<typeof useOperationalResultBreakdown>["data"];
+  prev?: OperationalResultResponse;
+  yoy?: OperationalResultResponse;
+  breakdown?: OperationalResultBreakdown;
 }) {
-  // Márgenes / Comparativo derivan del mes → si el resultado no es confiable
-  // (margen ≥ 100%, imposible), no mostramos cifras infladas: honesto.
-  if ((seccion === "margenes" || seccion === "comparativo") && mes && !resultadoConfiable(mes)) {
-    return <NoConfiable />;
-  }
+  // Guarda honesta para las que derivan del mes.
+  if (seccion !== "tendencia" && mes && !resultadoConfiable(mes)) return <NoConfiable />;
 
-  if (seccion === "margenes" && mes) return <Margenes mes={mes} />;
-  if (seccion === "comparativo" && mes) return <Comparativo mes={mes} />;
+  if (seccion === "margenes" && mes) return <Margenes mes={mes} breakdown={breakdown} />;
+  if (seccion === "costos" && mes) return <CostosGastos mes={mes} breakdown={breakdown} />;
+  if (seccion === "comparativo" && mes) return <Comparativo mes={mes} prev={prev} yoy={yoy} />;
   if (seccion === "tendencia" && breakdown) {
     const puntos = mapTendencia(breakdown);
-    if (puntos.length < 2 || !tendenciaConfiable(puntos)) return <NoConfiable />;
-    return <TendenciaResultado puntos={puntos} />;
+    if (puntos.length < 2) return <SinDato label="tendencia" />;
+    return <Tendencia puntos={puntos} />;
   }
-  if (seccion === "costos" && breakdown) return <OperationalResultMatrix data={breakdown} />;
-  return <NoConfiable />;
+  return <SinDato label={TITULO[seccion].toLowerCase()} />;
 }
 
-function Margenes({ mes }: { mes: OperationalResultResponse }) {
+/* ---------- Márgenes ---------- */
+function Margenes({
+  mes,
+  breakdown,
+}: {
+  mes: OperationalResultResponse;
+  breakdown?: OperationalResultBreakdown;
+}) {
+  const rev = parseAmount(mes.revenue);
   const bruto = parseAmount(mes.gross_margin);
   const brutoPct = parseAmount(mes.gross_margin_pct);
+  const costoVentas = Math.max(0, rev - bruto);
+  const costoPct = rev > 0 ? (costoVentas / rev) * 100 : 0;
   const neto = parseAmount(mes.result);
   const netoPct = margenOperacionalPct(mes);
-  const row = (k: string, monto: number, pct: number, dashed = true) => (
-    <div
-      className={`flex items-baseline justify-between gap-3 py-2 ${dashed ? "border-t border-dashed border-border" : ""}`}
-    >
-      <dt className="text-neutral-mid">{k}</dt>
-      <dd className="font-bold tabular-nums text-neutral-dark">
-        {formatClp(monto)} · <span className="text-neutral-mid">{fmtPct(pct)}</span>
-      </dd>
-    </div>
-  );
-  return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
-        Cuánto te queda de cada peso vendido
-      </p>
-      <dl className="mt-2 flex flex-col text-sm">
-        {row("Margen bruto", bruto, brutoPct, false)}
-        {row("Margen neto", neto, netoPct)}
-      </dl>
-      <ConfianzaPie mes={mes} />
-    </div>
-  );
-}
+  const serie = breakdown ? mapTendencia(breakdown).map((p) => p.margenPct) : [];
 
-function Comparativo({ mes }: { mes: OperationalResultResponse }) {
-  const items = mapComparativos(mes);
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
-      <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
-        Cómo vengo vs. antes
-      </p>
-      {items.length === 0 ? (
-        <p className="mt-2 text-sm text-neutral-mid">
-          Sin períodos anteriores para comparar todavía.
-        </p>
-      ) : (
-        <dl className="mt-2.5 flex flex-col gap-2.5 text-sm">
-          {items.map((c) => (
-            <div key={c.label} className="flex items-baseline justify-between gap-3">
-              <dt className="text-neutral-mid">{c.label}</dt>
-              <dd className={`font-bold ${c.pct >= 0 ? "text-success-700" : "text-danger-500"}`}>
-                {formatSignedPct(String(c.pct))}
-              </dd>
-            </div>
-          ))}
-        </dl>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <QavanteStatTile
+          label="Margen bruto"
+          value={`${formatClp(bruto)} · ${fmtPct(brutoPct)}`}
+          tone="success"
+          info="Ingresos menos el costo de lo vendido. Cuánto te queda antes de los gastos."
+        />
+        <QavanteStatTile
+          label="Costo de ventas"
+          value={`${formatClp(costoVentas)} · ${fmtPct(costoPct)}`}
+          tone="muted"
+          info="Lo que te costó producir/entregar lo que vendiste, como % de tus ventas."
+        />
+        <QavanteStatTile
+          label="Margen neto"
+          value={`${formatClp(neto)} · ${fmtPct(netoPct)}`}
+          tone={neto >= 0 ? "success" : "danger"}
+          info="Lo que queda después de TODOS los costos y gastos operacionales."
+        />
+      </div>
+
+      {serie.length >= 2 && (
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+            Margen bruto · últimos {serie.length} meses
+          </p>
+          <div className="mt-3">
+            <Sparkline data={serie} tone="brand" width={520} height={56} markers />
+          </div>
+        </div>
       )}
       <ConfianzaPie mes={mes} />
     </div>
   );
 }
 
+/* ---------- Costos y gastos ---------- */
+function CostosGastos({
+  mes,
+  breakdown,
+}: {
+  mes: OperationalResultResponse;
+  breakdown?: OperationalResultBreakdown;
+}) {
+  const rev = parseAmount(mes.revenue);
+  const directo =
+    parseAmount(mes.direct_cost) + parseAmount(mes.labor_cost) + parseAmount(mes.professional_fees);
+  const operacional = parseAmount(mes.recurring_expenses);
+  const pct = (v: number) => (rev > 0 ? (Math.abs(v) / rev) * 100 : 0);
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <QavanteStatTile
+          label="Costo directo"
+          value={`${formatClp(directo)} · ${fmtPct(pct(directo))}`}
+          tone="muted"
+          info="Lo que cuesta entregar el servicio/producto: mano de obra directa, honorarios y costos directos."
+        />
+        <QavanteStatTile
+          label="Gasto operacional"
+          value={`${formatClp(operacional)} · ${fmtPct(pct(operacional))}`}
+          tone="muted"
+          info="Los gastos de operar la empresa (administración, arriendo, servicios, etc.)."
+        />
+      </div>
+      {breakdown ? (
+        <div className="rounded-xl border border-border bg-surface p-3">
+          <p className="mb-2 px-2 text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+            Detalle cuenta por cuenta
+          </p>
+          <OperationalResultMatrix data={breakdown} />
+        </div>
+      ) : (
+        <SinDato label="detalle" />
+      )}
+      <ConfianzaPie mes={mes} />
+    </div>
+  );
+}
+
+/* ---------- Tendencia ---------- */
+function Tendencia({ puntos }: { puntos: TendenciaPunto[] }) {
+  const vals = puntos.map((p) => p.margenPct);
+  const max = Math.max(...vals);
+  const min = Math.min(...vals);
+  const prom = vals.reduce((s, v) => s + v, 0) / vals.length;
+  const mejor = puntos.find((p) => p.margenPct === max);
+  const peor = puntos.find((p) => p.margenPct === min);
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <QavanteStatTile
+          label="Mejor mes"
+          value={`${mejor ? mesCorto(mejor.periodo) : "—"} · ${fmtPct(max)}`}
+          tone="success"
+        />
+        <QavanteStatTile
+          label="Peor mes"
+          value={`${peor ? mesCorto(peor.periodo) : "—"} · ${fmtPct(min)}`}
+          tone={min < 0 ? "danger" : "muted"}
+        />
+        <QavanteStatTile label="Promedio del período" value={fmtPct(prom)} tone="default" />
+      </div>
+      <div className="rounded-xl border border-border bg-surface p-5">
+        <TendenciaResultado puntos={puntos} />
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Comparativo ---------- */
+function Comparativo({
+  mes,
+  prev,
+  yoy,
+}: {
+  mes: OperationalResultResponse;
+  prev?: OperationalResultResponse;
+  yoy?: OperationalResultResponse;
+}) {
+  const metricas: { label: string; get: (r: OperationalResultResponse) => number }[] = [
+    { label: "Ingresos", get: (r) => parseAmount(r.revenue) },
+    { label: "Margen bruto", get: (r) => parseAmount(r.gross_margin) },
+    { label: "Resultado", get: (r) => parseAmount(r.result) },
+  ];
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {metricas.map((m) => {
+          const actual = m.get(mes);
+          return (
+            <QavanteStatTile
+              key={m.label}
+              label={m.label}
+              value={formatClp(actual)}
+              tone={actual >= 0 ? "default" : "danger"}
+              hint={
+                <span className="flex flex-col gap-0.5">
+                  <Delta
+                    label="vs mes anterior"
+                    actual={actual}
+                    base={prev ? m.get(prev) : undefined}
+                  />
+                  <Delta
+                    label="vs año anterior"
+                    actual={actual}
+                    base={yoy ? m.get(yoy) : undefined}
+                  />
+                </span>
+              }
+            />
+          );
+        })}
+      </div>
+      <ConfianzaPie mes={mes} />
+    </div>
+  );
+}
+
+function Delta({ label, actual, base }: { label: string; actual: number; base?: number }) {
+  if (base === undefined)
+    return <span className="text-[11px] text-neutral-light">{label}: sin dato</span>;
+  const diff = base === 0 ? null : ((actual - base) / Math.abs(base)) * 100;
+  const up = (diff ?? 0) >= 0;
+  const Icon = diff === null ? Minus : up ? ArrowUpRight : ArrowDownRight;
+  const color = diff === null ? "text-neutral-mid" : up ? "text-success-700" : "text-danger-500";
+  return (
+    <span className={`inline-flex items-center gap-1 text-[11px] ${color}`}>
+      <Icon className="h-3 w-3" aria-hidden="true" />
+      {label}: {diff === null ? "—" : `${up ? "+" : ""}${diff.toFixed(1)}%`}
+    </span>
+  );
+}
+
+/* ---------- Compartidos ---------- */
 const CONF_LABEL: Record<OperationalResultResponse["confidence"], string> = {
   high: "Confianza alta",
   medium: "Confianza media",
@@ -203,22 +336,18 @@ const CONF_VARIANT: Record<
 
 function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 text-xs text-neutral-mid">
+    <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 text-xs text-neutral-mid">
       <span className="font-medium text-neutral-dark">Confianza de este dato:</span>
       <QavanteBadge variant={CONF_VARIANT[mes.confidence]}>
         {CONF_LABEL[mes.confidence]}
       </QavanteBadge>
       {(mes.missing_sources ?? []).length > 0 && (
-        <span className="inline-flex items-center gap-1">
-          <Info className="h-3.5 w-3.5" aria-hidden="true" />
-          Faltan fuentes: {(mes.missing_sources ?? []).join(", ")} (no se asumen en cero)
-        </span>
+        <span>Faltan fuentes: {(mes.missing_sources ?? []).join(", ")} (no se asumen en cero)</span>
       )}
     </div>
   );
 }
 
-/** Degradación honesta compartida: no mostramos cifras cuando el dato no cierra. */
 function NoConfiable() {
   return (
     <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5">
@@ -229,9 +358,17 @@ function NoConfiable() {
       <p className="mt-2 text-[13px] text-neutral-dark">
         El resultado del mes da un margen imposible (100% o más) —típicamente un gasto revertido o
         mal clasificado infla el número—. Es un problema de datos del backend, ya escalado; no lo
-        mostramos como si fuera real. Mirá el detalle en <b>Resultado del mes</b>.
+        mostramos como si fuera real. Mirá el detalle en <b>Resultado</b>.
       </p>
     </section>
+  );
+}
+
+function SinDato({ label }: { label: string }) {
+  return (
+    <p className="rounded-xl border border-dashed border-border bg-surface-muted/30 p-6 text-center text-sm text-neutral-mid">
+      Sin datos suficientes para mostrar {label} en este período. Probá con otro mes.
+    </p>
   );
 }
 
