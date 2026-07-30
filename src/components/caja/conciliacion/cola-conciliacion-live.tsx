@@ -21,7 +21,7 @@ import {
   type ResumenReconcile,
 } from "./reconciliacion-cola-map";
 
-/* Contenedor LIVE de la cola de conciliación, gated por `reconciliationReview` (OFF). Orquesta la
+/* Contenedor LIVE de la cola de conciliación, gated por `reconciliationReview` (ON en prod). Orquesta la
    cola (`review`) + las 3 mutaciones (confirm / reject / confirm-batch) y compone `ColaConciliacion`.
    Container: NO se testea por Storybook play (ADR-0018); la lógica vive en `reconciliacion-cola-map`
    (unit) y la interacción en la story presentacional. */
