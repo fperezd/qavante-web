@@ -17,7 +17,13 @@ import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { OperationalResultMatrix } from "../operational-result-matrix";
 import { TendenciaResultado, type TendenciaPunto } from "./tendencia-resultado";
-import { mapTendencia, margenOperacionalPct, mesCorto, resultadoConfiable } from "./gestion-v2-map";
+import {
+  evaluarTendenciaMargen,
+  mapTendencia,
+  margenOperacionalPct,
+  mesCorto,
+  resultadoConfiable,
+} from "./gestion-v2-map";
 
 /* Sub-pantallas FOCALIZADAS y RICAS de Gestión (pedido de Fernando 2026-07-28):
    el sub-menú separa lo que vivía apretado en /gestion; cada una con cards KPI +
@@ -163,7 +169,8 @@ function Margenes({
   const costoPct = rev > 0 ? (costoVentas / rev) * 100 : 0;
   const neto = parseAmount(mes.result);
   const netoPct = margenOperacionalPct(mes);
-  const serie = breakdown ? mapTendencia(breakdown).map((p) => p.margenPct) : [];
+  const puntos = breakdown ? mapTendencia(breakdown) : [];
+  const serie = puntos.map((p) => p.margenPct);
 
   return (
     <div className="space-y-4">
@@ -188,6 +195,8 @@ function Margenes({
         />
       </div>
 
+      <AlertaTendenciaMargen puntos={puntos} />
+
       {rev > 0 && neto >= 0 && (
         <DeCada100
           costoPct={costoPct}
@@ -208,6 +217,41 @@ function Margenes({
       )}
       <ConfianzaPie mes={mes} />
     </div>
+  );
+}
+
+/* Alerta de tendencia del margen: el sparkline muestra la línea, pero no dice si es buena/mala ni
+   cuánto se movió. Compara el margen del primer mes de la ventana vs el último y, si el cambio es
+   material (≥ 3 puntos porcentuales), pone un veredicto en palabras. Estable ⇒ sin ruido. */
+function AlertaTendenciaMargen({ puntos }: { puntos: TendenciaPunto[] }) {
+  const v = evaluarTendenciaMargen(puntos);
+  if (!v) return null;
+  const { baja, desde, hasta, meses: n } = v;
+  const Icon = baja ? ArrowDownRight : ArrowUpRight;
+  return (
+    <section
+      className={`flex items-start gap-3 rounded-xl border p-4 text-sm ${
+        baja
+          ? "border-warning-500/40 bg-warning-500/[.06]"
+          : "border-success-700/30 bg-success-700/[.06]"
+      }`}
+    >
+      <Icon
+        className={`mt-0.5 h-4 w-4 shrink-0 ${baja ? "text-warning-700" : "text-success-700"}`}
+        aria-hidden="true"
+      />
+      <div>
+        <p className="font-semibold text-neutral-dark">
+          Tu margen viene {baja ? "bajando" : "mejorando"}: de {fmtPct(desde)} a {fmtPct(hasta)} en{" "}
+          {n} {n === 1 ? "mes" : "meses"}.
+        </p>
+        {baja && (
+          <p className="mt-0.5 text-neutral-mid">
+            Revisa <b>Costos y gastos</b> para ver qué se movió más rápido que las ventas.
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 
