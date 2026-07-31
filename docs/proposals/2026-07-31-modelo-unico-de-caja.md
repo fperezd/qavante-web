@@ -1,9 +1,15 @@
 # Modelo único de caja — decisión definitiva (RFC para ratificar con CC-API)
 
-**Fecha:** 2026-07-31
+**Fecha:** 2026-07-31 (rev. 2: revisión contable + control de gestión)
 **Autor:** CC-WEB, en rol de CFO
 **Para:** Fernando (ratifica) · **CC-API** (dueño del motor; ya trabajando en `a/cash-projection-snapshot`)
 **Reemplaza (cuando se ratifique):** la proyección propia del FE en Caja v3 (`caja-proyeccion-model`)
+
+> **Rev. 2 (revisión como contador + control de gestión):** dos correcciones al borrador original —
+> (1) el **vencido no se excluye del runway**: es un pasivo real; se proyecta a su fecha esperada de
+> pago (separado como señal, pero contando). Excluirlo sería pasar de falsa alarma a falsa calma.
+> (2) el modelo **solo es confiable si las fechas de pago son reales** (comportamiento de pago), no el
+> plazo nominal — hoy es brecha de datos y es parte del encargo, no un detalle.
 
 > No es un parche al medidor. Es la decisión de **una sola fuente de verdad de caja**. Se coordina
 > con CC-API porque el motor vive donde están los datos (banco + SII), no en el frontend.
@@ -49,10 +55,20 @@ Y un tercer defecto, de concepto (lo detectó Fernando):
   - **Clasificar = categorizar para el EERR** (qué casillero del P&L). No decide si es entrada/salida.
   - **Conciliar = amarrar a un documento** (qué factura pagó). Tampoco.
     → El flujo **siempre** muestra el total; "sin clasificar" es un **bucket**, nunca un bloqueo.
-- **Vencido ≠ runway.** Lo ya vencido y no pagado es un problema (te atrasaste), **no** el futuro de
-  la caja. Se muestra aparte ("tienes $X vencido"), **no** se amontona en "hoy" hundiendo el piso.
+- **Vencido: señal aparte, pero cuenta en el runway.** Lo ya vencido y no pagado se **muestra como su
+  propia señal** ("tienes $X vencido, atrasado N días") — no se amontona en "hoy" hundiendo el piso a
+  mitad de día. Pero **sigue siendo plata que vas a pagar**: entra en la proyección forward a su
+  **fecha realista de pago** (pronto, repartida según tu política de pagos, no toda en el mismo
+  instante). _Sacarlo del runway sería el error opuesto al de hoy_: pasaríamos de una **falsa alarma**
+  (medidor actual) a una **falsa calma** (sobreestimar la salud ignorando lo que debes). Contable:
+  una cuenta por pagar vencida es un pasivo real; se paga, y consume caja.
 - **El riesgo se mide al CIERRE del día**, no a mitad de día. Si el mismo día cobras y pagas, no
   estuviste "en rojo" — el orden intradía es arbitrario (no sabemos la hora).
+- **El modelo vale lo que valen las FECHAS de pago.** La capa ESPERADO depende de **cuándo cobras y
+  pagas de verdad** (comportamiento de pago del cliente/proveedor), no del plazo nominal de la factura.
+  Hoy ese dato es brecha (`due_date` nulo, todo `sin_vencimiento`). Sin fechas reales, cambiaríamos un
+  número malo por otro número malo — solo que ahora "oficial". El modelo definitivo **exige** que
+  CC-API modele fechas de pago reales, no solo que mueva el cálculo al backend.
 - **Sin falsa precisión** (principio 5 del doc de producto): cada cifra dice de qué capa viene
   (REAL / ESPERADO / ESTIMADO) y qué tan fresca es.
 
@@ -71,12 +87,17 @@ REAL → ESPERADO → ESTIMADO, horizonte 13 semanas). El frontend **la consume;
 - `dias_de_caja` — el runway, **un solo número** (el mismo que usa el Pulso).
 - `minimo` — caja mínima configurada.
 - `serie[]` — por día (o semana) del horizonte: `{ fecha, saldo_cierre, capa }`. **Saldo al CIERRE
-  del día**, ya neteado, con la capa (real/esperado/estimado).
+  del día**, ya neteado, con la capa (real/esperado/estimado). Cada obligación (incluida la vencida)
+  se coloca en su **fecha esperada de pago**, no en "hoy".
 - `punto_quiebre` — `{ fecha, saldo, causas[] }` o `null`. Primer día cuyo **saldo al cierre** cae
   bajo el mínimo, con las 3–5 causas por monto. `null` = no hay quiebre en el horizonte.
-- `vencido` — `{ total, items[] }` **separado**: obligaciones ya vencidas no pagadas. NO entra en la
-  serie forward.
-- `generado_at` / `fuentes` — freshness por fuente.
+- `vencido` — `{ total, items[] }` como **señal aparte** (obligaciones ya vencidas no pagadas, con días
+  de atraso), para mostrarla sin hundir el piso a mitad de día. **Pero sí cuenta en la serie forward**:
+  cada ítem vencido aparece en `serie[]` en su fecha esperada de pago (pronto, repartido), porque es
+  plata que vas a pagar. Separar ≠ excluir del runway.
+- `generado_at` / `fuentes` — freshness por fuente. Incluye la **calidad de las fechas de pago**: qué
+  fracción de la serie usa fecha real de vencimiento vs. plazo nominal estimado (la proyección vale lo
+  que valen esas fechas).
 
 ### Flujo del período = todos los movimientos
 
@@ -90,8 +111,12 @@ lo no clasificado va en un bucket **`sin_clasificar`**. Nunca "no se puede mostr
 **CC-API (dueño del motor — ya en `a/cash-projection-snapshot`):**
 
 1. La proyección única (contrato §3): serie a cierre de día, punto de quiebre con causas, `vencido`
-   separado, `dias_de_caja` consistente con el Pulso.
-2. El reporte de flujo incluye lo `sin_clasificar` (no lo excluye).
+   como señal aparte **pero proyectado en la serie** a su fecha esperada de pago, `dias_de_caja`
+   consistente con el Pulso.
+2. **Fechas de pago reales** (el corazón del modelo): modelar cuándo cobra/paga de verdad la empresa
+   (comportamiento de pago), no el plazo nominal. Cerrar la brecha `due_date` nulo / `sin_vencimiento`.
+   Sin esto, la proyección es un número oficial pero igual de malo que el actual.
+3. El reporte de flujo incluye lo `sin_clasificar` (no lo excluye).
 
 **CC-WEB (adopta, no reproyecta):** 3. **Retira** `caja-proyeccion-model` (la reproyección propia) y consume `cash-projection`. El medidor,
 los días de caja y la cascada salen del backend → una sola verdad, adiós falsa alarma intradía. 4. **"Vencido" como bloque propio** (no como cliff de "hoy"). 5. **Reformula el panel de flujo**: muestra el total real de entra/sale + el bucket "sin clasificar";
