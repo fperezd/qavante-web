@@ -175,19 +175,28 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
             </Bloque>
           )}
 
-          {/* 4) Este mes vs tu promedio (12 meses) */}
-          <Bloque titulo="Vs. tu promedio" subtitulo="promedio de los últimos 12 meses">
+          {/* 4) Este mes vs tu promedio (12 meses) + mismo mes del año anterior (con sus valores) */}
+          <Bloque
+            titulo="Vs. tu promedio"
+            subtitulo={`promedio de los últimos 12 meses y el mismo mes de ${y - 1}`}
+          >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {METRICAS.map((mt) => {
                 const a = parseAmount(cur.data![mt.key]);
                 const prom = pick(rAvg12, mt.key) / nAvg12;
+                const anioAnt = parseAmount(yoy.data?.[mt.key]);
                 return (
                   <QavanteStatTile
                     key={mt.key}
                     label={mt.label}
                     value={formatClp(a)}
                     tone={a >= 0 ? "default" : "danger"}
-                    hint={<Delta label="vs promedio" v={varPct(a, prom)} />}
+                    hint={
+                      <span className="flex flex-col gap-1">
+                        <RefLinea label="promedio 12m" base={prom} actual={a} />
+                        <RefLinea label={`mismo mes ${y - 1}`} base={anioAnt} actual={a} />
+                      </span>
+                    }
                   />
                 );
               })}
@@ -256,6 +265,23 @@ function Bloque({
       </div>
       {children}
     </section>
+  );
+}
+
+/** Línea de referencia: "label $valor  ±%". Muestra el VALOR de la referencia (no solo el %). */
+function RefLinea({ label, base, actual }: { label: string; base: number; actual: number }) {
+  const v = varPct(actual, base);
+  const up = (v ?? 0) >= 0;
+  const color = v == null ? "text-neutral-light" : up ? "text-success-700" : "text-danger-500";
+  return (
+    <span className="flex items-center justify-between gap-2 text-[11px]">
+      <span className="text-neutral-mid">
+        {label} <b className="tabular-nums text-neutral-dark">{formatClp(base)}</b>
+      </span>
+      <span className={`shrink-0 font-medium ${color}`}>
+        {v == null ? "sin base" : `${up ? "+" : ""}${v.toFixed(1)}%`}
+      </span>
+    </span>
   );
 }
 
