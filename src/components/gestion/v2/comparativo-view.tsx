@@ -97,7 +97,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
     () => (avg12.data ? mapRangoResumen(avg12.data) : null),
     [avg12.data],
   );
-  const nAvg12 = avg12.data?.months?.length ?? 12; // meses reales del rango (no asumir 12)
+  const nAvg12 = avg12.data?.months?.length || 12; // meses reales (|| evita dividir por 0 si viene [])
   const rQCur = React.useMemo(() => (qCur.data ? mapRangoResumen(qCur.data) : null), [qCur.data]);
   const rQPrev = React.useMemo(
     () => (qPrev.data ? mapRangoResumen(qPrev.data) : null),
