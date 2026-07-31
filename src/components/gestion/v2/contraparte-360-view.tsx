@@ -354,26 +354,42 @@ function TendenciaLinea({
  *  para que la altura % de la barra resuelva contra una altura DEFINIDA (si el padre directo no
  *  tiene altura, el % cae a 0 y no se ve nada). */
 function Barras({ serie }: { serie: { periodo: string; monto: number }[] }) {
+  const [hover, setHover] = React.useState<number | null>(null);
   const max = Math.max(1, ...serie.map((p) => Math.abs(p.monto)));
+  // Al pasar el mouse muestra el mes (YYYY-MM) + su valor; por defecto, el último mes.
+  const activo = hover != null ? serie[hover] : serie[serie.length - 1];
   return (
-    <div className="mt-3 flex h-28 items-end gap-0.5" role="img" aria-label="Serie mensual">
-      {serie.map((p) => {
-        const h = Math.round((Math.abs(p.monto) / max) * 100);
-        const neg = p.monto < 0;
-        return (
-          <div
-            key={p.periodo}
-            className="flex h-full flex-1 items-end"
-            title={`${p.periodo}: ${formatClp(p.monto)}`}
-          >
+    <div>
+      <div className="mt-3 flex h-28 items-end gap-0.5" role="img" aria-label="Serie mensual">
+        {serie.map((p, i) => {
+          const h = Math.round((Math.abs(p.monto) / max) * 100);
+          const neg = p.monto < 0;
+          const on = i === hover;
+          return (
             <div
-              data-testid="serie-barra"
-              className={`w-full rounded-t ${neg ? "bg-danger-500/50" : "bg-brand-primary/70"}`}
-              style={{ height: `${Math.max(2, h)}%` }}
-            />
-          </div>
-        );
-      })}
+              key={p.periodo}
+              className="flex h-full flex-1 items-end"
+              title={`${p.periodo}: ${formatClp(p.monto)}`}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+            >
+              <div
+                data-testid="serie-barra"
+                className={`w-full rounded-t transition-colors ${
+                  neg ? "bg-danger-500/50" : on ? "bg-brand-primary" : "bg-brand-primary/70"
+                }`}
+                style={{ height: `${Math.max(2, h)}%` }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      {activo && (
+        <p className="mt-2 text-xs text-neutral-mid">
+          <b className="tabular-nums text-neutral-dark">{activo.periodo}</b> ·{" "}
+          {formatClp(activo.monto)}
+        </p>
+      )}
     </div>
   );
 }
