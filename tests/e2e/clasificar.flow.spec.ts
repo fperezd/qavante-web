@@ -100,6 +100,21 @@ test.describe("Flujo: clasificar un movimiento (/caja/por-clasificar)", () => {
     await expect(page.getByText(/Clasificamos 5 de 12 movimientos con tus reglas/)).toBeVisible();
   });
 
+  test("detectar traspasos: marca la plata entre cuentas propias y confirma con toast", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/caja/por-clasificar");
+
+    const btn = page.getByRole("button", { name: "Detectar traspasos", exact: true });
+    await expect(btn).toBeVisible();
+    await btn.click();
+
+    // MSW devuelve pares:2, clasificados:4 → toast de éxito (D1, traspasos internos).
+    await expect(page.getByText(/Detectamos 2 traspasos entre tus cuentas/)).toBeVisible();
+  });
+
   test("cancelar cierra el drawer sin guardar", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/caja/por-clasificar");

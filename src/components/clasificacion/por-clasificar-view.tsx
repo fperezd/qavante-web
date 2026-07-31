@@ -4,7 +4,7 @@ import * as React from "react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { Dialog } from "@base-ui/react/dialog";
-import { CheckCircle2, ListChecks, RefreshCw } from "lucide-react";
+import { ArrowRightLeft, CheckCircle2, ListChecks, RefreshCw } from "lucide-react";
 import { QavanteEmpty, QavanteButton, QavanteInlineError, SortHeader } from "@/components/qavante";
 import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import {
   useBankAccounts,
   useClassifyBankMovement,
   useApplyRules,
+  useDetectInternalTransfers,
   useCanonicalCategories,
   type BankMovement,
   type ClassifyMovementRequest,
@@ -110,6 +111,37 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
   const dims = useClassificationDimensions(dimensionsEnabled);
   const assign = useCreateDimensionAssignment();
   const applyRules = useApplyRules();
+  const detectTransfers = useDetectInternalTransfers();
+
+  /* "Detectar traspasos entre tus cuentas" (D1, pedido de Fernando 2026-07-30): busca pares
+     cargo↔abono entre cuentas propias y los marca como traspaso interno (no ingreso ni gasto).
+     Transparenta el neteo en vez de esconderlo. Toca clasificaciones → invalida los reportes. */
+  async function detectarTraspasos() {
+    if (detectTransfers.isPending) return;
+    try {
+      const res = await detectTransfers.mutateAsync();
+      if (res.pares > 0) {
+        toast.success(
+          `Detectamos ${res.pares} ${res.pares === 1 ? "traspaso" : "traspasos"} entre tus cuentas`,
+          {
+            description: `${res.clasificados} ${res.clasificados === 1 ? "movimiento quedó marcado" : "movimientos quedaron marcados"} como traspaso interno — no cuentan como ingreso ni gasto.`,
+          },
+        );
+      } else {
+        toast.info("No encontramos traspasos entre tus cuentas", {
+          description:
+            res.evaluados === 0
+              ? "No hay movimientos sin clasificar."
+              : `Revisamos ${res.evaluados} ${res.evaluados === 1 ? "movimiento" : "movimientos"} sin clasificar.`,
+        });
+      }
+    } catch (e) {
+      const status = e instanceof ApiError ? e.status : undefined;
+      toast.error(
+        status === 403 ? "No tienes permiso para clasificar" : "No pudimos detectar los traspasos",
+      );
+    }
+  }
 
   /* "Aplicar reglas": clasifica en batch TODOS los movimientos sin clasificar
      que matcheen una regla activa (backend #545). Solo toca lo que matchea una
@@ -433,12 +465,25 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
             allowAll
           />
         )}
+        {/* Traspasos internos (D1): marca los movimientos de plata entre cuentas propias como
+            traspaso (no ingreso ni gasto) — transparenta el neteo. */}
+        <QavanteButton
+          size="sm"
+          variant="ghost"
+          className="ml-auto"
+          onClick={detectarTraspasos}
+          loading={detectTransfers.isPending}
+          disabled={detectTransfers.isPending}
+          title="Marca la plata que moviste entre tus propias cuentas para que no cuente como ingreso ni gasto."
+        >
+          <ArrowRightLeft className="h-4 w-4" aria-hidden="true" />
+          Detectar traspasos
+        </QavanteButton>
         {/* Aplica las reglas activas a TODOS los sin clasificar (no solo al
             filtro) → puebla el reporte de caja. */}
         <QavanteButton
           size="sm"
           variant="secondary"
-          className="ml-auto"
           onClick={aplicarReglas}
           loading={applyRules.isPending}
           disabled={applyRules.isPending}
