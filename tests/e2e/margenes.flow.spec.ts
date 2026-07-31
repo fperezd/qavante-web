@@ -25,5 +25,10 @@ test.describe("Flujo: Márgenes (/gestion/margenes)", () => {
     // "¿Cuánto te queda de cada peso…" (substring), el label del segmento es exactamente "Te queda".
     await expect(main.getByText("De cada $100 que vendes, ¿dónde queda?")).toBeVisible();
     await expect(main.getByText("Te queda", { exact: true })).toBeVisible();
+
+    // Tarjetas movibles (pedido de Fernando): "De cada $100" y el histórico del margen van lado a
+    // lado y con control para reordenar (asa de arrastre + flechas). El asa aparece con hover, así
+    // que verificamos que esté en el DOM (attached), no que sea visible sin interacción.
+    await expect(main.getByRole("button", { name: /para reordenar/ }).first()).toBeAttached();
   });
 });
