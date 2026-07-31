@@ -236,8 +236,20 @@ describe("mapTendencia", () => {
   it("saca el margen por mes de la fila de resultado y marca el mes en curso", () => {
     const t = mapTendencia(BD);
     expect(t).toHaveLength(2);
-    expect(t[0]).toEqual({ periodo: "jun", margenPct: 8.6, resultado: 4_000_000, actual: false });
-    expect(t[1]).toEqual({ periodo: "jul", margenPct: 9.3, resultado: 4_500_000, actual: true });
+    expect(t[0]).toEqual({
+      periodo: "jun",
+      periodoFull: "2026-06",
+      margenPct: 8.6,
+      resultado: 4_000_000,
+      actual: false,
+    });
+    expect(t[1]).toEqual({
+      periodo: "jul",
+      periodoFull: "2026-07",
+      margenPct: 9.3,
+      resultado: 4_500_000,
+      actual: true,
+    });
   });
 
   it("degrada a [] si no hay pct_by_month", () => {

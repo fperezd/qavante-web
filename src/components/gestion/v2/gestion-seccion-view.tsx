@@ -355,17 +355,23 @@ function Tendencia({ puntos }: { puntos: TendenciaPunto[] }) {
   const prom = vals.reduce((s, v) => s + v, 0) / vals.length;
   const mejor = puntos.find((p) => p.margenPct === max);
   const peor = puntos.find((p) => p.margenPct === min);
+  // "oct 2025" (con año, para no confundir dos octubres de años distintos).
+  const mesAno = (p?: TendenciaPunto) => {
+    if (!p) return "—";
+    const y = p.periodoFull?.match(/^(\d{4})-/);
+    return `${mesCorto(p.periodoFull ?? p.periodo)}${y ? ` ${y[1]}` : ""}`;
+  };
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <QavanteStatTile
           label="Mejor mes"
-          value={`${mejor ? mesCorto(mejor.periodo) : "—"} · ${fmtPct(max)}`}
+          value={`${mesAno(mejor)} · ${fmtPct(max)}`}
           tone="success"
         />
         <QavanteStatTile
           label="Peor mes"
-          value={`${peor ? mesCorto(peor.periodo) : "—"} · ${fmtPct(min)}`}
+          value={`${mesAno(peor)} · ${fmtPct(min)}`}
           tone={min < 0 ? "danger" : "muted"}
         />
         <QavanteStatTile label="Promedio del período" value={fmtPct(prom)} tone="default" />

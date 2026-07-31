@@ -207,6 +207,7 @@ export function mapTendencia(bd: OperationalResultBreakdown): TendenciaPunto[] {
   if (pct.length !== bd.months.length || montos.length !== bd.months.length) return [];
   return bd.months.map((mes, i) => ({
     periodo: mesCorto(mes),
+    periodoFull: mes,
     margenPct: parseAmount(pct[i]),
     resultado: parseAmount(montos[i]),
     actual: bd.proforma_month != null && mes === bd.proforma_month,
