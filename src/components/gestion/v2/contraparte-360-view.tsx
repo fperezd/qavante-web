@@ -84,6 +84,14 @@ export function Contraparte360View({ config }: { config: Config360 }) {
   if (maestro.isFetching && docs.length === 0) {
     return <div className="h-48 animate-pulse rounded-xl bg-neutral-light/30" aria-busy="true" />;
   }
+  // Error real (todas las consultas fallaron) ≠ "no hay actividad": no afirmamos $0 de ventas.
+  if (maestro.isError && docs.length === 0) {
+    return (
+      <section className="rounded-xl border border-danger-500/40 bg-danger-500/[.06] p-6 text-sm text-neutral-dark">
+        No pudimos cargar tus {config.flujo.toLowerCase()} ahora. Reintenta en un momento.
+      </section>
+    );
+  }
   if (agregados.length === 0) {
     return (
       <section className="rounded-xl border border-border bg-surface p-6 text-sm text-neutral-mid">
@@ -140,12 +148,20 @@ function Selector({
     ? agregados.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
-          c.rut
-            .replace(/[.\-\s]/g, "")
-            .toLowerCase()
-            .includes(qRut),
+          // Solo matchea por RUT si el texto tiene dígitos/letras (evita que "." matchee todo).
+          (qRut !== "" &&
+            c.rut
+              .replace(/[.\-\s]/g, "")
+              .toLowerCase()
+              .includes(qRut)),
       )
     : agregados;
+
+  const elegir = (rut: string) => {
+    onChange(rut);
+    setOpen(false);
+    setQuery("");
+  };
 
   return (
     <div className="relative sm:max-w-md">
@@ -169,6 +185,15 @@ function Selector({
           setQuery(e.target.value);
           setOpen(true);
         }}
+        onKeyDown={(e) => {
+          // Teclado: Enter elige el primer resultado filtrado; Escape cierra.
+          if (e.key === "Enter" && filtered.length > 0) {
+            e.preventDefault();
+            elegir(filtered[0]!.rut);
+          } else if (e.key === "Escape") {
+            setOpen(false);
+          }
+        }}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
         className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
       />
@@ -186,9 +211,7 @@ function Selector({
                   type="button"
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    onChange(c.rut);
-                    setOpen(false);
-                    setQuery("");
+                    elegir(c.rut);
                   }}
                   className="flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-sm hover:bg-brand-primary-50"
                 >
@@ -245,7 +268,13 @@ function Detalle({
 
   // Riesgo: mayor documento y meses desde la última actividad.
   const docsSel = docs.filter((d) => d.rut === sel.rut);
-  const mayor = docsSel.reduce((mx, d) => Math.max(mx, montoFirmado(d)), 0);
+  // "Documento más grande" del período de FOCO (últimos 12 meses), coherente con el resto de la vista.
+  const mayor = docsSel
+    .filter((d) => {
+      const p = periodoDe(d.fecha);
+      return p != null && comparePeriod(p, desde12) >= 0;
+    })
+    .reduce((mx, d) => Math.max(mx, montoFirmado(d)), 0);
   const mesesSinActividad = periodDiff(sel.ultimoPeriodo, hasta);
 
   return (

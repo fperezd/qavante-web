@@ -106,15 +106,17 @@ export interface TendenciaAnual {
   deltaPct: number | null;
 }
 
-/** Año contra año: suma de los últimos 12 meses vs los 12 anteriores. `null` si la serie no cubre
- *  24 meses (sin dos años no hay comparación honesta). */
+/** Año contra año: suma de los últimos 12 meses vs los 12 anteriores. `null` si no hay 24 meses O
+ *  si los 12 previos no tienen actividad real (la relación no existía) — sin dos años con actividad
+ *  no hay comparación honesta (evita mostrar "vs los 12 previos $0" para un cliente nuevo). */
 export function tendenciaAnual(serie: PuntoMes[]): TendenciaAnual | null {
   if (serie.length < 24) return null;
   const n = serie.length;
   const suma = (arr: PuntoMes[]) => arr.reduce((s, p) => s + p.monto, 0);
   const ultimos12 = suma(serie.slice(n - 12));
   const previos12 = suma(serie.slice(n - 24, n - 12));
-  const deltaPct = previos12 !== 0 ? ((ultimos12 - previos12) / Math.abs(previos12)) * 100 : null;
+  if (previos12 <= 0) return null; // sin actividad hace un año → no se compara
+  const deltaPct = ((ultimos12 - previos12) / Math.abs(previos12)) * 100;
   return { ultimos12, previos12, deltaPct };
 }
 
