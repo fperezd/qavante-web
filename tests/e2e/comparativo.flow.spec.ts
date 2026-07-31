@@ -21,7 +21,9 @@ test.describe("Flujo: Comparativo (/gestion/comparativo)", () => {
     await expect(main.getByRole("heading", { name: "Acumulado del año" })).toBeVisible();
     await expect(main.getByRole("heading", { name: "Vs. tu promedio" })).toBeVisible();
 
-    // Las referencias con VALOR (una por métrica → .first()).
+    // Todas las comparaciones llevan la REFERENCIA CON MONTO (no solo %): "Este mes" (vs mes/año
+    // anterior), "Acumulado" y "Vs. tu promedio". El monto ($) va dentro de la línea de referencia.
+    await expect(main.getByText("vs mes anterior").first()).toBeVisible();
     await expect(main.getByText("promedio 12m").first()).toBeVisible();
     await expect(main.getByText(/mismo mes 20\d{2}/).first()).toBeVisible();
   });

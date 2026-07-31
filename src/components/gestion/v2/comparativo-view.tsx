@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownRight, ArrowUpRight, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/qavante";
 import {
   useOperationalResult,
@@ -129,14 +129,16 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                     value={formatClp(a)}
                     tone={a >= 0 ? "default" : "danger"}
                     hint={
-                      <span className="flex flex-col gap-0.5">
-                        <Delta
+                      <span className="flex flex-col gap-1">
+                        <RefLinea
                           label="vs mes anterior"
-                          v={varPct(a, parseAmount(prev.data?.[mt.key]))}
+                          base={parseAmount(prev.data?.[mt.key])}
+                          actual={a}
                         />
-                        <Delta
+                        <RefLinea
                           label="vs año anterior"
-                          v={varPct(a, parseAmount(yoy.data?.[mt.key]))}
+                          base={parseAmount(yoy.data?.[mt.key])}
+                          actual={a}
                         />
                       </span>
                     }
@@ -161,7 +163,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                     label={mt.label}
                     value={formatClp(a)}
                     tone={a >= 0 ? "default" : "danger"}
-                    hint={<Delta label={`vs ${y - 1}`} v={varPct(a, b)} />}
+                    hint={<RefLinea label={`vs ${y - 1}`} base={b} actual={a} />}
                   />
                 );
               })}
@@ -218,11 +220,16 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                     value={formatClp(a)}
                     tone={a >= 0 ? "default" : "danger"}
                     hint={
-                      <span className="flex flex-col gap-0.5">
-                        <Delta label="vs trim. anterior" v={varPct(a, pick(rQPrev, mt.key))} />
-                        <Delta
+                      <span className="flex flex-col gap-1">
+                        <RefLinea
+                          label="vs trim. anterior"
+                          base={pick(rQPrev, mt.key)}
+                          actual={a}
+                        />
+                        <RefLinea
                           label="vs mismo trim. año pasado"
-                          v={varPct(a, pick(rQLy, mt.key))}
+                          base={pick(rQLy, mt.key)}
+                          actual={a}
                         />
                       </span>
                     }
@@ -281,20 +288,6 @@ function RefLinea({ label, base, actual }: { label: string; base: number; actual
       <span className={`shrink-0 font-medium ${color}`}>
         {v == null ? "sin base" : `${up ? "+" : ""}${v.toFixed(1)}%`}
       </span>
-    </span>
-  );
-}
-
-function Delta({ label, v }: { label: string; v: number | null }) {
-  if (v === null) return <span className="text-[11px] text-neutral-light">{label}: sin base</span>;
-  const up = v >= 0;
-  const Icon = up ? ArrowUpRight : ArrowDownRight;
-  const color = up ? "text-success-700" : "text-danger-500";
-  return (
-    <span className={`inline-flex items-center gap-1 text-[11px] ${color}`}>
-      <Icon className="h-3 w-3" aria-hidden="true" />
-      {label}: {up ? "+" : ""}
-      {v.toFixed(1)}%
     </span>
   );
 }
