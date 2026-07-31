@@ -87,6 +87,12 @@ describe("tendenciaAnual", () => {
   it("menos de 24 meses → null (sin dos años no compara)", () => {
     expect(tendenciaAnual(serie24(Array(12).fill(100)))).toBeNull();
   });
+
+  it("los 12 previos sin actividad (cliente nuevo) → null (no compara contra $0)", () => {
+    // 24 meses pero los primeros 12 en cero → no existía la relación hace un año.
+    const s = serie24([...Array(12).fill(0), ...Array(12).fill(150)]);
+    expect(tendenciaAnual(s)).toBeNull();
+  });
 });
 
 describe("estacionalidad", () => {
