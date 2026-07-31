@@ -286,6 +286,9 @@ function Detalle({
         {tend && <TendenciaLinea tend={tend} config={config} />}
       </section>
 
+      {/* Recuperación: mes en curso vs. el mejor mes → cuánto hay para recuperar */}
+      <Recuperacion serie={serie12} config={config} />
+
       {/* Estacionalidad */}
       <section className="rounded-xl border border-border bg-surface p-5">
         <h3 className="text-sm font-bold text-neutral-dark">Estacionalidad</h3>
@@ -353,6 +356,52 @@ function TendenciaLinea({
 /** Barras verticales normalizadas al máximo de la serie. Cada columna es `h-full` + `items-end`
  *  para que la altura % de la barra resuelva contra una altura DEFINIDA (si el padre directo no
  *  tiene altura, el % cae a 0 y no se ve nada). */
+/** Recuperación: mes en curso vs. el MEJOR mes de la serie → cuánto hay para recuperar (ventas)
+ *  o cuánto bajó la relación (compras). Responde "¿qué debería recuperar de este cliente?". */
+function Recuperacion({
+  serie,
+  config,
+}: {
+  serie: { periodo: string; monto: number }[];
+  config: Config360;
+}) {
+  if (serie.length === 0) return null;
+  const mejor = serie.reduce((mx, p) => (p.monto > mx.monto ? p : mx), serie[0]!);
+  const actual = serie[serie.length - 1]!;
+  if (mejor.monto <= 0) return null;
+  const dif = mejor.monto - actual.monto; // + = por debajo de su mejor mes
+  const pct = (actual.monto / mejor.monto) * 100 - 100; // negativo = bajo el pico
+  const bajo = dif > 0;
+  const esVentas = config.kind === "ventas";
+  return (
+    <section className="rounded-xl border border-border bg-surface p-5">
+      <h3 className="text-sm font-bold text-neutral-dark">
+        {esVentas ? "A recuperar (mes en curso vs. su mejor mes)" : "Mes en curso vs. su mayor mes"}
+      </h3>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <QavanteStatTile
+          label="Mejor mes"
+          value={formatClp(mejor.monto)}
+          tone="default"
+          hint={mejor.periodo}
+        />
+        <QavanteStatTile
+          label="Mes en curso"
+          value={formatClp(actual.monto)}
+          tone="default"
+          hint={actual.periodo}
+        />
+        <QavanteStatTile
+          label={esVentas ? "A recuperar" : "Diferencia"}
+          value={`${bajo ? "" : "+"}${formatClp(Math.abs(dif))}`}
+          tone={bajo ? "danger" : "success"}
+          hint={`${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% vs. su mejor mes`}
+        />
+      </div>
+    </section>
+  );
+}
+
 function Barras({ serie }: { serie: { periodo: string; monto: number }[] }) {
   const [hover, setHover] = React.useState<number | null>(null);
   const max = Math.max(1, ...serie.map((p) => Math.abs(p.monto)));
