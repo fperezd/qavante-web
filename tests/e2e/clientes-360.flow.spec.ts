@@ -24,6 +24,10 @@ test.describe("Flujo: Clientes 360 (/gestion/clientes)", () => {
     await expect(main.getByText("Ventas mes a mes (últimos 12 meses)")).toBeVisible();
     await expect(main.getByRole("heading", { name: "Estacionalidad" })).toBeVisible();
     await expect(main.getByRole("heading", { name: "Últimos documentos" })).toBeVisible();
+    // Recuperación: mes en curso vs. mejor mes.
+    await expect(
+      main.getByRole("heading", { name: "A recuperar (mes en curso vs. su mejor mes)" }),
+    ).toBeVisible();
 
     // Regresión: las barras deben tener ALTURA real (el % no resolvía sin altura definida en el
     // padre → gráfico vacío). Al menos una barra > 20px.

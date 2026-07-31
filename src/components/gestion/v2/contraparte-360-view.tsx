@@ -286,6 +286,9 @@ function Detalle({
         {tend && <TendenciaLinea tend={tend} config={config} />}
       </section>
 
+      {/* Recuperación: mes en curso vs. el mejor mes → cuánto hay para recuperar */}
+      <Recuperacion serie={serie12} config={config} />
+
       {/* Estacionalidad */}
       <section className="rounded-xl border border-border bg-surface p-5">
         <h3 className="text-sm font-bold text-neutral-dark">Estacionalidad</h3>
@@ -353,27 +356,89 @@ function TendenciaLinea({
 /** Barras verticales normalizadas al máximo de la serie. Cada columna es `h-full` + `items-end`
  *  para que la altura % de la barra resuelva contra una altura DEFINIDA (si el padre directo no
  *  tiene altura, el % cae a 0 y no se ve nada). */
-function Barras({ serie }: { serie: { periodo: string; monto: number }[] }) {
-  const max = Math.max(1, ...serie.map((p) => Math.abs(p.monto)));
+/** Recuperación: mes en curso vs. el MEJOR mes de la serie → cuánto hay para recuperar (ventas)
+ *  o cuánto bajó la relación (compras). Responde "¿qué debería recuperar de este cliente?". */
+function Recuperacion({
+  serie,
+  config,
+}: {
+  serie: { periodo: string; monto: number }[];
+  config: Config360;
+}) {
+  if (serie.length === 0) return null;
+  const mejor = serie.reduce((mx, p) => (p.monto > mx.monto ? p : mx), serie[0]!);
+  const actual = serie[serie.length - 1]!;
+  if (mejor.monto <= 0) return null;
+  const dif = mejor.monto - actual.monto; // + = por debajo de su mejor mes
+  const pct = (actual.monto / mejor.monto) * 100 - 100; // negativo = bajo el pico
+  const bajo = dif > 0;
+  const esVentas = config.kind === "ventas";
   return (
-    <div className="mt-3 flex h-28 items-end gap-0.5" role="img" aria-label="Serie mensual">
-      {serie.map((p) => {
-        const h = Math.round((Math.abs(p.monto) / max) * 100);
-        const neg = p.monto < 0;
-        return (
-          <div
-            key={p.periodo}
-            className="flex h-full flex-1 items-end"
-            title={`${p.periodo}: ${formatClp(p.monto)}`}
-          >
+    <section className="rounded-xl border border-border bg-surface p-5">
+      <h3 className="text-sm font-bold text-neutral-dark">
+        {esVentas ? "A recuperar (mes en curso vs. su mejor mes)" : "Mes en curso vs. su mayor mes"}
+      </h3>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <QavanteStatTile
+          label="Mejor mes"
+          value={formatClp(mejor.monto)}
+          tone="default"
+          hint={mejor.periodo}
+        />
+        <QavanteStatTile
+          label="Mes en curso"
+          value={formatClp(actual.monto)}
+          tone="default"
+          hint={actual.periodo}
+        />
+        <QavanteStatTile
+          label={esVentas ? "A recuperar" : "Diferencia"}
+          value={`${bajo ? "" : "+"}${formatClp(Math.abs(dif))}`}
+          tone={bajo ? "danger" : "success"}
+          hint={`${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% vs. su mejor mes`}
+        />
+      </div>
+    </section>
+  );
+}
+
+function Barras({ serie }: { serie: { periodo: string; monto: number }[] }) {
+  const [hover, setHover] = React.useState<number | null>(null);
+  const max = Math.max(1, ...serie.map((p) => Math.abs(p.monto)));
+  // Al pasar el mouse muestra el mes (YYYY-MM) + su valor; por defecto, el último mes.
+  const activo = hover != null ? serie[hover] : serie[serie.length - 1];
+  return (
+    <div>
+      <div className="mt-3 flex h-28 items-end gap-0.5" role="img" aria-label="Serie mensual">
+        {serie.map((p, i) => {
+          const h = Math.round((Math.abs(p.monto) / max) * 100);
+          const neg = p.monto < 0;
+          const on = i === hover;
+          return (
             <div
-              data-testid="serie-barra"
-              className={`w-full rounded-t ${neg ? "bg-danger-500/50" : "bg-brand-primary/70"}`}
-              style={{ height: `${Math.max(2, h)}%` }}
-            />
-          </div>
-        );
-      })}
+              key={p.periodo}
+              className="flex h-full flex-1 items-end"
+              title={`${p.periodo}: ${formatClp(p.monto)}`}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+            >
+              <div
+                data-testid="serie-barra"
+                className={`w-full rounded-t transition-colors ${
+                  neg ? "bg-danger-500/50" : on ? "bg-brand-primary" : "bg-brand-primary/70"
+                }`}
+                style={{ height: `${Math.max(2, h)}%` }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      {activo && (
+        <p className="mt-2 text-xs text-neutral-mid">
+          <b className="tabular-nums text-neutral-dark">{activo.periodo}</b> ·{" "}
+          {formatClp(activo.monto)}
+        </p>
+      )}
     </div>
   );
 }
