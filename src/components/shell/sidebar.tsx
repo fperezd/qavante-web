@@ -60,6 +60,7 @@ const GESTION_CHILDREN: ReadonlyArray<SubLink> = [
   { href: "/gestion/ciclo-de-caja", label: "Ciclo de caja" },
   { href: "/gestion/punto-equilibrio", label: "Punto de equilibrio" },
   { href: "/gestion/clientes", label: "Clientes 360" },
+  { href: "/gestion/proveedores", label: "Proveedores 360" },
 ];
 
 /* Navegación agrupada por dominio. "Cobros y pagos" (antes "Tesorería", jerga
