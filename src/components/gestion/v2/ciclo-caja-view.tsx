@@ -152,8 +152,8 @@ function VeredictoCiclo({
         <div>
           <p className="text-base font-bold text-neutral-dark">
             {atrapado
-              ? `Tu plata queda atrapada ${ccc} días entre que vendes y cobras`
-              : `Tus proveedores financian tu operación (${Math.abs(ccc)} días a favor)`}
+              ? `Tu plata queda atrapada ${Math.round(ccc)} días entre que vendes y cobras`
+              : `Tus proveedores financian tu operación (${Math.round(Math.abs(ccc))} días a favor)`}
           </p>
           <p className="mt-1 text-sm text-neutral-mid">
             {atrapado
@@ -169,8 +169,11 @@ function VeredictoCiclo({
 
 /** La palanca accionable: acelerar el cobro libera caja sin vender más. */
 function PalancaCiclo({ dso, venta, ar }: { dso: number | null; venta: number; ar: number }) {
-  if (dso == null || dso <= 0 || venta <= 0 || ar <= 0) return null;
+  // Necesitamos ≥2 días para hablar de "bajar el cobro" (con dso<2 el ejercicio no tiene sentido).
+  if (dso == null || dso < 2 || venta <= 0 || ar <= 0) return null;
   const porDia = Math.round(venta);
+  const dsoR = Math.round(dso);
+  const reducir = Math.min(10, dsoR - 1); // no bajar de 1 día
   return (
     <section className="rounded-xl border border-border bg-surface p-5">
       <div className="flex items-center gap-2 text-sm font-bold text-neutral-dark">
@@ -181,9 +184,9 @@ function PalancaCiclo({ dso, venta, ar }: { dso: number | null; venta: number; a
         Cada día que aceleras el cobro liberas del orden de
         <span className="font-semibold tabular-nums text-neutral-dark">{formatClp(porDia)}</span>
         <ArrowRight className="h-3.5 w-3.5 text-neutral-light" aria-hidden="true" />
-        bajar el cobro de {dso} a {Math.max(1, dso - 10)} días liberaría
+        bajar el cobro de {dsoR} a {dsoR - reducir} días liberaría
         <span className="font-semibold tabular-nums text-success-700">
-          {formatClp(porDia * Math.min(10, dso - 1))}
+          {formatClp(porDia * reducir)}
         </span>
         de caja.
       </p>
