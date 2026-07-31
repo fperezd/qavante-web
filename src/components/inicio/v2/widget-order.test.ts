@@ -66,6 +66,12 @@ describe("readWidgetOrder", () => {
     expect(readWidgetOrder({ [WIDGET_ORDER_KEY]: "caja" })).toBeUndefined();
     expect(readWidgetOrder({ [WIDGET_ORDER_KEY]: [1, 2] })).toBeUndefined();
   });
+
+  it("con clave propia lee ese orden y NO el default (pantallas independientes)", () => {
+    const blob = { [WIDGET_ORDER_KEY]: ["caja"], margenes_widget_order: ["a", "b"] };
+    expect(readWidgetOrder(blob, "margenes_widget_order")).toEqual(["a", "b"]);
+    expect(readWidgetOrder(blob)).toEqual(["caja"]);
+  });
 });
 
 describe("withWidgetOrder", () => {
@@ -79,5 +85,13 @@ describe("withWidgetOrder", () => {
 
   it("funciona con blob indefinido", () => {
     expect(withWidgetOrder(undefined, ["caja"])).toEqual({ [WIDGET_ORDER_KEY]: ["caja"] });
+  });
+
+  it("con clave propia pisa solo esa y preserva el orden de otra pantalla", () => {
+    const blob = { [WIDGET_ORDER_KEY]: ["caja"], margenes_widget_order: ["a", "b"] };
+    expect(withWidgetOrder(blob, ["b", "a"], "margenes_widget_order")).toEqual({
+      [WIDGET_ORDER_KEY]: ["caja"],
+      margenes_widget_order: ["b", "a"],
+    });
   });
 });

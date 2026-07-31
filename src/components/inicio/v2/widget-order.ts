@@ -6,7 +6,9 @@
 
 import type { PreferencesBlob } from "@/lib/api/preferences";
 
-/** Clave estable del orden dentro del blob de prefs. */
+/** Clave estable del orden dentro del blob de prefs (Inicio v2). Otras pantallas con tarjetas
+ *  reordenables (ej. Márgenes) pasan su propia clave a `readWidgetOrder`/`withWidgetOrder` para no
+ *  pisarse entre sí. */
 export const WIDGET_ORDER_KEY = "inicio_widget_order";
 
 /** Aplica un orden guardado a los items presentes ESTE render. Robusto ante deriva
@@ -19,7 +21,8 @@ export function applyWidgetOrder<T extends { id: string }>(
 ): T[] {
   if (!order || order.length === 0) return items;
   const rank = new Map(order.map((id, i) => [id, i]));
-  const rankOf = (id: string) => (rank.has(id) ? (rank.get(id) as number) : Number.POSITIVE_INFINITY);
+  const rankOf = (id: string) =>
+    rank.has(id) ? (rank.get(id) as number) : Number.POSITIVE_INFINITY;
   // copia + sort estable (V8): los desconocidos (Infinity) mantienen orden relativo.
   return [...items].sort((a, b) => rankOf(a.id) - rankOf(b.id));
 }
@@ -39,13 +42,20 @@ export function moveItem<T>(items: T[], from: number, to: number): T[] {
 
 /** Lee el orden guardado del blob. Defensivo: solo acepta un array de strings
  *  (el blob es `unknown`); cualquier otra forma → `undefined` (usa el orden natural). */
-export function readWidgetOrder(blob: PreferencesBlob | undefined): string[] | undefined {
-  const v = blob?.[WIDGET_ORDER_KEY];
+export function readWidgetOrder(
+  blob: PreferencesBlob | undefined,
+  key: string = WIDGET_ORDER_KEY,
+): string[] | undefined {
+  const v = blob?.[key];
   return Array.isArray(v) && v.every((x) => typeof x === "string") ? (v as string[]) : undefined;
 }
 
 /** Devuelve el blob COMPLETO con el orden actualizado (respeta "reemplaza, no merge":
- *  preserva el resto de las prefs y solo pisa la clave del orden). */
-export function withWidgetOrder(blob: PreferencesBlob | undefined, order: string[]): PreferencesBlob {
-  return { ...(blob ?? {}), [WIDGET_ORDER_KEY]: order };
+ *  preserva el resto de las prefs y solo pisa la clave del orden indicada). */
+export function withWidgetOrder(
+  blob: PreferencesBlob | undefined,
+  order: string[],
+  key: string = WIDGET_ORDER_KEY,
+): PreferencesBlob {
+  return { ...(blob ?? {}), [key]: order };
 }

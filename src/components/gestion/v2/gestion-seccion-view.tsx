@@ -25,6 +25,17 @@ import {
   resultadoConfiable,
   tendenciaConfiable,
 } from "./gestion-v2-map";
+import { usePreferences, useUpdatePreferences } from "@/lib/api/preferences";
+import { DraggableCard } from "../../inicio/v2/draggable-card";
+import {
+  applyWidgetOrder,
+  moveItem,
+  readWidgetOrder,
+  withWidgetOrder,
+} from "../../inicio/v2/widget-order";
+
+/** Clave propia del orden de las tarjetas de Márgenes (no choca con la de Inicio). */
+const MARGENES_ORDER_KEY = "margenes_widget_order";
 
 /* Sub-pantallas FOCALIZADAS y RICAS de Gestión (pedido de Fernando 2026-07-28):
    el sub-menú separa lo que vivía apretado en /gestion; cada una con cards KPI +
@@ -176,6 +187,59 @@ function Margenes({
   const puntos = breakdown ? mapTendencia(breakdown) : [];
   const serie = puntos.map((p) => p.margenPct);
 
+  // Tarjetas reordenables (pedido de Fernando): "De cada $100" y el histórico del margen van
+  // lado a lado y se pueden mover. El orden se persiste por usuario×empresa en /api/me/preferences
+  // (mismo patrón que Inicio v2, con clave propia para no pisarse).
+  const prefs = usePreferences();
+  const updatePrefs = useUpdatePreferences();
+  const [localOrder, setLocalOrder] = React.useState<string[] | null>(null);
+
+  const widgets: { id: string; label: string; node: React.ReactNode }[] = [];
+  // "De cada $100": los 3 tramos derivan de los MISMOS montos ($) → suman 100 y ninguno negativo.
+  // Solo si el mes es plausible (resultado ≥0 y ≤ margen bruto).
+  if (rev > 0 && neto >= 0 && bruto >= neto) {
+    widgets.push({
+      id: "de-cada-100",
+      label: "De cada $100",
+      node: (
+        <DeCada100
+          costoPct={costoPct}
+          gastosPct={((bruto - neto) / rev) * 100}
+          quedaPct={(neto / rev) * 100}
+        />
+      ),
+    });
+  }
+  if (serie.length >= 2) {
+    widgets.push({
+      id: "margen-historico",
+      label: `Margen bruto últimos ${serie.length} meses`,
+      node: (
+        <div className="rounded-xl border border-border bg-surface p-5">
+          <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+            Margen bruto · últimos {serie.length} meses
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <Sparkline data={serie} tone="brand" width={520} height={56} markers />
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  const savedOrder = readWidgetOrder(prefs.data?.preferences, MARGENES_ORDER_KEY);
+  const ordered = applyWidgetOrder(widgets, localOrder ?? savedOrder);
+  const reorderable = ordered.length >= 2;
+  const reorder = (from: number, to: number) => {
+    const currentIds = ordered.map((w) => w.id);
+    const nextIds = moveItem(currentIds, from, to);
+    if (nextIds === currentIds) return; // no-op / fuera de rango
+    setLocalOrder(nextIds);
+    // Solo persiste sobre un GET exitoso: el PUT REEMPLAZA el blob completo (no merge).
+    if (prefs.isSuccess)
+      updatePrefs.mutate(withWidgetOrder(prefs.data?.preferences, nextIds, MARGENES_ORDER_KEY));
+  };
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -201,24 +265,24 @@ function Margenes({
 
       <AlertaTendenciaMargen puntos={puntos} />
 
-      {/* "De cada $100": derivamos los 3 tramos de los MISMOS montos ($) → siempre suman 100 y
-          ninguno queda negativo. Solo si el mes es plausible (resultado ≥0 y ≤ margen bruto). */}
-      {rev > 0 && neto >= 0 && bruto >= neto && (
-        <DeCada100
-          costoPct={costoPct}
-          gastosPct={((bruto - neto) / rev) * 100}
-          quedaPct={(neto / rev) * 100}
-        />
-      )}
-
-      {serie.length >= 2 && (
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
-            Margen bruto · últimos {serie.length} meses
-          </p>
-          <div className="mt-3">
-            <Sparkline data={serie} tone="brand" width={520} height={56} markers />
-          </div>
+      {/* "De cada $100" y el histórico del margen, lado a lado y reordenables (arrastrar o ↑/↓). */}
+      {ordered.length > 0 && (
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+          {ordered.map((w, i) =>
+            reorderable ? (
+              <DraggableCard
+                key={w.id}
+                label={w.label}
+                index={i}
+                count={ordered.length}
+                onMove={reorder}
+              >
+                {w.node}
+              </DraggableCard>
+            ) : (
+              <React.Fragment key={w.id}>{w.node}</React.Fragment>
+            ),
+          )}
         </div>
       )}
       <ConfianzaPie mes={mes} />
