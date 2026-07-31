@@ -273,7 +273,9 @@ function TendenciaLinea({
   );
 }
 
-/** Barras verticales normalizadas al máximo de la serie. */
+/** Barras verticales normalizadas al máximo de la serie. Cada columna es `h-full` + `items-end`
+ *  para que la altura % de la barra resuelva contra una altura DEFINIDA (si el padre directo no
+ *  tiene altura, el % cae a 0 y no se ve nada). */
 function Barras({ serie }: { serie: { periodo: string; monto: number }[] }) {
   const max = Math.max(1, ...serie.map((p) => Math.abs(p.monto)));
   return (
@@ -284,10 +286,11 @@ function Barras({ serie }: { serie: { periodo: string; monto: number }[] }) {
         return (
           <div
             key={p.periodo}
-            className="group relative flex-1"
+            className="flex h-full flex-1 items-end"
             title={`${p.periodo}: ${formatClp(p.monto)}`}
           >
             <div
+              data-testid="serie-barra"
               className={`w-full rounded-t ${neg ? "bg-danger-500/50" : "bg-brand-primary/70"}`}
               style={{ height: `${Math.max(2, h)}%` }}
             />
@@ -309,11 +312,14 @@ function Estacional({ est }: { est: { mes: number; promedio: number }[] }) {
         const esPico = e.mes === pico.mes && pico.promedio > 0;
         return (
           <div key={e.mes} className="flex flex-1 flex-col items-center gap-1">
-            <div
-              className={`w-full rounded-t ${esPico ? "bg-brand-primary" : "bg-brand-primary/40"}`}
-              style={{ height: `${Math.max(2, h)}%`, minHeight: 2 }}
-              title={`${MESES_CORTOS[e.mes - 1]}: ${formatClp(e.promedio)}`}
-            />
+            {/* Caja de altura DEFINIDA (h-20) + items-end para que la barra en % se vea. */}
+            <div className="flex h-20 w-full items-end">
+              <div
+                className={`w-full rounded-t ${esPico ? "bg-brand-primary" : "bg-brand-primary/40"}`}
+                style={{ height: `${Math.max(3, h)}%` }}
+                title={`${MESES_CORTOS[e.mes - 1]}: ${formatClp(e.promedio)}`}
+              />
+            </div>
             <span className="text-[9px] text-neutral-mid">{MESES_CORTOS[e.mes - 1]}</span>
           </div>
         );
