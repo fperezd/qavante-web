@@ -13,8 +13,8 @@ test.describe("Flujo: Proveedores 360 (/gestion/proveedores)", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Proveedores 360" })).toBeVisible();
 
     const main = page.locator("#main-content");
-    await expect(main.getByText("Elige un proveedor")).toBeVisible();
-    await expect(main.getByText("Compras mes a mes (últimos 24 meses)")).toBeVisible();
+    await expect(main.getByText("Busca un proveedor por nombre o RUT")).toBeVisible();
+    await expect(main.getByText("Compras mes a mes (últimos 12 meses)")).toBeVisible();
     await expect(main.getByRole("heading", { name: "Estacionalidad" })).toBeVisible();
     await expect(main.getByRole("heading", { name: "Últimos documentos" })).toBeVisible();
     // Días de pago real: honesto, pendiente CC-API.

@@ -16,12 +16,12 @@ test.describe("Flujo: Clientes 360 (/gestion/clientes)", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Clientes 360" })).toBeVisible();
 
     const main = page.locator("#main-content");
-    // Selector de cliente (default = el que más pesa).
-    await expect(main.getByText("Elige un cliente")).toBeVisible();
+    // Selector buscable de cliente (default = el que más pesa).
+    await expect(main.getByText("Busca un cliente por nombre o RUT")).toBeVisible();
 
     // Bloques del 360. Los títulos por rol heading ("Estacionalidad" también aparece en el
     // subtítulo de la página como substring); el de barras es un string completo y único.
-    await expect(main.getByText("Ventas mes a mes (últimos 24 meses)")).toBeVisible();
+    await expect(main.getByText("Ventas mes a mes (últimos 12 meses)")).toBeVisible();
     await expect(main.getByRole("heading", { name: "Estacionalidad" })).toBeVisible();
     await expect(main.getByRole("heading", { name: "Últimos documentos" })).toBeVisible();
 
@@ -33,5 +33,11 @@ test.describe("Flujo: Clientes 360 (/gestion/clientes)", () => {
     expect(Math.max(0, ...alturas)).toBeGreaterThan(20);
     // Los "días de pago real" se declaran honestos como pendientes.
     await expect(main.getByText(/Días promedio .* en preparación/i)).toBeVisible();
+
+    // Búsqueda libre por nombre: escribir filtra la lista.
+    const buscar = main.getByRole("combobox");
+    await buscar.click();
+    await buscar.fill("Cliente B");
+    await expect(main.getByRole("option", { name: /Cliente B/ })).toBeVisible();
   });
 });
