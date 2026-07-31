@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — Gestión → Punto de equilibrio v2 (pedido de Fernando 2026-07-30). Toma las líneas de
-   costo recurrentes del breakdown por cuenta (MSW: Sueldos + Gastos recurrentes) y proyecta lo que
-   hay que cubrir el próximo mes → cuánto vender. Gated `operationalResult`. */
+/* Flujo — Gestión → Punto de equilibrio v2 (redefinido 2026-07-31: dato CONCRETO). El piso = lo que
+   gastaste el ÚLTIMO MES CERRADO (MSW: Sueldos + Gastos recurrentes), sin proyección ni %. Gated
+   `operationalResult`. */
 
 test.describe("Flujo: Punto de equilibrio v2 (/gestion/punto-equilibrio)", () => {
-  test("muestra el piso de venta y la tabla de costos recurrentes a cubrir", async ({
+  test("muestra el piso concreto y la tabla de lo gastado el mes cerrado", async ({
     page,
     context,
   }) => {
@@ -18,14 +18,14 @@ test.describe("Flujo: Punto de equilibrio v2 (/gestion/punto-equilibrio)", () =>
     ).toBeVisible();
 
     const main = page.locator("#main-content");
-    // Hero: el piso de venta para cubrir los costos.
+    // Hero: piso concreto anclado al mes pasado.
     await expect(
-      main.getByText(/Necesitas vender .* al mes para cubrir tus costos/i),
+      main.getByText(/Si gastas como el mes pasado, necesitas vender .* para no perder/i),
     ).toBeVisible();
 
-    // Tabla de costos recurrentes con su total.
-    await expect(main.getByRole("heading", { name: "Costos recurrentes a cubrir" })).toBeVisible();
+    // Tabla: lo que gastaste el mes cerrado + total a cubrir.
+    await expect(main.getByRole("heading", { name: /Lo que gastaste en/i })).toBeVisible();
     await expect(main.getByText("Sueldos")).toBeVisible();
-    await expect(main.getByText("Total a cubrir (próximo mes)")).toBeVisible();
+    await expect(main.getByText("Total a cubrir", { exact: true })).toBeVisible();
   });
 });

@@ -9,11 +9,11 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { computePuntoEquilibrio, type PuntoEquilibrio } from "./punto-equilibrio-model";
 
-/* Gestión → Punto de equilibrio v2 (pedido de Fernando 2026-07-30). En vez de asumir fijo/variable,
-   toma las LÍNEAS DE COSTO RECURRENTES reales (breakdown por cuenta) y proyecta lo que hay que
-   cubrir el PRÓXIMO mes con "último mes cerrado + tendencia". El piso de venta = total a cubrir.
-   Tabla línea por línea: mes anterior · mes en curso · a cubrir. Excluye lo "sin clasificar".
-   Sin `export const runtime` (regla 4). */
+/* Gestión → Punto de equilibrio v2 (pedido de Fernando 2026-07-30, redefinido 2026-07-31). Dato
+   CONCRETO, no proyección ni %: "el mes pasado gastaste X; si gastas lo mismo, necesitas vender X
+   para no perder". El piso = lo que gastaste el ÚLTIMO MES CERRADO (completo), sumando tus costos
+   recurrentes reales. No se usa el mes en curso (incompleto) → se acaba el "arriendo de julio en
+   blanco". Excluye lo "sin clasificar". Sin `export const runtime` (regla 4). */
 
 function periodoMenos(period: string, n: number): string {
   return addMonths(period, -n);
@@ -25,7 +25,7 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
     () => Array.from({ length: 24 }, (_, i) => periodoMenos(initialPeriod, i)),
     [initialPeriod],
   );
-  // 4 meses: 3 cerrados + el en curso (para proyectar con los cerrados).
+  // Traemos unos meses de contexto; el modelo ancla en el último CERRADO (previo al en curso).
   const from = periodoMenos(period, 3);
   const bd = useOperationalResultBreakdown(from, period);
 
@@ -46,9 +46,9 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
           <Hero pe={pe} />
           <TablaRecurrentes pe={pe} />
           <p className="text-[11px] text-neutral-light">
-            Cada línea se proyecta con su <b>último mes cerrado + tendencia</b> de los meses previos
-            (no se usa el mes en curso, que puede estar incompleto). Las que aparecen un solo mes se
-            asumen mensuales. Excluimos lo “sin clasificar”. El IVA no cuenta (es un pasa-manos).
+            Tomamos lo que gastaste el <b>último mes cerrado ({formatPeriodLabel(pe.mes)})</b>, que
+            está completo; el mes en curso no se usa porque puede estar a medio clasificar.
+            Excluimos lo “sin clasificar”. El IVA no cuenta (es un pasa-manos).
           </p>
         </>
       )}
@@ -58,11 +58,12 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
 
 function Hero({ pe }: { pe: PuntoEquilibrio }) {
   const piso = pe.totalACubrir;
-  // Comparamos contra el ingreso del ÚLTIMO MES CERRADO (completo), no el mes en curso parcial.
-  const ingresos = pe.ingresoMesAnterior;
+  // Dato concreto: comparamos el piso contra lo que vendiste ESE MISMO mes cerrado.
+  const ingresos = pe.ingresoMes;
   const gap = ingresos - piso;
   const arriba = gap >= 0;
   const Icon = arriba ? ArrowUpRight : ArrowDownRight;
+  const mesLabel = formatPeriodLabel(pe.mes);
   return (
     <section
       className={`rounded-xl border p-5 ${
@@ -78,7 +79,8 @@ function Hero({ pe }: { pe: PuntoEquilibrio }) {
         />
         <div>
           <p className="text-base font-bold text-neutral-dark">
-            Necesitas vender {formatClp(Math.round(piso))} al mes para cubrir tus costos
+            Si gastas como el mes pasado, necesitas vender {formatClp(Math.round(piso))} al mes para
+            no perder
           </p>
           <p className="mt-1 flex items-center gap-1 text-sm text-neutral-mid">
             <Icon
@@ -87,9 +89,9 @@ function Hero({ pe }: { pe: PuntoEquilibrio }) {
             />
             {ingresos > 0
               ? arriba
-                ? `El mes pasado (${formatPeriodLabel(pe.mesAnterior)}) vendiste ${formatClp(ingresos)} — ${formatClp(gap)} sobre tu piso.`
-                : `El mes pasado (${formatPeriodLabel(pe.mesAnterior)}) vendiste ${formatClp(ingresos)} — ${formatClp(Math.abs(gap))} bajo tu piso.`
-              : "Es la suma de tus costos recurrentes proyectados para el próximo mes."}
+                ? `En ${mesLabel} gastaste ${formatClp(Math.round(piso))} y vendiste ${formatClp(ingresos)} — ${formatClp(gap)} sobre tu piso.`
+                : `En ${mesLabel} gastaste ${formatClp(Math.round(piso))} y vendiste ${formatClp(ingresos)} — ${formatClp(Math.abs(gap))} bajo tu piso.`
+              : `Es lo que gastaste en costos recurrentes en ${mesLabel}.`}
           </p>
         </div>
       </div>
@@ -100,47 +102,30 @@ function Hero({ pe }: { pe: PuntoEquilibrio }) {
 function TablaRecurrentes({ pe }: { pe: PuntoEquilibrio }) {
   return (
     <section className="rounded-xl border border-border bg-surface p-5">
-      <h2 className="text-sm font-bold text-neutral-dark">Costos recurrentes a cubrir</h2>
+      <h2 className="text-sm font-bold text-neutral-dark">
+        Lo que gastaste en {formatPeriodLabel(pe.mes)}
+      </h2>
       <div className="mt-3 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-[11px] uppercase tracking-wide text-neutral-mid">
               <th className="py-1 pr-3 text-left font-semibold">Línea</th>
-              <th className="py-1 px-3 text-right font-semibold">
-                {formatPeriodLabel(pe.mesAnterior)}
-              </th>
-              <th className="py-1 px-3 text-right font-semibold">
-                {formatPeriodLabel(pe.mesActual)}
-              </th>
-              <th className="py-1 pl-3 text-right font-semibold text-neutral-dark">A cubrir</th>
+              <th className="py-1 pl-3 text-right font-semibold text-neutral-dark">Gastaste</th>
             </tr>
           </thead>
           <tbody>
             {pe.lineas.map((l) => (
               <tr key={l.label} className="border-t border-border/60">
-                <td className="py-1.5 pr-3 text-neutral-dark">
-                  {l.label}
-                  {l.soloUnMes && (
-                    <span className="ml-2 text-[10px] text-neutral-light">(solo 1 mes)</span>
-                  )}
-                </td>
-                <td className="py-1.5 px-3 text-right tabular-nums text-neutral-mid">
-                  {l.mesAnterior > 0 ? formatClp(l.mesAnterior) : "—"}
-                </td>
-                <td className="py-1.5 px-3 text-right tabular-nums text-neutral-mid">
-                  {l.mesActual > 0 ? formatClp(l.mesActual) : "—"}
-                </td>
+                <td className="py-1.5 pr-3 text-neutral-dark">{l.label}</td>
                 <td className="py-1.5 pl-3 text-right font-semibold tabular-nums text-neutral-dark">
-                  {formatClp(Math.round(l.proyeccion))}
+                  {formatClp(Math.round(l.monto))}
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-border-strong">
-              <td className="py-2 pr-3 font-bold text-neutral-dark" colSpan={3}>
-                Total a cubrir (próximo mes)
-              </td>
+              <td className="py-2 pr-3 font-bold text-neutral-dark">Total a cubrir</td>
               <td className="py-2 pl-3 text-right font-bold tabular-nums text-neutral-dark">
                 {formatClp(Math.round(pe.totalACubrir))}
               </td>
@@ -155,8 +140,7 @@ function TablaRecurrentes({ pe }: { pe: PuntoEquilibrio }) {
 function SinDato() {
   return (
     <section className="rounded-xl border border-border bg-surface p-6 text-sm text-neutral-mid">
-      Todavía no hay suficientes meses cerrados con costos clasificados para proyectar el punto de
-      equilibrio.
+      Todavía no hay un mes cerrado con costos clasificados para calcular tu punto de equilibrio.
     </section>
   );
 }
