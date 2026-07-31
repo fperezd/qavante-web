@@ -24,6 +24,13 @@ test.describe("Flujo: Clientes 360 (/gestion/clientes)", () => {
     await expect(main.getByText("Ventas mes a mes (últimos 24 meses)")).toBeVisible();
     await expect(main.getByRole("heading", { name: "Estacionalidad" })).toBeVisible();
     await expect(main.getByRole("heading", { name: "Últimos documentos" })).toBeVisible();
+
+    // Regresión: las barras deben tener ALTURA real (el % no resolvía sin altura definida en el
+    // padre → gráfico vacío). Al menos una barra > 20px.
+    const alturas = await main
+      .locator('[data-testid="serie-barra"]')
+      .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+    expect(Math.max(0, ...alturas)).toBeGreaterThan(20);
     // Los "días de pago real" se declaran honestos como pendientes.
     await expect(main.getByText(/Días promedio .* en preparación/i)).toBeVisible();
   });
