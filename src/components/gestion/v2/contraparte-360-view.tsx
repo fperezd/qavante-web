@@ -40,6 +40,12 @@ const MESES_CORTOS = [
   "Dic",
 ];
 
+/** "2026-07" → "07-2026" (mes-año, no año-mes). Deja el input si no parsea. */
+function mesAnioNum(periodo: string): string {
+  const m = periodo.match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[2]}-${m[1]}` : periodo;
+}
+
 export interface Config360 {
   kind: "ventas" | "compras";
   /** "cliente" / "proveedor" */
@@ -418,13 +424,13 @@ function Recuperacion({
           label="Mejor mes"
           value={formatClp(mejor.monto)}
           tone="default"
-          hint={mejor.periodo}
+          hint={mesAnioNum(mejor.periodo)}
         />
         <QavanteStatTile
           label="Mes en curso"
           value={formatClp(actual.monto)}
           tone="default"
-          hint={actual.periodo}
+          hint={mesAnioNum(actual.periodo)}
         />
         <QavanteStatTile
           label={esVentas ? "A recuperar" : "Diferencia"}
@@ -469,9 +475,9 @@ function Barras({ serie }: { serie: { periodo: string; monto: number }[] }) {
         })}
       </div>
       {activo && (
-        <p className="mt-2 text-xs text-neutral-mid">
-          <b className="tabular-nums text-neutral-dark">{activo.periodo}</b> ·{" "}
-          {formatClp(activo.monto)}
+        <p className="mt-2 text-sm font-semibold text-neutral-dark">
+          <span className="tabular-nums">{mesAnioNum(activo.periodo)}</span> ·{" "}
+          <span className="tabular-nums">{formatClp(activo.monto)}</span>
         </p>
       )}
     </div>
