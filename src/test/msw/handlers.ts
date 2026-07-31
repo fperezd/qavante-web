@@ -604,6 +604,10 @@ const treasuryHandlers = [
   http.post("*/api/treasury/bank-movements/apply-rules", () =>
     HttpResponse.json({ evaluados: 12, clasificados: 5, sin_regla: 7 }, { status: 200 }),
   ),
+  // Traspasos internos (D1): 8 evaluados → 2 pares (4 patas clasificadas).
+  http.post("*/api/treasury/bank-movements/detect-internal-transfers", () =>
+    HttpResponse.json({ evaluados: 8, pares: 2, clasificados: 4 }, { status: 200 }),
+  ),
 ];
 
 /* Management — árbol de cuentas + dimensiones. Read-only. Fixtures con

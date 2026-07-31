@@ -26,6 +26,7 @@ export type CashCycleResponse = components["schemas"]["CashCycleResponse"];
 export type BankMovementsListResponse = components["schemas"]["BankMovementsListResponse"];
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
 export type ApplyRulesResponse = components["schemas"]["ApplyRulesResponse"];
+export type InternalTransferResponse = components["schemas"]["InternalTransferResponse"];
 export type PayrollPaydayResponse = components["schemas"]["PayrollPaydayResponse"];
 export type PutPayrollPaydayRequest = components["schemas"]["PutPayrollPaydayRequest"];
 export type BankAccountItem = components["schemas"]["BankAccountItem"];
@@ -293,6 +294,23 @@ export function useApplyRules() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<ApplyRulesResponse>("/api/treasury/bank-movements/apply-rules"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: treasuryKeys.all });
+      qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
+      qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
+    },
+  });
+}
+
+/** `POST /api/treasury/bank-movements/detect-internal-transfers` (ADR-0067 A1) — detecta pares
+ *  cargo↔abono entre CUENTAS PROPIAS del tenant y los clasifica como `internal_bank_transfer`
+ *  (no son ingreso ni gasto, netean a cero). Devuelve `{evaluados, pares, clasificados}`. Como
+ *  cambia clasificaciones + financial_impacts, invalida movimientos + reglas + reportes. */
+export function useDetectInternalTransfers() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<InternalTransferResponse>("/api/treasury/bank-movements/detect-internal-transfers"),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: treasuryKeys.all });
       qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
