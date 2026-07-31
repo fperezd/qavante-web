@@ -7,6 +7,7 @@ import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import { addMonths, comparePeriod, toPeriod, type PeriodRange } from "@/lib/period/period-range";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
+import { normalizeRut } from "@/lib/validators/rut";
 import type { DocConVencimiento } from "@/components/terminos/terminos-pago";
 import {
   agregarContrapartes,
@@ -109,6 +110,11 @@ export function Contraparte360View({ config }: { config: Config360 }) {
         config={config}
         totalGlobal={totalGlobal}
       />
+      {maestro.isFetching && (
+        <p className="text-xs text-neutral-light" role="status">
+          Cargando más meses… los números pueden ajustarse.
+        </p>
+      )}
       {sel && (
         <Detalle
           sel={sel}
@@ -267,7 +273,7 @@ function Detalle({
   const pct = concentracionPct(sel.total, totalGlobal);
 
   // Riesgo: mayor documento y meses desde la última actividad.
-  const docsSel = docs.filter((d) => d.rut === sel.rut);
+  const docsSel = docs.filter((d) => normalizeRut(d.rut) === sel.rut);
   // "Documento más grande" del período de FOCO (últimos 12 meses), coherente con el resto de la vista.
   const mayor = docsSel
     .filter((d) => {
@@ -472,29 +478,47 @@ function Barras({ serie }: { serie: { periodo: string; monto: number }[] }) {
   );
 }
 
-/** 12 barras Ene–Dic con el promedio; resalta el mes pico. */
+/** 12 barras Ene–Dic con el promedio; resalta el mes pico y muestra el valor al pasar el mouse. */
 function Estacional({ est }: { est: { mes: number; promedio: number }[] }) {
+  const [hover, setHover] = React.useState<number | null>(null);
   const max = Math.max(1, ...est.map((e) => Math.abs(e.promedio)));
   const pico = est.reduce((mx, e) => (e.promedio > mx.promedio ? e : mx), est[0]!);
+  const activo = hover != null ? est[hover] : pico;
   return (
-    <div className="mt-3 flex items-end gap-1">
-      {est.map((e) => {
-        const h = Math.round((Math.abs(e.promedio) / max) * 100);
-        const esPico = e.mes === pico.mes && pico.promedio > 0;
-        return (
-          <div key={e.mes} className="flex flex-1 flex-col items-center gap-1">
-            {/* Caja de altura DEFINIDA (h-20) + items-end para que la barra en % se vea. */}
-            <div className="flex h-20 w-full items-end">
-              <div
-                className={`w-full rounded-t ${esPico ? "bg-brand-primary" : "bg-brand-primary/40"}`}
-                style={{ height: `${Math.max(3, h)}%` }}
-                title={`${MESES_CORTOS[e.mes - 1]}: ${formatClp(e.promedio)}`}
-              />
+    <div>
+      <div className="mt-3 flex items-end gap-1">
+        {est.map((e, i) => {
+          const h = Math.round((Math.abs(e.promedio) / max) * 100);
+          const esPico = e.mes === pico.mes && pico.promedio > 0;
+          const on = i === hover;
+          return (
+            <div
+              key={e.mes}
+              className="flex flex-1 flex-col items-center gap-1"
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+            >
+              {/* Caja de altura DEFINIDA (h-20) + items-end para que la barra en % se vea. */}
+              <div className="flex h-20 w-full items-end">
+                <div
+                  className={`w-full rounded-t transition-colors ${
+                    on || esPico ? "bg-brand-primary" : "bg-brand-primary/40"
+                  }`}
+                  style={{ height: `${Math.max(3, h)}%` }}
+                  title={`${MESES_CORTOS[e.mes - 1]}: ${formatClp(e.promedio)}`}
+                />
+              </div>
+              <span className="text-[9px] text-neutral-mid">{MESES_CORTOS[e.mes - 1]}</span>
             </div>
-            <span className="text-[9px] text-neutral-mid">{MESES_CORTOS[e.mes - 1]}</span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+      {activo && activo.promedio > 0 && (
+        <p className="mt-1 text-xs text-neutral-mid">
+          <b className="text-neutral-dark">{MESES_CORTOS[activo.mes - 1]}</b> · promedio{" "}
+          {formatClp(activo.promedio)}
+        </p>
+      )}
     </div>
   );
 }
