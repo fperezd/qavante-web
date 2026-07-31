@@ -14,9 +14,11 @@ import { formatClp } from "@/lib/formatters/clp";
    cuando el backend no puede calcular el ratio (ventana dominada por NC → *_days
    null). Sin `export const runtime` (regla 4). */
 
-/** Días → "N días" / "—" si null. */
+/** Días → "N días" (redondeado) / "—" si null. */
 function dias(n: number | null): string {
-  return n == null ? "—" : `${n} ${Math.abs(n) === 1 ? "día" : "días"}`;
+  if (n == null) return "—";
+  const r = Math.round(n);
+  return `${r} ${Math.abs(r) === 1 ? "día" : "días"}`;
 }
 
 /** Venta neta diaria de la ventana (para traducir días de ciclo a $ de caja). */
@@ -47,7 +49,7 @@ export function CicloCajaView() {
   return (
     <div className="space-y-5">
       {/* Hero: el veredicto en lenguaje de dueño */}
-      <VeredictoCiclo ccc={ccc} venta={ventaDiaria(c)} />
+      <VeredictoCiclo ccc={ccc} dso={dso} venta={ventaDiaria(c)} />
 
       {/* Los tres números */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -95,7 +97,32 @@ export function CicloCajaView() {
 }
 
 /** El veredicto: qué significan los días de ciclo para el dueño. */
-function VeredictoCiclo({ ccc, venta }: { ccc: number | null; venta: number }) {
+function VeredictoCiclo({
+  ccc,
+  dso,
+  venta,
+}: {
+  ccc: number | null;
+  dso: number | null;
+  venta: number;
+}) {
+  // Caso parcial (típico en empresas de servicios como Tooxs): sabemos cuánto tarda el cobro (DSO),
+  // pero sin costo de ventas (COGS) el backend no puede estimar los días de pago → no hay ciclo
+  // completo. Es honesto y esperable, no un error → mensaje informativo, no de alarma.
+  if (ccc == null && dso != null) {
+    return (
+      <section className="rounded-xl border border-brand-primary/25 bg-brand-primary/[.05] p-5 text-[13px]">
+        <p className="font-bold text-neutral-dark">
+          Cobras en {Math.round(dso)} días — pero tu ciclo completo aún no se puede calcular
+        </p>
+        <p className="mt-1 text-neutral-mid">
+          Para el ciclo completo necesitamos tu <b>costo de ventas</b> (lo que cuesta lo que
+          vendes), y este período no tiene. Es lo normal en empresas de servicios: el cobro sí se
+          mide, el ciclo de pago no.
+        </p>
+      </section>
+    );
+  }
   if (ccc == null) {
     return (
       <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5 text-[13px]">
