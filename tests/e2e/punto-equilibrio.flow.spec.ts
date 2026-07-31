@@ -1,12 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — Gestión → Punto de equilibrio (pedido de Fernando 2026-07-29). Deriva
-   fijo/variable del operational-result (MSW fixture del mes) y responde "¿cuánto
-   necesito vender para no perder?". Gated `operationalResult` (ON en e2e). */
+/* Flujo — Gestión → Punto de equilibrio v2 (pedido de Fernando 2026-07-30). Toma las líneas de
+   costo recurrentes del breakdown por cuenta (MSW: Sueldos + Gastos recurrentes) y proyecta lo que
+   hay que cubrir el próximo mes → cuánto vender. Gated `operationalResult`. */
 
-test.describe("Flujo: Punto de equilibrio (/gestion/punto-equilibrio)", () => {
-  test("muestra el piso de venta, los tres números y la composición", async ({ page, context }) => {
+test.describe("Flujo: Punto de equilibrio v2 (/gestion/punto-equilibrio)", () => {
+  test("muestra el piso de venta y la tabla de costos recurrentes a cubrir", async ({
+    page,
+    context,
+  }) => {
     await loginAs(context, "owner");
     await page.goto("/gestion/punto-equilibrio");
 
@@ -15,18 +18,14 @@ test.describe("Flujo: Punto de equilibrio (/gestion/punto-equilibrio)", () => {
     ).toBeVisible();
 
     const main = page.locator("#main-content");
-    // Hero: el piso de venta mensual.
-    await expect(main.getByText(/Necesitas vender .* al mes para no perder/i)).toBeVisible();
+    // Hero: el piso de venta para cubrir los costos.
+    await expect(
+      main.getByText(/Necesitas vender .* al mes para cubrir tus costos/i),
+    ).toBeVisible();
 
-    // Los tres números (labels de los tiles; "Vas en" exact para no chocar con el hero
-    // "Vas en $18.500.000 — …", y "Punto de equilibrio" con .first() por el h1).
-    await expect(main.getByText("Punto de equilibrio").first()).toBeVisible();
-    await expect(main.getByText("Vas en", { exact: true })).toBeVisible();
-    await expect(main.getByText("Margen de contribución")).toBeVisible();
-
-    // Composición + la nota honesta de aproximación.
-    await expect(main.getByText("Cómo se compone")).toBeVisible();
-    await expect(main.getByText(/Costo fijo mensual/i)).toBeVisible();
-    await expect(main.getByText(/tratamos el/i)).toBeVisible();
+    // Tabla de costos recurrentes con su total.
+    await expect(main.getByRole("heading", { name: "Costos recurrentes a cubrir" })).toBeVisible();
+    await expect(main.getByText("Sueldos")).toBeVisible();
+    await expect(main.getByText("Total a cubrir (próximo mes)")).toBeVisible();
   });
 });
