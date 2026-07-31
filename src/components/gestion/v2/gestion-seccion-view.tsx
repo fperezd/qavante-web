@@ -23,6 +23,7 @@ import {
   margenOperacionalPct,
   mesCorto,
   resultadoConfiable,
+  tendenciaConfiable,
 } from "./gestion-v2-map";
 
 /* Sub-pantallas FOCALIZADAS y RICAS de Gestión (pedido de Fernando 2026-07-28):
@@ -149,6 +150,9 @@ function SeccionBody({
   if (seccion === "tendencia" && breakdown) {
     const puntos = mapTendencia(breakdown);
     if (puntos.length < 2) return <SinDato label="tendencia" />;
+    // Guarda de honestidad: algún mes con margen >100% (bug de costos en $0) ⇒ no mostrar la
+    // tendencia como real (mismo criterio que la vista P&L). Antes esta sub-vista lo omitía.
+    if (!tendenciaConfiable(puntos)) return <TendenciaNoConfiable />;
     return <Tendencia puntos={puntos} />;
   }
   return <SinDato label={TITULO[seccion].toLowerCase()} />;
@@ -197,11 +201,13 @@ function Margenes({
 
       <AlertaTendenciaMargen puntos={puntos} />
 
-      {rev > 0 && neto >= 0 && (
+      {/* "De cada $100": derivamos los 3 tramos de los MISMOS montos ($) → siempre suman 100 y
+          ninguno queda negativo. Solo si el mes es plausible (resultado ≥0 y ≤ margen bruto). */}
+      {rev > 0 && neto >= 0 && bruto >= neto && (
         <DeCada100
           costoPct={costoPct}
-          gastosPct={Math.max(0, brutoPct - netoPct)}
-          quedaPct={netoPct}
+          gastosPct={((bruto - neto) / rev) * 100}
+          quedaPct={(neto / rev) * 100}
         />
       )}
 
@@ -348,6 +354,18 @@ function CostosGastos({
 }
 
 /* ---------- Tendencia ---------- */
+function TendenciaNoConfiable() {
+  return (
+    <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5 text-[13px]">
+      <p className="font-bold text-warning-700">No podemos mostrar la tendencia con confianza</p>
+      <p className="mt-1 text-neutral-dark">
+        Algún mes da un margen imposible (≥100%), típicamente un gasto revertido o mal clasificado.
+        Está escalado; mira el detalle en <b>Resultado</b>.
+      </p>
+    </section>
+  );
+}
+
 function Tendencia({ puntos }: { puntos: TendenciaPunto[] }) {
   const vals = puntos.map((p) => p.margenPct);
   const max = Math.max(...vals);

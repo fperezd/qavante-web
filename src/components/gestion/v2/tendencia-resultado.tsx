@@ -27,9 +27,11 @@ function anio2(periodoFull?: string): string {
   return m ? m[1]!.slice(2) : "";
 }
 
-/** % compacto para el eje (entero, sin decimales) — evita que se pisen con muchas barras. */
+/** % compacto para el eje (entero, sin decimales) — evita que se pisen con muchas barras.
+ *  Redondea el valor CON signo primero para no imprimir "−0%" en negativos chicos. */
 function fmtPctCorto(v: number): string {
-  return `${v < 0 ? "−" : ""}${Math.round(Math.abs(v))}%`;
+  const r = Math.round(v);
+  return `${r < 0 ? "−" : ""}${Math.abs(r)}%`;
 }
 
 export interface TendenciaResultadoProps {
