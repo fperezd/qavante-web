@@ -94,9 +94,60 @@ describe("computePuntoEquilibrio", () => {
     expect(pe.mesActual).toBe("2026-07");
   });
 
+  it("expone el ingreso del último mes CERRADO (no el parcial en curso)", () => {
+    expect(pe.ingresoMesAnterior).toBe(42_000_000); // ingresos de junio (mes cerrado)
+  });
+
   it("sin al menos un mes cerrado → null", () => {
     expect(
       computePuntoEquilibrio({ ...BD, months: ["2026-07"], proforma_month: "2026-07" }),
     ).toBeNull();
+  });
+});
+
+/* Robustez (revisión 2026-07-31): huecos de clasificación y reversos de NC. */
+function bdCosto(label: string, byMonth: string[]): OperationalResultBreakdown {
+  return {
+    generated_at: "2026-07-31T00:00:00Z",
+    period_from: "2026-04",
+    period_to: "2026-07",
+    mode: "por_cuenta",
+    months: ["2026-04", "2026-05", "2026-06", "2026-07"],
+    proforma_month: "2026-07",
+    rows: [
+      {
+        kind: "section",
+        key: "gasto",
+        label: "Total Gastos",
+        by_month: byMonth,
+        total: "0",
+        children: [{ kind: "account", key: "x", label, by_month: byMonth, total: "0" }],
+      },
+    ] as OperationalResultBreakdown["rows"],
+  };
+}
+
+describe("computePuntoEquilibrio — robustez", () => {
+  it("hueco en el mes reciente: la línea NO desaparece (piso = último mes con actividad)", () => {
+    // abr,may,jun cerrados = -1M, -1M, 0 (jul en curso ignorado). Antes se borraba; ahora proyecta 1M.
+    const pe = computePuntoEquilibrio(bdCosto("Arriendo", ["-1000000", "-1000000", "0", "0"]))!;
+    expect(pe.lineas).toHaveLength(1);
+    expect(pe.lineas[0]!.proyeccion).toBe(1_000_000);
+  });
+
+  it("reverso de NC (un mes positivo) NO excluye la línea de costo", () => {
+    // cerrados = -1M, +200k, -1M → neto negativo ⇒ es costo; el mes positivo cuenta 0 costo.
+    const pe = computePuntoEquilibrio(
+      bdCosto("Proveedor", ["-1000000", "200000", "-1000000", "0"]),
+    )!;
+    expect(pe.lineas.map((l) => l.label)).toEqual(["Proveedor"]);
+    expect(pe.lineas[0]!.proyeccion).toBe(1_000_000); // nz=[1M,1M] → base 1M, pendiente 0
+  });
+
+  it("pendiente negativa fuerte no borra un costo vivo (se queda en el último mes)", () => {
+    const pe = computePuntoEquilibrio(
+      bdCosto("Decreciente", ["-3000000", "-2000000", "-1000000", "0"]),
+    )!;
+    expect(pe.lineas[0]!.proyeccion).toBe(1_000_000); // base 1M + slope(-1M) = 0 ⇒ piso 1M
   });
 });

@@ -3,9 +3,8 @@
 import * as React from "react";
 import { ArrowDownRight, ArrowUpRight, Calendar, Target } from "lucide-react";
 import { QavanteInlineError } from "@/components/qavante";
-import { useOperationalResult, useOperationalResultBreakdown } from "@/lib/api/gestion";
+import { useOperationalResultBreakdown } from "@/lib/api/gestion";
 import { addMonths } from "@/lib/period/period-range";
-import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { computePuntoEquilibrio, type PuntoEquilibrio } from "./punto-equilibrio-model";
@@ -29,7 +28,6 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
   // 4 meses: 3 cerrados + el en curso (para proyectar con los cerrados).
   const from = periodoMenos(period, 3);
   const bd = useOperationalResultBreakdown(from, period);
-  const cur = useOperationalResult(period);
 
   const pe = React.useMemo(() => (bd.data ? computePuntoEquilibrio(bd.data) : null), [bd.data]);
 
@@ -45,7 +43,7 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
         <SinDato />
       ) : (
         <>
-          <Hero pe={pe} ingresos={parseAmount(cur.data?.revenue)} />
+          <Hero pe={pe} />
           <TablaRecurrentes pe={pe} />
           <p className="text-[11px] text-neutral-light">
             Cada línea se proyecta con su <b>último mes cerrado + tendencia</b> de los meses previos
@@ -58,8 +56,10 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
   );
 }
 
-function Hero({ pe, ingresos }: { pe: PuntoEquilibrio; ingresos: number }) {
+function Hero({ pe }: { pe: PuntoEquilibrio }) {
   const piso = pe.totalACubrir;
+  // Comparamos contra el ingreso del ÚLTIMO MES CERRADO (completo), no el mes en curso parcial.
+  const ingresos = pe.ingresoMesAnterior;
   const gap = ingresos - piso;
   const arriba = gap >= 0;
   const Icon = arriba ? ArrowUpRight : ArrowDownRight;
@@ -87,8 +87,8 @@ function Hero({ pe, ingresos }: { pe: PuntoEquilibrio; ingresos: number }) {
             />
             {ingresos > 0
               ? arriba
-                ? `Vas en ${formatClp(ingresos)} este mes — tienes ${formatClp(gap)} de colchón.`
-                : `Vas en ${formatClp(ingresos)} este mes — te faltan ${formatClp(Math.abs(gap))} para cubrir.`
+                ? `El mes pasado (${formatPeriodLabel(pe.mesAnterior)}) vendiste ${formatClp(ingresos)} — ${formatClp(gap)} sobre tu piso.`
+                : `El mes pasado (${formatPeriodLabel(pe.mesAnterior)}) vendiste ${formatClp(ingresos)} — ${formatClp(Math.abs(gap))} bajo tu piso.`
               : "Es la suma de tus costos recurrentes proyectados para el próximo mes."}
           </p>
         </div>
