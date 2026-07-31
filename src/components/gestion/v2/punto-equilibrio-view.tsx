@@ -2,56 +2,22 @@
 
 import * as React from "react";
 import { ArrowDownRight, ArrowUpRight, Calendar, Target } from "lucide-react";
-import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/qavante";
-import { useOperationalResult, type OperationalResultResponse } from "@/lib/api/gestion";
+import { QavanteInlineError } from "@/components/qavante";
+import { useOperationalResult, useOperationalResultBreakdown } from "@/lib/api/gestion";
+import { addMonths } from "@/lib/period/period-range";
 import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
-import { resultadoConfiable } from "./gestion-v2-map";
+import { computePuntoEquilibrio, type PuntoEquilibrio } from "./punto-equilibrio-model";
 
-/* Gestión → Punto de equilibrio (pedido de Fernando 2026-07-29, "las 3"). Responde
-   "¿cuánto necesito vender para no perder?". Aproximación honesta y estándar para una
-   PYME sin tagging fijo/variable granular: COSTO DE VENTAS = variable (escala con la
-   venta), GASTOS (laboral + honorarios + recurrentes) = fijos. Punto de equilibrio =
-   costo fijo / margen de contribución. Todo del `operational-result` (ya consumido);
-   conserva la guarda de honestidad (margen ≥100% ⇒ no calcular). Sin `export const
-   runtime` (regla 4). */
+/* Gestión → Punto de equilibrio v2 (pedido de Fernando 2026-07-30). En vez de asumir fijo/variable,
+   toma las LÍNEAS DE COSTO RECURRENTES reales (breakdown por cuenta) y proyecta lo que hay que
+   cubrir el PRÓXIMO mes con "último mes cerrado + tendencia". El piso de venta = total a cubrir.
+   Tabla línea por línea: mes anterior · mes en curso · a cubrir. Excluye lo "sin clasificar".
+   Sin `export const runtime` (regla 4). */
 
-/** Resta n meses a "YYYY-MM". */
 function periodoMenos(period: string, n: number): string {
-  const m = period.match(/^(\d{4})-(\d{2})/);
-  if (!m) return period;
-  let y = Number(m[1]);
-  let mes = Number(m[2]) - n;
-  while (mes <= 0) {
-    mes += 12;
-    y -= 1;
-  }
-  return `${y}-${String(mes).padStart(2, "0")}`;
-}
-
-function fmtPct(v: number): string {
-  return `${v.toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
-}
-
-interface Equilibrio {
-  ingresos: number;
-  variable: number;
-  fijo: number;
-  /** Margen de contribución (0–1): cuánto de cada peso queda para cubrir los fijos. */
-  cmr: number;
-  /** Punto de equilibrio ($ de venta) o null si no es calculable (cmr ≤ 0). */
-  breakeven: number | null;
-}
-
-function calcular(r: OperationalResultResponse): Equilibrio {
-  const abs = (s: string) => Math.abs(parseAmount(s));
-  const ingresos = parseAmount(r.revenue);
-  const variable = abs(r.direct_cost);
-  const fijo = abs(r.labor_cost) + abs(r.professional_fees) + abs(r.recurring_expenses);
-  const cmr = ingresos > 0 ? (ingresos - variable) / ingresos : 0;
-  const breakeven = cmr > 0 ? fijo / cmr : null;
-  return { ingresos, variable, fijo, cmr, breakeven };
+  return addMonths(period, -n);
 }
 
 export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }) {
@@ -60,77 +26,41 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
     () => Array.from({ length: 24 }, (_, i) => periodoMenos(initialPeriod, i)),
     [initialPeriod],
   );
+  // 4 meses: 3 cerrados + el en curso (para proyectar con los cerrados).
+  const from = periodoMenos(period, 3);
+  const bd = useOperationalResultBreakdown(from, period);
   const cur = useOperationalResult(period);
+
+  const pe = React.useMemo(() => (bd.data ? computePuntoEquilibrio(bd.data) : null), [bd.data]);
 
   return (
     <div className="space-y-5">
       <MonthPicker value={period} onChange={setPeriod} months={months} />
 
-      {cur.isError ? (
-        <QavanteInlineError error={cur.error} what="el punto de equilibrio" />
-      ) : cur.isFetching && !cur.data ? (
+      {bd.isError ? (
+        <QavanteInlineError error={bd.error} what="el punto de equilibrio" />
+      ) : bd.isFetching && !bd.data ? (
         <div className="h-40 animate-pulse rounded-xl bg-neutral-light/30" aria-busy="true" />
-      ) : cur.data && !resultadoConfiable(cur.data) ? (
-        <NoConfiable />
-      ) : cur.data ? (
-        <Contenido eq={calcular(cur.data)} mes={cur.data} />
-      ) : null}
+      ) : !pe || pe.lineas.length === 0 ? (
+        <SinDato />
+      ) : (
+        <>
+          <Hero pe={pe} ingresos={parseAmount(cur.data?.revenue)} />
+          <TablaRecurrentes pe={pe} />
+          <p className="text-[11px] text-neutral-light">
+            Cada línea se proyecta con su <b>último mes cerrado + tendencia</b> de los meses previos
+            (no se usa el mes en curso, que puede estar incompleto). Las que aparecen un solo mes se
+            asumen mensuales. Excluimos lo “sin clasificar”. El IVA no cuenta (es un pasa-manos).
+          </p>
+        </>
+      )}
     </div>
   );
 }
 
-function Contenido({ eq, mes }: { eq: Equilibrio; mes: OperationalResultResponse }) {
-  return (
-    <>
-      <Hero eq={eq} />
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <QavanteStatTile
-          label="Punto de equilibrio"
-          value={eq.breakeven == null ? "—" : formatClp(Math.round(eq.breakeven))}
-          tone="default"
-          hint="Venta mensual con la que no ganas ni pierdes."
-        />
-        <QavanteStatTile
-          label="Vas en"
-          value={formatClp(eq.ingresos)}
-          tone="default"
-          hint="Tus ingresos de este mes."
-        />
-        <QavanteStatTile
-          label="Margen de contribución"
-          value={fmtPct(eq.cmr * 100)}
-          tone={eq.cmr > 0 ? "success" : "danger"}
-          hint="De cada $100 de venta, lo que queda para cubrir tus costos fijos."
-        />
-      </div>
-
-      <Composicion eq={eq} />
-
-      <p className="text-[11px] text-neutral-light">
-        Aproximación: tratamos el <b>costo de ventas</b> como variable y los <b>gastos</b> (laboral,
-        honorarios, recurrentes) como fijos. Sirve para dimensionar el piso de venta, no como cierre
-        contable.
-      </p>
-
-      <ConfianzaPie mes={mes} />
-    </>
-  );
-}
-
-function Hero({ eq }: { eq: Equilibrio }) {
-  if (eq.breakeven == null) {
-    return (
-      <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5 text-[13px]">
-        <p className="font-bold text-warning-700">No podemos calcular tu punto de equilibrio</p>
-        <p className="mt-1 text-neutral-dark">
-          Tu costo de ventas iguala o supera tus ingresos del mes, así que cada venta no deja aporte
-          para cubrir los costos fijos. Revisa el costo de ventas en <b>Márgenes</b>.
-        </p>
-      </section>
-    );
-  }
-  const gap = eq.ingresos - eq.breakeven;
+function Hero({ pe, ingresos }: { pe: PuntoEquilibrio; ingresos: number }) {
+  const piso = pe.totalACubrir;
+  const gap = ingresos - piso;
   const arriba = gap >= 0;
   const Icon = arriba ? ArrowUpRight : ArrowDownRight;
   return (
@@ -148,16 +78,18 @@ function Hero({ eq }: { eq: Equilibrio }) {
         />
         <div>
           <p className="text-base font-bold text-neutral-dark">
-            Necesitas vender {formatClp(Math.round(eq.breakeven))} al mes para no perder
+            Necesitas vender {formatClp(Math.round(piso))} al mes para cubrir tus costos
           </p>
           <p className="mt-1 flex items-center gap-1 text-sm text-neutral-mid">
             <Icon
               className={`h-4 w-4 ${arriba ? "text-success-700" : "text-danger-500"}`}
               aria-hidden="true"
             />
-            {arriba
-              ? `Vas en ${formatClp(eq.ingresos)} — tienes ${formatClp(gap)} de colchón sobre tu piso.`
-              : `Vas en ${formatClp(eq.ingresos)} — te faltan ${formatClp(Math.abs(gap))} de venta para no perder.`}
+            {ingresos > 0
+              ? arriba
+                ? `Vas en ${formatClp(ingresos)} este mes — tienes ${formatClp(gap)} de colchón.`
+                : `Vas en ${formatClp(ingresos)} este mes — te faltan ${formatClp(Math.abs(gap))} para cubrir.`
+              : "Es la suma de tus costos recurrentes proyectados para el próximo mes."}
           </p>
         </div>
       </div>
@@ -165,53 +97,66 @@ function Hero({ eq }: { eq: Equilibrio }) {
   );
 }
 
-function Composicion({ eq }: { eq: Equilibrio }) {
-  const varPorCien = Math.round((1 - eq.cmr) * 100);
-  const fila = (label: string, valor: string) => (
-    <div className="flex items-center justify-between border-t border-dashed border-border py-1.5 text-sm">
-      <span className="text-neutral-mid">{label}</span>
-      <span className="font-semibold tabular-nums text-neutral-dark">{valor}</span>
-    </div>
-  );
+function TablaRecurrentes({ pe }: { pe: PuntoEquilibrio }) {
   return (
     <section className="rounded-xl border border-border bg-surface p-5">
-      <h2 className="text-sm font-bold text-neutral-dark">Cómo se compone</h2>
-      {fila("Costo fijo mensual (a cubrir)", formatClp(eq.fijo))}
-      {fila("Costo variable por cada $100 de venta", `${formatClp(varPorCien)}`)}
-      {fila("Aporte por cada $100 de venta", formatClp(Math.round(eq.cmr * 100)))}
+      <h2 className="text-sm font-bold text-neutral-dark">Costos recurrentes a cubrir</h2>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-wide text-neutral-mid">
+              <th className="py-1 pr-3 text-left font-semibold">Línea</th>
+              <th className="py-1 px-3 text-right font-semibold">
+                {formatPeriodLabel(pe.mesAnterior)}
+              </th>
+              <th className="py-1 px-3 text-right font-semibold">
+                {formatPeriodLabel(pe.mesActual)}
+              </th>
+              <th className="py-1 pl-3 text-right font-semibold text-neutral-dark">A cubrir</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pe.lineas.map((l) => (
+              <tr key={l.label} className="border-t border-border/60">
+                <td className="py-1.5 pr-3 text-neutral-dark">
+                  {l.label}
+                  {l.soloUnMes && (
+                    <span className="ml-2 text-[10px] text-neutral-light">(solo 1 mes)</span>
+                  )}
+                </td>
+                <td className="py-1.5 px-3 text-right tabular-nums text-neutral-mid">
+                  {l.mesAnterior > 0 ? formatClp(l.mesAnterior) : "—"}
+                </td>
+                <td className="py-1.5 px-3 text-right tabular-nums text-neutral-mid">
+                  {l.mesActual > 0 ? formatClp(l.mesActual) : "—"}
+                </td>
+                <td className="py-1.5 pl-3 text-right font-semibold tabular-nums text-neutral-dark">
+                  {formatClp(Math.round(l.proyeccion))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-border-strong">
+              <td className="py-2 pr-3 font-bold text-neutral-dark" colSpan={3}>
+                Total a cubrir (próximo mes)
+              </td>
+              <td className="py-2 pl-3 text-right font-bold tabular-nums text-neutral-dark">
+                {formatClp(Math.round(pe.totalACubrir))}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </section>
   );
 }
 
-const CONF_LABEL = {
-  high: "Confianza alta",
-  medium: "Confianza media",
-  low: "Confianza baja",
-} as const;
-const CONF_VARIANT = { high: "success", medium: "warning", low: "danger" } as const;
-
-function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
+function SinDato() {
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 text-xs text-neutral-mid">
-      <span className="font-medium text-neutral-dark">Confianza de este dato:</span>
-      <QavanteBadge variant={CONF_VARIANT[mes.confidence]}>
-        {CONF_LABEL[mes.confidence]}
-      </QavanteBadge>
-      {(mes.missing_sources ?? []).length > 0 && (
-        <span>Faltan fuentes: {(mes.missing_sources ?? []).join(", ")} (no se asumen en cero)</span>
-      )}
-    </div>
-  );
-}
-
-function NoConfiable() {
-  return (
-    <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5 text-[13px]">
-      <p className="font-bold text-warning-700">No podemos calcular con confianza</p>
-      <p className="mt-1 text-neutral-dark">
-        El resultado del mes da un margen imposible (≥100%), típicamente un gasto revertido o mal
-        clasificado. Está escalado; mira el detalle en <b>Resultado</b>.
-      </p>
+    <section className="rounded-xl border border-border bg-surface p-6 text-sm text-neutral-mid">
+      Todavía no hay suficientes meses cerrados con costos clasificados para proyectar el punto de
+      equilibrio.
     </section>
   );
 }
