@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import type { OperationalResultBreakdown } from "@/lib/api/gestion";
 import { computePuntoEquilibrio } from "./punto-equilibrio-model";
 
+/* Punto de equilibrio CONCRETO (redefinido 2026-07-31): el piso = lo que gastaste el ÚLTIMO MES
+   CERRADO (el previo al mes en curso/proforma). Sin proyección ni %. Meses: abr,may,jun,jul con
+   jul = proforma (en curso) ⇒ el mes cerrado que se ancla es JUNIO (índice 2). */
 const BD: OperationalResultBreakdown = {
   generated_at: "2026-07-31T00:00:00Z",
   period_from: "2026-04",
@@ -71,31 +74,24 @@ const BD: OperationalResultBreakdown = {
 describe("computePuntoEquilibrio", () => {
   const pe = computePuntoEquilibrio(BD)!;
 
-  it("proyecta las líneas de costo recurrentes con último mes + tendencia", () => {
+  it("toma el gasto CONCRETO del último mes cerrado (junio), no una proyección", () => {
     const mod = pe.lineas.find((l) => l.label === "Mano de obra directa")!;
-    // cerrados (abr,may,jun) = 9.894.574 / 10.903.553 / 10.837.564; base=jun, slope=(jun-abr)/2
-    expect(mod.mesAnterior).toBe(10_837_564); // último cerrado (junio)
-    expect(mod.mesActual).toBe(8_590_493); // julio (en curso)
-    expect(mod.proyeccion).toBe(11_309_059); // 10.837.564 + (10.837.564-9.894.574)/2
-    expect(mod.soloUnMes).toBe(false);
+    expect(mod.monto).toBe(10_837_564); // costo de junio tal cual (no proyecta a julio ni tendencia)
   });
 
-  it("una línea que aparece 1 mes (hueco de clasificación) se asume mensual, no se promedia a la baja", () => {
+  it("el arriendo de junio SÍ aparece (mes cerrado y completo), no en blanco", () => {
     const arr = pe.lineas.find((l) => l.label === "Arriendos")!;
-    expect(arr.proyeccion).toBe(884_855);
-    expect(arr.soloUnMes).toBe(true);
-    expect(arr.mesActual).toBe(0);
+    expect(arr.monto).toBe(884_855);
   });
 
-  it("excluye ingresos y lo 'sin clasificar', y ordena por proyección desc", () => {
+  it("excluye ingresos y lo 'sin clasificar', y ordena por monto desc", () => {
     expect(pe.lineas.map((l) => l.label)).toEqual(["Mano de obra directa", "Arriendos"]);
-    expect(pe.totalACubrir).toBe(11_309_059 + 884_855);
-    expect(pe.mesAnterior).toBe("2026-06");
-    expect(pe.mesActual).toBe("2026-07");
+    expect(pe.totalACubrir).toBe(10_837_564 + 884_855);
+    expect(pe.mes).toBe("2026-06");
   });
 
-  it("expone el ingreso del último mes CERRADO (no el parcial en curso)", () => {
-    expect(pe.ingresoMesAnterior).toBe(42_000_000); // ingresos de junio (mes cerrado)
+  it("expone el ingreso del mismo mes cerrado (para comparar el piso contra lo vendido)", () => {
+    expect(pe.ingresoMes).toBe(42_000_000); // ingresos de junio
   });
 
   it("sin al menos un mes cerrado → null", () => {
@@ -103,9 +99,14 @@ describe("computePuntoEquilibrio", () => {
       computePuntoEquilibrio({ ...BD, months: ["2026-07"], proforma_month: "2026-07" }),
     ).toBeNull();
   });
+
+  it("sin proforma marcado, el mes cerrado es el penúltimo de la serie", () => {
+    const sinProforma = computePuntoEquilibrio({ ...BD, proforma_month: null })!;
+    expect(sinProforma.mes).toBe("2026-06"); // último = jul (en curso) ⇒ cerrado = jun
+  });
 });
 
-/* Robustez (revisión 2026-07-31): huecos de clasificación y reversos de NC. */
+/* Robustez: signo del mes cerrado (costo vs reverso) y alineación de series. */
 function bdCosto(label: string, byMonth: string[]): OperationalResultBreakdown {
   return {
     generated_at: "2026-07-31T00:00:00Z",
@@ -128,26 +129,25 @@ function bdCosto(label: string, byMonth: string[]): OperationalResultBreakdown {
 }
 
 describe("computePuntoEquilibrio — robustez", () => {
-  it("hueco en el mes reciente: la línea NO desaparece (piso = último mes con actividad)", () => {
-    // abr,may,jun cerrados = -1M, -1M, 0 (jul en curso ignorado). Antes se borraba; ahora proyecta 1M.
-    const pe = computePuntoEquilibrio(bdCosto("Arriendo", ["-1000000", "-1000000", "0", "0"]))!;
-    expect(pe.lineas).toHaveLength(1);
-    expect(pe.lineas[0]!.proyeccion).toBe(1_000_000);
+  it("si el mes cerrado (junio) tiene un reverso de NC (neto ≥0), la línea no suma piso", () => {
+    // jun (índice 2) = +200.000 ⇒ ese mes no fue costo ⇒ no aparece.
+    const pe = computePuntoEquilibrio(
+      bdCosto("Proveedor", ["-1000000", "-1000000", "200000", "0"]),
+    )!;
+    expect(pe.lineas).toHaveLength(0);
+    expect(pe.totalACubrir).toBe(0);
   });
 
-  it("reverso de NC (un mes positivo) NO excluye la línea de costo", () => {
-    // cerrados = -1M, +200k, -1M → neto negativo ⇒ es costo; el mes positivo cuenta 0 costo.
+  it("usa el mes cerrado real aunque el mes en curso sea 0 (no lo confunde con el actual)", () => {
+    // jun = -1.500.000 (costo real del mes cerrado); jul (en curso) = 0 y se ignora.
     const pe = computePuntoEquilibrio(
-      bdCosto("Proveedor", ["-1000000", "200000", "-1000000", "0"]),
+      bdCosto("Arriendo", ["-1000000", "-1000000", "-1500000", "0"]),
     )!;
-    expect(pe.lineas.map((l) => l.label)).toEqual(["Proveedor"]);
-    expect(pe.lineas[0]!.proyeccion).toBe(1_000_000); // nz=[1M,1M] → base 1M, pendiente 0
+    expect(pe.lineas[0]!.monto).toBe(1_500_000);
   });
 
-  it("pendiente negativa fuerte no borra un costo vivo (se queda en el último mes)", () => {
-    const pe = computePuntoEquilibrio(
-      bdCosto("Decreciente", ["-3000000", "-2000000", "-1000000", "0"]),
-    )!;
-    expect(pe.lineas[0]!.proyeccion).toBe(1_000_000); // base 1M + slope(-1M) = 0 ⇒ piso 1M
+  it("ignora la fila cuya serie no está alineada con los meses (defensivo)", () => {
+    const pe = computePuntoEquilibrio(bdCosto("Corta", ["-1000000", "-1000000"]))!;
+    expect(pe.lineas).toHaveLength(0);
   });
 });
