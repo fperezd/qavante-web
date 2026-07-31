@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp, X } from "lucide-react";
 import { QavanteBadge, QavanteStatTile } from "@/components/qavante";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import { addMonths, comparePeriod, toPeriod, type PeriodRange } from "@/lib/period/period-range";
@@ -180,35 +180,55 @@ function Selector({
       <label htmlFor="cp360-buscar" className="text-sm font-medium text-neutral-dark">
         Busca un {config.contraparte} por nombre o RUT
       </label>
-      <input
-        id="cp360-buscar"
-        type="text"
-        role="combobox"
-        aria-expanded={open}
-        aria-controls="cp360-lista"
-        autoComplete="off"
-        value={open ? query : sel ? `${sel.name} · ${formatClp(sel.total)}` : ""}
-        placeholder="Nombre o RUT…"
-        onFocus={() => {
-          setOpen(true);
-          setQuery("");
-        }}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        onKeyDown={(e) => {
-          // Teclado: Enter elige el primer resultado filtrado; Escape cierra.
-          if (e.key === "Enter" && filtered.length > 0) {
-            e.preventDefault();
-            elegir(filtered[0]!.rut);
-          } else if (e.key === "Escape") {
-            setOpen(false);
+      {/* El input es SIEMPRE un buscador (empieza vacío); la selección actual va como placeholder
+          → para cambiar de contraparte no hay que borrar texto a mano, solo escribir o elegir. */}
+      <div className="relative mt-1">
+        <input
+          id="cp360-buscar"
+          type="text"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="cp360-lista"
+          autoComplete="off"
+          value={query}
+          placeholder={sel ? `${sel.name} · ${formatClp(sel.total)}` : "Nombre o RUT…"}
+          onFocus={() => setOpen(true)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onKeyDown={(e) => {
+            // Teclado: Enter elige el primer resultado (solo si estás buscando); Escape cierra.
+            if (e.key === "Enter" && q && filtered.length > 0) {
+              e.preventDefault();
+              elegir(filtered[0]!.rut);
+            } else if (e.key === "Escape") {
+              setOpen(false);
+              e.currentTarget.blur();
+            }
+          }}
+          onBlur={() =>
+            window.setTimeout(() => {
+              setOpen(false);
+              setQuery("");
+            }, 150)
           }
-        }}
-        onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
-      />
+          className="w-full rounded-lg border border-border bg-surface px-3 py-2 pr-9 text-sm font-medium text-neutral-dark placeholder:font-normal placeholder:text-neutral-mid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
+        />
+        {query && (
+          <button
+            type="button"
+            aria-label="Borrar búsqueda"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setQuery("");
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-mid hover:text-neutral-dark"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
+      </div>
       {open && (
         <ul
           id="cp360-lista"
