@@ -19,10 +19,11 @@ test.describe("Flujo: Clientes 360 (/gestion/clientes)", () => {
     // Selector de cliente (default = el que más pesa).
     await expect(main.getByText("Elige un cliente")).toBeVisible();
 
-    // Bloques del 360 (strings completos y únicos).
+    // Bloques del 360. Los títulos por rol heading ("Estacionalidad" también aparece en el
+    // subtítulo de la página como substring); el de barras es un string completo y único.
     await expect(main.getByText("Ventas mes a mes (últimos 24 meses)")).toBeVisible();
-    await expect(main.getByText("Estacionalidad")).toBeVisible();
-    await expect(main.getByText("Últimos documentos")).toBeVisible();
+    await expect(main.getByRole("heading", { name: "Estacionalidad" })).toBeVisible();
+    await expect(main.getByRole("heading", { name: "Últimos documentos" })).toBeVisible();
     // Los "días de pago real" se declaran honestos como pendientes.
     await expect(main.getByText(/Días promedio .* en preparación/i)).toBeVisible();
   });
