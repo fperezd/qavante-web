@@ -72,9 +72,15 @@ function adaptBhe(docs: ReadonlyArray<BheRecibida>): DocConVencimiento[] {
     }));
 }
 
-export function useMaestroDocs(kind: MaestroKind, enabled = true): MaestroDocsState {
-  // `now` una sola vez por montaje (evita recomputar el rango en cada render).
-  const range = React.useMemo(() => currentYearRange(new Date()), []);
+export function useMaestroDocs(
+  kind: MaestroKind,
+  enabled = true,
+  rangeOverride?: PeriodRange,
+): MaestroDocsState {
+  // Por defecto el año en curso; un caller puede pedir una ventana mayor (ej. Cliente 360 pide
+  // ~24 meses para estacionalidad + año contra año). Se memoiza por los strings del rango.
+  // El caller pasa un `rangeOverride` ya memoizado (o ninguno → año en curso, estable por montaje).
+  const range = React.useMemo(() => rangeOverride ?? currentYearRange(new Date()), [rangeOverride]);
   const periods = React.useMemo(() => expandPeriodRange(range), [range]);
 
   const results = useQueries({
