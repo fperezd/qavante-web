@@ -4,7 +4,7 @@ import * as React from "react";
 import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
 import { QavanteBadge, QavanteStatTile } from "@/components/qavante";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
-import { addMonths, toPeriod, type PeriodRange } from "@/lib/period/period-range";
+import { addMonths, comparePeriod, toPeriod, type PeriodRange } from "@/lib/period/period-range";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import type { DocConVencimiento } from "@/components/terminos/terminos-pago";
@@ -54,17 +54,27 @@ export interface Config360 {
 }
 
 export function Contraparte360View({ config }: { config: Config360 }) {
-  // Ventana de ~24 meses (estacionalidad + año contra año). Memoizada una vez.
-  const range: PeriodRange = React.useMemo(() => {
+  // Traemos ~24 meses (para el año-contra-año y la estacionalidad), pero el FOCO es los ÚLTIMOS
+  // 12 MESES (pedido de Fernando): el total, la concentración y las barras son de 12 meses.
+  const { range24, desde12 } = React.useMemo(() => {
     const hasta = toPeriod(new Date());
-    return { desde: addMonths(hasta, -23), hasta };
+    const range24: PeriodRange = { desde: addMonths(hasta, -23), hasta };
+    return { range24, desde12: addMonths(hasta, -11) };
   }, []);
 
-  const maestro = useMaestroDocs(config.kind, true, range);
+  const maestro = useMaestroDocs(config.kind, true, range24);
   const docs = maestro.docs;
 
-  const agregados = React.useMemo(() => agregarContrapartes(docs), [docs]);
-  const totalGlobal = React.useMemo(() => agregados.reduce((s, c) => s + c.total, 0), [agregados]);
+  const { agregados, totalGlobal, primerPorRut } = React.useMemo(() => {
+    const docs12 = docs.filter((d) => {
+      const p = periodoDe(d.fecha);
+      return p != null && comparePeriod(p, desde12) >= 0;
+    });
+    const ag = agregarContrapartes(docs12);
+    // "activo desde" = primer período REAL (ventana completa), no el recorte de 12m.
+    const primerPorRut = new Map(agregarContrapartes(docs).map((c) => [c.rut, c.primerPeriodo]));
+    return { agregados: ag, totalGlobal: ag.reduce((s, c) => s + c.total, 0), primerPorRut };
+  }, [docs, desde12]);
 
   const [rut, setRut] = React.useState<string | null>(null);
   // Default: la contraparte que más pesa (una vez que llegan los datos).
@@ -77,7 +87,7 @@ export function Contraparte360View({ config }: { config: Config360 }) {
   if (agregados.length === 0) {
     return (
       <section className="rounded-xl border border-border bg-surface p-6 text-sm text-neutral-mid">
-        Todavía no hay {config.flujo.toLowerCase()} en los últimos 24 meses para analizar.
+        Todavía no hay {config.flujo.toLowerCase()} en los últimos 12 meses para analizar.
       </section>
     );
   }
@@ -95,8 +105,10 @@ export function Contraparte360View({ config }: { config: Config360 }) {
         <Detalle
           sel={sel}
           docs={docs}
-          desde={range.desde}
-          hasta={range.hasta}
+          desde12={desde12}
+          desde24={range24.desde}
+          hasta={range24.hasta}
+          activoDesde={primerPorRut.get(sel.rut) ?? sel.primerPeriodo}
           totalGlobal={totalGlobal}
           config={config}
         />
@@ -119,26 +131,82 @@ function Selector({
   config: Config360;
   totalGlobal: number;
 }) {
+  const [query, setQuery] = React.useState("");
+  const [open, setOpen] = React.useState(false);
+  const sel = agregados.find((c) => c.rut === value) ?? null;
+  const q = query.trim().toLowerCase();
+  const qRut = query.replace(/[.\-\s]/g, "").toLowerCase();
+  const filtered = q
+    ? agregados.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.rut
+            .replace(/[.\-\s]/g, "")
+            .toLowerCase()
+            .includes(qRut),
+      )
+    : agregados;
+
   return (
-    <label className="flex flex-col gap-1 text-sm sm:max-w-md">
-      <span className="font-medium text-neutral-dark">Elige un {config.contraparte}</span>
-      <select
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-border bg-surface px-3 py-2 font-medium text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
-        aria-label={`Elegir ${config.contraparte}`}
-      >
-        {agregados.slice(0, 100).map((c) => {
-          const pct = concentracionPct(c.total, totalGlobal);
-          return (
-            <option key={c.rut} value={c.rut}>
-              {c.name} · {formatClp(c.total)}
-              {pct != null ? ` (${pct.toFixed(0)}%)` : ""}
-            </option>
-          );
-        })}
-      </select>
-    </label>
+    <div className="relative sm:max-w-md">
+      <label htmlFor="cp360-buscar" className="text-sm font-medium text-neutral-dark">
+        Busca un {config.contraparte} por nombre o RUT
+      </label>
+      <input
+        id="cp360-buscar"
+        type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls="cp360-lista"
+        autoComplete="off"
+        value={open ? query : sel ? `${sel.name} · ${formatClp(sel.total)}` : ""}
+        placeholder="Nombre o RUT…"
+        onFocus={() => {
+          setOpen(true);
+          setQuery("");
+        }}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+        }}
+        onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+        className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
+      />
+      {open && (
+        <ul
+          id="cp360-lista"
+          role="listbox"
+          className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
+        >
+          {filtered.slice(0, 60).map((c) => {
+            const pct = concentracionPct(c.total, totalGlobal);
+            return (
+              <li key={c.rut} role="option" aria-selected={c.rut === value}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange(c.rut);
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-sm hover:bg-brand-primary-50"
+                >
+                  <span className="min-w-0 truncate text-neutral-dark">{c.name}</span>
+                  <span className="shrink-0 tabular-nums text-neutral-mid">
+                    {formatClp(c.total)}
+                    {pct != null ? ` (${pct.toFixed(0)}%)` : ""}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+          {filtered.length === 0 && (
+            <li className="px-3 py-2 text-sm text-neutral-mid">Sin resultados para “{query}”.</li>
+          )}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -146,24 +214,33 @@ function Selector({
 function Detalle({
   sel,
   docs,
-  desde,
+  desde12,
+  desde24,
   hasta,
+  activoDesde,
   totalGlobal,
   config,
 }: {
   sel: ReturnType<typeof agregarContrapartes>[number];
   docs: DocConVencimiento[];
-  desde: string;
+  desde12: string;
+  desde24: string;
   hasta: string;
+  activoDesde: string;
   totalGlobal: number;
   config: Config360;
 }) {
-  const serie = React.useMemo(
-    () => serieMensual(docs, sel.rut, desde, hasta),
-    [docs, sel.rut, desde, hasta],
+  // Barras + total: últimos 12 meses (foco). Año-contra-año + estacionalidad: 24 meses (necesitan 2 años).
+  const serie12 = React.useMemo(
+    () => serieMensual(docs, sel.rut, desde12, hasta),
+    [docs, sel.rut, desde12, hasta],
   );
-  const tend = tendenciaAnual(serie);
-  const est = estacionalidad(serie);
+  const serie24 = React.useMemo(
+    () => serieMensual(docs, sel.rut, desde24, hasta),
+    [docs, sel.rut, desde24, hasta],
+  );
+  const tend = tendenciaAnual(serie24);
+  const est = estacionalidad(serie24);
   const pct = concentracionPct(sel.total, totalGlobal);
 
   // Riesgo: mayor documento y meses desde la última actividad.
@@ -177,11 +254,11 @@ function Detalle({
       <section className="rounded-xl border border-border bg-surface p-5">
         <h2 className="text-lg font-bold text-neutral-dark">{sel.name}</h2>
         <p className="text-xs text-neutral-mid">
-          RUT {sel.rut} · activo desde {formatPeriodLabel(sel.primerPeriodo)}
+          RUT {sel.rut} · activo desde {formatPeriodLabel(activoDesde)}
         </p>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <QavanteStatTile
-            label={`${config.flujo} (24 meses)`}
+            label={`${config.flujo} (últimos 12 meses)`}
             value={formatClp(sel.total)}
             tone="default"
           />
@@ -203,9 +280,9 @@ function Detalle({
       <section className="rounded-xl border border-border bg-surface p-5">
         <div className="flex items-center gap-2 text-sm font-bold text-neutral-dark">
           <TrendingUp className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-          {config.flujo} mes a mes (últimos 24 meses)
+          {config.flujo} mes a mes (últimos 12 meses)
         </div>
-        <Barras serie={serie} />
+        <Barras serie={serie12} />
         {tend && <TendenciaLinea tend={tend} config={config} />}
       </section>
 
