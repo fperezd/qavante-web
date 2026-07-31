@@ -7,6 +7,7 @@
 
 import type { DocConVencimiento } from "@/components/terminos/terminos-pago";
 import { addMonths, comparePeriod } from "@/lib/period/period-range";
+import { normalizeRut } from "@/lib/validators/rut";
 
 /** Notas de crédito (electrónica 61, exportación 112) — RESTAN del neto. */
 const NC_TIPOS = new Set([61, 112]);
@@ -47,10 +48,11 @@ export function agregarContrapartes(docs: DocConVencimiento[]): ContraparteAgreg
   for (const d of docs) {
     const per = periodoDe(d.fecha);
     if (!d.rut || !per) continue;
+    const rut = normalizeRut(d.rut); // mismo RUT con/sin puntos NO se parte en dos filas
     const firm = montoFirmado(d);
-    const cur = map.get(d.rut);
+    const cur = map.get(rut);
     if (!cur) {
-      map.set(d.rut, { name: d.name || d.rut, total: firm, docs: 1, min: per, max: per });
+      map.set(rut, { name: d.name || rut, total: firm, docs: 1, min: per, max: per });
     } else {
       cur.total += firm;
       cur.docs += 1;
@@ -85,7 +87,7 @@ export function serieMensual(
 ): PuntoMes[] {
   const byPer = new Map<string, number>();
   for (const d of docs) {
-    if (d.rut !== rut) continue;
+    if (normalizeRut(d.rut) !== rut) continue; // `rut` viene normalizado del agregado
     const per = periodoDe(d.fecha);
     if (!per) continue;
     byPer.set(per, (byPer.get(per) ?? 0) + montoFirmado(d));
