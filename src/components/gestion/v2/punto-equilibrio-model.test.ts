@@ -90,6 +90,11 @@ describe("computePuntoEquilibrio", () => {
     expect(pe.mes).toBe("2026-06");
   });
 
+  it("cada línea lleva el código de la cuenta (para el drill-down por documento)", () => {
+    expect(pe.lineas.find((l) => l.label === "Mano de obra directa")!.codigo).toBe("mod");
+    expect(pe.lineas.find((l) => l.label === "Arriendos")!.codigo).toBe("arr");
+  });
+
   it("expone el ingreso del mismo mes cerrado (para comparar el piso contra lo vendido)", () => {
     expect(pe.ingresoMes).toBe(42_000_000); // ingresos de junio
   });

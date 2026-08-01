@@ -6,6 +6,7 @@ import { resumenReconcile } from "./reconciliacion-cola-map";
 const cero = {
   matched: 0,
   consolidated: 0,
+  partial: 0,
   review: 0,
   excluded: 0,
   ambiguous: 0,
@@ -15,6 +16,7 @@ const cero = {
   holding: 0,
   prepago_applied: 0,
   processor_batch: 0,
+  factoring: 0,
 };
 
 const meta = {

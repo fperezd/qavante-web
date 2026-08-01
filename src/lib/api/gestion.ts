@@ -33,12 +33,20 @@ export type OperationalResultBreakdown =
   components["schemas"]["OperationalResultBreakdownResponse"];
 export type BreakdownRow = components["schemas"]["BreakdownRow"];
 
+/* Drill-down por documento de una cuenta de gestión (CC-API #786): qué facturas caen en una cuenta
+   en un período. Tipos GENERADOS (regla 3). */
+export type OperationalResultDocuments =
+  components["schemas"]["OperationalResultDocumentsResponse"];
+export type OperationalResultDocument = components["schemas"]["OperationalResultDocument"];
+
 export const gestionKeys = {
   all: ["gestion"] as const,
   operationalResult: (period: string) =>
     [...gestionKeys.all, "operational-result", period] as const,
   operationalResultBreakdown: (from: string, to: string, mode: string) =>
     [...gestionKeys.all, "operational-result-breakdown", from, to, mode] as const,
+  operationalResultDocuments: (period: string, account: string) =>
+    [...gestionKeys.all, "operational-result-documents", period, account] as const,
 };
 
 /** `GET /api/management/operational-result?period=YYYY-MM` — un mes (desglose
@@ -75,6 +83,24 @@ export function useOperationalResultBreakdown(
         }`,
       ),
     enabled: enabled && from !== "" && to !== "",
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `GET /api/management/operational-result/documents?period=YYYY-MM&account=<code>` — los documentos
+ *  (facturas) que caen en una cuenta de gestión ese mes (drill-down "clic en la línea → sus facturas").
+ *  Solo corre habilitado y con period+account no vacíos (típico: al expandir la línea). NO retry. */
+export function useOperationalResultDocuments(period: string, account: string, enabled = true) {
+  return useQuery({
+    queryKey: gestionKeys.operationalResultDocuments(period, account),
+    queryFn: () =>
+      api.get<OperationalResultDocuments>(
+        `/api/management/operational-result/documents?period=${encodeURIComponent(
+          period,
+        )}&account=${encodeURIComponent(account)}`,
+      ),
+    enabled: enabled && period !== "" && account !== "",
     staleTime: 30_000,
     retry: false,
   });
