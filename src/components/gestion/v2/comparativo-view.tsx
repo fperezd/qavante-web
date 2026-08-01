@@ -110,17 +110,21 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
   );
   const rQLy = React.useMemo(() => (qLy.data ? mapRangoResumen(qLy.data) : null), [qLy.data]);
 
-  // ¿La BASE de cada comparación está incompleta (ingresos altos, gastos ~0 ⇒ costos no cargados)?
-  // Si lo está, el % del RESULTADO no es comparable (ej.: 2025 sin planilla → "−46%" falso).
-  const ytdLyIncompleto = rangoIncompleto(rYtdLy);
-  const qLyIncompleto = rangoIncompleto(rQLy);
-  const yoyIncompleto = yoy.data
-    ? baseIncompleta(
-        parseAmount(yoy.data.revenue),
-        parseAmount(yoy.data.gross_margin),
-        parseAmount(yoy.data.result),
-      )
-    : false;
+  // ¿La BASE de cada comparación tiene los gastos sin cargar (resultado inflado, % no comparable)?
+  // Se mide contra la estructura de costos del año ACTUAL (rYtd) — así una micro-PYME lean real (gastos
+  // bajos en ambos períodos) NO se marca; solo se marca la base cuyo gasto es ínfimo frente al negocio
+  // de hoy (ej.: 2025 sin planilla → "−46%" falso).
+  const ytdLyIncompleto = rangoIncompleto(rYtdLy, rYtd);
+  const qLyIncompleto = rangoIncompleto(rQLy, rYtd);
+  const yoyIncompleto =
+    yoy.data && rYtd
+      ? baseIncompleta(
+          parseAmount(yoy.data.gross_margin),
+          parseAmount(yoy.data.result),
+          rYtd.bruto.monto,
+          rYtd.neto.monto,
+        )
+      : false;
 
   return (
     <div className="space-y-5">
@@ -331,7 +335,7 @@ function RefLinea({
       {incompleto ? (
         <span
           className="shrink-0 cursor-help font-medium text-warning-700"
-          title="El período base no tiene todos los gastos cargados (ingresos altos con gastos casi nulos), así que su resultado está inflado y el % no es comparable."
+          title="El período base tiene los gastos casi sin cargar frente a tu estructura de costos actual, así que su resultado está inflado y el % no es comparable."
         >
           base incompleta
         </span>

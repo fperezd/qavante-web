@@ -103,19 +103,39 @@ export function mapRangoResumen(bd: OperationalResultBreakdown): RangoResumen {
   };
 }
 
-/** ¿El período BASE de una comparación está incompleto? Señal: tiene ingresos y margen bruto, pero
- *  los gastos (bruto − resultado) son casi nulos (< 5% del margen bruto). Ninguna empresa operando
- *  (con planilla, arriendo, etc.) tiene gastos < 5% del bruto → los costos/gastos NO están cargados,
- *  y por eso su RESULTADO sale inflado y NO es comparable (ej.: un año viejo sin remuneraciones →
- *  "resultado −46%" falso). Puro/testeable. Solo aplica al resultado; ingresos y bruto sí comparan. */
-export function baseIncompleta(ingresos: number, bruto: number, neto: number): boolean {
-  if (ingresos <= 0 || bruto <= 0) return false;
-  return bruto - neto < 0.05 * bruto;
+/** ¿El período BASE de una comparación tiene los gastos SIN cargar (resultado inflado, no comparable)?
+ *  El problema (ej.: un año viejo sin remuneraciones → "−46%" falso) es que su intensidad de gasto es
+ *  ínfima. Pero un umbral absoluto (ej. "<5% del bruto") daría FALSO POSITIVO en una micro-PYME lean
+ *  real (dueño sin planilla, gastos genuinamente bajos) — el target exacto de Qavante. Por eso se
+ *  compara contra la ESTRUCTURA DE COSTOS del período de referencia (el año/rango actual, mismo
+ *  negocio): la base está incompleta si su gasto/bruto es una fracción ínfima del de la referencia,
+ *  y SOLO si la referencia sí incurre gastos materiales (si el negocio es lean en ambos, no se marca).
+ *  Puro/testeable. Solo aplica al resultado; ingresos y bruto sí comparan. */
+export function baseIncompleta(
+  baseBruto: number,
+  baseNeto: number,
+  refBruto: number,
+  refNeto: number,
+): boolean {
+  if (baseBruto <= 0) return false;
+  const baseRatio = (baseBruto - baseNeto) / baseBruto; // gastos como fracción del margen bruto
+  if (refBruto <= 0) return baseRatio < 0.05; // sin referencia → umbral absoluto conservador
+  const refRatio = (refBruto - refNeto) / refBruto;
+  // La referencia debe tener gasto material (≥10% del bruto) para ser un patrón válido; y la base,
+  // menos de 1/3 de esa intensidad → sus gastos "no están ahí" comparados con el mismo negocio hoy.
+  return refRatio >= 0.1 && baseRatio < 0.3 * refRatio;
 }
 
-/** `baseIncompleta` sobre el resumen de un rango (Acumulado/Trimestre). */
-export function rangoIncompleto(r: RangoResumen | null): boolean {
-  return r ? baseIncompleta(r.ingresos, r.bruto.monto, r.neto.monto) : false;
+/** `baseIncompleta` sobre el resumen de un rango (Acumulado/Trimestre), contra un rango de referencia
+ *  (típicamente el acumulado del año actual = la foto más completa de cuánto gasta el negocio). */
+export function rangoIncompleto(base: RangoResumen | null, ref: RangoResumen | null): boolean {
+  if (!base) return false;
+  return baseIncompleta(
+    base.bruto.monto,
+    base.neto.monto,
+    ref?.bruto.monto ?? 0,
+    ref?.neto.monto ?? 0,
+  );
 }
 
 /** "2026-07" → "jul" (local para no exportar de más; equivalente a mesCorto). */

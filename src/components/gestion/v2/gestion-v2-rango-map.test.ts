@@ -110,31 +110,40 @@ describe("rangoConfiable", () => {
 });
 
 describe("baseIncompleta", () => {
-  it("marca incompleto un año con ingresos altos y gastos ~0 (planilla no cargada)", () => {
-    // Caso real 2025 (ene-jul): ingresos 88,5M, bruto 72,1M, resultado 70,2M ⇒ gastos 1,9M (2,6%).
-    expect(baseIncompleta(88_558_398, 72_144_766, 70_255_269)).toBe(true);
+  // Referencia = el negocio HOY (año actual). base = (bruto, neto); ref = (bruto, neto).
+  it("marca incompleto un año base sin planilla, contra un año actual con gastos reales", () => {
+    // Base 2025: bruto 72,1M, resultado 70,2M ⇒ gastos 2,6% del bruto. Ref 2026: gastos 66%.
+    expect(baseIncompleta(72_144_766, 70_255_269, 112_737_279, 37_847_586)).toBe(true);
   });
 
   it("NO marca incompleto un año con gastos reales", () => {
-    // Caso real 2026 (ene-jul): gastos = 112,7M − 37,8M = 74,9M (66% del bruto).
-    expect(baseIncompleta(189_765_944, 112_737_279, 37_847_586)).toBe(false);
+    // Base y ref ambos con gasto material (66%).
+    expect(baseIncompleta(112_737_279, 37_847_586, 112_737_279, 37_847_586)).toBe(false);
   });
 
-  it("no aplica si no hay ingresos o no hay margen bruto", () => {
-    expect(baseIncompleta(0, 0, 0)).toBe(false);
-    expect(baseIncompleta(100, 0, 0)).toBe(false);
-    expect(baseIncompleta(-100, -50, -50)).toBe(false);
+  it("micro-PYME lean REAL (gastos bajos en base Y referencia) NO se marca — evita el falso positivo", () => {
+    // Consultora unipersonal sin planilla: bruto 5M, resultado 4,8M (gastos 4%) en AMBOS períodos.
+    // Con un umbral absoluto de 5% se marcaría mal; contra la referencia (también lean) → NO se marca.
+    expect(baseIncompleta(5_000_000, 4_800_000, 5_000_000, 4_800_000)).toBe(false);
   });
 
-  it("umbral: gastos exactamente 5% del bruto NO es incompleto; apenas menos sí", () => {
-    expect(baseIncompleta(1000, 1000, 950)).toBe(false); // gastos 50 = 5% → completo
-    expect(baseIncompleta(1000, 1000, 951)).toBe(true); // gastos 49 < 5% → incompleto
+  it("sin referencia (ref bruto 0) cae al umbral absoluto conservador del 5%", () => {
+    expect(baseIncompleta(1000, 951, 0, 0)).toBe(true); // gastos 4,9% < 5%
+    expect(baseIncompleta(1000, 950, 0, 0)).toBe(false); // gastos 5% = 5%
   });
 
-  it("rangoIncompleto envuelve el resumen (y null → false)", () => {
-    expect(rangoIncompleto(null)).toBe(false);
-    const r = mapRangoResumen(BD);
-    // BD tiene gastos reales (opex) → completo.
-    expect(rangoIncompleto(r)).toBe(false);
+  it("no aplica si la base no tiene margen bruto", () => {
+    expect(baseIncompleta(0, 0, 100, 20)).toBe(false);
+    expect(baseIncompleta(-100, -50, 100, 20)).toBe(false);
+  });
+
+  it("rangoIncompleto: base sin gastos vs ref con gastos → true; null → false", () => {
+    expect(rangoIncompleto(null, null)).toBe(false);
+    const ref = mapRangoResumen(BD); // BD tiene opex real
+    // Base sintética sin gastos (neto ≈ bruto) contra la referencia con gastos.
+    const baseSinGastos = { ...ref, neto: { monto: ref.bruto.monto - 1, pct: 0 } };
+    expect(rangoIncompleto(baseSinGastos, ref)).toBe(true);
+    // BD contra sí mismo (gastos reales en ambos) → completo.
+    expect(rangoIncompleto(ref, ref)).toBe(false);
   });
 });
