@@ -8,15 +8,15 @@
 import type { DocConVencimiento } from "@/components/terminos/terminos-pago";
 import { addMonths, comparePeriod } from "@/lib/period/period-range";
 import { normalizeRut } from "@/lib/validators/rut";
+import { isNotaCredito } from "@/components/sii/tipo-doc";
 
-/** Notas de crédito (electrónica 61, exportación 112) — RESTAN del neto. */
-const NC_TIPOS = new Set([61, 112]);
-
-/** Monto FIRMADO para netear: NC restan; un doc reclamado no cuenta ($0). Magnitud → signo. */
+/** Monto FIRMADO para netear: la NC resta; un doc reclamado no cuenta ($0). Magnitud → signo.
+ *  Usa el canónico `isNotaCredito` (códigos 60, 61 y 112) — antes un set local omitía el 60 (NC no
+ *  electrónica) e inflaba el 360, contradiciendo al maestro de Pagar/Cobrar que sí la netea. */
 export function montoFirmado(d: DocConVencimiento): number {
   if (d.reclamado) return 0;
   const abs = Math.abs(d.monto) || 0;
-  return d.tipoDoc != null && NC_TIPOS.has(d.tipoDoc) ? -abs : abs;
+  return isNotaCredito(d.tipoDoc) ? -abs : abs;
 }
 
 /** "DD/MM/YYYY" (RCV) o ISO "YYYY-MM-DD" → "YYYY-MM". `null` si no parsea. */

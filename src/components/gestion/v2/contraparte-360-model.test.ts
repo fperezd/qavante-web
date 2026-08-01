@@ -21,8 +21,9 @@ const doc = (over: Partial<DocConVencimiento>): DocConVencimiento => ({
 });
 
 describe("montoFirmado", () => {
-  it("factura suma; NC (61/112) resta; reclamado no cuenta", () => {
+  it("factura suma; NC (60/61/112) resta; reclamado no cuenta", () => {
     expect(montoFirmado(doc({ monto: 1_000_000, tipoDoc: 33 }))).toBe(1_000_000);
+    expect(montoFirmado(doc({ monto: 2_000_000, tipoDoc: 60 }))).toBe(-2_000_000); // NC no electrónica (antes se INFLABA como positiva)
     expect(montoFirmado(doc({ monto: 300_000, tipoDoc: 61 }))).toBe(-300_000);
     expect(montoFirmado(doc({ monto: 500_000, tipoDoc: 112 }))).toBe(-500_000);
     expect(montoFirmado(doc({ monto: 900_000, reclamado: true }))).toBe(0);
