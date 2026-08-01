@@ -44,10 +44,12 @@ function esSinClasificar(row: BreakdownRow): boolean {
 export function computePuntoEquilibrio(bd: OperationalResultBreakdown): PuntoEquilibrio | null {
   const months = bd.months ?? [];
   if (months.length < 2) return null;
-  // Mes en curso = proforma (si el backend lo marca) o el último; anclamos en el CERRADO anterior.
+  // Anclamos en el último mes CERRADO. Si el último del rango es el proforma (mes en curso), es el
+  // anterior; si NO hay proforma en el rango (elegiste un mes ya cerrado en el picker), es el último
+  // mismo — antes se anclaba siempre en el penúltimo y mostraba el mes previo al seleccionado.
   const idxProforma = bd.proforma_month ? months.indexOf(bd.proforma_month) : -1;
-  const actual = idxProforma >= 0 ? idxProforma : months.length - 1;
-  const cerrado = actual - 1;
+  const ultimo = months.length - 1;
+  const cerrado = idxProforma >= 0 ? idxProforma - 1 : ultimo;
   if (cerrado < 0) return null; // sin al menos un mes cerrado no hay dato concreto
 
   const lineas: LineaRecurrente[] = [];
@@ -62,10 +64,12 @@ export function computePuntoEquilibrio(bd: OperationalResultBreakdown): PuntoEqu
   const visitar = (rows: BreakdownRow[], excluida: boolean) => {
     for (const r of rows) {
       const ingreso = esIngreso(r);
-      // Ingreso del mes cerrado (de la sección de ingresos de nivel superior).
+      // Ingreso del mes cerrado. La sección canónica (key "income", la venta operacional) gana
+      // siempre; otra sección con "ingreso" en el label (ej. no operacionales) solo es fallback si
+      // aún no tenemos la operacional → así el hero no compara contra un ingreso no operacional menor.
       if (!excluida && ingreso && r.kind === "section") {
         const v = valorCerrado(r);
-        if (v != null) ingresoMes = Math.max(0, v);
+        if (v != null && (r.key === "income" || ingresoMes === 0)) ingresoMes = Math.max(0, v);
       }
       const excl = excluida || ingreso || esSinClasificar(r);
 
