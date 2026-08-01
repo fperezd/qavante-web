@@ -11,6 +11,7 @@ import {
 import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
+import { useSiiRcvVentas } from "@/lib/api/sii";
 import { resultadoConfiable } from "./gestion-v2-map";
 import {
   baseIncompleta,
@@ -18,6 +19,7 @@ import {
   rangoIncompleto,
   type RangoResumen,
 } from "./gestion-v2-rango-map";
+import { ventasNetasHastaDia, ventasNetasTotal, type DocFechado } from "./comparativo-tramo";
 
 /* Comparativo RICO (pedido de Fernando 2026-07-28, "las 5"): además del mes vs
    mes anterior / año anterior, las comparaciones potentes de control de gestión —
@@ -92,6 +94,21 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
   const qPrev = useOperationalResultBreakdown(periodoMenos(period, 5), periodoMenos(period, 3));
   const qLy = useOperationalResultBreakdown(periodoMenos(period, 14), periodoMenos(period, 12));
 
+  // ¿El mes seleccionado va EN CURSO? (el backend lo marca `proforma` en el breakdown). Si sí,
+  // comparar contra el mes anterior COMPLETO es peras con manzanas → reframe + "mismo tramo" (pedido
+  // de Fernando 2026-08-01). El mismo tramo de VENTAS sale del RCV diario (el P&L es mensual).
+  const enCurso = qCur.data?.proforma_month === period;
+  const diaHoy = new Date().getDate();
+  const ventasCur = useSiiRcvVentas({ periodo: enCurso ? period : "" });
+  const ventasPrev = useSiiRcvVentas({ periodo: enCurso ? periodoMenos(period, 1) : "" });
+  const docsCur = (ventasCur.data?.ventas ?? []) as DocFechado[];
+  const docsPrev = (ventasPrev.data?.ventas ?? []) as DocFechado[];
+  const ventasHoy = ventasNetasHastaDia(docsCur, diaHoy);
+  const ventasTramoPrev = ventasNetasHastaDia(docsPrev, diaHoy);
+  const ventasTotalPrev = ventasNetasTotal(docsPrev);
+  const tramoCargando = enCurso && (ventasCur.isFetching || ventasPrev.isFetching);
+  const mesAntLabel = formatPeriodLabel(periodoMenos(period, 1));
+
   // Resúmenes por rango (mapper canónico del P&L; memoizados por respuesta).
   const rYtd = React.useMemo(() => (ytd.data ? mapRangoResumen(ytd.data) : null), [ytd.data]);
   const rYtdLy = React.useMemo(
@@ -138,8 +155,17 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
         <NoConfiable />
       ) : cur.data ? (
         <>
-          {/* 1) Mes vs mes anterior / año anterior */}
-          <Bloque titulo="Este mes" subtitulo={formatPeriodLabel(period)}>
+          {/* 1) Mes vs mes anterior / año anterior. Si el mes va EN CURSO, no comparamos parcial vs
+              completo (peras con manzanas): mostramos "mes anterior completo" como referencia (sin %
+              engañoso) y abajo el "mismo tramo" de ventas. */}
+          <Bloque
+            titulo="Este mes"
+            subtitulo={
+              enCurso
+                ? `${formatPeriodLabel(period)} · va en curso (al día ${diaHoy}) — no lo compares con el mes completo`
+                : formatPeriodLabel(period)
+            }
+          >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {METRICAS.map((mt) => {
                 const a = parseAmount(cur.data![mt.key]);
@@ -150,25 +176,53 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                     value={formatClp(a)}
                     tone={a >= 0 ? "default" : "danger"}
                     hint={
-                      <span className="flex flex-col gap-1">
-                        <RefLinea
-                          label="vs mes anterior"
-                          base={parseAmount(prev.data?.[mt.key])}
-                          actual={a}
-                        />
-                        <RefLinea
-                          label="vs año anterior"
-                          base={parseAmount(yoy.data?.[mt.key])}
-                          actual={a}
-                          incompleto={mt.key === "result" && yoyIncompleto}
-                        />
-                      </span>
+                      enCurso ? (
+                        <span className="text-[11px] text-neutral-mid">
+                          {mesAntLabel} completo:{" "}
+                          <b className="tabular-nums text-neutral-dark">
+                            {formatClp(parseAmount(prev.data?.[mt.key]))}
+                          </b>
+                        </span>
+                      ) : (
+                        <span className="flex flex-col gap-1">
+                          <RefLinea
+                            label="vs mes anterior"
+                            base={parseAmount(prev.data?.[mt.key])}
+                            actual={a}
+                          />
+                          <RefLinea
+                            label="vs año anterior"
+                            base={parseAmount(yoy.data?.[mt.key])}
+                            actual={a}
+                            incompleto={mt.key === "result" && yoyIncompleto}
+                          />
+                        </span>
+                      )
                     }
                   />
                 );
               })}
             </div>
           </Bloque>
+
+          {/* 1b) Ventas al MISMO TRAMO (solo si el mes va en curso): agosto 1→hoy vs julio 1→hoy, la
+              comparación pareja que pidió Fernando. Del RCV diario (el P&L es mensual). */}
+          {enCurso && (
+            <Bloque
+              titulo="Ventas al mismo tramo"
+              subtitulo={`al día ${diaHoy} — vs el mismo tramo de ${mesAntLabel} (no el mes completo)`}
+            >
+              <VentasTramo
+                hoy={ventasHoy}
+                tramo={ventasTramoPrev}
+                total={ventasTotalPrev}
+                mesActual={formatPeriodLabel(period)}
+                mesAnt={mesAntLabel}
+                dia={diaHoy}
+                cargando={tramoCargando}
+              />
+            </Bloque>
+          )}
 
           {/* 2) Acumulado del año (YTD) vs año anterior */}
           <Bloque
@@ -345,6 +399,62 @@ function RefLinea({
         </span>
       )}
     </span>
+  );
+}
+
+/** Ventas al MISMO TRAMO: lo que llevas este mes (al día N) vs el mismo tramo del mes anterior (la
+ *  comparación pareja) + el mes anterior completo (referencia, no pareja). Del RCV diario. */
+function VentasTramo({
+  hoy,
+  tramo,
+  total,
+  mesActual,
+  mesAnt,
+  dia,
+  cargando,
+}: {
+  hoy: number;
+  tramo: number;
+  total: number;
+  mesActual: string;
+  mesAnt: string;
+  dia: number;
+  cargando: boolean;
+}) {
+  if (cargando) {
+    return <div className="h-20 animate-pulse rounded-xl bg-neutral-light/30" aria-busy="true" />;
+  }
+  const v = varPct(hoy, tramo); // vs el mismo tramo = la comparación pareja
+  const up = (v ?? 0) >= 0;
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <QavanteStatTile
+        label={`${mesActual} · al día ${dia}`}
+        value={formatClp(hoy)}
+        tone="default"
+        hint={
+          <span className="text-[11px] text-neutral-mid">
+            vs mismo tramo de {mesAnt}{" "}
+            <b className="tabular-nums text-neutral-dark">{formatClp(tramo)}</b>{" "}
+            <span className={`font-medium ${up ? "text-success-700" : "text-danger-500"}`}>
+              {v == null ? "sin base" : `${up ? "+" : ""}${v.toFixed(1)}%`}
+            </span>
+          </span>
+        }
+      />
+      <QavanteStatTile
+        label={`Mismo tramo de ${mesAnt}`}
+        value={formatClp(tramo)}
+        tone="muted"
+        info={`Ventas de ${mesAnt} solo hasta el día ${dia} — la comparación pareja con lo que llevas.`}
+      />
+      <QavanteStatTile
+        label={`${mesAnt} completo`}
+        value={formatClp(total)}
+        tone="muted"
+        info="Total de ventas del mes anterior — de referencia, NO es comparación pareja."
+      />
+    </div>
   );
 }
 

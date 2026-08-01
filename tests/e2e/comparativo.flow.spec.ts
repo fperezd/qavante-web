@@ -21,9 +21,14 @@ test.describe("Flujo: Comparativo (/gestion/comparativo)", () => {
     await expect(main.getByRole("heading", { name: "Acumulado del año" })).toBeVisible();
     await expect(main.getByRole("heading", { name: "Vs. tu promedio" })).toBeVisible();
 
-    // Todas las comparaciones llevan la REFERENCIA CON MONTO (no solo %): "Este mes" (vs mes/año
-    // anterior), "Acumulado" y "Vs. tu promedio". El monto ($) va dentro de la línea de referencia.
-    await expect(main.getByText("vs mes anterior").first()).toBeVisible();
+    // El mes va EN CURSO (el MSW lo marca proforma): "Este mes" NO compara parcial vs completo (peras
+    // con manzanas). Muestra el mes anterior COMPLETO como referencia + la card "Ventas al mismo tramo"
+    // (la comparación pareja, del RCV diario) — pedido de Fernando 2026-08-01.
+    await expect(main.getByRole("heading", { name: "Ventas al mismo tramo" })).toBeVisible();
+    await expect(main.getByText(/completo/i).first()).toBeVisible();
+    await expect(main.getByText(/mismo tramo de/i).first()).toBeVisible();
+
+    // Los otros bloques siguen con su referencia CON MONTO (no solo %).
     await expect(main.getByText("promedio 12m").first()).toBeVisible();
     await expect(main.getByText(/mismo mes 20\d{2}/).first()).toBeVisible();
   });
