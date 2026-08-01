@@ -100,9 +100,33 @@ describe("computePuntoEquilibrio", () => {
     ).toBeNull();
   });
 
-  it("sin proforma marcado, el mes cerrado es el penúltimo de la serie", () => {
-    const sinProforma = computePuntoEquilibrio({ ...BD, proforma_month: null })!;
-    expect(sinProforma.mes).toBe("2026-06"); // último = jul (en curso) ⇒ cerrado = jun
+  it("sin proforma en el rango (mes histórico elegido): ancla en el ÚLTIMO mes, no el anterior", () => {
+    // Elegir un mes ya cerrado en el picker ⇒ el backend no marca proforma ⇒ el último del rango
+    // (jul) está completo y ES el que se pidió → se ancla en jul, no en jun (bug off-by-one).
+    const historico = computePuntoEquilibrio({ ...BD, proforma_month: null })!;
+    expect(historico.mes).toBe("2026-07");
+    expect(historico.ingresoMes).toBe(42_000_000); // ingresos de julio
+    const mod = historico.lineas.find((l) => l.label === "Mano de obra directa")!;
+    expect(mod.monto).toBe(8_590_493); // costo de julio (último del rango), no el de junio
+  });
+
+  it("ingresoMes: la sección canónica (key 'income') gana sobre otra sección con 'ingreso' en el label", () => {
+    // Segunda sección top-level "Ingresos no operacionales" (menor) procesada DESPUÉS de la canónica.
+    const conNoOperacional = {
+      ...BD,
+      rows: [
+        ...(BD.rows as OperationalResultBreakdown["rows"]),
+        {
+          kind: "section",
+          key: "non_operating_income",
+          label: "Ingresos no operacionales",
+          by_month: ["100000", "100000", "100000", "100000"],
+          total: "400000",
+        },
+      ] as OperationalResultBreakdown["rows"],
+    };
+    const pe = computePuntoEquilibrio(conNoOperacional)!;
+    expect(pe.ingresoMes).toBe(42_000_000); // la venta operacional, NO los $100.000 no operacionales
   });
 });
 

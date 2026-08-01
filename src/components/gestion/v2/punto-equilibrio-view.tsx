@@ -114,8 +114,8 @@ function TablaRecurrentes({ pe }: { pe: PuntoEquilibrio }) {
             </tr>
           </thead>
           <tbody>
-            {pe.lineas.map((l) => (
-              <tr key={l.label} className="border-t border-border/60">
+            {pe.lineas.map((l, i) => (
+              <tr key={`${l.label}-${i}`} className="border-t border-border/60">
                 <td className="py-1.5 pr-3 text-neutral-dark">{l.label}</td>
                 <td className="py-1.5 pl-3 text-right font-semibold tabular-nums text-neutral-dark">
                   {formatClp(Math.round(l.monto))}
