@@ -84,9 +84,14 @@ describe("computePuntoEquilibrio", () => {
     expect(arr.monto).toBe(884_855);
   });
 
-  it("excluye ingresos y lo 'sin clasificar', y ordena por monto desc", () => {
-    expect(pe.lineas.map((l) => l.label)).toEqual(["Mano de obra directa", "Arriendos"]);
-    expect(pe.totalACubrir).toBe(10_837_564 + 884_855);
+  it("excluye ingresos pero CUENTA lo sin clasificar ('si se gastó se gastó'); ordena por monto desc", () => {
+    // "Compras sin clasificar" ($1M en junio) ahora SÍ suma — antes se excluía y desaparecía.
+    expect(pe.lineas.map((l) => l.label)).toEqual([
+      "Mano de obra directa",
+      "Compras sin clasificar",
+      "Arriendos",
+    ]);
+    expect(pe.totalACubrir).toBe(10_837_564 + 1_000_000 + 884_855);
     expect(pe.mes).toBe("2026-06");
   });
 
