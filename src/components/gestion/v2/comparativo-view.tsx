@@ -12,7 +12,12 @@ import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { resultadoConfiable } from "./gestion-v2-map";
-import { mapRangoResumen, type RangoResumen } from "./gestion-v2-rango-map";
+import {
+  baseIncompleta,
+  mapRangoResumen,
+  rangoIncompleto,
+  type RangoResumen,
+} from "./gestion-v2-rango-map";
 
 /* Comparativo RICO (pedido de Fernando 2026-07-28, "las 5"): además del mes vs
    mes anterior / año anterior, las comparaciones potentes de control de gestión —
@@ -105,6 +110,18 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
   );
   const rQLy = React.useMemo(() => (qLy.data ? mapRangoResumen(qLy.data) : null), [qLy.data]);
 
+  // ¿La BASE de cada comparación está incompleta (ingresos altos, gastos ~0 ⇒ costos no cargados)?
+  // Si lo está, el % del RESULTADO no es comparable (ej.: 2025 sin planilla → "−46%" falso).
+  const ytdLyIncompleto = rangoIncompleto(rYtdLy);
+  const qLyIncompleto = rangoIncompleto(rQLy);
+  const yoyIncompleto = yoy.data
+    ? baseIncompleta(
+        parseAmount(yoy.data.revenue),
+        parseAmount(yoy.data.gross_margin),
+        parseAmount(yoy.data.result),
+      )
+    : false;
+
   return (
     <div className="space-y-5">
       <MonthPicker value={period} onChange={setPeriod} months={months} />
@@ -139,6 +156,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                           label="vs año anterior"
                           base={parseAmount(yoy.data?.[mt.key])}
                           actual={a}
+                          incompleto={mt.key === "result" && yoyIncompleto}
                         />
                       </span>
                     }
@@ -163,7 +181,14 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                     label={mt.label}
                     value={formatClp(a)}
                     tone={a >= 0 ? "default" : "danger"}
-                    hint={<RefLinea label={`vs ${y - 1}`} base={b} actual={a} />}
+                    hint={
+                      <RefLinea
+                        label={`vs ${y - 1}`}
+                        base={b}
+                        actual={a}
+                        incompleto={mt.key === "result" && ytdLyIncompleto}
+                      />
+                    }
                   />
                 );
               })}
@@ -196,7 +221,12 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                     hint={
                       <span className="flex flex-col gap-1">
                         <RefLinea label="promedio 12m" base={prom} actual={a} />
-                        <RefLinea label={`mismo mes ${y - 1}`} base={anioAnt} actual={a} />
+                        <RefLinea
+                          label={`mismo mes ${y - 1}`}
+                          base={anioAnt}
+                          actual={a}
+                          incompleto={mt.key === "result" && yoyIncompleto}
+                        />
                       </span>
                     }
                   />
@@ -230,6 +260,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                           label="vs mismo trim. año pasado"
                           base={pick(rQLy, mt.key)}
                           actual={a}
+                          incompleto={mt.key === "result" && qLyIncompleto}
                         />
                       </span>
                     }
@@ -275,8 +306,20 @@ function Bloque({
   );
 }
 
-/** Línea de referencia: "label $valor  ±%". Muestra el VALOR de la referencia (no solo el %). */
-function RefLinea({ label, base, actual }: { label: string; base: number; actual: number }) {
+/** Línea de referencia: "label $valor  ±%". Muestra el VALOR de la referencia (no solo el %).
+ *  Si `incompleto`, el período base no tiene los gastos cargados → el % del resultado no es
+ *  comparable: mostramos un aviso honesto en vez de un porcentaje falso. */
+function RefLinea({
+  label,
+  base,
+  actual,
+  incompleto,
+}: {
+  label: string;
+  base: number;
+  actual: number;
+  incompleto?: boolean;
+}) {
   const v = varPct(actual, base);
   const up = (v ?? 0) >= 0;
   const color = v == null ? "text-neutral-light" : up ? "text-success-700" : "text-danger-500";
@@ -285,9 +328,18 @@ function RefLinea({ label, base, actual }: { label: string; base: number; actual
       <span className="text-neutral-mid">
         {label} <b className="tabular-nums text-neutral-dark">{formatClp(base)}</b>
       </span>
-      <span className={`shrink-0 font-medium ${color}`}>
-        {v == null ? "sin base" : `${up ? "+" : ""}${v.toFixed(1)}%`}
-      </span>
+      {incompleto ? (
+        <span
+          className="shrink-0 cursor-help font-medium text-warning-700"
+          title="El período base no tiene todos los gastos cargados (ingresos altos con gastos casi nulos), así que su resultado está inflado y el % no es comparable."
+        >
+          base incompleta
+        </span>
+      ) : (
+        <span className={`shrink-0 font-medium ${color}`}>
+          {v == null ? "sin base" : `${up ? "+" : ""}${v.toFixed(1)}%`}
+        </span>
+      )}
     </span>
   );
 }
