@@ -152,6 +152,27 @@ describe("buildMaestro", () => {
     expect(kauf.proximoVencimiento!.getMonth()).toBe(6); // julio
   });
 
+  it("una factura RECLAMADA no suma al total ni al vencido, pero sí aparece en el detalle con su marca", () => {
+    const conReclamada: DocConVencimiento[] = [
+      ...docs,
+      {
+        rut: "96572360-9",
+        name: "COMERCIAL KAUFMANN S.A.",
+        fecha: "01/06/2026",
+        monto: 4_000_000,
+        folio: 9,
+        reclamado: true,
+      }, // vencida, pero RECLAMADA → no suma $ (decisión de Fernando 2026-08-01)
+    ];
+    const kauf = buildMaestro(conReclamada, readTerminos(undefined), "ventas", HOY).find(
+      (c) => c.rut === "96572360-9",
+    )!;
+    expect(kauf.total).toBe(8_000_000); // las 2 no reclamadas; la reclamada de 4M NO suma
+    expect(kauf.vencido).toBe(5_000_000); // solo la del 01/06 no reclamada
+    const recl = kauf.docs.find((d) => d.folio === 9)!;
+    expect(recl.reclamado).toBe(true); // pero sigue en el detalle, marcada con su "R"
+  });
+
   it("ordena los documentos de más nuevo a más antiguo (por emisión)", () => {
     const m = buildMaestro(docs, readTerminos(undefined), "ventas", HOY);
     const kauf = m.find((c) => c.rut === "96572360-9")!;
