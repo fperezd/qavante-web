@@ -4,10 +4,10 @@ import * as React from "react";
 import { ArrowDownRight, ArrowUpRight, Calendar, ChevronRight, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QavanteInlineError } from "@/components/qavante";
-import { useOperationalResultBreakdown, useOperationalResultDocuments } from "@/lib/api/gestion";
+import { useOperationalResultBreakdown } from "@/lib/api/gestion";
 import { addMonths } from "@/lib/period/period-range";
 import { formatClp } from "@/lib/formatters/clp";
-import { parseAmount } from "../gestion-format";
+import { CuentaDocumentos } from "../cuenta-documentos";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import {
   computePuntoEquilibrio,
@@ -146,7 +146,6 @@ function TablaRecurrentes({ pe }: { pe: PuntoEquilibrio }) {
 function FilaCuenta({ line, period }: { line: LineaRecurrente; period: string }) {
   const [abierta, setAbierta] = React.useState(false);
   const puedeAbrir = line.codigo !== "";
-  const docs = useOperationalResultDocuments(period, line.codigo, abierta && puedeAbrir);
   return (
     <>
       <tr
@@ -178,55 +177,11 @@ function FilaCuenta({ line, period }: { line: LineaRecurrente; period: string })
       {abierta && (
         <tr>
           <td colSpan={2} className="bg-neutral-light/10 px-3 py-2">
-            <DocumentosDeCuenta query={docs} />
+            <CuentaDocumentos period={period} accountCode={line.codigo} />
           </td>
         </tr>
       )}
     </>
-  );
-}
-
-/** Lista de facturas de una cuenta (drill-down). Degrada honesto: cargando / error / sin documentos. */
-function DocumentosDeCuenta({
-  query,
-}: {
-  query: ReturnType<typeof useOperationalResultDocuments>;
-}) {
-  if (query.isError) {
-    return (
-      <p className="text-[11px] text-danger-500">No pudimos cargar las facturas de esta cuenta.</p>
-    );
-  }
-  if (query.isLoading || !query.data) {
-    return (
-      <p className="text-[11px] text-neutral-mid" aria-busy="true">
-        Cargando facturas…
-      </p>
-    );
-  }
-  const docs = query.data.documents ?? [];
-  if (docs.length === 0) {
-    return <p className="text-[11px] text-neutral-mid">Sin documentos para el detalle.</p>;
-  }
-  return (
-    <ul className="space-y-1">
-      {docs.map((d, i) => (
-        <li
-          key={d.document_ref ?? d.source_external_id ?? String(i)}
-          className="flex items-center justify-between gap-3 text-[11.5px]"
-        >
-          <span className="min-w-0 truncate text-neutral-dark">
-            {d.document_ref && (
-              <span className="tabular-nums text-neutral-mid">{d.document_ref} · </span>
-            )}
-            {d.counterparty ?? "—"}
-          </span>
-          <span className="shrink-0 font-medium tabular-nums text-neutral-dark">
-            {formatClp(Math.round(Math.abs(parseAmount(d.net_amount))))}
-          </span>
-        </li>
-      ))}
-    </ul>
   );
 }
 
