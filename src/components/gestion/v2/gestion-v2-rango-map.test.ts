@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { mapRangoResumen, rangoConfiable, warningLabel } from "./gestion-v2-rango-map";
+import {
+  baseIncompleta,
+  mapRangoResumen,
+  rangoConfiable,
+  rangoIncompleto,
+  warningLabel,
+} from "./gestion-v2-rango-map";
 import type { OperationalResultBreakdown } from "@/lib/api/gestion";
 
 describe("warningLabel", () => {
@@ -100,5 +106,35 @@ describe("rangoConfiable", () => {
       ] as OperationalResultBreakdown["rows"],
     };
     expect(rangoConfiable(malo)).toBe(false);
+  });
+});
+
+describe("baseIncompleta", () => {
+  it("marca incompleto un año con ingresos altos y gastos ~0 (planilla no cargada)", () => {
+    // Caso real 2025 (ene-jul): ingresos 88,5M, bruto 72,1M, resultado 70,2M ⇒ gastos 1,9M (2,6%).
+    expect(baseIncompleta(88_558_398, 72_144_766, 70_255_269)).toBe(true);
+  });
+
+  it("NO marca incompleto un año con gastos reales", () => {
+    // Caso real 2026 (ene-jul): gastos = 112,7M − 37,8M = 74,9M (66% del bruto).
+    expect(baseIncompleta(189_765_944, 112_737_279, 37_847_586)).toBe(false);
+  });
+
+  it("no aplica si no hay ingresos o no hay margen bruto", () => {
+    expect(baseIncompleta(0, 0, 0)).toBe(false);
+    expect(baseIncompleta(100, 0, 0)).toBe(false);
+    expect(baseIncompleta(-100, -50, -50)).toBe(false);
+  });
+
+  it("umbral: gastos exactamente 5% del bruto NO es incompleto; apenas menos sí", () => {
+    expect(baseIncompleta(1000, 1000, 950)).toBe(false); // gastos 50 = 5% → completo
+    expect(baseIncompleta(1000, 1000, 951)).toBe(true); // gastos 49 < 5% → incompleto
+  });
+
+  it("rangoIncompleto envuelve el resumen (y null → false)", () => {
+    expect(rangoIncompleto(null)).toBe(false);
+    const r = mapRangoResumen(BD);
+    // BD tiene gastos reales (opex) → completo.
+    expect(rangoIncompleto(r)).toBe(false);
   });
 });

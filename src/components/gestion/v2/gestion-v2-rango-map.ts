@@ -103,6 +103,21 @@ export function mapRangoResumen(bd: OperationalResultBreakdown): RangoResumen {
   };
 }
 
+/** ¿El período BASE de una comparación está incompleto? Señal: tiene ingresos y margen bruto, pero
+ *  los gastos (bruto − resultado) son casi nulos (< 5% del margen bruto). Ninguna empresa operando
+ *  (con planilla, arriendo, etc.) tiene gastos < 5% del bruto → los costos/gastos NO están cargados,
+ *  y por eso su RESULTADO sale inflado y NO es comparable (ej.: un año viejo sin remuneraciones →
+ *  "resultado −46%" falso). Puro/testeable. Solo aplica al resultado; ingresos y bruto sí comparan. */
+export function baseIncompleta(ingresos: number, bruto: number, neto: number): boolean {
+  if (ingresos <= 0 || bruto <= 0) return false;
+  return bruto - neto < 0.05 * bruto;
+}
+
+/** `baseIncompleta` sobre el resumen de un rango (Acumulado/Trimestre). */
+export function rangoIncompleto(r: RangoResumen | null): boolean {
+  return r ? baseIncompleta(r.ingresos, r.bruto.monto, r.neto.monto) : false;
+}
+
 /** "2026-07" → "jul" (local para no exportar de más; equivalente a mesCorto). */
 function mesCortoDe(period: string): string {
   const MESES = [
