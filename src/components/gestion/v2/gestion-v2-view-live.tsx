@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Info } from "lucide-react";
+import { Info, CalendarClock } from "lucide-react";
 import { QavanteBadge } from "@/components/qavante";
 import { useOperationalResultBreakdown, type OperationalResultResponse } from "@/lib/api/gestion";
 import { useDashboardSummary, type PulsoStatus } from "@/lib/api/dashboard";
@@ -14,7 +14,17 @@ import { CascadaResultado } from "./cascada-resultado";
 import { DriversResultado } from "./drivers-resultado";
 import { TendenciaResultado } from "./tendencia-resultado";
 import { PulsoTira, type PulsoTono } from "./pulso-tira";
-import { mapHero, mapComparativos, mapCascada, mapDrivers, mapTendencia, margenOperacionalPct, resultadoConfiable, tendenciaConfiable, type Comparativo } from "./gestion-v2-map";
+import {
+  mapHero,
+  mapComparativos,
+  mapCascada,
+  mapDrivers,
+  mapTendencia,
+  margenOperacionalPct,
+  resultadoConfiable,
+  tendenciaConfiable,
+  type Comparativo,
+} from "./gestion-v2-map";
 import { AlertTriangle } from "lucide-react";
 
 /* Vista LIVE de Gestión v2 (rediseño 2026-07-14), la única vista de Gestión (el clásico se retiró). Recibe el
@@ -26,8 +36,18 @@ import { AlertTriangle } from "lucide-react";
    Container: NO se testea por Storybook play (ADR-0018); la lógica vive en `gestion-v2-map`. */
 
 const MESES_LARGOS = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
 ];
 
 /** "2026-07" → "julio 2026". */
@@ -68,11 +88,23 @@ const PULSO_TONO: Record<PulsoStatus, PulsoTono> = {
   strong: "ok",
 };
 
-export function GestionV2ViewLive({ mes, period }: { mes: OperationalResultResponse; period: string }) {
+export function GestionV2ViewLive({
+  mes,
+  period,
+  enCurso,
+}: {
+  mes: OperationalResultResponse;
+  period: string;
+  enCurso?: boolean;
+}) {
   const router = useRouter();
   const { from, to } = rango6(period);
   const breakdown = useOperationalResultBreakdown(from, to, { enabled: true });
   const dash = useDashboardSummary();
+
+  // MES EN CURSO: los costos ya están devengados pero las ventas recién empiezan → el resultado NO
+  // se puede leer aún (daría un "perdió $X" falso). No mostramos veredicto ganó/perdió.
+  if (enCurso) return <MesEnCurso mes={mes} period={period} />;
 
   // El backend está mandando costos en $0 / un resultado > ingresos (margen imposible). NO
   // mostramos la cascada confiada con números absurdos — degradamos honesto y lo dejamos visible.
@@ -86,11 +118,19 @@ export function GestionV2ViewLive({ mes, period }: { mes: OperationalResultRespo
   const pulso = dash.data?.pulso ?? null;
 
   const movibles: GestionMovible[] = [
-    { id: "drivers", label: "Qué explica el resultado", node: <DriversResultado items={drivers} /> },
+    {
+      id: "drivers",
+      label: "Qué explica el resultado",
+      node: <DriversResultado items={drivers} />,
+    },
   ];
   // Solo si la serie es plausible (algún mes con margen > 100% = mismo bug de costos $0 → se omite).
   if (tendencia.length >= 2 && tendenciaConfiable(tendencia)) {
-    movibles.push({ id: "tendencia", label: "Margen en el tiempo", node: <TendenciaResultado puntos={tendencia} /> });
+    movibles.push({
+      id: "tendencia",
+      label: "Margen en el tiempo",
+      node: <TendenciaResultado puntos={tendencia} />,
+    });
   }
 
   return (
@@ -133,20 +173,27 @@ function insightTension(resultado: number, status: PulsoStatus): React.ReactNode
   if (resultado >= 0 && debil) {
     return (
       <>
-        Ganas en resultado, pero tu Pulso está {status === "critical" ? "crítico" : "débil"}. El resultado es{" "}
-        <b>devengado</b> — lo facturado, no lo cobrado.
+        Ganas en resultado, pero tu Pulso está {status === "critical" ? "crítico" : "débil"}. El
+        resultado es <b>devengado</b> — lo facturado, no lo cobrado.
       </>
     );
   }
   if (resultado < 0) {
     return <>El resultado del mes fue negativo. Mira qué lo explica y cómo viene tu caja.</>;
   }
-  return <>Resultado positivo y Pulso {status === "strong" ? "fuerte" : "estable"}: el negocio viene sólido.</>;
+  return (
+    <>
+      Resultado positivo y Pulso {status === "strong" ? "fuerte" : "estable"}: el negocio viene
+      sólido.
+    </>
+  );
 }
 
 function Margenes({ mes }: { mes: OperationalResultResponse }) {
   const row = (k: string, v: React.ReactNode, dashed = true) => (
-    <div className={`flex items-baseline justify-between gap-3 py-1.5 ${dashed ? "border-t border-dashed border-border" : ""}`}>
+    <div
+      className={`flex items-baseline justify-between gap-3 py-1.5 ${dashed ? "border-t border-dashed border-border" : ""}`}
+    >
       <dt className="text-neutral-mid">{k}</dt>
       <dd className="font-bold tabular-nums text-neutral-dark">{v}</dd>
     </div>
@@ -161,7 +208,11 @@ function Margenes({ mes }: { mes: OperationalResultResponse }) {
     <div className="p-5">
       <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">Márgenes</p>
       <dl className="mt-2 flex flex-col text-[12.5px]">
-        {row("Margen bruto", margen(parseAmount(mes.gross_margin), parseAmount(mes.gross_margin_pct)), false)}
+        {row(
+          "Margen bruto",
+          margen(parseAmount(mes.gross_margin), parseAmount(mes.gross_margin_pct)),
+          false,
+        )}
         {row("Margen neto", margen(parseAmount(mes.result), margenOperacionalPct(mes)))}
       </dl>
     </div>
@@ -171,15 +222,21 @@ function Margenes({ mes }: { mes: OperationalResultResponse }) {
 function Comparativos({ items }: { items: Comparativo[] }) {
   return (
     <div className="p-5">
-      <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">Cómo viene el ritmo</p>
+      <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+        Cómo viene el ritmo
+      </p>
       {items.length === 0 ? (
-        <p className="mt-2 text-[12px] text-neutral-mid">Sin períodos anteriores para comparar todavía.</p>
+        <p className="mt-2 text-[12px] text-neutral-mid">
+          Sin períodos anteriores para comparar todavía.
+        </p>
       ) : (
         <dl className="mt-2.5 flex flex-col gap-2.5 text-[12.5px]">
           {items.map((c) => (
             <div key={c.label} className="flex items-baseline justify-between gap-3">
               <dt className="text-neutral-mid">{c.label}</dt>
-              <dd className={`font-bold ${c.pct >= 0 ? "text-success-700" : "text-danger-500"}`}>{formatSignedPct(String(c.pct))}</dd>
+              <dd className={`font-bold ${c.pct >= 0 ? "text-success-700" : "text-danger-500"}`}>
+                {formatSignedPct(String(c.pct))}
+              </dd>
             </div>
           ))}
         </dl>
@@ -193,7 +250,10 @@ const CONF_LABEL: Record<OperationalResultResponse["confidence"], string> = {
   medium: "Confianza media",
   low: "Confianza baja",
 };
-const CONF_VARIANT: Record<OperationalResultResponse["confidence"], "success" | "warning" | "danger"> = {
+const CONF_VARIANT: Record<
+  OperationalResultResponse["confidence"],
+  "success" | "warning" | "danger"
+> = {
   high: "success",
   medium: "warning",
   low: "danger",
@@ -205,7 +265,9 @@ function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 text-xs text-neutral-mid">
       <span className="font-medium text-neutral-dark">Confianza de este resultado:</span>
-      <QavanteBadge variant={CONF_VARIANT[mes.confidence]}>{CONF_LABEL[mes.confidence]}</QavanteBadge>
+      <QavanteBadge variant={CONF_VARIANT[mes.confidence]}>
+        {CONF_LABEL[mes.confidence]}
+      </QavanteBadge>
       {(mes.missing_sources ?? []).length > 0 && (
         <span className="inline-flex items-center gap-1">
           <Info className="h-3.5 w-3.5" aria-hidden="true" />
@@ -220,6 +282,35 @@ function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
  *  imposible; típicamente un gasto revertido o mal clasificado infla el resultado). Somos honestos:
  *  no mostramos un resultado con confianza; explicamos qué pasa y dejamos ingresos y resultado a la
  *  vista (para que se vea el desajuste). Escalado al equipo de datos (no se asume 0). */
+/** Mes EN CURSO: no hay veredicto ganó/perdió (sería falso — costos completos vs ventas a medias).
+ *  Muestra las ventas que llevas + apunta al mes cerrado para el resultado real. */
+function MesEnCurso({ mes, period }: { mes: OperationalResultResponse; period: string }) {
+  const revenue = parseAmount(mes.revenue);
+  return (
+    <section className="rounded-xl border border-brand-primary/25 bg-brand-primary/[.05] p-6">
+      <div className="flex items-start gap-3">
+        <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-brand-primary" aria-hidden="true" />
+        <div className="space-y-2">
+          <h2 className="text-base font-bold text-neutral-dark">
+            {mesLargo(period)} va en curso — aún sin cerrar
+          </h2>
+          <p className="text-sm text-neutral-mid">
+            Todavía no se puede decir si el mes ganó o perdió: los costos ya están cargados, pero
+            las ventas del mes recién empiezan. Compararlos ahora daría un resultado falso.
+          </p>
+          <p className="text-sm text-neutral-dark">
+            Ventas del mes hasta ahora: <b className="tabular-nums">{formatClp(revenue)}</b>.
+          </p>
+          <p className="text-[13px] text-neutral-mid">
+            Para el último resultado real, elige el mes anterior en el selector de arriba (la
+            pantalla arranca ahí por defecto).
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
   const revenue = parseAmount(mes.revenue);
   const result = parseAmount(mes.result);
@@ -231,10 +322,10 @@ function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
           No podemos mostrar tu resultado con confianza
         </p>
         <p className="mt-2 text-[13px] text-neutral-dark">
-          El resultado del mes iguala o supera a tus ingresos, lo que daría un margen imposible (100%
-          o más). Suele pasar cuando un gasto se revierte o llega mal clasificado ese mes, así que el
-          resultado queda inflado. Es un problema de datos del backend, ya escalado — no lo mostramos
-          como si fuera real.
+          El resultado del mes iguala o supera a tus ingresos, lo que daría un margen imposible
+          (100% o más). Suele pasar cuando un gasto se revierte o llega mal clasificado ese mes, así
+          que el resultado queda inflado. Es un problema de datos del backend, ya escalado — no lo
+          mostramos como si fuera real.
         </p>
         <dl className="mt-3 flex flex-col text-[12.5px]">
           <div className="flex items-baseline justify-between gap-3 py-1">
