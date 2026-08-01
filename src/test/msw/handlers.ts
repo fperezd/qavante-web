@@ -2830,6 +2830,44 @@ const gestionHandlers = [
       { status: 200 },
     );
   }),
+
+  /* Drill-down por documento de una cuenta (CC-API #786): las facturas que caen en una cuenta un mes. */
+  http.get("*/api/management/operational-result/documents", ({ request }) => {
+    const url = new URL(request.url);
+    const account = url.searchParams.get("account") ?? "";
+    const period = url.searchParams.get("period") ?? "2026-06";
+    const documents = [
+      {
+        side: "compras",
+        source_external_id: "34-119-78163706-8",
+        document_ref: "34-119",
+        counterparty: "SOCIEDAD DE PROFESIONALES VASQUEZ, GONZALEZ Y CIA LTDA",
+        rut: "78163706-8",
+        net_amount: "-407633.00",
+        origen: "memo",
+      },
+      {
+        side: "compras",
+        source_external_id: "33-508-96888880-1",
+        document_ref: "33-508",
+        counterparty: "PROVEEDOR DEMO SPA",
+        rut: "96888880-1",
+        net_amount: "-120000.00",
+        origen: "giro",
+      },
+    ];
+    return HttpResponse.json(
+      {
+        account_code: account,
+        account_name: account,
+        period,
+        total: "-527633.00",
+        count: documents.length,
+        documents,
+      },
+      { status: 200 },
+    );
+  }),
 ];
 
 /* Estado de las fuentes (indicador de sync del header). Seed con fuentes mixtas. */

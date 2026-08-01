@@ -27,5 +27,10 @@ test.describe("Flujo: Punto de equilibrio v2 (/gestion/punto-equilibrio)", () =>
     await expect(main.getByRole("heading", { name: /Lo que gastaste en/i })).toBeVisible();
     await expect(main.getByText("Sueldos")).toBeVisible();
     await expect(main.getByText("Total a cubrir", { exact: true })).toBeVisible();
+
+    // Drill-down por documento (CC-API #786): clic en una línea de costo → sus facturas.
+    await main.getByText("Sueldos", { exact: true }).click();
+    await expect(main.getByText(/SOCIEDAD DE PROFESIONALES/i)).toBeVisible();
+    await expect(main.getByText("34-119")).toBeVisible();
   });
 });

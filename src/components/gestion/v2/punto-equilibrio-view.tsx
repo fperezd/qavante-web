@@ -1,13 +1,19 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownRight, ArrowUpRight, Calendar, Target } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Calendar, ChevronRight, Target } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { QavanteInlineError } from "@/components/qavante";
-import { useOperationalResultBreakdown } from "@/lib/api/gestion";
+import { useOperationalResultBreakdown, useOperationalResultDocuments } from "@/lib/api/gestion";
 import { addMonths } from "@/lib/period/period-range";
 import { formatClp } from "@/lib/formatters/clp";
+import { parseAmount } from "../gestion-format";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
-import { computePuntoEquilibrio, type PuntoEquilibrio } from "./punto-equilibrio-model";
+import {
+  computePuntoEquilibrio,
+  type LineaRecurrente,
+  type PuntoEquilibrio,
+} from "./punto-equilibrio-model";
 
 /* Gestión → Punto de equilibrio v2 (pedido de Fernando 2026-07-30, redefinido 2026-07-31). Dato
    CONCRETO, no proyección ni %: "el mes pasado gastaste X; si gastas lo mismo, necesitas vender X
@@ -105,6 +111,9 @@ function TablaRecurrentes({ pe }: { pe: PuntoEquilibrio }) {
       <h2 className="text-sm font-bold text-neutral-dark">
         Lo que gastaste en {formatPeriodLabel(pe.mes)}
       </h2>
+      <p className="mt-0.5 text-[11px] text-neutral-light">
+        Clic en una línea para ver las facturas que la componen.
+      </p>
       <div className="mt-3 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -115,12 +124,7 @@ function TablaRecurrentes({ pe }: { pe: PuntoEquilibrio }) {
           </thead>
           <tbody>
             {pe.lineas.map((l, i) => (
-              <tr key={`${l.label}-${i}`} className="border-t border-border/60">
-                <td className="py-1.5 pr-3 text-neutral-dark">{l.label}</td>
-                <td className="py-1.5 pl-3 text-right font-semibold tabular-nums text-neutral-dark">
-                  {formatClp(Math.round(l.monto))}
-                </td>
-              </tr>
+              <FilaCuenta key={`${l.label}-${i}`} line={l} period={pe.mes} />
             ))}
           </tbody>
           <tfoot>
@@ -134,6 +138,95 @@ function TablaRecurrentes({ pe }: { pe: PuntoEquilibrio }) {
         </table>
       </div>
     </section>
+  );
+}
+
+/** Una línea de costo, expandible → drill-down de sus facturas (CC-API #786). El fetch solo corre al
+ *  abrirla (react-query `enabled`). Sin código de cuenta, la línea no es clickeable (degrada honesto). */
+function FilaCuenta({ line, period }: { line: LineaRecurrente; period: string }) {
+  const [abierta, setAbierta] = React.useState(false);
+  const puedeAbrir = line.codigo !== "";
+  const docs = useOperationalResultDocuments(period, line.codigo, abierta && puedeAbrir);
+  return (
+    <>
+      <tr
+        className={cn(
+          "border-t border-border/60",
+          puedeAbrir && "cursor-pointer hover:bg-neutral-light/20",
+        )}
+        onClick={puedeAbrir ? () => setAbierta((v) => !v) : undefined}
+        aria-expanded={puedeAbrir ? abierta : undefined}
+      >
+        <td className="py-1.5 pr-3 text-neutral-dark">
+          <span className="flex items-center gap-1.5">
+            {puedeAbrir && (
+              <ChevronRight
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 text-neutral-mid transition-transform",
+                  abierta && "rotate-90",
+                )}
+                aria-hidden="true"
+              />
+            )}
+            {line.label}
+          </span>
+        </td>
+        <td className="py-1.5 pl-3 text-right font-semibold tabular-nums text-neutral-dark">
+          {formatClp(Math.round(line.monto))}
+        </td>
+      </tr>
+      {abierta && (
+        <tr>
+          <td colSpan={2} className="bg-neutral-light/10 px-3 py-2">
+            <DocumentosDeCuenta query={docs} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/** Lista de facturas de una cuenta (drill-down). Degrada honesto: cargando / error / sin documentos. */
+function DocumentosDeCuenta({
+  query,
+}: {
+  query: ReturnType<typeof useOperationalResultDocuments>;
+}) {
+  if (query.isError) {
+    return (
+      <p className="text-[11px] text-danger-500">No pudimos cargar las facturas de esta cuenta.</p>
+    );
+  }
+  if (query.isLoading || !query.data) {
+    return (
+      <p className="text-[11px] text-neutral-mid" aria-busy="true">
+        Cargando facturas…
+      </p>
+    );
+  }
+  const docs = query.data.documents ?? [];
+  if (docs.length === 0) {
+    return <p className="text-[11px] text-neutral-mid">Sin documentos para el detalle.</p>;
+  }
+  return (
+    <ul className="space-y-1">
+      {docs.map((d, i) => (
+        <li
+          key={d.document_ref ?? d.source_external_id ?? String(i)}
+          className="flex items-center justify-between gap-3 text-[11.5px]"
+        >
+          <span className="min-w-0 truncate text-neutral-dark">
+            {d.document_ref && (
+              <span className="tabular-nums text-neutral-mid">{d.document_ref} · </span>
+            )}
+            {d.counterparty ?? "—"}
+          </span>
+          <span className="shrink-0 font-medium tabular-nums text-neutral-dark">
+            {formatClp(Math.round(Math.abs(parseAmount(d.net_amount))))}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

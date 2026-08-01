@@ -17,6 +17,8 @@ import { parseAmount } from "../gestion-format";
 
 export interface LineaRecurrente {
   label: string;
+  /** Código de la cuenta de gestión (para el drill-down por documento). */
+  codigo: string;
   /** Lo que gastaste en ese costo el último mes cerrado (magnitud, +). */
   monto: number;
 }
@@ -77,7 +79,7 @@ export function computePuntoEquilibrio(bd: OperationalResultBreakdown): PuntoEqu
         if (!excl) {
           const v = valorCerrado(r);
           // Neto negativo del mes ⇒ costo (su magnitud). Neto ≥0 (mes sin costo o reverso) ⇒ no suma.
-          if (v != null && v < 0) lineas.push({ label: r.label, monto: -v });
+          if (v != null && v < 0) lineas.push({ label: r.label, codigo: r.key ?? "", monto: -v });
         }
         // Las cuentas son hojas → NO recursar (evita doble conteo si trajera hijos).
       } else if (r.children?.length) {

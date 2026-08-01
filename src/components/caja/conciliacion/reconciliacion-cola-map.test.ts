@@ -156,6 +156,7 @@ describe("resumenReconcile", () => {
   const res = (over: Partial<ReconcileResponse> = {}): ReconcileResponse => ({
     matched: 0,
     consolidated: 0,
+    partial: 0,
     review: 0,
     excluded: 0,
     ambiguous: 0,
@@ -165,6 +166,7 @@ describe("resumenReconcile", () => {
     holding: 0,
     prepago_applied: 0,
     processor_batch: 0,
+    factoring: 0,
     ...over,
   });
 

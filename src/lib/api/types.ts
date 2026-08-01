@@ -266,6 +266,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/tenants/{tenant_id}/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Fija la empresa PREDETERMINADA del usuario (donde arranca al login, ADR-0081)
+         * @description Marca `tenant_id` como la empresa predeterminada del usuario (ADR-0081) — la que el login
+         *     elige al arrancar una sesión nueva. **NO cambia la empresa activa de esta sesión** (eso es
+         *     `POST /api/me/active-tenant`); solo persiste dónde arrancar la próxima vez. 403 si el usuario no
+         *     tiene membership activa en ese tenant. Devuelve el listado actualizado (la estrella movida).
+         */
+        put: operations["auth_me_set_default_tenant"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me/preferences": {
         parameters: {
             query?: never;
@@ -828,6 +851,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sii/cesiones/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SII RPETC: sincroniza las cesiones propias del tenant (factoring determinístico)
+         * @description Baja del RPETC (Registro Electrónico de Cesión de Créditos, SII) las **cesiones propias**
+         *     del tenant en el rango — las facturas que el tenant cedió a un factor (Finterra, X Capital) —
+         *     y las persiste en `treasury.cesiones` (ADR-0084). Es la señal DECISIVA del factoring: dice
+         *     QUÉ factura se cedió a QUÉ factor, resolviendo la ambigüedad de la heurística de anticipo-neto.
+         *     Idempotente por la id de cesión del SII.
+         */
+        post: operations["sii_cesiones_sync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sii/health": {
         parameters: {
             query?: never;
@@ -1008,6 +1055,30 @@ export interface paths {
          *     rut_contraparte, razon_social, montos.
          */
         get: operations["sii_rcv_ventas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sii/rcv/{kind}/comparativos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: comparativos del Libro (ritmo de ventas/compras + serie mes a mes)
+         * @description Comparativos del Libro de `kind` ('ventas'|'compras') sobre el rango [desde, hasta]:
+         *     `serie_mensual` (neto neteado de NC por mes, para el sparkline) + `neto_periodo` +
+         *     los 3 comparativos del ritmo (misma fecha del mes anterior, mes vs. promedio anual, YoY).
+         *     Lee del cache slim ya sincronizado (NO le pega al SII); un mes sin cache se omite (no se
+         *     inventa 0). Reemplaza el cálculo FE-side que hoy baja 12-24 meses por request.
+         */
+        get: operations["sii_rcv_comparativos"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2730,6 +2801,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/collection-projection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cobranza proyectada por COMPORTAMIENTO real del pagador (vs. vencimiento nominal)
+         * @description Proyecta cada receivable vivo por **cuándo paga de verdad** ese cliente (su historial:
+         *     `issue_date + plazo real inferido`), no por el vencimiento nominal, ponderado por su
+         *     probabilidad de pago. `vs_nominal.behavior_shift_days` dice cuántos días, en promedio, pagan
+         *     después (o antes) del vencimiento. Sin historial → cae al `due_date`; sin ninguno → `sin_fecha`
+         *     (no se inventa). Complementa `collection-forecast` (nominal); read-only.
+         */
+        get: operations["treasury_collection_projection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/cash-projection/backtest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Error de la proyección de caja (backtest 7/14/30 días)
+         * @description Mide cuánto se desvió la proyección de caja de lo que efectivamente pasó (métrica de
+         *     éxito #2, ADR-0083 B3): cruza el snapshot diario de D0 con el saldo realizado de D0+horizonte.
+         *     Métricas en `null` mientras no haya pares suficientes — no se inventa un error sin data.
+         */
+        get: operations["treasury_cash_projection_backtest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/tax-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendario tributario: obligaciones futuras fechadas (F29 + Previred)
+         * @description Unifica las obligaciones tributarias próximas (F29 IVA/PPM + Previred cotizaciones) en un
+         *     calendario ordenado por fecha. Read-only; reusa fuentes ya validadas. F29 puede venir
+         *     `estimado` (mes cerrado sin declarar aún, con guard de remanente) o `declarado`. No inventa
+         *     montos: si una fuente no tiene datos, no agrega obligación.
+         */
+        get: operations["treasury_tax_calendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/cash-projection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Proyección de caja unificada (ADR-0085): serie a cierre de día + quiebre + vencido
+         * @description La proyección de caja ÚNICA y coherente (ADR-0085 + RFC CC-WEB). Ancla en el saldo bancario
+         *     REAL (todos los movimientos, clasificados o no) y cuenta ambos lados con fuentes disjuntas:
+         *     cobros esperados (receivables 100%, fecha comportamiento) - egresos comprometidos (payables +
+         *     F29). `serie` a CIERRE de día; `vencido` es señal aparte pero cuenta forward a su fecha realista;
+         *     `escenario_duro` = si nadie paga; `punto_quiebre` = primer día bajo el mínimo con sus causas.
+         *     Reemplaza las 3 proyecciones divergentes (cash_forecast + DPC + reproyección FE).
+         */
+        get: operations["treasury_cash_projection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/obligations": {
         parameters: {
             query?: never;
@@ -2959,6 +3124,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/management/operational-result/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gestión — drill-down: documentos de una cuenta en el período
+         * @description Drill-down del Resultado Operacional: los documentos que la cascada determinista
+         *     clasificó a `account` en `period`. Responde el "¿qué facturas son *X*?" con folio +
+         *     contraparte + monto por documento (ask CC-WEB #779). Usa la MISMA clasificación que
+         *     `/breakdown` → el detalle cuadra con el reporte por construcción. Read-only.
+         */
+        get: operations["management_operational_result_documents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/management/operational-result/classify": {
         parameters: {
             query?: never;
@@ -3153,6 +3341,28 @@ export interface paths {
         put?: never;
         /** Conciliación: descarta la sugerencia en cola */
         post: operations["treasury_reconciliation_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Simulación READ-ONLY: mide el techo de conciliación sin aplicar nada
+         * @description Corre la cascada del reconciliador en modo simulación (cero writes) sobre los movimientos del
+         *     período y reporta cuántos/cuánto se auto-conciliarían, cuántos con un clic, cuántos van a Balance,
+         *     y cuántos no matchean (gap de sync o sin RUT). Es la herramienta de 'medir antes de construir'.
+         */
+        get: operations["treasury_reconciliation_dry_run"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3928,6 +4138,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/reconcile/run-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conciliación automática de todos los tenants con banco (cron)
+         * @description Concilia **todos** los tenants con banco. Lo llama el cron con `SERVER_API_KEY`. El motor es
+         *     el mismo que el botón manual (auto-aplica solo ≥90, encola 60-90); best-effort por tenant.
+         */
+        post: operations["admin_reconcile_run_all"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/roles": {
         parameters: {
             query?: never;
@@ -4548,6 +4779,18 @@ export interface components {
              * @description Desglose del total por pagar por moneda, SIN convertir — para mostrar '(CLP $X + USD $Y)' junto al total en CLP. CLP primero.
              */
             total_by_currency?: components["schemas"]["PayableCurrencyTotal"][];
+            /**
+             * Undated Amount
+             * @description Saldo por pagar de documentos SIN fecha de vencimiento (convertido a CLP). Las facturas del RCV entran sin vencimiento hasta enriquecerlas con el FchVenc del XML → este monto NO está en ningún bucket `due_*` ni en `covers_critical`. Exponerlo evita el 'agujero' entre `total` y la suma de los buckets (transparencia de frescura).
+             * @default 0
+             */
+            undated_amount: string;
+            /**
+             * Undated Count
+             * @description Cantidad de documentos por pagar sin fecha de vencimiento.
+             * @default 0
+             */
+            undated_count: number;
             /** Items */
             items?: components["schemas"]["PayableItem"][];
             /**
@@ -5656,6 +5899,16 @@ export interface components {
              */
             assigned: number;
         };
+        /** CalidadFechas */
+        CalidadFechas: {
+            /**
+             * Con Fecha Real
+             * @description Fracción [0..1] de obligaciones con fecha REAL (vencimiento/comportamiento) vs estimada. La proyección vale lo que valen las fechas.
+             */
+            con_fecha_real: number;
+            /** Items Totales */
+            items_totales: number;
+        };
         /**
          * CanonicalCategoriesResponse
          * @description Respuesta de `GET /api/treasury/canonical-categories`.
@@ -5774,10 +6027,20 @@ export interface components {
              */
             payment_detected?: string | null;
             /**
+             * Payment Persisted
+             * @description Si el pago detectado se persistió como movimiento/obligación.
+             */
+            payment_persisted?: boolean | null;
+            /**
              * Charges Detected
              * @description Cargos de la sección 3 detectados (no persistidos).
              */
             charges_detected?: number | null;
+            /**
+             * Charges Persisted
+             * @description Cargos persistidos como obligaciones card_purchase.
+             */
+            charges_persisted?: number | null;
             /** Purchases Upserted */
             purchases_upserted?: number | null;
             /** Deuda Total Usd */
@@ -6113,6 +6376,112 @@ export interface components {
             /** Updated By */
             updated_by?: string | null;
         };
+        /**
+         * CashProjectionBacktestResponse
+         * @description Error de la proyección de caja a `horizon_days` (ADR-0083 B3, métrica de éxito #2).
+         *     Métricas en `null` mientras no haya historia suficiente (no se inventa).
+         */
+        CashProjectionBacktestResponse: {
+            /**
+             * Horizon Days
+             * @description Horizonte medido (7, 14 o 30 días).
+             */
+            horizon_days: number;
+            /**
+             * Pairs
+             * @description Cantidad de pares snapshot↔realizado disponibles.
+             */
+            pairs: number;
+            /**
+             * Mae
+             * @description Error absoluto medio (CLP), o null sin historia.
+             */
+            mae?: string | null;
+            /**
+             * Bias
+             * @description Error medio con signo (CLP): + = subestimamos, - = sobreestimamos.
+             */
+            bias?: string | null;
+            /**
+             * Mape Pct
+             * @description Error porcentual absoluto medio (%).
+             */
+            mape_pct?: string | null;
+            /**
+             * Samples
+             * @description Los pares usados (para inspección/gráfico).
+             */
+            samples?: components["schemas"]["CashProjectionBacktestSample"][];
+        };
+        /**
+         * CashProjectionBacktestSample
+         * @description Un par (snapshot D0, saldo realizado en D0+horizonte) del backtest de proyección.
+         */
+        CashProjectionBacktestSample: {
+            /**
+             * As Of
+             * @description Día del snapshot que proyectó (YYYY-MM-DD).
+             */
+            as_of: string;
+            /**
+             * Target Date
+             * @description Día objetivo = as_of + horizonte (YYYY-MM-DD).
+             */
+            target_date: string;
+            /**
+             * Projected
+             * @description Saldo que se proyectó para target_date (string-decimal).
+             */
+            projected: string;
+            /**
+             * Actual
+             * @description Saldo realizado en target_date (opening de ese snapshot).
+             */
+            actual: string;
+            /**
+             * Error
+             * @description actual - projected (string-decimal, con signo).
+             */
+            error: string;
+        };
+        /**
+         * CashProjectionResponse
+         * @description Proyección de caja unificada (ADR-0085 + RFC CC-WEB). Anclada en el saldo bancario real; NO
+         *     se deriva de `financial_impacts` (no gatea por clasificación). Serie a CIERRE de día, dos
+         *     escenarios (esperado = con cobros / duro = nadie paga), vencido como señal aparte pero contado.
+         */
+        CashProjectionResponse: {
+            /** As Of */
+            as_of: string;
+            /** Horizon Days */
+            horizon_days: number;
+            /**
+             * Moneda
+             * @default CLP
+             */
+            moneda: string;
+            /**
+             * Saldo Hoy
+             * @description Saldo bancario real de hoy (todos los movimientos).
+             */
+            saldo_hoy: string;
+            /**
+             * Minimo
+             * @description Caja mínima configurada (0 si no hay).
+             */
+            minimo: string;
+            /**
+             * Dias De Caja
+             * @description Runway banda esperada: días hasta saldo_cierre < mínimo; null si nunca.
+             */
+            dias_de_caja?: number | null;
+            /** Serie */
+            serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
+            escenario_duro: components["schemas"]["EscenarioDuro"];
+            punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
+            vencido: components["schemas"]["Vencido"];
+            fuentes: components["schemas"]["Fuentes"];
+        };
         /** CashToday */
         CashToday: {
             /** Total */
@@ -6127,6 +6496,24 @@ export interface components {
              * @enum {string}
              */
             data_state: "available" | "stale" | "estimated";
+        };
+        /** Causa */
+        Causa: {
+            /**
+             * Glosa
+             * @description Contraparte / concepto del egreso.
+             */
+            glosa: string;
+            /**
+             * Monto
+             * @description Monto (negativo = egreso), string-decimal.
+             */
+            monto: string;
+            /**
+             * Tipo
+             * @description 'pago' | 'f29' | 'pago_vencido'.
+             */
+            tipo?: string | null;
         };
         /**
          * CentroPagosResponse
@@ -6271,6 +6658,54 @@ export interface components {
              * @default 0
              */
             count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CesionesSyncResponse
+         * @description Resultado de `POST /api/sii/cesiones/sync` — RPETC (ADR-0084): baja las cesiones
+         *     propias del tenant en el rango y las upserta en `treasury.cesiones`.
+         */
+        CesionesSyncResponse: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+            /** Desde */
+            desde?: string | null;
+            /** Hasta */
+            hasta?: string | null;
+            /**
+             * Cesiones Encontradas
+             * @description Cesiones que el RPETC devolvió en el rango.
+             * @default 0
+             */
+            cesiones_encontradas: number;
+            /**
+             * Nuevas
+             * @description Cesiones nuevas insertadas.
+             * @default 0
+             */
+            nuevas: number;
+            /**
+             * Actualizadas
+             * @description Cesiones ya conocidas re-sincronizadas.
+             * @default 0
+             */
+            actualizadas: number;
+            /**
+             * Omitidas
+             * @description Cesiones sin fecha de cesión parseable (no persistibles).
+             * @default 0
+             */
+            omitidas: number;
+            /**
+             * Cedidas Marcadas
+             * @description Receivables marcadas cedidas (dadas de baja de Cobrar — el cliente paga al factor).
+             * @default 0
+             */
+            cedidas_marcadas: number;
         } & {
             [key: string]: unknown;
         };
@@ -6467,6 +6902,42 @@ export interface components {
             /** @description Receivables con vencimiento > 90 días. */
             beyond_horizon: components["schemas"]["ForecastAmount"];
         };
+        /**
+         * CollectionProjectionResponse
+         * @description Proyección de cobros fechada por el COMPORTAMIENTO real del pagador (ADR-0083 B2),
+         *     ponderada por probabilidad de pago. Complementa `collection-forecast` (que fecha por el
+         *     vencimiento nominal) mostrando ambos. Read-only.
+         */
+        CollectionProjectionResponse: {
+            /**
+             * As Of
+             * @description Fecha de cálculo (YYYY-MM-DD).
+             */
+            as_of: string;
+            /**
+             * Total Nominal
+             * @description Σ outstanding de todos los receivables vivos (CLP).
+             */
+            total_nominal: string;
+            /**
+             * Total Expected
+             * @description Σ ponderado por probabilidad de pago (CLP).
+             */
+            total_expected: string;
+            /** @description Fecha de cobro proyectada ya pasada (el cliente ya debería haber pagado). */
+            overdue: components["schemas"]["ForecastAmount"];
+            /** @description Sin historial de pagador Y sin due_date → no se proyecta fecha (no se inventa). */
+            sin_fecha: components["schemas"]["ForecastAmount"];
+            /**
+             * Buckets
+             * @description Buckets por días hasta la fecha de cobro proyectada por comportamiento.
+             */
+            buckets: components["schemas"]["ForecastBucket"][];
+            /** @description Fecha proyectada > 90 días. */
+            beyond_horizon: components["schemas"]["ForecastAmount"];
+            /** @description Cuánto difiere el comportamiento real del vencimiento nominal. */
+            vs_nominal: components["schemas"]["ProjectionVsNominal"];
+        };
         /** CompanyCurrencySettings */
         CompanyCurrencySettings: {
             /** Tenant Id */
@@ -6493,6 +6964,49 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** ComparativoMesVsPromedio */
+        ComparativoMesVsPromedio: {
+            /** Pct */
+            pct: number;
+            /**
+             * Mes Label
+             * @description Etiqueta legible del mes anterior, ej. 'julio'.
+             */
+            mes_label: string;
+            /** Neto Mes */
+            neto_mes: string;
+            /** Promedio Anual */
+            promedio_anual: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ComparativoMismoDia */
+        ComparativoMismoDia: {
+            /** Pct */
+            pct: number;
+            /**
+             * Dia Corte
+             * @description Día del mes hasta el que se compara (hoy).
+             */
+            dia_corte: number;
+            /** Neto Actual */
+            neto_actual: string;
+            /** Neto Base */
+            neto_base: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ComparativoYoY */
+        ComparativoYoY: {
+            /** Pct */
+            pct: number;
+            /** Neto Periodo */
+            neto_periodo: string;
+            /** Neto Anio Anterior */
+            neto_anio_anterior: string;
+        } & {
+            [key: string]: unknown;
         };
         /** ConfianzaScoreResponse */
         ConfianzaScoreResponse: {
@@ -7514,6 +8028,44 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** DryRunGroup */
+        DryRunGroup: {
+            /** Count */
+            count: number;
+            /** Amount */
+            amount: string;
+            /**
+             * Pct
+             * @description % del total de movimientos en este grupo.
+             */
+            pct: number;
+        };
+        /**
+         * DryRunResponse
+         * @description Resultado de la SIMULACIÓN read-only del reconciliador (mide el techo de conciliación).
+         */
+        DryRunResponse: {
+            /** Total Movimientos */
+            total_movimientos: number;
+            /** Total Monto */
+            total_monto: string;
+            /**
+             * Resumen
+             * @description Grupos: ya_resuelto, auto_conciliable, un_clic, balance_banco, sin_cuadre_o_sync, sin_rut. Cada uno {count, amount, pct}.
+             */
+            resumen: {
+                [key: string]: components["schemas"]["DryRunGroup"];
+            };
+            /**
+             * Detalle
+             * @description Desglose por bucket fino (00_ya_clasificado, 10_auto_*, …).
+             */
+            detalle: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * DteDetailEnrichResponse
          * @description Resultado de `POST /api/sii/enrich-dte-detail` — persiste las líneas del DTE
@@ -7807,6 +8359,24 @@ export interface components {
             pagination?: components["schemas"]["Pagination"] | null;
         } & {
             [key: string]: unknown;
+        };
+        /** EscenarioDuro */
+        EscenarioDuro: {
+            /**
+             * Dias De Caja
+             * @description Runway si NADIE paga (solo egresos).
+             */
+            dias_de_caja?: number | null;
+            /**
+             * Piso
+             * @description Saldo mínimo del escenario duro (string-decimal).
+             */
+            piso: string;
+            /**
+             * Piso Fecha
+             * @description Día del piso (YYYY-MM-DD).
+             */
+            piso_fecha: string;
         };
         /** ExchangeRate */
         ExchangeRate: {
@@ -8787,6 +9357,12 @@ export interface components {
             /** Items */
             items?: components["schemas"]["ForeignPurchaseItem"][];
         };
+        /** Fuentes */
+        Fuentes: {
+            /** Saldo Synced At */
+            saldo_synced_at?: string | null;
+            calidad_fechas: components["schemas"]["CalidadFechas"];
+        };
         /**
          * GiroEnrichResponse
          * @description Resultado de `POST /api/sii/enrich-giros` — cachea el giro de los
@@ -9140,6 +9716,39 @@ export interface components {
              * @description Patas clasificadas como internal_bank_transfer (2 por par).
              */
             clasificados: number;
+        };
+        /**
+         * LibroComparativosResponse
+         * @description `GET /api/sii/rcv/{kind}/comparativos` — contrato CC-WEB 2026-07-13. Neto neteado de
+         *     NC (mismo criterio F29/computeRcvTotals). Cada bloque de comparativo es null si no es
+         *     calculable (base ≤ 0 / meses faltantes) → el FE lo omite (degradado honesto).
+         */
+        LibroComparativosResponse: {
+            /**
+             * Neto Periodo
+             * @description Neto del rango seleccionado (número de oro del hero).
+             */
+            neto_periodo: string;
+            /**
+             * Serie Mensual
+             * @description Un punto por mes del rango PRESENTE en cache, cronológico (sparkline). Un mes sin cache se omite (no se inventa 0).
+             */
+            serie_mensual?: components["schemas"]["app__integrations__sii__schemas__SeriePunto"][];
+            mismo_dia_mes_anterior?: components["schemas"]["ComparativoMismoDia"] | null;
+            mes_vs_promedio_anual?: components["schemas"]["ComparativoMesVsPromedio"] | null;
+            yoy?: components["schemas"]["ComparativoYoY"] | null;
+            /**
+             * Last Synced At
+             * @description ISO 8601 UTC del mes más reciente del rango en cache (o null).
+             */
+            last_synced_at?: string | null;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
+        } & {
+            [key: string]: unknown;
         };
         /**
          * LinkBankAccountRequest
@@ -9531,6 +10140,12 @@ export interface components {
              * @description True si es la empresa activa de la sesión actual.
              */
             is_active: boolean;
+            /**
+             * Is Default
+             * @description True si es la empresa PREDETERMINADA del usuario (donde arranca una sesión nueva al login, ADR-0081). El FE marca la estrella desde acá. Se cambia con `PUT /api/me/tenants/{tenant_id}/default`.
+             * @default false
+             */
+            is_default: boolean;
         };
         /** MeTenantsResponse */
         MeTenantsResponse: {
@@ -9954,6 +10569,70 @@ export interface components {
             result: string;
             /** Period */
             period: string;
+        };
+        /**
+         * OperationalResultDocument
+         * @description Un documento del drill-down por cuenta.
+         */
+        OperationalResultDocument: {
+            /**
+             * Side
+             * @description 'ventas' | 'compras'.
+             */
+            side: string;
+            /**
+             * Source External Id
+             * @description ID de la fuente (tipo-folio-rut) o null para docs sintéticos.
+             */
+            source_external_id?: string | null;
+            /**
+             * Document Ref
+             * @description Referencia legible (p.ej. folio).
+             */
+            document_ref?: string | null;
+            /**
+             * Counterparty
+             * @description Cliente/proveedor, o glosa del origen.
+             */
+            counterparty?: string | null;
+            /** Rut */
+            rut?: string | null;
+            /**
+             * Net Amount
+             * @description Monto neto (string Decimal-safe, firmado como el accrual).
+             */
+            net_amount: string;
+            /**
+             * Origen
+             * @description Cómo se clasificó: rule|memo|heuristic|giro|unclassified|payroll|bhe.
+             */
+            origen?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OperationalResultDocumentsResponse
+         * @description Drill-down: documentos que caen en una cuenta de gestión en un período.
+         */
+        OperationalResultDocumentsResponse: {
+            /** Account Code */
+            account_code: string;
+            /** Account Name */
+            account_name?: string | null;
+            /**
+             * Period
+             * @description 'YYYY-MM'.
+             */
+            period: string;
+            /**
+             * Total
+             * @description Suma de los netos (string Decimal-safe).
+             */
+            total: string;
+            /** Count */
+            count: number;
+            /** Documents */
+            documents: components["schemas"]["OperationalResultDocument"][];
         };
         /**
          * OperationalResultReportResponse
@@ -10588,6 +11267,27 @@ export interface components {
              */
             created_at: string;
         };
+        /**
+         * ProjectionVsNominal
+         * @description Comparación comportamiento vs vencimiento nominal (el insight del diferenciador).
+         */
+        ProjectionVsNominal: {
+            /**
+             * Behavior Shift Days
+             * @description Días promedio (ponderado por monto) entre la fecha de comportamiento y el vencimiento nominal: + = pagan DESPUÉS del vencimiento, - = antes. null sin comparables.
+             */
+            behavior_shift_days?: number | null;
+            /**
+             * Docs Comportamiento
+             * @description Receivables fechados por comportamiento real del pagador (con historial).
+             */
+            docs_comportamiento: number;
+            /**
+             * Docs Por Vencimiento
+             * @description Receivables fechados por due_date (sin historial → nominal, honesto).
+             */
+            docs_por_vencimiento: number;
+        };
         /** ProposalsResponse */
         ProposalsResponse: {
             /** Proposals */
@@ -10731,6 +11431,24 @@ export interface components {
             period: string;
             /** Score */
             score: number;
+        };
+        /** PuntoQuiebre */
+        PuntoQuiebre: {
+            /**
+             * Fecha
+             * @description Primer día cuyo saldo al cierre cae bajo el mínimo.
+             */
+            fecha: string;
+            /**
+             * Saldo
+             * @description Saldo al cierre de ese día (string-decimal).
+             */
+            saldo: string;
+            /**
+             * Causas
+             * @description Top egresos que llevan al quiebre.
+             */
+            causas?: components["schemas"]["Causa"][];
         };
         /**
          * PutBankCredentialRequest
@@ -10935,6 +11653,11 @@ export interface components {
              */
             consolidated: number;
             /**
+             * Partial
+             * @default 0
+             */
+            partial: number;
+            /**
              * Review
              * @default 0
              */
@@ -10979,6 +11702,34 @@ export interface components {
              * @default 0
              */
             processor_batch: number;
+            /**
+             * Factoring
+             * @default 0
+             */
+            factoring: number;
+        };
+        /** ReconcileRunAllResponse */
+        ReconcileRunAllResponse: {
+            /**
+             * Tenants
+             * @description Tenants con banco procesados.
+             */
+            tenants: number;
+            /**
+             * Matched
+             * @description Matches aplicados (1:1 + consolidados) en total.
+             */
+            matched: number;
+            /**
+             * Review
+             * @description Sugerencias encoladas para revisión (60-90 confianza).
+             */
+            review: number;
+            /**
+             * Errors
+             * @description Errores best-effort (no abortan el resto).
+             */
+            errors: number;
         };
         /**
          * ReconciledClassifyResponse
@@ -11998,6 +12749,68 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TaxCalendarResponse
+         * @description Obligaciones tributarias próximas (F29 + Previred), fechadas y ordenadas. TGR pendiente
+         *     (su snapshot necesita mapeo + validación antes de fechar convenios).
+         */
+        TaxCalendarResponse: {
+            /**
+             * As Of
+             * @description Fecha de cálculo (YYYY-MM-DD).
+             */
+            as_of: string;
+            /**
+             * Horizon Days
+             * @description Ventana hacia adelante considerada (días).
+             */
+            horizon_days: number;
+            /**
+             * Total
+             * @description Σ de las obligaciones de la ventana (CLP).
+             */
+            total: string;
+            /**
+             * By Tipo
+             * @description Total por tipo ('f29'/'previred'), string-decimal.
+             */
+            by_tipo?: {
+                [key: string]: string;
+            };
+            /**
+             * Events
+             * @description Las obligaciones, ordenadas por fecha.
+             */
+            events?: components["schemas"]["TaxEvent"][];
+        };
+        /** TaxEvent */
+        TaxEvent: {
+            /**
+             * Date
+             * @description Fecha de vencimiento de la obligación (YYYY-MM-DD).
+             */
+            date: string;
+            /**
+             * Amount
+             * @description Monto a pagar (string-decimal, CLP).
+             */
+            amount: string;
+            /**
+             * Tipo
+             * @description Fuente de la obligación: 'f29' | 'previred'.
+             */
+            tipo: string;
+            /**
+             * Estado
+             * @description 'declarado' | 'estimado' (F29) | 'pendiente' (Previred).
+             */
+            estado: string;
+            /**
+             * Glosa
+             * @description Descripción legible de la obligación.
+             */
+            glosa: string;
+        };
         /** TenantResponse */
         TenantResponse: {
             /**
@@ -12414,6 +13227,33 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** Vencido */
+        Vencido: {
+            /**
+             * Total
+             * @description Σ de lo vencido (con signo), string-decimal.
+             */
+            total: string;
+            /** Items */
+            items?: components["schemas"]["VencidoItem"][];
+        };
+        /** VencidoItem */
+        VencidoItem: {
+            /** Glosa */
+            glosa: string;
+            /**
+             * Monto
+             * @description Monto (negativo=pago, positivo=cobro), string-decimal.
+             */
+            monto: string;
+            /** Dias Atraso */
+            dias_atraso: number;
+            /**
+             * Tipo
+             * @description 'pago_vencido' | 'cobro_vencido'.
+             */
+            tipo: string;
+        };
         /** VerifyEmailRequest */
         VerifyEmailRequest: {
             /** Token */
@@ -12456,6 +13296,24 @@ export interface components {
             /** Accounts */
             accounts: components["schemas"]["BankAccountLinkStatus"][];
         };
+        /** SeriePunto */
+        app__api__cash_model__SeriePunto: {
+            /**
+             * Fecha
+             * @description Día (YYYY-MM-DD).
+             */
+            fecha: string;
+            /**
+             * Saldo Cierre
+             * @description Saldo proyectado al CIERRE de ese día (string-decimal).
+             */
+            saldo_cierre: string;
+            /**
+             * Capa
+             * @description Capa del dato: 'esperado' (proyectado).
+             */
+            capa: string;
+        };
         /** ConfirmResponse */
         app__api__operational_result__ConfirmResponse: {
             /** Status */
@@ -12489,6 +13347,21 @@ export interface components {
         app__core__treasury_schemas__BankAccountsListResponse: {
             /** Items */
             items?: components["schemas"]["BankAccountItem"][];
+        };
+        /** SeriePunto */
+        app__integrations__sii__schemas__SeriePunto: {
+            /**
+             * Periodo
+             * @description Mes del punto, YYYY-MM.
+             */
+            periodo: string;
+            /**
+             * Neto
+             * @description Neto del mes (string-decimal): afecto + exento - NC.
+             */
+            neto: string;
+        } & {
+            [key: string]: unknown;
         };
     };
     responses: never;
@@ -13011,6 +13884,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description Sin sesión o sesión inválida. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El usuario no pertenece a esa empresa (sin membership activa). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auth_me_set_default_tenant: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path: {
+                tenant_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Default actualizado; devuelve el listado con la estrella movida. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeTenantsResponse"];
                 };
             };
             /** @description Sin sesión o sesión inválida. */
@@ -14018,6 +14940,56 @@ export interface operations {
             };
         };
     };
+    sii_cesiones_sync: {
+        parameters: {
+            query: {
+                /** @description Inicio del rango (YYYY-MM-DD). */
+                desde: string;
+                /** @description Fin del rango (YYYY-MM-DD). */
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen: cesiones encontradas / nuevas / actualizadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CesionesSyncResponse"];
+                };
+            };
+            /** @description Tenant sin credencial clave tributaria activa. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description SII inalcanzable, auth fallida o sesión expirada. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     sii_health: {
         parameters: {
             query?: never;
@@ -14362,6 +15334,42 @@ export interface operations {
             };
             /** @description El SII no respondió correctamente (login/portal caído o rechazo). */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sii_rcv_comparativos: {
+        parameters: {
+            query: {
+                /** @description Inicio del rango, YYYY-MM (inclusive). */
+                desde: string;
+                /** @description Fin del rango, YYYY-MM (inclusive). */
+                hasta: string;
+            };
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Serie mensual + 3 comparativos (bloque null = no calculable). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibroComparativosResponse"];
+                };
+            };
+            /** @description kind inválido o rango mal formado. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17836,6 +18844,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Tiene financial_impacts vivos apuntando (no se puede borrar). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18288,6 +19303,140 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    treasury_collection_projection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cobros fechados por el plazo real de cada cliente + comparación. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionProjectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_cash_projection_backtest: {
+        parameters: {
+            query?: {
+                /** @description Horizonte a medir: 7, 14 o 30 días. */
+                horizon_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Error (MAE/bias/MAPE) de lo proyectado vs lo realizado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashProjectionBacktestResponse"];
+                };
+            };
+            /** @description horizon_days no es 7, 14 ni 30. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_tax_calendar: {
+        parameters: {
+            query?: {
+                /** @description Ventana hacia adelante (1-365 días). */
+                horizon_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Obligaciones tributarias próximas, ordenadas por fecha. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxCalendarResponse"];
+                };
+            };
+            /** @description horizon_days fuera de rango [1, 365]. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_cash_projection: {
+        parameters: {
+            query?: {
+                /** @description Horizonte (días; default 90 ≈ 13 sem). */
+                horizon_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La proyección de caja ÚNICA — todos leen ésta. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashProjectionResponse"];
+                };
+            };
+            /** @description El tenant no tiene saldo de apertura configurado. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description horizon_days fuera de rango [7, 180]. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -18756,6 +19905,40 @@ export interface operations {
             };
         };
     };
+    management_operational_result_documents: {
+        parameters: {
+            query: {
+                /** @description Período 'YYYY-MM'. */
+                period: string;
+                /** @description Código de la cuenta de gestión (p.ej. 'operating_expense.legal_accounting'). */
+                account: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Documentos clasificados a la cuenta en el período (0 si ninguno). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationalResultDocumentsResponse"];
+                };
+            };
+            /** @description period mal formado. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     management_operational_result_classify: {
         parameters: {
             query: {
@@ -19099,6 +20282,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_dry_run: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM inclusive. */
+                period_from?: string | null;
+                /** @description YYYY-MM inclusive. */
+                period_to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DryRunResponse"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -20591,6 +21810,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_reconcile_run_all: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconcileRunAllResponse"];
                 };
             };
         };
