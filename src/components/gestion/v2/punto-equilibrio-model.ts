@@ -7,9 +7,10 @@
 
    - Anclado al último mes CERRADO (el previo al mes en curso/proforma) → nunca muestra un mes a medio
      clasificar (esto arregla el "arriendo de julio en blanco": mostramos junio, que está completo).
-   - Clasifica costo por SECCIÓN (no por signo): excluye ingresos y "sin clasificar" mirando la rama
-     del árbol. Una cuenta cuyo neto del mes es negativo es un costo (su magnitud); si el neto es ≥0
-     (mes sin costo o reverso de NC) no suma piso.
+   - Clasifica costo por SECCIÓN (no por signo): excluye SOLO los ingresos. Lo "sin clasificar" SÍ se
+     cuenta ("si se gastó, se gastó" — Fernando): es plata que salió, aunque falte categorizarla.
+     Una cuenta cuyo neto del mes es negativo es un costo (su magnitud); si el neto es ≥0 (mes sin
+     costo o reverso de NC) no suma piso.
    - Las cuentas son hojas → no se recursa (evita doble conteo). PURO/testeable. */
 
 import type { OperationalResultBreakdown, BreakdownRow } from "@/lib/api/gestion";
@@ -36,11 +37,6 @@ export interface PuntoEquilibrio {
 /** ¿La fila es (o cuelga de) la sección de INGRESOS? Los ingresos no son costos a cubrir. */
 function esIngreso(row: BreakdownRow): boolean {
   return row.key === "income" || /ingreso/i.test(row.label);
-}
-
-/** ¿La fila es "sin clasificar" (ruido que no es un costo real y recurrente)? */
-function esSinClasificar(row: BreakdownRow): boolean {
-  return /sin\s+clasificar|no\s+clasificad|sin\s+asignar|no\s+asignad/i.test(row.label);
 }
 
 export function computePuntoEquilibrio(bd: OperationalResultBreakdown): PuntoEquilibrio | null {
@@ -73,7 +69,10 @@ export function computePuntoEquilibrio(bd: OperationalResultBreakdown): PuntoEqu
         const v = valorCerrado(r);
         if (v != null && (r.key === "income" || ingresoMes === 0)) ingresoMes = Math.max(0, v);
       }
-      const excl = excluida || ingreso || esSinClasificar(r);
+      // "Si se gastó, se gastó" (Fernando 2026-08-01): lo SIN CLASIFICAR se CUENTA igual (no se
+      // excluye) — clasificar decide la CATEGORÍA, no si el gasto cuenta. Aparece como su propia
+      // línea ("Compras sin clasificar") y el drill-down muestra qué hay dentro (ej. el arriendo).
+      const excl = excluida || ingreso;
 
       if (r.kind === "account") {
         if (!excl) {

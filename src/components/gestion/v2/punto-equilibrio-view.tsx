@@ -18,8 +18,9 @@ import {
 /* Gestión → Punto de equilibrio v2 (pedido de Fernando 2026-07-30, redefinido 2026-07-31). Dato
    CONCRETO, no proyección ni %: "el mes pasado gastaste X; si gastas lo mismo, necesitas vender X
    para no perder". El piso = lo que gastaste el ÚLTIMO MES CERRADO (completo), sumando tus costos
-   recurrentes reales. No se usa el mes en curso (incompleto) → se acaba el "arriendo de julio en
-   blanco". Excluye lo "sin clasificar". Sin `export const runtime` (regla 4). */
+   recurrentes reales. No se usa el mes en curso (incompleto). Lo "sin clasificar" SÍ cuenta ("si se
+   gastó, se gastó") — aparece como su línea y el drill-down muestra qué hay dentro (ej. el arriendo).
+   Sin `export const runtime` (regla 4). */
 
 function periodoMenos(period: string, n: number): string {
   return addMonths(period, -n);
@@ -53,8 +54,9 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
           <TablaRecurrentes pe={pe} />
           <p className="text-[11px] text-neutral-light">
             Tomamos lo que gastaste el <b>último mes cerrado ({formatPeriodLabel(pe.mes)})</b>, que
-            está completo; el mes en curso no se usa porque puede estar a medio clasificar.
-            Excluimos lo “sin clasificar”. El IVA no cuenta (es un pasa-manos).
+            está completo; el mes en curso no se usa porque puede estar a medio clasificar. Lo que
+            gastaste pero aún no clasificaste igual cuenta (aparece como “Compras sin clasificar” —
+            clic para ver qué hay dentro). El IVA no cuenta (es un pasa-manos).
           </p>
         </>
       )}
