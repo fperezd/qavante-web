@@ -22,20 +22,36 @@ import { GestionV2RangoView } from "./v2/gestion-v2-rango-view";
    faltante = 0 (§13). */
 
 export interface OperationalResultViewProps {
-  /** Período inicial "YYYY-MM" (lo calcula la page en America/Santiago). */
+  /** Período inicial "YYYY-MM" (lo calcula la page en America/Santiago = el mes EN CURSO). */
   initialPeriod: string;
 }
 
+/** Resta `n` meses a "YYYY-MM" (aritmética pura de calendario, sin Date). */
+function periodoMenos(period: string, n: number): string {
+  const m = period.match(/^(\d{4})-(\d{2})/);
+  if (!m) return period;
+  let y = Number(m[1]);
+  let mes = Number(m[2]) - n;
+  while (mes <= 0) {
+    mes += 12;
+    y -= 1;
+  }
+  return `${y}-${String(mes).padStart(2, "0")}`;
+}
+
 export function OperationalResultView({ initialPeriod }: OperationalResultViewProps) {
-  /* Selector de rango idéntico al resto de la app (pedido de Fernando: no solo
-     un mes). Default = mes actual (rango de un mes). Un mes → vista rica (con
-     desglose fino + drivers); varios meses → agregado del período + mes a mes. */
+  /* La reportabilidad NO abre en el MES EN CURSO: es incompleto (los costos ya están devengados pero
+     las ventas del mes recién empiezan) → daría un "perdió $X" FALSO. Abre en el último mes CERRADO.
+     El mes en curso sigue seleccionable y se muestra reformulado ("en curso, aún sin cerrar"). */
+  const ultimoCerrado = periodoMenos(initialPeriod, 1);
   const [range, setRange] = React.useState<PeriodRange>(() => ({
-    desde: initialPeriod,
-    hasta: initialPeriod,
+    desde: ultimoCerrado,
+    hasta: ultimoCerrado,
   }));
   const ordered = orderRange(range);
   const single = ordered.desde === ordered.hasta;
+  // ¿El usuario navegó al mes EN CURSO (= el mes calendario actual que calculó la page)?
+  const enCurso = single && ordered.hasta === initialPeriod;
 
   // Solo una de las dos queries corre a la vez (la otra queda deshabilitada).
   const monthQuery = useOperationalResult(single ? ordered.hasta : "");
@@ -65,7 +81,7 @@ export function OperationalResultView({ initialPeriod }: OperationalResultViewPr
           emptyTitle="Sin datos para este mes"
           emptyDescription="Todavía no hay resultado operacional para el mes seleccionado. Prueba otro mes o vuelve cuando se sincronicen las fuentes."
         >
-          {(data) => <GestionV2ViewLive mes={data} period={ordered.hasta} />}
+          {(data) => <GestionV2ViewLive mes={data} period={ordered.hasta} enCurso={enCurso} />}
         </StateWrap>
       ) : (
         <StateWrap

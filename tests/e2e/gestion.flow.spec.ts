@@ -53,4 +53,31 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
     await filaSueldos.getByRole("button").first().click();
     await expect(page.getByText(/SOCIEDAD DE PROFESIONALES/i)).toBeVisible();
   });
+
+  test("el mes EN CURSO no dice 'perdió' — muestra 'va en curso, aún sin cerrar'", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/gestion");
+    await expect(page.getByRole("heading", { level: 1, name: "Gestión" })).toBeVisible();
+
+    // Abre por defecto en el último mes CERRADO (no el actual) → hay un resultado real, no "perdió".
+    await expect(page.getByText("El negocio perdió este mes")).toHaveCount(0);
+
+    // Al elegir el MES ACTUAL (en curso) → reframe honesto, sin veredicto ganó/perdió.
+    const hoy = new Date();
+    const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
+    await page
+      .locator('button[aria-haspopup="dialog"]')
+      .filter({ hasText: /20\d{2}/ })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Elegir rango de períodos" });
+    await dialog.getByLabel("Fecha inicial").fill(mesActual);
+    await dialog.getByLabel("Fecha final").fill(mesActual);
+    await dialog.getByRole("button", { name: "Aplicar" }).click();
+
+    await expect(page.getByText(/va en curso — aún sin cerrar/i)).toBeVisible();
+    await expect(page.getByText("El negocio perdió este mes")).toHaveCount(0);
+  });
 });
