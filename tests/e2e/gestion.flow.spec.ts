@@ -6,7 +6,10 @@ import { loginAs } from "./helpers";
    + margen en el tiempo + matriz. Contra MSW (operational-result + breakdown + dashboard). */
 
 test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
-  test("un mes muestra la respuesta de dueño + cascada; el rango muestra la matriz", async ({ page, context }) => {
+  test("un mes muestra la respuesta de dueño + cascada; el rango muestra la matriz", async ({
+    page,
+    context,
+  }) => {
     await loginAs(context, "owner");
     await page.goto("/gestion");
 
@@ -43,5 +46,11 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
     await expect(page.getByText("Margen Bruto", { exact: true })).toBeVisible();
     await expect(page.getByText("(proforma)")).toBeVisible();
     await expect(page.getByText("Proyectos")).toBeVisible(); // fila hija, expandida por default
+
+    // Drill-down por documento (CC-API #786): clic en una celda de costo de una cuenta hoja
+    // ("Sueldos") → despliega sus facturas debajo. Las celdas de monto son botones clickeables.
+    const filaSueldos = page.getByRole("row").filter({ hasText: "Sueldos" });
+    await filaSueldos.getByRole("button").first().click();
+    await expect(page.getByText(/SOCIEDAD DE PROFESIONALES/i)).toBeVisible();
   });
 });
