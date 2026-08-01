@@ -30,5 +30,10 @@ test.describe("Flujo: Márgenes (/gestion/margenes)", () => {
     // lado y con control para reordenar (asa de arrastre + flechas). El asa aparece con hover, así
     // que verificamos que esté en el DOM (attached), no que sea visible sin interacción.
     await expect(main.getByRole("button", { name: /para reordenar/ }).first()).toBeAttached();
+
+    // Abre por defecto en el último mes CERRADO. Al elegir el mes EN CURSO (la opción más reciente,
+    // índice 0) → reframe honesto: no muestra los márgenes a medias.
+    await main.getByRole("combobox", { name: "Elegir mes" }).selectOption({ index: 0 });
+    await expect(main.getByText(/va en curso — aún sin cerrar/i)).toBeVisible();
   });
 });
