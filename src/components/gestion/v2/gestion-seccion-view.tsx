@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Calendar, Minus } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  Calendar,
+  CalendarClock,
+  Minus,
+} from "lucide-react";
 import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/qavante";
 import { Sparkline } from "@/components/ui/sparkline";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
@@ -74,17 +81,22 @@ export function GestionSeccionView({
   initialPeriod: string;
 }) {
   const isTendencia = seccion === "tendencia";
+  // La reportabilidad NO abre en el MES EN CURSO (incompleto → márgenes/tendencia falsos con ventas a
+  // medias): abre en el último mes CERRADO. El en curso sigue seleccionable y se reformula.
+  const ultimoCerrado = periodoMenos(initialPeriod, 1);
   // Tendencia = RANGO (varios meses); el resto = UN mes (el selector debe reflejarlo,
   // pedido de Fernando: antes un picker de rango sobre una vista de un mes confundía).
-  const [period, setPeriod] = React.useState(initialPeriod);
+  const [period, setPeriod] = React.useState(ultimoCerrado);
   const [range, setRange] = React.useState<PeriodRange>(() => ({
-    desde: periodoMenos(initialPeriod, 5),
-    hasta: initialPeriod,
+    desde: periodoMenos(ultimoCerrado, 5),
+    hasta: ultimoCerrado,
   }));
   const months = React.useMemo(
     () => Array.from({ length: 24 }, (_, i) => periodoMenos(initialPeriod, i)),
     [initialPeriod],
   );
+  // ¿El usuario navegó al mes EN CURSO? (Márgenes/Costos: se reformula, no se muestra a medias.)
+  const enCurso = period === initialPeriod;
 
   const needsMes = seccion === "margenes" || seccion === "costos" || seccion === "comparativo";
   // Ventana del breakdown: tendencia = el rango elegido; márgenes = 6 meses (sparkline);
@@ -133,6 +145,8 @@ export function GestionSeccionView({
           prev={prevQuery.data}
           yoy={yoyQuery.data}
           breakdown={bdQuery.data}
+          enCurso={enCurso}
+          period={period}
         />
       )}
     </div>
@@ -145,13 +159,22 @@ function SeccionBody({
   prev,
   yoy,
   breakdown,
+  enCurso,
+  period,
 }: {
   seccion: GestionSeccion;
   mes?: OperationalResultResponse;
   prev?: OperationalResultResponse;
   yoy?: OperationalResultResponse;
   breakdown?: OperationalResultBreakdown;
+  enCurso?: boolean;
+  period?: string;
 }) {
+  // Mes EN CURSO (Márgenes/Costos): las ventas del mes recién empiezan → los márgenes/costos no se
+  // leen a medias. No mostramos números como si el mes estuviera cerrado.
+  if (enCurso && (seccion === "margenes" || seccion === "costos")) {
+    return <SeccionEnCurso seccion={seccion} period={period ?? ""} />;
+  }
   // Guarda honesta para las que derivan del mes.
   if (seccion !== "tendencia" && mes && !resultadoConfiable(mes)) return <NoConfiable />;
 
@@ -575,6 +598,30 @@ function SinDato({ label }: { label: string }) {
     <p className="rounded-xl border border-dashed border-border bg-surface-muted/30 p-6 text-center text-sm text-neutral-mid">
       Sin datos suficientes para mostrar {label} en este período. Probá con otro mes.
     </p>
+  );
+}
+
+/** Mes EN CURSO en Márgenes/Costos: no se muestran a medias (ventas del mes recién empiezan). */
+function SeccionEnCurso({ seccion, period }: { seccion: GestionSeccion; period: string }) {
+  const que = seccion === "margenes" ? "los márgenes" : "los costos y gastos";
+  return (
+    <section className="rounded-xl border border-brand-primary/25 bg-brand-primary/[.05] p-6">
+      <div className="flex items-start gap-3">
+        <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-brand-primary" aria-hidden="true" />
+        <div className="space-y-2">
+          <h2 className="text-base font-bold text-neutral-dark">
+            {formatPeriodLabel(period)} va en curso — aún sin cerrar
+          </h2>
+          <p className="text-sm text-neutral-mid">
+            {que.charAt(0).toUpperCase() + que.slice(1)} de un mes a medias no se pueden leer: los
+            costos ya están, pero las ventas del mes recién empiezan.
+          </p>
+          <p className="text-[13px] text-neutral-mid">
+            Elegí el mes anterior en el selector de arriba (la pantalla arranca ahí por defecto).
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
