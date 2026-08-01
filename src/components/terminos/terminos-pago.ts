@@ -372,20 +372,26 @@ export function buildMaestro(
       const pagadoF = isPagado(pagados, kind, rut, fFolio);
       const anulacion =
         row.notas.length === 0 ? null : row.estado === "anulada" ? "anulada" : "parcial";
+      // Factura RECLAMADA (compras o ventas): rechazada en el SII → NO es una obligación real, no
+      // suma $ (decisión de Fernando 2026-08-01). Se muestra igual en el detalle con su "R", igual
+      // que el 360 (`montoFirmado` → 0). Antes inflaba total/vencido/por-vencer y contradecía al 360.
+      const reclamada = f.reclamado === true;
 
-      total += row.neto; // neto de la factura tras sus NC (puede ser ≤ 0)
-      if (pagadoF) {
-        pagadoSum += row.neto;
-      } else {
-        const contrib = Math.max(0, row.neto); // sobre-crédito → 0 en buckets
-        if (estado === "vencido") vencido += contrib;
-        else if (estado === "por_vencer") porVencer += contrib;
-        else if (estado === "vigente") vigente += contrib;
-        if (row.neto < 0) excesoVinculado += -row.neto; // sobre-crédito → al pool de re-balance
-        // Solo cuenta como "próximo a vencer" si queda saldo real (neto > 0): una factura
-        // anulada al 100% / sobre-acreditada (neto ≤ 0) no es una obligación futura.
-        if (venc && estado !== "vencido" && row.neto > 0) {
-          if (!proximo || venc < proximo) proximo = venc;
+      if (!reclamada) {
+        total += row.neto; // neto de la factura tras sus NC (puede ser ≤ 0)
+        if (pagadoF) {
+          pagadoSum += row.neto;
+        } else {
+          const contrib = Math.max(0, row.neto); // sobre-crédito → 0 en buckets
+          if (estado === "vencido") vencido += contrib;
+          else if (estado === "por_vencer") porVencer += contrib;
+          else if (estado === "vigente") vigente += contrib;
+          if (row.neto < 0) excesoVinculado += -row.neto; // sobre-crédito → al pool de re-balance
+          // Solo cuenta como "próximo a vencer" si queda saldo real (neto > 0): una factura
+          // anulada al 100% / sobre-acreditada (neto ≤ 0) no es una obligación futura.
+          if (venc && estado !== "vencido" && row.neto > 0) {
+            if (!proximo || venc < proximo) proximo = venc;
+          }
         }
       }
 
