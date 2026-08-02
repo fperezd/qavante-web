@@ -54,6 +54,41 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
     await expect(page.getByText(/SOCIEDAD DE PROFESIONALES/i)).toBeVisible();
   });
 
+  test("en el detalle de 'sin clasificar' cada factura trae su cuenta sugerida + botón clasificar", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/gestion");
+    await expect(page.getByRole("heading", { level: 1, name: "Gestión" })).toBeVisible();
+
+    // A la vista de rango (la matriz P&L solo aparece ahí).
+    await page
+      .locator('button[aria-haspopup="dialog"]')
+      .filter({ hasText: /20\d{2}/ })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Elegir rango de períodos" });
+    await dialog.getByRole("button", { name: "Tres meses" }).click();
+
+    // Clic en la hoja "Compras sin clasificar" → despliega sus facturas.
+    const filaSinClasif = page.getByRole("row").filter({ hasText: "Compras sin clasificar" });
+    await filaSinClasif.getByRole("button").first().click();
+    await expect(page.getByText(/PROVEEDOR DEMO SPA/i)).toBeVisible();
+
+    // El doc con propuesta muestra la cuenta sugerida (nombre legible del árbol) + botón "Clasificar".
+    await expect(page.getByText(/Sugerido:/).first()).toBeVisible();
+    await expect(page.getByText("Sueldos y remuneraciones")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Clasificar", exact: true })).toBeVisible();
+
+    // El doc SIN propuesta habilita "Sugerir clasificación" (corre el clasificador IA del período).
+    const sugerir = page.getByRole("button", { name: "Sugerir clasificación" });
+    await expect(sugerir).toBeVisible();
+
+    // Clasificar en un clic: no rompe (aplica + aprende regla por contraparte en el backend).
+    await page.getByRole("button", { name: "Clasificar", exact: true }).click();
+    await expect(page.getByText("No pudimos clasificar. Vuelve a intentar.")).toHaveCount(0);
+  });
+
   test("el mes EN CURSO no dice 'perdió' — muestra 'va en curso, aún sin cerrar'", async ({
     page,
     context,
