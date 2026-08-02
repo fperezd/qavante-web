@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   baseIncompleta,
   mapRangoResumen,
+  margenDistorsionado,
   rangoConfiable,
   rangoIncompleto,
   warningLabel,
@@ -106,6 +107,14 @@ describe("rangoConfiable", () => {
       ] as OperationalResultBreakdown["rows"],
     };
     expect(rangoConfiable(malo)).toBe(false);
+  });
+  it("NO confiable si el backend avisa margen distorsionado, aunque el margen dé ≤100% (#734)", () => {
+    // Mismo P&L "normal" (margen 60%, pasaría el chequeo de ≤100%) pero con el warning de costos
+    // faltantes → el margen está inflado → degradamos honesto.
+    const distorsionado = { ...BD, warnings: ["product_income_without_cogs"] };
+    expect(margenDistorsionado(distorsionado)).toBe(true);
+    expect(rangoConfiable(distorsionado)).toBe(false);
+    expect(margenDistorsionado(BD)).toBe(false); // sin warnings → no distorsionado
   });
 });
 

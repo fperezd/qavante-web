@@ -112,14 +112,20 @@ export const DatosIncompletos: Story = {
   },
 };
 
-/** Con avisos del cálculo (CC-API #691): el backend marca que el margen puede estar distorsionado. */
+/** Con aviso de margen distorsionado (CC-API #691): el backend marca ingresos sin costo de venta →
+ *  margen inflado. Degrada honesto a la matriz cruda (issue #734): no mostramos un resultado en el que
+ *  no confiamos; el aviso sigue visible. */
 export const ConAvisos: Story = {
   args: { data: { ...BD, warnings: ["product_income_without_cogs"] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    // El aviso del backend sigue visible…
     await expect(canvas.getByText("Un aviso sobre este resultado")).toBeInTheDocument();
     await expect(canvas.getByText(/costo de venta/i)).toBeInTheDocument();
-    // El resultado igual se muestra (el aviso es un caveat, no bloquea).
-    await expect(canvas.getByText("El negocio ganó en el período")).toBeInTheDocument();
+    // …pero el margen inflado NO se muestra como cifra confiada: degrada a la matriz cruda (#734).
+    await expect(
+      canvas.getByText(/No podemos mostrar el resultado del período con confianza/),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText("El negocio ganó en el período")).not.toBeInTheDocument();
   },
 };
