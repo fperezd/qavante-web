@@ -19,6 +19,18 @@ export function warningLabel(code: string): string {
   return WARNING_LABEL[code.trim()] ?? code;
 }
 
+/* Códigos de `warnings` que significan que el MARGEN está distorsionado (inflado) — el resultado no es
+   confiable para mostrarlo como cifra. Es la señal honesta del backend para el caso "faltan costos"
+   (ej. ingresos de productos sin costo de venta): el margen ≤ 100% no lo atrapa, pero el backend sí lo
+   avisa. Cubre el caso COGS-en-cero; el "faltan SOLO las remuneraciones" necesita un warning nuevo o
+   costos por línea (escalado a CC-API, issue #734). */
+const WARNINGS_DISTORSION = new Set(["product_income_without_cogs"]);
+
+/** ¿El backend avisó que el margen del período está distorsionado (inflado por costos faltantes)? */
+export function margenDistorsionado(bd: OperationalResultBreakdown): boolean {
+  return (bd.warnings ?? []).some((w) => WARNINGS_DISTORSION.has(w.trim()));
+}
+
 /** Aplana el árbol de filas del breakdown (secciones con hijos → lista). */
 function aplanar(rows: BreakdownRow[]): BreakdownRow[] {
   const out: BreakdownRow[] = [];
@@ -162,6 +174,9 @@ function mesCortoDe(period: string): string {
 /** ¿El resultado del período es plausible para mostrarlo con confianza? Mismo criterio que el
  *  mes (el rango corre sobre el mismo cálculo): resultado > ingresos ⇒ margen > 100% ⇒ imposible. */
 export function rangoConfiable(bd: OperationalResultBreakdown): boolean {
+  // El backend avisó que el margen está inflado (costos faltantes) → no confiable, aunque el margen
+  // dé ≤ 100% (issue #734: un mes con costos parciales en $0 y margen 92% se colaba como confiable).
+  if (margenDistorsionado(bd)) return false;
   const r = mapRangoResumen(bd);
   if (r.ingresos <= 0) return true; // otro caso (vacío/parcial)
   // Agregado: resultado del período > ingresos (imposible). Y por mes: algún margen > 100%
