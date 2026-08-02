@@ -46,7 +46,8 @@ const COPY: Record<RcvKind, KindCopy> = {
     docSingular: "documento emitido",
     docPlural: "documentos emitidos",
     concentracion: "Concentración por cliente",
-    infoHint: "Incluye ventas afectas + exportaciones exentas, menos notas de crédito. El dato oficial de impuestos (IVA) sigue siendo el F29.",
+    infoHint:
+      "Incluye ventas afectas + exportaciones exentas, menos notas de crédito. El dato oficial de impuestos (IVA) sigue siendo el F29.",
   },
   compras: {
     titulo: "La empresa compró",
@@ -54,7 +55,8 @@ const COPY: Record<RcvKind, KindCopy> = {
     docSingular: "documento recibido",
     docPlural: "documentos recibidos",
     concentracion: "Concentración por proveedor",
-    infoHint: "Incluye compras afectas + exentas, menos notas de crédito. El dato oficial de impuestos (IVA) sigue siendo el F29.",
+    infoHint:
+      "Incluye compras afectas + exentas, menos notas de crédito. El dato oficial de impuestos (IVA) sigue siendo el F29.",
   },
 };
 
@@ -71,13 +73,14 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
   // con el filtro; los comparativos igual bajan los otros meses que necesitan.
   const [range, setRange] = React.useState<PeriodRange>(() => presetRange("mes_actual"));
   const periods = React.useMemo(() => expandPeriodRange(range), [range]);
-  const today = React.useMemo(() => new Date(), []);
-  const { comparativos } = useLibroComparativos(kind, range, today);
+  const { comparativos } = useLibroComparativos(kind, range);
 
   const results = useQueries({
     queries: periods.map((periodo) => ({
-      queryKey: kind === "ventas" ? siiKeys.rcvVentas({ periodo }) : siiKeys.rcvCompras({ periodo }),
-      queryFn: () => api.get<RcvResp>(`/api/sii/rcv/${kind}?periodo=${encodeURIComponent(periodo)}`),
+      queryKey:
+        kind === "ventas" ? siiKeys.rcvVentas({ periodo }) : siiKeys.rcvCompras({ periodo }),
+      queryFn: () =>
+        api.get<RcvResp>(`/api/sii/rcv/${kind}?periodo=${encodeURIComponent(periodo)}`),
       staleTime: 10 * 60 * 1000,
       retry: false,
     })),
@@ -85,7 +88,10 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
 
   const perMonth = periods.map((periodo, i) => {
     const data = results[i]?.data as (RcvVentasResponse & RcvComprasResponse) | undefined;
-    return { periodo, docs: ((kind === "ventas" ? data?.ventas : data?.compras) ?? []) as RcvDoc[] };
+    return {
+      periodo,
+      docs: ((kind === "ventas" ? data?.ventas : data?.compras) ?? []) as RcvDoc[],
+    };
   });
   const allDocs = perMonth.flatMap((m) => m.docs);
 
@@ -127,7 +133,10 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
 
   const secundarios: HeroSecundario[] = [
     { label: copy.ivaLabel, valor: formatClp(totals.iva), tono: "brand" },
-    { label: kind === "ventas" ? "Documentos emitidos" : "Documentos recibidos", valor: String(docCount) },
+    {
+      label: kind === "ventas" ? "Documentos emitidos" : "Documentos recibidos",
+      valor: String(docCount),
+    },
     {
       label: `Notas de crédito${totals.ncCount ? ` (${totals.ncCount})` : ""}`,
       valor: totals.ncCount ? formatClp(-totals.ncTotal) : "—",
@@ -136,7 +145,8 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
   ];
 
   const query = {
-    data: kind === "ventas" ? { status: "ok", ventas: allDocs } : { status: "ok", compras: allDocs },
+    data:
+      kind === "ventas" ? { status: "ok", ventas: allDocs } : { status: "ok", compras: allDocs },
     isLoading: allDocs.length === 0 && results.some((r) => r.isLoading),
     isFetching,
     isError: results.length > 0 && results.every((r) => r.isError),
