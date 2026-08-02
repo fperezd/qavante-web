@@ -77,16 +77,22 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
 
     // El doc con propuesta muestra la cuenta sugerida (nombre legible del árbol) + botón "Clasificar".
     await expect(page.getByText(/Sugerido:/).first()).toBeVisible();
-    await expect(page.getByText("Sueldos y remuneraciones")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Clasificar", exact: true })).toBeVisible();
+    await expect(page.getByText("Sueldos y remuneraciones").first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Clasificar", exact: true }).first(),
+    ).toBeVisible();
+
+    // Con ≥2 sugerencias aparece el botón para clasificarlas TODAS de una (pedido de Fernando).
+    await expect(
+      page.getByRole("button", { name: /Clasificar todo lo sugerido \(2\)/ }),
+    ).toBeVisible();
 
     // El doc SIN propuesta habilita "Sugerir clasificación" (corre el clasificador IA del período).
-    const sugerir = page.getByRole("button", { name: "Sugerir clasificación" });
-    await expect(sugerir).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sugerir clasificación" })).toBeVisible();
 
     // Clasificar en un clic: no rompe (aplica + aprende regla por contraparte en el backend).
-    await page.getByRole("button", { name: "Clasificar", exact: true }).click();
-    await expect(page.getByText("No pudimos clasificar. Vuelve a intentar.")).toHaveCount(0);
+    await page.getByRole("button", { name: "Clasificar", exact: true }).first().click();
+    await expect(page.getByText(/ya no estaba disponible/)).toHaveCount(0);
   });
 
   test("el mes EN CURSO no dice 'perdió' — muestra 'va en curso, aún sin cerrar'", async ({

@@ -130,7 +130,12 @@ export function useClassificationProposals(enabled = true) {
 
 /** `POST /api/management/operational-result/classifications/{id}/confirm` — aplica la sugerencia +
  *  crea una regla por contraparte (aprende). Invalida Gestión (documents/breakdown/proposals) para
- *  que el documento salga de "sin clasificar" al cerrar. */
+ *  que el documento salga de "sin clasificar".
+ *
+ *  Invalida en `onSettled` (éxito O error): las propuestas son VOLÁTILES — una que quedó stale (el doc
+ *  ya se clasificó, o el clasificador regeneró la cola) devuelve 404 `proposal_not_found`. Refrescar
+ *  también en error sincroniza el detalle con el backend (el doc/propuesta viejos desaparecen) en vez
+ *  de dejar el botón pegado con un rojo. */
 export function useConfirmClassification() {
   const qc = useQueryClient();
   return useMutation({
@@ -140,7 +145,40 @@ export function useConfirmClassification() {
           classificationId,
         )}/confirm`,
       ),
-    onSuccess: () => {
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: gestionKeys.all });
+    },
+  });
+}
+
+export interface ConfirmBatchResult {
+  /** Clasificadas OK. */
+  ok: number;
+  /** Que ya no estaban (propuesta stale/404) — se saltan, no rompen el lote. */
+  faltaban: number;
+}
+
+/** Confirma VARIAS propuestas de una (botón "clasificar todo lo sugerido"). Secuencial y tolerante:
+ *  una propuesta stale (404) se salta y no aborta el resto. Invalida Gestión al terminar. */
+export function useConfirmClassificationBatch() {
+  const qc = useQueryClient();
+  return useMutation<ConfirmBatchResult, Error, string[]>({
+    mutationFn: async (ids: string[]) => {
+      let ok = 0;
+      let faltaban = 0;
+      for (const id of ids) {
+        try {
+          await api.post<unknown>(
+            `/api/management/operational-result/classifications/${encodeURIComponent(id)}/confirm`,
+          );
+          ok += 1;
+        } catch {
+          faltaban += 1; // stale/404 u otro fallo puntual → se salta
+        }
+      }
+      return { ok, faltaban };
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: gestionKeys.all });
     },
   });
