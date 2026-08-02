@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -38,6 +38,13 @@ export type BreakdownRow = components["schemas"]["BreakdownRow"];
 export type OperationalResultDocuments =
   components["schemas"]["OperationalResultDocumentsResponse"];
 export type OperationalResultDocument = components["schemas"]["OperationalResultDocument"];
+
+/* Propuestas de clasificación (IA + aprendizaje por contraparte, ADR-0062): para lo sin clasificar,
+   sugiere la cuenta de gestión por documento. Confirmar aplica la sugerencia Y crea una regla por la
+   contraparte (los futuros docs de ese proveedor se clasifican solos). Tipos GENERADOS. */
+export type ClassificationProposal = components["schemas"]["ClassificationProposal"];
+export type ClassificationProposals = components["schemas"]["ProposalsResponse"];
+export type ClassifyRunResponse = components["schemas"]["ClassifyRunResponse"];
 
 export const gestionKeys = {
   all: ["gestion"] as const,
@@ -103,5 +110,58 @@ export function useOperationalResultDocuments(period: string, account: string, e
     enabled: enabled && period !== "" && account !== "",
     staleTime: 30_000,
     retry: false,
+  });
+}
+
+/** `GET /api/management/operational-result/classifications/proposals` — propuestas de clasificación
+ *  (cuenta sugerida por documento) para lo sin clasificar. Solo corre habilitado. NO retry. */
+export function useClassificationProposals(enabled = true) {
+  return useQuery({
+    queryKey: [...gestionKeys.all, "classification-proposals"] as const,
+    queryFn: () =>
+      api.get<ClassificationProposals>(
+        "/api/management/operational-result/classifications/proposals",
+      ),
+    enabled,
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+/** `POST /api/management/operational-result/classifications/{id}/confirm` — aplica la sugerencia +
+ *  crea una regla por contraparte (aprende). Invalida Gestión (documents/breakdown/proposals) para
+ *  que el documento salga de "sin clasificar" al cerrar. */
+export function useConfirmClassification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (classificationId: string) =>
+      api.post<unknown>(
+        `/api/management/operational-result/classifications/${encodeURIComponent(
+          classificationId,
+        )}/confirm`,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: gestionKeys.all });
+    },
+  });
+}
+
+/** `POST /api/management/operational-result/classify?period_from&period_to` — corre el clasificador IA
+ *  sobre el residuo sin clasificar del período: aplica solo lo de confianza ALTA y encola el resto
+ *  como propuestas (confianza media) para revisar. Idempotente (no re-manda lo ya aplicado). Devuelve
+ *  `status='llm_off'` si el clasificador está apagado. Invalida Gestión para refrescar documents +
+ *  proposals + breakdown. */
+export function useRunClassification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (period: string) =>
+      api.post<ClassifyRunResponse>(
+        `/api/management/operational-result/classify?period_from=${encodeURIComponent(
+          period,
+        )}&period_to=${encodeURIComponent(period)}`,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: gestionKeys.all });
+    },
   });
 }

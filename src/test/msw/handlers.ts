@@ -2738,7 +2738,10 @@ const gestionHandlers = [
     const ingresos = months.map((_, i) => String(Number(proyectos[i]) + Number(servicio[i])));
     const margen = months.map((_, i) => String(Number(ingresos[i]) + Number(sueldos[i])));
     const gastos = months.map((_, i) => String(-3000000 - i * 50000));
-    const resultado = months.map((_, i) => String(Number(margen[i]) + Number(gastos[i])));
+    const sinClasificar = months.map((_, i) => String(-1287054 - i * 10000));
+    const resultado = months.map((_, i) =>
+      String(Number(margen[i]) + Number(gastos[i]) + Number(sinClasificar[i])),
+    );
     const pctBy = (arr: string[]) =>
       months.map((_, i) =>
         Number(ingresos[i]) > 0 ? ((Number(arr[i]) / Number(ingresos[i])) * 100).toFixed(1) : "0",
@@ -2817,6 +2820,22 @@ const gestionHandlers = [
             ],
           },
           {
+            kind: "section",
+            key: "unclassified",
+            label: "Otros egresos sin clasificar",
+            by_month: sinClasificar,
+            total: sumArr(sinClasificar),
+            children: [
+              {
+                kind: "account",
+                key: "unclassified.purchases",
+                label: "Compras sin clasificar",
+                by_month: sinClasificar,
+                total: sumArr(sinClasificar),
+              },
+            ],
+          },
+          {
             kind: "subtotal",
             key: "operational_result",
             label: "Resultado Operacional",
@@ -2868,6 +2887,51 @@ const gestionHandlers = [
       { status: 200 },
     );
   }),
+
+  /* Clasificar en el drill-down (pedido de Fernando 2026-08-01, ADR-0062): propuestas de clasificación
+     para lo sin clasificar + confirmar (aplica + crea regla por contraparte) + correr el clasificador.
+     La propuesta cubre uno de los dos docs del fixture ("33-508…") → ese muestra "Sugerido: …" +
+     botón; el otro ("34-119…") queda sin sugerencia → aparece el botón "Sugerir clasificación". */
+  http.get("*/api/management/operational-result/classifications/proposals", () =>
+    HttpResponse.json(
+      {
+        proposals: [
+          {
+            id: "prop-508",
+            side: "compras",
+            source_external_id: "33-508-96888880-1",
+            account_code: "costos.sueldos",
+            confidence: "media",
+            reasoning: "El proveedor sugiere un gasto recurrente.",
+            provider: "gemini",
+          },
+        ],
+        count: 1,
+      },
+      { status: 200 },
+    ),
+  ),
+  http.post("*/api/management/operational-result/classifications/:id/confirm", ({ params }) =>
+    HttpResponse.json({ id: params.id, status: "applied" }, { status: 200 }),
+  ),
+  http.post("*/api/management/operational-result/classifications/:id/reject", ({ params }) =>
+    HttpResponse.json({ id: params.id, status: "rejected" }, { status: 200 }),
+  ),
+  http.post("*/api/management/operational-result/classify", () =>
+    HttpResponse.json(
+      {
+        status: "ok",
+        residuo: 2,
+        applied: 1,
+        proposed: 1,
+        descartadas: 0,
+        provider: "gemini",
+        model_id: "gemini-2.5-flash",
+        errores: [],
+      },
+      { status: 200 },
+    ),
+  ),
 ];
 
 /* Estado de las fuentes (indicador de sync del header). Seed con fuentes mixtas. */
