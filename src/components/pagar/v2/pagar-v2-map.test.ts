@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   postergabilidadDe,
   montoCLP,
+  montoCLPFaltante,
   mapVencimientos,
   mapFechasClave,
   mapConcentracion,
@@ -48,6 +49,18 @@ describe("montoCLP", () => {
   });
   it("usa amount si es CLP", () => {
     expect(montoCLP(item({ amount: "5000" }))).toBe(5000);
+  });
+  it("extranjera SIN amount_clp → 0 (no suma el nominal como CLP, issue #726)", () => {
+    // US$1.240 no debe contarse como $1.240: sin amount_clp no sabemos su valor en pesos.
+    expect(montoCLP(item({ currency: "USD", amount: "1240", amount_clp: null }))).toBe(0);
+    expect(montoCLP(item({ currency: "USD", amount: "1240" }))).toBe(0);
+    expect(montoCLPFaltante(item({ currency: "USD", amount: "1240", amount_clp: null }))).toBe(
+      true,
+    );
+    expect(montoCLPFaltante(item({ currency: "USD", amount: "1240", amount_clp: "1190000" }))).toBe(
+      false,
+    );
+    expect(montoCLPFaltante(item({ amount: "5000" }))).toBe(false); // CLP nunca falta
   });
 });
 

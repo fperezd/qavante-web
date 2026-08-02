@@ -28,6 +28,9 @@ export interface Vencimiento {
   monto: number;
   /** Monto en moneda de origen si es extranjera (ej. "US$1.240"). */
   montoOrigen?: string;
+  /** Extranjera sin `amount_clp`: no se pudo convertir a CLP (monto=0). La fila muestra el nominal
+   *  de origen + "sin convertir" en vez de un "$0" engañoso (issue #726). */
+  sinConversion?: boolean;
   postergabilidad?: Postergabilidad;
   /** Monto estimado (ej. F29 antes de que el SII lo emita) → badge "Estimación". */
   estimado?: boolean;
@@ -119,11 +122,24 @@ export function VencimientosTimeline({
 
               {/* monto */}
               <span className="whitespace-nowrap text-right">
-                <span className="block text-[14px] font-bold tabular-nums text-neutral-dark">
-                  {formatClp(it.monto)}
-                </span>
-                {it.montoOrigen && (
-                  <span className="block text-[11px] text-neutral-light">{it.montoOrigen}</span>
+                {it.sinConversion ? (
+                  <>
+                    <span className="block text-[14px] font-bold tabular-nums text-neutral-dark">
+                      {it.montoOrigen}
+                    </span>
+                    <span className="block text-[11px] font-medium text-warning-700">
+                      sin convertir a CLP
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="block text-[14px] font-bold tabular-nums text-neutral-dark">
+                      {formatClp(it.monto)}
+                    </span>
+                    {it.montoOrigen && (
+                      <span className="block text-[11px] text-neutral-light">{it.montoOrigen}</span>
+                    )}
+                  </>
                 )}
               </span>
 
