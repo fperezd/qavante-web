@@ -2,14 +2,18 @@
 
 Frontend de Qavante (Next.js 15 + React 19 + TypeScript strict + Tailwind 4 + shadcn/ui), desplegable en **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`.
 
-**Estado de sprints (al 2026-05-28, ver [último audit K.4](./docs/audits/c3-mvp-cycle-2026-05-27-28.md)):**
+**Estado (al 2026-08-02): app LIVE en producción en [app.qavante.com](https://app.qavante.com).** Sprints C0–C9 shipeados:
 
-- ✅ **Sprint C0** — Auth, users, admin mínima, shell. Login en prod funcional end-to-end (cookie shared-parent `.qavante.com` desde [ADR-0003](./docs/adr/0003-api-qavante-com-shared-parent.md)).
-- ✅ **Sprint C1** — SII end-to-end (F29 + Libros de Compras/Ventas + BHE).
-- ✅ **Sprint C2** — Data layer de management mutations (accounts + dimensions + values + assignments). UI editor parcial.
-- 🟡 **Sprint C3** — **MVP cableado** ([PR #196](https://github.com/fperezd/qavante-web/pull/196)): `/caja/proyeccion` con reporte agregado del backend. Gated por flag `cashFlowReport` (default OFF; activar con [runbook](./docs/operations/feature-flags-activation.md)). Brechas restantes (caja mínima, acciones recomendadas, etc.) documentadas en [c3-treasury-reports-gaps.md](./docs/backend-contracts/c3-treasury-reports-gaps.md) — esperan deploy de CC-API.
-- ⏳ **Sprint C4** — Cobranza/pagos priorizados — pendiente.
-- ⏳ **Sprint C5+** — Gestión avanzada, drivers, IA financiera — pendientes.
+- ✅ **C0** — Auth, users, admin, shell (cookie shared-parent `.qavante.com`, [ADR-0003](./docs/adr/0003-api-qavante-com-shared-parent.md)).
+- ✅ **C1** — SII end-to-end (F29 + Libros de Compras/Ventas + BHE).
+- ✅ **C2** — Management: árbol de cuentas + dimensiones + reglas de clasificación (data layer + editor UI).
+- ✅ **C3** — Reportes de tesorería / Caja (reporte de cash-flow, medidor de días de caja v3).
+- ✅ **C4** — Cobrar / Pagar priorizados (v2: a quién cobrar/pagar primero, brecha de caja, acciones).
+- ✅ **C5–C7** — Resultado Operacional de Gestión (cascada, drivers, márgenes, comparativos, punto de equilibrio, 360) + Pulso en detalle.
+- ✅ **C8** — Inicio Ejecutivo (dashboard agregado).
+- ✅ **C9** — Asistente Qavante (chat FE-first, gated hasta que exista `/api/assistant/chat`).
+
+Además live: onboarding self-serve, remuneraciones (BUK), conciliación bancaria, modelo de caja, obligaciones/préstamos, Previred. El detalle **vivo** de qué flag está encendido/apagado y por qué está en [`src/lib/feature-flags.ts`](./src/lib/feature-flags.ts) (`FLAG_GATING_ENDPOINT`).
 
 Patrón de ejecución de cada sprint definido en [ADR-0013 (MVP honesto, no inventar lógica financiera en FE)](./docs/adr/0013-treasury-reports-mvp-honest-no-invention.md).
 
