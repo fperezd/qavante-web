@@ -58,7 +58,10 @@ export function agregarContrapartes(docs: DocConVencimiento[]): ContraparteAgreg
       cur.docs += 1;
       if (comparePeriod(per, cur.min) < 0) cur.min = per;
       if (comparePeriod(per, cur.max) > 0) cur.max = per;
-      if (!cur.name && d.name) cur.name = d.name;
+      // Backfill del nombre: si el primer doc del RUT vino sin razón social, `name` quedó como el
+      // RUT (placeholder) — un doc posterior con nombre real lo reemplaza (antes esta guarda era
+      // `!cur.name`, código muerto: `name` nunca es falsy por el `d.name || rut` de arriba).
+      if (cur.name === rut && d.name && d.name !== rut) cur.name = d.name;
     }
   }
   return [...map.entries()]

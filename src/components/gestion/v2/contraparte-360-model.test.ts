@@ -54,6 +54,17 @@ describe("agregarContrapartes", () => {
       ultimoPeriodo: "2026-02",
     });
   });
+
+  it("backfillea el nombre real si el primer doc del RUT vino sin razón social", () => {
+    // El primer doc no trae name → arranca con el RUT como placeholder; el segundo doc del mismo RUT
+    // sí trae el nombre → debe reemplazar el placeholder (antes era código muerto y quedaba el RUT).
+    const docs = [
+      doc({ rut: "5-3", name: "", monto: 1_000_000, fecha: "10/01/2026" }),
+      doc({ rut: "5-3", name: "Cliente Real SpA", monto: 2_000_000, fecha: "10/02/2026" }),
+    ];
+    const out = agregarContrapartes(docs);
+    expect(out[0]?.name).toBe("Cliente Real SpA");
+  });
 });
 
 describe("serieMensual", () => {
