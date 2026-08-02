@@ -128,9 +128,32 @@ export function sumCostoEmpresa(rows: EmployeePayroll[]): number {
   return rows.reduce((acc, r) => acc + (r.costoEmpresa ?? 0), 0);
 }
 
-/** ¿La suma del detalle cuadra con el total agregado del período? (Tolerancia
- *  de $1 por redondeos.) Sirve como indicador de completitud para conciliar. */
+/** Estado del cuadre entre el detalle por empleado y el total agregado del período:
+ *  - `cuadra`: la suma coincide (tolerancia proporcional a la dotación).
+ *  - `faltan_protegidos`: el detalle (owner-only) trae MENOS empleados que el agregado → omite a los
+ *    trabajadores protegidos por confidencialidad, que el total sí cuenta. La diferencia de líquido es
+ *    ESPERADA, no un error: no se debe alarmar (issue #727).
+ *  - `descuadre`: la suma no coincide y no se explica por protegidos → revisar antes de conciliar. */
+export type CuadreEstado = "cuadra" | "faltan_protegidos" | "descuadre";
+
+export function estadoCuadre(
+  rows: EmployeePayroll[],
+  totalLiquido: number | undefined,
+  empleadosContados?: number | null,
+): CuadreEstado {
+  if (typeof totalLiquido !== "number" || rows.length === 0) return "descuadre";
+  // El detalle omite a los protegidos que el agregado sí cuenta → la brecha de líquido es esperada.
+  if (typeof empleadosContados === "number" && rows.length < empleadosContados) {
+    return "faltan_protegidos";
+  }
+  // Tolerancia proporcional: el redondeo del backend acumula ~$1 por empleado (±$1 fijo era muy
+  // ajustado con muchos empleados).
+  const tolerancia = Math.max(1, rows.length);
+  return Math.abs(sumLiquido(rows) - totalLiquido) <= tolerancia ? "cuadra" : "descuadre";
+}
+
+/** ¿La suma del detalle cuadra con el total agregado del período? Wrapper booleano sobre
+ *  `estadoCuadre` (sin contexto de protegidos → true solo si cuadra estricto). */
 export function detalleCuadra(rows: EmployeePayroll[], totalLiquido: number | undefined): boolean {
-  if (typeof totalLiquido !== "number" || rows.length === 0) return false;
-  return Math.abs(sumLiquido(rows) - totalLiquido) <= 1;
+  return estadoCuadre(rows, totalLiquido) === "cuadra";
 }

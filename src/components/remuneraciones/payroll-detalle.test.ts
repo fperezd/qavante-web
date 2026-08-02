@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   detalleCuadra,
+  estadoCuadre,
   normalizePayrollDetalle,
   readPayrollObligaciones,
   sumCostoEmpresa,
@@ -165,5 +166,24 @@ describe("payroll-detalle · sumLiquido / detalleCuadra", () => {
   it("detalleCuadra: false sin detalle o sin total", () => {
     expect(detalleCuadra([], 800000)).toBe(false);
     expect(detalleCuadra(rows, undefined)).toBe(false);
+  });
+
+  describe("estadoCuadre (issue #727)", () => {
+    it("cuadra con tolerancia proporcional a la dotación (±$1 por empleado)", () => {
+      expect(estadoCuadre(rows, 800000, 3)).toBe("cuadra");
+      expect(estadoCuadre(rows, 800003, 3)).toBe("cuadra"); // 3 empleados → ±3
+    });
+    it("faltan_protegidos: el detalle trae menos empleados que el agregado → NO es descuadre", () => {
+      // 3 en el detalle, 5 en el agregado → 2 protegidos ocultos; la brecha de líquido es esperada,
+      // aunque el total sea muy distinto (gana el chequeo de conteo).
+      expect(estadoCuadre(rows, 1_200_000, 5)).toBe("faltan_protegidos");
+    });
+    it("descuadre real: mismo #empleados pero los montos no cierran", () => {
+      expect(estadoCuadre(rows, 750000, 3)).toBe("descuadre");
+    });
+    it("descuadre sin detalle o sin total", () => {
+      expect(estadoCuadre([], 800000, 0)).toBe("descuadre");
+      expect(estadoCuadre(rows, undefined)).toBe("descuadre");
+    });
   });
 });
