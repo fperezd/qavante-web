@@ -6,7 +6,6 @@ import { AppSidebar } from "@/components/shell/sidebar";
 import { Breadcrumbs } from "@/components/shell/breadcrumbs";
 import { SkipLink } from "@/components/shell/skip-link";
 import { CommandPalette } from "@/components/shell/command-palette";
-import { AssistantTrigger } from "@/components/assistant/trigger";
 import { Assistant } from "@/components/assistant/assistant";
 import type { UserRole } from "@/lib/auth/types";
 
@@ -72,7 +71,10 @@ export function AppShell({
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} userRole={userRole} />
 
-      {assistantEnabled ? <Assistant /> : <AssistantTrigger />}
+      {/* Sin el flag `assistant` (endpoint /api/assistant/chat todavía no existe) NO montamos el FAB:
+          antes se mostraba `AssistantTrigger`, un botón prominente "Preguntar a Qavante" que no hacía
+          nada al clic (ni ⌘J wired) → trust-killer. Vuelve cuando el backend exponga el chat. */}
+      {assistantEnabled ? <Assistant /> : null}
     </div>
   );
 }
