@@ -5,6 +5,7 @@ import { Loader2, Sparkles, Wand2 } from "lucide-react";
 import {
   useClassificationProposals,
   useConfirmClassification,
+  useConfirmClassificationBatch,
   useOperationalResultDocuments,
   useRunClassification,
 } from "@/lib/api/gestion";
@@ -60,6 +61,7 @@ export function CuentaDocumentos({
   const proposalsQuery = useClassificationProposals(enabled && esSinClasificar);
   const accountsQuery = useManagementAccountsTree();
   const confirm = useConfirmClassification();
+  const confirmBatch = useConfirmClassificationBatch();
   const runClassify = useRunClassification();
 
   const propuestaPorDoc = useMemo(() => {
@@ -99,6 +101,14 @@ export function CuentaDocumentos({
   const faltanSugerencias =
     esSinClasificar &&
     docs.some((d) => !d.source_external_id || !propuestaPorDoc.has(d.source_external_id));
+  // Ids de propuestas de los documentos visibles → para "clasificar todo lo sugerido" de una.
+  const idsSugeridos = esSinClasificar
+    ? docs
+        .map((d) =>
+          d.source_external_id ? propuestaPorDoc.get(d.source_external_id)?.id : undefined,
+        )
+        .filter((id): id is string => Boolean(id))
+    : [];
   const run = runClassify.data;
   const llmApagado = run?.status === "llm_off";
 
@@ -120,6 +130,29 @@ export function CuentaDocumentos({
               )}
               {runClassify.isPending ? "Analizando…" : "Sugerir clasificación"}
             </button>
+          )}
+          {idsSugeridos.length >= 2 && (
+            <button
+              type="button"
+              onClick={() => confirmBatch.mutate(idsSugeridos)}
+              disabled={confirmBatch.isPending}
+              className="inline-flex items-center gap-1.5 rounded-full border border-brand-300 bg-brand-100 px-2.5 py-1 text-[11px] font-semibold text-brand-700 transition hover:bg-brand-200 disabled:opacity-60"
+            >
+              {confirmBatch.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="size-3.5" aria-hidden />
+              )}
+              {confirmBatch.isPending
+                ? "Clasificando…"
+                : `Clasificar todo lo sugerido (${idsSugeridos.length})`}
+            </button>
+          )}
+          {confirmBatch.data && (
+            <span className="text-[10.5px] text-neutral-mid">
+              {confirmBatch.data.ok} clasificada{confirmBatch.data.ok === 1 ? "" : "s"}
+              {confirmBatch.data.faltaban > 0 && ` · ${confirmBatch.data.faltaban} ya no estaban`}
+            </span>
           )}
           {run && !llmApagado && (
             <span className="text-[10.5px] text-neutral-mid">
@@ -194,8 +227,8 @@ export function CuentaDocumentos({
                 </div>
               )}
               {falló && (
-                <span className="pl-0.5 text-[10px] text-danger-500">
-                  No pudimos clasificar. Vuelve a intentar.
+                <span className="pl-0.5 text-[10px] text-neutral-mid">
+                  Esa sugerencia ya no estaba disponible — actualizamos el detalle.
                 </span>
               )}
             </li>

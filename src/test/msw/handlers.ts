@@ -2917,13 +2917,23 @@ const gestionHandlers = [
         net_amount: "-120000.00",
         origen: "giro",
       },
+      {
+        // Sin propuesta → mantiene visible "Sugerir clasificación" (residuo aún sin sugerir).
+        side: "compras",
+        source_external_id: "33-777-77777777-7",
+        document_ref: "33-777",
+        counterparty: "SIN SUGERENCIA SPA",
+        rut: "77777777-7",
+        net_amount: "-90000.00",
+        origen: "giro",
+      },
     ];
     return HttpResponse.json(
       {
         account_code: account,
         account_name: account,
         period,
-        total: "-527633.00",
+        total: "-617633.00",
         count: documents.length,
         documents,
       },
@@ -2948,8 +2958,17 @@ const gestionHandlers = [
             reasoning: "El proveedor sugiere un gasto recurrente.",
             provider: "gemini",
           },
+          {
+            id: "prop-119",
+            side: "compras",
+            source_external_id: "34-119-78163706-8",
+            account_code: "costos.sueldos",
+            confidence: "media",
+            reasoning: "Servicios profesionales recurrentes.",
+            provider: "gemini",
+          },
         ],
-        count: 1,
+        count: 2,
       },
       { status: 200 },
     ),
