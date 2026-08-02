@@ -40,10 +40,11 @@ describe("aggregateSyncStatus", () => {
     expect(r.problemCount).toBe(0);
   });
 
-  it("'missing'/'unavailable' NO pintan el header (Fase 2 / sin conectar ≠ error del dueño)", () => {
+  it("'missing'/'unavailable SIN last_sync'/'syncing' NO pintan el header (Fase 2 / sin conectar / en curso)", () => {
     const r = aggregateSyncStatus([
       src({ state: "ok" }),
-      src({ source: "sii_f22", state: "unavailable" }),
+      src({ source: "sii_f22", state: "unavailable" }), // fantasma Fase 2: sin last_sync
+      src({ source: "buk", state: "syncing" }),
       src({ source: "tgr", state: "missing" }),
       src({ source: "ine_advanced", state: "missing" }),
     ]);
@@ -51,10 +52,35 @@ describe("aggregateSyncStatus", () => {
     expect(r.problemCount).toBe(0);
   });
 
-  it("un error real gana aunque haya varias missing/unavailable de ruido", () => {
+  it("'unavailable' que YA sincronizó (banco caído) → level caido (distinto de error)", () => {
+    const r = aggregateSyncStatus([
+      src({ source: "sii", last_sync: "2026-08-01T10:00:00Z" }),
+      src({ source: "bice", state: "unavailable", last_sync: "2026-08-02T09:00:00Z" }),
+    ]);
+    expect(r.level).toBe("caido");
+    expect(r.problemCount).toBe(1);
+    expect(r.lastSync).toBe("2026-08-02T09:00:00Z");
+  });
+
+  it("severidad: error > caido > warning", () => {
+    const caidoVsStale = aggregateSyncStatus([
+      src({ source: "bice", state: "unavailable", last_sync: "2026-08-02T09:00:00Z" }),
+      src({ source: "tgr", state: "stale" }),
+    ]);
+    expect(caidoVsStale.level).toBe("caido");
+
+    const errorVsCaido = aggregateSyncStatus([
+      src({ source: "bice", state: "unavailable", last_sync: "2026-08-02T09:00:00Z" }),
+      src({ source: "sii", state: "error" }),
+    ]);
+    expect(errorVsCaido.level).toBe("error");
+    expect(errorVsCaido.problemCount).toBe(2);
+  });
+
+  it("un error real gana aunque haya missing/unavailable-fantasma de ruido", () => {
     const r = aggregateSyncStatus([
       src({ source: "bice", state: "error" }),
-      src({ source: "sii_f22", state: "unavailable" }),
+      src({ source: "sii_f22", state: "unavailable" }), // sin last_sync → ruido
       src({ source: "tgr", state: "missing" }),
     ]);
     expect(r.level).toBe("error");

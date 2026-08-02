@@ -3,7 +3,12 @@
 import * as React from "react";
 import { ChevronDown, RefreshCw } from "lucide-react";
 import { QavanteBadge } from "@/components/qavante";
-import { useSourcesStatus, aggregateSyncStatus, type SourceStatus } from "@/lib/api/sources-status";
+import {
+  useSourcesStatus,
+  aggregateSyncStatus,
+  isSourceCaida,
+  type SourceStatus,
+} from "@/lib/api/sources-status";
 import { useDismiss } from "@/lib/hooks/use-dismiss";
 
 /* Indicador de sincronización (header, arriba a la derecha). Muestra el estado
@@ -15,11 +20,13 @@ import { useDismiss } from "@/lib/hooks/use-dismiss";
 const DOT: Record<string, string> = {
   ok: "bg-success-500",
   warning: "bg-warning-500",
+  caido: "bg-warning-600",
   error: "bg-danger-500",
 };
 const LABEL: Record<string, string> = {
   ok: "Actualizado",
   warning: "Desactualizado",
+  caido: "Con fuentes caídas",
   error: "Con errores",
 };
 
@@ -37,9 +44,12 @@ const STATE_BADGE: Record<
   { variant: "success" | "warning" | "danger" | "default"; label: string }
 > = {
   ok: { variant: "success", label: "OK" },
+  syncing: { variant: "default", label: "Sincronizando" },
   stale: { variant: "warning", label: "Desactualizado" },
   missing: { variant: "warning", label: "Sin conectar" },
-  unavailable: { variant: "warning", label: "No disponible" },
+  // "unavailable" que llega a la fila es un caído real (se filtran los fantasmas de Fase 2 sin
+  // last_sync). Ámbar, no rojo: es transitorio (reconectar), distinto de un "error" de datos.
+  unavailable: { variant: "warning", label: "Caída" },
   error: { variant: "danger", label: "Error" },
 };
 
@@ -56,14 +66,22 @@ export function SyncStatusIndicator() {
 
   const sources = query.data.sources ?? [];
   const agg = aggregateSyncStatus(sources);
-  /* El dropdown muestra solo lo CONECTADO (ok/stale/error, lo que realmente alimenta datos), ordenado por
-     severidad. Las "unavailable" (Fase 2, no implementadas) se ocultan; las "missing" (sin conectar) se
-     resumen en una línea sutil al pie → el error real (ej. tu banco caído) deja de estar enterrado entre
-     8 fuentes fantasma (auditoría UX F-03/F-07). */
-  const SEV: Record<string, number> = { error: 0, stale: 1, ok: 2 };
+  /* El dropdown muestra solo lo CONECTADO (lo que realmente alimenta datos), ordenado por severidad:
+     error → caída (unavailable con last_sync, ej. banco caído) → desactualizado → sincronizando → ok.
+     Las "unavailable" fantasma de Fase 2 (SIN last_sync) se ocultan y las "missing" (sin conectar) se
+     resumen al pie → el problema real (banco caído / error) deja de estar enterrado entre fuentes
+     fantasma (auditoría UX F-03/F-07), pero un caído REAL ahora SÍ aparece (antes desaparecía). */
+  const SEV: Record<string, number> = { error: 0, unavailable: 1, stale: 2, syncing: 3, ok: 4 };
   const connected = sources
-    .filter((s) => s.state === "error" || s.state === "stale" || s.state === "ok")
-    .sort((a, b) => (SEV[a.state] ?? 3) - (SEV[b.state] ?? 3));
+    .filter(
+      (s) =>
+        s.state === "error" ||
+        s.state === "stale" ||
+        s.state === "ok" ||
+        s.state === "syncing" ||
+        isSourceCaida(s),
+    )
+    .sort((a, b) => (SEV[a.state] ?? 5) - (SEV[b.state] ?? 5));
   const sinConectar = sources.filter((s) => s.state === "missing").length;
 
   return (

@@ -56,3 +56,9 @@ export const ConErrores: Story = {
   name: "Con errores",
   parameters: { msw: { handlers: [sources("error")] } },
 };
+/* Banco caído: `unavailable` que YA sincronizó (tiene last_sync) → "Con fuentes caídas",
+   distinto de "Con errores". Antes esta fuente desaparecía del header. */
+export const Caida: Story = {
+  name: "Con fuentes caídas (banco no disponible)",
+  parameters: { msw: { handlers: [sources("unavailable")] } },
+};
