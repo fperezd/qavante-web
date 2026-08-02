@@ -18,7 +18,7 @@ import { formatRut } from "@/lib/formatters/rut";
 import { SiiPeriodForm } from "@/components/sii/sii-period-form";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import {
-  detalleCuadra,
+  estadoCuadre,
   readPayrollObligaciones,
   sumCostoEmpresa,
   sumHaberes,
@@ -238,7 +238,11 @@ function PlanillaTotales({
         )}
 
         {detalle.length > 0 ? (
-          <DetalleEmpleados detalle={detalle} totalLiquido={totales.total_liquido} />
+          <DetalleEmpleados
+            detalle={detalle}
+            totalLiquido={totales.total_liquido}
+            empleadosContados={totales.empleados_contados}
+          />
         ) : (
           <p className="flex items-start gap-1.5 text-xs text-neutral-mid">
             <Users className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -268,12 +272,16 @@ function PlanillaTotales({
 function DetalleEmpleados({
   detalle,
   totalLiquido,
+  empleadosContados,
 }: {
   detalle: EmployeePayroll[];
   totalLiquido: number;
+  empleadosContados?: number | null;
 }) {
-  const cuadra = detalleCuadra(detalle, totalLiquido);
+  const estado = estadoCuadre(detalle, totalLiquido, empleadosContados);
   const suma = sumLiquido(detalle);
+  const ocultos =
+    typeof empleadosContados === "number" ? Math.max(0, empleadosContados - detalle.length) : 0;
   const conHaberes = tieneHaberesPorEmpleado(detalle);
   const sumaHaberes = sumHaberes(detalle);
   const conCosto = tieneCostoEmpresa(detalle);
@@ -283,27 +291,47 @@ function DetalleEmpleados({
   const sort = useTableSort(SORT_COLUMNS, "empleado");
   const detalleSorted = sort.sorted(detalle);
 
+  /* Indicador de cuadratura, 3 estados. "Faltan protegidos" NO es alarma: el detalle es owner-only y
+     omite a los trabajadores protegidos por confidencialidad, así que la brecha de líquido es esperada
+     (issue #727). Solo un descuadre real (mismo #empleados, montos que no cierran) pinta ámbar. */
+  const badge =
+    estado === "cuadra"
+      ? {
+          tono: "text-success-600",
+          icon: <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />,
+          texto: "Cuadra con el total",
+          title: "La suma del detalle coincide con el total del período",
+        }
+      : estado === "faltan_protegidos"
+        ? {
+            tono: "text-neutral-mid",
+            icon: <Users className="h-3.5 w-3.5" aria-hidden="true" />,
+            texto: `Detalle parcial: ${detalle.length} de ${empleadosContados}${
+              ocultos > 0
+                ? ` (${ocultos} protegido${ocultos === 1 ? "" : "s"} oculto${ocultos === 1 ? "" : "s"})`
+                : ""
+            }`,
+            title:
+              "El detalle por empleado no incluye a los trabajadores protegidos por confidencialidad, que el total sí cuenta. La diferencia es esperada.",
+          }
+        : {
+            tono: "text-warning-700",
+            icon: <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />,
+            texto: `Descuadre: detalle ${formatClp(suma)}`,
+            title:
+              "La suma del detalle no coincide con el total del período — revisar antes de conciliar",
+          };
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-neutral-dark">Detalle por empleado</h3>
         <span
-          className={
-            "inline-flex items-center gap-1 text-xs " +
-            (cuadra ? "text-success-600" : "text-warning-700")
-          }
-          title={
-            cuadra
-              ? "La suma del detalle coincide con el total del período"
-              : "La suma del detalle no coincide con el total del período — revisar antes de conciliar"
-          }
+          className={"inline-flex items-center gap-1 text-xs " + badge.tono}
+          title={badge.title}
         >
-          {cuadra ? (
-            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : (
-            <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          {cuadra ? "Cuadra con el total" : `Descuadre: detalle ${formatClp(suma)}`}
+          {badge.icon}
+          {badge.texto}
         </span>
       </div>
 
