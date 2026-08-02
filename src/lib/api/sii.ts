@@ -75,6 +75,7 @@ export type BheResponse = components["schemas"]["BheResponse"];
 export type BheRecibida = components["schemas"]["BheRecibida"];
 export type RcvComprasResponse = components["schemas"]["RcvComprasResponse"];
 export type RcvVentasResponse = components["schemas"]["RcvVentasResponse"];
+export type LibroComparativosResponse = components["schemas"]["LibroComparativosResponse"];
 export type DteRecibidosResponse = components["schemas"]["DteRecibidosResponse"];
 export type DteRecibidosData = components["schemas"]["DteRecibidosData"];
 
@@ -111,6 +112,8 @@ export const siiKeys = {
   bhe: (params: SiiPeriodoParams) => [...siiKeys.all, "bhe", params] as const,
   rcvCompras: (params: SiiRcvParams) => [...siiKeys.all, "rcv-compras", params] as const,
   rcvVentas: (params: SiiRcvParams) => [...siiKeys.all, "rcv-ventas", params] as const,
+  rcvComparativos: (kind: string, desde: string, hasta: string) =>
+    [...siiKeys.all, "rcv-comparativos", kind, desde, hasta] as const,
   dteRecibidos: (params: SiiDteRangoParams) => [...siiKeys.all, "dte-recibidos", params] as const,
 };
 
@@ -397,6 +400,30 @@ export function useSiiRcvVentas(params: SiiRcvParams) {
     queryKey: siiKeys.rcvVentas(params),
     queryFn: () => api.get<RcvVentasResponse>(`/api/sii/rcv/ventas${buildRcvQuery(params)}`),
     enabled: Boolean(params.periodo),
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** `GET /api/sii/rcv/{kind}/comparativos?desde&hasta` — comparativos del ritmo del Libro pre-agregados
+ *  por el backend (CC-API #766): neto del período, serie mensual, y los 3 comparativos (misma fecha del
+ *  mes anterior, mes vs. promedio anual, YoY) con el neto ya neteado de NC. Reemplaza el cálculo FE que
+ *  bajaba mes a mes. NO retry; solo corre con rango válido. */
+export function useSiiRcvComparativos(
+  kind: "ventas" | "compras",
+  desde: string,
+  hasta: string,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: siiKeys.rcvComparativos(kind, desde, hasta),
+    queryFn: () =>
+      api.get<LibroComparativosResponse>(
+        `/api/sii/rcv/${kind}/comparativos?desde=${encodeURIComponent(
+          desde,
+        )}&hasta=${encodeURIComponent(hasta)}`,
+      ),
+    enabled: enabled && Boolean(desde) && Boolean(hasta),
     staleTime: 10 * 60 * 1000,
     retry: false,
   });

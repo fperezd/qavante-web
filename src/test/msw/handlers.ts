@@ -2087,6 +2087,49 @@ const siiHandlers = [
     );
   }),
 
+  /* Comparativos del Libro pre-agregados (CC-API #766): neto del período + serie mensual + los 3
+     comparativos del ritmo. El FE ya no baja mes a mes; consume esto directo. */
+  http.get("*/api/sii/rcv/:kind/comparativos", ({ request }) => {
+    const url = new URL(request.url);
+    const desde = url.searchParams.get("desde");
+    const hasta = url.searchParams.get("hasta");
+    if (!desde || !hasta) {
+      return HttpResponse.json(errorBody("validation_error", "Faltan `desde`/`hasta`."), {
+        status: 422,
+      });
+    }
+    return HttpResponse.json(
+      {
+        neto_periodo: "189765944",
+        serie_mensual: [
+          { periodo: "2026-05", neto: "30958134" },
+          { periodo: "2026-06", neto: "25845693" },
+          { periodo: "2026-07", neto: "42015325" },
+        ],
+        mismo_dia_mes_anterior: {
+          pct: 12.5,
+          dia_corte: 15,
+          neto_actual: "21000000",
+          neto_base: "18666666",
+        },
+        mes_vs_promedio_anual: {
+          pct: 54.98,
+          mes_label: "julio",
+          neto_mes: "42015325",
+          promedio_anual: "27109420",
+        },
+        yoy: {
+          pct: 13.06,
+          neto_periodo: "189765944",
+          neto_anio_anterior: "167845841",
+        },
+        last_synced_at: "2026-08-01T12:01:35Z",
+        stale: false,
+      },
+      { status: 200 },
+    );
+  }),
+
   http.get("*/api/sii/dte-recibidos", ({ request }) => {
     const url = new URL(request.url);
     const desde = url.searchParams.get("desde");

@@ -1,91 +1,46 @@
 "use client";
 
-import * as React from "react";
-import { useQueries } from "@tanstack/react-query";
-import { api } from "@/lib/api/client";
-import {
-  siiKeys,
-  type RcvComprasResponse,
-  type RcvVentasResponse,
-} from "@/lib/api/sii";
+import { useSiiRcvComparativos, type LibroComparativosResponse } from "@/lib/api/sii";
+import { parseAmount } from "@/components/gestion/gestion-format";
+import { orderRange, type PeriodRange } from "@/lib/period/period-range";
 import type { RcvKind } from "../rcv-list-view";
-import type { RcvDoc } from "../rcv-grouped-item";
-import type { PeriodRange } from "@/lib/period/period-range";
 import type { HeroComparativo } from "./ventas-hero";
-import {
-  calcularComparativos,
-  netoDocs,
-  netosYoY,
-  planComparativoPeriodos,
-  type ComparativosInput,
-} from "./libro-comparativos";
 
-/* Hook que enciende los 3 comparativos del ritmo del Libro v2 (Ventas o Compras)
-   calculándolos EN EL FE (decisión de Fernando 2026-07-13: "FE ahora + pedir endpoint
-   a CC-API"). Baja los meses que cada comparativo necesita vía useQueries —
-   react-query DEDUPLICA con los meses que ya bajó la vista del rango (misma queryKey),
-   así el costo extra es solo los meses fuera del rango. `retry: false`.
+/* Los 3 comparativos del ritmo del Libro v2 (Ventas o Compras) desde el endpoint PRE-AGREGADO del
+   backend (`GET /api/sii/rcv/{kind}/comparativos?desde&hasta`, CC-API #766). Antes se calculaban EN EL
+   FE bajando mes a mes (decisión de Fernando 2026-07-13: "FE ahora + pedir endpoint a CC-API"); ahora
+   que el endpoint existe, se retira ese cálculo y se consume directo (un solo request, neto ya neteado
+   de NC por el backend).
 
-   Rigor / honestidad: un comparativo se calcula SOLO si TODOS sus meses cargaron con
-   éxito (isSuccess). Si un mes falla o falta, ese comparativo se OMITE — nunca se
-   muestra un % con base incompleta (un número de negocio equivocado es peor que
-   ninguno). Cuando CC-API entregue el endpoint de comparativos (libro-comparativos-
-   contract), esto se reemplaza por una sola llamada pre-agregada. */
+   Honestidad: un comparativo se muestra SOLO si su BASE es > 0 — no inventamos un % contra una base en
+   cero (un número de negocio equivocado es peor que ninguno). El endpoint ya omite lo que no tiene en
+   cache; acá filtramos además las bases nulas. */
+export function toHeroComparativos(r: LibroComparativosResponse | undefined): HeroComparativo[] {
+  if (!r) return [];
+  const out: HeroComparativo[] = [];
+  const md = r.mismo_dia_mes_anterior;
+  if (md && parseAmount(md.neto_base) > 0) {
+    out.push({ pct: md.pct, label: "este mes vs. misma fecha del mes anterior" });
+  }
+  const mp = r.mes_vs_promedio_anual;
+  if (mp && parseAmount(mp.promedio_anual) > 0) {
+    out.push({ pct: mp.pct, label: `${mp.mes_label} sobre el promedio mensual del año` });
+  }
+  const yoy = r.yoy;
+  if (yoy && parseAmount(yoy.neto_anio_anterior) > 0) {
+    out.push({ pct: yoy.pct, label: "vs. el mismo período del año anterior" });
+  }
+  return out;
+}
+
 export function useLibroComparativos(
   kind: RcvKind,
   range: PeriodRange,
-  today: Date,
 ): { comparativos: HeroComparativo[]; isFetching: boolean } {
-  const plan = React.useMemo(() => planComparativoPeriodos(range, today), [range, today]);
-
-  const results = useQueries({
-    queries: plan.periodos.map((periodo) => ({
-      queryKey: kind === "ventas" ? siiKeys.rcvVentas({ periodo }) : siiKeys.rcvCompras({ periodo }),
-      queryFn: () =>
-        api.get<RcvVentasResponse | RcvComprasResponse>(
-          `/api/sii/rcv/${kind}?periodo=${encodeURIComponent(periodo)}`,
-        ),
-      staleTime: 10 * 60 * 1000,
-      retry: false,
-    })),
-  });
-
-  // periodo → docs SOLO si la query tuvo éxito; undefined = no disponible (fetching/error).
-  const byPeriod = new Map<string, RcvDoc[] | undefined>();
-  plan.periodos.forEach((p, i) => {
-    const r = results[i];
-    const data = r?.data as (RcvVentasResponse & RcvComprasResponse) | undefined;
-    const docs = (kind === "ventas" ? data?.ventas : data?.compras) as RcvDoc[] | undefined;
-    byPeriod.set(p, r?.isSuccess ? (docs ?? []) : undefined);
-  });
-  const has = (p: string) => byPeriod.get(p) !== undefined;
-  const docs = (p: string) => byPeriod.get(p) ?? [];
-
-  const input: ComparativosInput = { diaCorte: plan.diaCorte, labelMesAnterior: plan.labelMesAnterior };
-
-  // (1) Este mes/período vs. misma fecha del mes anterior — necesita ambos meses.
-  if (has(plan.mesActual) && has(plan.mesAnterior)) {
-    input.mesActual = docs(plan.mesActual);
-    input.mesAnterior = docs(plan.mesAnterior);
-  }
-
-  // (2) Mes anterior sobre el promedio del año — necesita el mes anterior + todos los
-  //     meses del año en curso.
-  if (plan.mesesAnio.length > 0 && plan.mesesAnio.every(has) && has(plan.mesAnterior)) {
-    input.netoMesAnterior = netoDocs(docs(plan.mesAnterior));
-    input.netosDelAnio = plan.mesesAnio.map((p) => netoDocs(docs(p)));
-  }
-
-  // (3) vs. año anterior — necesita el rango completo Y su equivalente del año pasado. El mes en
-  //     curso (si está en el rango) se trunca a la fecha de corte en ambos años (no parcial vs completo).
-  if (plan.rango.every(has) && plan.rangoAnioAnterior.every(has)) {
-    const yoy = netosYoY(plan.rango, plan.rangoAnioAnterior, docs, plan.mesActual, plan.diaCorte);
-    input.netoPeriodo = yoy.netoPeriodo;
-    input.netoPeriodoAnioAnterior = yoy.netoPeriodoAnioAnterior;
-  }
-
+  const { desde, hasta } = orderRange(range);
+  const query = useSiiRcvComparativos(kind, desde, hasta);
   return {
-    comparativos: calcularComparativos(input),
-    isFetching: results.some((r) => r.isFetching),
+    comparativos: toHeroComparativos(query.data),
+    isFetching: query.isFetching,
   };
 }
