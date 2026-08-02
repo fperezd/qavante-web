@@ -292,6 +292,11 @@ function Assembled({
             De {formatClp(prioridad.total)} que te debe. Es tu cobranza vencida más grande — pártele
             por acá.
           </>
+        ) : useRcv ? (
+          <>
+            {Math.round(prioridad.pctDelTotal)}% de tus {formatClp(grandTotal)} por cobrar. Nada
+            vencido entre lo pendiente por ahora, así que priorizamos por el tamaño de la deuda.
+          </>
         ) : (
           <>
             {Math.round(prioridad.pctDelTotal)}% de tus {formatClp(grandTotal)} por cobrar. Aún no
@@ -303,7 +308,9 @@ function Assembled({
       infoHint={
         prioridad.mode === "urgencia"
           ? "Priorizamos por mora derivada del término de pago (emisión + término). Ajusta los términos por cliente en Clientes."
-          : "Sin vencimientos del SII, priorizamos por tamaño de la deuda. Cuando lleguen las fechas, la pantalla prioriza por mora sola."
+          : useRcv
+            ? "Los vencimientos se derivan del término de pago (emisión + término). Cuando algo entre en mora, la pantalla prioriza por lo vencido."
+            : "Sin vencimientos del SII, priorizamos por tamaño de la deuda. Cuando lleguen las fechas, la pantalla prioriza por mora sola."
       }
       acciones={
         <CobranzaAcciones
