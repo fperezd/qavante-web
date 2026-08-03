@@ -3227,6 +3227,38 @@ const cajaV2Handlers = [
     HttpResponse.json(cashMinimumFixture, { status: 200 }),
   ),
   http.get("*/api/treasury/cash-cycle", () => HttpResponse.json(cashCycleFixture, { status: 200 })),
+  /* Modelo único de caja (#770): proyección forward del backend que alimenta el medidor de Caja v3.
+     Escenario "ajustado": la caja toca su piso ($1,5M < mínima $2M) al día ~21 y se recupera. */
+  http.get("*/api/treasury/cash-projection", ({ request }) => {
+    const horizon = Number(new URL(request.url).searchParams.get("horizon_days")) || 90;
+    return HttpResponse.json(
+      {
+        as_of: "2026-08-03",
+        horizon_days: horizon,
+        moneda: "CLP",
+        saldo_hoy: "9800000",
+        minimo: "2000000",
+        dias_de_caja: 21,
+        serie: [
+          { fecha: "2026-08-10", saldo_cierre: "7000000", capa: "esperado" },
+          { fecha: "2026-08-24", saldo_cierre: "1500000", capa: "esperado" },
+          { fecha: "2026-09-07", saldo_cierre: "4000000", capa: "esperado" },
+        ],
+        escenario_duro: { dias_de_caja: 10, piso: "-3000000", piso_fecha: "2026-08-31" },
+        punto_quiebre: {
+          fecha: "2026-08-24",
+          saldo: "1500000",
+          causas: [
+            { glosa: "Remuneraciones", monto: "-8500000", tipo: "pago" },
+            { glosa: "F29 (IVA)", monto: "-4200000", tipo: "pago" },
+          ],
+        },
+        vencido: { total: "0", items: [] },
+        fuentes: { calidad_fechas: { con_fecha_real: 0.8, items_totales: 40 } },
+      },
+      { status: 200 },
+    );
+  }),
 ];
 
 /* Cola de conciliación (ADR-0036/0042). Handlers DETERMINISTAS a propósito: `review` devuelve

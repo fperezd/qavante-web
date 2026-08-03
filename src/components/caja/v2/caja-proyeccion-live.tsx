@@ -3,38 +3,43 @@
 import * as React from "react";
 import { usePreferences } from "@/lib/api/preferences";
 import { useAccountsPayable } from "@/lib/api/pagos";
+import { useCashProjection } from "@/lib/api/treasury";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import { readTerminos, readPagados, buildMaestro } from "@/components/terminos/terminos-pago";
+import { parseAmount } from "@/components/gestion/gestion-format";
 import { CajaProyeccionView } from "./caja-proyeccion-view";
 import {
-  causasDelPiso,
   movimientosDeMaestro,
   movimientosDeObligaciones,
   movimientosPorSemana,
-  proyeccionDeMovimientos,
 } from "./caja-proyeccion-model";
+import { cashProjectionToDiasCaja, causasFromCashProjection } from "./caja-cash-projection-map";
 import type { MovimientoCaja } from "./caja-cascada-model";
 
-/* CajaProyeccionLive — container del rediseño de la proyección de caja (Caja v3, gated `cajaV3`).
-   La proyección sale de los VENCIMIENTOS DERIVADOS (no del cash-flow histórico): cobranzas del
-   maestro AR (ventas) + pagos de los maestros AP (compras/honorarios) + obligaciones reales de
-   accounts-payable (payroll/tax/rent/debt/leasing — NO "other", que es ruido de tarjeta ya pagado,
-   ni "supplier", que ya viene del maestro). El acumulado sobre `cash_today` (que el parent ya tiene)
-   da el medidor; los movimientos por semana, la cascada. Container: NO se testea por Storybook
-   (ADR-0018); la lógica vive en `caja-proyeccion-model` (con unit tests). */
+/* CajaProyeccionLive — container del medidor de caja (Caja v3, gated `cajaV3`).
 
-const HORIZONTE_DIAS = 120; // ~4 meses de proyección forward
-// Gracia de past-due: incluimos vencimientos vencidos hasta hace 7 días (aún probablemente pendientes);
-// los más viejos se excluyen porque casi seguro ya se pagaron y están en el cash_today (contarlos de
-// nuevo duplica plata ya gastada — validación real Tooxs 2026-07-21: sin esto el piso daba −$43M irreal).
+   MODELO ÚNICO DE CAJA (#770 / ADR-0085): el MEDIDOR + la CURVA + el PUNTO DE QUIEBRE + los días de
+   caja salen del backend (`GET /api/treasury/cash-projection`) — una sola fuente de verdad. Antes el
+   FE re-proyectaba por su cuenta (`caja-proyeccion-model`) y daba una respuesta distinta al backend y
+   al Pulso ("3 respuestas a ¿cuánta caja tengo?"). Con el fix del día-1-dump (CC-API #802) la serie del
+   backend ya es honesta, así que se RETIRA la reproyección FE del medidor.
+
+   La CASCADA de próximos movimientos SÍ se sigue derivando del maestro (cobranzas AR + pagos AP +
+   obligaciones): el backend aún no expone el detalle por-movimiento. Es un dato legítimo; el número de
+   días/piso ya NO sale de acá. Container: no se testea por Storybook (ADR-0018); la lógica pura vive en
+   `caja-cash-projection-map` (medidor) y `caja-proyeccion-model` (cascada), ambas con unit tests. */
+
+const HORIZONTE_DIAS = 90; // horizonte de la proyección del backend (y de la cascada derivada)
+// Gracia de past-due de la CASCADA: incluimos vencimientos vencidos hasta hace 7 días (aún probablemente
+// pendientes); los más viejos casi seguro ya se pagaron y están en el saldo → contarlos duplica plata.
 const GRACE_DIAS = 7;
 // Obligaciones reales de accounts-payable que SÍ son pagos futuros (el resto es ruido o duplica el maestro).
 const OBLIG_CATS = new Set(["payroll", "tax", "rent", "debt", "leasing"]);
 
 export interface CajaProyeccionLiveProps {
-  /** Saldo de hoy (cash_today) — el parent (resumen-live) ya lo tiene del dashboard. */
+  /** Saldo de hoy (cash_today) — el parent (resumen-live) ya lo tiene del dashboard. Solo respaldo. */
   saldoHoy: number;
-  /** Caja mínima (CLP) o `null`. */
+  /** Caja mínima (CLP) o `null`. Solo respaldo (la del backend manda para el medidor). */
   minimo: number | null;
   /** El `cash_today` viene stale (banco sin sync reciente). */
   saldoStale?: boolean;
@@ -42,19 +47,24 @@ export interface CajaProyeccionLiveProps {
   ultimaSync?: string | null;
 }
 
-export function CajaProyeccionLive({
-  saldoHoy,
-  minimo,
-  saldoStale,
-  ultimaSync,
-}: CajaProyeccionLiveProps) {
+export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProyeccionLiveProps) {
   const prefs = usePreferences();
   const ventasDocs = useMaestroDocs("ventas");
   const comprasDocs = useMaestroDocs("compras");
   const honorariosDocs = useMaestroDocs("honorarios");
   const ap = useAccountsPayable();
+  const cashProj = useCashProjection(HORIZONTE_DIAS);
 
-  const { proyeccion, movimientosCascada, causas } = React.useMemo(() => {
+  // Medidor + curva + punto de quiebre + causas: FUENTE ÚNICA = backend.
+  const proyeccion = React.useMemo(() => cashProjectionToDiasCaja(cashProj.data), [cashProj.data]);
+  const causas = React.useMemo(() => causasFromCashProjection(cashProj.data), [cashProj.data]);
+  // La caja mínima del readout sale del backend (consistente con la proyección); 0 = sin mínima → no la
+  // mostramos ($0 se lee raro). Si el backend no cargó, cae a la del parent.
+  const minimoBackend = cashProj.data ? parseAmount(cashProj.data.minimo) : null;
+  const minimoView = minimoBackend != null ? (minimoBackend > 0 ? minimoBackend : null) : minimo;
+
+  // Cascada de próximos movimientos: derivada del maestro (el backend no expone el detalle por-movimiento).
+  const movimientosCascada = React.useMemo(() => {
     const now = new Date();
     const terminos = readTerminos(prefs.data?.preferences);
     const pagados = readPagados(prefs.data?.preferences);
@@ -76,32 +86,16 @@ export function CajaProyeccionLive({
       ...movimientosDeMaestro(honorarios, -1, "otro", now, HORIZONTE_DIAS, GRACE_DIAS),
       ...movimientosDeObligaciones(obligaciones, now, HORIZONTE_DIAS, GRACE_DIAS),
     ];
+    return movimientosPorSemana(movs, now);
+  }, [ventasDocs.docs, comprasDocs.docs, honorariosDocs.docs, ap.data, prefs.data]);
 
-    // Medidor: acumulado sobre TODOS los movimientos (exacto). Cascada: agregados por semana (legible).
-    const proy = proyeccionDeMovimientos(saldoHoy, movs, now, minimo);
-    return {
-      proyeccion: proy,
-      movimientosCascada: movimientosPorSemana(movs, now),
-      // Causas del piso: los mayores egresos INDIVIDUALES hasta el día del punto más bajo (label real).
-      causas: proy?.piso ? causasDelPiso(movs, now, proy.piso.dia, 3) : [],
-    };
-  }, [
-    ventasDocs.docs,
-    comprasDocs.docs,
-    honorariosDocs.docs,
-    ap.data,
-    prefs.data,
-    saldoHoy,
-    minimo,
-  ]);
-
-  // Sin las prefs (conciliaciones) la proyección trataría docs ya pagados como movimientos → esperar.
-  if (prefs.isLoading) return null;
+  // Sin la proyección del backend (cargando) o sin prefs (conciliaciones) → esperar, no proyectar mal.
+  if (prefs.isLoading || cashProj.isLoading) return null;
 
   return (
     <CajaProyeccionView
       proyeccion={proyeccion}
-      minimo={minimo}
+      minimo={minimoView}
       movimientos={movimientosCascada}
       causas={causas}
       ultimaSync={ultimaSync}
