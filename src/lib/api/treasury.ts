@@ -23,6 +23,7 @@ export type ForecastBucket = components["schemas"]["ForecastBucket"];
 /** Ciclo de conversión de caja: DSO (días de cobro) / DPO (días de pago) / CCC
  *  (CC-WEB Fase 2). Todos nullable si no hay ventana devengada suficiente. */
 export type CashCycleResponse = components["schemas"]["CashCycleResponse"];
+export type CashProjectionResponse = components["schemas"]["CashProjectionResponse"];
 export type BankMovementsListResponse = components["schemas"]["BankMovementsListResponse"];
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
 export type ApplyRulesResponse = components["schemas"]["ApplyRulesResponse"];
@@ -66,6 +67,8 @@ export const treasuryKeys = {
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
   collectionForecast: () => [...treasuryKeys.all, "collection-forecast"] as const,
   cashCycle: () => [...treasuryKeys.all, "cash-cycle"] as const,
+  cashProjection: (horizonDays: number) =>
+    [...treasuryKeys.all, "cash-projection", horizonDays] as const,
 };
 
 /** `GET /api/treasury/collection-forecast` — cobranza esperada por bucket de
@@ -75,6 +78,22 @@ export function useCollectionForecast() {
   return useQuery({
     queryKey: treasuryKeys.collectionForecast(),
     queryFn: () => api.get<CollectionForecastResponse>("/api/treasury/collection-forecast"),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `GET /api/treasury/cash-projection?horizon_days=` — proyección ÚNICA de caja (modelo ratificado
+ *  #770/ADR-0085): saldo hoy + serie forward a cierre de día + días de caja + punto de quiebre (con
+ *  causas) + escenario duro + vencido. Es la FUENTE ÚNICA del medidor (reemplaza la reproyección FE).
+ *  Cookie auth. NO retry (si falla, el medidor muestra "sin dato", no una curva inventada). */
+export function useCashProjection(horizonDays = 90) {
+  return useQuery({
+    queryKey: treasuryKeys.cashProjection(horizonDays),
+    queryFn: () =>
+      api.get<CashProjectionResponse>(
+        `/api/treasury/cash-projection?horizon_days=${encodeURIComponent(horizonDays)}`,
+      ),
     staleTime: 30_000,
     retry: false,
   });
