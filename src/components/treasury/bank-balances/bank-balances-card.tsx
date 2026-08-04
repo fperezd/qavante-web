@@ -63,36 +63,62 @@ export function BankBalancesCard({ cuentas, referencia, balancePorCuenta }: Bank
                     </p>
                   </div>
                 </div>
-                {lc && (
-                  <div className="mt-2 rounded-lg border border-border bg-neutral-light/20 px-3 py-2">
-                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                      <span className="text-xs font-medium text-neutral-dark">
-                        Línea de crédito
-                      </span>
-                      <span className="text-xs text-neutral-mid">
-                        te quedan{" "}
-                        <b className="tabular-nums text-neutral-dark">
-                          {formatSaldo(String(lc.disponible), lc.moneda ?? c.moneda)}
-                        </b>{" "}
-                        de{" "}
-                        <span className="tabular-nums">
-                          {formatSaldo(String(lc.cupo), lc.moneda ?? c.moneda)}
-                        </span>
-                      </span>
-                    </div>
-                    <p className="mt-0.5 text-[11px] text-neutral-mid">
-                      Usás{" "}
-                      <span className="tabular-nums">
-                        {formatSaldo(String(lc.usado), lc.moneda ?? c.moneda)}
-                      </span>{" "}
-                      — es un colchón, no plata tuya
-                      {lc.vencimientoSobregiro
-                        ? ` · sobregiro vence el ${formatDateLike(lc.vencimientoSobregiro)}`
-                        : ""}
-                      .
-                    </p>
-                  </div>
-                )}
+                {lc &&
+                  (() => {
+                    const mon = lc.moneda ?? c.moneda;
+                    // Cupo agotado / excedido (disponible ≤ 0): NO es un "colchón" — no queda margen. El
+                    // exceso (disponible < 0) es plata que ya te pasaste del cupo aprobado. Honesto vs
+                    // "te quedan −$X" (que se lee mal).
+                    const agotada = lc.disponible <= 0;
+                    const excedido = lc.disponible < 0;
+                    const venc = lc.vencimientoSobregiro
+                      ? ` · sobregiro vence el ${formatDateLike(lc.vencimientoSobregiro)}`
+                      : "";
+                    return (
+                      <div
+                        className={`mt-2 rounded-lg border px-3 py-2 ${agotada ? "border-warning-500/40 bg-warning-500/[.07]" : "border-border bg-neutral-light/20"}`}
+                      >
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                          <span className="text-xs font-medium text-neutral-dark">
+                            Línea de crédito
+                          </span>
+                          {agotada ? (
+                            <span className="text-xs font-medium text-warning-700">
+                              {excedido ? (
+                                <>
+                                  cupo agotado · excedido{" "}
+                                  <b className="tabular-nums">
+                                    {formatSaldo(String(Math.abs(lc.disponible)), mon)}
+                                  </b>
+                                </>
+                              ) : (
+                                "cupo agotado"
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-neutral-mid">
+                              te quedan{" "}
+                              <b className="tabular-nums text-neutral-dark">
+                                {formatSaldo(String(lc.disponible), mon)}
+                              </b>{" "}
+                              de{" "}
+                              <span className="tabular-nums">
+                                {formatSaldo(String(lc.cupo), mon)}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-[11px] text-neutral-mid">
+                          Usas{" "}
+                          <span className="tabular-nums">{formatSaldo(String(lc.usado), mon)}</span>{" "}
+                          de{" "}
+                          <span className="tabular-nums">{formatSaldo(String(lc.cupo), mon)}</span>
+                          {agotada ? " — sin margen disponible" : " — es un colchón, no plata tuya"}
+                          {venc}.
+                        </p>
+                      </div>
+                    );
+                  })()}
               </li>
             );
           })}

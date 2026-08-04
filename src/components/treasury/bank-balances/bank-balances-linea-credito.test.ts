@@ -70,4 +70,19 @@ describe("lineaCreditoDe", () => {
     expect(lineaCreditoDe(null)).toBeNull();
     expect(lineaCreditoDe(undefined)).toBeNull();
   });
+
+  it("cupo EXCEDIDO (caso real Tooxs): disponible negativo se PRESERVA, no se clampa a 0", () => {
+    // Cupo $6M, usa $6.058.864 → el banco informa disponible −$58.864 (te pasaste del cupo aprobado).
+    const lc = lineaCreditoDe(
+      balance({
+        montoAprobadoMonto: "6000000",
+        montoUtilizadoMonto: "6058864",
+        montoDisponibleMonto: "-58864",
+        fechaVencimientoSobregiro: "2026-09-29",
+      }),
+    );
+    expect(lc?.disponible).toBe(-58864); // negativo real (la tarjeta lo muestra "cupo agotado · excedido")
+    expect(lc?.cupo).toBe(6000000);
+    expect(lc?.usado).toBe(6058864);
+  });
 });
