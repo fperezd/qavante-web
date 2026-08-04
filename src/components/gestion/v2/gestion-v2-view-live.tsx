@@ -20,6 +20,7 @@ import {
   mapCascada,
   mapDrivers,
   mapTendencia,
+  separarMesEnCurso,
   margenOperacionalPct,
   resultadoConfiable,
   tendenciaConfiable,
@@ -114,7 +115,8 @@ export function GestionV2ViewLive({
   const comparativos = mapComparativos(mes);
   const cascada = mapCascada(mes);
   const drivers = mapDrivers(mes);
-  const tendencia = breakdown.data ? mapTendencia(breakdown.data) : [];
+  // El histórico del margen es sobre meses CERRADOS (el mes en curso, parcial, distorsiona el gráfico).
+  const tendencia = breakdown.data ? separarMesEnCurso(mapTendencia(breakdown.data)).cerrados : [];
   const pulso = dash.data?.pulso ?? null;
 
   const movibles: GestionMovible[] = [

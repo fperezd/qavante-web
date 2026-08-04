@@ -214,6 +214,19 @@ export function mapTendencia(bd: OperationalResultBreakdown): TendenciaPunto[] {
   }));
 }
 
+/** Separa la tendencia del margen en meses CERRADOS (comparables) y el mes EN CURSO (parcial). El
+ *  margen de un mes a medio andar (ej. día 3) es basura estadística: costos mensuales casi completos
+ *  contra unas pocas ventas → un −1443% que NO es "el peor mes", solo que el mes todavía no cierra.
+ *  El mejor/peor mes, el promedio y la tendencia se calculan sobre los CERRADOS; el en curso se
+ *  muestra aparte (nota "va en curso"), nunca como punto comparable. PURO. */
+export function separarMesEnCurso(puntos: TendenciaPunto[]): {
+  cerrados: TendenciaPunto[];
+  enCurso: TendenciaPunto | null;
+} {
+  const enCurso = puntos.find((p) => p.actual) ?? null;
+  return { cerrados: puntos.filter((p) => !p.actual), enCurso };
+}
+
 /** Encuentra la fila subtotal del resultado operacional (aplana el árbol). Prefiere un match
  *  específico de "resultado"; si no, el último subtotal que matchee /result|operac/; y en
  *  última instancia el último subtotal del P&L (el más abajo = el resultado). */
