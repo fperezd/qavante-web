@@ -45,6 +45,7 @@ export type OperationalResultDocument = components["schemas"]["OperationalResult
 export type ClassificationProposal = components["schemas"]["ClassificationProposal"];
 export type ClassificationProposals = components["schemas"]["ProposalsResponse"];
 export type ClassifyRunResponse = components["schemas"]["ClassifyRunResponse"];
+export type ClassifyDocumentRequest = components["schemas"]["ClassifyDocumentRequest"];
 
 export const gestionKeys = {
   all: ["gestion"] as const,
@@ -174,6 +175,51 @@ export function useConfirmClassificationBatch() {
           ok += 1;
         } catch {
           faltaban += 1; // stale/404 u otro fallo puntual → se salta
+        }
+      }
+      return { ok, faltaban };
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: gestionKeys.all });
+    },
+  });
+}
+
+/** `POST .../classifications/classify-document` — clasifica MANUALMENTE un documento a una cuenta
+ *  ELEGIDA (`{side, source_external_id, account_code}`) + aprende la regla por contraparte. A diferencia
+ *  de `confirm` (que necesita una propuesta viva → 404 si se puso stale), este es documento-keyed: sirve
+ *  para "no llegó sugerencia" o "la sugerencia está mal" (pedido de Fernando), y no sufre el problema de
+ *  propuestas volátiles. Invalida Gestión al terminar. */
+export function useClassifyDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (req: ClassifyDocumentRequest) =>
+      api.post<unknown>("/api/management/operational-result/classifications/classify-document", {
+        body: req,
+      }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: gestionKeys.all });
+    },
+  });
+}
+
+/** Clasifica VARIOS documentos de una (botón "clasificar todo"). Secuencial y tolerante: un fallo
+ *  puntual se salta y no aborta el lote. Invalida Gestión al terminar. */
+export function useClassifyDocumentBatch() {
+  const qc = useQueryClient();
+  return useMutation<ConfirmBatchResult, Error, ClassifyDocumentRequest[]>({
+    mutationFn: async (reqs) => {
+      let ok = 0;
+      let faltaban = 0;
+      for (const req of reqs) {
+        try {
+          await api.post<unknown>(
+            "/api/management/operational-result/classifications/classify-document",
+            { body: req },
+          );
+          ok += 1;
+        } catch {
+          faltaban += 1;
         }
       }
       return { ok, faltaban };

@@ -75,24 +75,25 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
     await filaSinClasif.getByRole("button").first().click();
     await expect(page.getByText(/PROVEEDOR DEMO SPA/i)).toBeVisible();
 
-    // El doc con propuesta muestra la cuenta sugerida (nombre legible del árbol) + botón "Clasificar".
-    await expect(page.getByText(/Sugerido:/).first()).toBeVisible();
-    await expect(page.getByText("Sueldos y remuneraciones").first()).toBeVisible();
+    // El doc con propuesta trae la cuenta sugerida PRECARGADA en el selector (editable a mano).
+    await expect(page.getByRole("combobox", { name: /PROVEEDOR DEMO SPA/ })).toHaveValue(
+      "costos.sueldos",
+    );
     await expect(
       page.getByRole("button", { name: "Clasificar", exact: true }).first(),
     ).toBeVisible();
 
-    // Con ≥2 sugerencias aparece el botón para clasificarlas TODAS de una (pedido de Fernando).
-    await expect(
-      page.getByRole("button", { name: /Clasificar todo lo sugerido \(2\)/ }),
-    ).toBeVisible();
+    // Con ≥2 cuentas ya elegidas (sugeridas) aparece el botón para clasificarlas TODAS de una.
+    await expect(page.getByRole("button", { name: /Clasificar todo \(2\)/ })).toBeVisible();
 
-    // El doc SIN propuesta habilita "Sugerir clasificación" (corre el clasificador IA del período).
+    // El doc SIN sugerencia habilita "Sugerir clasificación" (corre el clasificador IA del período).
     await expect(page.getByRole("button", { name: "Sugerir clasificación" })).toBeVisible();
 
-    // Clasificar en un clic: no rompe (aplica + aprende regla por contraparte en el backend).
+    // Se puede cambiar la cuenta A MANO y clasificar: sin sugerencia igual se elige y no rompe.
+    const selDemo = page.getByRole("combobox", { name: /PROVEEDOR DEMO SPA/ });
+    await selDemo.selectOption("costos.sueldos");
     await page.getByRole("button", { name: "Clasificar", exact: true }).first().click();
-    await expect(page.getByText(/ya no estaba disponible/)).toHaveCount(0);
+    await expect(page.getByText("No pudimos clasificar. Vuelve a intentar.")).toHaveCount(0);
   });
 
   test("el mes EN CURSO no dice 'perdió' — muestra 'va en curso, aún sin cerrar'", async ({
