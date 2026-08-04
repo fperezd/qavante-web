@@ -39,6 +39,13 @@ export type OperationalResultDocuments =
   components["schemas"]["OperationalResultDocumentsResponse"];
 export type OperationalResultDocument = components["schemas"]["OperationalResultDocument"];
 
+/* P&L 'al día N' del flujo RCV (ventas/margen/resultado) del mes en curso vs el MISMO tramo del mes
+   anterior (CC-API #794-P0-2). Comparación PAREJA (agosto 1→N vs julio 1→N), no parcial vs mes
+   completo. Corta lo que devenga por día → NO incluye lumps mensuales (nómina/honorarios). Antes el FE
+   lo aproximaba sobre el RCV diario; ahora lo calcula el backend (autoritativo, saca lógica del FE).
+   `actual`/`mes_anterior`/`variacion` son dicts libres (additionalProperties). Tipo GENERADO. */
+export type OperationalResultAlDia = components["schemas"]["OperationalResultAlDiaResponse"];
+
 /* Propuestas de clasificación (IA + aprendizaje por contraparte, ADR-0062): para lo sin clasificar,
    sugiere la cuenta de gestión por documento. Confirmar aplica la sugerencia Y crea una regla por la
    contraparte (los futuros docs de ese proveedor se clasifican solos). Tipos GENERADOS. */
@@ -55,6 +62,8 @@ export const gestionKeys = {
     [...gestionKeys.all, "operational-result-breakdown", from, to, mode] as const,
   operationalResultDocuments: (period: string, account: string) =>
     [...gestionKeys.all, "operational-result-documents", period, account] as const,
+  operationalResultAlDia: (period: string, hastaDia: number) =>
+    [...gestionKeys.all, "operational-result-al-dia", period, hastaDia] as const,
 };
 
 /** `GET /api/management/operational-result?period=YYYY-MM` — un mes (desglose
@@ -109,6 +118,24 @@ export function useOperationalResultDocuments(period: string, account: string, e
         )}&account=${encodeURIComponent(account)}`,
       ),
     enabled: enabled && period !== "" && account !== "",
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `GET /api/management/operational-result/al-dia?period=YYYY-MM&hasta_dia=N` — P&L del flujo RCV del
+ *  mes en curso "al día N" vs el mismo tramo del mes anterior (comparación pareja, #794-P0-2). Solo
+ *  corre habilitado y con period no vacío (típico: cuando el mes va EN CURSO). NO retry. */
+export function useOperationalResultAlDia(period: string, hastaDia: number, enabled = true) {
+  return useQuery({
+    queryKey: gestionKeys.operationalResultAlDia(period, hastaDia),
+    queryFn: () =>
+      api.get<OperationalResultAlDia>(
+        `/api/management/operational-result/al-dia?period=${encodeURIComponent(
+          period,
+        )}&hasta_dia=${hastaDia}`,
+      ),
+    enabled: enabled && period !== "",
     staleTime: 30_000,
     retry: false,
   });

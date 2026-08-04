@@ -22,9 +22,9 @@ test.describe("Flujo: Comparativo (/gestion/comparativo)", () => {
     await expect(main.getByRole("heading", { name: "Vs. tu promedio" })).toBeVisible();
 
     // El mes va EN CURSO (el MSW lo marca proforma): "Este mes" NO compara parcial vs completo (peras
-    // con manzanas). Muestra el mes anterior COMPLETO como referencia + la card "Ventas al mismo tramo"
-    // (la comparación pareja, del RCV diario) — pedido de Fernando 2026-08-01.
-    await expect(main.getByRole("heading", { name: "Ventas al mismo tramo" })).toBeVisible();
+    // con manzanas). Muestra el mes anterior COMPLETO como referencia + el bloque "Al mismo tramo del
+    // mes" (la comparación pareja, del backend `al-dia`) — pedido de Fernando 2026-08-01.
+    await expect(main.getByRole("heading", { name: "Al mismo tramo del mes" })).toBeVisible();
     await expect(main.getByText(/completo/i).first()).toBeVisible();
     await expect(main.getByText(/mismo tramo de/i).first()).toBeVisible();
 
