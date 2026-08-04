@@ -5,6 +5,7 @@ import {
   periodoDe,
   agregarContrapartes,
   serieMensual,
+  sinMesEnCurso,
   tendenciaAnual,
   estacionalidad,
   concentracionPct,
@@ -104,6 +105,30 @@ describe("tendenciaAnual", () => {
     // 24 meses pero los primeros 12 en cero → no existía la relación hace un año.
     const s = serie24([...Array(12).fill(0), ...Array(12).fill(150)]);
     expect(tendenciaAnual(s)).toBeNull();
+  });
+});
+
+describe("sinMesEnCurso", () => {
+  it("descarta el último punto (mes en curso, parcial)", () => {
+    const s: PuntoMes[] = [
+      { periodo: "2026-06", monto: 100 },
+      { periodo: "2026-07", monto: 120 },
+      { periodo: "2026-08", monto: 5 }, // mes en curso (día 3): parcial, no comparable
+    ];
+    expect(sinMesEnCurso(s).map((p) => p.periodo)).toEqual(["2026-06", "2026-07"]);
+  });
+
+  it("serie vacía → vacía (no rompe)", () => {
+    expect(sinMesEnCurso([])).toEqual([]);
+  });
+
+  it("el año-contra-año sobre la serie SIN el mes en curso no se hunde por el mes parcial", () => {
+    // 25 meses (24 cerrados + el en curso a $5). Con el mes en curso, ultimos12 se hundiría.
+    const cerrados = Array.from({ length: 24 }, (_, i) => ({ periodo: `p${i}`, monto: 150 }));
+    const conEnCurso: PuntoMes[] = [...cerrados, { periodo: "hoy", monto: 5 }];
+    const t = tendenciaAnual(sinMesEnCurso(conEnCurso))!;
+    expect(t.ultimos12).toBe(1800); // 12×150, el $5 parcial no entra
+    expect(t.deltaPct).toBeCloseTo(0, 5); // 24 meses iguales → 0%, no un falso −
   });
 });
 
