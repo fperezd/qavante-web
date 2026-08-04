@@ -6,12 +6,12 @@ import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/
 import {
   useOperationalResult,
   useOperationalResultBreakdown,
+  useOperationalResultAlDia,
   type OperationalResultResponse,
 } from "@/lib/api/gestion";
 import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
-import { useSiiRcvVentas } from "@/lib/api/sii";
 import { resultadoConfiable } from "./gestion-v2-map";
 import {
   baseIncompleta,
@@ -19,7 +19,6 @@ import {
   rangoIncompleto,
   type RangoResumen,
 } from "./gestion-v2-rango-map";
-import { ventasNetasHastaDia, ventasNetasTotal, type DocFechado } from "./comparativo-tramo";
 
 /* Comparativo RICO (pedido de Fernando 2026-07-28, "las 5"): además del mes vs
    mes anterior / año anterior, las comparaciones potentes de control de gestión —
@@ -54,6 +53,13 @@ function pick(r: RangoResumen | null, key: string): number {
   if (key === "revenue") return r.ingresos;
   if (key === "gross_margin") return r.bruto.monto;
   return r.neto.monto; // result
+}
+
+/** Lee un monto de los dicts libres de `al-dia` (`actual`/`mes_anterior`, additionalProperties):
+ *  los valores vienen como string-decimal igual que el resto del API → se parsean con `parseAmount`. */
+function alDiaNum(obj: { [key: string]: unknown } | undefined, key: string): number {
+  const raw = obj?.[key];
+  return parseAmount(raw == null ? null : String(raw));
 }
 
 function fmtPct(v: number): string {
@@ -96,17 +102,11 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
 
   // ¿El mes seleccionado va EN CURSO? (el backend lo marca `proforma` en el breakdown). Si sí,
   // comparar contra el mes anterior COMPLETO es peras con manzanas → reframe + "mismo tramo" (pedido
-  // de Fernando 2026-08-01). El mismo tramo de VENTAS sale del RCV diario (el P&L es mensual).
+  // de Fernando 2026-08-01). El P&L al mismo tramo (ventas/margen/resultado del flujo RCV, 1→N vs 1→N)
+  // lo calcula el backend (`al-dia`, #794-P0-2) — antes lo aproximaba el FE sobre el RCV diario.
   const enCurso = qCur.data?.proforma_month === period;
   const diaHoy = new Date().getDate();
-  const ventasCur = useSiiRcvVentas({ periodo: enCurso ? period : "" });
-  const ventasPrev = useSiiRcvVentas({ periodo: enCurso ? periodoMenos(period, 1) : "" });
-  const docsCur = (ventasCur.data?.ventas ?? []) as DocFechado[];
-  const docsPrev = (ventasPrev.data?.ventas ?? []) as DocFechado[];
-  const ventasHoy = ventasNetasHastaDia(docsCur, diaHoy);
-  const ventasTramoPrev = ventasNetasHastaDia(docsPrev, diaHoy);
-  const ventasTotalPrev = ventasNetasTotal(docsPrev);
-  const tramoCargando = enCurso && (ventasCur.isFetching || ventasPrev.isFetching);
+  const alDia = useOperationalResultAlDia(enCurso ? period : "", diaHoy, enCurso);
   const mesAntLabel = formatPeriodLabel(periodoMenos(period, 1));
 
   // Resúmenes por rango (mapper canónico del P&L; memoizados por respuesta).
@@ -205,22 +205,45 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
             </div>
           </Bloque>
 
-          {/* 1b) Ventas al MISMO TRAMO (solo si el mes va en curso): agosto 1→hoy vs julio 1→hoy, la
-              comparación pareja que pidió Fernando. Del RCV diario (el P&L es mensual). */}
+          {/* 1b) Al MISMO TRAMO (solo si el mes va en curso): agosto 1→hoy vs julio 1→hoy, la
+              comparación PAREJA que pidió Fernando. El backend (`al-dia`) da ventas/margen/resultado del
+              flujo RCV al día N; NO incluye lumps mensuales (nómina/honorarios), que se cargan una vez
+              al mes → el subtítulo lo dice para no confundir con el resultado mensual de arriba. */}
           {enCurso && (
             <Bloque
-              titulo="Ventas al mismo tramo"
-              subtitulo={`al día ${diaHoy} — vs el mismo tramo de ${mesAntLabel} (no el mes completo)`}
+              titulo="Al mismo tramo del mes"
+              subtitulo={`al día ${diaHoy} — ${formatPeriodLabel(period)} 1→${diaHoy} vs ${mesAntLabel} 1→${diaHoy} · flujo de facturación (sin nómina ni honorarios mensuales)`}
             >
-              <VentasTramo
-                hoy={ventasHoy}
-                tramo={ventasTramoPrev}
-                total={ventasTotalPrev}
-                mesActual={formatPeriodLabel(period)}
-                mesAnt={mesAntLabel}
-                dia={diaHoy}
-                cargando={tramoCargando}
-              />
+              {alDia.isError ? (
+                <QavanteInlineError error={alDia.error} what="la comparación al mismo tramo" />
+              ) : alDia.isFetching && !alDia.data ? (
+                <div
+                  className="h-24 animate-pulse rounded-xl bg-neutral-light/30"
+                  aria-busy="true"
+                />
+              ) : alDia.data ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {METRICAS.map((mt) => {
+                    const a = alDiaNum(alDia.data.actual, mt.key);
+                    const b = alDiaNum(alDia.data.mes_anterior, mt.key);
+                    return (
+                      <QavanteStatTile
+                        key={mt.key}
+                        label={mt.label}
+                        value={formatClp(a)}
+                        tone={a >= 0 ? "default" : "danger"}
+                        hint={
+                          <RefLinea
+                            label={`vs mismo tramo de ${mesAntLabel}`}
+                            base={b}
+                            actual={a}
+                          />
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              ) : null}
             </Bloque>
           )}
 
@@ -399,62 +422,6 @@ function RefLinea({
         </span>
       )}
     </span>
-  );
-}
-
-/** Ventas al MISMO TRAMO: lo que llevas este mes (al día N) vs el mismo tramo del mes anterior (la
- *  comparación pareja) + el mes anterior completo (referencia, no pareja). Del RCV diario. */
-function VentasTramo({
-  hoy,
-  tramo,
-  total,
-  mesActual,
-  mesAnt,
-  dia,
-  cargando,
-}: {
-  hoy: number;
-  tramo: number;
-  total: number;
-  mesActual: string;
-  mesAnt: string;
-  dia: number;
-  cargando: boolean;
-}) {
-  if (cargando) {
-    return <div className="h-20 animate-pulse rounded-xl bg-neutral-light/30" aria-busy="true" />;
-  }
-  const v = varPct(hoy, tramo); // vs el mismo tramo = la comparación pareja
-  const up = (v ?? 0) >= 0;
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <QavanteStatTile
-        label={`${mesActual} · al día ${dia}`}
-        value={formatClp(hoy)}
-        tone="default"
-        hint={
-          <span className="text-[11px] text-neutral-mid">
-            vs mismo tramo de {mesAnt}{" "}
-            <b className="tabular-nums text-neutral-dark">{formatClp(tramo)}</b>{" "}
-            <span className={`font-medium ${up ? "text-success-700" : "text-danger-500"}`}>
-              {v == null ? "sin base" : `${up ? "+" : ""}${v.toFixed(1)}%`}
-            </span>
-          </span>
-        }
-      />
-      <QavanteStatTile
-        label={`Mismo tramo de ${mesAnt}`}
-        value={formatClp(tramo)}
-        tone="muted"
-        info={`Ventas de ${mesAnt} solo hasta el día ${dia} — la comparación pareja con lo que llevas.`}
-      />
-      <QavanteStatTile
-        label={`${mesAnt} completo`}
-        value={formatClp(total)}
-        tone="muted"
-        info="Total de ventas del mes anterior — de referencia, NO es comparación pareja."
-      />
-    </div>
   );
 }
 

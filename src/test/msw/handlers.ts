@@ -2732,6 +2732,43 @@ const gestionHandlers = [
       { status: 200 },
     );
   }),
+  /* P&L 'al día N' del flujo RCV vs el mismo tramo del mes anterior (#794-P0-2). actual/mes_anterior
+     como string-decimal; variacion con {amount, pct} por métrica. Sirve la comparación PAREJA del
+     Comparativo cuando el mes va en curso. */
+  http.get("*/api/management/operational-result/al-dia", ({ request }) => {
+    const url = new URL(request.url);
+    const period = url.searchParams.get("period") ?? "2026-08";
+    const hastaDia = Number(url.searchParams.get("hasta_dia") ?? "15");
+    return HttpResponse.json(
+      {
+        period,
+        hasta_dia: hastaDia,
+        actual: {
+          revenue: "9200000",
+          cogs: "3100000",
+          gasto: "1400000",
+          gross_margin: "6100000",
+          ebitda_proxy: "4700000",
+          result: "4700000",
+        },
+        mes_anterior: {
+          period: "2026-07",
+          revenue: "8000000",
+          cogs: "2900000",
+          gasto: "1300000",
+          gross_margin: "5100000",
+          ebitda_proxy: "3800000",
+          result: "3800000",
+        },
+        variacion: {
+          revenue: { amount: "1200000", pct: 15.0 },
+          gross_margin: { amount: "1000000", pct: 19.6 },
+          result: { amount: "900000", pct: 23.7 },
+        },
+      },
+      { status: 200 },
+    );
+  }),
   /* Reporte de RANGO (buckets mensuales + total). Deriva los meses entre
      period_from y period_to. */
   http.get("*/api/treasury/reports/operational-result", ({ request }) => {
