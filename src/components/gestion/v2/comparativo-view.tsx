@@ -84,30 +84,40 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
     () => Array.from({ length: 24 }, (_, i) => periodoMenos(initialPeriod, i)),
     [initialPeriod],
   );
-  const { y, m } = ymd(period);
+  // ¿Se está viendo el mes EN CURSO? (initialPeriod = mes actual; el picker solo va hacia atrás). Si sí,
+  // las comparaciones DE FONDO (YTD, promedio 12m, trimestre, eficiencia, puente) se anclan en el último
+  // mes CERRADO (`base`): comparar un mes a medias (día 3) contra meses completos hunde el % (un "−96%"
+  // falso). El bloque "Este mes" + "al mismo tramo" (al-día) sí muestran el mes en curso, arriba.
+  const esActual = period === initialPeriod;
+  const base = esActual ? periodoMenos(period, 1) : period;
+  const { y, m } = ymd(base);
   const mm = String(m).padStart(2, "0");
 
-  // Mes actual / anterior / mismo mes año anterior.
+  // Mes en curso (bloque 1) / su anterior / su año anterior.
   const cur = useOperationalResult(period);
   const prev = useOperationalResult(periodoMenos(period, 1));
   const yoy = useOperationalResult(periodoMenos(period, 12));
+  // Mes BASE de las comparaciones de fondo (= `prev` cuando esActual, = `cur` cuando no; react-query
+  // dedupea, no hay fetch de más). baseYoy/basePrev son su año-anterior y su mes-anterior.
+  const baseMes = useOperationalResult(base);
+  const baseYoy = useOperationalResult(periodoMenos(base, 12));
+  const basePrev = useOperationalResult(periodoMenos(base, 1));
 
-  // Rangos (1 request c/u; el `total` de cada fila = el agregado del rango).
-  const ytd = useOperationalResultBreakdown(`${y}-01`, period);
+  // Rangos anclados en `base` (1 request c/u; el `total` de cada fila = el agregado del rango).
+  const ytd = useOperationalResultBreakdown(`${y}-01`, base);
   const ytdLy = useOperationalResultBreakdown(`${y - 1}-01`, `${y - 1}-${mm}`);
-  const avg12 = useOperationalResultBreakdown(periodoMenos(period, 11), period);
-  const qCur = useOperationalResultBreakdown(periodoMenos(period, 2), period);
-  const qPrev = useOperationalResultBreakdown(periodoMenos(period, 5), periodoMenos(period, 3));
-  const qLy = useOperationalResultBreakdown(periodoMenos(period, 14), periodoMenos(period, 12));
+  const avg12 = useOperationalResultBreakdown(periodoMenos(base, 11), base);
+  const qCur = useOperationalResultBreakdown(periodoMenos(base, 2), base);
+  const qPrev = useOperationalResultBreakdown(periodoMenos(base, 5), periodoMenos(base, 3));
+  const qLy = useOperationalResultBreakdown(periodoMenos(base, 14), periodoMenos(base, 12));
 
-  // ¿El mes seleccionado va EN CURSO? (el backend lo marca `proforma` en el breakdown). Si sí,
-  // comparar contra el mes anterior COMPLETO es peras con manzanas → reframe + "mismo tramo" (pedido
-  // de Fernando 2026-08-01). El P&L al mismo tramo (ventas/margen/resultado del flujo RCV, 1→N vs 1→N)
-  // lo calcula el backend (`al-dia`, #794-P0-2) — antes lo aproximaba el FE sobre el RCV diario.
-  const enCurso = qCur.data?.proforma_month === period;
+  // Mes en curso ⇒ bloque 1 = reframe + "mismo tramo" (pedido de Fernando 2026-08-01). El P&L al mismo
+  // tramo (ventas/margen/resultado 1→N vs 1→N) lo da `al-dia`. `esActual` (chequeo de fecha) alcanza.
+  const enCurso = esActual;
   const diaHoy = new Date().getDate();
   const alDia = useOperationalResultAlDia(enCurso ? period : "", diaHoy, enCurso);
   const mesAntLabel = formatPeriodLabel(periodoMenos(period, 1));
+  const baseLabel = formatPeriodLabel(base);
 
   // Resúmenes por rango (mapper canónico del P&L; memoizados por respuesta).
   const rYtd = React.useMemo(() => (ytd.data ? mapRangoResumen(ytd.data) : null), [ytd.data]);
@@ -138,6 +148,17 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
       ? baseIncompleta(
           parseAmount(yoy.data.gross_margin),
           parseAmount(yoy.data.result),
+          rYtd.bruto.monto,
+          rYtd.neto.monto,
+        )
+      : false;
+  // Igual, pero para el año-anterior del mes BASE (bloque "Vs. tu promedio", que compara el último mes
+  // cerrado, no el en curso). Cuando no es el mes actual, baseYoy == yoy → mismo valor.
+  const baseYoyIncompleto =
+    baseYoy.data && rYtd
+      ? baseIncompleta(
+          parseAmount(baseYoy.data.gross_margin),
+          parseAmount(baseYoy.data.result),
           rYtd.bruto.monto,
           rYtd.neto.monto,
         )
@@ -247,10 +268,20 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
             </Bloque>
           )}
 
-          {/* 2) Acumulado del año (YTD) vs año anterior */}
+          {/* Aviso: las comparaciones de fondo van sobre el último mes CERRADO cuando el actual va en
+              curso (no mezclar un mes a medias con meses completos). */}
+          {esActual && (
+            <p className="rounded-lg border border-border bg-neutral-light/20 px-3 py-2 text-[11.5px] text-neutral-mid">
+              Las comparaciones de abajo (acumulado, promedio, trimestre, eficiencia) van sobre el
+              último mes cerrado, <b className="text-neutral-dark">{baseLabel}</b> —{" "}
+              {formatPeriodLabel(period)} va en curso y no se compara con meses completos.
+            </p>
+          )}
+
+          {/* 2) Acumulado del año (YTD) vs año anterior — hasta el último mes cerrado (base). */}
           <Bloque
             titulo="Acumulado del año"
-            subtitulo={`enero–${formatPeriodLabel(period)} vs mismo tramo ${y - 1}`}
+            subtitulo={`enero–${baseLabel} vs mismo tramo ${y - 1}`}
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {METRICAS.map((mt) => {
@@ -276,23 +307,23 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
             </div>
           </Bloque>
 
-          {/* 3) Puente de variación del resultado (vs mes anterior) */}
-          {prev.data && (
+          {/* 3) Puente de variación del resultado del mes BASE (último cerrado) vs su mes anterior. */}
+          {baseMes.data && basePrev.data && (
             <Bloque titulo="Qué explica el cambio del resultado" subtitulo="vs el mes anterior">
-              <PuenteVariacion cur={cur.data} prev={prev.data} />
+              <PuenteVariacion cur={baseMes.data} prev={basePrev.data} />
             </Bloque>
           )}
 
-          {/* 4) Este mes vs tu promedio (12 meses) + mismo mes del año anterior (con sus valores) */}
+          {/* 4) El mes BASE vs tu promedio (12 meses cerrados) + mismo mes del año anterior. */}
           <Bloque
             titulo="Vs. tu promedio"
-            subtitulo={`promedio de los últimos 12 meses y el mismo mes de ${y - 1}`}
+            subtitulo={`${baseLabel} vs el promedio de los últimos 12 meses y el mismo mes de ${y - 1}`}
           >
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {METRICAS.map((mt) => {
-                const a = parseAmount(cur.data![mt.key]);
+                const a = parseAmount(baseMes.data?.[mt.key]);
                 const prom = pick(rAvg12, mt.key) / nAvg12;
-                const anioAnt = parseAmount(yoy.data?.[mt.key]);
+                const anioAnt = parseAmount(baseYoy.data?.[mt.key]);
                 return (
                   <QavanteStatTile
                     key={mt.key}
@@ -306,7 +337,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
                           label={`mismo mes ${y - 1}`}
                           base={anioAnt}
                           actual={a}
-                          incompleto={mt.key === "result" && yoyIncompleto}
+                          incompleto={mt.key === "result" && baseYoyIncompleto}
                         />
                       </span>
                     }
@@ -351,12 +382,12 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
             </div>
           </Bloque>
 
-          {/* 6) Eficiencia (márgenes %) */}
+          {/* 6) Eficiencia (márgenes %) del mes BASE (último cerrado) vs su mes/año anterior. */}
           <Bloque
             titulo="Eficiencia"
-            subtitulo="cuánto ganás por cada peso vendido (no solo cuánto)"
+            subtitulo="cuánto ganas por cada peso vendido (no solo cuánto)"
           >
-            <Eficiencia cur={cur.data} prev={prev.data} yoy={yoy.data} />
+            <Eficiencia cur={baseMes.data ?? cur.data} prev={basePrev.data} yoy={baseYoy.data} />
           </Bloque>
 
           <ConfianzaPie mes={cur.data} />
