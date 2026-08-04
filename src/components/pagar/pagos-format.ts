@@ -1,7 +1,7 @@
 /* Helpers puros de la pantalla Pagar (Sprint C4). SIN React → testeables.
    `parseAmount` se repite (consolidación pendiente, ver cobranza-format). */
 
-import type { PaymentCategory, PayableCurrencyTotal } from "@/lib/api/pagos";
+import type { PaymentCategory, PayableCurrencyTotal, PayableItem } from "@/lib/api/pagos";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { formatMoney } from "@/lib/formatters/clp";
 
@@ -9,6 +9,22 @@ export function parseAmount(raw: string | null | undefined): number {
   if (!raw) return 0;
   const n = Number(raw);
   return Number.isFinite(n) ? n : 0;
+}
+
+/** ¿Es un ítem en moneda extranjera al que le FALTA el `amount_clp`? Entonces no tenemos su valor en
+ *  pesos y NO debemos inventarlo con el nominal (US$1.240 ≠ $1.240). El backend debería mandar siempre
+ *  `amount_clp` para las extranjeras (gap escalado, issue #726). Compartido por Pagar clásico y v2. */
+export function montoCLPFaltante(item: PayableItem): boolean {
+  const extranjera = (item.currency ?? "CLP").toUpperCase() !== "CLP";
+  return extranjera && (item.amount_clp == null || item.amount_clp === "");
+}
+
+/** Monto en CLP del ítem: `amount_clp` si es moneda extranjera, si no `amount`. Una extranjera SIN
+ *  `amount_clp` aporta 0 (no se suma su nominal como pesos) — así no contamina vencido/concentración/
+ *  brecha/subtotales; la fila la marca como "sin convertir" (ver `montoCLPFaltante`). */
+export function montoCLP(item: PayableItem): number {
+  if (montoCLPFaltante(item)) return 0;
+  return parseAmount(item.amount_clp ?? item.amount);
 }
 
 /** Desglose "$X (CLP) + US$Y (USD)" del total por pagar cuando hay más de una

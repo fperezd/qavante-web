@@ -1,5 +1,5 @@
 import type { PayableItem, PaymentCategory } from "@/lib/api/pagos";
-import { parseAmount } from "./pagos-format";
+import { montoCLP } from "./pagos-format";
 
 /* Agrupación de pagos por CATEGORÍA — el eje universal multi-tenant ("en qué se
    me va la plata"): funciona igual para un retail (80% proveedores) que para una
@@ -36,7 +36,7 @@ export function groupByCategory(items: ReadonlyArray<PayableItem>): PayableGroup
     .map(([category, groupItems]) => ({
       category,
       items: groupItems,
-      subtotal: groupItems.reduce((s, i) => s + parseAmount(i.amount), 0),
+      subtotal: groupItems.reduce((s, i) => s + montoCLP(i), 0),
     }))
     .sort((a, b) => b.subtotal - a.subtotal);
 }

@@ -4,7 +4,7 @@
  * Presentación, no cálculo financiero nuevo. */
 
 import type { PayableItem } from "@/lib/api/pagos";
-import { parseAmount } from "./pagos-format";
+import { montoCLP } from "./pagos-format";
 
 const MS_PER_DAY = 86_400_000;
 
@@ -29,17 +29,17 @@ export function isOverdue(item: PayableItem, now: Date): boolean {
   return d != null && d < 0;
 }
 
-/** Suma de los montos vencidos. */
+/** Suma de los montos vencidos, en CLP (una extranjera sin `amount_clp` NO se suma como pesos). */
 export function overdueTotal(items: PayableItem[], now: Date): number {
-  return items.reduce((acc, it) => acc + (isOverdue(it, now) ? parseAmount(it.amount) : 0), 0);
+  return items.reduce((acc, it) => acc + (isOverdue(it, now) ? montoCLP(it) : 0), 0);
 }
 
-/** Subtotales por criticidad (montos). */
+/** Subtotales por criticidad (montos en CLP). */
 export function subtotalsByCriticality(
   items: PayableItem[],
 ): Record<"high" | "medium" | "low", number> {
   const acc = { high: 0, medium: 0, low: 0 };
-  for (const it of items) acc[it.criticality] += parseAmount(it.amount);
+  for (const it of items) acc[it.criticality] += montoCLP(it);
   return acc;
 }
 
