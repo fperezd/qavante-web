@@ -85,5 +85,37 @@ export const ConLineaDeCredito: Story = {
   },
 };
 
+/** Línea de crédito AGOTADA + excedida (caso real Tooxs): cupo $6M, usa $6.058.864 → disponible
+ *  −$58.864. No dice "te quedan −$X"; dice "cupo agotado · excedido $58.864" y "sin margen". */
+export const ConLineaAgotada: Story = {
+  args: {
+    cuentas: [cuentas[0]!],
+    referencia: "2026-08-04",
+    balancePorCuenta: new Map<string, BalanceData>([
+      [
+        "r-K3yKu_",
+        {
+          titulo: null,
+          monto: null,
+          saldoContableMonto: "-6058864",
+          saldoContableCodigoMoneda: "CLP",
+          saldoDisponibleMonto: "-6058864",
+          saldoDisponibleCodigoMoneda: "CLP",
+          saldoUtilizadoMonto: "6058864",
+          saldoUtilizadoCodigoMoneda: "CLP",
+          montoAprobadoMonto: "6000000",
+          montoAprobadoCodigoMoneda: "CLP",
+          montoUtilizadoMonto: "6058864",
+          montoUtilizadoCodigoMoneda: "CLP",
+          montoDisponibleMonto: "-58864",
+          montoDisponibleCodigoMoneda: "CLP",
+          fechaVencimientoSobregiro: "2026-09-29",
+          fechaConsultaSaldo: "2026-08-04",
+        },
+      ],
+    ]),
+  },
+};
+
 /** Sin cuentas conectadas. */
 export const SinCuentas: Story = { args: { cuentas: [] } };
