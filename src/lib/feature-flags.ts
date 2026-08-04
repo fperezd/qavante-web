@@ -118,10 +118,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      `no_session`, no "Falta X-Api-Key."). El flag ya está ON. La duda del comentario viejo
      ("podría ser api-key-only") quedó saldada. */
   remuneraciones: "/api/buk/employees",
-  /* Saldos de las cuentas de banco (Caja). FE-first contra `/api/bice/saldo`
-     (SaldoResponse: saldo contable + disponible por cuenta, CLP/USD). El
-     endpoint existe pero es api-key-only (401 "Falta X-Api-Key" con cookie);
-     activar cuando CC-API lo migre a require_session. Ver STATE_OF_THE_TRAIN. */
+  /* Saldos de las cuentas de banco (Caja): saldo contable + disponible por cuenta (CLP/USD) + la LÍNEA
+     DE CRÉDITO (cupo/usado/disponible + venc. sobregiro, del balance por cuenta). `/api/bice/*` YA acepta
+     cookie (CC-API lo migró a require_session — sondeado 2026-08-03: `no_session`), así que el flag ya
+     puede encenderse en prod (editar wrangler.toml). Ver STATE_OF_THE_TRAIN. */
   bankBalances: "/api/bice/saldo",
   /* Pantalla Salud (PULSO + Health Score, ADR-0064). FE-first: la vista
      (`SaludView`) ya existe (prototipo, PR #476); la ruta queda gated OFF hasta

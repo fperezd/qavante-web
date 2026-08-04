@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { BankBalancesCard } from "./bank-balances-card";
-import type { CuentaSaldo } from "@/lib/api/treasury";
+import type { BalanceData, CuentaSaldo } from "@/lib/api/treasury";
 
 /* Saldos de banco (BICE) — tarjeta montada en Caja. Saldo disponible al frente
    por cuenta (CLP + USD), contable como referencia. */
@@ -52,6 +52,38 @@ type Story = StoryObj<typeof meta>;
 
 /** Dos cuentas: corriente CLP + cuenta USD, con saldo disponible y contable. */
 export const ClpYUsd: Story = { args: { cuentas, referencia: "2026-07-04" } };
+
+/** Con línea de crédito: la corriente CLP tiene cupo $5M (usa $2M, quedan $3M) + venc. sobregiro;
+ *  la USD no tiene línea (no se muestra LC). */
+export const ConLineaDeCredito: Story = {
+  args: {
+    cuentas,
+    referencia: "2026-07-04",
+    balancePorCuenta: new Map<string, BalanceData>([
+      [
+        "r-K3yKu_",
+        {
+          titulo: null,
+          monto: null,
+          saldoContableMonto: "1931152.70",
+          saldoContableCodigoMoneda: "CLP",
+          saldoDisponibleMonto: "3073227.32",
+          saldoDisponibleCodigoMoneda: "CLP",
+          saldoUtilizadoMonto: "2000000",
+          saldoUtilizadoCodigoMoneda: "CLP",
+          montoAprobadoMonto: "5000000",
+          montoAprobadoCodigoMoneda: "CLP",
+          montoUtilizadoMonto: "2000000",
+          montoUtilizadoCodigoMoneda: "CLP",
+          montoDisponibleMonto: "3000000",
+          montoDisponibleCodigoMoneda: "CLP",
+          fechaVencimientoSobregiro: "2026-09-30",
+          fechaConsultaSaldo: "2026-07-04",
+        },
+      ],
+    ]),
+  },
+};
 
 /** Sin cuentas conectadas. */
 export const SinCuentas: Story = { args: { cuentas: [] } };

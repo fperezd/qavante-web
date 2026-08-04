@@ -39,6 +39,10 @@ export type BiceAccountsResponse =
 export type CreateBankAccountRequest = components["schemas"]["CreateBankAccountRequest"];
 export type SaldoResponse = components["schemas"]["SaldoResponse"];
 export type CuentaSaldo = components["schemas"]["CuentaSaldo"];
+/* Balance detallado por cuenta BICE: incluye la LÍNEA DE CRÉDITO (cupo aprobado / usado / disponible)
+   + vencimiento del sobregiro — datos que `SaldoResponse` no trae. Tipos generados (regla 3). */
+export type CuentaBalanceResponse = components["schemas"]["CuentaBalanceResponse"];
+export type BalanceData = components["schemas"]["BalanceData"];
 
 export interface BankMovementsParams {
   /** 'unclassified' | 'classified' | undefined (todos). */
@@ -64,6 +68,8 @@ export const treasuryKeys = {
   bankAccounts: () => [...treasuryKeys.all, "bank-accounts"] as const,
   biceAccounts: () => [...treasuryKeys.all, "bice-accounts"] as const,
   biceSaldo: () => [...treasuryKeys.all, "bice-saldo"] as const,
+  biceCuentaBalance: (numeroCuenta: string) =>
+    [...treasuryKeys.all, "bice-cuenta-balance", numeroCuenta] as const,
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
   collectionForecast: () => [...treasuryKeys.all, "collection-forecast"] as const,
   cashCycle: () => [...treasuryKeys.all, "cash-cycle"] as const,
@@ -111,8 +117,8 @@ export function useCashCycle() {
 }
 
 /** `GET /api/bice/saldo` — saldo contable + disponible por cuenta (CLP/USD).
- *  ⚠️ Hoy api-key-only (401 "Falta X-Api-Key" con cookie) → gated `bankBalances`
- *  (OFF) hasta que CC-API lo migre a require_session. `skipAuthRetry`: un 401 acá
+ *  `/api/bice/*` ya acepta cookie (CC-API lo migró a require_session — sondeado 2026-08-03: `no_session`,
+ *  no "Falta X-Api-Key"), así que el flag `bankBalances` ya puede encenderse. `skipAuthRetry`: un 401 acá
  *  NO debe expulsar al login (cae como error de la tarjeta). Tipos generados. */
 export function useBiceSaldo(enabled = true) {
   return useQuery({
@@ -122,6 +128,39 @@ export function useBiceSaldo(enabled = true) {
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
+}
+
+/** `GET /api/bice/cuentas/{numeroCuenta}/balance` (una por cuenta, en paralelo) — el balance detallado
+ *  con la LÍNEA DE CRÉDITO (cupo/usado/disponible + venc. sobregiro), que `SaldoResponse` no trae. Se
+ *  compone sobre los `numeroCuenta` (tokens) que devuelve `useBiceSaldo`. Gateado por `enabled` (el flag
+ *  `bankBalances`) → con `enabled=false` no dispara ningún request. `skipAuthRetry`: un 401 acá NO expulsa
+ *  al login. Devuelve un mapa `numeroCuenta → BalanceData` (solo las que respondieron con data). */
+export function useBiceCuentasBalances(
+  numeros: string[],
+  enabled = true,
+): { balancePorCuenta: Map<string, BalanceData>; isLoading: boolean; isError: boolean } {
+  const queries = useQueries({
+    queries: numeros.map((numero) => ({
+      queryKey: treasuryKeys.biceCuentaBalance(numero),
+      queryFn: () =>
+        api.get<CuentaBalanceResponse>(`/api/bice/cuentas/${encodeURIComponent(numero)}/balance`, {
+          skipAuthRetry: true,
+        }),
+      enabled: enabled && numero !== "",
+      staleTime: 5 * 60 * 1000,
+      retry: false,
+    })),
+  });
+  const balancePorCuenta = new Map<string, BalanceData>();
+  numeros.forEach((numero, i) => {
+    const data = queries[i]?.data?.data;
+    if (data) balancePorCuenta.set(numero, data);
+  });
+  return {
+    balancePorCuenta,
+    isLoading: queries.some((q) => q.isLoading),
+    isError: queries.some((q) => q.isError),
+  };
 }
 
 /** `GET /api/treasury/bank-accounts` — cuentas del tenant con su moneda. Para el

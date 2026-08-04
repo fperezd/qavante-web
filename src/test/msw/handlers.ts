@@ -528,6 +528,69 @@ const treasuryHandlers = [
       ],
     }),
   ),
+  /* Saldos BICE por cuenta (SaldoResponse). Cada cuenta trae su `numeroCuenta` (token) que se usa como
+     ID en `/api/bice/cuentas/{numeroCuenta}/balance`. */
+  http.get("*/api/bice/saldo", () =>
+    HttpResponse.json({
+      status: "ok",
+      cuentas: [
+        {
+          numeroCuenta: "tok-cc-clp",
+          numeroFormateado: "12-34567-8",
+          nombreCuenta: "Cuenta Corriente",
+          codigoProducto: "100",
+          codigoMoneda: "CLP",
+          esExtranjera: false,
+          saldoContable: "1931152.70",
+          saldoDisponible: "6931152.70",
+          moneda: "CLP",
+          fechaDesde: "2026-08-01",
+          fechaHasta: "2026-08-03",
+        },
+        {
+          numeroCuenta: "tok-cc-usd",
+          numeroFormateado: "98-76543-2",
+          nombreCuenta: "Cuenta Internacional",
+          codigoProducto: "101",
+          codigoMoneda: "USD",
+          esExtranjera: true,
+          saldoContable: "5000.00",
+          saldoDisponible: "5000.00",
+          moneda: "USD",
+          fechaDesde: "2026-08-01",
+          fechaHasta: "2026-08-02",
+        },
+      ],
+    }),
+  ),
+  /* Balance detallado por cuenta (BalanceData) — incluye la LÍNEA DE CRÉDITO. La cuenta CLP tiene LC
+     (cupo $5M, usa $2M, quedan $3M); la USD no tiene línea (cupo null → el FE no muestra LC). */
+  http.get("*/api/bice/cuentas/:numeroCuenta/balance", ({ params }) => {
+    const numero = params.numeroCuenta as string;
+    const conLinea = numero === "tok-cc-clp";
+    return HttpResponse.json({
+      status: "ok",
+      data: {
+        titulo: null,
+        monto: null,
+        saldoContableMonto: conLinea ? "1931152.70" : "5000.00",
+        saldoContableCodigoMoneda: conLinea ? "CLP" : "USD",
+        saldoDisponibleMonto: conLinea ? "6931152.70" : "5000.00",
+        saldoDisponibleCodigoMoneda: conLinea ? "CLP" : "USD",
+        saldoUtilizadoMonto: conLinea ? "2000000" : null,
+        saldoUtilizadoCodigoMoneda: conLinea ? "CLP" : null,
+        montoAprobadoMonto: conLinea ? "5000000" : null,
+        montoAprobadoCodigoMoneda: conLinea ? "CLP" : null,
+        montoUtilizadoMonto: conLinea ? "2000000" : null,
+        montoUtilizadoCodigoMoneda: conLinea ? "CLP" : null,
+        montoDisponibleMonto: conLinea ? "3000000" : null,
+        montoDisponibleCodigoMoneda: conLinea ? "CLP" : null,
+        fechaVencimientoSobregiro: conLinea ? "2026-09-30" : null,
+        fechaConsultaSaldo: "2026-08-03",
+      },
+      error: null,
+    });
+  }),
   /* Cuentas que trae BICE con su estado de vínculo. Una vinculada + una EN
      CUARENTENA (linked_bank_account_id null) → alimenta "Cuentas por vincular". */
   http.get("*/api/bank-movements/bice/accounts", () =>
