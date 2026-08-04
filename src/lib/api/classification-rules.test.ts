@@ -8,6 +8,7 @@ import {
   type ClassificationRule,
   type ClassificationRulesResponse,
   type SuggestRuleResponse,
+  type SuggestedCategoryResponse,
 } from "./classification-rules";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
@@ -24,6 +25,15 @@ describe("classificationRulesKeys", () => {
     /* keys de movimientos distintos no colisionan */
     expect(classificationRulesKeys.suggestForMovement("mov-1")).not.toEqual(
       classificationRulesKeys.suggestForMovement("mov-2"),
+    );
+    expect(classificationRulesKeys.suggestedCategory("mov-1")).toEqual([
+      "classification-rules",
+      "suggested-category",
+      "mov-1",
+    ]);
+    /* suggest-rule y suggested-category NO colisionan (distintos endpoints). */
+    expect(classificationRulesKeys.suggestedCategory("mov-1")).not.toEqual(
+      classificationRulesKeys.suggestForMovement("mov-1"),
     );
   });
 });
@@ -137,5 +147,20 @@ describe("MSW — suggest-rule (§18.7: read-only)", () => {
       (r) => r.json() as Promise<ClassificationRulesResponse>,
     );
     expect(after.items.length).toBe(countBefore);
+  });
+});
+
+describe("MSW — suggested-category (#794-4: read-only)", () => {
+  it("sugiere una CUENTA por reglas activas; el código matchea el árbol de cuentas", async () => {
+    const r = await fetch(`${API}/api/treasury/bank-movements/mov-9/suggested-category`);
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as SuggestedCategoryResponse;
+    expect(body.movement_id).toBe("mov-9");
+    expect(body.suggestion).not.toBeNull();
+    /* El código sugerido existe en el árbol de cuentas del fixture (costos.sueldos → acc-sueldos),
+       así el "Clasificar" del banner resuelve a un management_account_id real. */
+    expect(body.suggestion?.account_code).toBe("costos.sueldos");
+    expect(typeof body.suggestion?.account_name).toBe("string");
+    expect(typeof body.suggestion?.confidence).toBe("number");
   });
 });

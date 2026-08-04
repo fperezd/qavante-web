@@ -1736,6 +1736,25 @@ const classificationRulesHandlers = [
       { status: 200 },
     );
   }),
+  http.get("*/api/treasury/bank-movements/:movementId/suggested-category", ({ params }) => {
+    /* #794-4: read-only. Sugiere la CUENTA que las reglas activas asignarían. El código matchea el
+       árbol de cuentas del fixture (`costos.sueldos` → acc-sueldos) para que el "Clasificar" del
+       banner resuelva a un management_account_id real. */
+    const movementId = params.movementId as string;
+    return HttpResponse.json(
+      {
+        movement_id: movementId,
+        suggestion: {
+          account_code: "costos.sueldos",
+          account_name: "Sueldos y remuneraciones",
+          canonical_category: "payroll",
+          confidence: 0.92,
+          matched_rule_id: "rule-1",
+        },
+      },
+      { status: 200 },
+    );
+  }),
 ];
 
 /* ============================================================

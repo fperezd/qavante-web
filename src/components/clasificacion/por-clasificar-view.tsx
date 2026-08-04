@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { Dialog } from "@base-ui/react/dialog";
 import { ArrowRightLeft, CheckCircle2, ListChecks, RefreshCw } from "lucide-react";
@@ -27,15 +26,15 @@ import {
   useManagementAccountsTree,
   useClassificationDimensions,
   useCreateDimensionAssignment,
+  type ManagementAccountNode,
 } from "@/lib/api/management";
-import type { SuggestRuleResponse } from "@/lib/api/classification-rules";
 import { formatDateLike } from "@/lib/formatters/date";
 import {
   ClassificationDrawer,
   type ClassificationDimension,
   type ClassificationDraft,
 } from "./classification-drawer";
-import { SuggestRuleBanner } from "./suggest-rule-banner";
+import { SuggestedCategoryBanner } from "./suggested-category-banner";
 import {
   flattenManagementAccounts,
   toCanonicalCategoryOptions,
@@ -49,17 +48,6 @@ const SORT_COLUMNS: SortColumn<BankMovement>[] = [
   { key: "descripcion", kind: "text", get: (m) => m.description },
   { key: "monto", kind: "number", get: (m) => Math.abs(Number(m.amount) || 0) },
 ];
-
-/* Lazy: separa Base UI Dialog + RHF + zod del First Load de
-   /caja/por-clasificar. Solo se descarga si el user pide crear regla
-   desde una sugerencia. ssr:false porque el dialog es client-only. */
-const RuleFormDialog = dynamic(
-  () =>
-    import("@/components/reglas/rule-form-dialog").then((m) => ({
-      default: m.RuleFormDialog,
-    })),
-  { ssr: false },
-);
 
 /* Flujo §17 — Movimientos por clasificar. Patrón "página = contenedor" del
    repo: el screen resuelve el flag (server) y monta esto (client).
@@ -248,11 +236,6 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       ?.querySelector<HTMLElement>(`[data-idx="${active}"]`)
       ?.scrollIntoView({ block: "nearest" });
   }, [active]);
-  /* §18.7 — sugerencia capturada desde el banner; abre RuleFormDialog
-     pre-poblado. read-only en el endpoint; persiste solo al confirmar el
-     POST desde el dialog. */
-  const [suggestionDraft, setSuggestionDraft] = React.useState<SuggestRuleResponse | null>(null);
-
   const canonicalOptions = React.useMemo(
     () => toCanonicalCategoryOptions(canonicalQuery.data?.items ?? []),
     [canonicalQuery.data],
@@ -261,6 +244,19 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
     () => flattenManagementAccounts(accountsQuery.data?.items ?? []),
     [accountsQuery.data],
   );
+  /* Mapa código→id de cuenta de gestión: la sugerencia del backend viene por CÓDIGO, pero classify
+     exige el `management_account_id`. Se recorre el árbol una vez. */
+  const accountIdByCode = React.useMemo(() => {
+    const m = new Map<string, string>();
+    const walk = (nodes: ManagementAccountNode[]) => {
+      for (const n of nodes) {
+        if (n.code) m.set(n.code, n.id);
+        if (n.children?.length) walk(n.children);
+      }
+    };
+    walk(accountsQuery.data?.items ?? []);
+    return m;
+  }, [accountsQuery.data]);
   /* Dimensiones activas+visibles con sus valores → secciones del drawer. Vacío
      cuando el flag está OFF (la sección de vistas queda oculta). */
   const classificationDimensions: ClassificationDimension[] = dims.data.map(
@@ -440,6 +436,31 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
          drawer vía classify.error / assign.error. No se cierra para que el
          usuario reintente. */
     }
+  }
+
+  /* Aplica la sugerencia de cuenta del banner (#794-4): mapea el CÓDIGO sugerido al
+     `management_account_id` y corre el mismo `submit` que el guardar del drawer (un clic). Si el
+     código no resuelve a una cuenta viva (renombrada/inactiva), avisa en vez de clasificar en falso. */
+  function applySuggestion(
+    movement: BankMovement,
+    accountCode: string,
+    canonicalCategory: string | null,
+  ) {
+    const managementAccountId = accountIdByCode.get(accountCode);
+    if (!managementAccountId) {
+      setFormError("La cuenta sugerida ya no está disponible. Elige una a mano.");
+      return;
+    }
+    submit(
+      movement,
+      {
+        managementAccountId,
+        canonicalCategory: canonicalCategory ?? undefined,
+        dimensionAssignments: {},
+        notes: "",
+      },
+      false,
+    );
   }
 
   return (
@@ -739,22 +760,16 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
             ) : undefined
           }
           suggestionBanner={
-            <SuggestRuleBanner
+            <SuggestedCategoryBanner
               movementId={selected.id}
-              onCreateFromSuggestion={(s) => setSuggestionDraft(s)}
+              applying={classify.isPending}
+              onApply={(accountCode, canonical) =>
+                applySuggestion(selected, accountCode, canonical)
+              }
             />
           }
         />
       )}
-
-      <RuleFormDialog
-        open={suggestionDraft !== null}
-        onOpenChange={(open) => {
-          if (!open) setSuggestionDraft(null);
-        }}
-        rule={null}
-        suggestion={suggestionDraft}
-      />
 
       {/* Clasificar en lote: una misma categoría a todos los seleccionados. */}
       <Dialog.Root
