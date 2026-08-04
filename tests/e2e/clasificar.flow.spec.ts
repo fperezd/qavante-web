@@ -44,6 +44,33 @@ test.describe("Flujo: clasificar un movimiento (/caja/por-clasificar)", () => {
     await expect(drawerTitle).toBeHidden();
   });
 
+  test("sugerencia de cuenta: el drawer muestra 'Sugerido: …' y un clic clasifica", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/caja/por-clasificar");
+
+    await page
+      .getByRole("button", { name: /^Clasificar movimiento/ })
+      .first()
+      .click();
+    const drawerTitle = page.getByRole("heading", { name: "Clasificar movimiento", exact: true });
+    await expect(drawerTitle).toBeVisible();
+
+    // Banner #794-4: la cuenta sugerida por las reglas activas (MSW → "Sueldos y remuneraciones"),
+    // NO el viejo banner de "crear una regla de glosa" (pedido de Fernando). El texto "según tus
+    // reglas activas" es único del banner ("Sueldos y remuneraciones" también es opción del selector).
+    await expect(page.getByText(/Sugerido:/)).toBeVisible();
+    await expect(page.getByText("según tus reglas activas")).toBeVisible();
+    await expect(page.getByText("Ver sugerencia")).toHaveCount(0); // el banner viejo ya no está
+
+    // Un clic en "Clasificar" del banner → classify (PATCH MSW) → onSuccess cierra el drawer.
+    await page.getByRole("button", { name: "Clasificar", exact: true }).click();
+    await expect(drawerTitle).toBeHidden();
+    await expect(page.getByText("Movimiento clasificado")).toBeVisible();
+  });
+
   test("triage por teclado: Enter en la lista abre el drawer del activo", async ({
     page,
     context,
