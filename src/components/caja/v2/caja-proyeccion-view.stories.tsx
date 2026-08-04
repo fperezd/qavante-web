@@ -105,6 +105,22 @@ export const ConCausasDeQuiebre: Story = {
   },
 };
 
+/* Caja en riesgo PERO con plata por cobrar (vencida/sin fecha) que el runway no cuenta: el caveat
+   honesto evita que "sin recuperación" se lea como veredicto final. */
+export const ConPorCobrar: Story = {
+  args: {
+    proyeccion: BREAK_PROY,
+    minimo: null,
+    movimientos: movimientosPorSemana(BREAK_MOVS, HOY),
+    porCobrarVencido: { total: 231_480_316, n: 161 },
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    await expect(c.getByText("no cuenta")).toBeInTheDocument();
+    await expect(c.getByText(/su cobro no es seguro/)).toBeInTheDocument();
+  },
+};
+
 export const SinDato: Story = {
   args: { proyeccion: null, minimo: null, movimientos: [], ultimaSync: "18-jul" },
   play: async ({ canvasElement }) => {

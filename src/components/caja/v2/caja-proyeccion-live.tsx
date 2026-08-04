@@ -63,6 +63,11 @@ export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProye
   const minimoBackend = cashProj.data ? parseAmount(cashProj.data.minimo) : null;
   const minimoView = minimoBackend != null ? (minimoBackend > 0 ? minimoBackend : null) : minimo;
 
+  // Por cobrar vencido/sin-fecha: el backend lo EXCLUYE del runway (su cobro no es cierto), pero es la
+  // pieza que explica que "sin recuperación" no sea el final de la historia. Se muestra como caveat.
+  const pcv = cashProj.data?.por_cobrar_vencido;
+  const porCobrarVencido = pcv ? { total: parseAmount(pcv.total), n: pcv.n } : null;
+
   // Cascada de próximos movimientos: derivada del maestro (el backend no expone el detalle por-movimiento).
   const movimientosCascada = React.useMemo(() => {
     const now = new Date();
@@ -98,6 +103,7 @@ export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProye
       minimo={minimoView}
       movimientos={movimientosCascada}
       causas={causas}
+      porCobrarVencido={porCobrarVencido}
       ultimaSync={ultimaSync}
       saldoStale={saldoStale}
       ocultarSaldoHoy // el hero del Resumen ya muestra el saldo de hoy → no repetirlo en el medidor

@@ -27,6 +27,10 @@ export interface CajaProyeccionViewProps {
   ultimaSync?: string | null;
   /** El `cash_today` viene stale (banco sin sincronizar reciente) → avisamos honesto. */
   saldoStale?: boolean;
+  /** Por cobrar VENCIDO/sin-fecha (del backend, `por_cobrar_vencido`): NO entra al runway (su cobro
+   *  no es cierto). Se muestra como caveat honesto para que "sin recuperación" no se lea como veredicto
+   *  final cuando hay plata por cobrar. `null`/total 0 → no se muestra. */
+  porCobrarVencido?: { total: number; n: number } | null;
   /** Oculta el "Saldo hoy" del medidor (el hero de la pantalla ya lo muestra → no repetir). */
   ocultarSaldoHoy?: boolean;
   className?: string;
@@ -39,6 +43,7 @@ export function CajaProyeccionView({
   causas,
   ultimaSync,
   saldoStale,
+  porCobrarVencido,
   ocultarSaldoHoy,
   className,
 }: CajaProyeccionViewProps) {
@@ -50,6 +55,10 @@ export function CajaProyeccionView({
   // Solo explicamos "qué te hunde" cuando HAY un quiebre (la caja toca la mínima/cero); si está sana
   // no hay punto de quiebre que explicar (visión Parte 1: causas del quiebre, no de una caja holgada).
   const mostrarCausas = proyeccion.estado !== "sano" && (causas?.length ?? 0) > 0;
+  // Caveat honesto: si la caja está en riesgo PERO hay plata por cobrar (vencida/sin fecha) que el
+  // runway no cuenta, "sin recuperación" no es el veredicto final. No inventamos que se cobra —
+  // decimos que existe y que no está en esta cifra.
+  const mostrarPorCobrar = proyeccion.estado !== "sano" && (porCobrarVencido?.total ?? 0) > 0;
 
   return (
     <div className={cn("space-y-6", className)}>
@@ -58,6 +67,15 @@ export function CajaProyeccionView({
       <div className="grid gap-6 xl:grid-cols-2 xl:items-center">
         <div>
           <CajaMedidor model={proyeccion} minimo={minimo} ocultarSaldoHoy={ocultarSaldoHoy} />
+          {mostrarPorCobrar && (
+            <p className="mt-3 rounded-lg border border-info-500/30 bg-info-500/[.06] px-3 py-2 text-xs text-neutral-dark">
+              Esta proyección <b>no cuenta</b> los {formatClp(porCobrarVencido!.total)} que tienes
+              por cobrar ({porCobrarVencido!.n}{" "}
+              {porCobrarVencido!.n === 1 ? "documento vencido" : "documentos vencidos"} o sin fecha
+              de pago). Si cobras parte, tu caja mejora — pero su cobro no es seguro, por eso no
+              entra en esta cifra.
+            </p>
+          )}
           {saldoStale && ultimaSync && (
             <p className="mt-3 text-xs text-neutral-mid">
               Proyección sobre el saldo del banco al {ultimaSync} (última sincronización). Actualiza
