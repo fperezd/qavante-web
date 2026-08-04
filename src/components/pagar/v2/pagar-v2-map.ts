@@ -9,7 +9,7 @@
 
 import type { PayableItem, AccountsPayableResponse } from "@/lib/api/pagos";
 import type { ContraparteMaestro } from "@/components/terminos/terminos-pago";
-import { parseAmount, paymentCategoryLabel } from "../pagos-format";
+import { parseAmount, paymentCategoryLabel, montoCLP, montoCLPFaltante } from "../pagos-format";
 import { daysUntilDue, isOverdue, overdueThenCritical } from "../pagos-v2-format";
 import { categoryGroupLabel } from "../pagos-group";
 import { formatMoney } from "@/lib/formatters/clp";
@@ -27,21 +27,9 @@ export function postergabilidadDe(item: PayableItem): Postergabilidad {
   return "negociable";
 }
 
-/** ¿Es un ítem en moneda extranjera al que le FALTA el `amount_clp`? Entonces no tenemos su valor en
- *  pesos y NO debemos inventarlo con el nominal (US$1.240 ≠ $1.240). El backend debería mandar siempre
- *  `amount_clp` para las extranjeras (gap escalado, issue #726). */
-export function montoCLPFaltante(item: PayableItem): boolean {
-  const extranjera = (item.currency ?? "CLP").toUpperCase() !== "CLP";
-  return extranjera && (item.amount_clp == null || item.amount_clp === "");
-}
-
-/** Monto en CLP del ítem: `amount_clp` si es moneda extranjera, si no `amount`. Una extranjera SIN
- *  `amount_clp` aporta 0 (no se suma su nominal como pesos) — así no contamina vencido/concentración/
- *  brecha; la fila la marca como "sin convertir" (ver `montoCLPFaltante`). */
-export function montoCLP(item: PayableItem): number {
-  if (montoCLPFaltante(item)) return 0;
-  return parseAmount(item.amount_clp ?? item.amount);
-}
+// `montoCLP`/`montoCLPFaltante` viven ahora en `pagos-format` (compartidos con el Pagar clásico); se
+// re-exportan acá para no romper los imports existentes (`pagar-v2-view-live`).
+export { montoCLP, montoCLPFaltante };
 
 /** Convierte una contraparte del maestro (compras/honorarios) en un PayableItem con el NETO
  *  por pagar (facturado net NC − conciliado) y la fecha del vencimiento derivado más urgente

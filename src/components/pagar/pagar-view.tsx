@@ -23,6 +23,8 @@ import {
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import {
+  montoCLP,
+  montoCLPFaltante,
   multiCurrencyNote,
   parseAmount,
   payableItemLabel,
@@ -283,13 +285,18 @@ function CategoryItems({ items, now }: { items: PayableItem[]; now: Date }) {
         </thead>
         <tbody>
           {ordered.map((it, i) => (
-            <tr key={i} className="border-b border-border/50 last:border-b-0 hover:bg-surface-muted">
+            <tr
+              key={i}
+              className="border-b border-border/50 last:border-b-0 hover:bg-surface-muted"
+            >
               <td className="py-1.5 pr-3 text-neutral-dark">
                 <span className="block truncate" title={payableItemLabel(it)}>
                   {it.counterparty_name ?? payableItemLabel(it)}
                 </span>
                 <span className="text-xs text-neutral-mid">
-                  {it.folio ? `${paymentCategoryLabel(it.category)} · folio ${it.folio}` : it.source}
+                  {it.folio
+                    ? `${paymentCategoryLabel(it.category)} · folio ${it.folio}`
+                    : it.source}
                 </span>
                 {/* Drill-down de nómina → detalle por empleado de ese período. */}
                 <PayrollDetailLink item={it} />
@@ -301,7 +308,16 @@ function CategoryItems({ items, now }: { items: PayableItem[]; now: Date }) {
                 </span>
               </td>
               <td className="py-1.5 pr-3 text-right tabular-nums text-neutral-dark">
-                {formatClp(parseAmount(it.amount))}
+                {montoCLPFaltante(it) ? (
+                  <span
+                    className="text-neutral-mid"
+                    title="Monto en moneda extranjera sin convertir a pesos"
+                  >
+                    sin convertir
+                  </span>
+                ) : (
+                  formatClp(montoCLP(it))
+                )}
               </td>
               <td className="py-1.5">
                 <QavanteBadge variant={CRIT_VARIANT[it.criticality]}>

@@ -52,6 +52,16 @@ describe("pagos-v2-format · vencido", () => {
     ];
     expect(overdueTotal(items, NOW)).toBe(8000);
   });
+  it("overdueTotal usa el CLP de una extranjera (no su nominal) y omite la que no tiene amount_clp", () => {
+    const items = [
+      item({ due_date: "2026-07-01", amount: "1000", currency: "CLP" }), // 1000
+      // US$1.240 vencido → cuenta su amount_clp ($1.178.000), NO el nominal 1240.
+      item({ due_date: "2026-07-01", amount: "1240", currency: "USD", amount_clp: "1178000" }),
+      // extranjera SIN amount_clp → aporta 0 (no se inventa 500 pesos).
+      item({ due_date: "2026-07-01", amount: "500", currency: "USD", amount_clp: null }),
+    ];
+    expect(overdueTotal(items, NOW)).toBe(1_179_000);
+  });
 });
 
 describe("pagos-v2-format · subtotalsByCriticality", () => {
