@@ -57,6 +57,7 @@ function adaptRcv(docs: ReadonlyArray<RcvDoc>): DocConVencimiento[] {
     refFolio: typeof d.ref_folio === "number" ? d.ref_folio : undefined,
     refTipoDoc: typeof d.ref_tipo_doc === "number" ? d.ref_tipo_doc : undefined,
     reclamado: d.reclamado === true, // "R" de reclamada (#744); null/ausente (cache viejo) → false
+    cedido: d.cedido === true, // cedida por factoring (RPETC) → se excluye del por-cobrar (#804)
   }));
 }
 

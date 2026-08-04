@@ -45,6 +45,8 @@ export interface DocConVencimiento {
   refTipoDoc?: number;
   /** El receptor RECLAMÓ el documento en el SII → no cuenta (monto $0); el FE pinta una "R". */
   reclamado?: boolean;
+  /** La factura fue CEDIDA (factoring, RPETC): la cobra el factor, no la empresa → NO es por-cobrar. */
+  cedido?: boolean;
 }
 
 /* ── Fechas ────────────────────────────────────────────────────────────────── */
@@ -282,6 +284,8 @@ export interface DocMaestro {
   neto: number | null;
   /** El receptor RECLAMÓ el documento en el SII → no cuenta (monto $0); el FE pinta una "R". */
   reclamado?: boolean;
+  /** La factura fue CEDIDA (factoring, RPETC): la cobra el factor, no la empresa → NO es por-cobrar. */
+  cedido?: boolean;
 }
 
 export interface ContraparteMaestro {
@@ -343,6 +347,7 @@ export function buildMaestro(
         ref_folio: d.refFolio,
         ref_tipo_doc: d.refTipoDoc,
         reclamado: d.reclamado === true, // se preserva en la fila agrupada (genérico) → DocMaestro
+        cedido: d.cedido === true, // cedida (factoring) → se preserva para excluirla del por-cobrar
       })),
     );
 
@@ -375,9 +380,13 @@ export function buildMaestro(
       // Factura RECLAMADA (compras o ventas): rechazada en el SII → NO es una obligación real, no
       // suma $ (decisión de Fernando 2026-08-01). Se muestra igual en el detalle con su "R", igual
       // que el 360 (`montoFirmado` → 0). Antes inflaba total/vencido/por-vencer y contradecía al 360.
+      // Factura CEDIDA (factoring, RPETC, solo ventas): la cobra el factor → NO es por-cobrar de la
+      // empresa. Excluirla alinea Cobrar/Caja con el `accounts-receivable` corregido del backend (#804).
       const reclamada = f.reclamado === true;
+      const cedida = f.cedido === true;
+      const excluida = reclamada || cedida;
 
-      if (!reclamada) {
+      if (!excluida) {
         total += row.neto; // neto de la factura tras sus NC (puede ser ≤ 0)
         if (pagadoF) {
           pagadoSum += row.neto;
@@ -410,6 +419,7 @@ export function buildMaestro(
         anulacion,
         neto: anulacion ? row.neto : null,
         reclamado: f.reclamado === true,
+        cedido: f.cedido === true,
       });
       for (const nc of row.notas) {
         const emN = parseSiiDate(nc.fecha);
