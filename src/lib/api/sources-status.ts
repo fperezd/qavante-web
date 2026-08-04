@@ -35,6 +35,17 @@ export function useSourcesStatus(enabled = true) {
   });
 }
 
+/* Fuentes OCULTAS del indicador de sync por ahora (pedido de Fernando 2026-08-04): TGR requiere un
+   helper local (Chrome con sesión TGR activa) que aún no está montado, así que su `session_expired`
+   dejaba el header en rojo "Con errores" por algo que el dueño no puede resolver. Se filtran del
+   agregado Y del detalle. Reactivar cuando se implemente TGR = sacar "tgr" de este set. */
+export const FUENTES_OCULTAS_SYNC = new Set(["tgr"]);
+
+/** Fuentes visibles del indicador = todas menos las ocultas (`FUENTES_OCULTAS_SYNC`). Puro/testeable. */
+export function visibleSources(sources: SourceStatus[]): SourceStatus[] {
+  return sources.filter((s) => !FUENTES_OCULTAS_SYNC.has(s.source));
+}
+
 export type SyncLevel = "ok" | "warning" | "caido" | "error";
 
 export interface SyncAggregate {
