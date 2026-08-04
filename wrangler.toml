@@ -60,6 +60,11 @@ NEXT_PUBLIC_FF_CAJA_V2 = "true"
 # para el past-due (heurístico hasta que CC-API dé el estado "pagado" por documento vía conciliación
 # bancaria — escalado). Volver al clásico = "false".
 NEXT_PUBLIC_FF_CAJA_V3 = "true"
+# Saldos de banco + LÍNEA DE CRÉDITO en Caja — ON (encendido 2026-08-04 por Fernando). CC-API migró
+# /api/bice/* a require_session (sondeado: `no_session`, ya no api-key-only), así que el FE consume el
+# saldo por cuenta + el balance con la LC (cupo/usado/disponible + venc. sobregiro) con la cookie.
+# Validado al peso contra Tooxs (cupo $6M usado al 101%, excedido $58.864). Apagar = "false".
+NEXT_PUBLIC_FF_BANK_BALANCES = "true"
 # Pagar v2 (rediseño aprobado 2026-07-14) — ON (encendido 2026-07-14 por Fernando): respuesta de
 # dueño (cuánto debe pagar + ¿la caja alcanza?) + brecha de caja + las 3 del mes (imposiciones/
 # impuestos/sueldos) + vencimientos con postergabilidad + mayores compromisos. Reusa accounts-payable
