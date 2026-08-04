@@ -64,10 +64,12 @@ describe("mapRangoResumen", () => {
     expect(r.neto).toEqual({ monto: 11_500_000, pct: 22.8 });
   });
 
-  it("mejor mes por margen + label del rango + tendencia por mes", () => {
-    expect(r.mejorMes).toEqual({ periodo: "jul", pct: 24.3 });
+  it("mejor mes + tendencia EXCLUYEN el mes en curso (jul = proforma); el label sí lo incluye", () => {
+    // jul es el mes EN CURSO (proforma) → su margen parcial (24.3%) no se compara: mejor mes = jun,
+    // y la tendencia va solo hasta el último mes CERRADO. El rango (label) sí abarca may–jul.
+    expect(r.mejorMes).toEqual({ periodo: "jun", pct: 23.2 });
     expect(r.rangoLabel).toBe("may–jul");
-    expect(r.tendencia.map((p) => p.margenPct)).toEqual([20.4, 23.2, 24.3]);
+    expect(r.tendencia.map((p) => p.margenPct)).toEqual([20.4, 23.2]);
   });
 
   it("deriva el % si el backend no manda pct_total", () => {

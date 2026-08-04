@@ -5,7 +5,7 @@
 
 import type { OperationalResultBreakdown, BreakdownRow } from "@/lib/api/gestion";
 import { parseAmount } from "../gestion-format";
-import { mapTendencia, tendenciaConfiable } from "./gestion-v2-map";
+import { mapTendencia, separarMesEnCurso, tendenciaConfiable } from "./gestion-v2-map";
 import type { TendenciaPunto } from "./tendencia-resultado";
 
 /* Avisos del cálculo (`OperationalResultBreakdown.warnings`, CC-API #691): el backend marca cuándo el
@@ -95,7 +95,9 @@ export function mapRangoResumen(bd: OperationalResultBreakdown): RangoResumen {
   const netoFila = ultimaFila(flat, /operational.?result|resultad/i) ?? ultimoSubtotal(flat);
 
   const ingresos = parseAmount(ingresosFila?.total);
-  const tendencia = mapTendencia(bd);
+  // La tendencia + el "mejor mes" son sobre meses CERRADOS: el mes en curso (parcial) tiene un margen
+  // absurdo (costos casi completos vs pocas ventas) que no se compara con meses completos.
+  const { cerrados: tendencia } = separarMesEnCurso(mapTendencia(bd));
   const mejorMes =
     tendencia.length > 0
       ? tendencia.reduce((best, p) => (p.margenPct > best.margenPct ? p : best))

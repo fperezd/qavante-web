@@ -27,6 +27,7 @@ import { TendenciaResultado, type TendenciaPunto } from "./tendencia-resultado";
 import {
   evaluarTendenciaMargen,
   mapTendencia,
+  separarMesEnCurso,
   margenOperacionalPct,
   mesCorto,
   resultadoConfiable,
@@ -182,12 +183,15 @@ function SeccionBody({
   if (seccion === "costos" && mes) return <CostosGastos mes={mes} breakdown={breakdown} />;
   if (seccion === "comparativo" && mes) return <Comparativo mes={mes} prev={prev} yoy={yoy} />;
   if (seccion === "tendencia" && breakdown) {
-    const puntos = mapTendencia(breakdown);
-    if (puntos.length < 2) return <SinDato label="tendencia" />;
+    // La tendencia es sobre meses CERRADOS: un mes en curso (ej. día 3) tiene costos casi completos
+    // contra pocas ventas → un margen absurdo (−1443%) que NO es "el peor mes", solo que aún no cierra.
+    // Se excluye del mejor/peor/promedio y del gráfico; se muestra aparte como nota (pedido de Fernando).
+    const { cerrados, enCurso } = separarMesEnCurso(mapTendencia(breakdown));
+    if (cerrados.length < 2) return <SinDato label="tendencia" />;
     // Guarda de honestidad: algún mes con margen >100% (bug de costos en $0) ⇒ no mostrar la
     // tendencia como real (mismo criterio que la vista P&L). Antes esta sub-vista lo omitía.
-    if (!tendenciaConfiable(puntos)) return <TendenciaNoConfiable />;
-    return <Tendencia puntos={puntos} />;
+    if (!tendenciaConfiable(cerrados)) return <TendenciaNoConfiable />;
+    return <Tendencia puntos={cerrados} enCurso={enCurso} />;
   }
   return <SinDato label={TITULO[seccion].toLowerCase()} />;
 }
@@ -207,7 +211,8 @@ function Margenes({
   const costoPct = rev > 0 ? (costoVentas / rev) * 100 : 0;
   const neto = parseAmount(mes.result);
   const netoPct = margenOperacionalPct(mes);
-  const puntos = breakdown ? mapTendencia(breakdown) : [];
+  // Histórico del margen sobre meses CERRADOS (el mes en curso, parcial, distorsiona el sparkline).
+  const puntos = breakdown ? separarMesEnCurso(mapTendencia(breakdown)).cerrados : [];
   const serie = puntos.map((p) => p.margenPct);
 
   // Tarjetas reordenables (pedido de Fernando): "De cada $100" y el histórico del margen van
@@ -453,7 +458,13 @@ function TendenciaNoConfiable() {
   );
 }
 
-function Tendencia({ puntos }: { puntos: TendenciaPunto[] }) {
+function Tendencia({
+  puntos,
+  enCurso,
+}: {
+  puntos: TendenciaPunto[];
+  enCurso?: TendenciaPunto | null;
+}) {
   const vals = puntos.map((p) => p.margenPct);
   const max = Math.max(...vals);
   const min = Math.min(...vals);
@@ -461,7 +472,7 @@ function Tendencia({ puntos }: { puntos: TendenciaPunto[] }) {
   const mejor = puntos.find((p) => p.margenPct === max);
   const peor = puntos.find((p) => p.margenPct === min);
   // "oct 2025" (con año, para no confundir dos octubres de años distintos).
-  const mesAno = (p?: TendenciaPunto) => {
+  const mesAno = (p?: TendenciaPunto | null) => {
     if (!p) return "—";
     const y = p.periodoFull?.match(/^(\d{4})-/);
     return `${mesCorto(p.periodoFull ?? p.periodo)}${y ? ` ${y[1]}` : ""}`;
@@ -484,6 +495,13 @@ function Tendencia({ puntos }: { puntos: TendenciaPunto[] }) {
       <div className="rounded-xl border border-border bg-surface p-5">
         <TendenciaResultado puntos={puntos} />
       </div>
+      {enCurso && (
+        <p className="px-0.5 text-[11.5px] text-neutral-mid">
+          <b className="text-neutral-dark">{mesAno(enCurso)}</b> va en curso — todavía no entra en
+          la tendencia (se compara recién cuando cierre el mes; su margen parcial no es comparable
+          con meses completos).
+        </p>
+      )}
     </div>
   );
 }

@@ -8,10 +8,12 @@ import {
   mapCascada,
   mapDrivers,
   mapTendencia,
+  separarMesEnCurso,
   tendenciaConfiable,
   evaluarTendenciaMargen,
 } from "./gestion-v2-map";
 import { computeCascada } from "./cascada-model";
+import type { TendenciaPunto } from "./tendencia-resultado";
 import type { OperationalResultResponse, OperationalResultBreakdown } from "@/lib/api/gestion";
 
 const RESP: OperationalResultResponse = {
@@ -302,6 +304,30 @@ describe("mapTendencia", () => {
       ] as OperationalResultBreakdown["rows"],
     };
     expect(mapTendencia(conAmbos)[1]?.margenPct).toBe(9.3); // el del resultado, no 11
+  });
+});
+
+describe("separarMesEnCurso", () => {
+  const pt = (margenPct: number, actual = false): TendenciaPunto => ({
+    periodo: "x",
+    margenPct,
+    actual,
+  });
+
+  it("saca el mes marcado `actual` a `enCurso` y deja el resto en `cerrados`", () => {
+    const { cerrados, enCurso } = separarMesEnCurso([pt(20.4), pt(23.2), pt(-1443.5, true)]);
+    expect(cerrados.map((p) => p.margenPct)).toEqual([20.4, 23.2]); // el −1443% (día 3) NO cuenta
+    expect(enCurso?.margenPct).toBe(-1443.5);
+  });
+
+  it("sin mes en curso: enCurso=null, cerrados = todos", () => {
+    const { cerrados, enCurso } = separarMesEnCurso([pt(20.4), pt(23.2)]);
+    expect(enCurso).toBeNull();
+    expect(cerrados).toHaveLength(2);
+  });
+
+  it("vacío → cerrados vacío, enCurso null", () => {
+    expect(separarMesEnCurso([])).toEqual({ cerrados: [], enCurso: null });
   });
 });
 
