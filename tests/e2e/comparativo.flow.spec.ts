@@ -28,6 +28,12 @@ test.describe("Flujo: Comparativo (/gestion/comparativo)", () => {
     await expect(main.getByText(/completo/i).first()).toBeVisible();
     await expect(main.getByText(/mismo tramo de/i).first()).toBeVisible();
 
+    // Mes en curso: las comparaciones de fondo (acumulado/promedio/trimestre/eficiencia) van sobre el
+    // último mes CERRADO — el aviso lo dice (no se compara un mes a medias con meses completos).
+    await expect(
+      main.getByText(/Las comparaciones de abajo .* van sobre el último mes cerrado/),
+    ).toBeVisible();
+
     // Los otros bloques siguen con su referencia CON MONTO (no solo %).
     await expect(main.getByText("promedio 12m").first()).toBeVisible();
     await expect(main.getByText(/mismo mes 20\d{2}/).first()).toBeVisible();
