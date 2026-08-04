@@ -1,10 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { aggregateSyncStatus, type SourceStatus } from "./sources-status";
+import { aggregateSyncStatus, visibleSources, type SourceStatus } from "./sources-status";
 
 const src = (over: Partial<SourceStatus>): SourceStatus => ({
   source: "sii",
   state: "ok",
   ...over,
+});
+
+describe("visibleSources (ocultar TGR)", () => {
+  it("filtra la fuente 'tgr' (oculta por ahora)", () => {
+    const out = visibleSources([
+      src({ source: "sii" }),
+      src({ source: "tgr" }),
+      src({ source: "bice" }),
+    ]);
+    expect(out.map((s) => s.source)).toEqual(["sii", "bice"]);
+  });
+
+  it("TGR en error NO ensucia el agregado: con el resto ok, el nivel queda ok", () => {
+    const sources = [
+      src({ source: "sii", state: "ok" }),
+      src({ source: "bice", state: "ok" }),
+      src({ source: "tgr", state: "error" }), // session_expired: no cuenta
+    ];
+    expect(aggregateSyncStatus(visibleSources(sources)).level).toBe("ok");
+    // sin filtrar, TGR lo pondría en "error" — así se ve que el filtro es el que limpia el header.
+    expect(aggregateSyncStatus(sources).level).toBe("error");
+  });
 });
 
 describe("aggregateSyncStatus", () => {

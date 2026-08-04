@@ -7,6 +7,7 @@ import {
   useSourcesStatus,
   aggregateSyncStatus,
   isSourceCaida,
+  visibleSources,
   type SourceStatus,
 } from "@/lib/api/sources-status";
 import { useDismiss } from "@/lib/hooks/use-dismiss";
@@ -64,7 +65,8 @@ export function SyncStatusIndicator() {
   // tener data (el header sigue limpio).
   if (!query.data) return null;
 
-  const sources = query.data.sources ?? [];
+  // Fuentes ocultas (TGR por ahora, ver `FUENTES_OCULTAS_SYNC`): se filtran del agregado Y del detalle.
+  const sources = visibleSources(query.data.sources ?? []);
   const agg = aggregateSyncStatus(sources);
   /* El dropdown muestra solo lo CONECTADO (lo que realmente alimenta datos), ordenado por severidad:
      error → caída (unavailable con last_sync, ej. banco caído) → desactualizado → sincronizando → ok.
