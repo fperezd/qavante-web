@@ -173,6 +173,27 @@ describe("buildMaestro", () => {
     expect(recl.reclamado).toBe(true); // pero sigue en el detalle, marcada con su "R"
   });
 
+  it("una factura CEDIDA (factoring, RPETC) no es por-cobrar, pero aparece en el detalle marcada", () => {
+    const conCedida: DocConVencimiento[] = [
+      ...docs,
+      {
+        rut: "96572360-9",
+        name: "COMERCIAL KAUFMANN S.A.",
+        fecha: "01/06/2026",
+        monto: 4_000_000,
+        folio: 11,
+        cedido: true,
+      }, // vencida, pero CEDIDA → la cobra el factor, no la empresa → no suma al por-cobrar (#804)
+    ];
+    const kauf = buildMaestro(conCedida, readTerminos(undefined), "ventas", HOY).find(
+      (c) => c.rut === "96572360-9",
+    )!;
+    expect(kauf.total).toBe(8_000_000); // la cedida de 4M NO suma
+    expect(kauf.vencido).toBe(5_000_000);
+    const ced = kauf.docs.find((d) => d.folio === 11)!;
+    expect(ced.cedido).toBe(true); // sigue en el detalle, marcada como cedida
+  });
+
   it("ordena los documentos de más nuevo a más antiguo (por emisión)", () => {
     const m = buildMaestro(docs, readTerminos(undefined), "ventas", HOY);
     const kauf = m.find((c) => c.rut === "96572360-9")!;
