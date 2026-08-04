@@ -2979,6 +2979,14 @@ const gestionHandlers = [
   http.post("*/api/management/operational-result/classifications/:id/reject", ({ params }) =>
     HttpResponse.json({ id: params.id, status: "rejected" }, { status: 200 }),
   ),
+  /* Clasificación MANUAL a una cuenta elegida (classify-document): aplica + aprende regla. */
+  http.post(
+    "*/api/management/operational-result/classifications/classify-document",
+    async ({ request }) => {
+      const body = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json({ status: "applied", ...body }, { status: 200 });
+    },
+  ),
   http.post("*/api/management/operational-result/classify", () =>
     HttpResponse.json(
       {

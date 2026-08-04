@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Loader2, Sparkles, Wand2 } from "lucide-react";
 import {
   useClassificationProposals,
-  useConfirmClassification,
-  useConfirmClassificationBatch,
+  useClassifyDocument,
+  useClassifyDocumentBatch,
   useOperationalResultDocuments,
   useRunClassification,
 } from "@/lib/api/gestion";
@@ -16,17 +16,14 @@ import { parseAmount } from "./gestion-format";
 /* Drill-down por documento (CC-API #786): la lista de facturas que caen en una cuenta de gestión en un
    mes. Reusable en cualquier pantalla de costos (Punto de equilibrio, Resultado, Costos y gastos…).
    Hace su propio fetch — el padre lo monta solo al expandir la línea, así el request corre on-demand.
-   Degrada honesto: cargando / error / sin documentos.
 
-   Clasificar en el propio detalle (pedido de Fernando 2026-08-01): SOLO en la cuenta "sin clasificar",
-   cada documento trae su cuenta sugerida (motor del backend, IA + aprendizaje por contraparte —
-   ADR-0062) con un botón para clasificarlo en un clic. Confirmar aplica la sugerencia Y crea una regla
-   por la contraparte: los próximos documentos de ese proveedor se clasifican solos. Es GENÉRICO
-   (cualquier empresa) — la sugerencia y la regla las decide el backend por tenant, nada hardcodeado.
-
-   Las propuestas no existen hasta correr el clasificador: el botón "Sugerir clasificación" dispara el
-   job del período (aplica lo obvio, propone el resto). Por eso la UI de clasificar vive solo acá, en
-   la cuenta sin clasificar (código `unclassified.*`), no en las cuentas ya clasificadas. */
+   Clasificar en el propio detalle (Fernando 2026-08-01/02): SOLO en la cuenta "sin clasificar", cada
+   documento trae su cuenta SUGERIDA (motor del backend, IA + aprendizaje por contraparte — ADR-0062)
+   PRECARGADA en un selector, editable: si la sugerencia está bien, un clic en "Clasificar"; si no llegó
+   o está mal, se elige otra cuenta a mano. Clasificar aplica la elección Y aprende una regla por la
+   contraparte (los próximos docs de ese proveedor se clasifican solos). GENÉRICO (cualquier empresa).
+   Usa `classify-document` (documento-keyed): no depende de una propuesta viva, así que no sufre el
+   problema de propuestas volátiles/stale. */
 
 /** Aplana el árbol de cuentas del tenant a un mapa código→nombre legible (`display_name ?? name`). */
 function mapaNombresCuenta(items: ManagementAccountNode[] | undefined): Map<string, string> {
@@ -39,6 +36,23 @@ function mapaNombresCuenta(items: ManagementAccountNode[] | undefined): Map<stri
   };
   if (items) walk(items);
   return m;
+}
+
+/** Opciones del selector: cuentas HOJA (clasificables) del tenant, sin las de ingreso (una compra no
+ *  va a una cuenta de ventas). Ordenadas por nombre. */
+function opcionesCuenta(
+  items: ManagementAccountNode[] | undefined,
+): { code: string; name: string }[] {
+  const out: { code: string; name: string }[] = [];
+  const walk = (nodes: ManagementAccountNode[]) => {
+    for (const n of nodes) {
+      if (n.children?.length) walk(n.children);
+      else if (n.code && n.type !== "income")
+        out.push({ code: n.code, name: n.display_name ?? n.name });
+    }
+  };
+  if (items) walk(items);
+  return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function CuentaDocumentos({
@@ -55,22 +69,21 @@ export function CuentaDocumentos({
   const esSinClasificar = accountCode.startsWith("unclassified");
 
   const query = useOperationalResultDocuments(period, accountCode, enabled);
-  // Propuestas de clasificación + nombres de cuenta. Solo en la cuenta sin clasificar y con el detalle
-  // abierto. Ambos queries son COMPARTIDOS (misma queryKey) → React Query los deduplica entre todos los
-  // drill-downs abiertos: un solo request por página, no uno por línea.
   const proposalsQuery = useClassificationProposals(enabled && esSinClasificar);
   const accountsQuery = useManagementAccountsTree();
-  const confirm = useConfirmClassification();
-  const confirmBatch = useConfirmClassificationBatch();
+  const classify = useClassifyDocument();
+  const classifyBatch = useClassifyDocumentBatch();
   const runClassify = useRunClassification();
 
+  // Cuenta elegida a mano por documento (source_external_id → account_code). Si el usuario no tocó el
+  // selector, cae a la sugerencia del backend.
+  const [seleccion, setSeleccion] = useState<Record<string, string>>({});
+
   const propuestaPorDoc = useMemo(() => {
-    const m = new Map<string, { id: string; accountCode: string }>();
+    const m = new Map<string, string>();
     for (const p of proposalsQuery.data?.proposals ?? []) {
-      // Primera propuesta por documento (el backend entrega una por decisión).
-      if (p.source_external_id && !m.has(p.source_external_id)) {
-        m.set(p.source_external_id, { id: p.id, accountCode: p.account_code });
-      }
+      if (p.source_external_id && !m.has(p.source_external_id))
+        m.set(p.source_external_id, p.account_code);
     }
     return m;
   }, [proposalsQuery.data]);
@@ -79,6 +92,7 @@ export function CuentaDocumentos({
     () => mapaNombresCuenta(accountsQuery.data?.items),
     [accountsQuery.data],
   );
+  const opciones = useMemo(() => opcionesCuenta(accountsQuery.data?.items), [accountsQuery.data]);
 
   if (query.isError) {
     return (
@@ -97,17 +111,22 @@ export function CuentaDocumentos({
     return <p className="text-[11px] text-neutral-mid">Sin documentos para el detalle.</p>;
   }
 
-  // ¿Quedan documentos sin una sugerencia todavía? → ofrecer correr el clasificador.
+  /** Cuenta elegida para un doc: lo que el usuario seleccionó, o la sugerencia del backend. */
+  const cuentaDe = (seid: string | null | undefined): string =>
+    (seid && (seleccion[seid] ?? propuestaPorDoc.get(seid))) || "";
+
   const faltanSugerencias =
     esSinClasificar &&
     docs.some((d) => !d.source_external_id || !propuestaPorDoc.has(d.source_external_id));
-  // Ids de propuestas de los documentos visibles → para "clasificar todo lo sugerido" de una.
-  const idsSugeridos = esSinClasificar
+  // "Clasificar todo": los docs con una cuenta ya elegida (sugerida o a mano) → un request por doc.
+  const lote = esSinClasificar
     ? docs
-        .map((d) =>
-          d.source_external_id ? propuestaPorDoc.get(d.source_external_id)?.id : undefined,
-        )
-        .filter((id): id is string => Boolean(id))
+        .filter((d) => d.source_external_id && cuentaDe(d.source_external_id))
+        .map((d) => ({
+          side: d.side,
+          source_external_id: d.source_external_id as string,
+          account_code: cuentaDe(d.source_external_id),
+        }))
     : [];
   const run = runClassify.data;
   const llmApagado = run?.status === "llm_off";
@@ -131,27 +150,25 @@ export function CuentaDocumentos({
               {runClassify.isPending ? "Analizando…" : "Sugerir clasificación"}
             </button>
           )}
-          {idsSugeridos.length >= 2 && (
+          {lote.length >= 2 && (
             <button
               type="button"
-              onClick={() => confirmBatch.mutate(idsSugeridos)}
-              disabled={confirmBatch.isPending}
+              onClick={() => classifyBatch.mutate(lote)}
+              disabled={classifyBatch.isPending}
               className="inline-flex items-center gap-1.5 rounded-full border border-brand-300 bg-brand-100 px-2.5 py-1 text-[11px] font-semibold text-brand-700 transition hover:bg-brand-200 disabled:opacity-60"
             >
-              {confirmBatch.isPending ? (
+              {classifyBatch.isPending ? (
                 <Loader2 className="size-3.5 animate-spin" aria-hidden />
               ) : (
                 <Sparkles className="size-3.5" aria-hidden />
               )}
-              {confirmBatch.isPending
-                ? "Clasificando…"
-                : `Clasificar todo lo sugerido (${idsSugeridos.length})`}
+              {classifyBatch.isPending ? "Clasificando…" : `Clasificar todo (${lote.length})`}
             </button>
           )}
-          {confirmBatch.data && (
+          {classifyBatch.data && (
             <span className="text-[10.5px] text-neutral-mid">
-              {confirmBatch.data.ok} clasificada{confirmBatch.data.ok === 1 ? "" : "s"}
-              {confirmBatch.data.faltaban > 0 && ` · ${confirmBatch.data.faltaban} ya no estaban`}
+              {classifyBatch.data.ok} clasificada{classifyBatch.data.ok === 1 ? "" : "s"}
+              {classifyBatch.data.faltaban > 0 && ` · ${classifyBatch.data.faltaban} falló`}
             </span>
           )}
           {run && !llmApagado && (
@@ -168,25 +185,20 @@ export function CuentaDocumentos({
               El clasificador automático no está disponible por ahora.
             </span>
           )}
-          {runClassify.isError && (
-            <span className="text-[10.5px] text-danger-500">
-              No pudimos sugerir. Vuelve a intentar.
-            </span>
-          )}
         </div>
       )}
 
       <ul className="space-y-1.5">
         {docs.map((d, i) => {
-          const propuesta = d.source_external_id
-            ? propuestaPorDoc.get(d.source_external_id)
-            : undefined;
-          const sugerida = propuesta ? (nombresCuenta.get(propuesta.accountCode) ?? null) : null;
-          const clasificando = confirm.isPending && confirm.variables === propuesta?.id;
-          const falló = confirm.isError && confirm.variables === propuesta?.id;
+          const seid = d.source_external_id ?? null;
+          const elegido = cuentaDe(seid);
+          const tieneSugerencia = Boolean(seid && propuestaPorDoc.has(seid));
+          const clasificando =
+            classify.isPending && classify.variables?.source_external_id === seid;
+          const falló = classify.isError && classify.variables?.source_external_id === seid;
           return (
             <li
-              key={d.document_ref ?? d.source_external_id ?? String(i)}
+              key={d.document_ref ?? seid ?? String(i)}
               className="flex flex-col gap-0.5 text-[11.5px]"
             >
               <div className="flex items-center justify-between gap-3">
@@ -200,26 +212,38 @@ export function CuentaDocumentos({
                   {formatClp(Math.round(Math.abs(parseAmount(d.net_amount))))}
                 </span>
               </div>
-              {propuesta && (
-                <div className="flex items-center justify-between gap-3 pl-0.5">
-                  <span className="inline-flex min-w-0 items-center gap-1 text-[10.5px] text-neutral-mid">
-                    <Sparkles className="size-3 shrink-0 text-brand-500" aria-hidden />
-                    <span className="truncate">
-                      {sugerida ? (
-                        <>
-                          Sugerido:{" "}
-                          <span className="font-medium text-neutral-dark">{sugerida}</span>
-                        </>
-                      ) : (
-                        "Sugerencia disponible"
-                      )}
-                    </span>
+              {esSinClasificar && seid && (
+                <div className="flex items-center justify-between gap-2 pl-0.5">
+                  <span className="inline-flex min-w-0 flex-1 items-center gap-1">
+                    {tieneSugerencia && (
+                      <Sparkles className="size-3 shrink-0 text-brand-500" aria-hidden />
+                    )}
+                    {/* Selector precargado con la sugerencia; el usuario puede cambiarlo a mano. */}
+                    <select
+                      value={elegido}
+                      onChange={(e) => setSeleccion((s) => ({ ...s, [seid]: e.target.value }))}
+                      aria-label={`Clasificar ${d.counterparty ?? "documento"} como`}
+                      className="min-w-0 flex-1 truncate rounded-md border border-border bg-surface px-1.5 py-0.5 text-[10.5px] text-neutral-dark"
+                    >
+                      <option value="">Elegir cuenta…</option>
+                      {opciones.map((o) => (
+                        <option key={o.code} value={o.code}>
+                          {o.name}
+                        </option>
+                      ))}
+                    </select>
                   </span>
                   <button
                     type="button"
-                    onClick={() => confirm.mutate(propuesta.id)}
-                    disabled={clasificando}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10.5px] font-medium text-brand-700 transition hover:bg-brand-100 disabled:opacity-60"
+                    onClick={() =>
+                      classify.mutate({
+                        side: d.side,
+                        source_external_id: seid,
+                        account_code: elegido,
+                      })
+                    }
+                    disabled={!elegido || clasificando}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10.5px] font-medium text-brand-700 transition hover:bg-brand-100 disabled:opacity-50"
                   >
                     {clasificando && <Loader2 className="size-3 animate-spin" aria-hidden />}
                     {clasificando ? "Clasificando…" : "Clasificar"}
@@ -227,8 +251,8 @@ export function CuentaDocumentos({
                 </div>
               )}
               {falló && (
-                <span className="pl-0.5 text-[10px] text-neutral-mid">
-                  Esa sugerencia ya no estaba disponible — actualizamos el detalle.
+                <span className="pl-0.5 text-[10px] text-danger-500">
+                  No pudimos clasificar. Vuelve a intentar.
                 </span>
               )}
             </li>

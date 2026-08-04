@@ -1994,6 +1994,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/bank-movements/{movement_id}/suggested-category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sugiere (read-only) la categoría/cuenta del movimiento por las reglas activas (#794-4)
+         * @description Read-only: sugiere la CATEGORÍA/cuenta de un movimiento aplicando las reglas activas del tenant
+         *     (mismo matcher determinista que `apply-rules`). Para el drawer "Clasificar movimiento": el FE
+         *     muestra "Sugerido: <cuenta> · Clasificar" en vez del banner de regla-de-glosa. `suggestion=null`
+         *     si ninguna regla matchea (no inventa).
+         */
+        get: operations["treasury_bank_movements_suggested_category"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/bank-accounts": {
         parameters: {
             query?: never;
@@ -2882,8 +2905,9 @@ export interface paths {
          * @description La proyección de caja ÚNICA y coherente (ADR-0085 + RFC CC-WEB). Ancla en el saldo bancario
          *     REAL (todos los movimientos, clasificados o no) y cuenta ambos lados con fuentes disjuntas:
          *     cobros esperados (receivables 100%, fecha comportamiento) - egresos comprometidos (payables +
-         *     F29). `serie` a CIERRE de día; `vencido` es señal aparte pero cuenta forward a su fecha realista;
-         *     `escenario_duro` = si nadie paga; `punto_quiebre` = primer día bajo el mínimo con sus causas.
+         *     F29). `serie` a CIERRE de día; los cobros vencidos/sin-fecha van a `por_cobrar_vencido` (señal, NO
+         *     runway — fix del día-1 dump); `escenario_duro` = si nadie paga; `punto_quiebre` = primer día bajo
+         *     el mínimo con sus causas.
          *     Reemplaza las 3 proyecciones divergentes (cash_forecast + DPC + reproyección FE).
          */
         get: operations["treasury_cash_projection"];
@@ -3124,6 +3148,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/management/operational-result/al-dia": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gestión — P&L RCV 'al día N' vs el mismo tramo del mes anterior (comparable)
+         * @description P&L del flujo RCV (ventas/COGS/gasto/margen) del mes 'al día N', + el MISMO tramo del mes
+         *     anterior + variación → el mes EN CURSO se compara peras-con-peras (#794-P0-2). El corte es por
+         *     fecha de reconocimiento del RCV; NO incluye los lumps mensuales (nómina/honorarios) que no
+         *     devengan por día.
+         */
+        get: operations["management_operational_result_al_dia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/management/operational-result/documents": {
         parameters: {
             query?: never;
@@ -3230,6 +3277,28 @@ export interface paths {
          *     determinista, honesto, sin crear regla.
          */
         post: operations["management_classification_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/operational-result/classifications/classify-document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clasifica MANUALMENTE un documento a una cuenta elegida + aprende regla por contraparte
+         * @description Clasifica un documento a la cuenta ELEGIDA por el usuario (no la del LLM) y aprende la regla por
+         *     contraparte — cubre "no hay propuesta" y "la propuesta está mal". Idempotente (re-clasificar el
+         *     mismo documento actualiza la decisión). Aplica `origen='manual'` (el usuario manda sobre el LLM).
+         */
+        post: operations["management_classify_document"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3792,6 +3861,27 @@ export interface paths {
          *     existe o ya estaba revocado/expirado.
          */
         delete: operations["admin_revoke_certificate"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/cesiones/sync-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync automático de cesiones RPETC de todos los tenants con SII (cron)
+         * @description Sincroniza las cesiones recientes de **todos** los tenants con SII. Lo llama el cron con
+         *     `SERVER_API_KEY`; best-effort por tenant. El histórico ancho va por `/api/sii/cesiones/sync`.
+         */
+        post: operations["admin_cesiones_sync_all"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -6480,6 +6570,8 @@ export interface components {
             escenario_duro: components["schemas"]["EscenarioDuro"];
             punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
             vencido: components["schemas"]["Vencido"];
+            /** @description Cobros atrasados/sin-fecha excluidos del runway (señal, no caja futura). */
+            por_cobrar_vencido: components["schemas"]["PorCobrarVencido"];
             fuentes: components["schemas"]["Fuentes"];
         };
         /** CashToday */
@@ -6661,6 +6753,39 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** CesionesSyncAllResponse */
+        CesionesSyncAllResponse: {
+            /**
+             * Tenants
+             * @description Tenants con SII procesados.
+             */
+            tenants: number;
+            /**
+             * Encontradas
+             * @description Cesiones encontradas en total (recientes).
+             */
+            encontradas: number;
+            /**
+             * Cedidas Marcadas
+             * @description Receivables marcadas como cedidas en total.
+             */
+            cedidas_marcadas: number;
+            /**
+             * Errors
+             * @description Errores best-effort (no abortan el resto).
+             */
+            errors: number;
+            /**
+             * Desde
+             * @description Inicio del rango reciente (YYYY-MM-DD).
+             */
+            desde: string;
+            /**
+             * Hasta
+             * @description Fin del rango reciente (YYYY-MM-DD).
+             */
+            hasta: string;
+        };
         /**
          * CesionesSyncResponse
          * @description Resultado de `POST /api/sii/cesiones/sync` — RPETC (ADR-0084): baja las cesiones
@@ -6789,6 +6914,27 @@ export interface components {
         ClassificationRulesResponse: {
             /** Items */
             items: components["schemas"]["ClassificationRule"][];
+        };
+        /**
+         * ClassifyDocumentRequest
+         * @description Clasificación MANUAL de un documento a una cuenta ELEGIDA (ADR-0062 §4.2).
+         */
+        ClassifyDocumentRequest: {
+            /**
+             * Side
+             * @description 'compras' | 'ventas'.
+             */
+            side: string;
+            /**
+             * Source External Id
+             * @description Clave natural del documento en el RCV: '{tipo}-{folio}-{rut}'.
+             */
+            source_external_id: string;
+            /**
+             * Account Code
+             * @description Código de la cuenta del plan del tenant a asignar.
+             */
+            account_code: string;
         };
         /**
          * ClassifyForeignPurchaseRequest
@@ -10514,6 +10660,46 @@ export interface components {
             source?: string | null;
         };
         /**
+         * OperationalResultAlDiaResponse
+         * @description P&L del flujo RCV (ventas/margen) del mes en curso 'al día N' vs el MISMO tramo del mes
+         *     anterior (#794-P0-2). Corta lo que devenga por día; NO incluye lumps mensuales (nómina/honorarios).
+         */
+        OperationalResultAlDiaResponse: {
+            /**
+             * Period
+             * @description 'YYYY-MM'.
+             */
+            period: string;
+            /**
+             * Hasta Dia
+             * @description Día del mes hasta el que se corta (1-31).
+             */
+            hasta_dia: number;
+            /**
+             * Actual
+             * @description P&L RCV del mes al día N: revenue/cogs/gasto/gross_margin/ebitda_proxy/result.
+             */
+            actual: {
+                [key: string]: unknown;
+            };
+            /**
+             * Mes Anterior
+             * @description Mismo corte del mes anterior (+ period).
+             */
+            mes_anterior: {
+                [key: string]: unknown;
+            };
+            /**
+             * Variacion
+             * @description Deltas {amount, pct} de revenue/gross_margin/result.
+             */
+            variacion: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * OperationalResultBreakdownResponse
          * @description Resultado Operacional mensualizado por categoría (árbol de cuentas del tenant).
          */
@@ -11142,6 +11328,23 @@ export interface components {
             permissions: string[];
             /** Role */
             role: string;
+        };
+        /**
+         * PorCobrarVencido
+         * @description Cobros vencidos/sin-fecha EXCLUIDOS del runway (señal que reemplaza al día-1 dump). El FE lo
+         *     muestra como 'por cobrar atrasado', NO como caja futura cierta.
+         */
+        PorCobrarVencido: {
+            /**
+             * Total
+             * @description Σ de los cobros vencidos/sin-fecha, string-decimal.
+             */
+            total: string;
+            /**
+             * N
+             * @description Cantidad de cobros vencidos/sin-fecha.
+             */
+            n: number;
         };
         /** PositionResponse */
         PositionResponse: {
@@ -12634,6 +12837,45 @@ export interface components {
             /** Integrations */
             integrations: components["schemas"]["IntegrationStatus"][];
         };
+        /**
+         * SuggestedCategory
+         * @description Cuenta sugerida para un movimiento por las reglas activas del tenant (#794-4 ask a).
+         */
+        SuggestedCategory: {
+            /**
+             * Account Code
+             * @description Código de la cuenta sugerida.
+             */
+            account_code?: string | null;
+            /**
+             * Account Name
+             * @description Nombre de la cuenta sugerida.
+             */
+            account_name?: string | null;
+            /** Canonical Category */
+            canonical_category?: string | null;
+            /**
+             * Confidence
+             * @description Confianza de la regla que matcheó [0..1].
+             * @default 0
+             */
+            confidence: number;
+            /**
+             * Matched Rule Id
+             * @description ID de la regla que produjo la sugerencia.
+             */
+            matched_rule_id?: string | null;
+        };
+        /**
+         * SuggestedCategoryResponse
+         * @description `GET /api/treasury/bank-movements/{id}/suggested-category` — sugerencia read-only de categoría
+         *     (mismo matcher que apply-rules). `suggestion=None` si ninguna regla activa matchea (honesto).
+         */
+        SuggestedCategoryResponse: {
+            /** Movement Id */
+            movement_id: string;
+            suggestion?: components["schemas"]["SuggestedCategory"] | null;
+        };
         /** SuggestionsResponse */
         SuggestionsResponse: {
             /** Movement Id */
@@ -13246,11 +13488,14 @@ export interface components {
              * @description Monto (negativo=pago, positivo=cobro), string-decimal.
              */
             monto: string;
-            /** Dias Atraso */
-            dias_atraso: number;
+            /**
+             * Dias Atraso
+             * @description Días de atraso; null si el cobro no tiene fecha.
+             */
+            dias_atraso?: number | null;
             /**
              * Tipo
-             * @description 'pago_vencido' | 'cobro_vencido'.
+             * @description 'pago_vencido' | 'cobro_vencido' | 'cobro_sin_fecha'.
              */
             tipo: string;
         };
@@ -16967,6 +17212,47 @@ export interface operations {
             };
         };
     };
+    treasury_bank_movements_suggested_category: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID del movimiento. */
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestedCategoryResponse"];
+                };
+            };
+            /** @description Movimiento no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_bank_accounts_list: {
         parameters: {
             query?: {
@@ -19905,6 +20191,40 @@ export interface operations {
             };
         };
     };
+    management_operational_result_al_dia: {
+        parameters: {
+            query: {
+                /** @description Período 'YYYY-MM'. */
+                period: string;
+                /** @description Día del mes hasta el que cortar (1-31). */
+                hasta_dia: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Margen RCV del mes al día N + mes anterior mismo tramo + variación. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationalResultAlDiaResponse"];
+                };
+            };
+            /** @description period mal formado o hasta_dia fuera de [1,31]. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     management_operational_result_documents: {
         parameters: {
             query: {
@@ -20083,6 +20403,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    management_classify_document: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClassifyDocumentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__operational_result__ConfirmResponse"];
+                };
+            };
+            /** @description El documento no existe en el RCV del tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La cuenta no existe en el plan del tenant, o el side es inválido. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -21176,6 +21536,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_cesiones_sync_all: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CesionesSyncAllResponse"];
                 };
             };
         };
