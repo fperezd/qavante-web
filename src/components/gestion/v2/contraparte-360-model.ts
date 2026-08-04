@@ -104,6 +104,13 @@ export function serieMensual(
   return out;
 }
 
+/** Descarta el mes EN CURSO (el último de una serie continua que llega hasta hoy): su valor es
+ *  PARCIAL (medio mes) y no se compara con meses completos — distorsiona el año-contra-año, la
+ *  estacionalidad y el "a recuperar". Espeja el criterio de `separarMesEnCurso` de la Tendencia. */
+export function sinMesEnCurso(serie: PuntoMes[]): PuntoMes[] {
+  return serie.length > 0 ? serie.slice(0, -1) : serie;
+}
+
 export interface TendenciaAnual {
   ultimos12: number;
   previos12: number;

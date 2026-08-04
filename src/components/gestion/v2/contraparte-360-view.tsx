@@ -16,6 +16,7 @@ import {
   montoFirmado,
   periodoDe,
   serieMensual,
+  sinMesEnCurso,
   tendenciaAnual,
 } from "./contraparte-360-model";
 
@@ -65,7 +66,9 @@ export function Contraparte360View({ config }: { config: Config360 }) {
   // 12 MESES (pedido de Fernando): el total, la concentración y las barras son de 12 meses.
   const { range24, desde12 } = React.useMemo(() => {
     const hasta = toPeriod(new Date());
-    const range24: PeriodRange = { desde: addMonths(hasta, -23), hasta };
+    // 25 meses: el año-contra-año y la estacionalidad EXCLUYEN el mes en curso (parcial) → necesitan
+    // 24 meses CERRADOS, que salen de descartar el último de estos 25 (ver `serie24.slice(0,-1)` abajo).
+    const range24: PeriodRange = { desde: addMonths(hasta, -24), hasta };
     return { range24, desde12: addMonths(hasta, -11) };
   }, []);
 
@@ -285,17 +288,20 @@ function Detalle({
   totalGlobal: number;
   config: Config360;
 }) {
-  // Barras + total: últimos 12 meses (foco). Año-contra-año + estacionalidad: 24 meses (necesitan 2 años).
+  // Barras + total: últimos 12 meses (foco; el último es el mes en curso, "hasta hoy"). Año-contra-año
+  // + estacionalidad: 24 meses CERRADOS — se descarta el mes en curso (parcial), que si no compararía
+  // 11 meses completos + medio mes contra 12 completos (peras con manzanas) y hundiría el %/promedio.
   const serie12 = React.useMemo(
     () => serieMensual(docs, sel.rut, desde12, hasta),
     [docs, sel.rut, desde12, hasta],
   );
-  const serie24 = React.useMemo(
-    () => serieMensual(docs, sel.rut, desde24, hasta),
+  const serie24Cerrada = React.useMemo(
+    // 25 meses del fetch → se descarta el mes en curso → 24 meses cerrados.
+    () => sinMesEnCurso(serieMensual(docs, sel.rut, desde24, hasta)),
     [docs, sel.rut, desde24, hasta],
   );
-  const tend = tendenciaAnual(serie24);
-  const est = estacionalidad(serie24);
+  const tend = tendenciaAnual(serie24Cerrada);
+  const est = estacionalidad(serie24Cerrada);
   const pct = concentracionPct(sel.total, totalGlobal);
 
   // Riesgo: mayor documento y meses desde la última actividad.
@@ -429,7 +435,7 @@ function Recuperacion({
   config: Config360;
 }) {
   // Excluye el mes en curso (el último de la serie) — parcial, no comparable con meses completos.
-  const completos = serie.slice(0, -1);
+  const completos = sinMesEnCurso(serie);
   if (completos.length === 0) return null;
   const mejor = completos.reduce((mx, p) => (p.monto > mx.monto ? p : mx), completos[0]!);
   const actual = completos[completos.length - 1]!;
