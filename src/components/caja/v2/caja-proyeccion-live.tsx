@@ -104,6 +104,7 @@ export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProye
       movimientos={movimientosCascada}
       causas={causas}
       porCobrarVencido={porCobrarVencido}
+      conciliarHref="/caja/conciliacion"
       ultimaSync={ultimaSync}
       saldoStale={saldoStale}
       ocultarSaldoHoy // el hero del Resumen ya muestra el saldo de hoy → no repetirlo en el medidor
