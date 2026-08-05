@@ -13,7 +13,11 @@ import {
   movimientosDeObligaciones,
   movimientosPorSemana,
 } from "./caja-proyeccion-model";
-import { cashProjectionToDiasCaja, causasFromCashProjection } from "./caja-cash-projection-map";
+import {
+  cashProjectionToDiasCaja,
+  causasFromCashProjection,
+  cobrosPorCobrarVencido,
+} from "./caja-cash-projection-map";
 import type { MovimientoCaja } from "./caja-cascada-model";
 
 /* CajaProyeccionLive — container del medidor de caja (Caja v3, gated `cajaV3`).
@@ -67,6 +71,11 @@ export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProye
   // pieza que explica que "sin recuperación" no sea el final de la historia. Se muestra como caveat.
   const pcv = cashProj.data?.por_cobrar_vencido;
   const porCobrarVencido = pcv ? { total: parseAmount(pcv.total), n: pcv.n } : null;
+  // Detalle de esos cobros (glosa/monto/días) para desplegar la lista uno por uno desde el caveat.
+  const cobrosPorCobrar = React.useMemo(
+    () => cobrosPorCobrarVencido(cashProj.data),
+    [cashProj.data],
+  );
 
   // Cascada de próximos movimientos: derivada del maestro (el backend no expone el detalle por-movimiento).
   const movimientosCascada = React.useMemo(() => {
@@ -105,6 +114,7 @@ export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProye
       causas={causas}
       porCobrarVencido={porCobrarVencido}
       conciliarHref="/caja/conciliacion"
+      cobrosPorCobrar={cobrosPorCobrar}
       ultimaSync={ultimaSync}
       saldoStale={saldoStale}
       ocultarSaldoHoy // el hero del Resumen ya muestra el saldo de hoy → no repetirlo en el medidor

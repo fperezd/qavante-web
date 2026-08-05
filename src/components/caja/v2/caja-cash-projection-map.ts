@@ -87,3 +87,26 @@ export function causasFromCashProjection(resp: CashProjectionResponse | undefine
     fechaLabel,
   }));
 }
+
+/** Un cobro por-cobrar vencido o sin fecha (los que el runway NO cuenta). */
+export interface CobroVencido {
+  glosa: string;
+  monto: number;
+  /** Días de atraso (>0), o `null` si es "sin fecha de pago". */
+  diasAtraso: number | null;
+}
+
+/** Los COBROS vencidos/sin-fecha del `vencido` del backend (los mismos que suma `por_cobrar_vencido`):
+ *  la lista que el dueño puede revisar/conciliar. Filtra los PAGOS (tipo `pago_vencido`), que no son
+ *  por-cobrar. Ordena por monto desc. Puro. */
+export function cobrosPorCobrarVencido(resp: CashProjectionResponse | undefined): CobroVencido[] {
+  const items = resp?.vencido?.items ?? [];
+  return items
+    .filter((i) => (i.tipo ?? "").startsWith("cobro"))
+    .map((i) => ({
+      glosa: i.glosa,
+      monto: parseAmount(i.monto),
+      diasAtraso: typeof i.dias_atraso === "number" ? i.dias_atraso : null,
+    }))
+    .sort((a, b) => b.monto - a.monto);
+}

@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { cashProjectionToDiasCaja, causasFromCashProjection } from "./caja-cash-projection-map";
+import {
+  cashProjectionToDiasCaja,
+  causasFromCashProjection,
+  cobrosPorCobrarVencido,
+} from "./caja-cash-projection-map";
 import type { CashProjectionResponse } from "@/lib/api/treasury";
 
 /* Datos reales de Tooxs Digital (prod, 2026-08-03) tras el fix del día-1-dump (#802): la serie ya NO
@@ -76,5 +80,28 @@ describe("causasFromCashProjection", () => {
     expect(
       causasFromCashProjection({ ...tooxs, punto_quiebre: null } as CashProjectionResponse),
     ).toEqual([]);
+  });
+});
+
+describe("cobrosPorCobrarVencido", () => {
+  const conVencido = (items: unknown[]) =>
+    ({ ...tooxs, vencido: { total: "0", items } }) as unknown as CashProjectionResponse;
+
+  it("lista solo los COBROS (vencido/sin-fecha), no los pagos; ordena por monto desc", () => {
+    const r = cobrosPorCobrarVencido(
+      conVencido([
+        { glosa: "KAUFMANN", monto: "1440791.00", dias_atraso: null, tipo: "cobro_sin_fecha" },
+        { glosa: "SYNNEX", monto: "5000000.00", dias_atraso: 45, tipo: "cobro_vencido" },
+        { glosa: "IVA F29", monto: "-4200000.00", dias_atraso: 10, tipo: "pago_vencido" }, // pago: fuera
+      ]),
+    );
+    expect(r.map((c) => c.glosa)).toEqual(["SYNNEX", "KAUFMANN"]); // 5M, 1.44M
+    expect(r[0]).toEqual({ glosa: "SYNNEX", monto: 5_000_000, diasAtraso: 45 });
+    expect(r[1]?.diasAtraso).toBeNull(); // sin fecha
+  });
+
+  it("sin items → []", () => {
+    expect(cobrosPorCobrarVencido(conVencido([]))).toEqual([]);
+    expect(cobrosPorCobrarVencido(undefined)).toEqual([]);
   });
 });

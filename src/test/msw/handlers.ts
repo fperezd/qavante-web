@@ -3435,7 +3435,30 @@ const cajaV2Handlers = [
             { glosa: "F29 (IVA)", monto: "-4200000", tipo: "pago" },
           ],
         },
-        vencido: { total: "0", items: [] },
+        por_cobrar_vencido: { total: "9400000", n: 3 },
+        vencido: {
+          total: "9400000",
+          items: [
+            {
+              glosa: "TD SYNNEX CHILE LIMITADA",
+              monto: "5000000",
+              dias_atraso: 45,
+              tipo: "cobro_vencido",
+            },
+            {
+              glosa: "COMERCIAL KAUFMANN S.A.",
+              monto: "2960000",
+              dias_atraso: null,
+              tipo: "cobro_sin_fecha",
+            },
+            {
+              glosa: "INMOBILIARIA VISTA KENNEDY",
+              monto: "1440000",
+              dias_atraso: 12,
+              tipo: "cobro_vencido",
+            },
+          ],
+        },
         fuentes: { calidad_fechas: { con_fecha_real: 0.8, items_totales: 40 } },
       },
       { status: 200 },

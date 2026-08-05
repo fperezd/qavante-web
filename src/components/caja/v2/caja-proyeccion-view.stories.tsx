@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { within, expect } from "storybook/test";
+import { within, expect, userEvent } from "storybook/test";
 import { CajaProyeccionView } from "./caja-proyeccion-view";
 import {
   causasDelPiso,
@@ -112,14 +112,23 @@ export const ConPorCobrar: Story = {
     proyeccion: BREAK_PROY,
     minimo: null,
     movimientos: movimientosPorSemana(BREAK_MOVS, HOY),
-    porCobrarVencido: { total: 231_480_316, n: 161 },
+    porCobrarVencido: { total: 9_400_000, n: 3 },
     conciliarHref: "/caja/conciliacion",
+    cobrosPorCobrar: [
+      { glosa: "TD SYNNEX CHILE LIMITADA", monto: 5_000_000, diasAtraso: 45 },
+      { glosa: "COMERCIAL KAUFMANN S.A.", monto: 2_960_000, diasAtraso: null },
+      { glosa: "INMOBILIARIA VISTA KENNEDY", monto: 1_440_000, diasAtraso: 12 },
+    ],
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByText("no cuenta")).toBeInTheDocument();
     await expect(c.getByText(/su cobro no es seguro/)).toBeInTheDocument();
-    // El caveat deja de ser callejón: ofrece el CTA para conciliar esos cobros de un clic.
+    // El "N documentos" es un toggle: al abrirlo se ve la lista uno por uno (pedido de Fernando).
+    await userEvent.click(c.getByRole("button", { name: /documentos vencidos o sin fecha/ }));
+    await expect(c.getByText("COMERCIAL KAUFMANN S.A.")).toBeInTheDocument();
+    await expect(c.getByText("sin fecha")).toBeInTheDocument();
+    // Y el CTA para conciliar (calzar con banco).
     const cta = c.getByRole("link", { name: /Conciliar cobros/ });
     await expect(cta).toHaveAttribute("href", "/caja/conciliacion");
   },
