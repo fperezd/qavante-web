@@ -113,11 +113,15 @@ export const ConPorCobrar: Story = {
     minimo: null,
     movimientos: movimientosPorSemana(BREAK_MOVS, HOY),
     porCobrarVencido: { total: 231_480_316, n: 161 },
+    conciliarHref: "/caja/conciliacion",
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByText("no cuenta")).toBeInTheDocument();
     await expect(c.getByText(/su cobro no es seguro/)).toBeInTheDocument();
+    // El caveat deja de ser callejón: ofrece el CTA para conciliar esos cobros de un clic.
+    const cta = c.getByRole("link", { name: /Conciliar cobros/ });
+    await expect(cta).toHaveAttribute("href", "/caja/conciliacion");
   },
 };
 

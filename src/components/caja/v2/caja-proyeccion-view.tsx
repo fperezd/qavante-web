@@ -1,5 +1,6 @@
 import * as React from "react";
-import { AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { CajaMedidor, CajaMedidorSinDato } from "./caja-medidor";
@@ -31,6 +32,9 @@ export interface CajaProyeccionViewProps {
    *  no es cierto). Se muestra como caveat honesto para que "sin recuperación" no se lea como veredicto
    *  final cuando hay plata por cobrar. `null`/total 0 → no se muestra. */
   porCobrarVencido?: { total: number; n: number } | null;
+  /** Ruta a la conciliación: si viene, el caveat del por-cobrar suma un CTA "Conciliar cobros →" para
+   *  que el dueño resuelva esos documentos de un clic (pedido de Fernando: no dejarlo en callejón). */
+  conciliarHref?: string;
   /** Oculta el "Saldo hoy" del medidor (el hero de la pantalla ya lo muestra → no repetir). */
   ocultarSaldoHoy?: boolean;
   className?: string;
@@ -44,6 +48,7 @@ export function CajaProyeccionView({
   ultimaSync,
   saldoStale,
   porCobrarVencido,
+  conciliarHref,
   ocultarSaldoHoy,
   className,
 }: CajaProyeccionViewProps) {
@@ -68,13 +73,24 @@ export function CajaProyeccionView({
         <div>
           <CajaMedidor model={proyeccion} minimo={minimo} ocultarSaldoHoy={ocultarSaldoHoy} />
           {mostrarPorCobrar && (
-            <p className="mt-3 rounded-lg border border-info-500/30 bg-info-500/[.06] px-3 py-2 text-xs text-neutral-dark">
-              Esta proyección <b>no cuenta</b> los {formatClp(porCobrarVencido!.total)} que tienes
-              por cobrar ({porCobrarVencido!.n}{" "}
-              {porCobrarVencido!.n === 1 ? "documento vencido" : "documentos vencidos"} o sin fecha
-              de pago). Si cobras parte, tu caja mejora — pero su cobro no es seguro, por eso no
-              entra en esta cifra.
-            </p>
+            <div className="mt-3 rounded-lg border border-info-500/30 bg-info-500/[.06] px-3 py-2 text-xs text-neutral-dark">
+              <p>
+                Esta proyección <b>no cuenta</b> los {formatClp(porCobrarVencido!.total)} que tienes
+                por cobrar ({porCobrarVencido!.n}{" "}
+                {porCobrarVencido!.n === 1 ? "documento vencido" : "documentos vencidos"} o sin
+                fecha de pago). Si ya cobraste alguno, <b>concílialo</b> para que salga de acá; su
+                cobro no es seguro, por eso no entra en esta cifra.
+              </p>
+              {conciliarHref && (
+                <Link
+                  href={conciliarHref}
+                  className="mt-1.5 inline-flex items-center gap-1 font-semibold text-info-700 hover:underline"
+                >
+                  Conciliar cobros
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </Link>
+              )}
+            </div>
           )}
           {saldoStale && ultimaSync && (
             <p className="mt-3 text-xs text-neutral-mid">
