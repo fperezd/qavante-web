@@ -75,16 +75,26 @@ export function cashProjectionToDiasCaja(
   };
 }
 
+/** Tipo de causa del backend (`'pago' | 'f29' | 'pago_vencido'`) → el `MovTipo` del badge de la
+ *  cascada. F29 es impuesto; el resto es un pago genérico ("otro" se rotula "Pago" en la vista). */
+function mapCausaTipo(tipo: string | null | undefined): CausaQuiebre["tipo"] {
+  if (tipo === "f29") return "impuesto";
+  if (tipo === "pago" || tipo === "pago_vencido") return "otro";
+  return undefined;
+}
+
 /** Causas del punto de quiebre del backend → `CausaQuiebre[]` (mayores egresos que hunden la caja).
- *  Todas comparten la fecha del quiebre (los movimientos hasta ese día). */
+ *  Cada causa lleva SU propia fecha (ADR-0087 Ask 2: el día en que ese egreso impacta la caja) — no la
+ *  del quiebre para todas; si el backend no la trae, cae a la del quiebre. También mapea el `tipo` para
+ *  el badge (Impuesto/Pago). */
 export function causasFromCashProjection(resp: CashProjectionResponse | undefined): CausaQuiebre[] {
   const pq = resp?.punto_quiebre;
   if (!pq?.causas || pq.causas.length === 0) return [];
-  const fechaLabel = formatDateLike(pq.fecha);
   return pq.causas.map((c) => ({
     label: c.glosa,
     monto: parseAmount(c.monto),
-    fechaLabel,
+    fechaLabel: formatDateLike(c.fecha ?? pq.fecha),
+    tipo: mapCausaTipo(c.tipo),
   }));
 }
 

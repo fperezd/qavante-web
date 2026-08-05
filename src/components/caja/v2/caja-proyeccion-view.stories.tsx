@@ -147,3 +147,22 @@ export const SinDato: Story = {
     ).toBeInTheDocument();
   },
 };
+
+/* Proyección del backend presente pero SIN cascada (movimientos vacíos): el medidor autoritativo NO
+   se oculta (antes un OR lo tapaba). Se muestra el medidor + una nota honesta en lugar de la cascada. */
+export const ProyeccionSinCascada: Story = {
+  args: {
+    proyeccion: proyeccionDeMovimientos(6_200_000, MOVS, HOY, null),
+    minimo: null,
+    movimientos: [],
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    // El medidor sigue visible (no cae a "sin dato").
+    await expect(c.getByText("días de caja")).toBeInTheDocument();
+    // Y la sección de próximos movimientos muestra su nota, no una cascada vacía.
+    await expect(
+      c.getByText(/Todavía no hay detalle de próximos movimientos/),
+    ).toBeInTheDocument();
+  },
+};
