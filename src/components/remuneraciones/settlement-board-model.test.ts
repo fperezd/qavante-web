@@ -133,6 +133,26 @@ describe("debitosCandidatos", () => {
     expect(cands.map((c) => c.id)).toEqual(["bm_1"]);
   });
 
+  it("EXCLUYE débitos ya categorizados como NO-payroll aunque calcen el monto o digan nómina (falsos positivos vistos al peso)", () => {
+    const items = [
+      // Pago TGR que coincide de casualidad con el líquido de Carrasco → NO es sueldo.
+      bm({
+        id: "bm_tgr",
+        canonical_category: "tgr_payment",
+        description: "Cargo por Pago TGR Nro. Oper. 202607",
+        amount: "-1000000",
+      }),
+      // Comisión con "Nóminas" en la glosa pero categorizada como bank_fee → NO es sueldo.
+      bm({
+        id: "bm_fee",
+        canonical_category: "bank_fee",
+        description: "Cargo por Comisión 8 Transacciones Nóminas",
+        amount: "-15552",
+      }),
+    ];
+    expect(debitosCandidatos(items, board)).toEqual([]);
+  });
+
   it("incluye un débito SIN categoría payroll si el monto CALZA el líquido de un pendiente (transf. real)", () => {
     // Caso real Tooxs: sueldos salen como "Transf. a terceros" sin categoría, por el monto exacto.
     const items = [
