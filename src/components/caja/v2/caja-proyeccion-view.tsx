@@ -35,6 +35,9 @@ export interface CajaProyeccionViewProps {
   /** Ruta a la conciliación: si viene, el caveat del por-cobrar suma un CTA "Conciliar cobros →" para
    *  que el dueño resuelva esos documentos de un clic (pedido de Fernando: no dejarlo en callejón). */
   conciliarHref?: string;
+  /** Detalle de los cobros vencidos/sin-fecha (glosa/monto/días): el dueño puede desplegar la lista y
+   *  verlos uno por uno desde el caveat (pedido de Fernando). Vacío → no hay lista para desplegar. */
+  cobrosPorCobrar?: { glosa: string; monto: number; diasAtraso: number | null }[];
   /** Oculta el "Saldo hoy" del medidor (el hero de la pantalla ya lo muestra → no repetir). */
   ocultarSaldoHoy?: boolean;
   className?: string;
@@ -49,9 +52,11 @@ export function CajaProyeccionView({
   saldoStale,
   porCobrarVencido,
   conciliarHref,
+  cobrosPorCobrar,
   ocultarSaldoHoy,
   className,
 }: CajaProyeccionViewProps) {
+  const [verCobros, setVerCobros] = React.useState(false);
   // Sin proyección forward (ni movimientos ni días) → estado honesto, no una curva inventada.
   if (proyeccion == null || movimientos.length === 0) {
     return <CajaMedidorSinDato ultimaSync={ultimaSync} className={className} />;
@@ -76,11 +81,49 @@ export function CajaProyeccionView({
             <div className="mt-3 rounded-lg border border-info-500/30 bg-info-500/[.06] px-3 py-2 text-xs text-neutral-dark">
               <p>
                 Esta proyección <b>no cuenta</b> los {formatClp(porCobrarVencido!.total)} que tienes
-                por cobrar ({porCobrarVencido!.n}{" "}
-                {porCobrarVencido!.n === 1 ? "documento vencido" : "documentos vencidos"} o sin
-                fecha de pago). Si ya cobraste alguno, <b>concílialo</b> para que salga de acá; su
-                cobro no es seguro, por eso no entra en esta cifra.
+                por cobrar (
+                {(cobrosPorCobrar?.length ?? 0) > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setVerCobros((v) => !v)}
+                    className="font-semibold text-info-700 underline underline-offset-2"
+                    aria-expanded={verCobros}
+                  >
+                    {porCobrarVencido!.n} {porCobrarVencido!.n === 1 ? "documento" : "documentos"}{" "}
+                    vencidos o sin fecha
+                  </button>
+                ) : (
+                  <>
+                    {porCobrarVencido!.n}{" "}
+                    {porCobrarVencido!.n === 1 ? "documento vencido" : "documentos vencidos"} o sin
+                    fecha de pago
+                  </>
+                )}
+                ). Si ya cobraste alguno, <b>concílialo</b> para que salga de acá; su cobro no es
+                seguro, por eso no entra en esta cifra.
               </p>
+
+              {verCobros && cobrosPorCobrar && cobrosPorCobrar.length > 0 && (
+                <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto border-t border-info-500/20 pt-2">
+                  {cobrosPorCobrar.map((c, i) => (
+                    <li
+                      key={`${c.glosa}-${i}`}
+                      className="flex items-center justify-between gap-3 leading-tight"
+                    >
+                      <span className="min-w-0 truncate text-neutral-dark">{c.glosa}</span>
+                      <span className="shrink-0 whitespace-nowrap text-right">
+                        <span className="font-semibold tabular-nums text-neutral-dark">
+                          {formatClp(c.monto)}
+                        </span>
+                        <span className="ml-2 text-[11px] text-neutral-mid">
+                          {c.diasAtraso == null ? "sin fecha" : `${c.diasAtraso} días de atraso`}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
               {conciliarHref && (
                 <Link
                   href={conciliarHref}
