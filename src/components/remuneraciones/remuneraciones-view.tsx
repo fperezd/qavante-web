@@ -27,6 +27,7 @@ import { payrollCuentaOptions } from "./payroll-cuentas";
 import { PayrollSyncBar } from "./payroll-sync-bar";
 import { EmpleadoDetalle } from "./empleado-detalle";
 import { ConciliacionSueldosView } from "./conciliacion-sueldos-view";
+import { ConciliacionBoardLive } from "./conciliacion-board-live";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { presetRange, type PeriodRange } from "@/lib/period/period-range";
@@ -49,7 +50,15 @@ const TABS: ReadonlyArray<{ id: Tab; label: string; Icon: typeof Users }> = [
   { id: "conciliacion", label: "Conciliación", Icon: Landmark },
 ];
 
-export function RemuneracionesView({ initialPeriod }: { initialPeriod?: string } = {}) {
+export function RemuneracionesView({
+  initialPeriod,
+  reconcileBoardEnabled = false,
+}: {
+  initialPeriod?: string;
+  /** #835: cuando ON, la Conciliación usa el board accionable del backend (asignar/desasignar).
+   *  OFF (default/prod): la conciliación pasiva por-monto (sin regresión). */
+  reconcileBoardEnabled?: boolean;
+} = {}) {
   // Deep-link desde Pagar (ítem de nómina) → arranca en Planilla del período.
   const [tab, setTab] = React.useState<Tab>(initialPeriod ? "planilla" : "dotacion");
   const [selected, setSelected] = React.useState<EmployeeSlim | null>(null);
@@ -171,7 +180,10 @@ export function RemuneracionesView({ initialPeriod }: { initialPeriod?: string }
       {tab === "clasificacion" && (
         <ClasificacionCuentasLive period={period} periodForm={periodForm} />
       )}
-      {tab === "conciliacion" && (
+      {tab === "conciliacion" && reconcileBoardEnabled && (
+        <ConciliacionBoardLive period={period} periodForm={periodForm} />
+      )}
+      {tab === "conciliacion" && !reconcileBoardEnabled && (
         <ConciliacionSueldosView
           period={period}
           onPeriodChange={() => {}}

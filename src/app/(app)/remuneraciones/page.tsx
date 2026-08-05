@@ -19,7 +19,7 @@ export default async function RemuneracionesPage({
 }: {
   searchParams: Promise<{ period?: string }>;
 }) {
-  const { remuneraciones } = resolveFeatureFlags();
+  const { remuneraciones, payrollReconcileBoard } = resolveFeatureFlags();
   // Deep-link desde Pagar (ítem de nómina → su período). Solo YYYY-MM válido.
   const { period } = await searchParams;
   const initialPeriod = period && /^\d{4}-(0[1-9]|1[0-2])$/.test(period) ? period : undefined;
@@ -34,7 +34,10 @@ export default async function RemuneracionesPage({
       </header>
 
       {remuneraciones ? (
-        <RemuneracionesView initialPeriod={initialPeriod} />
+        <RemuneracionesView
+          initialPeriod={initialPeriod}
+          reconcileBoardEnabled={payrollReconcileBoard}
+        />
       ) : (
         <QavanteEmpty
           icon={Users}

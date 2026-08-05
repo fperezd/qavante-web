@@ -97,6 +97,9 @@ export default defineConfig({
       /* Pantalla Banco — OFF en prod (feature nueva, sin validar UX). Acá ON para smoke de la
          pantalla ya construida detrás del flag. */
       NEXT_PUBLIC_FF_BANCO_SCREEN: "true",
+      /* Conciliación de sueldos accionable (#835) — OFF en prod (feature nueva). Acá ON para el
+         flow e2e que asigna/desasigna contra MSW. */
+      NEXT_PUBLIC_FF_PAYROLL_RECONCILE_BOARD: "true",
     },
   },
 });

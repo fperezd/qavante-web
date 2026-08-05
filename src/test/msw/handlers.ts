@@ -3221,6 +3221,68 @@ const sourcesStatusHandlers = [
   ),
 ];
 
+/* Conciliación de sueldos ACCIONABLE (#835) — board MUTABLE en memoria para el flow e2e
+   (asignar / desasignar). Estado por sesión de página: MSW re-evalúa los handlers en cada
+   page.goto → se reinicia solo. El board ignora el período (devuelve el mismo set); los
+   candidatos de débito salen de la cartola (`/api/bank-movements`), no de acá. */
+interface MswSettlementWorker {
+  worker_rut: string;
+  worker_name: string;
+  liquido: string;
+  paid_amount: string;
+  outstanding: string;
+  status: string;
+}
+interface MswSettlementLink {
+  link_id: string;
+  worker_rut: string;
+  worker_name: string;
+  amount: string;
+  bank_movement_id: string;
+  glosa: string;
+  created_at: string;
+}
+function freshSettlementBoard(): { workers: MswSettlementWorker[]; links: MswSettlementLink[] } {
+  return {
+    workers: [
+      {
+        worker_rut: "12.345.678-9",
+        worker_name: "Ana Pérez Soto",
+        liquido: "2500000",
+        paid_amount: "0",
+        outstanding: "2500000",
+        status: "pendiente",
+      },
+      {
+        worker_rut: "9.876.543-2",
+        worker_name: "Benjamín Rojas Díaz",
+        liquido: "1500000",
+        paid_amount: "0",
+        outstanding: "1500000",
+        status: "pendiente",
+      },
+    ],
+    // Match MALO sembrado (caso real del #835): Carrasco quedó conciliado contra una transferencia
+    // a Fernando Pérez (mismo monto). El worker no está en la lista → revert sólo borra el link.
+    links: [
+      {
+        link_id: "lnk_carrasco",
+        worker_rut: "20.009.075-6",
+        worker_name: "Carrasco Díaz",
+        amount: "1000000",
+        bank_movement_id: "bm_fp_transfer",
+        glosa: "TRANSFERENCIA A FERNANDO PEREZ",
+        created_at: "2026-07-31T10:00:00Z",
+      },
+    ],
+  };
+}
+const settlementBoard = freshSettlementBoard();
+let settlementLinkSeq = 1;
+function settlementPeriodOutstanding(): string {
+  return settlementBoard.workers.reduce((s, w) => s + Number(w.outstanding || 0), 0).toString();
+}
+
 /* BUK / Remuneraciones (ADR-0056). Dotación slim + planilla agregada + payday +
    sync a Pagar. Sin `detalle` por empleado (contrato futuro) → Conciliación/
    planilla-por-empleado muestran su estado "en preparación". */
@@ -3334,6 +3396,66 @@ const bukHandlers = [
   http.put("*/api/treasury/payroll-payday", () =>
     HttpResponse.json({ payday_day: null, effective_rule: "último día hábil" }, { status: 200 }),
   ),
+  /* #835 — board de conciliación de sueldos (owner/admin). Objeto genérico como en el backend. */
+  http.get("*/api/admin/treasury/payroll-settlements/:period", () =>
+    HttpResponse.json(
+      {
+        period_outstanding: settlementPeriodOutstanding(),
+        workers: settlementBoard.workers,
+        links: settlementBoard.links,
+      },
+      { status: 200 },
+    ),
+  ),
+  http.post("*/api/admin/treasury/payroll-reconcile", async ({ request }) => {
+    const body = (await request.json()) as {
+      worker_ruts?: string[];
+      bank_movement_id?: string;
+      dry_run?: boolean;
+    };
+    const ruts = body.worker_ruts ?? [];
+    if (body.dry_run) {
+      // Previsualiza: NO muta (devuelve un plan simple).
+      return HttpResponse.json(
+        { dry_run: true, plan: ruts.map((r) => ({ worker_rut: r })) },
+        { status: 200 },
+      );
+    }
+    const glosa =
+      bankMovementsFixture.find((m) => m.id === body.bank_movement_id)?.description ??
+      "Débito banco";
+    for (const rut of ruts) {
+      const w = settlementBoard.workers.find((x) => x.worker_rut === rut);
+      if (!w || w.status === "conciliado") continue;
+      w.outstanding = "0";
+      w.paid_amount = w.liquido;
+      w.status = "conciliado";
+      settlementBoard.links.push({
+        link_id: `lnk_${settlementLinkSeq++}`,
+        worker_rut: w.worker_rut,
+        worker_name: w.worker_name,
+        amount: w.liquido,
+        bank_movement_id: body.bank_movement_id ?? "",
+        glosa,
+        created_at: "2026-08-04T12:00:00Z",
+      });
+    }
+    return HttpResponse.json({ ok: true }, { status: 200 });
+  }),
+  http.post("*/api/admin/treasury/payroll-reconcile/revert", async ({ request }) => {
+    const body = (await request.json()) as { link_id?: string };
+    const idx = settlementBoard.links.findIndex((l) => l.link_id === body.link_id);
+    if (idx >= 0) {
+      const [link] = settlementBoard.links.splice(idx, 1);
+      const w = settlementBoard.workers.find((x) => x.worker_rut === link!.worker_rut);
+      if (w) {
+        w.outstanding = w.liquido;
+        w.paid_amount = "0";
+        w.status = "pendiente";
+      }
+    }
+    return HttpResponse.json({ ok: true }, { status: 200 });
+  }),
 ];
 
 /* Caja v2 — reporte de caja (buckets semanales) + caja mínima. Contrato ya vivo en prod

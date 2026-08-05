@@ -58,6 +58,7 @@ export const FEATURE_FLAGS = [
   "cobrarV2",
   "reconciliationReview",
   "bancoScreen",
+  "payrollReconcileBoard",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -180,6 +181,14 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      de crédito) + tarjetas de crédito (cupo). Consume `/api/bice/*` (ya cookie-open). Gated OFF hasta
      validar la UX con Fernando; encender = editar wrangler.toml. */
   bancoScreen: "/api/bice/tarjetas",
+  /* Conciliación de sueldos ACCIONABLE en Remuneraciones (#835) — el board del backend
+     (`/api/admin/treasury/payroll-settlements/{period}`) es la fuente de verdad; deja conciliar
+     una-a-una / varias marcadas y DESASIGNAR (revert). Los 3 endpoints (settlements/reconcile/revert)
+     están deployados (2026-08-04, qavante-api #826/#827). Gated OFF hasta que Fernando valide al peso
+     con su sesión que el shape del board/reconcile (objetos genéricos en el OpenAPI) calza con lo que
+     el FE normaliza; encender = editar wrangler.toml. Con OFF, la Conciliación pasiva por-monto queda
+     intacta (cero regresión). */
+  payrollReconcileBoard: "/api/admin/treasury/payroll-settlements/{period}",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
