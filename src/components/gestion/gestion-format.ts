@@ -25,6 +25,19 @@ export function parseAmount(raw: string | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Monto de un documento del drill-down, firmado RELATIVO a su cuenta. Cada `net_amount` viene firmado
+ *  como el accrual, así que una NC lleva el signo OPUESTO al de la factura. El signo del `total` de la
+ *  cuenta define la dirección dominante (la factura queda positiva; la NC/reverso, negativa) → la lista
+ *  reconcilia con el monto de la línea que se expandió. Antes un `Math.abs` pintaba la NC como gasto
+ *  extra y la suma no cuadraba. `total === 0` → +1 (indiferente). Puro. */
+export function montoDocEnCuenta(
+  totalCuenta: string | null | undefined,
+  netAmount: string | null | undefined,
+): number {
+  const signo = parseAmount(totalCuenta) < 0 ? -1 : 1;
+  return signo * parseAmount(netAmount) || 0; // `|| 0` normaliza el −0 (signo × 0) a 0
+}
+
 /** Período "YYYY-MM" + N meses → "YYYY-MM" (maneja cruce de año). Input
  *  inválido se devuelve tal cual. */
 export function shiftPeriod(period: string, months: number): string {

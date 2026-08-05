@@ -48,6 +48,17 @@ export function resultadoConfiable(resp: OperationalResultResponse): boolean {
   return true;
 }
 
+/** ¿Se puede mostrar la barra "De cada $100" sin que se desborde? Necesita: ingresos>0, resultado en
+ *  [0, margen bruto] Y margen bruto ≤ ingresos. Si el bruto SUPERA los ingresos (COGS negativo por una
+ *  reversa de NC), el costo de ventas se clampea a 0 pero gastos/queda usan el bruto crudo → los tres
+ *  tramos sumarían >100% y la barra se sale del riel. En ese caso, degradar honesto (no mostrarla). */
+export function deCada100Confiable(resp: OperationalResultResponse): boolean {
+  const rev = parseAmount(resp.revenue);
+  const bruto = parseAmount(resp.gross_margin);
+  const neto = parseAmount(resp.result);
+  return rev > 0 && neto >= 0 && bruto >= neto && bruto <= rev;
+}
+
 /** Margen operacional % = resultado / ingresos * 100 (0 si no hay ingresos positivos: con
  *  revenue ≤ 0 el % no tiene sentido y dividir invertiría el signo). */
 export function margenOperacionalPct(resp: OperationalResultResponse): number {

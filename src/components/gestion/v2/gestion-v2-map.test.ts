@@ -3,6 +3,7 @@ import {
   mesCorto,
   margenOperacionalPct,
   resultadoConfiable,
+  deCada100Confiable,
   mapHero,
   mapComparativos,
   mapCascada,
@@ -105,6 +106,24 @@ describe("resultadoConfiable", () => {
   });
   it("no aplica la guarda sin ingresos (otro caso: vacío/parcial)", () => {
     expect(resultadoConfiable({ ...RESP, revenue: "0" })).toBe(true);
+  });
+});
+
+describe("deCada100Confiable", () => {
+  it("confiable con un P&L normal (bruto entre resultado e ingresos)", () => {
+    expect(deCada100Confiable(RESP)).toBe(true);
+  });
+  it("NO confiable si el margen bruto supera los ingresos (COGS negativo por reversa de NC)", () => {
+    // rev 1.000, bruto 1.200 (COGS −200), gastos 300, resultado 900 → los tramos sumarían 120%.
+    expect(
+      deCada100Confiable({ ...RESP, revenue: "1000", gross_margin: "1200", result: "900" }),
+    ).toBe(false);
+  });
+  it("NO confiable si el resultado supera al bruto, o sin ingresos", () => {
+    expect(
+      deCada100Confiable({ ...RESP, revenue: "1000", gross_margin: "500", result: "600" }),
+    ).toBe(false);
+    expect(deCada100Confiable({ ...RESP, revenue: "0" })).toBe(false);
   });
 });
 

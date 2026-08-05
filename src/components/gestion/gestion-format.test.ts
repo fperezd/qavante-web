@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   parseAmount,
+  montoDocEnCuenta,
   shiftPeriod,
   formatPeriodLabel,
   currentPeriodSantiago,
@@ -14,6 +15,24 @@ describe("parseAmount", () => {
     expect(parseAmount("-300000")).toBe(-300000);
     expect(parseAmount(null)).toBe(0);
     expect(parseAmount("x")).toBe(0);
+  });
+});
+
+describe("montoDocEnCuenta", () => {
+  it("cuenta de costo (total negativo): la factura queda positiva y la NC (accrual opuesto) negativa → reconcilia", () => {
+    // Cuenta "compras", total −$900.000 = factura −$1.000.000 + NC +$100.000 (accrual firmado).
+    expect(montoDocEnCuenta("-900000", "-1000000")).toBe(1_000_000); // factura → gasto (positivo)
+    expect(montoDocEnCuenta("-900000", "100000")).toBe(-100_000); // NC → resta (negativo)
+    // La suma de los mostrados = 900.000 = |total| → reconcilia con la línea.
+  });
+  it("cuenta de ingreso (total positivo): la factura positiva y la NC negativa", () => {
+    expect(montoDocEnCuenta("900000", "1000000")).toBe(1_000_000);
+    expect(montoDocEnCuenta("900000", "-100000")).toBe(-100_000);
+  });
+  it("total 0 o nulo → signo +1 (indiferente); net inválido → 0", () => {
+    expect(montoDocEnCuenta("0", "500000")).toBe(500_000);
+    expect(montoDocEnCuenta(null, "500000")).toBe(500_000);
+    expect(montoDocEnCuenta("-900000", null)).toBe(0);
   });
 });
 

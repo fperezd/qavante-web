@@ -31,6 +31,7 @@ import {
   margenOperacionalPct,
   mesCorto,
   resultadoConfiable,
+  deCada100Confiable,
   tendenciaConfiable,
 } from "./gestion-v2-map";
 import { usePreferences, useUpdatePreferences } from "@/lib/api/preferences";
@@ -224,8 +225,9 @@ function Margenes({
 
   const widgets: { id: string; label: string; node: React.ReactNode }[] = [];
   // "De cada $100": los 3 tramos derivan de los MISMOS montos ($) → suman 100 y ninguno negativo.
-  // Solo si el mes es plausible (resultado ≥0 y ≤ margen bruto).
-  if (rev > 0 && neto >= 0 && bruto >= neto) {
+  // Solo si el mes es plausible (ver `deCada100Confiable`: incluye bruto ≤ ingresos, si no la barra se
+  // desborda por COGS negativo de una reversa de NC).
+  if (deCada100Confiable(mes)) {
     widgets.push({
       id: "de-cada-100",
       label: "De cada $100",
