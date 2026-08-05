@@ -100,17 +100,29 @@ export function periodToYyyymm(period: string): string {
   return period.replace(/-/g, "").slice(0, 6);
 }
 
-/** Candidatos de débito: movimientos de sueldos (categoría payroll) egresos, que NO estén YA
- *  asignados en el board (su id no aparece en `links`). Ordenados por fecha desc (regla de grillas).
- *  Filtra por categoría payroll para no ofrecer TODA la cartola; si el backend no la marca, igual
- *  cae fuera y no aparece (mejor no ofrecer de más en una acción que mueve plata). */
+/** Candidatos de débito para conciliar sueldos: egresos NO asignados aún (su id no aparece en `links`)
+ *  que además parezcan un pago de nómina. "Parece nómina" por CUALQUIERA de dos señales:
+ *   - categoría/glosa payroll ("payroll"/"sueldo"/"remun"/"nómina"), o
+ *   - el monto CALZA EXACTO con el líquido por pagar de algún trabajador pendiente.
+ *  El segundo criterio es clave con datos reales: los bancos NO categorizan la nómina — validado al
+ *  peso contra Tooxs, los sueldos salen como "Transf. a terceros" sin categoría, pero por el monto
+ *  exacto del líquido (ej. $5.582.113 = un trabajador). Sin él, la lista salía vacía y no se podía
+ *  conciliar nada. Ordenados por fecha desc (regla de grillas). */
 export function debitosCandidatos(
   items: BankMovement[],
   board: SettlementBoard,
 ): DebitoCandidato[] {
   const asignados = new Set(board.links.map((l) => l.bankMovementId));
+  const montosPendientes = new Set(
+    board.workers.filter(workerPendiente).map((w) => Math.round(w.outstanding)),
+  );
   return items
-    .filter((m) => esDebito(m) && esPayroll(m) && !asignados.has(m.id))
+    .filter(
+      (m) =>
+        esDebito(m) &&
+        !asignados.has(m.id) &&
+        (esPayroll(m) || calzaConTrabajador(m, montosPendientes)),
+    )
     .map((m) => ({
       id: m.id,
       date: m.date,
@@ -127,9 +139,23 @@ function esDebito(m: BankMovement): boolean {
   return parseAmount(m.amount) < 0;
 }
 
+/** Payroll por categoría O por glosa: el banco a veces no categoriza la nómina, pero la glosa dice
+ *  "nómina"/"sueldo"/"remuneración" (ej. "Cargo nómina en línea"). */
 function esPayroll(m: BankMovement): boolean {
-  const cat = (m.canonical_category ?? "").toLowerCase();
-  return cat.includes("payroll") || cat.includes("sueldo") || cat.includes("remun");
+  const txt = `${m.canonical_category ?? ""} ${m.description ?? ""}`.toLowerCase();
+  return (
+    txt.includes("payroll") ||
+    txt.includes("sueldo") ||
+    txt.includes("remun") ||
+    txt.includes("nómina") ||
+    txt.includes("nomina")
+  );
+}
+
+/** El débito paga EXACTAMENTE el saldo pendiente de algún trabajador (transferencia individual del
+ *  líquido). Es una SUGERENCIA — el dueño confirma antes de aplicar (dry-run + confirmación). */
+function calzaConTrabajador(m: BankMovement, montosPendientes: Set<number>): boolean {
+  return montosPendientes.has(Math.abs(Math.round(parseAmount(m.amount))));
 }
 
 /** Arma el cuerpo del POST reconcile para asignar un débito a uno o varios trabajadores. */
