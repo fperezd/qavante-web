@@ -111,17 +111,17 @@ describe("cobrosPorCobrarVencido", () => {
   const conVencido = (items: unknown[]) =>
     ({ ...tooxs, vencido: { total: "0", items } }) as unknown as CashProjectionResponse;
 
-  it("lista solo los COBROS (vencido/sin-fecha), no los pagos; ordena por monto desc", () => {
+  it("lista solo los COBROS (vencido/sin-fecha), no los pagos; ordena por monto desc; lleva folio (#830)", () => {
     const r = cobrosPorCobrarVencido(
       conVencido([
         { glosa: "KAUFMANN", monto: "1440791.00", dias_atraso: null, tipo: "cobro_sin_fecha" },
-        { glosa: "SYNNEX", monto: "5000000.00", dias_atraso: 45, tipo: "cobro_vencido" },
+        { glosa: "SYNNEX", monto: "5000000.00", dias_atraso: 45, tipo: "cobro_vencido", folio: "435" },
         { glosa: "IVA F29", monto: "-4200000.00", dias_atraso: 10, tipo: "pago_vencido" }, // pago: fuera
       ]),
     );
     expect(r.map((c) => c.glosa)).toEqual(["SYNNEX", "KAUFMANN"]); // 5M, 1.44M
-    expect(r[0]).toEqual({ glosa: "SYNNEX", monto: 5_000_000, diasAtraso: 45 });
-    expect(r[1]?.diasAtraso).toBeNull(); // sin fecha
+    expect(r[0]).toEqual({ glosa: "SYNNEX", monto: 5_000_000, diasAtraso: 45, folio: "435" });
+    expect(r[1]).toMatchObject({ diasAtraso: null, folio: null }); // sin fecha, sin folio → null
   });
 
   it("sin items → []", () => {

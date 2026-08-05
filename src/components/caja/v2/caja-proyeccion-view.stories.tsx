@@ -115,9 +115,9 @@ export const ConPorCobrar: Story = {
     porCobrarVencido: { total: 9_400_000, n: 3 },
     conciliarHref: "/caja/conciliacion",
     cobrosPorCobrar: [
-      { glosa: "TD SYNNEX CHILE LIMITADA", monto: 5_000_000, diasAtraso: 45 },
-      { glosa: "COMERCIAL KAUFMANN S.A.", monto: 2_960_000, diasAtraso: null },
-      { glosa: "INMOBILIARIA VISTA KENNEDY", monto: 1_440_000, diasAtraso: 12 },
+      { glosa: "TD SYNNEX CHILE LIMITADA", monto: 5_000_000, diasAtraso: 45, folio: "435" },
+      { glosa: "COMERCIAL KAUFMANN S.A.", monto: 2_960_000, diasAtraso: null, folio: null },
+      { glosa: "INMOBILIARIA VISTA KENNEDY", monto: 1_440_000, diasAtraso: 12, folio: "1201" },
     ],
     recuperacion: { pisoRecup: -3_639_436, totalRecuperado: 9_400_000, ventanaDias: 30 },
   },
@@ -132,6 +132,8 @@ export const ConPorCobrar: Story = {
     await userEvent.click(c.getByRole("button", { name: /documentos vencidos o sin fecha/ }));
     await expect(c.getByText("COMERCIAL KAUFMANN S.A.")).toBeInTheDocument();
     await expect(c.getByText("sin fecha")).toBeInTheDocument();
+    // El folio identifica cada documento en la lista (#830): "· Folio 435".
+    await expect(c.getByText(/Folio 435/)).toBeInTheDocument();
     // Y el CTA para conciliar (calzar con banco).
     const cta = c.getByRole("link", { name: /Conciliar cobros/ });
     await expect(cta).toHaveAttribute("href", "/caja/conciliacion");

@@ -37,7 +37,12 @@ export interface CajaProyeccionViewProps {
   conciliarHref?: string;
   /** Detalle de los cobros vencidos/sin-fecha (glosa/monto/días): el dueño puede desplegar la lista y
    *  verlos uno por uno desde el caveat (pedido de Fernando). Vacío → no hay lista para desplegar. */
-  cobrosPorCobrar?: { glosa: string; monto: number; diasAtraso: number | null }[];
+  cobrosPorCobrar?: {
+    glosa: string;
+    monto: number;
+    diasAtraso: number | null;
+    folio?: string | null;
+  }[];
   /** Escenario "con recuperación del atraso" (ADR-0087): si viene, el caveat muestra cuánto MEJORA el
    *  piso SI cobras ese atraso — respuesta honesta al "sin recuperación" del core. */
   recuperacion?: { pisoRecup: number | null; totalRecuperado: number; ventanaDias: number } | null;
@@ -150,7 +155,14 @@ export function CajaProyeccionView({
                       key={`${c.glosa}-${i}`}
                       className="flex items-center justify-between gap-3 leading-tight"
                     >
-                      <span className="min-w-0 truncate text-neutral-dark">{c.glosa}</span>
+                      <span className="min-w-0 truncate text-neutral-dark">
+                        {c.glosa}
+                        {c.folio && (
+                          <span className="ml-1.5 text-[11px] font-normal text-neutral-mid">
+                            · Folio {c.folio}
+                          </span>
+                        )}
+                      </span>
                       <span className="shrink-0 whitespace-nowrap text-right">
                         <span className="font-semibold tabular-nums text-neutral-dark">
                           {formatClp(c.monto)}
