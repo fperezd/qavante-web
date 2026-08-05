@@ -117,12 +117,7 @@ export function debitosCandidatos(
     board.workers.filter(workerPendiente).map((w) => Math.round(w.outstanding)),
   );
   return items
-    .filter(
-      (m) =>
-        esDebito(m) &&
-        !asignados.has(m.id) &&
-        (esPayroll(m) || calzaConTrabajador(m, montosPendientes)),
-    )
+    .filter((m) => esDebito(m) && !asignados.has(m.id) && pareceNomina(m, montosPendientes))
     .map((m) => ({
       id: m.id,
       date: m.date,
@@ -139,17 +134,24 @@ function esDebito(m: BankMovement): boolean {
   return parseAmount(m.amount) < 0;
 }
 
-/** Payroll por categoría O por glosa: el banco a veces no categoriza la nómina, pero la glosa dice
- *  "nómina"/"sueldo"/"remuneración" (ej. "Cargo nómina en línea"). */
-function esPayroll(m: BankMovement): boolean {
-  const txt = `${m.canonical_category ?? ""} ${m.description ?? ""}`.toLowerCase();
-  return (
-    txt.includes("payroll") ||
-    txt.includes("sueldo") ||
-    txt.includes("remun") ||
-    txt.includes("nómina") ||
-    txt.includes("nomina")
-  );
+/** ¿Este egreso parece un pago de nómina? Regla (evita falsos positivos vistos al peso — un Pago TGR
+ *  que calza un líquido de casualidad, una Comisión con "Nóminas" en la glosa):
+ *   - si el banco lo categorizó como PAYROLL → sí;
+ *   - si lo categorizó como OTRA cosa (tgr_payment, tax_payment, bank_fee, supplier_payment,
+ *     social_security_payment, internal_bank_transfer…) → NO (le creemos a la categoría);
+ *   - si NO tiene categoría → recién ahí usamos las señales débiles: glosa payroll o calce de monto
+ *     exacto con el líquido de un trabajador pendiente.
+ *  Siempre es una SUGERENCIA — el dueño confirma antes de aplicar (dry-run + confirmación). */
+function pareceNomina(m: BankMovement, montosPendientes: Set<number>): boolean {
+  const cat = (m.canonical_category ?? "").toLowerCase();
+  if (cat.includes("payroll") || cat.includes("sueldo") || cat.includes("remun")) return true;
+  if (cat !== "") return false; // categorizado como otra cosa → no es sueldo
+  return glosaNomina(m) || calzaConTrabajador(m, montosPendientes);
+}
+
+function glosaNomina(m: BankMovement): boolean {
+  const g = (m.description ?? "").toLowerCase();
+  return g.includes("nómina") || g.includes("nomina") || g.includes("sueldo") || g.includes("remun");
 }
 
 /** El débito paga EXACTAMENTE el saldo pendiente de algún trabajador (transferencia individual del
