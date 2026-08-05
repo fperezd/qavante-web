@@ -65,9 +65,9 @@ NEXT_PUBLIC_FF_CAJA_V3 = "true"
 # saldo por cuenta + el balance con la LC (cupo/usado/disponible + venc. sobregiro) con la cookie.
 # Validado al peso contra Tooxs (cupo $6M usado al 101%, excedido $58.864). Apagar = "false".
 NEXT_PUBLIC_FF_BANK_BALANCES = "true"
-# Pantalla Banco (2026-08-04) — OFF: productos del tenant por banco (cuentas + tarjetas de crédito).
-# Consume /api/bice/* (ya cookie-open). Gated hasta validar la UX con Fernando → encender = "true".
-NEXT_PUBLIC_FF_BANCO_SCREEN = "false"
+# Pantalla Banco — ON (encendido 2026-08-04 por Fernando): productos del tenant por banco (cuentas +
+# tarjetas de crédito). Consume /api/bice/* (cookie). Volver a ocultar = poner en "false".
+NEXT_PUBLIC_FF_BANCO_SCREEN = "true"
 # Pagar v2 (rediseño aprobado 2026-07-14) — ON (encendido 2026-07-14 por Fernando): respuesta de
 # dueño (cuánto debe pagar + ¿la caja alcanza?) + brecha de caja + las 3 del mes (imposiciones/
 # impuestos/sueldos) + vencimientos con postergabilidad + mayores compromisos. Reusa accounts-payable
