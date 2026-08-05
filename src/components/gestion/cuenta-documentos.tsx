@@ -11,7 +11,7 @@ import {
 } from "@/lib/api/gestion";
 import { useManagementAccountsTree, type ManagementAccountNode } from "@/lib/api/management";
 import { formatClp } from "@/lib/formatters/clp";
-import { parseAmount } from "./gestion-format";
+import { montoDocEnCuenta } from "./gestion-format";
 
 /* Drill-down por documento (CC-API #786): la lista de facturas que caen en una cuenta de gestión en un
    mes. Reusable en cualquier pantalla de costos (Punto de equilibrio, Resultado, Costos y gastos…).
@@ -110,6 +110,9 @@ export function CuentaDocumentos({
   if (docs.length === 0) {
     return <p className="text-[11px] text-neutral-mid">Sin documentos para el detalle.</p>;
   }
+  // Monto de cada doc firmado RELATIVO a la cuenta (ver `montoDocEnCuenta`): la NC queda negativa y la
+  // lista reconcilia con el monto de la línea. Antes un `Math.abs` la pintaba como gasto extra.
+  const totalCuenta = query.data.total;
 
   /** Cuenta elegida para un doc: lo que el usuario seleccionó, o la sugerencia del backend. */
   const cuentaDe = (seid: string | null | undefined): string =>
@@ -208,9 +211,20 @@ export function CuentaDocumentos({
                   )}
                   {d.counterparty ?? "—"}
                 </span>
-                <span className="shrink-0 font-medium tabular-nums text-neutral-dark">
-                  {formatClp(Math.round(Math.abs(parseAmount(d.net_amount))))}
-                </span>
+                {(() => {
+                  // Firmado relativo a la cuenta: reverso (NC) en negativo y atenuado (resta, no gasta).
+                  const montoDoc = Math.round(montoDocEnCuenta(totalCuenta, d.net_amount));
+                  return (
+                    <span
+                      className={
+                        "shrink-0 font-medium tabular-nums " +
+                        (montoDoc < 0 ? "text-neutral-mid" : "text-neutral-dark")
+                      }
+                    >
+                      {formatClp(montoDoc)}
+                    </span>
+                  );
+                })()}
               </div>
               {esSinClasificar && seid && (
                 <div className="flex items-center justify-between gap-2 pl-0.5">
