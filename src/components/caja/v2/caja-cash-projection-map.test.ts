@@ -3,6 +3,7 @@ import {
   cashProjectionToDiasCaja,
   causasFromCashProjection,
   cobrosPorCobrarVencido,
+  recuperacionAtraso,
 } from "./caja-cash-projection-map";
 import type { CashProjectionResponse } from "@/lib/api/treasury";
 
@@ -103,5 +104,44 @@ describe("cobrosPorCobrarVencido", () => {
   it("sin items → []", () => {
     expect(cobrosPorCobrarVencido(conVencido([]))).toEqual([]);
     expect(cobrosPorCobrarVencido(undefined)).toEqual([]);
+  });
+});
+
+describe("recuperacionAtraso", () => {
+  const conRecup = (ec: unknown) =>
+    ({ ...tooxs, esperado_con_recuperacion: ec }) as unknown as CashProjectionResponse;
+
+  it("mapea el PISO con recuperación (del punto de quiebre) + total + ventana (datos reales Tooxs)", () => {
+    // Validado al peso: la recuperación baja el piso a −$3,6M (vs core −$49M), aunque el runway siga en 1.
+    const r = recuperacionAtraso(
+      conRecup({
+        dias_de_caja: 1,
+        recuperacion_days: 30,
+        total_recuperado: "13723918",
+        serie: [],
+        punto_quiebre: { fecha: "2026-08-06", saldo: "-3639436", causas: [] },
+      }),
+    );
+    expect(r).toEqual({ pisoRecup: -3_639_436, totalRecuperado: 13_723_918, ventanaDias: 30 });
+  });
+
+  it("total 0 (no hay atraso que cobrar) → null (no mostramos el escenario)", () => {
+    expect(
+      recuperacionAtraso(
+        conRecup({ dias_de_caja: null, recuperacion_days: 30, total_recuperado: "0" }),
+      ),
+    ).toBeNull();
+  });
+
+  it("con recuperación NO toca el quiebre (punto_quiebre null) → pisoRecup null (se sostiene)", () => {
+    const r = recuperacionAtraso(
+      conRecup({
+        dias_de_caja: null,
+        recuperacion_days: 30,
+        total_recuperado: "5000000",
+        punto_quiebre: null,
+      }),
+    );
+    expect(r).toEqual({ pisoRecup: null, totalRecuperado: 5_000_000, ventanaDias: 30 });
   });
 });

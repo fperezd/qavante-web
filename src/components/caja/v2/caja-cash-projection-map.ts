@@ -96,6 +96,36 @@ export interface CobroVencido {
   diasAtraso: number | null;
 }
 
+/** Escenario "con recuperación del atraso" (ADR-0087): si el por-cobrar-vencido se cobra repartido en
+ *  N días, cuál es el PISO (punto de quiebre) resultante — la respuesta honesta al "sin recuperación"
+ *  del core (que lo excluye). NO pisa los números core: es un escenario aparte. Usamos el PISO (no los
+ *  días de caja) porque es la mejora que importa: validado al peso, la recuperación baja el piso de
+ *  −$49M a −$3,6M aunque el runway inmediato siga en 1 día (los pagos son muy al inicio). */
+export interface RecuperacionAtraso {
+  /** Piso (punto de quiebre) SI se recupera el atraso, o `null` si el escenario no toca la mínima. */
+  pisoRecup: number | null;
+  /** Σ del por-cobrar-vencido que se recupera. */
+  totalRecuperado: number;
+  /** Ventana de reparto (días; N=30). */
+  ventanaDias: number;
+}
+
+/** `esperado_con_recuperacion` → `RecuperacionAtraso`, o `null` si no hay recuperación material
+ *  (total 0 → no hay atraso que cobrar, no mostramos el escenario). */
+export function recuperacionAtraso(
+  resp: CashProjectionResponse | undefined,
+): RecuperacionAtraso | null {
+  const ec = resp?.esperado_con_recuperacion;
+  if (!ec) return null;
+  const totalRecuperado = parseAmount(ec.total_recuperado);
+  if (totalRecuperado <= 0) return null;
+  return {
+    pisoRecup: ec.punto_quiebre ? parseAmount(ec.punto_quiebre.saldo) : null,
+    totalRecuperado,
+    ventanaDias: ec.recuperacion_days,
+  };
+}
+
 /** Los COBROS vencidos/sin-fecha del `vencido` del backend (los mismos que suma `por_cobrar_vencido`):
  *  la lista que el dueño puede revisar/conciliar. Filtra los PAGOS (tipo `pago_vencido`), que no son
  *  por-cobrar. Ordena por monto desc. Puro. */

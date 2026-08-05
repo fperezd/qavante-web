@@ -875,6 +875,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sii/cesiones/remark": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * RPETC: re-marca las cedidas sobre los receivables (aplica cesiones ya sincronizadas, sin SII)
+         * @description Re-aplica las cesiones YA sincronizadas (`treasury.cesiones`) a los receivables: marca las
+         *     cedidas que quedaron sin marcar → salen de Cobrar. NO toca el SII (usa lo ya bajado). Repara el AR
+         *     cuando el marcado quedó stale (ej. cesiones bajadas antes del match normalizado #805). Idempotente.
+         */
+        post: operations["sii_cesiones_remark"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sii/health": {
         parameters: {
             query?: never;
@@ -3322,6 +3344,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/reconciliation/opening-cutoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Onboarding: marca lo previo al corte como saldado (excepto TGR/Previred y las excepciones)
+         * @description Conciliación de APERTURA (ADR-0088): asume saldado todo lo previo al `cutoff_date` (facturas de
+         *     venta/compra + honorarios) salvo `keep_open` y salvo TGR/Previred/remuneraciones (siempre reales).
+         *     Para una empresa que entra con su historia ya conciliada fuera del sistema. Idempotente.
+         */
+        post: operations["treasury_reconciliation_opening_cutoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/opening-cutoff/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Onboarding: DESHACE la conciliación de apertura (re-abre lo que saldó el corte)
+         * @description Revierte la conciliación de apertura: re-abre TODOS los documentos que saldó el corte (marcados
+         *     con `opening_cutoff_at`), sin tocar los pagados de verdad. Deja el sistema como si el cutoff nunca
+         *     hubiera corrido. Idempotente. Principio: toda conciliación se desasigna.
+         */
+        post: operations["treasury_reconciliation_opening_cutoff_revert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/reconcile": {
         parameters: {
             query?: never;
@@ -3416,6 +3482,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/reconciliation/{movement_id}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conciliación: DESASIGNA un match ya aplicado (re-abre el doc, libera el movimiento)
+         * @description Deshace una conciliación banco↔documento YA APLICADA (auto ≥90 o confirmada): restaura el
+         *     `outstanding` del/los documento(s), los vuelve a `open`/`partially_paid`, libera el movimiento
+         *     (`unmatched`) y borra el registro de conciliación. Idempotente (`reverted=0` si no había match).
+         *     Para una sugerencia en cola (no aplicada) usar `.../reject`. Principio: toda conciliación se
+         *     desasigna.
+         */
+        post: operations["treasury_reconciliation_revert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/reconciliation/dry-run": {
         parameters: {
             query?: never;
@@ -3452,6 +3542,28 @@ export interface paths {
          *     la cola y el humano confirma (ahí se aprende el alias, ADR-0038).
          */
         get: operations["treasury_reconciliation_suggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/{movement_id}/document-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Conciliación: DOCUMENTOS candidatos para un movimiento (factura/NC/nómina/BHE)
+         * @description Top-5 DOCUMENTOS candidatos para conciliar un movimiento (#794-4 b) — no solo la contraparte:
+         *     factura/NC (receivable), compra/nómina/BHE (payable), con monto/fecha/folio/score. Read-only, NO
+         *     auto-aplica (ordena para la cola; el humano confirma "conciliar contra este documento").
+         */
+        get: operations["treasury_reconciliation_document_suggestions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3887,6 +3999,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/classify/run-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clasificación LLM automática del residuo reciente de todos los tenants (cron)
+         * @description Corre el clasificador LLM sobre el residuo reciente de **todos** los tenants con RCV. Lo llama
+         *     el cron con `SERVER_API_KEY`. Best-effort por tenant; no-op honesto si el LLM está apagado.
+         */
+        post: operations["admin_classify_run_all"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/sources/{source_code}/consent": {
         parameters: {
             query?: never;
@@ -4136,6 +4269,28 @@ export interface paths {
         get: operations["admin_payroll_settlements"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/treasury/payroll-reconcile/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * DESASIGNA un pago de nómina aplicado a un trabajador (owner/admin)
+         * @description Revierte una aplicación de pago de nómina: descuenta el monto del trabajador, recalcula su
+         *     status y borra el link. Para corregir un match errado (ej. un pago que se aplicó al trabajador
+         *     equivocado). Principio: toda conciliación se desasigna.
+         */
+        post: operations["admin_payroll_reconcile_revert"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6568,6 +6723,8 @@ export interface components {
             /** Serie */
             serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
             escenario_duro: components["schemas"]["EscenarioDuro"];
+            /** @description Banda ADR-0087: runway si el por-cobrar-vencido se recupera repartido (N=30). */
+            esperado_con_recuperacion: components["schemas"]["EsperadoConRecuperacion"];
             punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
             vencido: components["schemas"]["Vencido"];
             /** @description Cobros atrasados/sin-fecha excluidos del runway (señal, no caja futura). */
@@ -6606,6 +6763,11 @@ export interface components {
              * @description 'pago' | 'f29' | 'pago_vencido'.
              */
             tipo?: string | null;
+            /**
+             * Fecha
+             * @description Día en que el egreso impacta la caja (YYYY-MM-DD); vencido = inicio de la ventana de reparto. ADR-0087 Ask 2: el FE la usa en vez de pintar todas en la fecha del quiebre.
+             */
+            fecha?: string | null;
         };
         /**
          * CentroPagosResponse
@@ -6974,6 +7136,39 @@ export interface components {
              * @default false
              */
             create_rule: boolean;
+        };
+        /** ClassifyRunAllResponse */
+        ClassifyRunAllResponse: {
+            /**
+             * Tenants
+             * @description Tenants con RCV procesados.
+             */
+            tenants: number;
+            /**
+             * Residuo
+             * @description Documentos sin clasificar evaluados por el LLM.
+             */
+            residuo: number;
+            /**
+             * Applied
+             * @description Clasificados en firme (alta confianza, auto-aplicados).
+             */
+            applied: number;
+            /**
+             * Proposed
+             * @description Propuestos (media confianza, esperan confirmación del usuario).
+             */
+            proposed: number;
+            /**
+             * Errors
+             * @description Errores best-effort (no abortan el resto).
+             */
+            errors: number;
+            /**
+             * Llm Off
+             * @description True si el LLM está apagado/mal configurado → fue no-op.
+             */
+            llm_off: boolean;
         };
         /**
          * ClassifyRunResponse
@@ -8174,6 +8369,60 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * DocumentSuggestion
+         * @description Documento candidato para conciliar un movimiento (#794-4 b). El humano confirma.
+         */
+        DocumentSuggestion: {
+            /** Document Id */
+            document_id: string;
+            /**
+             * Kind
+             * @description 'receivable' (factura/NC de venta) | 'payable' (compra/nómina/BHE).
+             */
+            kind: string;
+            /**
+             * Document Type
+             * @description Tipo DTE (33/61/…), o null (nómina/BHE).
+             */
+            document_type?: number | null;
+            /** Folio */
+            folio?: string | null;
+            /** Rut */
+            rut?: string | null;
+            /**
+             * Name
+             * @description Contraparte (cliente/proveedor) del documento.
+             */
+            name?: string | null;
+            /**
+             * Amount
+             * @description Monto pendiente del documento (string-decimal, absoluto).
+             */
+            amount: string;
+            /**
+             * Date
+             * @description Vencimiento o emisión del documento (YYYY-MM-DD).
+             */
+            date?: string | null;
+            /**
+             * Score
+             * @description Score 0-100 (monto/folio/RUT/nombre). El FE ordena por esto.
+             */
+            score: number;
+            /**
+             * Reasons
+             * @description Por qué matcheó (para el FE).
+             */
+            reasons?: string[];
+        };
+        /** DocumentSuggestionsResponse */
+        DocumentSuggestionsResponse: {
+            /** Movement Id */
+            movement_id: string;
+            /** Suggestions */
+            suggestions: components["schemas"]["DocumentSuggestion"][];
+        };
         /** DryRunGroup */
         DryRunGroup: {
             /** Count */
@@ -8523,6 +8772,34 @@ export interface components {
              * @description Día del piso (YYYY-MM-DD).
              */
             piso_fecha: string;
+        };
+        /**
+         * EsperadoConRecuperacion
+         * @description Banda optimista (ADR-0087, A/N=30): el esperado + el por-cobrar-vencido recuperado repartido
+         *     lineal en `recuperacion_days` (y los pagos vencidos también repartidos, no amontonados en 'mañana').
+         *     SEPARADA del `esperado` core (no corrompe los números money). El FE la muestra como 'con
+         *     recuperación del atraso'. Así 'sin recuperación' deja de ser permanente cuando hay plata por
+         *     cobrar atrasada.
+         */
+        EsperadoConRecuperacion: {
+            /**
+             * Dias De Caja
+             * @description Runway si el atraso se recupera repartido en la ventana; null si nunca.
+             */
+            dias_de_caja?: number | null;
+            /** Serie */
+            serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
+            punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
+            /**
+             * Recuperacion Days
+             * @description Ventana de reparto del atraso (días; N=30).
+             */
+            recuperacion_days: number;
+            /**
+             * Total Recuperado
+             * @description Σ del por-cobrar-vencido que se recupera repartido, string-decimal.
+             */
+            total_recuperado: string;
         };
         /** ExchangeRate */
         ExchangeRate: {
@@ -10625,6 +10902,29 @@ export interface components {
             sii: components["schemas"]["SyncSourceResult"];
         };
         /**
+         * OpeningCutoffRequest
+         * @description Conciliación de apertura (ADR-0088, modo 'partir conciliado').
+         */
+        OpeningCutoffRequest: {
+            /**
+             * Cutoff Date
+             * @description Todo con issue_date <= esta fecha se asume saldado (YYYY-MM-DD).
+             */
+            cutoff_date: string;
+            /**
+             * Keep Open
+             * @description source_external_id de los documentos que SIGUEN pendientes (no se saldan).
+             */
+            keep_open?: string[];
+        };
+        /** OpeningCutoffResponse */
+        OpeningCutoffResponse: {
+            /** Receivables Saldadas */
+            receivables_saldadas: number;
+            /** Payables Saldadas */
+            payables_saldadas: number;
+        };
+        /**
          * OperationalDriver
          * @description Factor rule-based que explica el movimiento del resultado.
          */
@@ -10732,7 +11032,7 @@ export interface components {
             rows: components["schemas"]["BreakdownRow"][];
             /**
              * Warnings
-             * @description Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activá una cuenta de costo y clasificá las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verificá re-emisiones pendientes.
+             * @description Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activá una cuenta de costo y clasificá las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verificá re-emisiones pendientes. `payroll_cost_missing`: la nómina NO fue sincronizada en el rango (ausente, no $0) pero hay actividad → el Resultado está SOBREESTIMADO (falta el costo laboral); sincronizá remuneraciones. No dispara para empresas legítimamente sin empleados.
              */
             warnings?: string[];
         };
@@ -11184,6 +11484,14 @@ export interface components {
             error?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** PayrollRevertRequest */
+        PayrollRevertRequest: {
+            /**
+             * Link Id
+             * @description ID del link de pago a desasignar (de `links` en el GET).
+             */
+            link_id: string;
         };
         /**
          * PayrollSyncResponse
@@ -12099,6 +12407,37 @@ export interface components {
              * @description Variación % sobre |resultado| base (string-decimal).
              */
             pct: string;
+        };
+        /** RevertOpeningCutoffResponse */
+        RevertOpeningCutoffResponse: {
+            /** Receivables Reabiertas */
+            receivables_reabiertas: number;
+            /** Payables Reabiertas */
+            payables_reabiertas: number;
+        };
+        /** RevertReconciliationDoc */
+        RevertReconciliationDoc: {
+            /** Document Kind */
+            document_kind: string;
+            /** Document Id */
+            document_id: string;
+            /** Amount Restored */
+            amount_restored: string;
+        };
+        /**
+         * RevertReconciliationResponse
+         * @description Resultado de desasignar una conciliación aplicada: cuántos docs se re-abrieron.
+         */
+        RevertReconciliationResponse: {
+            /** Movement Id */
+            movement_id: string;
+            /**
+             * Reverted
+             * @description Nº de documentos re-abiertos (0 si el mov no tenía match).
+             */
+            reverted: number;
+            /** Documents */
+            documents: components["schemas"]["RevertReconciliationDoc"][];
         };
         /** ReviewItem */
         ReviewItem: {
@@ -15235,6 +15574,39 @@ export interface operations {
             };
         };
     };
+    sii_cesiones_remark: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cuántos receivables se marcaron como cedidos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     sii_health: {
         parameters: {
             query?: never;
@@ -16390,7 +16762,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16403,6 +16777,15 @@ export interface operations {
                     "application/json": components["schemas"]["BiceHealthResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     bice_saldo: {
@@ -16410,7 +16793,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16423,6 +16808,15 @@ export interface operations {
                     "application/json": components["schemas"]["SaldoResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     bice_cuentas_raw: {
@@ -16430,7 +16824,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16443,6 +16839,15 @@ export interface operations {
                     "application/json": components["schemas"]["CuentasResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     bice_cuenta_balance: {
@@ -16452,7 +16857,9 @@ export interface operations {
             path: {
                 numero_cuenta: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16488,7 +16895,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16517,7 +16926,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16530,6 +16941,15 @@ export interface operations {
                     "application/json": components["schemas"]["TarjetasResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     bice_tarjeta_saldo: {
@@ -16539,7 +16959,9 @@ export interface operations {
             path: {
                 operation_number: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16573,7 +16995,9 @@ export interface operations {
             path: {
                 operation_number: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16809,7 +17233,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -16820,6 +17246,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConfianzaScoreResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -18569,7 +19004,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -18638,7 +19075,9 @@ export interface operations {
             path: {
                 impact_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -18770,7 +19209,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -18846,7 +19287,9 @@ export interface operations {
             path: {
                 version_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -18991,7 +19434,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -19067,7 +19512,9 @@ export interface operations {
             path: {
                 scenario_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -19211,7 +19658,9 @@ export interface operations {
             path: {
                 scenario_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -20477,6 +20926,70 @@ export interface operations {
             };
         };
     };
+    treasury_reconciliation_opening_cutoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpeningCutoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpeningCutoffResponse"];
+                };
+            };
+            /** @description cutoff_date mal formado. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_reconciliation_opening_cutoff_revert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevertOpeningCutoffResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_reconcile: {
         parameters: {
             query?: never;
@@ -20654,6 +21167,39 @@ export interface operations {
             };
         };
     };
+    treasury_reconciliation_revert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevertReconciliationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_reconciliation_dry_run: {
         parameters: {
             query?: {
@@ -20710,6 +21256,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SuggestionsResponse"];
+                };
+            };
+            /** @description El movimiento no existe. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_document_suggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentSuggestionsResponse"];
                 };
             };
             /** @description El movimiento no existe. */
@@ -21560,6 +22146,38 @@ export interface operations {
             };
         };
     };
+    admin_classify_run_all: {
+        parameters: {
+            query?: {
+                /** @description Meses previos al actual a incluir. */
+                months_back?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassifyRunAllResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_get_consent: {
         parameters: {
             query?: never;
@@ -22029,6 +22647,57 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_payroll_reconcile_revert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayrollRevertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Rol sin permiso (owner/admin/technical_admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El link de pago no existe para el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

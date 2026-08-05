@@ -119,11 +119,15 @@ export const ConPorCobrar: Story = {
       { glosa: "COMERCIAL KAUFMANN S.A.", monto: 2_960_000, diasAtraso: null },
       { glosa: "INMOBILIARIA VISTA KENNEDY", monto: 1_440_000, diasAtraso: 12 },
     ],
+    recuperacion: { pisoRecup: -3_639_436, totalRecuperado: 9_400_000, ventanaDias: 30 },
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByText("no cuenta")).toBeInTheDocument();
     await expect(c.getByText(/su cobro no es seguro/)).toBeInTheDocument();
+    // Escenario ADR-0087: muestra cuánto mejora el PISO con recuperación (adiós "sin recuperación").
+    await expect(c.getByText(/Con recuperación:/)).toBeInTheDocument();
+    await expect(c.getByText(/tu punto más bajo sería/)).toBeInTheDocument();
     // El "N documentos" es un toggle: al abrirlo se ve la lista uno por uno (pedido de Fernando).
     await userEvent.click(c.getByRole("button", { name: /documentos vencidos o sin fecha/ }));
     await expect(c.getByText("COMERCIAL KAUFMANN S.A.")).toBeInTheDocument();
