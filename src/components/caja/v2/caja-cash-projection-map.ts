@@ -104,6 +104,8 @@ export interface CobroVencido {
   monto: number;
   /** Días de atraso (>0), o `null` si es "sin fecha de pago". */
   diasAtraso: number | null;
+  /** Folio del documento (para identificarlo en la lista), o `null` si no aplica (#830). */
+  folio: string | null;
 }
 
 /** Escenario "con recuperación del atraso" (ADR-0087): si el por-cobrar-vencido se cobra repartido en
@@ -147,6 +149,7 @@ export function cobrosPorCobrarVencido(resp: CashProjectionResponse | undefined)
       glosa: i.glosa,
       monto: parseAmount(i.monto),
       diasAtraso: typeof i.dias_atraso === "number" ? i.dias_atraso : null,
+      folio: i.folio ?? null,
     }))
     .sort((a, b) => b.monto - a.monto);
 }

@@ -6729,6 +6729,8 @@ export interface components {
             vencido: components["schemas"]["Vencido"];
             /** @description Cobros atrasados/sin-fecha excluidos del runway (señal, no caja futura). */
             por_cobrar_vencido: components["schemas"]["PorCobrarVencido"];
+            /** @description Pagos atrasados (lo que se debe y venció). Usar junto con por_cobrar_vencido en vez de vencido.total (que netea signos). */
+            por_pagar_vencido: components["schemas"]["PorPagarVencido"];
             fuentes: components["schemas"]["Fuentes"];
         };
         /** CashToday */
@@ -11654,6 +11656,23 @@ export interface components {
              */
             n: number;
         };
+        /**
+         * PorPagarVencido
+         * @description Pagos vencidos (lo que el tenant DEBE y ya venció), separado de los cobros. Monto NEGATIVO.
+         *     Junto con `por_cobrar_vencido` reemplaza al ambiguo `vencido.total` (que netea signos opuestos).
+         */
+        PorPagarVencido: {
+            /**
+             * Total
+             * @description Σ de los pagos vencidos (negativo), string-decimal.
+             */
+            total: string;
+            /**
+             * N
+             * @description Cantidad de pagos vencidos.
+             */
+            n: number;
+        };
         /** PositionResponse */
         PositionResponse: {
             /** Status */
@@ -13837,6 +13856,21 @@ export interface components {
              * @description 'pago_vencido' | 'cobro_vencido' | 'cobro_sin_fecha'.
              */
             tipo: string;
+            /**
+             * Source External Id
+             * @description Identidad del documento (para conciliar fila-por-fila desde Caja, CC-WEB #830).
+             */
+            source_external_id?: string | null;
+            /**
+             * Side
+             * @description 'receivable' | 'payable'.
+             */
+            side?: string | null;
+            /**
+             * Folio
+             * @description Folio del documento, si aplica.
+             */
+            folio?: string | null;
         };
         /** VerifyEmailRequest */
         VerifyEmailRequest: {
