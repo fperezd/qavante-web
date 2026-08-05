@@ -61,8 +61,10 @@ export function CajaProyeccionView({
   className,
 }: CajaProyeccionViewProps) {
   const [verCobros, setVerCobros] = React.useState(false);
-  // Sin proyección forward (ni movimientos ni días) → estado honesto, no una curva inventada.
-  if (proyeccion == null || movimientos.length === 0) {
+  // Estado honesto SOLO si el backend no tiene proyección. La cascada (movimientos) es un dato
+  // SECUNDARIO derivado del maestro FE: si está vacía, NO ocultamos el medidor/caveat autoritativos
+  // del backend (días de caja, piso, por-cobrar) — antes un OR lo tapaba todo por la cascada vacía.
+  if (proyeccion == null) {
     return <CajaMedidorSinDato ultimaSync={ultimaSync} className={className} />;
   }
 
@@ -93,8 +95,11 @@ export function CajaProyeccionView({
                     className="font-semibold text-info-700 underline underline-offset-2"
                     aria-expanded={verCobros}
                   >
-                    {porCobrarVencido!.n} {porCobrarVencido!.n === 1 ? "documento" : "documentos"}{" "}
-                    vencidos o sin fecha
+                    {porCobrarVencido!.n}{" "}
+                    {porCobrarVencido!.n === 1
+                      ? "documento vencido"
+                      : "documentos vencidos"}{" "}
+                    o sin fecha
                   </button>
                 ) : (
                   <>
@@ -116,7 +121,10 @@ export function CajaProyeccionView({
                       <b className="text-neutral-dark tabular-nums">
                         {formatClp(recuperacion.pisoRecup)}
                       </b>
-                      {proyeccion.piso && (
+                      {/* "en vez de X" solo si la recuperación MEJORA el piso (pisoRecup > piso core).
+                          Si no lo mejora (p.ej. el core no trae punto_quiebre y el piso cae al mínimo
+                          de la serie, que puede ser mayor), la comparación se leería al revés. */}
+                      {proyeccion.piso && recuperacion.pisoRecup > proyeccion.piso.saldo && (
                         <>
                           {" "}
                           en vez de{" "}
@@ -179,7 +187,14 @@ export function CajaProyeccionView({
           <h3 className="mb-2 text-sm font-semibold text-neutral-dark">
             Próximos movimientos · de dónde salen los días
           </h3>
-          <CajaCascada saldoHoy={proyeccion.saldoHoy} movimientos={movimientos} />
+          {movimientos.length > 0 ? (
+            <CajaCascada saldoHoy={proyeccion.saldoHoy} movimientos={movimientos} />
+          ) : (
+            <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-neutral-mid">
+              Todavía no hay detalle de próximos movimientos para mostrar. El medidor de la izquierda
+              ya sale del banco.
+            </p>
+          )}
         </section>
       </div>
 

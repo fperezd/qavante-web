@@ -6,6 +6,7 @@ import {
   recuperacionAtraso,
 } from "./caja-cash-projection-map";
 import type { CashProjectionResponse } from "@/lib/api/treasury";
+import { formatDateLike } from "@/lib/formatters/date";
 
 /* Datos reales de Tooxs Digital (prod, 2026-08-03) tras el fix del día-1-dump (#802): la serie ya NO
    amontona el vencido; saldo hoy negativo, quiebre el 04-08. */
@@ -71,12 +72,34 @@ describe("cashProjectionToDiasCaja", () => {
 });
 
 describe("causasFromCashProjection", () => {
-  it("mapea las causas del quiebre (glosa + monto firmado)", () => {
+  it("mapea las causas del quiebre (glosa + monto firmado + tipo del badge)", () => {
     const c = causasFromCashProjection(tooxs);
     expect(c).toHaveLength(2);
-    expect(c[0]).toMatchObject({ label: "Remuneraciones", monto: -15_247_759 });
+    expect(c[0]).toMatchObject({ label: "Remuneraciones", monto: -15_247_759, tipo: "otro" });
     expect(c[1]?.label).toBe("TD SYNNEX CHILE LIMITADA");
   });
+
+  it("usa la fecha PROPIA de cada causa (ADR-0087 Ask 2), no la del quiebre para todas", () => {
+    const resp = {
+      ...tooxs,
+      punto_quiebre: {
+        fecha: "2026-08-04",
+        saldo: "-49155979.94",
+        causas: [
+          { glosa: "F29 julio", monto: "-9200000", tipo: "f29", fecha: "2026-08-12" },
+          { glosa: "Proveedor sin fecha", monto: "-3000000", tipo: "pago" }, // sin fecha → cae a la del quiebre
+        ],
+      },
+    } as unknown as CashProjectionResponse;
+    const c = causasFromCashProjection(resp);
+    // La causa CON fecha propia usa la suya (12-ago), NO la del quiebre (04-ago).
+    expect(c[0]?.fechaLabel).toBe(formatDateLike("2026-08-12"));
+    expect(c[0]?.tipo).toBe("impuesto"); // f29 → impuesto
+    // La causa SIN fecha propia cae a la del quiebre.
+    expect(c[1]?.fechaLabel).toBe(formatDateLike("2026-08-04"));
+    expect(c[1]?.tipo).toBe("otro");
+  });
+
   it("sin punto de quiebre → []", () => {
     expect(
       causasFromCashProjection({ ...tooxs, punto_quiebre: null } as CashProjectionResponse),
