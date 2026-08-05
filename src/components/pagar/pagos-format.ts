@@ -11,20 +11,29 @@ export function parseAmount(raw: string | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** `amount_clp` "en blanco": `null`, `undefined` o string vacío. El backend manda `""` (no solo
+ *  `null`) cuando no hay conversión → hay que tratarlo como ausente, que `??` no hace (solo cubre
+ *  null/undefined). */
+function amountClpEnBlanco(v: string | null | undefined): boolean {
+  return v == null || v === "";
+}
+
 /** ¿Es un ítem en moneda extranjera al que le FALTA el `amount_clp`? Entonces no tenemos su valor en
  *  pesos y NO debemos inventarlo con el nominal (US$1.240 ≠ $1.240). El backend debería mandar siempre
  *  `amount_clp` para las extranjeras (gap escalado, issue #726). Compartido por Pagar clásico y v2. */
 export function montoCLPFaltante(item: PayableItem): boolean {
   const extranjera = (item.currency ?? "CLP").toUpperCase() !== "CLP";
-  return extranjera && (item.amount_clp == null || item.amount_clp === "");
+  return extranjera && amountClpEnBlanco(item.amount_clp);
 }
 
 /** Monto en CLP del ítem: `amount_clp` si es moneda extranjera, si no `amount`. Una extranjera SIN
  *  `amount_clp` aporta 0 (no se suma su nominal como pesos) — así no contamina vencido/concentración/
- *  brecha/subtotales; la fila la marca como "sin convertir" (ver `montoCLPFaltante`). */
+ *  brecha/subtotales; la fila la marca como "sin convertir" (ver `montoCLPFaltante`). Ojo: para un ítem
+ *  CLP con `amount_clp === ""` (no null) hay que caer a `amount` — `??` no lo haría y el ítem valdría 0
+ *  (subestimando el total). */
 export function montoCLP(item: PayableItem): number {
   if (montoCLPFaltante(item)) return 0;
-  return parseAmount(item.amount_clp ?? item.amount);
+  return parseAmount(amountClpEnBlanco(item.amount_clp) ? item.amount : item.amount_clp);
 }
 
 /** Desglose "$X (CLP) + US$Y (USD)" del total por pagar cuando hay más de una
