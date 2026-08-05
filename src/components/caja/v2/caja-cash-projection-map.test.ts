@@ -4,6 +4,7 @@ import {
   causasFromCashProjection,
   cobrosPorCobrarVencido,
   recuperacionAtraso,
+  ingresoProyectado,
 } from "./caja-cash-projection-map";
 import type { CashProjectionResponse } from "@/lib/api/treasury";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -166,5 +167,42 @@ describe("recuperacionAtraso", () => {
       }),
     );
     expect(r).toEqual({ pisoRecup: null, totalRecuperado: 5_000_000, ventanaDias: 30 });
+  });
+});
+
+describe("ingresoProyectado (ADR-0089 B)", () => {
+  const conIngresos = (ec: unknown) =>
+    ({ ...tooxs, esperado_con_ingresos: ec }) as unknown as CashProjectionResponse;
+
+  it("mapea total + nº de flujos + piso/días (datos reales Tooxs: $31,2M en 12 cobros)", () => {
+    const r = ingresoProyectado(
+      conIngresos({
+        dias_de_caja: 1,
+        total_ingreso_proyectado: "31161339",
+        n_flujos: 12,
+        serie: [],
+        punto_quiebre: { fecha: "2026-08-06", saldo: "-4044096", causas: [] },
+      }),
+    );
+    expect(r).toEqual({
+      totalIngreso: 31_161_339,
+      nFlujos: 12,
+      pisoConIngresos: -4_044_096,
+      diasConIngresos: 1,
+    });
+  });
+
+  it("con ingresos la caja NO toca el quiebre (punto_quiebre null) → pisoConIngresos null", () => {
+    const r = ingresoProyectado(
+      conIngresos({ dias_de_caja: null, total_ingreso_proyectado: "8000000", n_flujos: 4, punto_quiebre: null }),
+    );
+    expect(r).toMatchObject({ pisoConIngresos: null, diasConIngresos: null, nFlujos: 4 });
+  });
+
+  it("sin ingreso material (total 0) o sin banda → null (no se muestra)", () => {
+    expect(
+      ingresoProyectado(conIngresos({ total_ingreso_proyectado: "0", n_flujos: 0 })),
+    ).toBeNull();
+    expect(ingresoProyectado(tooxs)).toBeNull();
   });
 });

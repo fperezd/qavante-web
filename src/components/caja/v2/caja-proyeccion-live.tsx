@@ -18,6 +18,7 @@ import {
   causasFromCashProjection,
   cobrosPorCobrarVencido,
   recuperacionAtraso,
+  ingresoProyectado,
 } from "./caja-cash-projection-map";
 import type { MovimientoCaja } from "./caja-cascada-model";
 
@@ -79,6 +80,8 @@ export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProye
   );
   // Escenario "con recuperación del atraso" (ADR-0087): cuantifica el "si cobras, tu caja aguanta X días".
   const recuperacion = React.useMemo(() => recuperacionAtraso(cashProj.data), [cashProj.data]);
+  // Banda "con ingreso recurrente" (ADR-0089 B): contexto anti-false-doom ("entra $X recurrente").
+  const ingresos = React.useMemo(() => ingresoProyectado(cashProj.data), [cashProj.data]);
 
   // Cascada de próximos movimientos: derivada del maestro (el backend no expone el detalle por-movimiento).
   const movimientosCascada = React.useMemo(() => {
@@ -119,6 +122,7 @@ export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProye
       conciliarHref="/caja/conciliacion"
       cobrosPorCobrar={cobrosPorCobrar}
       recuperacion={recuperacion}
+      ingresoProyectado={ingresos}
       ultimaSync={ultimaSync}
       saldoStale={saldoStale}
       ocultarSaldoHoy // el hero del Resumen ya muestra el saldo de hoy → no repetirlo en el medidor
