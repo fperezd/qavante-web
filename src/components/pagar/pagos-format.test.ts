@@ -1,10 +1,37 @@
 import { describe, it, expect } from "vitest";
 import {
+  montoCLP,
+  montoCLPFaltante,
   multiCurrencyNote,
   parseAmount,
   payableItemLabel,
   paymentCategoryLabel,
 } from "./pagos-format";
+import type { PayableItem } from "@/lib/api/pagos";
+
+const item = (over: Partial<PayableItem>): PayableItem =>
+  ({ label: "x", category: "supplier", amount: "0", currency: "CLP", amount_clp: null, ...over }) as PayableItem;
+
+describe("montoCLP", () => {
+  it("CLP con amount_clp presente: usa amount_clp", () => {
+    expect(montoCLP(item({ currency: "CLP", amount: "50000", amount_clp: "50000" }))).toBe(50_000);
+  });
+  it("CLP con amount_clp null: cae a amount", () => {
+    expect(montoCLP(item({ currency: "CLP", amount: "50000", amount_clp: null }))).toBe(50_000);
+  });
+  it("CLP con amount_clp='' (blanco, no null): cae a amount, no a 0 (regresión)", () => {
+    // `??` no trata "" como ausente → parseAmount("")=0 subestimaba el total. Ahora cae a `amount`.
+    expect(montoCLP(item({ currency: "CLP", amount: "50000", amount_clp: "" }))).toBe(50_000);
+  });
+  it("extranjera con amount_clp: usa el convertido", () => {
+    expect(montoCLP(item({ currency: "USD", amount: "1240", amount_clp: "1190000" }))).toBe(1_190_000);
+  });
+  it("extranjera SIN amount_clp (null o ''): aporta 0 (no inventa el nominal como CLP)", () => {
+    expect(montoCLP(item({ currency: "USD", amount: "1240", amount_clp: null }))).toBe(0);
+    expect(montoCLP(item({ currency: "USD", amount: "1240", amount_clp: "" }))).toBe(0);
+    expect(montoCLPFaltante(item({ currency: "USD", amount: "1240", amount_clp: "" }))).toBe(true);
+  });
+});
 
 describe("multiCurrencyNote", () => {
   it("null con 0 o 1 moneda (no hay nada que desglosar)", () => {
