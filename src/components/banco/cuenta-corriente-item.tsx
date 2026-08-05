@@ -1,0 +1,63 @@
+import { Wallet } from "lucide-react";
+import { QavanteBadge } from "@/components/qavante";
+import { formatMoney } from "@/lib/formatters/clp";
+import { formatDateLike } from "@/lib/formatters/date";
+import { formatSaldo } from "@/components/treasury/bank-balances/bank-balances-format";
+import { lineaCreditoDe } from "@/components/treasury/bank-balances/bank-balances-linea-credito";
+import type { BalanceData, CuentaSaldo } from "@/lib/api/treasury";
+
+/* Un producto CUENTA CORRIENTE: el número de oro es el saldo DISPONIBLE, con el contable de contexto y,
+   si la cuenta tiene LÍNEA DE CRÉDITO, cuánto queda (o "agotada"). Presentacional PURO. Simple. */
+
+export interface CuentaCorrienteItemProps {
+  cuenta: CuentaSaldo;
+  /** Balance detallado (trae la línea de crédito); opcional. */
+  balance?: BalanceData;
+}
+
+export function CuentaCorrienteItem({ cuenta: c, balance }: CuentaCorrienteItemProps) {
+  const lc = lineaCreditoDe(balance);
+  const mon = lc?.moneda ?? c.moneda;
+  const agotada = lc ? lc.disponible <= 0 : false;
+  return (
+    <div className="rounded-xl border border-border bg-surface p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-2 font-medium text-neutral-dark">
+          <Wallet className="h-4 w-4 text-brand-primary" aria-hidden="true" />
+          <span className="truncate">{c.nombreCuenta ?? "Cuenta corriente"}</span>
+          <QavanteBadge variant="info">{c.moneda ?? "CLP"}</QavanteBadge>
+        </span>
+        {c.numeroFormateado && (
+          <span className="font-mono text-xs text-neutral-mid">{c.numeroFormateado}</span>
+        )}
+      </div>
+
+      <p className="mt-2 text-lg font-bold tabular-nums text-neutral-dark">
+        {formatSaldo(c.saldoDisponible, c.moneda)}
+      </p>
+      <p className="text-xs text-neutral-mid">
+        disponible · contable{" "}
+        <span className="tabular-nums">{formatSaldo(c.saldoContable, c.moneda)}</span>
+      </p>
+
+      {lc && (
+        <p className="mt-2 border-t border-dashed border-border pt-2 text-[11px] text-neutral-mid">
+          <span className="font-medium text-neutral-dark">Línea de crédito:</span>{" "}
+          {agotada ? (
+            <span className="font-medium text-warning-700">
+              cupo agotado
+              {lc.disponible < 0 && <> · excedido {formatMoney(Math.abs(lc.disponible), mon)}</>}
+            </span>
+          ) : (
+            <>
+              te quedan{" "}
+              <b className="tabular-nums text-neutral-dark">{formatMoney(lc.disponible, mon)}</b> de{" "}
+              <span className="tabular-nums">{formatMoney(lc.cupo, mon)}</span>
+            </>
+          )}
+          {lc.vencimientoSobregiro && <> · vence el {formatDateLike(lc.vencimientoSobregiro)}</>}
+        </p>
+      )}
+    </div>
+  );
+}
