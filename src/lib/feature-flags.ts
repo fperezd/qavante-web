@@ -57,6 +57,7 @@ export const FEATURE_FLAGS = [
   "pagarV2",
   "cobrarV2",
   "reconciliationReview",
+  "bancoScreen",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -175,6 +176,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      nueva la consume; su endpoint de gating es la cola misma. LIVE en prod desde 2026-07-17
      (`NEXT_PUBLIC_FF_RECONCILIATION_REVIEW="true"` en wrangler.toml). */
   reconciliationReview: "/api/treasury/reconciliation/review",
+  /* Pantalla Banco (2026-08-04) — los PRODUCTOS del tenant por banco: cuentas corrientes (saldo + línea
+     de crédito) + tarjetas de crédito (cupo). Consume `/api/bice/*` (ya cookie-open). Gated OFF hasta
+     validar la UX con Fernando; encender = editar wrangler.toml. */
+  bancoScreen: "/api/bice/tarjetas",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

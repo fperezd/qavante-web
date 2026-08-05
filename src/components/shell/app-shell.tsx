@@ -19,6 +19,8 @@ export interface AppShellProps {
   syncStatusEnabled?: boolean;
   /** `remuneraciones` ON → inyecta el grupo Equipo (Remuneraciones) en el nav. */
   remuneracionesEnabled?: boolean;
+  /** `bancoScreen` ON → muestra el ítem "Banco" en el nav. */
+  bancoEnabled?: boolean;
 }
 
 export function AppShell({
@@ -27,6 +29,7 @@ export function AppShell({
   assistantEnabled,
   syncStatusEnabled,
   remuneracionesEnabled,
+  bancoEnabled,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -59,6 +62,7 @@ export function AppShell({
           onCloseMobile={() => setSidebarOpen(false)}
           userRole={userRole}
           remuneracionesEnabled={remuneracionesEnabled}
+          bancoEnabled={bancoEnabled}
         />
 
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">

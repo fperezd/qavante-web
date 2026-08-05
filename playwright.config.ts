@@ -94,6 +94,9 @@ export default defineConfig({
       NEXT_PUBLIC_FF_INDUSTRY_TEMPLATES: "true",
       NEXT_PUBLIC_FF_MANAGEMENT_DIMENSIONS: "true",
       NEXT_PUBLIC_FF_MI_CUENTA: "true",
+      /* Pantalla Banco — OFF en prod (feature nueva, sin validar UX). Acá ON para smoke de la
+         pantalla ya construida detrás del flag. */
+      NEXT_PUBLIC_FF_BANCO_SCREEN: "true",
     },
   },
 });

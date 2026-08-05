@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Banknote,
+  Landmark,
   ArrowDownToLine,
   ArrowUpFromLine,
   LineChart,
@@ -27,6 +28,8 @@ type ModuleLink = {
   visibleFor?: ReadonlyArray<UserRole>;
   /* Sub-ítems que se despliegan cuando la sección está activa (ej. Pagar). */
   children?: ReadonlyArray<SubLink>;
+  /* Solo visible con el flag `bancoScreen` ON (pantalla nueva, gated hasta validar UX). */
+  needsBanco?: boolean;
 };
 
 type NavGroup = { label: string; items: ReadonlyArray<ModuleLink> };
@@ -72,6 +75,7 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
     label: "Cobros y pagos",
     items: [
       { href: "/caja", label: "Caja", Icon: Banknote },
+      { href: "/banco", label: "Banco", Icon: Landmark, needsBanco: true },
       { href: "/cobrar", label: "Cobrar", Icon: ArrowDownToLine },
       { href: "/pagar", label: "Pagar", Icon: ArrowUpFromLine, children: PAGAR_CHILDREN },
     ],
@@ -100,6 +104,8 @@ export interface AppSidebarProps {
   /** `remuneraciones` ON → muestra los sub-ítems de Pagar Remuneraciones + Previred
      (fuente BUK). Lo resuelve el layout (server). OFF/undefined → no se muestran. */
   remuneracionesEnabled?: boolean;
+  /** `bancoScreen` ON → muestra el ítem "Banco" (pantalla nueva, gated hasta validar UX). */
+  bancoEnabled?: boolean;
 }
 
 export function AppSidebar({
@@ -107,13 +113,16 @@ export function AppSidebar({
   onCloseMobile,
   userRole,
   remuneracionesEnabled,
+  bancoEnabled,
 }: AppSidebarProps) {
   const pathname = usePathname();
 
   /* Defensa pasiva: si userRole es undefined (sesión rota / fallback), mostramos
      los módulos sin restricción de rol — el módulo gated sigue siendo accesible
      por URL pero la página renderea error/no-data del backend. */
-  const canSee = (m: ModuleLink) => !m.visibleFor || (userRole && m.visibleFor.includes(userRole));
+  const canSee = (m: ModuleLink) =>
+    (!m.visibleFor || (userRole && m.visibleFor.includes(userRole))) &&
+    (!m.needsBanco || bancoEnabled);
   const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
     (g) => g.items.length > 0,
   );

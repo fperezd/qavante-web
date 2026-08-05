@@ -12,13 +12,14 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
    gatear el Asistente — el flag se lee en runtime del Worker (no client). */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await auth();
-  const { assistant, onboarding, syncStatus, remuneraciones } = resolveFeatureFlags();
+  const { assistant, onboarding, syncStatus, remuneraciones, bancoScreen } = resolveFeatureFlags();
   return (
     <AppShell
       userRole={session?.user.role}
       assistantEnabled={assistant}
       syncStatusEnabled={syncStatus}
       remuneracionesEnabled={remuneraciones}
+      bancoEnabled={bancoScreen}
     >
       {/* Gated por `onboarding` (OFF en prod → no se monta). Si ON y el tenant no
           completó onboarding, redirige al wizard. Fail-safe (ver el componente). */}

@@ -591,6 +591,61 @@ const treasuryHandlers = [
       error: null,
     });
   }),
+  /* Tarjetas de crédito BICE (pantalla Banco): lista + cupo por tarjeta. Una CLP activa (con cupo) +
+     una USD. */
+  http.get("*/api/bice/tarjetas", () =>
+    HttpResponse.json({
+      status: "ok",
+      data: [
+        {
+          operationNumber: "42595474000067584",
+          creditCardCheckDigit: "1",
+          product: "Tarjeta de Crédito CLP",
+          holder: "TOOXS DIGITAL SPA",
+          isActive: true,
+        },
+        {
+          operationNumber: "42595474000067999",
+          creditCardCheckDigit: "2",
+          product: "Tarjeta de Crédito USD",
+          holder: "TOOXS DIGITAL SPA",
+          isActive: true,
+        },
+      ],
+    }),
+  ),
+  http.get("*/api/bice/tarjetas/:op/saldo", ({ params }) => {
+    const op = params.op as string;
+    const esClp = op === "42595474000067584";
+    return HttpResponse.json({
+      status: "ok",
+      data: {
+        national: esClp
+          ? {
+              totalQuota: 8000000,
+              spentQuota: 3200000,
+              availableQuota: 4800000,
+              billedAmmount: 3200000,
+              billDate: "2026-08-25",
+              dueDate: "2026-09-05",
+            }
+          : null,
+        international: esClp
+          ? null
+          : {
+              totalQuota: 5000,
+              spentQuota: 1200,
+              availableQuota: 3800,
+              billedAmmount: 1200,
+              billDate: "2026-08-25",
+              dueDate: "2026-09-05",
+            },
+        isPacActive: true,
+        pacPercentage: 100,
+      },
+      error: null,
+    });
+  }),
   /* Cuentas que trae BICE con su estado de vínculo. Una vinculada + una EN
      CUARENTENA (linked_bank_account_id null) → alimenta "Cuentas por vincular". */
   http.get("*/api/bank-movements/bice/accounts", () =>

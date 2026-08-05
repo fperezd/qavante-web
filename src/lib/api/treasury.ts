@@ -43,6 +43,12 @@ export type CuentaSaldo = components["schemas"]["CuentaSaldo"];
    + vencimiento del sobregiro — datos que `SaldoResponse` no trae. Tipos generados (regla 3). */
 export type CuentaBalanceResponse = components["schemas"]["CuentaBalanceResponse"];
 export type BalanceData = components["schemas"]["BalanceData"];
+/* Tarjetas de crédito BICE (pantalla Banco): lista + cupo por tarjeta (national=CLP / international=USD,
+   cada uno con totalQuota/spentQuota/availableQuota + facturado + venc). Tipos generados (regla 3). */
+export type TarjetasResponse = components["schemas"]["TarjetasResponse"];
+export type TarjetaCredito = components["schemas"]["TarjetaCredito"];
+export type TarjetaSaldoResponse = components["schemas"]["TarjetaSaldoResponse"];
+export type TarjetaSaldoData = components["schemas"]["TarjetaSaldoData"];
 
 export interface BankMovementsParams {
   /** 'unclassified' | 'classified' | undefined (todos). */
@@ -70,6 +76,8 @@ export const treasuryKeys = {
   biceSaldo: () => [...treasuryKeys.all, "bice-saldo"] as const,
   biceCuentaBalance: (numeroCuenta: string) =>
     [...treasuryKeys.all, "bice-cuenta-balance", numeroCuenta] as const,
+  biceTarjetas: () => [...treasuryKeys.all, "bice-tarjetas"] as const,
+  biceTarjetaSaldo: (op: string) => [...treasuryKeys.all, "bice-tarjeta-saldo", op] as const,
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
   collectionForecast: () => [...treasuryKeys.all, "collection-forecast"] as const,
   cashCycle: () => [...treasuryKeys.all, "cash-cycle"] as const,
@@ -158,6 +166,49 @@ export function useBiceCuentasBalances(
   });
   return {
     balancePorCuenta,
+    isLoading: queries.some((q) => q.isLoading),
+    isError: queries.some((q) => q.isError),
+  };
+}
+
+/** `GET /api/bice/tarjetas` — tarjetas de crédito del tenant (operationNumber + producto + titular +
+ *  activa). Cookie (bice ya cookie-open). Gateado por `enabled`. NO retry; `skipAuthRetry`. */
+export function useBiceTarjetas(enabled = true) {
+  return useQuery({
+    queryKey: treasuryKeys.biceTarjetas(),
+    queryFn: () => api.get<TarjetasResponse>("/api/bice/tarjetas", { skipAuthRetry: true }),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** `GET /api/bice/tarjetas/{op}/saldo` (una por tarjeta, en paralelo) — el cupo (national=CLP /
+ *  international=USD) de cada tarjeta. Se compone sobre los `operationNumber` de `useBiceTarjetas`.
+ *  Gateado por `enabled`. Devuelve un mapa `operationNumber → TarjetaSaldoData`. */
+export function useBiceTarjetasSaldos(
+  ops: string[],
+  enabled = true,
+): { saldoPorTarjeta: Map<string, TarjetaSaldoData>; isLoading: boolean; isError: boolean } {
+  const queries = useQueries({
+    queries: ops.map((op) => ({
+      queryKey: treasuryKeys.biceTarjetaSaldo(op),
+      queryFn: () =>
+        api.get<TarjetaSaldoResponse>(`/api/bice/tarjetas/${encodeURIComponent(op)}/saldo`, {
+          skipAuthRetry: true,
+        }),
+      enabled: enabled && op !== "",
+      staleTime: 5 * 60 * 1000,
+      retry: false,
+    })),
+  });
+  const saldoPorTarjeta = new Map<string, TarjetaSaldoData>();
+  ops.forEach((op, i) => {
+    const data = queries[i]?.data?.data;
+    if (data) saldoPorTarjeta.set(op, data);
+  });
+  return {
+    saldoPorTarjeta,
     isLoading: queries.some((q) => q.isLoading),
     isError: queries.some((q) => q.isError),
   };
