@@ -46,6 +46,14 @@ export interface CajaProyeccionViewProps {
   /** Escenario "con recuperación del atraso" (ADR-0087): si viene, el caveat muestra cuánto MEJORA el
    *  piso SI cobras ese atraso — respuesta honesta al "sin recuperación" del core. */
   recuperacion?: { pisoRecup: number | null; totalRecuperado: number; ventanaDias: number } | null;
+  /** Banda "con ingreso recurrente proyectado" (ADR-0089 B): mata el false-doom cuando la caja se ve en
+   *  rojo pero entra ingreso recurrente. `null` → no hay ingreso proyectado, no se muestra. */
+  ingresoProyectado?: {
+    totalIngreso: number;
+    nFlujos: number;
+    pisoConIngresos: number | null;
+    diasConIngresos: number | null;
+  } | null;
   /** Oculta el "Saldo hoy" del medidor (el hero de la pantalla ya lo muestra → no repetir). */
   ocultarSaldoHoy?: boolean;
   className?: string;
@@ -62,6 +70,7 @@ export function CajaProyeccionView({
   conciliarHref,
   cobrosPorCobrar,
   recuperacion,
+  ingresoProyectado,
   ocultarSaldoHoy,
   className,
 }: CajaProyeccionViewProps) {
@@ -80,6 +89,10 @@ export function CajaProyeccionView({
   // runway no cuenta, "sin recuperación" no es el veredicto final. No inventamos que se cobra —
   // decimos que existe y que no está en esta cifra.
   const mostrarPorCobrar = proyeccion.estado !== "sano" && (porCobrarVencido?.total ?? 0) > 0;
+  // Banda de ingreso recurrente (ADR-0089 B): cuando la caja está en riesgo pero el negocio tiene
+  // ingreso recurrente proyectado, lo decimos como CONTEXTO (mata el "te vas a fundir" falso).
+  const mostrarIngresos =
+    proyeccion.estado !== "sano" && (ingresoProyectado?.totalIngreso ?? 0) > 0;
 
   return (
     <div className={cn("space-y-6", className)}>
@@ -185,6 +198,19 @@ export function CajaProyeccionView({
                   <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </Link>
               )}
+            </div>
+          )}
+          {mostrarIngresos && (
+            <div className="mt-3 rounded-lg border border-success-500/30 bg-success-500/[.06] px-3 py-2 text-xs text-neutral-dark">
+              <p>
+                <b className="text-success-700">Tienes ingreso recurrente en camino:</b> proyectamos{" "}
+                <b className="tabular-nums">{formatClp(ingresoProyectado!.totalIngreso)}</b> en{" "}
+                {ingresoProyectado!.nFlujos}{" "}
+                {ingresoProyectado!.nFlujos === 1 ? "cobro" : "cobros"}, estimado por tu historial de
+                abonos.
+                {ingresoProyectado!.pisoConIngresos == null &&
+                  " Contándolo, tu caja no toca el punto de quiebre."}
+              </p>
             </div>
           )}
           {saldoStale && ultimaSync && (

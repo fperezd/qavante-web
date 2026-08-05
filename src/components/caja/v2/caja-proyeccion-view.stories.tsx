@@ -120,10 +120,19 @@ export const ConPorCobrar: Story = {
       { glosa: "INMOBILIARIA VISTA KENNEDY", monto: 1_440_000, diasAtraso: 12, folio: "1201" },
     ],
     recuperacion: { pisoRecup: -3_639_436, totalRecuperado: 9_400_000, ventanaDias: 30 },
+    ingresoProyectado: {
+      totalIngreso: 31_161_339,
+      nFlujos: 12,
+      pisoConIngresos: -4_044_096,
+      diasConIngresos: 1,
+    },
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByText("no cuenta")).toBeInTheDocument();
+    // Banda de ingreso recurrente (ADR-0089 B): contexto anti-false-doom.
+    await expect(c.getByText(/ingreso recurrente en camino/i)).toBeInTheDocument();
+    await expect(c.getByText(/12 cobros/)).toBeInTheDocument();
     await expect(c.getByText(/su cobro no es seguro/)).toBeInTheDocument();
     // Escenario ADR-0087: muestra cuánto mejora el PISO con recuperación (adiós "sin recuperación").
     await expect(c.getByText(/Con recuperación:/)).toBeInTheDocument();

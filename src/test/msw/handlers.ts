@@ -3567,6 +3567,15 @@ const cajaV2Handlers = [
           ],
           punto_quiebre: { fecha: "2026-08-06", saldo: "-3639436", causas: [] },
         },
+        esperado_con_ingresos: {
+          dias_de_caja: 1,
+          total_ingreso_proyectado: "31161339",
+          n_flujos: 12,
+          serie: [
+            { fecha: "2026-08-05", saldo_cierre: "2100000", capa: "esperado_con_ingresos" },
+          ],
+          punto_quiebre: { fecha: "2026-08-06", saldo: "-4044096", causas: [] },
+        },
         vencido: {
           total: "9400000",
           items: [

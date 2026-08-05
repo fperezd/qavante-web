@@ -138,6 +138,38 @@ export function recuperacionAtraso(
   };
 }
 
+/** Escenario "con ingreso recurrente proyectado" (ADR-0089 B): el backend detecta streams de ingreso
+ *  recurrente (factoring/cliente/MX) del histórico de abonos y proyecta cuánto entra en el horizonte.
+ *  Es una banda SEPARADA (estimada, no pisa el core). Su valor: matar el "false-doom" cuando la caja se
+ *  ve en rojo pero el negocio tiene ingreso recurrente en camino (contexto, no promesa). */
+export interface IngresoProyectado {
+  /** Σ del ingreso recurrente proyectado en el horizonte. */
+  totalIngreso: number;
+  /** Nº de cobros/ocurrencias proyectadas. */
+  nFlujos: number;
+  /** Piso (punto de quiebre) contando el ingreso, o `null` si con el ingreso la caja NO toca el piso. */
+  pisoConIngresos: number | null;
+  /** Runway contando el ingreso, o `null` si nunca cae. */
+  diasConIngresos: number | null;
+}
+
+/** `esperado_con_ingresos` → `IngresoProyectado`, o `null` si no hay ingreso recurrente material
+ *  (total ≤ 0 → nada que proyectar, no mostramos la banda). */
+export function ingresoProyectado(
+  resp: CashProjectionResponse | undefined,
+): IngresoProyectado | null {
+  const ec = resp?.esperado_con_ingresos;
+  if (!ec) return null;
+  const totalIngreso = parseAmount(ec.total_ingreso_proyectado);
+  if (totalIngreso <= 0) return null;
+  return {
+    totalIngreso,
+    nFlujos: ec.n_flujos,
+    pisoConIngresos: ec.punto_quiebre ? parseAmount(ec.punto_quiebre.saldo) : null,
+    diasConIngresos: ec.dias_de_caja ?? null,
+  };
+}
+
 /** Los COBROS vencidos/sin-fecha del `vencido` del backend (los mismos que suma `por_cobrar_vencido`):
  *  la lista que el dueño puede revisar/conciliar. Filtra los PAGOS (tipo `pago_vencido`), que no son
  *  por-cobrar. Ordena por monto desc. Puro. */

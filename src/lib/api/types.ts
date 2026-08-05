@@ -3388,6 +3388,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/reconciliation/mark-collected": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Caja: concilia cobros/pagos por documento (la plata ya entró — sácalo de 'por cobrar')
+         * @description Marca documentos (por `source_external_id`) como conciliados: outstanding=0, status=paid. Para
+         *     el botón "conciliar este cobro" del caveat de Caja — cuando la cobranza/anticipo ya está en el banco
+         *     pero el receivable seguía en "por cobrar". Reversible (`.../mark-collected/revert`). Idempotente.
+         */
+        post: operations["treasury_reconciliation_mark_collected"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/mark-collected/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Caja: DESconcilia cobros/pagos marcados (re-abre el documento)
+         * @description Des-concilia (re-abre) los documentos marcados por `mark-collected`. Principio: toda
+         *     conciliación se desasigna.
+         */
+        post: operations["treasury_reconciliation_mark_collected_revert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/reconcile": {
         parameters: {
             query?: never;
@@ -3403,6 +3446,29 @@ export interface paths {
          *     auto-aplica los matches ≥90, deja 60-90 en cola de revisión, no toca el resto.
          */
         post: operations["treasury_reconcile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/reanalyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conciliación: re-analiza TODO (resetea la cola vieja y re-corre el motor)
+         * @description Resetea la cola de revisión a `unmatched` y re-corre el motor: re-evalúa todo con el scorer y
+         *     los aliases ACTUALES. Sirve para limpiar sugerencias viejas tras un fix del matcher o una purga
+         *     de aliases (la cola es "pegajosa" — `/reconcile` normal solo toca lo `unmatched`). Las
+         *     conciliaciones CONFIRMADas (matched) no se tocan; solo las sugerencias sin confirmar.
+         */
+        post: operations["treasury_reconciliation_reanalyze"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6725,6 +6791,8 @@ export interface components {
             escenario_duro: components["schemas"]["EscenarioDuro"];
             /** @description Banda ADR-0087: runway si el por-cobrar-vencido se recupera repartido (N=30). */
             esperado_con_recuperacion: components["schemas"]["EsperadoConRecuperacion"];
+            /** @description Banda ADR-0089: runway contando el ingreso recurrente proyectado (factoring/cliente/MX). */
+            esperado_con_ingresos: components["schemas"]["EsperadoConIngresos"];
             punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
             vencido: components["schemas"]["Vencido"];
             /** @description Cobros atrasados/sin-fecha excluidos del runway (señal, no caja futura). */
@@ -8776,6 +8844,32 @@ export interface components {
             piso_fecha: string;
         };
         /**
+         * EsperadoConIngresos
+         * @description Banda ADR-0089 (B): esperado + INGRESO recurrente proyectado (streams de factoring/cliente/MX
+         *     detectados del histórico de abonos, 120d). SEPARADA del esperado core (estimado, no corrompe los
+         *     números). Mata el false-doom cuando el negocio tiene ingreso recurrente pero 0 receivables abiertos.
+         */
+        EsperadoConIngresos: {
+            /**
+             * Dias De Caja
+             * @description Runway contando el ingreso recurrente proyectado; null si nunca cae.
+             */
+            dias_de_caja?: number | null;
+            /** Serie */
+            serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
+            punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
+            /**
+             * Total Ingreso Proyectado
+             * @description Σ del ingreso recurrente proyectado (estimado).
+             */
+            total_ingreso_proyectado: string;
+            /**
+             * N Flujos
+             * @description Nº de ocurrencias de ingreso proyectadas en el horizonte.
+             */
+            n_flujos: number;
+        };
+        /**
          * EsperadoConRecuperacion
          * @description Banda optimista (ADR-0087, A/N=30): el esperado + el por-cobrar-vencido recuperado repartido
          *     lineal en `recuperacion_days` (y los pagos vencidos también repartidos, no amontonados en 'mañana').
@@ -10528,6 +10622,31 @@ export interface components {
             updated_at: string;
         };
         /**
+         * MarkCollectedRequest
+         * @description Conciliar cobros/pagos por documento desde Caja (la plata ya entró, sacar el doc de 'por cobrar').
+         */
+        MarkCollectedRequest: {
+            /**
+             * Source External Ids
+             * @description IDs de documento (de vencido.items) a conciliar.
+             */
+            source_external_ids: string[];
+            /**
+             * Side
+             * @description 'receivable' (cobro) | 'payable' (pago).
+             * @default receivable
+             */
+            side: string;
+        };
+        /** MarkCollectedResponse */
+        MarkCollectedResponse: {
+            /**
+             * Conciliados
+             * @description Documentos marcados conciliados (0 si ya estaban pagados).
+             */
+            conciliados: number;
+        };
+        /**
          * MePatchRequest
          * @description Body de `PATCH /api/me` — auto-edición del perfil (Ask #2 CC-WEB).
          *
@@ -12170,6 +12289,83 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * ReanalyzeResponse
+         * @description Igual que `/reconcile` + cuántas sugerencias viejas se resetearon antes de re-analizar.
+         */
+        ReanalyzeResponse: {
+            /**
+             * Matched
+             * @default 0
+             */
+            matched: number;
+            /**
+             * Consolidated
+             * @default 0
+             */
+            consolidated: number;
+            /**
+             * Partial
+             * @default 0
+             */
+            partial: number;
+            /**
+             * Review
+             * @default 0
+             */
+            review: number;
+            /**
+             * Excluded
+             * @default 0
+             */
+            excluded: number;
+            /**
+             * Ambiguous
+             * @default 0
+             */
+            ambiguous: number;
+            /**
+             * No Candidate
+             * @default 0
+             */
+            no_candidate: number;
+            /**
+             * Iva Retention
+             * @default 0
+             */
+            iva_retention: number;
+            /**
+             * Nc Netting
+             * @default 0
+             */
+            nc_netting: number;
+            /**
+             * Holding
+             * @default 0
+             */
+            holding: number;
+            /**
+             * Prepago Applied
+             * @default 0
+             */
+            prepago_applied: number;
+            /**
+             * Processor Batch
+             * @default 0
+             */
+            processor_batch: number;
+            /**
+             * Factoring
+             * @default 0
+             */
+            factoring: number;
+            /**
+             * Review Reseteadas
+             * @description Movimientos que estaban en cola y se volvieron a evaluar desde cero.
+             * @default 0
+             */
+            review_reseteadas: number;
+        };
         /** ReconcileResponse */
         ReconcileResponse: {
             /**
@@ -12426,6 +12622,11 @@ export interface components {
              * @description Variación % sobre |resultado| base (string-decimal).
              */
             pct: string;
+        };
+        /** RevertMarkCollectedResponse */
+        RevertMarkCollectedResponse: {
+            /** Reabiertos */
+            reabiertos: number;
         };
         /** RevertOpeningCutoffResponse */
         RevertOpeningCutoffResponse: {
@@ -21024,6 +21225,76 @@ export interface operations {
             };
         };
     };
+    treasury_reconciliation_mark_collected: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkCollectedRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkCollectedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_mark_collected_revert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkCollectedRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevertMarkCollectedResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_reconcile: {
         parameters: {
             query?: never;
@@ -21042,6 +21313,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReconcileResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_reconciliation_reanalyze: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReanalyzeResponse"];
                 };
             };
             /** @description Validation Error */
