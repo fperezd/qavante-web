@@ -114,17 +114,48 @@ const bm = (over: Partial<BankMovement>): BankMovement =>
   }) as BankMovement;
 
 describe("debitosCandidatos", () => {
+  // board: Carrasco pendiente ($1.000.000), Ana conciliada ($0). montosPendientes = {1000000}.
   const board = normalizeBoard(RAW_BOARD);
-  it("incluye débitos payroll sin asignar; excluye créditos, no-payroll y ya-asignados", () => {
+  it("incluye payroll por categoría/glosa; excluye créditos, no-payroll sin calce y ya-asignados", () => {
     const items = [
-      bm({ id: "bm_1", description: "SUELDO CARRASCO", amount: "-1000000" }),
+      bm({ id: "bm_1", description: "SUELDO CARRASCO", amount: "-1000000" }), // payroll (glosa/cat)
       bm({ id: "bm_credito", direction: "credit", amount: "1000000" }), // ingreso → fuera
-      bm({ id: "bm_prov", canonical_category: "supplier_payment" }), // no payroll → fuera
-      bm({ id: "bm_ana" }), // ya asignado (link) → fuera
+      // No payroll (categoría + glosa) y monto que NO calza con ningún pendiente → fuera.
+      bm({
+        id: "bm_prov",
+        canonical_category: "supplier_payment",
+        description: "PAGO PROVEEDOR ACME",
+        amount: "-777777",
+      }),
+      bm({ id: "bm_ana", amount: "-1000000" }), // ya asignado (link) → fuera aunque calce
     ];
     const cands = debitosCandidatos(items, board);
     expect(cands.map((c) => c.id)).toEqual(["bm_1"]);
-    expect(cands[0]).toMatchObject({ monto: 1_000_000, glosa: "SUELDO CARRASCO" });
+  });
+
+  it("incluye un débito SIN categoría payroll si el monto CALZA el líquido de un pendiente (transf. real)", () => {
+    // Caso real Tooxs: sueldos salen como "Transf. a terceros" sin categoría, por el monto exacto.
+    const items = [
+      bm({
+        id: "bm_transf",
+        canonical_category: null,
+        description: "Transf. a terceros vía Internet a cuenta 2002",
+        amount: "-1000000", // = outstanding de Carrasco
+      }),
+    ];
+    expect(debitosCandidatos(items, board).map((c) => c.id)).toEqual(["bm_transf"]);
+  });
+
+  it("incluye la nómina en lote por la glosa aunque no calce un monto individual", () => {
+    const items = [
+      bm({
+        id: "bm_batch",
+        canonical_category: null,
+        description: "Cargo nómina en línea (Rem julio)",
+        amount: "-8081518", // no calza ningún trabajador individual, pero la glosa dice nómina
+      }),
+    ];
+    expect(debitosCandidatos(items, board).map((c) => c.id)).toEqual(["bm_batch"]);
   });
 
   it("ordena por fecha desc", () => {
