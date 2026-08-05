@@ -389,8 +389,13 @@ function DeudorDocsPanel({
         </thead>
         <tbody>
           {docs.map((doc, i) => {
+            // CEDIDA (factor) / RECLAMADA: NO son por-cobrar de la empresa (se excluyen del total del
+            // deudor) → el detalle debe DECIRLO, no listarlas como cobrables. Si no, la suma del panel
+            // no cuadra con la fila y aparece un botón "Marcar" para cobrar lo que ya no es tuyo.
+            const excluida = !doc.esNotaCredito && (doc.cedido || doc.reclamado);
+            const motivoExcluida = doc.cedido ? "Cedida" : "Reclamada";
             const gestionada =
-              !doc.esNotaCredito && isGestionadoDoc(gestionadoDocs, rut, doc.folio);
+              !doc.esNotaCredito && !excluida && isGestionadoDoc(gestionadoDocs, rut, doc.folio);
             return (
               <tr
                 key={`${doc.folio}-${i}`}
@@ -407,7 +412,18 @@ function DeudorDocsPanel({
                   {doc.vencimiento ? formatDate(doc.vencimiento) : "—"}
                 </td>
                 <td className="py-1.5 pr-3 tabular-nums">
-                  {gestionada ? (
+                  {excluida ? (
+                    <span
+                      className="rounded bg-neutral-light/50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-mid"
+                      title={
+                        doc.cedido
+                          ? "Cedida por factoring (RPETC): la cobra el factor, no cuenta como tu cobranza."
+                          : "Reclamada en el SII: no es una obligación de cobro."
+                      }
+                    >
+                      {motivoExcluida}
+                    </span>
+                  ) : gestionada ? (
                     <span className="text-neutral-mid">Gestionada</span>
                   ) : (
                     <DiasVencimiento doc={doc} />
@@ -416,14 +432,14 @@ function DeudorDocsPanel({
                 <td
                   className={cn(
                     "py-1.5 pr-3 text-right tabular-nums",
-                    doc.esNotaCredito ? "text-neutral-mid" : "text-neutral-dark",
+                    doc.esNotaCredito || excluida ? "text-neutral-mid line-through" : "text-neutral-dark",
                   )}
                 >
                   {formatClp(doc.monto)}
                 </td>
                 <td className="py-1.5 text-right">
-                  {/* Las NC no se gestionan (restan, no se cobran). */}
-                  {!doc.esNotaCredito && (
+                  {/* Ni las NC (restan) ni las cedidas/reclamadas (no son tuyas) se gestionan/cobran. */}
+                  {!doc.esNotaCredito && !excluida && (
                     <button
                       type="button"
                       onClick={() => onToggleDoc(doc.folio)}

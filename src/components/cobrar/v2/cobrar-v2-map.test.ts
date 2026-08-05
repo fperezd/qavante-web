@@ -218,6 +218,19 @@ describe("peorMoraDias", () => {
     ).toBe(12);
   });
 
+  it("ignora CEDIDAS (factor) y RECLAMADAS: no son por-cobrar → no fijan la mora de la fila", () => {
+    // Una cedida vencida hace 90d (la cobra el factor) NO debe ganar sobre la deuda real (−5).
+    expect(
+      peorMoraDias([
+        doc({ diasParaVencer: -90, cedido: true }),
+        doc({ diasParaVencer: -95, reclamado: true }),
+        doc({ diasParaVencer: -5 }), // única deuda real de la empresa
+      ]),
+    ).toBe(5);
+    // Si la ÚNICA vencida es cedida/reclamada, no hay mora propia.
+    expect(peorMoraDias([doc({ diasParaVencer: -90, cedido: true })])).toBe(null);
+  });
+
   it("lista vacía → null", () => {
     expect(peorMoraDias([])).toBe(null);
   });

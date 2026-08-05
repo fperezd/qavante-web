@@ -228,7 +228,17 @@ export function peorMoraDias(docs: ReadonlyArray<DocMaestro>): number | null {
   for (const d of docs) {
     // Una factura ANULADA al 100% (neto 0) no está vencida: no debe contar como "la más vencida"
     // (si no, muestra "Vencida hace N días" sobre un documento que ya no debe nada).
-    if (d.esNotaCredito || d.pagado || d.anulacion === "anulada" || d.diasParaVencer == null)
+    // CEDIDA (factor) / RECLAMADA: no son por-cobrar de la empresa (se excluyen del total) → tampoco
+    // pueden fijar la mora de la fila: si no, "Vencida hace 90 días" saldría de una factura que ya no
+    // es tuya, y ese deudor treparía en el orden por Mora chasing lo que cobra el factor.
+    if (
+      d.esNotaCredito ||
+      d.pagado ||
+      d.anulacion === "anulada" ||
+      d.cedido ||
+      d.reclamado ||
+      d.diasParaVencer == null
+    )
       continue;
     if (d.diasParaVencer < 0 && (peor === null || d.diasParaVencer < peor)) peor = d.diasParaVencer;
   }
