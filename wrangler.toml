@@ -68,12 +68,14 @@ NEXT_PUBLIC_FF_BANK_BALANCES = "true"
 # Pantalla Banco — ON (encendido 2026-08-04 por Fernando): productos del tenant por banco (cuentas +
 # tarjetas de crédito). Consume /api/bice/* (cookie). Volver a ocultar = poner en "false".
 NEXT_PUBLIC_FF_BANCO_SCREEN = "true"
-# Conciliación de sueldos ACCIONABLE en Remuneraciones (#835) — OFF (feature nueva). El board del
-# backend (payroll-settlements/reconcile/revert, qavante-api #826/#827, deployado 2026-08-04) es la
-# fuente de verdad; deja conciliar una-a-una / varias marcadas y DESASIGNAR (caso Carrasco). Con OFF
-# la Conciliación pasiva por-monto queda intacta (cero regresión). Encender tras validar al peso que
-# el shape del board (objeto genérico en el OpenAPI) calza con lo que el FE normaliza.
-NEXT_PUBLIC_FF_PAYROLL_RECONCILE_BOARD = "false"
+# Conciliación de sueldos ACCIONABLE en Remuneraciones (#835) — ON (encendido 2026-08-05 por Fernando).
+# El board del backend (payroll-settlements/reconcile/revert, qavante-api #826/#827) es la fuente de
+# verdad; deja conciliar una-a-una / varias marcadas y DESASIGNAR (caso Carrasco). Validado al peso con
+# la sesión de Fernando: el shape del board calza con `normalizeBoard`; y como los débitos de sueldos
+# reales NO vienen categorizados (salen como "Cargo nómina en línea"/"Transf. a terceros"), los
+# candidatos se descubren por glosa payroll O por calce de monto con el líquido del trabajador (#848).
+# Apagar = "false" (vuelve la Conciliación pasiva por-monto, sin regresión).
+NEXT_PUBLIC_FF_PAYROLL_RECONCILE_BOARD = "true"
 # Pagar v2 (rediseño aprobado 2026-07-14) — ON (encendido 2026-07-14 por Fernando): respuesta de
 # dueño (cuánto debe pagar + ¿la caja alcanza?) + brecha de caja + las 3 del mes (imposiciones/
 # impuestos/sueldos) + vencimientos con postergabilidad + mayores compromisos. Reusa accounts-payable
