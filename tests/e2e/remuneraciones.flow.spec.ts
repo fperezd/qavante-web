@@ -43,16 +43,36 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     await expect(page.getByText(/Planilla registrada en Pagar/i)).toBeVisible();
   });
 
-  test("Conciliación cruza el líquido por empleado contra el banco (ADR-0057)", async ({
+  test("Conciliación accionable: desasignar el match malo y asignar un débito (#835)", async ({
     page,
     context,
   }) => {
     await loginAs(context, "owner");
-    await page.goto("/remuneraciones");
-
-    // El detalle por empleado (/payroll/detail) alimenta el cruce → resumen.
+    // Deep-link fija el período en 2026-05 (donde vive el débito de sueldos del fixture).
+    await page.goto("/remuneraciones?period=2026-05");
     await page.getByRole("tab", { name: "Conciliación" }).click();
-    await expect(page.getByText(/empleados conciliados/i)).toBeVisible();
-    await expect(page.getByText("Ana Pérez Soto")).toBeVisible();
+
+    // Board accionable (flag payrollReconcileBoard ON en e2e): zona de conciliar + Conciliados.
+    await expect(page.getByRole("heading", { name: "Conciliar sueldos" })).toBeVisible();
+
+    // Caso real del #835: Carrasco quedó conciliado contra una transferencia a Fernando Pérez →
+    // Desasignar lo deshace.
+    const carrasco = page.getByRole("row", { name: /TRANSFERENCIA A FERNANDO PEREZ/ });
+    await expect(carrasco).toBeVisible();
+    await carrasco.getByRole("button", { name: /Desasignar/ }).click();
+    await expect(page.getByText(/Match desasignado/i)).toBeVisible();
+    await expect(page.getByText("TRANSFERENCIA A FERNANDO PEREZ")).toHaveCount(0);
+
+    // Asignar bien: elige el débito de sueldos + marca a Ana → Conciliar → Confirmar.
+    await page.getByRole("radio", { name: /SUELDO FERNANDO PEREZ MAYO/ }).click();
+    await page.getByRole("checkbox", { name: /Ana P/ }).click();
+    await page.getByRole("button", { name: /^Conciliar$/ }).click();
+    await expect(page.getByText(/Asignar/)).toBeVisible();
+    await page.getByRole("button", { name: /Confirmar conciliación/ }).click();
+
+    // Refetch del board → toast + Ana pasa a Conciliados (fila con su Desasignar).
+    await expect(page.getByText(/Sueldo conciliado/i)).toBeVisible();
+    const anaConciliada = page.getByRole("row", { name: /Ana P/ });
+    await expect(anaConciliada.getByRole("button", { name: /Desasignar/ })).toBeVisible();
   });
 });
