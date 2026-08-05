@@ -3436,6 +3436,15 @@ const cajaV2Handlers = [
           ],
         },
         por_cobrar_vencido: { total: "9400000", n: 3 },
+        esperado_con_recuperacion: {
+          dias_de_caja: 1,
+          recuperacion_days: 30,
+          total_recuperado: "9400000",
+          serie: [
+            { fecha: "2026-08-05", saldo_cierre: "1200000", capa: "esperado_con_recuperacion" },
+          ],
+          punto_quiebre: { fecha: "2026-08-06", saldo: "-3639436", causas: [] },
+        },
         vencido: {
           total: "9400000",
           items: [

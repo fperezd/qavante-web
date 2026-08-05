@@ -38,6 +38,9 @@ export interface CajaProyeccionViewProps {
   /** Detalle de los cobros vencidos/sin-fecha (glosa/monto/días): el dueño puede desplegar la lista y
    *  verlos uno por uno desde el caveat (pedido de Fernando). Vacío → no hay lista para desplegar. */
   cobrosPorCobrar?: { glosa: string; monto: number; diasAtraso: number | null }[];
+  /** Escenario "con recuperación del atraso" (ADR-0087): si viene, el caveat muestra cuánto MEJORA el
+   *  piso SI cobras ese atraso — respuesta honesta al "sin recuperación" del core. */
+  recuperacion?: { pisoRecup: number | null; totalRecuperado: number; ventanaDias: number } | null;
   /** Oculta el "Saldo hoy" del medidor (el hero de la pantalla ya lo muestra → no repetir). */
   ocultarSaldoHoy?: boolean;
   className?: string;
@@ -53,6 +56,7 @@ export function CajaProyeccionView({
   porCobrarVencido,
   conciliarHref,
   cobrosPorCobrar,
+  recuperacion,
   ocultarSaldoHoy,
   className,
 }: CajaProyeccionViewProps) {
@@ -102,6 +106,34 @@ export function CajaProyeccionView({
                 ). Si ya cobraste alguno, <b>concílialo</b> para que salga de acá; su cobro no es
                 seguro, por eso no entra en esta cifra.
               </p>
+
+              {recuperacion && (
+                <p className="mt-1.5 border-t border-info-500/20 pt-1.5">
+                  {recuperacion.pisoRecup != null ? (
+                    <>
+                      <b className="text-info-700">Con recuperación:</b> si cobras ese atraso
+                      repartido en {recuperacion.ventanaDias} días, tu punto más bajo sería{" "}
+                      <b className="text-neutral-dark tabular-nums">
+                        {formatClp(recuperacion.pisoRecup)}
+                      </b>
+                      {proyeccion.piso && (
+                        <>
+                          {" "}
+                          en vez de{" "}
+                          <span className="tabular-nums">{formatClp(proyeccion.piso.saldo)}</span>
+                        </>
+                      )}
+                      .
+                    </>
+                  ) : (
+                    <>
+                      <b className="text-info-700">Con recuperación:</b> si cobras ese atraso
+                      (repartido en {recuperacion.ventanaDias} días), tu caja no toca el punto de
+                      quiebre — se sostiene.
+                    </>
+                  )}
+                </p>
+              )}
 
               {verCobros && cobrosPorCobrar && cobrosPorCobrar.length > 0 && (
                 <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto border-t border-info-500/20 pt-2">
