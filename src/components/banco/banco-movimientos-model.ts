@@ -135,34 +135,88 @@ export function movimientosDeTarjeta(
     .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
 }
 
-/** Tab activo de la lista de movimientos (estilo Chipax). */
-export type MovTab = "todos" | "abonos" | "cargos" | "por_conciliar";
+/** Una sugerencia de conciliación para un movimiento (viene de la cola `reconciliation/review`). */
+export interface SugerenciaConciliacion {
+  movementId: string;
+  /** "receivable" (cobro) | "payable" (pago) | otro. */
+  kind: string;
+  /** Nombre del documento/contraparte sugerido. */
+  nombre: string;
+  /** Score 0-100 (confianza del match); `null` si el backend no lo trae. */
+  score: number | null;
+  /** Cuántos documentos cubre la sugerencia (subset-sum / NC-netting cubren N). */
+  documentCount: number;
+}
 
-/** Filtra los movimientos por tab + texto de búsqueda (en la glosa). Puro. */
+interface ReviewItemLike {
+  movement_id: string;
+  suggestion?: {
+    document_kind?: string;
+    name?: string | null;
+    score?: string | null;
+    document_count?: number;
+  } | null;
+}
+
+/** Mapa `movement_id → sugerencia` desde la cola de conciliación. Puro: no filtra por cuenta (eso lo
+ *  hace el intersect con los movimientos visibles). Sugerencias sin `movement_id` se ignoran. */
+export function mapaSugerencias(
+  items: ReviewItemLike[] | undefined,
+): Map<string, SugerenciaConciliacion> {
+  const map = new Map<string, SugerenciaConciliacion>();
+  for (const it of items ?? []) {
+    const s = it.suggestion;
+    if (!it.movement_id || !s) continue;
+    const score = s.score != null && s.score !== "" ? Number(s.score) : null;
+    map.set(it.movement_id, {
+      movementId: it.movement_id,
+      kind: s.document_kind ?? "",
+      nombre: s.name ?? "—",
+      score: score != null && Number.isFinite(score) ? score : null,
+      documentCount: s.document_count ?? 1,
+    });
+  }
+  return map;
+}
+
+/** Tab activo de la lista de movimientos (estilo Chipax). "sugerencias" = con match propuesto (Fase 2). */
+export type MovTab = "todos" | "sugerencias" | "abonos" | "cargos" | "por_conciliar";
+
+/** Filtra los movimientos por tab + texto de búsqueda (en la glosa). Puro. `conSugerencia` = ids con
+ *  match propuesto (para el tab "sugerencias"). */
 export function filtrarMovimientos(
   movs: MovimientoBanco[],
   tab: MovTab,
   texto: string,
+  conSugerencia?: Set<string>,
 ): MovimientoBanco[] {
   const q = texto.trim().toLowerCase();
   return movs.filter((m) => {
     if (tab === "abonos" && !m.esAbono) return false;
     if (tab === "cargos" && m.esAbono) return false;
     if (tab === "por_conciliar" && m.estado !== "por_conciliar") return false;
+    if (tab === "sugerencias" && !(m.id != null && conSugerencia?.has(m.id))) return false;
     if (q && !m.glosa.toLowerCase().includes(q)) return false;
     return true;
   });
 }
 
-/** Cuenta abonos / cargos / por-conciliar para los badges de los tabs. */
-export function contarMovimientos(movs: MovimientoBanco[]): {
+/** Cuenta abonos / cargos / por-conciliar / con-sugerencia para los badges de los tabs. */
+export function contarMovimientos(
+  movs: MovimientoBanco[],
+  conSugerencia?: Set<string>,
+): {
   abonos: number;
   cargos: number;
   porConciliar: number;
+  sugerencias: number;
 } {
   return {
     abonos: movs.filter((m) => m.esAbono).length,
     cargos: movs.filter((m) => !m.esAbono).length,
     porConciliar: movs.filter((m) => m.estado === "por_conciliar").length,
+    sugerencias: conSugerencia
+      ? movs.filter((m) => m.id != null && conSugerencia.has(m.id)).length
+      : 0,
   };
 }

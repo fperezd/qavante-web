@@ -8,7 +8,7 @@ import { CuentaDetalleLive } from "@/components/banco/cuenta-detalle-live";
    Gated `bancoScreen`. Server Component (regla 4): resuelve el flag + calcula el mes actual (Santiago)
    para el filtro, así el FE no computa `new Date()` en el render (evita mismatch de hidratación). */
 export default async function Page({ params }: { params: Promise<{ numero: string }> }) {
-  const { bancoScreen } = resolveFeatureFlags();
+  const { bancoScreen, bancoConciliacion } = resolveFeatureFlags();
   const { numero } = await params;
 
   if (!bancoScreen) {
@@ -20,6 +20,7 @@ export default async function Page({ params }: { params: Promise<{ numero: strin
       <CuentaDetalleLive
         numeroCuenta={decodeURIComponent(numero)}
         mesActual={currentPeriodSantiago(new Date())}
+        conciliarEnabled={bancoConciliacion}
       />
     </div>
   );

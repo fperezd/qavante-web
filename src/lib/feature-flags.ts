@@ -59,6 +59,7 @@ export const FEATURE_FLAGS = [
   "reconciliationReview",
   "bancoScreen",
   "payrollReconcileBoard",
+  "bancoConciliacion",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -189,6 +190,14 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      el FE normaliza; encender = editar wrangler.toml. Con OFF, la Conciliación pasiva por-monto queda
      intacta (cero regresión). */
   payrollReconcileBoard: "/api/admin/treasury/payroll-settlements/{period}",
+  /* Conciliación POR movimiento en el detalle de una cuenta de Banco (Fase 2, 2026-08-06) — cada
+     movimiento "Por conciliar" con match propuesto (de la cola `reconciliation/review`, cruzada por
+     movement_id con la cuenta) ofrece "Conciliar" / "Rechazar" + un tab "Sugerencias". Muta (confirm),
+     así que gated OFF hasta validar al peso el path confirm con la sesión de Fernando (bug histórico
+     `confirm_review`). Con OFF, el detalle queda read-only (Fase 1, cero regresión). Su endpoint de
+     gating es el confirm POR movimiento (lo que lo distingue de `reconciliationReview`, que solo lee la
+     cola). Encender = editar wrangler.toml. */
+  bancoConciliacion: "/api/treasury/reconciliation/{movement_id}/confirm",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

@@ -68,6 +68,12 @@ NEXT_PUBLIC_FF_BANK_BALANCES = "true"
 # Pantalla Banco — ON (encendido 2026-08-04 por Fernando): productos del tenant por banco (cuentas +
 # tarjetas de crédito). Consume /api/bice/* (cookie). Volver a ocultar = poner en "false".
 NEXT_PUBLIC_FF_BANCO_SCREEN = "true"
+# Conciliación POR movimiento en el detalle de una cuenta de Banco (Fase 2, 2026-08-06) — OFF hasta
+# validar al peso el path confirm con la sesión de Fernando (bug histórico `confirm_review`). Cada
+# movimiento "Por conciliar" con match propuesto (cola reconciliation/review cruzada por movement_id)
+# ofrece "Conciliar" / "Rechazar" + tab "Sugerencias". Con OFF el detalle queda read-only (Fase 1, cero
+# regresión). Encender tras la validación = "true".
+NEXT_PUBLIC_FF_BANCO_CONCILIACION = "false"
 # Conciliación de sueldos ACCIONABLE en Remuneraciones (#835) — ON (encendido 2026-08-05 por Fernando).
 # El board del backend (payroll-settlements/reconcile/revert, qavante-api #826/#827) es la fuente de
 # verdad; deja conciliar una-a-una / varias marcadas y DESASIGNAR (caso Carrasco). Validado al peso con
