@@ -45,6 +45,11 @@ test.describe("Flujo: Banco (/banco)", () => {
     // Elegir mayo 2026 (mes con movimientos en el fixture) → aparecen los movimientos de la cuenta.
     await page.locator('input[type="month"]').fill("2026-05");
     await expect(page.getByText(/SUELDO FERNANDO PEREZ|MOVISTAR/).first()).toBeVisible();
+
+    // Tabs estilo Chipax (Fase 1): Todos / Abonos / Cargos / Por conciliar. Filtrar por "Cargos".
+    await expect(page.getByRole("tab", { name: /Por conciliar/ })).toBeVisible();
+    await page.getByRole("tab", { name: /Cargos/ }).click();
+    await expect(page.getByText(/SUELDO FERNANDO PEREZ|MOVISTAR/).first()).toBeVisible();
   });
 
   test("clic en la tarjeta → detalle de movimientos", async ({ page, context }) => {

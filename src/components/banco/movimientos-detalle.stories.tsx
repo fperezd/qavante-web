@@ -7,9 +7,9 @@ import type { MovimientoBanco } from "./banco-movimientos-model";
    filtro de mes (Mes actual / anterior / otro) y el estado "Actualizado a las HH:MM". */
 
 const MOVS: MovimientoBanco[] = [
-  { fecha: "2026-08-04", glosa: "MERCADOLIBRE", monto: -45990, moneda: "CLP", cuotas: "03/06" },
-  { fecha: "2026-08-03", glosa: "Transferencia recibida", monto: 500000, moneda: "CLP" },
-  { fecha: "2026-08-01", glosa: "PAGO PROVEEDOR ACME", monto: -120000, moneda: "CLP" },
+  { id: "m1", fecha: "2026-08-04", glosa: "MERCADOLIBRE", monto: -45990, moneda: "CLP", cuotas: "03/06", esAbono: false, estado: "por_conciliar" },
+  { id: "m2", fecha: "2026-08-03", glosa: "Transferencia recibida", monto: 500000, moneda: "CLP", esAbono: true, estado: "conciliado" },
+  { id: "m3", fecha: "2026-08-01", glosa: "PAGO PROVEEDOR ACME", monto: -120000, moneda: "CLP", esAbono: false, estado: "conciliado" },
 ];
 
 const meta = {
@@ -23,6 +23,7 @@ const meta = {
     period: "2026-08",
     onPeriodChange: fn(),
     movimientos: MOVS,
+    conEstado: true,
     horaTexto: "15:32",
   },
 } satisfies Meta<typeof MovimientosDetalle>;
@@ -37,6 +38,12 @@ export const ConMovimientos: Story = {
     await expect(c.getByText(/03\/06/)).toBeInTheDocument(); // cuota de la compra a plazo
     // Egreso en rojo con "−", ingreso en verde con "+".
     await expect(c.getByText(/−\$45\.990/)).toBeInTheDocument();
+    // Estado de conciliación por movimiento (Fase 1): el tab + el badge de la fila.
+    await expect(c.getAllByText("Por conciliar").length).toBeGreaterThan(0);
+    // Tab "Abonos" deja solo el ingreso (Chipax-like).
+    await userEvent.click(c.getByRole("tab", { name: /Abonos/ }));
+    await expect(c.getByText("Transferencia recibida")).toBeInTheDocument();
+    await expect(c.queryByText("MERCADOLIBRE")).not.toBeInTheDocument();
     // El filtro de mes: elegir "Mes anterior" avisa al contenedor.
     await userEvent.click(c.getByRole("button", { name: "Mes anterior" }));
     await expect(args.onPeriodChange).toHaveBeenCalledWith("2026-07");
