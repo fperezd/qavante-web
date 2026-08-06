@@ -28,13 +28,13 @@ function clp(decimalString: string): string {
   return Number.isFinite(n) ? formatClp(n) : decimalString;
 }
 
+// Solo los PRÉSTAMOS llevan una etiqueta de tipo aparte. La mayoría de las obligaciones son
+// `card_purchase` (compras a plazo con la tarjeta: SII/TGR/proveedores en cuotas) → bajo el título
+// "Obligaciones en cuotas" y con "N/M cuotas pendientes" a la vista, NO necesitan repetir el tipo (y
+// nunca deben leerse como "préstamo"). Pedido de Fernando 2026-08-05.
 const TYPE_LABEL: Record<string, string> = {
   loan: "Préstamo",
   prestamo: "Préstamo",
-  // La mayoría de las "obligaciones" NO son préstamos: son COMPRAS A PLAZO con la tarjeta (SII/TGR/
-  // proveedores financiados en cuotas). El backend las tipa `card_purchase`; antes caían al string
-  // crudo y se leían como préstamo (pedido de Fernando 2026-08-05).
-  card_purchase: "Compra a plazo",
 };
 
 /** Estado canónico → variante de badge + label legible. */
@@ -176,8 +176,9 @@ function ObligationRow({ obligation: o }: { obligation: ObligationListItem }) {
             {o.needs_review && <QavanteBadge variant="warning">Revisar</QavanteBadge>}
           </div>
           <p className="mt-0.5 text-xs text-neutral-mid">
-            {TYPE_LABEL[o.type] || o.type} · {o.pending_count}/{o.installments_total} cuotas
-            pendientes
+            {/* Prefijo de tipo solo cuando aporta (Préstamo); las compras a plazo no lo repiten. */}
+            {TYPE_LABEL[o.type] && <>{TYPE_LABEL[o.type]} · </>}
+            {o.pending_count}/{o.installments_total} cuotas pendientes
             {o.next_due_date && <> · próximo {formatDateLike(o.next_due_date)}</>}
           </p>
         </div>
