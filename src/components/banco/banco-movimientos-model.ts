@@ -7,14 +7,40 @@
 import { parseAmount } from "@/components/gestion/gestion-format";
 import type { BankMovement, TarjetaMovimiento } from "@/lib/api/treasury";
 
-/** Un movimiento normalizado para la lista del detalle. `monto` FIRMADO (negativo = egreso). */
+/** Estado de conciliación de un movimiento de cuenta (banco). `null` = no aplica (tarjeta). */
+export type EstadoConciliacion = "conciliado" | "por_conciliar" | "excluido";
+
+/** Un movimiento normalizado para la lista del detalle. `monto` FIRMADO (negativo = egreso/cargo). */
 export interface MovimientoBanco {
+  /** Id del movimiento (para conciliar por movimiento — Fase 2). */
+  id?: string;
   fecha: string;
   glosa: string;
   monto: number;
   moneda: string;
-  /** Extra de tarjeta: cuotas ("03/06"), si aplica. */
+  /** `true` = abono (ingreso), `false` = cargo (egreso). */
+  esAbono: boolean;
+  /** Estado de conciliación (solo cuentas); `null` en tarjeta. */
+  estado?: EstadoConciliacion | null;
+  /** Nº de documento del banco, si lo trae. */
+  documento?: string | null;
+  /** Extra de tarjeta: cuotas ("1 de 3"), si aplica. */
   cuotas?: string | null;
+}
+
+/** `reconciliation_status` del backend → estado legible. "por conciliar" = pendiente (unmatched/…). */
+export function estadoConciliacion(status: string | null | undefined): EstadoConciliacion {
+  const s = (status ?? "").toLowerCase();
+  if (s.includes("exclud") || s.includes("exclu")) return "excluido";
+  if (
+    s === "" ||
+    s.includes("unrecon") ||
+    s.includes("unmatch") ||
+    s.includes("pend") ||
+    s.includes("review")
+  )
+    return "por_conciliar";
+  return "conciliado";
 }
 
 interface BiceAccountLike {
@@ -43,12 +69,19 @@ export function movimientosDeCuenta(
   if (!bankAccountId) return [];
   return items
     .filter((m) => m.bank_account_id === bankAccountId)
-    .map((m) => ({
-      fecha: m.date,
-      glosa: m.description ?? "—",
-      monto: montoFirmado(m),
-      moneda,
-    }))
+    .map((m) => {
+      const monto = montoFirmado(m);
+      return {
+        id: m.id,
+        fecha: m.date,
+        glosa: m.description ?? "—",
+        monto,
+        moneda,
+        esAbono: monto >= 0,
+        estado: estadoConciliacion(m.reconciliation_status),
+        documento: m.external_id ?? null,
+      } satisfies MovimientoBanco;
+    })
     .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
 }
 
@@ -84,13 +117,52 @@ export function movimientosDeTarjeta(
       const mes = mesDeFecha(m.date);
       return mes === null || mes === period;
     })
-    .map((m) => ({
-      fecha: m.date ?? "",
-      glosa: m.description ?? "—",
-      // `amount` de tarjeta llega como number (a diferencia del string de bank-movements).
-      monto: typeof m.amount === "number" ? m.amount : parseAmount(m.amount ?? ""),
-      moneda: (m.currency ?? "CLP").toUpperCase(),
-      cuotas: m.installmentsDescription ?? null,
-    }))
+    .map((m) => {
+      // `amount` de tarjeta llega como number (a diferencia del string de bank-movements) y en valor de
+      // COMPRA (positivo). Un cargo es un egreso → lo firmamos negativo; un reverso (raw<0) queda abono.
+      const raw = typeof m.amount === "number" ? m.amount : parseAmount(m.amount ?? "");
+      const monto = -raw;
+      return {
+        fecha: m.date ?? "",
+        glosa: m.description ?? "—",
+        monto,
+        moneda: (m.currency ?? "CLP").toUpperCase(),
+        esAbono: monto >= 0,
+        estado: null, // los cargos de tarjeta no tienen estado de conciliación bancaria
+        cuotas: m.installmentsDescription ?? null,
+      } satisfies MovimientoBanco;
+    })
     .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+}
+
+/** Tab activo de la lista de movimientos (estilo Chipax). */
+export type MovTab = "todos" | "abonos" | "cargos" | "por_conciliar";
+
+/** Filtra los movimientos por tab + texto de búsqueda (en la glosa). Puro. */
+export function filtrarMovimientos(
+  movs: MovimientoBanco[],
+  tab: MovTab,
+  texto: string,
+): MovimientoBanco[] {
+  const q = texto.trim().toLowerCase();
+  return movs.filter((m) => {
+    if (tab === "abonos" && !m.esAbono) return false;
+    if (tab === "cargos" && m.esAbono) return false;
+    if (tab === "por_conciliar" && m.estado !== "por_conciliar") return false;
+    if (q && !m.glosa.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+/** Cuenta abonos / cargos / por-conciliar para los badges de los tabs. */
+export function contarMovimientos(movs: MovimientoBanco[]): {
+  abonos: number;
+  cargos: number;
+  porConciliar: number;
+} {
+  return {
+    abonos: movs.filter((m) => m.esAbono).length,
+    cargos: movs.filter((m) => !m.esAbono).length,
+    porConciliar: movs.filter((m) => m.estado === "por_conciliar").length,
+  };
 }

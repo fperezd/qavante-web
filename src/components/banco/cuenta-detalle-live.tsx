@@ -56,6 +56,7 @@ export function CuentaDetalleLive({
       period={period}
       onPeriodChange={setPeriod}
       movimientos={movimientos}
+      conEstado
       loading={loading}
       actualizando={actualizando}
       error={bankQuery.error}

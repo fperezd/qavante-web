@@ -5,6 +5,10 @@ import {
   movimientosDeCuenta,
   mesDeFecha,
   movimientosDeTarjeta,
+  estadoConciliacion,
+  filtrarMovimientos,
+  contarMovimientos,
+  type MovimientoBanco,
 } from "./banco-movimientos-model";
 
 const bm = (over: Partial<BankMovement>): BankMovement =>
@@ -64,8 +68,57 @@ describe("movimientosDeCuenta", () => {
     expect(byId["2026-08-02"]).toBe(-3_000); // abs + debit → negativo
     expect(byId["2026-08-01"]).toBe(-5_000);
   });
+  it("marca esAbono (ingreso) y el estado de conciliación", () => {
+    const r = movimientosDeCuenta(
+      [
+        bm({ id: "ab", bank_account_id: "acc-1", amount: "50000", direction: "credit", reconciliation_status: "matched" }),
+        bm({ id: "ca", bank_account_id: "acc-1", amount: "-9000", reconciliation_status: "unreconciled" }),
+      ],
+      "acc-1",
+      "CLP",
+    );
+    const ab = r.find((m) => m.id === "ab")!;
+    const ca = r.find((m) => m.id === "ca")!;
+    expect(ab.esAbono).toBe(true);
+    expect(ab.estado).toBe("conciliado");
+    expect(ca.esAbono).toBe(false);
+    expect(ca.estado).toBe("por_conciliar");
+  });
+
   it("sin bankAccountId → [] (no muestra toda la cartola)", () => {
     expect(movimientosDeCuenta(items, null, "CLP")).toEqual([]);
+  });
+});
+
+describe("estadoConciliacion", () => {
+  it("mapea el reconciliation_status", () => {
+    expect(estadoConciliacion("unreconciled")).toBe("por_conciliar");
+    expect(estadoConciliacion("unmatched")).toBe("por_conciliar");
+    expect(estadoConciliacion("")).toBe("por_conciliar");
+    expect(estadoConciliacion("matched")).toBe("conciliado");
+    expect(estadoConciliacion("reconciled")).toBe("conciliado");
+    expect(estadoConciliacion("excluded")).toBe("excluido");
+  });
+});
+
+describe("filtrarMovimientos / contarMovimientos", () => {
+  const movs: MovimientoBanco[] = [
+    { id: "1", fecha: "2026-08-04", glosa: "TRANSF SUELDO", monto: 500000, moneda: "CLP", esAbono: true, estado: "conciliado" },
+    { id: "2", fecha: "2026-08-03", glosa: "PAGO TGR", monto: -1000000, moneda: "CLP", esAbono: false, estado: "por_conciliar" },
+    { id: "3", fecha: "2026-08-02", glosa: "PAGO PROVEEDOR", monto: -50000, moneda: "CLP", esAbono: false, estado: "conciliado" },
+  ];
+  it("cuenta abonos/cargos/por-conciliar", () => {
+    expect(contarMovimientos(movs)).toEqual({ abonos: 1, cargos: 2, porConciliar: 1 });
+  });
+  it("filtra por tab", () => {
+    expect(filtrarMovimientos(movs, "abonos", "").map((m) => m.id)).toEqual(["1"]);
+    expect(filtrarMovimientos(movs, "cargos", "").map((m) => m.id)).toEqual(["2", "3"]);
+    expect(filtrarMovimientos(movs, "por_conciliar", "").map((m) => m.id)).toEqual(["2"]);
+    expect(filtrarMovimientos(movs, "todos", "").length).toBe(3);
+  });
+  it("filtra por texto en la glosa (case-insensitive), combinado con el tab", () => {
+    expect(filtrarMovimientos(movs, "todos", "pago").map((m) => m.id)).toEqual(["2", "3"]);
+    expect(filtrarMovimientos(movs, "cargos", "tgr").map((m) => m.id)).toEqual(["2"]);
   });
 });
 
