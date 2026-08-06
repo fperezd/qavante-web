@@ -17,10 +17,38 @@ export interface BancoConProductos {
   referencia?: string | null;
   cuentas: { cuenta: CuentaSaldo; balance?: BalanceData }[];
   tarjetas: { tarjeta: TarjetaCredito; cupos: CupoTarjeta[] }[];
+  /** La consulta de líneas de crédito (balance por cuenta) todavía carga → las cuentas muestran
+   *  "cargando línea de crédito…" en vez de omitirla (esa consulta es más lenta). */
+  lcLoading?: boolean;
+  /** Saldo de cuentas (`/api/bice/saldo`) aún cargando → skeleton en la sección Cuentas (BICE responde
+   *  lento, scrape en vivo). Render progresivo: cada sección aparece apenas llega, sin bloquear la otra. */
+  cuentasLoading?: boolean;
+  /** Tarjetas (`/api/bice/tarjetas`) aún cargando → skeleton en la sección Tarjetas. */
+  tarjetasLoading?: boolean;
 }
 
-export function BancoBankCard({ banco, referencia, cuentas, tarjetas }: BancoConProductos) {
-  const vacio = cuentas.length === 0 && tarjetas.length === 0;
+/** Placeholder de un par de productos mientras BICE responde. */
+function ProductosSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2" aria-busy="true">
+      <div className="h-24 animate-pulse rounded-xl bg-neutral-light/40" />
+      <div className="h-24 animate-pulse rounded-xl bg-neutral-light/40" />
+    </div>
+  );
+}
+
+export function BancoBankCard({
+  banco,
+  referencia,
+  cuentas,
+  tarjetas,
+  lcLoading,
+  cuentasLoading,
+  tarjetasLoading,
+}: BancoConProductos) {
+  const mostrarCuentas = cuentas.length > 0 || cuentasLoading;
+  const mostrarTarjetas = tarjetas.length > 0 || tarjetasLoading;
+  const vacio = !mostrarCuentas && !mostrarTarjetas;
   return (
     <section
       className="overflow-hidden rounded-2xl border border-border bg-surface-muted/40 shadow-sm"
@@ -42,36 +70,45 @@ export function BancoBankCard({ banco, referencia, cuentas, tarjetas }: BancoCon
         </p>
       ) : (
         <div className="space-y-5 p-5">
-          {cuentas.length > 0 && (
+          {mostrarCuentas && (
             <div>
               <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-mid">
                 Cuentas corrientes
               </h3>
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                {cuentas.map(({ cuenta, balance }) => (
-                  <CuentaCorrienteItem
-                    key={cuenta.numeroCuenta}
-                    cuenta={cuenta}
-                    balance={balance}
-                  />
-                ))}
-              </div>
+              {cuentas.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {cuentas.map(({ cuenta, balance }) => (
+                    <CuentaCorrienteItem
+                      key={cuenta.numeroCuenta}
+                      cuenta={cuenta}
+                      balance={balance}
+                      lcLoading={lcLoading}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <ProductosSkeleton />
+              )}
             </div>
           )}
-          {tarjetas.length > 0 && (
+          {mostrarTarjetas && (
             <div>
               <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-mid">
                 Tarjetas de crédito
               </h3>
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                {tarjetas.map(({ tarjeta, cupos }) => (
-                  <TarjetaCreditoItem
-                    key={tarjeta.operationNumber}
-                    tarjeta={tarjeta}
-                    cupos={cupos}
-                  />
-                ))}
-              </div>
+              {tarjetas.length > 0 ? (
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  {tarjetas.map(({ tarjeta, cupos }) => (
+                    <TarjetaCreditoItem
+                      key={tarjeta.operationNumber}
+                      tarjeta={tarjeta}
+                      cupos={cupos}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <ProductosSkeleton />
+              )}
             </div>
           )}
         </div>

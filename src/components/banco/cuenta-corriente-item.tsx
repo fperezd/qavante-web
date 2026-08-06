@@ -13,9 +13,13 @@ export interface CuentaCorrienteItemProps {
   cuenta: CuentaSaldo;
   /** Balance detallado (trae la línea de crédito); opcional. */
   balance?: BalanceData;
+  /** La consulta de la LÍNEA DE CRÉDITO (balance por cuenta) todavía carga: mostramos "cargando…" en
+   *  vez de nada, para que no parezca que la cuenta no tiene línea (esa consulta es más lenta — scrape
+   *  aparte de BICE). */
+  lcLoading?: boolean;
 }
 
-export function CuentaCorrienteItem({ cuenta: c, balance }: CuentaCorrienteItemProps) {
+export function CuentaCorrienteItem({ cuenta: c, balance, lcLoading }: CuentaCorrienteItemProps) {
   const lc = lineaCreditoDe(balance);
   const mon = lc?.moneda ?? c.moneda;
   const agotada = lc ? lc.disponible <= 0 : false;
@@ -56,6 +60,12 @@ export function CuentaCorrienteItem({ cuenta: c, balance }: CuentaCorrienteItemP
             </>
           )}
           {lc.vencimientoSobregiro && <> · vence el {formatDateLike(lc.vencimientoSobregiro)}</>}
+        </p>
+      )}
+      {!lc && lcLoading && (
+        <p className="mt-2 border-t border-dashed border-border pt-2 text-[11px] text-neutral-mid">
+          <span className="inline-block h-3 w-40 animate-pulse rounded bg-neutral-light/50 align-middle" />{" "}
+          <span className="sr-only">Cargando línea de crédito…</span>
         </p>
       )}
     </div>

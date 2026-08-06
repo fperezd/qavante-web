@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Landmark } from "lucide-react";
+import { Landmark, Loader2 } from "lucide-react";
 import { QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import {
   useBiceSaldo,
@@ -20,7 +20,7 @@ import { cuposDeTarjeta } from "./banco-model";
 export function BancoView() {
   const saldoQuery = useBiceSaldo();
   const cuentas = React.useMemo(() => saldoQuery.data?.cuentas ?? [], [saldoQuery.data]);
-  const { balancePorCuenta } = useBiceCuentasBalances(
+  const { balancePorCuenta, isLoading: lcLoading } = useBiceCuentasBalances(
     cuentas.map((c) => c.numeroCuenta),
     cuentas.length > 0,
   );
@@ -32,15 +32,16 @@ export function BancoView() {
     tarjetas.length > 0,
   );
 
-  if (saldoQuery.isLoading || tarjetasQuery.isLoading) {
-    return <div className="h-64 animate-pulse rounded-2xl bg-neutral-light/30" aria-busy="true" />;
-  }
+  const cuentasLoading = saldoQuery.isLoading;
+  const tarjetasLoading = tarjetasQuery.isLoading;
+
   // Solo error DURO (las dos fuentes cayeron): si una responde, mostramos lo que hay.
   if (saldoQuery.isError && tarjetasQuery.isError) {
     return <QavanteInlineError error={saldoQuery.error} what="tus productos de banco" />;
   }
 
-  if (cuentas.length === 0 && tarjetas.length === 0) {
+  // Vacío REAL: solo cuando AMBAS terminaron de cargar y no hay nada (no mientras BICE responde).
+  if (!cuentasLoading && !tarjetasLoading && cuentas.length === 0 && tarjetas.length === 0) {
     return (
       <QavanteEmpty
         icon={Landmark}
@@ -65,12 +66,21 @@ export function BancoView() {
 
   // Hoy un solo banco (BICE). Cuando haya más, se arma una sección por banco.
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {(cuentasLoading || tarjetasLoading) && (
+        <p className="flex items-center gap-2 rounded-lg bg-info-500/[.06] px-3 py-2 text-xs text-neutral-mid">
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-info-700" aria-hidden="true" />
+          Consultando tus saldos y cupos en BICE en vivo — puede tardar unos segundos.
+        </p>
+      )}
       <BancoBankCard
         banco="BICE"
         referencia={referencia}
         cuentas={cuentasProd}
         tarjetas={tarjetasProd}
+        cuentasLoading={cuentasLoading}
+        tarjetasLoading={tarjetasLoading}
+        lcLoading={lcLoading}
       />
     </div>
   );
