@@ -12,10 +12,13 @@ export default function PagarObligacionesPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">Préstamos y obligaciones</h1>
+        <h1 className="text-2xl font-bold text-neutral-dark">
+          Compras a plazo, préstamos y obligaciones
+        </h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Tus préstamos y compromisos de pago: capital, cuotas pendientes y próximos vencimientos.
-          Las cuotas se concilian automáticamente contra los débitos de tu banco.
+          Tus compromisos de pago en cuotas: compras a plazo con la tarjeta (SII, TGR, proveedores) y
+          préstamos, con sus cuotas pendientes y próximos vencimientos. Las cuotas se concilian
+          automáticamente contra los débitos de tu banco.
         </p>
       </header>
 

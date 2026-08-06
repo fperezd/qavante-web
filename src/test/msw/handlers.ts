@@ -2526,6 +2526,23 @@ const obligationsSeed = [
     next_due_date: "2026-07-01",
     outstanding_total: "2750000",
   },
+  {
+    // La mayoría de las "obligaciones" reales son COMPRAS A PLAZO con la tarjeta (SII/TGR/proveedores
+    // en cuotas), NO préstamos. El FE las etiqueta "Compra a plazo" (no "préstamo").
+    id: "obl-3",
+    type: "card_purchase",
+    counterparty: "SII",
+    principal_total: "627894",
+    annual_rate: null,
+    currency_code: "CLP",
+    origination_date: "2026-06-10",
+    installments_total: 6,
+    status: "active",
+    needs_review: false,
+    pending_count: 4,
+    next_due_date: "2026-08-10",
+    outstanding_total: "418596",
+  },
 ];
 
 function loanSchedule(principal: number, monthlyRate: number, n: number, firstDue: string) {
