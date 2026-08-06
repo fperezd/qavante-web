@@ -28,6 +28,10 @@ function clp(decimalString: string): string {
   return Number.isFinite(n) ? formatClp(n) : decimalString;
 }
 
+// Solo los PRÉSTAMOS llevan una etiqueta de tipo aparte. La mayoría de las obligaciones son
+// `card_purchase` (compras a plazo con la tarjeta: SII/TGR/proveedores en cuotas) → bajo el título
+// "Obligaciones en cuotas" y con "N/M cuotas pendientes" a la vista, NO necesitan repetir el tipo (y
+// nunca deben leerse como "préstamo"). Pedido de Fernando 2026-08-05.
 const TYPE_LABEL: Record<string, string> = {
   loan: "Préstamo",
   prestamo: "Préstamo",
@@ -84,8 +88,8 @@ export function ObligacionesListView() {
     return (
       <QavanteEmpty
         icon={Landmark}
-        title="Todavía no registraste obligaciones"
-        description="Cuando registres un préstamo, vas a ver acá su capital, cuotas pendientes y el próximo vencimiento."
+        title="Todavía no hay compras a plazo ni préstamos"
+        description="Acá vas a ver tus compras a plazo con la tarjeta (SII, TGR, proveedores) y los préstamos que registres, con sus cuotas pendientes y próximos vencimientos."
         cta={
           <QavanteButton size="sm" onClick={() => router.push(NUEVO_HREF)}>
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -172,8 +176,9 @@ function ObligationRow({ obligation: o }: { obligation: ObligationListItem }) {
             {o.needs_review && <QavanteBadge variant="warning">Revisar</QavanteBadge>}
           </div>
           <p className="mt-0.5 text-xs text-neutral-mid">
-            {TYPE_LABEL[o.type] || o.type} · {o.pending_count}/{o.installments_total} cuotas
-            pendientes
+            {/* Prefijo de tipo solo cuando aporta (Préstamo); las compras a plazo no lo repiten. */}
+            {TYPE_LABEL[o.type] && <>{TYPE_LABEL[o.type]} · </>}
+            {o.pending_count}/{o.installments_total} cuotas pendientes
             {o.next_due_date && <> · próximo {formatDateLike(o.next_due_date)}</>}
           </p>
         </div>
