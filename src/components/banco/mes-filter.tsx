@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { shiftPeriod, formatPeriodLabel } from "@/components/gestion/gestion-format";
+import { shiftPeriod } from "@/components/gestion/gestion-format";
 
 /* Filtro de mes SIMPLE para el detalle de movimientos de Banco (pedido de Fernando: Mes actual / Mes
    anterior / Otro mes — SIN los presets anuales/multi-mes del PeriodRangeFilter). `mesActual` lo calcula
@@ -29,20 +29,20 @@ export function MesFilter({ mesActual, value, onChange }: MesFilterProps) {
       </Chip>
       <label
         className={cn(
-          "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+          "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors",
           esOtro
             ? "border-brand-primary bg-brand-primary-50 text-brand-primary-700"
-            : "border-border text-neutral-mid hover:bg-neutral-light/30",
+            : "border-border text-neutral-mid",
         )}
       >
-        {esOtro ? formatPeriodLabel(value) : "Otro mes"}
+        <span className="text-neutral-mid">Otro mes:</span>
         <input
           type="month"
           value={value}
           max={mesActual}
           onChange={(e) => e.target.value && onChange(e.target.value)}
           aria-label="Elegir otro mes"
-          className="w-0 opacity-0"
+          className="cursor-pointer bg-transparent text-neutral-dark outline-none"
         />
       </label>
     </div>
