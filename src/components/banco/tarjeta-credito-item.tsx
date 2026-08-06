@@ -1,4 +1,5 @@
-import { CreditCard } from "lucide-react";
+import Link from "next/link";
+import { CreditCard, ChevronRight } from "lucide-react";
 import { QavanteBadge } from "@/components/qavante";
 import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -17,19 +18,26 @@ export interface TarjetaCreditoItemProps {
 export function TarjetaCreditoItem({ tarjeta, cupos }: TarjetaCreditoItemProps) {
   const nombre = tarjeta.product || "Tarjeta de crédito";
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <Link
+      href={`/banco/tarjeta/${encodeURIComponent(tarjeta.operationNumber)}`}
+      className="block rounded-xl border border-border bg-surface p-4 transition-colors hover:border-brand-primary/40 hover:bg-brand-primary-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+      aria-label={`Ver movimientos de ${nombre}`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-2 font-medium text-neutral-dark">
           <CreditCard className="h-4 w-4 text-brand-primary" aria-hidden="true" />
           {nombre}
         </span>
-        {tarjeta.isActive ? (
-          <span className="font-mono text-xs text-neutral-mid">
-            ····{tarjeta.operationNumber.slice(-4)}
-          </span>
-        ) : (
-          <QavanteBadge variant="warning">Inactiva</QavanteBadge>
-        )}
+        <span className="flex items-center gap-2">
+          {tarjeta.isActive ? (
+            <span className="font-mono text-xs text-neutral-mid">
+              ····{tarjeta.operationNumber.slice(-4)}
+            </span>
+          ) : (
+            <QavanteBadge variant="warning">Inactiva</QavanteBadge>
+          )}
+          <ChevronRight className="h-4 w-4 shrink-0 text-neutral-mid" aria-hidden="true" />
+        </span>
       </div>
       {tarjeta.holder && <p className="mt-0.5 text-xs text-neutral-mid">{tarjeta.holder}</p>}
 
@@ -69,6 +77,6 @@ export function TarjetaCreditoItem({ tarjeta, cupos }: TarjetaCreditoItemProps) 
           })}
         </ul>
       )}
-    </div>
+    </Link>
   );
 }

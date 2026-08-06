@@ -1,4 +1,5 @@
-import { Wallet } from "lucide-react";
+import Link from "next/link";
+import { Wallet, ChevronRight } from "lucide-react";
 import { QavanteBadge } from "@/components/qavante";
 import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -24,16 +25,23 @@ export function CuentaCorrienteItem({ cuenta: c, balance, lcLoading }: CuentaCor
   const mon = lc?.moneda ?? c.moneda;
   const agotada = lc ? lc.disponible <= 0 : false;
   return (
-    <div className="rounded-xl border border-border bg-surface p-4">
+    <Link
+      href={`/banco/cuenta/${encodeURIComponent(c.numeroCuenta)}`}
+      className="block rounded-xl border border-border bg-surface p-4 transition-colors hover:border-brand-primary/40 hover:bg-brand-primary-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+      aria-label={`Ver movimientos de ${c.nombreCuenta ?? "la cuenta"}`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-2 font-medium text-neutral-dark">
           <Wallet className="h-4 w-4 text-brand-primary" aria-hidden="true" />
           <span className="truncate">{c.nombreCuenta ?? "Cuenta corriente"}</span>
           <QavanteBadge variant="info">{c.moneda ?? "CLP"}</QavanteBadge>
         </span>
-        {c.numeroFormateado && (
-          <span className="font-mono text-xs text-neutral-mid">{c.numeroFormateado}</span>
-        )}
+        <span className="flex items-center gap-2">
+          {c.numeroFormateado && (
+            <span className="font-mono text-xs text-neutral-mid">{c.numeroFormateado}</span>
+          )}
+          <ChevronRight className="h-4 w-4 shrink-0 text-neutral-mid" aria-hidden="true" />
+        </span>
       </div>
 
       <p className="mt-2 text-lg font-bold tabular-nums text-neutral-dark">
@@ -68,6 +76,6 @@ export function CuentaCorrienteItem({ cuenta: c, balance, lcLoading }: CuentaCor
           <span className="sr-only">Cargando línea de crédito…</span>
         </p>
       )}
-    </div>
+    </Link>
   );
 }
