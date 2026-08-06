@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Landmark, Loader2 } from "lucide-react";
+import { Landmark, RefreshCw } from "lucide-react";
 import { QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import {
   useBiceSaldo,
@@ -64,15 +64,31 @@ export function BancoView() {
     cupos: cuposDeTarjeta(saldoPorTarjeta.get(tarjeta.operationNumber)),
   }));
 
+  // Frescura estilo "actualizando" (pedido de Fernando): mostramos LO ÚLTIMO que había + la hora del
+  // último dato + un spinner mientras refresca — nunca un cuadro en blanco con "consultando en vivo".
+  // `isFetching` cubre el refetch en background (react-query conserva los datos previos mientras tanto);
+  // `dataUpdatedAt` es la hora real del último fetch OK. (El primer load frío depende del cache-first
+  // del backend — escalado; con datos en cache, la revisita muestra lo anterior al instante.)
+  const actualizando = saldoQuery.isFetching || tarjetasQuery.isFetching;
+  const actualizadoAt = Math.max(saldoQuery.dataUpdatedAt, tarjetasQuery.dataUpdatedAt);
+  const horaTexto =
+    actualizadoAt > 0
+      ? new Date(actualizadoAt).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" })
+      : null;
+
   // Hoy un solo banco (BICE). Cuando haya más, se arma una sección por banco.
   return (
     <div className="space-y-4">
-      {(cuentasLoading || tarjetasLoading) && (
-        <p className="flex items-center gap-2 rounded-lg bg-info-500/[.06] px-3 py-2 text-xs text-neutral-mid">
-          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-info-700" aria-hidden="true" />
-          Consultando tus saldos y cupos en BICE en vivo — puede tardar unos segundos.
-        </p>
-      )}
+      <div className="flex items-center gap-2 text-xs text-neutral-mid" aria-live="polite">
+        {actualizando ? (
+          <span className="inline-flex items-center gap-1.5 text-info-700">
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            Actualizando saldos…
+          </span>
+        ) : horaTexto ? (
+          <span>Actualizado a las {horaTexto}</span>
+        ) : null}
+      </div>
       <BancoBankCard
         banco="BICE"
         referencia={referencia}
