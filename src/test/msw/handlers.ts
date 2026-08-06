@@ -646,19 +646,37 @@ const treasuryHandlers = [
       error: null,
     });
   }),
+  /* Movimientos (cargos) de una tarjeta de crédito — para el detalle de tarjeta en Banco. Ventana; el
+     FE filtra por mes. */
+  http.get("*/api/bice/tarjetas/:op/movimientos", ({ params }) => {
+    const esClp = params.op === "42595474000067584";
+    return HttpResponse.json({
+      status: "ok",
+      data: esClp
+        ? [
+            { date: "2026-08-04", type: "compra", description: "MERCADOLIBRE", amount: "45990", currency: "CLP", state: "posted", installmentsDescription: null },
+            { date: "2026-08-01", type: "compra", description: "UBER *TRIP", amount: "8500", currency: "CLP", state: "posted", installmentsDescription: null },
+            { date: "2026-07-20", type: "compra", description: "PC FACTORY", amount: "129990", currency: "CLP", state: "posted", installmentsDescription: "03/06" },
+          ]
+        : [
+            { date: "2026-08-03", type: "compra", description: "AWS", amount: "120.50", currency: "USD", state: "posted", installmentsDescription: null },
+          ],
+    });
+  }),
   /* Cuentas que trae BICE con su estado de vínculo. Una vinculada + una EN
      CUARENTENA (linked_bank_account_id null) → alimenta "Cuentas por vincular". */
   http.get("*/api/bank-movements/bice/accounts", () =>
     HttpResponse.json({
       accounts: [
         {
-          external_id: "0001234567",
+          // `external_id` = el `numeroFormateado` del saldo (join key para el detalle de cuenta).
+          external_id: "12-34567-8",
           name: "Cuenta Corriente",
           currency: "CLP",
           linked_bank_account_id: "acct-1",
         },
         {
-          external_id: "0009876543",
+          external_id: "98-76543-2",
           name: "Cuenta Internacional",
           currency: "USD",
           linked_bank_account_id: null,

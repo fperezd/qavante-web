@@ -48,6 +48,8 @@ export type BalanceData = components["schemas"]["BalanceData"];
 export type TarjetasResponse = components["schemas"]["TarjetasResponse"];
 export type TarjetaCredito = components["schemas"]["TarjetaCredito"];
 export type TarjetaSaldoResponse = components["schemas"]["TarjetaSaldoResponse"];
+export type TarjetaMovimientosResponse = components["schemas"]["TarjetaMovimientosResponse"];
+export type TarjetaMovimiento = components["schemas"]["TarjetaMovimiento"];
 export type TarjetaSaldoData = components["schemas"]["TarjetaSaldoData"];
 
 export interface BankMovementsParams {
@@ -78,6 +80,8 @@ export const treasuryKeys = {
     [...treasuryKeys.all, "bice-cuenta-balance", numeroCuenta] as const,
   biceTarjetas: () => [...treasuryKeys.all, "bice-tarjetas"] as const,
   biceTarjetaSaldo: (op: string) => [...treasuryKeys.all, "bice-tarjeta-saldo", op] as const,
+  biceTarjetaMovimientos: (op: string) =>
+    [...treasuryKeys.all, "bice-tarjeta-movimientos", op] as const,
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
   collectionForecast: () => [...treasuryKeys.all, "collection-forecast"] as const,
   cashCycle: () => [...treasuryKeys.all, "cash-cycle"] as const,
@@ -212,6 +216,23 @@ export function useBiceTarjetasSaldos(
     isLoading: queries.some((q) => q.isLoading),
     isError: queries.some((q) => q.isError),
   };
+}
+
+/** `GET /api/bice/tarjetas/{op}/movimientos` — los MOVIMIENTOS (cargos) de una tarjeta de crédito
+ *  (`{date, type, description, amount, currency, state, installmentsDescription}`). Para el detalle de
+ *  la tarjeta en Banco. Cookie (bice cookie-open). NO retry; `skipAuthRetry`; cacheado 5min. */
+export function useBiceTarjetaMovimientos(op: string, enabled = true) {
+  return useQuery({
+    queryKey: treasuryKeys.biceTarjetaMovimientos(op),
+    queryFn: () =>
+      api.get<TarjetaMovimientosResponse>(
+        `/api/bice/tarjetas/${encodeURIComponent(op)}/movimientos`,
+        { skipAuthRetry: true },
+      ),
+    enabled: enabled && Boolean(op),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 }
 
 /** `GET /api/treasury/bank-accounts` — cuentas del tenant con su moneda. Para el

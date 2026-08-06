@@ -31,4 +31,32 @@ test.describe("Flujo: Banco (/banco)", () => {
     await page.goto("/inicio");
     await expect(page.getByRole("link", { name: "Banco" })).toBeVisible();
   });
+
+  test("clic en la cuenta → detalle de movimientos con filtro de mes", async ({ page, context }) => {
+    await loginAs(context, "owner");
+    await page.goto("/banco");
+
+    // La cuenta es clickeable (regla "todo clickeable a detalle").
+    await page.getByRole("link", { name: /Ver movimientos de Cuenta Corriente/ }).click();
+    await expect(page.getByText("Volver a Banco")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Mes actual" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Mes anterior" })).toBeVisible();
+
+    // Elegir mayo 2026 (mes con movimientos en el fixture) → aparecen los movimientos de la cuenta.
+    await page.locator('input[type="month"]').fill("2026-05");
+    await expect(page.getByText(/SUELDO FERNANDO PEREZ|MOVISTAR/).first()).toBeVisible();
+  });
+
+  test("clic en la tarjeta → detalle de movimientos", async ({ page, context }) => {
+    await loginAs(context, "owner");
+    await page.goto("/banco");
+
+    await page
+      .getByRole("link", { name: /Ver movimientos de Tarjeta de Cr/ })
+      .first()
+      .click();
+    await expect(page.getByText("Volver a Banco")).toBeVisible();
+    await page.locator('input[type="month"]').fill("2026-08");
+    await expect(page.getByText("MERCADOLIBRE")).toBeVisible();
+  });
 });
