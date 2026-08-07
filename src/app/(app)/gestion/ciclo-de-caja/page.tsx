@@ -8,7 +8,7 @@ import { CicloCajaView } from "@/components/gestion/v2/ciclo-caja-view";
    viene de `/api/treasury/cash-cycle` y la vista degrada sola si no es
    calculable. Sin `export const runtime` (regla 4). */
 export default function Page() {
-  const { operationalResult } = resolveFeatureFlags();
+  const { operationalResult, comportamientoPago } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -20,7 +20,7 @@ export default function Page() {
       </header>
 
       {operationalResult ? (
-        <CicloCajaView />
+        <CicloCajaView comportamientoEnabled={comportamientoPago} />
       ) : (
         <QavanteEmpty icon={Clock} title="Ciclo de caja" description="Muy pronto disponible." />
       )}

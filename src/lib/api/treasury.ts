@@ -19,6 +19,7 @@ export type BankMovement = components["schemas"]["BankMovement"];
 /** Cobranza esperada bucketeada por vencimiento + overdue + sin fecha (CC-WEB Fase 2,
  *  #572). El `expected` de cada bucket = nominal ponderado por probabilidad de pago. */
 export type CollectionForecastResponse = components["schemas"]["CollectionForecastResponse"];
+export type CollectionProjectionResponse = components["schemas"]["CollectionProjectionResponse"];
 export type ForecastBucket = components["schemas"]["ForecastBucket"];
 /** Ciclo de conversión de caja: DSO (días de cobro) / DPO (días de pago) / CCC
  *  (CC-WEB Fase 2). Todos nullable si no hay ventana devengada suficiente. */
@@ -84,6 +85,7 @@ export const treasuryKeys = {
     [...treasuryKeys.all, "bice-tarjeta-movimientos", op] as const,
   payrollPayday: () => [...treasuryKeys.all, "payroll-payday"] as const,
   collectionForecast: () => [...treasuryKeys.all, "collection-forecast"] as const,
+  collectionProjection: () => [...treasuryKeys.all, "collection-projection"] as const,
   cashCycle: () => [...treasuryKeys.all, "cash-cycle"] as const,
   cashProjection: (horizonDays: number) =>
     [...treasuryKeys.all, "cash-projection", horizonDays] as const,
@@ -96,6 +98,20 @@ export function useCollectionForecast() {
   return useQuery({
     queryKey: treasuryKeys.collectionForecast(),
     queryFn: () => api.get<CollectionForecastResponse>("/api/treasury/collection-forecast"),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `GET /api/treasury/collection-projection` — proyección de cobros fechada por el COMPORTAMIENTO real
+ *  del pagador (ADR-0083 B2). `vs_nominal.behavior_shift_days` = cuántos días, en promedio (ponderado
+ *  por monto), pagan tus clientes respecto del vencimiento nominal (+ = después). Cookie auth. NO retry
+ *  (si falla, la vista omite el insight; no inventa un desfase). */
+export function useCollectionProjection(enabled = true) {
+  return useQuery({
+    queryKey: treasuryKeys.collectionProjection(),
+    queryFn: () => api.get<CollectionProjectionResponse>("/api/treasury/collection-projection"),
+    enabled,
     staleTime: 30_000,
     retry: false,
   });

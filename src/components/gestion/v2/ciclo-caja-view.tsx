@@ -6,6 +6,7 @@ import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/
 import { useCashCycle, type CashCycleResponse } from "@/lib/api/treasury";
 import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
+import { ComportamientoPagoCard } from "./comportamiento-pago-card";
 
 /* Gestión → Ciclo de caja (pedido de Fernando 2026-07-29, "las 3" de control de
    gestión). Responde "¿por qué gano pero no tengo plata?": DSO (días en cobrar),
@@ -28,7 +29,11 @@ function ventaDiaria(c: CashCycleResponse): number {
   return rev > 0 ? rev / diasVentana : 0;
 }
 
-export function CicloCajaView() {
+export function CicloCajaView({
+  comportamientoEnabled = false,
+}: {
+  comportamientoEnabled?: boolean;
+}) {
   const cash = useCashCycle();
 
   if (cash.isError) {
@@ -72,6 +77,10 @@ export function CicloCajaView() {
           hint="Días que financias con tu propia caja (cobras − pagas)."
         />
       </div>
+
+      {/* Comportamiento real de cobro (gated `comportamientoPago`): complementa el DSO con el desfase
+          real vs vencimiento. Degrada solo si no hay dato. */}
+      <ComportamientoPagoCard enabled={comportamientoEnabled} />
 
       {/* Saldos vivos */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

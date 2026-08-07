@@ -34,5 +34,10 @@ test.describe("Flujo: Ciclo de caja (/gestion/ciclo-de-caja)", () => {
 
     // La ventana del cálculo (3 meses cerrados).
     await expect(main.getByText(/3 meses cerrados/i)).toBeVisible();
+
+    // Comportamiento de pago (gated `comportamientoPago`, ON en e2e): el desfase real de cobro desde
+    // collection-projection (MSW: behavior_shift_days=12, 18 de 25 con historial).
+    await expect(main.getByText(/te pagan 12 días después del vencimiento/i)).toBeVisible();
+    await expect(main.getByText(/18 de 25 facturas con historial/i)).toBeVisible();
   });
 });
