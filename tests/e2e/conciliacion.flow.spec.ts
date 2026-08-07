@@ -13,7 +13,9 @@ test.describe("Flujo: cola de conciliación (/caja/conciliacion)", () => {
     await page.goto("/caja/conciliacion");
 
     await expect(page.getByRole("heading", { level: 1, name: "Conciliación" })).toBeVisible();
-    await expect(page.getByText("Hay 3 movimientos")).toBeVisible();
+    // 4 en la cola: los 3 base + el que agregó el fixture de Banco Fase 2 (mov-unclas-2, comparte el
+    // mismo seed `/reconciliation/review`).
+    await expect(page.getByText("Hay 4 movimientos")).toBeVisible();
 
     // La fila de mayor certeza (86%) aparece primero, con su contraparte y el score.
     await expect(page.getByText("Comercial Los Andes SpA")).toBeVisible();
@@ -29,9 +31,7 @@ test.describe("Flujo: cola de conciliación (/caja/conciliacion)", () => {
     await loginAs(context, "owner");
     await page.goto("/caja/conciliacion");
 
-    await page
-      .getByRole("button", { name: /Confirmar: .*Comercial Los Andes/i })
-      .click();
+    await page.getByRole("button", { name: /Confirmar: .*Comercial Los Andes/i }).click();
 
     await expect(page.getByText("Conciliado.", { exact: true })).toBeVisible();
   });
@@ -40,9 +40,9 @@ test.describe("Flujo: cola de conciliación (/caja/conciliacion)", () => {
     await loginAs(context, "owner");
     await page.goto("/caja/conciliacion");
 
-    await page.getByRole("button", { name: /Conciliar todas \(3\)/i }).click();
+    await page.getByRole("button", { name: /Conciliar todas \(4\)/i }).click();
 
-    await expect(page.getByText("Conciliamos 3.")).toBeVisible();
+    await expect(page.getByText("Conciliamos 4.")).toBeVisible();
   });
 
   test("'Conciliar ahora' corre el motor y resume el resultado en lenguaje de dueño", async ({
