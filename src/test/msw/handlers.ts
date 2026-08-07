@@ -3696,6 +3696,20 @@ const cajaV2Handlers = [
    siempre el mismo seed y las mutaciones responden éxito sin mutar la cola. Así el e2e no depende
    de estado que se filtre entre tests ni entre retries (MSW en browser no se resetea por test). */
 const reconciliationReviewSeed = [
+  /* Calza con un movimiento de la cuenta acct-1 (mayo 2026) → alimenta el tab "Sugerencias" + la banda
+     de conciliar por movimiento en el detalle de Banco (Fase 2). */
+  {
+    movement_id: "mov-unclas-2",
+    date: "2026-05-13",
+    amount: "1190000",
+    description: "ABONO CLIENTE FACTURA 1042",
+    suggestion: {
+      document_kind: "receivable",
+      document_id: "r-fac-1042",
+      name: "X Capital SpA",
+      score: "83",
+    },
+  },
   {
     movement_id: "rec-mv-1",
     date: "2026-07-12",

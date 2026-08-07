@@ -68,6 +68,12 @@ NEXT_PUBLIC_FF_BANK_BALANCES = "true"
 # Pantalla Banco — ON (encendido 2026-08-04 por Fernando): productos del tenant por banco (cuentas +
 # tarjetas de crédito). Consume /api/bice/* (cookie). Volver a ocultar = poner en "false".
 NEXT_PUBLIC_FF_BANCO_SCREEN = "true"
+# Conciliación POR movimiento en el detalle de una cuenta de Banco (Fase 2, 2026-08-06) — OFF hasta
+# validar al peso el path confirm con la sesión de Fernando (bug histórico `confirm_review`). Cada
+# movimiento "Por conciliar" con match propuesto (cola reconciliation/review cruzada por movement_id)
+# ofrece "Conciliar" / "Rechazar" + tab "Sugerencias". Con OFF el detalle queda read-only (Fase 1, cero
+# regresión). Encender tras la validación = "true".
+NEXT_PUBLIC_FF_BANCO_CONCILIACION = "false"
 # Pulso configurable por OBJETIVO (2026-08-06) — OFF hasta que CC-API honre `?objetivo=` en
 # /api/management/pulso (hoy lo ignora → devolvería el Pulso equilibrado, sin número falso). El dueño
 # elige qué prioriza (cuidar caja / cumplir pagos / crecer / equilibrado) y el backend re-pondera los

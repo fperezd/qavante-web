@@ -32,7 +32,10 @@ test.describe("Flujo: Banco (/banco)", () => {
     await expect(page.getByRole("link", { name: "Banco" })).toBeVisible();
   });
 
-  test("clic en la cuenta → detalle de movimientos con filtro de mes", async ({ page, context }) => {
+  test("clic en la cuenta → detalle de movimientos con filtro de mes", async ({
+    page,
+    context,
+  }) => {
     await loginAs(context, "owner");
     await page.goto("/banco");
 
@@ -50,6 +53,29 @@ test.describe("Flujo: Banco (/banco)", () => {
     await expect(page.getByRole("tab", { name: /Por conciliar/ })).toBeVisible();
     await page.getByRole("tab", { name: /Cargos/ }).click();
     await expect(page.getByText(/SUELDO FERNANDO PEREZ|MOVISTAR/).first()).toBeVisible();
+  });
+
+  test("Fase 2: conciliar un movimiento desde su match propuesto", async ({ page, context }) => {
+    await loginAs(context, "owner");
+    await page.goto("/banco");
+    await page.getByRole("link", { name: /Ver movimientos de Cuenta Corriente/ }).click();
+    await page.locator('input[type="month"]').fill("2026-05");
+
+    // La cola de conciliación tiene un match para un movimiento de la cuenta (mov-unclas-2) → aparece
+    // el tab "Sugerencias" y, bajo el movimiento por conciliar, el match propuesto.
+    await expect(page.getByRole("tab", { name: /Sugerencias/ })).toBeVisible();
+    // Nombre del documento sugerido en su span (exact: la glosa "ABONO CLIENTE X CAPITAL SPA" también
+    // contiene el texto, así que evitamos el match por substring).
+    await expect(page.getByText("X Capital SpA", { exact: true })).toBeVisible();
+    await expect(page.getByText(/83% de certeza/)).toBeVisible();
+
+    // El tab "Sugerencias" deja solo el movimiento con match.
+    await page.getByRole("tab", { name: /Sugerencias/ }).click();
+    await expect(page.getByText("ABONO CLIENTE FACTURA 1042")).toBeVisible();
+
+    // Conciliar → confirma y avisa (toast).
+    await page.getByRole("button", { name: "Conciliar" }).click();
+    await expect(page.getByText("Conciliado.")).toBeVisible();
   });
 
   test("clic en la tarjeta → detalle de movimientos", async ({ page, context }) => {
