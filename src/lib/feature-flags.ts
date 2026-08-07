@@ -61,6 +61,7 @@ export const FEATURE_FLAGS = [
   "payrollReconcileBoard",
   "bancoConciliacion",
   "pulsoObjetivo",
+  "comportamientoPago",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -206,6 +207,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      OFF hasta que el backend honre el parámetro (hoy lo ignora → devuelve el equilibrado, sin número
      falso). Con OFF, el Pulso detalle queda como está (cero regresión). Encender = editar wrangler. */
   pulsoObjetivo: "/api/management/pulso?objetivo=",
+  /* Comportamiento de pago (2026-08-06) — insight en Ciclo de caja: complementa el DSO con el desfase
+     REAL vs vencimiento (`behavior_shift_days` de `/api/treasury/collection-projection`, agregado de
+     cobros). Primer paso hacia la "temporalidad" que pidió Fernando; el detalle POR CONTRAPARTE es
+     brecha de CC-API (qavante-api #858). OFF hasta validar el dato al peso; con OFF Ciclo de caja queda
+     igual (cero regresión). Encender = editar wrangler. */
+  comportamientoPago: "/api/treasury/collection-projection",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

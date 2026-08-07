@@ -3610,6 +3610,28 @@ const cajaV2Handlers = [
     HttpResponse.json(cashMinimumFixture, { status: 200 }),
   ),
   http.get("*/api/treasury/cash-cycle", () => HttpResponse.json(cashCycleFixture, { status: 200 })),
+  /* Proyección de cobros por comportamiento (ADR-0083 B2) — el insight "comportamiento de pago" de
+     Ciclo de caja usa `vs_nominal.behavior_shift_days`. Fixture: tus clientes pagan 12 días TARDE, con
+     18 de 25 facturas con historial. */
+  http.get("*/api/treasury/collection-projection", () =>
+    HttpResponse.json(
+      {
+        as_of: "2026-07-29",
+        total_nominal: "87360000",
+        total_expected: "81200000",
+        overdue: { amount: "12000000", count: 4 },
+        sin_fecha: { amount: "3000000", count: 2 },
+        buckets: [],
+        beyond_horizon: { amount: "0", count: 0 },
+        vs_nominal: {
+          behavior_shift_days: 12,
+          docs_comportamiento: 18,
+          docs_por_vencimiento: 7,
+        },
+      },
+      { status: 200 },
+    ),
+  ),
   /* Modelo único de caja (#770): proyección forward del backend que alimenta el medidor de Caja v3.
      Escenario "ajustado": la caja toca su piso ($1,5M < mínima $2M) al día ~21 y se recupera. */
   http.get("*/api/treasury/cash-projection", ({ request }) => {

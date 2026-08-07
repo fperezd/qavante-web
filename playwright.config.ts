@@ -106,6 +106,9 @@ export default defineConfig({
       /* Pulso configurable por objetivo — OFF en prod (espera que CC-API honre ?objetivo=). Acá ON
          para el flow e2e que elige un objetivo y persiste en prefs contra MSW. */
       NEXT_PUBLIC_FF_PULSO_OBJETIVO: "true",
+      /* Comportamiento de pago en Ciclo de caja — OFF en prod (sin validar al peso). Acá ON para el
+         e2e que verifica el insight del desfase de cobro contra MSW. */
+      NEXT_PUBLIC_FF_COMPORTAMIENTO_PAGO: "true",
     },
   },
 });
