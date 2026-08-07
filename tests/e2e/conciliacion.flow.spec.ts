@@ -14,8 +14,9 @@ test.describe("Flujo: cola de conciliación (/caja/conciliacion)", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Conciliación" })).toBeVisible();
     // 4 en la cola: los 3 base + el que agregó el fixture de Banco Fase 2 (mov-unclas-2, comparte el
-    // mismo seed `/reconciliation/review`).
-    await expect(page.getByText("Hay 4 movimientos")).toBeVisible();
+    // mismo seed `/reconciliation/review`). Copy en español CHILENO ("Revísalos", no el voseo
+    // "Revisalos").
+    await expect(page.getByText(/Hay 4 movimientos .*Revísalos\./)).toBeVisible();
 
     // La fila de mayor certeza (86%) aparece primero, con su contraparte y el score.
     await expect(page.getByText("Comercial Los Andes SpA")).toBeVisible();

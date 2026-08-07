@@ -18,7 +18,7 @@ export type SessionData = {
 };
 
 /* Roles conocidos, en valor. Espejo del type de arriba (TS no puede derivarlo solo):
-   si agregás un rol, el Record de `ROLE_LABELS` te obliga a actualizar ambos. */
+   si agregas un rol, el Record de `ROLE_LABELS` te obliga a actualizar ambos. */
 export const USER_ROLES: readonly UserRole[] = [
   "owner",
   "admin",
