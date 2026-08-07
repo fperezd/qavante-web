@@ -103,6 +103,9 @@ export default defineConfig({
       /* Conciliación POR movimiento en el detalle de una cuenta de Banco (Fase 2) — OFF en prod
          (muta; sin validar al peso). Acá ON para el flow e2e que concilia un movimiento contra MSW. */
       NEXT_PUBLIC_FF_BANCO_CONCILIACION: "true",
+      /* Pulso configurable por objetivo — OFF en prod (espera que CC-API honre ?objetivo=). Acá ON
+         para el flow e2e que elige un objetivo y persiste en prefs contra MSW. */
+      NEXT_PUBLIC_FF_PULSO_OBJETIVO: "true",
     },
   },
 });

@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Activity, AlertCircle, ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
 import { QavanteCard, QavanteEmpty } from "@/components/qavante";
 import { usePulsoDetail, type PulsoDetailResponse, type PulsoDriverDetail } from "@/lib/api/pulso";
+import { usePreferences, useUpdatePreferences } from "@/lib/api/preferences";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatDateLike } from "@/lib/formatters/date";
@@ -19,18 +21,60 @@ import {
   impactLabel,
   isEmptyPulsoDetail,
 } from "./pulso-detail-format";
+import { PulsoObjetivoSelector } from "./pulso-objetivo-selector";
+import {
+  DEFAULT_OBJETIVO,
+  readPulsoObjetivo,
+  withPulsoObjetivo,
+  type PulsoObjetivo,
+} from "./pulso-objetivo";
 
 /* Pulso detalle (Sprint C6/C7, Maestro §7): "¿Por qué está así mi Pulso?".
    Score + estado + ejes que lo componen + drivers (+/-) + tendencia. Cada
    sección degrada sola (vacía → no se muestra). Container: resuelve el detalle
-   + monta las secciones. Gated por `pulsoDetail` (la page resuelve). */
+   + monta las secciones. Gated por `pulsoDetail` (la page resuelve).
 
-export function PulsoDetailView() {
-  const query = usePulsoDetail();
+   `objetivoEnabled` (flag `pulsoObjetivo`): habilita el selector de objetivo — el dueño elige qué
+   prioriza la empresa y eso re-pondera los ejes. El objetivo se persiste en prefs y se manda al
+   endpoint (`?objetivo=`); el re-ponderado lo hace el backend. OFF → comportamiento clásico. */
 
-  if (query.isLoading) return <LoadingSkeleton />;
-  if (query.isError) {
-    return (
+export function PulsoDetailView({ objetivoEnabled = false }: { objetivoEnabled?: boolean }) {
+  const prefsQuery = usePreferences();
+  const updatePrefs = useUpdatePreferences();
+  const savedObjetivo = readPulsoObjetivo(prefsQuery.data?.preferences);
+  const [objetivo, setObjetivo] = React.useState<PulsoObjetivo>(DEFAULT_OBJETIVO);
+
+  // Sincroniza el objetivo local con el guardado cuando cargan las prefs (solo con el flag ON).
+  React.useEffect(() => {
+    if (objetivoEnabled) setObjetivo(savedObjetivo);
+  }, [objetivoEnabled, savedObjetivo]);
+
+  const query = usePulsoDetail(objetivoEnabled ? objetivo : undefined);
+
+  function cambiarObjetivo(o: PulsoObjetivo) {
+    setObjetivo(o); // refetch con el nuevo foco
+    // Persistir: contrato "reemplaza, no merge" → leer el blob actual y mandar el superset. Si el GET
+    // de prefs falló, NO persistimos (pisaríamos el resto de las prefs con un blob parcial).
+    if (prefsQuery.data) {
+      updatePrefs.mutate(withPulsoObjetivo(prefsQuery.data.preferences, o), {
+        onError: () => toast.error("No pudimos guardar tu foco. Intenta de nuevo."),
+      });
+    }
+  }
+
+  const selector = objetivoEnabled ? (
+    <PulsoObjetivoSelector
+      value={objetivo}
+      onChange={cambiarObjetivo}
+      saving={updatePrefs.isPending}
+    />
+  ) : null;
+
+  let contenido: React.ReactNode;
+  if (query.isLoading) {
+    contenido = <LoadingSkeleton />;
+  } else if (query.isError) {
+    contenido = (
       <div
         role="alert"
         className="flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/5 p-4 text-sm text-neutral-dark"
@@ -43,9 +87,19 @@ export function PulsoDetailView() {
         </p>
       </div>
     );
+  } else if (!query.data) {
+    contenido = null;
+  } else {
+    contenido = <Detail data={query.data} />;
   }
-  if (!query.data) return null;
-  return <Detail data={query.data} />;
+
+  if (!selector) return <>{contenido}</>;
+  return (
+    <div className="space-y-4">
+      {selector}
+      {contenido}
+    </div>
+  );
 }
 
 function Detail({ data }: { data: PulsoDetailResponse }) {

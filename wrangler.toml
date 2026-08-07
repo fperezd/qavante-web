@@ -74,6 +74,11 @@ NEXT_PUBLIC_FF_BANCO_SCREEN = "true"
 # ofrece "Conciliar" / "Rechazar" + tab "Sugerencias". Con OFF el detalle queda read-only (Fase 1, cero
 # regresión). Encender tras la validación = "true".
 NEXT_PUBLIC_FF_BANCO_CONCILIACION = "false"
+# Pulso configurable por OBJETIVO (2026-08-06) — OFF hasta que CC-API honre `?objetivo=` en
+# /api/management/pulso (hoy lo ignora → devolvería el Pulso equilibrado, sin número falso). El dueño
+# elige qué prioriza (cuidar caja / cumplir pagos / crecer / equilibrado) y el backend re-pondera los
+# ejes. Con OFF el Pulso detalle queda como está (cero regresión). Encender tras el backend = "true".
+NEXT_PUBLIC_FF_PULSO_OBJETIVO = "false"
 # Conciliación de sueldos ACCIONABLE en Remuneraciones (#835) — ON (encendido 2026-08-05 por Fernando).
 # El board del backend (payroll-settlements/reconcile/revert, qavante-api #826/#827) es la fuente de
 # verdad; deja conciliar una-a-una / varias marcadas y DESASIGNAR (caso Carrasco). Validado al peso con

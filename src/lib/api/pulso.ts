@@ -35,14 +35,22 @@ export interface PulsoDetailResponse extends Omit<
 
 export const pulsoKeys = {
   all: ["pulso"] as const,
-  detail: () => [...pulsoKeys.all, "detail"] as const,
+  detail: (objetivo?: string) => [...pulsoKeys.all, "detail", objetivo ?? null] as const,
 };
 
-/** `GET /api/management/pulso` — detalle del Pulso Empresa. NO retry. */
-export function usePulsoDetail() {
+/** `GET /api/management/pulso` — detalle del Pulso Empresa. NO retry.
+ *  `objetivo` (opcional): re-pondera los ejes según lo que prioriza la empresa. El re-ponderado lo
+ *  hace el BACKEND (el FE no calcula Pulso); acá solo se pasa el parámetro. Si el backend aún no lo
+ *  honra, devuelve el Pulso equilibrado (sin número falso). */
+export function usePulsoDetail(objetivo?: string) {
   return useQuery({
-    queryKey: pulsoKeys.detail(),
-    queryFn: () => api.get<RawPulsoDetail>("/api/management/pulso"),
+    queryKey: pulsoKeys.detail(objetivo),
+    queryFn: () =>
+      api.get<RawPulsoDetail>(
+        objetivo
+          ? `/api/management/pulso?objetivo=${encodeURIComponent(objetivo)}`
+          : "/api/management/pulso",
+      ),
     select: (d): PulsoDetailResponse => ({
       ...d,
       components: d.components ?? [],

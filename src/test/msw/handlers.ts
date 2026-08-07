@@ -2879,7 +2879,19 @@ const pulsoDetailFixture = {
 };
 
 const pulsoHandlers = [
-  http.get("*/api/management/pulso", () => HttpResponse.json(pulsoDetailFixture, { status: 200 })),
+  http.get("*/api/management/pulso", ({ request }) => {
+    // Simula el re-ponderado por objetivo que hará CC-API: con un `?objetivo=` distinto de
+    // equilibrado, el backend devolverá el Pulso con el foco aplicado. Acá reflejamos el foco en el
+    // headline para que el e2e verifique que el parámetro viaja y la respuesta lo respeta.
+    const objetivo = new URL(request.url).searchParams.get("objetivo");
+    if (objetivo && objetivo !== "equilibrado") {
+      return HttpResponse.json(
+        { ...pulsoDetailFixture, headline: `Foco: ${objetivo}. ${pulsoDetailFixture.headline}` },
+        { status: 200 },
+      );
+    }
+    return HttpResponse.json(pulsoDetailFixture, { status: 200 });
+  }),
 ];
 
 /* Asistente Qavante — chat (Sprint C9, contrato FE-first; wire format ADR-0004).
