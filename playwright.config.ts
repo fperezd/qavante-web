@@ -100,6 +100,9 @@ export default defineConfig({
       /* Conciliación de sueldos accionable (#835) — OFF en prod (feature nueva). Acá ON para el
          flow e2e que asigna/desasigna contra MSW. */
       NEXT_PUBLIC_FF_PAYROLL_RECONCILE_BOARD: "true",
+      /* Conciliación POR movimiento en el detalle de una cuenta de Banco (Fase 2) — OFF en prod
+         (muta; sin validar al peso). Acá ON para el flow e2e que concilia un movimiento contra MSW. */
+      NEXT_PUBLIC_FF_BANCO_CONCILIACION: "true",
     },
   },
 });

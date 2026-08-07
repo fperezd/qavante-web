@@ -654,12 +654,44 @@ const treasuryHandlers = [
       status: "ok",
       data: esClp
         ? [
-            { date: "2026-08-04", type: "compra", description: "MERCADOLIBRE", amount: "45990", currency: "CLP", state: "posted", installmentsDescription: null },
-            { date: "2026-08-01", type: "compra", description: "UBER *TRIP", amount: "8500", currency: "CLP", state: "posted", installmentsDescription: null },
-            { date: "2026-07-20", type: "compra", description: "PC FACTORY", amount: "129990", currency: "CLP", state: "posted", installmentsDescription: "03/06" },
+            {
+              date: "2026-08-04",
+              type: "compra",
+              description: "MERCADOLIBRE",
+              amount: "45990",
+              currency: "CLP",
+              state: "posted",
+              installmentsDescription: null,
+            },
+            {
+              date: "2026-08-01",
+              type: "compra",
+              description: "UBER *TRIP",
+              amount: "8500",
+              currency: "CLP",
+              state: "posted",
+              installmentsDescription: null,
+            },
+            {
+              date: "2026-07-20",
+              type: "compra",
+              description: "PC FACTORY",
+              amount: "129990",
+              currency: "CLP",
+              state: "posted",
+              installmentsDescription: "03/06",
+            },
           ]
         : [
-            { date: "2026-08-03", type: "compra", description: "AWS", amount: "120.50", currency: "USD", state: "posted", installmentsDescription: null },
+            {
+              date: "2026-08-03",
+              type: "compra",
+              description: "AWS",
+              amount: "120.50",
+              currency: "USD",
+              state: "posted",
+              installmentsDescription: null,
+            },
           ],
     });
   }),
@@ -3606,9 +3638,7 @@ const cajaV2Handlers = [
           dias_de_caja: 1,
           total_ingreso_proyectado: "31161339",
           n_flujos: 12,
-          serie: [
-            { fecha: "2026-08-05", saldo_cierre: "2100000", capa: "esperado_con_ingresos" },
-          ],
+          serie: [{ fecha: "2026-08-05", saldo_cierre: "2100000", capa: "esperado_con_ingresos" }],
           punto_quiebre: { fecha: "2026-08-06", saldo: "-4044096", causas: [] },
         },
         vencido: {
@@ -3654,6 +3684,20 @@ const cajaV2Handlers = [
    siempre el mismo seed y las mutaciones responden éxito sin mutar la cola. Así el e2e no depende
    de estado que se filtre entre tests ni entre retries (MSW en browser no se resetea por test). */
 const reconciliationReviewSeed = [
+  /* Calza con un movimiento de la cuenta acct-1 (mayo 2026) → alimenta el tab "Sugerencias" + la banda
+     de conciliar por movimiento en el detalle de Banco (Fase 2). */
+  {
+    movement_id: "mov-unclas-2",
+    date: "2026-05-13",
+    amount: "1190000",
+    description: "ABONO CLIENTE FACTURA 1042",
+    suggestion: {
+      document_kind: "receivable",
+      document_id: "r-fac-1042",
+      name: "X Capital SpA",
+      score: "83",
+    },
+  },
   {
     movement_id: "rec-mv-1",
     date: "2026-07-12",

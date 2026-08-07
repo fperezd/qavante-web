@@ -7,9 +7,34 @@ import type { MovimientoBanco } from "./banco-movimientos-model";
    filtro de mes (Mes actual / anterior / otro) y el estado "Actualizado a las HH:MM". */
 
 const MOVS: MovimientoBanco[] = [
-  { id: "m1", fecha: "2026-08-04", glosa: "MERCADOLIBRE", monto: -45990, moneda: "CLP", cuotas: "03/06", esAbono: false, estado: "por_conciliar" },
-  { id: "m2", fecha: "2026-08-03", glosa: "Transferencia recibida", monto: 500000, moneda: "CLP", esAbono: true, estado: "conciliado" },
-  { id: "m3", fecha: "2026-08-01", glosa: "PAGO PROVEEDOR ACME", monto: -120000, moneda: "CLP", esAbono: false, estado: "conciliado" },
+  {
+    id: "m1",
+    fecha: "2026-08-04",
+    glosa: "MERCADOLIBRE",
+    monto: -45990,
+    moneda: "CLP",
+    cuotas: "03/06",
+    esAbono: false,
+    estado: "por_conciliar",
+  },
+  {
+    id: "m2",
+    fecha: "2026-08-03",
+    glosa: "Transferencia recibida",
+    monto: 500000,
+    moneda: "CLP",
+    esAbono: true,
+    estado: "conciliado",
+  },
+  {
+    id: "m3",
+    fecha: "2026-08-01",
+    glosa: "PAGO PROVEEDOR ACME",
+    monto: -120000,
+    moneda: "CLP",
+    esAbono: false,
+    estado: "conciliado",
+  },
 ];
 
 const meta = {
@@ -55,5 +80,44 @@ export const Vacio: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByText(/Sin movimientos en/)).toBeInTheDocument();
+  },
+};
+
+/* Fase 2 — conciliar por movimiento (flag `bancoConciliacion` ON): el movimiento "Por conciliar" con
+   match propuesto muestra la banda "Pago/Cobro a …" + Conciliar / Rechazar, y aparece el tab
+   "Sugerencias". */
+export const ConConciliacion: Story = {
+  args: {
+    conciliarEnabled: true,
+    sugerencias: new Map([
+      [
+        "m1",
+        {
+          movementId: "m1",
+          kind: "payable",
+          nombre: "MercadoLibre Chile",
+          score: 82,
+          documentCount: 1,
+        },
+      ],
+    ]),
+    onConciliar: fn(),
+    onRechazar: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    // La banda del match propuesto bajo el movimiento por conciliar (m1 = MERCADOLIBRE).
+    await expect(c.getByText("MercadoLibre Chile")).toBeInTheDocument();
+    await expect(c.getByText(/82% de certeza/)).toBeInTheDocument();
+    // El tab "Sugerencias" deja solo el movimiento con match (badge = 1).
+    await userEvent.click(c.getByRole("tab", { name: /Sugerencias/ }));
+    await expect(c.getByText("MERCADOLIBRE")).toBeInTheDocument();
+    await expect(c.queryByText("Transferencia recibida")).not.toBeInTheDocument();
+    // Conciliar dispara el callback con el movement_id.
+    await userEvent.click(c.getByRole("button", { name: "Conciliar" }));
+    await expect(args.onConciliar).toHaveBeenCalledWith("m1");
+    // Rechazar también.
+    await userEvent.click(c.getByRole("button", { name: /Rechazar sugerencia/ }));
+    await expect(args.onRechazar).toHaveBeenCalledWith("m1");
   },
 };
