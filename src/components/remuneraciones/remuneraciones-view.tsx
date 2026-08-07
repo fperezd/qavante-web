@@ -246,7 +246,7 @@ function ClasificacionCuentasLive({
 
   const errMsg = (e: unknown) =>
     e instanceof ApiError && e.status === 403
-      ? "Tu rol es de solo lectura — no podés clasificar."
+      ? "Tu rol es de solo lectura — no puedes clasificar."
       : e instanceof ApiError && e.status === 400
         ? "El reparto no es válido (revisa las cuentas y que sume 100%)."
         : "No pudimos guardar la clasificación. Intenta de nuevo.";

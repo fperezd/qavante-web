@@ -35,8 +35,8 @@ export function ColaConciliacion({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-neutral-mid">
           {total === 1
-            ? "Hay 1 movimiento que calza con un documento, pero no con certeza. Revisalo."
-            : `Hay ${total} movimientos que calzan con un documento, pero no con certeza. Revisalos.`}
+            ? "Hay 1 movimiento que calza con un documento, pero no con certeza. Revísalo."
+            : `Hay ${total} movimientos que calzan con un documento, pero no con certeza. Revísalos.`}
         </p>
         <QavanteButton
           size="sm"
