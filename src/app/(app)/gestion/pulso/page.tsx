@@ -9,7 +9,7 @@ import { PulsoDetailView } from "@/components/gestion/pulso-detail-view";
    el detalle del Pulso cableado a `GET /api/management/pulso` (contrato FE-first,
    gated hasta que el backend lo exponga). Default OFF → QavanteEmpty. */
 export default function PulsoPage() {
-  const { pulsoDetail } = resolveFeatureFlags();
+  const { pulsoDetail, pulsoObjetivo } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -26,7 +26,7 @@ export default function PulsoPage() {
       </header>
 
       {pulsoDetail ? (
-        <PulsoDetailView />
+        <PulsoDetailView objetivoEnabled={pulsoObjetivo} />
       ) : (
         <QavanteEmpty
           icon={Activity}

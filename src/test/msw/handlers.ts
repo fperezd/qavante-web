@@ -654,12 +654,44 @@ const treasuryHandlers = [
       status: "ok",
       data: esClp
         ? [
-            { date: "2026-08-04", type: "compra", description: "MERCADOLIBRE", amount: "45990", currency: "CLP", state: "posted", installmentsDescription: null },
-            { date: "2026-08-01", type: "compra", description: "UBER *TRIP", amount: "8500", currency: "CLP", state: "posted", installmentsDescription: null },
-            { date: "2026-07-20", type: "compra", description: "PC FACTORY", amount: "129990", currency: "CLP", state: "posted", installmentsDescription: "03/06" },
+            {
+              date: "2026-08-04",
+              type: "compra",
+              description: "MERCADOLIBRE",
+              amount: "45990",
+              currency: "CLP",
+              state: "posted",
+              installmentsDescription: null,
+            },
+            {
+              date: "2026-08-01",
+              type: "compra",
+              description: "UBER *TRIP",
+              amount: "8500",
+              currency: "CLP",
+              state: "posted",
+              installmentsDescription: null,
+            },
+            {
+              date: "2026-07-20",
+              type: "compra",
+              description: "PC FACTORY",
+              amount: "129990",
+              currency: "CLP",
+              state: "posted",
+              installmentsDescription: "03/06",
+            },
           ]
         : [
-            { date: "2026-08-03", type: "compra", description: "AWS", amount: "120.50", currency: "USD", state: "posted", installmentsDescription: null },
+            {
+              date: "2026-08-03",
+              type: "compra",
+              description: "AWS",
+              amount: "120.50",
+              currency: "USD",
+              state: "posted",
+              installmentsDescription: null,
+            },
           ],
     });
   }),
@@ -2847,7 +2879,19 @@ const pulsoDetailFixture = {
 };
 
 const pulsoHandlers = [
-  http.get("*/api/management/pulso", () => HttpResponse.json(pulsoDetailFixture, { status: 200 })),
+  http.get("*/api/management/pulso", ({ request }) => {
+    // Simula el re-ponderado por objetivo que hará CC-API: con un `?objetivo=` distinto de
+    // equilibrado, el backend devolverá el Pulso con el foco aplicado. Acá reflejamos el foco en el
+    // headline para que el e2e verifique que el parámetro viaja y la respuesta lo respeta.
+    const objetivo = new URL(request.url).searchParams.get("objetivo");
+    if (objetivo && objetivo !== "equilibrado") {
+      return HttpResponse.json(
+        { ...pulsoDetailFixture, headline: `Foco: ${objetivo}. ${pulsoDetailFixture.headline}` },
+        { status: 200 },
+      );
+    }
+    return HttpResponse.json(pulsoDetailFixture, { status: 200 });
+  }),
 ];
 
 /* Asistente Qavante — chat (Sprint C9, contrato FE-first; wire format ADR-0004).
@@ -3606,9 +3650,7 @@ const cajaV2Handlers = [
           dias_de_caja: 1,
           total_ingreso_proyectado: "31161339",
           n_flujos: 12,
-          serie: [
-            { fecha: "2026-08-05", saldo_cierre: "2100000", capa: "esperado_con_ingresos" },
-          ],
+          serie: [{ fecha: "2026-08-05", saldo_cierre: "2100000", capa: "esperado_con_ingresos" }],
           punto_quiebre: { fecha: "2026-08-06", saldo: "-4044096", causas: [] },
         },
         vencido: {

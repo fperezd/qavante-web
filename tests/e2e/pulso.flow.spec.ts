@@ -29,4 +29,24 @@ test.describe("Flujo: Pulso detalle (/gestion/pulso)", () => {
     // —sub-ítem de Gestión— que también matchea el texto).
     await expect(page.locator("#main-content").getByText("Tendencia")).toBeVisible();
   });
+
+  test("elegir un objetivo re-pondera el Pulso y persiste el foco", async ({ page, context }) => {
+    await loginAs(context, "owner");
+    await page.goto("/gestion/pulso");
+
+    // El selector de objetivo (flag `pulsoObjetivo` ON en e2e); arranca en "Equilibrado".
+    await expect(page.getByText(/Con qué foco quieres mirar tu salud/i)).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Equilibrado" })).toBeChecked();
+
+    // Elegir "Cuidar la caja" → el Pulso se pide con ?objetivo=cuidar_caja y el backend (MSW) devuelve
+    // la respuesta con el foco aplicado; y el foco se PERSISTE (PUT /api/me/preferences).
+    const putPrefs = page.waitForResponse(
+      (r) => r.url().includes("/api/me/preferences") && r.request().method() === "PUT",
+    );
+    await page.getByRole("radio", { name: "Cuidar la caja" }).click();
+    await expect(page.getByText(/foco en cuidar la caja/i)).toBeVisible();
+    await expect(page.getByText(/Foco: cuidar_caja/)).toBeVisible();
+    const res = await putPrefs;
+    expect(res.ok()).toBeTruthy();
+  });
 });

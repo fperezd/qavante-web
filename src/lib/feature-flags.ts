@@ -59,6 +59,7 @@ export const FEATURE_FLAGS = [
   "reconciliationReview",
   "bancoScreen",
   "payrollReconcileBoard",
+  "pulsoObjetivo",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -189,6 +190,13 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      el FE normaliza; encender = editar wrangler.toml. Con OFF, la Conciliación pasiva por-monto queda
      intacta (cero regresión). */
   payrollReconcileBoard: "/api/admin/treasury/payroll-settlements/{period}",
+  /* Pulso configurable por OBJETIVO (2026-08-06) — el dueño elige qué prioriza la empresa (cuidar la
+     caja / cumplir pagos / crecer / equilibrado) y eso re-pondera los ejes del Pulso. El FE captura el
+     objetivo (persistido en prefs) y lo manda como `?objetivo=` a `/api/management/pulso`; el
+     re-ponderado del score lo hace CC-API (el FE no calcula Pulso). Gating endpoint = ese param.
+     OFF hasta que el backend honre el parámetro (hoy lo ignora → devuelve el equilibrado, sin número
+     falso). Con OFF, el Pulso detalle queda como está (cero regresión). Encender = editar wrangler. */
+  pulsoObjetivo: "/api/management/pulso?objetivo=",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

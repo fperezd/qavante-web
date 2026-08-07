@@ -100,6 +100,9 @@ export default defineConfig({
       /* Conciliación de sueldos accionable (#835) — OFF en prod (feature nueva). Acá ON para el
          flow e2e que asigna/desasigna contra MSW. */
       NEXT_PUBLIC_FF_PAYROLL_RECONCILE_BOARD: "true",
+      /* Pulso configurable por objetivo — OFF en prod (espera que CC-API honre ?objetivo=). Acá ON
+         para el flow e2e que elige un objetivo y persiste en prefs contra MSW. */
+      NEXT_PUBLIC_FF_PULSO_OBJETIVO: "true",
     },
   },
 });
