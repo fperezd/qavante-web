@@ -21,7 +21,7 @@ export function remuneracionesMes(
   periodo: string,
 ): Remuneraciones | null {
   const t = resp?.totales;
-  const liquido = t?.total_liquido ?? resp?.total_liquido ?? 0;
+  const liquido = t?.total_liquido ?? 0;
   const empleados = t?.empleados_contados ?? null;
   if (!liquido && !empleados) return null;
   return {

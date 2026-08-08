@@ -20,11 +20,10 @@ describe("remuneracionesMes", () => {
     expect(r!.mesLabel).toBe("jul");
   });
 
-  it("cae al total_liquido de nivel raíz si no hay totales.total_liquido", () => {
-    const r = remuneracionesMes(resp(null, { total_liquido: 5000000 }), "2026-07");
-    // Sin totales.empleados igual muestra si hay líquido.
+  it("muestra aunque no haya cotizaciones (solo líquido + dotación)", () => {
+    const r = remuneracionesMes(resp({ total_liquido: 5000000, empleados_contados: 3 }), "2026-07");
     expect(r!.liquido).toBe(5000000);
-    expect(r!.empleados).toBeNull();
+    expect(r!.empleados).toBe(3);
   });
 
   it("null si no hay líquido ni dotación", () => {
