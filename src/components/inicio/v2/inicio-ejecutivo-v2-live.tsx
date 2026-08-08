@@ -34,6 +34,7 @@ import { MargenesLive } from "./margenes-live";
 import { VentasMesLive } from "./ventas-mes-live";
 import { SaldosBancoLive } from "./saldos-banco-live";
 import { RemuneracionesLive } from "./remuneraciones-live";
+import { ComportamientoPagoLive } from "./comportamiento-pago-live";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
@@ -165,6 +166,13 @@ function Assembled({
   widgets.push({ id: "saldos", label: "Saldos en banco", node: <SaldosBancoLive /> });
   // Remuneraciones (líquido de la planilla del mes + dotación). Trae su data (BUK) y degrada honesto.
   widgets.push({ id: "remuneraciones", label: "Remuneraciones", node: <RemuneracionesLive /> });
+  // Comportamiento de pago (cuántos días pagan tus clientes vs vencimiento — el diferenciador). Degrada
+  // honesto (sin historial → lo dice). Incondicional.
+  widgets.push({
+    id: "comportamiento",
+    label: "Comportamiento de pago",
+    node: <ComportamientoPagoLive />,
+  });
   // Pulso como tarjeta del grid (antes vivía fijo en el cockpit): así se puede mover y prender/apagar
   // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
   if (pulso)
