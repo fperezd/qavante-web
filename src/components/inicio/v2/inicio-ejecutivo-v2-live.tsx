@@ -32,7 +32,6 @@ import { PlanRealLive } from "./plan-real-live";
 import { CicloCajaLive } from "./ciclo-caja-live";
 import { MargenesLive } from "./margenes-live";
 import { VentasMesLive } from "./ventas-mes-live";
-import { SaldosBancoLive } from "./saldos-banco-live";
 import { RemuneracionesLive } from "./remuneraciones-live";
 import { ComportamientoPagoLive } from "./comportamiento-pago-live";
 import { PuntoEquilibrioLive } from "./punto-equilibrio-live";
@@ -163,8 +162,10 @@ function Assembled({
   widgets.push({ id: "margenes", label: "Márgenes", node: <MargenesLive /> });
   // Ventas por mes (tendencia del neto vendido). Trae su propia data y degrada honesto → incondicional.
   widgets.push({ id: "ventas", label: "Ventas por mes", node: <VentasMesLive /> });
-  // Saldos en banco (por cuenta + total CLP). Trae su propia data (bice) y degrada honesto → incondicional.
-  widgets.push({ id: "saldos", label: "Saldos en banco", node: <SaldosBancoLive /> });
+  // "Saldos en banco" se QUITÓ del Inicio a propósito: `useBiceSaldo` es un scrape en vivo (~1 min) y
+  // comparte caché con la pantalla /banco → dispararlo en el Inicio envenenaba esa caché ("No hay bancos
+  // conectados"). Vuelve cuando exista un endpoint de saldos cache-first (api#849). Los archivos
+  // saldos-banco-* quedan para reusar entonces.
   // Remuneraciones (líquido de la planilla del mes + dotación). Trae su data (BUK) y degrada honesto.
   widgets.push({ id: "remuneraciones", label: "Remuneraciones", node: <RemuneracionesLive /> });
   // Comportamiento de pago (cuántos días pagan tus clientes vs vencimiento — el diferenciador). Degrada
