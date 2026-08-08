@@ -24,6 +24,7 @@ import { ResultadoPreliminar } from "./resultado-preliminar";
 import { applyWidgetOrder, moveItem, readWidgetOrder, withWidgetOrder } from "./widget-order";
 import { applyVisibility, readHidden, toggleHidden, withHidden } from "./widget-visibility";
 import { WidgetPersonalizar } from "./widget-personalizar";
+import { AgendaLive } from "./agenda-live";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
@@ -47,7 +48,13 @@ import {
    cash_sparkline, señales de crecimiento). Container: NO se testea por Storybook
    play (ADR-0018); la lógica vive testeada en `inicio-v2-map`. */
 
-export function InicioEjecutivoV2Live({ widgetsEnabled = false }: { widgetsEnabled?: boolean }) {
+export function InicioEjecutivoV2Live({
+  widgetsEnabled = false,
+  agendaEnabled = false,
+}: {
+  widgetsEnabled?: boolean;
+  agendaEnabled?: boolean;
+}) {
   const query = useDashboardSummary();
   // Fase 2: cobranza realizable. Query independiente que degrada solo (retry:false)
   // → si aún no responde, la Cobranza cae al total del summary (mapCobranza).
@@ -70,6 +77,7 @@ export function InicioEjecutivoV2Live({ widgetsEnabled = false }: { widgetsEnabl
       forecastFallo={forecast.isError}
       cashCycle={cashCycle.data}
       widgetsEnabled={widgetsEnabled}
+      agendaEnabled={agendaEnabled}
     />
   );
 }
@@ -87,6 +95,7 @@ function Assembled({
   forecastFallo,
   cashCycle,
   widgetsEnabled = false,
+  agendaEnabled = false,
 }: {
   data: DashboardSummaryV2;
   forecast?: CollectionForecastResponse;
@@ -95,6 +104,8 @@ function Assembled({
   cashCycle?: CashCycleResponse;
   /** `inicioWidgets` ON → muestra "Personalizar" (prender/apagar tarjetas). */
   widgetsEnabled?: boolean;
+  /** `inicioAgenda` ON → agrega la tarjeta "Agenda 2 semanas" al grid. */
+  agendaEnabled?: boolean;
 }) {
   // Prefs del usuario en la empresa activa: orden + visibilidad de las tarjetas (persistido).
   const prefs = usePreferences();
@@ -150,6 +161,10 @@ function Assembled({
       label: "Resultado",
       node: <ResultadoPreliminar {...resultado} href="/gestion" cta="Ver gestión" />,
     });
+  // Agenda de las próximas 2 semanas (gated `inicioAgenda`): se compone de los vencimientos (AgendaLive
+  // trae su propia data + degrada sola). Es una tarjeta más del grid: movible y prendible/apagable.
+  if (agendaEnabled)
+    widgets.push({ id: "agenda", label: "Agenda 2 semanas", node: <AgendaLive /> });
 
   // Visibilidad: apaga las tarjetas que el usuario quitó (optimista local o lo guardado), ANTES de
   // ordenar. El catálogo "agregar" es el mismo mecanismo (una apagada vuelve a prenderse).

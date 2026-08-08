@@ -16,7 +16,8 @@ import { InicioEjecutivoV2Live } from "@/components/inicio/v2/inicio-ejecutivo-v
    2. `inicioMvp` ON → el MVP de perfil (saludo + /api/me), interino.
    3. Default OFF → QavanteEmpty informativo "Sprint C8". */
 export default function InicioPage() {
-  const { inicioMvp, dashboardSummary, inicioEjecutivoV2, inicioWidgets } = resolveFeatureFlags();
+  const { inicioMvp, dashboardSummary, inicioEjecutivoV2, inicioWidgets, inicioAgenda } =
+    resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -26,7 +27,7 @@ export default function InicioPage() {
       </header>
 
       {inicioEjecutivoV2 ? (
-        <InicioEjecutivoV2Live widgetsEnabled={inicioWidgets} />
+        <InicioEjecutivoV2Live widgetsEnabled={inicioWidgets} agendaEnabled={inicioAgenda} />
       ) : dashboardSummary ? (
         <InicioEjecutivoView />
       ) : inicioMvp ? (
