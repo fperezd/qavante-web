@@ -23,6 +23,9 @@ export interface InicioEjecutivoV2Props {
    *  su `key` estable (por id de widget, no por índice): la grilla es reordenable y con keys de
    *  índice React desmonta/remonta las tarjetas movidas, y el foco del teclado se pierde. */
   grid: React.ReactNode[];
+  /** Control "Personalizar" (prender/apagar tarjetas), gated `inicioWidgets`. Se ancla arriba del
+   *  grid, alineado a la derecha. */
+  personalizar?: React.ReactNode;
   calidad?: React.ReactNode;
   className?: string;
 }
@@ -33,6 +36,7 @@ export function InicioEjecutivoV2({
   pulso,
   plan,
   grid,
+  personalizar,
   calidad,
   className,
 }: InicioEjecutivoV2Props) {
@@ -48,6 +52,8 @@ export function InicioEjecutivoV2({
         {pulso && <PulsoCard {...pulso} />}
         {plan}
       </div>
+
+      {personalizar}
 
       {/* Se renderea el array tal cual: cada tarjeta ya trae su key estable (w.id). Envolverlas
           en un Fragment con key={i} descartaba esas keys y remontaba todo al reordenar. */}
