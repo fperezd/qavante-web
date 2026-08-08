@@ -15,14 +15,14 @@ import { isEmptySummary, parseAmount } from "../dashboard-format";
 import { InicioEjecutivoV2 } from "./inicio-ejecutivo-v2";
 import { AccionesList, type Accion } from "./acciones-list";
 import { BrechaPlan } from "./brecha-plan";
-import { DraggableCard } from "./draggable-card";
+import { SortableWidgetGrid } from "./sortable-widget-grid";
 import { type Termometro } from "./termometros";
 import { PulsoCard } from "./pulso-card";
 import { CajaProyeccion } from "./caja-proyeccion";
 import { CobranzaRealizable } from "./cobranza-realizable";
 import { PagosTimeline } from "./pagos-timeline";
 import { ResultadoPreliminar } from "./resultado-preliminar";
-import { applyWidgetOrder, moveItem, readWidgetOrder, withWidgetOrder } from "./widget-order";
+import { applyWidgetOrder, readWidgetOrder, withWidgetOrder } from "./widget-order";
 import { applyVisibility, readHidden, toggleHidden, withHidden } from "./widget-visibility";
 import { WidgetPersonalizar } from "./widget-personalizar";
 import { AgendaLive } from "./agenda-live";
@@ -220,12 +220,9 @@ function Assembled({
   // Orden efectivo: el arrastre local (optimista) o, si no hubo, el guardado en prefs.
   const savedOrder = readWidgetOrder(prefs.data?.preferences);
   const ordered = applyWidgetOrder(visible, localOrder ?? savedOrder);
-  // Reordena y persiste. Solo persiste si el GET de prefs tuvo éxito: el PUT REEMPLAZA
-  // el blob completo, así que escribir sobre un GET fallido pisaría el resto de prefs.
-  const reorder = (from: number, to: number) => {
-    const currentIds = ordered.map((w) => w.id);
-    const nextIds = moveItem(currentIds, from, to);
-    if (nextIds === currentIds) return; // moveItem devolvió el mismo ref = no-op / fuera de rango
+  // Reordena y persiste (recibe el nuevo orden de ids desde la grilla sortable). Solo persiste si el GET
+  // de prefs tuvo éxito: el PUT REEMPLAZA el blob completo, escribir sobre un GET fallido pisaría el resto.
+  const reorderIds = (nextIds: string[]) => {
     setLocalOrder(nextIds);
     if (prefs.isSuccess) updatePrefs.mutate(withWidgetOrder(prefs.data?.preferences, nextIds));
   };
@@ -245,16 +242,13 @@ function Assembled({
       />
     ) : null;
 
-  // Reordenable solo con ≥2 tarjetas; si hay una sola, se muestra sin asas.
-  const reorderable = ordered.length >= 2;
-  const grid: React.ReactNode[] = ordered.map((w, i) =>
-    reorderable ? (
-      <DraggableCard key={w.id} label={w.label} index={i} count={ordered.length} onMove={reorder}>
-        {w.node}
-      </DraggableCard>
-    ) : (
-      <React.Fragment key={w.id}>{w.node}</React.Fragment>
-    ),
+  // Grilla sortable estilo iPad: las cards se corren solas al arrastrar (reflow) y la arrastrada flota.
+  // El reordenamiento + persistencia sale de `onReorder(ids)`.
+  const grid = (
+    <SortableWidgetGrid
+      items={ordered.map((w) => ({ id: w.id, label: w.label, node: w.node }))}
+      onReorder={reorderIds}
+    />
   );
 
   // Plan: con brecha real (cash_gap) + forecast → plan de cierre cuantificado
