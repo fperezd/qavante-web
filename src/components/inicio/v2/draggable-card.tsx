@@ -12,10 +12,11 @@ import { cn } from "@/lib/utils";
    Las asas están SIEMPRE VISIBLES (atenuadas, se resaltan al hover/foco) para que se note que la tarjeta
    se puede mover — antes estaban ocultas hasta el hover y "no se veía" que fueran movibles.
 
-   Presentacional: NO conoce persistencia; reporta `onMove(from, to)` con índices. La vista live decide el
-   orden efectivo y lo persiste en `/api/me/preferences`. El asa lleva `data-widget-index`/`touch-action:
-   none` para que arrastrar no scrollee la página, y durante el arrastre la tarjeta se vuelve
-   `pointer-events:none` para que `elementFromPoint` encuentre la tarjeta de ABAJO (el destino del drop). */
+   Mientras se arrastra, la tarjeta DESTINO (sobre la que se va a soltar) se resalta con un anillo en
+   tiempo real: marcamos `data-drop-target` en su nodo (vía `elementFromPoint` en cada `pointermove`) y
+   Tailwind lo estiliza. La tarjeta arrastrada se vuelve `pointer-events:none` para que `elementFromPoint`
+   encuentre la de ABAJO. Presentacional: NO conoce persistencia; reporta `onMove(from, to)` con índices;
+   la vista live decide el orden efectivo y lo persiste en `/api/me/preferences`. */
 
 export interface DraggableCardProps {
   /** Etiqueta legible de la tarjeta (para los aria-label de las acciones). */
@@ -32,37 +33,66 @@ export function DraggableCard({ label, index, count, onMove, children, className
   const [dragging, setDragging] = React.useState(false);
   const isFirst = index === 0;
   const isLast = index === count - 1;
+  // Última tarjeta resaltada como destino (para limpiarle el `data-drop-target` al cambiar/soltar).
+  const lastTarget = React.useRef<HTMLElement | null>(null);
 
-  // Índice de la tarjeta bajo el puntero (destino), leído del `data-widget-index` vía elementFromPoint.
-  const targetIndex = (clientX: number, clientY: number): number | null => {
+  /** Tarjeta bajo el puntero (destino), leída del `data-widget-index` vía elementFromPoint. */
+  const cardUnder = (clientX: number, clientY: number): HTMLElement | null => {
     const el = document.elementFromPoint(clientX, clientY);
-    const card = el?.closest<HTMLElement>("[data-widget-index]");
-    if (!card) return null;
-    const n = Number(card.dataset.widgetIndex);
-    return Number.isNaN(n) ? null : n;
+    return el?.closest<HTMLElement>("[data-widget-index]") ?? null;
+  };
+
+  const clearTarget = () => {
+    if (lastTarget.current) {
+      delete lastTarget.current.dataset.dropTarget;
+      lastTarget.current = null;
+    }
   };
 
   const startDrag = (e: React.PointerEvent) => {
-    // Solo botón principal / toque; no arrancamos con click derecho.
-    if (e.button != null && e.button !== 0) return;
+    if (e.button != null && e.button !== 0) return; // solo principal / toque
     e.preventDefault();
     setDragging(true);
 
-    const onPointerUp = (ev: PointerEvent) => {
-      const to = targetIndex(ev.clientX, ev.clientY);
-      setDragging(false);
-      document.removeEventListener("pointerup", onPointerUp);
-      if (to != null && to !== index) onMove(index, to);
+    const handleMove = (ev: PointerEvent) => {
+      const card = cardUnder(ev.clientX, ev.clientY);
+      // Resaltar el destino solo si es OTRA tarjeta (no la que arrastramos).
+      if (card && Number(card.dataset.widgetIndex) !== index) {
+        if (lastTarget.current !== card) {
+          clearTarget();
+          card.dataset.dropTarget = "true";
+          lastTarget.current = card;
+        }
+      } else {
+        clearTarget();
+      }
     };
-    document.addEventListener("pointerup", onPointerUp);
+
+    const handleUp = (ev: PointerEvent) => {
+      const card = cardUnder(ev.clientX, ev.clientY);
+      const to = card ? Number(card.dataset.widgetIndex) : NaN;
+      clearTarget();
+      setDragging(false);
+      document.removeEventListener("pointermove", handleMove);
+      document.removeEventListener("pointerup", handleUp);
+      if (!Number.isNaN(to) && to !== index) onMove(index, to);
+    };
+
+    document.addEventListener("pointermove", handleMove);
+    document.addEventListener("pointerup", handleUp);
   };
+
+  // Limpieza defensiva si el componente se desmonta a mitad de un arrastre.
+  React.useEffect(() => () => clearTarget(), []);
 
   return (
     <div
       data-widget-index={index}
       className={cn(
         "group/card relative rounded-xl transition-shadow",
-        // Durante el arrastre: se "levanta" y deja pasar el puntero para detectar la tarjeta de abajo.
+        // Destino del drop: anillo en tiempo real (Tailwind lee el data-attr que seteamos al arrastrar).
+        "data-[drop-target=true]:ring-2 data-[drop-target=true]:ring-primary/70 data-[drop-target=true]:ring-offset-2",
+        // La tarjeta arrastrada se "levanta" y deja pasar el puntero para detectar la de abajo.
         dragging && "pointer-events-none scale-[0.99] opacity-70 shadow-lg",
         className,
       )}
