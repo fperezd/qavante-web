@@ -30,6 +30,8 @@ import { GanandoDineroLive } from "./ganando-dinero-live";
 import { FlujoCajaLive } from "./flujo-caja-live";
 import { PlanRealLive } from "./plan-real-live";
 import { CicloCajaLive } from "./ciclo-caja-live";
+import { MargenesLive } from "./margenes-live";
+import { VentasMesLive } from "./ventas-mes-live";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
@@ -153,6 +155,10 @@ function Assembled({
   widgets.push({ id: "planReal", label: "Plan vs Real", node: <PlanRealLive /> });
   // Ciclo de caja (cobras en X días / pagas en Y). Trae su propia data y degrada sola → incondicional.
   widgets.push({ id: "ciclo", label: "Ciclo de caja", node: <CicloCajaLive /> });
+  // Márgenes (bruto/neto) del mes cerrado. Trae su propia data y degrada honesto → incondicional.
+  widgets.push({ id: "margenes", label: "Márgenes", node: <MargenesLive /> });
+  // Ventas por mes (tendencia del neto vendido). Trae su propia data y degrada honesto → incondicional.
+  widgets.push({ id: "ventas", label: "Ventas por mes", node: <VentasMesLive /> });
   // Pulso como tarjeta del grid (antes vivía fijo en el cockpit): así se puede mover y prender/apagar
   // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
   if (pulso)
