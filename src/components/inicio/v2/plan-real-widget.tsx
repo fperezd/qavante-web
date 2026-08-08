@@ -33,32 +33,32 @@ export function PlanRealWidget({
     <QavanteCard
       variant="bordered"
       className="h-full"
-      header={
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-medium">Plan vs Real</span>
-          {onModoChange && (
-            <div className="flex rounded-lg bg-neutral-light/40 p-0.5 text-xs" role="tablist">
-              {(["mes", "anio"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  role="tab"
-                  aria-selected={modo === m}
-                  onClick={() => onModoChange(m)}
-                  className={cn(
-                    "rounded-md px-2 py-0.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
-                    modo === m ? "bg-surface text-neutral-strong shadow-sm" : "text-neutral-mid",
-                  )}
-                >
-                  {m === "mes" ? "Mes" : "Año"}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      }
+      header={<span className="font-medium">Plan vs Real</span>}
     >
-      <p className="text-xs capitalize text-neutral-mid">{data.periodoLabel}</p>
+      {/* Toggle Mes/Año DEBAJO del header (no en la esquina sup. der.) para no chocar con el asa de
+          arrastre, que ahora vive siempre visible en top-right. */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs capitalize text-neutral-mid">{data.periodoLabel}</p>
+        {onModoChange && (
+          <div className="flex rounded-lg bg-neutral-light/40 p-0.5 text-xs" role="tablist">
+            {(["mes", "anio"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={modo === m}
+                onClick={() => onModoChange(m)}
+                className={cn(
+                  "rounded-md px-2 py-0.5 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+                  modo === m ? "bg-surface text-neutral-strong shadow-sm" : "text-neutral-mid",
+                )}
+              >
+                {m === "mes" ? "Mes" : "Año"}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <table className="mt-2 w-full text-sm">
         <thead>
