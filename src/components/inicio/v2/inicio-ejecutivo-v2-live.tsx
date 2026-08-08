@@ -29,6 +29,7 @@ import { AgendaLive } from "./agenda-live";
 import { GanandoDineroLive } from "./ganando-dinero-live";
 import { FlujoCajaLive } from "./flujo-caja-live";
 import { PlanRealLive } from "./plan-real-live";
+import { CicloCajaLive } from "./ciclo-caja-live";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
@@ -150,6 +151,8 @@ function Assembled({
   // Plan vs Real (presupuesto vs real) mensual/anual — la vista contable clásica que un dueño espera
   // ver. Trae su propia data y degrada honesto (sin presupuesto → lo dice, no inventa). Incondicional.
   widgets.push({ id: "planReal", label: "Plan vs Real", node: <PlanRealLive /> });
+  // Ciclo de caja (cobras en X días / pagas en Y). Trae su propia data y degrada sola → incondicional.
+  widgets.push({ id: "ciclo", label: "Ciclo de caja", node: <CicloCajaLive /> });
   // Pulso como tarjeta del grid (antes vivía fijo en el cockpit): así se puede mover y prender/apagar
   // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
   if (pulso)
