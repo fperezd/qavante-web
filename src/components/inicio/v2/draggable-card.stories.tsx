@@ -4,11 +4,10 @@ import { within, userEvent, expect } from "storybook/test";
 import { DraggableCard } from "./draggable-card";
 import { moveItem } from "./widget-order";
 
-/* DraggableCard — asa de reordenamiento de las tarjetas del Inicio v2. Mouse por
-   HTML5 DnD; teclado por los botones ↑/↓ (el DnD nativo no es accesible). La
-   persistencia vive en la vista live; acá se prueba el reordenamiento por teclado
-   con estado local. Story de render puro (sin args): DraggableCard es interactivo
-   y se compone dentro de un demo con estado. */
+/* DraggableCard — asa de reordenamiento de las tarjetas del Inicio v2. Arrastre por Pointer Events
+   (mouse Y touch); botones ↑/↓ como alternativa (toque simple + teclado). La persistencia vive en la
+   vista live; acá se prueba el reordenamiento por los botones con estado local (el arrastre por puntero
+   depende de `elementFromPoint`, no confiable en el runner → se valida manual). Story de render puro. */
 
 const meta: Meta = {
   title: "Inicio v2 / DraggableCard",

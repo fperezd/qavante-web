@@ -63,29 +63,28 @@ export function PlanRealLive() {
     <QavanteCard
       variant="bordered"
       className="h-full"
-      header={
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-medium">Plan vs Real</span>
-          <div className="flex rounded-lg bg-neutral-light/40 p-0.5 text-xs" role="tablist">
-            {(["mes", "anio"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                role="tab"
-                aria-selected={modo === m}
-                onClick={() => setModo(m)}
-                className={
-                  "rounded-md px-2 py-0.5 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary " +
-                  (modo === m ? "bg-surface text-neutral-strong shadow-sm" : "text-neutral-mid")
-                }
-              >
-                {m === "mes" ? "Mes" : "Año"}
-              </button>
-            ))}
-          </div>
-        </div>
-      }
+      header={<span className="font-medium">Plan vs Real</span>}
     >
+      {/* Toggle debajo del header (no en top-right) para no chocar con el asa de arrastre. */}
+      <div className="mb-1 flex justify-end">
+        <div className="flex rounded-lg bg-neutral-light/40 p-0.5 text-xs" role="tablist">
+          {(["mes", "anio"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={modo === m}
+              onClick={() => setModo(m)}
+              className={
+                "rounded-md px-2 py-0.5 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary " +
+                (modo === m ? "bg-surface text-neutral-strong shadow-sm" : "text-neutral-mid")
+              }
+            >
+              {m === "mes" ? "Mes" : "Año"}
+            </button>
+          ))}
+        </div>
+      </div>
       {loading ? (
         <div className="h-24 animate-pulse rounded-lg bg-neutral-light/30" aria-busy="true" />
       ) : (
