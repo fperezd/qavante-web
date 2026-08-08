@@ -70,7 +70,7 @@ export function DraggableCard({ label, index, count, onMove, children, className
       <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-lg bg-surface/80 p-0.5 opacity-60 shadow-sm backdrop-blur transition-opacity group-hover/card:opacity-100 focus-within:opacity-100">
         <button
           type="button"
-          aria-label={`Arrastrar “${label}” para moverla`}
+          aria-label={`Arrastrar “${label}” para reordenar`}
           onPointerDown={startDrag}
           style={{ touchAction: "none" }}
           className="cursor-grab touch-none rounded p-1 text-neutral-mid hover:bg-surface-muted hover:text-neutral-dark active:cursor-grabbing focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
