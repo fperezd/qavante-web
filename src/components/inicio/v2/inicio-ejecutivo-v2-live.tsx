@@ -17,6 +17,7 @@ import { AccionesList, type Accion } from "./acciones-list";
 import { BrechaPlan } from "./brecha-plan";
 import { DraggableCard } from "./draggable-card";
 import { type Termometro } from "./termometros";
+import { PulsoCard } from "./pulso-card";
 import { CajaProyeccion } from "./caja-proyeccion";
 import { CobranzaRealizable } from "./cobranza-realizable";
 import { PagosTimeline } from "./pagos-timeline";
@@ -137,6 +138,10 @@ function Assembled({
   // lleva a su detalle (regla "todo dato lleva a su detalle"): mismos destinos que el Inicio v1,
   // que los tenía y el v2 había perdido (Cobranza y Pagos quedaban sin salida).
   const widgets: Widget[] = [];
+  // Pulso como tarjeta del grid (antes vivía fijo en el cockpit): así se puede mover y prender/apagar
+  // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
+  if (pulso)
+    widgets.push({ id: "pulso", label: "Pulso del negocio", node: <PulsoCard {...pulso} /> });
   if (caja)
     widgets.push({
       id: "caja",
@@ -227,7 +232,6 @@ function Assembled({
     <InicioEjecutivoV2
       frase={mapFrase(data)}
       termometros={buildTermometros(data)}
-      pulso={pulso ?? undefined}
       plan={plan}
       grid={grid}
       personalizar={personalizar}
