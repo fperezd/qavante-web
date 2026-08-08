@@ -26,6 +26,7 @@ import { applyWidgetOrder, moveItem, readWidgetOrder, withWidgetOrder } from "./
 import { applyVisibility, readHidden, toggleHidden, withHidden } from "./widget-visibility";
 import { WidgetPersonalizar } from "./widget-personalizar";
 import { AgendaLive } from "./agenda-live";
+import { GanandoDineroLive } from "./ganando-dinero-live";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
@@ -138,6 +139,9 @@ function Assembled({
   // lleva a su detalle (regla "todo dato lleva a su detalle"): mismos destinos que el Inicio v1,
   // que los tenía y el v2 había perdido (Cobranza y Pagos quedaban sin salida).
   const widgets: Widget[] = [];
+  // "¿Estás ganando dinero?" — la pregunta del dueño, anclada al mes ANTERIOR cerrado. Widget
+  // autocontenido (trae su dato del operational-result + degrada solo). Movible/apagable como todos.
+  widgets.push({ id: "ganando", label: "¿Estás ganando dinero?", node: <GanandoDineroLive /> });
   // Pulso como tarjeta del grid (antes vivía fijo en el cockpit): así se puede mover y prender/apagar
   // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
   if (pulso)
