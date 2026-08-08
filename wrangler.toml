@@ -89,6 +89,11 @@ NEXT_PUBLIC_FF_COMPORTAMIENTO_PAGO = "false"
 # prefs (inicio_widget_hidden). Requiere INICIO_EJECUTIVO_V2 ON para verse. Con OFF el Inicio queda
 # igual (cero regresión). Encender = "true".
 NEXT_PUBLIC_FF_INICIO_WIDGETS = "false"
+# Agenda de las próximas 2 semanas en el Inicio (2026-08-08) — OFF hasta validar. Tarjeta que compone
+# los vencimientos forward (cobros AR + pagos AP + F29/Previred/sueldos/arriendo) a 14 días, por semana.
+# Reusa el motor de la cascada de Caja. Requiere INICIO_EJECUTIVO_V2 ON para verse. Con OFF el Inicio
+# queda igual (cero regresión). Encender = "true".
+NEXT_PUBLIC_FF_INICIO_AGENDA = "false"
 # Conciliación de sueldos ACCIONABLE en Remuneraciones (#835) — ON (encendido 2026-08-05 por Fernando).
 # El board del backend (payroll-settlements/reconcile/revert, qavante-api #826/#827) es la fuente de
 # verdad; deja conciliar una-a-una / varias marcadas y DESASIGNAR (caso Carrasco). Validado al peso con

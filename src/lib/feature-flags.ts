@@ -63,6 +63,7 @@ export const FEATURE_FLAGS = [
   "pulsoObjetivo",
   "comportamientoPago",
   "inicioWidgets",
+  "inicioAgenda",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -220,6 +221,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      que lo persisten. OFF hasta validar; con OFF el Inicio v2 queda igual (cero regresión). Requiere
      `inicioEjecutivoV2` ON para verse (el v2 gatea la pantalla). Encender = editar wrangler. */
   inicioWidgets: "/api/me/preferences",
+  /* Agenda de las próximas 2 semanas en el Inicio (2026-08-08) — tarjeta que compone los vencimientos
+     forward (cobros del maestro AR + pagos AP + F29/Previred/sueldos/arriendo) a 14 días, agrupados por
+     semana. Reusa el motor de la cascada de Caja. Requiere `inicioEjecutivoV2` ON para verse; se puede
+     mover/apagar como cualquier widget (framework `inicioWidgets`). OFF hasta validar; con OFF el Inicio
+     queda igual (cero regresión). Encender = editar wrangler. */
+  inicioAgenda: "/api/sii/rcv/ventas",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
