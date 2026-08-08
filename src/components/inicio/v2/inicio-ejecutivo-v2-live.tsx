@@ -35,6 +35,7 @@ import { VentasMesLive } from "./ventas-mes-live";
 import { SaldosBancoLive } from "./saldos-banco-live";
 import { RemuneracionesLive } from "./remuneraciones-live";
 import { ComportamientoPagoLive } from "./comportamiento-pago-live";
+import { PuntoEquilibrioLive } from "./punto-equilibrio-live";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
@@ -173,6 +174,9 @@ function Assembled({
     label: "Comportamiento de pago",
     node: <ComportamientoPagoLive />,
   });
+  // Punto de equilibrio (cuánto vender para no perder = lo que gastaste el último mes cerrado). Reusa
+  // computePuntoEquilibrio (Gestión). Degrada honesto → incondicional.
+  widgets.push({ id: "puntoEquilibrio", label: "Punto de equilibrio", node: <PuntoEquilibrioLive /> });
   // Pulso como tarjeta del grid (antes vivía fijo en el cockpit): así se puede mover y prender/apagar
   // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
   if (pulso)
