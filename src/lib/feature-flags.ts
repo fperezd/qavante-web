@@ -62,6 +62,7 @@ export const FEATURE_FLAGS = [
   "bancoConciliacion",
   "pulsoObjetivo",
   "comportamientoPago",
+  "inicioWidgets",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -213,6 +214,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      brecha de CC-API (qavante-api #858). OFF hasta validar el dato al peso; con OFF Ciclo de caja queda
      igual (cero regresión). Encender = editar wrangler. */
   comportamientoPago: "/api/treasury/collection-projection",
+  /* Personalizar el Inicio (2026-08-08) — el dueño PRENDE/APAGA las tarjetas (mover ya lo hace el
+     DraggableCard). Fundación del norte "la mañana del dueño": mover + on/off + catálogo. Persiste en
+     el blob de prefs (clave `inicio_widget_hidden`, molde `widget-order`). Gating endpoint = las prefs
+     que lo persisten. OFF hasta validar; con OFF el Inicio v2 queda igual (cero regresión). Requiere
+     `inicioEjecutivoV2` ON para verse (el v2 gatea la pantalla). Encender = editar wrangler. */
+  inicioWidgets: "/api/me/preferences",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

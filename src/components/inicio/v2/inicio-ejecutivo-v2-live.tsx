@@ -22,6 +22,8 @@ import { CobranzaRealizable } from "./cobranza-realizable";
 import { PagosTimeline } from "./pagos-timeline";
 import { ResultadoPreliminar } from "./resultado-preliminar";
 import { applyWidgetOrder, moveItem, readWidgetOrder, withWidgetOrder } from "./widget-order";
+import { applyVisibility, readHidden, toggleHidden, withHidden } from "./widget-visibility";
+import { WidgetPersonalizar } from "./widget-personalizar";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
@@ -45,7 +47,7 @@ import {
    cash_sparkline, señales de crecimiento). Container: NO se testea por Storybook
    play (ADR-0018); la lógica vive testeada en `inicio-v2-map`. */
 
-export function InicioEjecutivoV2Live() {
+export function InicioEjecutivoV2Live({ widgetsEnabled = false }: { widgetsEnabled?: boolean }) {
   const query = useDashboardSummary();
   // Fase 2: cobranza realizable. Query independiente que degrada solo (retry:false)
   // → si aún no responde, la Cobranza cae al total del summary (mapCobranza).
@@ -67,6 +69,7 @@ export function InicioEjecutivoV2Live() {
       forecast={forecast.data}
       forecastFallo={forecast.isError}
       cashCycle={cashCycle.data}
+      widgetsEnabled={widgetsEnabled}
     />
   );
 }
@@ -83,18 +86,22 @@ function Assembled({
   forecast,
   forecastFallo,
   cashCycle,
+  widgetsEnabled = false,
 }: {
   data: DashboardSummaryV2;
   forecast?: CollectionForecastResponse;
   /** El forecast FALLÓ (≠ no disponible): la cobranza degrada y lo decimos, no lo tapamos. */
   forecastFallo?: boolean;
   cashCycle?: CashCycleResponse;
+  /** `inicioWidgets` ON → muestra "Personalizar" (prender/apagar tarjetas). */
+  widgetsEnabled?: boolean;
 }) {
-  // Prefs del usuario en la empresa activa: orden de las tarjetas (persistido).
+  // Prefs del usuario en la empresa activa: orden + visibilidad de las tarjetas (persistido).
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
-  // Orden optimista local; hasta el primer arrastre, manda el guardado.
+  // Orden y apagados optimistas locales; hasta el primer cambio, manda lo guardado.
   const [localOrder, setLocalOrder] = React.useState<string[] | null>(null);
+  const [localHidden, setLocalHidden] = React.useState<string[] | null>(null);
 
   const pulso = mapPulso(data);
   const caja = mapCaja(data);
@@ -104,7 +111,8 @@ function Assembled({
   // Si el forecast falló, la cobranza cae al total nominal: se dice, no se hace pasar por
   // "lo realizable" (§13 — un error no puede verse igual que un dato que no existe).
   if (cobranza && forecastFallo && !forecast) {
-    cobranza.nota = "No pudimos estimar la cobranza realizable ahora; abajo va el total por cobrar.";
+    cobranza.nota =
+      "No pudimos estimar la cobranza realizable ahora; abajo va el total por cobrar.";
   }
   const pagos = mapPagos(data, new Date());
   const resultado = mapResultado(data);
@@ -143,9 +151,15 @@ function Assembled({
       node: <ResultadoPreliminar {...resultado} href="/gestion" cta="Ver gestión" />,
     });
 
+  // Visibilidad: apaga las tarjetas que el usuario quitó (optimista local o lo guardado), ANTES de
+  // ordenar. El catálogo "agregar" es el mismo mecanismo (una apagada vuelve a prenderse).
+  const savedHidden = readHidden(prefs.data?.preferences);
+  const effectiveHidden = localHidden ?? savedHidden;
+  const visible = applyVisibility(widgets, effectiveHidden);
+
   // Orden efectivo: el arrastre local (optimista) o, si no hubo, el guardado en prefs.
   const savedOrder = readWidgetOrder(prefs.data?.preferences);
-  const ordered = applyWidgetOrder(widgets, localOrder ?? savedOrder);
+  const ordered = applyWidgetOrder(visible, localOrder ?? savedOrder);
   // Reordena y persiste. Solo persiste si el GET de prefs tuvo éxito: el PUT REEMPLAZA
   // el blob completo, así que escribir sobre un GET fallido pisaría el resto de prefs.
   const reorder = (from: number, to: number) => {
@@ -155,6 +169,22 @@ function Assembled({
     setLocalOrder(nextIds);
     if (prefs.isSuccess) updatePrefs.mutate(withWidgetOrder(prefs.data?.preferences, nextIds));
   };
+  // Prender/apagar una tarjeta; persiste sólo si el GET de prefs tuvo éxito (el PUT reemplaza el
+  // blob, escribir sobre un GET fallido pisaría el resto).
+  const toggleWidget = (id: string) => {
+    const next = toggleHidden(effectiveHidden, id);
+    setLocalHidden(next);
+    if (prefs.isSuccess) updatePrefs.mutate(withHidden(prefs.data?.preferences, next));
+  };
+  const personalizar =
+    widgetsEnabled && widgets.length > 0 ? (
+      <WidgetPersonalizar
+        widgets={widgets.map((w) => ({ id: w.id, label: w.label }))}
+        hidden={effectiveHidden}
+        onToggle={toggleWidget}
+      />
+    ) : null;
+
   // Reordenable solo con ≥2 tarjetas; si hay una sola, se muestra sin asas.
   const reorderable = ordered.length >= 2;
   const grid: React.ReactNode[] = ordered.map((w, i) =>
@@ -185,6 +215,7 @@ function Assembled({
       pulso={pulso ?? undefined}
       plan={plan}
       grid={grid}
+      personalizar={personalizar}
     />
   );
 }

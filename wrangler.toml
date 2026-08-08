@@ -84,6 +84,11 @@ NEXT_PUBLIC_FF_PULSO_OBJETIVO = "false"
 # vencimiento (agregado de cobros); primer paso hacia la temporalidad por contraparte (brecha CC-API
 # qavante-api #858). Con OFF, Ciclo de caja queda igual (cero regresión). Encender = "true".
 NEXT_PUBLIC_FF_COMPORTAMIENTO_PAGO = "false"
+# Personalizar el Inicio (2026-08-08) — OFF hasta validar. El dueño prende/apaga las tarjetas del
+# Inicio v2 (mover ya existe: DraggableCard). Fundación del norte "la mañana del dueño". Persiste en
+# prefs (inicio_widget_hidden). Requiere INICIO_EJECUTIVO_V2 ON para verse. Con OFF el Inicio queda
+# igual (cero regresión). Encender = "true".
+NEXT_PUBLIC_FF_INICIO_WIDGETS = "false"
 # Conciliación de sueldos ACCIONABLE en Remuneraciones (#835) — ON (encendido 2026-08-05 por Fernando).
 # El board del backend (payroll-settlements/reconcile/revert, qavante-api #826/#827) es la fuente de
 # verdad; deja conciliar una-a-una / varias marcadas y DESASIGNAR (caso Carrasco). Validado al peso con
