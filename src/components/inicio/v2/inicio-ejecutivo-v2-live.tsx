@@ -29,6 +29,11 @@ import { AgendaLive } from "./agenda-live";
 import { GanandoDineroLive } from "./ganando-dinero-live";
 import { FlujoCajaLive } from "./flujo-caja-live";
 import { PlanRealLive } from "./plan-real-live";
+import { CicloCajaLive } from "./ciclo-caja-live";
+import { MargenesLive } from "./margenes-live";
+import { VentasMesLive } from "./ventas-mes-live";
+import { SaldosBancoLive } from "./saldos-banco-live";
+import { RemuneracionesLive } from "./remuneraciones-live";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
@@ -150,6 +155,16 @@ function Assembled({
   // Plan vs Real (presupuesto vs real) mensual/anual — la vista contable clásica que un dueño espera
   // ver. Trae su propia data y degrada honesto (sin presupuesto → lo dice, no inventa). Incondicional.
   widgets.push({ id: "planReal", label: "Plan vs Real", node: <PlanRealLive /> });
+  // Ciclo de caja (cobras en X días / pagas en Y). Trae su propia data y degrada sola → incondicional.
+  widgets.push({ id: "ciclo", label: "Ciclo de caja", node: <CicloCajaLive /> });
+  // Márgenes (bruto/neto) del mes cerrado. Trae su propia data y degrada honesto → incondicional.
+  widgets.push({ id: "margenes", label: "Márgenes", node: <MargenesLive /> });
+  // Ventas por mes (tendencia del neto vendido). Trae su propia data y degrada honesto → incondicional.
+  widgets.push({ id: "ventas", label: "Ventas por mes", node: <VentasMesLive /> });
+  // Saldos en banco (por cuenta + total CLP). Trae su propia data (bice) y degrada honesto → incondicional.
+  widgets.push({ id: "saldos", label: "Saldos en banco", node: <SaldosBancoLive /> });
+  // Remuneraciones (líquido de la planilla del mes + dotación). Trae su data (BUK) y degrada honesto.
+  widgets.push({ id: "remuneraciones", label: "Remuneraciones", node: <RemuneracionesLive /> });
   // Pulso como tarjeta del grid (antes vivía fijo en el cockpit): así se puede mover y prender/apagar
   // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
   if (pulso)
