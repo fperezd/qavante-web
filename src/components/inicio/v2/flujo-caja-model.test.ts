@@ -37,7 +37,7 @@ describe("flujoCajaReal", () => {
     expect(r!.ultimo.egresos).toBe(3000000);
     expect(r!.ultimo.neto).toBe(2000000);
     // Neto negativo se respeta (mayo salió más de lo que entró).
-    expect(r!.meses[0].neto).toBe(-500000);
+    expect(r!.meses[0]!.neto).toBe(-500000);
   });
 
   it("EXCLUYE el mes en curso (incompleto, engaña)", () => {

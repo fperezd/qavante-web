@@ -46,6 +46,7 @@ export function flujoCajaReal(
       neto: parseAmount(b.net),
     }))
     .sort((a, b) => a.periodo.localeCompare(b.periodo));
-  if (!meses.length) return null;
-  return { meses, ultimo: meses[meses.length - 1] };
+  const ultimo = meses.at(-1);
+  if (!ultimo) return null;
+  return { meses, ultimo };
 }
