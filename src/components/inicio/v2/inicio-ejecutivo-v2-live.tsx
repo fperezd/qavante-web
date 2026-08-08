@@ -27,6 +27,7 @@ import { applyVisibility, readHidden, toggleHidden, withHidden } from "./widget-
 import { WidgetPersonalizar } from "./widget-personalizar";
 import { AgendaLive } from "./agenda-live";
 import { GanandoDineroLive } from "./ganando-dinero-live";
+import { FlujoCajaLive } from "./flujo-caja-live";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
@@ -142,6 +143,9 @@ function Assembled({
   // "¿Estás ganando dinero?" — la pregunta del dueño, anclada al mes ANTERIOR cerrado. Widget
   // autocontenido (trae su dato del operational-result + degrada solo). Movible/apagable como todos.
   widgets.push({ id: "ganando", label: "¿Estás ganando dinero?", node: <GanandoDineroLive /> });
+  // Flujo de caja REAL (lo que entró/salió por mes cerrado). Trae su propia data y degrada sola →
+  // incondicional (como ganando/agenda). NO confundir con "Flujo de caja proyectado" (card `caja`).
+  widgets.push({ id: "flujo", label: "Flujo de caja", node: <FlujoCajaLive /> });
   // Pulso como tarjeta del grid (antes vivía fijo en el cockpit): así se puede mover y prender/apagar
   // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
   if (pulso)
@@ -149,19 +153,19 @@ function Assembled({
   if (caja)
     widgets.push({
       id: "caja",
-      label: "Caja proyectada",
+      label: "Flujo de caja proyectado",
       node: <CajaProyeccion {...caja} href="/caja/proyeccion" cta="Ver caja" />,
     });
   if (cobranza)
     widgets.push({
       id: "cobranza",
-      label: "Cobranza realizable",
+      label: "Por cobrar",
       node: <CobranzaRealizable {...cobranza} href="/cobrar" cta="Ver cobranza" />,
     });
   if (pagos)
     widgets.push({
       id: "pagos",
-      label: "Pagos del mes",
+      label: "Por pagar",
       node: <PagosTimeline {...pagos} href="/pagar" cta="Ver pagos" />,
     });
   if (resultado)
