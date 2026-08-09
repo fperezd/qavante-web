@@ -144,6 +144,9 @@ NEXT_PUBLIC_FF_PULSO_DETAIL = "true"
 # Piloto (2026-08-08) Gestión como tablero reordenable (cards movibles/apagables, motor iPad del Inicio).
 # OFF hasta que Fernando lo valide → con OFF la Gestión queda IGUAL (informe/matriz), cero regresión.
 NEXT_PUBLIC_FF_GESTION_DASHBOARD = "true"
+# Piloto (2026-08-08) Caja como landing reordenable (bloques movibles/apagables). OFF hasta validar →
+# con OFF la Caja queda IGUAL, cero regresión.
+NEXT_PUBLIC_FF_CAJA_DASHBOARD = "false"
 # Activada 2026-06-22: wizard de onboarding. CC-API dejó vivos en prod todos los
 # endpoints (qavante-api #344 status/complete + onboarding_completed en /me, #345
 # sync per-source, #346 opening-balance; signup/verify ya estaban). FE alineado a
