@@ -35,6 +35,8 @@ export interface SortableWidgetItem {
   id: string;
   label: string;
   node: React.ReactNode;
+  /** Ocupa las 2 columnas (ej. un hero ancho). Solo aplica en grillas de ≥2 columnas. */
+  wide?: boolean;
 }
 
 export interface SortableWidgetGridProps {
@@ -87,7 +89,13 @@ export function SortableWidgetGrid({
       <SortableContext items={ids} strategy={rectSortingStrategy}>
         <div className={gridClassName}>
           {items.map((item) => (
-            <SortableCard key={item.id} id={item.id} label={item.label} onHide={onHide}>
+            <SortableCard
+              key={item.id}
+              id={item.id}
+              label={item.label}
+              onHide={onHide}
+              wide={item.wide}
+            >
               {item.node}
             </SortableCard>
           ))}
@@ -111,11 +119,13 @@ function SortableCard({
   label,
   children,
   onHide,
+  wide,
 }: {
   id: string;
   label: string;
   children: React.ReactNode;
   onHide?: (id: string) => void;
+  wide?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   // Confirmación inline del ocultar (más liviano que un modal): la "x" pregunta "¿Ocultar? Sí/No".
@@ -132,6 +142,8 @@ function SortableCard({
       style={style}
       className={cn(
         "group/card relative rounded-xl",
+        // Ancho completo (2 columnas) para heros anchos.
+        wide && "sm:col-span-2",
         // El slot original queda como "hueco" mientras la card flota en el overlay.
         isDragging && "opacity-30",
       )}
