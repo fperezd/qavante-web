@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAs } from "./helpers";
+import { loginAs, BASE_URL } from "./helpers";
 
 /* Flujo — Presupuesto propositivo (ADR-0091, `presupuesto` ON). "El presupuesto se PROPONE desde tu
    historial; tú lo ajustas." Contra MSW (budget-vs-actual con has_budget:true): el hero "¿cómo vas?"
@@ -31,5 +31,25 @@ test.describe("Flujo: Presupuesto (/presupuesto)", () => {
 
     // Toggle Mes / Año.
     await expect(page.getByRole("tab", { name: "Año" })).toBeVisible();
+  });
+
+  test("sin presupuesto → estado honesto + 'Proponer' lo genera desde el historial", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    // Cookie sentinel: budget-vs-actual responde has_budget:false hasta que 'propose' la borre.
+    await context.addCookies([{ name: "qa_presupuesto", value: "empty", url: BASE_URL }]);
+    await page.goto("/presupuesto");
+
+    // Estado honesto: no inventamos plan; invitamos a proponerlo (en español chileno, sin voseo).
+    await expect(page.getByText(/Todavía no tienes presupuesto 20\d{2}/)).toBeVisible();
+    const proponer = page.getByRole("button", { name: /Proponer presupuesto/i });
+    await expect(proponer).toBeVisible();
+
+    // Al proponer, el backend lo arma desde el historial → refetch → hero poblado.
+    await proponer.click();
+    await expect(page.getByText(/¿Cómo vas en/i)).toBeVisible();
+    await expect(page.getByText("Lo que se desvía")).toBeVisible();
   });
 });

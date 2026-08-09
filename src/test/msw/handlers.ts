@@ -991,6 +991,11 @@ function syntheticAccount(overrides: Record<string, unknown> = {}): Record<strin
   };
 }
 
+/* e2e: estado del "propose" de Presupuesto. Vive en el contexto de la página (se reinicia en cada
+   page.goto → aislado por test). Con la cookie sentinel `qa_presupuesto=empty`, budget-vs-actual arranca
+   has_budget:false y pasa a true una vez que el dueño toca "Proponer presupuesto". */
+let presupuestoPropuestoE2E = false;
+
 const managementHandlers = [
   http.get("*/api/management/accounts/tree", () =>
     HttpResponse.json({ items: managementAccountsTreeFixture }, { status: 200 }),
@@ -2933,6 +2938,15 @@ const gestionHandlers = [
      result = suma. `has_budget:true` → el hero "¿cómo vas?" se muestra con el semáforo. */
   http.get("*/api/planning/budget-vs-actual", ({ request }) => {
     const period = new URL(request.url).searchParams.get("period") ?? "2026-07";
+    // e2e: con la cookie sentinel `qa_presupuesto=empty` arrancamos sin presupuesto; tras "Proponer"
+    // (handler de budget/propose) el flag pasa a true y el refetch ya devuelve has_budget:true.
+    const pideEmpty = (request.headers.get("cookie") ?? "").includes("qa_presupuesto=empty");
+    if (pideEmpty && !presupuestoPropuestoE2E) {
+      return HttpResponse.json(
+        { period, has_budget: false, data_state: "no_budget", lines: [] },
+        { status: 200 },
+      );
+    }
     return HttpResponse.json(
       {
         period,
@@ -2945,6 +2959,22 @@ const gestionHandlers = [
           { concept: "operating_expense", budget: "-11300000", actual: "-11800000", variance: "-500000", variance_pct: "-4" },
           { concept: "result", budget: "2700000", actual: "1440000", variance: "-1260000", variance_pct: "-47" },
         ],
+      },
+      { status: 200 },
+    );
+  }),
+  /* PROPONE el presupuesto del año (ADR-0091 F1a). En e2e marca el flag → el refetch de
+     budget-vs-actual tras invalidar pasa a has_budget:true (poblado). */
+  http.post("*/api/planning/budget/propose", async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as { fiscal_year?: number };
+    presupuestoPropuestoE2E = true;
+    return HttpResponse.json(
+      {
+        version_id: "v-msw-1",
+        fiscal_year: body?.fiscal_year ?? 2026,
+        result_year: "2026",
+        history_months: 7,
+        impacts_written: 12,
       },
       { status: 200 },
     );
