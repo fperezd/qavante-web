@@ -1490,9 +1490,10 @@ export interface paths {
         };
         /**
          * BICE: saldo de todas las cuentas corrientes (CLP + USD)
-         * @description Devuelve saldo contable y disponible actualizados para CADA cuenta corriente
-         *     de la empresa (CLP y USD). Cada cuenta incluye `numeroCuenta` (token usado en
-         *     otros endpoints como /cartola y /cuentas/{numero_cuenta}/balance).
+         * @description Devuelve saldo contable y disponible para CADA cuenta corriente de la empresa (CLP y USD).
+         *     **Cache-first** (CC-WEB 2026-08-08): sirve el último saldo bueno cacheado dentro de una ventana
+         *     corta para no scrapear BICE en vivo por request (evita el hammering que expira la sesión). Los
+         *     campos `cached` (bool) y `as_of` (ISO) indican la frescura. `?refresh=true` fuerza vivo.
          */
         get: operations["bice_saldo"];
         put?: never;
@@ -1940,6 +1941,30 @@ export interface paths {
          *     traspaso netee a cero en vez de inflar ingreso+egreso (ADR-0067 Fase A1). Idempotente.
          */
         post: operations["treasury_bank_movements_detect_internal_transfers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/bank-movements/classify-signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clasifica por señales determinísticas (RUT dueño/factor/cliente + glosa, ADR-0090 F2)
+         * @description Clasifica los movimientos SIN clasificar por señales determinísticas (ADR-0090 Cap 2/2b/3:
+         *     identidad por RUT rep-legal/holding/factor/cliente/proveedor + identidad por NOMBRE de la
+         *     empresa propia + patrón de glosa). PROPONE (`suggested`) — no auto-aplica a P&L; el humano confirma →
+         *     aprende regla. Editable (re-clasificar pisa). Idempotente. Complementa apply-rules (reglas) y
+         *     classify-reconciled (herencia).
+         */
+        post: operations["treasury_bank_movements_classify_signals"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2743,6 +2768,89 @@ export interface paths {
         get: operations["planning_budget_by_account"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planning/budget/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Proponer el presupuesto de resultado del año desde el histórico real
+         * @description Genera (o regenera, idempotente) el Presupuesto de Resultado del año fiscal desde los 12
+         *     meses anteriores (tendencia + estacionalidad + meta simple). ADR-0091 F1a.
+         */
+        post: operations["planning_budget_propose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planning/budget/{year}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vista anual estándar del presupuesto (categorías x 12 meses + totales)
+         * @description La forma en que una persona ve un presupuesto: la grilla anual editable + su estado
+         *     (`draft`/`published`).
+         */
+        get: operations["planning_budget_grid"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planning/budget/{year}/line": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Editar una celda del presupuesto (categoría x mes) — el usuario ajusta el propuesto
+         * @description Modifica el monto de una celda. Solo capa `budget` (no toca actuals). Editar re-abre a
+         *     `draft` una versión ya aceptada.
+         */
+        patch: operations["planning_budget_edit_line"];
+        trace?: never;
+    };
+    "/api/planning/budget/{year}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aceptar/ratificar el presupuesto del año (draft → published)
+         * @description El usuario acepta el presupuesto — la versión pasa a `published`.
+         */
+        post: operations["planning_budget_accept"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4774,6 +4882,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mcp Endpoint */
+        post: operations["mcp_endpoint_api_mcp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/management/dimensions": {
         parameters: {
             query?: never;
@@ -5669,6 +5794,16 @@ export interface components {
             /** Active */
             active: boolean;
             /**
+             * Balance
+             * @description Saldo de la cuenta EN SU PROPIA MONEDA (currency_code); NULL si la cuenta no tiene apertura configurada. Server-side (banco reportado, o apertura + Σ movimientos): el FE NO debe bajar todos los movimientos para calcularlo.
+             */
+            balance?: string | null;
+            /**
+             * Balance As Of
+             * @description Momento del saldo (timestamp reportado por el banco, o fecha del último movimiento si es derivado). El FE lo muestra como 'actualizado HH:MM' y pinta el saldo cacheado de inmediato — no deja la pantalla en blanco mientras consulta el banco en vivo (stale-while-revalidate).
+             */
+            balance_as_of?: string | null;
+            /**
              * Last Movement At
              * @description Fecha del último movimiento; NULL si no tiene.
              */
@@ -6032,6 +6167,21 @@ export interface components {
             children?: components["schemas"]["BreakdownRow"][];
         };
         /**
+         * BudgetAcceptResponse
+         * @description Respuesta de `POST /budget/{year}/accept`.
+         */
+        BudgetAcceptResponse: {
+            /** Year */
+            year: number;
+            /**
+             * Status
+             * @description draft | approved.
+             */
+            status: string;
+            /** Accepted */
+            accepted: boolean;
+        };
+        /**
          * BudgetAccountLine
          * @description Budget vs actual de una cuenta de gestión (F2-A.2). Montos signados.
          */
@@ -6086,6 +6236,109 @@ export interface components {
             generated_at: string;
         };
         /**
+         * BudgetEditRequest
+         * @description Editar UNA celda (categoría x mes) del presupuesto.
+         */
+        BudgetEditRequest: {
+            /**
+             * Account Id
+             * @description Cuenta de gestión (NULL = línea del P&L sin cuenta).
+             */
+            account_id?: string | null;
+            /** Month */
+            month: number;
+            /**
+             * Amount
+             * @description Monto signado (ingreso +, costo/gasto -).
+             */
+            amount: number | string;
+            /**
+             * Impact Type
+             * @description Solo si se crea una celda nueva (deriva sola si se omite).
+             */
+            impact_type?: string | null;
+        };
+        /** BudgetEditResponse */
+        BudgetEditResponse: {
+            /** Year */
+            year: number;
+            /** Account Id */
+            account_id?: string | null;
+            /** Month */
+            month: number;
+            /** Amount */
+            amount: string;
+            /**
+             * Status
+             * @description Estado de la versión tras editar (queda 'draft').
+             */
+            status: string;
+        };
+        /**
+         * BudgetGridCategory
+         * @description Una fila del presupuesto anual: una categoría con sus 12 meses.
+         */
+        BudgetGridCategory: {
+            /**
+             * Account Id
+             * @description NULL = línea del P&L sin cuenta.
+             */
+            account_id?: string | null;
+            /** Account Code */
+            account_code?: string | null;
+            /** Account Name */
+            account_name: string;
+            /**
+             * Impact Type
+             * @description revenue | direct_cost | operating_expense.
+             */
+            impact_type: string;
+            /**
+             * Months
+             * @description Mes '1'..'12' → monto signado presupuestado.
+             */
+            months: {
+                [key: string]: string;
+            };
+            /** Total Year */
+            total_year: string;
+        };
+        /**
+         * BudgetGridResponse
+         * @description Vista ANUAL estándar del presupuesto (categorías x 12 meses). `GET /budget/{year}`.
+         */
+        BudgetGridResponse: {
+            /** Year */
+            year: number;
+            /** Currency */
+            currency: string;
+            /**
+             * Status
+             * @description draft | approved | None (sin presupuesto).
+             */
+            status?: string | null;
+            /**
+             * Accepted
+             * @description True si la versión está approved (aceptada).
+             */
+            accepted: boolean;
+            /** Has Budget */
+            has_budget: boolean;
+            /** Categories */
+            categories?: components["schemas"]["BudgetGridCategory"][];
+            /** Totals By Month */
+            totals_by_month?: {
+                [key: string]: string;
+            };
+            /** Total Year */
+            total_year: string;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /**
          * BudgetLine
          * @description Una línea del P&L comparada budget vs actual (montos signados).
          */
@@ -6109,6 +6362,129 @@ export interface components {
              * @description variance / |budget| * 100 (0 si budget 0).
              */
             variance_pct: string;
+        };
+        /**
+         * BudgetProposalLine
+         * @description Resumen de la propuesta de una categoría (o línea) para el año.
+         */
+        BudgetProposalLine: {
+            /**
+             * Category
+             * @description Código de cuenta (o línea del P&L en granularity=line).
+             */
+            category: string;
+            /**
+             * Label
+             * @description Nombre legible de la categoría.
+             */
+            label: string;
+            /**
+             * Impact Type
+             * @description Línea del P&L: revenue | direct_cost | operating_expense.
+             */
+            impact_type: string;
+            /**
+             * Method
+             * @description recurrente | tendencia_estacional | tendencia | sin_base
+             */
+            method: string;
+            /**
+             * Based On Months
+             * @description Meses de historia que sostienen la propuesta.
+             */
+            based_on_months: number;
+            /**
+             * Confidence
+             * @description 0..1 (completitud x estabilidad).
+             */
+            confidence: string;
+            /**
+             * Seasonal
+             * @description Se aplicó factor de estacionalidad.
+             */
+            seasonal: boolean;
+            /**
+             * Meta Pct
+             * @description Meta aplicada (0 si ninguna).
+             */
+            meta_pct: string;
+            /**
+             * Total Year
+             * @description Suma del año propuesto (signado).
+             */
+            total_year: string;
+        };
+        /**
+         * BudgetProposeRequest
+         * @description Genera el presupuesto de resultado del año desde el histórico real.
+         */
+        BudgetProposeRequest: {
+            /**
+             * Fiscal Year
+             * @description Año fiscal a presupuestar.
+             */
+            fiscal_year: number;
+            /**
+             * Meta
+             * @description Meta del dueño: {clave: pct} por línea ('revenue') o por cuenta ('operating_expense.marketing'). Ej. {'revenue': 0.08} = +8% ventas.
+             */
+            meta?: {
+                [key: string]: number | string;
+            };
+            /**
+             * Recurring
+             * @description Categorías forzadas a fijas/recurrentes (además de las que detecta el CV).
+             */
+            recurring?: string[];
+            /**
+             * Granularity
+             * @description 'category' = por cuenta del P&L (drill-down); 'line' = 3 líneas del P&L.
+             * @default category
+             * @enum {string}
+             */
+            granularity: "category" | "line";
+        };
+        /**
+         * BudgetProposeResponse
+         * @description Respuesta de `POST /api/planning/budget/propose`.
+         */
+        BudgetProposeResponse: {
+            /**
+             * Version Id
+             * @description Versión budget creada/reusada donde quedó el presupuesto.
+             */
+            version_id: string;
+            /** Fiscal Year */
+            fiscal_year: number;
+            /** Currency */
+            currency: string;
+            /**
+             * Granularity
+             * @description Granularidad usada: category | line.
+             */
+            granularity: string;
+            /** Lines */
+            lines?: components["schemas"]["BudgetProposalLine"][];
+            /**
+             * Impacts Written
+             * @description Filas budget escritas (líneas x meses con monto != 0).
+             */
+            impacts_written: number;
+            /**
+             * Result Year
+             * @description Resultado anual presupuestado (suma de líneas).
+             */
+            result_year: string;
+            /**
+             * History Months
+             * @description Meses de historia usados como base.
+             */
+            history_months: number;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
         };
         /**
          * BudgetVsActualResponse
@@ -6782,10 +7158,32 @@ export interface components {
              */
             minimo: string;
             /**
+             * En Sobregiro
+             * @description True si el saldo de hoy ya está bajo el mínimo. En ese caso `dias_de_caja` es degenerado (~1) — usar `dias_hasta_recuperar` para mostrar 'recuperás en N días'.
+             * @default false
+             */
+            en_sobregiro: boolean;
+            /**
              * Dias De Caja
              * @description Runway banda esperada: días hasta saldo_cierre < mínimo; null si nunca.
              */
             dias_de_caja?: number | null;
+            /**
+             * Dias Hasta Recuperar
+             * @description Si `en_sobregiro`: días hasta volver sobre el mínimo (null si no recupera).
+             */
+            dias_hasta_recuperar?: number | null;
+            /**
+             * Fecha Recuperar
+             * @description Día de recuperación (YYYY-MM-DD).
+             */
+            fecha_recuperar?: string | null;
+            /**
+             * Saldo Final
+             * @description Saldo proyectado al final del horizonte.
+             * @default 0
+             */
+            saldo_final: string;
             /** Serie */
             serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
             escenario_duro: components["schemas"]["EscenarioDuro"];
@@ -8528,6 +8926,13 @@ export interface components {
             detalle: {
                 [key: string]: unknown;
             };
+            /**
+             * Sin Cuadre Ejemplos
+             * @description Diagnóstico del bucket 30 (RUT con deuda sin cuadre): por movimiento, su monto/glosa/RUTs + los montos de los docs abiertos de ese RUT — para VER si es parcial/subset/FX/coincidencia (la API no expone los docs por RUT de otra forma).
+             */
+            sin_cuadre_ejemplos?: {
+                [key: string]: unknown;
+            }[];
         } & {
             [key: string]: unknown;
         };
@@ -8855,6 +9260,21 @@ export interface components {
              * @description Runway contando el ingreso recurrente proyectado; null si nunca cae.
              */
             dias_de_caja?: number | null;
+            /**
+             * Dias Hasta Recuperar
+             * @description Si arrancás en sobregiro: días hasta volver sobre el mínimo con el ingreso.
+             */
+            dias_hasta_recuperar?: number | null;
+            /**
+             * Fecha Recuperar
+             * @description Día de recuperación (YYYY-MM-DD).
+             */
+            fecha_recuperar?: string | null;
+            /**
+             * Saldo Final
+             * @description Saldo al final del horizonte (string-decimal).
+             */
+            saldo_final: string;
             /** Serie */
             serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
             punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
@@ -8883,6 +9303,21 @@ export interface components {
              * @description Runway si el atraso se recupera repartido en la ventana; null si nunca.
              */
             dias_de_caja?: number | null;
+            /**
+             * Dias Hasta Recuperar
+             * @description Si arrancás en sobregiro: días hasta volver sobre el mínimo (null si no).
+             */
+            dias_hasta_recuperar?: number | null;
+            /**
+             * Fecha Recuperar
+             * @description Día de recuperación (YYYY-MM-DD).
+             */
+            fecha_recuperar?: string | null;
+            /**
+             * Saldo Final
+             * @description Saldo al final del horizonte (string-decimal).
+             */
+            saldo_final: string;
             /** Serie */
             serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
             punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
@@ -12022,6 +12457,11 @@ export interface components {
             /** Trend */
             trend?: components["schemas"]["PulsoTrendPoint"][];
             /**
+             * Objetivo
+             * @description Objetivo aplicado que re-ponderó los ejes (#853): equilibrado | cuidar_caja | cumplir_pagos | crecer.
+             */
+            objetivo?: string | null;
+            /**
              * Generated At
              * Format: date-time
              */
@@ -12753,6 +13193,16 @@ export interface components {
             status: string;
             /** Cuentas */
             cuentas?: components["schemas"]["CuentaSaldo"][];
+            /**
+             * Cached
+             * @description True si el saldo viene del cache (no de un fetch vivo).
+             */
+            cached?: boolean | null;
+            /**
+             * As Of
+             * @description Timestamp ISO de cuándo se obtuvo el saldo (frescura).
+             */
+            as_of?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -13021,6 +13471,45 @@ export interface components {
              * @description Mantener las últimas N por patrón, due_date desc (ej. {'%synnex%': 2}).
              */
             keep_last_n_by_pattern?: {
+                [key: string]: number;
+            };
+        };
+        /**
+         * SignalsClassifyResponse
+         * @description Resultado del clasificador determinístico por señales (ADR-0090 Fase 2b).
+         *
+         *     Persiste cada señal como PROPUESTA (`classification_status='suggested'`): NO alimenta P&L/caja
+         *     hasta que el humano confirme. `por_fuente` desglosa por origen de la señal (rut_owner,
+         *     rut_client, rut_supplier, name_own_company, glosa_pattern, …) para validar la cobertura al peso.
+         */
+        SignalsClassifyResponse: {
+            /** Procesados */
+            procesados: number;
+            /**
+             * Propuestos
+             * @description Movimientos con señal → quedaron como 'suggested'.
+             */
+            propuestos: number;
+            /**
+             * Alta Conf
+             * @description Propuestas con confianza >= 90 (candidatas a auto validadas).
+             */
+            alta_conf: number;
+            /**
+             * Media Conf
+             * @description Propuestas con confianza en [55, 90).
+             */
+            media_conf: number;
+            /**
+             * Sin Senal
+             * @description Sin señal determinística (→ LLM / sin-clasificar).
+             */
+            sin_senal: number;
+            /**
+             * Por Fuente
+             * @description Conteo de propuestas por origen de la señal.
+             */
+            por_fuente?: {
                 [key: string]: number;
             };
         };
@@ -17025,7 +17514,10 @@ export interface operations {
     };
     bice_saldo: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Fuerza un fetch vivo (con tope anti-hammer). Por defecto sirve el último saldo cacheado si está fresco (ver `cached`/`as_of`). */
+                refresh?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -17725,6 +18217,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InternalTransferResponse"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_bank_movements_classify_signals: {
+        parameters: {
+            query?: {
+                /** @description `false` = dry-run (cuenta, no persiste). Default persiste las propuestas. */
+                apply?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resumen del batch: evaluados / clasificados / sin_regla. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignalsClassifyResponse"];
                 };
             };
             /** @description Rol sin permiso de escritura (ADR-0028, §20). */
@@ -20127,6 +20660,156 @@ export interface operations {
             };
         };
     };
+    planning_budget_propose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetProposeRequest"];
+            };
+        };
+        responses: {
+            /** @description Presupuesto generado; escribe financial_impacts layer=budget. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetProposeResponse"];
+                };
+            };
+            /** @description Cuerpo inválido (año fuera de rango, meta mal formada). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    planning_budget_grid: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                year: number;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetGridResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    planning_budget_edit_line: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                year: number;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetEditRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetEditResponse"];
+                };
+            };
+            /** @description No hay presupuesto del año (propón uno primero). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    planning_budget_accept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                year: number;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetAcceptResponse"];
+                };
+            };
+            /** @description No hay presupuesto del año (propón uno primero). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_reports_cash_flow: {
         parameters: {
             query: {
@@ -21132,7 +21815,10 @@ export interface operations {
     };
     management_pulso_detail: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Foco del Pulso (#853): re-pondera los ejes. Default 'equilibrado' (pesos de hoy). 'crecer' aún no diferencia (necesita el eje de ingresos, Ask 2). */
+                objetivo?: "equilibrado" | "cuidar_caja" | "cumplir_pagos" | "crecer";
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -23679,6 +24365,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mcp_endpoint_api_mcp_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
             /** @description Validation Error */
             422: {

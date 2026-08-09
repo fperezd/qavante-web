@@ -10,10 +10,16 @@ import type { components } from "./types";
 export type BudgetVsActualResponse = components["schemas"]["BudgetVsActualResponse"];
 export type BudgetLine = components["schemas"]["BudgetLine"];
 export type BudgetByAccountResponse = components["schemas"]["BudgetByAccountResponse"];
+export type BudgetGridResponse = components["schemas"]["BudgetGridResponse"];
+export type BudgetGridCategory = components["schemas"]["BudgetGridCategory"];
+export type BudgetEditRequest = components["schemas"]["BudgetEditRequest"];
+export type BudgetEditResponse = components["schemas"]["BudgetEditResponse"];
+export type BudgetAcceptResponse = components["schemas"]["BudgetAcceptResponse"];
 
 export const planningKeys = {
   all: ["planning"] as const,
   budgetVsActual: (period: string) => [...planningKeys.all, "budget-vs-actual", period] as const,
+  budgetGrid: (year: number) => [...planningKeys.all, "budget-grid", year] as const,
 };
 
 /** Query options de budget-vs-actual (compartido por el hook mensual y por `useQueries` del anual). */
@@ -61,6 +67,45 @@ export function useProposeBudget() {
   return useMutation({
     mutationFn: (body: ProposeBudgetRequest) =>
       api.post<ProposeBudgetResponse>("/api/planning/budget/propose", { body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: planningKeys.all });
+    },
+  });
+}
+
+/* Grilla anual EDITABLE (CC-API F2): la forma en que un dueño ve y ajusta el presupuesto — categorías
+   (cuentas) × 12 meses + estado draft/approved. Editar una celda re-abre a `draft`; aceptar la publica. */
+
+/** `GET /api/planning/budget/{year}` — grilla anual editable (cuentas × 12 meses). `has_budget=false`
+ *  si no hay presupuesto del año (proponer primero). */
+export function useBudgetGrid(year: number, enabled = true) {
+  return useQuery({
+    queryKey: planningKeys.budgetGrid(year),
+    queryFn: () => api.get<BudgetGridResponse>(`/api/planning/budget/${year}`),
+    enabled,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `PATCH /api/planning/budget/{year}/line` — edita el monto de una celda (cuenta × mes). Solo toca la
+ *  capa `budget`; deja la versión en `draft`. Invalida planning → la grilla y el hero se recalculan. */
+export function useEditBudgetLine(year: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: BudgetEditRequest) =>
+      api.patch<BudgetEditResponse>(`/api/planning/budget/${year}/line`, { body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: planningKeys.all });
+    },
+  });
+}
+
+/** `POST /api/planning/budget/{year}/accept` — acepta/ratifica el presupuesto (draft → approved). */
+export function useAcceptBudget(year: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<BudgetAcceptResponse>(`/api/planning/budget/${year}/accept`, {}),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: planningKeys.all });
     },
