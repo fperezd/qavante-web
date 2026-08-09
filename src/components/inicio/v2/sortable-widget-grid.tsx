@@ -129,22 +129,22 @@ function SortableCard({
         isDragging && "opacity-30",
       )}
     >
-      {/* Asa de arrastre — arriba a la IZQUIERDA (pedido de Fernando). */}
-      <button
-        type="button"
-        aria-label={`Arrastrar “${label}” para reordenar`}
-        {...attributes}
-        {...listeners}
-        style={{ touchAction: "none" }}
-        className="absolute left-2 top-2 z-10 cursor-grab touch-none rounded-lg bg-surface/80 p-1 text-neutral-mid opacity-60 shadow-sm backdrop-blur transition-opacity hover:text-neutral-dark active:cursor-grabbing group-hover/card:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-      >
-        <GripVertical className="size-4" aria-hidden />
-      </button>
+      {/* Controles arriba a la DERECHA (el título de la card vive a la izquierda → ahí NO los tapamos).
+          Asa de arrastre + "x" para ocultar (con confirmación inline). */}
+      <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5">
+        <button
+          type="button"
+          aria-label={`Arrastrar “${label}” para reordenar`}
+          {...attributes}
+          {...listeners}
+          style={{ touchAction: "none" }}
+          className="cursor-grab touch-none rounded-lg bg-surface/80 p-1 text-neutral-mid opacity-60 shadow-sm backdrop-blur transition-opacity hover:text-neutral-dark active:cursor-grabbing group-hover/card:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <GripVertical className="size-4" aria-hidden />
+        </button>
 
-      {/* Ocultar la card — arriba a la DERECHA, con confirmación inline ("¿Ocultar? Sí/No"). */}
-      {onHide && (
-        <div className="absolute right-2 top-2 z-10">
-          {confirming ? (
+        {onHide &&
+          (confirming ? (
             <div className="flex items-center gap-1 rounded-lg bg-surface/95 p-0.5 shadow-md ring-1 ring-border backdrop-blur">
               <span className="pl-1 text-[11px] text-neutral-mid">¿Ocultar?</span>
               <button
@@ -176,9 +176,8 @@ function SortableCard({
             >
               <X className="size-4" aria-hidden />
             </button>
-          )}
-        </div>
-      )}
+          ))}
+      </div>
 
       {children}
     </div>
