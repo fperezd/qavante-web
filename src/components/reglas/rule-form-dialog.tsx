@@ -151,7 +151,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
           </div>
           <Dialog.Description className="mb-4 text-sm text-neutral-mid">
             Las reglas clasifican automáticamente los movimientos similares en el futuro. Se evalúan
-            de menor a mayor prioridad (1 corre antes que 100). Qavante nunca borra reglas — puedes
+            de menor a mayor prioridad (1 corre antes que 100). Qavante nunca borra reglas, puedes
             desactivarlas si dejan de servir.
           </Dialog.Description>
 
@@ -293,7 +293,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
               />
               {categoriesQuery.isError && (
                 <p className="text-xs text-warning-700" role="alert">
-                  No pudimos cargar las categorías — vas a poder guardar la regla sin ella.
+                  No pudimos cargar las categorías, vas a poder guardar la regla sin ella.
                 </p>
               )}
             </div>

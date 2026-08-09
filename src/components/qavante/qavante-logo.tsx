@@ -30,7 +30,7 @@ const ASPECT_RATIO = 1672 / 941;
 export function QavanteLogo({
   variant = "hero",
   className,
-  alt = "Qavante — gestión financiera para PYMEs chilenas",
+  alt = "Qavante: gestión financiera para PYMEs chilenas",
 }: QavanteLogoProps) {
   const height = VARIANT_HEIGHT[variant];
   const width = Math.round(height * ASPECT_RATIO);

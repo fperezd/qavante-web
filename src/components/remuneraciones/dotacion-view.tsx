@@ -186,10 +186,10 @@ export function DotacionView({ query, onSelect }: DotacionViewProps) {
                         </span>
                       </td>
                       <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
-                        {e.rut ?? "—"}
+                        {e.rut ?? "s/d"}
                       </td>
-                      <td className="py-2 pr-3 text-neutral-dark">{e.role ?? "—"}</td>
-                      <td className="py-2 text-neutral-mid">{e.email ?? "—"}</td>
+                      <td className="py-2 pr-3 text-neutral-dark">{e.role ?? "s/d"}</td>
+                      <td className="py-2 text-neutral-mid">{e.email ?? "s/d"}</td>
                     </tr>
                   );
                 })}

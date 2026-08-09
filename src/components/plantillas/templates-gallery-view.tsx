@@ -106,7 +106,7 @@ function PreviewBox({ preview }: { preview: ApplyTemplateResponse }) {
   return (
     <div className="space-y-2 rounded-xl border border-info-500/40 bg-info-500/5 p-3 text-sm">
       <p className="font-medium text-neutral-dark">
-        Vista previa — aplicar plantilla{" "}
+        Vista previa: aplicar plantilla{" "}
         <code className="rounded bg-neutral-light/40 px-1 py-0.5 text-xs">
           {preview.template_code}
         </code>
@@ -125,7 +125,7 @@ function PreviewBox({ preview }: { preview: ApplyTemplateResponse }) {
         </li>
       </ul>
       <p className="text-xs text-neutral-mid">
-        Esta es solo una vista previa — para aplicar, confirma en el siguiente paso.
+        Esta es solo una vista previa, para aplicar, confirma en el siguiente paso.
       </p>
     </div>
   );
@@ -254,7 +254,7 @@ export function TemplatesGalleryView() {
     <div className="space-y-3">
       <p className="text-sm text-neutral-mid">
         Elige una plantilla y ve qué cuentas y vistas de gestión sugiere Qavante para tu rubro. La
-        vista previa no aplica nada — vas a poder confirmar antes (§14.1: nunca borramos ni pisamos
+        vista previa no aplica nada, vas a poder confirmar antes (§14.1: nunca borramos ni pisamos
         datos).
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

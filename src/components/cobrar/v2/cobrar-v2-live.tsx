@@ -289,7 +289,7 @@ function Assembled({
       bajada={
         prioridad.mode === "urgencia" ? (
           <>
-            De {formatClp(prioridad.total)} que te debe. Es tu cobranza vencida más grande — pártele
+            De {formatClp(prioridad.total)} que te debe. Es tu cobranza vencida más grande, pártele
             por acá.
           </>
         ) : useRcv ? (

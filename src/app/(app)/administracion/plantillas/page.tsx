@@ -18,7 +18,7 @@ export default function PlantillasPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Plantillas por rubro</h1>
         <p className="mt-1 text-sm text-neutral-mid">
           Estructura sugerida de cuentas y vistas de gestión según el tipo de negocio que tengas.
-          Solo sugerimos — Qavante nunca borra ni pisa datos.
+          Solo sugerimos: Qavante nunca borra ni pisa datos.
         </p>
       </header>
 

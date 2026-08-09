@@ -63,7 +63,7 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
           />
           <KpiCell
             label="Notas de crédito"
-            value={totals.ncCount > 0 ? `−${formatClp(totals.ncTotal)}` : "—"}
+            value={totals.ncCount > 0 ? `−${formatClp(totals.ncTotal)}` : "s/d"}
             sub={totals.ncCount > 0 ? `${totals.ncCount} NC` : "Sin NC"}
           />
         </div>
@@ -94,8 +94,8 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
         ) : (
           <ul className="space-y-2.5">
             {conc.map((c, i) => (
-              // key: el RUT si viene; sin RUT ("—"), nombre+índice para no colisionar dos partes.
-              <li key={c.rut !== "—" ? c.rut : `${c.name}-${i}`} className="space-y-1">
+              // key: el RUT si viene; sin RUT ("s/d"), nombre+índice para no colisionar dos partes.
+              <li key={c.rut !== "s/d" ? c.rut : `${c.name}-${i}`} className="space-y-1">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate">
                     <span className="font-medium text-neutral-dark">{c.name}</span>

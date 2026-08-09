@@ -232,7 +232,7 @@ describe("mapaSugerencias", () => {
       { movement_id: "m4", suggestion: null },
       { movement_id: "", suggestion: { document_kind: "receivable", name: "X", score: "90" } },
     ]);
-    expect(map.get("m3")).toMatchObject({ nombre: "—", score: null, documentCount: 1 });
+    expect(map.get("m3")).toMatchObject({ nombre: "s/d", score: null, documentCount: 1 });
     expect(map.has("m4")).toBe(false);
     expect(map.has("")).toBe(false);
     expect(map.size).toBe(1);

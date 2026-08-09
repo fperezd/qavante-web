@@ -272,7 +272,7 @@ export function mapPagos(s: DashboardSummaryV2, now: Date): PagosTimelineProps |
 
 /** Margen operacional % SOLO si es plausible. Un |resultado| mayor que los ingresos es imposible
  *  (⇒ faltan costos: el mismo bug de datos que destapamos en Gestión, donde el backend manda
- *  labor_cost/direct_cost en $0). Ante eso devolvemos `null` y la vista muestra "—" en vez de un
+ *  labor_cost/direct_cost en $0). Ante eso devolvemos `null` y la vista muestra "s/d" en vez de un
  *  "margen 1000%". No se inventa ni se clampa: se omite. */
 export function margenPlausiblePct(resultado: number, ingresos: number): number | null {
   if (ingresos <= 0) return null;

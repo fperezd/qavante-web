@@ -20,7 +20,7 @@ export default function HonorariosPage() {
         <MaestroLive
           kind="honorarios"
           titulo="Honorarios"
-          subtitulo="Todos los profesionales con BHE emitidas este año — no solo lo pendiente por pagar. El término por defecto es 5 días; ajústalo por profesional."
+          subtitulo="Todos los profesionales con BHE emitidas este año, no solo lo pendiente por pagar. El término por defecto es 5 días; ajústalo por profesional."
         />
       ) : (
         <FeatureUnavailableState />

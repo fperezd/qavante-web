@@ -103,7 +103,7 @@ function Field({
         {label}
       </dt>
       <dd className={"text-sm text-neutral-dark" + (mono ? " font-mono" : "")}>
-        {value ?? <span className="text-neutral-mid">—</span>}
+        {value ?? <span className="text-neutral-mid">s/d</span>}
       </dd>
     </div>
   );

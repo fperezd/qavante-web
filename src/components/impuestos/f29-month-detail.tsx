@@ -161,7 +161,7 @@ export function F29MonthDetail({
                 {girosData?.vencimiento_postergado
                   ? ` · vence el ${formatDateLike(girosData.vencimiento_postergado)}`
                   : ""}
-                . El total a pagar del F29 ({formatClp(data.total_con_iva)}) ya NO lo incluye — el IVA
+                . El total a pagar del F29 ({formatClp(data.total_con_iva)}) ya NO lo incluye, el IVA
                 se debe aparte.
               </p>
             </div>
@@ -225,7 +225,7 @@ export function F29MonthDetail({
                 {pdfLoading ? "Bajando F29 del SII…" : "Ver F29 (PDF) en el SII"}
               </button>
               <p className="text-xs text-neutral-mid">
-                Viene del SII en vivo — puede tardar unos segundos.
+                Viene del SII en vivo, puede tardar unos segundos.
               </p>
             </div>
           )}
@@ -324,7 +324,7 @@ function Row({
       <dd className="tabular-nums font-medium text-neutral-dark">
         {/* Gotcha CC-API: dato faltante ≠ $0. */}
         {value == null || unreliable ? (
-          <span className="text-neutral-mid">— sin dato</span>
+          <span className="text-neutral-mid">sin dato</span>
         ) : (
           formatClp(value)
         )}

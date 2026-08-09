@@ -153,7 +153,7 @@ function RangoIncompleto({ data }: { data: OperationalResultBreakdown }) {
         </p>
         <p className="mt-2 text-[13px] text-neutral-dark">
           El cálculo llega inconsistente (el resultado supera a los ingresos o faltan costos). Es un
-          problema de datos del backend, ya escalado — abajo dejamos la matriz cruda para
+          problema de datos del backend, ya escalado, abajo dejamos la matriz cruda para
           inspección, sin márgenes inventados.
         </p>
       </section>

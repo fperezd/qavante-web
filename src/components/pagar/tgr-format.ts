@@ -13,6 +13,6 @@ export function formularioLabelTgr(cod?: string | null): string {
     case "99":
       return "Multas e intereses";
     default:
-      return cod ? `Formulario ${cod}` : "—";
+      return cod ? `Formulario ${cod}` : "s/d";
   }
 }

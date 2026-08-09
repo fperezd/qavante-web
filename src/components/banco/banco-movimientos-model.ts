@@ -74,7 +74,7 @@ export function movimientosDeCuenta(
       return {
         id: m.id,
         fecha: m.date,
-        glosa: m.description ?? "—",
+        glosa: m.description ?? "s/d",
         monto,
         moneda,
         esAbono: monto >= 0,
@@ -124,7 +124,7 @@ export function movimientosDeTarjeta(
       const monto = -raw;
       return {
         fecha: m.date ?? "",
-        glosa: m.description ?? "—",
+        glosa: m.description ?? "s/d",
         monto,
         moneda: (m.currency ?? "CLP").toUpperCase(),
         esAbono: monto >= 0,
@@ -171,7 +171,7 @@ export function mapaSugerencias(
     map.set(it.movement_id, {
       movementId: it.movement_id,
       kind: s.document_kind ?? "",
-      nombre: s.name ?? "—",
+      nombre: s.name ?? "s/d",
       score: score != null && Number.isFinite(score) ? score : null,
       documentCount: s.document_count ?? 1,
     });

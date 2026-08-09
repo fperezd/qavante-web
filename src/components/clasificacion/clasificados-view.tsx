@@ -492,7 +492,7 @@ export function ClasificadosView() {
                         className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
                       >
                         <td className="py-2 pr-3 text-neutral-dark">
-                          {m.date ? formatDateLike(m.date) : "—"}
+                          {m.date ? formatDateLike(m.date) : "s/d"}
                         </td>
                         <td className="py-2 pr-3 text-neutral-dark" title={m.description}>
                           <span className="line-clamp-2 max-w-[320px]">{m.description}</span>
@@ -594,7 +594,7 @@ export function ClasificadosView() {
 
           <p className="text-xs text-neutral-mid">
             Movimientos bancarios ya clasificados. Para reclasificar uno, haz clic en{" "}
-            <span className="font-medium text-neutral-dark">Reclasificar</span> en su fila — el
+            <span className="font-medium text-neutral-dark">Reclasificar</span> en su fila, el
             drawer del flujo §17 abre con la clasificación actual prellenada.
           </p>
         </div>
@@ -606,7 +606,7 @@ export function ClasificadosView() {
           open
           onClose={() => setReclasifyTarget(null)}
           movement={{
-            date: reclasifyTarget.date ? formatDateLike(reclasifyTarget.date) : "—",
+            date: reclasifyTarget.date ? formatDateLike(reclasifyTarget.date) : "s/d",
             description: reclasifyTarget.description,
             bankLabel: `Cuenta ····${reclasifyTarget.bank_account_id.slice(-4)}`,
             amountFormatted: formatMoney(
@@ -623,7 +623,7 @@ export function ClasificadosView() {
             {
               status: "done",
               title: "Detectado en tu banco",
-              children: reclasifyTarget.date ? formatDateLike(reclasifyTarget.date) : "—",
+              children: reclasifyTarget.date ? formatDateLike(reclasifyTarget.date) : "s/d",
             },
             {
               status: "done",

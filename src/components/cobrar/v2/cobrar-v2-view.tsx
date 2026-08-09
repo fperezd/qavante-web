@@ -403,13 +403,13 @@ function DeudorDocsPanel({
               >
                 <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">
                   {doc.esNotaCredito ? "NC " : ""}
-                  {doc.folio ?? "—"}
+                  {doc.folio ?? "s/d"}
                 </td>
                 <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
-                  {doc.fechaEmision ? formatDate(doc.fechaEmision) : "—"}
+                  {doc.fechaEmision ? formatDate(doc.fechaEmision) : "s/d"}
                 </td>
                 <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
-                  {doc.vencimiento ? formatDate(doc.vencimiento) : "—"}
+                  {doc.vencimiento ? formatDate(doc.vencimiento) : "s/d"}
                 </td>
                 <td className="py-1.5 pr-3 tabular-nums">
                   {excluida ? (
@@ -470,7 +470,7 @@ function DeudorDocsPanel({
    los docs sin fecha no tienen vencimiento → guion. */
 function DiasVencimiento({ doc }: { doc: DocMaestro }) {
   if (doc.esNotaCredito || doc.diasParaVencer == null) {
-    return <span className="text-neutral-mid">—</span>;
+    return <span className="text-neutral-mid">s/d</span>;
   }
   const d = doc.diasParaVencer;
   if (d < 0) return <span className="font-medium text-danger-500">Vencida hace {-d} d</span>;

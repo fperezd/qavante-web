@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 export function ReclamadaBadge({ className }: { className?: string }) {
   return (
     <span
-      title="Reclamada en el SII — no cuenta como costo/crédito/ingreso (monto $0)"
+      title="Reclamada en el SII, no cuenta como costo/crédito/ingreso (monto $0)"
       aria-label="Reclamada en el SII"
       className={cn(
         "inline-flex size-[15px] shrink-0 items-center justify-center rounded bg-danger-500/15 text-[10px] font-bold leading-none text-danger-500",

@@ -20,7 +20,7 @@ export default function ClientesPage() {
         <MaestroLive
           kind="ventas"
           titulo="Clientes"
-          subtitulo="Todos los clientes con ventas registradas este año — no solo lo pendiente por cobrar. Ajusta el término de pago por cliente y se recalculan los vencimientos."
+          subtitulo="Todos los clientes con ventas registradas este año, no solo lo pendiente por cobrar. Ajusta el término de pago por cliente y se recalculan los vencimientos."
         />
       ) : (
         <FeatureUnavailableState />

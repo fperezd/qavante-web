@@ -20,7 +20,7 @@ export default function ProveedoresPage() {
         <MaestroLive
           kind="compras"
           titulo="Proveedores"
-          subtitulo="Todos los proveedores con compras registradas este año — no solo lo pendiente por pagar. Ajusta el término de pago por proveedor y se recalculan los vencimientos."
+          subtitulo="Todos los proveedores con compras registradas este año, no solo lo pendiente por pagar. Ajusta el término de pago por proveedor y se recalculan los vencimientos."
         />
       ) : (
         <FeatureUnavailableState />

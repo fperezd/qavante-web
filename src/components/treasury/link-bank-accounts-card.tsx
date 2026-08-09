@@ -37,7 +37,7 @@ export function LinkBankAccountsCard() {
       // …y vincularla.
       await linkAccount.mutateAsync({ externalId: acct.external_id, bankAccountId: created.id });
       toast.success("Cuenta vinculada", {
-        description: `${acct.name ?? acct.external_id} · ${acct.currency ?? "CLP"} — ya puedes sincronizar sus movimientos.`,
+        description: `${acct.name ?? acct.external_id} · ${acct.currency ?? "CLP"}. Ya puedes sincronizar sus movimientos.`,
       });
     } catch {
       toast.error("No pudimos vincular la cuenta", {

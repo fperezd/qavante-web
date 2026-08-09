@@ -10,7 +10,7 @@ export default function PagarImpuestosTgrPage() {
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Deudas TGR</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Tus deudas con la Tesorería General de la República — giros, multas, PPM e IVA impago, con
+          Tus deudas con la Tesorería General de la República, giros, multas, PPM e IVA impago, con
           su saldo y vencimiento.
         </p>
       </header>

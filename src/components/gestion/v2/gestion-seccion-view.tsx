@@ -475,7 +475,7 @@ function Tendencia({
   const peor = puntos.find((p) => p.margenPct === min);
   // "oct 2025" (con año, para no confundir dos octubres de años distintos).
   const mesAno = (p?: TendenciaPunto | null) => {
-    if (!p) return "—";
+    if (!p) return "s/d";
     const y = p.periodoFull?.match(/^(\d{4})-/);
     return `${mesCorto(p.periodoFull ?? p.periodo)}${y ? ` ${y[1]}` : ""}`;
   };
@@ -499,7 +499,7 @@ function Tendencia({
       </div>
       {enCurso && (
         <p className="px-0.5 text-[11.5px] text-neutral-mid">
-          <b className="text-neutral-dark">{mesAno(enCurso)}</b> va en curso — todavía no entra en
+          <b className="text-neutral-dark">{mesAno(enCurso)}</b> va en curso, todavía no entra en
           la tendencia (se compara recién cuando cierre el mes; su margen parcial no es comparable
           con meses completos).
         </p>
@@ -567,7 +567,7 @@ function Delta({ label, actual, base }: { label: string; actual: number; base?: 
   return (
     <span className={`inline-flex items-center gap-1 text-[11px] ${color}`}>
       <Icon className="h-3 w-3" aria-hidden="true" />
-      {label}: {diff === null ? "—" : `${up ? "+" : ""}${diff.toFixed(1)}%`}
+      {label}: {diff === null ? "s/d" : `${up ? "+" : ""}${diff.toFixed(1)}%`}
     </span>
   );
 }
@@ -605,8 +605,8 @@ function NoConfiable() {
         No podemos mostrar este dato con confianza
       </p>
       <p className="mt-2 text-[13px] text-neutral-dark">
-        El resultado del mes da un margen imposible (100% o más) —típicamente un gasto revertido o
-        mal clasificado infla el número—. Es un problema de datos del backend, ya escalado; no lo
+        El resultado del mes da un margen imposible (100% o más), típicamente un gasto revertido o
+        mal clasificado infla el número. Es un problema de datos del backend, ya escalado; no lo
         mostramos como si fuera real. Mirá el detalle en <b>Resultado</b>.
       </p>
     </section>
@@ -630,7 +630,7 @@ function SeccionEnCurso({ seccion, period }: { seccion: GestionSeccion; period: 
         <CalendarClock className="mt-0.5 h-5 w-5 shrink-0 text-brand-primary" aria-hidden="true" />
         <div className="space-y-2">
           <h2 className="text-base font-bold text-neutral-dark">
-            {formatPeriodLabel(period)} va en curso — aún sin cerrar
+            {formatPeriodLabel(period)} va en curso, aún sin cerrar
           </h2>
           <p className="text-sm text-neutral-mid">
             {que.charAt(0).toUpperCase() + que.slice(1)} de un mes a medias no se pueden leer: los

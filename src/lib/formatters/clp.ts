@@ -1,6 +1,6 @@
 export function formatClp(value: number) {
   // No-finito (NaN/Infinity) → guion, no "$NaN"/"$∞" en una cifra financiera.
-  if (!Number.isFinite(value)) return "—";
+  if (!Number.isFinite(value)) return "s/d";
   const abs = new Intl.NumberFormat("es-CL", {
     style: "currency",
     currency: "CLP",
@@ -18,7 +18,7 @@ export function formatClp(value: number) {
    Para cifras de acción (Caja, movimientos) usar `formatClp` — Fernando prefiere el
    exacto ahí; el compacto es solo un apoyo de escaneo. PURO. */
 export function formatClpCompact(value: number): string {
-  if (!Number.isFinite(value)) return "—";
+  if (!Number.isFinite(value)) return "s/d";
   const abs = Math.abs(value);
   const sign = value < 0 && Math.round(value) !== 0 ? "−" : "";
   if (abs >= 1_000_000) {
@@ -41,7 +41,7 @@ export function formatClpCompact(value: number): string {
    Moneda desconocida/ inválida → formato genérico "COD 1.234,50" (no rompe). */
 export function formatMoney(value: number, currency: string | null | undefined): string {
   // No-finito → guion (igual que formatClp) antes de tocar Intl.
-  if (!Number.isFinite(value)) return "—";
+  if (!Number.isFinite(value)) return "s/d";
   // `|| "CLP"`: cae a CLP también con string vacío "" (que `?? ` NO captura y
   // rompería `Intl.NumberFormat({currency:""})` con RangeError).
   const cur = (currency || "CLP").toUpperCase();

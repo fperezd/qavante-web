@@ -107,7 +107,7 @@ export function DimensionValueMoveDialog({
                 {targets.map((t) => (
                   <option key={t.id} value={t.id}>
                     {" ".repeat(t.level * 2)}
-                    {t.code ? `${t.code} — ` : ""}
+                    {t.code ? `${t.code} · ` : ""}
                     {t.name}
                   </option>
                 ))}

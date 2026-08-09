@@ -183,7 +183,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
             titulo="Este mes"
             subtitulo={
               enCurso
-                ? `${formatPeriodLabel(period)} · va en curso (al día ${diaHoy}) — no lo compares con el mes completo`
+                ? `${formatPeriodLabel(period)} · va en curso (al día ${diaHoy}), no lo compares con el mes completo`
                 : formatPeriodLabel(period)
             }
           >

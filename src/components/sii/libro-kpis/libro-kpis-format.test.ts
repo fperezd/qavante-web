@@ -119,7 +119,7 @@ describe("libro-kpis-format", () => {
       { tipo_doc: 39, folio: 2, razon_social: "Cliente B", monto_total: 2000 },
     ] as RcvDoc[];
     const c = concentrationByCounterparty(sinRut, 5);
-    expect(c).toHaveLength(2); // no se funden en un único bucket "—"
+    expect(c).toHaveLength(2); // no se funden en un único bucket "s/d"
     expect(c.map((x) => x.name).sort()).toEqual(["Cliente A", "Cliente B"]);
   });
 

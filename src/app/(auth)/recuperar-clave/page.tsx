@@ -8,7 +8,7 @@ export default function RecuperarClavePage() {
   return (
     <QavanteEmpty
       icon={Mail}
-      title="Recuperación de clave — próximamente"
+      title="Recuperación de clave: próximamente"
       description="Esta funcionalidad estará disponible al cerrar Sprint C0. Mientras tanto, contacta al administrador de tu empresa para restablecer tu clave."
       cta={
         <Link href="/login">

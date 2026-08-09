@@ -14,7 +14,7 @@ export default function PagarPreviredPage() {
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Previred</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Las imposiciones del mes — AFP, salud y seguro de cesantía — y cuándo vencen.
+          Las imposiciones del mes (AFP, salud y seguro de cesantía) y cuándo vencen.
         </p>
       </header>
 

@@ -15,7 +15,7 @@ import { ComportamientoPagoCard } from "./comportamiento-pago-card";
    cuando el backend no puede calcular el ratio (ventana dominada por NC → *_days
    null). Sin `export const runtime` (regla 4). */
 
-/** Días → "N días" (redondeado) / "—" si null. */
+/** Días → "N días" (redondeado) / "s/d" si null. */
 function dias(n: number | null): string {
   if (n == null) return "s/d";
   const r = Math.round(n);

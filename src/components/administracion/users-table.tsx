@@ -117,12 +117,12 @@ export function UsersTable({ users, canAssignOwner, onSuspendClick }: UsersTable
         sortDescFirst: true,
         cell: ({ row }) => {
           const v = row.original.last_login_at;
-          if (!v) return <span className="text-sm text-neutral-mid">—</span>;
+          if (!v) return <span className="text-sm text-neutral-mid">s/d</span>;
           /* Guard: un last_login_at no-ISO/corrupto haría que date-fns `format`
              lance RangeError y rompa el render de TODA la tabla (no hay error
-             boundary de segmento). Caer a "—" como con null (code-review #3). */
+             boundary de segmento). Caer a "s/d" como con null (code-review #3). */
           const d = new Date(v);
-          if (Number.isNaN(d.getTime())) return <span className="text-sm text-neutral-mid">—</span>;
+          if (Number.isNaN(d.getTime())) return <span className="text-sm text-neutral-mid">s/d</span>;
           return (
             <span className="text-sm text-neutral-dark">
               {format(d, "dd MMM yyyy HH:mm", { locale: es })}

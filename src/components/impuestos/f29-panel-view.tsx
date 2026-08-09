@@ -346,7 +346,7 @@ function StatusCell({
     return (
       <span
         className="inline-block h-3 w-3 rounded-full border border-neutral-mid/50"
-        title="Sin dato — sincroniza tus F29 para ver el estado real"
+        title="Sin dato, sincroniza tus F29 para ver el estado real"
         aria-label="Sin dato, sincroniza"
       />
     );
@@ -377,7 +377,7 @@ function StatusCell({
       aria-label={
         (postergado ? `Declarado con IVA postergado${vencePost}` : ESTADO_LABEL[estado]) +
         saldoExacto +
-        " — ver detalle"
+        ", ver detalle"
       }
       className={cn(
         "inline-flex min-h-7 min-w-7 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-0.5 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",

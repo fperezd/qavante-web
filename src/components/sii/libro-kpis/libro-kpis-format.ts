@@ -29,12 +29,12 @@ export function concentrationByCounterparty(docs: RcvDoc[], topN = 5): Counterpa
     // NC RESTA (neteo); factura/boleta suma.
     const sign = isNotaCredito(d.tipo_doc) ? -1 : 1;
     // Clave por RUT; si no hay RUT, por razón social — así dos contrapartes
-    // distintas sin RUT no se funden en un único bucket "—".
+    // distintas sin RUT no se funden en un único bucket "s/d".
     const key = d.rut_contraparte ?? d.razon_social ?? "sin-identificar";
     const t = sign * num(d.monto_total);
     grand += t;
     const cur = map.get(key) ?? {
-      rut: d.rut_contraparte ?? "—",
+      rut: d.rut_contraparte ?? "s/d",
       name: d.razon_social ?? "Sin nombre",
       total: 0,
     };

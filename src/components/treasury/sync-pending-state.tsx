@@ -54,7 +54,7 @@ export function PartialDataBanner({ missingSources }: { missingSources?: string[
       <p>
         <span className="font-medium">Datos parciales.</span> Los montos son correctos, pero los
         vencimientos (antigüedad de saldos) todavía no están disponibles
-        {missingSources && missingSources.length > 0 ? ` — ${missingSources.join(" · ")}` : ""}. Se
+        {missingSources && missingSources.length > 0 ? `: ${missingSources.join(" · ")}` : ""}. Se
         completan cuando el SII entregue las fechas de vencimiento.
       </p>
     </div>

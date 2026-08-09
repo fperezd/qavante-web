@@ -139,7 +139,7 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
     },
     {
       label: `Notas de crédito${totals.ncCount ? ` (${totals.ncCount})` : ""}`,
-      valor: totals.ncCount ? formatClp(-totals.ncTotal) : "—",
+      valor: totals.ncCount ? formatClp(-totals.ncTotal) : "s/d",
       tono: "neg",
     },
   ];

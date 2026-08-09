@@ -48,7 +48,7 @@ export default function SaludPage() {
         className="mx-auto mb-4 flex max-w-[1180px] items-center gap-2 rounded-lg border border-warning-500/30 bg-warning-50 px-4 py-2.5 text-xs text-warning-700"
       >
         <Info className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-        Vista previa con <b className="mx-1 font-semibold">datos de ejemplo</b> — el cálculo real
+        Vista previa con <b className="mx-1 font-semibold">datos de ejemplo</b>, el cálculo real
         llega cuando el motor esté listo (ADR-0064).
       </div>
       <SaludView model={saludApreton} />

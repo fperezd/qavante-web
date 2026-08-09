@@ -571,7 +571,7 @@ function GroupedTable({
                     </span>
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
-                    {d.folio ?? "—"}
+                    {d.folio ?? "s/d"}
                   </td>
                   <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(d.fecha)}</td>
                   <td className="py-2 pr-3">
@@ -587,15 +587,15 @@ function GroupedTable({
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
                     {typeof d.monto_neto === "number"
                       ? `−${formatClp(Math.abs(d.monto_neto))}`
-                      : "—"}
+                      : "s/d"}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-                    {typeof d.monto_iva === "number" ? `−${formatClp(Math.abs(d.monto_iva))}` : "—"}
+                    {typeof d.monto_iva === "number" ? `−${formatClp(Math.abs(d.monto_iva))}` : "s/d"}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-danger-500">
                     {typeof d.monto_total === "number"
                       ? `−${formatClp(Math.abs(d.monto_total))}`
-                      : "—"}
+                      : "s/d"}
                   </td>
                   <td className="py-2 text-[11px] text-neutral-mid">Nota de crédito</td>
                   {dteKind && <td className="py-2 text-right">{dteCell(dteKind, d, dteWindow)}</td>}
@@ -642,7 +642,7 @@ function GroupedTable({
                 </td>
                 <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className={cn(anulada && "line-through")}>{f.folio ?? "—"}</span>
+                    <span className={cn(anulada && "line-through")}>{f.folio ?? "s/d"}</span>
                     {f.reclamado === true && <ReclamadaBadge />}
                   </span>
                 </td>
@@ -663,7 +663,7 @@ function GroupedTable({
                     anulada && "line-through",
                   )}
                 >
-                  {typeof f.monto_neto === "number" ? formatClp(f.monto_neto) : "—"}
+                  {typeof f.monto_neto === "number" ? formatClp(f.monto_neto) : "s/d"}
                 </td>
                 <td
                   className={cn(
@@ -671,7 +671,7 @@ function GroupedTable({
                     anulada && "line-through",
                   )}
                 >
-                  {typeof f.monto_iva === "number" ? formatClp(f.monto_iva) : "—"}
+                  {typeof f.monto_iva === "number" ? formatClp(f.monto_iva) : "s/d"}
                 </td>
                 <td
                   className={cn(
@@ -679,7 +679,7 @@ function GroupedTable({
                     anulada && "font-normal line-through",
                   )}
                 >
-                  {typeof f.monto_total === "number" ? formatClp(f.monto_total) : "—"}
+                  {typeof f.monto_total === "number" ? formatClp(f.monto_total) : "s/d"}
                 </td>
                 <td className="py-2">
                   {badge ? (
@@ -691,7 +691,7 @@ function GroupedTable({
                       {row.sobreCredito && (
                         <span
                           className="text-[11px] font-medium text-danger-500"
-                          title="Las notas de crédito superan el monto de la factura — posible error de referencia en el SII"
+                          title="Las notas de crédito superan el monto de la factura, posible error de referencia en el SII"
                         >
                           revisar
                         </span>
@@ -702,7 +702,7 @@ function GroupedTable({
                       </span>
                     </span>
                   ) : (
-                    <span className="text-neutral-mid">—</span>
+                    <span className="text-neutral-mid">s/d</span>
                   )}
                 </td>
                 {dteKind && <td className="py-2 text-right">{dteCell(dteKind, f, dteWindow)}</td>}

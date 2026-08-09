@@ -67,13 +67,13 @@ function formatPeriod(p: F29Response["period"]): string {
 }
 
 function MontoRow({ label, amount }: { label: string; amount: number | null | undefined }) {
-  /* §15.7 / §17.4 — si el backend no completó el parseo, mostramos "—",
+  /* §15.7 / §17.4 — si el backend no completó el parseo, mostramos "s/d",
      no "$ 0" (que sería falsa precisión). */
   return (
     <div className="flex items-baseline justify-between border-b border-border/60 py-1.5">
       <dt className="text-sm text-neutral-mid">{label}</dt>
       <dd className="text-sm font-medium tabular-nums text-neutral-dark">
-        {amount == null ? <span className="text-neutral-mid">—</span> : formatClp(amount)}
+        {amount == null ? <span className="text-neutral-mid">s/d</span> : formatClp(amount)}
       </dd>
     </div>
   );
@@ -134,7 +134,7 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
 
   /* `status === "error"`: el SII respondió 200 pero con error de negocio (no
      es ok ni not_found). Sin esta rama caía a la tarjeta de éxito con los
-     montos en "—", sin explicar nada. */
+     montos en "s/d", sin explicar nada. */
   if (data.status === "error") {
     return (
       <div
@@ -160,7 +160,7 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="flex items-center gap-2">
             <Receipt className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-            <span className="font-medium">F29 — folio {folio}</span>
+            <span className="font-medium">F29 · folio {folio}</span>
           </span>
           <div className="flex flex-wrap items-center gap-2">
             {data.estado && (
@@ -345,7 +345,7 @@ export function F29View() {
             <div>
               <p className="font-medium">El SII no responde en este momento.</p>
               <p className="text-neutral-mid">
-                Suele ser temporal. Reintenta en unos minutos —{" "}
+                Suele ser temporal. Reintenta en unos minutos.{" "}
                 {apiErrorToUserMessage(f29Query.error)}
               </p>
             </div>

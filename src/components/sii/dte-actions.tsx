@@ -30,7 +30,7 @@ const iconCls =
   "inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-mid transition-colors hover:bg-surface-muted hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
 
 export function DteActions({ url, label }: { url: string | null; label?: string }) {
-  if (!url) return <span className="text-xs text-neutral-light">—</span>;
+  if (!url) return <span className="text-xs text-neutral-light">s/d</span>;
   const suffix = label ? ` ${label}` : "";
   return (
     <span className="inline-flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>

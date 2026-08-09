@@ -597,7 +597,7 @@ function UltimosDocs({ docsSel }: { docsSel: DocConVencimiento[] }) {
             {ultimos.map((d, i) => (
               <tr key={`${d.folio}-${i}`} className="border-t border-border/60">
                 <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">{d.fecha}</td>
-                <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">{d.folio ?? "—"}</td>
+                <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">{d.folio ?? "s/d"}</td>
                 <td className="py-1.5 pr-3 text-neutral-mid">
                   {d.tipoDoc === 61 || d.tipoDoc === 112 ? "Nota de crédito" : "Factura"}
                   {d.reclamado && (
