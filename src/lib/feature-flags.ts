@@ -65,6 +65,7 @@ export const FEATURE_FLAGS = [
   "inicioWidgets",
   "inicioAgenda",
   "gestionDashboard",
+  "cajaDashboard",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -234,6 +235,11 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      por `gestion_widget_*` en prefs. OFF hasta que Fernando lo valide; con OFF la Gestión queda IGUAL (el
      informe/matriz de siempre) → cero regresión. Encender = editar wrangler. */
   gestionDashboard: "/api/management/operational-result/breakdown",
+  /* Caja como landing REORDENABLE (2026-08-08, piloto): las secciones de la landing (resumen/medidor,
+     saldos en banco, movimientos, proyectada) como bloques movibles/apagables (motor iPad del Inicio),
+     orden/visibilidad por `caja_widget_*`. OFF hasta validar; con OFF la Caja queda IGUAL → cero
+     regresión. Encender = editar wrangler. */
+  cajaDashboard: "/api/bice/cuentas",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

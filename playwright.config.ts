@@ -109,6 +109,12 @@ export default defineConfig({
       /* Comportamiento de pago en Ciclo de caja — OFF en prod (sin validar al peso). Acá ON para el
          e2e que verifica el insight del desfase de cobro contra MSW. */
       NEXT_PUBLIC_FF_COMPORTAMIENTO_PAGO: "true",
+      /* Gestión como tablero reordenable — ON en prod (#894) → e2e lo espeja. Las secciones renderizan
+         el mismo contenido, solo movibles → los specs de Gestión siguen verdes + hay spec del reordenar. */
+      NEXT_PUBLIC_FF_GESTION_DASHBOARD: "true",
+      /* Caja como landing reordenable — OFF en prod (piloto), pero ON acá para el e2e del reordenar. El
+         dashboard renderiza el MISMO contenido que la landing clásica (mismo assert de caja.flow.spec). */
+      NEXT_PUBLIC_FF_CAJA_DASHBOARD: "true",
     },
   },
 });

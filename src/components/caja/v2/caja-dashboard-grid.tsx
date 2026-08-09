@@ -14,23 +14,22 @@ import {
   type SortableWidgetItem,
 } from "@/components/inicio/v2/sortable-widget-grid";
 
-/* Tablero REORDENABLE de Gestión (piloto `gestionDashboard`). Reusa el motor del Inicio: las secciones
-   entran como `{id,label,node}` y se muestran con `SortableWidgetGrid` (arrastrar + x + reflow iPad). El
-   orden/visibilidad se persisten en el blob de prefs bajo llaves PROPIAS de Gestión (no pisan al Inicio).
-   Optimista local hasta el primer cambio; persiste solo si el GET de prefs tuvo éxito (el PUT reemplaza el
-   blob → escribir sobre un GET fallido pisaría el resto de prefs). */
+/* Landing de Caja REORDENABLE (piloto `cajaDashboard`). Reusa el motor del Inicio (SortableWidgetGrid),
+   pero en UNA columna: las secciones de Caja son anchas (hero/medidor, saldos, menú de movimientos,
+   proyectada), no calzan en 2-col. Orden/visibilidad en prefs bajo llaves PROPIAS de Caja (no pisan al
+   Inicio ni a Gestión). Persiste solo si el GET de prefs tuvo éxito (el PUT reemplaza el blob). */
 
-const GESTION_ORDER_KEY = "gestion_widget_order";
-const GESTION_HIDDEN_KEY = "gestion_widget_hidden";
+const CAJA_ORDER_KEY = "caja_widget_order";
+const CAJA_HIDDEN_KEY = "caja_widget_hidden";
 
-export function GestionDashboardGrid({ items }: { items: SortableWidgetItem[] }) {
+export function CajaDashboardGrid({ items }: { items: SortableWidgetItem[] }) {
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
   const [localOrder, setLocalOrder] = React.useState<string[] | null>(null);
   const [localHidden, setLocalHidden] = React.useState<string[] | null>(null);
 
-  const savedOrder = readWidgetOrder(prefs.data?.preferences, GESTION_ORDER_KEY);
-  const savedHidden = readHidden(prefs.data?.preferences, GESTION_HIDDEN_KEY);
+  const savedOrder = readWidgetOrder(prefs.data?.preferences, CAJA_ORDER_KEY);
+  const savedHidden = readHidden(prefs.data?.preferences, CAJA_HIDDEN_KEY);
   const effectiveHidden = localHidden ?? savedHidden;
 
   const visible = applyVisibility(items, effectiveHidden);
@@ -39,7 +38,7 @@ export function GestionDashboardGrid({ items }: { items: SortableWidgetItem[] })
   const reorderIds = (nextIds: string[]) => {
     setLocalOrder(nextIds);
     if (prefs.isSuccess) {
-      updatePrefs.mutate(withWidgetOrder(prefs.data?.preferences, nextIds, GESTION_ORDER_KEY));
+      updatePrefs.mutate(withWidgetOrder(prefs.data?.preferences, nextIds, CAJA_ORDER_KEY));
     }
   };
 
@@ -47,7 +46,7 @@ export function GestionDashboardGrid({ items }: { items: SortableWidgetItem[] })
     const next = toggleHidden(effectiveHidden, id);
     setLocalHidden(next);
     if (prefs.isSuccess) {
-      updatePrefs.mutate(withHidden(prefs.data?.preferences, next, GESTION_HIDDEN_KEY));
+      updatePrefs.mutate(withHidden(prefs.data?.preferences, next, CAJA_HIDDEN_KEY));
     }
   };
 
@@ -55,13 +54,18 @@ export function GestionDashboardGrid({ items }: { items: SortableWidgetItem[] })
   const mostrarTodo = () => {
     setLocalHidden([]);
     if (prefs.isSuccess) {
-      updatePrefs.mutate(withHidden(prefs.data?.preferences, [], GESTION_HIDDEN_KEY));
+      updatePrefs.mutate(withHidden(prefs.data?.preferences, [], CAJA_HIDDEN_KEY));
     }
   };
 
   return (
     <div className="space-y-3">
-      <SortableWidgetGrid items={ordered} onReorder={reorderIds} onHide={hide} />
+      <SortableWidgetGrid
+        items={ordered}
+        onReorder={reorderIds}
+        onHide={hide}
+        gridClassName="grid gap-4"
+      />
       {effectiveHidden.length > 0 && (
         <button
           type="button"

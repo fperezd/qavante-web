@@ -43,9 +43,16 @@ export interface SortableWidgetGridProps {
   onReorder: (ids: string[]) => void;
   /** Ocultar una tarjeta (la "x" con confirmación de cada card). Sin esto, no se muestra la "x". */
   onHide?: (id: string) => void;
+  /** Clases del contenedor de la grilla. Default 2 columnas (Inicio); Caja usa 1 col (secciones anchas). */
+  gridClassName?: string;
 }
 
-export function SortableWidgetGrid({ items, onReorder, onHide }: SortableWidgetGridProps) {
+export function SortableWidgetGrid({
+  items,
+  onReorder,
+  onHide,
+  gridClassName = "grid gap-3.5 sm:grid-cols-2",
+}: SortableWidgetGridProps) {
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const ids = React.useMemo(() => items.map((i) => i.id), [items]);
 
@@ -78,7 +85,7 @@ export function SortableWidgetGrid({ items, onReorder, onHide }: SortableWidgetG
       onDragCancel={() => setActiveId(null)}
     >
       <SortableContext items={ids} strategy={rectSortingStrategy}>
-        <div className="grid gap-3.5 sm:grid-cols-2">
+        <div className={gridClassName}>
           {items.map((item) => (
             <SortableCard key={item.id} id={item.id} label={item.label} onHide={onHide}>
               {item.node}
