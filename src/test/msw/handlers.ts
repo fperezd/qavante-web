@@ -996,6 +996,55 @@ function syntheticAccount(overrides: Record<string, unknown> = {}): Record<strin
    has_budget:false y pasa a true una vez que el dueño toca "Proponer presupuesto". */
 let presupuestoPropuestoE2E = false;
 
+/* e2e: grilla anual editable del Presupuesto (GET/PATCH/accept). Estado de módulo (se reinicia por
+   page.goto → aislado por test): editar una celda deja `draft`; aceptar pasa a `approved`. */
+const mesesFull = (v: number): { [k: string]: string } =>
+  Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), String(v)]));
+const budgetGridE2E: {
+  status: string;
+  accepted: boolean;
+  categories: {
+    account_id: string;
+    account_code: string;
+    account_name: string;
+    impact_type: string;
+    months: { [k: string]: string };
+  }[];
+} = {
+  status: "draft",
+  accepted: false,
+  categories: [
+    { account_id: "a1", account_code: "4.1", account_name: "Ventas", impact_type: "revenue", months: mesesFull(10_000_000) },
+    { account_id: "c1", account_code: "5.1", account_name: "Sueldos", impact_type: "direct_cost", months: mesesFull(-4_000_000) },
+    { account_id: "g1", account_code: "6.1", account_name: "Arriendo", impact_type: "operating_expense", months: mesesFull(-1_000_000) },
+  ],
+};
+function budgetGridResponse(year: number) {
+  const totals: { [k: string]: number } = {};
+  let totalYear = 0;
+  const categories = budgetGridE2E.categories.map((c) => {
+    let ty = 0;
+    for (let m = 1; m <= 12; m++) {
+      const v = Number(c.months[String(m)] ?? "0");
+      totals[String(m)] = (totals[String(m)] ?? 0) + v;
+      ty += v;
+    }
+    totalYear += ty;
+    return { ...c, total_year: String(ty) };
+  });
+  return {
+    year,
+    currency: "CLP",
+    status: budgetGridE2E.status,
+    accepted: budgetGridE2E.accepted,
+    has_budget: true,
+    categories,
+    totals_by_month: Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, String(v)])),
+    total_year: String(totalYear),
+    generated_at: "2026-08-01T00:00:00Z",
+  };
+}
+
 const managementHandlers = [
   http.get("*/api/management/accounts/tree", () =>
     HttpResponse.json({ items: managementAccountsTreeFixture }, { status: 200 }),
@@ -2979,6 +3028,40 @@ const gestionHandlers = [
         history_months: 7,
         impacts_written: 12,
       },
+      { status: 200 },
+    );
+  }),
+  /* Grilla anual editable (CC-API F2). GET arma la grilla desde el estado de módulo; PATCH edita una
+     celda (deja draft); accept publica (approved). */
+  http.get("*/api/planning/budget/:year", ({ params }) =>
+    HttpResponse.json(budgetGridResponse(Number(params.year)), { status: 200 }),
+  ),
+  http.patch("*/api/planning/budget/:year/line", async ({ request, params }) => {
+    const body = (await request.json().catch(() => ({}))) as {
+      account_id?: string;
+      month?: number;
+      amount?: number | string;
+    };
+    const cat = budgetGridE2E.categories.find((c) => c.account_id === body.account_id);
+    if (cat && body.month) cat.months[String(body.month)] = String(body.amount ?? 0);
+    budgetGridE2E.status = "draft";
+    budgetGridE2E.accepted = false;
+    return HttpResponse.json(
+      {
+        year: Number(params.year),
+        account_id: body.account_id ?? null,
+        month: body.month ?? 0,
+        amount: String(body.amount ?? 0),
+        status: "draft",
+      },
+      { status: 200 },
+    );
+  }),
+  http.post("*/api/planning/budget/:year/accept", ({ params }) => {
+    budgetGridE2E.status = "approved";
+    budgetGridE2E.accepted = true;
+    return HttpResponse.json(
+      { year: Number(params.year), status: "approved", accepted: true },
       { status: 200 },
     );
   }),

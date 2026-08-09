@@ -8,8 +8,13 @@ import {
   useBudgetVsActual,
   budgetVsActualQueryOptions,
   useProposeBudget,
+  useBudgetGrid,
+  useEditBudgetLine,
+  useAcceptBudget,
   type BudgetVsActualResponse,
 } from "@/lib/api/planning";
+import { buildBudgetGrid } from "./budget-grid-model";
+import { BudgetGridView } from "./budget-grid-view";
 import { currentPeriodSantiago, shiftPeriod } from "@/components/gestion/gestion-format";
 import { mesCorto } from "@/components/gestion/v2/gestion-v2-map";
 import { formatClp } from "@/lib/formatters/clp";
@@ -57,6 +62,14 @@ export function PresupuestoView() {
     queries: periodos.mesesAnio.map((p) => budgetVsActualQueryOptions(p, modo === "anio")),
   });
   const propose = useProposeBudget();
+
+  // Grilla anual EDITABLE (solo en modo "Año"): cuentas × 12 meses, editar celda + aceptar.
+  const year = Number(periodos.year);
+  const gridQuery = useBudgetGrid(year, modo === "anio");
+  const editLine = useEditBudgetLine(year);
+  const accept = useAcceptBudget(year);
+  const grid =
+    gridQuery.data && gridQuery.data.has_budget ? buildBudgetGrid(gridQuery.data) : null;
 
   const loading = modo === "mes" ? mesQuery.isLoading : anioQueries.some((q) => q.isLoading);
 
@@ -151,6 +164,20 @@ export function PresupuestoView() {
           {/* Lo que se desvía: desglose por CONCEPTO (ventas/costos/gastos) con su desvío real. El
               desglose por CUENTA (marketing, sueldos, software) espera el presupuesto a nivel de cuenta. */}
           <Desvios desvios={desviosPresupuesto(data)} />
+
+          {/* Grilla anual EDITABLE (modo Año): cuentas × 12 meses. Editar una celda re-abre a borrador;
+              "Aceptar" la publica. El monto se manda SIGNADO (la sección pone el signo). */}
+          {modo === "anio" && grid && (
+            <BudgetGridView
+              model={grid}
+              saving={editLine.isPending}
+              accepting={accept.isPending}
+              onEditCell={(account_id, impact_type, month, montoSignado) =>
+                editLine.mutate({ account_id, month, amount: montoSignado, impact_type })
+              }
+              onAccept={() => accept.mutate()}
+            />
+          )}
 
           {/* Proyección de cierre (Fase 1b) */}
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">

@@ -52,4 +52,31 @@ test.describe("Flujo: Presupuesto (/presupuesto)", () => {
     await expect(page.getByText(/¿Cómo vas en/i)).toBeVisible();
     await expect(page.getByText("Lo que se desvía")).toBeVisible();
   });
+
+  test("Año → grilla editable: ajusto una celda y acepto el presupuesto", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/presupuesto");
+    await page.getByRole("tab", { name: "Año" }).click();
+
+    // Grilla anual editable: cuentas × 12 meses + estado borrador.
+    await expect(page.getByText(/Tu presupuesto 20\d{2}, mes a mes/)).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Ventas", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Sueldos", exact: true })).toBeVisible();
+    await expect(page.getByText("Borrador")).toBeVisible();
+
+    // Editar la primera celda de Ventas (10.000.000 → 15.000.000): clic → input → Enter.
+    const filaVentas = page.getByRole("row").filter({ hasText: "Ventas" });
+    await filaVentas.getByRole("button").first().click();
+    const input = page.getByLabel("Monto presupuestado");
+    await input.fill("15000000");
+    await input.press("Enter");
+    await expect(page.getByText("15.000.000").first()).toBeVisible();
+
+    // Aceptar → pasa a Aceptado.
+    await page.getByRole("button", { name: /Aceptar presupuesto/i }).click();
+    await expect(page.getByText("Aceptado", { exact: true })).toBeVisible();
+  });
 });
