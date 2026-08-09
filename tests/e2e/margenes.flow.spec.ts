@@ -34,6 +34,6 @@ test.describe("Flujo: Márgenes (/gestion/margenes)", () => {
     // Abre por defecto en el último mes CERRADO. Al elegir el mes EN CURSO (la opción más reciente,
     // índice 0) → reframe honesto: no muestra los márgenes a medias.
     await main.getByRole("combobox", { name: "Elegir mes" }).selectOption({ index: 0 });
-    await expect(main.getByText(/va en curso — aún sin cerrar/i)).toBeVisible();
+    await expect(main.getByText(/va en curso, aún sin cerrar/i)).toBeVisible();
   });
 });
