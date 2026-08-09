@@ -28,7 +28,7 @@ export function SaldosBancoLive() {
         header={<span className="font-medium">Saldos en banco</span>}
       >
         <p className="py-3 text-sm text-neutral-mid">
-          No pudimos leer tus saldos del banco ahora. Conectá el banco o reintentá desde Banco.
+          No pudimos leer tus saldos del banco ahora. Conecta el banco o vuelve a intentar desde Banco.
         </p>
         <Link
           href="/banco"

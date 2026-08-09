@@ -504,7 +504,7 @@ function SinSaldoBase({
           {saldoError ? (
             <p className="mt-3 inline-flex items-start gap-1.5 text-[13px] font-semibold text-warning-700">
               <Plus className="mt-px size-4 shrink-0 rotate-45" aria-hidden="true" />
-              No pudimos traer tu saldo ahora (hubo un error). Reintentá en un momento.
+              No pudimos traer tu saldo ahora (hubo un error). Vuelve a intentar en un momento.
             </p>
           ) : (
             <p className="mt-3 inline-flex items-start gap-1.5 text-[13px] font-semibold text-brand-primary">
