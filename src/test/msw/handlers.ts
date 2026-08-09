@@ -2940,7 +2940,10 @@ const gestionHandlers = [
     const period = new URL(request.url).searchParams.get("period") ?? "2026-07";
     // e2e: con la cookie sentinel `qa_presupuesto=empty` arrancamos sin presupuesto; tras "Proponer"
     // (handler de budget/propose) el flag pasa a true y el refetch ya devuelve has_budget:true.
-    const pideEmpty = (request.headers.get("cookie") ?? "").includes("qa_presupuesto=empty");
+    // Leemos `document.cookie` (no `request.headers`: el navegador prohíbe leer el header Cookie en
+    // fetch/SW). Los handlers de MSW corren en el contexto de la página → document está disponible.
+    const pideEmpty =
+      typeof document !== "undefined" && document.cookie.includes("qa_presupuesto=empty");
     if (pideEmpty && !presupuestoPropuestoE2E) {
       return HttpResponse.json(
         { period, has_budget: false, data_state: "no_budget", lines: [] },
