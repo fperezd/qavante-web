@@ -117,7 +117,7 @@ export function ConciliacionSueldosView({
             <DebitosSinAsignarTable debitos={result.unmatchedDebitos} />
           )}
           <p className="text-xs text-neutral-mid">
-            El cruce es por monto (líquido = débito), 1 a 1. Es una ayuda de conciliación — revisa
+            El cruce es por monto (líquido = débito), 1 a 1. Es una ayuda de conciliación: revisa
             antes de dar por pagado. Fuente: Remuneraciones (BUK) + cartola del banco.
           </p>
         </>

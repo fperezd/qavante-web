@@ -99,7 +99,7 @@ export function PreviredView() {
       <PreviredEstadoConexion />
 
       <p className="text-xs text-neutral-mid">
-        El monto sale de tu planilla en BUK — cotizaciones de AFP, salud y seguro de cesantía. El
+        El monto sale de tu planilla en BUK: cotizaciones de AFP, salud y seguro de cesantía. El
         pago se realiza en Previred (no leemos aún si ya está pagado).
       </p>
     </div>

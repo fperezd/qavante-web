@@ -64,7 +64,7 @@ export function payableItemLabel(item: {
 }): string {
   if (item.category === "payroll" && item.source_external_id) {
     const m = /(\d{4})(\d{2})$/.exec(item.source_external_id);
-    if (m) return `Remuneraciones — ${formatPeriodLabel(`${m[1]}-${m[2]}`)}`;
+    if (m) return `Remuneraciones: ${formatPeriodLabel(`${m[1]}-${m[2]}`)}`;
   }
   return item.label;
 }

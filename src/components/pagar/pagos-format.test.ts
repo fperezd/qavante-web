@@ -80,14 +80,14 @@ describe("paymentCategoryLabel", () => {
 });
 
 describe("payableItemLabel", () => {
-  it("payroll con clave natural → 'Remuneraciones — Mes Año'", () => {
+  it("payroll con clave natural → 'Remuneraciones: Mes Año'", () => {
     expect(
       payableItemLabel({
         label: "Remuneraciones — Doc 06",
         category: "payroll",
         source_external_id: "payroll-202606",
       }),
-    ).toBe("Remuneraciones — Junio 2026");
+    ).toBe("Remuneraciones: Junio 2026");
   });
 
   it("payroll sin clave natural → respeta el label del backend", () => {

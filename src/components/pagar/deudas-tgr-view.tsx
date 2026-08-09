@@ -51,7 +51,7 @@ export function DeudasTgrView() {
     return (
       <QavanteEmpty
         icon={Landmark}
-        title="TGR — en preparación"
+        title="TGR: en preparación"
         description="Cuando conectemos la Tesorería (TGR) vas a ver acá tus deudas fiscales: giros, multas, PPM e IVA impago, con su saldo y vencimiento, y el certificado de deudas en PDF. Estamos habilitando la conexión."
       />
     );

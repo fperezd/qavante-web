@@ -150,7 +150,7 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         <div className="flex items-center justify-between gap-3 rounded-xl border border-danger-500/40 bg-danger-500/10 px-4 py-2.5 text-sm">
           <span className="flex items-center gap-2 font-medium text-neutral-dark">
             <AlertTriangle className="h-4 w-4 shrink-0 text-danger-500" aria-hidden="true" />
-            Vencido — pagar cuanto antes
+            Vencido, pagar cuanto antes
           </span>
           <span className="tabular-nums font-semibold text-danger-500">{formatClp(overdue)}</span>
         </div>
