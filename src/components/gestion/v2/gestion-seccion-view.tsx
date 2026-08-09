@@ -607,7 +607,7 @@ function NoConfiable() {
       <p className="mt-2 text-[13px] text-neutral-dark">
         El resultado del mes da un margen imposible (100% o más), típicamente un gasto revertido o
         mal clasificado infla el número. Es un problema de datos del backend, ya escalado; no lo
-        mostramos como si fuera real. Mirá el detalle en <b>Resultado</b>.
+        mostramos como si fuera real. Mira el detalle en <b>Resultado</b>.
       </p>
     </section>
   );
@@ -616,7 +616,7 @@ function NoConfiable() {
 function SinDato({ label }: { label: string }) {
   return (
     <p className="rounded-xl border border-dashed border-border bg-surface-muted/30 p-6 text-center text-sm text-neutral-mid">
-      Sin datos suficientes para mostrar {label} en este período. Probá con otro mes.
+      Sin datos suficientes para mostrar {label} en este período. Prueba con otro mes.
     </p>
   );
 }
@@ -637,7 +637,7 @@ function SeccionEnCurso({ seccion, period }: { seccion: GestionSeccion; period: 
             costos ya están, pero las ventas del mes recién empiezan.
           </p>
           <p className="text-[13px] text-neutral-mid">
-            Elegí el mes anterior en el selector de arriba (la pantalla arranca ahí por defecto).
+            Elige el mes anterior en el selector de arriba (la pantalla arranca ahí por defecto).
           </p>
         </div>
       </div>

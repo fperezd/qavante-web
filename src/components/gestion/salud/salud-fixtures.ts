@@ -165,7 +165,7 @@ export const saludApreton: SaludModel = {
       title: "Retirar utilidades",
       verdict: "no_por_ahora",
       verdictLabel: "No por ahora",
-      rule: "Generación de caja 64 ✗ (mínimo 65) · esperá a cobrar Minera Norte.",
+      rule: "Generación de caja 64 ✗ (mínimo 65) · espera a cobrar Minera Norte.",
     },
   ],
 };

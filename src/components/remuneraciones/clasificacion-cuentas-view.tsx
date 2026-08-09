@@ -177,7 +177,7 @@ export function ClasificacionCuentasView({
           }
         >
           <p className="mb-3 text-[12.5px] text-neutral-mid">
-            Asigná cada persona a una cuenta: <b>costo de servicio</b> (quien entrega el servicio,
+            Asigna cada persona a una cuenta: <b>costo de servicio</b> (quien entrega el servicio,
             sube el margen) o <b>gasto</b> (administración). Puedes repartir en varias (split) y
             elegir desde qué mes rige. La asignación se hereda a los meses siguientes.
           </p>

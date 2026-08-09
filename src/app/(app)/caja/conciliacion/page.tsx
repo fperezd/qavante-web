@@ -14,7 +14,7 @@ export default function ConciliacionPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Conciliación</h1>
         <p className="mt-1 text-sm text-neutral-mid">
           Movimientos del banco que calzan con un documento, pero que Qavante no quiso dar por
-          conciliados sin que los mires. Confirmá los que estén bien.
+          conciliados sin que los mires. Confirma los que estén bien.
         </p>
       </header>
 
