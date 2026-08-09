@@ -58,7 +58,7 @@ export const ConProyeccion: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     // medidor (gauge) + cascada (título) juntos — textos únicos (evito "Saldo hoy", que está en ambos)
-    await expect(c.getByText("días de caja")).toBeInTheDocument();
+    await expect(c.getByText(/Caja (holgada|ajustada|en riesgo)/)).toBeInTheDocument();
     await expect(c.getByText("Próximos movimientos · de dónde salen los días")).toBeInTheDocument();
     await expect(c.getByText("Kaufmann")).toBeInTheDocument();
   },
@@ -170,7 +170,7 @@ export const ProyeccionSinCascada: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     // El medidor sigue visible (no cae a "sin dato").
-    await expect(c.getByText("días de caja")).toBeInTheDocument();
+    await expect(c.getByText(/Caja (holgada|ajustada|en riesgo)/)).toBeInTheDocument();
     // Y la sección de próximos movimientos muestra su nota, no una cascada vacía.
     await expect(
       c.getByText(/Todavía no hay detalle de próximos movimientos/),
