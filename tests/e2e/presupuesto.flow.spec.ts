@@ -63,8 +63,8 @@ test.describe("Flujo: Presupuesto (/presupuesto)", () => {
 
     // Grilla anual editable: cuentas × 12 meses + estado borrador.
     await expect(page.getByText(/Tu presupuesto 20\d{2}, mes a mes/)).toBeVisible();
-    await expect(page.getByText("Ventas")).toBeVisible();
-    await expect(page.getByText("Sueldos")).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Ventas", exact: true })).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Sueldos", exact: true })).toBeVisible();
     await expect(page.getByText("Borrador")).toBeVisible();
 
     // Editar la primera celda de Ventas (10.000.000 → 15.000.000): clic → input → Enter.
