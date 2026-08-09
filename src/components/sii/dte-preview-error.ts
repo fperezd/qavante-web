@@ -62,15 +62,15 @@ export function classifyDtePreviewError(
       title: "El SII rechazó tu Clave Tributaria",
       description:
         "Los documentos EMITIDOS (ventas) se bajan iniciando sesión en el SII con la Clave " +
-        "Tributaria del representante legal, y el SII no la aceptó. Revisá o reingresá la clave en " +
-        "Administración → Credenciales y reintentá.",
+        "Tributaria del representante legal, y el SII no la aceptó. Revisa o reingresa la clave en " +
+        "Administración → Credenciales y vuelve a intentar.",
     };
   }
 
   const looksSession =
     (code != null && SESSION_CODES.has(code)) ||
     // dte_not_found con "0 documentos" o mención de sesión/certificado = sesión caída
-    // (el propio backend avisa: si el listado trajo 0, revisá la sesión, no el folio).
+    // (el propio backend avisa: si el listado trajo 0, revisa la sesión, no el folio).
     (code === "dte_not_found" &&
       (text.includes("sesión") ||
         text.includes("sesion") ||
@@ -86,7 +86,7 @@ export function classifyDtePreviewError(
       description:
         "El SII respondió con su página de inicio de sesión en vez del PDF (lo baja en vivo cada " +
         "vez). Si ya reconectaste tus credenciales del SII en Administración → Credenciales, suele " +
-        "ser una caída temporal del SII: esperá unos minutos y reintentá.",
+        "ser una caída temporal del SII: espera unos minutos y vuelve a intentar.",
     };
   }
 

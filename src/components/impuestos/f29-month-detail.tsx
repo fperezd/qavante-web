@@ -180,7 +180,7 @@ export function F29MonthDetail({
                 amount={data.total_sin_iva}
                 hint={
                   data.iva_postergable > 0
-                    ? `Postergás ${formatClp(data.iva_postergable)} de IVA (vence en ~2 meses).`
+                    ? `Postergas ${formatClp(data.iva_postergable)} de IVA (vence en ~2 meses).`
                     : "No hay IVA postergable este período."
                 }
               />

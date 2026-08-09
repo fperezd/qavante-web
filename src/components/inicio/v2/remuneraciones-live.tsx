@@ -33,7 +33,7 @@ export function RemuneracionesLive() {
         header={<span className="font-medium">Remuneraciones</span>}
       >
         <p className="py-3 text-sm text-neutral-mid">
-          Todavía no tenemos tu planilla del período. Conectá BUK o revisá en Remuneraciones.
+          Todavía no tenemos tu planilla del período. Conecta BUK o revisa en Remuneraciones.
         </p>
         <Link
           href="/remuneraciones"

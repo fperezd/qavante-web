@@ -18,7 +18,7 @@ import { mapPlanReal, agregarPlanReal, type PlanReal } from "@/components/inicio
 import { heroPresupuesto, type Semaforo } from "./presupuesto-model";
 
 /* Pantalla PRESUPUESTO (ADR-0091, Fase 1a). "El presupuesto no se llena: se PROPONE desde tu historial;
-   vos lo ajustás con un gesto y Qavante te avisa antes de pasarte." Una sola pantalla: cómo vas → (qué se
+   tú lo ajustas con un gesto y Qavante te avisa antes de pasarte." Una sola pantalla: cómo vas → (qué se
    desvía / cierre de año, que son Fase 1b del backend, van honestos "en preparación"). Consume
    budget-vs-actual (mensual/anual) + budget/propose. Container: la lógica pura vive en `presupuesto-model`. */
 
@@ -167,7 +167,7 @@ export function PresupuestoView() {
 
           <p className="pt-1 text-center text-xs text-neutral-mid">
             Presupuesto propositivo · Fase 1 (Resultado). El presupuesto se propone desde tu historial;
-            vos lo ajustás y Qavante te avisa antes de que te pases.
+            tú lo ajustas y Qavante te avisa antes de que te pases.
           </p>
         </>
       )}
@@ -285,10 +285,10 @@ function EmptyState({
           <Sparkles className="h-6 w-6" aria-hidden="true" />
         </span>
         <div>
-          <p className="text-lg font-bold text-neutral-dark">Todavía no tenés presupuesto {year}</p>
+          <p className="text-lg font-bold text-neutral-dark">Todavía no tienes presupuesto {year}</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-neutral-mid">
-            No lo llenás a mano. Qavante te lo <b className="text-neutral-strong">propone desde tu
-            historial real</b> (tendencia, estacionalidad y gastos recurrentes) y después lo ajustás con
+            No lo llenas a mano. Qavante te lo <b className="text-neutral-strong">propone desde tu
+            historial real</b> (tendencia, estacionalidad y gastos recurrentes) y después lo ajustas con
             un gesto.
           </p>
         </div>
@@ -303,7 +303,7 @@ function EmptyState({
         </button>
         {error && (
           <p className="text-xs text-danger-500">
-            No pudimos proponer el presupuesto ahora. Reintentá en un momento.
+            No pudimos proponer el presupuesto ahora. Vuelve a intentar en un momento.
           </p>
         )}
       </div>

@@ -90,9 +90,9 @@ export function PlanRealLive() {
       ) : (
         <>
           <p className="py-3 text-sm text-neutral-mid">
-            Todavía no tenés un presupuesto para {periodos.year}. Qavante te lo{" "}
+            Todavía no tienes un presupuesto para {periodos.year}. Qavante te lo{" "}
             <strong className="font-semibold text-neutral-strong">propone desde tu histórico</strong>{" "}
-            (no lo llenás a mano) y después lo ajustás.
+            (no lo llenas a mano) y después lo ajustas.
           </p>
           <button
             type="button"
@@ -104,7 +104,7 @@ export function PlanRealLive() {
           </button>
           {propose.isError && (
             <p className="mt-2 text-xs text-danger-500">
-              No pudimos proponer el presupuesto ahora. Reintentá en un momento.
+              No pudimos proponer el presupuesto ahora. Vuelve a intentar en un momento.
             </p>
           )}
           <Link
