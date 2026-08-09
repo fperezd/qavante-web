@@ -11,7 +11,7 @@ import { currentPeriodSantiago } from "@/components/gestion/gestion-format";
    FE-first, gated hasta que el backend lo exponga). Sin `export const runtime`
    (regla 4). */
 export default function GestionPage() {
-  const { operationalResult } = resolveFeatureFlags();
+  const { operationalResult, gestionDashboard } = resolveFeatureFlags();
   const initialPeriod = currentPeriodSantiago(new Date());
 
   return (
@@ -24,7 +24,7 @@ export default function GestionPage() {
       </header>
 
       {operationalResult ? (
-        <OperationalResultView initialPeriod={initialPeriod} />
+        <OperationalResultView initialPeriod={initialPeriod} dashboard={gestionDashboard} />
       ) : (
         <QavanteEmpty
           icon={LineChart}

@@ -9,6 +9,7 @@ import { useDashboardSummary, type PulsoStatus } from "@/lib/api/dashboard";
 import { parseAmount, formatSignedPct } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { GestionV2View, type GestionMovible } from "./gestion-v2-view";
+import { GestionDashboardGrid } from "./gestion-dashboard-grid";
 import { ResultadoHero } from "./resultado-hero";
 import { CascadaResultado } from "./cascada-resultado";
 import { DriversResultado } from "./drivers-resultado";
@@ -93,10 +94,13 @@ export function GestionV2ViewLive({
   mes,
   period,
   enCurso,
+  dashboard = false,
 }: {
   mes: OperationalResultResponse;
   period: string;
   enCurso?: boolean;
+  /** `gestionDashboard` ON → muestra las secciones como cards movibles/apagables (piloto). OFF = informe. */
+  dashboard?: boolean;
 }) {
   const router = useRouter();
   const { from, to } = rango6(period);
@@ -135,34 +139,64 @@ export function GestionV2ViewLive({
     });
   }
 
+  // Nodos de cada sección (reusados por las dos vistas: informe fijo y tablero reordenable).
+  const heroNode = (
+    <ResultadoHero
+      titulo={hero.titulo}
+      resultado={hero.resultado}
+      respuesta={hero.respuesta}
+      respuestaTono={hero.respuestaTono}
+      subtitulo={`Resultado operacional de ${mesLargo(period)} · devengado`}
+      infoHint="Lo facturado menos los costos y gastos del mes. Es devengado — no es lo cobrado ni la caja."
+    />
+  );
+  const margenesNode = <Margenes mes={mes} />;
+  const comparativosNode = <Comparativos items={comparativos} />;
+  const cascadaNode = <CascadaResultado entradas={cascada} />;
+  const pulsoNode = pulso ? (
+    <PulsoTira
+      score={pulso.score}
+      estado={PULSO_ESTADO[pulso.status]}
+      tono={PULSO_TONO[pulso.status]}
+      insight={insightTension(hero.resultado, pulso.status)}
+      onVer={() => router.push("/gestion/pulso")}
+    />
+  ) : null;
+
+  // Piloto `gestionDashboard`: TODAS las secciones como cards movibles/apagables (motor iPad del Inicio).
+  // Hero/Márgenes/Comparativos vienen "pelados" → los vestimos de card; cascada/drivers/tendencia/pulso ya
+  // son autocontenidos. Confianza queda como pie fijo (es calidad-de-dato, no una card que se mueva).
+  if (dashboard) {
+    const vestir = (node: React.ReactNode) => (
+      <div className="h-full overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+        {node}
+      </div>
+    );
+    const items = [
+      { id: "hero", label: "Resultado", node: vestir(heroNode) },
+      { id: "margenes", label: "Márgenes", node: vestir(margenesNode) },
+      { id: "comparativos", label: "Comparativos", node: vestir(comparativosNode) },
+      { id: "cascada", label: "Cascada del resultado", node: cascadaNode },
+      ...movibles,
+      ...(pulsoNode ? [{ id: "pulso", label: "Pulso", node: pulsoNode }] : []),
+    ];
+    return (
+      <div className="space-y-4">
+        <GestionDashboardGrid items={items} />
+        <ConfianzaPie mes={mes} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <GestionV2View
-        hero={
-          <ResultadoHero
-            titulo={hero.titulo}
-            resultado={hero.resultado}
-            respuesta={hero.respuesta}
-            respuestaTono={hero.respuestaTono}
-            subtitulo={`Resultado operacional de ${mesLargo(period)} · devengado`}
-            infoHint="Lo facturado menos los costos y gastos del mes. Es devengado — no es lo cobrado ni la caja."
-          />
-        }
-        margenes={<Margenes mes={mes} />}
-        comparativos={<Comparativos items={comparativos} />}
-        cascada={<CascadaResultado entradas={cascada} />}
+        hero={heroNode}
+        margenes={margenesNode}
+        comparativos={comparativosNode}
+        cascada={cascadaNode}
         movibles={movibles}
-        pulso={
-          pulso ? (
-            <PulsoTira
-              score={pulso.score}
-              estado={PULSO_ESTADO[pulso.status]}
-              tono={PULSO_TONO[pulso.status]}
-              insight={insightTension(hero.resultado, pulso.status)}
-              onVer={() => router.push("/gestion/pulso")}
-            />
-          ) : undefined
-        }
+        pulso={pulsoNode ?? undefined}
       />
       <ConfianzaPie mes={mes} />
     </div>

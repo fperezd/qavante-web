@@ -64,6 +64,7 @@ export const FEATURE_FLAGS = [
   "comportamientoPago",
   "inicioWidgets",
   "inicioAgenda",
+  "gestionDashboard",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -227,6 +228,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      mover/apagar como cualquier widget (framework `inicioWidgets`). OFF hasta validar; con OFF el Inicio
      queda igual (cero regresión). Encender = editar wrangler. */
   inicioAgenda: "/api/sii/rcv/ventas",
+  /* Gestión como tablero REORDENABLE (2026-08-08, piloto de "reordenar cards en otras pantallas"): las
+     secciones de la vista v2 (resultado/hero, márgenes, comparativos, cascada, drivers, tendencia, pulso,
+     confianza) se muestran como cards movibles/apagables (mismo motor iPad del Inicio) con orden/visibilidad
+     por `gestion_widget_*` en prefs. OFF hasta que Fernando lo valide; con OFF la Gestión queda IGUAL (el
+     informe/matriz de siempre) → cero regresión. Encender = editar wrangler. */
+  gestionDashboard: "/api/management/operational-result/breakdown",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
