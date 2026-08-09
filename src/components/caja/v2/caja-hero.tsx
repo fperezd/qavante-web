@@ -15,6 +15,11 @@ export interface CajaHeroProps {
   titulo: string;
   /** Saldo total disponible hoy. */
   saldo: number;
+  /** Días de caja proyectada (`days_of_cash`). Se muestra como número junto al saldo (reemplaza al
+   *  medidor/gauge, pedido de Fernando 2026-08-09). `null` → no se muestra. */
+  diasCaja?: number | null;
+  /** Tono del número de días (ok/warn/crit). */
+  diasTono?: RunwayTono;
   /** Línea de runway ("Alcanza ~4 semanas · el 11-ago cae bajo tu mínimo"). `null` la oculta —
    *  cuando el medidor de días de caja (Caja v3) ya cuenta ese mismo estado abajo, no se repite. */
   runway?: React.ReactNode;
@@ -35,6 +40,8 @@ const TONO: Record<RunwayTono, string> = {
 export function CajaHero({
   titulo,
   saldo,
+  diasCaja,
+  diasTono = "ok",
   runway,
   runwayTono = "ok",
   subtitulo,
@@ -54,6 +61,12 @@ export function CajaHero({
       >
         <AmountCountUp value={saldo} />
       </p>
+      {diasCaja != null && (
+        <p className="mt-2 text-[15px] font-bold">
+          <span className={cn("tabular-nums", TONO[diasTono])}>~{diasCaja} días</span>{" "}
+          <span className="font-semibold text-neutral-mid">de caja proyectada</span>
+        </p>
+      )}
       {runway != null && (
         <div
           className={cn("mt-3 flex items-start gap-2 text-[13px] font-semibold", TONO[runwayTono])}
