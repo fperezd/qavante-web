@@ -36,7 +36,7 @@ test.describe("Flujo: Clientes 360 (/gestion/clientes)", () => {
       .evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
     expect(Math.max(0, ...alturas)).toBeGreaterThan(20);
     // Los "días de pago real" se declaran honestos como pendientes.
-    await expect(main.getByText(/Días promedio .* en preparación/i)).toBeVisible();
+    await expect(main.getByText(/Días promedio.*en preparación/i)).toBeVisible();
 
     // Selector buscable: por defecto sale el que más pesa (Cliente A); cambiar a otro NO exige
     // borrar texto (el input arranca vacío) → escribir filtra y elegir cambia la contraparte.
