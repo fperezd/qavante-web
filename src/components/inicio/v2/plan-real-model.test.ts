@@ -47,13 +47,14 @@ describe("mapPlanReal", () => {
     expect(ingresos.variacionPct).toBe(20);
   });
 
-  it("favorable: vender más (ingresos↑) y gastar menos (costos↓) es bueno", () => {
+  it("favorable = variacion ≥ 0 para TODAS las líneas (montos SIGNADOS: costos negativos)", () => {
+    // Contrato ADR-0091: revenue +, costos/gastos NEGATIVOS. `variance = actual − budget > 0` siempre bueno.
     const r = mapPlanReal(
       resp(true, [
-        { concept: "revenue", budget: "10000000", actual: "12000000" }, // +20% → favorable
-        { concept: "direct_cost", budget: "4000000", actual: "5000000" }, // +25% costo → NO favorable
-        { concept: "operating_expense", budget: "3000000", actual: "2500000" }, // -17% gasto → favorable
-        { concept: "result", budget: "3000000", actual: "2000000" }, // -33% resultado → NO favorable
+        { concept: "revenue", budget: "10000000", actual: "12000000" }, // +2M → vendió más → favorable
+        { concept: "direct_cost", budget: "-4000000", actual: "-5000000" }, // gastó MÁS (−1M) → NO favorable
+        { concept: "operating_expense", budget: "-3000000", actual: "-2500000" }, // gastó menos (+0,5M) → favorable
+        { concept: "result", budget: "3000000", actual: "2000000" }, // −1M → NO favorable
       ]),
       "julio",
     );

@@ -16,10 +16,10 @@ const CONCEPTOS: { concepto: PlanRealConcepto; label: string }[] = [
   { concepto: "result", label: "Resultado" },
 ];
 
-/** Una desviación es FAVORABLE si vende más de lo planeado (ingresos/resultado ↑) o gasta menos
- *  (costos/gastos ↓). Costos/gastos van en magnitud positiva en el P&L. */
-function esFavorable(concepto: PlanRealConcepto, variacion: number): boolean {
-  if (concepto === "direct_cost" || concepto === "operating_expense") return variacion <= 0;
+/** Los montos de `budget-vs-actual` son SIGNADOS (revenue +, costos/gastos −, `result` = suma; contrato
+ *  ADR-0091 confirmado por CC-API 2026-08-08). Con signo, `variance = actual − budget > 0` es SIEMPRE
+ *  favorable (más ingreso O menos costo) → el MISMO coloreo para todas las líneas, sin invertir por tipo. */
+function esFavorable(variacion: number): boolean {
   return variacion >= 0;
 }
 
@@ -58,7 +58,7 @@ function fila(concepto: PlanRealConcepto, label: string, plan: number, real: num
     real,
     variacion,
     variacionPct: plan !== 0 ? Math.round((variacion / Math.abs(plan)) * 100) : null,
-    favorable: esFavorable(concepto, variacion),
+    favorable: esFavorable(variacion),
   };
 }
 
