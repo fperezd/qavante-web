@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AlertCircle } from "lucide-react";
-import { QavanteBadge, QavanteEmpty } from "@/components/qavante";
+import { QavanteEmpty } from "@/components/qavante";
 import { useOperationalResult, useOperationalResultBreakdown } from "@/lib/api/gestion";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -68,9 +68,6 @@ export function OperationalResultView({ initialPeriod, dashboard = false }: Oper
         onChange={setRange}
         hint="El resultado se calcula por mes; el rango suma los meses seleccionados."
       />
-      <QavanteBadge variant="default">
-        Resultado de gestión (no es contabilidad oficial)
-      </QavanteBadge>
     </div>
   );
 

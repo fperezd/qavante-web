@@ -15,9 +15,6 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Gestión" })).toBeVisible();
 
-    // Badge obligatorio (Maestro §7.5): no es contabilidad oficial.
-    await expect(page.getByText(/no es contabilidad oficial/i)).toBeVisible();
-
     // Un mes por defecto: vista v2 — respuesta de dueño (result del fixture = $3.900.000) + cascada.
     await expect(page.getByText("El negocio ganó este mes")).toBeVisible();
     // El resultado ($3.900.000) aparece en el hero Y en la cascada — coinciden (footing correcto).

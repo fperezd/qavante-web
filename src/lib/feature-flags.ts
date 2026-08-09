@@ -66,6 +66,7 @@ export const FEATURE_FLAGS = [
   "inicioAgenda",
   "gestionDashboard",
   "cajaDashboard",
+  "presupuesto",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -240,6 +241,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      orden/visibilidad por `caja_widget_*`. OFF hasta validar; con OFF la Caja queda IGUAL → cero
      regresión. Encender = editar wrangler. */
   cajaDashboard: "/api/bice/cuentas",
+  /* Pantalla Presupuesto propositivo (ADR-0091, 2026-08-09): "cómo vas" contra el plan que Qavante
+     PROPONE desde el histórico (POST budget/propose) + ajuste "+% ventas". Consume budget-vs-actual.
+     Requiere el backend #870 (ya en main). Encender = editar wrangler. */
+  presupuesto: "/api/planning/budget-vs-actual",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

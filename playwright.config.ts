@@ -115,6 +115,8 @@ export default defineConfig({
       /* Caja como landing reordenable — OFF en prod (piloto), pero ON acá para el e2e del reordenar. El
          dashboard renderiza el MISMO contenido que la landing clásica (mismo assert de caja.flow.spec). */
       NEXT_PUBLIC_FF_CAJA_DASHBOARD: "true",
+      /* Pantalla Presupuesto propositivo — ON en prod y en e2e (contra el MSW de budget-vs-actual). */
+      NEXT_PUBLIC_FF_PRESUPUESTO: "true",
     },
   },
 });
