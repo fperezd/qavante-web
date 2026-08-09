@@ -3,7 +3,7 @@
    Real (mismos montos SIGNADOS: revenue +, costos/gastos −, result = suma). El semáforo mide la desviación
    del RESULTADO vs el plan. Contrato en qavante-web#883. */
 
-import type { PlanReal } from "@/components/inicio/v2/plan-real-model";
+import type { PlanReal, PlanRealConcepto } from "@/components/inicio/v2/plan-real-model";
 
 export type Semaforo = "good" | "warn" | "bad";
 
@@ -36,6 +36,43 @@ export function semaforoResultado(variacion: number, variacionPct: number | null
   if (abs <= 5) return "good";
   if (abs <= 15) return "warn";
   return "bad";
+}
+
+export interface DesvioLinea {
+  concepto: PlanRealConcepto;
+  label: string;
+  /** Presupuestado y realizado, ambos con signo (revenue +, costos/gastos −). */
+  plan: number;
+  real: number;
+  /** real − plan con signo: + = a favor, − = en contra (gracias al signado uniforme). */
+  variacion: number;
+  variacionPct: number | null;
+  favorable: boolean;
+}
+
+/** Desvíos por línea de P&L (Ingresos / Costo directo / Gastos), SIN el Resultado (que es el total del
+ *  hero). Orden: primero lo que juega EN CONTRA (por magnitud), después lo a favor. Las líneas sin desvío
+ *  se omiten (no aportan). Alimenta el bloque "Lo que se desvía" — desglose por CONCEPTO, no por cuenta
+ *  (ese, marketing/sueldos/software, espera el presupuesto a nivel de cuenta del backend). */
+export function desviosPresupuesto(pr: PlanReal): DesvioLinea[] {
+  return pr.filas
+    .filter((f) => f.concepto !== "result" && f.variacion !== 0)
+    .map((f) => ({
+      concepto: f.concepto,
+      label: f.label,
+      plan: f.plan,
+      real: f.real,
+      variacion: f.variacion,
+      variacionPct: f.variacionPct,
+      favorable: f.favorable,
+    }))
+    .sort((a, b) =>
+      a.favorable !== b.favorable
+        ? a.favorable
+          ? 1
+          : -1
+        : Math.abs(b.variacion) - Math.abs(a.variacion),
+    );
 }
 
 /** Deriva el hero desde el PlanReal (ya mapeado de budget-vs-actual). `null` si no hay fila de resultado. */

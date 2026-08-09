@@ -2,8 +2,9 @@ import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
 /* Flujo — Presupuesto propositivo (ADR-0091, `presupuesto` ON). "El presupuesto se PROPONE desde tu
-   historial; vos lo ajustás." Contra MSW (budget-vs-actual con has_budget:true): el hero "¿cómo vas?"
-   muestra el resultado real vs plan + el semáforo, y los chips de ajuste "+% ventas". */
+   historial; tú lo ajustas." Contra MSW (budget-vs-actual con has_budget:true): el hero "¿cómo vas?"
+   muestra el resultado real vs plan + el semáforo, los chips de ajuste "+% ventas", y "Lo que se
+   desvía" con el desglose por concepto (ventas/costos/gastos). */
 
 test.describe("Flujo: Presupuesto (/presupuesto)", () => {
   test("hero '¿cómo vas?' con semáforo + ajuste +% ventas", async ({ page, context }) => {
@@ -19,6 +20,14 @@ test.describe("Flujo: Presupuesto (/presupuesto)", () => {
     // Franja de origen + chips de ajuste propositivo.
     await expect(page.getByText(/Lo armó Qavante desde tu/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /\+8% ventas/i })).toBeVisible();
+
+    // "Lo que se desvía": desglose por concepto (fixture: costos/gastos en contra, ventas a favor).
+    await expect(page.getByText("Lo que se desvía")).toBeVisible();
+    await expect(page.getByText("Costo directo")).toBeVisible();
+    await expect(page.getByText(/Gastaste/).first()).toBeVisible();
+    await expect(page.getByText(/en contra/).first()).toBeVisible();
+    await expect(page.getByText(/a favor/).first()).toBeVisible();
+    await expect(page.getByText(/desglose por cuenta/i)).toBeVisible();
 
     // Toggle Mes / Año.
     await expect(page.getByRole("tab", { name: "Año" })).toBeVisible();
