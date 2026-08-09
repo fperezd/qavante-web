@@ -2929,6 +2929,26 @@ const gestionHandlers = [
       { status: 200 },
     );
   }),
+  /* Presupuesto vs real (ADR-0091, pantalla Presupuesto). Montos SIGNADOS: revenue +, costos/gastos −,
+     result = suma. `has_budget:true` → el hero "¿cómo vas?" se muestra con el semáforo. */
+  http.get("*/api/planning/budget-vs-actual", ({ request }) => {
+    const period = new URL(request.url).searchParams.get("period") ?? "2026-07";
+    return HttpResponse.json(
+      {
+        period,
+        has_budget: true,
+        data_state: "available",
+        generated_at: "2026-08-01T00:00:00Z",
+        lines: [
+          { concept: "revenue", budget: "40000000", actual: "44300000", variance: "4300000", variance_pct: "11" },
+          { concept: "direct_cost", budget: "-30000000", actual: "-31100000", variance: "-1100000", variance_pct: "-4" },
+          { concept: "operating_expense", budget: "-11300000", actual: "-11800000", variance: "-500000", variance_pct: "-4" },
+          { concept: "result", budget: "2700000", actual: "1440000", variance: "-1260000", variance_pct: "-47" },
+        ],
+      },
+      { status: 200 },
+    );
+  }),
   /* P&L 'al día N' del flujo RCV vs el mismo tramo del mes anterior (#794-P0-2). actual/mes_anterior
      como string-decimal; variacion con {amount, pct} por métrica. Sirve la comparación PAREJA del
      Comparativo cuando el mes va en curso. */

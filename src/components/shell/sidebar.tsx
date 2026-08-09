@@ -9,6 +9,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   LineChart,
+  PiggyBank,
   Settings,
   ChevronDown,
   X,
@@ -30,6 +31,8 @@ type ModuleLink = {
   children?: ReadonlyArray<SubLink>;
   /* Solo visible con el flag `bancoScreen` ON (pantalla nueva, gated hasta validar UX). */
   needsBanco?: boolean;
+  /* Solo visible con el flag `presupuesto` ON. */
+  needsPresupuesto?: boolean;
 };
 
 type NavGroup = { label: string; items: ReadonlyArray<ModuleLink> };
@@ -82,7 +85,10 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
   },
   {
     label: "Análisis",
-    items: [{ href: "/gestion", label: "Gestión", Icon: LineChart, children: GESTION_CHILDREN }],
+    items: [
+      { href: "/gestion", label: "Gestión", Icon: LineChart, children: GESTION_CHILDREN },
+      { href: "/presupuesto", label: "Presupuesto", Icon: PiggyBank, needsPresupuesto: true },
+    ],
   },
   {
     label: "Configuración",
@@ -106,6 +112,8 @@ export interface AppSidebarProps {
   remuneracionesEnabled?: boolean;
   /** `bancoScreen` ON → muestra el ítem "Banco" (pantalla nueva, gated hasta validar UX). */
   bancoEnabled?: boolean;
+  /** `presupuesto` ON → muestra el ítem "Presupuesto". */
+  presupuestoEnabled?: boolean;
 }
 
 export function AppSidebar({
@@ -114,6 +122,7 @@ export function AppSidebar({
   userRole,
   remuneracionesEnabled,
   bancoEnabled,
+  presupuestoEnabled,
 }: AppSidebarProps) {
   const pathname = usePathname();
 
@@ -122,7 +131,8 @@ export function AppSidebar({
      por URL pero la página renderea error/no-data del backend. */
   const canSee = (m: ModuleLink) =>
     (!m.visibleFor || (userRole && m.visibleFor.includes(userRole))) &&
-    (!m.needsBanco || bancoEnabled);
+    (!m.needsBanco || bancoEnabled) &&
+    (!m.needsPresupuesto || presupuestoEnabled);
   const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
     (g) => g.items.length > 0,
   );
