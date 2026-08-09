@@ -20,11 +20,24 @@ export const MESES_GRID = [
   "Dic",
 ] as const;
 
-/** Secciones del P&L en orden, con su signo canónico. `revenue` suma; costos/gastos restan. */
-export const SECCIONES_GRID: { impact: string; label: string; signo: 1 | -1 }[] = [
-  { impact: "revenue", label: "Ingresos", signo: 1 },
-  { impact: "direct_cost", label: "Costos directos", signo: -1 },
-  { impact: "operating_expense", label: "Gastos operacionales", signo: -1 },
+/** Secciones del P&L en orden, con su signo canónico y los `impact_type` que agrupan. `revenue` suma;
+ *  costos/gastos restan. Los gastos NO-operacionales del backend (financial/administrative/commercial/
+ *  tax) caen en "Gastos operacionales" para no perderse; lo que no matchee ninguna va a "Otros". */
+export const SECCIONES_GRID: { impact: string; label: string; signo: 1 | -1; tipos: string[] }[] = [
+  { impact: "revenue", label: "Ingresos", signo: 1, tipos: ["revenue"] },
+  { impact: "direct_cost", label: "Costos directos", signo: -1, tipos: ["direct_cost"] },
+  {
+    impact: "operating_expense",
+    label: "Gastos operacionales",
+    signo: -1,
+    tipos: [
+      "operating_expense",
+      "commercial_expense",
+      "administrative_expense",
+      "financial_expense",
+      "tax",
+    ],
+  },
 ];
 
 export interface GridFila {
@@ -72,36 +85,41 @@ function sumar(a: number[], b: number[]): number[] {
   return a.map((x, i) => x + (b[i] ?? 0));
 }
 
-/** Deriva la grilla agrupada + subtotales + resultado desde la respuesta del backend. */
+function filaDe(c: BudgetGridCategory): GridFila {
+  const meses = mesesDe(c);
+  return {
+    accountId: c.account_id ?? null,
+    code: c.account_code ?? null,
+    name: c.account_name,
+    impact: c.impact_type, // el tipo REAL de la cuenta (no el de la sección) → onEditCell manda el correcto.
+    meses,
+    totalAnio: meses.reduce((s, x) => s + x, 0),
+  };
+}
+
+function armarSeccion(
+  impact: string,
+  label: string,
+  signo: 1 | -1,
+  filas: GridFila[],
+): GridSeccion {
+  const subtotalMeses = filas.reduce<number[]>((acc, f) => sumar(acc, f.meses), Array(12).fill(0));
+  return { impact, label, signo, filas, subtotalMeses, totalAnio: subtotalMeses.reduce((s, x) => s + x, 0) };
+}
+
+/** Deriva la grilla agrupada + subtotales + resultado desde la respuesta del backend. Ninguna cuenta
+ *  se descarta: los tipos conocidos van a su sección; lo demás cae en "Otros" (visible, nunca oculto). */
 export function buildBudgetGrid(resp: BudgetGridResponse): BudgetGridModel {
   const cats = resp.categories ?? [];
-  const secciones: GridSeccion[] = SECCIONES_GRID.map(({ impact, label, signo }) => {
-    const filas: GridFila[] = cats
-      .filter((c) => c.impact_type === impact)
-      .map((c) => {
-        const meses = mesesDe(c);
-        return {
-          accountId: c.account_id ?? null,
-          code: c.account_code ?? null,
-          name: c.account_name,
-          impact,
-          meses,
-          totalAnio: meses.reduce((s, x) => s + x, 0),
-        };
-      });
-    const subtotalMeses = filas.reduce<number[]>(
-      (acc, f) => sumar(acc, f.meses),
-      Array(12).fill(0),
-    );
-    return {
-      impact,
-      label,
-      signo,
-      filas,
-      subtotalMeses,
-      totalAnio: subtotalMeses.reduce((s, x) => s + x, 0),
-    };
-  });
+  const conocidos = new Set(SECCIONES_GRID.flatMap((s) => s.tipos));
+
+  const secciones: GridSeccion[] = SECCIONES_GRID.map(({ impact, label, signo, tipos }) =>
+    armarSeccion(impact, label, signo, cats.filter((c) => tipos.includes(c.impact_type)).map(filaDe)),
+  );
+
+  // Catch-all: cuentas con un impact_type que no cae en ninguna sección (nunca esconder un dato).
+  const otras = cats.filter((c) => !conocidos.has(c.impact_type)).map(filaDe);
+  if (otras.length > 0) secciones.push(armarSeccion("otros", "Otros", -1, otras));
 
   const resultadoMeses = secciones.reduce<number[]>(
     (acc, s) => sumar(acc, s.subtotalMeses),

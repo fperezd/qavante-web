@@ -60,4 +60,23 @@ describe("buildBudgetGrid", () => {
     expect(g.accepted).toBe(false);
     expect(MESES_GRID).toHaveLength(12);
   });
+
+  it("NO esconde cuentas: gastos no-operacionales caen en Gastos; tipos desconocidos en 'Otros'", () => {
+    const g = buildBudgetGrid({
+      ...RESP,
+      categories: [
+        { account_id: "b1", account_code: "6.2", account_name: "Intereses", impact_type: "financial_expense", months: meses(-200_000), total_year: "-200000" },
+        { account_id: "t1", account_code: "7.1", account_name: "IVA", impact_type: "tax", months: meses(-500_000), total_year: "-500000" },
+        { account_id: "x1", account_code: "9.9", account_name: "Compra de equipos", impact_type: "capex", months: meses(-1_000_000), total_year: "-1000000" },
+      ],
+    });
+    // financial_expense y tax NO se pierden: van a "Gastos operacionales".
+    const gastos = g.secciones.find((s) => s.impact === "operating_expense")!;
+    expect(gastos.filas.map((f) => f.name).sort()).toEqual(["IVA", "Intereses"]);
+    // El tipo real de la cuenta se conserva en la fila (no el de la sección) → onEditCell manda el correcto.
+    expect(gastos.filas.find((f) => f.name === "Intereses")!.impact).toBe("financial_expense");
+    // capex (no es P&L) no se descarta: cae en "Otros".
+    const otros = g.secciones.find((s) => s.impact === "otros");
+    expect(otros?.filas.map((f) => f.name)).toEqual(["Compra de equipos"]);
+  });
 });
