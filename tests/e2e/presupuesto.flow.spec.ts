@@ -77,6 +77,6 @@ test.describe("Flujo: Presupuesto (/presupuesto)", () => {
 
     // Aceptar → pasa a Aceptado.
     await page.getByRole("button", { name: /Aceptar presupuesto/i }).click();
-    await expect(page.getByText("Aceptado")).toBeVisible();
+    await expect(page.getByText("Aceptado", { exact: true })).toBeVisible();
   });
 });
