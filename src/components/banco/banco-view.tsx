@@ -40,6 +40,30 @@ export function BancoView() {
     return <QavanteInlineError error={saldoQuery.error} what="tus productos de banco" />;
   }
 
+  // Sesión de BICE vencida: el endpoint responde 200 pero con cuerpo de error (`status:"error"`,
+  // `code:"session_expired"`). El banco SÍ está conectado; NO decir "no hay bancos" (miente). Mostramos
+  // la verdad: la sesión se venció y hay que reconectar. (La reconexión self-serve la debe exponer el
+  // backend — hoy `BICE_LOGIN_STRATEGY=local_only`; escalado a CC-API.)
+  const statusOf = (d: unknown) => (d as { status?: string } | undefined)?.status;
+  const sesionBiceVencida =
+    statusOf(saldoQuery.data) === "error" || statusOf(tarjetasQuery.data) === "error";
+
+  if (
+    !cuentasLoading &&
+    !tarjetasLoading &&
+    cuentas.length === 0 &&
+    tarjetas.length === 0 &&
+    sesionBiceVencida
+  ) {
+    return (
+      <QavanteEmpty
+        icon={RefreshCw}
+        title="Tu sesión con el banco se venció"
+        description="Tu banco sigue conectado, pero la sesión con BICE expiró y no pudimos traer tus saldos y tarjetas. Hay que reconectar el banco para volver a verlos actualizados."
+      />
+    );
+  }
+
   // Vacío REAL: solo cuando AMBAS terminaron de cargar y no hay nada (no mientras BICE responde).
   if (!cuentasLoading && !tarjetasLoading && cuentas.length === 0 && tarjetas.length === 0) {
     return (
