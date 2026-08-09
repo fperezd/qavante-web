@@ -21,7 +21,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* Grilla de tarjetas del Inicio con reordenamiento estilo iPad: al arrastrar una card, las demás se
@@ -41,9 +41,11 @@ export interface SortableWidgetGridProps {
   items: SortableWidgetItem[];
   /** Nuevo orden de ids tras soltar (la vista live lo persiste en prefs). */
   onReorder: (ids: string[]) => void;
+  /** Ocultar una tarjeta (la "x" con confirmación de cada card). Sin esto, no se muestra la "x". */
+  onHide?: (id: string) => void;
 }
 
-export function SortableWidgetGrid({ items, onReorder }: SortableWidgetGridProps) {
+export function SortableWidgetGrid({ items, onReorder, onHide }: SortableWidgetGridProps) {
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const ids = React.useMemo(() => items.map((i) => i.id), [items]);
 
@@ -78,7 +80,7 @@ export function SortableWidgetGrid({ items, onReorder }: SortableWidgetGridProps
       <SortableContext items={ids} strategy={rectSortingStrategy}>
         <div className="grid gap-3.5 sm:grid-cols-2">
           {items.map((item) => (
-            <SortableCard key={item.id} id={item.id} label={item.label}>
+            <SortableCard key={item.id} id={item.id} label={item.label} onHide={onHide}>
               {item.node}
             </SortableCard>
           ))}
@@ -101,12 +103,16 @@ function SortableCard({
   id,
   label,
   children,
+  onHide,
 }: {
   id: string;
   label: string;
   children: React.ReactNode;
+  onHide?: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  // Confirmación inline del ocultar (más liviano que un modal): la "x" pregunta "¿Ocultar? Sí/No".
+  const [confirming, setConfirming] = React.useState(false);
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -123,16 +129,57 @@ function SortableCard({
         isDragging && "opacity-30",
       )}
     >
+      {/* Asa de arrastre — arriba a la IZQUIERDA (pedido de Fernando). */}
       <button
         type="button"
         aria-label={`Arrastrar “${label}” para reordenar`}
         {...attributes}
         {...listeners}
         style={{ touchAction: "none" }}
-        className="absolute right-2 top-2 z-10 cursor-grab touch-none rounded-lg bg-surface/80 p-1 text-neutral-mid opacity-60 shadow-sm backdrop-blur transition-opacity hover:text-neutral-dark active:cursor-grabbing group-hover/card:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+        className="absolute left-2 top-2 z-10 cursor-grab touch-none rounded-lg bg-surface/80 p-1 text-neutral-mid opacity-60 shadow-sm backdrop-blur transition-opacity hover:text-neutral-dark active:cursor-grabbing group-hover/card:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
       >
         <GripVertical className="size-4" aria-hidden />
       </button>
+
+      {/* Ocultar la card — arriba a la DERECHA, con confirmación inline ("¿Ocultar? Sí/No"). */}
+      {onHide && (
+        <div className="absolute right-2 top-2 z-10">
+          {confirming ? (
+            <div className="flex items-center gap-1 rounded-lg bg-surface/95 p-0.5 shadow-md ring-1 ring-border backdrop-blur">
+              <span className="pl-1 text-[11px] text-neutral-mid">¿Ocultar?</span>
+              <button
+                type="button"
+                aria-label={`Ocultar “${label}”`}
+                onClick={() => {
+                  setConfirming(false);
+                  onHide(id);
+                }}
+                className="rounded bg-danger-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-danger-500 hover:bg-danger-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                Sí
+              </button>
+              <button
+                type="button"
+                aria-label="Cancelar"
+                onClick={() => setConfirming(false)}
+                className="rounded px-1.5 py-0.5 text-[11px] font-medium text-neutral-mid hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              aria-label={`Ocultar “${label}”`}
+              onClick={() => setConfirming(true)}
+              className="rounded-lg bg-surface/80 p-1 text-neutral-mid opacity-60 shadow-sm backdrop-blur transition-opacity hover:text-danger-500 group-hover/card:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          )}
+        </div>
+      )}
+
       {children}
     </div>
   );

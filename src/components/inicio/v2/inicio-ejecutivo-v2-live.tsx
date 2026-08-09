@@ -248,6 +248,9 @@ function Assembled({
     <SortableWidgetGrid
       items={ordered.map((w) => ({ id: w.id, label: w.label, node: w.node }))}
       onReorder={reorderIds}
+      // "x" para ocultar cada card (con confirmación) solo si el catálogo Personalizar está disponible
+      // (así el dueño puede volver a mostrarla desde ahí — si no, sería un ocultar sin retorno).
+      onHide={widgetsEnabled ? toggleWidget : undefined}
     />
   );
 
