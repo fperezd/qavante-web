@@ -24,6 +24,8 @@ import { GestionV2RangoView } from "./v2/gestion-v2-rango-view";
 export interface OperationalResultViewProps {
   /** Período inicial "YYYY-MM" (lo calcula la page en America/Santiago = el mes EN CURSO). */
   initialPeriod: string;
+  /** `gestionDashboard` ON → la vista de mes único se muestra como tablero reordenable (piloto). */
+  dashboard?: boolean;
 }
 
 /** Resta `n` meses a "YYYY-MM" (aritmética pura de calendario, sin Date). */
@@ -39,7 +41,7 @@ function periodoMenos(period: string, n: number): string {
   return `${y}-${String(mes).padStart(2, "0")}`;
 }
 
-export function OperationalResultView({ initialPeriod }: OperationalResultViewProps) {
+export function OperationalResultView({ initialPeriod, dashboard = false }: OperationalResultViewProps) {
   /* La reportabilidad NO abre en el MES EN CURSO: es incompleto (los costos ya están devengados pero
      las ventas del mes recién empiezan) → daría un "perdió $X" FALSO. Abre en el último mes CERRADO.
      El mes en curso sigue seleccionable y se muestra reformulado ("en curso, aún sin cerrar"). */
@@ -81,7 +83,14 @@ export function OperationalResultView({ initialPeriod }: OperationalResultViewPr
           emptyTitle="Sin datos para este mes"
           emptyDescription="Todavía no hay resultado operacional para el mes seleccionado. Prueba otro mes o vuelve cuando se sincronicen las fuentes."
         >
-          {(data) => <GestionV2ViewLive mes={data} period={ordered.hasta} enCurso={enCurso} />}
+          {(data) => (
+            <GestionV2ViewLive
+              mes={data}
+              period={ordered.hasta}
+              enCurso={enCurso}
+              dashboard={dashboard}
+            />
+          )}
         </StateWrap>
       ) : (
         <StateWrap
