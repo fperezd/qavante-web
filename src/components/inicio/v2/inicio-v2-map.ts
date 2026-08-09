@@ -294,7 +294,7 @@ export function mapResultado(s: DashboardSummaryV2): ResultadoPreliminarProps | 
     subtitulo: "Resultado operacional del mes",
     ingresos,
     margenLabel: "Margen operacional",
-    margen: margenPct != null ? `${margenPct}%` : "—",
+    margen: margenPct != null ? `${margenPct}%` : "s/d",
     extra: [],
   };
 }
@@ -303,7 +303,7 @@ export function mapResultado(s: DashboardSummaryV2): ResultadoPreliminarProps | 
  *  (Fase 2). `null` si no hay DSO calculable (ventana devengada insuficiente). */
 export function cicloCajaExtra(c: CashCycleResponse | undefined): ResultadoExtra | null {
   if (!c || c.dso_days == null) return null;
-  const dpo = c.dpo_days != null ? `${c.dpo_days}d` : "—";
+  const dpo = c.dpo_days != null ? `${c.dpo_days}d` : "s/d";
   return { label: "Ciclo de caja (cobra / paga)", valor: `${c.dso_days}d / ${dpo}` };
 }
 

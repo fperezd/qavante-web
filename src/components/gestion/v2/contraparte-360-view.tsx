@@ -331,7 +331,7 @@ function Detalle({
           />
           <QavanteStatTile
             label={`% ${config.delTotal}`}
-            value={pct != null ? `${pct.toFixed(1)}%` : "—"}
+            value={pct != null ? `${pct.toFixed(1)}%` : "s/d"}
             tone={pct != null && pct >= 25 ? "danger" : "default"}
             hint={
               pct != null && pct >= 25
@@ -360,7 +360,7 @@ function Detalle({
       <section className="rounded-xl border border-border bg-surface p-5">
         <h3 className="text-sm font-bold text-neutral-dark">Estacionalidad</h3>
         <p className="text-xs text-neutral-mid">
-          Promedio por mes del año — en qué meses concentra.
+          Promedio por mes del año: en qué meses concentra.
         </p>
         <Estacional est={est} />
       </section>
@@ -381,7 +381,7 @@ function Detalle({
               : `hace ${mesesSinActividad} ${mesesSinActividad === 1 ? "mes" : "meses"}`
           }
           tone={mesesSinActividad >= 3 ? "danger" : "default"}
-          hint={mesesSinActividad >= 3 ? "Sin actividad reciente — posible fuga." : undefined}
+          hint={mesesSinActividad >= 3 ? "Sin actividad reciente, posible fuga." : undefined}
         />
       </div>
 
@@ -565,7 +565,7 @@ function DiasDePago({ config }: { config: Config360 }) {
   const verbo = config.kind === "ventas" ? "en cobrar" : "en pagar";
   return (
     <section className="rounded-xl border border-warning-500/30 bg-warning-500/[.05] p-4 text-[13px]">
-      <p className="font-semibold text-neutral-dark">Días promedio {verbo} — en preparación</p>
+      <p className="font-semibold text-neutral-dark">Días promedio {verbo}: en preparación</p>
       <p className="mt-0.5 text-neutral-mid">
         El comportamiento de pago real (cuánto tarda de verdad, no el plazo pactado) necesita cruzar
         cada factura con su pago en el banco. Ese motor lo está construyendo el backend; en cuanto

@@ -93,7 +93,7 @@ export function PlanRealWidget({
                 >
                   {f.variacionPct != null
                     ? `${f.variacionPct > 0 ? "+" : f.variacionPct < 0 ? "−" : ""}${Math.abs(f.variacionPct)}%`
-                    : "—"}
+                    : "s/d"}
                 </td>
               </tr>
             );

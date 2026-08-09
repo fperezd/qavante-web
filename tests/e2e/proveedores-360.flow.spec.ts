@@ -18,6 +18,6 @@ test.describe("Flujo: Proveedores 360 (/gestion/proveedores)", () => {
     await expect(main.getByRole("heading", { name: "Estacionalidad" })).toBeVisible();
     await expect(main.getByRole("heading", { name: "Últimos documentos" })).toBeVisible();
     // Días de pago real: honesto, pendiente CC-API.
-    await expect(main.getByText(/Días promedio en pagar .* en preparación/i)).toBeVisible();
+    await expect(main.getByText(/Días promedio en pagar.*en preparación/i)).toBeVisible();
   });
 });

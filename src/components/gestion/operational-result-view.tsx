@@ -69,7 +69,7 @@ export function OperationalResultView({ initialPeriod, dashboard = false }: Oper
         hint="El resultado se calcula por mes; el rango suma los meses seleccionados."
       />
       <QavanteBadge variant="default">
-        Resultado de gestión · no es contabilidad oficial
+        Resultado de gestión (no es contabilidad oficial)
       </QavanteBadge>
     </div>
   );

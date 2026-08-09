@@ -18,7 +18,7 @@ export interface MargenesWidgetProps {
 }
 
 function pct(v: number | null): string {
-  if (v == null) return "—";
+  if (v == null) return "s/d";
   return v < 0 ? `−${Math.abs(v)}%` : `${v}%`;
 }
 
@@ -63,7 +63,7 @@ export function MargenesWidget({ data, href = "/gestion", cta = "Ver gestión" }
       </div>
 
       <p className="mt-2 text-xs text-neutral-mid">
-        De cada $100 vendidos, te quedan {data.brutoPct != null ? `$${data.brutoPct}` : "—"} después
+        De cada $100 vendidos, te quedan {data.brutoPct != null ? `$${data.brutoPct}` : "s/d"} después
         del costo directo{data.netoPct != null ? ` y $${data.netoPct} al final` : ""}.
       </p>
 

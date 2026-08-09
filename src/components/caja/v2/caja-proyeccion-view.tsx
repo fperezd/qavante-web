@@ -155,7 +155,7 @@ export function CajaProyeccionView({
                     <>
                       <b className="text-info-700">Con recuperación:</b> si cobras ese atraso
                       (repartido en {recuperacion.ventanaDias} días), tu caja no toca el punto de
-                      quiebre — se sostiene.
+                      quiebre: se sostiene.
                     </>
                   )}
                 </p>
