@@ -19,10 +19,9 @@ export interface InicioEjecutivoV2Props {
   pulso?: PulsoCardProps;
   /** <BrechaPlan/> en crisis, o la lista de acciones en sana/control. */
   plan: React.ReactNode;
-  /** Las 4 tarjetas de detalle (Caja · Cobranza · Pagos · Resultado). Cada elemento DEBE traer
-   *  su `key` estable (por id de widget, no por índice): la grilla es reordenable y con keys de
-   *  índice React desmonta/remonta las tarjetas movidas, y el foco del teclado se pierde. */
-  grid: React.ReactNode[];
+  /** La grilla de tarjetas de detalle (nodo único: la `SortableWidgetGrid`, que ya trae su propio
+   *  contenedor `grid` + el DnD estilo iPad). */
+  grid: React.ReactNode;
   /** Control "Personalizar" (prender/apagar tarjetas), gated `inicioWidgets`. Se ancla arriba del
    *  grid, alineado a la derecha. */
   personalizar?: React.ReactNode;
@@ -55,9 +54,8 @@ export function InicioEjecutivoV2({
 
       {personalizar}
 
-      {/* Se renderea el array tal cual: cada tarjeta ya trae su key estable (w.id). Envolverlas
-          en un Fragment con key={i} descartaba esas keys y remontaba todo al reordenar. */}
-      <div className="grid gap-3.5 sm:grid-cols-2">{grid}</div>
+      {/* La grilla sortable (iPad-style) trae su propio contenedor + DnD. */}
+      {grid}
 
       {calidad}
     </div>
