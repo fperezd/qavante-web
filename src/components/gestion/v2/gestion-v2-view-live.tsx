@@ -173,7 +173,7 @@ export function GestionV2ViewLive({
       </div>
     );
     const items = [
-      { id: "hero", label: "Resultado", node: vestir(heroNode) },
+      { id: "hero", label: "Resultado", node: vestir(heroNode), wide: true },
       { id: "margenes", label: "Márgenes", node: vestir(margenesNode) },
       { id: "comparativos", label: "Comparativos", node: vestir(comparativosNode) },
       { id: "cascada", label: "Cascada del resultado", node: cascadaNode },
