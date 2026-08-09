@@ -17,7 +17,7 @@ import { ComportamientoPagoCard } from "./comportamiento-pago-card";
 
 /** Días → "N días" (redondeado) / "—" si null. */
 function dias(n: number | null): string {
-  if (n == null) return "—";
+  if (n == null) return "s/d";
   const r = Math.round(n);
   return `${r} ${Math.abs(r) === 1 ? "día" : "días"}`;
 }
@@ -122,7 +122,7 @@ function VeredictoCiclo({
     return (
       <section className="rounded-xl border border-brand-primary/25 bg-brand-primary/[.05] p-5 text-[13px]">
         <p className="font-bold text-neutral-dark">
-          Cobras en {Math.round(dso)} días — pero tu ciclo completo aún no se puede calcular
+          Cobras en {Math.round(dso)} días, pero tu ciclo completo aún no se puede calcular
         </p>
         <p className="mt-1 text-neutral-mid">
           Para el ciclo completo necesitamos tu <b>costo de ventas</b> (lo que cuesta lo que

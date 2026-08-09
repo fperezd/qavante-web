@@ -45,7 +45,7 @@ export function GestionV2RangoView({ data }: { data: OperationalResultBreakdown 
             respuesta={texto}
             respuestaTono={tono}
             subtitulo={`Resultado operacional acumulado · ${r.rangoLabel} ${anioTo}`.trim()}
-            infoHint="Suma del resultado operacional de los meses del rango. Es devengado — no es caja."
+            infoHint="Suma del resultado operacional de los meses del rango. Es devengado, no es caja."
           />
         </div>
         <div className="bg-surface">

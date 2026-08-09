@@ -17,7 +17,7 @@ export interface CicloCajaWidgetProps {
 }
 
 function dias(v: number | null): string {
-  return v != null ? `${v}` : "—";
+  return v != null ? `${v}` : "s/d";
 }
 
 export function CicloCajaWidget({ data, href = "/gestion", cta = "Ver gestión" }: CicloCajaWidgetProps) {

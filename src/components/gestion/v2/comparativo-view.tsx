@@ -233,7 +233,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
           {enCurso && (
             <Bloque
               titulo="Al mismo tramo del mes"
-              subtitulo={`al día ${diaHoy} — ${formatPeriodLabel(period)} 1→${diaHoy} vs ${mesAntLabel} 1→${diaHoy} · flujo de facturación (sin nómina ni honorarios mensuales)`}
+              subtitulo={`al día ${diaHoy}: ${formatPeriodLabel(period)} 1→${diaHoy} vs ${mesAntLabel} 1→${diaHoy} · flujo de facturación (sin nómina ni honorarios mensuales)`}
             >
               {alDia.isError ? (
                 <QavanteInlineError error={alDia.error} what="la comparación al mismo tramo" />
@@ -273,7 +273,7 @@ export function ComparativoView({ initialPeriod }: { initialPeriod: string }) {
           {esActual && (
             <p className="rounded-lg border border-border bg-neutral-light/20 px-3 py-2 text-[11.5px] text-neutral-mid">
               Las comparaciones de abajo (acumulado, promedio, trimestre, eficiencia) van sobre el
-              último mes cerrado, <b className="text-neutral-dark">{baseLabel}</b> —{" "}
+              último mes cerrado, <b className="text-neutral-dark">{baseLabel}</b>.{" "}
               {formatPeriodLabel(period)} va en curso y no se compara con meses completos.
             </p>
           )}
@@ -524,10 +524,10 @@ function Eficiencia({
       <span className="text-neutral-mid">{label}</span>
       <span className="flex items-center gap-3">
         <span className="font-bold tabular-nums text-neutral-dark">
-          {a === null ? "—" : fmtPct(a)}
+          {a === null ? "s/d" : fmtPct(a)}
         </span>
         <span className="text-[11px] text-neutral-mid">
-          mes ant. {p === null ? "—" : fmtPct(p)} · año ant. {yy === null ? "—" : fmtPct(yy)}
+          mes ant. {p === null ? "s/d" : fmtPct(p)} · año ant. {yy === null ? "s/d" : fmtPct(yy)}
         </span>
       </span>
     </div>

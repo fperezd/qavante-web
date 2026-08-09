@@ -146,8 +146,8 @@ export function GestionV2ViewLive({
       resultado={hero.resultado}
       respuesta={hero.respuesta}
       respuestaTono={hero.respuestaTono}
-      subtitulo={`Resultado operacional de ${mesLargo(period)} · devengado`}
-      infoHint="Lo facturado menos los costos y gastos del mes. Es devengado — no es lo cobrado ni la caja."
+      subtitulo={`Resultado operacional de ${mesLargo(period)} (devengado)`}
+      infoHint="Lo facturado menos los costos y gastos del mes. Es devengado, no es lo cobrado ni la caja."
     />
   );
   const margenesNode = <Margenes mes={mes} />;
@@ -178,11 +178,13 @@ export function GestionV2ViewLive({
       { id: "comparativos", label: "Comparativos", node: vestir(comparativosNode) },
       { id: "cascada", label: "Cascada del resultado", node: cascadaNode },
       ...movibles,
-      ...(pulsoNode ? [{ id: "pulso", label: "Pulso", node: pulsoNode }] : []),
     ];
+    // Pulso al pie FIJO (no movible): su "Ver por qué" vive arriba a la derecha, justo donde irían el
+    // asa y la "x" → se pisaban. Como Confianza, es una tira de cierre, no una card que se reordene.
     return (
       <div className="space-y-4">
         <GestionDashboardGrid items={items} />
+        {pulsoNode}
         <ConfianzaPie mes={mes} />
       </div>
     );
@@ -210,7 +212,7 @@ function insightTension(resultado: number, status: PulsoStatus): React.ReactNode
     return (
       <>
         Ganas en resultado, pero tu Pulso está {status === "critical" ? "crítico" : "débil"}. El
-        resultado es <b>devengado</b> — lo facturado, no lo cobrado.
+        resultado es <b>devengado</b>: lo facturado, no lo cobrado.
       </>
     );
   }

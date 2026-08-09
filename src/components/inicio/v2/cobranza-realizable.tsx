@@ -84,7 +84,7 @@ export function CobranzaRealizable({
       <p className="mt-2.5 text-[11px] leading-relaxed text-neutral-mid">
         Total por cobrar {formatClp(totalPorCobrar)} ·{" "}
         {vencido == null ? (
-          <span>sin dato de vencido — el SII aún no entrega los vencimientos</span>
+          <span>sin dato de vencido: el SII aún no entrega los vencimientos</span>
         ) : (
           <span className={cn(Math.round(vencido) === 0 && "font-semibold text-success-700")}>
             {Math.round(vencido) === 0 ? "$0 vencido" : `${formatClp(vencido)} vencido`}
