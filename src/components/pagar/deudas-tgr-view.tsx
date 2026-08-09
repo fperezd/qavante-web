@@ -144,7 +144,7 @@ export function DeudasTgrView() {
                   <td className="py-2 pr-3 text-neutral-dark">
                     {formularioLabelTgr(m.formulario)}
                   </td>
-                  <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">{m.folio ?? "—"}</td>
+                  <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">{m.folio ?? "s/d"}</td>
                   <td className="py-2 pr-3 text-neutral-mid">
                     {formatDateLike(m.fecha_vencimiento)}
                   </td>

@@ -41,7 +41,7 @@ export default async function RemuneracionesPage({
       ) : (
         <QavanteEmpty
           icon={Users}
-          title="Remuneraciones — disponible pronto"
+          title="Remuneraciones: disponible pronto"
           description="Aquí vas a ver la dotación de empleados y los totales de la planilla del conector de Remuneraciones. Se habilita cuando se active la sección."
         />
       )}

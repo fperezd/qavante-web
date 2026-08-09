@@ -14,11 +14,12 @@ import { CuentaDocumentos } from "./cuenta-documentos";
    mes en curso marcado "(proforma)". Las secciones/subtotales se expanden y
    contraen. Presentacional puro: recibe el breakdown ya resuelto. */
 
-/** Celda de monto: sin "$" (denso, como un EERR); 0 → "—"; negativos con el
- *  "−" tipográfico (U+2212, convención de la casa), no el guion. */
+/** Celda de monto: sin "$" (denso, como un EERR); 0 → "0" (un cero es un valor
+ *  real, no dato faltante); negativos con el "−" tipográfico (U+2212, convención
+ *  de la casa), no el guion. */
 function fmtCell(v: string): string {
   const n = Math.round(parseAmount(v));
-  if (n === 0) return "—";
+  if (n === 0) return "0";
   return (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("es-CL");
 }
 

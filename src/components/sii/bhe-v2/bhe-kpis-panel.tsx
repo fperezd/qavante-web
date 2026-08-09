@@ -55,9 +55,9 @@ export function BheKpisPanel({ items, periodo }: { items: BheRecibida[]; periodo
         >
           <ul className="space-y-2.5">
             {conc.map((c, i) => (
-              // key: el RUT si viene; si falta ("—"), nombre + índice para no colisionar
+              // key: el RUT si viene; si falta ("s/d"), nombre + índice para no colisionar
               // dos profesionales sin RUT.
-              <li key={c.rut !== "—" ? c.rut : `${c.name}-${i}`} className="space-y-1">
+              <li key={c.rut !== "s/d" ? c.rut : `${c.name}-${i}`} className="space-y-1">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate">
                     <span className="font-medium text-neutral-dark">{c.name}</span>

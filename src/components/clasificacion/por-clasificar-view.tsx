@@ -75,7 +75,7 @@ function LoadingSkeleton() {
 function movementSummary(m: BankMovement, currency?: string) {
   const sign = m.direction === "credit" ? "+" : "−";
   return {
-    date: m.date ? formatDateLike(m.date) : "—",
+    date: m.date ? formatDateLike(m.date) : "s/d",
     description: m.description,
     // §17.1: no mostrar número de cuenta completo.
     bankLabel: `Cuenta ····${m.bank_account_id.slice(-4)}`,
@@ -112,7 +112,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
         toast.success(
           `Detectamos ${res.pares} ${res.pares === 1 ? "traspaso" : "traspasos"} entre tus cuentas`,
           {
-            description: `${res.clasificados} ${res.clasificados === 1 ? "movimiento quedó marcado" : "movimientos quedaron marcados"} como traspaso interno — no cuentan como ingreso ni gasto.`,
+            description: `${res.clasificados} ${res.clasificados === 1 ? "movimiento quedó marcado" : "movimientos quedaron marcados"} como traspaso interno, no cuentan como ingreso ni gasto.`,
           },
         );
       } else {
@@ -144,7 +144,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           {
             description:
               res.sin_regla > 0
-                ? `Quedan ${res.sin_regla} sin regla que matchee — clasifícalos a mano o crea más reglas.`
+                ? `Quedan ${res.sin_regla} sin regla que matchee, clasifícalos a mano o crea más reglas.`
                 : "Tu reporte de caja se actualizó.",
           },
         );
@@ -472,7 +472,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       {accountsQuery.isError && (
         <QavanteInlineError
           error={accountsQuery.error}
-          what="las cuentas de gestión — no vas a poder clasificar hasta resolverlo"
+          what="las cuentas de gestión, no vas a poder clasificar hasta resolverlo"
         />
       )}
       {/* Filtro de rango de período (idéntico al Libro) + selector de cuenta. */}
@@ -659,7 +659,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
                     aria-label={`Seleccionar ${m.description}`}
                   />
                   <span className="w-24 shrink-0 text-sm text-neutral-mid">
-                    {m.date ? formatDateLike(m.date) : "—"}
+                    {m.date ? formatDateLike(m.date) : "s/d"}
                   </span>
                   <span
                     className="min-w-0 flex-1 truncate text-sm text-neutral-dark"
@@ -721,7 +721,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
             {
               status: "done",
               title: "Detectado en tu banco",
-              children: `${selected.date ? formatDateLike(selected.date) : "—"} · Cuenta ····${selected.bank_account_id.slice(-4)}`,
+              children: `${selected.date ? formatDateLike(selected.date) : "s/d"} · Cuenta ····${selected.bank_account_id.slice(-4)}`,
             },
             {
               status: "current",

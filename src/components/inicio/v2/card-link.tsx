@@ -20,7 +20,7 @@ export function CardLink({ href, cta = "Ver detalle", contexto }: CardLinkProps)
   return (
     <Link
       href={href}
-      aria-label={contexto ? `${cta} — ${contexto}` : cta}
+      aria-label={contexto ? `${cta}: ${contexto}` : cta}
       className="mt-3 inline-flex items-center gap-1 rounded text-[12px] font-bold text-brand-primary transition-colors hover:text-brand-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
     >
       {cta}

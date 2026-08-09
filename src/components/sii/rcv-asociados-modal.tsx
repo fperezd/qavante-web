@@ -113,9 +113,9 @@ export function RcvAsociadosModal({
                       </td>
                       <td className="py-2.5 pr-3 text-neutral-dark">{formatDateLike(d.fecha)}</td>
                       <td className="py-2.5 text-right tabular-nums text-neutral-dark">
-                        {/* "—" honesto si el doc no trae monto (convención del módulo
+                        {/* "s/d" honesto si el doc no trae monto (convención del módulo
                             RCV), en vez de "$0" que aparentaría un documento en cero. */}
-                        {typeof d.monto_total === "number" ? formatClp(d.monto_total) : "—"}
+                        {typeof d.monto_total === "number" ? formatClp(d.monto_total) : "s/d"}
                       </td>
                     </tr>
                   );

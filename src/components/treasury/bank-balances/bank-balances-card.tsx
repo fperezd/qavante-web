@@ -113,7 +113,7 @@ export function BankBalancesCard({ cuentas, referencia, balancePorCuenta }: Bank
                           <span className="tabular-nums">{formatSaldo(String(lc.usado), mon)}</span>{" "}
                           de{" "}
                           <span className="tabular-nums">{formatSaldo(String(lc.cupo), mon)}</span>
-                          {agotada ? " — sin margen disponible" : " — es un colchón, no plata tuya"}
+                          {agotada ? ", sin margen disponible" : ", es un colchón, no plata tuya"}
                           {venc}.
                         </p>
                       </div>

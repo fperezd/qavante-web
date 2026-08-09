@@ -37,9 +37,9 @@ describe("formatClp", () => {
   });
 
   it("no-finito (NaN/Infinity) → guion, NO $NaN/$∞", () => {
-    expect(formatClp(NaN)).toBe("—");
-    expect(formatClp(Infinity)).toBe("—");
-    expect(formatClp(-Infinity)).toBe("—");
+    expect(formatClp(NaN)).toBe("s/d");
+    expect(formatClp(Infinity)).toBe("s/d");
+    expect(formatClp(-Infinity)).toBe("s/d");
   });
 });
 
@@ -66,8 +66,8 @@ describe("formatClpCompact", () => {
   });
 
   it("no-finito → guion", () => {
-    expect(formatClpCompact(NaN)).toBe("—");
-    expect(formatClpCompact(Infinity)).toBe("—");
+    expect(formatClpCompact(NaN)).toBe("s/d");
+    expect(formatClpCompact(Infinity)).toBe("s/d");
   });
 });
 
@@ -98,7 +98,7 @@ describe("formatMoney", () => {
   });
 
   it("no-finito → guion", () => {
-    expect(formatMoney(NaN, "CLP")).toBe("—");
-    expect(formatMoney(Infinity, "USD")).toBe("—");
+    expect(formatMoney(NaN, "CLP")).toBe("s/d");
+    expect(formatMoney(Infinity, "USD")).toBe("s/d");
   });
 });

@@ -116,7 +116,7 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
     await dialog.getByLabel("Fecha final").fill(mesActual);
     await dialog.getByRole("button", { name: "Aplicar" }).click();
 
-    await expect(page.getByText(/va en curso — aún sin cerrar/i)).toBeVisible();
+    await expect(page.getByText(/va en curso, aún sin cerrar/i)).toBeVisible();
     await expect(page.getByText("El negocio perdió este mes")).toHaveCount(0);
   });
 });

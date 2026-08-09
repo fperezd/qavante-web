@@ -102,7 +102,7 @@ export function ManagementAccountEditDialog({
           <Dialog.Description className="mb-4 text-sm text-neutral-mid">
             {account ? (
               <>
-                <span className="font-mono text-xs">{account.code}</span> — cambia el nombre, la
+                <span className="font-mono text-xs">{account.code}</span>, cambia el nombre, la
                 glosa o si afecta el Pulso. El código, el tipo y la ubicación se ajustan por otras
                 acciones.
               </>

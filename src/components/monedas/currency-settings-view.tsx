@@ -49,7 +49,7 @@ function LoadingSkeleton() {
 }
 
 function findCurrencyLabel(currencies: Currency[], code: string | null | undefined): string {
-  if (!code) return "—";
+  if (!code) return "s/d";
   const c = currencies.find((x) => x.code === code);
   return c ? `${c.code} · ${c.name}` : code;
 }
@@ -214,7 +214,7 @@ export function CurrencySettingsView() {
               <dt className="text-neutral-mid">Monedas de reporte adicionales</dt>
               <dd className="flex flex-wrap gap-1 pt-1">
                 {reportingCodes.length === 0 ? (
-                  <span className="text-neutral-mid">—</span>
+                  <span className="text-neutral-mid">s/d</span>
                 ) : (
                   reportingCodes.map((code: string) => (
                     <QavanteBadge key={code} variant="info">
@@ -231,7 +231,7 @@ export function CurrencySettingsView() {
             <div>
               <dt className="text-neutral-mid">Fuente de tipo de cambio</dt>
               <dd className="font-medium text-neutral-dark">
-                {settings.default_exchange_rate_source ?? "—"}
+                {settings.default_exchange_rate_source ?? "s/d"}
               </dd>
             </div>
             <div>
@@ -249,7 +249,7 @@ export function CurrencySettingsView() {
           </h2>
           <p className="text-sm text-neutral-mid">
             Tipo de cambio diario para convertir entre tu moneda funcional y las monedas de reporte.
-            Si el SII u otra fuente aún no publicó el dato del día, lo verás como “Sin datos” —
+            Si el SII u otra fuente aún no publicó el dato del día, lo verás como “Sin datos”.
             Qavante no inventa cifras.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

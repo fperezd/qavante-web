@@ -229,14 +229,14 @@ function ConciliadosTable({ matched }: { matched: Matched }) {
             >
               <td className="py-2 pr-3 text-neutral-dark">{empleado.nombre}</td>
               <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
-                {empleado.rut ? formatRut(empleado.rut) : "—"}
+                {empleado.rut ? formatRut(empleado.rut) : "s/d"}
               </td>
               <td className="py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark">
-                {empleado.liquido !== null ? formatClp(empleado.liquido) : "—"}
+                {empleado.liquido !== null ? formatClp(empleado.liquido) : "s/d"}
               </td>
               <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(movimiento.date)}</td>
               <td className="py-2 truncate text-xs text-neutral-mid">
-                {movimiento.description ?? "—"}
+                {movimiento.description ?? "s/d"}
               </td>
             </tr>
           ))}
@@ -287,10 +287,10 @@ function PendientesTable({ empleados }: { empleados: EmployeePayroll[] }) {
             <tr key={`${e.id}-${i}`} className="border-b border-border/60 last:border-b-0">
               <td className="py-2 pr-3 text-neutral-dark">{e.nombre}</td>
               <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
-                {e.rut ? formatRut(e.rut) : "—"}
+                {e.rut ? formatRut(e.rut) : "s/d"}
               </td>
               <td className="py-2 text-right tabular-nums text-neutral-dark">
-                {e.liquido !== null ? formatClp(e.liquido) : "—"}
+                {e.liquido !== null ? formatClp(e.liquido) : "s/d"}
               </td>
             </tr>
           ))}
@@ -340,7 +340,7 @@ function DebitosSinAsignarTable({ debitos }: { debitos: BankDebitLike[] }) {
           {rows.map((d, i) => (
             <tr key={`${d.id}-${i}`} className="border-b border-border/60 last:border-b-0">
               <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(d.date)}</td>
-              <td className="py-2 pr-3 text-neutral-dark">{d.description ?? "—"}</td>
+              <td className="py-2 pr-3 text-neutral-dark">{d.description ?? "s/d"}</td>
               <td className="py-2 text-right tabular-nums text-neutral-dark">
                 {formatClp(Math.abs(Number(d.amount) || 0))}
               </td>

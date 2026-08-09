@@ -80,7 +80,7 @@ export function ObligacionDetailView({ id }: { id: string }) {
               <Field label="Tasa anual">
                 {query.data.obligation.annual_rate
                   ? `${(Number(query.data.obligation.annual_rate) * 100).toFixed(1)}%`
-                  : "—"}
+                  : "s/d"}
               </Field>
               <Field label="Inicio">{formatDateLike(query.data.obligation.origination_date)}</Field>
             </dl>

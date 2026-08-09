@@ -319,7 +319,7 @@ function DetalleEmpleados({
             icon: <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />,
             texto: `Descuadre: detalle ${formatClp(suma)}`,
             title:
-              "La suma del detalle no coincide con el total del período — revisar antes de conciliar",
+              "La suma del detalle no coincide con el total del período, revisar antes de conciliar",
           };
 
   return (
@@ -405,20 +405,20 @@ function DetalleEmpleados({
               >
                 <td className="py-2 pr-3 text-neutral-dark">{e.nombre}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
-                  {e.rut ? formatRut(e.rut) : "—"}
+                  {e.rut ? formatRut(e.rut) : "s/d"}
                 </td>
                 {conHaberes && (
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-                    {e.haberes !== null ? formatClp(e.haberes) : "—"}
+                    {e.haberes !== null ? formatClp(e.haberes) : "s/d"}
                   </td>
                 )}
                 {conCosto && (
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-                    {e.costoEmpresa !== null ? formatClp(e.costoEmpresa) : "—"}
+                    {e.costoEmpresa !== null ? formatClp(e.costoEmpresa) : "s/d"}
                   </td>
                 )}
                 <td className="py-2 text-right tabular-nums font-medium text-neutral-dark">
-                  {e.liquido !== null ? formatClp(e.liquido) : "—"}
+                  {e.liquido !== null ? formatClp(e.liquido) : "s/d"}
                 </td>
               </tr>
             ))}

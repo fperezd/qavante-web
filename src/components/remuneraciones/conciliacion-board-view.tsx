@@ -161,7 +161,7 @@ export function ConciliacionBoardView({
                           >
                             <span className="min-w-0">
                               <span className="block truncate text-neutral-dark">
-                                {c.glosa || "—"}
+                                {c.glosa || "s/d"}
                               </span>
                               <span className="block text-[11px] text-neutral-mid">
                                 {formatDateLike(c.date)}
@@ -211,7 +211,7 @@ export function ConciliacionBoardView({
                                 {w.workerName}
                               </span>
                               <span className="block font-mono text-[11px] text-neutral-mid">
-                                {w.workerRut ? formatRut(w.workerRut) : "—"}
+                                {w.workerRut ? formatRut(w.workerRut) : "s/d"}
                               </span>
                             </span>
                           </span>
@@ -242,7 +242,7 @@ export function ConciliacionBoardView({
               <div className="rounded-lg border border-brand-primary/40 bg-brand-primary-50/60 p-3 text-sm">
                 <p className="text-neutral-dark">
                   Asignar <b className="tabular-nums">{formatClp(debito?.monto ?? 0)}</b> del débito
-                  «{debito?.glosa || "—"}» a{" "}
+                  «{debito?.glosa || "s/d"}» a{" "}
                   <b>
                     {nombresSel.length === 1 ? nombresSel[0] : `${nombresSel.length} trabajadores`}
                   </b>
@@ -298,7 +298,7 @@ export function ConciliacionBoardView({
                           {formatClp(l.amount)}
                         </td>
                         <td className="max-w-[220px] truncate py-2 pr-3 text-xs text-neutral-mid">
-                          {l.glosa || "—"}
+                          {l.glosa || "s/d"}
                         </td>
                         <td className="py-2 text-right">
                           <QavanteButton

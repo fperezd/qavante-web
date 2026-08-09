@@ -65,7 +65,7 @@ export interface EmisorShare {
 }
 
 /** Top profesionales por líquido pagado (excluye anuladas). Clave por RUT; sin
- *  RUT, por nombre — para no fundir profesionales distintos en un bucket "—". */
+ *  RUT, por nombre — para no fundir profesionales distintos en un bucket "s/d". */
 export function concentrationByEmisor(items: BheRecibida[], topN = 5): EmisorShare[] {
   const map = new Map<string, { rut: string; name: string; liquido: number }>();
   let grand = 0;
@@ -75,7 +75,7 @@ export function concentrationByEmisor(items: BheRecibida[], topN = 5): EmisorSha
     const l = num(b.monto_liquido);
     grand += l;
     const cur = map.get(key) ?? {
-      rut: b.rut_emisor ?? "—",
+      rut: b.rut_emisor ?? "s/d",
       name: b.nombre_emisor ?? "Sin nombre",
       liquido: 0,
     };

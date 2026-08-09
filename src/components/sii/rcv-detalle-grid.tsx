@@ -60,7 +60,7 @@ export function RcvDetalleGrid({
         header: "Folio",
         accessorFn: (d) => d.folio ?? "",
         cell: ({ row }) => (
-          <span className="font-mono text-xs text-neutral-dark">{row.original.folio ?? "—"}</span>
+          <span className="font-mono text-xs text-neutral-dark">{row.original.folio ?? "s/d"}</span>
         ),
       },
       {
@@ -97,7 +97,7 @@ export function RcvDetalleGrid({
         enableColumnFilter: false,
         meta: { align: "right" },
         cell: ({ row }) =>
-          typeof row.original.monto_neto === "number" ? formatClp(row.original.monto_neto) : "—",
+          typeof row.original.monto_neto === "number" ? formatClp(row.original.monto_neto) : "s/d",
       },
       {
         id: "iva",
@@ -110,7 +110,7 @@ export function RcvDetalleGrid({
           typeof row.original.monto_iva === "number" ? (
             <span className="text-neutral-mid">{formatClp(row.original.monto_iva)}</span>
           ) : (
-            "—"
+            "s/d"
           ),
       },
       {
@@ -124,7 +124,7 @@ export function RcvDetalleGrid({
           typeof row.original.monto_total === "number" ? (
             <span className="font-medium">{formatClp(row.original.monto_total)}</span>
           ) : (
-            "—"
+            "s/d"
           ),
       },
       ...(dteKind !== undefined

@@ -123,7 +123,7 @@ export function PreviredCredentialCard() {
                 />
                 {rutInvalido && (
                   <p id="previred-rut-error" className="text-xs text-danger-500">
-                    RUT inválido — revisa el dígito verificador.
+                    RUT inválido, revisa el dígito verificador.
                   </p>
                 )}
               </div>

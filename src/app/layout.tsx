@@ -14,7 +14,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "Qavante — Avanzar con inteligencia financiera",
+  title: "Qavante: Avanzar con inteligencia financiera",
   description: "Plataforma de gestión financiera para PYMEs chilenas",
 };
 

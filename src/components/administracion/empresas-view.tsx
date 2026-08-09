@@ -171,7 +171,7 @@ export function EmpresasView() {
           header={<span className="font-medium">Agregar empresa</span>}
         >
           <p className="mb-3 text-sm text-neutral-mid">
-            Agrega otra empresa a tu cuenta. Según tu plan puede afectar lo que facturas — revisa
+            Agrega otra empresa a tu cuenta. Según tu plan puede afectar lo que facturas, revisa
             las condiciones antes de agregar.
           </p>
           <CreateCompanyForm

@@ -213,7 +213,7 @@ export function RulesListView() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <p className="text-sm text-neutral-mid">
           Las reglas se evalúan en orden de prioridad (de menor a mayor). Las desactivadas no
-          afectan la clasificación pero las puedes reactivar cuando quieras — Qavante nunca borra
+          afectan la clasificación pero las puedes reactivar cuando quieras, Qavante nunca borra
           reglas.
         </p>
         <QavanteButton onClick={openCreate}>

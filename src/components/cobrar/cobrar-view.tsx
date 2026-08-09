@@ -382,9 +382,9 @@ export function DebtorInvoicesPanel({
             <tbody>
               {ordered.map((doc, i) => (
                 <tr key={`${doc.folio}-${i}`} className="border-b border-border/50 last:border-b-0">
-                  <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">{doc.folio ?? "—"}</td>
+                  <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">{doc.folio ?? "s/d"}</td>
                   <td className="py-1.5 pr-3 text-neutral-mid">
-                    {doc.fecha ? formatDateLike(doc.fecha) : "—"}
+                    {doc.fecha ? formatDateLike(doc.fecha) : "s/d"}
                   </td>
                   <td className="py-1.5 text-right tabular-nums text-neutral-dark">
                     {formatClp(Number(doc.monto_total) || 0)}

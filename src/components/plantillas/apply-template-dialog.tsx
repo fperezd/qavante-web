@@ -95,8 +95,8 @@ export function ApplyTemplateDialog({
             </Dialog.Close>
           </div>
           <Dialog.Description className="mb-4 text-sm text-neutral-mid">
-            Qavante va a <strong>agregar</strong> lo que falte. Nunca borra ni pisa lo que ya tienes
-            — si algo existe igual, se queda como está.
+            Qavante va a <strong>agregar</strong> lo que falte. Nunca borra ni pisa lo que ya tienes;
+            si algo existe igual, se queda como está.
           </Dialog.Description>
 
           {nothingToDo ? (
@@ -134,7 +134,7 @@ export function ApplyTemplateDialog({
                 {(summary.accounts_existing > 0 || summary.dimensions_existing > 0) && (
                   <p className="pt-1 text-xs text-neutral-mid">
                     {summary.accounts_existing} cuentas y {summary.dimensions_existing} vistas ya
-                    existen — se respetan sin cambios.
+                    existen, se respetan sin cambios.
                   </p>
                 )}
               </dl>

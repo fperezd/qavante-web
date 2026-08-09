@@ -67,7 +67,7 @@ export function SiiPersonCredentialCard({ persons }: Props) {
           <div className="space-y-3">
             <p className="text-sm text-neutral-mid">
               Con esta clave (la de la persona autorizada en el SII) Qavante puede descargar tus DTE
-              — las facturas emitidas y recibidas — como PDF. Si el DTE deja de verse, reingresa la
+              (las facturas emitidas y recibidas) como PDF. Si el DTE deja de verse, reingresa la
               clave acá: la sesión del SII pudo caducar. La clave se encripta antes de guardarse.
             </p>
             <div className="flex justify-end pt-1">

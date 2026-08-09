@@ -40,9 +40,9 @@ describe("formatDateLike — convención mes-año / DD-MM-AAAA (string in, strin
   });
 
   it("null / undefined / vacío → guion", () => {
-    expect(formatDateLike(null)).toBe("—");
-    expect(formatDateLike(undefined)).toBe("—");
-    expect(formatDateLike("")).toBe("—");
+    expect(formatDateLike(null)).toBe("s/d");
+    expect(formatDateLike(undefined)).toBe("s/d");
+    expect(formatDateLike("")).toBe("s/d");
   });
 });
 
@@ -54,8 +54,8 @@ describe("formatDateTimeLike", () => {
   });
 
   it("null / inválido → guion / as-is", () => {
-    expect(formatDateTimeLike(null)).toBe("—");
-    expect(formatDateTimeLike("")).toBe("—");
+    expect(formatDateTimeLike(null)).toBe("s/d");
+    expect(formatDateTimeLike("")).toBe("s/d");
     expect(formatDateTimeLike("no-es-fecha")).toBe("no-es-fecha");
   });
 });

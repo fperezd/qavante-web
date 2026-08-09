@@ -344,13 +344,13 @@ function ContraparteRow({
           {cp.vencido > 0 ? (
             <span className="font-semibold text-danger-500">{formatClp(cp.vencido)}</span>
           ) : (
-            <span className="text-neutral-mid">—</span>
+            <span className="text-neutral-mid">s/d</span>
           )}
         </td>
         <td className="py-2 text-right tabular-nums text-neutral-mid">
           {cp.proximoVencimiento
             ? formatDateLike(cp.proximoVencimiento.toISOString().slice(0, 10))
-            : "—"}
+            : "s/d"}
         </td>
       </tr>
       {isOpen && (
@@ -402,9 +402,9 @@ function DocDetail({
                 <td className="py-1 pr-3 tabular-nums text-neutral-dark">
                   <span className="inline-flex items-center gap-1.5">
                     {d.esNotaCredito && d.refFolio != null ? (
-                      <span className="text-neutral-mid">↳ {d.folio ?? "—"}</span>
+                      <span className="text-neutral-mid">↳ {d.folio ?? "s/d"}</span>
                     ) : (
-                      (d.folio ?? "—")
+                      (d.folio ?? "s/d")
                     )}
                     {d.reclamado && <ReclamadaBadge />}
                   </span>
@@ -423,10 +423,10 @@ function DocDetail({
                   </span>
                 </td>
                 <td className="py-1 pr-3 text-neutral-mid">
-                  {d.fechaEmision ? formatDateLike(d.fecha) : d.fecha || "—"}
+                  {d.fechaEmision ? formatDateLike(d.fecha) : d.fecha || "s/d"}
                 </td>
                 <td className="py-1 pr-3 text-neutral-mid">
-                  {d.vencimiento ? formatDateLike(d.vencimiento.toISOString().slice(0, 10)) : "—"}
+                  {d.vencimiento ? formatDateLike(d.vencimiento.toISOString().slice(0, 10)) : "s/d"}
                 </td>
                 <td className="py-1 pr-3">
                   {d.pagado ? (

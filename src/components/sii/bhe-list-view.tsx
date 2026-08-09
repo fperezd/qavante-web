@@ -244,7 +244,7 @@ export function BheListView({
                     </td>
                     <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className={cn(b.anulada && "line-through")}>{b.folio ?? "—"}</span>
+                        <span className={cn(b.anulada && "line-through")}>{b.folio ?? "s/d"}</span>
                         {b.anulada && <QavanteBadge variant="danger">Anulada</QavanteBadge>}
                       </span>
                     </td>
@@ -254,7 +254,7 @@ export function BheListView({
                         b.anulada && "line-through",
                       )}
                     >
-                      {typeof b.monto_bruto === "number" ? formatClp(b.monto_bruto) : "—"}
+                      {typeof b.monto_bruto === "number" ? formatClp(b.monto_bruto) : "s/d"}
                     </td>
                     <td
                       className={cn(
@@ -262,7 +262,7 @@ export function BheListView({
                         b.anulada && "line-through",
                       )}
                     >
-                      {typeof b.retencion === "number" ? formatClp(b.retencion) : "—"}
+                      {typeof b.retencion === "number" ? formatClp(b.retencion) : "s/d"}
                     </td>
                     <td
                       className={cn(
@@ -270,7 +270,7 @@ export function BheListView({
                         b.anulada && "font-normal line-through",
                       )}
                     >
-                      {typeof b.monto_liquido === "number" ? formatClp(b.monto_liquido) : "—"}
+                      {typeof b.monto_liquido === "number" ? formatClp(b.monto_liquido) : "s/d"}
                     </td>
                     <td className="py-2 text-right">
                       <DteActions
@@ -299,7 +299,7 @@ export function BheListView({
                 {anuladasCount === 1 ? " suma" : " suman"} al líquido ni a la retención.
               </>
             )}{" "}
-            Datos descargados del SII en vivo — las sumas son referenciales y se calculan sobre las
+            Datos descargados del SII en vivo, las sumas son referenciales y se calculan sobre las
             boletas vigentes mostradas.
           </p>
         </QavanteCard>

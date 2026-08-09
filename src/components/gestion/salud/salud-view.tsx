@@ -690,7 +690,7 @@ export function SaludView({ model, className }: SaludViewProps) {
       {/* Confianza */}
       <QavanteCard className="p-6">
         <SectionHead
-          eyebrow={`Confianza del dato — ${model.confidence.score} / 100`}
+          eyebrow={`Confianza del dato: ${model.confidence.score} / 100`}
           question="¿Qué tan confiable es este diagnóstico?"
         />
         <div className="mt-4 grid grid-cols-2 gap-3.5 lg:grid-cols-5">

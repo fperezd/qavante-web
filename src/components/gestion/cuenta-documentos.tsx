@@ -209,7 +209,7 @@ export function CuentaDocumentos({
                   {d.document_ref && (
                     <span className="tabular-nums text-neutral-mid">{d.document_ref} · </span>
                   )}
-                  {d.counterparty ?? "—"}
+                  {d.counterparty ?? "s/d"}
                 </span>
                 {(() => {
                   // Firmado relativo a la cuenta: reverso (NC) en negativo y atenuado (resta, no gasta).

@@ -33,7 +33,7 @@ const LABEL: Record<string, string> = {
 
 /** ISO UTC → "DD-MM-AAAA HH:MM:SS" (convención Qavante: día-mes-año). */
 function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "s/d";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const p = (n: number) => String(n).padStart(2, "0");

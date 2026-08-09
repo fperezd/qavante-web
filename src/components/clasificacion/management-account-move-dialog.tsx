@@ -116,7 +116,7 @@ export function ManagementAccountMoveDialog({
                 {targets.map((t) => (
                   <option key={t.id} value={t.id}>
                     {" ".repeat(t.level * 2)}
-                    {t.code} — {t.name}
+                    {t.code} · {t.name}
                   </option>
                 ))}
               </select>

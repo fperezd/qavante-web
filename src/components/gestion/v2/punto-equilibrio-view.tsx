@@ -55,7 +55,7 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
           <p className="text-[11px] text-neutral-light">
             Tomamos lo que gastaste el <b>último mes cerrado ({formatPeriodLabel(pe.mes)})</b>, que
             está completo; el mes en curso no se usa porque puede estar a medio clasificar. Lo que
-            gastaste pero aún no clasificaste igual cuenta (aparece como “Compras sin clasificar” —
+            gastaste pero aún no clasificaste igual cuenta (aparece como “Compras sin clasificar”,
             clic para ver qué hay dentro). El IVA no cuenta (es un pasa-manos).
           </p>
         </>
@@ -97,8 +97,8 @@ function Hero({ pe }: { pe: PuntoEquilibrio }) {
             />
             {ingresos > 0
               ? arriba
-                ? `En ${mesLabel} gastaste ${formatClp(Math.round(piso))} y vendiste ${formatClp(ingresos)} — ${formatClp(gap)} sobre tu piso.`
-                : `En ${mesLabel} gastaste ${formatClp(Math.round(piso))} y vendiste ${formatClp(ingresos)} — ${formatClp(Math.abs(gap))} bajo tu piso.`
+                ? `En ${mesLabel} gastaste ${formatClp(Math.round(piso))} y vendiste ${formatClp(ingresos)}, ${formatClp(gap)} sobre tu piso.`
+                : `En ${mesLabel} gastaste ${formatClp(Math.round(piso))} y vendiste ${formatClp(ingresos)}, ${formatClp(Math.abs(gap))} bajo tu piso.`
               : `Es lo que gastaste en costos recurrentes en ${mesLabel}.`}
           </p>
         </div>
