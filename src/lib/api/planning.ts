@@ -3,7 +3,7 @@
      GET /api/planning/budget-vs-actual?period=YYYY-MM   → por línea de P&L (ingresos/costo/gastos/resultado)
      GET /api/planning/budget-by-account?period=YYYY-MM   → drill-down por cuenta de gestión
    Solo LECTURA: el presupuesto se carga como financial-impacts (layer budget); no hay UI de carga aún. */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -34,4 +34,35 @@ export function budgetVsActualQueryOptions(period: string, enabled = true) {
  *  `has_budget=false` si no hay presupuesto cargado del período (el contenedor muestra estado honesto). */
 export function useBudgetVsActual(period: string, enabled = true) {
   return useQuery(budgetVsActualQueryOptions(period, enabled));
+}
+
+/* `POST /api/planning/budget/propose` (ADR-0091 F1a, CC-API #870) — PROPONE el presupuesto del año desde
+   el histórico real (tendencia + estacionalidad + recurrentes + meta simple del dueño). No se llena a mano.
+   Tipos inline: el endpoint aún no está en el OpenAPI generado (correr `generate:api` cuando se publique).
+   Ver el contrato en qavante-web#883. */
+export interface ProposeBudgetRequest {
+  fiscal_year: number;
+  /** {categoria: pct} — ej. `{ revenue: 0.08 }` para +8% ventas. Opcional (sin meta = plan neutro). */
+  meta?: Record<string, number>;
+  recurring?: unknown[];
+}
+export interface ProposeBudgetResponse {
+  version_id: string;
+  fiscal_year: number;
+  result_year: string;
+  history_months: number;
+  impacts_written: number;
+}
+
+/** Propone (o re-propone) el presupuesto del año. Al terminar invalida planning → `budget-vs-actual`
+ *  refetchea y pasa a `has_budget=true`. Es una acción explícita del dueño (botón), no automática. */
+export function useProposeBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ProposeBudgetRequest) =>
+      api.post<ProposeBudgetResponse>("/api/planning/budget/propose", { body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: planningKeys.all });
+    },
+  });
 }

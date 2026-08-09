@@ -8,6 +8,7 @@ import { QavanteCard } from "@/components/qavante";
 import {
   useBudgetVsActual,
   budgetVsActualQueryOptions,
+  useProposeBudget,
   type BudgetVsActualResponse,
 } from "@/lib/api/planning";
 import { currentPeriodSantiago, shiftPeriod } from "@/components/gestion/gestion-format";
@@ -40,6 +41,8 @@ export function PlanRealLive() {
   const anioQueries = useQueries({
     queries: periodos.mesesAnio.map((p) => budgetVsActualQueryOptions(p, modo === "anio")),
   });
+  // Presupuesto propositivo (ADR-0091): el dueño lo genera desde el histórico con un botón (no lo llena).
+  const propose = useProposeBudget();
 
   const loading = modo === "mes" ? mesQuery.isLoading : anioQueries.some((q) => q.isLoading);
 
@@ -55,9 +58,6 @@ export function PlanRealLive() {
   if (data && data.tieneBudget && !loading) {
     return <PlanRealWidget data={data} modo={modo} onModoChange={setModo} />;
   }
-
-  const periodoLabel =
-    modo === "mes" ? mesCorto(periodos.ultimoCerrado) : `${periodos.year} a la fecha`;
 
   return (
     <QavanteCard
@@ -89,13 +89,27 @@ export function PlanRealLive() {
         <div className="h-24 animate-pulse rounded-lg bg-neutral-light/30" aria-busy="true" />
       ) : (
         <>
-          <p className="py-3 text-sm capitalize text-neutral-mid">
-            Aún no hay un presupuesto cargado para {periodoLabel}. Cuando cargues tu plan, acá lo
-            comparás contra lo real.
+          <p className="py-3 text-sm text-neutral-mid">
+            Todavía no tenés un presupuesto para {periodos.year}. Qavante te lo{" "}
+            <strong className="font-semibold text-neutral-strong">propone desde tu histórico</strong>{" "}
+            (no lo llenás a mano) y después lo ajustás.
           </p>
+          <button
+            type="button"
+            onClick={() => propose.mutate({ fiscal_year: Number(periodos.year) })}
+            disabled={propose.isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-primary/90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
+          >
+            {propose.isPending ? "Proponiendo…" : "Proponer presupuesto"}
+          </button>
+          {propose.isError && (
+            <p className="mt-2 text-xs text-danger-500">
+              No pudimos proponer el presupuesto ahora. Reintentá en un momento.
+            </p>
+          )}
           <Link
             href="/gestion"
-            className="inline-flex items-center gap-1 text-sm font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
           >
             Ver gestión
             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
