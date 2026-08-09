@@ -157,7 +157,7 @@ function titular(m: DiasCaja, ref: number): { headline: string; detalle: string 
 
   if (m.estado === "critico") {
     if (m.saldoHoy < 0) return { headline: "Tu caja está en rojo hoy", detalle };
-    return { headline: `Entrás en rojo en ${dLabel(m.diasHastaCero ?? 0)}`, detalle };
+    return { headline: `Entras en rojo en ${dLabel(m.diasHastaCero ?? 0)}`, detalle };
   }
   if (m.estado === "ajustado")
     return { headline: `Te alcanza ${dLabel(m.diasHastaMinimo ?? 0)}`, detalle };

@@ -29,10 +29,10 @@ export function CicloCajaWidget({ data, href = "/gestion", cta = "Ver gestión" 
     frase = "Cuando tengamos cobros y pagos con fecha, calculamos cuántos días queda tu plata atrapada.";
     tono = "neutral";
   } else if (ccc > 0) {
-    frase = `Tu plata queda ~${ccc} días atrapada entre que pagas y cobras: financiás ese tramo vos.`;
+    frase = `Tu plata queda ~${ccc} días atrapada entre que pagas y cobras: financias ese tramo tú.`;
     tono = "neg";
   } else if (ccc < 0) {
-    frase = `Cobras antes de pagar: tenés ~${Math.abs(ccc)} días de aire (tus proveedores te financian).`;
+    frase = `Cobras antes de pagar: tienes ~${Math.abs(ccc)} días de aire (tus proveedores te financian).`;
     tono = "pos";
   } else {
     frase = "Cobras y pagas casi al mismo ritmo.";

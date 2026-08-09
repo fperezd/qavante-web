@@ -568,7 +568,7 @@ function NoConfiable() {
       <p className="font-bold text-warning-700">No podemos comparar con confianza</p>
       <p className="mt-1 text-neutral-dark">
         El resultado del mes da un margen imposible (≥100%), típicamente un gasto revertido o mal
-        clasificado. Está escalado; mirá el detalle en <b>Resultado</b>.
+        clasificado. Está escalado; mira el detalle en <b>Resultado</b>.
       </p>
     </section>
   );
