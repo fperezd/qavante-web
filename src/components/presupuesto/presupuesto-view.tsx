@@ -15,12 +15,13 @@ import { mesCorto } from "@/components/gestion/v2/gestion-v2-map";
 import { formatClp } from "@/lib/formatters/clp";
 import { cn } from "@/lib/utils";
 import { mapPlanReal, agregarPlanReal, type PlanReal } from "@/components/inicio/v2/plan-real-model";
-import { heroPresupuesto, type Semaforo } from "./presupuesto-model";
+import { heroPresupuesto, desviosPresupuesto, type Semaforo, type DesvioLinea } from "./presupuesto-model";
 
 /* Pantalla PRESUPUESTO (ADR-0091, Fase 1a). "El presupuesto no se llena: se PROPONE desde tu historial;
-   tú lo ajustas con un gesto y Qavante te avisa antes de pasarte." Una sola pantalla: cómo vas → (qué se
-   desvía / cierre de año, que son Fase 1b del backend, van honestos "en preparación"). Consume
-   budget-vs-actual (mensual/anual) + budget/propose. Container: la lógica pura vive en `presupuesto-model`. */
+   tú lo ajustas con un gesto y Qavante te avisa antes de pasarte." Una sola pantalla: cómo vas → qué se
+   desvía (por CONCEPTO: ventas/costos/gastos, dato real de budget-vs-actual) → cierre de año (Fase 1b del
+   backend, honesto "muy pronto"). El desglose por CUENTA (marketing/sueldos) espera presupuesto a nivel de
+   cuenta. Consume budget-vs-actual (mensual/anual) + budget/propose. La lógica pura vive en `presupuesto-model`. */
 
 const SEMAFORO: Record<Semaforo, { pill: string; texto: string }> = {
   good: { pill: "bg-success-700/10 text-success-700", texto: "text-success-700" },
@@ -121,7 +122,7 @@ export function PresupuestoView() {
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-primary/20 bg-brand-primary/5 px-4 py-2.5 text-sm text-brand-primary">
             <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>
-              Lo armó Qavante desde tu <b className="font-semibold">historial real</b>. Ajustalo con un
+              Lo armó Qavante desde tu <b className="font-semibold">historial real</b>. Ajústalo con un
               gesto:
             </span>
             <div className="ml-auto flex flex-wrap gap-1.5">
@@ -147,13 +148,9 @@ export function PresupuestoView() {
           {/* HERO ¿cómo vas? */}
           {hero && <Hero hero={hero} periodoLabel={periodoLabel} modo={modo} />}
 
-          {/* Lo que se desvía (Fase 1b: presupuesto por categoría, pendiente CC-API) */}
-          <QavanteCard variant="bordered" header={<span className="font-medium">Lo que se desvía</span>}>
-            <p className="py-2 text-sm text-neutral-mid">
-              Muy pronto: el desglose por categoría (marketing, sueldos, software) con la desviación de
-              cada una y qué hacer. Estamos habilitando el presupuesto a nivel de cuenta.
-            </p>
-          </QavanteCard>
+          {/* Lo que se desvía: desglose por CONCEPTO (ventas/costos/gastos) con su desvío real. El
+              desglose por CUENTA (marketing, sueldos, software) espera el presupuesto a nivel de cuenta. */}
+          <Desvios desvios={desviosPresupuesto(data)} />
 
           {/* Proyección de cierre (Fase 1b) */}
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
@@ -263,6 +260,66 @@ function Hero({
           ))}
         </div>
       </div>
+    </QavanteCard>
+  );
+}
+
+/** "Lo que se desvía": una fila por concepto (Ingresos / Costo directo / Gastos), con cuánto y hacia
+ *  dónde se fue el desvío, ordenadas peor-primero. Datos reales de budget-vs-actual (no placeholder). */
+function Desvios({ desvios }: { desvios: DesvioLinea[] }) {
+  return (
+    <QavanteCard variant="bordered" header={<span className="font-medium">Lo que se desvía</span>}>
+      {desvios.length === 0 ? (
+        <p className="py-2 text-sm text-neutral-mid">
+          Vas clavado al plan: ninguna línea se desvía todavía.
+        </p>
+      ) : (
+        <ul className="divide-y divide-border/60">
+          {desvios.map((d) => {
+            const esIngreso = d.concepto === "revenue";
+            const verbo = esIngreso ? "Vendiste" : "Gastaste";
+            const palabra = esIngreso
+              ? d.favorable
+                ? "más"
+                : "menos"
+              : d.favorable
+                ? "menos"
+                : "más";
+            return (
+              <li key={d.concepto} className="flex items-start justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-neutral-dark">{d.label}</p>
+                  <p className="mt-0.5 text-xs text-neutral-mid">
+                    {verbo}{" "}
+                    <b className="tabular-nums text-neutral-dark">
+                      {formatClp(Math.abs(d.variacion))}
+                    </b>{" "}
+                    {palabra} de lo presupuestado.{" "}
+                    <span className="text-neutral-mid/80">
+                      Plan {formatClp(Math.abs(d.plan))} · Real {formatClp(Math.abs(d.real))}
+                    </span>
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-2.5 py-1 text-xs font-bold tabular-nums",
+                    d.favorable
+                      ? "bg-success-700/10 text-success-700"
+                      : "bg-danger-500/10 text-danger-500",
+                  )}
+                >
+                  {d.favorable ? "a favor" : "en contra"}
+                  {d.variacionPct != null ? ` · ${Math.abs(d.variacionPct)}%` : ""}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="pt-3 text-xs text-neutral-mid">
+        El desglose por cuenta (marketing, sueldos, software) llega cuando habilitemos el presupuesto a
+        nivel de cuenta.
+      </p>
     </QavanteCard>
   );
 }
