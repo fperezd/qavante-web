@@ -178,7 +178,10 @@ function CajaV2Contenido({
         <CajaHero
           titulo="La empresa tiene en caja"
           saldo={saldoHoy}
-          // Caja v3: el medidor de días de caja ya cuenta el runway/estado abajo → no repetirlo acá.
+          // Días de caja como NÚMERO junto al saldo (reemplaza el gauge, pedido de Fernando 2026-08-09).
+          diasCaja={dias}
+          diasTono={tono}
+          // Caja v3: el estado de riesgo se cuenta abajo → no repetimos la línea de runway acá.
           runway={
             cajaV3
               ? undefined

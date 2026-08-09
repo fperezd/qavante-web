@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
-import { diasParaAguja, type DiasCaja, type EstadoCaja } from "./caja-dias-model";
+import { type DiasCaja, type EstadoCaja } from "./caja-dias-model";
 
 /* CajaMedidor — el "medidor de días de caja" del Caja v3: responde "¿me alcanza?" en DÍAS, no en
    pesos sobre un eje. Un gauge tipo velocímetro (zonas rojo/ámbar/verde + aguja) con el número al
@@ -180,27 +180,15 @@ export interface CajaMedidorProps {
 export function CajaMedidor({
   model,
   minimo,
-  max = 60,
   ocultarSaldoHoy = false,
   className,
 }: CajaMedidorProps) {
   const ref = minimo ?? 0;
-  const aguja = diasParaAguja(model, max);
-  const centro =
-    model.saldoHoy < 0
-      ? "0"
-      : model.diasHastaMinimo == null
-        ? `${Math.round(model.horizonteDias)}+`
-        : String(Math.round(model.diasHastaMinimo));
   const { headline, detalle } = titular(model, ref);
   const tone = TONE[model.estado];
 
   return (
-    <section
-      className={cn("grid items-center gap-5 sm:grid-cols-[220px_1fr]", className)}
-      aria-label="Medidor de días de caja"
-    >
-      <CajaMedidorGauge dias={aguja} max={max} tono={model.estado} centro={centro} />
+    <section className={cn("min-w-0", className)} aria-label="Estado de la caja proyectada">
       <div className="min-w-0">
         <span
           className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold"

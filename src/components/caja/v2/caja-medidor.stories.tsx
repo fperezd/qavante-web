@@ -44,7 +44,6 @@ export const Ajustada: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByText("Caja ajustada")).toBeInTheDocument();
-    await expect(c.getByText("días de caja")).toBeInTheDocument();
     await expect(c.getByText(/Te alcanza/)).toBeInTheDocument();
   },
 };
