@@ -384,10 +384,10 @@ describe("cicloCajaExtra (Fase 2 · cash-cycle)", () => {
     expect(cicloCajaExtra(undefined)).toBeNull();
     expect(cicloCajaExtra({ dso_days: null } as unknown as CashCycleResponse)).toBeNull();
   });
-  it("DPO nulo → '—'", () => {
+  it("DPO nulo → 's/d'", () => {
     expect(
       cicloCajaExtra({ dso_days: 42, dpo_days: null } as unknown as CashCycleResponse)!.valor,
-    ).toBe("42d / —");
+    ).toBe("42d / s/d");
   });
 });
 

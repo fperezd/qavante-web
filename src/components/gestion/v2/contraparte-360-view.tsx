@@ -565,7 +565,7 @@ function DiasDePago({ config }: { config: Config360 }) {
   const verbo = config.kind === "ventas" ? "en cobrar" : "en pagar";
   return (
     <section className="rounded-xl border border-warning-500/30 bg-warning-500/[.05] p-4 text-[13px]">
-      <p className="font-semibold text-neutral-dark">Días promedio {verbo} (en preparación)</p>
+      <p className="font-semibold text-neutral-dark">Días promedio {verbo}: en preparación</p>
       <p className="mt-0.5 text-neutral-mid">
         El comportamiento de pago real (cuánto tarda de verdad, no el plazo pactado) necesita cruzar
         cada factura con su pago en el banco. Ese motor lo está construyendo el backend; en cuanto
