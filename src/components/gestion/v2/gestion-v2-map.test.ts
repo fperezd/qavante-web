@@ -151,7 +151,9 @@ describe("mapHero", () => {
     const h = mapHero(RESP);
     expect(h.titulo).toBe("El negocio ganó este mes");
     expect(h.resultado).toBe(4_500_000);
-    expect(h.respuesta).toMatch(/12,5% mejor/);
+    // Lidera con el MONTO (no el %, que explota en bases chicas). RESP: amount 500000.
+    expect(h.respuesta).toMatch(/\$500\.000 mejor/);
+    expect(h.respuesta).not.toMatch(/%/);
     expect(h.respuestaTono).toBe("ok");
   });
   it("perdió → título y número negativo", () => {
@@ -183,10 +185,15 @@ describe("mapHero", () => {
 });
 
 describe("mapComparativos", () => {
-  it("mapea los que existen", () => {
+  it("mes a mes en MONTO (el % explota en base chica), año a año en %", () => {
     const c = mapComparativos(RESP);
     expect(c).toHaveLength(2);
-    expect(c[0]).toEqual({ label: "vs. mes anterior", pct: 12.5 });
+    // vs mes anterior → monto con signo, NO %.
+    expect(c[0]).toEqual({ label: "vs. mes anterior", texto: "+$500.000", positivo: true });
+    // vs mismo mes año anterior → % (base estable, señal de tendencia).
+    expect(c[1]!.label).toBe("vs. mismo mes año anterior");
+    expect(c[1]!.texto).toContain("%");
+    expect(c[1]!.positivo).toBe(true);
   });
   it("degrada si falta uno", () => {
     const c = mapComparativos({

@@ -14,7 +14,8 @@ import type {
   OperationalResultBreakdown,
   BreakdownRow,
 } from "@/lib/api/gestion";
-import { parseAmount } from "../gestion-format";
+import { parseAmount, formatSignedPct } from "../gestion-format";
+import { formatClp } from "@/lib/formatters/clp";
 import type { CascadaEntrada } from "./cascada-model";
 import type { DriverItem } from "./drivers-resultado";
 import type { TendenciaPunto } from "./tendencia-resultado";
@@ -88,37 +89,51 @@ export function mapHero(resp: OperationalResultResponse): HeroData {
   };
 }
 
-/** Frase de la variación vs. mes anterior ("12,5% mejor que el mes pasado"). */
+/** `+$1.234.567` / `−$1.234.567` — el monto con signo explícito, para la comparación mes a mes. */
+function montoConSigno(v: number): string {
+  return `${v >= 0 ? "+" : "−"}${formatClp(Math.abs(v))}`;
+}
+
+/** Frase de la variación vs. mes anterior. Lidera con el MONTO, no con el %: un % sobre un mes base
+ *  chico explota ("+442%") y engaña; el peso ("$13,7M mejor que el mes pasado") siempre es honesto. */
 function fraseVariacion(
   v: OperationalResultVariation | null,
   gano: boolean,
 ): { texto: string; tono: ResultadoTono } {
   if (!v) return { texto: "Primer mes con datos comparables.", tono: gano ? "ok" : "bad" };
-  const pct = parseAmount(v.pct);
-  const mejor = pct >= 0;
+  const amount = parseAmount(v.amount);
+  const mejor = amount >= 0;
   return {
-    texto: `${fmtPct(Math.abs(pct))} ${mejor ? "mejor" : "peor"} que el mes pasado`,
+    texto: `${formatClp(Math.abs(amount))} ${mejor ? "mejor" : "peor"} que el mes pasado`,
     tono: mejor ? "ok" : "bad",
   };
 }
 
 export interface Comparativo {
   label: string;
-  pct: number;
+  /** Ya formateado: monto con signo (mes a mes) o % (año contra año). */
+  texto: string;
+  positivo: boolean;
 }
 
-/** Comparativos del ritmo que EXISTEN en el contrato (vs mes anterior, vs mismo mes año
- *  anterior). El "vs promedio" no está en el contrato → se omite (degradación honesta). */
+/** Comparativos del ritmo que EXISTEN en el contrato. Honestidad de la métrica: el "vs mes anterior"
+ *  va en MONTO (el % explota sobre bases chicas), y el "vs mismo mes año anterior" va en % (base
+ *  estable, es la señal de tendencia real). El "vs promedio" no está en el contrato → se omite. */
 export function mapComparativos(resp: OperationalResultResponse): Comparativo[] {
   const out: Comparativo[] = [];
   const { vs_previous_month, vs_same_month_last_year } = resp.variation ?? {};
-  if (vs_previous_month)
-    out.push({ label: "vs. mes anterior", pct: parseAmount(vs_previous_month.pct) });
-  if (vs_same_month_last_year)
+  if (vs_previous_month) {
+    const amount = parseAmount(vs_previous_month.amount);
+    out.push({ label: "vs. mes anterior", texto: montoConSigno(amount), positivo: amount >= 0 });
+  }
+  if (vs_same_month_last_year) {
+    const pct = parseAmount(vs_same_month_last_year.pct);
     out.push({
       label: "vs. mismo mes año anterior",
-      pct: parseAmount(vs_same_month_last_year.pct),
+      texto: formatSignedPct(String(pct)),
+      positivo: pct >= 0,
     });
+  }
   return out;
 }
 
@@ -258,8 +273,4 @@ function filaResultado(rows: BreakdownRow[]): BreakdownRow | null {
   const operacRows = subtotales.filter((r) => /operac/i.test(`${r.key} ${r.label}`));
   if (operacRows.length) return operacRows[operacRows.length - 1]!;
   return subtotales[subtotales.length - 1] ?? null;
-}
-
-function fmtPct(v: number): string {
-  return `${v.toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }

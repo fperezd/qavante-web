@@ -6,7 +6,7 @@ import { Info, CalendarClock } from "lucide-react";
 import { QavanteBadge } from "@/components/qavante";
 import { useOperationalResultBreakdown, type OperationalResultResponse } from "@/lib/api/gestion";
 import { useDashboardSummary, type PulsoStatus } from "@/lib/api/dashboard";
-import { parseAmount, formatSignedPct } from "../gestion-format";
+import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { GestionV2View, type GestionMovible } from "./gestion-v2-view";
 import { GestionDashboardGrid } from "./gestion-dashboard-grid";
@@ -272,8 +272,8 @@ function Comparativos({ items }: { items: Comparativo[] }) {
           {items.map((c) => (
             <div key={c.label} className="flex items-baseline justify-between gap-3">
               <dt className="text-neutral-mid">{c.label}</dt>
-              <dd className={`font-bold ${c.pct >= 0 ? "text-success-700" : "text-danger-500"}`}>
-                {formatSignedPct(String(c.pct))}
+              <dd className={`font-bold ${c.positivo ? "text-success-700" : "text-danger-500"}`}>
+                {c.texto}
               </dd>
             </div>
           ))}
