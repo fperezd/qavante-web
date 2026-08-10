@@ -3005,11 +3005,14 @@ const gestionHandlers = [
         has_budget: true,
         data_state: "available",
         generated_at: "2026-08-01T00:00:00Z",
+        // Líneas que FOOTEAN: revenue + direct_cost + operating_expense = result (budget, actual y
+        // variance). Historia coherente: vendió más (+4M) pero los costos se lo comieron (−5M/−2M) →
+        // resultado 3M bajo plan. Consistencia verificable por el e2e de datos.
         lines: [
-          { concept: "revenue", budget: "40000000", actual: "44300000", variance: "4300000", variance_pct: "11" },
-          { concept: "direct_cost", budget: "-30000000", actual: "-31100000", variance: "-1100000", variance_pct: "-4" },
-          { concept: "operating_expense", budget: "-11300000", actual: "-11800000", variance: "-500000", variance_pct: "-4" },
-          { concept: "result", budget: "2700000", actual: "1440000", variance: "-1260000", variance_pct: "-47" },
+          { concept: "revenue", budget: "40000000", actual: "44000000", variance: "4000000", variance_pct: "10" },
+          { concept: "direct_cost", budget: "-20000000", actual: "-25000000", variance: "-5000000", variance_pct: "-25" },
+          { concept: "operating_expense", budget: "-10000000", actual: "-12000000", variance: "-2000000", variance_pct: "-20" },
+          { concept: "result", budget: "10000000", actual: "7000000", variance: "-3000000", variance_pct: "-30" },
         ],
       },
       { status: 200 },
