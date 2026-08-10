@@ -14,6 +14,7 @@
     "test:storybook": "vitest run --project storybook",
     "test:coverage": "vitest run --project unit --coverage",
     "e2e": "playwright test",
+    "e2e:real": "playwright test --config=playwright.real.config.ts",
     "smoke": "playwright test --config=playwright.smoke.config.ts",
     "generate:api": "openapi-typescript https://api.qavante.com/openapi.json -o src/lib/api/types.ts",
     "build:cloudflare": "opennextjs-cloudflare build",

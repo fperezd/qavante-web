@@ -25,7 +25,8 @@ export default defineConfig({
     {
       name: "http",
       use: {},
-      testIgnore: ["**/*.mobile.spec.ts", "**/*.flow.spec.ts"],
+      // `*.real.spec.ts` corre SOLO con playwright.real.config.ts (backend en vivo), nunca en el CI/MSW.
+      testIgnore: ["**/*.mobile.spec.ts", "**/*.flow.spec.ts", "**/*.real.spec.ts"],
     },
     {
       name: "mobile",
