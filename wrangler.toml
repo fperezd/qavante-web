@@ -151,8 +151,9 @@ NEXT_PUBLIC_FF_CAJA_DASHBOARD = "false"
 # (sin presupuesto → botón "Proponer"); backend #870 en prod.
 NEXT_PUBLIC_FF_PRESUPUESTO = "true"
 # Administración → MCP (2026-08-10): conectar la empresa a un asistente LLM + gestión de API-keys.
-# OFF hasta que Fernando lo valide (maneja credenciales de acceso a los datos). Backend #882/#888 en prod.
-NEXT_PUBLIC_FF_MCP = "false"
+# ON (encendido 2026-08-11 por Fernando). La pantalla es un config: el dueño crea/revoca la API-key a
+# mano; no expone nada por sí sola. Backend #882/#888 en prod. Apagar = "false".
+NEXT_PUBLIC_FF_MCP = "true"
 # Activada 2026-06-22: wizard de onboarding. CC-API dejó vivos en prod todos los
 # endpoints (qavante-api #344 status/complete + onboarding_completed en /me, #345
 # sync per-source, #346 opening-balance; signup/verify ya estaban). FE alineado a
