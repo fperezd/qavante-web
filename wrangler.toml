@@ -75,16 +75,16 @@ NEXT_PUBLIC_FF_BANCO_SCREEN = "true"
 # /caja/conciliacion (mismo endpoint, LIVE desde julio) y la cola quedó limpia tras el fix de match de
 # CC-API #855 (falsos positivos por monto excluidos; validado al peso 46→12). Apagar = "false".
 NEXT_PUBLIC_FF_BANCO_CONCILIACION = "true"
-# Pulso configurable por OBJETIVO (2026-08-06) — OFF hasta que CC-API honre `?objetivo=` en
-# /api/management/pulso (hoy lo ignora → devolvería el Pulso equilibrado, sin número falso). El dueño
-# elige qué prioriza (cuidar caja / cumplir pagos / crecer / equilibrado) y el backend re-pondera los
-# ejes. Con OFF el Pulso detalle queda como está (cero regresión). Encender tras el backend = "true".
-NEXT_PUBLIC_FF_PULSO_OBJETIVO = "false"
-# Comportamiento de pago en Ciclo de caja (2026-08-06) — OFF hasta validar al peso el
-# behavior_shift_days de /api/treasury/collection-projection. Complementa el DSO con el desfase real vs
-# vencimiento (agregado de cobros); primer paso hacia la temporalidad por contraparte (brecha CC-API
-# qavante-api #858). Con OFF, Ciclo de caja queda igual (cero regresión). Encender = "true".
-NEXT_PUBLIC_FF_COMPORTAMIENTO_PAGO = "false"
+# Pulso configurable por OBJETIVO (2026-08-06) — ON (encendido 2026-08-11 por Fernando). CC-API ya
+# honra `?objetivo=` en /api/management/pulso (#875) + expuso el eje de ingresos (#879), así que
+# 'crecer' ya re-pondera de verdad. El dueño elige qué prioriza (cuidar caja / cumplir pagos / crecer /
+# equilibrado) y el backend re-pondera los ejes. Apagar = "false" (sin regresión).
+NEXT_PUBLIC_FF_PULSO_OBJETIVO = "true"
+# Comportamiento de pago en Ciclo de caja (2026-08-06) — ON (encendido 2026-08-11 por Fernando).
+# Complementa el DSO con el desfase real de cobro vs vencimiento (behavior_shift_days de
+# /api/treasury/collection-projection, agregado de cobros); primer paso hacia la temporalidad por
+# contraparte (brecha CC-API qavante-api #858). Apagar = "false" (sin regresión).
+NEXT_PUBLIC_FF_COMPORTAMIENTO_PAGO = "true"
 # Personalizar el Inicio (2026-08-08) — OFF hasta validar. El dueño prende/apaga las tarjetas del
 # Inicio v2 (mover ya existe: DraggableCard). Fundación del norte "la mañana del dueño". Persiste en
 # prefs (inicio_widget_hidden). Requiere INICIO_EJECUTIVO_V2 ON para verse. Con OFF el Inicio queda
