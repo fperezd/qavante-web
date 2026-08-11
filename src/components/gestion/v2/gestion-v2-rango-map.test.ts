@@ -14,6 +14,10 @@ describe("warningLabel", () => {
     expect(warningLabel("product_income_without_cogs")).toMatch(/costo de venta/i);
     expect(warningLabel(" product_income_without_cogs ")).toMatch(/costo de venta/i); // trim
   });
+  it("payroll_cost_missing (CC-API #895) → falta la nómina, resultado sobreestimado", () => {
+    expect(warningLabel("payroll_cost_missing")).toMatch(/nómina/i);
+    expect(warningLabel("payroll_cost_missing")).toMatch(/sincroniza remuneraciones/i);
+  });
   it("código desconocido → se muestra tal cual (no inventamos)", () => {
     expect(warningLabel("algo_nuevo_del_backend")).toBe("algo_nuevo_del_backend");
   });
@@ -117,6 +121,11 @@ describe("rangoConfiable", () => {
     expect(margenDistorsionado(distorsionado)).toBe(true);
     expect(rangoConfiable(distorsionado)).toBe(false);
     expect(margenDistorsionado(BD)).toBe(false); // sin warnings → no distorsionado
+  });
+  it("payroll_cost_missing también distorsiona (resultado sobreestimado sin la nómina, #895)", () => {
+    const sinNomina = { ...BD, warnings: ["payroll_cost_missing"] };
+    expect(margenDistorsionado(sinNomina)).toBe(true);
+    expect(rangoConfiable(sinNomina)).toBe(false);
   });
 });
 

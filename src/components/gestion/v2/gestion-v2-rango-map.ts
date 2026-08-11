@@ -14,6 +14,10 @@ import type { TendenciaPunto } from "./tendencia-resultado";
 const WARNING_LABEL: Record<string, string> = {
   product_income_without_cogs:
     "Hay ingresos de productos sin costo de venta asociado, así que el margen puede verse más alto de lo real.",
+  payroll_cost_missing:
+    "Falta la nómina del período: el resultado está sobreestimado porque no incluye el costo laboral. Sincroniza remuneraciones.",
+  direct_cost_nc_reversal:
+    "Parte del costo directo fue reversado por notas de crédito, así que el costo puede estar sub-declarado (margen inflado) hasta que sincronice.",
 };
 export function warningLabel(code: string): string {
   return WARNING_LABEL[code.trim()] ?? code;
@@ -24,7 +28,7 @@ export function warningLabel(code: string): string {
    (ej. ingresos de productos sin costo de venta): el margen ≤ 100% no lo atrapa, pero el backend sí lo
    avisa. Cubre el caso COGS-en-cero; el "faltan SOLO las remuneraciones" necesita un warning nuevo o
    costos por línea (escalado a CC-API, issue #734). */
-const WARNINGS_DISTORSION = new Set(["product_income_without_cogs"]);
+const WARNINGS_DISTORSION = new Set(["product_income_without_cogs", "payroll_cost_missing"]);
 
 /** ¿El backend avisó que el margen del período está distorsionado (inflado por costos faltantes)? */
 export function margenDistorsionado(bd: OperationalResultBreakdown): boolean {

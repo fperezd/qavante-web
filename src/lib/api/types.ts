@@ -4799,6 +4799,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/sync-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Encola un encargo de sincronización (durable, ADR-0095)
+         * @description Anota el encargo y responde al instante (idempotente por `idempotency_key`). El trabajo real
+         *     lo hace el drenador. Misma clave con payload distinto → 409.
+         */
+        post: operations["admin_sync_jobs_enqueue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/sync-jobs/drain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Procesa la cola de sincronización (cron; gated por SYNC_QUEUE_ENABLED)
+         * @description Lo pinga el programador existente. Reclama + ejecuta hasta `max_jobs` encargos (sync REAL vía
+         *     `backfill_tenant_accrual`, idempotente). **No-op si `SYNC_QUEUE_ENABLED` está OFF** (default) —
+         *     la cola/endpoints existen pero no ejecutan nada hasta encender el flag.
+         */
+        post: operations["admin_sync_jobs_drain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/sync-jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Estado de un encargo de sincronización (polling) */
+        get: operations["admin_sync_jobs_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/tenant": {
         parameters: {
             query?: never;
@@ -4893,6 +4953,29 @@ export interface paths {
         put?: never;
         /** Mcp Endpoint */
         post: operations["mcp_endpoint_api_mcp_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mcp/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mcp Connection
+         * @description Info para conectar el MCP de Qavante a un asistente LLM — la pinta la pantalla de
+         *     Administración → MCP. Read-only: **NO expone ni crea la API-key** (eso es el CRUD de keys de la
+         *     empresa). Devuelve la URL, el header de auth, si la empresa ya tiene una key activa, y el
+         *     instructivo (cliente por cliente).
+         */
+        get: operations["mcp_connection_info"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6322,8 +6405,17 @@ export interface components {
              * @description True si la versión está approved (aceptada).
              */
             accepted: boolean;
-            /** Has Budget */
+            /**
+             * Has Budget
+             * @description False si aún no hay presupuesto real (grilla en blanco).
+             */
             has_budget: boolean;
+            /**
+             * Is Template
+             * @description True = grilla en blanco (template mensual para llenar); editar una celda lo crea.
+             * @default false
+             */
+            is_template: boolean;
             /** Categories */
             categories?: components["schemas"]["BudgetGridCategory"][];
             /** Totals By Month */
@@ -8891,6 +8983,24 @@ export interface components {
             /** Suggestions */
             suggestions: components["schemas"]["DocumentSuggestion"][];
         };
+        /** DrainResponse */
+        DrainResponse: {
+            /**
+             * Enabled
+             * @description `SYNC_QUEUE_ENABLED`. Si false, el drenado es no-op.
+             */
+            enabled: boolean;
+            /**
+             * Processed
+             * @default 0
+             */
+            processed: number;
+            /**
+             * Reclaimed
+             * @default 0
+             */
+            reclaimed: number;
+        };
         /** DryRunGroup */
         DryRunGroup: {
             /** Count */
@@ -10428,6 +10538,28 @@ export interface components {
             count: number;
         };
         /**
+         * IncompleteMonth
+         * @description Un mes cuyo dato está INCOMPLETO → su margen puede estar sobreestimado. Info de completitud
+         *     (no "error"): el FE lo pinta como 'dato incompleto' del mes.
+         */
+        IncompleteMonth: {
+            /**
+             * Month
+             * @description Mes 'YYYY-MM'.
+             */
+            month: string;
+            /**
+             * Reason
+             * @description Motivo, ej. 'payroll_not_loaded' (nómina no cargada ese mes).
+             */
+            reason: string;
+            /**
+             * Detail
+             * @description Explicación legible para mostrar.
+             */
+            detail: string;
+        };
+        /**
          * IndustryTemplate
          * @description Una plantilla del catálogo global de tipos de negocio (§13.2).
          */
@@ -11591,6 +11723,11 @@ export interface components {
              * @description Avisos de consistencia del P&L. `product_income_without_cogs`: hay ingresos con costo directo en cero (margen 100%) en un negocio que espera COGS — activá una cuenta de costo y clasificá las compras de reventa (caso revendedor). `direct_cost_nc_reversal`: una parte material del costo directo (>=30%) fue reversada por notas de crédito del mismo proveedor y mismo monto — si es una corrección/re-facturación cuya emisión correcta aún no llegó, el costo puede estar SUB-declarado (margen inflado) hasta que sincronice; verificá re-emisiones pendientes. `payroll_cost_missing`: la nómina NO fue sincronizada en el rango (ausente, no $0) pero hay actividad → el Resultado está SOBREESTIMADO (falta el costo laboral); sincronizá remuneraciones. No dispara para empresas legítimamente sin empleados.
              */
             warnings?: string[];
+            /**
+             * Incomplete Months
+             * @description Meses con dato INCOMPLETO (su margen puede estar sobreestimado). Hoy: meses cerrados con ingreso/costo pero SIN nómina cargada (`payroll_not_loaded`) — típico de los meses previos a que arrancara la integración de remuneraciones, que si no aparecen con margen ~100% falso. A diferencia de `warnings.payroll_cost_missing` (a nivel de rango), esto es POR MES → no se enmascara porque otro mes del rango sí tenga nómina. Es señal de completitud, NO un error: un $0 real de nómina (empresa sin empleados) no se marca.
+             */
+            incomplete_months?: components["schemas"]["IncompleteMonth"][];
         };
         /**
          * OperationalResultBucket
@@ -13939,6 +14076,57 @@ export interface components {
              * @description UUID de la empresa a activar (una de /api/me/tenants).
              */
             tenant_id: string;
+        };
+        /** SyncJobEnqueueRequest */
+        SyncJobEnqueueRequest: {
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Source Code
+             * @description Fuente a sincronizar.
+             * @default sii_rcv
+             */
+            source_code: string;
+            /**
+             * Period From
+             * @description Período inicial (día 1 del mes).
+             */
+            period_from?: string | null;
+            /** Period To */
+            period_to?: string | null;
+            /**
+             * Mode
+             * @default incremental
+             */
+            mode: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+        };
+        /** SyncJobResponse */
+        SyncJobResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Source Code */
+            source_code: string;
+            /** Attempt */
+            attempt: number;
+            /** Created At */
+            created_at: string;
+            /**
+             * Error
+             * @description Motivo del último fallo (si status failed/dead_letter/reintentando).
+             */
+            error?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** SyncSourceResult */
         SyncSourceResult: {
@@ -24222,6 +24410,107 @@ export interface operations {
             };
         };
     };
+    admin_sync_jobs_enqueue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncJobEnqueueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_sync_jobs_drain: {
+        parameters: {
+            query?: {
+                max_jobs?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrainResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_sync_jobs_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_get_tenant: {
         parameters: {
             query?: never;
@@ -24300,7 +24589,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -24313,6 +24604,15 @@ export interface operations {
                     "application/json": components["schemas"]["ApiKeyListResponse"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     admin_api_keys_create: {
@@ -24320,7 +24620,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -24355,7 +24657,9 @@ export interface operations {
             path: {
                 key_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -24380,7 +24684,46 @@ export interface operations {
     mcp_endpoint_api_mcp_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "X-Api-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mcp_connection_info: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "X-Api-Key"?: string | null;
+            };
             path?: never;
             cookie?: {
                 qavante_session?: string | null;

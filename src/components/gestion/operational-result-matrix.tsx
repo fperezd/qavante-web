@@ -28,6 +28,10 @@ export function OperationalResultMatrix({ data }: { data: OperationalResultBreak
   // Drill-down por documento (CC-API #786): celda abierta = `${filaId}:${índiceMes}`.
   const [openCell, setOpenCell] = React.useState<string | null>(null);
   const months = data.months ?? [];
+  // Meses con dato INCOMPLETO (típico: sin nómina cargada → margen ~100% falso). CC-API #895.
+  const incompletos = new Map(
+    (data.incomplete_months ?? []).map((im) => [im.month, im.detail || "Dato incompleto este mes."]),
+  );
   const flat = React.useMemo(
     () => flattenBreakdown(data.rows ?? [], collapsed),
     [data.rows, collapsed],
@@ -69,6 +73,14 @@ export function OperationalResultMatrix({ data }: { data: OperationalResultBreak
                   {m === data.proforma_month && (
                     <span className="block text-[10px] font-normal normal-case text-neutral-mid/70">
                       (proforma)
+                    </span>
+                  )}
+                  {incompletos.has(m) && (
+                    <span
+                      className="block cursor-help text-[10px] font-normal normal-case text-warning-700"
+                      title={incompletos.get(m)}
+                    >
+                      (sin nómina)
                     </span>
                   )}
                 </th>

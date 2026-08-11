@@ -16,6 +16,7 @@ const RESP: BudgetGridResponse = {
   status: "draft",
   accepted: false,
   has_budget: true,
+  is_template: false,
   total_year: "0",
   generated_at: "2026-08-01T00:00:00Z",
   categories: [
