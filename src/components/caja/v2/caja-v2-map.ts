@@ -60,6 +60,26 @@ export function bucketPasado(period: string, granularity: CFGranularity, now: Da
   return fin != null && fin <= now;
 }
 
+/** Inicio (inclusivo) del bucket según la granularidad. `null` si el `period` no matchea el formato. */
+function bucketInicio(period: string, granularity: CFGranularity): Date | null {
+  if (granularity === "week") return weekMondayFrom(period);
+  if (granularity === "month") {
+    const mm = /^(\d{4})-(\d{2})$/.exec(period);
+    return mm ? new Date(Number(mm[1]), Number(mm[2]) - 1, 1) : null;
+  }
+  const dd = /^(\d{4})-(\d{2})-(\d{2})$/.exec(period);
+  return dd ? new Date(Number(dd[1]), Number(dd[2]) - 1, Number(dd[3])) : null;
+}
+
+/** ¿El bucket ya EMPEZÓ (su inicio es <= `now`)? El bucket EN CURSO (empezó pero no terminó) da true.
+ *  Se usa para ANCLAR la serie en el saldo de hoy sin doble contar el tramo ya transcurrido: el saldo
+ *  de hoy YA incluye lo que va del bucket en curso, así que el ancla es ese bucket (no el último ya
+ *  cerrado). No parseable → false. */
+export function bucketEmpezado(period: string, granularity: CFGranularity, now: Date): boolean {
+  const inicio = bucketInicio(period, granularity);
+  return inicio != null && inicio <= now;
+}
+
 /** Filtra los buckets del reporte a los que NO terminaron antes de hoy: la proyección arranca
  *  DESDE HOY, no desde el inicio del período. Evita el doble conteo de buckets pasados. */
 export function bucketsDesdeHoy(
@@ -72,7 +92,11 @@ export function bucketsDesdeHoy(
 
 /** Suma entra/sale/neto de una lista de buckets — para recomputar el flujo del período tras
  *  filtrar a futuro (el `grand_total` del backend suma TODOS los buckets, incluidos los pasados). */
-export function flujoDeBuckets(buckets: CashFlowBucket[]): { entra: number; sale: number; neto: number } {
+export function flujoDeBuckets(buckets: CashFlowBucket[]): {
+  entra: number;
+  sale: number;
+  neto: number;
+} {
   let entra = 0;
   let sale = 0;
   let neto = 0;
@@ -85,10 +109,11 @@ export function flujoDeBuckets(buckets: CashFlowBucket[]): { entra: number; sale
 }
 
 /** Serie del saldo ANCLADA en el saldo de hoy, sobre TODOS los buckets del rango. Reconstruye el
- *  saldo al cierre de cada período: el último bucket YA PASADO cierra ≈ al saldo de hoy (ese flujo
- *  ya está en el saldo), los anteriores se reconstruyen hacia atrás y los futuros se proyectan hacia
- *  adelante. Así el gráfico muestra la TRAYECTORIA (de dónde viene la caja + a dónde va) sin el doble
- *  conteo de re-aplicar flujos pasados al saldo de hoy. Un punto por bucket (cierre del período). */
+ *  saldo al cierre de cada período. El ANCLA es el bucket EN CURSO (el que contiene hoy): el saldo de
+ *  hoy YA incluye lo que va de ese bucket, así que su punto ES el saldo de hoy — NO se le vuelve a
+ *  sumar el neto del período en curso (eso duplicaba el tramo ya transcurrido, #735). Los períodos
+ *  anteriores se reconstruyen hacia atrás y los futuros se proyectan hacia adelante. Un punto por
+ *  bucket (cierre del período). */
 export function serieAnclada(
   saldoHoy: number,
   buckets: CashFlowBucket[],
@@ -104,13 +129,15 @@ export function serieAnclada(
     acc += parseAmount(b.net);
     cum.push(acc);
   }
-  // Índice del último bucket ya pasado: su cierre ancla en el saldo de hoy. Si todos son futuros
-  // (-1), el ancla es 0 → todo se proyecta desde el saldo de hoy.
-  let lastPast = -1;
+  // Ancla = último bucket que YA EMPEZÓ (el EN CURSO, que contiene hoy; o el último cerrado si el rango
+  // no llega a hoy). Su cumulativo mapea al saldo de hoy → el bucket en curso cierra en el saldo de hoy
+  // (no en saldo+neto), sin doble contar el tramo transcurrido (#735). Si todos son futuros (-1), el
+  // ancla es 0 → todo se proyecta desde el saldo de hoy.
+  let anchor = -1;
   buckets.forEach((b, i) => {
-    if (bucketPasado(b.period, granularity, now)) lastPast = i;
+    if (bucketEmpezado(b.period, granularity, now)) anchor = i;
   });
-  const base = lastPast >= 0 ? (cum[lastPast] ?? 0) : 0;
+  const base = anchor >= 0 ? (cum[anchor] ?? 0) : 0;
   const offset = saldoHoy - base;
   return buckets.map((b, i) => ({ label: label(b.period), saldo: (cum[i] ?? 0) + offset }));
 }

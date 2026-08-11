@@ -5,6 +5,7 @@ import {
   labelBucketCorto,
   cajaMinimoCLP,
   bucketPasado,
+  bucketEmpezado,
   bucketsDesdeHoy,
   flujoDeBuckets,
   primerCruceFuturo,
@@ -30,7 +31,10 @@ describe("labelBucketCorto", () => {
 
 describe("serieDesdeCashFlow", () => {
   it("deriva el saldo acumulado desde el saldo de hoy + netos", () => {
-    const out = serieDesdeCashFlow(10_000, [bucket("2026-07-14", "-3000"), bucket("2026-07-21", "1000")]);
+    const out = serieDesdeCashFlow(10_000, [
+      bucket("2026-07-14", "-3000"),
+      bucket("2026-07-21", "1000"),
+    ]);
     expect(out).toEqual([
       { label: "hoy", saldo: 10_000 },
       { label: "14-jul", saldo: 7_000 },
@@ -47,14 +51,45 @@ describe("serieAnclada (trayectoria anclada en el saldo de hoy)", () => {
   const lbl = (p: string) => p;
   it("reconstruye hacia atrás: el último bucket pasado cierra en el saldo de hoy", () => {
     const bs = [bucket("2026-06-29", "-853476"), bucket("2026-07-06", "-15552")]; // dos semanas pasadas
-    expect(serieAnclada(-3_935_682, bs, "week", now, lbl).map((p) => p.saldo)).toEqual([-3_920_130, -3_935_682]);
+    expect(serieAnclada(-3_935_682, bs, "week", now, lbl).map((p) => p.saldo)).toEqual([
+      -3_920_130, -3_935_682,
+    ]);
   });
   it("proyecta hacia adelante si todos son futuros", () => {
     const bs = [bucket("2026-07-20", "500"), bucket("2026-07-27", "-300")]; // dos semanas futuras
     expect(serieAnclada(1_000, bs, "week", now, lbl).map((p) => p.saldo)).toEqual([1_500, 1_200]);
   });
+  it("no duplica el tramo transcurrido del bucket EN CURSO: ancla en él y cierra en el saldo de hoy (#735)", () => {
+    // now = 19-jul (semana 13–19 en curso). Pasado 06-jul (+100) · en curso 13-jul (+50) · futuro 20-jul (−30).
+    const bs = [
+      bucket("2026-07-06", "100"),
+      bucket("2026-07-13", "50"),
+      bucket("2026-07-20", "-30"),
+    ];
+    // El bucket en curso cierra en 1000 (el saldo de hoy), NO en 1050. El pasado se reconstruye a 950
+    // (1000 − 50, sin el neto en curso) y el futuro proyecta a 970 (1000 − 30).
+    expect(serieAnclada(1_000, bs, "week", now, lbl).map((p) => p.saldo)).toEqual([
+      950, 1_000, 970,
+    ]);
+  });
   it("sin buckets → []", () => {
     expect(serieAnclada(1_000, [], "week", now, lbl)).toEqual([]);
+  });
+});
+
+describe("bucketEmpezado (ancla de la serie: el bucket en curso ya empezó)", () => {
+  const now = new Date(2026, 6, 19); // 19-jul-2026 (semana 13–19 en curso, mes jul)
+  it("semana ya terminada / en curso → empezó; futura → no", () => {
+    expect(bucketEmpezado("2026-07-06", "week", now)).toBe(true); // terminó, pero empezó
+    expect(bucketEmpezado("2026-07-13", "week", now)).toBe(true); // en curso
+    expect(bucketEmpezado("2026-07-20", "week", now)).toBe(false); // futura
+  });
+  it("mes: julio (en curso) empezó; agosto no", () => {
+    expect(bucketEmpezado("2026-07", "month", now)).toBe(true);
+    expect(bucketEmpezado("2026-08", "month", now)).toBe(false);
+  });
+  it("período no parseable → false", () => {
+    expect(bucketEmpezado("basura", "week", now)).toBe(false);
   });
 });
 
@@ -103,8 +138,16 @@ describe("bucketPasado (proyectar desde hoy)", () => {
 describe("bucketsDesdeHoy", () => {
   it("semanal: descarta pasadas, conserva la actual + futuras", () => {
     const now = new Date(2026, 6, 18);
-    const bs = [bucket("2026-06-30", "1"), bucket("2026-07-07", "2"), bucket("2026-07-14", "3"), bucket("2026-07-21", "4")];
-    expect(bucketsDesdeHoy(bs, "week", now).map((b) => b.period)).toEqual(["2026-07-14", "2026-07-21"]);
+    const bs = [
+      bucket("2026-06-30", "1"),
+      bucket("2026-07-07", "2"),
+      bucket("2026-07-14", "3"),
+      bucket("2026-07-21", "4"),
+    ];
+    expect(bucketsDesdeHoy(bs, "week", now).map((b) => b.period)).toEqual([
+      "2026-07-14",
+      "2026-07-21",
+    ]);
   });
   it("mensual: descarta los meses ya cerrados", () => {
     const now = new Date(2026, 6, 18);
