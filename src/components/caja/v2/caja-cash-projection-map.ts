@@ -106,6 +106,11 @@ export interface CobroVencido {
   diasAtraso: number | null;
   /** Folio del documento (para identificarlo en la lista), o `null` si no aplica (#830). */
   folio: string | null;
+  /** Identidad del documento para conciliar fila-por-fila (mark-collected, #851), o `null` si el
+   *  backend no la trae → esa fila NO se puede conciliar de un clic (mostramos solo el detalle). */
+  sourceExternalId: string | null;
+  /** 'receivable' (cobro) | 'payable' (pago) — el `side` que pide mark-collected. Default receivable. */
+  side: "receivable" | "payable";
 }
 
 /** Escenario "con recuperación del atraso" (ADR-0087): si el por-cobrar-vencido se cobra repartido en
@@ -182,6 +187,8 @@ export function cobrosPorCobrarVencido(resp: CashProjectionResponse | undefined)
       monto: parseAmount(i.monto),
       diasAtraso: typeof i.dias_atraso === "number" ? i.dias_atraso : null,
       folio: i.folio ?? null,
+      sourceExternalId: i.source_external_id ?? null,
+      side: (i.side === "payable" ? "payable" : "receivable") as "receivable" | "payable",
     }))
     .sort((a, b) => b.monto - a.monto);
 }

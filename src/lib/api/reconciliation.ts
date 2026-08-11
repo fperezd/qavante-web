@@ -12,9 +12,12 @@
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { treasuryKeys } from "./treasury";
 import type { components } from "./types";
 
 export type ReviewQueueResponse = components["schemas"]["ReviewQueueResponse"];
+export type MarkCollectedRequest = components["schemas"]["MarkCollectedRequest"];
+export type MarkCollectedResponse = components["schemas"]["MarkCollectedResponse"];
 export type ReviewItem = components["schemas"]["ReviewItem"];
 export type ReviewSuggestion = components["schemas"]["ReviewSuggestion"];
 export type SuggestionsResponse = components["schemas"]["SuggestionsResponse"];
@@ -35,8 +38,7 @@ export const reconciliationKeys = {
 export function useReconciliationReview(enabled = true) {
   return useQuery({
     queryKey: reconciliationKeys.review(),
-    queryFn: () =>
-      api.get<ReviewQueueResponse>("/api/treasury/reconciliation/review"),
+    queryFn: () => api.get<ReviewQueueResponse>("/api/treasury/reconciliation/review"),
     enabled,
     staleTime: 30_000,
     retry: false,
@@ -93,6 +95,22 @@ export function useConfirmReconciliationBatch() {
         body: { movement_ids: movementIds },
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: reconciliationKeys.review() }),
+  });
+}
+
+/** `POST /api/treasury/reconciliation/mark-collected` — concilia cobros/pagos POR DOCUMENTO desde Caja
+ *  (la plata ya entró/salió, sacamos el doc de "por cobrar/pagar"): `{ source_external_ids, side }`.
+ *  Reversible (`.../mark-collected/revert`) e idempotente (0 si ya estaban pagados). Al conciliar
+ *  cambia el por-cobrar-vencido y el runway → invalidamos tesorería (cash-projection) para refrescar. */
+export function useMarkCollected() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: MarkCollectedRequest) =>
+      api.post<MarkCollectedResponse>("/api/treasury/reconciliation/mark-collected", { body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: treasuryKeys.all });
+      qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
+    },
   });
 }
 

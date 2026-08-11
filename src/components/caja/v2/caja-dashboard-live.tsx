@@ -21,6 +21,7 @@ export interface CajaDashboardLiveProps {
   bankBalances: boolean;
   bankMovementClassification: boolean;
   reconciliationReview: boolean;
+  markCollectedEnabled?: boolean;
 }
 
 export function CajaDashboardLive({
@@ -30,6 +31,7 @@ export function CajaDashboardLive({
   bankBalances,
   bankMovementClassification,
   reconciliationReview,
+  markCollectedEnabled = false,
 }: CajaDashboardLiveProps) {
   const seccion = (titulo: string, contenido: React.ReactNode): React.ReactNode => (
     <section className="space-y-3">
@@ -44,7 +46,10 @@ export function CajaDashboardLive({
     items.push({
       id: "resumen",
       label: "Resumen de caja",
-      node: seccion("Resumen de caja", <CajaV2ResumenLive cajaV3={cajaV3} />),
+      node: seccion(
+        "Resumen de caja",
+        <CajaV2ResumenLive cajaV3={cajaV3} markCollectedEnabled={markCollectedEnabled} />,
+      ),
     });
   }
 

@@ -1014,9 +1014,27 @@ const budgetGridE2E: {
   status: "draft",
   accepted: false,
   categories: [
-    { account_id: "a1", account_code: "4.1", account_name: "Ventas", impact_type: "revenue", months: mesesFull(10_000_000) },
-    { account_id: "c1", account_code: "5.1", account_name: "Sueldos", impact_type: "direct_cost", months: mesesFull(-4_000_000) },
-    { account_id: "g1", account_code: "6.1", account_name: "Arriendo", impact_type: "operating_expense", months: mesesFull(-1_000_000) },
+    {
+      account_id: "a1",
+      account_code: "4.1",
+      account_name: "Ventas",
+      impact_type: "revenue",
+      months: mesesFull(10_000_000),
+    },
+    {
+      account_id: "c1",
+      account_code: "5.1",
+      account_name: "Sueldos",
+      impact_type: "direct_cost",
+      months: mesesFull(-4_000_000),
+    },
+    {
+      account_id: "g1",
+      account_code: "6.1",
+      account_name: "Arriendo",
+      impact_type: "operating_expense",
+      months: mesesFull(-1_000_000),
+    },
   ],
 };
 function budgetGridResponse(year: number) {
@@ -3009,10 +3027,34 @@ const gestionHandlers = [
         // variance). Historia coherente: vendió más (+4M) pero los costos se lo comieron (−5M/−2M) →
         // resultado 3M bajo plan. Consistencia verificable por el e2e de datos.
         lines: [
-          { concept: "revenue", budget: "40000000", actual: "44000000", variance: "4000000", variance_pct: "10" },
-          { concept: "direct_cost", budget: "-20000000", actual: "-25000000", variance: "-5000000", variance_pct: "-25" },
-          { concept: "operating_expense", budget: "-10000000", actual: "-12000000", variance: "-2000000", variance_pct: "-20" },
-          { concept: "result", budget: "10000000", actual: "7000000", variance: "-3000000", variance_pct: "-30" },
+          {
+            concept: "revenue",
+            budget: "40000000",
+            actual: "44000000",
+            variance: "4000000",
+            variance_pct: "10",
+          },
+          {
+            concept: "direct_cost",
+            budget: "-20000000",
+            actual: "-25000000",
+            variance: "-5000000",
+            variance_pct: "-25",
+          },
+          {
+            concept: "operating_expense",
+            budget: "-10000000",
+            actual: "-12000000",
+            variance: "-2000000",
+            variance_pct: "-20",
+          },
+          {
+            concept: "result",
+            budget: "10000000",
+            actual: "7000000",
+            variance: "-3000000",
+            variance_pct: "-30",
+          },
         ],
       },
       { status: 200 },
@@ -3028,9 +3070,33 @@ const gestionHandlers = [
         data_state: "available",
         generated_at: "2026-08-01T00:00:00Z",
         accounts: [
-          { account_id: "a1", account_code: "4.1", account_name: "Ventas", budget: "10000000", actual: "12000000", variance: "2000000", variance_pct: "20" },
-          { account_id: "c1", account_code: "5.1", account_name: "Sueldos", budget: "-4000000", actual: "-5000000", variance: "-1000000", variance_pct: "-25" },
-          { account_id: "g1", account_code: "6.1", account_name: "Arriendo", budget: "-1000000", actual: "-900000", variance: "100000", variance_pct: "10" },
+          {
+            account_id: "a1",
+            account_code: "4.1",
+            account_name: "Ventas",
+            budget: "10000000",
+            actual: "12000000",
+            variance: "2000000",
+            variance_pct: "20",
+          },
+          {
+            account_id: "c1",
+            account_code: "5.1",
+            account_name: "Sueldos",
+            budget: "-4000000",
+            actual: "-5000000",
+            variance: "-1000000",
+            variance_pct: "-25",
+          },
+          {
+            account_id: "g1",
+            account_code: "6.1",
+            account_name: "Arriendo",
+            budget: "-1000000",
+            actual: "-900000",
+            variance: "100000",
+            variance_pct: "10",
+          },
         ],
       },
       { status: 200 },
@@ -3934,6 +4000,14 @@ const reconciliationReviewSeed = [
 ];
 
 const reconciliationHandlers = [
+  /* #851 — conciliar cobros fila-por-fila desde Caja: concilia tantos documentos como IDs vengan. */
+  http.post("*/api/treasury/reconciliation/mark-collected", async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as { source_external_ids?: string[] };
+    return HttpResponse.json(
+      { conciliados: body.source_external_ids?.length ?? 0 },
+      { status: 200 },
+    );
+  }),
   http.post("*/api/treasury/reconcile", () =>
     HttpResponse.json(
       {
@@ -4050,8 +4124,7 @@ const apiKeysHandlers = [
         writes_enabled: false,
         has_api_key: true,
         docs: {
-          resumen:
-            "Conecta las finanzas de tu empresa a un asistente (Claude, ChatGPT) por MCP.",
+          resumen: "Conecta las finanzas de tu empresa a un asistente (Claude, ChatGPT) por MCP.",
           pasos: [
             "Copia o crea la API-key de tu empresa acá.",
             "En tu asistente, agrega un servidor MCP con la URL de arriba y tu key en el header X-Api-Key.",
@@ -4059,7 +4132,11 @@ const apiKeysHandlers = [
           ],
           clientes: [
             { nombre: "Claude / ChatGPT vía API", soportado: true, nota: "Header X-Api-Key." },
-            { nombre: "App de ChatGPT / Claude (OAuth)", soportado: false, nota: "Llega en la fase 3." },
+            {
+              nombre: "App de ChatGPT / Claude (OAuth)",
+              soportado: false,
+              nota: "Llega en la fase 3.",
+            },
           ],
         },
       },

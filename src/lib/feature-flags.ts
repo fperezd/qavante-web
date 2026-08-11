@@ -68,6 +68,7 @@ export const FEATURE_FLAGS = [
   "cajaDashboard",
   "presupuesto",
   "mcp",
+  "cajaMarkCollected",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -250,6 +251,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      server MCP de Qavante. Gestiona las API-keys de la empresa (crear/listar/revocar). Requiere el
      backend #882/#888 (ya en main). Gated OFF hasta que Fernando lo valide. */
   mcp: "/api/mcp/connection",
+  /* Conciliar cobros FILA-POR-FILA desde el caveat de por-cobrar-vencido de Caja (#851): "Ya lo cobré"
+     marca el documento como conciliado (POST reconciliation/mark-collected, reversible). Hoy conciliar
+     desde Caja obliga a saltar a otra pantalla. Gated OFF hasta que Fernando valide el write al peso
+     (no puedo POSTear a prod); con OFF el caveat queda igual (solo el link "Conciliar cobros →") → cero
+     regresión. Encender = editar wrangler. */
+  cajaMarkCollected: "/api/treasury/reconciliation/mark-collected",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
