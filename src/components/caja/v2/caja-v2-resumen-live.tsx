@@ -34,7 +34,13 @@ import { type SaldoPunto } from "./caja-curva-model";
    por banco degrada al total (bice/saldo es api-key-only) hasta que CC-API lo cookie-gatee.
    Container: NO se testea por Storybook play (ADR-0018); la lógica vive en `caja-v2-map`. */
 
-export function CajaV2ResumenLive({ cajaV3 = false }: { cajaV3?: boolean }) {
+export function CajaV2ResumenLive({
+  cajaV3 = false,
+  markCollectedEnabled = false,
+}: {
+  cajaV3?: boolean;
+  markCollectedEnabled?: boolean;
+}) {
   // Selector de RANGO — el estándar de la app (`PeriodRangeFilter`, con presets Mes actual / Tres
   // meses / Este año…), el mismo que usan Gestión y el Libro. El v2 había metido un selector
   // ad-hoc del cash-flow clásico; se unifica al estándar. La granularidad queda en "week" (la curva
@@ -85,6 +91,7 @@ export function CajaV2ResumenLive({ cajaV3 = false }: { cajaV3?: boolean }) {
       cm={cm}
       granularity="week"
       cajaV3={cajaV3}
+      markCollectedEnabled={markCollectedEnabled}
       periodoSelector={periodoSelector}
       sinClasificar={sinClasificar}
     />
@@ -99,6 +106,7 @@ function CajaV2Contenido({
   cm,
   granularity,
   cajaV3,
+  markCollectedEnabled,
   periodoSelector,
   sinClasificar,
 }: {
@@ -107,6 +115,7 @@ function CajaV2Contenido({
   cm: ReturnType<typeof useCashMinimum>;
   granularity: CashFlowGranularity;
   cajaV3: boolean;
+  markCollectedEnabled: boolean;
   periodoSelector: React.ReactNode;
   sinClasificar: UnclassifiedSummary;
 }) {
@@ -167,6 +176,7 @@ function CajaV2Contenido({
       minimo={minimo}
       saldoStale={saldoStale}
       ultimaSync={ultimaSync}
+      markCollectedEnabled={markCollectedEnabled}
     />
   ) : (
     <CurvaCard serie={serie} minimo={minimo} cruceIdx={cruceIdx} />

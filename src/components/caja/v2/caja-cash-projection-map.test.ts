@@ -112,17 +112,39 @@ describe("cobrosPorCobrarVencido", () => {
   const conVencido = (items: unknown[]) =>
     ({ ...tooxs, vencido: { total: "0", items } }) as unknown as CashProjectionResponse;
 
-  it("lista solo los COBROS (vencido/sin-fecha), no los pagos; ordena por monto desc; lleva folio (#830)", () => {
+  it("lista solo los COBROS (vencido/sin-fecha), no los pagos; ordena por monto desc; lleva folio (#830) + identidad (#851)", () => {
     const r = cobrosPorCobrarVencido(
       conVencido([
         { glosa: "KAUFMANN", monto: "1440791.00", dias_atraso: null, tipo: "cobro_sin_fecha" },
-        { glosa: "SYNNEX", monto: "5000000.00", dias_atraso: 45, tipo: "cobro_vencido", folio: "435" },
+        {
+          glosa: "SYNNEX",
+          monto: "5000000.00",
+          dias_atraso: 45,
+          tipo: "cobro_vencido",
+          folio: "435",
+          source_external_id: "sii-ventas-33-435",
+          side: "receivable",
+        },
         { glosa: "IVA F29", monto: "-4200000.00", dias_atraso: 10, tipo: "pago_vencido" }, // pago: fuera
       ]),
     );
     expect(r.map((c) => c.glosa)).toEqual(["SYNNEX", "KAUFMANN"]); // 5M, 1.44M
-    expect(r[0]).toEqual({ glosa: "SYNNEX", monto: 5_000_000, diasAtraso: 45, folio: "435" });
-    expect(r[1]).toMatchObject({ diasAtraso: null, folio: null }); // sin fecha, sin folio → null
+    expect(r[0]).toEqual({
+      glosa: "SYNNEX",
+      monto: 5_000_000,
+      diasAtraso: 45,
+      folio: "435",
+      sourceExternalId: "sii-ventas-33-435",
+      side: "receivable",
+    });
+    // Sin identidad en el backend → sourceExternalId null (esa fila NO se puede conciliar de un clic) y
+    // side cae a "receivable" por default.
+    expect(r[1]).toMatchObject({
+      diasAtraso: null,
+      folio: null,
+      sourceExternalId: null,
+      side: "receivable",
+    });
   });
 
   it("sin items → []", () => {
@@ -194,7 +216,12 @@ describe("ingresoProyectado (ADR-0089 B)", () => {
 
   it("con ingresos la caja NO toca el quiebre (punto_quiebre null) → pisoConIngresos null", () => {
     const r = ingresoProyectado(
-      conIngresos({ dias_de_caja: null, total_ingreso_proyectado: "8000000", n_flujos: 4, punto_quiebre: null }),
+      conIngresos({
+        dias_de_caja: null,
+        total_ingreso_proyectado: "8000000",
+        n_flujos: 4,
+        punto_quiebre: null,
+      }),
     );
     expect(r).toMatchObject({ pisoConIngresos: null, diasConIngresos: null, nFlujos: 4 });
   });

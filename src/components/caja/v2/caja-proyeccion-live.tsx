@@ -1,9 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 import { usePreferences } from "@/lib/api/preferences";
 import { useAccountsPayable } from "@/lib/api/pagos";
 import { useCashProjection } from "@/lib/api/treasury";
+import { useMarkCollected } from "@/lib/api/reconciliation";
+import { interpretarErrorConciliar } from "@/components/caja/conciliacion/reconciliacion-cola-map";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import { readTerminos, readPagados, buildMaestro } from "@/components/terminos/terminos-pago";
 import { parseAmount } from "@/components/gestion/gestion-format";
@@ -51,15 +54,47 @@ export interface CajaProyeccionLiveProps {
   saldoStale?: boolean;
   /** Fecha legible de la última sync del banco (para el aviso honesto). */
   ultimaSync?: string | null;
+  /** Conciliar fila-por-fila desde el caveat (#851, flag `cajaMarkCollected`). OFF → solo el link. */
+  markCollectedEnabled?: boolean;
 }
 
-export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProyeccionLiveProps) {
+export function CajaProyeccionLive({
+  minimo,
+  saldoStale,
+  ultimaSync,
+  markCollectedEnabled = false,
+}: CajaProyeccionLiveProps) {
   const prefs = usePreferences();
   const ventasDocs = useMaestroDocs("ventas");
   const comprasDocs = useMaestroDocs("compras");
   const honorariosDocs = useMaestroDocs("honorarios");
   const ap = useAccountsPayable();
   const cashProj = useCashProjection(HORIZONTE_DIAS);
+  const marcarCobrado = useMarkCollected();
+  const [marcandoId, setMarcandoId] = React.useState<string | null>(null);
+
+  // #851: "Ya lo cobré" concilia ese documento (mark-collected). Al conciliar, el hook invalida
+  // tesorería → la proyección + el por-cobrar-vencido se refrescan solos.
+  const onMarcarCobrado = React.useCallback(
+    (item: { sourceExternalId: string; side: "receivable" | "payable" }) => {
+      setMarcandoId(item.sourceExternalId);
+      marcarCobrado.mutate(
+        { source_external_ids: [item.sourceExternalId], side: item.side },
+        {
+          onSuccess: (resp) => {
+            toast.success(
+              resp.conciliados > 0
+                ? "Listo, lo saqué de por cobrar."
+                : "Ese documento ya estaba conciliado.",
+            );
+          },
+          onError: (err) => toast.error(interpretarErrorConciliar(err).mensaje),
+          onSettled: () => setMarcandoId(null),
+        },
+      );
+    },
+    [marcarCobrado],
+  );
 
   // Medidor + curva + punto de quiebre + causas: FUENTE ÚNICA = backend.
   const proyeccion = React.useMemo(() => cashProjectionToDiasCaja(cashProj.data), [cashProj.data]);
@@ -121,6 +156,8 @@ export function CajaProyeccionLive({ minimo, saldoStale, ultimaSync }: CajaProye
       porCobrarVencido={porCobrarVencido}
       conciliarHref="/caja/conciliacion"
       cobrosPorCobrar={cobrosPorCobrar}
+      onMarcarCobrado={markCollectedEnabled ? onMarcarCobrado : undefined}
+      marcandoId={marcandoId}
       recuperacion={recuperacion}
       ingresoProyectado={ingresos}
       ultimaSync={ultimaSync}

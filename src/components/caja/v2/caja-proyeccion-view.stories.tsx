@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { within, expect, userEvent } from "storybook/test";
+import { within, expect, userEvent, fn } from "storybook/test";
 import { CajaProyeccionView } from "./caja-proyeccion-view";
 import {
   causasDelPiso,
@@ -149,6 +149,47 @@ export const ConPorCobrar: Story = {
   },
 };
 
+/* #851 — conciliar FILA-POR-FILA desde el caveat (flag `cajaMarkCollected`): cada cobro con
+   `sourceExternalId` suma un botón "Ya lo cobré" que concilia ese documento (mark-collected). El
+   que NO trae identidad (KAUFMANN sin fecha) queda sin botón. */
+export const ConConciliarFilaPorFila: Story = {
+  args: {
+    proyeccion: BREAK_PROY,
+    minimo: null,
+    movimientos: movimientosPorSemana(BREAK_MOVS, HOY),
+    porCobrarVencido: { total: 9_400_000, n: 3 },
+    conciliarHref: "/caja/conciliacion",
+    cobrosPorCobrar: [
+      {
+        glosa: "TD SYNNEX CHILE LIMITADA",
+        monto: 5_000_000,
+        diasAtraso: 45,
+        folio: "435",
+        sourceExternalId: "sii-ventas-33-435",
+        side: "receivable",
+      },
+      // Sin identidad → esta fila NO lleva botón (no se puede conciliar de un clic).
+      { glosa: "COMERCIAL KAUFMANN S.A.", monto: 2_960_000, diasAtraso: null, folio: null },
+    ],
+    onMarcarCobrado: fn(),
+    marcandoId: null,
+  },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    // Abrir la lista de documentos.
+    await userEvent.click(c.getByRole("button", { name: /documentos vencidos o sin fecha/ }));
+    // Solo el cobro con identidad trae "Ya lo cobré" → un único botón.
+    const botones = c.getAllByRole("button", { name: "Ya lo cobré" });
+    await expect(botones).toHaveLength(1);
+    await userEvent.click(botones[0]!);
+    // Concilia ESE documento (source_external_id + side).
+    await expect(args.onMarcarCobrado).toHaveBeenCalledWith({
+      sourceExternalId: "sii-ventas-33-435",
+      side: "receivable",
+    });
+  },
+};
+
 export const SinDato: Story = {
   args: { proyeccion: null, minimo: null, movimientos: [], ultimaSync: "18-jul" },
   play: async ({ canvasElement }) => {
@@ -172,8 +213,6 @@ export const ProyeccionSinCascada: Story = {
     // El medidor sigue visible (no cae a "sin dato").
     await expect(c.getByText(/Caja (holgada|ajustada|en riesgo)/)).toBeInTheDocument();
     // Y la sección de próximos movimientos muestra su nota, no una cascada vacía.
-    await expect(
-      c.getByText(/Todavía no hay detalle de próximos movimientos/),
-    ).toBeInTheDocument();
+    await expect(c.getByText(/Todavía no hay detalle de próximos movimientos/)).toBeInTheDocument();
   },
 };

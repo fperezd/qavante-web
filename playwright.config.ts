@@ -120,6 +120,9 @@ export default defineConfig({
       NEXT_PUBLIC_FF_PRESUPUESTO: "true",
       /* Administración → MCP — ON en e2e (OFF en prod hasta validar). */
       NEXT_PUBLIC_FF_MCP: "true",
+      /* Conciliar fila-por-fila en Caja (#851) — ON en e2e para ejercer el botón "Ya lo cobré"
+         contra el MSW de mark-collected; OFF en prod hasta que Fernando valide el write. */
+      NEXT_PUBLIC_FF_CAJA_MARK_COLLECTED: "true",
     },
   },
 });

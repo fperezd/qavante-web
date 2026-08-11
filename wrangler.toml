@@ -154,6 +154,10 @@ NEXT_PUBLIC_FF_PRESUPUESTO = "true"
 # ON (encendido 2026-08-11 por Fernando). La pantalla es un config: el dueño crea/revoca la API-key a
 # mano; no expone nada por sí sola. Backend #882/#888 en prod. Apagar = "false".
 NEXT_PUBLIC_FF_MCP = "true"
+# Conciliar cobros FILA-POR-FILA desde el caveat de Caja (#851, 2026-08-11): "Ya lo cobré" marca el
+# documento conciliado (mark-collected, reversible). OFF hasta que Fernando valide el write al peso; con
+# OFF el caveat queda igual (solo el link "Conciliar cobros →") → cero regresión. Encender = "true".
+NEXT_PUBLIC_FF_CAJA_MARK_COLLECTED = "false"
 # Activada 2026-06-22: wizard de onboarding. CC-API dejó vivos en prod todos los
 # endpoints (qavante-api #344 status/complete + onboarding_completed en /me, #345
 # sync per-source, #346 opening-balance; signup/verify ya estaban). FE alineado a

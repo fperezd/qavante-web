@@ -21,6 +21,7 @@ export default function CajaPage() {
     cajaV2,
     cajaV3,
     cajaDashboard,
+    cajaMarkCollected,
   } = resolveFeatureFlags();
 
   return (
@@ -39,13 +40,16 @@ export default function CajaPage() {
           bankBalances={bankBalances}
           bankMovementClassification={bankMovementClassification}
           reconciliationReview={reconciliationReview}
+          markCollectedEnabled={cajaMarkCollected}
         />
       ) : (
         <>
           {/* Caja v2 (rediseño 2026-07-14): la respuesta de dueño + la curva de saldo encabezan la
               página (contestan el "¿me alcanza?" del título); las cards de abajo quedan como
               herramientas. Con `cajaV2` OFF o sin reporte de caja, la landing cae al menú clásico. */}
-          {cajaV2 && cashFlowReport && <CajaV2ResumenLive cajaV3={cajaV3} />}
+          {cajaV2 && cashFlowReport && (
+            <CajaV2ResumenLive cajaV3={cajaV3} markCollectedEnabled={cajaMarkCollected} />
+          )}
 
           {bankBalances && (
             <section aria-labelledby="saldos-section" className="space-y-3">

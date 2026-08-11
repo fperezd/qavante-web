@@ -42,7 +42,16 @@ export interface CajaProyeccionViewProps {
     monto: number;
     diasAtraso: number | null;
     folio?: string | null;
+    /** Identidad del documento para conciliar de un clic (#851). Sin ella, la fila no lleva botón. */
+    sourceExternalId?: string | null;
+    side?: "receivable" | "payable";
   }[];
+  /** Conciliar FILA-POR-FILA (#851, flag `cajaMarkCollected`): si viene, cada fila con `sourceExternalId`
+   *  suma un botón "Ya lo cobré" que concilia ese documento (mark-collected). Sin callback → la lista es
+   *  solo de lectura (comportamiento actual). */
+  onMarcarCobrado?: (item: { sourceExternalId: string; side: "receivable" | "payable" }) => void;
+  /** `sourceExternalId` de la fila con la conciliación en curso (spinner + deshabilitar), o `null`. */
+  marcandoId?: string | null;
   /** Escenario "con recuperación del atraso" (ADR-0087): si viene, el caveat muestra cuánto MEJORA el
    *  piso SI cobras ese atraso — respuesta honesta al "sin recuperación" del core. */
   recuperacion?: { pisoRecup: number | null; totalRecuperado: number; ventanaDias: number } | null;
@@ -69,6 +78,8 @@ export function CajaProyeccionView({
   porCobrarVencido,
   conciliarHref,
   cobrosPorCobrar,
+  onMarcarCobrado,
+  marcandoId,
   recuperacion,
   ingresoProyectado,
   ocultarSaldoHoy,
@@ -114,10 +125,8 @@ export function CajaProyeccionView({
                     aria-expanded={verCobros}
                   >
                     {porCobrarVencido!.n}{" "}
-                    {porCobrarVencido!.n === 1
-                      ? "documento vencido"
-                      : "documentos vencidos"}{" "}
-                    o sin fecha
+                    {porCobrarVencido!.n === 1 ? "documento vencido" : "documentos vencidos"} o sin
+                    fecha
                   </button>
                 ) : (
                   <>
@@ -163,29 +172,48 @@ export function CajaProyeccionView({
 
               {verCobros && cobrosPorCobrar && cobrosPorCobrar.length > 0 && (
                 <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto border-t border-info-500/20 pt-2">
-                  {cobrosPorCobrar.map((c, i) => (
-                    <li
-                      key={`${c.glosa}-${i}`}
-                      className="flex items-center justify-between gap-3 leading-tight"
-                    >
-                      <span className="min-w-0 truncate text-neutral-dark">
-                        {c.glosa}
-                        {c.folio && (
-                          <span className="ml-1.5 text-[11px] font-normal text-neutral-mid">
-                            · Folio {c.folio}
+                  {cobrosPorCobrar.map((c, i) => {
+                    const puedeConciliar = Boolean(onMarcarCobrado && c.sourceExternalId);
+                    const enCurso = marcandoId != null && marcandoId === c.sourceExternalId;
+                    return (
+                      <li
+                        key={`${c.glosa}-${i}`}
+                        className="flex items-center justify-between gap-3 leading-tight"
+                      >
+                        <span className="min-w-0 truncate text-neutral-dark">
+                          {c.glosa}
+                          {c.folio && (
+                            <span className="ml-1.5 text-[11px] font-normal text-neutral-mid">
+                              · Folio {c.folio}
+                            </span>
+                          )}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-right">
+                          <span className="font-semibold tabular-nums text-neutral-dark">
+                            {formatClp(c.monto)}
                           </span>
-                        )}
-                      </span>
-                      <span className="shrink-0 whitespace-nowrap text-right">
-                        <span className="font-semibold tabular-nums text-neutral-dark">
-                          {formatClp(c.monto)}
+                          <span className="text-[11px] text-neutral-mid">
+                            {c.diasAtraso == null ? "sin fecha" : `${c.diasAtraso} días de atraso`}
+                          </span>
+                          {puedeConciliar && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onMarcarCobrado!({
+                                  sourceExternalId: c.sourceExternalId as string,
+                                  side: c.side ?? "receivable",
+                                })
+                              }
+                              disabled={enCurso || marcandoId != null}
+                              className="rounded-md border border-info-500/40 px-2 py-0.5 text-[11px] font-semibold text-info-700 transition-colors hover:bg-info-500/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info-500"
+                            >
+                              {enCurso ? "Conciliando…" : "Ya lo cobré"}
+                            </button>
+                          )}
                         </span>
-                        <span className="ml-2 text-[11px] text-neutral-mid">
-                          {c.diasAtraso == null ? "sin fecha" : `${c.diasAtraso} días de atraso`}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
 
@@ -205,9 +233,8 @@ export function CajaProyeccionView({
               <p>
                 <b className="text-success-700">Tienes ingreso recurrente en camino:</b> proyectamos{" "}
                 <b className="tabular-nums">{formatClp(ingresoProyectado!.totalIngreso)}</b> en{" "}
-                {ingresoProyectado!.nFlujos}{" "}
-                {ingresoProyectado!.nFlujos === 1 ? "cobro" : "cobros"}, estimado por tu historial de
-                abonos.
+                {ingresoProyectado!.nFlujos} {ingresoProyectado!.nFlujos === 1 ? "cobro" : "cobros"}
+                , estimado por tu historial de abonos.
                 {ingresoProyectado!.pisoConIngresos == null &&
                   " Contándolo, tu caja no toca el punto de quiebre."}
               </p>
@@ -229,8 +256,8 @@ export function CajaProyeccionView({
             <CajaCascada saldoHoy={proyeccion.saldoHoy} movimientos={movimientos} />
           ) : (
             <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-neutral-mid">
-              Todavía no hay detalle de próximos movimientos para mostrar. El medidor de la izquierda
-              ya sale del banco.
+              Todavía no hay detalle de próximos movimientos para mostrar. El medidor de la
+              izquierda ya sale del banco.
             </p>
           )}
         </section>
