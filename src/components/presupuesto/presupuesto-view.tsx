@@ -11,10 +11,14 @@ import {
   useBudgetGrid,
   useEditBudgetLine,
   useAcceptBudget,
+  budgetByAccountQueryOptions,
   type BudgetVsActualResponse,
+  type BudgetByAccountResponse,
 } from "@/lib/api/planning";
 import { buildBudgetGrid } from "./budget-grid-model";
 import { BudgetGridView } from "./budget-grid-view";
+import { buildPlanRealYear } from "./plan-real-year-model";
+import { PlanRealYearView } from "./plan-real-year-view";
 import { currentPeriodSantiago, shiftPeriod } from "@/components/gestion/gestion-format";
 import { mesCorto } from "@/components/gestion/v2/gestion-v2-map";
 import { formatClp } from "@/lib/formatters/clp";
@@ -44,6 +48,8 @@ const META_OPCIONES: { label: string; pct: number }[] = [
 export function PresupuestoView() {
   const [modo, setModo] = React.useState<"mes" | "anio">("mes");
   const [metaPct, setMetaPct] = React.useState(0);
+  // En modo "Año": ver el presupuesto EDITABLE (plan) o el PLAN VS REAL por cuenta-mes.
+  const [vistaAnual, setVistaAnual] = React.useState<"plan" | "real">("plan");
 
   const periodos = React.useMemo(() => {
     const actual = currentPeriodSantiago(new Date());
@@ -70,6 +76,22 @@ export function PresupuestoView() {
   const accept = useAcceptBudget(year);
   const grid =
     gridQuery.data && gridQuery.data.has_budget ? buildBudgetGrid(gridQuery.data) : null;
+
+  // Plan vs Real por cuenta-mes: una query de budget-by-account por mes cerrado (carga progresiva).
+  const realQueries = useQueries({
+    queries: periodos.mesesAnio.map((p) =>
+      budgetByAccountQueryOptions(p, modo === "anio" && vistaAnual === "real"),
+    ),
+  });
+  const planReal = React.useMemo(
+    () => buildPlanRealYear(realQueries.map((q) => q.data as BudgetByAccountResponse | undefined)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [realQueries.map((q) => q.data).join(","), periodos.mesesAnio.length],
+  );
+  const mesesLabel = React.useMemo(
+    () => periodos.mesesAnio.map((p) => mesCorto(p)),
+    [periodos.mesesAnio],
+  );
 
   const loading = modo === "mes" ? mesQuery.isLoading : anioQueries.some((q) => q.isLoading);
 
@@ -165,18 +187,55 @@ export function PresupuestoView() {
               desglose por CUENTA (marketing, sueldos, software) espera el presupuesto a nivel de cuenta. */}
           <Desvios desvios={desviosPresupuesto(data)} />
 
-          {/* Grilla anual EDITABLE (modo Año): cuentas × 12 meses. Editar una celda re-abre a borrador;
-              "Aceptar" la publica. El monto se manda SIGNADO (la sección pone el signo). */}
-          {modo === "anio" && grid && (
-            <BudgetGridView
-              model={grid}
-              saving={editLine.isPending}
-              accepting={accept.isPending}
-              onEditCell={(account_id, impact_type, month, montoSignado) =>
-                editLine.mutate({ account_id, month, amount: montoSignado, impact_type })
-              }
-              onAccept={() => accept.mutate()}
-            />
+          {/* Modo Año: ver el presupuesto EDITABLE (plan) o el PLAN VS REAL por cuenta-mes. */}
+          {modo === "anio" && (
+            <>
+              <div className="flex rounded-lg bg-neutral-light/40 p-0.5 text-xs" role="tablist">
+                {(
+                  [
+                    ["plan", "Presupuesto (editable)"],
+                    ["real", "Plan vs Real"],
+                  ] as const
+                ).map(([v, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    role="tab"
+                    aria-selected={vistaAnual === v}
+                    onClick={() => setVistaAnual(v)}
+                    className={cn(
+                      "rounded-md px-3 py-1 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
+                      vistaAnual === v ? "bg-surface text-neutral-strong shadow-sm" : "text-neutral-mid",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {vistaAnual === "plan"
+                ? grid && (
+                    <BudgetGridView
+                      model={grid}
+                      saving={editLine.isPending}
+                      accepting={accept.isPending}
+                      onEditCell={(account_id, impact_type, month, montoSignado) =>
+                        editLine.mutate({ account_id, month, amount: montoSignado, impact_type })
+                      }
+                      onAccept={() => accept.mutate()}
+                    />
+                  )
+                : (
+                    <PlanRealYearView
+                      model={planReal}
+                      meses={mesesLabel}
+                      cargando={{
+                        hechos: realQueries.filter((q) => q.data).length,
+                        total: periodos.mesesAnio.length,
+                      }}
+                    />
+                  )}
+            </>
           )}
 
           {/* Proyección de cierre (Fase 1b) */}
