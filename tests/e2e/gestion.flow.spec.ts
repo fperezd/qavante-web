@@ -42,6 +42,8 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
     // exact: la fila de la matriz "Margen Bruto" ≠ el bloque v2 "Margen bruto".
     await expect(page.getByText("Margen Bruto", { exact: true })).toBeVisible();
     await expect(page.getByText("(proforma)")).toBeVisible();
+    // Honestidad por mes (#895): el mes sin nómina cargada va marcado en la matriz.
+    await expect(page.getByText("(sin nómina)")).toBeVisible();
     await expect(page.getByText("Proyectos")).toBeVisible(); // fila hija, expandida por default
 
     // Drill-down por documento (CC-API #786): clic en una celda de costo de una cuenta hoja

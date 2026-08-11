@@ -3189,6 +3189,17 @@ const gestionHandlers = [
         mode: url.searchParams.get("mode") ?? "por_cuenta",
         months,
         proforma_month: months[months.length - 1] ?? null,
+        warnings: [],
+        // Marca el PRIMER mes del rango como "sin nómina" (CC-API #895) → la matriz muestra "(sin nómina)".
+        incomplete_months: months[0]
+          ? [
+              {
+                month: months[0],
+                reason: "payroll_not_loaded",
+                detail: "Nómina no cargada este mes; el margen puede estar sobreestimado.",
+              },
+            ]
+          : [],
         rows: [
           {
             kind: "section",
