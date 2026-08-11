@@ -118,6 +118,8 @@ export default defineConfig({
       NEXT_PUBLIC_FF_CAJA_DASHBOARD: "true",
       /* Pantalla Presupuesto propositivo — ON en prod y en e2e (contra el MSW de budget-vs-actual). */
       NEXT_PUBLIC_FF_PRESUPUESTO: "true",
+      /* Administración → MCP — ON en e2e (OFF en prod hasta validar). */
+      NEXT_PUBLIC_FF_MCP: "true",
     },
   },
 });
