@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import {
   Users,
@@ -10,9 +8,11 @@ import {
   ListFilter,
   Briefcase,
   Building2,
+  Bot,
   ArrowRight,
 } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
+import { resolveFeatureFlags } from "@/lib/feature-flags";
 
 interface SubModuleCardProps {
   href: string;
@@ -46,6 +46,7 @@ function SubModuleCard({ href, icon: Icon, title, description }: SubModuleCardPr
 }
 
 export default function AdministracionPage() {
+  const { mcp } = resolveFeatureFlags();
   return (
     <div className="space-y-6">
       <header>
@@ -102,6 +103,14 @@ export default function AdministracionPage() {
           title="Plantillas por rubro"
           description="Estructura sugerida de cuentas y vistas según el tipo de negocio que tengas."
         />
+        {mcp && (
+          <SubModuleCard
+            href="/administracion/mcp"
+            icon={Bot}
+            title="Conectar un asistente (MCP)"
+            description="Deja que ChatGPT o Claude lean tus datos de Qavante para responderte, con una API-key que controlas."
+          />
+        )}
       </div>
     </div>
   );

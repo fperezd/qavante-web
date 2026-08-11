@@ -3972,7 +3972,60 @@ const reconciliationHandlers = [
   }),
 ];
 
+/* e2e: API-keys de la empresa (MCP). Estado de módulo (se reinicia por page.goto → aislado por test):
+   listar / crear (devuelve la key entera una vez) / revocar. */
+let apiKeysE2E: {
+  id: string;
+  name: string;
+  role_code: string;
+  key_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}[] = [
+  {
+    id: "k1",
+    name: "Asistente de finanzas",
+    role_code: "viewer",
+    key_prefix: "qav_live_ab12",
+    created_at: "2026-08-01T10:00:00Z",
+    last_used_at: "2026-08-09T08:30:00Z",
+    revoked_at: null,
+  },
+];
+let apiKeyCounter = 1;
+const apiKeysHandlers = [
+  http.get("*/api/admin/api-keys", () => HttpResponse.json({ items: apiKeysE2E }, { status: 200 })),
+  http.post("*/api/admin/api-keys", async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as { name?: string; role_code?: string };
+    apiKeyCounter += 1;
+    const id = `k${apiKeyCounter}`;
+    const prefix = `qav_live_${id}xy`;
+    const item = {
+      id,
+      name: body.name || "Asistente",
+      role_code: body.role_code || "viewer",
+      key_prefix: prefix,
+      created_at: "2026-08-10T00:00:00Z",
+      last_used_at: null,
+      revoked_at: null,
+    };
+    apiKeysE2E = [item, ...apiKeysE2E];
+    return HttpResponse.json(
+      { ...item, key: `${prefix}_FULLKEYSECRET1234567890` },
+      { status: 201 },
+    );
+  }),
+  http.delete("*/api/admin/api-keys/:keyId", ({ params }) => {
+    apiKeysE2E = apiKeysE2E.map((k) =>
+      k.id === params.keyId ? { ...k, revoked_at: "2026-08-10T00:00:00Z" } : k,
+    );
+    return new HttpResponse(null, { status: 204 });
+  }),
+];
+
 export const handlers = [
+  ...apiKeysHandlers,
   ...authHandlers,
   ...cajaV2Handlers,
   ...reconciliationHandlers,

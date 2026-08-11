@@ -67,6 +67,7 @@ export const FEATURE_FLAGS = [
   "gestionDashboard",
   "cajaDashboard",
   "presupuesto",
+  "mcp",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -245,6 +246,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      PROPONE desde el histórico (POST budget/propose) + ajuste "+% ventas". Consume budget-vs-actual.
      Requiere el backend #870 (ya en main). Encender = editar wrangler. */
   presupuesto: "/api/planning/budget-vs-actual",
+  /* Administración → MCP (ADR-0092): conectar la empresa a un asistente LLM (ChatGPT/Claude) vía el
+     server MCP de Qavante. Gestiona las API-keys de la empresa (crear/listar/revocar). Requiere el
+     backend #882/#888 (ya en main). Gated OFF hasta que Fernando lo valide. */
+  mcp: "/api/mcp/connection",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

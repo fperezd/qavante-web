@@ -150,6 +150,9 @@ NEXT_PUBLIC_FF_CAJA_DASHBOARD = "false"
 # Pantalla Presupuesto propositivo (2026-08-09). ON: Fernando la quiere en el menú. Degrada honesto
 # (sin presupuesto → botón "Proponer"); backend #870 en prod.
 NEXT_PUBLIC_FF_PRESUPUESTO = "true"
+# Administración → MCP (2026-08-10): conectar la empresa a un asistente LLM + gestión de API-keys.
+# OFF hasta que Fernando lo valide (maneja credenciales de acceso a los datos). Backend #882/#888 en prod.
+NEXT_PUBLIC_FF_MCP = "false"
 # Activada 2026-06-22: wizard de onboarding. CC-API dejó vivos en prod todos los
 # endpoints (qavante-api #344 status/complete + onboarding_completed en /me, #345
 # sync per-source, #346 opening-balance; signup/verify ya estaban). FE alineado a
