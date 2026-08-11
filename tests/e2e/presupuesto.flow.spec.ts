@@ -79,4 +79,17 @@ test.describe("Flujo: Presupuesto (/presupuesto)", () => {
     await page.getByRole("button", { name: /Aceptar presupuesto/i }).click();
     await expect(page.getByText("Aceptado", { exact: true })).toBeVisible();
   });
+
+  test("Año → Plan vs Real: el real por cuenta y mes se ve", async ({ page, context }) => {
+    await loginAs(context, "owner");
+    await page.goto("/presupuesto");
+    await page.getByRole("tab", { name: "Año" }).click();
+
+    // Toggle de la vista anual: Presupuesto (editable) → Plan vs Real.
+    await page.getByRole("tab", { name: "Plan vs Real" }).click();
+    await expect(page.getByText("Plan vs Real, por cuenta y mes")).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Ventas", exact: true })).toBeVisible();
+    // El real de Ventas del fixture (12.000.000) aparece.
+    await expect(page.getByText("12.000.000").first()).toBeVisible();
+  });
 });

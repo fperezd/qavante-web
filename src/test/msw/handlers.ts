@@ -3018,6 +3018,24 @@ const gestionHandlers = [
       { status: 200 },
     );
   }),
+  /* Plan vs Real POR CUENTA de un mes (drill-down). Montos SIGNADOS; variance = actual − budget. */
+  http.get("*/api/planning/budget-by-account", ({ request }) => {
+    const period = new URL(request.url).searchParams.get("period") ?? "2026-07";
+    return HttpResponse.json(
+      {
+        period,
+        has_budget: true,
+        data_state: "available",
+        generated_at: "2026-08-01T00:00:00Z",
+        accounts: [
+          { account_id: "a1", account_code: "4.1", account_name: "Ventas", budget: "10000000", actual: "12000000", variance: "2000000", variance_pct: "20" },
+          { account_id: "c1", account_code: "5.1", account_name: "Sueldos", budget: "-4000000", actual: "-5000000", variance: "-1000000", variance_pct: "-25" },
+          { account_id: "g1", account_code: "6.1", account_name: "Arriendo", budget: "-1000000", actual: "-900000", variance: "100000", variance_pct: "10" },
+        ],
+      },
+      { status: 200 },
+    );
+  }),
   /* PROPONE el presupuesto del año (ADR-0091 F1a). En e2e marca el flag → el refetch de
      budget-vs-actual tras invalidar pasa a has_budget:true (poblado). */
   http.post("*/api/planning/budget/propose", async ({ request }) => {

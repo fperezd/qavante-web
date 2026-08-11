@@ -10,6 +10,7 @@ import type { components } from "./types";
 export type BudgetVsActualResponse = components["schemas"]["BudgetVsActualResponse"];
 export type BudgetLine = components["schemas"]["BudgetLine"];
 export type BudgetByAccountResponse = components["schemas"]["BudgetByAccountResponse"];
+export type BudgetAccountLine = components["schemas"]["BudgetAccountLine"];
 export type BudgetGridResponse = components["schemas"]["BudgetGridResponse"];
 export type BudgetGridCategory = components["schemas"]["BudgetGridCategory"];
 export type BudgetEditRequest = components["schemas"]["BudgetEditRequest"];
@@ -19,8 +20,24 @@ export type BudgetAcceptResponse = components["schemas"]["BudgetAcceptResponse"]
 export const planningKeys = {
   all: ["planning"] as const,
   budgetVsActual: (period: string) => [...planningKeys.all, "budget-vs-actual", period] as const,
+  budgetByAccount: (period: string) => [...planningKeys.all, "budget-by-account", period] as const,
   budgetGrid: (year: number) => [...planningKeys.all, "budget-grid", year] as const,
 };
+
+/** Query options de budget-by-account (plan vs real POR CUENTA de un mes). Compartido por `useQueries`
+ *  del plan/real anual (una query por mes → carga progresiva). */
+export function budgetByAccountQueryOptions(period: string, enabled = true) {
+  return {
+    queryKey: planningKeys.budgetByAccount(period),
+    queryFn: () =>
+      api.get<BudgetByAccountResponse>(
+        `/api/planning/budget-by-account?period=${encodeURIComponent(period)}`,
+      ),
+    enabled: enabled && period !== "",
+    staleTime: 30_000,
+    retry: false,
+  };
+}
 
 /** Query options de budget-vs-actual (compartido por el hook mensual y por `useQueries` del anual). */
 export function budgetVsActualQueryOptions(period: string, enabled = true) {
