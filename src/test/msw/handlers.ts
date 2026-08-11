@@ -4040,6 +4040,32 @@ const apiKeysHandlers = [
     );
     return new HttpResponse(null, { status: 204 });
   }),
+  /* Info de conexión del MCP (la pinta Administración → MCP). El backend mantiene el instructivo. */
+  http.get("*/api/mcp/connection", () =>
+    HttpResponse.json(
+      {
+        server_url: "https://mcp.qavante.com",
+        auth_header: "X-Api-Key",
+        auth_bearer: "Bearer <API-key>",
+        writes_enabled: false,
+        has_api_key: true,
+        docs: {
+          resumen:
+            "Conecta las finanzas de tu empresa a un asistente (Claude, ChatGPT) por MCP.",
+          pasos: [
+            "Copia o crea la API-key de tu empresa acá.",
+            "En tu asistente, agrega un servidor MCP con la URL de arriba y tu key en el header X-Api-Key.",
+            "Pregúntale '¿cómo va mi caja este mes?' y responde con tus números.",
+          ],
+          clientes: [
+            { nombre: "Claude / ChatGPT vía API", soportado: true, nota: "Header X-Api-Key." },
+            { nombre: "App de ChatGPT / Claude (OAuth)", soportado: false, nota: "Llega en la fase 3." },
+          ],
+        },
+      },
+      { status: 200 },
+    ),
+  ),
 ];
 
 export const handlers = [

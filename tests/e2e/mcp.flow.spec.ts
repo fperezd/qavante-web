@@ -14,9 +14,11 @@ test.describe("Flujo: Administración → MCP (/administracion/mcp)", () => {
       page.getByRole("heading", { level: 1, name: "Conectar un asistente (MCP)" }),
     ).toBeVisible();
 
-    // Cómo conectar: la dirección del server + la auth.
+    // Cómo conectar: dirección del server + auth + el instructivo del backend (docs.pasos/clientes).
     await expect(page.getByText("https://mcp.qavante.com")).toBeVisible();
-    await expect(page.getByText(/Authorization: Bearer/)).toBeVisible();
+    await expect(page.getByText("X-Api-Key").first()).toBeVisible();
+    await expect(page.getByText(/cómo va mi caja/i)).toBeVisible(); // un paso del instructivo
+    await expect(page.getByText(/Llega en la fase 3/i)).toBeVisible(); // cliente OAuth (no soportado aún)
 
     // La key que ya existe (fixture).
     await expect(page.getByText("Asistente de finanzas")).toBeVisible();

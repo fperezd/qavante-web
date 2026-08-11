@@ -11,6 +11,7 @@ import {
   useRevokeApiKey,
   type ApiKeyCreateResponse,
 } from "@/lib/api/api-keys";
+import { useMcpConnection } from "@/lib/api/mcp";
 
 /* Administración → MCP: conecta la empresa a un asistente LLM (ChatGPT/Claude) vía el server MCP de
    Qavante, y gestiona las API-keys de la empresa. La URL es fija (mcp.qavante.com); la auth es
@@ -68,6 +69,7 @@ export function McpView() {
   const list = useApiKeys();
   const create = useCreateApiKey();
   const revoke = useRevokeApiKey();
+  const conn = useMcpConnection();
 
   const [creando, setCreando] = React.useState(false);
   const [nombre, setNombre] = React.useState("");
@@ -93,17 +95,50 @@ export function McpView() {
 
   return (
     <div className="space-y-4">
-      {/* Cómo conectar */}
+      {/* Cómo conectar — el instructivo lo mantiene el backend (/api/mcp/connection); acá lo mostramos
+          tal cual, con fallback estático si el endpoint no responde. */}
       <QavanteCard variant="bordered" header={<span className="font-medium">Cómo conectar</span>}>
         <p className="mb-3 text-sm text-neutral-mid">
-          En tu asistente (ChatGPT o Claude), agrega un conector <b>MCP</b> con esta dirección y tu
-          API-key como <b>Bearer</b>. El asistente va a poder leer tus datos de Qavante para
-          responderte.
+          {conn.data?.docs?.resumen ??
+            "Conecta las finanzas de tu empresa a un asistente (Claude, ChatGPT) por MCP: consulta tu caja, resultado, cobros/pagos y presupuesto en lenguaje natural, con tus datos reales."}
         </p>
         <div className="space-y-2">
-          <Campo label="Dirección del servidor (MCP)" value={MCP_URL} />
-          <Campo label="Autorización" value="Authorization: Bearer TU_API_KEY" />
+          <Campo label="Dirección del servidor (MCP)" value={conn.data?.server_url ?? MCP_URL} />
+          <Campo label="Header de auth" value={conn.data?.auth_header ?? "X-Api-Key"} />
+          <p className="text-xs text-neutral-mid">
+            Si tu cliente solo tiene un campo <b>Token</b> o <b>Bearer</b>, pega ahí la misma key (se
+            envía como <span className="font-mono">{conn.data?.auth_bearer ?? "Bearer <API-key>"}</span>).
+          </p>
         </div>
+
+        {(conn.data?.docs?.pasos?.length ?? 0) > 0 && (
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-neutral-dark">
+            {conn.data!.docs!.pasos!.map((paso, i) => (
+              <li key={i}>{paso}</li>
+            ))}
+          </ol>
+        )}
+
+        {(conn.data?.docs?.clientes?.length ?? 0) > 0 && (
+          <div className="mt-3 border-t border-border/60 pt-2">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-mid">
+              Clientes
+            </p>
+            <ul className="space-y-1 text-xs">
+              {conn.data!.docs!.clientes!.map((c) => (
+                <li key={c.nombre} className="flex items-start gap-1.5">
+                  <span className={cn("mt-0.5", c.soportado ? "text-success-700" : "text-neutral-mid")}>
+                    {c.soportado ? "✓" : "○"}
+                  </span>
+                  <span className="text-neutral-dark">
+                    {c.nombre}
+                    {c.nota ? <span className="text-neutral-mid"> · {c.nota}</span> : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </QavanteCard>
 
       {/* API-keys */}
