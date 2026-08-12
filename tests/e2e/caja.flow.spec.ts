@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — Caja v2 (rediseño 2026-07-14, `cajaV2` ON en prod y en el env de e2e). La vista LIVE
-   deriva la curva de saldo del saldo de hoy (dashboard) + los netos del reporte de caja (MSW),
-   con la caja mínima como piso. Cubre la respuesta de dueño + el saldo hoy + los flujos. */
+/* Flujo — Caja v2+v3 (`cajaV2`/`cajaV3` ON en prod y en el env de e2e). La vista LIVE muestra la
+   respuesta de dueño (hero + saldo hoy), el MEDIDOR de días de caja (Caja v3, derivado de la
+   proyección del backend) y la tabla de entradas/salidas por período. Cubre esos tres. El flujo de
+   conciliar fila-por-fila desde el caveat vive en caja-mark-collected.flow.spec. */
 
 test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
   test("respuesta de dueño + saldo hoy + curva + flujos por período", async ({ page, context }) => {
@@ -17,13 +18,12 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
     await expect(page.getByText("La empresa tiene en caja")).toBeVisible();
     await expect(page.getByText("$9.800.000").first()).toBeVisible();
 
-    // Saldo disponible (degradado a total: bice/saldo es api-key-only).
-    await expect(page.getByText("Total en caja hoy")).toBeVisible();
-
-    // La curva de saldo proyectado + la tabla de entradas/salidas por período.
-    await expect(page.getByText("Saldo proyectado")).toBeVisible();
+    // Caja v3 (ON en prod): el "Saldo proyectado" es el MEDIDOR de días de caja (no la curva clásica).
+    // El fixture proyecta un piso bajo la mínima → "Caja ajustada". ("Total en caja hoy" se oculta con
+    // v3: el saldo ya vive en el hero, no se repite.)
+    await expect(page.getByText(/Caja (holgada|ajustada|en riesgo)/)).toBeVisible();
+    // La tabla de entradas/salidas por período (con la columna "Saldo al cierre" derivada) sigue debajo.
     await expect(page.getByText("Entradas y salidas · por período")).toBeVisible();
-    // Columna derivada que la tabla clásica no tiene.
     await expect(page.getByText("Saldo al cierre")).toBeVisible();
   });
 
@@ -35,9 +35,9 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
     await page.goto("/caja");
 
     await expect(page.getByRole("heading", { level: 1, name: "Caja" })).toBeVisible();
-    // v2 arriba: respuesta de dueño + curva (contesta el "¿me alcanza?" del título).
+    // v2 arriba: respuesta de dueño + medidor de caja (contesta el "¿me alcanza?" del título).
     await expect(page.getByText("La empresa tiene en caja")).toBeVisible();
-    await expect(page.getByText("Saldo proyectado")).toBeVisible();
+    await expect(page.getByText(/Caja (holgada|ajustada|en riesgo)/)).toBeVisible();
     // Herramientas debajo (Movimientos bancarios).
     await expect(page.getByText("Por clasificar")).toBeVisible();
     // La card "Reporte de caja" es redundante con el v2 arriba → se omite.
