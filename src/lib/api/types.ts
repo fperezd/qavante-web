@@ -11214,6 +11214,46 @@ export interface components {
             conciliados: number;
         };
         /**
+         * McpConnectionClient
+         * @description Un cliente LLM y si el MCP lo soporta hoy, con la nota de cómo conectarlo.
+         */
+        McpConnectionClient: {
+            /** Nombre */
+            nombre: string;
+            /** Soportado */
+            soportado: boolean;
+            /** Nota */
+            nota: string;
+        };
+        /** McpConnectionDocs */
+        McpConnectionDocs: {
+            /** Resumen */
+            resumen: string;
+            /** Pasos */
+            pasos: string[];
+            /** Clientes */
+            clientes: components["schemas"]["McpConnectionClient"][];
+        };
+        /**
+         * McpConnectionInfo
+         * @description Info para conectar el MCP a un asistente LLM. NO expone ni crea la API-key.
+         */
+        McpConnectionInfo: {
+            /** Server Url */
+            server_url: string;
+            /** Auth Header */
+            auth_header: string;
+            /** Auth Bearer */
+            auth_bearer: string;
+            /** Writes Enabled */
+            writes_enabled: boolean;
+            /** Oauth Enabled */
+            oauth_enabled: boolean;
+            /** Has Api Key */
+            has_api_key: boolean;
+            docs: components["schemas"]["McpConnectionDocs"];
+        };
+        /**
          * MePatchRequest
          * @description Body de `PATCH /api/me` — auto-edición del perfil (Ask #2 CC-WEB).
          *
@@ -24737,9 +24777,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["McpConnectionInfo"];
                 };
             };
             /** @description Validation Error */
