@@ -1,41 +1,26 @@
-/* Capa de datos — info de conexión del MCP (para la pantalla Administración → MCP). El endpoint
-   `GET /api/mcp/connection` NO está tipado en el OpenAPI (devuelve un objeto libre), así que
-   declaramos el shape acá de forma DEFENSIVA (todo opcional) — el FE cae a valores por defecto si
-   falta un campo. Fuente de verdad del shape: api/app/api/mcp.py (server_url, auth_header, auth_bearer,
-   writes_enabled, has_api_key, docs{resumen,pasos[],clientes[]}). Read-only: NO expone la key. */
+/* Capa de datos — info de conexión del MCP (para la pantalla Administración → MCP).
+   `GET /api/mcp/connection` YA está TIPADO en el OpenAPI (`McpConnectionInfo`, CC-API #925), así que
+   consumimos el tipo del contrato (regla 3), no un shape hand-rolled. El backend arregló el 500 (era un
+   lookup de `has_api_key` sin scope de tenant → RLS; #924-api) y ahora responde 200 con la cookie del
+   admin. La VISTA igual cae a valores por defecto si el endpoint no responde (defensa). Read-only: NO
+   expone la key. */
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
+import type { components } from "./types";
 
-export interface McpClienteDoc {
-  nombre: string;
-  soportado: boolean;
-  nota?: string;
-}
-export interface McpConnection {
-  server_url?: string;
-  /** Header primario de auth (ej. "X-Api-Key"). */
-  auth_header?: string;
-  /** Alternativa Bearer para clientes que solo tienen un campo "Token" (ej. "Bearer <API-key>"). */
-  auth_bearer?: string;
-  writes_enabled?: boolean;
-  has_api_key?: boolean;
-  docs?: {
-    resumen?: string;
-    pasos?: string[];
-    clientes?: McpClienteDoc[];
-  };
-}
+export type McpConnectionInfo = components["schemas"]["McpConnectionInfo"];
+export type McpConnectionClient = components["schemas"]["McpConnectionClient"];
 
 export const mcpKeys = {
   connection: ["mcp", "connection"] as const,
 };
 
 /** `GET /api/mcp/connection` — cómo conectar el MCP (URL + auth + instructivo por cliente). El backend
- *  mantiene el instructivo al día (incluido cuando OAuth pase a soportado en fase 3). */
+ *  mantiene el instructivo al día (incluido `oauth_enabled` cuando OAuth pase a soportado). */
 export function useMcpConnection(enabled = true) {
   return useQuery({
     queryKey: mcpKeys.connection,
-    queryFn: () => api.get<McpConnection>("/api/mcp/connection"),
+    queryFn: () => api.get<McpConnectionInfo>("/api/mcp/connection"),
     enabled,
     staleTime: 60_000,
     retry: false,
