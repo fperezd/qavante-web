@@ -11,7 +11,7 @@ import { CajaV2ResumenLive } from "@/components/caja/v2/caja-v2-resumen-live";
    cuando el usuario de prod tenga financial_impacts clasificados — ver
    ADR-0012). */
 export default function CajaProyeccionPage() {
-  const { cashFlowReport, cajaV2, cajaV3 } = resolveFeatureFlags();
+  const { cashFlowReport, cajaV2, cajaV3, cajaMarkCollected } = resolveFeatureFlags();
 
   return (
     <div className="space-y-6">
@@ -26,7 +26,7 @@ export default function CajaProyeccionPage() {
       {/* `cajaV2` (rediseño 2026-07-14) tiene prioridad: respuesta de dueño + curva de saldo.
          Requiere `cashFlowReport` (misma fuente de netos). Con OFF, el reporte clásico. */}
       {cajaV2 && cashFlowReport ? (
-        <CajaV2ResumenLive cajaV3={cajaV3} />
+        <CajaV2ResumenLive cajaV3={cajaV3} markCollectedEnabled={cajaMarkCollected} />
       ) : cashFlowReport ? (
         <CashFlowView />
       ) : (

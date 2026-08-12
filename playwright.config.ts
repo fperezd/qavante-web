@@ -75,6 +75,9 @@ export default defineConfig({
       /* v2 encendidos en prod (wrangler.toml): el e2e debe espejar lo que ven los usuarios.
          Con estos ON, /pagar, /caja/proyeccion y /gestion (un mes) renderean las vistas v2. */
       NEXT_PUBLIC_FF_CAJA_V2: "true",
+      /* Caja v3 ON en prod: el "Saldo proyectado" es el MEDIDOR de días + cascada + caveat de
+         por-cobrar (no la curva clásica). El e2e debe espejar prod. */
+      NEXT_PUBLIC_FF_CAJA_V3: "true",
       NEXT_PUBLIC_FF_PAGAR_V2: "true",
       NEXT_PUBLIC_FF_COBRAR_V2: "true",
       NEXT_PUBLIC_FF_DASHBOARD_SUMMARY: "true",
