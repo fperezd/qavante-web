@@ -18,6 +18,7 @@ import type { components } from "./types";
 export type ReviewQueueResponse = components["schemas"]["ReviewQueueResponse"];
 export type MarkCollectedRequest = components["schemas"]["MarkCollectedRequest"];
 export type MarkCollectedResponse = components["schemas"]["MarkCollectedResponse"];
+export type RevertMarkCollectedResponse = components["schemas"]["RevertMarkCollectedResponse"];
 export type ReviewItem = components["schemas"]["ReviewItem"];
 export type ReviewSuggestion = components["schemas"]["ReviewSuggestion"];
 export type SuggestionsResponse = components["schemas"]["SuggestionsResponse"];
@@ -107,6 +108,23 @@ export function useMarkCollected() {
   return useMutation({
     mutationFn: (body: MarkCollectedRequest) =>
       api.post<MarkCollectedResponse>("/api/treasury/reconciliation/mark-collected", { body }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: treasuryKeys.all });
+      qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
+    },
+  });
+}
+
+/** `POST /api/treasury/reconciliation/mark-collected/revert` — DESHACE un `mark-collected`: re-abre los
+ *  documentos (vuelven a "por cobrar"). Mismo body que mark-collected. Es la red de seguridad del
+ *  "Deshacer" (#851): si el dueño marca un cobro por error, lo devuelve de un clic. Invalida tesorería. */
+export function useMarkCollectedRevert() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: MarkCollectedRequest) =>
+      api.post<RevertMarkCollectedResponse>("/api/treasury/reconciliation/mark-collected/revert", {
+        body,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: treasuryKeys.all });
       qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
