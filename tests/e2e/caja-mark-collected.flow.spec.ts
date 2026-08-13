@@ -29,12 +29,17 @@ test.describe("Flujo: conciliar cobros fila-por-fila en Caja (#851)", () => {
     const botones = page.getByRole("button", { name: "Ya lo cobré" });
     await expect(botones).toHaveCount(3);
 
-    // Conciliar el primero → mark-collected (MSW conciliados:1) → toast honesto con "Deshacer".
+    // Conciliar el primero → mark-collected (MSW conciliados:1) → toast honesto.
     await botones.first().click();
     await expect(page.getByText(/Listo, lo saqué de por cobrar/)).toBeVisible();
 
+    // La fila queda como "Conciliado ✓" con "Deshacer" INLINE (undo durable, no solo el toast).
+    await expect(page.getByText("Conciliado")).toBeVisible();
+    const deshacer = page.getByRole("button", { name: "Deshacer" });
+    await expect(deshacer).toBeVisible();
+
     // Red de seguridad: "Deshacer" (revert) devuelve el documento a por cobrar.
-    await page.getByRole("button", { name: "Deshacer" }).click();
+    await deshacer.click();
     await expect(page.getByText(/Lo devolví a por cobrar/)).toBeVisible();
   });
 });
