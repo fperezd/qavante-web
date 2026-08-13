@@ -190,6 +190,53 @@ export const ConConciliarFilaPorFila: Story = {
   },
 };
 
+/* #851 — undo DURABLE: una fila ya conciliada en esta sesión se queda como "Conciliado ✓" con
+   "Deshacer" al lado (no depende del toast). Click en "Deshacer" → revert. */
+export const ConCobroConciliado: Story = {
+  args: {
+    proyeccion: BREAK_PROY,
+    minimo: null,
+    movimientos: movimientosPorSemana(BREAK_MOVS, HOY),
+    porCobrarVencido: { total: 9_400_000, n: 2 },
+    cobrosPorCobrar: [
+      {
+        glosa: "INMOBILIARIA VISTA KENNEDY",
+        monto: 1_440_000,
+        diasAtraso: 12,
+        folio: "1201",
+        sourceExternalId: "sii-ventas-33-1201",
+        side: "receivable",
+      },
+      // Ya conciliado en la sesión → "Conciliado ✓" + "Deshacer".
+      {
+        glosa: "TD SYNNEX CHILE LIMITADA",
+        monto: 5_000_000,
+        diasAtraso: 45,
+        folio: "435",
+        sourceExternalId: "sii-ventas-33-435",
+        side: "receivable",
+        conciliado: true,
+      },
+    ],
+    onMarcarCobrado: fn(),
+    onDeshacer: fn(),
+    marcandoId: null,
+  },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    await userEvent.click(c.getByRole("button", { name: /documentos vencidos o sin fecha/ }));
+    // El conciliado muestra "Conciliado" y NO "Ya lo cobré"; el pendiente sí.
+    await expect(c.getByText("Conciliado")).toBeInTheDocument();
+    await expect(c.getAllByRole("button", { name: "Ya lo cobré" })).toHaveLength(1);
+    // "Deshacer" → revert de ESE documento.
+    await userEvent.click(c.getByRole("button", { name: "Deshacer" }));
+    await expect(args.onDeshacer).toHaveBeenCalledWith({
+      sourceExternalId: "sii-ventas-33-435",
+      side: "receivable",
+    });
+  },
+};
+
 export const SinDato: Story = {
   args: { proyeccion: null, minimo: null, movimientos: [], ultimaSync: "18-jul" },
   play: async ({ canvasElement }) => {

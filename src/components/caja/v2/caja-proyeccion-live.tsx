@@ -22,6 +22,7 @@ import {
   cobrosPorCobrarVencido,
   recuperacionAtraso,
   ingresoProyectado,
+  type CobroVencido,
 } from "./caja-cash-projection-map";
 import type { MovimientoCaja } from "./caja-cascada-model";
 
@@ -73,37 +74,10 @@ export function CajaProyeccionLive({
   const marcarCobrado = useMarkCollected();
   const revertirCobrado = useMarkCollectedRevert();
   const [marcandoId, setMarcandoId] = React.useState<string | null>(null);
-
-  // #851: "Ya lo cobré" concilia ese documento (mark-collected). Al conciliar, el hook invalida
-  // tesorería → la proyección + el por-cobrar-vencido se refrescan solos. El toast trae "Deshacer"
-  // (revert): red de seguridad si el dueño se equivocó de documento (vuelve a "por cobrar" de un clic).
-  const onMarcarCobrado = React.useCallback(
-    (item: { sourceExternalId: string; side: "receivable" | "payable" }) => {
-      const body = { source_external_ids: [item.sourceExternalId], side: item.side };
-      setMarcandoId(item.sourceExternalId);
-      marcarCobrado.mutate(body, {
-        onSuccess: (resp) => {
-          if (resp.conciliados <= 0) {
-            toast.success("Ese documento ya estaba conciliado.");
-            return;
-          }
-          toast.success("Listo, lo saqué de por cobrar.", {
-            action: {
-              label: "Deshacer",
-              onClick: () =>
-                revertirCobrado.mutate(body, {
-                  onSuccess: () => toast.success("Lo devolví a por cobrar."),
-                  onError: (err) => toast.error(interpretarErrorConciliar(err).mensaje),
-                }),
-            },
-          });
-        },
-        onError: (err) => toast.error(interpretarErrorConciliar(err).mensaje),
-        onSettled: () => setMarcandoId(null),
-      });
-    },
-    [marcarCobrado, revertirCobrado],
-  );
+  // #851: los cobros conciliados EN ESTA SESIÓN. Se quedan en la lista como "Conciliado ✓ · Deshacer"
+  // (aunque el backend ya los sacó de por-cobrar) → el undo es DURABLE mientras estés en la pantalla, no
+  // depende del toast. Se limpian al recargar (ahí manda el estado ya comprometido del backend).
+  const [conciliados, setConciliados] = React.useState<Map<string, CobroVencido>>(new Map());
 
   // Medidor + curva + punto de quiebre + causas: FUENTE ÚNICA = backend.
   const proyeccion = React.useMemo(() => cashProjectionToDiasCaja(cashProj.data), [cashProj.data]);
@@ -122,6 +96,65 @@ export function CajaProyeccionLive({
     () => cobrosPorCobrarVencido(cashProj.data),
     [cashProj.data],
   );
+
+  // "Ya lo cobré" concilia ese documento (mark-collected) y lo deja en la lista como "Conciliado ✓"
+  // (para poder Deshacer después). El hook invalida tesorería → la proyección se refresca sola.
+  const onMarcarCobrado = React.useCallback(
+    (item: { sourceExternalId: string; side: "receivable" | "payable" }) => {
+      const cobro = cobrosPorCobrar.find((c) => c.sourceExternalId === item.sourceExternalId);
+      setMarcandoId(item.sourceExternalId);
+      marcarCobrado.mutate(
+        { source_external_ids: [item.sourceExternalId], side: item.side },
+        {
+          onSuccess: (resp) => {
+            if (resp.conciliados <= 0) {
+              toast.success("Ese documento ya estaba conciliado.");
+              return;
+            }
+            if (cobro) setConciliados((prev) => new Map(prev).set(item.sourceExternalId, cobro));
+            toast.success("Listo, lo saqué de por cobrar. Podés deshacerlo en la lista.");
+          },
+          onError: (err) => toast.error(interpretarErrorConciliar(err).mensaje),
+          onSettled: () => setMarcandoId(null),
+        },
+      );
+    },
+    [marcarCobrado, cobrosPorCobrar],
+  );
+
+  // "Deshacer" (revert): re-abre el documento (vuelve a por cobrar) y lo saca del set de conciliados.
+  const onDeshacer = React.useCallback(
+    (item: { sourceExternalId: string; side: "receivable" | "payable" }) => {
+      setMarcandoId(item.sourceExternalId);
+      revertirCobrado.mutate(
+        { source_external_ids: [item.sourceExternalId], side: item.side },
+        {
+          onSuccess: () => {
+            setConciliados((prev) => {
+              const next = new Map(prev);
+              next.delete(item.sourceExternalId);
+              return next;
+            });
+            toast.success("Lo devolví a por cobrar.");
+          },
+          onError: (err) => toast.error(interpretarErrorConciliar(err).mensaje),
+          onSettled: () => setMarcandoId(null),
+        },
+      );
+    },
+    [revertirCobrado],
+  );
+
+  // Lista para la vista: los que siguen por cobrar (el backend ya sacó los conciliados) + los conciliados
+  // en esta sesión, marcados, al final (para poder Deshacer). Evita duplicar el que aún no refrescó.
+  const cobrosVista = React.useMemo(() => {
+    const marcados = new Set(conciliados.keys());
+    const pendientes = cobrosPorCobrar.filter(
+      (c) => !c.sourceExternalId || !marcados.has(c.sourceExternalId),
+    );
+    const hechos = [...conciliados.values()].map((c) => ({ ...c, conciliado: true }));
+    return [...pendientes, ...hechos];
+  }, [cobrosPorCobrar, conciliados]);
   // Escenario "con recuperación del atraso" (ADR-0087): cuantifica el "si cobras, tu caja aguanta X días".
   const recuperacion = React.useMemo(() => recuperacionAtraso(cashProj.data), [cashProj.data]);
   // Banda "con ingreso recurrente" (ADR-0089 B): contexto anti-false-doom ("entra $X recurrente").
@@ -164,8 +197,9 @@ export function CajaProyeccionLive({
       causas={causas}
       porCobrarVencido={porCobrarVencido}
       conciliarHref="/caja/conciliacion"
-      cobrosPorCobrar={cobrosPorCobrar}
+      cobrosPorCobrar={markCollectedEnabled ? cobrosVista : cobrosPorCobrar}
       onMarcarCobrado={markCollectedEnabled ? onMarcarCobrado : undefined}
+      onDeshacer={markCollectedEnabled ? onDeshacer : undefined}
       marcandoId={marcandoId}
       recuperacion={recuperacion}
       ingresoProyectado={ingresos}

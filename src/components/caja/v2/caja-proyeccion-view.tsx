@@ -45,12 +45,18 @@ export interface CajaProyeccionViewProps {
     /** Identidad del documento para conciliar de un clic (#851). Sin ella, la fila no lleva botón. */
     sourceExternalId?: string | null;
     side?: "receivable" | "payable";
+    /** Ya conciliado en esta sesión (marcado "Ya lo cobré"): la fila muestra "Conciliado ✓" + "Deshacer"
+     *  en vez de "Ya lo cobré", y persiste mientras estés en la pantalla (undo durable, no solo el toast). */
+    conciliado?: boolean;
   }[];
   /** Conciliar FILA-POR-FILA (#851, flag `cajaMarkCollected`): si viene, cada fila con `sourceExternalId`
    *  suma un botón "Ya lo cobré" que concilia ese documento (mark-collected). Sin callback → la lista es
    *  solo de lectura (comportamiento actual). */
   onMarcarCobrado?: (item: { sourceExternalId: string; side: "receivable" | "payable" }) => void;
-  /** `sourceExternalId` de la fila con la conciliación en curso (spinner + deshabilitar), o `null`. */
+  /** Deshacer una conciliación (revert): la fila `conciliado` muestra "Deshacer" que devuelve el
+   *  documento a por cobrar. Undo durable (no depende del toast). */
+  onDeshacer?: (item: { sourceExternalId: string; side: "receivable" | "payable" }) => void;
+  /** `sourceExternalId` de la fila con una acción en curso (conciliar o deshacer) → spinner + deshabilitar. */
   marcandoId?: string | null;
   /** Escenario "con recuperación del atraso" (ADR-0087): si viene, el caveat muestra cuánto MEJORA el
    *  piso SI cobras ese atraso — respuesta honesta al "sin recuperación" del core. */
@@ -79,6 +85,7 @@ export function CajaProyeccionView({
   conciliarHref,
   cobrosPorCobrar,
   onMarcarCobrado,
+  onDeshacer,
   marcandoId,
   recuperacion,
   ingresoProyectado,
@@ -175,13 +182,24 @@ export function CajaProyeccionView({
                   {cobrosPorCobrar.map((c, i) => {
                     const puedeConciliar = Boolean(onMarcarCobrado && c.sourceExternalId);
                     const enCurso = marcandoId != null && marcandoId === c.sourceExternalId;
+                    const hayAccion = marcandoId != null;
                     return (
                       <li
                         key={`${c.glosa}-${i}`}
                         className="flex items-center justify-between gap-3 leading-tight"
                       >
                         <span className="min-w-0 truncate text-neutral-dark">
-                          {c.glosa}
+                          {c.conciliado && (
+                            <span className="mr-1 font-semibold text-success-700">✓</span>
+                          )}
+                          <span
+                            className={cn(
+                              "truncate",
+                              c.conciliado && "text-neutral-mid line-through",
+                            )}
+                          >
+                            {c.glosa}
+                          </span>
                           {c.folio && (
                             <span className="ml-1.5 text-[11px] font-normal text-neutral-mid">
                               · Folio {c.folio}
@@ -189,26 +207,56 @@ export function CajaProyeccionView({
                           )}
                         </span>
                         <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-right">
-                          <span className="font-semibold tabular-nums text-neutral-dark">
+                          <span
+                            className={cn(
+                              "font-semibold tabular-nums",
+                              c.conciliado ? "text-neutral-mid line-through" : "text-neutral-dark",
+                            )}
+                          >
                             {formatClp(c.monto)}
                           </span>
-                          <span className="text-[11px] text-neutral-mid">
-                            {c.diasAtraso == null ? "sin fecha" : `${c.diasAtraso} días de atraso`}
-                          </span>
-                          {puedeConciliar && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onMarcarCobrado!({
-                                  sourceExternalId: c.sourceExternalId as string,
-                                  side: c.side ?? "receivable",
-                                })
-                              }
-                              disabled={enCurso || marcandoId != null}
-                              className="rounded-md border border-info-500/40 px-2 py-0.5 text-[11px] font-semibold text-info-700 transition-colors hover:bg-info-500/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info-500"
-                            >
-                              {enCurso ? "Conciliando…" : "Ya lo cobré"}
-                            </button>
+                          {c.conciliado ? (
+                            <>
+                              <span className="text-[11px] font-medium text-success-700">
+                                Conciliado
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onDeshacer?.({
+                                    sourceExternalId: c.sourceExternalId as string,
+                                    side: c.side ?? "receivable",
+                                  })
+                                }
+                                disabled={hayAccion}
+                                className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-neutral-mid transition-colors hover:bg-neutral-light/40 hover:text-neutral-dark disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                              >
+                                {enCurso ? "Deshaciendo…" : "Deshacer"}
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[11px] text-neutral-mid">
+                                {c.diasAtraso == null
+                                  ? "sin fecha"
+                                  : `${c.diasAtraso} días de atraso`}
+                              </span>
+                              {puedeConciliar && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onMarcarCobrado!({
+                                      sourceExternalId: c.sourceExternalId as string,
+                                      side: c.side ?? "receivable",
+                                    })
+                                  }
+                                  disabled={hayAccion}
+                                  className="rounded-md border border-info-500/40 px-2 py-0.5 text-[11px] font-semibold text-info-700 transition-colors hover:bg-info-500/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info-500"
+                                >
+                                  {enCurso ? "Conciliando…" : "Ya lo cobré"}
+                                </button>
+                              )}
+                            </>
                           )}
                         </span>
                       </li>
