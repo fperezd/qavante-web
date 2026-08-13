@@ -4008,6 +4008,14 @@ const reconciliationHandlers = [
       { status: 200 },
     );
   }),
+  /* #851 — "Deshacer": re-abre los documentos marcados (vuelven a por cobrar). */
+  http.post("*/api/treasury/reconciliation/mark-collected/revert", async ({ request }) => {
+    const body = (await request.json().catch(() => ({}))) as { source_external_ids?: string[] };
+    return HttpResponse.json(
+      { reabiertos: body.source_external_ids?.length ?? 0 },
+      { status: 200 },
+    );
+  }),
   http.post("*/api/treasury/reconcile", () =>
     HttpResponse.json(
       {

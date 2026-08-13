@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { usePreferences } from "@/lib/api/preferences";
 import { useAccountsPayable } from "@/lib/api/pagos";
 import { useCashProjection } from "@/lib/api/treasury";
-import { useMarkCollected } from "@/lib/api/reconciliation";
+import { useMarkCollected, useMarkCollectedRevert } from "@/lib/api/reconciliation";
 import { interpretarErrorConciliar } from "@/components/caja/conciliacion/reconciliacion-cola-map";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import { readTerminos, readPagados, buildMaestro } from "@/components/terminos/terminos-pago";
@@ -71,29 +71,38 @@ export function CajaProyeccionLive({
   const ap = useAccountsPayable();
   const cashProj = useCashProjection(HORIZONTE_DIAS);
   const marcarCobrado = useMarkCollected();
+  const revertirCobrado = useMarkCollectedRevert();
   const [marcandoId, setMarcandoId] = React.useState<string | null>(null);
 
   // #851: "Ya lo cobré" concilia ese documento (mark-collected). Al conciliar, el hook invalida
-  // tesorería → la proyección + el por-cobrar-vencido se refrescan solos.
+  // tesorería → la proyección + el por-cobrar-vencido se refrescan solos. El toast trae "Deshacer"
+  // (revert): red de seguridad si el dueño se equivocó de documento (vuelve a "por cobrar" de un clic).
   const onMarcarCobrado = React.useCallback(
     (item: { sourceExternalId: string; side: "receivable" | "payable" }) => {
+      const body = { source_external_ids: [item.sourceExternalId], side: item.side };
       setMarcandoId(item.sourceExternalId);
-      marcarCobrado.mutate(
-        { source_external_ids: [item.sourceExternalId], side: item.side },
-        {
-          onSuccess: (resp) => {
-            toast.success(
-              resp.conciliados > 0
-                ? "Listo, lo saqué de por cobrar."
-                : "Ese documento ya estaba conciliado.",
-            );
-          },
-          onError: (err) => toast.error(interpretarErrorConciliar(err).mensaje),
-          onSettled: () => setMarcandoId(null),
+      marcarCobrado.mutate(body, {
+        onSuccess: (resp) => {
+          if (resp.conciliados <= 0) {
+            toast.success("Ese documento ya estaba conciliado.");
+            return;
+          }
+          toast.success("Listo, lo saqué de por cobrar.", {
+            action: {
+              label: "Deshacer",
+              onClick: () =>
+                revertirCobrado.mutate(body, {
+                  onSuccess: () => toast.success("Lo devolví a por cobrar."),
+                  onError: (err) => toast.error(interpretarErrorConciliar(err).mensaje),
+                }),
+            },
+          });
         },
-      );
+        onError: (err) => toast.error(interpretarErrorConciliar(err).mensaje),
+        onSettled: () => setMarcandoId(null),
+      });
     },
-    [marcarCobrado],
+    [marcarCobrado, revertirCobrado],
   );
 
   // Medidor + curva + punto de quiebre + causas: FUENTE ÚNICA = backend.
