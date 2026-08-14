@@ -27,6 +27,15 @@ export interface DiasCaja {
   horizonteDias: number;
   /** `critico` si toca $0 · `ajustado` si toca la mínima sin caer bajo $0 · `sano` si nunca. */
   estado: EstadoCaja;
+  /** #853 — el saldo de HOY ya está bajo el mínimo (sobregiro). En ese caso `diasHastaMinimo` es
+   *  degenerado (~0/1) y NO se muestra como "días de caja": mostramos la RECUPERACIÓN. Solo lo puebla
+   *  la fuente backend (`cashProjectionToDiasCaja`); la derivada de serie lo deja en `false`. */
+  enSobregiro?: boolean;
+  /** Días hasta volver SOBRE el mínimo contando el ingreso recurrente proyectado (banda
+   *  `esperado_con_ingresos`); `null` si no recupera en el horizonte. Solo para el caso sobregiro. */
+  diasHastaRecuperar?: number | null;
+  /** Fecha (YYYY-MM-DD) de esa recuperación; `null` si no recupera. */
+  fechaRecuperar?: string | null;
 }
 
 /** Días (desde hoy) hasta el PRIMER punto en que el saldo cae ESTRICTAMENTE bajo `umbral`,

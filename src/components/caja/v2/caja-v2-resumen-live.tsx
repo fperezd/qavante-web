@@ -12,7 +12,11 @@ import {
   type CashFlowGranularity,
 } from "@/lib/api/treasury-reports";
 import { useCashMinimum } from "@/lib/api/cash-minimum";
-import { useUnclassifiedInRange, type UnclassifiedSummary } from "@/lib/api/treasury";
+import {
+  useUnclassifiedInRange,
+  useCashProjection,
+  type UnclassifiedSummary,
+} from "@/lib/api/treasury";
 import { parseAmount } from "@/components/inicio/dashboard-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { CajaV2Resumen, type CajaMovible } from "./caja-v2-resumen";
@@ -119,6 +123,10 @@ function CajaV2Contenido({
   periodoSelector: React.ReactNode;
   sinClasificar: UnclassifiedSummary;
 }) {
+  // #853 — sobregiro: leemos la proyección (caché compartida con el medidor) para saber si el saldo de
+  // hoy ya está bajo el mínimo. En ese caso `days_of_cash` del dashboard es degenerado (~1) y NO lo
+  // mostramos como "días de caja" en el hero: el medidor de abajo cuenta la recuperación real.
+  const cashProj = useCashProjection(90);
   if (cf.isLoading || dash.isLoading) return <LiveSkeleton />;
   if (cf.isError) {
     return (
@@ -158,7 +166,10 @@ function CajaV2Contenido({
   // El cruce "bajo el mínimo" cuenta solo DESDE HOY hacia adelante: un dip reconstruido en un
   // período ya pasado no es accionable (no se puede adelantar cobranza para una semana que terminó).
   const cruceIdx = primerCruceFuturo(serie, allBuckets, granularity, now, minimo);
-  const dias = dash.data?.cash_forecast?.days_of_cash ?? null;
+  // #853 — con `cajaV3` y sobregiro, `days_of_cash` es degenerado (~1) → no lo mostramos como "días de
+  // caja" (el medidor cuenta la recuperación). Sin sobregiro, o en v2 clásico, va como siempre.
+  const enSobregiro = cajaV3 && (cashProj.data?.en_sobregiro ?? false);
+  const dias = enSobregiro ? null : (dash.data?.cash_forecast?.days_of_cash ?? null);
   // Caja en cero o negativa → tono crítico honesto (no un ✓ verde "alcanza ~0 días").
   const negativa = saldoHoy <= 0;
   const tono = negativa ? "crit" : cruceIdx != null ? "warn" : "ok";
