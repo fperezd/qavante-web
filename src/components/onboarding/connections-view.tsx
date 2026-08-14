@@ -4,7 +4,11 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Clock, Landmark, PlugZap, Receipt } from "lucide-react";
 import { QavanteButton, QavanteBadge, QavanteCard, QavanteInlineError } from "@/components/qavante";
+import { SourceConsentCard } from "@/components/credenciales/source-consent-card";
 import { LinkBankAccountsCard } from "@/components/treasury/link-bank-accounts-card";
+import { useBiceCredentialStatus } from "@/lib/api/bank-credentials";
+import { useSourceConsent } from "@/lib/api/source-consent";
+import { BANK_SOURCE_CODE } from "@/lib/onboarding/connect-bank";
 import {
   ONBOARDING_SOURCE_IDS,
   useOnboardingSources,
@@ -20,7 +24,7 @@ import {
   sourceActionLabel,
   sourceStateDescription,
 } from "./onboarding-source-meta";
-import { ONBOARDING_DONE_ROUTE, routeForSource } from "./onboarding-steps";
+import { ONBOARDING_DONE_ROUTE, onboardingResumeRoute, routeForSource } from "./onboarding-steps";
 
 /* Hub de conexiones — el PUNTO DE RETORNO del patrón "siempre wizard, con
    conexiones diferibles" (Fernando 2026-08-12). Acá el usuario ve, en un solo
@@ -89,6 +93,16 @@ export function ConnectionsView() {
 
   const pendingCount = ONBOARDING_SOURCE_IDS.filter((id) => states[id] !== "connected").length;
   const bankConnected = states.bank === "connected";
+  /* Banco con credencial guardada pero SIN autorización: es el caso que dejaba
+     al usuario sin salida (el paso decía "vincúlala después desde Tus
+     conexiones" y acá no había nada que hacer). La card de autorización es esa
+     salida — la misma que usa Administración. */
+  const bankCredential = useBiceCredentialStatus(!bankConnected);
+  const bankConsent = useSourceConsent(BANK_SOURCE_CODE, !bankConnected);
+  const faltaAutorizarBanco =
+    !bankConnected &&
+    bankCredential.data?.connected === true &&
+    bankConsent.data?.is_valid === false;
 
   return (
     <OnboardingShell
@@ -147,13 +161,30 @@ export function ConnectionsView() {
           </p>
         )}
 
+        {/* Autorización del banco pendiente: sin esto la fuente queda en error y
+            el banco no sincroniza, por más que la credencial esté guardada. */}
+        {faltaAutorizarBanco && (
+          <SourceConsentCard
+            sourceCode={BANK_SOURCE_CODE}
+            label="Autorización de acceso al banco"
+          />
+        )}
+
         {/* Cuentas por vincular de BICE: solo tiene sentido con el banco conectado
             (contratos reales `GET/POST /api/bank-movements/bice/accounts…`). */}
         {bankConnected && <LinkBankAccountsCard />}
 
         <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end">
-          <QavanteButton variant="ghost" onClick={() => router.push(ONBOARDING_DONE_ROUTE)}>
-            {completed ? "Volver a mi panel" : "Ir a mi panel"}
+          {/* Con el onboarding INCOMPLETO el panel rebota al wizard (el guard hace
+              su trabajo), así que no prometemos "ir a mi panel": se ofrece seguir
+              con el registro, que es lo que de verdad va a pasar. */}
+          <QavanteButton
+            variant="ghost"
+            onClick={() =>
+              router.push(completed ? ONBOARDING_DONE_ROUTE : onboardingResumeRoute(states))
+            }
+          >
+            {completed ? "Volver a mi panel" : "Seguir con el registro"}
           </QavanteButton>
         </div>
       </div>

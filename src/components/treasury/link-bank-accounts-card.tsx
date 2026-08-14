@@ -4,6 +4,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import { Link2, CheckCircle2, Landmark, RefreshCw } from "lucide-react";
 import { QavanteCard, QavanteButton, QavanteBadge } from "@/components/qavante";
+import { ApiError } from "@/lib/api/errors";
 import {
   useBiceAccounts,
   useCreateBankAccount,
@@ -50,6 +51,11 @@ export function LinkBankAccountsCard() {
 
   const accounts = biceQuery.data?.accounts ?? [];
   const pending = accounts.filter((a) => !a.linked_bank_account_id);
+  /* `GET /api/bank-movements/bice/accounts` responde 403 `consent_missing`
+     cuando falta la autorización de la fuente. Es una causa distinta a "el
+     banco no responde" y se resuelve con una acción del usuario. */
+  const consentMissing =
+    biceQuery.error instanceof ApiError && biceQuery.error.code === "consent_missing";
 
   // Sin cuentas de BICE en absoluto → no mostramos la card (nada que vincular).
   if (!biceQuery.isLoading && !biceQuery.isError && accounts.length === 0) return null;
@@ -66,16 +72,25 @@ export function LinkBankAccountsCard() {
     >
       {biceQuery.isLoading ? (
         <div className="h-16 animate-pulse rounded-lg bg-neutral-light/30" aria-busy="true" />
-      ) : biceQuery.isError ? (
-        /* El endpoint que revisa cuentas nuevas (scrape en vivo del banco) a veces
-           no responde. Es una acción secundaria: el banco ya está conectado y esto
-           solo detecta cuentas por vincular. Degradamos con gracia — nota muteada
-           + reintentar discreto, sin el rojo alarmante de un error real. */
+      ) : consentMissing ? (
+        /* 403 `consent_missing`: NO es transitorio y NO se arregla reintentando —
+           falta la autorización legal para acceder al banco, y sin ella la fuente
+           queda en `error`. Decirlo con la acción que lo resuelve, en vez de
+           "intenta más tarde" (y sin afirmar que el banco sigue conectado). */
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-neutral-mid">
           <span>
-            No pudimos revisar si hay cuentas nuevas por vincular en este momento. Tu banco sigue
-            conectado.
+            Falta tu autorización para acceder al banco, así que no podemos revisar tus cuentas.
+            Autorízala en <strong>Administración → Credenciales</strong> y volvemos a revisar.
           </span>
+        </div>
+      ) : biceQuery.isError ? (
+        /* El endpoint que revisa cuentas nuevas (scrape en vivo del banco) a veces
+           no responde. Degradamos con gracia — nota muteada + reintentar discreto,
+           sin el rojo alarmante de un error real. Lo que NO hacemos es afirmar
+           "tu banco sigue conectado": no lo sabemos desde acá (hallazgo del review
+           del PR #935; con la credencial recién guardada era falso). */
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-neutral-mid">
+          <span>No pudimos revisar si hay cuentas nuevas por vincular en este momento.</span>
           <QavanteButton
             size="sm"
             variant="ghost"

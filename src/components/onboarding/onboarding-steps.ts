@@ -173,3 +173,31 @@ export function onboardingResumeRoute(states: OnboardingSourceStates): string {
   }
   return stepById("industry")!.route;
 }
+
+/** Lo que mira el guard antes de sacar al usuario de donde está. Puro →
+    testeable sin React ni router. */
+export interface OnboardingResumeInput {
+  /** No pudimos leer el estado (cargando o error). */
+  isUnknown: boolean;
+  /** El estado que tenemos quedó viejo: hay (o va a haber) un refetch. */
+  isStale: boolean;
+  /** El backend confirmó el onboarding completado. */
+  completed: boolean;
+}
+
+/** ¿Hay que devolver a este usuario al wizard?
+ *
+ *  Tres candados, todos fail-safe (ante la duda NO se lo mueve):
+ *
+ *  1. `isUnknown` — sin dato no se toca al usuario.
+ *  2. `completed` — si terminó, jamás vuelve al wizard.
+ *  3. `isStale` — **el candado que faltaba** (regresión cazada en el review del
+ *     PR #935). El `QueryClient` es único para toda la app: la entrada
+ *     `completed:false` que dejaron los pasos del wizard sigue en cache cuando
+ *     el usuario aterriza en el panel, y el guard la leía en su primer render,
+ *     con 0 fetches, mandando de vuelta al wizard a quien acababa de terminarlo.
+ *     Exigir dato FRESCO cuesta un tick (react-query ya refetchea lo stale al
+ *     montar) y nunca redirige por un dato viejo. */
+export function shouldResumeOnboarding(input: OnboardingResumeInput): boolean {
+  return !input.isUnknown && !input.isStale && !input.completed;
+}

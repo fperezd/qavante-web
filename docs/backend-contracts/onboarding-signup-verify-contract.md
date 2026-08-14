@@ -4,8 +4,10 @@
 > en prod** ✅ → el FE usa los **tipos generados** (`SignupRequest`,
 > `SignupResponse`, `VerifyEmailRequest`, `LoginResponse`) en
 > `src/lib/api/onboarding.ts`. Modelo [ADR-0017](../adr/0017-modelo-identidad-multi-empresa.md)
-> (la 1ra persona crea su empresa y queda owner). Gated por `onboarding` (OFF en
-> prod). Este doc queda como referencia del flujo; el contrato vivo es el OpenAPI.
+> (la 1ra persona crea su empresa y queda owner). Gated por `onboarding`, que está
+> **ON en prod** desde 2026-06-22 (`wrangler.toml`): el registro self-serve **está
+> vivo**. (Este encabezado decía "OFF en prod"; corregido tras el review del PR
+> #935.) Este doc queda como referencia del flujo; el contrato vivo es el OpenAPI.
 
 ## 1. `POST /api/auth/signup` ✅ (en prod)
 

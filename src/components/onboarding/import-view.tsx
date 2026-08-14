@@ -2,13 +2,16 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { QavanteButton } from "@/components/qavante";
+import { ApiError } from "@/lib/api/errors";
+import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useTriggerOnboardingSync, useCompleteOnboarding } from "@/lib/api/onboarding-status";
 import { ONBOARDING_SOURCE_IDS, useOnboardingSources } from "@/lib/api/onboarding-sources";
 import { OnboardingShell } from "./onboarding-shell";
 import { ONBOARDING_CONNECTIONS_ROUTE, ONBOARDING_DONE_ROUTE } from "./onboarding-steps";
 import { ONBOARDING_SOURCE_META } from "./onboarding-source-meta";
+import { syncStatusText } from "./sync-status-text";
 
 /* Paso 7 (final) — Traer datos. Dispara la sincronización inicial (SII + banco)
    y, al finalizar, marca el onboarding completado y lleva al dashboard. La sync
@@ -20,11 +23,6 @@ import { ONBOARDING_SOURCE_META } from "./onboarding-source-meta";
    pendientes con su acceso directo al hub de conexiones. */
 
 const SOURCE_LABEL = { sii: "SII", bank: "Banco" } as const;
-const STATUS_TEXT = {
-  ok: "sincronizado",
-  failed: "no se pudo conectar",
-  skipped: "no conectado (lo puedes conectar después)",
-} as const;
 
 export function ImportView() {
   const router = useRouter();
@@ -40,9 +38,13 @@ export function ImportView() {
   }, [sync]);
 
   function finish() {
-    // No atrapar al usuario al final: navegamos al panel pase lo que pase con
-    // el complete (el guard/backend reconcilia el estado).
-    complete.mutate(undefined, { onSettled: () => router.push(ONBOARDING_DONE_ROUTE) });
+    /* Navegamos SOLO si el backend confirmó el cierre. Antes se navegaba en
+       `onSettled` (pasara lo que pasara) "para no atrapar al usuario", pero el
+       efecto era el contrario: si el complete falla, el onboarding sigue
+       incompleto y el guard lo rebota de vuelta al wizard, sin decirle nada.
+       Con el complete OK, `useCompleteOnboarding` deja el status nuevo en la
+       cache compartida → el guard ya lo lee completado y no redirige. */
+    complete.mutate(undefined, { onSuccess: () => router.push(ONBOARDING_DONE_ROUTE) });
   }
 
   const synced = sync.isSuccess;
@@ -83,7 +85,7 @@ export function ImportView() {
                   if (!s) return null;
                   return (
                     <li key={src}>
-                      {SOURCE_LABEL[src]}: {STATUS_TEXT[s.status]}
+                      {SOURCE_LABEL[src]}: {syncStatusText(s.status)}
                     </li>
                   );
                 })}
@@ -128,8 +130,23 @@ export function ImportView() {
           </div>
         )}
 
+        {complete.isError && (
+          <div
+            role="alert"
+            className="flex w-full items-start gap-3 rounded-xl border border-danger-500/40 bg-danger-500/10 p-3 text-left text-sm text-danger-500"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+            <p>
+              {complete.error instanceof ApiError
+                ? apiErrorToUserMessage(complete.error)
+                : "No pudimos cerrar tu registro."}{" "}
+              Tus datos están guardados. Intenta de nuevo.
+            </p>
+          </div>
+        )}
+
         <QavanteButton size="lg" loading={complete.isPending} onClick={finish}>
-          Ir a mi panel
+          {complete.isError ? "Reintentar" : "Ir a mi panel"}
         </QavanteButton>
       </div>
     </OnboardingShell>

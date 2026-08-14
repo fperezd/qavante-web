@@ -24,8 +24,13 @@ import { routeAfter } from "./onboarding-steps";
    después" avanza el wizard y deja la fuente pendiente en el hub de conexiones
    (`/onboarding/conexiones`). Nada bloquea el registro.
 
-   ⚠️ Esos endpoints son api-key-only en prod (gap escalado a CC-API) — el wizard
-   está gated `onboarding` OFF hasta que acepten cookie. */
+   ⚠️ CORRECCIÓN (review del PR #935): este comentario afirmaba que el wizard
+   estaba "gated `onboarding` OFF hasta que acepten cookie". Es FALSO y hacía
+   subestimar el blast radius: `NEXT_PUBLIC_FF_ONBOARDING = "true"` en
+   `wrangler.toml` desde 2026-06-22, o sea este paso corre EN PRODUCCIÓN. El gap
+   real es que los endpoints de credenciales del SII fueron api-key-only; por eso
+   van blindados con `skipAuthRetry` (un 401 acá muestra error inline y no
+   expulsa al login). */
 
 const NEXT = routeAfter("connect-sii");
 

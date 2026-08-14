@@ -90,6 +90,11 @@ export interface UseOnboardingSourcesResult {
   /** No pudimos leer el estado real (loading o error) → la UI debe DECIRLO, no
    *  pintar "pendiente" como si fuera un hecho verificado. */
   isUnknown: boolean;
+  /** El dato que tenemos quedó viejo (o lo invalidamos) y hay un refetch en
+   *  curso o por venir. Quien tome una decisión IRREVERSIBLE para el usuario
+   *  (el guard, que lo saca de la pantalla donde está) debe esperar dato fresco:
+   *  la cache es única para toda la app y sobrevive a la navegación. */
+  isStale: boolean;
   isLoading: boolean;
   isError: boolean;
   error: unknown;
@@ -108,6 +113,7 @@ export function useOnboardingSources(enabled = true): UseOnboardingSourcesResult
   return {
     states: deriveSourceStates(query.data, locallyDeferred),
     isUnknown: !query.data,
+    isStale: query.isStale,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,
