@@ -41,8 +41,15 @@ export interface ClasificadosStatsProps {
   isPartial: boolean;
   categoriesById: Map<string, CategoryLookupItem>;
   accountsById: Map<string, AccountLookupItem>;
-  /** Moneda de los montos (los items comparten moneda: filtro de cuenta). */
+  /** Moneda de los montos. Definida SOLO cuando todos los items comparten una
+   *  moneda conocida; si no, va `undefined` y hay que pasar `noTotalReason`. */
   currency?: string;
+  /** Motivo por el que NO se puede mostrar un monto único (monedas mezcladas o
+   *  moneda desconocida — INV-FX-001). Cuando viene, las métricas de plata
+   *  (Ingresos/Egresos/Neto) NO muestran una cifra: mostrarían una suma mezclada
+   *  o, peor, un fallback silencioso a CLP. El desglose real por moneda lo pinta
+   *  `<MultiCurrencyTotalsBreakdown />` al pie de la tabla. */
+  noTotalReason?: string | null;
   isLoading?: boolean;
   activeDirection?: "credit" | "debit" | null;
   activeCanonicalCategory?: string | null;
@@ -57,6 +64,7 @@ export function ClasificadosStats({
   categoriesById,
   accountsById,
   currency,
+  noTotalReason = null,
   isLoading = false,
   activeDirection = null,
   activeCanonicalCategory = null,
@@ -82,7 +90,14 @@ export function ClasificadosStats({
     );
   }
 
-  const netTone: StatCardTone = stats.netAmount >= 0 ? "success" : "warning";
+  /* Con monedas mezcladas (o moneda desconocida) las métricas de plata no se
+     pueden expresar en UN número: se rotulan "Por moneda" y el desglose real va
+     al pie de la tabla. Mostrar la suma cruda acá sería mezclar CLP con USD. */
+  const canTotal = noTotalReason == null;
+  const money = (value: number) => (canTotal ? formatMoney(value, currency) : "Por moneda");
+  const moneySublabel = canTotal ? undefined : "Ver desglose al pie de la tabla";
+  /* Sin total posible, el tono tampoco puede salir del neto mezclado. */
+  const netTone: StatCardTone = !canTotal ? "neutral" : stats.netAmount >= 0 ? "success" : "warning";
   const needsReviewTone: StatCardTone = stats.needsReviewCount > 0 ? "warning" : "neutral";
 
   const incomeActive = activeDirection === "credit";
@@ -124,12 +139,12 @@ export function ClasificadosStats({
           />
           <ClasificadosStatCard
             label="Ingresos"
-            value={formatMoney(stats.incomeAmount, currency)}
-            tone="success"
-            tooltip="Suma de movimientos con dirección ingreso."
+            value={money(stats.incomeAmount)}
+            tone={canTotal ? "success" : "neutral"}
+            tooltip={noTotalReason ?? "Suma de movimientos con dirección ingreso."}
             active={incomeActive}
             muted={incomeMuted}
-            sublabel={incomeActive ? "Filtro activo · clic para quitar" : undefined}
+            sublabel={incomeActive ? "Filtro activo · clic para quitar" : moneySublabel}
             onClick={
               onApplyDirectionFilter
                 ? () => onApplyDirectionFilter(incomeActive ? null : "credit")
@@ -139,12 +154,12 @@ export function ClasificadosStats({
           />
           <ClasificadosStatCard
             label="Egresos"
-            value={formatMoney(stats.expenseAmount, currency)}
-            tone="warning"
-            tooltip="Suma de movimientos con dirección egreso."
+            value={money(stats.expenseAmount)}
+            tone={canTotal ? "warning" : "neutral"}
+            tooltip={noTotalReason ?? "Suma de movimientos con dirección egreso."}
             active={expenseActive}
             muted={expenseMuted}
-            sublabel={expenseActive ? "Filtro activo · clic para quitar" : undefined}
+            sublabel={expenseActive ? "Filtro activo · clic para quitar" : moneySublabel}
             onClick={
               onApplyDirectionFilter
                 ? () => onApplyDirectionFilter(expenseActive ? null : "debit")
@@ -154,10 +169,11 @@ export function ClasificadosStats({
           />
           <ClasificadosStatCard
             label="Neto"
-            value={formatMoney(stats.netAmount, currency)}
+            value={money(stats.netAmount)}
             tone={netTone}
             muted={netMuted}
-            tooltip="Ingresos clasificados menos egresos clasificados."
+            sublabel={moneySublabel}
+            tooltip={noTotalReason ?? "Ingresos clasificados menos egresos clasificados."}
           />
 
           <ClasificadosStatCard

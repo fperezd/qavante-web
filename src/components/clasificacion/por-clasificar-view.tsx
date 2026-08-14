@@ -18,10 +18,16 @@ import {
   type ClassifyMovementRequest,
 } from "@/lib/api/treasury";
 import { ApiError } from "@/lib/api/errors";
-import { BankAccountFilter, currencyByAccount } from "@/components/treasury/bank-account-filter";
+import { BankAccountFilter } from "@/components/treasury/bank-account-filter";
+import { currencyByAccount, formatMovementAmount } from "@/components/caja/multi-currency";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
-import { presetRange, isInPeriodRange, type PeriodRange } from "@/lib/period/period-range";
-import { formatMoney } from "@/lib/formatters/clp";
+import {
+  presetRange,
+  isInPeriodRange,
+  orderRange,
+  formatRangeLabel,
+  type PeriodRange,
+} from "@/lib/period/period-range";
 import {
   useManagementAccountsTree,
   useClassificationDimensions,
@@ -80,7 +86,7 @@ function movementSummary(m: BankMovement, currency?: string) {
     // §17.1: no mostrar número de cuenta completo.
     bankLabel: `Cuenta ····${m.bank_account_id.slice(-4)}`,
     // Dirección + moneda: un egreso no se ve igual que un ingreso.
-    amountFormatted: `${sign} ${formatMoney(Math.abs(Number(m.amount) || 0), currency)}`,
+    amountFormatted: `${sign} ${formatMovementAmount(Math.abs(Number(m.amount) || 0), currency)}`,
   };
 }
 
@@ -91,7 +97,26 @@ export interface PorClasificarViewProps {
 }
 
 export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarViewProps = {}) {
-  const movementsQuery = useBankMovements({ status: "unclassified", limit: 500 });
+  /* Filtro por cuenta bancaria (no mezclar CLP/USD). "" = todas.
+     Sin default forzado: "Por clasificar" es una LISTA sin total → se pueden
+     mostrar todas las cuentas juntas, cada fila formateada en SU moneda. No hay
+     total que mezclar, así que no hace falta obligar a elegir una cuenta. */
+  const [accountId, setAccountId] = React.useState("");
+  /* Filtro de rango de período (idéntico al Libro); default el año en curso. */
+  const [range, setRange] = React.useState<PeriodRange>(() => presetRange("este_ano"));
+  /* Cuenta y rango se mandan SERVER-SIDE (`bank_account_id`, `period_from`,
+     `period_to` — api PR #653): el cap de 500 se gasta en lo que el usuario está
+     mirando, y el aviso "hay más sin clasificar" compara contra el `total` del
+     mismo corte. El mismo filtro se re-aplica client-side (`passes`), que es
+     idempotente. */
+  const ordered = React.useMemo(() => orderRange(range), [range]);
+  const movementsQuery = useBankMovements({
+    status: "unclassified",
+    periodFrom: ordered.desde,
+    periodTo: ordered.hasta,
+    ...(accountId && { bankAccountId: accountId }),
+    limit: 500,
+  });
   const canonicalQuery = useCanonicalCategories();
   const accountsQuery = useManagementAccountsTree();
   const bankAccountsQuery = useBankAccounts();
@@ -170,16 +195,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
 
   const [selected, setSelected] = React.useState<BankMovement | null>(null);
   const [formError, setFormError] = React.useState<string>();
-  /* Filtro por cuenta bancaria (no mezclar CLP/USD). "" = todas (solo si no hay
-     monedas mezcladas). Con monedas mezcladas se arranca en la primera cuenta. */
-  /* Sin default forzado: "Por clasificar" es una LISTA sin total → mostramos
-     todas las cuentas juntas ("" = todas), cada fila formateada en su moneda. No
-     hay total que mezclar, así que no hace falta obligar a elegir una cuenta. */
-  const [accountId, setAccountId] = React.useState("");
   const bankAccounts = bankAccountsQuery.data?.items ?? [];
-  /* Filtro de rango de período (idéntico al Libro). Filtra los pendientes por la
-     fecha del movimiento; default el año en curso. */
-  const [range, setRange] = React.useState<PeriodRange>(() => presetRange("este_ano"));
   const passes = React.useCallback(
     (m: BankMovement) =>
       (!accountId || m.bank_account_id === accountId) && isInPeriodRange(m.date, range),
@@ -287,15 +303,11 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
      producto). `visible` acota el render a la tanda actual (F-05, evita el muro). */
   const movements = sort.sorted(allMovements.filter(passes));
   const visible = movements.slice(0, visibleCount);
-  if (allMovements.length === 0) {
-    return (
-      <QavanteEmpty
-        icon={CheckCircle2}
-        title="¡Todo al día! 🎉"
-        description="No te queda ningún movimiento por clasificar. Cuando lleguen nuevos que Qavante no pueda clasificar con confianza, aparecerán acá."
-      />
-    );
-  }
+  /* Sin early-return por lista vacía: el período y la cuenta ahora se filtran
+     SERVER-SIDE, así que "0 movimientos" significa "0 en ESTE corte", no "0 en
+     total" — y cortar acá dejaba al usuario sin la barra de filtros para ampliar
+     el rango. El vacío se resuelve abajo, dentro del layout, distinguiendo el
+     "todo al día" (sin filtro de cuenta) del "nada con estos filtros". */
 
   /* Abre el drawer para clasificar un movimiento (botón o Enter en la lista).
      Bloqueado si faltan las cuentas de gestión (no se puede clasificar). */
@@ -427,7 +439,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       /* Feedback de éxito: antes la fila simplemente desaparecía de la lista, lo
          que se podía leer como error. El toast confirma la acción. */
       toast.success("Movimiento clasificado", {
-        description: `${movement.description} · ${formatMoney(Math.abs(Number(movement.amount) || 0), currencyMap.get(movement.bank_account_id))}`,
+        description: `${movement.description} · ${formatMovementAmount(Math.abs(Number(movement.amount) || 0), currencyMap.get(movement.bank_account_id))}`,
       });
       setSelected(null);
       setFormError(undefined);
@@ -527,9 +539,17 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
       )}
 
       {movements.length === 0 ? (
-        <p className="rounded-xl border border-border bg-surface-muted px-4 py-6 text-center text-sm text-neutral-mid">
-          No hay movimientos por clasificar con los filtros aplicados.
-        </p>
+        allMovements.length === 0 && !accountId ? (
+          <QavanteEmpty
+            icon={CheckCircle2}
+            title="¡Todo al día en este período! 🎉"
+            description={`No te queda ningún movimiento por clasificar en ${formatRangeLabel(range)}. Amplía el rango para revisar períodos anteriores; cuando lleguen nuevos que Qavante no pueda clasificar con confianza, aparecerán acá.`}
+          />
+        ) : (
+          <p className="rounded-xl border border-border bg-surface-muted px-4 py-6 text-center text-sm text-neutral-mid">
+            No hay movimientos por clasificar con los filtros aplicados.
+          </p>
+        )
       ) : (
         <>
           {/* Toolbar: seleccionar todos + hint de teclado. */}
@@ -674,7 +694,7 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
                     )}
                   >
                     {m.direction === "credit" ? "+" : "−"}{" "}
-                    {formatMoney(
+                    {formatMovementAmount(
                       Math.abs(Number(m.amount) || 0),
                       currencyMap.get(m.bank_account_id),
                     )}
