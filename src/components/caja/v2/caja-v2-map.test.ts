@@ -13,13 +13,23 @@ import {
   completitudFlujoVisible,
   entradasSinClasificarLabel,
   motivoIndeterminado,
-  unidadesSinClasificarNoCLP,
-  TECHO_CLP_POR_UNIDAD_FX,
+  cotaSuperiorNoCLPEnPesos,
+  monedasSinTecho,
+  TECHO_CLP_POR_UNIDAD,
+  REFERENCIA_CLP_POR_UNIDAD,
+  MARGEN_TECHO_FX,
   UMBRAL_SIN_CLASIFICAR,
 } from "./caja-v2-map";
 import type { CashFlowBucket } from "@/lib/api/treasury-reports";
 import type { CashMinimumResponse } from "@/lib/api/cash-minimum";
 import type { SaldoPunto } from "./caja-curva-model";
+
+/** Techo de una moneda que DEBE tenerlo (si no lo tiene, el test que lo pide está mal planteado). */
+const techo = (code: string): number => {
+  const t = TECHO_CLP_POR_UNIDAD[code];
+  if (t == null) throw new Error(`la moneda ${code} no tiene techo aplicable`);
+  return t;
+};
 
 const bucket = (period: string, net: string): CashFlowBucket =>
   ({ period, net, total_inflow: "0", total_outflow: "0", row_count: 0 }) as CashFlowBucket;
@@ -315,7 +325,7 @@ describe("completitudFlujo", () => {
     // entra $100M, nada en CLP pendiente: el umbral se cruza recién cuando unidades·techo > $25M.
     const enElBorde =
       (100_000_000 * UMBRAL_SIN_CLASIFICAR) /
-      (TECHO_CLP_POR_UNIDAD_FX * (1 - UMBRAL_SIN_CLASIFICAR));
+      (techo("USD") * (1 - UMBRAL_SIN_CLASIFICAR));
     expect(
       completitudFlujo(100_000_000, sc([{ currency: "USD", inflow: enElBorde, count: 1 }])),
     ).toBe("completo");
@@ -385,11 +395,30 @@ describe("completitudFlujoVisible (el veredicto no se rendea antes que su eviden
     isLoading: true,
   };
 
-  it("mientras carga NO aparece el titular alarmante (era un flash a indeterminado)", () => {
+  /* Regresión del review adversarial sobre `a949550`: mientras cargaba se devolvía `completo`, o
+     sea se cambiaba un flash alarmante por uno de FALSA TRANQUILIDAD — `completo` es la rama que
+     muestra Entra/Sale como el flujo del período y sin aviso, justo lo que todavía no se sabe.
+     Mientras carga no se afirma NADA: ni completo ni incompleto ni indeterminado. */
+  it("mientras carga no hay veredicto: ni el alarmante ni el tranquilizador", () => {
     // Con las cuentas en vuelo el mapa está vacío ⇒ todo cae en desconocido ⇒ `completitudFlujo`
     // sola diría "indeterminado" durante la carga y después se acomodaría.
     expect(completitudFlujo(50_000_000, cargando)).toBe("indeterminado");
-    expect(completitudFlujoVisible(50_000_000, cargando)).toBe("completo");
+    expect(completitudFlujoVisible(50_000_000, cargando)).toBe("cargando");
+  });
+
+  it("cargando NUNCA es `completo` (el flash de falsa tranquilidad del caso Tooxs)", () => {
+    // Tooxs julio: $1,6M clasificado vs $61,5M sin clasificar. `main` decía `incompleto` y avisaba;
+    // el `completo` transitorio pintaba $1,6M como si fuera el flujo del período.
+    const tooxsCargando = {
+      count: 9,
+      inflowByCurrency: [{ currency: "CLP", inflow: 61_500_000, count: 9 }],
+      unknownInflowCount: 0,
+      isLoading: true,
+    };
+    expect(completitudFlujoVisible(1_600_000, tooxsCargando)).toBe("cargando");
+    expect(completitudFlujoVisible(1_600_000, { ...tooxsCargando, isLoading: false })).toBe(
+      "incompleto",
+    );
   });
 
   it("cuando termina de cargar, el veredicto es el real", () => {
@@ -418,10 +447,119 @@ describe("completitudFlujoVisible (el veredicto no se rendea antes que su eviden
   });
 });
 
-describe("unidadesSinClasificarNoCLP", () => {
-  it("suma UNIDADES de toda moneda distinta de CLP y excluye los pesos", () => {
+/* BLOQUEANTE del review adversarial sobre `a949550`: el techo único de 10.000 no era una cota
+   superior. El catálogo real del sistema (`core.currencies`, qavante-api
+   `0026_multicurrency_base.sql:47-56`) trae UF con `currency_type = 'indexed_unit'` a ~39.500 CLP,
+   4x por encima; y como `bank_accounts.currency_code` es CHAR(3) SIN FK y el alta valida solo el
+   largo, entra cualquier código de 3 letras (XAU ~2.900.000). Como la rama del techo SOLO puede
+   concluir `completo`, quedarse corto no cuesta un `indeterminado` de más: produce un `completo`
+   FALSO que esconde el aviso. Estos son los casos exactos que midió el reviewer. */
+describe("techo por moneda: lo que no se sabe acotar NO puede dar `completo`", () => {
+  const sc = (currency: string, inflow: number) => ({
+    count: 1,
+    inflowByCurrency: [{ currency, inflow, count: 1 }],
+    unknownInflowCount: 0,
+  });
+
+  it("UF 500 contra $50M NO da `completo` (verdad a UF≈39.500: 28,3% ⇒ incompleto)", () => {
+    expect(completitudFlujo(50_000_000, sc("UF", 500))).toBe("indeterminado");
+    // Y el borde que el reviewer citó: con el techo viejo se salía de `completo` recién en 1.249.
+    expect(completitudFlujo(50_000_000, sc("UF", 1_249))).toBe("indeterminado");
+    expect(completitudFlujo(50_000_000, sc("UF", 1))).toBe("indeterminado");
+  });
+
+  it("XAU 20 contra $50M NO da `completo` (código fuera del catálogo, ~$58M reales)", () => {
+    expect(completitudFlujo(50_000_000, sc("XAU", 20))).toBe("indeterminado");
+    // Cualquier código arbitrario que el backend deje pasar cae igual: no hay cota, no hay `completo`.
+    for (const code of ["BTC", "ZZZ", "KWD", "UTM"]) {
+      expect(completitudFlujo(50_000_000, sc(code, 5))).toBe("indeterminado");
+    }
+  });
+
+  it("una sola moneda sin techo contamina el veredicto aunque el resto sí tenga", () => {
     expect(
-      unidadesSinClasificarNoCLP({
+      completitudFlujo(50_000_000, {
+        count: 2,
+        inflowByCurrency: [
+          { currency: "USD", inflow: 1, count: 1 },
+          { currency: "UF", inflow: 1, count: 1 },
+        ],
+        unknownInflowCount: 0,
+      }),
+    ).toBe("indeterminado");
+  });
+
+  it("US$1.250 contra $50M sigue siendo `completo` (la verdad ahí es completo: 2,3%)", () => {
+    // Con el techo viejo este era el borde de la falsa alarma; ahora está holgadamente adentro.
+    expect(completitudFlujo(50_000_000, sc("USD", 1_250))).toBe("completo");
+    expect(completitudFlujo(50_000_000, sc("USD", 5_000))).toBe("completo");
+  });
+
+  it("la banda de falsa alarma se angostó ~6,6x en USD y queda en el margen del techo", () => {
+    // Primer valor donde deja de decir `completo`, por bisección.
+    const borde = (currency: string, entra: number) => {
+      let lo = 0;
+      let hi = 1e9;
+      for (let i = 0; i < 200; i += 1) {
+        const mid = (lo + hi) / 2;
+        if (completitudFlujo(entra, sc(currency, mid)) === "completo") lo = mid;
+        else hi = mid;
+      }
+      return hi;
+    };
+    const E = 50_000_000;
+    // Antes (techo único 10.000): `indeterminado` desde US$1.250 vs verdad en US$13.158 ⇒ 10,53x.
+    expect(borde("USD", E)).toBeCloseTo(8_223.68, 1);
+    // Ahora el anticipo es exactamente el margen del techo, y lo es para TODA moneda de la tabla.
+    for (const [code, ref] of Object.entries(REFERENCIA_CLP_POR_UNIDAD)) {
+      const verdad = (E * UMBRAL_SIN_CLASIFICAR) / (ref * (1 - UMBRAL_SIN_CLASIFICAR));
+      expect(verdad / borde(code, E)).toBeCloseTo(MARGEN_TECHO_FX, 6);
+    }
+  });
+});
+
+/* El techo no es una lista suelta: sus claves son las monedas `fiat` del catálogo real menos CLP.
+   Si el catálogo cambia, esto se cae y obliga a mirar el techo — que es justo lo que no pasó con
+   UF. Fuente: `core.currencies` (0026_multicurrency_base.sql:47-56) / `core_currency.py:29-38`. */
+describe("TECHO_CLP_POR_UNIDAD contra el catálogo real de `core.currencies`", () => {
+  // Espejo literal del seed: (code, currency_type).
+  const CATALOGO: [string, string][] = [
+    ["CLP", "fiat"],
+    ["UF", "indexed_unit"],
+    ["USD", "fiat"],
+    ["EUR", "fiat"],
+    ["PEN", "fiat"],
+    ["COP", "fiat"],
+    ["MXN", "fiat"],
+    ["BRL", "fiat"],
+  ];
+
+  it("cubre exactamente las fiat del catálogo, menos CLP", () => {
+    const esperadas = CATALOGO.filter(([c, t]) => t === "fiat" && c !== "CLP")
+      .map(([c]) => c)
+      .sort();
+    expect(Object.keys(TECHO_CLP_POR_UNIDAD).sort()).toEqual(esperadas);
+  });
+
+  it("ninguna unidad indexada tiene techo (UF ~39.500 es el contraejemplo que rompió el anterior)", () => {
+    for (const [code, tipo] of CATALOGO) {
+      if (tipo === "indexed_unit") expect(TECHO_CLP_POR_UNIDAD[code]).toBeUndefined();
+    }
+  });
+
+  it("cada techo es la referencia observada por el margen declarado, y va por arriba", () => {
+    for (const [code, ref] of Object.entries(REFERENCIA_CLP_POR_UNIDAD)) {
+      expect(TECHO_CLP_POR_UNIDAD[code]).toBeCloseTo(ref * MARGEN_TECHO_FX, 6);
+      expect(TECHO_CLP_POR_UNIDAD[code]).toBeGreaterThan(ref);
+    }
+    expect(MARGEN_TECHO_FX).toBeGreaterThanOrEqual(1.5);
+  });
+});
+
+describe("cotaSuperiorNoCLPEnPesos / monedasSinTecho", () => {
+  it("pondera cada moneda por SU techo (ya no suma unidades de monedas distintas)", () => {
+    expect(
+      cotaSuperiorNoCLPEnPesos({
         count: 3,
         inflowByCurrency: [
           { currency: "CLP", inflow: 9_000_000, count: 1 },
@@ -430,18 +568,43 @@ describe("unidadesSinClasificarNoCLP", () => {
         ],
         unknownInflowCount: 0,
       }),
-    ).toBe(1500);
+    ).toBeCloseTo(1200 * techo("USD") + 300 * techo("EUR"), 6);
   });
 
-  it("sin input o sin monedas extranjeras → 0", () => {
-    expect(unidadesSinClasificarNoCLP(undefined)).toBe(0);
+  it("`null` (no hay cota) apenas una moneda no tiene techo aplicable", () => {
     expect(
-      unidadesSinClasificarNoCLP({
+      cotaSuperiorNoCLPEnPesos({
+        count: 2,
+        inflowByCurrency: [
+          { currency: "USD", inflow: 10, count: 1 },
+          { currency: "UF", inflow: 1, count: 1 },
+        ],
+        unknownInflowCount: 0,
+      }),
+    ).toBeNull();
+  });
+
+  it("sin input o sin monedas extranjeras → 0, y nombra las monedas sin techo", () => {
+    expect(cotaSuperiorNoCLPEnPesos(undefined)).toBe(0);
+    expect(
+      cotaSuperiorNoCLPEnPesos({
         count: 1,
         inflowByCurrency: [{ currency: "CLP", inflow: 10, count: 1 }],
         unknownInflowCount: 0,
       }),
     ).toBe(0);
+    expect(
+      monedasSinTecho({
+        count: 3,
+        inflowByCurrency: [
+          { currency: "CLP", inflow: 1, count: 1 },
+          { currency: "USD", inflow: 1, count: 1 },
+          { currency: "UF", inflow: 1, count: 1 },
+          { currency: "XAU", inflow: 1, count: 1 },
+        ],
+        unknownInflowCount: 0,
+      }),
+    ).toEqual(["UF", "XAU"]);
   });
 });
 

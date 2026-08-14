@@ -174,16 +174,59 @@ export function cajaMinimoCLP(cm: CashMinimumResponse | undefined): number | nul
 /** Porción de ingreso sin clasificar a partir de la cual el flujo "committed" miente por omisión. */
 export const UMBRAL_SIN_CLASIFICAR = 0.2;
 
-/** COTA SUPERIOR universal de cuánto puede valer, en pesos, UNA unidad de cualquier moneda
- *  extranjera. **No es un tipo de cambio**: con esto NUNCA se convierte ni se muestra un monto.
- *  Se usa en un solo sentido lógico — descartar que lo extranjero pueda mover el veredicto —, o
- *  sea solo puede concluir `completo`, jamás `incompleto`.
+/** Valor de mercado OBSERVADO (2026-08) de una unidad de cada moneda, en pesos. **No se usa para
+ *  convertir nada**: es la base documentada de la cota de más abajo, y está acá para que el techo
+ *  sea auditable (se ve de dónde sale y cuánto margen tiene) en vez de ser un número mágico.
  *
- *  Referencia (2026): USD ≈ 950, EUR ≈ 1.030, y la moneda fiat más cara del mundo, el dinar
- *  kuwaití, ≈ 3.100. El techo va 3x sobre ese máximo mundial a propósito: si el techo quedara
- *  corto se podría afirmar `completo` donde la verdad es `incompleto`, que es el único error
- *  peligroso de esta función; ser generoso solo cuesta caer en `indeterminado` de más. */
-export const TECHO_CLP_POR_UNIDAD_FX = 10_000;
+ *  Las CLAVES no son una lista inventada: son exactamente las monedas `fiat` del catálogo real
+ *  `core.currencies` menos CLP (qavante-api
+ *  `api/app/platform/db/migrations/0026_multicurrency_base.sql:47-56`, espejado en
+ *  `api/app/core/core_currency.py:29-38`). CLP no va porque su porción se compara exacta, sin
+ *  cota. `UF` (`currency_type = 'indexed_unit'`) queda FUERA a propósito: ver abajo. */
+export const REFERENCIA_CLP_POR_UNIDAD: Readonly<Record<string, number>> = Object.freeze({
+  USD: 950,
+  EUR: 1_030,
+  PEN: 255,
+  BRL: 165,
+  MXN: 47,
+  COP: 0.23,
+});
+
+/** Margen del techo sobre la referencia observada. 60% = el peso tendría que devaluarse un 60%
+ *  contra esa moneda para que el techo dejara de ser cota (el máximo histórico del USD/CLP,
+ *  ~1.060 en 2022, está 12% sobre la referencia de hoy, o sea el margen cubre ese escenario y
+ *  bastante más). Es el parámetro que se toca si el peso se mueve en serio, no cada techo. */
+export const MARGEN_TECHO_FX = 1.6;
+
+/** COTA SUPERIOR **por moneda** de cuántos pesos puede valer UNA unidad. No es un tipo de cambio:
+ *  con esto nunca se convierte ni se muestra un monto; se usa en un solo sentido lógico —
+ *  descartar que lo extranjero pueda mover el veredicto —, o sea solo puede concluir `completo`.
+ *
+ *  **Por qué por moneda y con allowlist, y no un techo universal** (hallazgo del review adversarial
+ *  del #936, FAIL sobre `a949550`): el techo único de 10.000 se justificaba con "la fiat más cara
+ *  del mundo vale 3.100", y la palabra *fiat* hacía todo el trabajo. El catálogo del propio sistema
+ *  trae `UF` con `currency_type = 'indexed_unit'` a ~39.500 CLP, **4x por encima** de ese techo. Y
+ *  el catálogo tampoco es el límite: `treasury.bank_accounts.currency_code` es CHAR(3) SIN FK a
+ *  `core.currencies` y el alta valida solo el largo (`api/app/core/treasury_schemas.py:574-578`,
+ *  `api/app/api/bank_accounts.py:95`), así que hoy entra por la API pública un código arbitrario
+ *  tipo `XAU` (oro, ~2.900.000 CLP la onza). Medido sobre `a949550`: `UF 500` y `XAU 20` contra
+ *  $50M clasificados daban **`completo`** cuando la verdad es `incompleto`.
+ *
+ *  **Y esa es la única dirección peligrosa.** La rama del techo tiene dos salidas, `completo` e
+ *  `indeterminado`: jamás dice `incompleto` (verificado por estructura y con fuzz). Un techo corto
+ *  entonces NO cuesta un `indeterminado` de más — cuesta un **`completo` falso, que es justamente
+ *  el estado que OCULTA el aviso de datos incompletos**. Todo el riesgo del número está concentrado
+ *  en la única salida que le miente al usuario, así que la respuesta correcta no es agrandar el
+ *  número (siempre habrá una moneda arriba) sino **negarse a acotar lo que no se sabe acotar**:
+ *  toda moneda fuera de esta tabla — UF y cualquier unidad indexada, un código fuera del catálogo,
+ *  una fiat nueva que el catálogo agregue y esta tabla todavía no — no tiene cota aplicable y cae
+ *  en `indeterminado`, el mismo trato que ya recibe la moneda desconocida. Envejecer se paga en
+ *  falsa alarma, nunca en falsa tranquilidad. */
+export const TECHO_CLP_POR_UNIDAD: Readonly<Record<string, number>> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(REFERENCIA_CLP_POR_UNIDAD).map(([code, ref]) => [code, ref * MARGEN_TECHO_FX]),
+  ),
+);
 
 /** Veredicto sobre si el flujo clasificado del período es representativo:
  *  - `completo`: lo sin clasificar es marginal → mostrar Entra/Sale.
@@ -213,16 +256,33 @@ export function haySinClasificarNoCLP(sc: SinClasificarInput | undefined): boole
   return sc.inflowByCurrency.some((c) => c.currency !== "CLP" && c.inflow > 0);
 }
 
-/** Suma de UNIDADES (no de pesos) de las entradas sin clasificar que no son CLP.
- *
- *  Sumar unidades de USD con unidades de EUR no es dinero y no se muestra nunca: es el insumo
- *  de una cota, y la cota es válida porque `TECHO_CLP_POR_UNIDAD_FX` es el MISMO techo para toda
- *  moneda, así que `Σ_m (unidades_m · techo) = techo · Σ_m unidades_m`. Cualquier uso de este
- *  número como monto sería una violación de INV-FX-001. */
-export function unidadesSinClasificarNoCLP(sc: SinClasificarInput | undefined): number {
+/** Monedas con entradas sin clasificar para las que NO hay cota superior aplicable (fuera de
+ *  `TECHO_CLP_POR_UNIDAD`: UF y toda unidad indexada, códigos fuera del catálogo). Orden estable. */
+export function monedasSinTecho(sc: SinClasificarInput | undefined): string[] {
   return (sc?.inflowByCurrency ?? [])
-    .filter((c) => c.currency !== "CLP")
-    .reduce((acc, c) => acc + (Number.isFinite(c.inflow) ? Math.max(c.inflow, 0) : 0), 0);
+    .filter((c) => c.currency !== "CLP" && c.inflow > 0 && TECHO_CLP_POR_UNIDAD[c.currency] == null)
+    .map((c) => c.currency);
+}
+
+/** COTA SUPERIOR en pesos del total sin clasificar que NO es CLP, o `null` si alguna de esas
+ *  monedas no tiene techo aplicable (⇒ no existe cota y no se puede afirmar `completo`).
+ *
+ *  Esto NO es un monto y no se muestra nunca: es `Σ_m unidades_m · techo_m`, o sea el máximo que
+ *  esa bandeja podría valer a CUALQUIER tasa por debajo de los techos. Pintarlo como dinero sería
+ *  una violación de INV-FX-001. La versión anterior sumaba unidades de monedas distintas y las
+ *  multiplicaba por un techo único; con techo POR moneda esa factorización ya no vale, así que la
+ *  ponderación va adentro y el número intermedio sin sentido (unidades mezcladas) desaparece. */
+export function cotaSuperiorNoCLPEnPesos(sc: SinClasificarInput | undefined): number | null {
+  let cota = 0;
+  for (const c of sc?.inflowByCurrency ?? []) {
+    if (c.currency === "CLP") continue;
+    const unidades = Number.isFinite(c.inflow) ? Math.max(c.inflow, 0) : 0;
+    if (unidades === 0) continue;
+    const techo = TECHO_CLP_POR_UNIDAD[c.currency];
+    if (techo == null) return null; // sin cota para esa moneda ⇒ sin cota para el total
+    cota += unidades * techo;
+  }
+  return cota;
 }
 
 /** ¿El flujo clasificado del período es representativo? PURO.
@@ -247,11 +307,18 @@ export function unidadesSinClasificarNoCLP(sc: SinClasificarInput | undefined): 
  *  sea reemplazaba a `completo` en vez de a `incompleto`: con `E = 50.000.000`, `U_clp = 1.000.000`
  *  y UN dólar pendiente el titular desaparecía, y como la bandeja por clasificar nunca está en
  *  cero, desaparecía siempre (misma forma de falla que mató al indicador del #956). El arreglo es
- *  acotar lo extranjero por arriba con `TECHO_CLP_POR_UNIDAD_FX`, que no es una tasa sino un techo
- *  universal: si NI SIQUIERA al techo lo extranjero alcanza a cruzar el umbral, entonces ninguna
- *  tasa lo cruza y el veredicto `completo` es demostrable. `indeterminado` queda solo para cuando
- *  el resultado de verdad depende de la tasa (lo extranjero es grande frente al ingreso) o para
- *  cuando ni la moneda se conoce, que es el único caso sin cota superior posible.
+ *  acotar lo extranjero por arriba con `TECHO_CLP_POR_UNIDAD[moneda]`, que no es una tasa sino un
+ *  techo por moneda: si NI SIQUIERA al techo lo extranjero alcanza a cruzar el umbral, entonces
+ *  ninguna tasa lo cruza y el veredicto `completo` es demostrable.
+ *
+ *  **Y por qué el techo es POR MONEDA y con allowlist** (FAIL del review sobre `a949550`): un techo
+ *  único obliga a cubrir la moneda más cara que pueda aparecer, y no existe tal cosa — el catálogo
+ *  del sistema ya trae `UF` a ~39.500 y `bank_accounts.currency_code` no tiene FK, así que puede
+ *  llegar `XAU`. Como la rama del techo solo puede concluir `completo`, un techo corto no cuesta un
+ *  `indeterminado` de más: produce un **`completo` falso que esconde el aviso**. Por eso, en vez de
+ *  estirar el número, toda moneda sin techo en la tabla cae en `indeterminado`. Queda entonces así:
+ *  `indeterminado` solo cuando el resultado de verdad depende de la tasa (lo extranjero es grande
+ *  frente al ingreso), cuando la moneda no se conoce, o cuando se conoce pero no se sabe acotar.
  *
  *  **Sesgo declarado:** `entra` viene filtrado por `fi.amount_functional IS NOT NULL`
  *  (`qavante-api` `app/core/cash_flow_repo.py:187-193`), o sea las filas sin FX resuelto quedan
@@ -264,10 +331,10 @@ export function completitudFlujo(
 ): CompletitudFlujo {
   if (!sc || sc.count <= 0) return "completo";
   const clp = entradasSinClasificarCLP(sc);
-  const unidadesFx = unidadesSinClasificarNoCLP(sc);
+  const hayFxConocida = sc.inflowByCurrency.some((c) => c.currency !== "CLP" && c.inflow > 0);
   const monedaDesconocida = sc.unknownInflowCount > 0;
   const baseEntra = Number.isFinite(entra) ? Math.max(entra, 0) : 0;
-  const hayEntradasPendientes = clp > 0 || unidadesFx > 0 || monedaDesconocida;
+  const hayEntradasPendientes = clp > 0 || hayFxConocida || monedaDesconocida;
 
   /* `E = 0` con cualquier entrada pendiente: `r = U/(0+U) = 1 > umbral` sea cual sea la tasa, e
      incluso sin saber la moneda. Es el caso MÁS informativo (el tenant que no clasificó nada) y
@@ -279,32 +346,41 @@ export function completitudFlujo(
   if (clp / totalMin > UMBRAL_SIN_CLASIFICAR) return "incompleto";
 
   // Sin nada extranjero ni desconocido, la cota inferior es el ratio real: veredicto cerrado.
-  if (unidadesFx === 0 && !monedaDesconocida) return "completo";
+  if (!hayFxConocida && !monedaDesconocida) return "completo";
 
-  // Sin la moneda no hay techo aplicable: es el único caso donde no hay cota superior alguna.
-  if (monedaDesconocida) return "indeterminado";
+  /* Sin cota superior no se puede afirmar `completo`: ni la moneda desconocida (no se sabe QUÉ
+     acotar) ni una moneda sin techo en la tabla (UF, unidad indexada, código fuera de catálogo:
+     no se sabe CUÁNTO acota). Los dos casos son el mismo y se tratan igual, que es lo que arregla
+     el `completo` falso de `UF 500` / `XAU 20`. */
+  const maxFxEnPesos = monedaDesconocida ? null : cotaSuperiorNoCLPEnPesos(sc);
+  if (maxFxEnPesos == null) return "indeterminado";
 
-  /* Cota SUPERIOR: lo extranjero valuado al techo universal. Si ni así cruza el umbral, ninguna
-     tasa lo cruza ⇒ `completo` demostrado. Si lo cruza, el veredicto SÍ depende de la tasa y
-     recién ahí `indeterminado` significa algo. */
-  const maxFxEnPesos = unidadesFx * TECHO_CLP_POR_UNIDAD_FX;
+  /* Cota SUPERIOR: lo extranjero valuado al techo de SU moneda. Si ni así cruza el umbral, ninguna
+     tasa por debajo de esos techos lo cruza ⇒ `completo` demostrado. Si lo cruza, el veredicto SÍ
+     depende de la tasa y recién ahí `indeterminado` significa algo. */
   const totalMax = baseEntra + clp + maxFxEnPesos;
   return (clp + maxFxEnPesos) / totalMax > UMBRAL_SIN_CLASIFICAR ? "indeterminado" : "completo";
 }
 
-/** Veredicto PARA RENDEAR, que es el de arriba más una regla: **mientras el resumen carga no hay
- *  veredicto**. PURO.
+/** Lo que se rendea: el veredicto, o `cargando` cuando todavía NO hay veredicto que rendear. */
+export type CompletitudFlujoVisible = CompletitudFlujo | "cargando";
+
+/** Veredicto PARA RENDEAR, que es el de arriba más una regla: **mientras el resumen carga no se
+ *  afirma nada**. PURO.
  *
  *  Con las cuentas todavía en vuelo el mapa de monedas está vacío ⇒ toda entrada cae en "moneda
- *  desconocida" ⇒ el titular parpadeaba a "No podemos determinar si está completo" y recién
- *  después se acomodaba. `completo` acá NO afirma completitud: es el layout neutro, el que muestra
- *  Entra/Sale sin rótulo de veredicto, y esas cifras son ciertas cargue lo que cargue (son lo
- *  clasificado, ya en moneda funcional). El veredicto aparece cuando aparece su evidencia. */
+ *  desconocida" ⇒ el titular parpadeaba a "No podemos determinar si está completo" y recién después
+ *  se acomodaba. El primer intento de arreglo devolvía `completo` durante la carga, y el review
+ *  adversarial mostró que eso cambia un flash alarmante por uno de **falsa tranquilidad**: `completo`
+ *  es el estado que muestra Entra/Sale como flujo del período, o sea afirma justo lo que todavía no
+ *  se sabe (Tooxs julio: `main` decía `incompleto` y avisaba; ese `completo` transitorio mostraba
+ *  $1,6M sobre $63M reales como si fuera el flujo). Mientras carga no se puede afirmar ni completitud
+ *  ni incompletitud: se declara `cargando` y el consumidor no rendea veredicto ninguno. */
 export function completitudFlujoVisible(
   entra: number,
   sc: (SinClasificarInput & { isLoading?: boolean }) | undefined,
-): CompletitudFlujo {
-  if (sc?.isLoading === true) return "completo";
+): CompletitudFlujoVisible {
+  if (sc?.isLoading === true) return "cargando";
   return completitudFlujo(entra, sc);
 }
 

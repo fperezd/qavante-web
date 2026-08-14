@@ -334,8 +334,11 @@ function FlujoBlock({
      `completitudFlujoVisible` (y no `completitudFlujo` a secas) porque mientras el resumen carga el
      mapa de monedas está vacío, todo caería en "moneda desconocida" y el titular parpadearía a "No
      podemos determinar si está completo" antes de acomodarse. Ese `isLoading` ya se calculaba pero
-     no lo leía ningún consumidor. */
+     no lo leía ningún consumidor. Durante la carga NO se rendea veredicto ninguno: ni el alarmante
+     ni el tranquilizador (mostrar Entra/Sale como "el flujo del período" y sin rótulo ES afirmar
+     completitud), sino un placeholder — no se puede afirmar nada sin la evidencia. */
   const completitud = completitudFlujoVisible(entra, sinClasificar);
+  const cargando = completitud === "cargando";
   const incompleto = completitud === "incompleto";
   const indeterminado = completitud === "indeterminado";
   const entradasLabel = entradasSinClasificarLabel(sinClasificar);
@@ -359,6 +362,25 @@ function FlujoBlock({
       </Link>
     </div>
   ) : null;
+
+  /* Todavía sin evidencia: el resumen de sin-clasificar está en vuelo, así que no hay veredicto que
+     rendear. Placeholder, no cifras: mostrar Entra/Sale acá sería la rama `completo`, que es la que
+     afirma "este es el flujo del período" y esconde el aviso. El flash dura lo que la query. */
+  if (cargando) {
+    return (
+      <div className="p-5" aria-busy="true">
+        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+          Flujo del período
+        </p>
+        <div className="mt-2 space-y-2">
+          <div className="h-5 w-40 animate-pulse rounded bg-surface-muted" />
+          <div className="h-4 w-full animate-pulse rounded bg-surface-muted" />
+          <div className="h-4 w-full animate-pulse rounded bg-surface-muted" />
+          <div className="h-4 w-2/3 animate-pulse rounded bg-surface-muted" />
+        </div>
+      </div>
+    );
+  }
 
   // Degradado honesto: cuando falta clasificar la mayor parte del ingreso NO mostramos "Entra/Sale del
   // período" — ni el parcial clasificado (un $1,6M sobre ~$63M reales no aporta, solo ancla mal). Solo el
