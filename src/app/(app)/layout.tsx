@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/shell/app-shell";
 import { OnboardingGuard } from "@/components/onboarding/onboarding-guard";
+import { PendingConnectionsBanner } from "@/components/onboarding/pending-connections-banner";
 import { auth } from "@/lib/auth/session";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
@@ -12,8 +13,15 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
    gatear el Asistente — el flag se lee en runtime del Worker (no client). */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await auth();
-  const { assistant, onboarding, syncStatus, remuneraciones, bancoScreen, presupuesto } =
-    resolveFeatureFlags();
+  const {
+    assistant,
+    onboarding,
+    onboardingBanner,
+    syncStatus,
+    remuneraciones,
+    bancoScreen,
+    presupuesto,
+  } = resolveFeatureFlags();
   return (
     <AppShell
       userRole={session?.user.role}
@@ -23,9 +31,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       bancoEnabled={bancoScreen}
       presupuestoEnabled={presupuesto}
     >
-      {/* Gated por `onboarding` (OFF en prod → no se monta). Si ON y el tenant no
-          completó onboarding, redirige al wizard. Fail-safe (ver el componente). */}
+      {/* Gated por `onboarding` — ⚠️ ON en prod (`wrangler.toml`), no es un flag
+          oscuro. Si el tenant no completó onboarding redirige al wizard, y solo
+          con dato presente, fresco y `completed:false`. Fail-safe (ver el componente). */}
       {onboarding && <OnboardingGuard />}
+      {/* Entrada visible para retomar una conexión diferida ("conectar después").
+          Flag PROPIO (`onboardingBanner`, OFF): alcanza a todos los tenants
+          existentes, no solo a los que se registran — ver el componente. */}
+      {onboardingBanner && <PendingConnectionsBanner />}
       {children}
     </AppShell>
   );

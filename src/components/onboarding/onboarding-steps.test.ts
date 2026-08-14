@@ -12,6 +12,8 @@ import {
   prevStep,
   routeAfter,
   onboardingResumeRoute,
+  routeForSource,
+  ONBOARDING_CONNECTIONS_ROUTE,
 } from "./onboarding-steps";
 
 describe("onboarding-steps — modelo del wizard", () => {
@@ -74,9 +76,41 @@ describe("onboarding-steps — modelo del wizard", () => {
     expect(routeAfter("import")).toBe(ONBOARDING_DONE_ROUTE);
   });
 
-  it("onboardingResumeRoute: reanuda según fuentes conectadas", () => {
-    expect(onboardingResumeRoute(false, false)).toBe("/onboarding/conectar-sii"); // falta SII
-    expect(onboardingResumeRoute(true, false)).toBe("/onboarding/conectar-banco"); // falta banco
-    expect(onboardingResumeRoute(true, true)).toBe("/onboarding/rubro"); // ambas → seguir
+  it("los pasos de conexión declaran su fuente (son los diferibles)", () => {
+    expect(stepById("connect-sii")?.source).toBe("sii");
+    expect(stepById("connect-bank")?.source).toBe("bank");
+    expect(stepById("industry")?.source).toBeUndefined();
+    expect(stepById("import")?.source).toBeUndefined();
+  });
+
+  it("routeForSource apunta al paso de cada fuente", () => {
+    expect(routeForSource("sii")).toBe("/onboarding/conectar-sii");
+    expect(routeForSource("bank")).toBe("/onboarding/conectar-banco");
+  });
+
+  it("onboardingResumeRoute: reanuda en la primera fuente PENDIENTE", () => {
+    expect(onboardingResumeRoute({ sii: "pending", bank: "pending" })).toBe(
+      "/onboarding/conectar-sii",
+    );
+    expect(onboardingResumeRoute({ sii: "connected", bank: "pending" })).toBe(
+      "/onboarding/conectar-banco",
+    );
+    expect(onboardingResumeRoute({ sii: "connected", bank: "connected" })).toBe(
+      "/onboarding/rubro",
+    );
+  });
+
+  it("una fuente DIFERIDA no devuelve al usuario a ese paso ('conectar después' se respeta)", () => {
+    // Difirió el SII → el wizard sigue con el banco, no lo empuja de vuelta al SII.
+    expect(onboardingResumeRoute({ sii: "deferred", bank: "pending" })).toBe(
+      "/onboarding/conectar-banco",
+    );
+    // Difirió ambas → avanza al resto del wizard. Nada bloquea el registro.
+    expect(onboardingResumeRoute({ sii: "deferred", bank: "deferred" })).toBe("/onboarding/rubro");
+  });
+
+  it("el hub de conexiones es una ruta del wizard, no un paso numerado", () => {
+    expect(ONBOARDING_CONNECTIONS_ROUTE).toBe("/onboarding/conexiones");
+    expect(ONBOARDING_STEPS.some((s) => s.route === ONBOARDING_CONNECTIONS_ROUTE)).toBe(false);
   });
 });

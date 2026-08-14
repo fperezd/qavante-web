@@ -1,7 +1,11 @@
 # Contrato esperado — Saldo de apertura (onboarding)
 
-> **CC-WEB → CC-API. 2026-06-22.** Contrato **FE-first** (paso 6 del wizard,
-> gated `onboarding` OFF). Tipos hand-rolled en `src/lib/api/opening-balance.ts`.
+> **CC-WEB → CC-API. 2026-06-22.** Contrato **FE-first** (paso 6 del wizard).
+> Tipos hand-rolled en `src/lib/api/opening-balance.ts`.
+>
+> **⚠️ Corrección 2026-08-14 (review del PR #935):** este encabezado decía "gated
+> `onboarding` OFF". Es falso: el flag está **ON en prod** desde 2026-06-22
+> (`wrangler.toml`), o sea este paso del wizard **corre en producción**.
 
 ## Contexto
 

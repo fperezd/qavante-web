@@ -165,7 +165,16 @@ NEXT_PUBLIC_FF_CAJA_MARK_COLLECTED = "true"
 # existentes CONFIRMADO por Fernando → el guard no arrastra usuarios actuales al
 # wizard. Pasos SII/banco son opcionales y blindados (skipAuthRetry: un 401 ahí
 # muestra error inline, no expulsa al login).
+# ⚠️ ESTE FLAG ESTÁ **ON** EN PROD desde 2026-06-22. Todo lo que se cuelgue de él sale a producción
+# en el próximo deploy: el wizard NO es una feature oscura. (El review del PR #935 encontró
+# comentarios en el código afirmando lo contrario; corregidos.)
 NEXT_PUBLIC_FF_ONBOARDING = "true"
+# Banner "te falta conectar" en el layout de (app) — 2026-08-14, separado de NEXT_PUBLIC_FF_ONBOARDING
+# tras el review del PR #935. Razón de la separación: el wizard alcanza solo a quien se registra, pero
+# este aviso alcanza a TODOS los tenants existentes (backfill onboarding_completed=true) y en todas
+# las pantallas. OFF hasta que Fernando valide el copy y el alcance; con OFF no se pierde ninguna
+# salida (el hub /onboarding/conexiones sigue accesible desde el wizard). Encender = "true".
+NEXT_PUBLIC_FF_ONBOARDING_BANNER = "false"
 # Activada 2026-06-25 (sesión autónoma): Préstamos y obligaciones (Pagar). CC-API
 # shipeó GET/POST /api/treasury/obligations + detalle + reconcile; verificado que
 # usan auth por COOKIE de sesión (GET sin auth → 401 no_session, igual que

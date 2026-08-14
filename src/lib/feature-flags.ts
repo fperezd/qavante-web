@@ -69,6 +69,7 @@ export const FEATURE_FLAGS = [
   "presupuesto",
   "mcp",
   "cajaMarkCollected",
+  "onboardingBanner",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -259,6 +260,16 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      (no puedo POSTear a prod); con OFF el caveat queda igual (solo el link "Conciliar cobros →") → cero
      regresión. Encender = editar wrangler. */
   cajaMarkCollected: "/api/treasury/reconciliation/mark-collected",
+  /* Banner "te falta conectar" del wizard, montado en el layout de (app). Se separó del flag
+     `onboarding` a propósito (review del PR #935): el wizard alcanza SOLO a quien se registra, pero
+     este aviso alcanza a TODOS los tenants existentes (el backfill los dejó `completed = true`) y en
+     todas las pantallas. OFF hasta que Fernando lo valide; con OFF el hub de conexiones sigue
+     accesible desde el propio wizard, así que no se pierde la salida. Su endpoint de gating es el
+     status del onboarding: de ahí sale `completed` y qué fuentes quedaron pendientes, o sea lo que
+     hace existir al banner. Para NO confundir `missing` con `stale`/`error` cruza además el estado
+     canónico `/api/sources/status`, que ya es el endpoint de gating de `syncStatus` y por eso no se
+     repite acá (el mapa es 1-a-1, invariante cubierta por `feature-flags.test.ts`). */
+  onboardingBanner: "/api/onboarding/status",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

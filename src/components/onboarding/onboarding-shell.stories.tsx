@@ -3,7 +3,10 @@ import { OnboardingShell } from "./onboarding-shell";
 
 /* Shell del wizard de onboarding (ADR-0017). Barra de progreso + "Paso N de 7"
    + título del paso + slot de contenido. Presentacional: recibe el `step`
-   activo. Gated por el flag `onboarding` (OFF en prod). */
+   activo. Gated por el flag `onboarding`, que está **ON en prod** desde
+   2026-06-22 (`wrangler.toml`): el wizard no es una feature oscura. (Este
+   comentario decía "OFF en prod"; corregido tras el review del PR #935, que
+   encontró varios comentarios así haciendo subestimar el blast radius.) */
 
 const Placeholder = () => (
   <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-neutral-mid">
