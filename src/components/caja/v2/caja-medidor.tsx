@@ -153,7 +153,7 @@ function titular(m: DiasCaja, ref: number): { headline: string; detalle: string 
     if (m.diasHastaRecuperar != null) {
       const cuando = m.fechaRecuperar ? ` (${formatDateLike(m.fechaRecuperar)})` : "";
       return {
-        headline: `Recuperás tu mínimo en ${dLabel(m.diasHastaRecuperar)}`,
+        headline: `Recuperas tu mínimo en ${dLabel(m.diasHastaRecuperar)}`,
         detalle: `Hoy tu caja está bajo el mínimo, pero con el ingreso recurrente proyectado vuelve sobre él${cuando}.`,
       };
     }
