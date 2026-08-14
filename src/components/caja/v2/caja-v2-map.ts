@@ -6,6 +6,7 @@
 
 import { parseAmount } from "@/components/inicio/dashboard-format";
 import { weekMondayFrom } from "@/components/caja/cash-flow-format";
+import { formatMoney } from "@/lib/formatters/clp";
 import { saldoAcumulado, type SaldoPunto } from "./caja-curva-model";
 import type { CashFlowBucket } from "@/lib/api/treasury-reports";
 import type { CashMinimumResponse } from "@/lib/api/cash-minimum";
@@ -166,4 +167,86 @@ export function primerCruceFuturo(
 export function cajaMinimoCLP(cm: CashMinimumResponse | undefined): number | null {
   const t = (cm?.thresholds ?? []).find((x) => (x.currency_code ?? "").toUpperCase() === "CLP");
   return t ? parseAmount(t.amount) : null;
+}
+
+/* ── Completitud del flujo del período (INV-FX-001) ─────────────────────────────────────── */
+
+/** Porción de ingreso sin clasificar a partir de la cual el flujo "committed" miente por omisión. */
+export const UMBRAL_SIN_CLASIFICAR = 0.2;
+
+/** Veredicto sobre si el flujo clasificado del período es representativo:
+ *  - `completo`: lo sin clasificar es marginal → mostrar Entra/Sale.
+ *  - `incompleto`: falta clasificar una porción material → NO mostrar el parcial.
+ *  - `indeterminado`: no se puede saber SIN convertir moneda extranjera, y convertir
+ *    (elegir tasa y fecha) es decisión humana → se declara, no se adivina. */
+export type CompletitudFlujo = "completo" | "incompleto" | "indeterminado";
+
+/** Lo que necesita el veredicto del resumen de sin-clasificar (subset de `UnclassifiedSummary`). */
+export interface SinClasificarInput {
+  count: number;
+  inflowByCurrency: { currency: string; inflow: number; count: number }[];
+  unknownInflowCount: number;
+}
+
+/** Entradas sin clasificar EN PESOS (solo las de cuentas CLP). Nunca mezcla monedas. */
+export function entradasSinClasificarCLP(sc: SinClasificarInput | undefined): number {
+  return sc?.inflowByCurrency.find((c) => c.currency === "CLP")?.inflow ?? 0;
+}
+
+/** ¿Hay entradas sin clasificar que NO son pesos (otra moneda, o moneda desconocida)? */
+export function haySinClasificarNoCLP(sc: SinClasificarInput | undefined): boolean {
+  if (!sc) return false;
+  if (sc.unknownInflowCount > 0) return true;
+  return sc.inflowByCurrency.some((c) => c.currency !== "CLP" && c.inflow > 0);
+}
+
+/** ¿El flujo clasificado del período es representativo? PURO.
+ *
+ *  `entra` viene del cash-flow report, que ya llega en moneda FUNCIONAL (CLP) — el backend
+ *  convierte. Lo sin clasificar, en cambio, son montos CRUDOS en la moneda de cada cuenta, así
+ *  que solo la porción CLP es comparable contra `entra` sin tipo de cambio.
+ *
+ *  El veredicto usa esa porción CLP como COTA INFERIOR: `r(U) = U / (entra + U)` crece con `U`,
+ *  y el `U` real (con lo extranjero convertido) es ≥ el `U` en CLP. Entonces:
+ *  - si ya la cota supera el umbral ⇒ `incompleto` con certeza, sin convertir nada;
+ *  - si no la supera pero hay entradas en otra moneda (o de moneda desconocida) ⇒ NO se puede
+ *    concluir: `indeterminado`. Antes esto se resolvía sumando USD como si fueran pesos, lo que
+ *    contaminaba una decisión que el usuario ve (violación INV-FX-001). */
+export function completitudFlujo(
+  entra: number,
+  sc: SinClasificarInput | undefined,
+): CompletitudFlujo {
+  if (!sc || sc.count <= 0) return "completo";
+  const clp = entradasSinClasificarCLP(sc);
+  const baseEntra = Number.isFinite(entra) ? Math.max(entra, 0) : 0;
+  const total = baseEntra + clp;
+  if (total > 0 && clp / total > UMBRAL_SIN_CLASIFICAR) return "incompleto";
+  return haySinClasificarNoCLP(sc) ? "indeterminado" : "completo";
+}
+
+/** Entradas sin clasificar formateadas UNA POR MONEDA ("$61.500.000 · US$1.200,00"), nunca
+ *  sumadas entre sí. `null` si no hay entradas con moneda conocida. */
+export function entradasSinClasificarLabel(sc: SinClasificarInput | undefined): string | null {
+  const partes = (sc?.inflowByCurrency ?? [])
+    .filter((c) => c.inflow > 0)
+    .map((c) => formatMoney(c.inflow, c.currency));
+  return partes.length > 0 ? partes.join(" · ") : null;
+}
+
+/** Por qué no se puede determinar la completitud. `null` si sí se puede. Nombra las monedas:
+ *  el usuario tiene que entender que no es un bug, es que falta una decisión (el tipo de cambio). */
+export function motivoIndeterminado(sc: SinClasificarInput | undefined): string | null {
+  if (!sc || !haySinClasificarNoCLP(sc)) return null;
+  const otras = sc.inflowByCurrency
+    .filter((c) => c.currency !== "CLP" && c.inflow > 0)
+    .map((c) => c.currency);
+  const sinMoneda = sc.unknownInflowCount;
+  const trozos: string[] = [];
+  if (otras.length > 0) trozos.push(`en ${otras.join(" y ")}`);
+  if (sinMoneda > 0) {
+    trozos.push(
+      `de ${sinMoneda} ${sinMoneda === 1 ? "movimiento" : "movimientos"} cuya moneda no conocemos`,
+    );
+  }
+  return `Hay entradas sin clasificar ${trozos.join(" y ")}. No las convertimos a pesos: el tipo de cambio (tasa y fecha) lo eliges tú, no lo inventamos.`;
 }

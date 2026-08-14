@@ -9,6 +9,9 @@ import {
   bucketsDesdeHoy,
   flujoDeBuckets,
   primerCruceFuturo,
+  completitudFlujo,
+  entradasSinClasificarLabel,
+  motivoIndeterminado,
 } from "./caja-v2-map";
 import type { CashFlowBucket } from "@/lib/api/treasury-reports";
 import type { CashMinimumResponse } from "@/lib/api/cash-minimum";
@@ -178,5 +181,147 @@ describe("cajaMinimoCLP", () => {
     const cm = { thresholds: [{ currency_code: "USD", amount: "5000" }] } as CashMinimumResponse;
     expect(cajaMinimoCLP(cm)).toBeNull();
     expect(cajaMinimoCLP(undefined)).toBeNull();
+  });
+});
+
+/* INV-FX-001 en la DECISIÓN, no solo en la etiqueta: el umbral `incompleto` se calcula con la
+   porción EN PESOS de lo sin clasificar (cota inferior del ratio real) y degrada a
+   `indeterminado` cuando hay entradas en otra moneda o de moneda desconocida. Antes se sumaba
+   USD como si fueran CLP y esa mezcla decidía qué veía el usuario. */
+describe("completitudFlujo", () => {
+  const sc = (
+    inflowByCurrency: { currency: string; inflow: number; count: number }[],
+    extra: { count?: number; unknownInflowCount?: number } = {},
+  ) => ({
+    count: extra.count ?? inflowByCurrency.reduce((a, c) => a + c.count, 0),
+    inflowByCurrency,
+    unknownInflowCount: extra.unknownInflowCount ?? 0,
+  });
+
+  it("sin pendientes → completo", () => {
+    expect(completitudFlujo(1_000_000, undefined)).toBe("completo");
+    expect(completitudFlujo(1_000_000, sc([], { count: 0 }))).toBe("completo");
+  });
+
+  it("solo CLP bajo el umbral → completo; sobre el umbral → incompleto", () => {
+    // 100.000 / (1.000.000 + 100.000) ≈ 9% ≤ 20%
+    expect(completitudFlujo(1_000_000, sc([{ currency: "CLP", inflow: 100_000, count: 1 }]))).toBe(
+      "completo",
+    );
+    // Caso real Tooxs julio: $1,6M clasificado vs $61,5M sin clasificar.
+    expect(
+      completitudFlujo(1_600_000, sc([{ currency: "CLP", inflow: 61_500_000, count: 9 }])),
+    ).toBe("incompleto");
+  });
+
+  it("dos monedas: si la porción CLP ya pasa el umbral, decide sin convertir", () => {
+    // La cota inferior (CLP sola) ya supera 20% → agregar USD solo la sube. Veredicto firme.
+    expect(
+      completitudFlujo(
+        1_000_000,
+        sc([
+          { currency: "CLP", inflow: 900_000, count: 3 },
+          { currency: "USD", inflow: 1200, count: 2 },
+        ]),
+      ),
+    ).toBe("incompleto");
+  });
+
+  it("dos monedas: si la porción CLP NO decide, es indeterminado (no se convierte USD)", () => {
+    // CLP sola da ~9%; los US$1.200 podrían llevarlo sobre 20% o no según el tipo de cambio →
+    // no se puede saber sin una tasa, y la tasa es decisión humana. Con el bug, 1.200 sumaban
+    // como pesos (ratio ~9,2%) y el veredicto salía "completo" sobre un número inventado.
+    expect(
+      completitudFlujo(
+        1_000_000,
+        sc([
+          { currency: "CLP", inflow: 100_000, count: 1 },
+          { currency: "USD", inflow: 1200, count: 1 },
+        ]),
+      ),
+    ).toBe("indeterminado");
+  });
+
+  it("moneda desconocida con entradas → indeterminado", () => {
+    expect(
+      completitudFlujo(
+        1_000_000,
+        sc([{ currency: "CLP", inflow: 50_000, count: 1 }], {
+          count: 3,
+          unknownInflowCount: 2,
+        }),
+      ),
+    ).toBe("indeterminado");
+  });
+
+  it("moneda desconocida SOLO en salidas → no afecta el ratio de entradas", () => {
+    expect(
+      completitudFlujo(
+        1_000_000,
+        sc([{ currency: "CLP", inflow: 50_000, count: 1 }], {
+          count: 3,
+          unknownInflowCount: 0,
+        }),
+      ),
+    ).toBe("completo");
+  });
+
+  it("USD con inflow 0 (solo egresos) no vuelve indeterminado el veredicto", () => {
+    expect(
+      completitudFlujo(
+        1_000_000,
+        sc([
+          { currency: "CLP", inflow: 50_000, count: 1 },
+          { currency: "USD", inflow: 0, count: 2 },
+        ]),
+      ),
+    ).toBe("completo");
+  });
+});
+
+describe("entradasSinClasificarLabel / motivoIndeterminado", () => {
+  it("formatea una cifra POR MONEDA, nunca una suma mezclada", () => {
+    const label = entradasSinClasificarLabel({
+      count: 2,
+      inflowByCurrency: [
+        { currency: "CLP", inflow: 61_500_000, count: 1 },
+        { currency: "USD", inflow: 1200, count: 1 },
+      ],
+      unknownInflowCount: 0,
+    });
+    expect(label).toContain("61.500.000");
+    expect(label).toContain("1.200,00");
+    expect(label).toContain("·"); // separador, no "+": no se suman
+    expect(label).not.toContain("61.501.200");
+  });
+
+  it("sin entradas con moneda conocida → null (no se inventa un $0)", () => {
+    expect(
+      entradasSinClasificarLabel({ count: 2, inflowByCurrency: [], unknownInflowCount: 2 }),
+    ).toBeNull();
+  });
+
+  it("el motivo nombra la moneda y dice que el tipo de cambio lo elige el usuario", () => {
+    const motivo = motivoIndeterminado({
+      count: 2,
+      inflowByCurrency: [
+        { currency: "CLP", inflow: 100_000, count: 1 },
+        { currency: "USD", inflow: 1200, count: 1 },
+      ],
+      unknownInflowCount: 1,
+    });
+    expect(motivo).toContain("USD");
+    expect(motivo).toContain("moneda no conocemos");
+    expect(motivo).toContain("tipo de cambio");
+  });
+
+  it("todo en CLP → no hay motivo (null)", () => {
+    expect(
+      motivoIndeterminado({
+        count: 1,
+        inflowByCurrency: [{ currency: "CLP", inflow: 100_000, count: 1 }],
+        unknownInflowCount: 0,
+      }),
+    ).toBeNull();
   });
 });

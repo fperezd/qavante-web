@@ -23,7 +23,15 @@ import { CajaV2Resumen, type CajaMovible } from "./caja-v2-resumen";
 import { CajaHero } from "./caja-hero";
 import { SaldoPorBanco } from "./saldo-por-banco";
 import { CajaCurva } from "./caja-curva";
-import { serieAnclada, cajaMinimoCLP, flujoDeBuckets, primerCruceFuturo } from "./caja-v2-map";
+import {
+  serieAnclada,
+  cajaMinimoCLP,
+  flujoDeBuckets,
+  primerCruceFuturo,
+  completitudFlujo,
+  entradasSinClasificarLabel,
+  motivoIndeterminado,
+} from "./caja-v2-map";
 import { CajaProyeccionLive } from "./caja-proyeccion-live";
 import { fechaCortaLabel } from "./caja-proyeccion-model";
 import { formatBucketLabel } from "@/components/caja/cash-flow-format";
@@ -313,12 +321,20 @@ function FlujoBlock({
     </div>
   );
   const hayPendientes = sinClasificar != null && sinClasificar.count > 0;
-  // El flujo "committed" solo cuenta lo CLASIFICADO. Si lo sin clasificar es una porción material del
-  // ingreso (>20%), mostrar el número clasificado como "Entra del período" MIENTE por omisión → lo
-  // degradamos a "Incompleto" (patrón §13: no mostrar cifras sin confianza). Validado: Tooxs julio $1,6M
-  // clasificado vs $61,5M sin clasificar → mostrar $1,6M como el flujo era engañoso.
-  const totalIn = entra + (sinClasificar?.inflow ?? 0);
-  const incompleto = hayPendientes && totalIn > 0 && sinClasificar!.inflow / totalIn > 0.2;
+  /* El flujo "committed" solo cuenta lo CLASIFICADO. Si lo sin clasificar es una porción material
+     del ingreso (>20%), mostrar el número clasificado como "Entra del período" MIENTE por omisión →
+     lo degradamos a "Incompleto" (patrón §13: no mostrar cifras sin confianza). Validado: Tooxs
+     julio $1,6M clasificado vs $61,5M sin clasificar → mostrar $1,6M como el flujo era engañoso.
+
+     INV-FX-001: la decisión se calcula SOLO con la porción en pesos (cota inferior); si hay
+     entradas sin clasificar en otra moneda —o de moneda desconocida— el veredicto no se puede
+     cerrar sin tipo de cambio y degrada a `indeterminado`. Antes se sumaba USD como si fueran CLP,
+     así que la mezcla no solo mal-etiquetaba: decidía. */
+  const completitud = completitudFlujo(entra, sinClasificar);
+  const incompleto = completitud === "incompleto";
+  const indeterminado = completitud === "indeterminado";
+  const entradasLabel = entradasSinClasificarLabel(sinClasificar);
+  const motivoFx = motivoIndeterminado(sinClasificar);
 
   const avisoSinClasificar = hayPendientes ? (
     <div className="mt-3 rounded-lg border border-warning-500/30 bg-warning-500/[.07] px-3 py-2 text-[12px] leading-snug text-neutral-dark">
@@ -326,7 +342,9 @@ function FlujoBlock({
         {sinClasificar!.count} {sinClasificar!.count === 1 ? "movimiento" : "movimientos"} sin
         clasificar
       </b>
-      {sinClasificar!.inflow > 0 ? ` (~${formatClp(sinClasificar!.inflow)} en entradas)` : ""}{" "}
+      {/* Un monto POR MONEDA ("$61.500.000 · US$1.200,00"): nunca un total mezclado pintado como
+          pesos, que es exactamente lo que prohíbe INV-FX-001. */}
+      {entradasLabel ? ` (~${entradasLabel} en entradas)` : ""}{" "}
       {incompleto ? "no están contados." : "no están en este flujo."}{" "}
       <Link
         href="/caja/por-clasificar"
@@ -355,18 +373,41 @@ function FlujoBlock({
     );
   }
 
+  const filas = (
+    <dl className="flex flex-col text-[13px]">
+      {row("Entra (período)", formatClp(entra), "text-success-700")}
+      {row("Sale (período)", formatClp(-Math.abs(sale)), "text-danger-500")}
+      {row("Neto del período", formatClp(neto), neto < 0 ? "text-danger-500" : "text-neutral-dark")}
+      {minimo != null && row("Tu caja mínima", formatClp(minimo))}
+    </dl>
+  );
+
+  /* Estado "no se puede determinar": las cifras de abajo SIGUEN siendo ciertas (son lo clasificado,
+     ya en moneda funcional CLP); lo que perdimos es la certificación de que representan el período.
+     Se dice explícito y se rotula qué son, en vez de (a) mentir con un veredicto calculado sobre una
+     mezcla de monedas o (b) esconder datos verdaderos por una condición que tampoco pudimos probar. */
+  if (indeterminado) {
+    return (
+      <div className="p-5">
+        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+          Flujo del período
+        </p>
+        <p className="mt-1 text-[20px] font-bold text-neutral-mid">
+          No podemos determinar si está completo
+        </p>
+        {motivoFx && <p className="mt-1.5 text-[12.5px] text-neutral-mid">{motivoFx}</p>}
+        <p className="mt-3 text-[11.5px] font-semibold uppercase tracking-wide text-neutral-mid">
+          Lo que sí está clasificado (en pesos)
+        </p>
+        <div className="mt-1">{filas}</div>
+        {avisoSinClasificar}
+      </div>
+    );
+  }
+
   return (
     <div className="p-5">
-      <dl className="flex flex-col text-[13px]">
-        {row("Entra (período)", formatClp(entra), "text-success-700")}
-        {row("Sale (período)", formatClp(-Math.abs(sale)), "text-danger-500")}
-        {row(
-          "Neto del período",
-          formatClp(neto),
-          neto < 0 ? "text-danger-500" : "text-neutral-dark",
-        )}
-        {minimo != null && row("Tu caja mínima", formatClp(minimo))}
-      </dl>
+      {filas}
       {avisoSinClasificar}
     </div>
   );
