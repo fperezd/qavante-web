@@ -6,163 +6,212 @@ name: gate-review
 # Por qué existe: la noche del 2026-08-13/14 ocho PRs (tres de ellos R2, dos con
 # etiqueta money) se abrieron sin ningún review independiente, aunque la regla ya
 # estaba escrita y ratificada. Ninguno llegó a main, pero la regla dependía de que
-# el ejecutor la recordara. Este check la vuelve verificable sin leer resúmenes.
-# Registro del incidente: qavante-api docs/factory/INCIDENTES.md (INC-001).
+# el ejecutor la recordara. Registro: qavante-api docs/factory/INCIDENTES.md (INC-001).
 #
 # Qué exige, según el risk declarado en el label del PR:
 #   risk:R0  -> nada (policy §5: CI -> merge).
-#   risk:R1  -> evidencia de review independiente.
-#   risk:R2  -> evidencia de review independiente, veredicto no negativo, y
-#               que el veredicto sea POSTERIOR al último commit (no vale un
-#               PASS sobre código que después cambió).
-#   sin label de risk -> falla. Cerrar esa puerta es parte del control: si no
-#               declarar riesgo eximiera del gate, el gate no serviría de nada.
+#   risk:R1  -> veredicto de review vigente sobre el commit actual.
+#   risk:R2  -> lo mismo, y además que el veredicto sea PASS.
+#   sin label de risk -> falla. Si no declarar riesgo eximiera del gate, el gate
+#                        no serviría de nada.
 #
-# Qué cuenta como evidencia de review, en orden de fuerza:
-#   1. Un review APPROVED de un login distinto del autor del PR.
-#   2. Un comentario con veredicto estructurado del contrato de review
-#      (§6 / proposal-pack/18): una línea `veredicto: PASS|FAIL|NEEDS_HUMAN`.
+# Qué cuenta como veredicto (contrato de review, §6 / proposal-pack/18):
+#   a) Un review APPROVED de un login distinto del autor, sobre el commit actual.
+#   b) Un comentario o review con DOS líneas, cada una sola en su renglón:
+#        veredicto: PASS            (o FAIL, o NEEDS_HUMAN)
+#        revisado: <sha del commit revisado>
+#      El sha ancla el veredicto a un commit concreto: un PASS sobre código que
+#      después cambió deja de valer solo, sin depender de comparar fechas (que
+#      un rebase o un GIT_COMMITTER_DATE alterado pueden falsear).
 #
-# Sobre el punto 2 y su límite, dicho explícitamente: hoy los PRs de agentes se
-# crean bajo la cuenta del BO, y GitHub no permite aprobar el propio PR, así que
-# la vía 1 no está disponible para ese caso. La vía 2 exige que el artefacto de
-# review EXISTA en el PR y sea legible; detiene el olvido, no la mala fe. Contra
-# la mala fe está el gate humano del BO, que este check no reemplaza.
+# Endurecimientos deliberados, todos por hallazgos del review adversarial del
+# PR #954 (que falló este mismo archivo en su primera versión):
+#   - la línea del veredicto debe ir sola: pegar la plantilla del contrato
+#     ("veredicto: PASS | FAIL | NEEDS_HUMAN") ya NO satisface el gate;
+#   - se ignoran los bloques de código, para que un veredicto citado como
+#     ejemplo no cuente;
+#   - se lee pr.head.sha del payload en vez de listCommits (que tenía un
+#     per_page inválido de 250, sin paginar, y reventaba con lista vacía);
+#   - dispara también en issue_comment, sin lo cual el único canal de evidencia
+#     disponible hoy no podía re-ejecutar el check y el verde era inalcanzable.
 #
-# IMPORTANTE: un check solo BLOQUEA el merge si está marcado como required en
-# branch protection. Sin ese paso, esto es una X roja que se puede ignorar.
+# LÍMITE CONOCIDO, dicho de frente: hoy los PRs de agentes se crean bajo la
+# cuenta del BO y GitHub no permite aprobar el propio PR, así que la vía (a) no
+# está disponible para ese caso y la vía (b) no puede filtrarse por autor sin
+# dejar el canal inutilizable. Este control detiene el olvido y el descuido, no
+# la mala fe deliberada. Contra eso está el human gate del BO (§8), que ningún
+# check reemplaza. Cuando el equipo se incorpore, la vía (a) queda disponible
+# entre personas distintas y el control se fortalece solo.
+#
+# IMPORTANTE para branch protection: el contexto a marcar como required se llama
+# "gate-review" (nombre del job), no el nombre del workflow.
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review, converted_to_draft]
   pull_request_review:
     types: [submitted, dismissed]
+  issue_comment:
+    types: [created, edited, deleted]
 
 permissions:
   pull-requests: read
   contents: read
 
-# Los eventos de PR llegan en ráfaga (opened + labeled + synchronize a la vez) y
-# sin esto quedan 4 o 5 corridas idénticas por PR. Solo importa la última.
+# Los eventos llegan en ráfaga (opened + labeled + synchronize a la vez) y sin
+# esto quedan 4 o 5 corridas idénticas por PR. Solo importa la última.
 concurrency:
-  group: gate-review-${{ github.event.pull_request.number }}
+  group: gate-review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
-  gate:
-    name: review independiente
+  gate-review:
+    name: gate-review
+    # issue_comment dispara en issues además de PRs: solo interesa el caso PR.
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
       - uses: actions/github-script@v7
         with:
           script: |
-            const pr = context.payload.pull_request;
             const { owner, repo } = context.repo;
-            const number = pr.number;
+            const number = context.payload.pull_request?.number
+              ?? context.payload.issue?.number;
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner, repo, pull_number: number,
+            });
 
             if (pr.draft) {
               core.info('PR en borrador: no puede mergearse, gate omitido.');
               return;
             }
-
-            const labels = pr.labels.map(l => l.name);
-            const risk = labels.find(n => /^risk:R[012]$/.test(n));
-
-            if (!risk) {
-              core.setFailed(
-                'Este PR no declara riesgo. Agrega risk:R0, risk:R1 o risk:R2 ' +
-                '(FACTORY_POLICY §5, en qavante-api docs/factory/). Sin riesgo declarado no se puede saber qué ' +
-                'gate corresponde, y por eso el check falla en vez de dejar pasar.'
-              );
+            if (pr.state !== 'open') {
+              core.info('PR cerrado: gate omitido.');
               return;
             }
 
+            const risk = pr.labels.map(l => l.name).find(n => /^risk:R[012]$/.test(n));
+            if (!risk) {
+              core.setFailed(
+                'Este PR no declara riesgo. Agrega risk:R0, risk:R1 o risk:R2 ' +
+                '(FACTORY_POLICY §5, en qavante-api docs/factory/). Sin riesgo declarado no se puede saber qué gate ' +
+                'corresponde, y por eso el check falla en vez de dejar pasar.'
+              );
+              return;
+            }
             if (risk === 'risk:R0') {
               core.info('risk:R0 → gate: CI a merge. Sin review obligatorio (§5).');
               return;
             }
 
-            // --- evidencia 1: reviews aprobatorios de alguien distinto del autor
-            const reviews = await github.paginate(github.rest.pulls.listReviews, {
-              owner, repo, pull_number: number, per_page: 100,
-            });
-            const author = pr.user.login;
-            const approvals = reviews.filter(
-              r => r.state === 'APPROVED' && r.user && r.user.login !== author
-            );
+            const head = pr.head.sha;
+            core.info(`Commit actual del PR: ${head}`);
 
-            // --- evidencia 2: veredicto estructurado en comentarios (§6)
+            // Los bloques de código no cuentan: un veredicto citado como ejemplo
+            // no es un veredicto emitido.
+            const sinCodigo = (t) => (t || '').replace(/```[\s\S]*?```/g, '');
+            // La línea debe ir SOLA: la plantilla del contrato, que enumera las
+            // tres opciones separadas por barras, no satisface el gate.
+            const RE_VEREDICTO = /^[ \t>]*veredicto[ \t]*:[ \t]*(PASS|FAIL|NEEDS_HUMAN)[ \t]*$/im;
+            const RE_SHA = /^[ \t>]*revisado[ \t]*:[ \t]*`?([0-9a-f]{7,40})`?[ \t]*$/im;
+
+            const leer = (cuerpo, quien, url) => {
+              const t = sinCodigo(cuerpo);
+              const v = t.match(RE_VEREDICTO);
+              if (!v) return null;
+              const s = t.match(RE_SHA);
+              return {
+                veredicto: v[1].toUpperCase(),
+                sha: s ? s[1] : null,
+                quien, url,
+              };
+            };
+
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner, repo, issue_number: number, per_page: 100,
             });
-            const VERDICT = /^\s*veredicto\s*:\s*(PASS|FAIL|NEEDS_HUMAN)\b/im;
-            const verdicts = [];
-            for (const c of comments) {
-              const m = (c.body || '').match(VERDICT);
-              if (m) verdicts.push({ verdict: m[1].toUpperCase(), at: c.created_at, url: c.html_url });
-            }
-            verdicts.sort((a, b) => new Date(a.at) - new Date(b.at));
-            const last = verdicts[verdicts.length - 1];
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner, repo, pull_number: number, per_page: 100,
+            });
 
-            if (!approvals.length && !last) {
+            const señales = [];
+            for (const c of comments) {
+              const r = leer(c.body, c.user?.login, c.html_url);
+              if (r) señales.push({ ...r, at: c.created_at });
+            }
+            for (const rv of reviews) {
+              // Un APPROVED de un tercero sobre el commit actual vale por sí solo.
+              if (rv.state === 'APPROVED' && rv.user?.login && rv.user.login !== pr.user.login) {
+                señales.push({
+                  veredicto: 'PASS', sha: rv.commit_id, quien: rv.user.login,
+                  url: rv.html_url, at: rv.submitted_at, aprobacion: true,
+                });
+                continue;
+              }
+              // Un review con cuerpo también puede traer veredicto estructurado.
+              const r = leer(rv.body, rv.user?.login, rv.html_url);
+              if (r) señales.push({ ...r, at: rv.submitted_at || pr.updated_at });
+            }
+
+            if (!señales.length) {
               core.setFailed(
                 `${risk} exige review independiente y este PR no tiene ninguno ` +
-                '(FACTORY_POLICY §6). Falta un review APPROVED de otra persona, o ' +
-                'un comentario con veredicto estructurado del reviewer ' +
-                '(línea "veredicto: PASS|FAIL|NEEDS_HUMAN"). El implementador no ' +
-                'certifica su propio cambio.'
+                '(FACTORY_POLICY §6). Se acepta un review APPROVED de otra persona, o ' +
+                'un comentario del reviewer con dos líneas, cada una sola en su renglón: ' +
+                '"veredicto: PASS" y "revisado: ' + head.slice(0, 7) + '". ' +
+                'El implementador no certifica su propio cambio.'
               );
               return;
             }
 
-            if (last) core.info(`Último veredicto: ${last.verdict} (${last.url})`);
-            if (approvals.length) core.info(`Aprobaciones de terceros: ${approvals.length}`);
+            señales.sort((a, b) => new Date(a.at) - new Date(b.at));
 
-            if (risk === 'risk:R1') {
-              if (last && last.verdict !== 'PASS' && !approvals.length) {
-                core.setFailed(
-                  `El último veredicto es ${last.verdict}: corrige y pide re-review ` +
-                  `antes de mergear. ${last.url}`
-                );
-                return;
-              }
-              core.info('risk:R1 con review independiente presente.');
-              return;
-            }
+            // Vigencia por sha, no por fecha: solo cuentan los veredictos que
+            // declaran haber revisado el commit que hoy se mergearía.
+            const vigentes = señales.filter(s => s.sha && head.startsWith(s.sha));
+            const ultimo = señales[señales.length - 1];
 
-            // --- risk:R2: estricto
-            if (last && last.verdict !== 'PASS') {
+            if (!vigentes.length) {
+              const detalle = ultimo.sha
+                ? `el último veredicto declara haber revisado ${ultimo.sha}, y el commit actual es ${head.slice(0, 7)}`
+                : 'ningún veredicto declara qué commit revisó (falta la línea "revisado: <sha>")';
               core.setFailed(
-                `risk:R2 con veredicto ${last.verdict}. Un R2 no se mergea con un ` +
-                `veredicto negativo pendiente. ${last.url}`
+                `${risk}: hay veredictos pero ninguno vigente sobre el commit actual. ` +
+                `${detalle}. Un PASS sobre código que después cambió no dice nada del ` +
+                `código que se va a mergear. Pide re-review sobre ${head.slice(0, 7)}. ${ultimo.url}`
               );
               return;
             }
-            if (!last && approvals.length) {
-              core.info('R2 sin veredicto estructurado, pero con aprobación de un tercero.');
-            }
 
-            // El veredicto tiene que ser posterior al último commit: un PASS sobre
-            // código que después cambió no dice nada del código que se va a mergear.
-            const { data: commits } = await github.rest.pulls.listCommits({
-              owner, repo, pull_number: number, per_page: 250,
-            });
-            const headCommit = commits[commits.length - 1];
-            const headDate = new Date(
-              headCommit.commit.committer.date || headCommit.commit.author.date
-            );
-            const newest = [
-              ...approvals.map(a => new Date(a.submitted_at)),
-              ...(last ? [new Date(last.at)] : []),
-            ].sort((a, b) => b - a)[0];
-
-            if (newest < headDate) {
+            // Un veredicto negativo sobre el commit actual bloquea aunque después
+            // llegue un PASS sobre el MISMO commit: si el código no cambió, nada
+            // justifica que el veredicto cambie, y permitirlo sería la vía obvia
+            // para que el autor anule a su revisor. Corregir significa pushear
+            // (sha nuevo) y pedir re-review sobre ese sha.
+            const negativo = vigentes.find(s => s.veredicto !== 'PASS');
+            if (negativo) {
               core.setFailed(
-                'El review es anterior al último commit del PR: revisó código que ya ' +
-                `cambió. Pide re-review sobre ${headCommit.sha.slice(0, 7)} ` +
-                `(commit ${headDate.toISOString()}, review ${newest.toISOString()}).`
+                `${risk} con veredicto ${negativo.veredicto} sobre el commit actual ` +
+                `(por ${negativo.quien}). Un PASS posterior sobre el mismo commit no lo ` +
+                'anula: corrige el código, pushea, y pide re-review sobre el sha nuevo. ' +
+                negativo.url
               );
               return;
             }
 
-            core.info('risk:R2 con review independiente vigente. Falta el human gate del BO (§8).');
+            const vigente = vigentes[vigentes.length - 1];
+            core.info(`Veredicto vigente: ${vigente.veredicto} por ${vigente.quien} sobre ${vigente.sha} (${vigente.url})`);
+
+            if (vigente.quien === pr.user.login && !vigente.aprobacion) {
+              core.warning(
+                `El veredicto vigente fue publicado por el autor del PR (${vigente.quien}). ` +
+                'Hoy los PRs de agentes se crean bajo la cuenta del BO y no hay forma de ' +
+                'distinguirlos por login, así que el check lo acepta y lo deja anotado: ' +
+                'esta señal detiene el olvido, no la mala fe. El human gate del BO sigue siendo necesario.'
+              );
+            }
+
+            if (risk === 'risk:R2') {
+              core.info('risk:R2 con review vigente en PASS. Falta el human gate del BO (§8).');
+            }
