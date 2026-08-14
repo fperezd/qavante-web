@@ -4,7 +4,18 @@
 
    Los pasos `pre-auth` corren antes de tener sesión (signup, verificar email);
    los `post-auth` corren ya logueado, scopeados a la empresa activa. El destino
-   final (dashboard) NO es un paso del wizard: es la salida. */
+   final (dashboard) NO es un paso del wizard: es la salida.
+
+   Patrón "siempre wizard, con conexiones diferibles" (Fernando 2026-08-12): los
+   pasos que conectan una fuente (`source`) son DIFERIBLES — "conectar después"
+   avanza el wizard y deja la conexión pendiente en el hub de conexiones. Nada
+   bloquea el registro. */
+
+import {
+  ONBOARDING_SOURCE_IDS,
+  type OnboardingSourceId,
+  type OnboardingSourceStates,
+} from "@/lib/api/onboarding-sources";
 
 export type OnboardingStepId =
   | "signup"
@@ -25,6 +36,9 @@ export interface OnboardingStep {
   route: string;
   /** `pre-auth` = sin sesión todavía; `post-auth` = logueado. */
   phase: "pre-auth" | "post-auth";
+  /** Fuente conectable que este paso conecta, si aplica. Los pasos con `source`
+   *  son los diferibles ("conectar después"). */
+  source?: OnboardingSourceId;
 }
 
 export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
@@ -48,6 +62,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     title: "Conecta el SII",
     route: "/onboarding/conectar-sii",
     phase: "post-auth",
+    source: "sii",
   },
   {
     id: "connect-bank",
@@ -55,6 +70,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     title: "Conecta tu banco",
     route: "/onboarding/conectar-banco",
     phase: "post-auth",
+    source: "bank",
   },
   {
     id: "industry",
@@ -132,12 +148,28 @@ export function routeAfter(id: OnboardingStepId): string {
   return nextStep(id)?.route ?? ONBOARDING_DONE_ROUTE;
 }
 
-/** Ruta del wizard a la que reanudar a un usuario con onboarding incompleto,
-    según las fuentes conectadas que reporta el status (`steps`): si falta SII →
-    Conectar SII; si falta banco → Conectar banco; si ambas están → seguir con
-    el rubro (primer paso que el status no rastrea). Para el guard. */
-export function onboardingResumeRoute(siiConnected: boolean, bankConnected: boolean): string {
-  if (!siiConnected) return stepById("connect-sii")!.route;
-  if (!bankConnected) return stepById("connect-bank")!.route;
+/** Hub de conexiones del wizard: punto de retorno para conectar lo que se dejó
+    para después. NO es un paso numerado — es la puerta de entrada de vuelta. */
+export const ONBOARDING_CONNECTIONS_ROUTE = "/onboarding/conexiones";
+
+/** Ruta del paso que conecta una fuente. */
+export function routeForSource(source: OnboardingSourceId): string {
+  const step = ONBOARDING_STEPS.find((s) => s.source === source);
+  /* Si algún día se agrega una fuente sin paso propio (ej. ERP), el hub sigue
+     siendo un destino válido: nunca devolvemos una ruta inexistente. */
+  return step?.route ?? ONBOARDING_CONNECTIONS_ROUTE;
+}
+
+/** Ruta del wizard a la que reanudar a un usuario con onboarding INCOMPLETO.
+    Va al primer paso de fuente que no esté ni conectada ni DIFERIDA; si el
+    usuario ya resolvió (conectó o difirió) todas las fuentes, sigue con el rubro
+    (primer paso que el status no rastrea). Para el guard.
+
+    Clave del patrón: una fuente `deferred` NO devuelve al usuario a ese paso —
+    "conectar después" sería mentira si el wizard lo empujara de vuelta ahí. */
+export function onboardingResumeRoute(states: OnboardingSourceStates): string {
+  for (const source of ONBOARDING_SOURCE_IDS) {
+    if (states[source] === "pending") return routeForSource(source);
+  }
   return stepById("industry")!.route;
 }

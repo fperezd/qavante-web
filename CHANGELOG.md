@@ -6,6 +6,25 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/). V
 
 ## [Unreleased]
 
+### Bloque 2026-08-14 — wizard de registro: "siempre wizard, con conexiones diferibles"
+
+Patrón ratificado por Fernando el 2026-08-12: al registrarse, si falta una conexión (banco, SII, ERP), el usuario **la salta y la conecta después desde el mismo wizard**. Nada bloquea el registro.
+
+#### Added
+
+- **Estado por fuente con adaptador aislado** (`src/lib/api/onboarding-sources.ts`) — cada fuente queda en `connected` / `deferred` / `pending`. `connected` sale del backend (`steps.{sii,bank}_connected`); `deferred` es la decisión explícita del usuario. **Brecha de contrato:** el backend NO tiene campo de diferimiento (verificado contra el snapshot OpenAPI de `qavante-api`, 2026-08-14) → vive en memoria por sesión de navegación (`src/lib/onboarding/deferred-sources.ts`, sin `localStorage`) y al recargar vuelve a leerse como pendiente, **nunca** como conectada. Cablear el campo real es **una línea** en `deferredSourcesFromStatus()`. Handoff: [`onboarding-deferred-sources-gap.md`](./docs/backend-contracts/onboarding-deferred-sources-gap.md).
+- **"Conectar después" explícito** en los pasos de SII y banco — reemplaza el genérico "Omitir por ahora" y registra la decisión, con el copy de qué se pierde mientras tanto (no mostramos esos datos; no los damos por cero).
+- **Hub de conexiones `/onboarding/conexiones`** — el **punto de retorno**: lista las fuentes con su estado real y permite retomar cualquiera. No es un paso numerado (no inventa un progreso que el usuario ya no tiene).
+- **Entrada visible desde la app** (`PendingConnectionsBanner`, montado en `(app)/layout.tsx` bajo el flag `onboarding`) — aparece solo con el onboarding completado y alguna fuente sin conectar; sin dato del backend no se muestra.
+- **Cuentas por vincular de BICE dentro del wizard** — el paso de banco, ya conectado, monta `LinkBankAccountsCard` (contratos reales `GET /api/bank-movements/bice/accounts` + `POST …/{external_id}/link`, que ya existían y solo vivían en Administración → Credenciales). Sin vincular, los movimientos quedan en cuarentena y la caja se vería vacía sin explicación.
+
+#### Changed
+
+- **El guard ya no devuelve al usuario a un paso que difirió** (`onboardingResumeRoute` ahora recibe el estado por fuente): reanuda en la primera fuente `pending`; si difirió todas, sigue con el resto del wizard. Fail-safe intacto (sin data no redirige).
+- **Paso final honesto** — al cerrar el wizard se listan las conexiones que quedaron pendientes, con acceso directo al hub. Completar el onboarding ya no se lee como "todo listo".
+
+> Tests: +23 unit (adaptador, store de diferidos, modelo de pasos, copys de estado) — suite completa **1337 verdes**, typecheck y lint limpios (0 errores). El proyecto `storybook` no se pudo correr en el entorno de esta sesión (Playwright no pudo descargar el browser); las stories nuevas quedan para el gate de CI.
+
 ### Bloque 2026-06-01 — auth/middleware + editor de vistas de gestión + sweep + D3 (Modo A)
 
 PRs #269-#276. Fernando autorizó los hallazgos de auth/middleware diferidos + construir el editor de dimensiones (D1-D3) + un sweep de la capa de datos.

@@ -5,19 +5,25 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { QavanteButton } from "@/components/qavante";
 import { useTriggerOnboardingSync, useCompleteOnboarding } from "@/lib/api/onboarding-status";
+import { ONBOARDING_SOURCE_IDS, useOnboardingSources } from "@/lib/api/onboarding-sources";
 import { OnboardingShell } from "./onboarding-shell";
-import { ONBOARDING_DONE_ROUTE } from "./onboarding-steps";
+import { ONBOARDING_CONNECTIONS_ROUTE, ONBOARDING_DONE_ROUTE } from "./onboarding-steps";
+import { ONBOARDING_SOURCE_META } from "./onboarding-source-meta";
 
 /* Paso 7 (final) — Traer datos. Dispara la sincronización inicial (SII + banco)
    y, al finalizar, marca el onboarding completado y lleva al dashboard. La sync
    puede ser asíncrona: no bloquea: "lo seguimos trayendo en segundo plano".
-   Respuesta per-source partial-success (`sources.{sii,bank}.status`). */
+   Respuesta per-source partial-success (`sources.{sii,bank}.status`).
+
+   "Siempre wizard, con conexiones diferibles": el onboarding se completa aunque
+   queden fuentes sin conectar. Lo que NO se hace es esconderlo — se listan las
+   pendientes con su acceso directo al hub de conexiones. */
 
 const SOURCE_LABEL = { sii: "SII", bank: "Banco" } as const;
 const STATUS_TEXT = {
   ok: "sincronizado",
   failed: "no se pudo conectar",
-  skipped: "no conectado",
+  skipped: "no conectado (lo puedes conectar después)",
 } as const;
 
 export function ImportView() {
@@ -41,6 +47,13 @@ export function ImportView() {
 
   const synced = sync.isSuccess;
   const syncFailed = sync.isError;
+
+  /* Fuentes que quedan sin conectar al cerrar el wizard. Se listan explícitamente
+     con su acceso al hub: completar el onboarding no significa "todo listo". */
+  const { states, isUnknown } = useOnboardingSources(true);
+  const unconnected = isUnknown
+    ? []
+    : ONBOARDING_SOURCE_IDS.filter((id) => states[id] !== "connected");
 
   return (
     <OnboardingShell
@@ -86,6 +99,33 @@ export function ImportView() {
               Seguimos trayendo tus datos en segundo plano. Puedes entrar a tu panel mientras tanto.
             </p>
           </>
+        )}
+
+        {/* Conexiones que quedaron para después: se dicen, no se esconden. */}
+        {unconnected.length > 0 && (
+          <div className="w-full rounded-xl border border-border bg-surface-muted p-4 text-left">
+            <p className="text-sm font-medium text-neutral-dark">
+              Te queda{" "}
+              {unconnected.length === 1 ? "una conexión" : `${unconnected.length} conexiones`} por
+              hacer
+            </p>
+            <ul className="mt-1 space-y-1 text-xs text-neutral-mid">
+              {unconnected.map((id) => (
+                <li key={id}>
+                  <strong>{ONBOARDING_SOURCE_META[id].label}</strong>:{" "}
+                  {ONBOARDING_SOURCE_META[id].missingConsequence}
+                </li>
+              ))}
+            </ul>
+            <QavanteButton
+              variant="ghost"
+              size="sm"
+              className="mt-2 px-0"
+              onClick={() => router.push(ONBOARDING_CONNECTIONS_ROUTE)}
+            >
+              Conectarlas ahora
+            </QavanteButton>
+          </div>
         )}
 
         <QavanteButton size="lg" loading={complete.isPending} onClick={finish}>

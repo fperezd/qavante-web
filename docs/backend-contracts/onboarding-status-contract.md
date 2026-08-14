@@ -3,6 +3,14 @@
 > **CC-WEB → CC-API. 2026-06-22.** Contrato **FE-first** (paso 7 final + guard del
 > wizard, gated `onboarding` OFF). Tipos hand-rolled en
 > `src/lib/api/onboarding-status.ts`. Endpoints **aún no existen**.
+>
+> **⚠️ Actualización 2026-08-14 — este doc quedó desactualizado en 2 puntos.** Los
+> 3 endpoints **YA están en prod** y el FE usa **tipos generados**. Además el
+> `status` real **NO trae `current_step`** (§3 de abajo es el contrato propuesto,
+> no el implementado): trae `steps: {sii_connected, bank_connected}`, y el FE
+> deriva de ahí dónde retomar. La brecha viva del wizard es otra: **no existe el
+> estado "diferida" por fuente** →
+> [`onboarding-deferred-sources-gap.md`](./onboarding-deferred-sources-gap.md).
 
 ## 1. `POST /api/onboarding/sync`
 

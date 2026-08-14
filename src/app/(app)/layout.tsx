@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/shell/app-shell";
 import { OnboardingGuard } from "@/components/onboarding/onboarding-guard";
+import { PendingConnectionsBanner } from "@/components/onboarding/pending-connections-banner";
 import { auth } from "@/lib/auth/session";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
@@ -26,6 +27,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       {/* Gated por `onboarding` (OFF en prod → no se monta). Si ON y el tenant no
           completó onboarding, redirige al wizard. Fail-safe (ver el componente). */}
       {onboarding && <OnboardingGuard />}
+      {/* Entrada visible para retomar una conexión diferida ("conectar después").
+          Solo se muestra con onboarding completado y fuentes sin conectar. */}
+      {onboarding && <PendingConnectionsBanner />}
       {children}
     </AppShell>
   );
