@@ -1,0 +1,168 @@
+name: gate-review
+
+# Convierte el §6 de FACTORY_POLICY ("el implementador nunca certifica su propio
+# cambio") de prosa en un control mecánico.
+#
+# Por qué existe: la noche del 2026-08-13/14 ocho PRs (tres de ellos R2, dos con
+# etiqueta money) se abrieron sin ningún review independiente, aunque la regla ya
+# estaba escrita y ratificada. Ninguno llegó a main, pero la regla dependía de que
+# el ejecutor la recordara. Este check la vuelve verificable sin leer resúmenes.
+# Registro del incidente: qavante-api docs/factory/INCIDENTES.md (INC-001).
+#
+# Qué exige, según el risk declarado en el label del PR:
+#   risk:R0  -> nada (policy §5: CI -> merge).
+#   risk:R1  -> evidencia de review independiente.
+#   risk:R2  -> evidencia de review independiente, veredicto no negativo, y
+#               que el veredicto sea POSTERIOR al último commit (no vale un
+#               PASS sobre código que después cambió).
+#   sin label de risk -> falla. Cerrar esa puerta es parte del control: si no
+#               declarar riesgo eximiera del gate, el gate no serviría de nada.
+#
+# Qué cuenta como evidencia de review, en orden de fuerza:
+#   1. Un review APPROVED de un login distinto del autor del PR.
+#   2. Un comentario con veredicto estructurado del contrato de review
+#      (§6 / proposal-pack/18): una línea `veredicto: PASS|FAIL|NEEDS_HUMAN`.
+#
+# Sobre el punto 2 y su límite, dicho explícitamente: hoy los PRs de agentes se
+# crean bajo la cuenta del BO, y GitHub no permite aprobar el propio PR, así que
+# la vía 1 no está disponible para ese caso. La vía 2 exige que el artefacto de
+# review EXISTA en el PR y sea legible; detiene el olvido, no la mala fe. Contra
+# la mala fe está el gate humano del BO, que este check no reemplaza.
+#
+# IMPORTANTE: un check solo BLOQUEA el merge si está marcado como required en
+# branch protection. Sin ese paso, esto es una X roja que se puede ignorar.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review, converted_to_draft]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  pull-requests: read
+  contents: read
+
+# Los eventos de PR llegan en ráfaga (opened + labeled + synchronize a la vez) y
+# sin esto quedan 4 o 5 corridas idénticas por PR. Solo importa la última.
+concurrency:
+  group: gate-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: review independiente
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const number = pr.number;
+
+            if (pr.draft) {
+              core.info('PR en borrador: no puede mergearse, gate omitido.');
+              return;
+            }
+
+            const labels = pr.labels.map(l => l.name);
+            const risk = labels.find(n => /^risk:R[012]$/.test(n));
+
+            if (!risk) {
+              core.setFailed(
+                'Este PR no declara riesgo. Agrega risk:R0, risk:R1 o risk:R2 ' +
+                '(FACTORY_POLICY §5, en qavante-api docs/factory/). Sin riesgo declarado no se puede saber qué ' +
+                'gate corresponde, y por eso el check falla en vez de dejar pasar.'
+              );
+              return;
+            }
+
+            if (risk === 'risk:R0') {
+              core.info('risk:R0 → gate: CI a merge. Sin review obligatorio (§5).');
+              return;
+            }
+
+            // --- evidencia 1: reviews aprobatorios de alguien distinto del autor
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner, repo, pull_number: number, per_page: 100,
+            });
+            const author = pr.user.login;
+            const approvals = reviews.filter(
+              r => r.state === 'APPROVED' && r.user && r.user.login !== author
+            );
+
+            // --- evidencia 2: veredicto estructurado en comentarios (§6)
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: number, per_page: 100,
+            });
+            const VERDICT = /^\s*veredicto\s*:\s*(PASS|FAIL|NEEDS_HUMAN)\b/im;
+            const verdicts = [];
+            for (const c of comments) {
+              const m = (c.body || '').match(VERDICT);
+              if (m) verdicts.push({ verdict: m[1].toUpperCase(), at: c.created_at, url: c.html_url });
+            }
+            verdicts.sort((a, b) => new Date(a.at) - new Date(b.at));
+            const last = verdicts[verdicts.length - 1];
+
+            if (!approvals.length && !last) {
+              core.setFailed(
+                `${risk} exige review independiente y este PR no tiene ninguno ` +
+                '(FACTORY_POLICY §6). Falta un review APPROVED de otra persona, o ' +
+                'un comentario con veredicto estructurado del reviewer ' +
+                '(línea "veredicto: PASS|FAIL|NEEDS_HUMAN"). El implementador no ' +
+                'certifica su propio cambio.'
+              );
+              return;
+            }
+
+            if (last) core.info(`Último veredicto: ${last.verdict} (${last.url})`);
+            if (approvals.length) core.info(`Aprobaciones de terceros: ${approvals.length}`);
+
+            if (risk === 'risk:R1') {
+              if (last && last.verdict !== 'PASS' && !approvals.length) {
+                core.setFailed(
+                  `El último veredicto es ${last.verdict}: corrige y pide re-review ` +
+                  `antes de mergear. ${last.url}`
+                );
+                return;
+              }
+              core.info('risk:R1 con review independiente presente.');
+              return;
+            }
+
+            // --- risk:R2: estricto
+            if (last && last.verdict !== 'PASS') {
+              core.setFailed(
+                `risk:R2 con veredicto ${last.verdict}. Un R2 no se mergea con un ` +
+                `veredicto negativo pendiente. ${last.url}`
+              );
+              return;
+            }
+            if (!last && approvals.length) {
+              core.info('R2 sin veredicto estructurado, pero con aprobación de un tercero.');
+            }
+
+            // El veredicto tiene que ser posterior al último commit: un PASS sobre
+            // código que después cambió no dice nada del código que se va a mergear.
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner, repo, pull_number: number, per_page: 250,
+            });
+            const headCommit = commits[commits.length - 1];
+            const headDate = new Date(
+              headCommit.commit.committer.date || headCommit.commit.author.date
+            );
+            const newest = [
+              ...approvals.map(a => new Date(a.submitted_at)),
+              ...(last ? [new Date(last.at)] : []),
+            ].sort((a, b) => b - a)[0];
+
+            if (newest < headDate) {
+              core.setFailed(
+                'El review es anterior al último commit del PR: revisó código que ya ' +
+                `cambió. Pide re-review sobre ${headCommit.sha.slice(0, 7)} ` +
+                `(commit ${headDate.toISOString()}, review ${newest.toISOString()}).`
+              );
+              return;
+            }
+
+            core.info('risk:R2 con review independiente vigente. Falta el human gate del BO (§8).');
