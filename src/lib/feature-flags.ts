@@ -136,10 +136,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      puede encenderse en prod (editar wrangler.toml). Ver STATE_OF_THE_TRAIN. */
   bankBalances: "/api/bice/saldo",
   /* Pantalla Salud (PULSO + Health Score, ADR-0064). FE-first: la vista
-     (`SaludView`) ya existe (prototipo, PR #476); la ruta queda gated OFF hasta
-     que CC-API exponga el motor v2 (qavante-api #492 PULSO / #495 QHS / #493
-     flip). Con el flag ON en dev renderiza la pantalla con datos de ejemplo;
-     el cableado a datos reales + tipos generados es qavante-web #487. */
+     (`SaludView`) ya existe (prototipo, PR #476, hoy solo en Storybook); la ruta
+     renderiza SIEMPRE "En construcción" — sin datos de ejemplo en ningún
+     ambiente (qavante-api#936, regla dato faltante ≠ dato demo) — hasta que
+     CC-API exponga el motor v2 (qavante-api #492 PULSO / #495 QHS / #493 flip).
+     El cableado a datos reales + tipos generados (qavante-web #487) reintroduce
+     la vista gateada por este flag. */
   saludScreen: "/api/management/salud",
   /* Libro de Ventas v2 (rediseño aprobado 2026-07-13) — reordena la pantalla a la
      jerarquía del Inicio (respuesta de dueño arriba + tabla que sube + concentración
