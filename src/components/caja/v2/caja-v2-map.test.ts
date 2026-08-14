@@ -10,8 +10,12 @@ import {
   flujoDeBuckets,
   primerCruceFuturo,
   completitudFlujo,
+  completitudFlujoVisible,
   entradasSinClasificarLabel,
   motivoIndeterminado,
+  unidadesSinClasificarNoCLP,
+  TECHO_CLP_POR_UNIDAD_FX,
+  UMBRAL_SIN_CLASIFICAR,
 } from "./caja-v2-map";
 import type { CashFlowBucket } from "@/lib/api/treasury-reports";
 import type { CashMinimumResponse } from "@/lib/api/cash-minimum";
@@ -276,6 +280,168 @@ describe("completitudFlujo", () => {
         ]),
       ),
     ).toBe("completo");
+  });
+
+  /* Regresión del review adversarial del #936: `indeterminado` reemplazaba a `completo` en vez de
+     a `incompleto`, así que UN dólar sin clasificar borraba el titular — y la bandeja por
+     clasificar nunca está vacía, o sea el titular desaparecía siempre (la falla que mató al
+     indicador del #956). Con la cota superior, lo extranjero chico ya no puede mover el veredicto. */
+  it("un dólar suelto NO borra el titular (caso exacto del review)", () => {
+    expect(
+      completitudFlujo(
+        50_000_000,
+        sc([
+          { currency: "CLP", inflow: 1_000_000, count: 1 },
+          { currency: "USD", inflow: 1, count: 1 },
+        ]),
+      ),
+    ).toBe("completo");
+  });
+
+  it("lo extranjero grande frente al ingreso SÍ es indeterminado (ahí la tasa decide)", () => {
+    // US$500.000 contra $10M clasificados: hay tasas que dan completo y tasas que dan incompleto.
+    expect(
+      completitudFlujo(
+        10_000_000,
+        sc([
+          { currency: "CLP", inflow: 1_000, count: 1 },
+          { currency: "USD", inflow: 500_000, count: 1 },
+        ]),
+      ),
+    ).toBe("indeterminado");
+  });
+
+  it("el techo es una COTA, no una tasa: decide el borde y hacia el lado conservador", () => {
+    // entra $100M, nada en CLP pendiente: el umbral se cruza recién cuando unidades·techo > $25M.
+    const enElBorde =
+      (100_000_000 * UMBRAL_SIN_CLASIFICAR) /
+      (TECHO_CLP_POR_UNIDAD_FX * (1 - UMBRAL_SIN_CLASIFICAR));
+    expect(
+      completitudFlujo(100_000_000, sc([{ currency: "USD", inflow: enElBorde, count: 1 }])),
+    ).toBe("completo");
+    expect(
+      completitudFlujo(100_000_000, sc([{ currency: "USD", inflow: enElBorde * 1.01, count: 1 }])),
+    ).toBe("indeterminado");
+  });
+
+  it("entra 0 con entradas pendientes → incompleto DEMOSTRABLE, sin ninguna tasa (r ≡ 1)", () => {
+    // Solo dólares: no hace falta convertir nada, el ratio real es 1 a cualquier tipo de cambio.
+    expect(completitudFlujo(0, sc([{ currency: "USD", inflow: 1200, count: 1 }]))).toBe(
+      "incompleto",
+    );
+    // Ni siquiera hace falta conocer la moneda.
+    expect(completitudFlujo(0, sc([], { count: 2, unknownInflowCount: 2 }))).toBe("incompleto");
+    // Y en pesos, obvio.
+    expect(completitudFlujo(0, sc([{ currency: "CLP", inflow: 5_000, count: 1 }]))).toBe(
+      "incompleto",
+    );
+  });
+
+  it("entra 0 SIN entradas pendientes (solo egresos sin clasificar) → completo", () => {
+    expect(completitudFlujo(0, sc([{ currency: "CLP", inflow: 0, count: 3 }], { count: 3 }))).toBe(
+      "completo",
+    );
+  });
+
+  it("entra negativo o NaN cae en el clamp → el argumento vale por r ≡ 1, no por monotonía", () => {
+    // `dr/dU = E/(E+U)²` es NEGATIVA con E<0: lo que salva al veredicto es `Math.max(entra, 0)`.
+    expect(completitudFlujo(-500_000, sc([{ currency: "CLP", inflow: 100_000, count: 1 }]))).toBe(
+      "incompleto",
+    );
+    expect(completitudFlujo(Number.NaN, sc([{ currency: "CLP", inflow: 100_000, count: 1 }]))).toBe(
+      "incompleto",
+    );
+    expect(completitudFlujo(-500_000, sc([{ currency: "USD", inflow: 1, count: 1 }]))).toBe(
+      "incompleto",
+    );
+  });
+
+  it("moneda desconocida con entra > 0 → indeterminado (es el caso sin cota superior posible)", () => {
+    // Endpoint de cuentas caído: no se sabe la moneda, así que ni el techo aplica.
+    expect(completitudFlujo(50_000_000, sc([], { count: 9, unknownInflowCount: 9 }))).toBe(
+      "indeterminado",
+    );
+  });
+
+  it("varias monedas extranjeras chicas siguen sin mover el veredicto", () => {
+    expect(
+      completitudFlujo(
+        50_000_000,
+        sc([
+          { currency: "CLP", inflow: 500_000, count: 1 },
+          { currency: "EUR", inflow: 3, count: 1 },
+          { currency: "USD", inflow: 2, count: 1 },
+        ]),
+      ),
+    ).toBe("completo");
+  });
+});
+
+describe("completitudFlujoVisible (el veredicto no se rendea antes que su evidencia)", () => {
+  const cargando = {
+    count: 4,
+    inflowByCurrency: [],
+    unknownInflowCount: 4,
+    isLoading: true,
+  };
+
+  it("mientras carga NO aparece el titular alarmante (era un flash a indeterminado)", () => {
+    // Con las cuentas en vuelo el mapa está vacío ⇒ todo cae en desconocido ⇒ `completitudFlujo`
+    // sola diría "indeterminado" durante la carga y después se acomodaría.
+    expect(completitudFlujo(50_000_000, cargando)).toBe("indeterminado");
+    expect(completitudFlujoVisible(50_000_000, cargando)).toBe("completo");
+  });
+
+  it("cuando termina de cargar, el veredicto es el real", () => {
+    expect(completitudFlujoVisible(50_000_000, { ...cargando, isLoading: false })).toBe(
+      "indeterminado",
+    );
+    expect(
+      completitudFlujoVisible(50_000_000, {
+        count: 1,
+        inflowByCurrency: [{ currency: "CLP", inflow: 61_500_000, count: 1 }],
+        unknownInflowCount: 0,
+        isLoading: false,
+      }),
+    ).toBe("incompleto");
+  });
+
+  it("sin resumen o sin el flag, se comporta igual que completitudFlujo", () => {
+    expect(completitudFlujoVisible(1_000_000, undefined)).toBe("completo");
+    expect(
+      completitudFlujoVisible(1_600_000, {
+        count: 9,
+        inflowByCurrency: [{ currency: "CLP", inflow: 61_500_000, count: 9 }],
+        unknownInflowCount: 0,
+      }),
+    ).toBe("incompleto");
+  });
+});
+
+describe("unidadesSinClasificarNoCLP", () => {
+  it("suma UNIDADES de toda moneda distinta de CLP y excluye los pesos", () => {
+    expect(
+      unidadesSinClasificarNoCLP({
+        count: 3,
+        inflowByCurrency: [
+          { currency: "CLP", inflow: 9_000_000, count: 1 },
+          { currency: "USD", inflow: 1200, count: 1 },
+          { currency: "EUR", inflow: 300, count: 1 },
+        ],
+        unknownInflowCount: 0,
+      }),
+    ).toBe(1500);
+  });
+
+  it("sin input o sin monedas extranjeras → 0", () => {
+    expect(unidadesSinClasificarNoCLP(undefined)).toBe(0);
+    expect(
+      unidadesSinClasificarNoCLP({
+        count: 1,
+        inflowByCurrency: [{ currency: "CLP", inflow: 10, count: 1 }],
+        unknownInflowCount: 0,
+      }),
+    ).toBe(0);
   });
 });
 

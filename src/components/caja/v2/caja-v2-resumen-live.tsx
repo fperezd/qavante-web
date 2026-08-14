@@ -28,7 +28,7 @@ import {
   cajaMinimoCLP,
   flujoDeBuckets,
   primerCruceFuturo,
-  completitudFlujo,
+  completitudFlujoVisible,
   entradasSinClasificarLabel,
   motivoIndeterminado,
 } from "./caja-v2-map";
@@ -329,8 +329,13 @@ function FlujoBlock({
      INV-FX-001: la decisión se calcula SOLO con la porción en pesos (cota inferior); si hay
      entradas sin clasificar en otra moneda —o de moneda desconocida— el veredicto no se puede
      cerrar sin tipo de cambio y degrada a `indeterminado`. Antes se sumaba USD como si fueran CLP,
-     así que la mezcla no solo mal-etiquetaba: decidía. */
-  const completitud = completitudFlujo(entra, sinClasificar);
+     así que la mezcla no solo mal-etiquetaba: decidía.
+
+     `completitudFlujoVisible` (y no `completitudFlujo` a secas) porque mientras el resumen carga el
+     mapa de monedas está vacío, todo caería en "moneda desconocida" y el titular parpadearía a "No
+     podemos determinar si está completo" antes de acomodarse. Ese `isLoading` ya se calculaba pero
+     no lo leía ningún consumidor. */
+  const completitud = completitudFlujoVisible(entra, sinClasificar);
   const incompleto = completitud === "incompleto";
   const indeterminado = completitud === "indeterminado";
   const entradasLabel = entradasSinClasificarLabel(sinClasificar);

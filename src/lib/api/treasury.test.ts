@@ -35,6 +35,20 @@ describe("treasuryKeys", () => {
       treasuryKeys.bankMovements({ status: "classified" }),
     );
   });
+
+  /* El mapa de monedas pide las cuentas CON las desactivadas (`?active=false`) y el selector solo
+     las activas: son dos respuestas distintas y no pueden compartir entrada de caché. El prefijo
+     común es lo que permite invalidar las dos de una. */
+  it("bankAccounts key separa la variante con cuentas desactivadas, bajo un prefijo común", () => {
+    expect(treasuryKeys.bankAccounts()).toEqual(["treasury", "bank-accounts", false]);
+    expect(treasuryKeys.bankAccounts(true)).toEqual(["treasury", "bank-accounts", true]);
+    expect(treasuryKeys.bankAccounts(true)).not.toEqual(treasuryKeys.bankAccounts());
+    const prefijo = treasuryKeys.bankAccountsAll();
+    expect(prefijo).toEqual(["treasury", "bank-accounts"]);
+    for (const key of [treasuryKeys.bankAccounts(), treasuryKeys.bankAccounts(true)]) {
+      expect(key.slice(0, prefijo.length)).toEqual([...prefijo]);
+    }
+  });
 });
 
 describe("monthsInRange", () => {

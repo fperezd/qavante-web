@@ -174,11 +174,24 @@ export function cajaMinimoCLP(cm: CashMinimumResponse | undefined): number | nul
 /** Porción de ingreso sin clasificar a partir de la cual el flujo "committed" miente por omisión. */
 export const UMBRAL_SIN_CLASIFICAR = 0.2;
 
+/** COTA SUPERIOR universal de cuánto puede valer, en pesos, UNA unidad de cualquier moneda
+ *  extranjera. **No es un tipo de cambio**: con esto NUNCA se convierte ni se muestra un monto.
+ *  Se usa en un solo sentido lógico — descartar que lo extranjero pueda mover el veredicto —, o
+ *  sea solo puede concluir `completo`, jamás `incompleto`.
+ *
+ *  Referencia (2026): USD ≈ 950, EUR ≈ 1.030, y la moneda fiat más cara del mundo, el dinar
+ *  kuwaití, ≈ 3.100. El techo va 3x sobre ese máximo mundial a propósito: si el techo quedara
+ *  corto se podría afirmar `completo` donde la verdad es `incompleto`, que es el único error
+ *  peligroso de esta función; ser generoso solo cuesta caer en `indeterminado` de más. */
+export const TECHO_CLP_POR_UNIDAD_FX = 10_000;
+
 /** Veredicto sobre si el flujo clasificado del período es representativo:
  *  - `completo`: lo sin clasificar es marginal → mostrar Entra/Sale.
  *  - `incompleto`: falta clasificar una porción material → NO mostrar el parcial.
- *  - `indeterminado`: no se puede saber SIN convertir moneda extranjera, y convertir
- *    (elegir tasa y fecha) es decisión humana → se declara, no se adivina. */
+ *  - `indeterminado`: el veredicto DEPENDE del tipo de cambio (hay tasas plausibles que dan
+ *    `completo` y tasas plausibles que dan `incompleto`), y elegir tasa y fecha es decisión
+ *    humana → se declara, no se adivina. Es el estado de excepción, no el de reposo: si lo
+ *    extranjero es chico frente al ingreso, la respuesta no depende de la tasa y se decide. */
 export type CompletitudFlujo = "completo" | "incompleto" | "indeterminado";
 
 /** Lo que necesita el veredicto del resumen de sin-clasificar (subset de `UnclassifiedSummary`). */
@@ -200,28 +213,99 @@ export function haySinClasificarNoCLP(sc: SinClasificarInput | undefined): boole
   return sc.inflowByCurrency.some((c) => c.currency !== "CLP" && c.inflow > 0);
 }
 
+/** Suma de UNIDADES (no de pesos) de las entradas sin clasificar que no son CLP.
+ *
+ *  Sumar unidades de USD con unidades de EUR no es dinero y no se muestra nunca: es el insumo
+ *  de una cota, y la cota es válida porque `TECHO_CLP_POR_UNIDAD_FX` es el MISMO techo para toda
+ *  moneda, así que `Σ_m (unidades_m · techo) = techo · Σ_m unidades_m`. Cualquier uso de este
+ *  número como monto sería una violación de INV-FX-001. */
+export function unidadesSinClasificarNoCLP(sc: SinClasificarInput | undefined): number {
+  return (sc?.inflowByCurrency ?? [])
+    .filter((c) => c.currency !== "CLP")
+    .reduce((acc, c) => acc + (Number.isFinite(c.inflow) ? Math.max(c.inflow, 0) : 0), 0);
+}
+
 /** ¿El flujo clasificado del período es representativo? PURO.
  *
  *  `entra` viene del cash-flow report, que ya llega en moneda FUNCIONAL (CLP) — el backend
  *  convierte. Lo sin clasificar, en cambio, son montos CRUDOS en la moneda de cada cuenta, así
  *  que solo la porción CLP es comparable contra `entra` sin tipo de cambio.
  *
- *  El veredicto usa esa porción CLP como COTA INFERIOR: `r(U) = U / (entra + U)` crece con `U`,
- *  y el `U` real (con lo extranjero convertido) es ≥ el `U` en CLP. Entonces:
- *  - si ya la cota supera el umbral ⇒ `incompleto` con certeza, sin convertir nada;
- *  - si no la supera pero hay entradas en otra moneda (o de moneda desconocida) ⇒ NO se puede
- *    concluir: `indeterminado`. Antes esto se resolvía sumando USD como si fueran pesos, lo que
- *    contaminaba una decisión que el usuario ve (violación INV-FX-001). */
+ *  Sea `E = entra`, `U_clp` lo sin clasificar en pesos y `U_fx ≥ 0` el equivalente en pesos de lo
+ *  extranjero a la tasa (desconocida) que sea. El ratio es `r(U) = U/(E+U)` con `U = U_clp + U_fx`.
+ *
+ *  **Por qué la cota inferior decide `incompleto` (el argumento correcto, no el de la monotonía
+ *  sola):** `dr/dU = E/(E+U)²` es positiva **solo si `E > 0`**; con `E = 0` la derivada es 0
+ *  (`r ≡ 1`, constante) y con `E < 0` es NEGATIVA, o sea `r` DECRECE y "creciente en U" sería
+ *  falso. Lo que hace correcta a esta implementación en los tres casos no es la monotonía sino
+ *  el clamp `Math.max(entra, 0)` de más abajo, que manda `E < 0` (y `NaN`) a `E = 0`, donde vale
+ *  el argumento fuerte: `r ≡ 1 > umbral` a CUALQUIER tasa. Con `E > 0` sí vale la monotonía y
+ *  `U ≥ U_clp` ⇒ si la cota CLP ya pasa el umbral, el ratio real también, sin convertir nada.
+ *
+ *  **Por qué existe la cota superior (y por qué `indeterminado` es la excepción y no la regla):**
+ *  la versión anterior devolvía `indeterminado` apenas hubiera un peso de moneda extranjera, o
+ *  sea reemplazaba a `completo` en vez de a `incompleto`: con `E = 50.000.000`, `U_clp = 1.000.000`
+ *  y UN dólar pendiente el titular desaparecía, y como la bandeja por clasificar nunca está en
+ *  cero, desaparecía siempre (misma forma de falla que mató al indicador del #956). El arreglo es
+ *  acotar lo extranjero por arriba con `TECHO_CLP_POR_UNIDAD_FX`, que no es una tasa sino un techo
+ *  universal: si NI SIQUIERA al techo lo extranjero alcanza a cruzar el umbral, entonces ninguna
+ *  tasa lo cruza y el veredicto `completo` es demostrable. `indeterminado` queda solo para cuando
+ *  el resultado de verdad depende de la tasa (lo extranjero es grande frente al ingreso) o para
+ *  cuando ni la moneda se conoce, que es el único caso sin cota superior posible.
+ *
+ *  **Sesgo declarado:** `entra` viene filtrado por `fi.amount_functional IS NOT NULL`
+ *  (`qavante-api` `app/core/cash_flow_repo.py:187-193`), o sea las filas sin FX resuelto quedan
+ *  fuera y `E` está SUBESTIMADO. Como `r` decrece con `E`, subestimar `E` sobreestima `r`: el
+ *  sesgo empuja hacia `incompleto`/`indeterminado`, nunca hacia un `completo` falso, así que
+ *  suma al mismo lado conservador que el techo. */
 export function completitudFlujo(
   entra: number,
   sc: SinClasificarInput | undefined,
 ): CompletitudFlujo {
   if (!sc || sc.count <= 0) return "completo";
   const clp = entradasSinClasificarCLP(sc);
+  const unidadesFx = unidadesSinClasificarNoCLP(sc);
+  const monedaDesconocida = sc.unknownInflowCount > 0;
   const baseEntra = Number.isFinite(entra) ? Math.max(entra, 0) : 0;
-  const total = baseEntra + clp;
-  if (total > 0 && clp / total > UMBRAL_SIN_CLASIFICAR) return "incompleto";
-  return haySinClasificarNoCLP(sc) ? "indeterminado" : "completo";
+  const hayEntradasPendientes = clp > 0 || unidadesFx > 0 || monedaDesconocida;
+
+  /* `E = 0` con cualquier entrada pendiente: `r = U/(0+U) = 1 > umbral` sea cual sea la tasa, e
+     incluso sin saber la moneda. Es el caso MÁS informativo (el tenant que no clasificó nada) y
+     antes se regalaba a `indeterminado` por no distinguirlo del resto. */
+  if (baseEntra === 0) return hayEntradasPendientes ? "incompleto" : "completo";
+
+  // Cota INFERIOR (`U_fx = 0`): si ya con lo CLP se pasa el umbral, se pasa a cualquier tasa.
+  const totalMin = baseEntra + clp;
+  if (clp / totalMin > UMBRAL_SIN_CLASIFICAR) return "incompleto";
+
+  // Sin nada extranjero ni desconocido, la cota inferior es el ratio real: veredicto cerrado.
+  if (unidadesFx === 0 && !monedaDesconocida) return "completo";
+
+  // Sin la moneda no hay techo aplicable: es el único caso donde no hay cota superior alguna.
+  if (monedaDesconocida) return "indeterminado";
+
+  /* Cota SUPERIOR: lo extranjero valuado al techo universal. Si ni así cruza el umbral, ninguna
+     tasa lo cruza ⇒ `completo` demostrado. Si lo cruza, el veredicto SÍ depende de la tasa y
+     recién ahí `indeterminado` significa algo. */
+  const maxFxEnPesos = unidadesFx * TECHO_CLP_POR_UNIDAD_FX;
+  const totalMax = baseEntra + clp + maxFxEnPesos;
+  return (clp + maxFxEnPesos) / totalMax > UMBRAL_SIN_CLASIFICAR ? "indeterminado" : "completo";
+}
+
+/** Veredicto PARA RENDEAR, que es el de arriba más una regla: **mientras el resumen carga no hay
+ *  veredicto**. PURO.
+ *
+ *  Con las cuentas todavía en vuelo el mapa de monedas está vacío ⇒ toda entrada cae en "moneda
+ *  desconocida" ⇒ el titular parpadeaba a "No podemos determinar si está completo" y recién
+ *  después se acomodaba. `completo` acá NO afirma completitud: es el layout neutro, el que muestra
+ *  Entra/Sale sin rótulo de veredicto, y esas cifras son ciertas cargue lo que cargue (son lo
+ *  clasificado, ya en moneda funcional). El veredicto aparece cuando aparece su evidencia. */
+export function completitudFlujoVisible(
+  entra: number,
+  sc: (SinClasificarInput & { isLoading?: boolean }) | undefined,
+): CompletitudFlujo {
+  if (sc?.isLoading === true) return "completo";
+  return completitudFlujo(entra, sc);
 }
 
 /** Entradas sin clasificar formateadas UNA POR MONEDA ("$61.500.000 · US$1.200,00"), nunca
@@ -234,7 +318,11 @@ export function entradasSinClasificarLabel(sc: SinClasificarInput | undefined): 
 }
 
 /** Por qué no se puede determinar la completitud. `null` si sí se puede. Nombra las monedas:
- *  el usuario tiene que entender que no es un bug, es que falta una decisión (el tipo de cambio). */
+ *  el usuario tiene que entender que no es un bug, es que falta una decisión (el tipo de cambio).
+ *
+ *  Se rendea SOLO en la rama `indeterminado`, y desde el rediseño del veredicto esa rama exige
+ *  que lo extranjero sea grande frente al ingreso (o que ni la moneda se conozca): el motivo ya
+ *  no aparece por un dólar suelto. */
 export function motivoIndeterminado(sc: SinClasificarInput | undefined): string | null {
   if (!sc || !haySinClasificarNoCLP(sc)) return null;
   const otras = sc.inflowByCurrency

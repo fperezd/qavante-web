@@ -74,7 +74,12 @@ export const treasuryKeys = {
   canonicalCategories: () => [...treasuryKeys.all, "canonical-categories"] as const,
   bankMovements: (params: BankMovementsParams = {}) =>
     [...treasuryKeys.all, "bank-movements", params] as const,
-  bankAccounts: () => [...treasuryKeys.all, "bank-accounts"] as const,
+  /** El flag va DENTRO de la key: `?active=false` trae otro set de cuentas y cachearlo sobre el
+   *  del selector le metería cuentas desactivadas. Prefijo común ⇒ una invalidación limpia las dos. */
+  bankAccounts: (includeInactive = false) =>
+    [...treasuryKeys.all, "bank-accounts", includeInactive] as const,
+  /** Prefijo para invalidar TODAS las variantes de cuentas (activas y con desactivadas). */
+  bankAccountsAll: () => [...treasuryKeys.all, "bank-accounts"] as const,
   biceAccounts: () => [...treasuryKeys.all, "bice-accounts"] as const,
   biceSaldo: () => [...treasuryKeys.all, "bice-saldo"] as const,
   biceCuentaBalance: (numeroCuenta: string) =>
@@ -252,11 +257,22 @@ export function useBiceTarjetaMovimientos(op: string, enabled = true) {
 }
 
 /** `GET /api/treasury/bank-accounts` — cuentas del tenant con su moneda. Para el
- *  selector de cuenta en Caja (no mezclar CLP/USD) y el formateo por moneda. */
-export function useBankAccounts() {
+ *  selector de cuenta en Caja (no mezclar CLP/USD) y el formateo por moneda.
+ *
+ *  `includeInactive` manda `?active=false`, que en el backend NO es "solo las desactivadas" sino
+ *  "sin filtro de estado": `active_only=False` omite el `AND ba.status = 'active'`
+ *  (`qavante-api` `app/api/bank_accounts.py:56-59` → `app/core/treasury_repo.py:82-111`). Hace
+ *  falta para MAPEAR MONEDAS, porque el listado de movimientos no filtra por cuenta activa
+ *  (`treasury_repo.list_movements`, `:605-690`): sin esto los movimientos de una cuenta
+ *  desactivada llegan pero su moneda no, y quedan como "desconocida" para siempre. El selector
+ *  de cuenta sigue con el default (solo activas): no queremos ofrecer cuentas cerradas. */
+export function useBankAccounts(includeInactive = false) {
   return useQuery({
-    queryKey: treasuryKeys.bankAccounts(),
-    queryFn: () => api.get<BankAccountsListResponse>("/api/treasury/bank-accounts"),
+    queryKey: treasuryKeys.bankAccounts(includeInactive),
+    queryFn: () =>
+      api.get<BankAccountsListResponse>(
+        `/api/treasury/bank-accounts${includeInactive ? "?active=false" : ""}`,
+      ),
     staleTime: 10 * 60 * 1000,
     retry: false,
   });
@@ -292,7 +308,7 @@ export function useCreateBankAccount() {
   return useMutation({
     mutationFn: (body: CreateBankAccountRequest) =>
       api.post<BankAccountItem>("/api/treasury/bank-accounts", { body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: treasuryKeys.bankAccounts() }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: treasuryKeys.bankAccountsAll() }),
   });
 }
 
@@ -307,7 +323,7 @@ export function useLinkBiceAccount() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: treasuryKeys.biceAccounts() });
-      qc.invalidateQueries({ queryKey: treasuryKeys.bankAccounts() });
+      qc.invalidateQueries({ queryKey: treasuryKeys.bankAccountsAll() });
     },
   });
 }
@@ -441,10 +457,16 @@ export function groupUnclassifiedInflowByCurrency(
  *  avisarlo honesto (validación real Tooxs 2026-07-22: julio tenía $61,5M sin clasificar vs $1,6M
  *  clasificado). Las entradas se fetchean por mes (limit 500) — exacto salvo backlog gigante — y se
  *  devuelven AGRUPADAS POR MONEDA (INV-FX-001): un solo `inflow` sumaba CLP con USD y después se
- *  pintaba con `formatClp`, afirmando pesos sobre una mezcla. La moneda sale de las cuentas. */
+ *  pintaba con `formatClp`, afirmando pesos sobre una mezcla. La moneda sale de las cuentas.
+ *
+ *  Las cuentas se piden CON las desactivadas (`includeInactive`): los movimientos de una cuenta
+ *  desactivada sí llegan (el listado no filtra por estado de cuenta) y con el default de solo
+ *  activas su moneda quedaba "desconocida" de forma permanente — el resumen se clavaba en
+ *  "no se puede determinar", perdía la cifra del aviso y mostraba un motivo falso ("no conocemos
+ *  la moneda") cuando la moneda sí era conocible. */
 export function useUnclassifiedInRange(from?: string, to?: string): UnclassifiedSummary {
   const months = monthsInRange(from, to);
-  const accounts = useBankAccounts();
+  const accounts = useBankAccounts(true);
   const results = useQueries({
     queries: months.map((period) => {
       const params: BankMovementsParams = { status: "unclassified", period, limit: 500 };
