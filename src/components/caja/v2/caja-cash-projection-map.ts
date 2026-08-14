@@ -63,6 +63,11 @@ export function cashProjectionToDiasCaja(
   const minSaldo = Math.min(...puntos.map((p) => p.saldo));
   const estado: EstadoCaja = minSaldo < 0 ? "critico" : minSaldo < minima ? "ajustado" : "sano";
 
+  // #853 — sobregiro: el saldo de hoy YA está bajo el mínimo → `dias_de_caja` es degenerado (~1). La
+  // recuperación HONESTA sale de la banda de ingreso recurrente proyectado (`esperado_con_ingresos`),
+  // no del core (que no lo cuenta): es la que muestra que Tooxs recupera pese al sobregiro.
+  const conIngresos = resp.esperado_con_ingresos;
+
   return {
     saldoHoy,
     // Días de caja AUTORITATIVO del backend (fuente única); si viniera null, se deriva de la serie.
@@ -72,6 +77,9 @@ export function cashProjectionToDiasCaja(
     diasRecuperacion: recuperacion(puntos, piso.dia, minima),
     horizonteDias: resp.horizon_days ?? puntos[puntos.length - 1]?.dia ?? 0,
     estado,
+    enSobregiro: resp.en_sobregiro ?? false,
+    diasHastaRecuperar: conIngresos?.dias_hasta_recuperar ?? null,
+    fechaRecuperar: conIngresos?.fecha_recuperar ?? null,
   };
 }
 

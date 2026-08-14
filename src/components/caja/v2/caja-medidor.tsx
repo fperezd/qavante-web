@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatDateLike } from "@/lib/formatters/date";
 import { type DiasCaja, type EstadoCaja } from "./caja-dias-model";
 
 /* CajaMedidor — el "medidor de días de caja" del Caja v3: responde "¿me alcanza?" en DÍAS, no en
@@ -145,6 +146,24 @@ function dLabel(d: number): string {
 }
 
 function titular(m: DiasCaja, ref: number): { headline: string; detalle: string } {
+  // #853 — sobregiro: el saldo de hoy ya está bajo el mínimo → "días de caja" es degenerado (~1). En
+  // vez de un falso doom, contamos la RECUPERACIÓN (con el ingreso recurrente proyectado): cuándo la
+  // caja vuelve sobre su mínimo. Es lo que le pasa a Tooxs (sobregiro hoy, pero recupera).
+  if (m.enSobregiro) {
+    if (m.diasHastaRecuperar != null) {
+      const cuando = m.fechaRecuperar ? ` (${formatDateLike(m.fechaRecuperar)})` : "";
+      return {
+        headline: `Recuperás tu mínimo en ${dLabel(m.diasHastaRecuperar)}`,
+        detalle: `Hoy tu caja está bajo el mínimo, pero con el ingreso recurrente proyectado vuelve sobre él${cuando}.`,
+      };
+    }
+    return {
+      headline: "Estás en sobregiro",
+      detalle:
+        "Hoy tu caja está bajo el mínimo y, aun con el ingreso proyectado, no vuelve sobre él dentro del horizonte.",
+    };
+  }
+
   const recup =
     m.diasRecuperacion != null
       ? `, te recuperas en ${dLabel(m.diasRecuperacion)}`

@@ -53,6 +53,30 @@ describe("cashProjectionToDiasCaja", () => {
     expect(cashProjectionToDiasCaja({ ...tooxs, serie: [] } as CashProjectionResponse)).toBeNull();
   });
 
+  it("#853 sobregiro: puebla enSobregiro + la recuperación desde la banda de ingresos", () => {
+    const sobregiro = {
+      ...tooxs,
+      en_sobregiro: true,
+      esperado_con_ingresos: {
+        dias_hasta_recuperar: 8,
+        fecha_recuperar: "2026-08-11",
+        total_ingreso_proyectado: "31000000",
+        n_flujos: 12,
+      },
+    } as unknown as CashProjectionResponse;
+    const m = cashProjectionToDiasCaja(sobregiro)!;
+    expect(m.enSobregiro).toBe(true);
+    expect(m.diasHastaRecuperar).toBe(8); // desde la banda con ingreso recurrente, no del core
+    expect(m.fechaRecuperar).toBe("2026-08-11");
+  });
+
+  it("sin en_sobregiro / sin banda de ingresos → defaults seguros", () => {
+    const m = cashProjectionToDiasCaja(tooxs)!;
+    expect(m.enSobregiro).toBe(false);
+    expect(m.diasHastaRecuperar).toBeNull();
+    expect(m.fechaRecuperar).toBeNull();
+  });
+
   it("caja holgada: sin punto de quiebre → estado sano, piso = mínimo de la serie", () => {
     const holgada = {
       ...tooxs,
