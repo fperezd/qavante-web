@@ -86,7 +86,7 @@ export const EnSobregiroConRecuperacion: Story = {
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await expect(c.getByText(/Recuperás tu mínimo/)).toBeInTheDocument();
+    await expect(c.getByText(/Recuperas tu mínimo/)).toBeInTheDocument();
     await expect(c.getByText(/ingreso recurrente proyectado/)).toBeInTheDocument();
   },
 };

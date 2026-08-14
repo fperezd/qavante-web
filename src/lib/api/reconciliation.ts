@@ -12,7 +12,8 @@
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
-import { treasuryKeys } from "./treasury";
+import { cobranzaKeys } from "./cobranza";
+import { pagosKeys } from "./pagos";
 import type { components } from "./types";
 
 export type ReviewQueueResponse = components["schemas"]["ReviewQueueResponse"];
@@ -108,11 +109,18 @@ export function useMarkCollected() {
   return useMutation({
     mutationFn: (body: MarkCollectedRequest) =>
       api.post<MarkCollectedResponse>("/api/treasury/reconciliation/mark-collected", { body }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: treasuryKeys.all });
-      qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
-    },
+    onSuccess: () => invalidarPorConciliar(qc),
   });
+}
+
+/* Conciliar/desconciliar un cobro/pago cambia las listas de Cobrar (AR) y Pagar (AP) y la cola de
+   conciliación. NO invalidamos la proyección de caja (cash-projection): el por-cobrar-vencido está
+   EXCLUIDO del runway, así que marcar no mueve los días de caja — y refrescarla sacaría el documento
+   de la lista de Caja, rompiendo el "Conciliado ✓ · Deshacer" en su lugar (#851). */
+function invalidarPorConciliar(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: cobranzaKeys.all });
+  qc.invalidateQueries({ queryKey: pagosKeys.all });
+  qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
 }
 
 /** `POST /api/treasury/reconciliation/mark-collected/revert` — DESHACE un `mark-collected`: re-abre los
@@ -125,10 +133,7 @@ export function useMarkCollectedRevert() {
       api.post<RevertMarkCollectedResponse>("/api/treasury/reconciliation/mark-collected/revert", {
         body,
       }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: treasuryKeys.all });
-      qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
-    },
+    onSuccess: () => invalidarPorConciliar(qc),
   });
 }
 
