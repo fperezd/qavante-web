@@ -27,3 +27,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate Tooxs AI Factory Framework conformance
         run: python scripts/tooxs_factory_check.py --repo . --json
+      - name: Validate risk-routed review gate
+        run: node .github/gate-review.check.mjs
