@@ -1,0 +1,31 @@
+name: Tooxs Factory Conformance
+
+on:
+  pull_request:
+    paths:
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "docs/factory/**"
+      - "scripts/tooxs_factory_check.py"
+      - ".github/workflows/tooxs-factory-conformance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "docs/factory/**"
+      - "scripts/tooxs_factory_check.py"
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: factory-conformance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Tooxs AI Factory Framework conformance
+        run: python scripts/tooxs_factory_check.py --repo . --json
+      - name: Validate risk-routed review gate
+        run: node .github/gate-review.check.mjs
