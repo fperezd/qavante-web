@@ -30,9 +30,9 @@ if policy.is_file():
     text = policy.read_text(encoding="utf-8", errors="replace").lower()
     for risk in ["r0", "r1", "r2"]:
         check(risk in text, f"risk class {risk.upper()} defined")
-    check("independent" in text, "independent review policy present")
-    check("human gate" in text, "human gate policy present")
-    check("subscription" in text, "subscription policy present")
+    check("independent" in text or "independiente" in text, "independent review policy present")
+    check("human gate" in text or "aprobación humana" in text or "aprobacion humana" in text, "human gate policy present")
+    check("subscription" in text or "suscripción" in text or "suscripcion" in text, "subscription policy present")
 
 claude = repo / "CLAUDE.md"
 if claude.is_file():
