@@ -1,5 +1,5 @@
 repository=tooxs-digital/Tooxs-AI-Factory-Framework
 version=1.0.0
-commit=902e7f33e703ea47c74cc67ae835edc34d839862
+commit=a490dea3bfbb4ac7a632ec304d589d72ee56aef9
 
 The installed checker/workflow are vendored from this immutable framework commit.
