@@ -1,23 +1,18 @@
 "use client";
 
 import type { BankAccountItem } from "@/lib/api/treasury";
+import { currencyByAccount, hasMixedCurrencies } from "@/components/caja/multi-currency";
 
 /* Selector de cuenta bancaria para no MEZCLAR monedas (CLP vs USD) en las listas
    de movimientos. Regla: si el tenant tiene cuentas de >1 moneda, se DEBE elegir
    una (sin "Todas" — mezclar montos de distinta moneda engaña). Si todas las
    cuentas son de la misma moneda (o hay una sola), "Todas" es válido. Con una
-   sola cuenta, no se renderiza (no hay nada que elegir). */
+   sola cuenta, no se renderiza (no hay nada que elegir).
 
-/** Mapa `bank_account_id → currency_code` para formatear cada movimiento en su
- *  moneda. Puro. */
-export function currencyByAccount(accounts: BankAccountItem[]): Map<string, string> {
-  return new Map(accounts.map((a) => [a.id, a.currency_code]));
-}
-
-/** ¿Hay más de una moneda entre las cuentas? Entonces no se puede "Todas". */
-export function hasMixedCurrencies(accounts: BankAccountItem[]): boolean {
-  return new Set(accounts.map((a) => a.currency_code)).size > 1;
-}
+   Los helpers puros (`currencyByAccount`, `hasMixedCurrencies`) viven en
+   `@/components/caja/multi-currency`, junto al resto de la lógica INV-FX-001;
+   se re-exportan acá para no romper los imports existentes. */
+export { currencyByAccount, hasMixedCurrencies };
 
 export interface BankAccountFilterProps {
   accounts: BankAccountItem[];

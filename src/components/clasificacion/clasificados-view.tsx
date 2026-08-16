@@ -24,14 +24,23 @@ import {
   type ClassifyMovementRequest,
 } from "@/lib/api/treasury";
 import { useManagementAccountsTree } from "@/lib/api/management";
+import { BankAccountFilter } from "@/components/treasury/bank-account-filter";
 import {
-  BankAccountFilter,
+  buildMultiCurrencyTotals,
   currencyByAccount,
+  formatMovementAmount,
   hasMixedCurrencies,
-} from "@/components/treasury/bank-account-filter";
+  noTotalReason,
+} from "@/components/caja/multi-currency";
+import { MultiCurrencyTotalsBreakdown } from "@/components/caja/multi-currency-totals";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { DirectionSegment } from "@/components/filters/direction-segment";
-import { presetRange, isInPeriodRange, type PeriodRange } from "@/lib/period/period-range";
+import {
+  presetRange,
+  isInPeriodRange,
+  orderRange,
+  type PeriodRange,
+} from "@/lib/period/period-range";
 import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { ClassificationDrawer, type ClassificationDraft } from "./classification-drawer";
@@ -103,10 +112,6 @@ function applyFilters(items: BankMovement[], filters: Filters): BankMovement[] {
   });
 }
 
-function sumAmount(items: BankMovement[]): number {
-  return items.reduce((acc, m) => acc + (Number(m.amount) || 0), 0);
-}
-
 export function ClasificadosView() {
   const categoriesQuery = useCanonicalCategories();
   const accountsQuery = useManagementAccountsTree();
@@ -130,9 +135,22 @@ export function ClasificadosView() {
      desde la clasificación actual (initialDraft). */
   const [reclasifyTarget, setReclasifyTarget] = React.useState<BankMovement | null>(null);
 
-  /* El backend solo filtra por un mes; con rango descargamos amplio y filtramos
-     client-side (por cuenta + rango + los filtros de categoría/dirección/glosa). */
-  const query = useBankMovements({ status: "classified", limit: 500 });
+  /* Filtros SERVER-SIDE del contrato (api PR #653, publicados en el snapshot
+     OpenAPI): rango `period_from`/`period_to`, `direction` y `bank_account_id`.
+     Antes se bajaban 500 movimientos "de todo" y se filtraba entero client-side,
+     con lo que el aviso de alcance parcial comparaba contra un `total` que no
+     correspondía al filtro visible. Ahora el backend acota y `total` es el del
+     filtro real. Los mismos cortes se re-aplican client-side abajo: son
+     idempotentes, así que la vista sigue correcta aunque el backend ignore alguno. */
+  const ordered = React.useMemo(() => orderRange(range), [range]);
+  const query = useBankMovements({
+    status: "classified",
+    periodFrom: ordered.desde,
+    periodTo: ordered.hasta,
+    ...(filters.direction !== "todos" && { direction: filters.direction }),
+    ...(accountId && { bankAccountId: accountId }),
+    limit: 500,
+  });
 
   const allItems = query.data?.items ?? [];
   const categoryItems = categoriesQuery.data?.items ?? [];
@@ -176,13 +194,19 @@ export function ClasificadosView() {
     sort.toggle(key);
     setPage(1);
   };
-  /* Moneda para los totales: la del filtro de cuenta, o la del primer resultado
-     (todos comparten moneda cuando no hay mezcla). */
-  const displayCurrency = accountId
-    ? currencyMap.get(accountId)
-    : filtered[0]
-      ? currencyMap.get(filtered[0].bank_account_id)
-      : undefined;
+  /* Totales POR MONEDA (INV-FX-001). Antes la moneda del total se tomaba de la
+     PRIMERA fila y se sumaba todo con ese rótulo: si se colaba un movimiento de
+     otra moneda (o de una cuenta que no está en la lista de activas, cuya moneda
+     no conocemos) el total quedaba mezclado y mal rotulado. Ahora los buckets se
+     arman desde las filas reales: con una sola moneda conocida se muestra el total
+     de siempre; con más de una, o con movimientos de moneda desconocida, se
+     muestra el desglose por moneda y se declara que no se puede totalizar. Nunca
+     se convierte (no hay tipo de cambio cableado acá) ni se asume CLP. */
+  const totals = React.useMemo(
+    () => buildMultiCurrencyTotals(filtered, currencyMap),
+    [filtered, currencyMap],
+  );
+  const displayCurrency = totals.currency ?? undefined;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paged = React.useMemo(
@@ -190,18 +214,10 @@ export function ClasificadosView() {
     [sorted, currentPage, pageSize],
   );
 
-  const totalCredit = React.useMemo(
-    () => sumAmount(filtered.filter((m) => m.direction === "credit")),
-    [filtered],
-  );
-  // Los débitos llegan con monto NEGATIVO (contrato del banco). Para el neto y el "Egresos"
-  // del pie se usa la MAGNITUD (como las celdas de fila y el bloque Stats, que ya hacen Math.abs);
-  // si no, `neto = credit − (−debit)` daba credit+|debit| (signo y magnitud equivocados).
-  const totalDebit = React.useMemo(
-    () => Math.abs(sumAmount(filtered.filter((m) => m.direction === "debit"))),
-    [filtered],
-  );
-  const neto = totalCredit - totalDebit;
+  /* Total único: SOLO cuando hay una moneda y ninguna desconocida. Los débitos
+     llegan con monto negativo del banco → los buckets guardan magnitudes y el neto
+     es `ingresos − egresos` (mismo criterio que las celdas de fila). */
+  const single = totals.totalizable ? totals.totals[0] : null;
 
   const hasActiveFilters =
     filters.canonicalCategory !== "todos" ||
@@ -273,7 +289,7 @@ export function ClasificadosView() {
         onSuccess: () => {
           setReclasifyTarget(null);
           toast.success("Movimiento reclasificado", {
-            description: `${target.description} · ${formatMoney(Math.abs(Number(target.amount) || 0), currencyMap.get(target.bank_account_id))}`,
+            description: `${target.description} · ${formatMovementAmount(Math.abs(Number(target.amount) || 0), currencyMap.get(target.bank_account_id))}`,
             ...(prevAccountId && {
               action: {
                 label: "Deshacer",
@@ -309,19 +325,15 @@ export function ClasificadosView() {
     return <QavanteInlineError error={query.error} what="los movimientos clasificados" />;
   }
 
-  if (allItems.length === 0) {
-    return (
-      <QavanteEmpty
-        icon={CheckCircle2}
-        title="Aún no hay movimientos clasificados"
-        description="Cuando clasifiques movimientos desde Por clasificar vas a verlos aquí. Puedes filtrarlos por categoría, período y dirección."
-      />
-    );
-  }
+  /* Sin early-return por "0 movimientos": ahora el período, la dirección y la
+     cuenta se filtran SERVER-SIDE, así que un resultado vacío casi siempre
+     significa "no hay en este corte", no "no hay nada". Cortar acá dejaba al
+     usuario sin la barra de filtros y sin forma de ampliar el rango. El vacío se
+     resuelve más abajo, dentro de la card, con los filtros a la vista. */
 
   /* Señal de alcance parcial: el backend reporta más movimientos para el
-     filtro server-side (period + status=classified) que los que descargamos
-     con limit:500. Los filtros client-side (categoría/dirección/glosa) no
+     filtro server-side (rango + dirección + cuenta + status=classified) que los
+     que descargamos con limit:500. Los filtros client-side (categoría/glosa) no
      entran en esta comparación — esos solo narrowean lo que ya tenemos. */
   const isPartial = (query.data?.total ?? 0) > allItems.length;
 
@@ -353,6 +365,7 @@ export function ClasificadosView() {
         categoriesById={categoriesLookup}
         accountsById={accountsLookup}
         currency={displayCurrency}
+        noTotalReason={noTotalReason(totals)}
         isLoading={query.isLoading}
         activeDirection={filters.direction === "todos" ? null : filters.direction}
         activeCanonicalCategory={
@@ -428,11 +441,19 @@ export function ClasificadosView() {
           )}
 
           {filtered.length === 0 ? (
-            <QavanteEmpty
-              icon={Inbox}
-              title="Sin resultados para los filtros aplicados"
-              description="Prueba quitando filtros o cambiando el período."
-            />
+            allItems.length === 0 ? (
+              <QavanteEmpty
+                icon={CheckCircle2}
+                title="No hay movimientos clasificados en este corte"
+                description="Prueba ampliando el rango de período, cambiando la cuenta o quitando el filtro de dirección. Cuando clasifiques movimientos desde Por clasificar vas a verlos aquí."
+              />
+            ) : (
+              <QavanteEmpty
+                icon={Inbox}
+                title="Sin resultados para los filtros aplicados"
+                description="Prueba quitando filtros o cambiando el período."
+              />
+            )
           ) : (
             <>
               <div className={stickyScroll}>
@@ -525,7 +546,7 @@ export function ClasificadosView() {
                           )}
                         >
                           {m.direction === "credit" ? "+" : "−"}{" "}
-                          {formatMoney(
+                          {formatMovementAmount(
                             Math.abs(Number(m.amount) || 0),
                             currencyMap.get(m.bank_account_id),
                           )}
@@ -545,35 +566,54 @@ export function ClasificadosView() {
                     ))}
                   </tbody>
                   <tfoot className={stickyFoot}>
-                    <tr className="border-t-2 border-border-strong font-semibold">
-                      <td
-                        colSpan={4}
-                        className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
-                      >
-                        Neto del período
-                        {hasActiveFilters && (
-                          <span className="ml-1 normal-case text-neutral-mid">
-                            (con filtros aplicados)
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        className={cn(
-                          "py-2 pr-3 text-right tabular-nums",
-                          neto >= 0 ? "text-success-700" : "text-warning-700",
-                        )}
-                      >
-                        {neto >= 0 ? "+" : "−"} {formatMoney(Math.abs(neto), displayCurrency)}
-                      </td>
-                      <td className="py-2" />
-                    </tr>
-                    <tr className="text-xs text-neutral-mid">
-                      <td colSpan={4} className="py-1 pr-3 text-right">
-                        Ingresos {formatMoney(totalCredit, displayCurrency)} · Egresos{" "}
-                        {formatMoney(totalDebit, displayCurrency)}
-                      </td>
-                      <td className="py-1" colSpan={2} />
-                    </tr>
+                    {single ? (
+                      <>
+                        <tr className="border-t-2 border-border-strong font-semibold">
+                          <td
+                            colSpan={4}
+                            className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+                          >
+                            Neto del período · {single.currency}
+                            {hasActiveFilters && (
+                              <span className="ml-1 normal-case text-neutral-mid">
+                                (con filtros aplicados)
+                              </span>
+                            )}
+                          </td>
+                          <td
+                            className={cn(
+                              "py-2 pr-3 text-right tabular-nums",
+                              single.net >= 0 ? "text-success-700" : "text-warning-700",
+                            )}
+                          >
+                            {single.net >= 0 ? "+" : "−"}{" "}
+                            {formatMoney(Math.abs(single.net), single.currency)}
+                          </td>
+                          <td className="py-2" />
+                        </tr>
+                        <tr className="text-xs text-neutral-mid">
+                          <td colSpan={4} className="py-1 pr-3 text-right">
+                            Ingresos {formatMoney(single.credit, single.currency)} · Egresos{" "}
+                            {formatMoney(single.debit, single.currency)}
+                          </td>
+                          <td className="py-1" colSpan={2} />
+                        </tr>
+                      </>
+                    ) : (
+                      /* Más de una moneda (o movimientos sin moneda conocida): NO
+                         hay un total que mostrar. Desglose por moneda + el motivo,
+                         en vez de una cifra mezclada (INV-FX-001). */
+                      <tr className="border-t-2 border-border-strong">
+                        <td colSpan={6} className="py-2">
+                          <MultiCurrencyTotalsBreakdown
+                            totals={totals}
+                            label={
+                              hasActiveFilters ? "Neto (con filtros aplicados)" : "Neto del período"
+                            }
+                          />
+                        </td>
+                      </tr>
+                    )}
                   </tfoot>
                 </table>
               </div>
@@ -609,7 +649,7 @@ export function ClasificadosView() {
             date: reclasifyTarget.date ? formatDateLike(reclasifyTarget.date) : "s/d",
             description: reclasifyTarget.description,
             bankLabel: `Cuenta ····${reclasifyTarget.bank_account_id.slice(-4)}`,
-            amountFormatted: formatMoney(
+            amountFormatted: formatMovementAmount(
               Math.abs(Number(reclasifyTarget.amount) || 0),
               currencyMap.get(reclasifyTarget.bank_account_id),
             ),

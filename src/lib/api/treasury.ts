@@ -56,13 +56,19 @@ export type TarjetaSaldoData = components["schemas"]["TarjetaSaldoData"];
 export interface BankMovementsParams {
   /** 'unclassified' | 'classified' | undefined (todos). */
   status?: string;
-  /** Período YYYY-MM. */
+  /** Período YYYY-MM (un mes). Independiente de `periodFrom`/`periodTo`. */
   period?: string;
-  /** Dirección del flujo: 'credit' (cobrar) / 'debit' (pagar). Filtro server-side
-   *  pendiente en el backend (handoff CC-API 2026-07-04); hasta que se publique,
-   *  las vistas filtran client-side. La fontanería queda lista: cuando exista el
-   *  param, el backend ignora los desconocidos, así que pasarlo es no-op seguro. */
+  /** Rango: mes inicial YYYY-MM (inclusive) → query `period_from`. */
+  periodFrom?: string;
+  /** Rango: mes final YYYY-MM (inclusive) → query `period_to`. */
+  periodTo?: string;
+  /** Dirección del flujo: 'credit' (cobrar) / 'debit' (pagar). Server-side desde
+   *  api PR #653 (prometido en el handoff CC-API 2026-07-04, ya publicado en el
+   *  snapshot OpenAPI). */
   direction?: "credit" | "debit";
+  /** Cuenta bancaria → query `bank_account_id`. Es el filtro que permite NO
+   *  mezclar monedas (cada cuenta tiene una sola `currency_code`). */
+  bankAccountId?: string;
   limit?: number;
   offset?: number;
 }
@@ -322,18 +328,26 @@ export function useCanonicalCategories() {
   });
 }
 
-function buildBankMovementsQuery(p: BankMovementsParams): string {
+/** Arma el querystring de `GET /api/bank-movements` desde los params tipados.
+ *  Exportada para test: es la traducción camelCase → snake_case del contrato, y
+ *  un typo acá se traduce en un filtro que el backend ignora en silencio. */
+export function buildBankMovementsQuery(p: BankMovementsParams): string {
   const s = new URLSearchParams();
   if (p.status) s.set("status", p.status);
   if (p.period) s.set("period", p.period);
+  if (p.periodFrom) s.set("period_from", p.periodFrom);
+  if (p.periodTo) s.set("period_to", p.periodTo);
   if (p.direction) s.set("direction", p.direction);
+  if (p.bankAccountId) s.set("bank_account_id", p.bankAccountId);
   if (p.limit != null) s.set("limit", String(p.limit));
   if (p.offset != null) s.set("offset", String(p.offset));
   const qs = s.toString();
   return qs ? `?${qs}` : "";
 }
 
-/** `GET /api/bank-movements` — listado paginado (filtros status/period). */
+/** `GET /api/bank-movements` — listado paginado. Filtros server-side del
+ *  contrato: `status`, `period`, `period_from`/`period_to`, `direction` y
+ *  `bank_account_id` (todos opcionales; ver `BankMovementsParams`). */
 export function useBankMovements(params: BankMovementsParams = {}) {
   return useQuery({
     queryKey: treasuryKeys.bankMovements(params),

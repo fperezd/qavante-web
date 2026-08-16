@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   treasuryKeys,
   monthsInRange,
+  buildBankMovementsQuery,
   type CanonicalCategoryMeta,
   type BankMovementsListResponse,
   type BankMovement,
@@ -27,6 +28,48 @@ describe("treasuryKeys", () => {
     expect(treasuryKeys.bankMovements({ status: "unclassified" })).not.toEqual(
       treasuryKeys.bankMovements({ status: "classified" }),
     );
+  });
+});
+
+/* Los filtros de Caja del contrato (api PR #653): `bank_account_id` es el que
+   permite NO mezclar CLP y USD, así que su traducción camelCase → snake_case es
+   parte de la garantía INV-FX-001, no un detalle cosmético. */
+describe("buildBankMovementsQuery", () => {
+  it("sin params no arma querystring", () => {
+    expect(buildBankMovementsQuery({})).toBe("");
+  });
+
+  it("traduce cada param al nombre del contrato", () => {
+    const qs = buildBankMovementsQuery({
+      status: "classified",
+      periodFrom: "2026-01",
+      periodTo: "2026-08",
+      direction: "debit",
+      bankAccountId: "acc-usd",
+      limit: 500,
+      offset: 0,
+    });
+    const params = new URLSearchParams(qs.slice(1));
+    expect(params.get("status")).toBe("classified");
+    expect(params.get("period_from")).toBe("2026-01");
+    expect(params.get("period_to")).toBe("2026-08");
+    expect(params.get("direction")).toBe("debit");
+    expect(params.get("bank_account_id")).toBe("acc-usd");
+    expect(params.get("limit")).toBe("500");
+    expect(params.get("offset")).toBe("0");
+  });
+
+  it("omite los params vacíos (no manda bank_account_id='' = todas las cuentas)", () => {
+    const qs = buildBankMovementsQuery({ status: "unclassified", bankAccountId: "" });
+    const params = new URLSearchParams(qs.slice(1));
+    expect(params.has("bank_account_id")).toBe(false);
+    expect(params.get("status")).toBe("unclassified");
+  });
+
+  it("`period` (un mes) es independiente del rango", () => {
+    const params = new URLSearchParams(buildBankMovementsQuery({ period: "2026-08" }).slice(1));
+    expect(params.get("period")).toBe("2026-08");
+    expect(params.has("period_from")).toBe(false);
   });
 });
 
