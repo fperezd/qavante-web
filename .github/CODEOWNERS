@@ -2,3 +2,9 @@
 * @fernando-qavante
 .github/workflows/* @fernando-qavante
 src/lib/api/types.ts @fernando-qavante
+
+# El gate de review debe protegerse a si mismo: Actions ejecuta la copia del
+# workflow que vive en la rama del PR (hallazgo del review adversarial,
+# qavante-api INC-001).
+/.github/workflows/gate-review.yml   @fperezd
+/.github/gate-review.test.mjs        @fperezd
