@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Info, CalendarClock } from "lucide-react";
 import { QavanteBadge } from "@/components/qavante";
 import { useOperationalResultBreakdown, type OperationalResultResponse } from "@/lib/api/gestion";
-import { useDashboardSummary, type PulsoStatus } from "@/lib/api/dashboard";
+import { useDashboardSummary } from "@/lib/api/dashboard";
 import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
 import { GestionV2View, type GestionMovible } from "./gestion-v2-view";
@@ -14,7 +14,8 @@ import { ResultadoHero } from "./resultado-hero";
 import { CascadaResultado } from "./cascada-resultado";
 import { DriversResultado } from "./drivers-resultado";
 import { TendenciaResultado } from "./tendencia-resultado";
-import { PulsoTira, type PulsoTono } from "./pulso-tira";
+import { PulsoTira } from "./pulso-tira";
+import { resolvePulsoPresentation } from "./pulso-status";
 import {
   mapHero,
   mapComparativos,
@@ -77,19 +78,6 @@ function periodoMenos(period: string, n: number): string {
   return `${y}-${String(mes).padStart(2, "0")}`;
 }
 
-const PULSO_ESTADO: Record<PulsoStatus, string> = {
-  critical: "Pulso crítico",
-  weak: "Pulso débil",
-  stable: "Pulso estable",
-  strong: "Pulso fuerte",
-};
-const PULSO_TONO: Record<PulsoStatus, PulsoTono> = {
-  critical: "bad",
-  weak: "bad",
-  stable: "warn",
-  strong: "ok",
-};
-
 export function GestionV2ViewLive({
   mes,
   period,
@@ -122,6 +110,7 @@ export function GestionV2ViewLive({
   // El histórico del margen es sobre meses CERRADOS (el mes en curso, parcial, distorsiona el gráfico).
   const tendencia = breakdown.data ? separarMesEnCurso(mapTendencia(breakdown.data)).cerrados : [];
   const pulso = dash.data?.pulso ?? null;
+  const pulsoPresentation = pulso ? resolvePulsoPresentation(pulso.status) : null;
 
   const movibles: GestionMovible[] = [
     {
@@ -153,11 +142,11 @@ export function GestionV2ViewLive({
   const margenesNode = <Margenes mes={mes} />;
   const comparativosNode = <Comparativos items={comparativos} />;
   const cascadaNode = <CascadaResultado entradas={cascada} />;
-  const pulsoNode = pulso ? (
+  const pulsoNode = pulso && pulsoPresentation ? (
     <PulsoTira
       score={pulso.score}
-      estado={PULSO_ESTADO[pulso.status]}
-      tono={PULSO_TONO[pulso.status]}
+      estado={pulsoPresentation.estado}
+      tono={pulsoPresentation.tono}
       insight={insightTension(hero.resultado, pulso.status)}
       onVer={() => router.push("/gestion/pulso")}
     />
@@ -206,7 +195,15 @@ export function GestionV2ViewLive({
 }
 
 /** Insight de la tira: la tensión resultado (devengado) vs. Pulso (que incluye la caja). */
-function insightTension(resultado: number, status: PulsoStatus): React.ReactNode {
+function insightTension(resultado: number, status: string): React.ReactNode {
+  if (!resolvePulsoPresentation(status).known) {
+    return (
+      <>
+        El resultado del mes fue {resultado >= 0 ? "positivo" : "negativo"}. La lectura del Pulso
+        está pendiente de actualizar; no la interpretamos como un estado conocido.
+      </>
+    );
+  }
   const debil = status === "weak" || status === "critical";
   if (resultado >= 0 && debil) {
     return (
