@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 /* Check First Load JS por route contra presupuestos del Kit Sprint C0 DoD.
-   Lee .next/app-build-manifest.json (generado por `next build`), suma el gzip
+   Lee el manifest generado por `next build` (único en Next 15 o por route en
+   Next 16/Turbopack), suma el gzip
    de los chunks JS de cada route en BUDGETS, falla si excede.
 
    Por qué propio y no `size-limit`: los chunks de Next.js son hashed, el
    manifest tiene el mapeo route→chunks robusto, y queremos un check
    exactamente alineado al concepto "First Load JS" del DoD. */
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { join } from "node:path";
 
-const MANIFEST_PATH = ".next/app-build-manifest.json";
+const LEGACY_MANIFEST_PATH = ".next/app-build-manifest.json";
+const SERVER_APP_DIR = ".next/server/app";
 const STATIC_DIR = ".next";
 
 /** Presupuestos por route, en KB (gzip). Alineados con Kit Sprint C0 DoD sec 5.2:
@@ -24,7 +26,7 @@ const STATIC_DIR = ".next";
  *    user-facing. Budget 250 KB. Dynamic imports en dialogs (PR #61) bajaron
  *    el First Load de 194 → 146 KB.
  *  - /app/administracion/credenciales: idem admin-only, budget 250 KB.
- *  Keys son rutas como aparecen en el app-build-manifest.json (con grupos
+ *  Keys son rutas como aparecen en los manifests de Next (con grupos
  *  Next.js entre paréntesis y sufijo /page). */
 const BUDGETS_KB = {
   "/(auth)/login/page": 200,
@@ -39,33 +41,72 @@ function gzipSizeKB(filePath) {
   return gzipSync(buf, { level: 9 }).length / 1024;
 }
 
-function checkBudgets() {
-  let manifest;
-  try {
-    manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
-  } catch (err) {
-    console.error(`✘ No pude leer ${MANIFEST_PATH}. ¿Corriste \`npm run build\` antes?`);
-    console.error(`  ${err.message}`);
-    process.exit(2);
+function readManifest(path) {
+  return JSON.parse(readFileSync(path, "utf-8"));
+}
+
+function chunksFromClientReferenceManifest(route) {
+  // Turbopack puede conservar o eliminar los grupos de rutas en las carpetas
+  // internas; la clave del manifest es la referencia estable que usamos.
+  const publicRoute = route.replace(/\/\([^/]+\)/g, "");
+  const candidates = [route, publicRoute];
+  const files = readdirSync(SERVER_APP_DIR, { recursive: true })
+    .filter((entry) => entry.endsWith("page_client-reference-manifest.js"))
+    .map((entry) => join(SERVER_APP_DIR, entry));
+
+  for (const manifestPath of files) {
+    const source = readFileSync(manifestPath, "utf-8");
+    if (!candidates.some((candidate) => source.includes(`__RSC_MANIFEST["${candidate}"]`))) {
+      continue;
+    }
+
+    const assignmentStart = source.indexOf("__RSC_MANIFEST[");
+    const jsonStart = source.indexOf("=", assignmentStart);
+    const jsonEnd = source.lastIndexOf(";");
+    if (assignmentStart < 0 || jsonStart < 0 || jsonEnd < 0) {
+      console.error(`✘ Formato inesperado en ${manifestPath}.`);
+      process.exit(2);
+    }
+
+    const manifest = JSON.parse(source.slice(jsonStart + 1, jsonEnd));
+    return [
+      ...new Set(
+        Object.values(manifest.clientModules ?? {}).flatMap((module) => module.chunks ?? []),
+      ),
+    ];
   }
 
+  return null;
+}
+
+function chunksForRoute(route) {
+  // Next 15 escribía un manifest único; Next 16/Turbopack publica referencias
+  // de cliente por ruta dentro de .next/server/app.
+  if (existsSync(LEGACY_MANIFEST_PATH)) {
+    const chunks = readManifest(LEGACY_MANIFEST_PATH).pages?.[route];
+    if (chunks) return chunks;
+  }
+
+  const chunks = chunksFromClientReferenceManifest(route);
+  if (chunks?.length) return chunks;
+
+  console.error(`✘ No encontré chunks de cliente para "${route}". Rutas buscadas:`);
+  console.error(`    ${LEGACY_MANIFEST_PATH}`);
+  console.error(`    ${join(SERVER_APP_DIR, "<ruta>", "page_client-reference-manifest.js")}`);
+  process.exit(2);
+}
+
+function checkBudgets() {
   const results = [];
   let anyFail = false;
 
   for (const [route, budgetKB] of Object.entries(BUDGETS_KB)) {
-    const chunks = manifest.pages?.[route];
-    if (!chunks) {
-      console.error(`✘ Route "${route}" no aparece en el manifest. Routes disponibles:`);
-      Object.keys(manifest.pages)
-        .sort()
-        .forEach((r) => console.error(`    ${r}`));
-      process.exit(2);
-    }
+    const chunks = chunksForRoute(route);
 
     let totalKB = 0;
     const jsChunks = chunks.filter((c) => c.endsWith(".js"));
     for (const chunk of jsChunks) {
-      const filePath = join(STATIC_DIR, chunk);
+      const filePath = join(STATIC_DIR, chunk.replace(/^\/_next\//, ""));
       try {
         statSync(filePath);
       } catch {

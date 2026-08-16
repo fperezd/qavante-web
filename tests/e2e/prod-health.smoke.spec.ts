@@ -22,15 +22,14 @@ test.describe("prod smoke — FE alive (HTTP-only)", () => {
     }
   });
 
-  test("GET /login → 200 + bundle de LoginForm cargado", async ({ request }) => {
+  test("GET /login → 200 + LoginForm referenciado", async ({ request }) => {
     const res = await request.get("/login");
     expect(res.status()).toBe(200);
     const body = await res.text();
     // LoginForm es client component (CSR); el HTML del form se hidrata después.
-    // Verifico que el chunk del componente se referencie y el title sea el correcto.
-    // (La cadena "LoginForm" aparece JSON-escapada dentro del payload self.__next_f.)
+    // Verifico el componente referenciado y el title; el nombre de chunks no es un contrato
+    // estable entre versiones/bundlers. "LoginForm" aparece JSON-escapado en self.__next_f.
     expect(body).toMatch(/<title>Qavante[^<]*<\/title>/);
-    expect(body).toContain("static/chunks/app/(auth)/login/page-");
     expect(body).toMatch(/\\"LoginForm\\"/);
   });
 
