@@ -14,6 +14,8 @@ export type ColaConciliacionProps = {
   filas: FilaCola[];
   onConfirmar: (id: string) => void;
   onRechazar: (id: string) => void;
+  /** Abre candidatos documentales; la elección siempre la confirma una persona. */
+  onElegirDocumento?: (id: string) => void;
   onConciliarTodas: () => void;
   /** Ids con una mutación en curso → deshabilitan sus botones y muestran spinner. */
   pendientes: ReadonlySet<string>;
@@ -24,6 +26,7 @@ export function ColaConciliacion({
   filas,
   onConfirmar,
   onRechazar,
+  onElegirDocumento,
   onConciliarTodas,
   pendientes,
   conciliandoTodas,
@@ -55,6 +58,7 @@ export function ColaConciliacion({
               fila={fila}
               onConfirmar={() => onConfirmar(fila.id)}
               onRechazar={() => onRechazar(fila.id)}
+              onElegirDocumento={onElegirDocumento ? () => onElegirDocumento(fila.id) : undefined}
               pendiente={pendientes.has(fila.id) || conciliandoTodas}
             />
           </li>
@@ -68,11 +72,13 @@ function FilaConciliacion({
   fila,
   onConfirmar,
   onRechazar,
+  onElegirDocumento,
   pendiente,
 }: {
   fila: FilaCola;
   onConfirmar: () => void;
   onRechazar: () => void;
+  onElegirDocumento?: () => void;
   pendiente: boolean;
 }) {
   return (
@@ -145,6 +151,17 @@ function FilaConciliacion({
             <X className="h-4 w-4" aria-hidden="true" />
             No es
           </QavanteButton>
+          {onElegirDocumento && (
+            <QavanteButton
+              size="sm"
+              variant="secondary"
+              onClick={onElegirDocumento}
+              disabled={pendiente}
+              aria-label={`Elegir otro documento para ${fila.montoTexto}`}
+            >
+              Elegir otro
+            </QavanteButton>
+          )}
         </div>
       </div>
     </QavanteCard>

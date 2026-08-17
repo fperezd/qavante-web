@@ -6,12 +6,14 @@ import { CheckCircle2 } from "lucide-react";
 import { QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import {
   useConfirmReconciliation,
+  useConfirmReconciliationWithDocument,
   useConfirmReconciliationBatch,
   useReconciliationReview,
   useRejectReconciliation,
   useRunReconcile,
 } from "@/lib/api/reconciliation";
 import { ColaConciliacion } from "./cola-conciliacion";
+import { DocumentSuggestionsDialog } from "./document-suggestions-dialog";
 import { ReconciliarAhora } from "./reconciliar-ahora";
 import {
   interpretarErrorConciliar,
@@ -29,6 +31,7 @@ import {
 export function ColaConciliacionLive() {
   const review = useReconciliationReview();
   const confirmar = useConfirmReconciliation();
+  const confirmarDocumento = useConfirmReconciliationWithDocument();
   const rechazar = useRejectReconciliation();
   const batch = useConfirmReconciliationBatch();
   const correr = useRunReconcile();
@@ -37,6 +40,7 @@ export function ColaConciliacionLive() {
   const [enCurso, setEnCurso] = React.useState<ReadonlySet<string>>(new Set());
   // Resultado de la última corrida del motor (persiste hasta la próxima).
   const [ultimoResumen, setUltimoResumen] = React.useState<ResumenReconcile | null>(null);
+  const [movimientoManual, setMovimientoManual] = React.useState<string | null>(null);
   const marcar = React.useCallback((id: string, activo: boolean) => {
     setEnCurso((prev) => {
       const next = new Set(prev);
@@ -119,6 +123,27 @@ export function ColaConciliacionLive() {
     });
   }
 
+  function onElegirDocumento(id: string) {
+    setMovimientoManual(id);
+  }
+
+  function onConfirmarDocumento(documentId: string) {
+    if (!movimientoManual) return;
+    const movementId = movimientoManual;
+    marcar(movementId, true);
+    confirmarDocumento.mutate(
+      { movementId, documentId },
+      {
+        onSuccess: () => {
+          toast.success("Conciliado con el documento elegido.");
+          setMovimientoManual(null);
+        },
+        onError: manejarError,
+        onSettled: () => marcar(movementId, false),
+      },
+    );
+  }
+
   function onConciliarTodas() {
     const ids = todosLosIds(filas);
     batch.mutate(ids, {
@@ -140,9 +165,19 @@ export function ColaConciliacionLive() {
         filas={filas}
         onConfirmar={onConfirmar}
         onRechazar={onRechazar}
+        onElegirDocumento={onElegirDocumento}
         onConciliarTodas={onConciliarTodas}
         pendientes={enCurso}
         conciliandoTodas={batch.isPending}
+      />
+      <DocumentSuggestionsDialog
+        movementId={movimientoManual}
+        open={movimientoManual !== null}
+        onOpenChange={(open) => {
+          if (!open && !confirmarDocumento.isPending) setMovimientoManual(null);
+        }}
+        onChoose={onConfirmarDocumento}
+        choosing={confirmarDocumento.isPending}
       />
     </div>
   );

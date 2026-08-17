@@ -24,6 +24,8 @@ export type ReviewItem = components["schemas"]["ReviewItem"];
 export type ReviewSuggestion = components["schemas"]["ReviewSuggestion"];
 export type SuggestionsResponse = components["schemas"]["SuggestionsResponse"];
 export type CounterpartySuggestion = components["schemas"]["CounterpartySuggestion"];
+export type DocumentSuggestion = components["schemas"]["DocumentSuggestion"];
+export type DocumentSuggestionsResponse = components["schemas"]["DocumentSuggestionsResponse"];
 export type ConfirmResponse = components["schemas"]["app__api__reconciliation__ConfirmResponse"];
 export type ConfirmBatchResponse = components["schemas"]["ConfirmBatchResponse"];
 export type ReconcileResponse = components["schemas"]["ReconcileResponse"];
@@ -33,6 +35,8 @@ export const reconciliationKeys = {
   review: () => [...reconciliationKeys.all, "review"] as const,
   suggestions: (movementId: string) =>
     [...reconciliationKeys.all, "suggestions", movementId] as const,
+  documentSuggestions: (movementId: string) =>
+    [...reconciliationKeys.all, "document-suggestions", movementId] as const,
 };
 
 /** `GET /api/treasury/reconciliation/review` — cola de revisión: movimientos con una sugerencia
@@ -62,6 +66,20 @@ export function useMovementSuggestions(movementId: string | null) {
   });
 }
 
+/** Documentos candidatos para una elección humana explícita. Nunca confirma ni auto-aplica. */
+export function useDocumentSuggestions(movementId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: reconciliationKeys.documentSuggestions(movementId ?? ""),
+    queryFn: () =>
+      api.get<DocumentSuggestionsResponse>(
+        `/api/treasury/reconciliation/${encodeURIComponent(movementId as string)}/document-suggestions`,
+      ),
+    enabled: enabled && movementId != null,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
 /** `POST /api/treasury/reconciliation/{movement_id}/confirm` — confirma la sugerencia en cola. */
 export function useConfirmReconciliation() {
   const qc = useQueryClient();
@@ -71,6 +89,22 @@ export function useConfirmReconciliation() {
         `/api/treasury/reconciliation/${encodeURIComponent(movementId)}/confirm`,
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: reconciliationKeys.review() }),
+  });
+}
+
+/** Confirma contra el documento que el usuario eligió de forma deliberada en la cola. */
+export function useConfirmReconciliationWithDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ movementId, documentId }: { movementId: string; documentId: string }) =>
+      api.post<ConfirmResponse>(
+        `/api/treasury/reconciliation/${encodeURIComponent(movementId)}/confirm`,
+        { body: { document_id: documentId } },
+      ),
+    onSuccess: (_result, { movementId }) => {
+      qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
+      qc.invalidateQueries({ queryKey: reconciliationKeys.documentSuggestions(movementId) });
+    },
   });
 }
 

@@ -56,6 +56,7 @@ const meta = {
     filas,
     onConfirmar: fn(),
     onRechazar: fn(),
+    onElegirDocumento: fn(),
     onConciliarTodas: fn(),
     pendientes: new Set<string>(),
     conciliandoTodas: false,
@@ -96,6 +97,16 @@ export const RechazaUno: Story = {
       await canvas.findByRole("button", { name: /Descartar la sugerencia para .*1\.250\.000/i }),
     );
     await expect(args.onRechazar).toHaveBeenCalledWith("mv1");
+  },
+};
+
+/** Elegir otro documento abre la revisión documental para ese movimiento. */
+export const EligeOtroDocumento: Story = {
+  play: async ({ canvas, args, userEvent }) => {
+    await userEvent.click(
+      await canvas.findByRole("button", { name: /Elegir otro documento para .*1\.250\.000/i }),
+    );
+    await expect(args.onElegirDocumento).toHaveBeenCalledWith("mv1");
   },
 };
 
