@@ -1,6 +1,7 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { ColaConciliacionLive } from "@/components/caja/conciliacion/cola-conciliacion-live";
+import { AliasesAprendidosLive } from "@/components/caja/conciliacion/aliases-aprendidos-live";
 
 /* Cola de conciliación (ADR-0036/0042). Server Component: resuelve el flag `reconciliationReview`
    (default OFF — ADR-0008). Sin `export const runtime` (regla 4). El motor auto-aplica los matches
@@ -18,7 +19,14 @@ export default function ConciliacionPage() {
         </p>
       </header>
 
-      {reconciliationReview ? <ColaConciliacionLive /> : <FeatureUnavailableState />}
+      {reconciliationReview ? (
+        <>
+          <ColaConciliacionLive />
+          <AliasesAprendidosLive />
+        </>
+      ) : (
+        <FeatureUnavailableState />
+      )}
     </div>
   );
 }

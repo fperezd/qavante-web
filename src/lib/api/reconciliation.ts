@@ -29,12 +29,15 @@ export type DocumentSuggestionsResponse = components["schemas"]["DocumentSuggest
 export type ConfirmResponse = components["schemas"]["app__api__reconciliation__ConfirmResponse"];
 export type ConfirmBatchResponse = components["schemas"]["ConfirmBatchResponse"];
 export type ReconcileResponse = components["schemas"]["ReconcileResponse"];
+export type ReconciliationAlias = components["schemas"]["ReconciliationAlias"];
+export type ReconciliationAliasesResponse = components["schemas"]["ReconciliationAliasesResponse"];
 
 export const reconciliationKeys = {
   all: ["reconciliation"] as const,
   review: () => [...reconciliationKeys.all, "review"] as const,
   suggestions: (movementId: string) =>
     [...reconciliationKeys.all, "suggestions", movementId] as const,
+  aliases: () => [...reconciliationKeys.all, "aliases"] as const,
   documentSuggestions: (movementId: string) =>
     [...reconciliationKeys.all, "document-suggestions", movementId] as const,
 };
@@ -61,6 +64,17 @@ export function useMovementSuggestions(movementId: string | null) {
         `/api/treasury/reconciliation/${encodeURIComponent(movementId as string)}/suggestions`,
       ),
     enabled: movementId != null,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** Diccionario de aliases ya aprendido por confirmaciones humanas. Sólo lectura. */
+export function useReconciliationAliases(enabled = true) {
+  return useQuery({
+    queryKey: reconciliationKeys.aliases(),
+    queryFn: () => api.get<ReconciliationAliasesResponse>("/api/treasury/reconciliation/aliases"),
+    enabled,
     staleTime: 30_000,
     retry: false,
   });
