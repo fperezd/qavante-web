@@ -55,6 +55,9 @@ on:
     types: [created, edited, deleted]
 
 permissions:
+  # El gate lee comentarios estructurados de la conversación del PR.
+  # No escribe comentarios, estados ni ningún otro recurso.
+  issues: read
   pull-requests: read
   contents: read
 
@@ -128,12 +131,46 @@ jobs:
               };
             };
 
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner, repo, issue_number: number, per_page: 100,
-            });
-            const reviews = await github.paginate(github.rest.pulls.listReviews, {
-              owner, repo, pull_number: number, per_page: 100,
-            });
+            const comments = [];
+            if (
+              context.eventName === 'issue_comment' &&
+              context.payload.action !== 'deleted' &&
+              context.payload.comment?.body
+            ) {
+              comments.push(context.payload.comment);
+            }
+            try {
+              comments.push(...await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: number, per_page: 100,
+              }));
+            } catch (error) {
+              if (error.status !== 403) throw error;
+              core.warning(
+                'GitHub denego la lectura historica de comentarios del PR ' +
+                'aunque el token declara issues:read; el gate continua con ' +
+                'reviews de PR y, en eventos issue_comment, con el comentario actual.'
+              );
+            }
+            const reviews = [];
+            if (
+              context.eventName === 'pull_request_review' &&
+              context.payload.action !== 'dismissed' &&
+              context.payload.review?.body
+            ) {
+              reviews.push(context.payload.review);
+            }
+            try {
+              reviews.push(...await github.paginate(github.rest.pulls.listReviews, {
+                owner, repo, pull_number: number, per_page: 100,
+              }));
+            } catch (error) {
+              if (error.status !== 403) throw error;
+              core.warning(
+                'GitHub denego la lectura historica de reviews del PR ' +
+                'aunque el token declara pull-requests:read; el gate continua ' +
+                'con el review actual en eventos pull_request_review.'
+              );
+            }
 
             const señales = [];
             for (const c of comments) {
