@@ -24,7 +24,7 @@ jobs:
     name: factory-conformance
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate Tooxs AI Factory Framework conformance
         run: python scripts/tooxs_factory_check.py --repo . --json
       - name: Validate risk-routed review gate
