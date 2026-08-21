@@ -1,0 +1,43 @@
+<!-- Firma corporativa Qavante — solo para mensajes nuevos.
+     En respuestas y reenvíos NO se asigna, para no apilar logos en el hilo.
+     Misma estructura que la firma de Tooxs: logo a la izquierda, datos a la
+     derecha, línea divisoria y pie corporativo.
+     Reglas de email HTML: tablas + estilos inline, sin flex/grid, sin webfonts.
+     El stack de fuentes es el mismo que emite Outlook para Aptos.
+     Placeholders: {{NOMBRE}} {{CARGO}} {{MOVIL}} {{MOVIL_E164}}
+     Ver README.md. -->
+<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;">
+  <tr>
+    <td width="165" style="width:165px;padding:0 14px 0 0;vertical-align:middle;">
+      <a href="https://qavante.com" style="text-decoration:none;">
+        <img src="https://app.qavante.com/firma/qavante-logo-email.png"
+             width="165" height="43" alt="Qavante — Avanzar con inteligencia financiera"
+             style="display:block;border:0;outline:none;text-decoration:none;width:165px;height:43px;">
+      </a>
+    </td>
+    <td width="100%" style="width:100%;padding:0;vertical-align:top;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;font-size:14px;line-height:21px;color:#4A5468;">
+      <div style="font-size:15px;line-height:22px;font-weight:700;color:#051637;">{{NOMBRE}}</div>
+      <div>{{CARGO}}</div>
+      <div>móvil: <a href="tel:{{MOVIL_E164}}" style="color:#4A5468;text-decoration:none;">{{MOVIL}}</a></div>
+      <div><a href="https://qavante.com" style="color:#133E66;text-decoration:none;">qavante.com</a></div>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" style="padding:14px 0 0 0;border-bottom:1px solid #D3DCE8;font-size:0;line-height:0;">&nbsp;</td>
+  </tr>
+  <tr>
+    <td colspan="2" style="padding:12px 0 0 0;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;font-size:13px;line-height:19px;font-weight:700;color:#051637;">
+      Qavante permite a tu empresa tomar mejores decisiones hoy, anticipando su impacto financiero de mañana.
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" style="padding:10px 0 0 0;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#4A5468;">
+      Tus datos financieros merecen el máximo resguardo.
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" style="padding:0;font-family:Aptos,Aptos_EmbeddedFont,Aptos_MSFontService,Calibri,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#4A5468;">
+      Qavante opera bajo estándares de seguridad y protección de datos alineados con la nueva Ley 21.719.
+    </td>
+  </tr>
+</table>
