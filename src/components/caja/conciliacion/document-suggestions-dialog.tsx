@@ -32,10 +32,10 @@ export function DocumentSuggestionsDialog({
           <div className="mb-2 flex items-start justify-between gap-4">
             <div>
               <Dialog.Title className="text-lg font-semibold text-neutral-dark">
-                Elegí el documento correcto
+                Elige el documento correcto
               </Dialog.Title>
               <Dialog.Description className="mt-1 text-sm text-neutral-mid">
-                Estos son candidatos. Revisá los datos antes de confirmar la conciliación.
+                Estos son candidatos. Revisa los datos antes de confirmar la conciliación.
               </Dialog.Description>
             </div>
             <Dialog.Close
@@ -63,7 +63,7 @@ export function DocumentSuggestionsDialog({
               !suggestions.isError &&
               suggestions.data?.suggestions.length === 0 && (
                 <p className="py-6 text-sm text-neutral-mid">
-                  No encontramos otro documento candidato para este movimiento. Podés descartarlo y
+                  No encontramos otro documento candidato para este movimiento. Puedes descartarlo y
                   revisarlo después.
                 </p>
               )}

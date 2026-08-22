@@ -57,7 +57,7 @@ export function ColaConciliacionLive() {
         setUltimoResumen(resumen);
         toast.success(resumen.mensaje);
       },
-      onError: () => toast.error("No pudimos correr la conciliación. Intentá de nuevo."),
+      onError: () => toast.error("No pudimos correr la conciliación. Intenta de nuevo."),
     });
   }
 
@@ -99,7 +99,7 @@ export function ColaConciliacionLive() {
     const { yaNoEnRevision, mensaje } = interpretarErrorConciliar(err);
     if (yaNoEnRevision) {
       toast.warning(mensaje);
-      review.refetch(); // la cola quedó vieja → traé la real
+      review.refetch(); // la cola quedó vieja → trae la real
     } else {
       toast.error(mensaje);
     }
