@@ -29,6 +29,7 @@ export type DocumentSuggestionsResponse = components["schemas"]["DocumentSuggest
 export type ConfirmResponse = components["schemas"]["app__api__reconciliation__ConfirmResponse"];
 export type ConfirmBatchResponse = components["schemas"]["ConfirmBatchResponse"];
 export type ReconcileResponse = components["schemas"]["ReconcileResponse"];
+export type ReanalyzeResponse = components["schemas"]["ReanalyzeResponse"];
 export type ReconciliationAlias = components["schemas"]["ReconciliationAlias"];
 export type ReconciliationAliasesResponse = components["schemas"]["ReconciliationAliasesResponse"];
 
@@ -182,6 +183,25 @@ export function useMarkCollectedRevert() {
         body,
       }),
     onSuccess: () => invalidarPorConciliar(qc),
+  });
+}
+
+/** `POST /api/treasury/reconciliation/reanalyze` — RE-ANALIZA todo: resetea a `unmatched` las
+ *  sugerencias sin confirmar y vuelve a correr el motor con el scorer y los aliases ACTUALES.
+ *
+ *  Distinto de `useRunReconcile`: el motor normal sólo mira lo `unmatched`, así que una sugerencia
+ *  vieja queda "pegajosa" en la cola aunque el matcher haya mejorado o se hayan purgado aliases.
+ *  Esto la limpia. Las conciliaciones CONFIRMADAS no se tocan — sólo las sugerencias pendientes.
+ *
+ *  Invalida la cola y los aliases: ambos cambian tras un re-análisis. */
+export function useReanalyzeReconciliation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<ReanalyzeResponse>("/api/treasury/reconciliation/reanalyze"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
+      qc.invalidateQueries({ queryKey: reconciliationKeys.aliases() });
+    },
   });
 }
 

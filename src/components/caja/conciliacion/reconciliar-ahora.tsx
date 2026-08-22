@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, RotateCcw } from "lucide-react";
 import { QavanteButton } from "@/components/qavante";
 import type { ResumenReconcile } from "./reconciliacion-cola-map";
 
@@ -13,9 +13,19 @@ export type ReconciliarAhoraProps = {
   corriendo: boolean;
   /** Resultado de la última corrida (persiste hasta la próxima); null si no corrió aún. */
   ultimoResumen: ResumenReconcile | null;
+  /** Re-analiza todo: descarta las sugerencias pendientes y rehace la cola con el scorer y los
+   *  aliases actuales. Opcional — sin esta prop la acción no se muestra. */
+  onReanalizar?: () => void;
+  reanalizando?: boolean;
 };
 
-export function ReconciliarAhora({ onReconciliar, corriendo, ultimoResumen }: ReconciliarAhoraProps) {
+export function ReconciliarAhora({
+  onReconciliar,
+  corriendo,
+  ultimoResumen,
+  onReanalizar,
+  reanalizando = false,
+}: ReconciliarAhoraProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-neutral-light/20 px-4 py-3">
       <div className="min-w-0">
@@ -28,10 +38,31 @@ export function ReconciliarAhora({ onReconciliar, corriendo, ultimoResumen }: Re
             : "Qavante cruza tus movimientos del banco contra tus documentos y deja acá los que no puede dar por seguros."}
         </p>
       </div>
-      <QavanteButton size="sm" variant="secondary" onClick={onReconciliar} loading={corriendo}>
-        <RefreshCw className="h-4 w-4" aria-hidden="true" />
-        Conciliar ahora
-      </QavanteButton>
+      <div className="flex items-center gap-2">
+        {onReanalizar ? (
+          <QavanteButton
+            size="sm"
+            variant="ghost"
+            onClick={onReanalizar}
+            loading={reanalizando}
+            disabled={corriendo}
+            title="Descarta las sugerencias pendientes y rehace la cola. Lo ya conciliado no se toca."
+          >
+            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+            Rehacer la cola
+          </QavanteButton>
+        ) : null}
+        <QavanteButton
+          size="sm"
+          variant="secondary"
+          onClick={onReconciliar}
+          loading={corriendo}
+          disabled={reanalizando}
+        >
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          Conciliar ahora
+        </QavanteButton>
+      </div>
     </div>
   );
 }

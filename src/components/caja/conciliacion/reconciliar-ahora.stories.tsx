@@ -49,3 +49,23 @@ export const Dispara: Story = {
     await expect(args.onReconciliar).toHaveBeenCalled();
   },
 };
+
+/** Con `onReanalizar`: aparece el botón "Rehacer la cola" junto al principal. */
+export const ConReanalizar: Story = {
+  args: { onReanalizar: fn() },
+};
+
+/** Reanalizando: su botón muestra el spinner y el principal queda deshabilitado. */
+export const Reanalizando: Story = {
+  args: { onReanalizar: fn(), reanalizando: true },
+};
+
+/** El clic en "Rehacer la cola" dispara onReanalizar (y no onReconciliar). */
+export const DisparaReanalizar: Story = {
+  args: { onReanalizar: fn() },
+  play: async ({ canvas, args, userEvent }) => {
+    await userEvent.click(await canvas.findByRole("button", { name: /Rehacer la cola/i }));
+    await expect(args.onReanalizar).toHaveBeenCalled();
+    await expect(args.onReconciliar).not.toHaveBeenCalled();
+  },
+};

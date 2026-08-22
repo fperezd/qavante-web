@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api/errors";
-import type { ReconcileResponse, ReviewItem } from "@/lib/api/reconciliation";
+import type {
+  ReanalyzeResponse,
+  ReconcileResponse,
+  ReviewItem,
+} from "@/lib/api/reconciliation";
 import {
   documentoLabel,
   esCobro,
@@ -8,6 +12,7 @@ import {
   mapCola,
   mapFila,
   parseScore,
+  resumenReanalyze,
   resumenReconcile,
   scoreTexto,
   todosLosIds,
@@ -200,6 +205,60 @@ describe("resumenReconcile", () => {
     expect(r.autoConciliados).toBe(0);
     expect(r.paraRevisar).toBe(0);
     expect(r.mensaje).toMatch(/No encontré movimientos nuevos/);
+  });
+});
+
+describe("resumenReanalyze", () => {
+  const res = (over: Partial<ReanalyzeResponse> = {}): ReanalyzeResponse => ({
+    matched: 0,
+    consolidated: 0,
+    partial: 0,
+    review: 0,
+    excluded: 0,
+    ambiguous: 0,
+    no_candidate: 0,
+    iva_retention: 0,
+    nc_netting: 0,
+    holding: 0,
+    prepago_applied: 0,
+    processor_batch: 0,
+    factoring: 0,
+    review_reseteadas: 0,
+    ...over,
+  });
+
+  it("dice cuántas sugerencias reevaluó: explica por qué cambió el tamaño de la cola", () => {
+    const r = resumenReanalyze(res({ review_reseteadas: 9, review: 2 }));
+    expect(r.mensaje).toMatch(/reevalué 9 movimientos desde cero/);
+    expect(r.mensaje).toMatch(/Quedaron 2 movimientos/);
+  });
+
+  it("dice que la cola se rehízo, no sólo qué encontró", () => {
+    const r = resumenReanalyze(res({ matched: 8, consolidated: 2, review: 5 }));
+    expect(r.autoConciliados).toBe(10);
+    expect(r.paraRevisar).toBe(5);
+    expect(r.mensaje).toMatch(/^Rehíce la cola/);
+    expect(r.mensaje).toMatch(/10 movimientos.*5 para que revises/);
+  });
+
+  it("cola vacía tras rehacer: no puede sonar a 'no hice nada'", () => {
+    // El caso peligroso: se apretó un botón que BORRÓ sugerencias y el resultado es cero.
+    // Decir "no encontré nada nuevo" ocultaría que la cola se vació a propósito.
+    const mensaje = resumenReanalyze(res()).mensaje;
+    expect(mensaje).toMatch(/^Rehíce la cola/);
+    expect(mensaje).not.toMatch(/nuevos/);
+  });
+
+  it("solo para revisar: singular correcto", () => {
+    expect(resumenReanalyze(res({ review: 1 })).mensaje).toBe(
+      "Rehíce la cola. Quedó 1 movimiento para que revises.",
+    );
+  });
+
+  it("ignora los contadores internos del motor", () => {
+    const r = resumenReanalyze(res({ excluded: 4, ambiguous: 2, no_candidate: 7 }));
+    expect(r.autoConciliados).toBe(0);
+    expect(r.paraRevisar).toBe(0);
   });
 });
 

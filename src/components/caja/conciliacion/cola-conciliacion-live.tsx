@@ -9,6 +9,7 @@ import {
   useConfirmReconciliationWithDocument,
   useConfirmReconciliationBatch,
   useReconciliationReview,
+  useReanalyzeReconciliation,
   useRejectReconciliation,
   useRunReconcile,
 } from "@/lib/api/reconciliation";
@@ -18,6 +19,7 @@ import { ReconciliarAhora } from "./reconciliar-ahora";
 import {
   interpretarErrorConciliar,
   mapCola,
+  resumenReanalyze,
   resumenReconcile,
   todosLosIds,
   type ResumenReconcile,
@@ -35,6 +37,7 @@ export function ColaConciliacionLive() {
   const rechazar = useRejectReconciliation();
   const batch = useConfirmReconciliationBatch();
   const correr = useRunReconcile();
+  const reanalizar = useReanalyzeReconciliation();
 
   // Ids con una mutación individual en curso → deshabilitan sus botones.
   const [enCurso, setEnCurso] = React.useState<ReadonlySet<string>>(new Set());
@@ -61,11 +64,31 @@ export function ColaConciliacionLive() {
     });
   }
 
+  function onReanalizar() {
+    // Descarta sugerencias pendientes: se pregunta antes. Lo ya conciliado no se toca, y eso
+    // conviene decirlo en el propio texto — es lo primero que da miedo al apretar el botón.
+    const confirmado = window.confirm(
+      "Voy a descartar las sugerencias pendientes y rehacer la cola con los aliases actuales. " +
+        "Lo que ya está conciliado no se toca. ¿Sigo?",
+    );
+    if (!confirmado) return;
+    reanalizar.mutate(undefined, {
+      onSuccess: (res) => {
+        const resumen = resumenReanalyze(res);
+        setUltimoResumen(resumen);
+        toast.success(resumen.mensaje);
+      },
+      onError: () => toast.error("No pudimos rehacer la cola. Vuelve a intentarlo."),
+    });
+  }
+
   const toolbar = (
     <ReconciliarAhora
       onReconciliar={onReconciliar}
       corriendo={correr.isPending}
       ultimoResumen={ultimoResumen}
+      onReanalizar={onReanalizar}
+      reanalizando={reanalizar.isPending}
     />
   );
 

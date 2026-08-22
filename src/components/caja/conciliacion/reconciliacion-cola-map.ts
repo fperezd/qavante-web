@@ -1,4 +1,9 @@
-import type { ReconcileResponse, ReviewItem, ReviewQueueResponse } from "@/lib/api/reconciliation";
+import type {
+  ReanalyzeResponse,
+  ReconcileResponse,
+  ReviewItem,
+  ReviewQueueResponse,
+} from "@/lib/api/reconciliation";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatClp } from "@/lib/formatters/clp";
@@ -110,6 +115,43 @@ export function resumenReconcile(res: ReconcileResponse): ResumenReconcile {
   const auto = (res.matched ?? 0) + (res.consolidated ?? 0);
   const revisar = res.review ?? 0;
   return { autoConciliados: auto, paraRevisar: revisar, mensaje: mensajeReconcile(auto, revisar) };
+}
+
+/** Resume una corrida de RE-ANÁLISIS. Misma forma que el motor normal, pero el mensaje tiene que
+ *  decir que la cola se rehízo desde cero: si el dueño ve "no encontré nada" después de apretar un
+ *  botón que borró sugerencias viejas, la pantalla le está mintiendo por omisión. */
+export function resumenReanalyze(res: ReanalyzeResponse): ResumenReconcile {
+  const auto = (res.matched ?? 0) + (res.consolidated ?? 0);
+  const revisar = res.review ?? 0;
+  const reevaluadas = res.review_reseteadas ?? 0;
+  return {
+    autoConciliados: auto,
+    paraRevisar: revisar,
+    mensaje: mensajeReanalyze(auto, revisar, reevaluadas),
+  };
+}
+
+function mensajeReanalyze(auto: number, revisar: number, reevaluadas: number): string {
+  // `review_reseteadas` es cuántas sugerencias que estaban en cola se volvieron a evaluar desde
+  // cero. Es el número que explica por qué la cola cambió de tamaño, así que va primero: sin él,
+  // "quedaron 2 para revisar" después de haber tenido 9 parece una pérdida inexplicable.
+  const cabeza =
+    reevaluadas > 0
+      ? `Rehíce la cola: reevalué ${conciliados(reevaluadas)} desde cero`
+      : "Rehíce la cola";
+
+  if (auto > 0 && revisar > 0) {
+    return `${cabeza}, concilié ${conciliados(auto)} y dejé ${revisar} para que revises.`;
+  }
+  if (auto > 0) {
+    return `${cabeza} y concilié ${conciliados(auto)}. No quedó nada para revisar.`;
+  }
+  if (revisar > 0) {
+    return revisar === 1
+      ? `${cabeza}. Quedó 1 movimiento para que revises.`
+      : `${cabeza}. Quedaron ${revisar} movimientos para que revises.`;
+  }
+  return `${cabeza}. No quedó ningún movimiento por conciliar.`;
 }
 
 function conciliados(n: number): string {
