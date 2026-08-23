@@ -1,0 +1,57 @@
+/* Tokens del rediseño de UI — docs/design/2026-08-23-rediseno-ui/ESPECIFICACION.md §1.1/§1.2.
+ *
+ * Deliberadamente separados de tokens.css (Manual de Marca v1.1, paleta azul-acento):
+ * el BO decidió que el rediseño REEMPLAZA las pantallas actuales (2026-08-23), pero la
+ * migración es incremental — mientras conviven ambos sistemas, estos tokens usan el
+ * prefijo `--rd-` para no pisar ningún valor `--qv-*` que las pantallas vivas siguen
+ * usando. Cuando una vista migra al rediseño, sus componentes leen `--rd-*`; el resto
+ * de la app sigue en `--qv-*` sin cambio de comportamiento.
+ *
+ * Roles, no gustos (§1.1): cada color tiene un uso exclusivo declarado en el spec. No
+ * agregar variantes fuera de esa tabla sin actualizar el spec primero. */
+
+:root {
+  /* Fondos y superficies */
+  --rd-porcelana: #f5f6f9; /* fondo único de la app rediseñada */
+  --rd-superficie: #ffffff; /* cards, tablas, paneles */
+
+  /* Texto */
+  --rd-tinta: #10182b; /* texto principal, botón primario, tab activo */
+  --rd-tinta-2: #3d4660; /* texto secundario */
+  --rd-tinta-3: #6b7488; /* metadatos, labels (variante clara: #9aa3b5) */
+  --rd-tinta-3-light: #9aa3b5;
+
+  /* Separación — nunca sombras fuertes (§1.1) */
+  --rd-hairline: #e6e9f0; /* bordes */
+  --rd-hairline-row: #edeff4; /* divisores de fila, rango hasta #f0f2f6 */
+  --rd-hairline-row-2: #f0f2f6;
+
+  /* Acento — SOLO enlaces y acción secundaria. Nunca fondo grande. */
+  --rd-azul: #2a4be0;
+
+  /* Estado: positivo */
+  --rd-verde: #1b8a52;
+  --rd-verde-soft: #e3f2e9;
+
+  /* Estado: atención — texto/pill (§1.1, tabla de color). */
+  --rd-ambar: #7a5a12;
+  --rd-ambar-soft: #f7efd9;
+  /* Ámbar del borde de `.band.warn` (qavante-ui.html) — distinto del ámbar de
+     texto de arriba; el HTML de referencia usa un dorado más saturado ahí y
+     manda en visual (spec §0: "el HTML manda en visual"). No reusar `--rd-ambar`
+     para bordes: son dos usos con dos valores distintos, a propósito. */
+  --rd-ambar-border: #d79a2b;
+
+  /* Estado: crítico Y accionable. Máx. 1 uso por pantalla (Ley 2). */
+  --rd-rojo: #b4231b;
+  --rd-rojo-soft: #f8e7e5;
+
+  /* Informativo, no accionable */
+  --rd-neutro-bg: #edeff4;
+  --rd-neutro-text: #6b7488;
+
+  /* Barras de flujo (§1.3 .bars) */
+  --rd-flujo-entrada: var(--rd-tinta);
+  --rd-flujo-salida: #d8b9b5;
+  --rd-flujo-critico: var(--rd-rojo);
+}

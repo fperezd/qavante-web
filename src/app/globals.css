@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../styles/tokens.css";
+@import "../styles/rediseno-tokens.css";
 
 @theme inline {
   /* Brand — Manual de Marca v1.1 (azul acento) */
@@ -84,6 +85,35 @@
 
   /* Tipografía — Manual v1.1: Sora */
   --font-sans: var(--font-sora);
+
+  /* ───── Rediseño de UI (docs/design/2026-08-23-rediseno-ui) — prefijo `rediseno-*`,
+     coexiste con `--color-*` de arriba mientras dura la migración vista por vista. */
+  --color-rediseno-porcelana: var(--rd-porcelana);
+  --color-rediseno-superficie: var(--rd-superficie);
+  --color-rediseno-tinta: var(--rd-tinta);
+  --color-rediseno-tinta-2: var(--rd-tinta-2);
+  --color-rediseno-tinta-3: var(--rd-tinta-3);
+  --color-rediseno-tinta-3-light: var(--rd-tinta-3-light);
+  --color-rediseno-hairline: var(--rd-hairline);
+  --color-rediseno-hairline-row: var(--rd-hairline-row);
+  --color-rediseno-hairline-row-2: var(--rd-hairline-row-2);
+  --color-rediseno-azul: var(--rd-azul);
+  --color-rediseno-verde: var(--rd-verde);
+  --color-rediseno-verde-soft: var(--rd-verde-soft);
+  --color-rediseno-ambar: var(--rd-ambar);
+  --color-rediseno-ambar-soft: var(--rd-ambar-soft);
+  --color-rediseno-ambar-border: var(--rd-ambar-border);
+  --color-rediseno-rojo: var(--rd-rojo);
+  --color-rediseno-rojo-soft: var(--rd-rojo-soft);
+  --color-rediseno-neutro-bg: var(--rd-neutro-bg);
+  --color-rediseno-neutro-text: var(--rd-neutro-text);
+  --color-rediseno-flujo-entrada: var(--rd-flujo-entrada);
+  --color-rediseno-flujo-salida: var(--rd-flujo-salida);
+  --color-rediseno-flujo-critico: var(--rd-flujo-critico);
+
+  --font-rediseno-serif: var(--font-fraunces);
+  --font-rediseno-sans: var(--font-figtree);
+  --font-rediseno-mono: var(--font-spline-mono);
 }
 
 body {

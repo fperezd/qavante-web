@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sora } from "next/font/google";
+import { Sora, Fraunces, Figtree, Spline_Sans_Mono } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
@@ -10,6 +10,29 @@ const sora = Sora({
   variable: "--font-sora",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
+
+/* Rediseño de UI (docs/design/2026-08-23-rediseno-ui §1.2) — dos voces + mono.
+   Cargadas a nivel de body (aditivo, no reemplaza Sora) para que los componentes
+   nuevos bajo `src/components/rediseno/` puedan usarlas sin que el resto de la
+   app cambie de tipografía todavía. */
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
+const figtree = Figtree({
+  variable: "--font-figtree",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+const splineSansMono = Spline_Sans_Mono({
+  variable: "--font-spline-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
   display: "swap",
 });
 
@@ -25,7 +48,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es-CL">
-      <body className={`${sora.variable} antialiased`}>
+      <body
+        className={`${sora.variable} ${fraunces.variable} ${figtree.variable} ${splineSansMono.variable} antialiased`}
+      >
         <AppProviders>{children}</AppProviders>
       </body>
     </html>
