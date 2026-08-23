@@ -205,16 +205,29 @@ describe("cajaMinimoCLP", () => {
 describe("completitudFlujo", () => {
   const sc = (
     inflowByCurrency: { currency: string; inflow: number; count: number }[],
-    extra: { count?: number; unknownInflowCount?: number } = {},
+    extra: { count?: number; unknownInflowCount?: number; hasUnseenMovements?: boolean } = {},
   ) => ({
     count: extra.count ?? inflowByCurrency.reduce((a, c) => a + c.count, 0),
     inflowByCurrency,
     unknownInflowCount: extra.unknownInflowCount ?? 0,
+    hasUnseenMovements: extra.hasUnseenMovements ?? false,
   });
 
   it("sin pendientes → completo", () => {
     expect(completitudFlujo(1_000_000, undefined)).toBe("completo");
     expect(completitudFlujo(1_000_000, sc([], { count: 0 }))).toBe("completo");
+  });
+
+  it("si hay backlog fuera de página, no afirma completo", () => {
+    expect(
+      completitudFlujo(
+        50_000_000,
+        sc([{ currency: "CLP", inflow: 1_000_000, count: 500 }], {
+          count: 2000,
+          hasUnseenMovements: true,
+        }),
+      ),
+    ).toBe("indeterminado");
   });
 
   it("solo CLP bajo el umbral → completo; sobre el umbral → incompleto", () => {
@@ -324,8 +337,7 @@ describe("completitudFlujo", () => {
   it("el techo es una COTA, no una tasa: decide el borde y hacia el lado conservador", () => {
     // entra $100M, nada en CLP pendiente: el umbral se cruza recién cuando unidades·techo > $25M.
     const enElBorde =
-      (100_000_000 * UMBRAL_SIN_CLASIFICAR) /
-      (techo("USD") * (1 - UMBRAL_SIN_CLASIFICAR));
+      (100_000_000 * UMBRAL_SIN_CLASIFICAR) / (techo("USD") * (1 - UMBRAL_SIN_CLASIFICAR));
     expect(
       completitudFlujo(100_000_000, sc([{ currency: "USD", inflow: enElBorde, count: 1 }])),
     ).toBe("completo");
@@ -351,6 +363,18 @@ describe("completitudFlujo", () => {
     expect(completitudFlujo(0, sc([{ currency: "CLP", inflow: 0, count: 3 }], { count: 3 }))).toBe(
       "completo",
     );
+  });
+
+  it("entra 0 + backlog no visto sin entradas visibles → indeterminado", () => {
+    expect(
+      completitudFlujo(
+        0,
+        sc([{ currency: "CLP", inflow: 0, count: 3 }], {
+          count: 800,
+          hasUnseenMovements: true,
+        }),
+      ),
+    ).toBe("indeterminado");
   });
 
   it("entra negativo o NaN cae en el clamp → el argumento vale por r ≡ 1, no por monotonía", () => {

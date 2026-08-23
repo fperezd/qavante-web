@@ -404,6 +404,8 @@ export interface UnclassifiedInflowBreakdown {
 export interface UnclassifiedSummary extends UnclassifiedInflowBreakdown {
   /** Cantidad de movimientos sin clasificar en el rango. */
   count: number;
+  /** `true` cuando el backend reporta más movimientos que los efectivamente recibidos. */
+  hasUnseenMovements: boolean;
   isLoading: boolean;
 }
 
@@ -482,20 +484,30 @@ export function useUnclassifiedInRange(from?: string, to?: string): Unclassified
     }),
   });
   let count = 0;
+  let seen = 0;
+  let hasUnseenMovements = false;
   let isLoading = accounts.isLoading;
   const items: BankMovement[] = [];
   for (const r of results) {
     if (r.isLoading) isLoading = true;
     const data = r.data;
     if (!data) continue;
-    count += data.total ?? data.items.length;
+    const total = data.total ?? data.items.length;
+    count += total;
+    seen += data.items.length;
+    if (total > data.items.length) hasUnseenMovements = true;
     items.push(...data.items);
   }
   /* Cuentas todavía no cargadas (o el endpoint falló) ⇒ mapa vacío ⇒ TODO cae en
      "moneda desconocida". Eso es lo correcto: sin las cuentas no sabemos la moneda, y el
      consumidor degrada a "no se puede determinar" en vez de asumir pesos. */
   const currencies = currencyByBankAccount(accounts.data?.items ?? []);
-  return { count, ...groupUnclassifiedInflowByCurrency(items, currencies), isLoading };
+  return {
+    count,
+    hasUnseenMovements: hasUnseenMovements || count > seen,
+    ...groupUnclassifiedInflowByCurrency(items, currencies),
+    isLoading,
+  };
 }
 
 /** `PATCH /api/bank-movements/{id}/classify` — clasifica/reclasifica.

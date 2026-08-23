@@ -242,6 +242,7 @@ export interface SinClasificarInput {
   count: number;
   inflowByCurrency: { currency: string; inflow: number; count: number }[];
   unknownInflowCount: number;
+  hasUnseenMovements?: boolean;
 }
 
 /** Entradas sin clasificar EN PESOS (solo las de cuentas CLP). Nunca mezcla monedas. */
@@ -333,17 +334,24 @@ export function completitudFlujo(
   const clp = entradasSinClasificarCLP(sc);
   const hayFxConocida = sc.inflowByCurrency.some((c) => c.currency !== "CLP" && c.inflow > 0);
   const monedaDesconocida = sc.unknownInflowCount > 0;
+  const hayMovimientosNoVistos = sc.hasUnseenMovements === true;
   const baseEntra = Number.isFinite(entra) ? Math.max(entra, 0) : 0;
   const hayEntradasPendientes = clp > 0 || hayFxConocida || monedaDesconocida;
 
   /* `E = 0` con cualquier entrada pendiente: `r = U/(0+U) = 1 > umbral` sea cual sea la tasa, e
      incluso sin saber la moneda. Es el caso MÁS informativo (el tenant que no clasificó nada) y
      antes se regalaba a `indeterminado` por no distinguirlo del resto. */
-  if (baseEntra === 0) return hayEntradasPendientes ? "incompleto" : "completo";
+  if (baseEntra === 0) {
+    if (hayEntradasPendientes) return "incompleto";
+    return hayMovimientosNoVistos ? "indeterminado" : "completo";
+  }
 
   // Cota INFERIOR (`U_fx = 0`): si ya con lo CLP se pasa el umbral, se pasa a cualquier tasa.
   const totalMin = baseEntra + clp;
   if (clp / totalMin > UMBRAL_SIN_CLASIFICAR) return "incompleto";
+
+  // Si quedó backlog fuera de la página, no hay cota superior cerrada para afirmar `completo`.
+  if (hayMovimientosNoVistos) return "indeterminado";
 
   // Sin nada extranjero ni desconocido, la cota inferior es el ratio real: veredicto cerrado.
   if (!hayFxConocida && !monedaDesconocida) return "completo";
