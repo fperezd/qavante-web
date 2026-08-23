@@ -1,5 +1,12 @@
 # Roadmap a Fase 1 — gap análisis (FE)
 
+> **SUPERADO — 2026-08-23.** El BO decidió que el rediseño de UI (`docs/design/2026-08-23-rediseno-ui/`)
+> **reemplaza** las pantallas C0-C9 de este roadmap, incluidas las ya live en prod bajo flag
+> (Inicio Ejecutivo/`dashboardSummary`, Cobrar/Pagar de gestión, Resultado Operacional). El Documento
+> Maestro v2.6.4 y su Anexo E de rutas quedan superados por la nueva especificación. Este documento se
+> conserva solo como referencia histórica de qué contratos de backend ya existían al momento del corte
+> (útil para no re-derivar trabajo ya hecho en Fase 2 del rediseño).
+
 > **CC-WEB → Fernando. Actualizado 2026-06-02** (original 2026-06-01). Cruce del Documento Maestro v2.6.4 (Anexo E rutas + Sec 11 sprints C0-C9 + Sec 7 pantallas + Sec 13 DoD) contra lo **realmente construido** en `qavante-web`. Es el "camino al término" priorizado.
 
 ## TL;DR (la verdad sin maquillar)

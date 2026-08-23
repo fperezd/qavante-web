@@ -1,0 +1,728 @@
+<meta charset="utf-8">
+<title>Qavante UI</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Figtree:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0C111F;color:#E9EDF6;font-family:'Figtree',system-ui,sans-serif;line-height:1.5;font-size:16px;padding:52px 20px 90px}
+.intro{max-width:960px;margin:0 auto 40px}
+.intro .eyebrow{font-family:'Spline Sans Mono',monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#8FA3FF;font-weight:600;display:block;margin-bottom:14px}
+.intro h1{font-family:'Fraunces',serif;font-size:clamp(30px,4.4vw,44px);font-weight:500;line-height:1.1;color:#fff;letter-spacing:-.01em;text-wrap:balance}
+.intro p{color:#A8B2CC;margin-top:14px;max-width:74ch;font-size:16px}
+.slabel{max-width:960px;margin:58px auto 6px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.slabel h2{font-family:'Fraunces',serif;font-size:22px;color:#fff;font-weight:500}
+.slabel span{font-family:'Spline Sans Mono',monospace;font-size:12px;color:#8FA3FF;letter-spacing:.1em;text-transform:uppercase}
+.scap{max-width:960px;margin:0 auto 14px;color:#8892AC;font-size:13.5px}
+.device{max-width:960px;margin:0 auto;background:#F5F6F9;border-radius:18px;overflow:hidden;box-shadow:0 28px 70px rgba(0,0,0,.5);border:1px solid #2A3350}
+
+/* ===== APP ===== */
+.app{background:#F5F6F9;color:#10182B;padding-bottom:40px}
+.chrome{display:flex;align-items:center;gap:12px;padding:15px 34px;border-bottom:1px solid #E6E9F0;background:#F5F6F9}
+.chrome .logo{font-family:'Fraunces',serif;font-weight:600;font-size:17px;color:#10182B;margin-right:8px}
+.chrome .nav{display:flex;gap:17px;font-size:13px;color:#6B7488;font-weight:500;flex-wrap:wrap}
+.chrome .nav b{color:#10182B;font-weight:700;border-bottom:2px solid #10182B;padding-bottom:2px}
+.chrome .right{margin-left:auto;display:flex;align-items:center;gap:13px;font-size:12px;color:#6B7488}
+.chrome .badge{background:#EDEFF4;border-radius:99px;padding:4px 11px;font-weight:700;color:#10182B;font-size:11.5px}
+.chrome .badge.warn{background:#F7EFD9;color:#7A5A12}
+.chrome .avatar{width:29px;height:29px;border-radius:50%;background:#10182B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.canvas{max-width:760px;margin:0 auto;padding:36px 24px 0}
+.crumb{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#9AA3B5;margin-bottom:10px}
+h1.page{font-family:'Fraunces',serif;font-size:29px;font-weight:500;color:#10182B;letter-spacing:-.01em;line-height:1.15;text-wrap:balance}
+h1.page .ok{color:#1B8A52}h1.page .bad{color:#B4231B}
+.psub{color:#6B7488;font-size:14.5px;margin-top:8px;max-width:62ch}
+.hr{height:1px;background:#E6E9F0;margin:26px 0 22px}
+.seclbl{font-family:'Spline Sans Mono',monospace;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#9AA3B5;margin:0 0 13px;display:flex;align-items:baseline;gap:10px}
+.seclbl .r{margin-left:auto;color:#2A4BE0;font-weight:600;letter-spacing:0;text-transform:none;font-family:'Figtree';font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+
+/* kpis */
+.kpi3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0 4px}
+.kpi3.k4{grid-template-columns:repeat(4,1fr)}
+.kpi3.k5{grid-template-columns:repeat(5,1fr)}
+.kp{background:#fff;border:1px solid #E6E9F0;border-radius:14px;padding:14px 17px}
+.kp .k{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#9AA3B5;display:flex;gap:8px;align-items:baseline}
+.kp .k .per{margin-left:auto;font-family:'Figtree';text-transform:none;letter-spacing:0;font-size:11px;color:#6B7488;background:#F5F6F9;border-radius:6px;padding:1px 7px}
+.kp .v{font-family:'Fraunces',serif;font-size:21px;font-weight:500;margin-top:6px;color:#10182B}
+.kp .v.ok{color:#1B8A52}.kp .v.bad{color:#B4231B}
+.kp .d{font-size:11.5px;color:#9AA3B5;margin-top:2px}
+@media(max-width:720px){.kpi3,.kpi3.k4,.kpi3.k5{grid-template-columns:1fr 1fr}}
+
+/* banner suave */
+.band{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #E6E9F0;border-left:3px solid #2A4BE0;border-radius:12px;padding:12px 16px;margin:14px 0;font-size:13.5px;color:#3D4660;flex-wrap:wrap}
+.band b{color:#10182B}
+.band .act{margin-left:auto;font-size:12.5px;font-weight:700;color:#fff;background:#10182B;border-radius:99px;padding:8px 16px;white-space:nowrap}
+.band.warn{border-left-color:#D79A2B}
+.band .ghost{font-size:12.5px;font-weight:700;color:#2A4BE0}
+
+/* chips filtro */
+.fchips{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 12px;align-items:center}
+.fchips .search{background:#fff;border:1px solid #E6E9F0;border-radius:9px;padding:8px 13px;font-size:12.5px;color:#9AA3B5;min-width:210px}
+.fchips span.f{font-size:12px;font-weight:600;color:#3D4660;background:#fff;border:1px solid #E6E9F0;border-radius:99px;padding:7px 13px}
+.fchips span.f.on{background:#10182B;color:#fff;border-color:#10182B}
+
+/* tabla */
+.tw{background:#fff;border:1px solid #E6E9F0;border-radius:14px;overflow:hidden;margin-bottom:8px}
+.tw .twf{display:flex;gap:16px;align-items:center;padding:11px 18px;border-top:1px solid #EDEFF4;font-size:12.5px;color:#9AA3B5}
+.tw .twf a{color:#2A4BE0;font-weight:700}
+table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+.t th{font-family:'Spline Sans Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#9AA3B5;text-align:left;padding:11px 18px;border-bottom:1px solid #E6E9F0;background:#FAFBFD;white-space:nowrap;font-weight:600}
+.t th.r{text-align:right}
+.t td{padding:12px 18px;border-bottom:1px solid #F0F2F6;color:#3D4660;vertical-align:baseline}
+.t tr:last-child td{border-bottom:none}
+.t td.c1{color:#10182B;font-weight:600}
+.t td .sub{display:block;font-size:11.5px;color:#9AA3B5;font-weight:400;margin-top:1px}
+.t td.amt{text-align:right;font-weight:600;color:#10182B;font-variant-numeric:tabular-nums;white-space:nowrap}
+.t td.amt.neg{color:#B4231B}.t td.amt.pos{color:#1B8A52}
+.t td.act{text-align:right;white-space:nowrap}
+.t a{color:#2A4BE0;font-weight:600;font-size:12.5px;text-decoration:none}
+.t tr.exp td{background:#FAFBFE;font-size:12.5px}
+.t tr.exp td.c1{padding-left:36px;color:#2A4BE0;font-weight:500}
+.pillp{font-size:10.5px;font-weight:700;border-radius:99px;padding:2px 9px;letter-spacing:.03em;white-space:nowrap}
+.pp-ok{background:#E3F2E9;color:#1B8A52}.pp-warn{background:#F7EFD9;color:#7A5A12}.pp-bad{background:#F8E7E5;color:#B4231B}.pp-mut{background:#EDEFF4;color:#6B7488}.pp-blue{background:#E8EDFF;color:#2A4BE0}
+
+/* barras caja */
+.bars{display:flex;align-items:flex-end;gap:16px;height:110px;margin:18px 8px 4px}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;justify-content:flex-end;height:100%}
+.bar i{display:block;width:100%;border-radius:7px 7px 3px 3px;max-width:64px}
+.bar span{font-family:'Spline Sans Mono',monospace;font-size:10px;color:#9AA3B5}
+.bar .val{font-size:11px;font-weight:700;color:#3D4660;font-family:'Figtree'}
+
+/* decisión / bandeja */
+.dec{background:#fff;border:1px solid #E6E9F0;border-radius:16px;padding:20px 24px;margin-bottom:12px;box-shadow:0 2px 10px rgba(16,24,43,.04)}
+.dec .why{font-size:12px;color:#9AA3B5;margin-bottom:7px}
+.dec h3{font-family:'Fraunces',serif;font-size:18.5px;font-weight:500;color:#10182B;line-height:1.3;text-wrap:balance}
+.dec .impact{margin-top:9px;font-size:14px;color:#3D4660}
+.dec .impact b{color:#10182B}
+.dec .impact .delta{color:#1B8A52;font-weight:700}
+.acts{display:flex;align-items:center;gap:16px;margin-top:15px;flex-wrap:wrap}
+.btnp{background:#10182B;color:#fff;font-size:13.5px;font-weight:700;border-radius:99px;padding:10px 20px}
+.btns{color:#2A4BE0;font-size:13.5px;font-weight:700}
+.btnq{color:#9AA3B5;font-size:13px;margin-left:auto}
+.kbd{font-family:'Spline Sans Mono',monospace;font-size:10.5px;background:rgba(255,255,255,.16);border-radius:5px;padding:1px 6px;margin-left:7px}
+.twoside{display:grid;grid-template-columns:1fr 40px 1fr;align-items:stretch;margin:14px 0 12px}
+.sbox{border:1px solid #E6E9F0;border-radius:12px;padding:13px 15px}
+.sbox.doc{border-color:#C9D6FF;background:#F8FAFF}
+.sbox .lbl{font-family:'Spline Sans Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:#9AA3B5;margin-bottom:6px}
+.sbox .big{font-family:'Fraunces',serif;font-size:18px;font-weight:500;color:#10182B}
+.sbox .sub{font-size:12px;color:#6B7488;margin-top:2px}
+.linker{display:flex;align-items:center;justify-content:center;color:#2A4BE0;font-size:17px}
+.why-strip{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:#155B36;background:#E9F5EE;border:1px solid #CBE7D6;border-radius:10px;padding:9px 13px;margin-bottom:10px}
+.why-strip b{color:#0C3F24}
+.why-strip span{background:#fff;border:1px solid #CBE7D6;border-radius:99px;padding:2px 10px;font-weight:600}
+.progress{display:flex;align-items:center;gap:12px;margin:16px 0 16px}
+.pbar{flex:1;height:7px;background:#E6E9F0;border-radius:99px;overflow:hidden}
+.pbar i{display:block;height:100%;background:#10182B;border-radius:99px}
+.progress .ptxt{font-size:12.5px;color:#3D4660;font-weight:600;white-space:nowrap}
+.mode{display:flex;gap:6px}
+.mode span{font-size:12px;font-weight:700;padding:7px 14px;border-radius:99px;background:#fff;border:1px solid #E6E9F0;color:#3D4660}
+.mode span.on{background:#10182B;color:#fff;border-color:#10182B}
+
+/* bitácora / listas simples */
+.done{display:flex;gap:13px;padding:12px 2px;border-bottom:1px solid #EDEFF4;align-items:baseline;font-size:14px;color:#3D4660}
+.done:last-child{border-bottom:none}
+.done .tick{color:#1B8A52;flex-shrink:0;font-size:13px}
+.done b{color:#10182B}
+.done .ver{margin-left:auto;font-size:12px;color:#2A4BE0;font-weight:600;flex-shrink:0}
+.pulse{display:flex;border-top:1px solid #E6E9F0;margin-top:24px;padding-top:18px}
+.pu{flex:1;padding:0 16px;border-right:1px solid #E6E9F0}
+.pu:first-child{padding-left:2px}.pu:last-child{border-right:none}
+.pu .k{font-family:'Spline Sans Mono',monospace;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:#9AA3B5}
+.pu .v{font-family:'Fraunces',serif;font-size:19px;font-weight:500;margin-top:4px;color:#10182B}
+.pu .v.ok{color:#1B8A52}.pu .v.bad{color:#B4231B}
+.pu .d{font-size:11px;color:#9AA3B5;margin-top:1px}
+.foot{max-width:960px;margin:52px auto 0;font-family:'Spline Sans Mono',monospace;font-size:12px;color:#6C769C;border-top:1px solid #26304C;padding-top:20px}
+</style>
+
+<div class="intro">
+  <span class="eyebrow">Qavante · Diseño de producto — UI completa</span>
+  <h1>Qavante completo, en su lenguaje definitivo.</h1>
+  <p>El producto entero — Hoy, Caja, Banco, Cobrar, Pagar, Impuestos, Bandeja, Gestión con sus seis análisis, Presupuesto, Alertas, Conexiones, Administración, y las capacidades del deck que aún no existían en pantalla: Financiamiento con originación, el Simulador de decisiones, el Onboarding y Remuneraciones — dibujado como se construye: densidad completa, datos reales, patrones probados (tríadas KPI, tablas con estados, aging, filtros con conteo) y el tono del Piloto: porcelana, dos voces tipográficas, una pregunta por pantalla, rojo solo donde se puede actuar.</p>
+</div>
+
+<!-- 01 HOY -->
+<div class="slabel"><span>01</span><h2>Hoy — el parte del día</h2></div>
+<p class="scap">La pantalla de entrada. Estado en una frase, decisiones preparadas, lo que el piloto hizo solo, y los cuatro números vivos.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><b>Hoy</b><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Domingo 23 de agosto · Tooxs Digital · datos del banco 00:12 ✓</div>
+    <h1 class="page">Buenos días, Fernando. La empresa está <span class="ok">sana</span>, y hay una sola cosa que necesita tu OK.</h1>
+    <p class="psub">Julio cerró ganando $16,8M (margen 42%, tu mejor mes en cinco). La caja está apretada los próximos 14 días — abajo está la decisión que lo resuelve.</p>
+    <div class="hr"></div>
+    <div class="seclbl">Esperando tu visto bueno · 1</div>
+    <div class="dec">
+      <div class="why">Porque tu caja quedaría corta el 24 de agosto</div>
+      <h3>Postergar 6 pagos negociables por 30 días y enviar 3 recordatorios de cobro</h3>
+      <div class="impact">La brecha pasa de <b class="num">−$1.121.250</b> a <b class="num">−$116.630</b> <span class="delta">(−90%)</span> sin tocar sueldos, impuestos ni proveedores críticos.</div>
+      <div class="acts"><span class="btnp">Aprobar y ejecutar<span class="kbd">Enter</span></span><span class="btns">Revisar los 9 detalles</span><span class="btnq">Decidir mañana</span></div>
+    </div>
+    <div class="hr"></div>
+    <div class="seclbl">Mientras no estabas, Qavante <span class="r">Deshacer cualquiera · 7 días</span></div>
+    <div class="done"><span class="tick">✓</span><span>Clasificó <b>14 movimientos</b> del banco (los 14 con regla, 100% de certeza)</span><span class="ver">Ver</span></div>
+    <div class="done"><span class="tick">✓</span><span>Concilió <b>9 pagos</b> con sus facturas — dejó 2 dudosos en tu bandeja</span><span class="ver">Ver</span></div>
+    <div class="done"><span class="tick">✓</span><span>Detectó el <b>abono de Tepille ($6,0M)</b>, lo aplicó a la factura 450 y le envió confirmación</span><span class="ver">Ver</span></div>
+    <div class="done"><span class="tick" style="color:#B4231B">◆</span><span>Separó un <b>posible cobro duplicado de Entel ($203.607)</b> para que lo mires</span><span class="ver" style="font-weight:700">Revisar</span></div>
+    <div class="pulse">
+      <div class="pu"><div class="k">Caja hoy</div><div class="v bad num">−$1,1M</div><div class="d">vuelve a azul el 25 ago</div></div>
+      <div class="pu"><div class="k">Resultado jul</div><div class="v ok num">+$16,8M</div><div class="d">margen 42%</div></div>
+      <div class="pu"><div class="k">Te deben</div><div class="v num">$27,8M</div><div class="d">3 clientes son el 67%</div></div>
+      <div class="pu"><div class="k">Value Ledger</div><div class="v ok num">+$9,4M</div><div class="d">generados este año</div></div>
+    </div>
+  </div>
+</div></div>
+
+<!-- 02 CAJA -->
+<div class="slabel"><span>02</span><h2>Caja</h2></div>
+<p class="scap">¿Me alcanza? Tríada con frescura del dato, proyección de 4 semanas, y los pagos que causan el punto más bajo con su acción.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><b>Caja</b><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Caja</div>
+    <h1 class="page">¿Me alcanza la caja?</h1>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Hoy <span class="per">BICE · 00:12 ✓</span></div><div class="v bad num">−$1.121.250</div><div class="d">mismo número en Banco y Hoy</div></div>
+      <div class="kp"><div class="k">Entra · 14 días</div><div class="v ok num">+$14.498.964</div><div class="d">cobros con fecha + recurrente</div></div>
+      <div class="kp"><div class="k">Sale · 14 días</div><div class="v num">−$35.532.396</div><div class="d">$1,0M postergable</div></div>
+    </div>
+    <div class="band"><b>Tu proyección está incompleta:</b> 3 excepciones en la bandeja (~$2,1M en entradas) aún no cuentan.<span class="act">Resolver · ~4 min</span></div>
+    <div class="seclbl" style="margin-top:20px">Próximas 4 semanas <span class="r">¿Cómo se calcula? ⓘ</span></div>
+    <div class="bars">
+      <div class="bar"><span class="val num">−$1,1M</span><i style="height:13%;background:#B4231B"></i><span>hoy</span></div>
+      <div class="bar"><span class="val num">+$3,4M</span><i style="height:36%;background:#10182B"></i><span>23–29</span></div>
+      <div class="bar"><span class="val num">−$9,6M</span><i style="height:66%;background:#D8B9B5"></i><span>30–5</span></div>
+      <div class="bar"><span class="val num">+$4,0M</span><i style="height:40%;background:#10182B"></i><span>6–12</span></div>
+      <div class="bar"><span class="val num">−$4,1M</span><i style="height:39%;background:#D8B9B5"></i><span>13–19</span></div>
+    </div>
+    <div class="seclbl" style="margin-top:22px">Qué te lleva al punto más bajo · 24 ago <span class="r">Ver los 99 pagos</span></div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1">Tradolarpeso<span class="sub">vence 24 ago · pago</span></td><td><span class="pillp pp-warn">Negociable</span></td><td class="amt num">$674.473</td><td class="act"><a>Postergar ▾</a></td></tr>
+      <tr><td class="c1">Soc. de Profesionales Vásquez y Cía.<span class="sub">vence 24 ago</span></td><td><span class="pillp pp-warn">Negociable</span></td><td class="amt num">$483.766</td><td class="act"><a>Postergar ▾</a></td></tr>
+      <tr><td class="c1">Chipax SpA<span class="sub">vence 24 ago · servicio</span></td><td><span class="pillp pp-mut">Servicio</span></td><td class="amt num">$174.979</td><td class="act"><a>Pagar</a></td></tr>
+      <tr><td class="c1">Inmobiliaria Vista Kennedy<span class="sub">vence 24 ago</span></td><td><span class="pillp pp-warn">Negociable</span></td><td class="amt num">$88.619</td><td class="act"><a>Postergar ▾</a></td></tr>
+    </table><div class="twf">La proyección no cuenta los $39,6M por cobrar vencidos o sin fecha · <a>ver qué incluye</a></div></div>
+  </div>
+</div></div>
+
+<!-- 03 BANCO -->
+<div class="slabel"><span>03</span><h2>Banco</h2></div>
+<p class="scap">Cuentas con saldo, estado de conexión y frescura juntos; movimientos con su ciclo de vida completo.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><b>Banco</b><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Banco</div>
+    <h1 class="page">Tus cuentas y tarjetas</h1>
+    <div class="seclbl" style="margin-top:18px">Cuentas <span class="r">Conectar otro banco</span></div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1">BICE · Cuenta Corriente CLP ···c717<span class="sub">actualizada hoy 00:12 · 3 movimientos por conciliar</span></td><td><span class="pillp pp-ok">Conectada ✓</span></td><td class="amt neg num">−$1.121.250</td><td class="act"><a>cartola</a></td></tr>
+      <tr><td class="c1">BICE · Cuenta Corriente USD<span class="sub">actualizada hoy 00:12</span></td><td><span class="pillp pp-ok">Conectada ✓</span></td><td class="amt num">US$1.240</td><td class="act"><a>cartola</a></td></tr>
+      <tr><td class="c1">BICE · Tarjeta de Crédito CLP<span class="sub">trayendo la cartola de hoy… listo en ~30 s</span></td><td><span class="pillp pp-mut">Actualizando</span></td><td class="amt">—</td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1">BICE · Tarjeta de Crédito USD<span class="sub">actualizada hoy 00:12</span></td><td><span class="pillp pp-ok">Conectada ✓</span></td><td class="amt num">−US$184</td><td class="act"><a>ver</a></td></tr>
+    </table></div>
+    <div class="fchips" style="margin-top:22px"><span class="search">🔍 Buscar por glosa, RUT o monto…</span><span class="f on">Todos</span><span class="f">Abonos · 57</span><span class="f">Cargos · 645</span><span class="f">Por conciliar · 3</span></div>
+    <div class="tw"><table class="t">
+      <tr><th>Movimiento</th><th>Estado</th><th class="r">Monto</th><th></th></tr>
+      <tr><td class="c1">Abono · Tepille SpA<span class="sub">21 ago · CC CLP · aplicado a factura 450</span></td><td><span class="pillp pp-ok">Conciliado ✓</span></td><td class="amt pos num">+$6.000.000</td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1">Cargo · pago SII F-29<span class="sub">20 ago · CC CLP · Impuestos</span></td><td><span class="pillp pp-ok">Clasificado ✓</span></td><td class="amt num">−$7.450.761</td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1">Transf. · Dattatec.com<span class="sub">20 ago · CC CLP · hosting</span></td><td><span class="pillp pp-warn">Por clasificar</span></td><td class="amt num">−$66.222</td><td class="act"><a style="font-weight:700">Clasificar</a></td></tr>
+      <tr><td class="c1">Abono · Fernando Pérez<span class="sub">21 ago · CC CLP · aporte de socio</span></td><td><span class="pillp pp-ok">Clasificado ✓</span></td><td class="amt pos num">+$120.000</td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1">Cargo · nómina en línea<span class="sub">19 ago · CC CLP · remuneraciones jul</span></td><td><span class="pillp pp-ok">Conciliado ✓</span></td><td class="amt num">−$400.000</td><td class="act"><a>ver</a></td></tr>
+    </table><div class="twf">702 movimientos · <a>Exportar</a> · página 1 de 15 <span style="margin-left:auto"><a>‹</a> &nbsp;1 · 2 · 3&nbsp; <a>›</a></span></div></div>
+  </div>
+</div></div>
+
+<!-- 04 COBRAR -->
+<div class="slabel"><span>04</span><h2>Cobrar</h2></div>
+<p class="scap">Aging completo como tarjetas, concentración convertida en acción, y la cartera por cliente con cobro a un clic.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><b>Cobrar</b><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Cobrar · gestionaste a los 15 clientes hace 2 días ✓</div>
+    <h1 class="page">¿Quién me debe?</h1>
+    <div class="kpi3 k5">
+      <div class="kp"><div class="k">Vigente</div><div class="v num" style="font-size:17px">$14,8M</div><div class="d">35%</div></div>
+      <div class="kp"><div class="k">1–30 d</div><div class="v num" style="font-size:17px">$9,4M</div><div class="d">22%</div></div>
+      <div class="kp"><div class="k">31–60 d</div><div class="v num" style="font-size:17px">$8,9M</div><div class="d">21%</div></div>
+      <div class="kp"><div class="k">+61 d</div><div class="v bad num" style="font-size:17px">$9,4M</div><div class="d">22%</div></div>
+      <div class="kp"><div class="k">Vencido · bruto ⓘ</div><div class="v bad num" style="font-size:17px">$27,8M</div><div class="d">65% del total</div></div>
+    </div>
+    <div class="band"><b>3 clientes concentran $18,5M del vencido.</b> Un recordatorio a cada uno cubre el 67% de tu deuda.<span class="act">Enviar a los 3</span></div>
+    <div class="fchips"><span class="search">🔍 Buscar cliente o RUT…</span><span class="f on">Prioridad · 15</span><span class="f">Vencido · 12</span><span class="f">+60 días · 5</span><span class="f">Al día · 3</span></div>
+    <div class="tw"><table class="t">
+      <tr><th>Cliente</th><th>Antigüedad</th><th class="r">Saldo</th><th></th></tr>
+      <tr><td class="c1">Diveimport S.A.<span class="sub">vencido $3,3M hace 73 días · gestionado 21 ago · 25,5% del total</span></td><td><span class="pillp pp-bad">73 días</span></td><td class="amt num">$11.582.539</td><td class="act"><a>WhatsApp</a> · <a>correo</a> · <a style="font-weight:700">Recordatorio</a></td></tr>
+      <tr><td class="c1">Comercial Kaufmann S.A.<span class="sub">vencido hace 34 días · 2° aviso listo</span></td><td><span class="pillp pp-warn">34 días</span></td><td class="amt num">$4.322.373</td><td class="act"><a>WhatsApp</a> · <a>correo</a> · <a style="font-weight:700">Recordatorio</a></td></tr>
+      <tr><td class="c1">Empresa de Correos de Chile<span class="sub">vencido hace 21 días · 10,3% del total</span></td><td><span class="pillp pp-warn">21 días</span></td><td class="amt num">$4.672.594</td><td class="act"><a>WhatsApp</a> · <a>correo</a> · <a style="font-weight:700">Recordatorio</a></td></tr>
+      <tr><td class="c1">GPS7000<span class="sub">vencido hace 80 días · sin gestión hace 30</span></td><td><span class="pillp pp-bad">80 días</span></td><td class="amt num">$1.792.441</td><td class="act"><a>WhatsApp</a> · <a>correo</a> · <a style="font-weight:700">Recordatorio</a></td></tr>
+      <tr><td class="c1">Tepille SpA<span class="sub">abonó $6,0M el 21 ago · saldo factura 450</span></td><td><span class="pillp pp-ok">Pagando ✓</span></td><td class="amt num">$1.050.041</td><td class="act"><a>estado de pago</a></td></tr>
+    </table><div class="twf">15 clientes con saldo · <a>Exportar</a> · total por cobrar (bruto) $42.579.467 · <a>¿por qué “bruto”? ⓘ</a></div></div>
+  </div>
+</div></div>
+
+<!-- 05 PAGAR -->
+<div class="slabel"><span>05</span><h2>Pagar</h2></div>
+<p class="scap">Tríada con el crítico vs. caja, filtros con conteo, y la tabla completa. La ejecución masiva vive en el memo, no aquí.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><b>Pagar</b><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Pagar</div>
+    <h1 class="page">¿A quién le pago, y qué es crítico?</h1>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Vencido</div><div class="v bad num">$23.418.164</div><div class="d">99 pagos · el más antiguo, 224 días</div></div>
+      <div class="kp"><div class="k">Por pagar <span class="per">14 días ▾</span></div><div class="v num">$13.118.852</div><div class="d">incluye sueldos, Previred y F-29</div></div>
+      <div class="kp"><div class="k">Crítico vs. caja</div><div class="v num">$35.532.396</div><div class="d">brecha $1,1M tras postergables</div></div>
+    </div>
+    <div class="band"><b>$1.004.620 de esta deuda es postergable.</b> El plan que lo resuelve está listo en Hoy.<span class="act">Ver la decisión</span></div>
+    <div class="fchips"><span class="search">🔍 Proveedor, folio o RUT…</span><span class="f on">Todos · 102</span><span class="f">Vencidos · 99</span><span class="f">Críticos</span><span class="f">Postergables · 6</span><span class="f">Impuestos</span><span class="f">Remuneraciones</span></div>
+    <div class="tw"><table class="t">
+      <tr><th>Proveedor</th><th>Vence</th><th>Tipo</th><th class="r">Monto</th><th></th></tr>
+      <tr><td class="c1">Soc. de Profesionales Vásquez, González y Cía.</td><td>30 may · <span style="color:#B4231B;font-weight:700">hace 85 d</span></td><td><span class="pillp pp-warn">Negociable</span></td><td class="amt num">$1.447.161</td><td class="act"><a>detalle ▾</a></td></tr>
+      <tr><td class="c1">Inmobiliaria Vista Kennedy SpA</td><td>3 mar · <span style="color:#B4231B;font-weight:700">hace 173 d</span></td><td><span class="pillp pp-warn">Negociable</span></td><td class="amt num">$7.078.882</td><td class="act"><a>detalle ▾</a></td></tr>
+      <tr><td class="c1">Chipax SpA</td><td>3 mar · <span style="color:#B4231B;font-weight:700">hace 173 d</span></td><td><span class="pillp pp-mut">Servicio</span></td><td class="amt num">$1.207.105</td><td class="act"><a>detalle ▾</a></td></tr>
+      <tr><td class="c1">Banco BICE</td><td>1 mar · <span style="color:#B4231B;font-weight:700">hace 175 d</span></td><td><span class="pillp pp-blue">Crédito</span></td><td class="amt num">$503.076</td><td class="act"><a>detalle ▾</a></td></tr>
+      <tr><td class="c1">MercadoLibre Chile Ltda.</td><td>31 may · <span style="color:#B4231B;font-weight:700">hace 84 d</span></td><td><span class="pillp pp-mut">Servicio</span></td><td class="amt num">$509.526</td><td class="act"><a>detalle ▾</a></td></tr>
+      <tr><td class="c1">Entel PCS Telecomunicaciones S.A.<span class="sub">posible duplicado — separado por el piloto</span></td><td>12 mar · <span style="color:#B4231B;font-weight:700">hace 164 d</span></td><td><span class="pillp pp-bad">Revisar</span></td><td class="amt num">$203.607</td><td class="act"><a style="font-weight:700">Revisar</a></td></tr>
+    </table><div class="twf">102 pagos · ordenados por urgencia · <a>Exportar</a> <span style="margin-left:auto"><a>‹</a> &nbsp;1 · 2 · 3 … 17&nbsp; <a>›</a></span></div></div>
+  </div>
+</div></div>
+
+<!-- 06 IMPUESTOS -->
+<div class="slabel"><span>06</span><h2>Impuestos</h2></div>
+<p class="scap">SII, Previred y TGR en un solo calendario, con cada obligación en su estado y conciliada contra el banco.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><b>Impuestos</b><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Impuestos</div>
+    <h1 class="page">Tus obligaciones, sin sorpresas</h1>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Próximo vencimiento</div><div class="v num" style="font-size:18px">Previred · 10 sep</div><div class="d num">$3.809.631 · programado</div></div>
+      <div class="kp"><div class="k">F-29 agosto <span class="per">estimado</span></div><div class="v num">~$6,9M</div><div class="d">según tus ventas del mes en curso</div></div>
+      <div class="kp"><div class="k">Deudas TGR</div><div class="v ok num">$0</div><div class="d">sin convenios vigentes</div></div>
+    </div>
+    <div class="seclbl" style="margin-top:20px">Calendario tributario <span class="r">Ver año completo</span></div>
+    <div class="tw"><table class="t">
+      <tr><th>Obligación</th><th>Estado</th><th class="r">Monto</th><th></th></tr>
+      <tr><td class="c1">F-29 · julio<span class="sub">pagado el 20 ago · conciliado con el cargo del banco ✓</span></td><td><span class="pillp pp-ok">Pagado ✓</span></td><td class="amt num">$7.450.761</td><td class="act"><a>comprobante</a></td></tr>
+      <tr><td class="c1">F-29 · agosto<span class="sub">se declara hasta el 20 sep · IVA débito ~$7,6M − crédito ~$0,7M</span></td><td><span class="pillp pp-warn">Por declarar</span></td><td class="amt num">~$6.900.000</td><td class="act"><a>ver estimación</a></td></tr>
+      <tr><td class="c1">Previred · agosto<span class="sub">8 personas · vence 10 sep · incluido en tu caja proyectada</span></td><td><span class="pillp pp-warn">Programado</span></td><td class="amt num">$3.809.631</td><td class="act"><a>ver nómina</a></td></tr>
+      <tr><td class="c1">PPM · agosto<span class="sub">dentro del F-29 · tasa 0,25%</span></td><td><span class="pillp pp-mut">Incluido</span></td><td class="amt num">~$99.863</td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1">TGR<span class="sub">sin deudas ni convenios · certificado disponible</span></td><td><span class="pillp pp-ok">Al día ✓</span></td><td class="amt num">$0</td><td class="act"><a>certificado</a></td></tr>
+    </table><div class="twf">Las obligaciones tributarias nunca se postergan desde Qavante — solo se pagan con tu firma · <a>regla del piloto</a></div></div>
+  </div>
+</div></div>
+
+<!-- 07 BANDEJA -->
+<div class="slabel"><span>07</span><h2>Bandeja de excepciones</h2></div>
+<p class="scap">Solo lo que el piloto no resolvió solo. Conciliar con evidencia de dos lados; clasificar en una decisión. Auto-avance y atajos.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge" style="background:#10182B;color:#fff">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Bandeja · lo que el piloto separó para ti</div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><h1 class="page" style="font-size:24px">Tres pendientes, ~4 minutos</h1><span class="mode" style="margin-left:auto"><span class="on">Conciliar · 2</span><span>Clasificar · 1</span></span></div>
+    <div class="progress"><div class="pbar"><i style="width:81%"></i></div><span class="ptxt">13 de 16 resueltos hoy · $14,5M ya contados en tu caja</span></div>
+    <div class="dec">
+      <div class="why">Conciliar 1 de 2 · el piloto no superó su umbral: el monto no calza exacto</div>
+      <h3 style="font-size:17px">Abono de Cía. Industrial El Volcán · ¿es esta factura?</h3>
+      <div class="twoside">
+        <div class="sbox"><div class="lbl">En el banco · 14 abr</div><div class="big num">+$1.033.076</div><div class="sub">Abono transferencia · Mirko González</div></div>
+        <div class="linker">⇄</div>
+        <div class="sbox doc"><div class="lbl">Factura candidata · DTE 33 · 451</div><div class="big num">$1.063.341</div><div class="sub">El Volcán S.A. · 19 ago · por cobrar</div></div>
+      </div>
+      <div class="why-strip"><b>Evidencia:</b><span>RUT del pagador ≠ RUT del cliente</span><span>diferencia −$30.265</span><span>fecha lejana</span> — por eso pregunta y no actúa.</div>
+      <div class="acts"><span class="btnp">Sí, conciliar<span class="kbd">Enter</span></span><span class="btns">No es esta · N</span><span class="btns">Buscar otra · B</span><span class="btnq">Saltar →</span></div>
+    </div>
+    <div class="dec">
+      <div class="why">Clasificar 1 de 1 · sin RUT en la glosa — sin evidencia no se sugiere</div>
+      <h3 style="font-size:17px">Cargo $381.375 · “Transf. a terceros vía Internet” · 21 ago</h3>
+      <div class="impact">Frecuentes en cargos de este monto: <b>Arriendo</b> · <b>Honorarios</b> · <b>Otra categoría…</b></div>
+      <div class="acts"><span class="btnp" style="padding:9px 18px">Clasificar como arriendo</span><span class="btns">Buscar categoría</span><span class="btnq">Marcar para el contador →</span></div>
+    </div>
+    <div class="band"><b>¿Siempre igual?</b> Tras clasificar, el piloto ofrece la regla en una línea: “Arriendo para este RUT, de ahora en adelante”.<span class="ghost">Así crece el 98% automático</span></div>
+  </div>
+</div></div>
+
+<!-- 08 GESTIÓN -->
+<div class="slabel"><span>08</span><h2>Gestión</h2></div>
+<p class="scap">La respuesta arriba, el respaldo abajo: insight del mes, pivote con drill-down al documento, export y definición visibles.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><b>Gestión</b><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Gestión</div>
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap"><h1 class="page">¿Gano o pierdo?</h1><span class="mode" style="margin-left:auto"><span class="on">Resultado</span><span>Márgenes</span><span>Tendencia</span><span>Clientes</span><span>Proveedores</span></span></div>
+    <p class="psub" style="font-size:15px;margin-top:12px">Julio cerró con <b style="color:#1B8A52" class="num">$16.779.336</b> de resultado (margen 42%) — $13,7M mejor que junio y tu mejor mes en cinco. Lo explican ventas +$12,9M y costos directos a la baja.</p>
+    <div class="tw" style="margin-top:16px"><table class="t">
+      <tr><th>Concepto</th><th class="r">May</th><th class="r">Jun</th><th class="r">Jul</th><th class="r">vs. jun</th></tr>
+      <tr><td class="c1">Ingresos</td><td class="amt num">30.958.134</td><td class="amt num">28.267.191</td><td class="amt num"><a>39.945.158</a></td><td class="amt pos">+41%</td></tr>
+      <tr><td class="c1" style="padding-left:32px">▾ Servicio mensual</td><td class="amt num">15.352.888</td><td class="amt num">6.853.953</td><td class="amt num"><a>14.616.879</a></td><td class="amt pos">+113%</td></tr>
+      <tr class="exp"><td class="c1">FAC 435 · Comercial Kaufmann</td><td></td><td></td><td class="amt num">8.408.839</td><td class="amt" style="color:#9AA3B5">20 jul</td></tr>
+      <tr class="exp"><td class="c1">FAC 434 · Tepille SpA</td><td></td><td></td><td class="amt num">4.628.591</td><td class="amt" style="color:#9AA3B5">20 jul</td></tr>
+      <tr><td class="c1" style="padding-left:32px">▸ Proyectos</td><td class="amt num">15.605.246</td><td class="amt num">21.413.238</td><td class="amt num"><a>25.328.279</a></td><td class="amt pos">+18%</td></tr>
+      <tr><td class="c1">Costos y gastos</td><td class="amt num">−8.825.658</td><td class="amt num">−9.469.080</td><td class="amt num"><a>−23.165.822</a></td><td class="amt neg">+145%</td></tr>
+      <tr><td class="c1" style="font-weight:700">Resultado operacional</td><td class="amt num">22.132.476</td><td class="amt num">18.798.111</td><td class="amt num" style="color:#1B8A52;font-weight:700">16.779.336</td><td class="amt">42%</td></tr>
+    </table><div class="twf"><a>⬇ Exportar xls</a> · devengado, sin IVA · no incluye 3 excepciones de la bandeja · <a>¿cómo se calcula? ⓘ</a></div></div>
+  </div>
+</div></div>
+
+<!-- 08B GESTION ANALITICA -->
+<div class="slabel"><span>08 · B</span><h2>Gestión — Márgenes, Tendencia y Comparativo</h2></div>
+<p class="scap">Los tres análisis del resultado como tabs de la misma pantalla, cada uno con su pregunta y su lectura en una frase.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><b>Gestión</b><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Gestión · Márgenes · julio 2026</div>
+    <h1 class="page">¿Cuánto te queda de cada peso que vendes?</h1>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Margen bruto ⓘ</div><div class="v ok num">$32.430.984 · 81,2%</div><div class="d">tras costo directo</div></div>
+      <div class="kp"><div class="k">Costo de ventas</div><div class="v num">$7.514.174 · 18,8%</div><div class="d">mano de obra directa</div></div>
+      <div class="kp"><div class="k">Margen neto ⓘ</div><div class="v ok num">$16.779.336 · 42,0%</div><div class="d">lo que queda al final</div></div>
+    </div>
+    <div class="band"><b>Tu margen viene mejorando: de −31,7% a 42,1% en 5 meses.</b> De cada $100 vendidos, te quedan $81 tras el costo directo y $42 al final.<span class="ghost">Ver mes a mes ↓</span></div>
+    <div class="hr"></div>
+    <div class="crumb">Gestión · Tendencia · feb–jul 2026</div>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Mejor mes</div><div class="v ok num" style="font-size:18px">jul · 42,1%</div></div>
+      <div class="kp"><div class="k">Peor mes</div><div class="v bad num" style="font-size:18px">feb · −31,7%</div></div>
+      <div class="kp"><div class="k">Promedio del período</div><div class="v num" style="font-size:18px">18,1%</div></div>
+    </div>
+    <div class="bars" style="height:90px">
+      <div class="bar"><span class="val">−32%</span><i style="height:30%;background:#D8B9B5"></i><span>feb</span></div>
+      <div class="bar"><span class="val">32%</span><i style="height:52%;background:#10182B"></i><span>mar</span></div>
+      <div class="bar"><span class="val">12%</span><i style="height:26%;background:#10182B"></i><span>abr</span></div>
+      <div class="bar"><span class="val">36%</span><i style="height:58%;background:#10182B"></i><span>may</span></div>
+      <div class="bar"><span class="val">18%</span><i style="height:34%;background:#10182B"></i><span>jun</span></div>
+      <div class="bar"><span class="val">42%</span><i style="height:66%;background:#1B8A52"></i><span>jul</span></div>
+    </div>
+    <div class="hr"></div>
+    <div class="crumb">Gestión · Comparativo · agosto 2026</div>
+    <div class="band warn"><b>Agosto va en curso (día 23):</b> se compara contra julio a la misma altura del mes, nunca contra el mes completo.<span class="ghost">Regla del comparativo</span></div>
+    <div class="tw"><table class="t">
+      <tr><th>Concepto</th><th class="r">Ago · al día 23</th><th class="r">Jul · al día 23</th><th class="r">Jul completo</th></tr>
+      <tr><td class="c1">Ingresos</td><td class="amt num">$34.932.877</td><td class="amt num">$31.240.115</td><td class="amt num" style="color:#9AA3B5">$39.945.158</td></tr>
+      <tr><td class="c1">Margen bruto</td><td class="amt num">$27.389.765</td><td class="amt num">$25.113.902</td><td class="amt num" style="color:#9AA3B5">$32.430.984</td></tr>
+      <tr><td class="c1">Resultado</td><td class="amt pos num">$15.172.641</td><td class="amt num">$13.014.227</td><td class="amt num" style="color:#9AA3B5">$16.779.336</td></tr>
+    </table><div class="twf">Ago viene <b style="color:#1B8A52">+12% sobre julio</b> a la misma altura · <a>¿cómo se compara? ⓘ</a></div></div>
+  </div>
+</div></div>
+
+<!-- 08C COSTOS -->
+<div class="slabel"><span>08 · C</span><h2>Gestión — Costos y gastos</h2></div>
+<p class="scap">Cuenta por cuenta, del total al documento, con la confianza del dato declarada.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><b>Gestión</b><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Gestión · Costos y gastos · julio 2026 ▾</div>
+    <h1 class="page">¿En qué se va la plata?</h1>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Costo directo</div><div class="v num">$7.514.174 · 18,8%</div><div class="d">de los ingresos</div></div>
+      <div class="kp"><div class="k">Gasto operacional</div><div class="v num">$15.424.859 · 38,6%</div><div class="d">de los ingresos</div></div>
+      <div class="kp"><div class="k">Confianza del dato ⓘ</div><div class="v num" style="font-size:18px">Media</div><div class="d">$203.293 aún sin clasificar</div></div>
+    </div>
+    <div class="tw" style="margin-top:16px"><table class="t">
+      <tr><th>Cuenta</th><th class="r">Jul 2026</th><th class="r">% ingresos</th><th></th></tr>
+      <tr><td class="c1">Remuneraciones administración</td><td class="amt num">−$11.968.052</td><td class="amt">30,0%</td><td class="act"><a>documentos</a></td></tr>
+      <tr><td class="c1">Mano de obra directa</td><td class="amt num">−$7.514.174</td><td class="amt">18,8%</td><td class="act"><a>documentos</a></td></tr>
+      <tr><td class="c1">Gastos legales y contables</td><td class="amt num">−$1.065.971</td><td class="amt">2,7%</td><td class="act"><a>documentos</a></td></tr>
+      <tr><td class="c1">Arriendos</td><td class="amt num">−$927.429</td><td class="amt">2,3%</td><td class="act"><a>documentos</a></td></tr>
+      <tr><td class="c1">Honorarios</td><td class="amt num">−$674.661</td><td class="amt">1,7%</td><td class="act"><a>documentos</a></td></tr>
+      <tr><td class="c1">Software y tecnología</td><td class="amt num">−$656.013</td><td class="amt">1,6%</td><td class="act"><a>documentos</a></td></tr>
+      <tr><td class="c1">Otros sin clasificar<span class="sub">bajan la confianza del dato — resuélvelos en la bandeja</span></td><td class="amt num">−$203.293</td><td class="amt">0,5%</td><td class="act"><a style="font-weight:700">Clasificar</a></td></tr>
+    </table><div class="twf"><a>⬇ Exportar xls</a> · 11 cuentas con movimiento · <a>ver todas</a></div></div>
+  </div>
+</div></div>
+
+<!-- 08D CICLO Y EQUILIBRIO -->
+<div class="slabel"><span>08 · D</span><h2>Gestión — Ciclo de caja y Punto de equilibrio</h2></div>
+<p class="scap">Las dos preguntas de caja estructural, con los datos que faltan explicados en vez de escondidos.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><b>Gestión</b><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Gestión · Ciclo de caja</div>
+    <h1 class="page">¿Por qué ganas pero no tienes plata?</h1>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Cobras en (DSO)</div><div class="v num">53 días</div><div class="d">desde que vendes hasta que llega</div></div>
+      <div class="kp"><div class="k">Pagas en (DPO)</div><div class="v num" style="color:#9AA3B5">sin dato ⓘ</div><div class="d">necesita tu costo de ventas</div></div>
+      <div class="kp"><div class="k">Ciclo completo</div><div class="v num" style="color:#9AA3B5">en preparación</div><div class="d">normal en empresas de servicios</div></div>
+    </div>
+    <div class="band"><b>Cobras en 53 días, pero el ciclo completo aún no se puede calcular:</b> falta el costo de ventas del período. El cobro sí se mide; el ciclo de pago, todavía no.<span class="ghost">Qué falta y por qué</span></div>
+    <div class="hr"></div>
+    <div class="crumb">Gestión · Punto de equilibrio · agosto 2026</div>
+    <h1 class="page" style="font-size:24px">¿Cuánto necesitas vender al mes para no perder?</h1>
+    <div class="band" style="border-left-color:#1B8A52"><b>Si gastas como el mes pasado, necesitas vender $23.142.326 al mes.</b> En julio vendiste $39,9M: cubriste el piso con $16,8M de holgura.<span class="ghost">Ver el cálculo</span></div>
+    <div class="tw"><table class="t">
+      <tr><th>Lo que gastaste en julio</th><th class="r">Monto</th><th></th></tr>
+      <tr><td class="c1">Remuneraciones administración</td><td class="amt num">$11.968.052</td><td class="act"><a>facturas</a></td></tr>
+      <tr><td class="c1">Mano de obra directa</td><td class="amt num">$7.514.174</td><td class="act"><a>facturas</a></td></tr>
+      <tr><td class="c1">Gastos legales y contables</td><td class="amt num">$1.065.971</td><td class="act"><a>facturas</a></td></tr>
+      <tr><td class="c1">Resto de cuentas (8)</td><td class="amt num">$2.594.129</td><td class="act"><a>ver todas</a></td></tr>
+    </table></div>
+  </div>
+</div></div>
+
+<!-- 08E 360 -->
+<div class="slabel"><span>08 · E</span><h2>Gestión — Clientes 360 y Proveedores 360</h2></div>
+<p class="scap">El perfil de cada contraparte: volumen, concentración, estacionalidad y documentos, con el mismo esqueleto para clientes y proveedores.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><b>Gestión</b><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Gestión · Proveedores 360</div>
+    <div class="fchips" style="margin-top:4px"><span class="search" style="min-width:320px">🔍 TD Synnex Chile Limitada · 77.915.170-0</span><span class="f">activo desde dic 2024</span></div>
+    <h1 class="page" style="font-size:24px">TD Synnex Chile Ltda.</h1>
+    <div class="kpi3 k4">
+      <div class="kp"><div class="k">Compras · 12 meses</div><div class="v num" style="font-size:17px">$16.160.395</div></div>
+      <div class="kp"><div class="k">% de tus compras</div><div class="v bad num" style="font-size:17px">53,6%</div><div class="d">concentración alta ⓘ</div></div>
+      <div class="kp"><div class="k">Documentos</div><div class="v num" style="font-size:17px">9</div><div class="d">mayor: $12,8M</div></div>
+      <div class="kp"><div class="k">Última actividad</div><div class="v num" style="font-size:17px">hace 1 mes</div></div>
+    </div>
+    <div class="band warn"><b>Dependes mucho de esta contraparte (53,6% de tus compras).</b> Su mejor mes es mayo — concentra ahí tu negociación de precios.<span class="act">Ver alternativas</span></div>
+    <div class="seclbl" style="margin-top:18px">Días promedio en pagar <span class="r">en preparación ⓘ</span></div>
+    <p class="psub" style="font-size:13px;margin-top:0">El comportamiento de pago real (cuánto tarda de verdad, no el plazo pactado) necesita cruzar cada factura con su pago en el banco. Cuando esté, aparece acá con su tendencia.</p>
+    <div class="seclbl" style="margin-top:18px">Últimos documentos</div>
+    <div class="tw"><table class="t">
+      <tr><th>Fecha</th><th>Folio</th><th>Tipo</th><th class="r">Monto</th></tr>
+      <tr><td>13 jul 2026</td><td class="num">3259</td><td><span class="pillp pp-mut">Nota de crédito</span></td><td class="amt num">−$1.714.965</td></tr>
+      <tr><td>23 jun 2026</td><td class="num">3243</td><td><span class="pillp pp-mut">Nota de crédito</span></td><td class="amt num">−$12.770.345</td></tr>
+      <tr><td>14 may 2026</td><td class="num">26786</td><td><span class="pillp pp-blue">Factura</span></td><td class="amt num">$12.770.345</td></tr>
+      <tr><td>27 abr 2026</td><td class="num">26519</td><td><span class="pillp pp-blue">Factura</span></td><td class="amt num">$8.860.726</td></tr>
+    </table><div class="twf">Clientes 360 usa este mismo perfil — con ventas, % de tus ventas y comportamiento de cobro · <a>ir a Clientes 360</a></div></div>
+  </div>
+</div></div>
+
+<!-- 09 PRESUPUESTO -->
+<div class="slabel"><span>09</span><h2>Presupuesto</h2></div>
+<p class="scap">Plan, real y desvío; cada desvío con los documentos que lo explican; la proyección de cierre como funcionalidad.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><b>Presupuesto</b></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Presupuesto · julio</div>
+    <h1 class="page">Plan vs. real</h1>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Planificaste</div><div class="v num">$26.121.735</div><div class="d">resultado presupuestado</div></div>
+      <div class="kp"><div class="k">Lograste</div><div class="v num">$16.779.336</div><div class="d">resultado real (devengado)</div></div>
+      <div class="kp"><div class="k">Desvío</div><div class="v bad num">−$9.342.399</div><div class="d">36% bajo el plan</div></div>
+    </div>
+    <div class="seclbl" style="margin-top:20px">Qué explica el desvío <span class="r">Exportar xls</span></div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1">Ingresos<span class="sub">plan $50,3M · real $39,9M — el 80% del desvío está en “Proyectos”</span></td><td><span class="pillp pp-bad">−21%</span></td><td class="amt neg num">−$10.316.230</td><td class="act"><a>ver facturas ▾</a></td></tr>
+      <tr><td class="c1">Gastos operacionales<span class="sub">plan $11,7M · real $15,7M — 3 gastos nuevos explican $2,9M</span></td><td><span class="pillp pp-warn">+34%</span></td><td class="amt num">+$3.997.347</td><td class="act"><a>ver gastos ▾</a></td></tr>
+      <tr><td class="c1">Costo directo<span class="sub">plan $12,5M · real $7,5M</span></td><td><span class="pillp pp-ok">a favor</span></td><td class="amt pos num">−$4.971.178</td><td class="act"><a>ver detalle ▾</a></td></tr>
+    </table></div>
+    <div class="band warn"><b>A este ritmo, agosto cierra ~$2,1M sobre el plan de gastos.</b> Te avisaré el día que la proyección cruce el límite — antes de que ocurra.<span class="act">Ajustar plan</span></div>
+  </div>
+</div></div>
+
+<!-- 10 ALERTAS -->
+<div class="slabel"><span>10</span><h2>Alertas</h2></div>
+<p class="scap">Tres niveles con reglas duras: “ahora” siempre trae su acción; lo informativo no suena. El badge del header solo cuenta lo crítico.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn" style="background:#F8E7E5;color:#B4231B">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Alertas</div>
+    <div style="display:flex;align-items:baseline;gap:14px"><h1 class="page">Lo que merece tu atención</h1><span class="seclbl" style="margin:0 0 0 auto"><span class="r">Elegir qué me alerta ⚙</span></span></div>
+    <div class="seclbl" style="margin-top:22px">Ahora · requiere acción</div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1">Tu certificado del SII venció<span class="sub">desde el 22 ago no llegan facturas nuevas — tus números se van quedando atrás</span></td><td><span class="pillp pp-bad">Ahora</span></td><td class="act"><a style="font-weight:700">Renovar certificado</a></td></tr>
+    </table></div>
+    <div class="seclbl" style="margin-top:18px">Esta semana</div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1">Brecha de caja a 14 días<span class="sub">se resuelve si apruebas el plan que está en Hoy</span></td><td><span class="pillp pp-warn">Semana</span></td><td class="act"><a style="font-weight:700">Ver el memo</a></td></tr>
+      <tr><td class="c1">5 facturas vencidas hace más de 60 días · $9,4M</td><td><span class="pillp pp-warn">Semana</span></td><td class="act"><a>Cobrar</a></td></tr>
+      <tr><td class="c1">Gastos operacionales 34% sobre el plan</td><td><span class="pillp pp-warn">Semana</span></td><td class="act"><a>Ver desvío</a></td></tr>
+    </table></div>
+    <div class="seclbl" style="margin-top:18px">Para saber · no suena</div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1" style="font-weight:500;color:#6B7488">Julio fue tu mejor margen en 5 meses (42%)</td><td><span class="pillp pp-mut">Info</span></td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1" style="font-weight:500;color:#6B7488">Kaufmann concentra el 38,7% de tus ventas</td><td><span class="pillp pp-mut">Info</span></td><td class="act"><a>Clientes 360</a></td></tr>
+    </table></div>
+  </div>
+</div></div>
+
+<!-- 11 CONEXIONES -->
+<div class="slabel"><span>11</span><h2>Conexiones</h2></div>
+<p class="scap">Cada fuente con su estado en lenguaje humano y su acción; el detalle técnico plegado para el contador o soporte.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Conexiones · de aquí sale cada número de Qavante</div>
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap"><h1 class="page">Tus fuentes de datos</h1><span class="pillp pp-warn" style="font-size:12px;padding:5px 13px">1 requiere tu acción</span></div>
+    <div class="tw" style="margin-top:18px"><table class="t">
+      <tr><td class="c1">🧾 SII · facturas de compra y venta<span class="sub"><b style="color:#7A5A12">Tu certificado digital venció.</b> Desde el 22 ago no llegan documentos nuevos.</span></td><td><span class="pillp pp-warn">Tu acción</span></td><td class="act"><a style="font-weight:700">Renovar certificado</a></td></tr>
+      <tr><td class="c1">🏦 Banco BICE · 4 productos<span class="sub">sincronizado hace 5 minutos</span></td><td><span class="pillp pp-ok">Al día ✓</span></td><td class="act"><a>ver cuentas</a></td></tr>
+      <tr><td class="c1">👥 Previred · remuneraciones<span class="sub">última liquidación: julio · 8 personas</span></td><td><span class="pillp pp-ok">Al día ✓</span></td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1">🏛 TGR · Tesorería<span class="sub">consultado hoy · sin deudas</span></td><td><span class="pillp pp-ok">Al día ✓</span></td><td class="act"><a>certificado</a></td></tr>
+      <tr><td class="c1">➕ 6 fuentes disponibles<span class="sub">otros bancos, Transbank, facturador electrónico…</span></td><td><span class="pillp pp-mut">Sin conectar</span></td><td class="act"><a>Conectar</a></td></tr>
+    </table><div class="twf">Detalle técnico (para tu contador o soporte) ▾ · upstream_error: Autenticación Portal001 fallida con certificado · 23-08 00:12</div></div>
+  </div>
+</div></div>
+
+<!-- 12 ADMINISTRACION -->
+<div class="slabel"><span>12</span><h2>Administración</h2></div>
+<p class="scap">El hub de configuración: equipo, fuentes, estructura y el asistente conectado. Cada tarjeta dice qué hace en una frase.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Administración</div>
+    <h1 class="page">¿Cómo configuro mi equipo y mis fuentes?</h1>
+    <div class="tw" style="margin-top:18px"><table class="t">
+      <tr><td class="c1">🏢 Empresas<span class="sub">las empresas de tu cuenta: cambia entre ellas o agrega una nueva</span></td><td><span class="pillp pp-mut">1 activa</span></td><td class="act"><a>abrir →</a></td></tr>
+      <tr><td class="c1">👥 Usuarios<span class="sub">invita, suspende y cambia roles: aprueba · opera · consulta</span></td><td><span class="pillp pp-mut">3 personas</span></td><td class="act"><a>abrir →</a></td></tr>
+      <tr><td class="c1">🔑 Credenciales<span class="sub">claves del SII, certificado digital y conexión con tu banco</span></td><td><span class="pillp pp-warn">1 vencida</span></td><td class="act"><a style="font-weight:700">Renovar →</a></td></tr>
+      <tr><td class="c1">🗂 Estructura de gestión<span class="sub">cómo se ordenan ingresos, costos, gastos, caja y obligaciones</span></td><td><span class="pillp pp-mut">54 cuentas</span></td><td class="act"><a>abrir →</a></td></tr>
+      <tr><td class="c1">🔭 Vistas de gestión<span class="sub">mira tu negocio por cliente, proyecto, local, sociedad o canal</span></td><td><span class="pillp pp-mut">8 vistas</span></td><td class="act"><a>abrir →</a></td></tr>
+      <tr><td class="c1">⚡ Reglas de clasificación<span class="sub">lo que el piloto aplica solo — y cómo lo aprendió</span></td><td><span class="pillp pp-ok">38 activas</span></td><td class="act"><a>abrir →</a></td></tr>
+      <tr><td class="c1">🧩 Plantillas por rubro · Monedas<span class="sub">estructura sugerida según tu negocio · moneda principal y de reportes</span></td><td></td><td class="act"><a>abrir →</a></td></tr>
+      <tr><td class="c1">🤖 Conectar un asistente (MCP)<span class="sub">Claude o ChatGPT leen tus datos con una API-key que tú controlas</span></td><td><span class="pillp pp-ok">1 conectado</span></td><td class="act"><a>abrir →</a></td></tr>
+    </table></div>
+  </div>
+</div></div>
+
+<!-- 12B REGLAS -->
+<div class="slabel"><span>12 · B</span><h2>Administración — Reglas de clasificación</h2></div>
+<p class="scap">Las reglas del piloto en lenguaje natural, agrupadas por origen, con su confianza y su historial. Nada se borra: se desactiva.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Administración · Reglas de clasificación</div>
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap"><h1 class="page" style="font-size:24px">Lo que el piloto aplica solo</h1><span class="seclbl" style="margin:0 0 0 auto"><span class="r">+ Nueva regla</span></span></div>
+    <p class="psub">Se evalúan en orden de prioridad. Las desactivadas no clasifican, pero nunca se borran — siempre puedes reactivarlas.</p>
+    <div class="fchips"><span class="f on">Todas · 38</span><span class="f">Aprendidas del uso · 9</span><span class="f">Creadas por ti · 18</span><span class="f">Base Qavante · 11</span><span class="f">Desactivadas · 1</span></div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1">Todo lo de Anthropic → Software y tecnología<span class="sub">creada por ti · 03 ago · aplicada 11 veces, 0 correcciones</span></td><td><span class="pillp pp-ok">100%</span></td><td class="act"><a>editar</a> · <a>desactivar</a></td></tr>
+      <tr><td class="c1">Contraparte Synnex → Costo de software vendido<span class="sub">creada por ti · 20 jul · aplicada 9 veces</span></td><td><span class="pillp pp-ok">100%</span></td><td class="act"><a>editar</a> · <a>desactivar</a></td></tr>
+      <tr><td class="c1">Vista Kennedy → Arriendos<span class="sub">creada por ti · 09 ago</span></td><td><span class="pillp pp-ok">100%</span></td><td class="act"><a>editar</a> · <a>desactivar</a></td></tr>
+      <tr><td class="c1">Glosa con “de Fernando” → Aporte de socio<span class="sub">aprendida de tu clasificación · 11 jul · aplicada hoy</span></td><td><span class="pillp pp-warn">80%</span></td><td class="act"><a>editar</a> · <a>desactivar</a></td></tr>
+      <tr><td class="c1">Glosa con “Pago SII” → Pago de impuestos<span class="sub">base Qavante · aplicada 7 veces</span></td><td><span class="pillp pp-warn">80%</span></td><td class="act"><a>editar</a> · <a>desactivar</a></td></tr>
+      <tr><td class="c1" style="color:#9AA3B5">Glosa con “Cargo nómina” → Remuneraciones<span class="sub">desactivada por ti · 14 ago</span></td><td><span class="pillp pp-mut">Inactiva</span></td><td class="act"><a>reactivar</a></td></tr>
+    </table><div class="twf">Cada regla se muestra en tu idioma — la categoría técnica vive en el detalle · una regla corregida 2 veces baja sola a “proponer” · <a>¿cómo aprende? ⓘ</a></div></div>
+  </div>
+</div></div>
+
+<!-- 12C ESTRUCTURA + MCP -->
+<div class="slabel"><span>12 · C</span><h2>Administración — Estructura, Vistas y Asistente</h2></div>
+<p class="scap">El plan de cuentas como árbol editable, las dimensiones de análisis, y el conector MCP con sus llaves bajo control.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Administración · Estructura de gestión</div>
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap"><h1 class="page" style="font-size:24px">Tu estructura de cuentas</h1><span class="seclbl" style="margin:0 0 0 auto"><span class="r">+ Nueva cuenta</span></span></div>
+    <div class="tw" style="margin-top:14px"><table class="t">
+      <tr><td class="c1">▾ Ingresos<span class="sub">4 cuentas · productos, servicios, recurrentes, proyectos</span></td><td><span class="pillp pp-ok">Activa</span></td><td class="act"><a>editar</a></td></tr>
+      <tr class="exp"><td class="c1">Ingresos recurrentes</td><td></td><td class="act"><a>mover</a> · <a>desactivar</a></td></tr>
+      <tr class="exp"><td class="c1">Ingresos por proyecto</td><td></td><td class="act"><a>mover</a> · <a>desactivar</a></td></tr>
+      <tr><td class="c1">▸ Costos directos · 4<span class="sub">software vendido, mano de obra, subcontratos, comisiones</span></td><td><span class="pillp pp-ok">Activa</span></td><td class="act"><a>editar</a></td></tr>
+      <tr><td class="c1">▸ Gastos operacionales · 11</td><td><span class="pillp pp-ok">Activa</span></td><td class="act"><a>editar</a></td></tr>
+      <tr><td class="c1">▸ Deuda · Inversiones · Impuestos · Socios · 18</td><td><span class="pillp pp-ok">Activa</span></td><td class="act"><a>editar</a></td></tr>
+      <tr><td class="c1">▸ No clasificado · 2<span class="sub">lo que espera en la bandeja</span></td><td><span class="pillp pp-warn">3 docs</span></td><td class="act"><a>ir a la bandeja</a></td></tr>
+    </table><div class="twf">Partiste de la plantilla “Servicios / software” · <a>cambiar plantilla por rubro</a></div></div>
+    <div class="hr"></div>
+    <div class="crumb">Administración · Vistas de gestión</div>
+    <div class="fchips" style="margin:8px 0 4px"><span class="f on">Cliente</span><span class="f on">Proyecto</span><span class="f">Contrato</span><span class="f">Línea de servicio</span><span class="f">Consultor</span><span class="f">Resp. comercial</span><span class="f">+ Nueva vista</span></div>
+    <p class="psub" style="font-size:12.5px">Las vistas sin valores no aparecen en los formularios — se activan solas cuando les cargas su primer valor.</p>
+    <div class="hr"></div>
+    <div class="crumb">Administración · Conectar un asistente (MCP)</div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1">🤖 MCP Tooxs · FbL-2XTS…<span class="sub">dueño · usada hoy · Claude conectado — “¿cómo va mi caja este mes?”</span></td><td><span class="pillp pp-ok">Activa</span></td><td class="act"><a>copiar URL</a> · <a style="color:#B4231B">revocar</a></td></tr>
+      <tr><td class="c1">MVP legacy · Fd2E0451…<span class="sub">sin usar todavía</span></td><td><span class="pillp pp-mut">Sin uso</span></td><td class="act"><a style="color:#B4231B">revocar</a></td></tr>
+    </table><div class="twf">El asistente solo lee — nunca clasifica, concilia ni mueve plata · servidor: mcp.qavante.com · <a>cómo conectar ⓘ</a></div></div>
+  </div>
+</div></div>
+
+<!-- 13 FINANCIAMIENTO -->
+<div class="slabel"><span>13</span><h2>Financiamiento — deuda vigente y originación</h2></div>
+<p class="scap">El Motor 2 del deck con interfaz: tu deuda con su costo real, y las ofertas de financistas comparadas con comisión transparente.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><b>Financiamiento</b></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Financiamiento</div>
+    <h1 class="page">¿Te conviene financiarte — y con quién?</h1>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Deuda vigente</div><div class="v num">$8.503.076</div><div class="d">crédito BICE + factoring</div></div>
+      <div class="kp"><div class="k">Costo promedio</div><div class="v num">1,4% /mes</div><div class="d">ponderado por saldo</div></div>
+      <div class="kp"><div class="k">Cupo disponible</div><div class="v ok num">$3.000.000</div><div class="d">línea BICE sin usar</div></div>
+    </div>
+    <div class="band warn"><b>La cuota del crédito BICE está vencida hace 175 días ($503.076)</b> y genera interés de mora sobre tu tasa. Está incluida en el plan de pagos de Hoy.<span class="act">Ver la decisión</span></div>
+    <div class="seclbl" style="margin-top:20px">Tu deuda vigente</div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1">Crédito BICE · cuota mensual<span class="sub">saldo $6.036.912 · tasa 1,2%/mes · vence día 1</span></td><td><span class="pillp pp-bad">Cuota vencida</span></td><td class="amt num">$503.076</td><td class="act"><a>tabla de pagos</a></td></tr>
+      <tr><td class="c1">Factoring X Capital<span class="sub">2 operaciones históricas · última: jul 2026</span></td><td><span class="pillp pp-mut">Sin saldo</span></td><td class="amt num">$0</td><td class="act"><a>historial</a></td></tr>
+      <tr><td class="c1">Línea de crédito BICE<span class="sub">disponible $3,0M · interés solo si la usas</span></td><td><span class="pillp pp-ok">Disponible</span></td><td class="amt num">$0 usados</td><td class="act"><a>condiciones</a></td></tr>
+    </table></div>
+    <div class="seclbl" style="margin-top:22px">Solicitud activa · factorizar factura Diveimport <span class="r">Nueva solicitud</span></div>
+    <div class="tw"><table class="t">
+      <tr><th>Financista</th><th>Estado</th><th class="r">Recibes hoy</th><th class="r">Costo total</th><th></th></tr>
+      <tr><td class="c1">Financista A<span class="sub">1,05%/mes · responde en ~2 h</span></td><td><span class="pillp pp-ok">Oferta lista</span></td><td class="amt num">$11.461.000</td><td class="amt num">$121.539</td><td class="act"><a style="font-weight:700">Aceptar</a></td></tr>
+      <tr><td class="c1">Financista B<span class="sub">1,19%/mes</span></td><td><span class="pillp pp-ok">Oferta lista</span></td><td class="amt num">$11.444.800</td><td class="amt num">$137.739</td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1">Financista C</td><td><span class="pillp pp-warn">En revisión</span></td><td class="amt">—</td><td class="amt">—</td><td class="act"><a>seguir</a></td></tr>
+    </table><div class="twf">Qavante compara y origina sin balance propio · nuestra comisión (0,25%) ya está dentro del costo mostrado · <b>y puede recomendarte no financiar: la suscripción no depende de esto</b></div></div>
+  </div>
+</div></div>
+
+<!-- 14 SIMULADOR -->
+<div class="slabel"><span>14</span><h2>Simular una decisión — el memo a pedido</h2></div>
+<p class="scap">La otra mitad del motor de decisión: no solo lo que el sistema detecta — lo que tú quieres preguntar antes de moverte.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><b>Hoy</b><span>Caja</span><span>Banco</span><span>Cobrar</span><span>Pagar</span><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Hoy · Simular una decisión</div>
+    <h1 class="page">Pregunta antes de decidir.</h1>
+    <div class="fchips" style="margin-top:14px"><span class="search" style="min-width:100%;font-size:14px;color:#10182B;font-weight:600">“¿Puedo contratar un consultor por $2,5M/mes desde octubre?”</span></div>
+    <div class="fchips" style="margin-top:2px"><span class="f">¿Me conviene prepagar el crédito BICE?</span><span class="f">¿Puedo retirar $5M este mes?</span><span class="f">¿Qué pasa si Kaufmann se atrasa 60 días?</span></div>
+    <div class="dec" style="margin-top:14px">
+      <div class="why">Simulación · sobre tu modelo financiero vivo · no ejecuta nada</div>
+      <h3>Sí puedes — desde octubre, con una condición.</h3>
+      <div class="impact">Con $2,5M/mes: tu punto de equilibrio sube de <b class="num">$23,1M</b> a <b class="num">$25,6M</b> (julio vendiste $39,9M — holgura suficiente), el margen neto baja de 42% a <b>36%</b>, y tu caja resiste <b>si Diveimport paga antes de octubre</b> — sin ese cobro, tendrías 9 días de brecha en noviembre.</div>
+      <div class="twoside" style="margin-top:14px">
+        <div class="sbox"><div class="lbl">Sin contratar</div><div class="big num">42% margen</div><div class="sub">caja siempre en azul</div></div>
+        <div class="linker">→</div>
+        <div class="sbox doc"><div class="lbl">Contratando en oct</div><div class="big num">36% margen</div><div class="sub">brecha de 9 días en nov si Diveimport no paga</div></div>
+      </div>
+      <div class="acts"><span class="btnp">Guardar en memoria de decisiones</span><span class="btns">Ver alternativa: part-time $1,2M</span><span class="btnq">Descartar</span></div>
+    </div>
+  </div>
+</div></div>
+
+<!-- 15 ONBOARDING -->
+<div class="slabel"><span>15</span><h2>Onboarding — del registro al primer parte</h2></div>
+<p class="scap">El primer día diseñado: conectar fuentes con expectativas claras, ver el modelo construirse, y una promesa concreta de valor.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="right" style="margin-left:auto"><span class="badge">Paso 2 de 3</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Bienvenido · Tooxs Digital SpA</div>
+    <h1 class="page">Estamos construyendo tu modelo financiero vivo.</h1>
+    <p class="psub">Mientras más fuentes conectes, más completo tu primer parte. Puedes cerrar esta pestaña — te avisamos por correo cuando esté listo.</p>
+    <div class="seclbl" style="margin-top:22px">Paso 1 · Tus fuentes</div>
+    <div class="tw"><table class="t">
+      <tr><td class="c1">🧾 SII<span class="sub">certificado digital cargado · leyendo 24 meses de facturas</span></td><td><span class="pillp pp-ok">Conectado ✓</span></td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1">🏦 Banco BICE<span class="sub">4 productos · trayendo 14 meses de cartola</span></td><td><span class="pillp pp-ok">Conectado ✓</span></td><td class="act"><a>ver</a></td></tr>
+      <tr><td class="c1">👥 Previred<span class="sub">para tus remuneraciones y cotizaciones</span></td><td><span class="pillp pp-warn">Pendiente</span></td><td class="act"><a style="font-weight:700">Conectar · 3 min</a></td></tr>
+    </table></div>
+    <div class="seclbl" style="margin-top:18px">Paso 2 · Construyendo tu modelo · <b style="color:#10182B">68%</b></div>
+    <div class="progress" style="margin-top:4px"><div class="pbar"><i style="width:68%"></i></div><span class="ptxt">~12 min restantes</span></div>
+    <div class="done"><span class="tick">✓</span><span>Leímos <b>412 facturas</b> de compra y venta (2 años)</span></div>
+    <div class="done"><span class="tick">✓</span><span>Clasificamos el <b>84%</b> de tus movimientos con la plantilla “Servicios / software”</span></div>
+    <div class="done"><span class="tick" style="color:#9AA3B5">○</span><span>Cruzando cobros y pagos con tu cartola…</span></div>
+    <div class="band" style="margin-top:18px;border-left-color:#1B8A52"><b>Paso 3 · Mañana a las 7:00 llega tu primer parte:</b> cuánto tienes, quién te debe, qué vence, y la primera cosa que conviene hacer.<span class="ghost">La promesa, con hora</span></div>
+  </div>
+</div></div>
+
+<!-- 16 REMUNERACIONES -->
+<div class="slabel"><span>16</span><h2>Remuneraciones</h2></div>
+<p class="scap">La nómina como vista propia dentro de Pagar: líquidos, cotizaciones y su estado, conectada a Previred.</p>
+<div class="device"><div class="app">
+  <div class="chrome"><span class="logo">Qavante</span><span class="nav"><span>Hoy</span><span>Caja</span><span>Banco</span><span>Cobrar</span><b>Pagar</b><span>Impuestos</span><span>Gestión</span><span>Presupuesto</span></span><span class="right"><span class="badge">Bandeja · 3</span><span class="badge warn">🔔 1</span><span class="avatar">FP</span></span></div>
+  <div class="canvas">
+    <div class="crumb">Pagar · Remuneraciones · julio 2026</div>
+    <h1 class="page">Tu nómina</h1>
+    <div class="kpi3">
+      <div class="kp"><div class="k">Líquido de julio</div><div class="v num">$15.247.759</div><div class="d">8 personas · pagado ✓</div></div>
+      <div class="kp"><div class="k">Cotizaciones (Previred)</div><div class="v num">$3.809.631</div><div class="d">vence 10 sep · programado</div></div>
+      <div class="kp"><div class="k">Costo empresa total</div><div class="v num">$19.482.226</div><div class="d">48,8% de tus ingresos ⓘ</div></div>
+    </div>
+    <div class="tw" style="margin-top:16px"><table class="t">
+      <tr><th>Persona · rol</th><th>Estado</th><th class="r">Líquido jul</th><th></th></tr>
+      <tr><td class="c1">Consultor senior · jornada completa</td><td><span class="pillp pp-ok">Pagado ✓</span></td><td class="amt num">$2.850.000</td><td class="act"><a>liquidación</a></td></tr>
+      <tr><td class="c1">Consultor senior · jornada completa</td><td><span class="pillp pp-ok">Pagado ✓</span></td><td class="amt num">$2.610.000</td><td class="act"><a>liquidación</a></td></tr>
+      <tr><td class="c1">Desarrollador · jornada completa</td><td><span class="pillp pp-ok">Pagado ✓</span></td><td class="amt num">$2.245.500</td><td class="act"><a>liquidación</a></td></tr>
+      <tr><td class="c1">+ 5 personas más</td><td><span class="pillp pp-ok">Pagado ✓</span></td><td class="amt num">$7.542.259</td><td class="act"><a>ver todas</a></td></tr>
+    </table><div class="twf">Conciliada con el cargo de nómina del banco (19 ago) ✓ · los sueldos nunca entran en planes de postergación — <a>regla del piloto</a></div></div>
+  </div>
+</div></div>
+
+<div class="foot">Qavante · Diseño de producto — 21 vistas en el lenguaje definitivo · densidad completa con datos reales · el Piloto (parte, memo, autonomía, memoria) vive en su artifact companion · 23-08-2026</div>
