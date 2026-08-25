@@ -85,8 +85,21 @@ export interface AccountsPayableResponse {
   /** Caja proyectada a 14 días (del cash-flow) para la relación contra caja;
    *  `null` si no se pudo calcular. */
   projected_cash_14d: string | null;
-  /** ¿La caja proyectada cubre los pagos críticos próximos? `null` si no se sabe. */
-  covers_critical: boolean | null;
+  /** ¿La caja proyectada cubre los pagos críticos próximos? **Tri-estado** (#41).
+   *
+   *  `null` = NO SE PUEDE DETERMINAR, y son tres casos: sin caja proyectada; con deuda viva
+   *  sin fecha de vencimiento (los tramos `due_*` son un PISO y la comparación dejaría plata
+   *  afuera); o con el TC de alguna moneda pendiente. Un `true` afirma cobertura sobre TODO
+   *  lo que vence, no sobre lo que se alcanzó a agendar. */
+  /** OPCIONAL, igual que en el contrato generado (`types.ts`): el backend puede omitir la
+   *  clave. Declararla requerida acá era más estricto que la realidad — la misma deriva
+   *  entre el tipo escrito a mano y el generado, sólo que en la otra dirección. */
+  covers_critical?: boolean | null;
+  /** Saldo por pagar SIN fecha de vencimiento (CLP). Es lo que explica un `covers_critical`
+   *  en `null`: esta plata no está en ningún tramo `due_*`. */
+  undated_amount?: string;
+  /** Cuántos documentos componen `undated_amount`. */
+  undated_count?: number;
   confidence: "high" | "medium" | "low";
   data_state: "available" | "partial" | "estimated";
   /** Fuentes que faltan para completar el dato (ej. "Sincronización SII

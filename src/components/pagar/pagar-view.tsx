@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, ChevronDown, Users } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, HelpCircle, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   QavanteCard,
@@ -167,35 +167,105 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         </div>
       )}
 
-      {/* Relación contra caja. */}
-      {data.covers_critical === false && (
-        <div
-          role="alert"
-          className="flex items-start gap-3 rounded-xl border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-neutral-dark"
-        >
-          <AlertTriangle
-            className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500"
-            aria-hidden="true"
-          />
-          <p>
-            La caja proyectada
-            {data.projected_cash_14d
-              ? ` (${formatClp(parseAmount(data.projected_cash_14d))} a 14 días)`
-              : ""}{" "}
-            <span className="font-medium">no alcanza</span> para cubrir los pagos críticos próximos.
-            Prioriza cobranza o renegocia plazos.
-          </p>
-        </div>
-      )}
-      {data.covers_critical === true && (
-        <p className="flex items-center gap-1.5 text-sm text-success-700">
-          <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-          La caja proyectada cubre los pagos críticos próximos.
-        </p>
-      )}
+      {/* Relación contra caja: SIEMPRE dice algo, en los tres estados. */}
+      <CoberturaDeCaja data={data} />
 
       {/* Pagos y obligaciones — agrupados por categoría (expandibles). */}
       <PagosPorCategoria groups={groups} total={total} now={now} />
+    </div>
+  );
+}
+
+/* Relación contra caja — LAS TRES RAMAS EN UN SOLO LUGAR (#41).
+ *
+ * Antes vivían sueltas en el render del container, y eso tenía dos problemas que el pase §6
+ * midió:
+ *
+ *   1. **No se podían testear.** Las stories montaban el presentacional del "no sé" directo,
+ *      así que borrar la línea que lo enganchaba dejaba todo en verde: se probaba el
+ *      componente, no el cableado. Con las tres acá, borrar cualquiera pone una story en rojo.
+ *   2. **`undefined` se escapaba.** `covers_critical` es OPCIONAL en el contrato
+ *      (`covers_critical?: boolean | null`), así que un payload sin la clave no matcheaba
+ *      `=== null` y volvía el silencio — el bug exacto que esto viene a arreglar, por la
+ *      puerta de atrás. Acá se comparan los dos valores VERDADEROS (`true`/`false`) y todo
+ *      lo demás —`null`, `undefined`, clave ausente— cae en "no se puede determinar", que es
+ *      la respuesta honesta.
+ */
+export function CoberturaDeCaja({ data }: { data: AccountsPayableResponse }) {
+  if (data.covers_critical === false) {
+    return (
+      <div
+        role="alert"
+        className="flex items-start gap-3 rounded-xl border border-danger-500/40 bg-danger-500/10 p-3 text-sm text-neutral-dark"
+      >
+        <AlertTriangle
+          className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500"
+          aria-hidden="true"
+        />
+        <p>
+          La caja proyectada
+          {data.projected_cash_14d
+            ? ` (${formatClp(parseAmount(data.projected_cash_14d))} a 14 días)`
+            : ""}{" "}
+          <span className="font-medium">no alcanza</span> para cubrir los pagos críticos próximos.
+          Prioriza cobranza o renegocia plazos.
+        </p>
+      </div>
+    );
+  }
+  if (data.covers_critical === true) {
+    return (
+      <p className="flex items-center gap-1.5 text-sm text-success-700">
+        <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+        La caja proyectada cubre los pagos críticos próximos.
+      </p>
+    );
+  }
+  return <CoberturaIndeterminada data={data} />;
+}
+
+/* La cobertura de caja cuando NO se puede determinar (#41).
+ *
+ * Tono neutro a propósito, no rojo: "no sabemos" no es "no alcanza". Pintarlo de alarma
+ * sería inventar una mala noticia, que es el error simétrico de inventar una buena — y la
+ * ley de la casa es un solo rojo por pantalla, reservado a lo crítico y accionable.
+ *
+ * Dice el PORQUÉ con el monto, no una fórmula vaga: la razón concreta (deuda sin fecha de
+ * vencimiento, o tipo de cambio pendiente) viene del backend en `missing_sources`, y el
+ * monto sin agendar en `undated_amount`.
+ *
+ * EXPORTADO para poder afirmarlo en Storybook, igual que `DebtorInvoicesPanel` y
+ * `TopDebtors` en Cobrar: las stories del container no pueden llevar `play` porque muere
+ * con "NEXT_PUBLIC_API_URL no configurada" antes de que MSW intercepte. */
+export function CoberturaIndeterminada({ data }: { data: AccountsPayableResponse }) {
+  const sinFecha = parseAmount(data.undated_amount ?? "0");
+  const cuantos = data.undated_count ?? 0;
+  const faltaTc = (data.missing_sources ?? []).some((m) => m.startsWith("Tipo de cambio"));
+
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-border bg-neutral-light/40 p-3 text-sm text-neutral-dark">
+      <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-neutral-mid" aria-hidden="true" />
+      <p>
+        <span className="font-medium">No podemos decirte si la caja alcanza</span> para los pagos
+        críticos próximos.{" "}
+        {sinFecha > 0 && (
+          <>
+            Hay {formatClp(sinFecha)}
+            {cuantos > 0 && ` en ${cuantos} documento${cuantos === 1 ? "" : "s"}`} sin fecha de
+            vencimiento, así que no entran en el cálculo de los próximos 14 días.{" "}
+          </>
+        )}
+        {faltaTc && (
+          <>
+            Además falta el tipo de cambio de alguna moneda, así que parte de la deuda quedó fuera
+            del total en pesos.{" "}
+          </>
+        )}
+        {sinFecha === 0 && !faltaTc && data.projected_cash_14d == null && (
+          <>Todavía no podemos proyectar tu caja a 14 días, así que no hay con qué comparar. </>
+        )}
+        Los tramos que ves arriba son un <span className="font-medium">piso</span>, no el total.
+      </p>
     </div>
   );
 }
