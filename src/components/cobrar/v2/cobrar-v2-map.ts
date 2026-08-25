@@ -18,9 +18,8 @@
 import type { AccountsReceivableResponse, TopDebtor } from "@/lib/api/cobranza";
 import type { PreferencesBlob } from "@/lib/api/preferences";
 import type { DocMaestro } from "@/components/terminos/terminos-pago";
-import { normalizeRut } from "@/lib/validators/rut";
 import { formatClp } from "@/lib/formatters/clp";
-import { parseAmount, sortByUrgency, shareOfTotal } from "../cobranza-format";
+import { parseAmount, sortByUrgency, shareOfTotal, rutKey } from "../cobranza-format";
 
 export type PrioridadMode = "urgencia" | "concentracion";
 
@@ -126,25 +125,28 @@ export function readGestionado(blob: PreferencesBlob | undefined): GestionadoMap
 }
 
 /** ¿Este RUT está marcado gestionado? (normaliza el RUT internamente). */
-export function isGestionado(map: GestionadoMap, rut: string): boolean {
-  return typeof map[normalizeRut(rut)] === "string";
+export function isGestionado(map: GestionadoMap, rut: string | null | undefined): boolean {
+  return typeof map[rutKey(rut)] === "string";
 }
 
 /** Blob COMPLETO con el RUT marcado gestionado en `isoDate` (respeta "reemplaza,
  *  no mergea": preserva el resto de las prefs y solo toca esta clave). */
 export function withGestionado(
   blob: PreferencesBlob | undefined,
-  rut: string,
+  rut: string | null | undefined,
   isoDate: string,
 ): PreferencesBlob {
   const cur = readGestionado(blob);
-  return { ...(blob ?? {}), [GESTIONADO_KEY]: { ...cur, [normalizeRut(rut)]: isoDate } };
+  return { ...(blob ?? {}), [GESTIONADO_KEY]: { ...cur, [rutKey(rut)]: isoDate } };
 }
 
 /** Blob COMPLETO con el RUT desmarcado (deshacer "gestionado"). */
-export function withoutGestionado(blob: PreferencesBlob | undefined, rut: string): PreferencesBlob {
+export function withoutGestionado(
+  blob: PreferencesBlob | undefined,
+  rut: string | null | undefined,
+): PreferencesBlob {
   const cur = { ...readGestionado(blob) };
-  delete cur[normalizeRut(rut)];
+  delete cur[rutKey(rut)];
   return { ...(blob ?? {}), [GESTIONADO_KEY]: cur };
 }
 
@@ -156,8 +158,11 @@ export function withoutGestionado(blob: PreferencesBlob | undefined, rut: string
 export const GESTIONADO_DOCS_KEY = "cobranza_gestionado_docs";
 
 /** Clave estable de un documento para el gestionado: `rutNormalizado:folio`. */
-export function docGestionadoKey(rut: string, folio: number | string | null | undefined): string {
-  return `${normalizeRut(rut)}:${folio ?? ""}`;
+export function docGestionadoKey(
+  rut: string | null | undefined,
+  folio: number | string | null | undefined,
+): string {
+  return `${rutKey(rut)}:${folio ?? ""}`;
 }
 
 /** Lee el mapa de facturas gestionadas del blob (defensivo, igual que `readGestionado`). */
@@ -174,7 +179,7 @@ export function readGestionadoDocs(blob: PreferencesBlob | undefined): Gestionad
 /** ¿Esta factura (rut+folio) está marcada gestionada? */
 export function isGestionadoDoc(
   map: GestionadoMap,
-  rut: string,
+  rut: string | null | undefined,
   folio: number | string | null | undefined,
 ): boolean {
   return typeof map[docGestionadoKey(rut, folio)] === "string";
@@ -183,7 +188,7 @@ export function isGestionadoDoc(
 /** Blob COMPLETO con la factura marcada gestionada en `isoDate` (reemplaza, no mergea). */
 export function withGestionadoDoc(
   blob: PreferencesBlob | undefined,
-  rut: string,
+  rut: string | null | undefined,
   folio: number | string | null | undefined,
   isoDate: string,
 ): PreferencesBlob {
@@ -197,7 +202,7 @@ export function withGestionadoDoc(
 /** Blob COMPLETO con la factura desmarcada (deshacer). */
 export function withoutGestionadoDoc(
   blob: PreferencesBlob | undefined,
-  rut: string,
+  rut: string | null | undefined,
   folio: number | string | null | undefined,
 ): PreferencesBlob {
   const cur = { ...readGestionadoDocs(blob) };
@@ -243,4 +248,51 @@ export function peorMoraDias(docs: ReadonlyArray<DocMaestro>): number | null {
     if (d.diasParaVencer < 0 && (peor === null || d.diasParaVencer < peor)) peor = d.diasParaVencer;
   }
   return peor === null ? null : -peor;
+}
+
+/* ── Quién decide el "no sabemos qué está vencido" (hallazgo H6-F) ─────────────
+ * Esta decisión vivía DUPLICADA y en dos formas distintas: el resumen la sacaba de
+ * un `mode` y el hero de `prioridad.mode`, ambos derivados de la heurística "¿algún
+ * deudor tiene overdue > 0?". El resultado era una pantalla que se contradecía a sí
+ * misma: el hero diciendo "aún no sabemos qué está vencido" y el resumen, más
+ * abajo, "Vencido $0 · Estás al día".
+ *
+ * Ahora la causa sale de UN solo lugar y del DATO (`totalVencido === null` = la API
+ * no pudo computarlo, contrato #123), nunca del ranking. El ranking sigue siendo
+ * una decisión legítima del front —a quién le cobro primero— pero no tiene voz
+ * sobre lo que la pantalla AFIRMA saber. */
+
+/** Qué relato muestra el hero sobre lo vencido. */
+export type HeroRelato =
+  /** Hay mora conocida y se persigue. */
+  | "urgencia"
+  /** No se sabe cuánto está vencido: se dice, con el porqué que informa la API. */
+  | "sin-dato"
+  /** Se sabe, y no hay mora entre lo pendiente: se prioriza por tamaño. */
+  | "sin-mora";
+
+export interface RelatoVencido {
+  /** ¿La mora agregada es DESCONOCIDA? Lo dice el dato, no el ranking. */
+  desconocido: boolean;
+  hero: HeroRelato;
+}
+
+/** Decide, para toda la pantalla a la vez, qué se puede afirmar sobre lo vencido.
+ *
+ *  INVARIANTE (lo que impide que hero y resumen se contradigan): el hero alega
+ *  ignorancia (`"sin-dato"`) SÓLO SI el dato dice que no se sabe (`desconocido`).
+ *  NO al revés: con el agregado desconocido pero mora conocida de un deudor
+ *  concreto —posible mientras `TopDebtor.overdue` siga no-null— el hero habla de
+ *  ese deudor ("urgencia") y el resumen del agregado ("sin dato"): ámbitos
+ *  distintos, las dos afirmaciones verdaderas. Forzar "sin-dato" ahí escondería
+ *  mora real. PURO. */
+export function relatoVencido(p: {
+  /** Modo de RANKING elegido (a quién cobrar primero). NO decide la causa. */
+  prioridadMode: PrioridadMode | null;
+  /** Vencido agregado: `null` = la API no pudo computarlo; `0` = cero verificado. */
+  totalVencido: number | null;
+}): RelatoVencido {
+  const desconocido = p.totalVencido == null;
+  if (p.prioridadMode === "urgencia") return { desconocido, hero: "urgencia" };
+  return { desconocido, hero: desconocido ? "sin-dato" : "sin-mora" };
 }

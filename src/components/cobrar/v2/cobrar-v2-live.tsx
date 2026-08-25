@@ -16,11 +16,16 @@ import {
   isPartial,
   isSyncPending,
 } from "@/components/treasury/sync-pending-state";
-import { normalizeRut } from "@/lib/validators/rut";
 import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { SortBar } from "@/components/filters/sort-bar";
 import { formatClp } from "@/lib/formatters/clp";
-import { parseAmount, agingBars } from "../cobranza-format";
+import {
+  parseAmount,
+  parseAmountOrNull,
+  agingBreakdown,
+  explicarVencidoSinDato,
+  rutKey,
+} from "../cobranza-format";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import {
   readTerminos,
@@ -46,7 +51,7 @@ import {
   withoutGestionadoDoc,
   sortDebtors,
   peorMoraDias,
-  type PrioridadMode,
+  relatoVencido,
 } from "./cobrar-v2-map";
 
 /* Vista LIVE de Cobrar v2 (rediseño 2026-07-19), gated por `cobrarV2`. Cablea
@@ -123,7 +128,7 @@ function Assembled({
      fetch aparte (antes era `useDebtorInvoices`, que traía RcvDoc crudo sin vencimiento). */
   const docsByRut = React.useMemo(() => {
     const m = new Map<string, DocMaestro[]>();
-    for (const cp of cps) m.set(normalizeRut(cp.rut), cp.docs);
+    for (const cp of cps) m.set(rutKey(cp.rut), cp.docs);
     return m;
   }, [cps]);
   const totalConciliado = React.useMemo(
@@ -154,16 +159,25 @@ function Assembled({
   const grandTotal = useRcv
     ? debtors.reduce((s, d) => s + parseAmount(d.total), 0)
     : parseAmount(data.total);
-  const totalVencido = useRcv
+  /* Vencido: por la vía RCV se DERIVA localmente (siempre se conoce). Por la vía
+     `accounts-receivable` puede venir `null` = la API no pudo computarlo
+     (qavante-api#123, hallazgo H6) → se propaga el null, NO se aplasta a 0. Un `0`
+     acá significa "estás al día" y tiene que seguir significando eso. */
+  const totalVencido: number | null = useRcv
     ? debtors.reduce((s, d) => s + parseAmount(d.overdue), 0)
-    : parseAmount(data.overdue);
-  const overduePct = grandTotal > 0 ? (totalVencido / grandTotal) * 100 : 0;
+    : parseAmountOrNull(data.overdue);
+  const overduePct =
+    totalVencido == null ? null : grandTotal > 0 ? (totalVencido / grandTotal) * 100 : 0;
+  const sinDato = explicarVencidoSinDato(data);
 
-  // Modo GLOBAL (para el resumen): con el vencido derivado del RCV, casi siempre hay mora
-  // → urgencia. El hero usa el modo del deudor priorizado (que puede caer en concentración
-  // si el único con mora ya está gestionado) — por eso se calcula aparte.
-  const anyOverdue = debtors.some((d) => parseAmount(d.overdue) > 0);
-  const globalMode: PrioridadMode = anyOverdue ? "urgencia" : "concentracion";
+  /* ÚNICA fuente de verdad sobre si CONOCEMOS la mora agregada (H6-F).
+     Por la vía RCV se deriva localmente → siempre se conoce. Por
+     `accounts-receivable` lo dice el contrato (#123): `overdue: null` = no se pudo
+     computar. NUNCA se infiere de una heurística del front del tipo "¿algún deudor
+     tiene mora?": esa heurística vivía en dos lugares distintos (el resumen y el
+     hero) y terminaba haciendo que la pantalla se contradijera a sí misma — el hero
+     diciendo "aún no sabemos qué está vencido" y el resumen, más abajo, "Vencido $0
+     · Estás al día". La causa del "no sé" sale del dato, y de un solo lugar. */
 
   const ordered = React.useMemo(
     () => sortDebtors(debtors, gestionadoMap),
@@ -180,7 +194,7 @@ function Assembled({
       {
         key: "mora",
         kind: "number",
-        get: (d) => peorMoraDias(docsByRut.get(normalizeRut(d.rut)) ?? []) ?? null,
+        get: (d) => peorMoraDias(docsByRut.get(rutKey(d.rut)) ?? []) ?? null,
       },
     ],
     [docsByRut],
@@ -203,6 +217,9 @@ function Assembled({
   );
   const pendientes = ordered.filter((d) => !isGestionado(gestionadoMap, d.rut));
   const prioridad = pickPrioridad({ ...data, top_debtors: pendientes });
+  /* Qué puede AFIRMAR la pantalla sobre lo vencido. El ranking (`prioridad.mode`)
+     entra como insumo del relato, pero NO decide la causa: eso sale del dato. */
+  const relato = relatoVencido({ prioridadMode: prioridad?.mode ?? null, totalVencido });
 
   const [openRut, setOpenRut] = React.useState<string | null>(null);
   const [copiadoRut, setCopiadoRut] = React.useState<string | null>(null);
@@ -214,6 +231,15 @@ function Assembled({
   // aparecerían debiendo (race real cazada en prod: TEPILLE/TESTGROUP mostraban su factura ya
   // conciliada). Skeleton hasta que las prefs estén (o fallen).
   if (prefs.isLoading) return <LoadingSkeleton />;
+  /* Mismo motivo que las prefs: mientras el maestro RCV está en vuelo, `cps` está
+     vacío y `useRcv` da false, así que la pantalla caería a la vía
+     `accounts-receivable` y podría afirmar una cosa ahora y otra medio segundo
+     después. "Todavía no cargó" no puede ser indistinguible de "no hay datos".
+     `isInitialLoading` y NO `isFetching`: este último también se enciende en los
+     refetch de fondo (`refetchOnWindowFocus` está activo por defecto), así que un
+     tenant con RCV genuinamente vacío veía la pantalla entera colapsar a skeleton
+     cada vez que volvía a la pestaña. */
+  if (ventasDocs.isInitialLoading) return <LoadingSkeleton />;
 
   const remFor = (d: TopDebtor) =>
     reminderText({
@@ -226,7 +252,7 @@ function Assembled({
   const copiar = (d: TopDebtor) => {
     const text = remFor(d);
     const ok = () => {
-      setCopiadoRut(normalizeRut(d.rut));
+      setCopiadoRut(rutKey(d.rut));
       clearTimeout(copyTimer.current);
       copyTimer.current = setTimeout(() => setCopiadoRut(null), 2000);
       toast.success("Recordatorio copiado", {
@@ -262,7 +288,7 @@ function Assembled({
   };
 
   /* Gestionado por FACTURA (granular): marca/desmarca un documento aparte del deudor. */
-  const toggleGestionadoDoc = (rut: string, folio: number | string | null) => {
+  const toggleGestionadoDoc = (rut: string | null | undefined, folio: number | string | null) => {
     if (!prefs.isSuccess) {
       toast.error("No pudimos guardar", {
         description: "No cargaron tus preferencias; recarga e intenta de nuevo.",
@@ -280,45 +306,50 @@ function Assembled({
 
   const hero = prioridad ? (
     <CobrarHero
-      antetitulo={prioridad.mode === "urgencia" ? "Cóbrale primero a" : "Tu mayor cobranza"}
+      /* TODO el hero lee `relato.hero`, incluido el titular. Antes el titular leía
+         `prioridad.mode` y la bajada `relato.hero`: hoy dan lo mismo, pero son dos
+         idiomas para la misma condición y es exactamente la forma de la trampa que
+         este PR vino a cerrar — el día que el relato cambie, el titular seguiría
+         diciendo "Cóbrale primero a X · $3.000.000 vencido" con la bajada, debajo,
+         diciendo "aún no sabemos qué está vencido". Una sola fuente. */
+      antetitulo={relato.hero === "urgencia" ? "Cóbrale primero a" : "Tu mayor cobranza"}
       cliente={prioridad.debtor.name}
-      rut={prioridad.debtor.rut}
-      monto={prioridad.mode === "urgencia" ? prioridad.overdue : prioridad.total}
-      montoLabel={prioridad.mode === "urgencia" ? "vencido" : "por cobrar"}
-      montoTono={prioridad.mode === "urgencia" ? "danger" : "neutral"}
+      rut={prioridad.debtor.rut ?? null}
+      monto={relato.hero === "urgencia" ? prioridad.overdue : prioridad.total}
+      montoLabel={relato.hero === "urgencia" ? "vencido" : "por cobrar"}
+      montoTono={relato.hero === "urgencia" ? "danger" : "neutral"}
       bajada={
-        prioridad.mode === "urgencia" ? (
+        relato.hero === "urgencia" ? (
           <>
             De {formatClp(prioridad.total)} que te debe. Es tu cobranza vencida más grande, pártele
             por acá.
           </>
-        ) : useRcv ? (
+        ) : relato.hero === "sin-dato" ? (
+          <>
+            {Math.round(prioridad.pctDelTotal)}% de tus {formatClp(grandTotal)} por cobrar. Aún no
+            sabemos qué está vencido, así que priorizamos por tamaño. {sinDato.motivo}
+          </>
+        ) : (
           <>
             {Math.round(prioridad.pctDelTotal)}% de tus {formatClp(grandTotal)} por cobrar. Nada
             vencido entre lo pendiente por ahora, así que priorizamos por el tamaño de la deuda.
           </>
-        ) : (
-          <>
-            {Math.round(prioridad.pctDelTotal)}% de tus {formatClp(grandTotal)} por cobrar. Aún no
-            sabemos qué está vencido (el SII no entregó los vencimientos), así que priorizamos por
-            tamaño.
-          </>
         )
       }
       infoHint={
-        prioridad.mode === "urgencia"
+        relato.hero === "urgencia"
           ? "Priorizamos por mora derivada del término de pago (emisión + término). Ajusta los términos por cliente en Clientes."
-          : useRcv
-            ? "Los vencimientos se derivan del término de pago (emisión + término). Cuando algo entre en mora, la pantalla prioriza por lo vencido."
-            : "Sin vencimientos del SII, priorizamos por tamaño de la deuda. Cuando lleguen las fechas, la pantalla prioriza por mora sola."
+          : relato.hero === "sin-dato"
+            ? sinDato.accion
+            : "Los vencimientos se derivan del término de pago (emisión + término). Cuando algo entre en mora, la pantalla prioriza por lo vencido."
       }
       acciones={
         <CobranzaAcciones
           onCopiar={() => copiar(prioridad.debtor)}
-          copiado={copiadoRut === normalizeRut(prioridad.debtor.rut)}
+          copiado={copiadoRut === rutKey(prioridad.debtor.rut)}
           waHref={waHref(remFor(prioridad.debtor))}
           mailtoHref={mailtoHref(ASUNTO, remFor(prioridad.debtor))}
-          gestionado={gestionadoMap[normalizeRut(prioridad.debtor.rut)] ?? null}
+          gestionado={gestionadoMap[rutKey(prioridad.debtor.rut)] ?? null}
           onToggleGestionado={() => toggleGestionado(prioridad.debtor)}
           gestionadoPending={updatePrefs.isPending}
         />
@@ -331,13 +362,13 @@ function Assembled({
   const deudores = (
     <ul className="divide-y divide-border">
       {displayed.map((d) => {
-        const rut = normalizeRut(d.rut);
+        const rut = rutKey(d.rut);
         const text = remFor(d);
         return (
           <DeudorRow
-            key={d.rut}
+            key={rut || d.name}
             name={d.name}
-            rut={d.rut}
+            rut={d.rut ?? null}
             total={parseAmount(d.total)}
             overdue={parseAmount(d.overdue)}
             pct={grandTotal > 0 ? (parseAmount(d.total) / grandTotal) * 100 : 0}
@@ -368,11 +399,12 @@ function Assembled({
           total={grandTotal}
           overdue={totalVencido}
           overduePct={overduePct}
-          mode={globalMode}
           conciliado={totalConciliado}
+          sinDato={sinDato}
         />
       }
-      aging={useRcv ? undefined : agingBars(data.aging)}
+      aging={useRcv ? undefined : agingBreakdown(data.aging)}
+      agingSinDato={sinDato}
       deudores={deudores}
       banner={
         !useRcv && isPartial(data) ? (

@@ -15,7 +15,8 @@ export interface CobrarHeroProps {
   antetitulo: string;
   /** Nombre del cliente. */
   cliente: string;
-  rut?: string;
+  /** El contrato admite `rut: null` ("null si falta") → se omite, no se pinta vacío. */
+  rut?: string | null;
   /** Cifra destacada (CLP): lo vencido en urgencia, el total en concentración. */
   monto: number;
   /** Etiqueta bajo la cifra, ej. "vencido" o "por cobrar". */
@@ -49,7 +50,9 @@ export function CobrarHero({
       </p>
       <p className="mt-1 text-[22px] font-extrabold leading-tight tracking-tight text-neutral-dark">
         {cliente}
-        {rut ? <span className="ml-2 text-[13px] font-medium text-neutral-mid">{formatRut(rut)}</span> : null}
+        {rut ? (
+          <span className="ml-2 text-[13px] font-medium text-neutral-mid">{formatRut(rut)}</span>
+        ) : null}
       </p>
 
       <p className="mt-2 flex items-baseline gap-2">

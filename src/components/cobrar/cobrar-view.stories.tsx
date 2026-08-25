@@ -65,6 +65,40 @@ const EMPTY = http.get(PATH, () =>
     { status: 200 },
   ),
 );
+/* CONTRATO NUEVO (qavante-api#123, hallazgo H6): el backend NO pudo computar la
+   mora → `overdue`/`overdue_pct` y los cuatro tramos de aging vienen en `null`
+   (la clave viene, el valor no), y `undated_amount` EXPLICA por qué. La pantalla
+   tiene que decir "sin dato" con el porqué, y NO pintar 100% "Vigente". */
+const SIN_VENCIMIENTOS = http.get(PATH, () =>
+  HttpResponse.json(
+    {
+      ...FIXTURE,
+      overdue: null,
+      overdue_pct: null,
+      aging: { current: "16900000", d1_30: null, d31_60: null, d61_90: null, d90_plus: null },
+      overdue_documents: [],
+      undated_amount: "7900000",
+      data_state: "partial",
+      missing_sources: ["Términos de pago sin definir"],
+    },
+    { status: 200 },
+  ),
+);
+/* Cero VERIFICADO: la API SÍ computó y da 0. "Estás al día" es una afirmación
+   real y tiene que sobrevivir intacta al fix del null. */
+const AL_DIA = http.get(PATH, () =>
+  HttpResponse.json(
+    {
+      ...FIXTURE,
+      overdue: "0",
+      overdue_pct: "0",
+      aging: { current: "24800000", d1_30: "0", d31_60: "0", d61_90: "0", d90_plus: "0" },
+      overdue_documents: [],
+      top_debtors: FIXTURE.top_debtors.map((d) => ({ ...d, overdue: "0" })),
+    },
+    { status: 200 },
+  ),
+);
 const LOADING = http.get(PATH, async () => {
   await delay("infinite");
   return HttpResponse.json(FIXTURE, { status: 200 });
@@ -102,6 +136,20 @@ export const SinDeuda: Story = {
   name: "Sin cuentas por cobrar",
   parameters: { msw: { handlers: [EMPTY] } },
 };
+/* Estados del contrato #123 (H6) para inspección visual en Storybook. NO llevan
+   `play`: este container muere antes con "NEXT_PUBLIC_API_URL no configurada", así
+   que MSW nunca llega a interceptar en `test:storybook` (pasa con TODAS las stories
+   MSW del repo — ninguna afirma nada). Lo que SÍ se afirma vive en las stories
+   presentacionales (`aging-desconocido.stories.tsx`, ADR-0018) y en los unit tests. */
+export const VencidoSinDato: Story = {
+  name: "Vencido sin dato (contrato #123)",
+  parameters: { msw: { handlers: [SIN_VENCIMIENTOS] } },
+};
+export const AlDia: Story = {
+  name: "Cero verificado — estás al día",
+  parameters: { msw: { handlers: [AL_DIA] } },
+};
+
 export const Cargando: Story = { parameters: { msw: { handlers: [LOADING] } } };
 export const Error500: Story = { name: "Error (500)", parameters: { msw: { handlers: [ERROR] } } };
 

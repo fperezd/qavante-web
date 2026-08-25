@@ -23,6 +23,11 @@ export interface MaestroDocsState {
   docs: DocConVencimiento[];
   periods: string[];
   isFetching: boolean;
+  /** Primera carga (aún sin datos). A diferencia de `isFetching`, NO se enciende en
+   *  los refetch de fondo (`refetchOnWindowFocus`), así que sirve para decidir si
+   *  mostrar un skeleton sin colapsar la pantalla cada vez que el usuario vuelve a
+   *  la pestaña. */
+  isInitialLoading: boolean;
   /** True si TODOS los meses fallaron. */
   isError: boolean;
 }
@@ -115,6 +120,7 @@ export function useMaestroDocs(
     docs,
     periods,
     isFetching: results.some((r) => r.isFetching),
+    isInitialLoading: results.some((r) => r.isLoading),
     isError: results.length > 0 && results.every((r) => r.isError),
   };
 }

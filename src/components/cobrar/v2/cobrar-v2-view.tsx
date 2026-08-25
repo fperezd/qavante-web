@@ -10,7 +10,8 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { formatDate, formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
-import type { AgingBar } from "../cobranza-format";
+import type { AgingBreakdown, VencidoSinDato } from "../cobranza-format";
+import { AgingBarraDesconocida, AgingDesconocido } from "../aging-desconocido";
 import { CobranzaAcciones } from "./cobranza-acciones";
 import { peorMoraDias, isGestionadoDoc, type GestionadoMap } from "./cobrar-v2-map";
 import type { DocMaestro } from "@/components/terminos/terminos-pago";
@@ -34,8 +35,11 @@ export interface CobrarV2ViewProps {
   hero: React.ReactNode;
   /** Resumen honesto (total + vencido/% o nota de vencimientos pendientes). */
   resumen: React.ReactNode;
-  /** Antigüedad de saldos — solo si hay vencimientos (modo urgencia). */
-  aging?: AgingBar[];
+  /** Antigüedad de saldos — solo si hay vencimientos (modo urgencia). Los tramos
+   *  pueden venir en `null` (= no se sabe): eso SE MUESTRA, no se pinta como 0. */
+  aging?: AgingBreakdown;
+  /** Por qué no se puede computar la mora (para el estado "sin dato" del aging). */
+  agingSinDato?: VencidoSinDato;
   /** Filas de deudores (cada una con sus acciones), ya construidas por el contenedor. */
   deudores: React.ReactNode;
   /** Barra "Ordenar por" (opcional): el default es el orden curado por prioridad. */
@@ -50,6 +54,7 @@ export function CobrarV2View({
   hero,
   resumen,
   aging,
+  agingSinDato,
   deudores,
   sortControl,
   banner,
@@ -66,7 +71,11 @@ export function CobrarV2View({
 
       {resumen}
 
-      {aging && aging.some((b) => b.amount > 0) && <AgingCard bars={aging} />}
+      {/* Se muestra si hay algo que mostrar O si el dato es DESCONOCIDO: esconder la
+          tarjeta cuando no se sabe es otra forma de decir "no hay nada vencido". */}
+      {aging && (aging.incomplete || aging.bars.some((b) => (b.amount ?? 0) > 0)) && (
+        <AgingCard aging={aging} sinDato={agingSinDato} />
+      )}
 
       {/* A quién cobrarle — por defecto ordenados por prioridad; el usuario puede reordenar. */}
       <QavanteCard
@@ -106,57 +115,77 @@ export function CobrarV2View({
   );
 }
 
-function AgingCard({ bars }: { bars: AgingBar[] }) {
+/* Antigüedad de saldos. Con algún tramo en `null` (qavante-api#123) la barra apilada
+   NO se pinta: con los cuatro tramos de mora desconocidos quedaba 100% "Vigente", o sea
+   "todo al día" justo cuando no se sabe nada (hallazgo H6). En su lugar va la franja de
+   desconocimiento + el porqué. Los tramos sin dato se rotulan "s/d"; el vigente, que el
+   contrato garantiza no-null, conserva su monto real. */
+function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato?: VencidoSinDato }) {
   return (
     <QavanteCard
       variant="bordered"
       header={<span className="font-medium">Antigüedad de saldos</span>}
     >
-      <div className="h-3 w-full overflow-hidden rounded-full bg-neutral-light/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]">
-        <div className="animate-qv-grow-x flex h-full w-full origin-left">
-          {bars.map((b) => (
-            <div
-              key={b.key}
-              className={AGING_COLOR[b.key]}
-              style={{ width: `${b.pct}%` }}
-              title={`${b.label}: ${formatClp(b.amount)}`}
-            />
-          ))}
+      {aging.incomplete ? (
+        <AgingBarraDesconocida />
+      ) : (
+        <div className="h-3 w-full overflow-hidden rounded-full bg-neutral-light/40 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)]">
+          <div className="animate-qv-grow-x flex h-full w-full origin-left">
+            {aging.bars.map((b) => (
+              <div
+                key={b.key}
+                className={AGING_COLOR[b.key]}
+                style={{ width: `${b.pct ?? 0}%` }}
+                title={`${b.label}: ${formatClp(b.amount ?? 0)}`}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-5">
-        {bars.map((b) => (
+        {aging.bars.map((b) => (
           <div key={b.key} className="flex flex-col">
             <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
               {b.label}
             </dt>
-            <dd className="font-semibold tabular-nums text-neutral-dark">{formatClp(b.amount)}</dd>
+            <dd
+              className={cn(
+                "font-semibold tabular-nums",
+                b.amount == null ? "text-neutral-mid" : "text-neutral-dark",
+              )}
+            >
+              {b.amount == null ? "s/d" : formatClp(b.amount)}
+            </dd>
           </div>
         ))}
       </dl>
+      {aging.incomplete && sinDato && <AgingDesconocido sinDato={sinDato} />}
     </QavanteCard>
   );
 }
 
 /* ── Resumen honesto ──────────────────────────────────────────────────────────
- * Modo urgencia: total + vencido + % vencido. Modo concentración: total + una nota
- * honesta de que los vencimientos aún no llegan (no un "Vencido $0" engañoso). */
+ * Total + vencido + % vencido cuando el vencido se conoce (incluido el cero
+ * verificado), o "sin dato" con el porqué cuando la API no pudo computarlo. */
+const MOTIVO_GENERICO = "No podemos calcular cuánto está vencido con los datos que tenemos.";
 export interface ResumenCobranzaProps {
   total: number;
-  overdue: number;
-  overduePct: number;
-  /** `concentracion` = sin vencimientos todavía. */
-  mode: "urgencia" | "concentracion";
+  /** Vencido. `null` = la API NO pudo computarlo (qavante-api#123) — se dice que no
+   *  se sabe. `0` = cero VERIFICADO: "estás al día", que NO es lo mismo. */
+  overdue: number | null;
+  overduePct: number | null;
   /** Monto ya marcado conciliado (en Clientes) que se descontó del total. */
   conciliado?: number;
+  /** Por qué no se puede computar la mora (cuando `overdue` es `null`). */
+  sinDato?: VencidoSinDato;
 }
 
 export function ResumenCobranza({
   total,
   overdue,
   overduePct,
-  mode,
   conciliado = 0,
+  sinDato,
 }: ResumenCobranzaProps) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -165,29 +194,43 @@ export function ResumenCobranza({
         value={<AmountCountUp value={total} />}
         sub={conciliado > 0 ? `menos ${formatClp(conciliado)} conciliado` : undefined}
       />
-      {mode === "urgencia" ? (
-        <>
-          <Stat label="Vencido" value={<AmountCountUp value={overdue} />} tone="danger" />
-          <Stat
-            label="% vencido"
-            value={`${overduePct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`}
-            tone="danger"
-          />
-        </>
-      ) : (
+      {/* Sólo dos caminos, y los decide el DATO, no un "modo" (H6):
+          - `null` → no se sabe: se dice, con el porqué REAL que manda el backend.
+          - un número → se muestra, incluido el `0`, que es un cero VERIFICADO
+            ("estás al día") y NO puede esconderse detrás de una causa inventada.
+          Antes acá había una tercera rama por `mode` que, con vencido 0, afirmaba
+          "el SII todavía no entrega las fechas de vencimiento". Con el vencido
+          derivado del RCV eso es sencillamente falso —el dato SÍ se conoce y da
+          cero— y encima contradecía al hero, que en la misma pantalla decía "nada
+          vencido". Desde #123 el "no se sabe" viaja como `null`: no hay que
+          adivinarlo a partir de un cero. */}
+      {overdue == null ? (
         <div className="rounded-xl border border-dashed border-border bg-surface-muted/40 p-4 sm:col-span-2">
           <p className="flex items-center gap-1.5 text-[13px] font-semibold text-neutral-dark">
-            Vencimientos: pendientes del SII
+            Vencido: sin dato
             <InfoHint label="Por qué no mostramos lo vencido">
-              El SII todavía no entrega las fechas de vencimiento de tus facturas (XML del DTE), así
-              que aún no podemos decir qué está vencido. Cuando lleguen, esta pantalla prioriza por
-              mora automáticamente.
+              {sinDato?.motivo ?? MOTIVO_GENERICO} {sinDato?.accion}
             </InfoHint>
           </p>
-          <p className="mt-1 text-[12px] text-neutral-mid">
-            Por ahora priorizamos tu cobranza por tamaño, no por mora.
-          </p>
+          <p className="mt-1 text-[12px] text-neutral-mid">{sinDato?.motivo ?? MOTIVO_GENERICO}</p>
+          {sinDato?.accion && (
+            <p className="mt-1 text-[12px] font-medium text-neutral-dark">{sinDato.accion}</p>
+          )}
         </div>
+      ) : (
+        <>
+          <Stat
+            label="Vencido"
+            value={<AmountCountUp value={overdue} />}
+            tone={overdue > 0 ? "danger" : undefined}
+            sub={overdue === 0 ? "Estás al día: no tienes saldo vencido." : undefined}
+          />
+          <Stat
+            label="% vencido"
+            value={`${(overduePct ?? 0).toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`}
+            tone={(overduePct ?? 0) > 0 ? "danger" : undefined}
+          />
+        </>
       )}
     </div>
   );
@@ -225,7 +268,8 @@ function Stat({
  * y pasa todo por props; esta fila solo pinta. */
 export interface DeudorRowProps {
   name: string;
-  rut: string;
+  /** El contrato admite `rut: null` ("null si falta") → se dice, no se pinta vacío. */
+  rut: string | null;
   total: number;
   overdue: number;
   /** Qué parte del total por cobrar es este cliente (%). */
@@ -299,7 +343,9 @@ export function DeudorRow(props: DeudorRowProps) {
                 </span>
               )}
             </span>
-            <span className="block text-xs text-neutral-mid">{formatRut(rut)}</span>
+            <span className="block text-xs text-neutral-mid">
+              {rut ? formatRut(rut) : "RUT no informado"}
+            </span>
           </span>
         </button>
 
@@ -355,7 +401,7 @@ function DeudorDocsPanel({
   onToggleDoc,
 }: {
   docs: DocMaestro[];
-  rut: string;
+  rut: string | null;
   gestionadoDocs: GestionadoMap;
   onToggleDoc: (folio: number | string | null) => void;
 }) {
@@ -432,7 +478,9 @@ function DeudorDocsPanel({
                 <td
                   className={cn(
                     "py-1.5 pr-3 text-right tabular-nums",
-                    doc.esNotaCredito || excluida ? "text-neutral-mid line-through" : "text-neutral-dark",
+                    doc.esNotaCredito || excluida
+                      ? "text-neutral-mid line-through"
+                      : "text-neutral-dark",
                   )}
                 >
                   {formatClp(doc.monto)}

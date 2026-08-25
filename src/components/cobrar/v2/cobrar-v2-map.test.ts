@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  relatoVencido,
+  type PrioridadMode,
   pickPrioridad,
   sortByTotal,
   reminderText,
@@ -271,5 +273,63 @@ describe("gestionado por documento (factura)", () => {
     const blob = withGestionadoDoc(undefined, "1-9", 100, "2026-07-25");
     // El gestionado por deudor NO se ve afectado.
     expect(isGestionado(readGestionado(blob), "1-9")).toBe(false);
+  });
+});
+
+/* H6-F: la pantalla no se puede contradecir a sí misma sobre lo vencido.
+   Estos casos van sobre el helper PURO a propósito: una story afirma sobre sus
+   propios args, así que revertir el fix en el contenedor la dejaba verde. Acá no
+   hay args que engañar — entra un dato y sale una decisión. */
+describe("relatoVencido (H6-F)", () => {
+  it("INVARIANTE: el hero NUNCA alega ignorancia sobre un dato que SÍ se conoce", () => {
+    const modos: (PrioridadMode | null)[] = ["urgencia", "concentracion", null];
+    const vencidos: (number | null)[] = [null, 0, 7_900_000];
+    for (const prioridadMode of modos) {
+      for (const totalVencido of vencidos) {
+        const r = relatoVencido({ prioridadMode, totalVencido });
+        // `desconocido` sale del DATO y de nada más.
+        expect(r.desconocido).toBe(totalVencido == null);
+        /* El bug H6-F era exactamente esto: `desconocido === false` (cero
+           VERIFICADO) y el hero igual diciendo "aún no sabemos qué está vencido",
+           contradiciendo al resumen. Acá se cae cualquier intento de volver a
+           derivar la causa del ranking en vez del dato. */
+        if (!r.desconocido) expect(r.hero).not.toBe("sin-dato");
+        // Y si no se sabe y no hay mora individual que perseguir, se DICE que no se sabe.
+        if (r.desconocido && prioridadMode !== "urgencia") expect(r.hero).toBe("sin-dato");
+      }
+    }
+  });
+
+  /* DEUDA DE CONTRATO, no bug de esta pantalla: `TopDebtor.overdue` sigue siendo
+     no-null, así que el agregado puede venir `null` mientras un deudor concreto
+     muestra mora conocida. Ahí el hero habla del DEUDOR ("cóbrale primero a X") y el
+     resumen del AGREGADO ("no podemos calcular el total vencido"): ámbitos distintos,
+     las dos afirmaciones verdaderas. No se fuerza a "sin-dato" a propósito — hacerlo
+     escondería mora real que sí conocemos. Si api#123 termina nuleando también el
+     overdue por deudor, este caso desaparece solo. */
+  it("agregado desconocido + mora conocida de un deudor: habla del deudor, sin mentir", () => {
+    const r = relatoVencido({ prioridadMode: "urgencia", totalVencido: null });
+    expect(r.hero).toBe("urgencia");
+    // El resumen sigue diciendo "sin dato" del agregado: no se pisa el desconocimiento.
+    expect(r.desconocido).toBe(true);
+  });
+
+  it("cero VERIFICADO con ranking por tamaño: dice 'sin mora', NO 'no sabemos'", () => {
+    // El caso exacto que contradecía al resumen: `useRcv` false + overdue "0".
+    const r = relatoVencido({ prioridadMode: "concentracion", totalVencido: 0 });
+    expect(r.hero).toBe("sin-mora");
+    expect(r.desconocido).toBe(false);
+  });
+
+  it("null: dice que no se sabe, aunque el ranking sea por tamaño", () => {
+    const r = relatoVencido({ prioridadMode: "concentracion", totalVencido: null });
+    expect(r.hero).toBe("sin-dato");
+    expect(r.desconocido).toBe(true);
+  });
+
+  it("con mora conocida manda el relato de urgencia", () => {
+    expect(relatoVencido({ prioridadMode: "urgencia", totalVencido: 3_000_000 }).hero).toBe(
+      "urgencia",
+    );
   });
 });

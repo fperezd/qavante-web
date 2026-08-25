@@ -26,13 +26,23 @@ import {
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
-import { normalizeRut } from "@/lib/validators/rut";
 import { defaultRange } from "@/lib/period/period-range";
 import { cn } from "@/lib/utils";
 import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 import { fechaSortKey } from "@/components/sii/rcv-sort";
 import { useDebtorInvoices } from "./debtor-invoices";
-import { parseAmount, agingBars, sortByUrgency, shareOfTotal } from "./cobranza-format";
+import {
+  parseAmount,
+  parseAmountOrNull,
+  agingBreakdown,
+  sortByUrgency,
+  shareOfTotal,
+  explicarVencidoSinDato,
+  rutKey,
+  type AgingBreakdown,
+  type VencidoSinDato,
+} from "./cobranza-format";
+import { AgingBarraDesconocida, AgingDesconocido } from "./aging-desconocido";
 
 /* Cobrar — cuentas por cobrar (Sprint C4, Maestro §7.3): resumen, antigüedad de
    saldos (aging), top deudores y documentos vencidos. Container: resuelve el
@@ -115,7 +125,13 @@ function Receivable({
   data: AccountsReceivableResponse;
   siiEnabled: boolean;
 }) {
-  const bars = agingBars(data.aging);
+  const aging = agingBreakdown(data.aging);
+  /* Los TRES estados del vencido (H6). `null` = la API NO pudo computarlo
+     (qavante-api#123) → se dice; `0` = cero verificado → "estás al día", que es
+     el mensaje más valioso de esta pantalla y no se puede perder. */
+  const vencido = parseAmountOrNull(data.overdue);
+  const vencidoPct = parseAmountOrNull(data.overdue_pct);
+  const sinDato = explicarVencidoSinDato(data);
   return (
     <div className="space-y-4">
       {isPartial(data) && <PartialDataBanner missingSources={data.missing_sources} />}
@@ -129,46 +145,36 @@ function Receivable({
         />
         <QavanteStatTile
           label="Vencido"
-          value={<AmountCountUp value={parseAmount(data.overdue)} />}
-          tone="danger"
+          value={vencido == null ? "s/d" : <AmountCountUp value={vencido} />}
+          /* Sin dato NO es rojo: el rojo afirma un juicio ("esto está mal") que
+             justamente no tenemos. Cero verificado tampoco: es una buena noticia. */
+          tone={vencido == null ? "muted" : vencido > 0 ? "danger" : "success"}
+          hint={
+            vencido == null ? (
+              <>
+                {sinDato.motivo} {sinDato.accion}
+              </>
+            ) : vencido === 0 ? (
+              "Estás al día: no tienes saldo vencido."
+            ) : undefined
+          }
           info="La parte de lo por cobrar cuyo plazo de pago ya pasó. Es la plata que deberías estar persiguiendo."
         />
         <QavanteStatTile
           label="% vencido"
-          value={`${parseAmount(data.overdue_pct).toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`}
-          tone="danger"
+          value={
+            vencidoPct == null
+              ? "s/d"
+              : `${vencidoPct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`
+          }
+          tone={vencidoPct == null ? "muted" : vencidoPct > 0 ? "danger" : "success"}
+          hint={vencidoPct == null ? "No se puede calcular sin los vencimientos." : undefined}
           info="Qué parte del total por cobrar ya está vencida. Mientras más alto, más apretada tu cobranza."
         />
       </div>
 
       {/* Antigüedad de saldos (aging). */}
-      <QavanteCard
-        variant="bordered"
-        header={<span className="font-medium">Antigüedad de saldos</span>}
-      >
-        <div className="flex h-3 w-full overflow-hidden rounded-full bg-neutral-light/40">
-          {bars.map((b) => (
-            <div
-              key={b.key}
-              className={AGING_COLOR[b.key]}
-              style={{ width: `${b.pct}%` }}
-              title={`${b.label}: ${formatClp(b.amount)}`}
-            />
-          ))}
-        </div>
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-5">
-          {bars.map((b) => (
-            <div key={b.key} className="flex flex-col">
-              <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-                {b.label}
-              </dt>
-              <dd className="font-semibold tabular-nums text-neutral-dark">
-                {formatClp(b.amount)}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </QavanteCard>
+      <AgingCard aging={aging} sinDato={sinDato} />
 
       {/* Top deudores — cada deudor expande a sus facturas (Libro de Ventas). */}
       {(data.top_debtors ?? []).length > 0 && (
@@ -210,7 +216,11 @@ function Receivable({
                   >
                     <td className="py-2 pr-3 text-neutral-dark">
                       <span className="block truncate">{doc.client_name}</span>
-                      <span className="text-xs text-neutral-mid">{formatRut(doc.client_rut)}</span>
+                      {/* El contrato admite `client_rut: null` ("null si falta"): se
+                          dice, no se pinta un RUT vacío. */}
+                      <span className="text-xs text-neutral-mid">
+                        {doc.client_rut ? formatRut(doc.client_rut) : "RUT no informado"}
+                      </span>
                     </td>
                     <td className="py-2 pr-3 text-neutral-dark">{doc.document}</td>
                     <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(doc.due_date)}</td>
@@ -230,6 +240,53 @@ function Receivable({
         </QavanteCard>
       )}
     </div>
+  );
+}
+
+/* Antigüedad de saldos. Dos caminos que NO se mezclan (H6):
+   - completo → barra apilada con los % reales;
+   - incompleto (algún tramo `null`) → franja de "no se sabe" + explicación. Los
+     tramos desconocidos se muestran "s/d"; el vigente, que el contrato garantiza
+     no-null, mantiene su monto real (no se pierde un dato que sí tenemos). */
+function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato: VencidoSinDato }) {
+  return (
+    <QavanteCard
+      variant="bordered"
+      header={<span className="font-medium">Antigüedad de saldos</span>}
+    >
+      {aging.incomplete ? (
+        <AgingBarraDesconocida />
+      ) : (
+        <div className="flex h-3 w-full overflow-hidden rounded-full bg-neutral-light/40">
+          {aging.bars.map((b) => (
+            <div
+              key={b.key}
+              className={AGING_COLOR[b.key]}
+              style={{ width: `${b.pct ?? 0}%` }}
+              title={`${b.label}: ${formatClp(b.amount ?? 0)}`}
+            />
+          ))}
+        </div>
+      )}
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-5">
+        {aging.bars.map((b) => (
+          <div key={b.key} className="flex flex-col">
+            <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+              {b.label}
+            </dt>
+            <dd
+              className={cn(
+                "font-semibold tabular-nums",
+                b.amount == null ? "text-neutral-mid" : "text-neutral-dark",
+              )}
+            >
+              {b.amount == null ? "s/d" : formatClp(b.amount)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {aging.incomplete && <AgingDesconocido sinDato={sinDato} />}
+    </QavanteCard>
   );
 }
 
@@ -257,12 +314,12 @@ function TopDebtors({
     <QavanteCard variant="bordered" header={<span className="font-medium">Top deudores</span>}>
       <ul className="divide-y divide-border">
         {ordered.map((d) => {
-          const rut = normalizeRut(d.rut);
+          const rut = rutKey(d.rut);
           const isOpen = openRut === rut;
           const docs = invoices.byRut.get(rut) ?? [];
           const pct = shareOfTotal(d.total, total);
           return (
-            <li key={d.rut}>
+            <li key={rut || d.name}>
               <button
                 type="button"
                 aria-expanded={isOpen}
@@ -282,7 +339,9 @@ function TopDebtors({
                   />
                   <div className="min-w-0">
                     <p className="truncate font-medium text-neutral-dark">{d.name}</p>
-                    <p className="text-xs text-neutral-mid">{formatRut(d.rut)}</p>
+                    <p className="text-xs text-neutral-mid">
+                      {d.rut ? formatRut(d.rut) : "RUT no informado"}
+                    </p>
                   </div>
                 </div>
                 <div className="shrink-0 text-right tabular-nums">
@@ -382,7 +441,9 @@ export function DebtorInvoicesPanel({
             <tbody>
               {ordered.map((doc, i) => (
                 <tr key={`${doc.folio}-${i}`} className="border-b border-border/50 last:border-b-0">
-                  <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">{doc.folio ?? "s/d"}</td>
+                  <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">
+                    {doc.folio ?? "s/d"}
+                  </td>
                   <td className="py-1.5 pr-3 text-neutral-mid">
                     {doc.fecha ? formatDateLike(doc.fecha) : "s/d"}
                   </td>
@@ -395,8 +456,8 @@ export function DebtorInvoicesPanel({
           </table>
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-neutral-mid">
-          Facturas emitidas a este cliente (Libro de Ventas, últimos 6 meses). El saldo pendiente
-          y los días de mora por factura aparecen cuando el SII entregue las fechas de vencimiento.
+          Facturas emitidas a este cliente (Libro de Ventas, últimos 6 meses). El saldo pendiente y
+          los días de mora por factura aparecen cuando el SII entregue las fechas de vencimiento.
         </p>
       </>
     );
