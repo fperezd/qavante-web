@@ -49,7 +49,13 @@
         {
           "matchingUrlPattern": ".*/inicio$",
           "assertions": {
-            "categories:performance": ["error", { "minScore": 0.9 }]
+            "categories:performance": ["error", { "minScore": 0.85 }]
+          }
+        },
+        {
+          "matchingUrlPattern": ".*/inicio$",
+          "assertions": {
+            "categories:performance": ["warn", { "minScore": 0.9 }]
           }
         },
         {

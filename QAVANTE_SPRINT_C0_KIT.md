@@ -850,7 +850,7 @@ Al cerrar Sprint C0 (`c0-complete-YYYY-MM-DD` taggeado), se mide:
 | Issues cerrados | 18/18 | GitHub project board |
 | PRs mergeados | 18+ (1 por issue mínimo) | GitHub PRs |
 | Lighthouse mobile `/login` | ≥ 85 | Lighthouse CI |
-| Lighthouse mobile `/app/inicio` | ≥ 90 | Lighthouse CI |
+| Lighthouse mobile `/app/inicio` | ≥ 85 bloqueante, ≥ 90 objetivo | Lighthouse CI (desviación aceptada, #37) |
 | Tiempo de login → ver inicio | < 5s en LTE | Test E2E |
 | Cobertura de tests unitarios | ≥ 50% en `lib/auth/` | Vitest coverage |
 | Bundle size `/login` | < 200 KB gzip | Next.js build output |

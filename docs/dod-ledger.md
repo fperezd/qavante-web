@@ -24,17 +24,17 @@
 
 Aplica transversalmente, no por sprint:
 
-| Ítem                                | Estado | Nota                                                                                     |
-| ----------------------------------- | ------ | ---------------------------------------------------------------------------------------- |
-| Tests vitest verdes pre-PR          | ✅     | corre en CI (`test`)                                                                     |
-| E2E de flujos reales                | ✅     | `clasificar`, `cobrar`, `pagar`, `gestion`, `estructura-gestion`                         |
-| E2E smoke login real                | ⏳     | `test.skip` — espera secrets `SMOKE_RUT`/`SMOKE_PASSWORD` (acción Fernando)              |
-| Lighthouse mobile ≥85 `/login`      | ✅     | enforced (`categories:performance` error ≥0.85)                                          |
-| Lighthouse mobile ≥90 `/app/inicio` | ✅     | enforced (`assertMatrix` perf ≥0.90 en `/inicio`) — PR #290                              |
-| Gate de a11y automático             | ✅     | LHCI a11y `error` ≥0.90 en todas las URLs — PR #290 (scores 98/98/100)                   |
-| Chromatic / regresión visual        | 🟡     | corre en CI; baselines pendientes de aceptar a mano                                      |
-| Sin regresiones (navegación manual) | ✅     | por ciclo K.4                                                                            |
-| Types generados desde OpenAPI       | ✅     | `generate:api`; contratos FE-first hand-rolled documentados en `docs/backend-contracts/` |
+| Ítem                                | Estado | Nota                                                                                         |
+| ----------------------------------- | ------ | -------------------------------------------------------------------------------------------- |
+| Tests vitest verdes pre-PR          | ✅     | corre en CI (`test`)                                                                         |
+| E2E de flujos reales                | ✅     | `clasificar`, `cobrar`, `pagar`, `gestion`, `estructura-gestion`                             |
+| E2E smoke login real                | ⏳     | `test.skip` — espera secrets `SMOKE_RUT`/`SMOKE_PASSWORD` (acción Fernando)                  |
+| Lighthouse mobile ≥85 `/login`      | ✅     | enforced (`categories:performance` error ≥0.85)                                              |
+| Lighthouse mobile `/app/inicio`     | ✅     | enforced error ≥0.85 + warn ≥0.90 — desviación aceptada por el BO (#37, PR #41); antes ≥0.90 |
+| Gate de a11y automático             | ✅     | LHCI a11y `error` ≥0.90 en todas las URLs — PR #290 (scores 98/98/100)                       |
+| Chromatic / regresión visual        | 🟡     | corre en CI; baselines pendientes de aceptar a mano                                          |
+| Sin regresiones (navegación manual) | ✅     | por ciclo K.4                                                                                |
+| Types generados desde OpenAPI       | ✅     | `generate:api`; contratos FE-first hand-rolled documentados en `docs/backend-contracts/`     |
 
 ## Cómo se actualiza
 
