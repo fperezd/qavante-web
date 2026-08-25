@@ -547,6 +547,13 @@ export interface paths {
          * @description Totales agregados de planilla del período: total_haberes, total_descuentos,
          *     total_liquido, total_imponible, empleados_contados.
          *
+         *     **Cache-first (#109):** los totales salen de la nómina canónica que el sync de BUK ya
+         *     dejó en la base (la misma que lee Gestión), no de un fetch vivo — pedirle a BUK el
+         *     libro completo, página por página, costaba ~10s por request para un período que ya
+         *     está cerrado. `cached`/`synced_at`/`stale` declaran la frescura de lo servido;
+         *     `?refresh=true` fuerza el fetch vivo. Sin foto del período en la base (nunca
+         *     sincronizado) también se va en vivo — mejor un request lento que un cero inventado.
+         *
          *     Por privacidad, NO se expone detalle individual de sueldos. El total
          *     incluye a TODOS los empleados (incluso los protegidos por confidencialidad).
          */
@@ -788,6 +795,12 @@ export interface paths {
          *     declarado o de la estimación del RCV; el **impuesto de trabajadores** (retención 2ª cat.,
          *     código 48) sale de **BUK**, o se pasa **manual** en `impuesto_trabajadores` si no hay BUK.
          *     Fuente en `fuente_impuesto_trabajadores` (manual/buk/no_disponible).
+         *
+         *     **El impuesto de trabajadores sale cache-first (#109):** de la nómina canónica que el
+         *     sync de BUK ya dejó en la base, no de un fetch vivo — este endpoint necesita UN número
+         *     (código 48) y pedirle a BUK el libro de remuneraciones completo costaba ~14s. La
+         *     frescura de ese número va en `impuesto_trabajadores_cached` / `_synced_at` / `_stale`.
+         *     Solo un período sin sincronizar cae al fetch vivo.
          */
         get: operations["sii_f29_impuesto"];
         put?: never;
@@ -2080,6 +2093,15 @@ export interface paths {
          *     cuentas solo se seedeaban a mano; este endpoint las hace productizables y es
          *     el prerequisito para vincular cuentas BICE (`POST …/bice/accounts/{ext}/link`)
          *     y para la ingesta de tarjetas (ADR-0050). Requiere rol owner/admin.
+         *
+         *     `currency_code` se valida contra el catálogo `core.currencies` (422 si no está). Antes solo
+         *     se validaba el LARGO (`min_length=3, max_length=3`) y `bank_accounts.currency_code` no tiene
+         *     FK ni CHECK (mig 0001:55, decisión explícita de la mig 0026): una cuenta en 'GBP' entraba sin
+         *     problema y después hacía que CADA batch de ingesta de esa cuenta violara
+         *     `bank_movements_currency_code_fk` y se cayera ENTERO (`executemany` atómico; reproducido en
+         *     Postgres 16, review #958 bloqueante 2a). La moneda de la cuenta es además la que el motor usa
+         *     como fallback de la moneda del movimiento: dejarla entrar sin validar era el punto único de
+         *     falla del que colgaba todo lo demás.
          */
         post: operations["treasury_bank_accounts_create"];
         delete?: never;
@@ -3000,6 +3022,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/decision-plans/collection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Collection Plan — plan de cobranza priorizado con alternativa no_action */
+        get: operations["treasury_collection_plan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/decision-plans/payment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payment Plan — plan de pagos priorizado con alternativa no_action */
+        get: operations["treasury_payment_plan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/tax-calendar": {
         parameters: {
             query?: never;
@@ -3609,7 +3665,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Conciliación: confirma la sugerencia en cola */
+        /**
+         * Conciliación: confirma la sugerencia en cola, o concilia contra un documento elegido
+         * @description Sin body (o `document_id` null) → aplica la sugerencia ENCOLADA por el motor (`confirm_review`).
+         *     Con `document_id` → concilia el movimiento contra ESE documento elegido por el humano
+         *     (`confirm_review_with_document`, ADR-0097). La reversa deshace ambos igual.
+         */
         post: operations["treasury_reconciliation_confirm"];
         delete?: never;
         options?: never;
@@ -4736,6 +4797,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/sources/rollup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tooxs360: salud de cada fuente agregada sobre TODOS los tenants
+         * @description **Se registra ANTES de `/sources/{source_code}`, y el orden es funcional.** FastAPI resuelve
+         *     por orden de declaración: si la ruta con path-param va primero, captura `/sources/rollup` con
+         *     `source_code="rollup"` y este endpoint queda inalcanzable. Es la misma trampa que el proyecto
+         *     ya tiene documentada.
+         *
+         *     Conteos por fuente sobre **todos** los tenants: cuántos sanos, desactualizados, sin
+         *     conectar, con errores. Para monitorear la plataforma sin mirar a ningún cliente.
+         *
+         *     **Sólo para el contexto de servidor, no para la API-key de un cliente.** El dato es
+         *     cross-tenant: cuántos clientes tiene la plataforma y en qué estado están. Que la key de un
+         *     tenant pudiera leerlo contradiría el aislamiento que #79 endureció. `tenant_id is None`
+         *     identifica al `SERVER_API_KEY` de confianza (ADR-0074, ver `TenantContext`); cualquier otra
+         *     key es de un cliente y recibe 403. Fail-closed: con el killswitch
+         *     `LEGACY_SERVER_KEY_MVP_FALLBACK=1` la key legacy mapea a un tenant y también queda afuera,
+         *     que es el lado seguro del error.
+         *
+         *     **Y por eso no puede vivir en `/api/status`.** La consulta necesita `get_admin_conn`
+         *     (BYPASSRLS), cuyo pool tiene 3 conexiones y **lo comparte el lookup pre-auth del login**.
+         *     Colgada de una ruta anónima, cualquiera podría presionar ese pool y degradar la
+         *     autenticación.
+         *
+         *     No devuelve ids, nombres ni mensajes de ningún tenant — sólo conteos.
+         */
+        get: operations["admin_sources_rollup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/sources/{source_code}": {
         parameters: {
             query?: never;
@@ -5219,10 +5321,24 @@ export interface paths {
         };
         /**
          * Get Status
-         * @description Estado agregado: DB + 3 integraciones (BICE, BUK, SII) en una sola
-         *     request. NO requiere auth — sirve para health dashboards. Cada
-         *     integración devuelve {status, detail}, donde detail es el shape
-         *     específico de esa integración.
+         * @description Salud de **plataforma**: DB + versión. NO requiere auth.
+         *
+         *     **Por qué no reporta integraciones.** Antes instanciaba BICE/SII/TGR con `MVP_TENANT_ID`
+         *     **hardcodeado** y devolvía el detalle de ESE tenant. En un producto multi-tenant eso no es
+         *     una métrica de plataforma —es la foto de un cliente arbitrario— y, siendo público y sin
+         *     auth, filtraba su operación (vencimiento del certificado digital, timestamps de sync, URL
+         *     del proveedor, rutas de scripts internos) a cualquiera que lo consultara.
+         *
+         *     La salud de las fuentes **no cabe en un endpoint anónimo**, ni siquiera agregada: el rollup
+         *     cross-tenant necesita `get_admin_conn` (BYPASSRLS), cuyo pool tiene 3 conexiones y **lo
+         *     comparte el lookup pre-auth del login**. Colgarlo de una ruta pública convierte tráfico
+         *     anónimo en presión sobre la autenticación — cambiar una fuga de datos por una superficie de
+         *     caída del login es un mal negocio.
+         *
+         *     Dónde vive cada cosa:
+         *
+         *     - por tenant → `GET /api/sources/status`, `GET /api/sii/health` (con sesión)
+         *     - agregado sobre todos los tenants → `GET /api/admin/sources/rollup` (con API-key)
          */
         get: operations["get_status_api_status_get"];
         put?: never;
@@ -5240,24 +5356,37 @@ export interface components {
         /**
          * ARAging
          * @description Aging contable del saldo por cobrar (claves exactas del contrato FE).
+         *
+         *     Los cuatro buckets de MORA son `null` cuando el vencido no se puede computar
+         *     (documentos sin `due_date`): "no sé cómo se reparte la mora", no "no hay mora".
+         *     Ver `AccountsReceivableResponse.overdue`.
          */
         ARAging: {
             /**
              * Current
-             * @description No vencido (due_date >= hoy).
+             * @description No vencido (due_date >= hoy). Siempre presente: es un piso de lo conocido, aunque haya documentos sin vencimiento (ver `undated_amount`).
              */
             current: string;
             /**
              * D1 30
-             * @description 1-30 días de mora.
+             * @description 1-30 días de mora. `null` = desconocido.
              */
-            d1_30: string;
-            /** D31 60 */
-            d31_60: string;
-            /** D61 90 */
-            d61_90: string;
-            /** D90 Plus */
-            d90_plus: string;
+            d1_30: string | null;
+            /**
+             * D31 60
+             * @description 31-60 días de mora. `null` = desconocido.
+             */
+            d31_60: string | null;
+            /**
+             * D61 90
+             * @description 61-90 días de mora. `null` = desconocido.
+             */
+            d61_90: string | null;
+            /**
+             * D90 Plus
+             * @description 90+ días de mora. `null` = desconocido.
+             */
+            d90_plus: string | null;
         };
         /**
          * AcceptInvitationRequest
@@ -5347,13 +5476,26 @@ export interface components {
         AccountsReceivableResponse: {
             /** Total */
             total: string;
-            /** Overdue */
-            overdue: string;
+            /**
+             * Overdue
+             * @description Saldo VENCIDO, NETO de notas de crédito vencidas — por eso **puede ser negativo** (una NC vencida mayor que las facturas vencidas), y siempre cuadra con la suma de los cuatro buckets de mora. `null` cuando no se puede computar porque hay documentos sin fecha de vencimiento (el RCV no la trae hasta el XML del DTE) y no hay mora impaga conocida: es 'no sé', no '$0'. Un valor > 0 es un PISO de la mora conocida, no necesariamente el total. La pantalla debe distinguir los tres casos — `null` NO se renderiza como cero, y un negativo no se renderiza como mora.
+             */
+            overdue: string | null;
             /**
              * Overdue Pct
-             * @description overdue/total*100 (string-decimal, ej. '32.0').
+             * @description overdue/total*100 (string-decimal, ej. '32.0'). `null` cuando `overdue` lo es, por la misma razón.
              */
-            overdue_pct: string;
+            overdue_pct: string | null;
+            /**
+             * Undated Amount
+             * @description Saldo vivo SIN fecha de vencimiento, es decir la plata que queda fuera del aging. Explica el `null`: con `undated_amount == total` no se sabe nada de la mora. Sin default, por la misma razón que los buckets: es el campo con el que la pantalla explica el `null`, así que no puede ser el único que a veces no venga.
+             */
+            undated_amount: string;
+            /**
+             * Document Count
+             * @description Documentos vivos ('open'/'partially_paid') del tenant. `total == 0` NO significa cartera vacía: una factura y su nota de crédito se netean a cero. Sirve para distinguir 'no hay nada cargado' de 'hay documentos pero sin fecha' al explicar un `overdue` en null.
+             */
+            document_count: number;
             aging: components["schemas"]["ARAging"];
             /** Top Debtors */
             top_debtors?: components["schemas"]["TopDebtor"][];
@@ -5963,6 +6105,11 @@ export interface components {
              * @enum {string}
              */
             direction: "credit" | "debit";
+            /**
+             * Currency Code
+             * @description Moneda del movimiento (ISO-4217, catálogo `core.currencies`). `null` = NINGUNA fuente informó la moneda (filas históricas). El motor de conciliación lee ese `null` como CLP por convención declarada; el dato en disco sigue siendo 'no informado' para que un backfill pueda corregirlo.
+             */
+            currency_code?: string | null;
             /**
              * Canonical Category
              * @description Categoría canónica del movimiento (Addendum §7.2). NULL = sin clasificar.
@@ -6886,6 +7033,11 @@ export interface components {
          *
          *     Los `*_days` van `null` cuando el denominador (ventas o COGS de la ventana) es 0 o negativo
          *     (dominado por notas de crédito) — no se inventa el ratio. `ccc_days` es `null` si falta DSO.
+         *
+         *     **El DSO excluye el factoring de los dos lados** (decisión del BO, 2026-08-23): `ar_total` no
+         *     cuenta las facturas cedidas, y el denominador descuenta esas mismas ventas. Responde "cuántos
+         *     días tardo en cobrar **lo que cobro yo**". `ar_ceded` y `ceded_pct_of_ar` acompañan al número
+         *     para que un DSO que baja no se lea como mejora de cobranza cuando se cedió el cobro.
          */
         CashCycleResponse: {
             /**
@@ -6905,7 +7057,7 @@ export interface components {
             ccc_days: number | null;
             /**
              * Ar Total
-             * @description Saldo vivo de cuentas por cobrar (CLP).
+             * @description Saldo vivo de cuentas por cobrar PROPIAS (CLP, sin las cedidas al factoring).
              */
             ar_total: string;
             /**
@@ -6914,10 +7066,31 @@ export interface components {
              */
             ap_total: string;
             /**
+             * Ar Ceded
+             * @description Saldo vivo cedido al factoring (CLP, base neta). No entra en `ar_total`: lo cobra el factor. Se expone para poder decir 'X días · el N% de tu cartera está cedida'.
+             */
+            ar_ceded: string;
+            /**
+             * Ceded Pct Of Ar
+             * @description Porcentaje cedido sobre la cartera viva total (cedida + propia), acotado a [0, 100]. 0 si no hay cartera. El clamp existe porque el AR propio puede ser negativo cuando lo dominan las notas de crédito.
+             */
+            ceded_pct_of_ar: string;
+            /**
+             * Cesiones Sin Marcar
+             * @description Documentos con cesión registrada que NO tienen `ceded_at` en la cartera. Mide la COMPLETITUD del dato, no plata: el marcador sólo toca filas open/partially_paid, así que una factura pagada antes de que corra queda sin marcar y su venta vuelve al lado propio del DSO. Distinto de 0 ⇒ el DSO tiene un sesgo conocido y no medido.
+             * @default 0
+             */
+            cesiones_sin_marcar: number;
+            /**
              * Revenue Window
              * @description Ventas netas devengadas de la ventana.
              */
             revenue_window: string;
+            /**
+             * Revenue Ceded Window
+             * @description Ventas netas de las facturas CEDIDAS emitidas en la ventana. Se descuenta de `revenue_window` para el denominador del DSO — el numerador tampoco las cuenta.
+             */
+            revenue_ceded_window: string;
             /**
              * Cogs Window
              * @description COGS devengado de la ventana.
@@ -7125,6 +7298,8 @@ export interface components {
             critical_obligations_14d: string;
             /** Projected Cash 14D */
             projected_cash_14d: string;
+            /** Cash Gap Amount 14D */
+            cash_gap_amount_14d: string;
             /** Has Gap */
             has_gap: boolean;
             /** Last Updated */
@@ -7949,6 +8124,18 @@ export interface components {
             /** Results */
             results: components["schemas"]["ConfirmBatchItemResult"][];
         };
+        /**
+         * ConfirmRequest
+         * @description Body OPCIONAL de confirm (ADR-0097). Sin él → aplica la sugerencia encolada; con `document_id`
+         *     → concilia contra ESE documento elegido por el humano (de `document-suggestions`).
+         */
+        ConfirmRequest: {
+            /**
+             * Document Id
+             * @description UUID del documento a conciliar (de document-suggestions). Null → sugerencia encolada.
+             */
+            document_id?: string | null;
+        };
         /** ConnectionStatusItem */
         ConnectionStatusItem: {
             /** Source Code */
@@ -8270,7 +8457,7 @@ export interface components {
             account_name: string;
             /**
              * Currency Code
-             * @description ISO 4217 (ej. 'CLP', 'USD'). Se normaliza a mayúsculas.
+             * @description ISO 4217 (ej. 'CLP', 'USD'). Se normaliza a mayúsculas y se valida contra el catálogo `core.currencies` (422 si no está). El largo NO alcanza como validación: 'GBP' mide 3 y no está en el catálogo, y una cuenta así volteaba el batch de ingesta completo por la FK de `bank_movements.currency_code`.
              */
             currency_code: string;
             /**
@@ -8852,6 +9039,40 @@ export interface components {
             /** Latency Ms */
             latency_ms?: number | null;
         };
+        /**
+         * DecisionPlanResponse
+         * @description Contrato mínimo de una recomendación explicable backend-first.
+         */
+        DecisionPlanResponse: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "collection_plan" | "payment_plan";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "abstain";
+            /** Summary */
+            summary: string;
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "high" | "medium" | "low" | "preliminary";
+            /** Reasons */
+            reasons?: string[];
+            /** Evidence */
+            evidence?: components["schemas"]["PlanEvidence"][];
+            /** Alternatives */
+            alternatives?: components["schemas"]["PlanAlternative"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
         /** DedupRcvRequest */
         DedupRcvRequest: {
             /**
@@ -9244,6 +9465,11 @@ export interface components {
              * @default 0
              */
             skipped: number;
+            /**
+             * Errors
+             * @default 0
+             */
+            errors: number;
         } & {
             [key: string]: unknown;
         };
@@ -9251,6 +9477,12 @@ export interface components {
          * DueDateEnrichResponse
          * @description Resultado de `POST /api/sii/enrich-due-dates` — baja el XML de cada DTE emitido
          *     (via `dhdr_codigo` del RCV) y llena `receivables.due_date` (ADR-0037 §6.4).
+         *
+         *     Los contadores particionan `total`: `enriched + no_code + no_xml + foreign_emitter +
+         *     no_date + no_match + errors == total`. `foreign_emitter` = XML que no corresponde a la
+         *     empresa actualmente seleccionada y se omitió antes de tocar receivables. `no_match` = el
+         *     XML trajo vencimiento pero no hay fila que calce por `(tipo, folio, rut)` — honesto,
+         *     igual que en compras: un descuadre de formato se ve acá, no se traga como éxito parcial.
          */
         DueDateEnrichResponse: {
             /**
@@ -9281,10 +9513,25 @@ export interface components {
              */
             no_xml: number;
             /**
+             * Foreign Emitter
+             * @default 0
+             */
+            foreign_emitter: number;
+            /**
              * No Date
              * @default 0
              */
             no_date: number;
+            /**
+             * No Match
+             * @default 0
+             */
+            no_match: number;
+            /**
+             * Errors
+             * @default 0
+             */
+            errors: number;
         } & {
             [key: string]: unknown;
         };
@@ -9706,6 +9953,23 @@ export interface components {
              * @default no_disponible
              */
             fuente_impuesto_trabajadores: string;
+            /**
+             * Impuesto Trabajadores Cached
+             * @description True si `impuesto_trabajadores` salió de la nómina canónica ya sincronizada (sin llamar a BUK). False = manual, fetch vivo o no disponible.
+             * @default false
+             */
+            impuesto_trabajadores_cached: boolean;
+            /**
+             * Impuesto Trabajadores Synced At
+             * @description Cuándo se sincronizó la nómina del período de la que sale el impuesto (UTC). `null` = no se sabe (manual, o período nunca sincronizado) — no se asume 'recién'. Con `no_disponible` y fecha: hay foto del período, pero el impuesto guardado no es afirmable (ver `fuente_impuesto_trabajadores`).
+             */
+            impuesto_trabajadores_synced_at?: string | null;
+            /**
+             * Impuesto Trabajadores Stale
+             * @description True si el impuesto del MES EN CURSO se sincronizó hace más de 24h (o no se sabe cuándo). Un mes cerrado no cambia: nunca se marca stale.
+             * @default false
+             */
+            impuesto_trabajadores_stale: boolean;
             /**
              * Iva Determinado
              * @default 0
@@ -10198,6 +10462,53 @@ export interface components {
         FinancialImpactsResponse: {
             /** Items */
             items: components["schemas"]["FinancialImpact"][];
+        };
+        /**
+         * FinancialIntegrityAssessment
+         * @description Resumen reusable para resultados y futuras recomendaciones.
+         *
+         *     `decision_support="abstain"` no invalida el resultado histórico: solo
+         *     prohíbe presentarlo como una base suficiente para recomendar una acción.
+         */
+        FinancialIntegrityAssessment: {
+            /**
+             * Period
+             * @default
+             */
+            period: string;
+            /**
+             * State
+             * @default unknown
+             * @enum {string}
+             */
+            state: "complete" | "partial" | "stale" | "unknown";
+            /**
+             * Decision Support
+             * @default abstain
+             * @enum {string}
+             */
+            decision_support: "eligible" | "abstain";
+            /** Sources */
+            sources?: components["schemas"]["FinancialSourceIntegrity"][];
+            /** Reasons */
+            reasons?: string[];
+        };
+        /**
+         * FinancialSourceIntegrity
+         * @description Integridad de una fuente requerida para un período financiero.
+         */
+        FinancialSourceIntegrity: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Present */
+            present: boolean;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
         };
         /**
          * FinancialVersion
@@ -10738,6 +11049,27 @@ export interface components {
             quarantined: boolean;
             /** Error */
             error?: string | null;
+            /**
+             * Skipped Reason
+             * @description Por qué NO se importaron movimientos de esta cuenta. Valores: `foreign_account_signal` (BICE la marca extranjera), `currency_mismatch_source_vs_account` (el banco declara una moneda y nuestra cuenta otra — el bug #526 confirmado con dato de la fuente), `non_clp_account_without_source_signal` (cuenta no-CLP y la fuente no declara moneda: ambiguo, no se adivina). `null` = la cuenta sincronizó normal.
+             */
+            skipped_reason?: string | null;
+            /**
+             * Source Currency
+             * @description Moneda que declara BICE para la cartola de esta cuenta (header).
+             */
+            source_currency?: string | null;
+            /**
+             * Account Currency
+             * @description Moneda registrada en `treasury.bank_accounts` para esta cuenta.
+             */
+            account_currency?: string | null;
+            /**
+             * Balance Updated
+             * @description Si se refrescó el saldo contable (fuente del Inicio Ejecutivo). `false` con `skipped_reason=currency_mismatch_source_vs_account` significa saldo VIEJO a la vista: el saldo que manda BICE viene en la moneda del header, que en ese caso no es la de la cuenta — persistirlo sería el mismo error de moneda un nivel más arriba.
+             * @default false
+             */
+            balance_updated: boolean;
         };
         /**
          * IngestResult
@@ -10753,6 +11085,11 @@ export interface components {
              * @description `external_id` de cuentas sin mapeo (cuarentena, re-sincronizar tras vincular).
              */
             accounts_unmapped?: string[];
+            /**
+             * Accounts Skipped
+             * @description `external_id` de cuentas VINCULADAS que no importaron movimientos por un guard de moneda. Antes esto solo existía como línea de log: el consumidor veía `accounts_total=2, accounts_synced=1` sin explicación (dato faltante silencioso). El motivo por cuenta está en `per_account[].skipped_reason`.
+             */
+            accounts_skipped?: string[];
             /**
              * Imported Total
              * @default 0
@@ -11932,6 +12269,8 @@ export interface components {
              * @description Frescura por fuente del P&L (RCV, nómina, honorarios): present + synced_at + flag de staleness. `missing_sources` sigue como resumen legible derivado.
              */
             sources?: components["schemas"]["SourceFreshness"][];
+            /** @description Integridad de las fuentes requeridas para este período. Solo `decision_support=eligible` permite usar el resultado como base de una recomendación. */
+            integrity?: components["schemas"]["FinancialIntegrityAssessment"];
             /**
              * Generated At
              * Format: date-time
@@ -12213,6 +12552,23 @@ export interface components {
             period?: string | null;
             /** @description Totales agregados de planilla. Por privacidad NO se expone detalle por empleado. */
             totales?: components["schemas"]["PayrollTotales"];
+            /**
+             * Cached
+             * @description True si los totales salen de la nómina canónica ya sincronizada (sin llamar a BUK). False = fetch vivo (`?refresh=true` o período sin sincronizar).
+             * @default false
+             */
+            cached: boolean;
+            /**
+             * Synced At
+             * @description Cuándo se sincronizó el dato servido (UTC). En el camino vivo es el instante del fetch. `null` = no se sabe (no se asume 'recién').
+             */
+            synced_at?: string | null;
+            /**
+             * Stale
+             * @description True si el dato del MES EN CURSO se sincronizó hace más de 24h (o no se sabe cuándo). Un mes cerrado no cambia: nunca se marca stale.
+             * @default false
+             */
+            stale: boolean;
             /** Error */
             error?: string | null;
         } & {
@@ -12369,6 +12725,116 @@ export interface components {
             permissions: string[];
             /** Role */
             role: string;
+        };
+        /**
+         * PlanAlternative
+         * @description Alternativa evaluada (incluye siempre no_action).
+         */
+        PlanAlternative: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Rank */
+            rank: number;
+            /**
+             * Recommended
+             * @default false
+             */
+            recommended: boolean;
+            /** Explanation */
+            explanation: string;
+            /**
+             * Confidence
+             * @default preliminary
+             * @enum {string}
+             */
+            confidence: "high" | "medium" | "low" | "preliminary";
+            /**
+             * Confidence Method
+             * @default rule_based
+             */
+            confidence_method: string;
+            /** Evidence */
+            evidence?: components["schemas"]["PlanEvidence"][];
+            /** Impacts */
+            impacts?: components["schemas"]["PlanImpact"][];
+            /** Targets */
+            targets?: components["schemas"]["PlanTarget"][];
+        };
+        /**
+         * PlanEvidence
+         * @description Dato observable que respalda el plan.
+         */
+        PlanEvidence: {
+            /** Metric Code */
+            metric_code: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+            /** Source */
+            source: string;
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Period Start */
+            period_start?: string | null;
+            /** Period End */
+            period_end?: string | null;
+            /** Integrity State */
+            integrity_state: string;
+            /**
+             * Freshness State
+             * @default unknown
+             * @enum {string}
+             */
+            freshness_state: "fresh" | "stale" | "unknown";
+            /** Reference */
+            reference: string;
+        };
+        /**
+         * PlanImpact
+         * @description Un impacto esperado para una alternativa del plan.
+         */
+        PlanImpact: {
+            /** Metric */
+            metric: string;
+            /** Value */
+            value: string;
+            /** Currency */
+            currency?: string | null;
+            /** Horizon Days */
+            horizon_days?: number | null;
+            /**
+             * Confidence
+             * @default preliminary
+             * @enum {string}
+             */
+            confidence: "high" | "medium" | "low" | "preliminary";
+            /**
+             * Confidence Method
+             * @default rule_based
+             */
+            confidence_method: string;
+        };
+        /**
+         * PlanTarget
+         * @description Ítem puntual que la alternativa recomienda atender.
+         */
+        PlanTarget: {
+            /** Label */
+            label: string;
+            /** Amount */
+            amount: string;
+            /** Due Date */
+            due_date?: string | null;
+            /** Days Overdue */
+            days_overdue?: number | null;
+            /** Reason */
+            reason: string;
         };
         /**
          * PorCobrarVencido
@@ -12634,6 +13100,11 @@ export interface components {
             /** Trend */
             trend?: components["schemas"]["PulsoTrendPoint"][];
             /**
+             * Factores Omitidos
+             * @description Factores core que no se pudieron calcular (sin fuente). El score se renormaliza por los pesos presentes, así que omitir un factor malo lo SUBE: esta lista es lo que permite saber sobre qué se calculó el índice.
+             */
+            factores_omitidos?: string[];
+            /**
              * Objetivo
              * @description Objetivo aplicado que re-ponderó los ejes (#853): equilibrado | cuidar_caja | cumplir_pagos | crecer.
              */
@@ -12679,7 +13150,7 @@ export interface components {
             snapshots: number;
             /**
              * Skipped
-             * @description Saltados (sin saldo computable al momento).
+             * @description Saltados: `persist_snapshot` devolvió None pese a calificar en tenants_with_cash. La causa concreta va en el log del job (#115).
              */
             skipped: number;
             /**
@@ -13942,6 +14413,46 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** SourceRollupItem */
+        SourceRollupItem: {
+            /** Source Code */
+            source_code: string;
+            /**
+             * Ok
+             * @default 0
+             */
+            ok: number;
+            /**
+             * Desactualizados
+             * @default 0
+             */
+            desactualizados: number;
+            /**
+             * Sin Conectar
+             * @default 0
+             */
+            sin_conectar: number;
+            /**
+             * Con Errores
+             * @default 0
+             */
+            con_errores: number;
+            /**
+             * Desconocidos
+             * @default 0
+             */
+            desconocidos: number;
+        };
+        /** SourceRollupResponse */
+        SourceRollupResponse: {
+            /** Sources */
+            sources?: components["schemas"]["SourceRollupItem"][];
+            /**
+             * Count
+             * @default 0
+             */
+            count: number;
+        };
         /**
          * SourceStatusResponse
          * @description Estado de una fuente externa para una pantalla de Administración / Fuentes.
@@ -14059,7 +14570,10 @@ export interface components {
              */
             version: string;
             db: components["schemas"]["DbHealth"];
-            /** Integrations */
+            /**
+             * Integrations
+             * @default []
+             */
             integrations: components["schemas"]["IntegrationStatus"][];
         };
         /**
@@ -14580,8 +15094,11 @@ export interface components {
             rut?: string | null;
             /** Total */
             total: string;
-            /** Overdue */
-            overdue: string;
+            /**
+             * Overdue
+             * @description Saldo vencido DE ESTE DEUDOR. `null` con el mismo criterio que el agregado: sin mora impaga conocida y con documentos sin fecha de vencimiento, no se puede computar. Se evalúa por deudor, así que el agregado puede conocerse y este cliente no. La tabla no debe renderizarlo como `$0`.
+             */
+            overdue: string | null;
         };
         /**
          * UpdateClassificationRuleRequest
@@ -14868,6 +15385,10 @@ export interface components {
             movement_id: string;
             /** Status */
             status: string;
+            /** Document Id */
+            document_id?: string | null;
+            /** Method */
+            method?: string | null;
         };
         /**
          * CertificateUploadResponse
@@ -16000,6 +16521,8 @@ export interface operations {
             query?: {
                 /** @description Período YYYY-MM, YYYYMM o 'marzo 2026'. */
                 period?: string | null;
+                /** @description Fuerza el fetch vivo a BUK (lento: pagina el libro completo). Por defecto sirve la nómina canónica ya sincronizada (ver `cached`/`synced_at`/`stale`). */
+                refresh?: boolean;
             };
             header?: never;
             path?: never;
@@ -16633,7 +17156,7 @@ export interface operations {
                 tipo_dte: number;
                 /** @description Folio del documento. */
                 folio: number;
-                /** @description RUT del emisor con DV (ej. '76454786-1'). */
+                /** @description RUT del emisor con DV (ej. '12345678-5'). */
                 rut_emisor: string;
                 /** @description Fecha de emisión en formato dd-mm-aaaa. */
                 fecha_emision: string;
@@ -18756,14 +19279,12 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description `currency_code` fuera del catálogo `core.currencies`. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
@@ -19020,6 +19541,13 @@ export interface operations {
             };
             /** @description La cuenta no está vinculada a treasury.bank_accounts. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La cuenta vinculada no es CLP (este portal solo sirve CLP). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -21250,6 +21778,68 @@ export interface operations {
             };
         };
     };
+    treasury_collection_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionPlanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_payment_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionPlanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_tax_calendar: {
         parameters: {
             query?: {
@@ -22313,7 +22903,11 @@ export interface operations {
                 qavante_session?: string | null;
             };
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ConfirmRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -22324,21 +22918,26 @@ export interface operations {
                     "application/json": components["schemas"]["app__api__reconciliation__ConfirmResponse"];
                 };
             };
-            /** @description El movimiento no está en cola de revisión. */
+            /** @description El movimiento no existe / no está en cola de revisión. */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description Estado impide conciliar (ya conciliado, o el doc ya se saldó). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El documento elegido no es elegible (kind/moneda/inexistente). */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
@@ -23099,6 +23698,8 @@ export interface operations {
                 entity_type?: string | null;
                 /** @description Filtrar por nombre de acción. */
                 action?: string | null;
+                /** @description Tenant a consultar. Obligatorio cuando se llama con el SERVER_API_KEY (contexto sin tenant, ADR-0074). Con una credencial de tenant se omite; si se envía, debe coincidir con la de la credencial. */
+                tenant_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -23134,6 +23735,8 @@ export interface operations {
                 event_type?: string | null;
                 /** @description Filtrar por usuario actor. */
                 actor_user_id?: string | null;
+                /** @description Tenant a consultar. Obligatorio cuando se llama con el SERVER_API_KEY (contexto sin tenant, ADR-0074). Con una credencial de tenant se omite; si se envía, debe coincidir con la de la credencial. */
+                tenant_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -23812,6 +24415,8 @@ export interface operations {
                 window_days?: number;
                 /** @description Incluir credenciales 'stale' (rotated_at > 12 meses atrás). */
                 include_credentials?: boolean;
+                /** @description Tenant a escanear. Obligatorio cuando se llama con el SERVER_API_KEY (contexto sin tenant, ADR-0074). Con una credencial de tenant se omite; si se envía, debe coincidir con la de la credencial. */
+                tenant_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -23846,6 +24451,8 @@ export interface operations {
                 include_credentials?: boolean;
                 /** @description Umbral mínimo para disparar el email. 'critical' (default) envía solo cuando hay items expired+critical. 'warning' incluye 8-30d. 'info' siempre que haya items en la ventana. */
                 severity_threshold?: string;
+                /** @description Tenant a escanear. Obligatorio cuando se llama con el SERVER_API_KEY (contexto sin tenant, ADR-0074). Con una credencial de tenant se omite; si se envía, debe coincidir con la de la credencial. */
+                tenant_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -24357,6 +24964,26 @@ export interface operations {
             };
         };
     };
+    admin_sources_rollup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceRollupResponse"];
+                };
+            };
+        };
+    };
     admin_get_source: {
         parameters: {
             query?: never;
@@ -24553,7 +25180,10 @@ export interface operations {
     };
     admin_get_tenant: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Tenant a consultar. Obligatorio cuando se llama con el SERVER_API_KEY (contexto sin tenant, ADR-0074). Con una credencial de tenant se omite; si se envía, debe coincidir con la de la credencial. */
+                tenant_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -24567,6 +25197,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TenantResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

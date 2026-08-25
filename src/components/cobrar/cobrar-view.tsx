@@ -35,6 +35,7 @@ import {
   parseAmount,
   parseAmountOrNull,
   agingBreakdown,
+  vencidoDeDeudor,
   sortByUrgency,
   shareOfTotal,
   explicarVencidoSinDato,
@@ -354,11 +355,19 @@ function TopDebtors({
                       {pct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}% del total
                     </p>
                   )}
-                  {parseAmount(d.overdue) > 0 && (
-                    <p className="text-xs font-medium text-danger-500">
-                      {formatClp(parseAmount(d.overdue))} vencido
-                    </p>
-                  )}
+                  {/* Tres estados, no dos. Antes esto era `parseAmount(d.overdue) > 0`,
+                      que con `overdue: null` —el 100% de los deudores en producción hoy—
+                      simplemente NO pintaba nada: el dueño veía una lista limpia,
+                      indistinguible de "todos al día". El contrato lo dice literal:
+                      "La tabla no debe renderizarlo como $0". Tampoco como nada. */}
+                  {(() => {
+                    const v = vencidoDeDeudor(d);
+                    if (v === null)
+                      return <p className="text-xs text-neutral-mid">vencido: no se sabe</p>;
+                    return v > 0 ? (
+                      <p className="text-xs font-medium text-danger-500">{formatClp(v)} vencido</p>
+                    ) : null;
+                  })()}
                 </div>
               </button>
               {isOpen && (

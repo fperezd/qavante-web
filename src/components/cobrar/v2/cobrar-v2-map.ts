@@ -19,7 +19,14 @@ import type { AccountsReceivableResponse, TopDebtor } from "@/lib/api/cobranza";
 import type { PreferencesBlob } from "@/lib/api/preferences";
 import type { DocMaestro } from "@/components/terminos/terminos-pago";
 import { formatClp } from "@/lib/formatters/clp";
-import { parseAmount, sortByUrgency, shareOfTotal, rutKey } from "../cobranza-format";
+import {
+  parseAmount,
+  sortByUrgency,
+  shareOfTotal,
+  rutKey,
+  vencidoDeDeudor,
+  estadoVencidoDeudores,
+} from "../cobranza-format";
 
 export type PrioridadMode = "urgencia" | "concentracion";
 
@@ -48,14 +55,18 @@ export function sortByTotal<T extends { total: string }>(items: ReadonlyArray<T>
 export function pickPrioridad(data: AccountsReceivableResponse): Prioridad | null {
   const debtors = data.top_debtors ?? [];
   if (debtors.length === 0) return null;
-  const anyOverdue = debtors.some((d) => parseAmount(d.overdue) > 0);
-  const ordered = anyOverdue ? sortByUrgency(debtors) : sortByTotal(debtors);
+  /* `estadoVencidoDeudores` y no un `some(... > 0)`: con todos los `overdue` en
+     `null` el booleano respondía `false` —"nadie debe vencido"— cuando la respuesta
+     real es "no lo sabemos". Ordenar por total es correcto en los dos casos, pero
+     el relato de arriba no puede afirmar lo mismo en uno y en otro. */
+  const estado = estadoVencidoDeudores(debtors);
+  const ordered = estado === "con-mora" ? sortByUrgency(debtors) : sortByTotal(debtors);
   const top = ordered[0]!;
   return {
-    mode: anyOverdue ? "urgencia" : "concentracion",
+    mode: estado === "con-mora" ? "urgencia" : "concentracion",
     debtor: top,
     total: parseAmount(top.total),
-    overdue: parseAmount(top.overdue),
+    overdue: vencidoDeDeudor(top) ?? 0,
     pctDelTotal: shareOfTotal(top.total, data.total),
     grandTotal: parseAmount(data.total),
   };
@@ -217,8 +228,8 @@ export function sortDebtors(
   debtors: ReadonlyArray<TopDebtor>,
   gestionado: GestionadoMap,
 ): TopDebtor[] {
-  const anyOverdue = debtors.some((d) => parseAmount(d.overdue) > 0);
-  const base = anyOverdue ? sortByUrgency(debtors) : sortByTotal(debtors);
+  const base =
+    estadoVencidoDeudores(debtors) === "con-mora" ? sortByUrgency(debtors) : sortByTotal(debtors);
   const pend = base.filter((d) => !isGestionado(gestionado, d.rut));
   const done = base.filter((d) => isGestionado(gestionado, d.rut));
   return [...pend, ...done];

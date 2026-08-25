@@ -43,15 +43,74 @@ export function parseAmountOrNull(raw: string | null | undefined): number | null
   return Number.isFinite(n) ? n : null;
 }
 
+/** Vencido de UN deudor: monto, o `null` si no se sabe.
+ *
+ *  `TopDebtor.overdue` es nullable en el contrato desde qavante-api#124, y su
+ *  descripción lo dice con todas las letras: *"La tabla no debe renderizarlo como
+ *  `$0`"*. En producción hoy viene `null` para el 100% de los deudores. */
+export function vencidoDeDeudor(d: { overdue: string | null }): number | null {
+  return parseAmountOrNull(d.overdue);
+}
+
+/** Estado del vencido del conjunto de deudores. TRES valores, no dos.
+ *
+ *  Colapsar esto a un booleano es el bug que venía arrastrándose: con todos los
+ *  `overdue` en `null`, un `debtors.some(d => parseAmount(d.overdue) > 0)`
+ *  responde `false` — o sea "nadie debe vencido"— cuando la respuesta real es
+ *  "no lo sabemos". */
+export type EstadoVencido = "con-mora" | "al-dia" | "no-se-sabe";
+
+export function estadoVencidoDeudores(
+  debtors: ReadonlyArray<{ overdue: string | null }>,
+): EstadoVencido {
+  if (debtors.length === 0) return "al-dia";
+  if (debtors.some((d) => (vencidoDeDeudor(d) ?? 0) > 0)) return "con-mora";
+  return debtors.some((d) => vencidoDeDeudor(d) === null) ? "no-se-sabe" : "al-dia";
+}
+
+/** Suma del vencido de los deudores, o `null` si ALGUNO no se sabe.
+ *
+ *  Misma regla dura que `agingBreakdown`: si un sumando es desconocido, la suma
+ *  también lo es. Sumar los conocidos y presentarlo como total sub-reporta la
+ *  mora, que es el peor sentido en el que puede fallar una cifra de cobranza. */
+export function totalVencidoDeudores(
+  debtors: ReadonlyArray<{ overdue: string | null }>,
+): number | null {
+  let acc = 0;
+  for (const d of debtors) {
+    const v = vencidoDeDeudor(d);
+    if (v === null) return null;
+    acc += v;
+  }
+  return acc;
+}
+
 /* Ordena deudores por URGENCIA (herramienta de decisión: "¿a quién persigo
-   primero?"): primero el más vencido, y a igual vencido, el de mayor total.
-   PURO. No muta el array de entrada. */
-export function sortByUrgency<T extends { overdue: string; total: string }>(
+   primero?"). PURO. No muta el array de entrada.
+   
+   Tres grupos, en este orden, y el del medio es el que importa:
+     1. vencido CONOCIDO y mayor a cero — de mayor a menor;
+     2. vencido DESCONOCIDO — porque "no sé si me debe" pide más atención que
+        "sé que está al día", no menos;
+     3. vencido conocido e igual a cero.
+   Dentro de cada grupo, desempata el total mayor. */
+export function sortByUrgency<T extends { overdue: string | null; total: string }>(
   items: ReadonlyArray<T>,
 ): T[] {
+  const grupo = (x: T) => {
+    const v = vencidoDeDeudor(x);
+    if (v === null) return 1;
+    return v > 0 ? 0 : 2;
+  };
   return [...items].sort((a, b) => {
-    const ov = parseAmount(b.overdue) - parseAmount(a.overdue);
-    return ov !== 0 ? ov : parseAmount(b.total) - parseAmount(a.total);
+    const ga = grupo(a);
+    const gb = grupo(b);
+    if (ga !== gb) return ga - gb;
+    if (ga === 0) {
+      const ov = (vencidoDeDeudor(b) ?? 0) - (vencidoDeDeudor(a) ?? 0);
+      if (ov !== 0) return ov;
+    }
+    return parseAmount(b.total) - parseAmount(a.total);
   });
 }
 

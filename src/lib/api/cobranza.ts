@@ -43,46 +43,35 @@ type NullableOverride<T, K extends keyof T> = Omit<T, K> & { [P in K]: T[P] | nu
  *  resolver). Mismo guardarraíl `K extends keyof T` que `NullableOverride`. */
 type Replace<T, K extends keyof T, V> = Omit<T, K> & { [P in K]: V };
 
-/* ── DEUDA CONTROLADA: override a mano de qavante-api#123 ──────────────────────
- * `npm run generate:api` apunta al openapi de **producción**
- * (`https://api.qavante.com/openapi.json`, ver package.json). qavante-api#123
- * todavía NO está deployado, así que el openapi de prod sigue declarando
- * `overdue`/`overdue_pct`/los buckets de mora como `string` no-null y no conoce
- * `undated_amount`. Regenerar hoy REVERTIRÍA el contrato nuevo.
+/* ── La deuda controlada de #123 queda SALDADA ───────────────────────────
  *
- * Por eso el contrato nuevo se expresa como un override MÍNIMO y verificable
- * sobre el tipo generado, en vez de re-declarar la respuesta entera a mano.
+ * Acá vivía un override a mano que volvía nullables `overdue`, `overdue_pct` y los
+ * cuatro tramos de mora, porque `npm run generate:api` apunta al openapi de
+ * PRODUCCIÓN y qavante-api#123 todavía no estaba deployado: regenerar habría
+ * revertido el contrato nuevo.
  *
- * QUÉ HACER CUANDO #123 ESTÉ EN PROD: correr `npm run generate:api` y borrar los
- * `NullableOverride` + el `undated_amount` de acá abajo, dejando
- * `export type AccountsReceivableResponse = GenAccountsReceivable;`. Si algo se
- * rompe al borrarlos, el contrato NO quedó como se acordó. */
+ * #123 y #124 **ya están en producción** (verificado el 2026-08-25 contra
+ * `api.qavante.com`: `overdue: null`, `undated_amount` presente, y `overdue: null`
+ * también en cada `top_debtors[]`). Se corrió `generate:api` y se borraron los
+ * overrides, que es literalmente lo que este comentario pedía hacer.
+ *
+ * Y sirvió para lo que prometía: al borrarlos, `tsc` marcó **21 errores**, todos en
+ * lugares donde el front trataba un "no se sabe" como si fuera un dato. El caso
+ * más caro estaba en la tabla de deudores, que con `overdue: null` —o sea el 100%
+ * de los deudores en producción hoy— simplemente **ocultaba** la línea de vencido:
+ * el dueño veía una lista limpia, indistinguible de "todos al día". El override
+ * cubría la respuesta agregada pero NO `TopDebtor`, así que ese camino nunca estuvo
+ * tipado. */
 
-/** Antigüedad de saldos (aging) — montos string-decimal CLP.
- *
- *  Los cuatro tramos de MORA pueden venir `null` = "no se pudo computar"
- *  (qavante-api#123). `current` (vigente) NUNCA es null. La clave siempre viene;
- *  lo que puede faltar es el valor. */
-export type ReceivableAging = NullableOverride<
-  GenARAging,
-  "d1_30" | "d31_60" | "d61_90" | "d90_plus"
->;
+/** Antigüedad de saldos (aging) — montos string-decimal CLP. Los cuatro tramos de
+ *  MORA pueden venir `null` = "no se pudo computar"; `current` (vigente) nunca. */
+export type ReceivableAging = GenARAging;
 
 export type TopDebtor = components["schemas"]["TopDebtor"];
 
 export type OverdueDocument = components["schemas"]["OverdueDocument"];
 
-export type AccountsReceivableResponse = Replace<
-  NullableOverride<GenAccountsReceivable, "overdue" | "overdue_pct">,
-  /** Aging con los tramos de mora nullables (ver `ReceivableAging`). */
-  "aging",
-  ReceivableAging
-> & {
-  /** Saldo por cobrar VIVO que no tiene fecha de vencimiento (string-decimal CLP).
-   *  Es el dato que EXPLICA por qué `overdue` viene null: sin fecha no hay forma
-   *  de saber si está vencido. Espeja `undated_amount` de accounts-payable. */
-  undated_amount?: string | null;
-};
+export type AccountsReceivableResponse = GenAccountsReceivable;
 
 export const cobranzaKeys = {
   all: ["cobranza"] as const,

@@ -7,6 +7,9 @@ import {
   shareOfTotal,
   explicarVencidoSinDato,
   rutKey,
+  vencidoDeDeudor,
+  estadoVencidoDeudores,
+  totalVencidoDeudores,
 } from "./cobranza-format";
 import type { ReceivableAging } from "@/lib/api/cobranza";
 
@@ -179,5 +182,50 @@ describe("shareOfTotal (concentración)", () => {
   it("total 0 o inválido → 0 (sin división por cero)", () => {
     expect(shareOfTotal("100", "0")).toBe(0);
     expect(shareOfTotal("100", "")).toBe(0);
+  });
+});
+
+/* El vencido POR DEUDOR tiene TRES estados. El contrato (#124) lo dice literal:
+   "La tabla no debe renderizarlo como $0". Estos tests existen porque el código
+   colapsaba los tres a dos con un `parseAmount(d.overdue) > 0`, y en producción
+   —donde HOY el 100% de los deudores viene con `overdue: null`— eso significaba
+   pintar una lista limpia, indistinguible de "todos al día". */
+describe("vencido por deudor — los tres estados", () => {
+  const d = (overdue: string | null, total = "100") => ({ overdue, total });
+
+  it("distingue no-se-sabe de cero verificado", () => {
+    expect(vencidoDeDeudor(d(null))).toBeNull();
+    expect(vencidoDeDeudor(d("0"))).toBe(0);
+    expect(vencidoDeDeudor(d("5000"))).toBe(5000);
+  });
+
+  it("el estado del conjunto no colapsa a booleano", () => {
+    expect(estadoVencidoDeudores([d("0"), d("0")])).toBe("al-dia");
+    expect(estadoVencidoDeudores([d(null), d("0")])).toBe("no-se-sabe");
+    expect(estadoVencidoDeudores([d(null), d("500")])).toBe("con-mora");
+    expect(estadoVencidoDeudores([])).toBe("al-dia");
+  });
+
+  it("la suma es null si UN sumando no se sabe — nunca sub-reporta la mora", () => {
+    expect(totalVencidoDeudores([d("100"), d("250")])).toBe(350);
+    expect(totalVencidoDeudores([d("100"), d(null)])).toBeNull();
+    expect(totalVencidoDeudores([])).toBe(0);
+  });
+
+  it("orden por urgencia: el desconocido va sobre el cero verificado", () => {
+    const conMora = { name: "mora", overdue: "900", total: "1000" };
+    const noSe = { name: "no-se", overdue: null, total: "10" };
+    const alDia = { name: "al-dia", overdue: "0", total: "9999" };
+    expect(sortByUrgency([alDia, noSe, conMora]).map((x) => x.name)).toEqual([
+      "mora",
+      "no-se",
+      "al-dia",
+    ]);
+  });
+
+  it("dentro del grupo desconocido, desempata el total mayor", () => {
+    const chico = { name: "chico", overdue: null, total: "10" };
+    const grande = { name: "grande", overdue: null, total: "900" };
+    expect(sortByUrgency([chico, grande]).map((x) => x.name)).toEqual(["grande", "chico"]);
   });
 });

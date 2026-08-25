@@ -25,6 +25,8 @@ import {
   agingBreakdown,
   explicarVencidoSinDato,
   rutKey,
+  vencidoDeDeudor,
+  totalVencidoDeudores,
 } from "../cobranza-format";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import {
@@ -164,7 +166,11 @@ function Assembled({
      (qavante-api#123, hallazgo H6) → se propaga el null, NO se aplasta a 0. Un `0`
      acá significa "estás al día" y tiene que seguir significando eso. */
   const totalVencido: number | null = useRcv
-    ? debtors.reduce((s, d) => s + parseAmount(d.overdue), 0)
+    ? /* `totalVencidoDeudores` y no un `reduce` con `parseAmount`: si el vencido de
+       UN deudor no se sabe, la suma tampoco. El reduce viejo contaba esos como 0 y
+       sub-reportaba la mora — el peor sentido en el que puede fallar una cifra de
+       cobranza. */
+      totalVencidoDeudores(debtors)
     : parseAmountOrNull(data.overdue);
   const overduePct =
     totalVencido == null ? null : grandTotal > 0 ? (totalVencido / grandTotal) * 100 : 0;
@@ -190,7 +196,10 @@ function Assembled({
     () => [
       { key: "nombre", kind: "text", get: (d) => d.name },
       { key: "monto", kind: "number", get: (d) => parseAmount(d.total) },
-      { key: "vencido", kind: "number", get: (d) => parseAmount(d.overdue) },
+      /* Desconocido → −1: en ESTA columna ordenable el "no se sabe" queda al final,
+         porque el usuario que ordena por vencido está pidiendo montos. La urgencia
+         real la resuelve `sortByUrgency`, que sí lo pone por encima de los ceros. */
+      { key: "vencido", kind: "number", get: (d) => vencidoDeDeudor(d) ?? -1 },
       {
         key: "mora",
         kind: "number",
@@ -245,8 +254,11 @@ function Assembled({
     reminderText({
       name: d.name,
       total: parseAmount(d.total),
-      overdue: parseAmount(d.overdue),
-      mode: parseAmount(d.overdue) > 0 ? "urgencia" : "concentracion",
+      /* Si no se sabe el vencido, el recordatorio va en modo CONCENTRACION y con 0:
+         este texto se le manda al cliente, y afirmarle una mora que no verificamos
+         es peor que no mencionarla. */
+      overdue: vencidoDeDeudor(d) ?? 0,
+      mode: (vencidoDeDeudor(d) ?? 0) > 0 ? "urgencia" : "concentracion",
     });
 
   const copiar = (d: TopDebtor) => {
@@ -370,7 +382,7 @@ function Assembled({
             name={d.name}
             rut={d.rut ?? null}
             total={parseAmount(d.total)}
-            overdue={parseAmount(d.overdue)}
+            overdue={vencidoDeDeudor(d)}
             pct={grandTotal > 0 ? (parseAmount(d.total) / grandTotal) * 100 : 0}
             gestionado={gestionadoMap[rut] ?? null}
             onCopiar={() => copiar(d)}

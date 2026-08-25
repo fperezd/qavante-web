@@ -271,7 +271,8 @@ export interface DeudorRowProps {
   /** El contrato admite `rut: null` ("null si falta") → se dice, no se pinta vacío. */
   rut: string | null;
   total: number;
-  overdue: number;
+  /** `null` = el contrato no pudo computar la mora de ESTE deudor (#124). No es 0. */
+  overdue: number | null;
   /** Qué parte del total por cobrar es este cliente (%). */
   pct: number;
   /** Fecha ISO en que se marcó gestionado, o null. */
@@ -356,11 +357,17 @@ export function DeudorRow(props: DeudorRowProps) {
               {pct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}% del total
             </p>
           )}
-          {overdue > 0 && (
-            <p className="text-xs font-medium text-danger-500">
-              {formatClp(overdue)} vencido
-              {mora != null && ` · hace ${mora} ${mora === 1 ? "día" : "días"}`}
-            </p>
+          {overdue === null ? (
+            /* El "no sé" se dice. Antes `overdue > 0` con un null no pintaba nada y
+               la fila quedaba igual a la de un cliente al día. */
+            <p className="text-xs text-neutral-mid">vencido: no se sabe</p>
+          ) : (
+            overdue > 0 && (
+              <p className="text-xs font-medium text-danger-500">
+                {formatClp(overdue)} vencido
+                {mora != null && ` · hace ${mora} ${mora === 1 ? "día" : "días"}`}
+              </p>
+            )
           )}
         </div>
       </div>
