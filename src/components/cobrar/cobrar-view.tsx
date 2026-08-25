@@ -291,8 +291,19 @@ function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato: Vencido
 /* Top deudores con filas expandibles: al abrir un deudor, se muestran sus
    facturas del Libro de Ventas (SII). Fetch lazy del rango (6 meses) cacheado por
    mes; se dispara al abrir el primer deudor. La mora/saldo pendiente por factura
-   NO está (gap del backend: vencimientos del SII) → se dice honestamente. */
-function TopDebtors({
+   NO está (gap del backend: vencimientos del SII) → se dice honestamente.
+
+   EXPORTADO sólo para poder afirmarlo en Storybook, igual que `DebtorInvoicesPanel`.
+   Las stories del CONTAINER (`CobrarView`) no pueden llevar `play` — muere antes con
+   "NEXT_PUBLIC_API_URL no configurada" y MSW nunca intercepta— así que el "vencido:
+   no se sabe" de ESTA vista no tenía quien lo afirmara.
+
+   Qué es esta vista hoy, dicho con precisión: `wrangler.toml` pone
+   `NEXT_PUBLIC_FF_COBRAR_V2 = "true"`, así que **producción sirve v2**. Esta se
+   renderiza cuando `cobrarV2` está apagado y `accountsReceivable` encendido, o sea
+   la configuración de ROLLBACK. Cubrirla igual: el día que haya que apagar v2, la
+   pantalla a la que se cae es justo donde menos se quiere una mentira en pantalla. */
+export function TopDebtors({
   debtors,
   total,
   siiEnabled,
