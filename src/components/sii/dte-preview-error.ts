@@ -41,10 +41,14 @@ const SESSION_CODES = new Set(["sii_session_expired", "sii_not_connected", "sii_
 
 /** Códigos de "el SII rechazó tu CLAVE TRIBUTARIA del representante" (los DTE
  *  EMITIDOS/ventas se bajan logueando con la clave, no con el certificado). La
- *  acción es reingresar la clave en Credenciales → CTA distinta a la de sesión. */
+ *  acción es reingresar la clave en Credenciales. Mismo `kind` (y por lo tanto la
+ *  MISMA CTA) que la sesión caída: lo que cambia es el copy, no el destino. */
 const CLAVE_CODES = new Set(["sii_clave_auth_failed", "sii_clave_invalid", "sii_clave_not_found"]);
 
-/** Clasifica el fallo del preview a partir del status, el content-type y el cuerpo. */
+/** Clasifica el fallo del preview a partir del CÓDIGO del backend, el content-type y el
+ *  cuerpo. `status` se recibe pero no se lee: dos respuestas con el mismo cuerpo y distinto
+ *  status caen en la misma superficie, y eso es deliberado — lo que decide qué mostrarle al
+ *  usuario es el motivo, no el número. */
 export function classifyDtePreviewError(
   status: number,
   contentType: string,
