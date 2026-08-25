@@ -175,8 +175,10 @@ describe("mapBrechaTotal / mapEstadoBrecha", () => {
 });
 
 describe("margenPlausiblePct", () => {
-  it("margen normal", () => {
-    expect(margenPlausiblePct(4_500_000, 48_200_000)).toBe(9);
+  it("margen normal, CRUDO (el redondeo lo hace formatPct, no el modelo)", () => {
+    /* Antes devolvía `9` y la pantalla mostraba "9%" mientras Gestión, sobre el
+       MISMO cociente, mostraba "9,3%". Un número, dos pantallas, dos valores. */
+    expect(margenPlausiblePct(4_500_000, 48_200_000)).toBeCloseTo(9.3361, 4);
   });
   it("null si |resultado| > ingresos (imposible: faltan costos)", () => {
     expect(margenPlausiblePct(13_228_093, 12_907_155)).toBeNull(); // el caso real de prod
@@ -366,7 +368,8 @@ describe("mapResultado", () => {
     const r = mapResultado(s)!;
     expect(r.resultado).toBe(7926679);
     expect(r.ingresos).toBe(8855032);
-    expect(r.margen).toBe("90%"); // 7.926.679 / 8.855.032 = 89,5% → redondea a 90%
+    // 7.926.679 / 8.855.032 = 89,5%. Es el mismo valor que muestra Gestión.
+    expect(r.margen).toBe("89,5%");
     expect(r.margenLabel).toBe("Margen operacional");
     expect(r.extra).toEqual([]);
     expect(r.caveat).toBeUndefined();

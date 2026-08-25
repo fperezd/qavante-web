@@ -38,6 +38,7 @@ import {
 import { CobrarHero } from "./cobrar-hero";
 import { CobranzaAcciones } from "./cobranza-acciones";
 import { CobrarV2View, ResumenCobranza, DeudorRow } from "./cobrar-v2-view";
+import { formatPct } from "@/lib/formatters/pct";
 import {
   pickPrioridad,
   reminderText,
@@ -338,12 +339,12 @@ function Assembled({
           </>
         ) : relato.hero === "sin-dato" ? (
           <>
-            {Math.round(prioridad.pctDelTotal)}% de tus {formatClp(grandTotal)} por cobrar. Aún no
+            {formatPct(prioridad.pctDelTotal)} de tus {formatClp(grandTotal)} por cobrar. Aún no
             sabemos qué está vencido, así que priorizamos por tamaño. {sinDato.motivo}
           </>
         ) : (
           <>
-            {Math.round(prioridad.pctDelTotal)}% de tus {formatClp(grandTotal)} por cobrar. Nada
+            {formatPct(prioridad.pctDelTotal)} de tus {formatClp(grandTotal)} por cobrar. Nada
             vencido entre lo pendiente por ahora, así que priorizamos por el tamaño de la deuda.
           </>
         )

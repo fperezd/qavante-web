@@ -26,16 +26,19 @@ export function margenesMesAnterior(resp: OperationalResultResponse | undefined)
   if (!resp) return null;
   const ingresos = parseAmount(resp.revenue);
   const brutoMonto = parseAmount(resp.gross_margin);
-  // Preferimos el % del backend si vino; si no, lo derivamos.
+  /* Preferimos el % del backend si vino; si no, lo derivamos. CRUDOS, sin redondear: el
+     redondeo lo hace `formatPct` en el widget. Gestión lee estos mismos dos márgenes con
+     `parseAmount(gross_margin_pct)` y `margenOperacionalPct` SIN redondear, así que
+     redondear acá hacía que Inicio dijera "9%" donde Gestión decía "9,3%". */
   const brutoPctRaw = parseAmount(resp.gross_margin_pct);
   const brutoPct =
     resp.gross_margin_pct != null && resp.gross_margin_pct !== ""
-      ? Math.round(brutoPctRaw)
+      ? brutoPctRaw
       : ingresos > 0
-        ? Math.round((brutoMonto / ingresos) * 100)
+        ? (brutoMonto / ingresos) * 100
         : null;
   const netoMonto = parseAmount(resp.result);
-  const netoPct = ingresos > 0 ? Math.round((netoMonto / ingresos) * 100) : null;
+  const netoPct = ingresos > 0 ? (netoMonto / ingresos) * 100 : null;
   return {
     mesLabel: mesCorto(resp.period),
     ingresos,

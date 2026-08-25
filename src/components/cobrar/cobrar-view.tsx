@@ -44,6 +44,7 @@ import {
   type VencidoSinDato,
 } from "./cobranza-format";
 import { AgingBarraDesconocida, AgingDesconocido } from "./aging-desconocido";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Cobrar — cuentas por cobrar (Sprint C4, Maestro §7.3): resumen, antigüedad de
    saldos (aging), top deudores y documentos vencidos. Container: resuelve el
@@ -163,11 +164,7 @@ function Receivable({
         />
         <QavanteStatTile
           label="% vencido"
-          value={
-            vencidoPct == null
-              ? "s/d"
-              : `${vencidoPct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`
-          }
+          value={vencidoPct == null ? "s/d" : formatPct(vencidoPct)}
           tone={vencidoPct == null ? "muted" : vencidoPct > 0 ? "danger" : "success"}
           hint={vencidoPct == null ? "No se puede calcular sin los vencimientos." : undefined}
           info="Qué parte del total por cobrar ya está vencida. Mientras más alto, más apretada tu cobranza."
@@ -351,9 +348,7 @@ function TopDebtors({
                   </p>
                   {/* Concentración: qué parte del total por cobrar es este cliente. */}
                   {pct >= 0.5 && (
-                    <p className="text-xs text-neutral-mid">
-                      {pct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}% del total
-                    </p>
+                    <p className="text-xs text-neutral-mid">{formatPct(pct)} del total</p>
                   )}
                   {/* Tres estados, no dos. Antes esto era `parseAmount(d.overdue) > 0`,
                       que con `overdue: null` —el 100% de los deudores en producción hoy—

@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Modelo puro de la cola de conciliación (ADR-0036/0042). Acá vive lo testeable: el motor deja en
    cola los matches de confianza media (score 60-90) y esta capa los prepara para mostrar. Sin
@@ -34,10 +35,12 @@ export function parseScore(raw: string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** "78%" o "" si no hay score. Redondea: el score llega con decimales del motor. */
+/** "78,4%" o "" si no hay score. Pasa por `formatPct`, el único formateador de porcentaje de la
+ *  app: antes redondeaba al entero por su cuenta, así que el mismo score se escribía distinto acá
+ *  que en cualquier otra pantalla. El decimal que aparece es el que el motor ya calculaba. */
 export function scoreTexto(raw: string | null | undefined): string {
   const n = parseScore(raw);
-  return n == null ? "" : `${Math.round(n)}%`;
+  return n == null ? "" : formatPct(n);
 }
 
 export type FilaCola = {

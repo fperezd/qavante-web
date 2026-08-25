@@ -16,8 +16,7 @@ import { parseAmount } from "@/components/inicio/dashboard-format";
 import type { MovimientoCaja, MovTipo } from "./caja-cascada-model";
 import type { DiasCaja, EstadoCaja } from "./caja-dias-model";
 import type { PayableItem } from "@/lib/api/pagos";
-
-const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+import { MESES_CORTOS as MESES } from "@/lib/formatters/months";
 
 /** Etiqueta corta de una fecha para el eje: `14-jul`. */
 export function fechaCortaLabel(d: Date): string {

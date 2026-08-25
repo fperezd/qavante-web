@@ -42,6 +42,7 @@ import {
   readWidgetOrder,
   withWidgetOrder,
 } from "../../inicio/v2/widget-order";
+import { formatPct } from "@/lib/formatters/pct";
 
 /** Clave propia del orden de las tarjetas de Márgenes (no choca con la de Inicio). */
 const MARGENES_ORDER_KEY = "margenes_widget_order";
@@ -275,19 +276,19 @@ function Margenes({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <QavanteStatTile
           label="Margen bruto"
-          value={`${formatClp(bruto)} · ${fmtPct(brutoPct)}`}
+          value={`${formatClp(bruto)} · ${formatPct(brutoPct)}`}
           tone="success"
           info="Ingresos menos el costo de lo vendido. Cuánto te queda antes de los gastos."
         />
         <QavanteStatTile
           label="Costo de ventas"
-          value={`${formatClp(costoVentas)} · ${fmtPct(costoPct)}`}
+          value={`${formatClp(costoVentas)} · ${formatPct(costoPct)}`}
           tone="muted"
           info="Lo que te costó producir/entregar lo que vendiste, como % de tus ventas."
         />
         <QavanteStatTile
           label="Margen neto"
-          value={`${formatClp(neto)} · ${fmtPct(netoPct)}`}
+          value={`${formatClp(neto)} · ${formatPct(netoPct)}`}
           tone={neto >= 0 ? "success" : "danger"}
           info="Lo que queda después de TODOS los costos y gastos operacionales."
         />
@@ -342,8 +343,8 @@ function AlertaTendenciaMargen({ puntos }: { puntos: TendenciaPunto[] }) {
       />
       <div>
         <p className="font-semibold text-neutral-dark">
-          Tu margen viene {baja ? "bajando" : "mejorando"}: de {fmtPct(desde)} a {fmtPct(hasta)} en{" "}
-          {n} {n === 1 ? "mes" : "meses"}.
+          Tu margen viene {baja ? "bajando" : "mejorando"}: de {formatPct(desde)} a{" "}
+          {formatPct(hasta)} en {n} {n === 1 ? "mes" : "meses"}.
         </p>
         {baja && (
           <p className="mt-0.5 text-neutral-mid">
@@ -421,13 +422,13 @@ function CostosGastos({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <QavanteStatTile
           label="Costo directo"
-          value={`${formatClp(directo)} · ${fmtPct(pct(directo))}`}
+          value={`${formatClp(directo)} · ${formatPct(pct(directo))}`}
           tone="muted"
           info="Lo que cuesta entregar el servicio/producto: mano de obra directa, honorarios y costos directos."
         />
         <QavanteStatTile
           label="Gasto operacional"
-          value={`${formatClp(operacional)} · ${fmtPct(pct(operacional))}`}
+          value={`${formatClp(operacional)} · ${formatPct(pct(operacional))}`}
           tone="muted"
           info="Los gastos de operar la empresa (administración, arriendo, servicios, etc.)."
         />
@@ -484,24 +485,24 @@ function Tendencia({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <QavanteStatTile
           label="Mejor mes"
-          value={`${mesAno(mejor)} · ${fmtPct(max)}`}
+          value={`${mesAno(mejor)} · ${formatPct(max)}`}
           tone="success"
         />
         <QavanteStatTile
           label="Peor mes"
-          value={`${mesAno(peor)} · ${fmtPct(min)}`}
+          value={`${mesAno(peor)} · ${formatPct(min)}`}
           tone={min < 0 ? "danger" : "muted"}
         />
-        <QavanteStatTile label="Promedio del período" value={fmtPct(prom)} tone="default" />
+        <QavanteStatTile label="Promedio del período" value={formatPct(prom)} tone="default" />
       </div>
       <div className="rounded-xl border border-border bg-surface p-5">
         <TendenciaResultado puntos={puntos} />
       </div>
       {enCurso && (
         <p className="px-0.5 text-[11.5px] text-neutral-mid">
-          <b className="text-neutral-dark">{mesAno(enCurso)}</b> va en curso, todavía no entra en
-          la tendencia (se compara recién cuando cierre el mes; su margen parcial no es comparable
-          con meses completos).
+          <b className="text-neutral-dark">{mesAno(enCurso)}</b> va en curso, todavía no entra en la
+          tendencia (se compara recién cuando cierre el mes; su margen parcial no es comparable con
+          meses completos).
         </p>
       )}
     </div>
@@ -567,7 +568,7 @@ function Delta({ label, actual, base }: { label: string; actual: number; base?: 
   return (
     <span className={`inline-flex items-center gap-1 text-[11px] ${color}`}>
       <Icon className="h-3 w-3" aria-hidden="true" />
-      {label}: {diff === null ? "s/d" : `${up ? "+" : ""}${diff.toFixed(1)}%`}
+      {label}: {diff === null ? "s/d" : formatPct(diff, { signed: true })}
     </span>
   );
 }
@@ -674,8 +675,4 @@ function MonthPicker({
       </select>
     </label>
   );
-}
-
-function fmtPct(v: number): string {
-  return `${v.toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }

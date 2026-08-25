@@ -7,7 +7,13 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { KpiCell, KpiStrip } from "@/components/ui/kpi-strip";
 import type { BheRecibida } from "@/lib/api/sii";
-import { bheTotals, concentrationByEmisor, anioDePeriodo, retencionHonorariosLabel } from "./bhe-v2-format";
+import {
+  bheTotals,
+  concentrationByEmisor,
+  anioDePeriodo,
+  retencionHonorariosLabel,
+} from "./bhe-v2-format";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Panel BHE (control de gestión) montado arriba de la tabla de Honorarios
  * recibidos. Saca la RETENCIÓN acumulada del pie a un KPI destacado (es plata que
@@ -65,9 +71,7 @@ export function BheKpisPanel({ items, periodo }: { items: BheRecibida[]; periodo
                   </span>
                   <span className="shrink-0 tabular-nums text-neutral-dark">
                     {formatClp(c.liquido)}
-                    <span className="ml-1 text-xs text-neutral-mid">
-                      ({c.pct.toLocaleString("es-CL", { maximumFractionDigits: 0 })}%)
-                    </span>
+                    <span className="ml-1 text-xs text-neutral-mid">({formatPct(c.pct)})</span>
                   </span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-neutral-light/40">
@@ -84,8 +88,9 @@ export function BheKpisPanel({ items, periodo }: { items: BheRecibida[]; periodo
 
       <p className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-mid">
         <Receipt className="h-3.5 w-3.5" aria-hidden="true" />
-        La retención del {retencionHonorariosLabel(anioDePeriodo(periodo, new Date().getFullYear()))}{" "}
-        la retienes tú y la enteras al SII en el F29 del período.{" "}
+        La retención del{" "}
+        {retencionHonorariosLabel(anioDePeriodo(periodo, new Date().getFullYear()))} la retienes tú
+        y la enteras al SII en el F29 del período.{" "}
         <QavanteBadge variant="warning">Recordatorio tributario</QavanteBadge>
       </p>
     </div>

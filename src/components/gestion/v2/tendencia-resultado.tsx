@@ -1,6 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* TendenciaResultado — el MARGEN operacional de los últimos meses en barras: contesta "¿estoy
    siendo más o menos rentable?" (independiente de si vendí más o menos — eso lo dice el $ del
@@ -38,15 +39,6 @@ export interface TendenciaResultadoProps {
   titulo?: string;
   puntos: TendenciaPunto[];
   className?: string;
-}
-
-function fmtPct(v: number): string {
-  // Signo tipográfico (−) para negativos, consistente con formatClp (no el hyphen-minus de es-CL).
-  const abs = Math.abs(v).toLocaleString("es-CL", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  });
-  return `${v < 0 ? "−" : ""}${abs}%`;
 }
 
 export function TendenciaResultado({
@@ -98,7 +90,7 @@ export function TendenciaResultado({
                 <div
                   key={p.periodo + i}
                   className="flex min-w-0 flex-1 flex-col items-center"
-                  title={`${p.periodo}${anio ? ` '${anio}` : ""}: ${fmtPct(p.margenPct)}`}
+                  title={`${p.periodo}${anio ? ` '${anio}` : ""}: ${formatPct(p.margenPct)}`}
                 >
                   {/* valor % arriba (compacto e entero → no se pisan con muchas barras) */}
                   <span
@@ -164,7 +156,7 @@ export function TendenciaResultado({
           </div>
           {ultimo && (
             <p className="mt-2 px-0.5 text-[11.5px] text-neutral-mid">
-              Último mes <b className="text-neutral-dark">{fmtPct(ultimo.margenPct)}</b>
+              Último mes <b className="text-neutral-dark">{formatPct(ultimo.margenPct)}</b>
               {ultimo.resultado != null && <> · {formatClp(ultimo.resultado)}</>}
               {ultimo.actual && " · en curso"}
             </p>

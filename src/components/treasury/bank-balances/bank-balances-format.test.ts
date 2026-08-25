@@ -20,9 +20,13 @@ describe("bank-balances-format · formatSaldo", () => {
     expect(formatSaldo("1931152.70", "CLP")).toBe("$1.931.153");
     expect(formatSaldo("3073227.32", "CLP")).toBe("$3.073.227");
   });
-  it("USD con dos decimales", () => {
-    expect(formatSaldo("156.14", "USD")).toBe("US$156,14");
-    expect(formatSaldo("1511.25", "USD")).toBe("US$1.511,25");
+  it("USD con dos decimales y el separador que ratificó el BO", () => {
+    /* El separador entre "US$" y la cifra es NBSP ( ), decisión del BO del
+       2026-08-25: `Intl` es-CL rendía el USD PEGADO y todas las demás monedas
+       SEPARADAS, o sea dos layouts para el mismo tipo de dato. Estos asserts van con
+       el caracter explícito para que se vea cuál es. */
+    expect(formatSaldo("156.14", "USD")).toBe("US$ 156,14");
+    expect(formatSaldo("1511.25", "USD")).toBe("US$ 1.511,25");
   });
   it("moneda ausente → asume CLP", () => {
     expect(formatSaldo("1000", null)).toBe("$1.000");

@@ -20,6 +20,7 @@ import {
   presetRange,
   type PeriodRange,
 } from "@/lib/period/period-range";
+import { MESES_CORTOS as MESES } from "@/lib/formatters/months";
 
 /* Libro v2 (rediseño aprobado 2026-07-13) — vista LIVE compartida por Ventas
    (`/cobrar/facturas-emitidas`, gated `libroVentasV2`) y Compras (`/pagar/facturas-
@@ -60,7 +61,6 @@ const COPY: Record<RcvKind, KindCopy> = {
   },
 };
 
-const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 function mesCorto(periodo: string, withYear = false): string {
   const m = Number(periodo.slice(5, 7));
   const base = MESES[m - 1] ?? periodo;

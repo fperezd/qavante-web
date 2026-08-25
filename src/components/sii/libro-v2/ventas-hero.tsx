@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { AmountCountUp } from "@/components/qavante/amount-count-up";
 import { InfoHint } from "@/components/ui/info-hint";
 import { Sparkline } from "@/components/ui/sparkline";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* VentasHero — la "respuesta de dueño" del Libro de Ventas v2 (rediseño aprobado
    2026-07-13). Presentacional: recibe el neto del período + comparativos YA
@@ -53,15 +54,6 @@ export interface VentasHeroProps {
   className?: string;
 }
 
-/** "+8%" / "−8%" con el menos tipográfico (U+2212), como el resto de las cifras. Una variación
- *  que redondea a 0 (ej. −0,3%) se muestra como "0%" SIN signo — no "+0%" (que con Math.round(−0.3)
- *  = −0 daba signo "+" contra una flecha roja hacia abajo). */
-function formatPct(pct: number): string {
-  const rounded = Math.round(pct);
-  if (rounded === 0) return "0%";
-  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded)}%`;
-}
-
 function Comparativo({ pct, label }: HeroComparativo) {
   const up = pct >= 0;
   const Icon = up ? TrendingUp : TrendingDown;
@@ -71,8 +63,10 @@ function Comparativo({ pct, label }: HeroComparativo) {
         className={cn("size-3.5 shrink-0", up ? "text-success-700" : "text-danger-500")}
         aria-hidden="true"
       />
-      <span className={cn("font-extrabold tabular-nums", up ? "text-success-700" : "text-danger-500")}>
-        {formatPct(pct)}
+      <span
+        className={cn("font-extrabold tabular-nums", up ? "text-success-700" : "text-danger-500")}
+      >
+        {formatPct(pct, { signed: true })}
       </span>
       <span className="font-medium text-neutral-mid">{label}</span>
     </span>
@@ -152,7 +146,13 @@ export function VentasHero({
               <span className="text-[12px] text-neutral-mid">{serieCaption}</span>
             ) : null}
           </div>
-          <Sparkline data={serie as number[]} tone="brand" width={300} height={62} className="mt-2.5 w-full" />
+          <Sparkline
+            data={serie as number[]}
+            tone="brand"
+            width={300}
+            height={62}
+            className="mt-2.5 w-full"
+          />
           {serieMeses && serieMeses.length > 0 && (
             <div className="mt-0.5 flex justify-between text-[10.5px] text-neutral-light">
               {serieMeses.map((m, i) => (

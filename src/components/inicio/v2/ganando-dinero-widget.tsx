@@ -7,6 +7,7 @@ import { QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { cn } from "@/lib/utils";
 import type { GanandoDinero } from "./ganando-dinero-model";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Widget "¿Estás ganando dinero?" del Inicio: la pregunta del dueño, anclada al MES ANTERIOR cerrado
    (el en curso engaña). Presentacional: recibe el resultado ya derivado. Verde si ganó, rojo si perdió;
@@ -54,7 +55,7 @@ export function GanandoDineroWidget({
           </p>
           <p className="mt-1 text-xs text-neutral-mid">
             {margenPct != null ? (
-              <>Margen operacional {margenPct}%</>
+              <>Margen operacional {formatPct(margenPct)}</>
             ) : (
               <>Resultado operacional del mes</>
             )}

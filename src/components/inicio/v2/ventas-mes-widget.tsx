@@ -7,6 +7,7 @@ import { QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { cn } from "@/lib/utils";
 import type { VentasPorMes } from "./ventas-mes-model";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Widget "Ventas por mes" del Inicio: barras verticales del neto vendido mes a mes (tendencia), con el
    último mes y su variación. Presentacional: recibe la serie ya derivada. Lleva a /gestion. */
@@ -48,8 +49,9 @@ export function VentasMesWidget({
             )}
           >
             <Icon className="h-4 w-4" aria-hidden="true" />
-            {subio ? "+" : "−"}
-            {Math.abs(variacionPct)}%
+            {/* Signo del formateador, no de la vista: `subio` es un booleano, así que una
+                variación que redondea a cero salía "+0%" con la flecha para arriba. */}
+            {formatPct(variacionPct, { signed: true })}
           </span>
         )}
       </div>
@@ -67,7 +69,9 @@ export function VentasMesWidget({
                 style={{ height: `${Math.max(2, (Math.abs(m.neto) / maxAbs) * 100)}%` }}
               />
             </div>
-            <span className="text-[10px] capitalize text-neutral-mid">{m.mesLabel.slice(0, 3)}</span>
+            <span className="text-[10px] capitalize text-neutral-mid">
+              {m.mesLabel.slice(0, 3)}
+            </span>
           </div>
         ))}
       </div>

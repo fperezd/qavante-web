@@ -13,6 +13,7 @@ import {
   warningLabel,
   type RangoResumen,
 } from "./gestion-v2-rango-map";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Vista de RANGO de Gestión v2 (varios meses). Misma familia visual que el modo un-mes, pero la
    pieza central es la COMPARACIÓN en el tiempo (no la cascada de un mes): respuesta de dueño del
@@ -73,9 +74,15 @@ function fraseRango(tendencia: RangoResumen["tendencia"]): { texto: string; tono
   const first = tendencia[0]!.margenPct;
   const last = tendencia[tendencia.length - 1]!.margenPct;
   if (last > first)
-    return { texto: `El margen viene subiendo (${fmtPct(first)} → ${fmtPct(last)}).`, tono: "ok" };
+    return {
+      texto: `El margen viene subiendo (${formatPct(first)} → ${formatPct(last)}).`,
+      tono: "ok",
+    };
   if (last < first)
-    return { texto: `El margen viene bajando (${fmtPct(first)} → ${fmtPct(last)}).`, tono: "bad" };
+    return {
+      texto: `El margen viene bajando (${formatPct(first)} → ${formatPct(last)}).`,
+      tono: "bad",
+    };
   return { texto: "El margen se mantiene estable en el período.", tono: "warn" };
 }
 
@@ -86,7 +93,7 @@ function Margenes({ resumen }: { resumen: RangoResumen }) {
     >
       <dt className="text-neutral-mid">{k}</dt>
       <dd className="font-bold tabular-nums text-neutral-dark">
-        {formatClp(monto)} · <span className="text-neutral-mid">{fmtPct(pct)}</span>
+        {formatClp(monto)} · <span className="text-neutral-mid">{formatPct(pct)}</span>
       </dd>
     </div>
   );
@@ -103,7 +110,7 @@ function Margenes({ resumen }: { resumen: RangoResumen }) {
         <p className="mt-2.5 text-[12px] text-neutral-mid">
           Mejor mes:{" "}
           <b className="text-neutral-dark">
-            {resumen.mejorMes.periodo} · {fmtPct(resumen.mejorMes.pct)}
+            {resumen.mejorMes.periodo} · {formatPct(resumen.mejorMes.pct)}
           </b>
         </p>
       )}
@@ -153,8 +160,8 @@ function RangoIncompleto({ data }: { data: OperationalResultBreakdown }) {
         </p>
         <p className="mt-2 text-[13px] text-neutral-dark">
           El cálculo llega inconsistente (el resultado supera a los ingresos o faltan costos). Es un
-          problema de datos del backend, ya escalado, abajo dejamos la matriz cruda para
-          inspección, sin márgenes inventados.
+          problema de datos del backend, ya escalado, abajo dejamos la matriz cruda para inspección,
+          sin márgenes inventados.
         </p>
       </section>
       <ResultadoWarnings warnings={data.warnings} />
@@ -185,12 +192,4 @@ function ResultadoWarnings({ warnings }: { warnings?: string[] | null }) {
       </ul>
     </div>
   );
-}
-
-function fmtPct(v: number): string {
-  const abs = Math.abs(v).toLocaleString("es-CL", {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  });
-  return `${v < 0 ? "−" : ""}${abs}%`;
 }

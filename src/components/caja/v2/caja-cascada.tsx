@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { formatClpCompact } from "@/lib/formatters/clp";
 import {
   construirCascada,
   rangoCascada,
@@ -14,18 +15,15 @@ import {
    derivación vive en `caja-cascada-model`. */
 
 const W = 640;
-const PADL = 46;
+/* PADL 46 → 60. La canaleta real del eje NO es PADL: la etiqueta va en `x={PADL - 6}` con
+   `textAnchor="end"`, así que el presupuesto era de 40px. Al pasar `formatClpCompact` a un decimal,
+   un tick como −$61,1M mide ~39,6px con la tipografía de respaldo — y Sora, que es la real, es más
+   ancha: quedaba desbordando. Y no es un caso raro, es el eje de cualquier empresa cuyo piso de caja
+   pase de los −10M, porque los ticks no son números redondos (salen de `rangoCascada`).
+   Con 60 la canaleta queda en 54px, ~35% de holgura sobre esa medición. Cuesta 14px de área de
+   dibujo sobre 640, que es 2,2%. */
+const PADL = 60;
 const PADR = 14;
-
-/** Compacto para caber en las barras: `$6,2M` / `$540k` / `−$1,8M`. */
-function compacto(v: number): string {
-  const s = v < 0 ? "−" : "";
-  const a = Math.abs(v);
-  if (a >= 1_000_000)
-    return `${s}$${(a / 1_000_000).toFixed(a >= 10_000_000 ? 0 : 1).replace(".", ",")}M`;
-  if (a >= 1_000) return `${s}$${Math.round(a / 1_000)}k`;
-  return `${s}$${Math.round(a)}`;
-}
 
 function colorDe(kind: PasoCascada["kind"]): string {
   if (kind === "in") return "var(--color-success-500)";
@@ -99,7 +97,7 @@ export function CajaCascada({
             fontSize="10"
             fill="var(--color-neutral-mid)"
           >
-            {compacto(v)}
+            {formatClpCompact(v)}
           </text>
         </g>
       ))}
@@ -133,8 +131,10 @@ export function CajaCascada({
         const prev = pasos[i - 1];
         const valLabel =
           p.kind === "hoy" || p.kind === "proyectado"
-            ? compacto(p.saldoDespues)
-            : (p.monto > 0 ? "+" : "−") + compacto(Math.abs(p.monto)).replace("−", "");
+            ? formatClpCompact(p.saldoDespues)
+            : /* El signo lo pone la dirección del movimiento (+ entra / − sale), por eso
+               el monto va en magnitud: `formatClpCompact` nunca antepone su propio "−". */
+              (p.monto > 0 ? "+" : "−") + formatClpCompact(Math.abs(p.monto));
         return (
           <g key={i}>
             {/* conector al saldo corriente anterior */}

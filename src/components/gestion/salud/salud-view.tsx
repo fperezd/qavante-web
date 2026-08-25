@@ -17,6 +17,8 @@ import { useCountUp } from "@/lib/hooks/use-count-up";
 import { PulsoRing } from "@/components/inicio/pulso-ring";
 import { QavanteCard, QavanteBadge } from "@/components/qavante";
 import type { PulsoStatus } from "@/lib/api/dashboard";
+import { formatPct } from "@/lib/formatters/pct";
+import { formatClpCompact } from "@/lib/formatters/clp";
 import type {
   SaludModel,
   ScoreComponent,
@@ -120,7 +122,7 @@ function ComponentBars({ rows }: { rows: ScoreComponent[] }) {
         <div key={r.label} className="grid grid-cols-[9rem_1fr_2rem] items-center gap-3">
           <span className="flex items-baseline gap-1.5 text-xs leading-tight text-neutral-mid">
             <b className="font-semibold text-neutral-dark">{r.label}</b>
-            <span className="text-[10px] text-neutral-mid">{Math.round(r.weight * 100)}%</span>
+            <span className="text-[10px] text-neutral-mid">{formatPct(r.weight * 100)}</span>
           </span>
           <span className="h-2 overflow-hidden rounded-full bg-neutral-light/40">
             <i
@@ -208,7 +210,15 @@ function CashSparkline({
         textAnchor="end"
         fill="var(--color-danger-700)"
       >
-        mínimo seguro ${cashMin.toLocaleString("es-CL")}M
+        {/* El último monto CLP que quedaba fuera del formateador central. `cashMin` viene
+            EN MILLONES, así que se re-escala y se usa el COMPACTO, que ya rinde el "$" y la
+            "M" — por eso desaparecen los literales que había alrededor.
+
+            Ni `formatClp` ni `formatClpBare` sirven acá, y el pase §6 me lo demostró con la
+            fixture del repo: los dos redondean al entero, y en esta escala el entero es UN
+            MILLÓN, así que "mínimo seguro $2,5M" salía "$3M". Medio millón de diferencia
+            en la línea que marca el piso de caja. */}
+        mínimo seguro {formatClpCompact(cashMin * 1_000_000)}
       </text>
       <path
         d={line}

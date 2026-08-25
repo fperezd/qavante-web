@@ -16,12 +16,11 @@ import type {
 } from "@/lib/api/gestion";
 import { parseAmount, formatSignedPct } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
+import { MESES_CORTOS as MESES } from "@/lib/formatters/months";
 import type { CascadaEntrada } from "./cascada-model";
 import type { DriverItem } from "./drivers-resultado";
 import type { TendenciaPunto } from "./tendencia-resultado";
 import type { ResultadoTono } from "./resultado-hero";
-
-const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 /** "2026-07" → "jul". Tolera "YYYY-MM" y "YYYY-MM-DD". */
 export function mesCorto(period: string): string {

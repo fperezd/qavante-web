@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { agruparCuentaOptions, type CuentaOption } from "./payroll-cuentas";
 import type { AllocationIn } from "@/lib/api/payroll-workers";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Editor de reparto de nómina (ADR-0079 v2, #743). Reparte el costo de un empleado
    (o de varios, en lote) en 1..N cuentas por % (Σ = 100; el caso simple = 1 cuenta
@@ -183,7 +184,7 @@ export function AllocationEditorDialog({
                 sumaOk ? "text-success-700" : "text-warning-700",
               )}
             >
-              Suma: {total}%
+              Suma: {formatPct(total)}
             </span>
           </div>
 

@@ -23,8 +23,18 @@ import { currentPeriodSantiago, shiftPeriod } from "@/components/gestion/gestion
 import { mesCorto } from "@/components/gestion/v2/gestion-v2-map";
 import { formatClp } from "@/lib/formatters/clp";
 import { cn } from "@/lib/utils";
-import { mapPlanReal, agregarPlanReal, type PlanReal } from "@/components/inicio/v2/plan-real-model";
-import { heroPresupuesto, desviosPresupuesto, type Semaforo, type DesvioLinea } from "./presupuesto-model";
+import {
+  mapPlanReal,
+  agregarPlanReal,
+  type PlanReal,
+} from "@/components/inicio/v2/plan-real-model";
+import {
+  heroPresupuesto,
+  desviosPresupuesto,
+  type Semaforo,
+  type DesvioLinea,
+} from "./presupuesto-model";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Pantalla PRESUPUESTO (ADR-0091, Fase 1a). "El presupuesto no se llena: se PROPONE desde tu historial;
    tú lo ajustas con un gesto y Qavante te avisa antes de pasarte." Una sola pantalla: cómo vas → qué se
@@ -74,8 +84,7 @@ export function PresupuestoView() {
   const gridQuery = useBudgetGrid(year, modo === "anio");
   const editLine = useEditBudgetLine(year);
   const accept = useAcceptBudget(year);
-  const grid =
-    gridQuery.data && gridQuery.data.has_budget ? buildBudgetGrid(gridQuery.data) : null;
+  const grid = gridQuery.data && gridQuery.data.has_budget ? buildBudgetGrid(gridQuery.data) : null;
 
   // Plan vs Real por cuenta-mes: una query de budget-by-account por mes cerrado (carga progresiva).
   const realQueries = useQueries({
@@ -157,8 +166,8 @@ export function PresupuestoView() {
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-primary/20 bg-brand-primary/5 px-4 py-2.5 text-sm text-brand-primary">
             <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>
-              Lo armó Qavante desde tu <b className="font-semibold">historial real</b>. Ajústalo con un
-              gesto:
+              Lo armó Qavante desde tu <b className="font-semibold">historial real</b>. Ajústalo con
+              un gesto:
             </span>
             <div className="ml-auto flex flex-wrap gap-1.5">
               {META_OPCIONES.map((o) => (
@@ -205,7 +214,9 @@ export function PresupuestoView() {
                     onClick={() => setVistaAnual(v)}
                     className={cn(
                       "rounded-md px-3 py-1 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
-                      vistaAnual === v ? "bg-surface text-neutral-strong shadow-sm" : "text-neutral-mid",
+                      vistaAnual === v
+                        ? "bg-surface text-neutral-strong shadow-sm"
+                        : "text-neutral-mid",
                     )}
                   >
                     {label}
@@ -213,28 +224,28 @@ export function PresupuestoView() {
                 ))}
               </div>
 
-              {vistaAnual === "plan"
-                ? grid && (
-                    <BudgetGridView
-                      model={grid}
-                      saving={editLine.isPending}
-                      accepting={accept.isPending}
-                      onEditCell={(account_id, impact_type, month, montoSignado) =>
-                        editLine.mutate({ account_id, month, amount: montoSignado, impact_type })
-                      }
-                      onAccept={() => accept.mutate()}
-                    />
-                  )
-                : (
-                    <PlanRealYearView
-                      model={planReal}
-                      meses={mesesLabel}
-                      cargando={{
-                        hechos: realQueries.filter((q) => q.data).length,
-                        total: periodos.mesesAnio.length,
-                      }}
-                    />
-                  )}
+              {vistaAnual === "plan" ? (
+                grid && (
+                  <BudgetGridView
+                    model={grid}
+                    saving={editLine.isPending}
+                    accepting={accept.isPending}
+                    onEditCell={(account_id, impact_type, month, montoSignado) =>
+                      editLine.mutate({ account_id, month, amount: montoSignado, impact_type })
+                    }
+                    onAccept={() => accept.mutate()}
+                  />
+                )
+              ) : (
+                <PlanRealYearView
+                  model={planReal}
+                  meses={mesesLabel}
+                  cargando={{
+                    hechos: realQueries.filter((q) => q.data).length,
+                    total: periodos.mesesAnio.length,
+                  }}
+                />
+              )}
             </>
           )}
 
@@ -244,13 +255,14 @@ export function PresupuestoView() {
               <TrendingDown className="h-5 w-5" aria-hidden="true" />
             </span>
             <p className="text-sm text-neutral-mid">
-              Muy pronto: la proyección de cierre de año y el aviso “vas a pasarte” antes de que ocurra.
+              Muy pronto: la proyección de cierre de año y el aviso “vas a pasarte” antes de que
+              ocurra.
             </p>
           </div>
 
           <p className="pt-1 text-center text-xs text-neutral-mid">
-            Presupuesto propositivo · Fase 1 (Resultado). El presupuesto se propone desde tu historial;
-            tú lo ajustas y Qavante te avisa antes de que te pases.
+            Presupuesto propositivo · Fase 1 (Resultado). El presupuesto se propone desde tu
+            historial; tú lo ajustas y Qavante te avisa antes de que te pases.
           </p>
         </>
       )}
@@ -271,7 +283,12 @@ function Hero({
   const abajo = hero.variacion < 0;
   const max = Math.max(1, hero.ventas, hero.gastoReal, hero.gastoPlan);
   const barra = [
-    { label: "Ventas", valor: hero.ventas, ancho: (hero.ventas / max) * 100, tono: "bg-success-700" },
+    {
+      label: "Ventas",
+      valor: hero.ventas,
+      ancho: (hero.ventas / max) * 100,
+      tono: "bg-success-700",
+    },
     {
       label: "Costos + gastos (real)",
       valor: hero.gastoReal,
@@ -300,8 +317,10 @@ function Hero({
             )}
           >
             <span className="h-2 w-2 rounded-full bg-current" aria-hidden="true" />
-            {hero.variacionPct > 0 ? "+" : ""}
-            {hero.variacionPct}% vs plan
+            {/* El "+" lo pone `formatPct({signed:true})`, no la vista: ponerlo acá además
+                daba "++12,5%". Y el formateador no lo pone sobre un 0 que redondea a cero,
+                que era el otro bug de la versión manual. */}
+            {formatPct(hero.variacionPct, { signed: true })} vs plan
           </span>
         )}
       </div>
@@ -395,7 +414,7 @@ function Desvios({ desvios }: { desvios: DesvioLinea[] }) {
                   )}
                 >
                   {d.favorable ? "a favor" : "en contra"}
-                  {d.variacionPct != null ? ` · ${Math.abs(d.variacionPct)}%` : ""}
+                  {d.variacionPct != null ? ` · ${formatPct(Math.abs(d.variacionPct))}` : ""}
                 </span>
               </li>
             );
@@ -403,8 +422,8 @@ function Desvios({ desvios }: { desvios: DesvioLinea[] }) {
         </ul>
       )}
       <p className="pt-3 text-xs text-neutral-mid">
-        El desglose por cuenta (marketing, sueldos, software) llega cuando habilitemos el presupuesto a
-        nivel de cuenta.
+        El desglose por cuenta (marketing, sueldos, software) llega cuando habilitemos el
+        presupuesto a nivel de cuenta.
       </p>
     </QavanteCard>
   );
@@ -428,11 +447,13 @@ function EmptyState({
           <Sparkles className="h-6 w-6" aria-hidden="true" />
         </span>
         <div>
-          <p className="text-lg font-bold text-neutral-dark">Todavía no tienes presupuesto {year}</p>
+          <p className="text-lg font-bold text-neutral-dark">
+            Todavía no tienes presupuesto {year}
+          </p>
           <p className="mx-auto mt-1 max-w-md text-sm text-neutral-mid">
-            No lo llenas a mano. Qavante te lo <b className="text-neutral-strong">propone desde tu
-            historial real</b> (tendencia, estacionalidad y gastos recurrentes) y después lo ajustas con
-            un gesto.
+            No lo llenas a mano. Qavante te lo{" "}
+            <b className="text-neutral-strong">propone desde tu historial real</b> (tendencia,
+            estacionalidad y gastos recurrentes) y después lo ajustas con un gesto.
           </p>
         </div>
         <button

@@ -74,7 +74,9 @@ describe("currentPeriodSantiago", () => {
 describe("formatSignedPct", () => {
   it("signo explícito salvo 0", () => {
     expect(formatSignedPct("18.2")).toBe("+18,2%");
-    expect(formatSignedPct("-7.1")).toBe("-7,1%");
+    // Menos TIPOGRÁFICO (U+2212), como `formatClp`. Antes salía el hyphen-minus
+    // de `toLocaleString`, así que en la misma fila convivían "−$300.000" y "-7,1%".
+    expect(formatSignedPct("-7.1")).toBe("−7,1%");
     expect(formatSignedPct("0")).toBe("0%");
   });
   it("una variación que redondea a 0 NO lleva '+' (el signo calza con lo mostrado)", () => {

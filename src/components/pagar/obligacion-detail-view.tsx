@@ -5,17 +5,15 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { QavanteCard, QavanteBadge, QavanteInlineError } from "@/components/qavante";
 import { useObligationDetail, type ObligationInstallmentDetail } from "@/lib/api/obligations";
-import { formatClp } from "@/lib/formatters/clp";
+import { formatClpFromString } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
+import { formatPct } from "@/lib/formatters/pct";
 import { ObligationProgressCard } from "./obligation-progress-card";
 
 /* Detalle de una obligación / préstamo: cabecera + calendario de cuotas. Montos
    string-decimal → CLP; fechas YYYY-MM-DD → DD-MM-AAAA. Gated por `obligations`. */
 
-function clp(s: string): string {
-  const n = Number(s);
-  return Number.isFinite(n) ? formatClp(n) : s;
-}
+const clp = formatClpFromString;
 
 function cuotaBadge(status: string): {
   variant: "success" | "warning" | "danger" | "default";
@@ -79,7 +77,7 @@ export function ObligacionDetailView({ id }: { id: string }) {
               <Field label="Cuotas">{query.data.obligation.installments_total}</Field>
               <Field label="Tasa anual">
                 {query.data.obligation.annual_rate
-                  ? `${(Number(query.data.obligation.annual_rate) * 100).toFixed(1)}%`
+                  ? formatPct(Number(query.data.obligation.annual_rate) * 100)
                   : "s/d"}
               </Field>
               <Field label="Inicio">{formatDateLike(query.data.obligation.origination_date)}</Field>

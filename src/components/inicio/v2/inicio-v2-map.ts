@@ -18,6 +18,7 @@ import { parseAmount } from "../dashboard-format";
 import { describeCashGap14d } from "../cash-gap-14d";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
+import { formatPct } from "@/lib/formatters/pct";
 
 const CONF_WORD: Record<string, string> = { high: "alta", medium: "media", low: "baja" };
 function confianzaText(c: string | null | undefined): string {
@@ -273,11 +274,16 @@ export function mapPagos(s: DashboardSummaryV2, now: Date): PagosTimelineProps |
 /** Margen operacional % SOLO si es plausible. Un |resultado| mayor que los ingresos es imposible
  *  (⇒ faltan costos: el mismo bug de datos que destapamos en Gestión, donde el backend manda
  *  labor_cost/direct_cost en $0). Ante eso devolvemos `null` y la vista muestra "s/d" en vez de un
- *  "margen 1000%". No se inventa ni se clampa: se omite. */
+ *  "margen 1000%". No se inventa ni se clampa: se omite.
+ *
+ *  Devuelve el porcentaje CRUDO, sin redondear. El redondeo es una decisión de presentación y
+ *  vive en `formatPct`: cuando lo hacía este modelo, Inicio decía "9%" sobre el mismo cociente
+ *  que Gestión mostraba como "9,3%" — el mismo número con dos valores en dos pantallas, que es
+ *  exactamente lo que prohíbe la ley 1 de la especificación. */
 export function margenPlausiblePct(resultado: number, ingresos: number): number | null {
   if (ingresos <= 0) return null;
   if (Math.abs(resultado) > ingresos) return null;
-  return Math.round((resultado / ingresos) * 100);
+  return (resultado / ingresos) * 100;
 }
 
 /** Resultado. Margen computado (resultado/ingresos). SIN "preliminar"/rango/extra:
@@ -294,7 +300,7 @@ export function mapResultado(s: DashboardSummaryV2): ResultadoPreliminarProps | 
     subtitulo: "Resultado operacional del mes",
     ingresos,
     margenLabel: "Margen operacional",
-    margen: margenPct != null ? `${margenPct}%` : "s/d",
+    margen: margenPct != null ? formatPct(margenPct) : "s/d",
     extra: [],
   };
 }

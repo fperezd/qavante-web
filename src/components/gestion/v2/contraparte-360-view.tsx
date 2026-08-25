@@ -19,27 +19,14 @@ import {
   sinMesEnCurso,
   tendenciaAnual,
 } from "./contraparte-360-model";
+import { formatPct } from "@/lib/formatters/pct";
+import { MESES_CORTOS_CAP as MESES_CORTOS } from "@/lib/formatters/months";
 
 /* Contraparte 360 (pedido de Fernando 2026-07-30): análisis del comportamiento comercial de un
    cliente (ventas) o proveedor (compras) en el tiempo — venta/compra mes a mes, tendencia año contra
    año, estacionalidad, concentración y riesgo. Config-driven: la MISMA vista sirve para los dos 360,
    cambia el lenguaje. Datos del maestro RCV (~24 meses). "Días de pago real" NO se calcula (es el
    comportamiento_pago = brecha CC-API); se declara honesto. Sin `export const runtime` (regla 4). */
-
-const MESES_CORTOS = [
-  "Ene",
-  "Feb",
-  "Mar",
-  "Abr",
-  "May",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dic",
-];
 
 /** "2026-07" → "07-2026" (mes-año, no año-mes). Deja el input si no parsea. */
 function mesAnioNum(periodo: string): string {
@@ -253,7 +240,7 @@ function Selector({
                   <span className="min-w-0 truncate text-neutral-dark">{c.name}</span>
                   <span className="shrink-0 tabular-nums text-neutral-mid">
                     {formatClp(c.total)}
-                    {pct != null ? ` (${pct.toFixed(0)}%)` : ""}
+                    {pct != null ? ` (${formatPct(pct)})` : ""}
                   </span>
                 </button>
               </li>
@@ -331,7 +318,7 @@ function Detalle({
           />
           <QavanteStatTile
             label={`% ${config.delTotal}`}
-            value={pct != null ? `${pct.toFixed(1)}%` : "s/d"}
+            value={pct != null ? formatPct(pct) : "s/d"}
             tone={pct != null && pct >= 25 ? "danger" : "default"}
             hint={
               pct != null && pct >= 25
@@ -412,8 +399,7 @@ function TendenciaLinea({
       previos <b className="text-neutral-dark">{formatClp(tend.previos12)}</b>
       {d != null && (
         <span className={`font-semibold ${color}`}>
-          ({sube ? "+" : ""}
-          {d.toFixed(1)}% de {config.flujo.toLowerCase()})
+          ({formatPct(d, { signed: true })} de {config.flujo.toLowerCase()})
         </span>
       )}
     </p>
@@ -468,7 +454,7 @@ function Recuperacion({
           label={esVentas ? "A recuperar" : "Diferencia"}
           value={`${bajo ? "" : "+"}${formatClp(Math.abs(dif))}`}
           tone={bajo ? "danger" : "success"}
-          hint={`${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% vs. su mejor mes`}
+          hint={`${formatPct(pct, { signed: true })} vs. su mejor mes`}
         />
       </div>
     </section>

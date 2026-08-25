@@ -5,7 +5,8 @@ import { ChevronRight } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 import { cn } from "@/lib/utils";
 import type { OperationalResultBreakdown } from "@/lib/api/gestion";
-import { parseAmount } from "./gestion-format";
+import { parseAmount } from "@/lib/formatters/amount";
+import { formatClpBare } from "@/lib/formatters/clp";
 import { flattenBreakdown, formatMonthColumn } from "./breakdown-format";
 import { CuentaDocumentos } from "./cuenta-documentos";
 
@@ -18,9 +19,7 @@ import { CuentaDocumentos } from "./cuenta-documentos";
  *  real, no dato faltante); negativos con el "−" tipográfico (U+2212, convención
  *  de la casa), no el guion. */
 function fmtCell(v: string): string {
-  const n = Math.round(parseAmount(v));
-  if (n === 0) return "0";
-  return (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("es-CL");
+  return formatClpBare(parseAmount(v));
 }
 
 export function OperationalResultMatrix({ data }: { data: OperationalResultBreakdown }) {
@@ -30,7 +29,10 @@ export function OperationalResultMatrix({ data }: { data: OperationalResultBreak
   const months = data.months ?? [];
   // Meses con dato INCOMPLETO (típico: sin nómina cargada → margen ~100% falso). CC-API #895.
   const incompletos = new Map(
-    (data.incomplete_months ?? []).map((im) => [im.month, im.detail || "Dato incompleto este mes."]),
+    (data.incomplete_months ?? []).map((im) => [
+      im.month,
+      im.detail || "Dato incompleto este mes.",
+    ]),
   );
   const flat = React.useMemo(
     () => flattenBreakdown(data.rows ?? [], collapsed),

@@ -15,7 +15,7 @@ import {
   useReconcileObligations,
   type ObligationListItem,
 } from "@/lib/api/obligations";
-import { formatClp } from "@/lib/formatters/clp";
+import { formatClp, formatClpFromString } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 
 /* Lista de obligaciones / préstamos del tenant (Pagar). Cada fila enlaza al
@@ -23,10 +23,7 @@ import { formatDateLike } from "@/lib/formatters/date";
    YYYY-MM-DD → DD-MM-AAAA (formatDateLike, convención Qavante). Gated por
    `obligations`. */
 
-function clp(decimalString: string): string {
-  const n = Number(decimalString);
-  return Number.isFinite(n) ? formatClp(n) : decimalString;
-}
+const clp = formatClpFromString;
 
 // Solo los PRÉSTAMOS llevan una etiqueta de tipo aparte. La mayoría de las obligaciones son
 // `card_purchase` (compras a plazo con la tarjeta: SII/TGR/proveedores en cuotas) → bajo el título

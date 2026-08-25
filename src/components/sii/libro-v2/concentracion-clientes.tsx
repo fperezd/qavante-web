@@ -2,6 +2,7 @@ import * as React from "react";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* ConcentracionClientes — panel de apoyo del Libro v2: quién concentra la facturación
    (top N por monto), con barra de participación. En el rediseño baja de card grande
@@ -83,7 +84,7 @@ export function ConcentracionClientes({
                   {/* pct acotado a 0-100: la base es el neto del período (las NC restan);
                       si el período netea ≤ 0, el % crudo puede dispararse/ser negativo. */}
                   <span className="font-semibold text-neutral-mid">
-                    {Math.round(Math.max(0, Math.min(100, it.pct)))}%
+                    {formatPct(Math.max(0, Math.min(100, it.pct)))}
                   </span>
                 </span>
               </div>

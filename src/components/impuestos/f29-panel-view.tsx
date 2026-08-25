@@ -21,6 +21,7 @@ import { formatDateLike } from "@/lib/formatters/date";
 import { formatClp, formatClpCompact } from "@/lib/formatters/clp";
 import { f29SyncFailureToast } from "./f29-sync-message";
 import { F29MonthDetail } from "./f29-month-detail";
+import { MESES_LARGOS_CAP as MESES } from "@/lib/formatters/months";
 
 /* Describe el error de un sync fallido con el dato real del backend (status +
    code + motivo) en vez de un genérico — permite diagnosticar sin logs. */
@@ -40,21 +41,6 @@ function describeReqError(err: unknown): string {
    del SII: meses en filas, años en columnas, semáforo por celda. Al clickear un
    mes con período, abre el detalle (con/sin IVA). Datos: `GET /f29/estado?anio=`
    por cada año (acepta cookie). */
-
-const MESES = [
-  "Enero",
-  "Febrero",
-  "Marzo",
-  "Abril",
-  "Mayo",
-  "Junio",
-  "Julio",
-  "Agosto",
-  "Septiembre",
-  "Octubre",
-  "Noviembre",
-  "Diciembre",
-];
 
 /** Años hacia atrás (además del actual) cuando no hay inicio de actividades. */
 const YEARS_BACK = 5;

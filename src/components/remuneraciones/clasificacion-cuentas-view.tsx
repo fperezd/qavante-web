@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import type { WorkerClassification, AllocationIn, AllocationOut } from "@/lib/api/payroll-workers";
 import { AllocationEditorDialog } from "./allocation-editor-dialog";
 import type { CuentaOption } from "./payroll-cuentas";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Clasificación de remuneraciones por empleado (ADR-0079 v2, #743). Tabla estilo
    Chipax: cada trabajador (ordenado por costo desc) reparte su costo en 1..N cuentas
@@ -56,7 +57,7 @@ function ResumenAlloc({ allocations }: { allocations?: AllocationOut[] | null })
   return (
     <span className="text-neutral-dark">
       {allocations
-        .map((a) => `${Math.round(Number(a.pct))}% ${a.account_name ?? a.account_code}`)
+        .map((a) => `${formatPct(Number(a.pct))} ${a.account_name ?? a.account_code}`)
         .join(" · ")}
     </span>
   );

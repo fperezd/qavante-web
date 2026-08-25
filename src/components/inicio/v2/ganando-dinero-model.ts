@@ -27,7 +27,9 @@ export function resultadoMesAnterior(
   if (!resp) return null;
   const resultado = parseAmount(resp.result);
   const ingresos = parseAmount(resp.revenue);
-  const margenPct = ingresos > 0 ? Math.round((resultado / ingresos) * 100) : null;
+  /* CRUDO, sin redondear: el redondeo lo hace `formatPct` en la vista. Redondeado acá, este
+     widget decía "9%" sobre el mismo cociente que Gestión muestra como "9,3%". */
+  const margenPct = ingresos > 0 ? (resultado / ingresos) * 100 : null;
   return {
     gano: resultado >= 0,
     resultado,

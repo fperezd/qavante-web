@@ -3,6 +3,7 @@ import { HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { prepararDistribucion, type DistribucionItem } from "./concentracion-dimension-model";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* ConcentracionDimension — panel de distribución de la contraparte por DIMENSIÓN: por TAMAÑO (tramo)
    o por INDUSTRIA (sector). Reusable para las 4 vistas (clientes/proveedores × tamaño/industria).
@@ -88,7 +89,7 @@ export function ConcentracionDimension({
                 <span className="whitespace-nowrap text-[12.5px] tabular-nums">
                   <b className="font-bold text-neutral-dark">
                     {/* pct acotado a 0-100 (la base puede netear raro con NC). */}
-                    {Math.round(Math.max(0, Math.min(100, it.pct)))}%
+                    {formatPct(Math.max(0, Math.min(100, it.pct)))}
                   </b>{" "}
                   <span className="font-semibold text-neutral-mid">{formatClp(it.monto)}</span>
                 </span>
@@ -113,7 +114,7 @@ export function ConcentracionDimension({
                 </span>
                 <span className="whitespace-nowrap text-[12.5px] tabular-nums">
                   <b className="font-semibold text-neutral-dark">
-                    {Math.round(Math.max(0, Math.min(100, otros.pct)))}%
+                    {formatPct(Math.max(0, Math.min(100, otros.pct)))}
                   </b>{" "}
                   <span className="font-medium">{formatClp(otros.monto)}</span>
                 </span>

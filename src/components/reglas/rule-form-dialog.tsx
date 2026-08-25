@@ -16,6 +16,7 @@ import {
   type SuggestRuleResponse,
 } from "@/lib/api/classification-rules";
 import { useCanonicalCategories } from "@/lib/api/treasury";
+import { formatPct } from "@/lib/formatters/pct";
 import {
   CONDITION_FIELDS,
   CONFIDENCE_STEPS,
@@ -354,7 +355,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
                     >
                       {CONFIDENCE_STEPS.map((c) => (
                         <option key={c} value={c}>
-                          {Math.round(c * 100)}%
+                          {formatPct(c * 100)}
                         </option>
                       ))}
                     </select>

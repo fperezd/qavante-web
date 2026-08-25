@@ -22,6 +22,7 @@ import {
   isEmptyPulsoDetail,
 } from "./pulso-detail-format";
 import { PulsoObjetivoSelector } from "./pulso-objetivo-selector";
+import { formatPct } from "@/lib/formatters/pct";
 import {
   DEFAULT_OBJETIVO,
   readPulsoObjetivo,
@@ -143,7 +144,7 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
                   <span className="text-neutral-dark">{c.label}</span>
                   <span className="tabular-nums text-neutral-mid">
                     {c.score}
-                    <span className="ml-1 text-xs">· peso {Math.round(c.weight * 100)}%</span>
+                    <span className="ml-1 text-xs">· peso {formatPct(c.weight * 100)}</span>
                   </span>
                 </div>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-neutral-light/40">

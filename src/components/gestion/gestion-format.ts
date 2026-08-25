@@ -1,29 +1,14 @@
 /* Helpers puros de la pantalla de Resultado Operacional (Sprint C5). SIN
    React → testeables en vitest unit. Montos string-decimal del backend →
    number; navegación de período; labels es-CL. */
-
-const MONTHS_ES_CL = [
-  "ene",
-  "feb",
-  "mar",
-  "abr",
-  "may",
-  "jun",
-  "jul",
-  "ago",
-  "sep",
-  "oct",
-  "nov",
-  "dic",
-] as const;
+import { MESES_CORTOS as MONTHS_ES_CL } from "@/lib/formatters/months";
+import { parseAmount } from "@/lib/formatters/amount";
+import { formatPct } from "@/lib/formatters/pct";
 
 /** String-decimal del backend ("18500000", "-300000", null) → number; 0 ante
- *  input vacío o inválido. */
-export function parseAmount(raw: string | null | undefined): number {
-  if (!raw) return 0;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : 0;
-}
+ *  input vacío o inválido. Implementación ÚNICA en `@/lib/formatters/amount`;
+ *  se re-exporta acá para no tocar los ~30 llamadores de este módulo. */
+export { parseAmount };
 
 /** Monto de un documento del drill-down, firmado RELATIVO a su cuenta. Cada `net_amount` viene firmado
  *  como el accrual, así que una NC lleva el signo OPUESTO al de la factura. El signo del `total` de la
@@ -71,13 +56,10 @@ export function currentPeriodSantiago(now: Date): string {
   return `${y}-${mo}`;
 }
 
-/** `pct` string-decimal → "+12,5%" / "-7,1%" / "0%". Signo explícito salvo 0. El signo se decide
- *  sobre el valor YA REDONDEADO a 1 decimal: un 0,03% que se muestra como "0" no lleva "+". */
+/** `pct` string-decimal → "+12,5%" / "−7,1%" / "0%". Adaptador de dominio: parsea el
+ *  string-decimal del backend y delega el FORMATO en `formatPct` (fuente única). */
 export function formatSignedPct(raw: string): string {
-  // `|| 0` normaliza el −0 (Math.round(−0.4) = −0, y (−0).toLocaleString da "-0").
-  const r = Math.round(parseAmount(raw) * 10) / 10 || 0;
-  const sign = r > 0 ? "+" : "";
-  return `${sign}${r.toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`;
+  return formatPct(parseAmount(raw), { signed: true });
 }
 
 /** Tono de una variación: una variación POSITIVA del resultado es buena

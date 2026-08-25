@@ -1,15 +1,13 @@
-/* Helpers puros de la pantalla Pagar (Sprint C4). SIN React → testeables.
-   `parseAmount` se repite (consolidación pendiente, ver cobranza-format). */
+/* Helpers puros de la pantalla Pagar (Sprint C4). SIN React → testeables. */
 
 import type { PaymentCategory, PayableCurrencyTotal, PayableItem } from "@/lib/api/pagos";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { formatMoney } from "@/lib/formatters/clp";
 
-export function parseAmount(raw: string | null | undefined): number {
-  if (!raw) return 0;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : 0;
-}
+/** Implementación ÚNICA en `@/lib/formatters/amount`; se re-exporta acá para no
+ *  tocar los llamadores de este módulo. */
+import { parseAmount } from "@/lib/formatters/amount";
+export { parseAmount };
 
 /** `amount_clp` "en blanco": `null`, `undefined` o string vacío. El backend manda `""` (no solo
  *  `null`) cuando no hay conversión → hay que tratarlo como ausente, que `??` no hace (solo cubre

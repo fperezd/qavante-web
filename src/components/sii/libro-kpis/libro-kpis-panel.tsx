@@ -10,6 +10,7 @@ import { computeRcvTotals } from "../rcv-totals";
 import type { RcvDoc } from "../rcv-grouped-item";
 import type { RcvKind } from "../rcv-list-view";
 import { concentrationByCounterparty, docsToCsv } from "./libro-kpis-format";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Panel de KPIs del Libro (Ventas/Compras) — control de gestión.
  *
@@ -104,7 +105,7 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
                   <span className="shrink-0 tabular-nums text-neutral-dark">
                     {formatClp(c.total)}
                     <span className="ml-1 text-xs text-neutral-mid">
-                      ({Math.max(0, Math.min(100, c.pct)).toLocaleString("es-CL", { maximumFractionDigits: 0 })}%)
+                      ({formatPct(Math.max(0, Math.min(100, c.pct)))})
                     </span>
                   </span>
                 </div>

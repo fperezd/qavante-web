@@ -15,6 +15,7 @@ import {
   useToggleClassificationRuleActive,
   type ClassificationRule,
 } from "@/lib/api/classification-rules";
+import { formatPct } from "@/lib/formatters/pct";
 import { useCanonicalCategories } from "@/lib/api/treasury";
 
 /* Vista de Reglas — Addendum §17.5/§17.6/§18.1. Patrón "página = contenedor":
@@ -121,7 +122,7 @@ function RuleRow({
             )}
           </p>
           <p className="text-xs text-neutral-mid">
-            Confianza: {(Number(rule.confidence) * 100).toFixed(0)}% · Creada:{" "}
+            Confianza: {formatPct(Number(rule.confidence) * 100)} · Creada:{" "}
             {new Date(rule.created_at).toLocaleDateString("es-CL")}
           </p>
         </div>

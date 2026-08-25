@@ -7,6 +7,7 @@ import { QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { cn } from "@/lib/utils";
 import type { PlanReal } from "./plan-real-model";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Widget "Plan vs Real" (presupuesto vs real) del Inicio: la vista contable clásica (ingresos, costo,
    gastos, resultado) con Plan | Real | desviación, MENSUAL o ANUAL. Presentacional: recibe el PlanReal
@@ -91,9 +92,7 @@ export function PlanRealWidget({
                     f.favorable ? "text-success-700" : "text-danger-500",
                   )}
                 >
-                  {f.variacionPct != null
-                    ? `${f.variacionPct > 0 ? "+" : f.variacionPct < 0 ? "−" : ""}${Math.abs(f.variacionPct)}%`
-                    : "s/d"}
+                  {f.variacionPct != null ? formatPct(f.variacionPct, { signed: true }) : "s/d"}
                 </td>
               </tr>
             );

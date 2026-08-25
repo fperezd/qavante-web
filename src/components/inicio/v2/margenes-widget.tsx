@@ -7,6 +7,7 @@ import { QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import { cn } from "@/lib/utils";
 import type { Margenes } from "./margenes-model";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Widget "Márgenes" del Inicio: margen bruto y neto del mes cerrado. Presentacional: recibe los márgenes
    ya derivados. Lleva a /gestion (regla "todo dato lleva a su detalle"). */
@@ -17,12 +18,13 @@ export interface MargenesWidgetProps {
   cta?: string;
 }
 
-function pct(v: number | null): string {
-  if (v == null) return "s/d";
-  return v < 0 ? `−${Math.abs(v)}%` : `${v}%`;
-}
+const pct = (v: number | null): string => (v == null ? "s/d" : formatPct(v));
 
-export function MargenesWidget({ data, href = "/gestion", cta = "Ver gestión" }: MargenesWidgetProps) {
+export function MargenesWidget({
+  data,
+  href = "/gestion",
+  cta = "Ver gestión",
+}: MargenesWidgetProps) {
   const netoNeg = data.netoMonto < 0;
   return (
     <QavanteCard
@@ -35,7 +37,9 @@ export function MargenesWidget({ data, href = "/gestion", cta = "Ver gestión" }
       <div className="mt-2 grid grid-cols-2 gap-2">
         <div className="rounded-lg bg-neutral-light/30 p-3">
           <p className="text-[11px] text-neutral-mid">Margen bruto</p>
-          <p className="text-2xl font-bold tabular-nums text-neutral-strong">{pct(data.brutoPct)}</p>
+          <p className="text-2xl font-bold tabular-nums text-neutral-strong">
+            {pct(data.brutoPct)}
+          </p>
           <p className="mt-0.5 text-[11px] tabular-nums text-neutral-mid">
             {formatClp(data.brutoMonto)}
           </p>
@@ -63,8 +67,13 @@ export function MargenesWidget({ data, href = "/gestion", cta = "Ver gestión" }
       </div>
 
       <p className="mt-2 text-xs text-neutral-mid">
-        De cada $100 vendidos, te quedan {data.brutoPct != null ? `$${data.brutoPct}` : "s/d"} después
-        del costo directo{data.netoPct != null ? ` y $${data.netoPct} al final` : ""}.
+        {/* `formatClp`, no la interpolación cruda: acá el porcentaje se lee como PESOS
+            ("de cada $100 vendidos"), y desde que el modelo dejó de redondear —para no
+            divergir de Gestión— esta frase imprimía el float entero:
+            "te quedan $34.232365145228215". El redondeo al peso lo hace el formateador. */}
+        De cada $100 vendidos, te quedan {data.brutoPct != null ? formatClp(data.brutoPct) : "s/d"}{" "}
+        después del costo directo
+        {data.netoPct != null ? ` y ${formatClp(data.netoPct)} al final` : ""}.
       </p>
 
       <Link

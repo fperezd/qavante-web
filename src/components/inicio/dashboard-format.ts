@@ -1,5 +1,5 @@
 /* Helpers puros del Inicio Ejecutivo (Sprint C8). SIN React → testeables.
-   `parseAmount` se repite (consolidación pendiente). */
+   `parseAmount` vive en `@/lib/formatters/amount` y acá solo se re-exporta. */
 
 import type { PulsoStatus, Confidence, DashboardSummaryResponse } from "@/lib/api/dashboard";
 
@@ -21,11 +21,9 @@ export function isEmptySummary(data: DashboardSummaryResponse): boolean {
   );
 }
 
-export function parseAmount(raw: string | null | undefined): number {
-  if (!raw) return 0;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : 0;
-}
+/** Implementación ÚNICA en `@/lib/formatters/amount`; se re-exporta acá para no
+ *  tocar los llamadores de este módulo. */
+export { parseAmount } from "@/lib/formatters/amount";
 
 const PULSO_LABEL: Record<PulsoStatus, string> = {
   critical: "Crítica",

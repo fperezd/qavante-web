@@ -3,16 +3,15 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { QavanteCard } from "@/components/qavante";
+import { formatClpBare } from "@/lib/formatters/clp";
 import type { PlanRealYear, PlanRealCelda } from "./plan-real-year-model";
 
 /* Plan vs Real por cuenta-mes: grilla READ-ONLY (cuentas × meses) con el REAL de cada celda, coloreado
    por si va a FAVOR o EN CONTRA del plan (variación signada). Presentacional: recibe el modelo + las
    etiquetas de mes. Carga progresiva: muestra lo que ya llegó y un aviso "N/M" mientras cargan meses. */
 
-function fmt(n: number): string {
-  const r = Math.round(n);
-  return r === 0 ? "0" : Math.abs(r).toLocaleString("es-CL");
-}
+/** Magnitud sin símbolo: la dirección la dice el color / el "a favor–en contra". */
+const fmt = (n: number): string => formatClpBare(n, { signed: false });
 
 /** Color del texto por la variación: a favor (≥0) verde, en contra rojo, ~0 neutro. */
 function tono(variacion: number): string {
@@ -53,20 +52,26 @@ export function PlanRealYearView({ model, meses, cargando, className }: PlanReal
             Cargando meses… {cargando!.hechos}/{cargando!.total}
           </span>
         ) : (
-          <span className="text-[11px] text-neutral-mid">Real del período · verde a favor, rojo en contra</span>
+          <span className="text-[11px] text-neutral-mid">
+            Real del período · verde a favor, rojo en contra
+          </span>
         )}
       </div>
 
       {model.filas.length === 0 ? (
         <p className="px-4 py-4 text-sm text-neutral-mid">
-          {incompleto ? "Trayendo el real por cuenta…" : "Todavía no hay real por cuenta para el período."}
+          {incompleto
+            ? "Trayendo el real por cuenta…"
+            : "Todavía no hay real por cuenta para el período."}
         </p>
       ) : (
         <div className="overflow-x-auto px-2 py-2">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="text-[11px] uppercase tracking-wider text-neutral-mid">
-                <th className="sticky left-0 z-10 bg-surface px-3 py-2 text-left font-semibold">Cuenta</th>
+                <th className="sticky left-0 z-10 bg-surface px-3 py-2 text-left font-semibold">
+                  Cuenta
+                </th>
                 {meses.map((m, i) => (
                   <th key={i} className="px-1.5 py-2 text-right font-semibold">
                     {m}
@@ -89,7 +94,12 @@ export function PlanRealYearView({ model, meses, cargando, className }: PlanReal
                       <Celda celda={celda} />
                     </td>
                   ))}
-                  <td className={cn("px-3 py-1.5 text-right text-xs font-medium tabular-nums", tono(f.totalVariacion))}>
+                  <td
+                    className={cn(
+                      "px-3 py-1.5 text-right text-xs font-medium tabular-nums",
+                      tono(f.totalVariacion),
+                    )}
+                  >
                     {fmt(f.totalReal)}
                   </td>
                 </tr>
@@ -101,13 +111,21 @@ export function PlanRealYearView({ model, meses, cargando, className }: PlanReal
                 {model.totalRealMes.map((v, i) => (
                   <td
                     key={i}
-                    className={cn("px-1.5 py-2 text-right text-xs tabular-nums", v < 0 ? "text-danger-500" : "text-neutral-dark")}
+                    className={cn(
+                      "px-1.5 py-2 text-right text-xs tabular-nums",
+                      v < 0 ? "text-danger-500" : "text-neutral-dark",
+                    )}
                   >
                     {v < 0 ? "−" : ""}
                     {fmt(v)}
                   </td>
                 ))}
-                <td className={cn("px-3 py-2 text-right text-xs tabular-nums", model.totalRealAnio < 0 ? "text-danger-500" : "text-neutral-dark")}>
+                <td
+                  className={cn(
+                    "px-3 py-2 text-right text-xs tabular-nums",
+                    model.totalRealAnio < 0 ? "text-danger-500" : "text-neutral-dark",
+                  )}
+                >
                   {model.totalRealAnio < 0 ? "−" : ""}
                   {fmt(model.totalRealAnio)}
                 </td>

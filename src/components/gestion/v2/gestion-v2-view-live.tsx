@@ -29,6 +29,8 @@ import {
   type Comparativo,
 } from "./gestion-v2-map";
 import { AlertTriangle } from "lucide-react";
+import { formatPct } from "@/lib/formatters/pct";
+import { MESES_LARGOS } from "@/lib/formatters/months";
 
 /* Vista LIVE de Gestión v2 (rediseño 2026-07-14), la única vista de Gestión (el clásico se retiró). Recibe el
    resultado del mes (ya resuelto por el container `OperationalResultView`) y compone la vista:
@@ -37,21 +39,6 @@ import { AlertTriangle } from "lucide-react";
    Degradación honesta: la tendencia se omite si el breakdown falla o no trae el %; el Pulso si
    el dashboard no está; se conserva el pie de confianza + fuentes faltantes (§13, no asume 0).
    Container: NO se testea por Storybook play (ADR-0018); la lógica vive en `gestion-v2-map`. */
-
-const MESES_LARGOS = [
-  "enero",
-  "febrero",
-  "marzo",
-  "abril",
-  "mayo",
-  "junio",
-  "julio",
-  "agosto",
-  "septiembre",
-  "octubre",
-  "noviembre",
-  "diciembre",
-];
 
 /** "2026-07" → "julio 2026". */
 function mesLargo(period: string): string {
@@ -237,7 +224,7 @@ function Margenes({ mes }: { mes: OperationalResultResponse }) {
   // Siempre bruto y neto, cada uno en $ y % (pedido de Fernando).
   const margen = (monto: number, pct: number) => (
     <>
-      {formatClp(monto)} · <span className="text-neutral-mid">{fmtPct(pct)}</span>
+      {formatClp(monto)} · <span className="text-neutral-mid">{formatPct(pct)}</span>
     </>
   );
   return (
@@ -377,8 +364,4 @@ function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
       <ConfianzaPie mes={mes} />
     </div>
   );
-}
-
-function fmtPct(v: number): string {
-  return `${v.toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }

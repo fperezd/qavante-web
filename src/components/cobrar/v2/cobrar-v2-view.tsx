@@ -15,6 +15,7 @@ import { AgingBarraDesconocida, AgingDesconocido } from "../aging-desconocido";
 import { CobranzaAcciones } from "./cobranza-acciones";
 import { peorMoraDias, isGestionadoDoc, type GestionadoMap } from "./cobrar-v2-map";
 import type { DocMaestro } from "@/components/terminos/terminos-pago";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* CobrarV2View — el armazón presentacional de Cobrar v2 (rediseño 2026-07-19). El
    contenedor (`cobrar-v2-live`) le pasa el hero ya armado + la lista de deudores como
@@ -227,7 +228,7 @@ export function ResumenCobranza({
           />
           <Stat
             label="% vencido"
-            value={`${(overduePct ?? 0).toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`}
+            value={formatPct(overduePct ?? 0)}
             tone={(overduePct ?? 0) > 0 ? "danger" : undefined}
           />
         </>
@@ -352,11 +353,9 @@ export function DeudorRow(props: DeudorRowProps) {
 
         <div className="shrink-0 pl-6 text-left tabular-nums sm:pl-0 sm:text-right">
           <p className="font-semibold text-neutral-dark">{formatClp(total)}</p>
-          {pct >= 10 && (
-            <p className="text-xs text-neutral-mid">
-              {pct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}% del total
-            </p>
-          )}
+          {/* Del lado de #40 viene `formatPct`; del lado de #44, los tres estados del
+              vencido. Se combinan: el formato NO puede pisar la semántica. */}
+          {pct >= 10 && <p className="text-xs text-neutral-mid">{formatPct(pct)} del total</p>}
           {overdue === null ? (
             /* El "no sé" se dice. Antes `overdue > 0` con un null no pintaba nada y
                la fila quedaba igual a la de un cliente al día. */

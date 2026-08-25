@@ -49,6 +49,7 @@ import {
   mapPulso,
   mapResultado,
 } from "./inicio-v2-map";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Vista LIVE del Inicio Ejecutivo v2 (rediseño aprobado). Cablea los componentes
    presentacionales al `GET /api/dashboard/summary` vía el mapper puro, gated por
@@ -327,7 +328,7 @@ function buildTermometros(s: DashboardSummaryV2): Termometro[] {
       pregunta: "¿La empresa está ganando dinero?",
       pill: r >= 0 ? "🟢 Positivo" : "🔴 Pérdida",
       pillTono: r >= 0 ? "ok" : "crit",
-      respuesta: `Resultado ${formatClp(r)}${margen != null ? ` · margen ${margen}%` : ""}.`,
+      respuesta: `Resultado ${formatClp(r)}${margen != null ? ` · margen ${formatPct(margen)}` : ""}.`,
       masLabel: "Ver rentabilidad →",
       masHref: "/gestion",
     });

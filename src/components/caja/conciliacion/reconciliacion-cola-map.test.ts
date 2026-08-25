@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/api/errors";
-import type {
-  ReanalyzeResponse,
-  ReconcileResponse,
-  ReviewItem,
-} from "@/lib/api/reconciliation";
+import type { ReanalyzeResponse, ReconcileResponse, ReviewItem } from "@/lib/api/reconciliation";
 import {
   documentoLabel,
   esCobro,
@@ -55,9 +51,14 @@ describe("esCobro / documentoLabel", () => {
 });
 
 describe("parseScore / scoreTexto", () => {
-  it("parsea 0-100 y redondea a %", () => {
+  it("parsea 0-100 y escribe el % con el formateador único", () => {
     expect(parseScore("78")).toBe(78);
-    expect(scoreTexto("77.6")).toBe("78%");
+    /* Antes daba "78%": `scoreTexto` redondeaba al entero por su cuenta, así que el
+       mismo score se escribía distinto acá que en cualquier otra pantalla. Ahora pasa
+       por `formatPct`, que es un decimal máximo. El decimal que aparece es el que el
+       motor ya calculaba y este módulo estaba tirando. */
+    expect(scoreTexto("77.6")).toBe("77,6%");
+    expect(scoreTexto("78")).toBe("78%"); // entero sigue sin decimal inventado
   });
 
   it("null/vacío/no numérico → null / cadena vacía", () => {

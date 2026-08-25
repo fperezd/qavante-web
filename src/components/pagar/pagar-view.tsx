@@ -21,6 +21,7 @@ import {
   isSyncPending,
 } from "@/components/treasury/sync-pending-state";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatPct } from "@/lib/formatters/pct";
 import { formatDateLike } from "@/lib/formatters/date";
 import {
   montoCLP,
@@ -247,7 +248,7 @@ function PagosPorCategoria({
                   <span className="font-semibold text-neutral-dark">{formatClp(g.subtotal)}</span>
                   {pct >= 0.5 && (
                     <span className="ml-2 text-xs text-neutral-mid">
-                      {pct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}% del total
+                      {formatPct(pct)} del total
                     </span>
                   )}
                 </div>

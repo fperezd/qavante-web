@@ -1,23 +1,10 @@
+import { MESES_CORTOS as MONTHS_ES_CL } from "@/lib/formatters/months";
+
 /* Helpers puros del cash-flow report — extraídos de cash-flow-table.tsx
    para poder testear sin montar React. Cubre el parsing del formato
    string-decimal del backend (regex
    "^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$") y la traducción de `period` a label
    legible es-CL. */
-
-const MONTHS_ES_CL = [
-  "ene",
-  "feb",
-  "mar",
-  "abr",
-  "may",
-  "jun",
-  "jul",
-  "ago",
-  "sep",
-  "oct",
-  "nov",
-  "dic",
-] as const;
 
 /** String decimal del backend (puede venir como "0", "1234.56", "-700000",
     null o undefined) → number. Default 0 ante input vacío o inválido. */
@@ -98,10 +85,7 @@ function formatWeekRange(monday: Date): string {
     - week  → "Sem. 11–17 may" (rango de fechas reales, no "W1")
     - day   → "11-05-2026" (DD-MM-AAAA)
     Fallback defensivo al string original. */
-export function formatBucketLabel(
-  period: string,
-  granularity?: "month" | "week" | "day",
-): string {
+export function formatBucketLabel(period: string, granularity?: "month" | "week" | "day"): string {
   // Semana: rango de fechas reales (lunes a domingo).
   if (granularity === "week") {
     const monday = weekMondayFrom(period);

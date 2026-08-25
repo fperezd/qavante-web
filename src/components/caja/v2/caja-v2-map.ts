@@ -7,11 +7,10 @@
 import { parseAmount } from "@/components/inicio/dashboard-format";
 import { weekMondayFrom } from "@/components/caja/cash-flow-format";
 import { formatMoney } from "@/lib/formatters/clp";
+import { MESES_CORTOS as MESES } from "@/lib/formatters/months";
 import { saldoAcumulado, type SaldoPunto } from "./caja-curva-model";
 import type { CashFlowBucket } from "@/lib/api/treasury-reports";
 import type { CashMinimumResponse } from "@/lib/api/cash-minimum";
-
-const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
 /** Etiqueta corta de un período del cash-flow: `2026-07-14`→`14-jul`, `2026-07`→`jul`. */
 export function labelBucketCorto(period: string): string {

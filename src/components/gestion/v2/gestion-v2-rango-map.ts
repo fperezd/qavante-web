@@ -7,6 +7,7 @@ import type { OperationalResultBreakdown, BreakdownRow } from "@/lib/api/gestion
 import { parseAmount } from "../gestion-format";
 import { mapTendencia, separarMesEnCurso, tendenciaConfiable } from "./gestion-v2-map";
 import type { TendenciaPunto } from "./tendencia-resultado";
+import { mesCortoDePeriodo } from "@/lib/formatters/months";
 
 /* Avisos del cálculo (`OperationalResultBreakdown.warnings`, CC-API #691): el backend marca cuándo el
    resultado puede estar distorsionado (ej. ingresos de productos sin costo de venta → margen inflado).
@@ -156,26 +157,9 @@ export function rangoIncompleto(base: RangoResumen | null, ref: RangoResumen | n
   );
 }
 
-/** "2026-07" → "jul" (local para no exportar de más; equivalente a mesCorto). */
-function mesCortoDe(period: string): string {
-  const MESES = [
-    "ene",
-    "feb",
-    "mar",
-    "abr",
-    "may",
-    "jun",
-    "jul",
-    "ago",
-    "sep",
-    "oct",
-    "nov",
-    "dic",
-  ];
-  const m = period.match(/^\d{4}-(\d{2})/);
-  const idx = m ? Number(m[1]) - 1 : NaN;
-  return MESES[idx] ?? period;
-}
+/** "2026-07" → "jul". Alias local del formateador central (se mantiene el nombre
+ *  para no tocar los llamadores de este módulo). */
+const mesCortoDe = mesCortoDePeriodo;
 
 /** ¿El resultado del período es plausible para mostrarlo con confianza? Mismo criterio que el
  *  mes (el rango corre sobre el mismo cálculo): resultado > ingresos ⇒ margen > 100% ⇒ imposible. */

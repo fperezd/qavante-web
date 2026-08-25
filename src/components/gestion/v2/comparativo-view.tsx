@@ -19,6 +19,7 @@ import {
   rangoIncompleto,
   type RangoResumen,
 } from "./gestion-v2-rango-map";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* Comparativo RICO (pedido de Fernando 2026-07-28, "las 5"): además del mes vs
    mes anterior / año anterior, las comparaciones potentes de control de gestión —
@@ -60,10 +61,6 @@ function pick(r: RangoResumen | null, key: string): number {
 function alDiaNum(obj: { [key: string]: unknown } | undefined, key: string): number {
   const raw = obj?.[key];
   return parseAmount(raw == null ? null : String(raw));
-}
-
-function fmtPct(v: number): string {
-  return `${v.toLocaleString("es-CL", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
 /** Variación % (guardando división por cero). null = sin base para comparar. */
@@ -449,7 +446,7 @@ function RefLinea({
         </span>
       ) : (
         <span className={`shrink-0 font-medium ${color}`}>
-          {v == null ? "sin base" : `${up ? "+" : ""}${v.toFixed(1)}%`}
+          {v == null ? "sin base" : formatPct(v, { signed: true })}
         </span>
       )}
     </span>
@@ -524,10 +521,11 @@ function Eficiencia({
       <span className="text-neutral-mid">{label}</span>
       <span className="flex items-center gap-3">
         <span className="font-bold tabular-nums text-neutral-dark">
-          {a === null ? "s/d" : fmtPct(a)}
+          {a === null ? "s/d" : formatPct(a)}
         </span>
         <span className="text-[11px] text-neutral-mid">
-          mes ant. {p === null ? "s/d" : fmtPct(p)} · año ant. {yy === null ? "s/d" : fmtPct(yy)}
+          mes ant. {p === null ? "s/d" : formatPct(p)} · año ant.{" "}
+          {yy === null ? "s/d" : formatPct(yy)}
         </span>
       </span>
     </div>

@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { computeCascada, type CascadaEntrada } from "./cascada-model";
+import { formatPct } from "@/lib/formatters/pct";
 
 /* CascadaResultado — la pieza estrella de Gestión v2: el P&L del mes como waterfall de barras
    flotantes. Contesta "de dónde salió y a dónde se fue la plata" de un vistazo: Ingresos →
@@ -147,15 +148,4 @@ function barClass(tipo: string, negativo: boolean): string {
       ? "bg-gradient-to-r from-danger-500 to-danger-500/65 shadow-md shadow-danger-500/40"
       : "bg-gradient-to-r from-success-600 to-success-500/65 shadow-md shadow-success-500/40";
   return "bg-gradient-to-r from-brand-primary to-brand-primary/60 shadow-sm"; // subtotal
-}
-
-/** % con 1 decimal, signo tipográfico (−) para negativos. NO se clampa a [0,100]: un margen
- *  negativo (mes en pérdida) debe verse como tal, no como "0%". */
-function formatPct(pct: number): string {
-  const r = Math.round(pct * 10) / 10;
-  const abs = Math.abs(r).toLocaleString("es-CL", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 1,
-  });
-  return `${r < 0 ? "−" : ""}${abs}%`;
 }

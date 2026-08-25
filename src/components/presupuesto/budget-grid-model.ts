@@ -4,21 +4,10 @@
    (ingreso +, costo/gasto −); la vista muestra magnitudes bajo cada sección. */
 
 import type { BudgetGridResponse, BudgetGridCategory } from "@/lib/api/planning";
+import { MESES_CORTOS_CAP } from "@/lib/formatters/months";
 
-export const MESES_GRID = [
-  "Ene",
-  "Feb",
-  "Mar",
-  "Abr",
-  "May",
-  "Jun",
-  "Jul",
-  "Ago",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dic",
-] as const;
+/** Encabezados de columna de la grilla: "Ene" … "Dic". */
+export const MESES_GRID = MESES_CORTOS_CAP;
 
 /** Secciones del P&L en orden, con su signo canónico y los `impact_type` que agrupan. `revenue` suma;
  *  costos/gastos restan. Los gastos NO-operacionales del backend (financial/administrative/commercial/
@@ -104,7 +93,14 @@ function armarSeccion(
   filas: GridFila[],
 ): GridSeccion {
   const subtotalMeses = filas.reduce<number[]>((acc, f) => sumar(acc, f.meses), Array(12).fill(0));
-  return { impact, label, signo, filas, subtotalMeses, totalAnio: subtotalMeses.reduce((s, x) => s + x, 0) };
+  return {
+    impact,
+    label,
+    signo,
+    filas,
+    subtotalMeses,
+    totalAnio: subtotalMeses.reduce((s, x) => s + x, 0),
+  };
 }
 
 /** Deriva la grilla agrupada + subtotales + resultado desde la respuesta del backend. Ninguna cuenta
@@ -114,7 +110,12 @@ export function buildBudgetGrid(resp: BudgetGridResponse): BudgetGridModel {
   const conocidos = new Set(SECCIONES_GRID.flatMap((s) => s.tipos));
 
   const secciones: GridSeccion[] = SECCIONES_GRID.map(({ impact, label, signo, tipos }) =>
-    armarSeccion(impact, label, signo, cats.filter((c) => tipos.includes(c.impact_type)).map(filaDe)),
+    armarSeccion(
+      impact,
+      label,
+      signo,
+      cats.filter((c) => tipos.includes(c.impact_type)).map(filaDe),
+    ),
   );
 
   // Catch-all: cuentas con un impact_type que no cae en ninguna sección (nunca esconder un dato).

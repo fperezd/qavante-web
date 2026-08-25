@@ -23,7 +23,9 @@ describe("resultadoMesAnterior", () => {
     const r = resultadoMesAnterior(resp("2026-06", 30_000_000, -5_000_000))!;
     expect(r.gano).toBe(false);
     expect(r.resultado).toBe(-5_000_000);
-    expect(r.margenPct).toBe(-17); // -5/30 ≈ -16.7 → -17
+    // CRUDO, sin redondear: el modelo entrega el cociente y `formatPct` decide la
+    // precisión. Redondeado acá, Inicio decía "−17%" donde Gestión decía "−16,7%".
+    expect(r.margenPct).toBeCloseTo(-16.6667, 4);
     expect(r.confiable).toBe(true);
   });
 
