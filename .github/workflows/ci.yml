@@ -18,6 +18,19 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
+  qa-rediseno:
+    # Los criterios de aceptación del rediseño (ESPECIFICACION §5) que se pueden
+    # verificar leyendo el código. NO bloquea por los que hay que mirar en pantalla.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run qa:rediseno
+
   typecheck:
     runs-on: ubuntu-latest
     steps:

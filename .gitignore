@@ -66,3 +66,15 @@ storybook-static
 /Logo Qavante.png
 /Manual_de_Marca_Qavante.pdf
 /Qavante_assets/
+
+# ── Material que NO puede entrar al repo, y por qué está acá ─────────────────
+# El 2026-08-25 un `git add -A` barrió el árbol y metió en una rama el plan de
+# cuentas de un CLIENTE (.xlsx), un informe interno y 634 KB de `dist/` de la
+# landing. No llegó a `main` porque lo cazó el pase §6, pero `.gitignore` no lo
+# cubría, así que podía volver a pasar con el próximo `add -A`.
+#
+# `plan_de_cuentas Chipax.xlsx` es dato privado de cliente: no va al repo ni
+# renombrado ni en otra carpeta (ADR-0001).
+*.xlsx
+/INFORME_QAVANTE_WEB.md
+/Landing/

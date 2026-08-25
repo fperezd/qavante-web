@@ -28,7 +28,8 @@
     "prepare": "husky",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "chromatic": "chromatic --exit-zero-on-changes --only-changed"
+    "chromatic": "chromatic --exit-zero-on-changes --only-changed",
+    "qa:rediseno": "node scripts/qa-rediseno-lint.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [
