@@ -111,6 +111,44 @@ jobs:
             const head = pr.head.sha;
             core.info(`Commit actual del PR: ${head}`);
 
+            // Un "Update branch" limpio no cambia el contenido propio del PR: el head
+            // nuevo es un merge commit creado por GitHub (committer web-flow, que solo
+            // existe cuando NO hubo conflictos) cuyo primer padre es el head revisado y
+            // cuyo segundo padre pertenece a la base. Para esa forma exacta, el veredicto
+            // anclado al padre revisado sigue vigente: re-anclarlo era un pase mecánico
+            // sin información nueva (ratificado por el BO, 2026-08-22). Una resolución
+            // MANUAL de conflictos tiene committer humano y queda fuera: exige re-review.
+            //
+            // Portado desde qavante-api, donde ya estaba: sin esto, cada merge a `main`
+            // invalidaba TODOS los veredictos abiertos de este repo y obligaba a un pase
+            // nuevo por PR que no leía una sola línea distinta.
+            const shasEfectivos = [head];
+            {
+              let cursor = head;
+              for (let salto = 0; salto < 5; salto++) {
+                const { data: c } = await github.rest.repos.getCommit({
+                  owner, repo, ref: cursor,
+                });
+                if (!c.parents || c.parents.length !== 2) break;
+                const esWebFlow = c.committer?.login === 'web-flow'
+                  || c.commit?.committer?.name === 'GitHub';
+                if (!esWebFlow) break;
+                const [p1, p2] = c.parents.map(p => p.sha);
+                // p2 debe ser un commit de la base: compare base...p2 ∈ {identical, behind}.
+                const { data: cmp } = await github.rest.repos.compareCommitsWithBasehead({
+                  owner, repo, basehead: `${pr.base.ref}...${p2}`,
+                });
+                if (cmp.status !== 'behind' && cmp.status !== 'identical') break;
+                core.info(
+                  `Head ${cursor.slice(0, 7)} es update-branch limpio de GitHub ` +
+                  `(base ${p2.slice(0, 7)} sobre ${p1.slice(0, 7)}): un veredicto ` +
+                  'vigente sobre el padre revisado se acepta.'
+                );
+                shasEfectivos.push(p1);
+                cursor = p1;
+              }
+            }
+
             // Los bloques de código no cuentan: un veredicto citado como ejemplo
             // no es un veredicto emitido.
             const sinCodigo = (t) => (t || '').replace(/```[\s\S]*?```/g, '');
@@ -205,8 +243,11 @@ jobs:
             señales.sort((a, b) => new Date(a.at) - new Date(b.at));
 
             // Vigencia por sha, no por fecha: solo cuentan los veredictos que
-            // declaran haber revisado el commit que hoy se mergearía.
-            const vigentes = señales.filter(s => s.sha && head.startsWith(s.sha));
+            // declaran haber revisado el commit que hoy se mergearía — o uno de los
+            // padres alcanzados SOLO por update-branch limpios (ver arriba).
+            const vigentes = señales.filter(
+              s => s.sha && shasEfectivos.some(e => e.startsWith(s.sha))
+            );
             const ultimo = señales[señales.length - 1];
 
             if (!vigentes.length) {
