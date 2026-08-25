@@ -23,21 +23,37 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  /* Rutas autenticadas del route group (app). Las 6 del menú principal
-     (Anexo B.7) + /mi-cuenta (autenticada, bajo (app)/, enlazada desde el
-     avatar del header — sin esto un visitante sin cookie NO era redirigido
-     por el server, a diferencia de las otras, #7). Login, recuperar-clave y
-     rutas públicas (/, /playground) no entran. */
+  /* TODAS las carpetas de primer nivel del route group `(app)`. Esta lista es un
+     allow-list a mano y por eso se desincroniza sola: cada pantalla nueva bajo `(app)/`
+     que no se agregue acá se sirve SIN sesión, con el shell entero renderizado. Ya pasó
+     con `/mi-cuenta` (#7) y volvió a pasar con `/alertas` y `/conexiones` — y el barrido
+     de este arreglo destapó que `/banco`, `/presupuesto` y `/remuneraciones` llevaban
+     tiempo igual de abiertas. `src/app/(app)/layout.tsx` documenta que asume lo
+     contrario ("si auth() devuelve null el middleware ya redirigió"), así que la premisa
+     estaba falseada para cinco pantallas.
+
+     `tests/e2e/auth-redirect.spec.ts` ya NO copia esta lista a mano: la deriva leyendo
+     el directorio `(app)/`, así que una pantalla nueva sin su entrada acá rompe el CI.
+     Si agregas una carpeta a `(app)/`, agregala también acá.
+
+     Login, recuperar-clave y rutas públicas (`/`, `/playground`) viven fuera de `(app)`
+     y no entran. */
   matcher: [
-    "/inicio/:path*",
+    "/administracion/:path*",
+    "/alertas/:path*",
+    "/banco/:path*",
     "/caja/:path*",
     "/cobrar/:path*",
-    "/pagar/:path*",
+    "/conexiones/:path*",
     "/gestion/:path*",
-    "/administracion/:path*",
+    "/inicio/:path*",
     "/mi-cuenta/:path*",
+    "/pagar/:path*",
+    "/presupuesto/:path*",
+    "/remuneraciones/:path*",
     /* Pasos post-auth del wizard de onboarding (conectar SII/banco, rubro, saldo
-       apertura, sincronizar). /registro y /verificar son pre-auth → NO entran. */
+       apertura, sincronizar). Vive en el grupo `(onboarding)`, no en `(app)`.
+       /registro y /verificar son pre-auth → NO entran. */
     "/onboarding/:path*",
   ],
 };

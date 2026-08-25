@@ -142,15 +142,16 @@ export function GestionV2ViewLive({
   const margenesNode = <Margenes mes={mes} />;
   const comparativosNode = <Comparativos items={comparativos} />;
   const cascadaNode = <CascadaResultado entradas={cascada} />;
-  const pulsoNode = pulso && pulsoPresentation ? (
-    <PulsoTira
-      score={pulso.score}
-      estado={pulsoPresentation.estado}
-      tono={pulsoPresentation.tono}
-      insight={insightTension(hero.resultado, pulso.status)}
-      onVer={() => router.push("/gestion/pulso")}
-    />
-  ) : null;
+  const pulsoNode =
+    pulso && pulsoPresentation ? (
+      <PulsoTira
+        score={pulso.score}
+        estado={pulsoPresentation.estado}
+        tono={pulsoPresentation.tono}
+        insight={insightTension(hero.resultado, pulso.status)}
+        onVer={() => router.push("/alertas")}
+      />
+    ) : null;
 
   // Piloto `gestionDashboard`: TODAS las secciones como cards movibles/apagables (motor iPad del Inicio).
   // Hero/Márgenes/Comparativos vienen "pelados" → los vestimos de card; cascada/drivers/tendencia/pulso ya

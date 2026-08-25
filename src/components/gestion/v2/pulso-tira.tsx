@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 /* PulsoTira — el Pulso del negocio como TIRA delgada (no un número gigante): el score ya vive
    en el header y tiene su página de detalle, así que acá va compacto, solo por el insight que
    suma (la tensión resultado devengado vs. caja). Es el MISMO Pulso del header/Inicio (misma
-   fuente). Enlaza a su detalle en /gestion/pulso. */
+   fuente). Enlaza a su detalle en /alertas. */
 
 export type PulsoTono = "ok" | "warn" | "bad";
 
@@ -36,7 +36,15 @@ const NUM: Record<PulsoTono, string> = {
   bad: "text-danger-500",
 };
 
-export function PulsoTira({ score, estado, tono = "warn", insight, verLabel = "Ver por qué", onVer, className }: PulsoTiraProps) {
+export function PulsoTira({
+  score,
+  estado,
+  tono = "warn",
+  insight,
+  verLabel = "Ver por qué",
+  onVer,
+  className,
+}: PulsoTiraProps) {
   return (
     <div
       className={cn(
@@ -47,7 +55,9 @@ export function PulsoTira({ score, estado, tono = "warn", insight, verLabel = "V
       <span className="inline-flex shrink-0 items-center gap-2">
         <Activity className={cn("size-4", NUM[tono])} aria-hidden="true" />
         <span className={cn("text-[19px] font-extrabold tabular-nums", NUM[tono])}>{score}</span>
-        <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", TONO[tono])}>{estado}</span>
+        <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", TONO[tono])}>
+          {estado}
+        </span>
       </span>
       <span className="min-w-[220px] flex-1 text-[12.5px] text-neutral-dark">{insight}</span>
       <button

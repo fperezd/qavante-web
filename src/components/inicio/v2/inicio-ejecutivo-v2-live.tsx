@@ -123,6 +123,7 @@ function Assembled({
   // Orden y apagados optimistas locales; hasta el primer cambio, manda lo guardado.
   const [localOrder, setLocalOrder] = React.useState<string[] | null>(null);
   const [localHidden, setLocalHidden] = React.useState<string[] | null>(null);
+  const [personalizarOpen, setPersonalizarOpen] = React.useState(false);
 
   const pulso = mapPulso(data);
   const caja = mapCaja(data);
@@ -177,7 +178,11 @@ function Assembled({
   });
   // Punto de equilibrio (cuánto vender para no perder = lo que gastaste el último mes cerrado). Reusa
   // computePuntoEquilibrio (Gestión). Degrada honesto → incondicional.
-  widgets.push({ id: "puntoEquilibrio", label: "Punto de equilibrio", node: <PuntoEquilibrioLive /> });
+  widgets.push({
+    id: "puntoEquilibrio",
+    label: "Punto de equilibrio",
+    node: <PuntoEquilibrioLive />,
+  });
   // Pulso como tarjeta del grid (antes vivía fijo en el cockpit): así se puede mover y prender/apagar
   // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
   if (pulso)
@@ -239,6 +244,7 @@ function Assembled({
         widgets={widgets.map((w) => ({ id: w.id, label: w.label }))}
         hidden={effectiveHidden}
         onToggle={toggleWidget}
+        onOpenChange={setPersonalizarOpen}
       />
     ) : null;
 
@@ -248,9 +254,10 @@ function Assembled({
     <SortableWidgetGrid
       items={ordered.map((w) => ({ id: w.id, label: w.label, node: w.node }))}
       onReorder={reorderIds}
+      editable={personalizarOpen}
       // "x" para ocultar cada card (con confirmación) solo si el catálogo Personalizar está disponible
       // (así el dueño puede volver a mostrarla desde ahí — si no, sería un ocultar sin retorno).
-      onHide={widgetsEnabled ? toggleWidget : undefined}
+      onHide={widgetsEnabled && personalizarOpen ? toggleWidget : undefined}
     />
   );
 

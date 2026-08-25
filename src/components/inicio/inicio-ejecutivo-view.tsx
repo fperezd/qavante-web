@@ -66,7 +66,7 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
           profundizar en el porqué. */}
       {data.pulso ? (
         <Link
-          href="/gestion/pulso"
+          href="/alertas"
           className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
         >
           <QavanteCard

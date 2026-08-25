@@ -97,6 +97,14 @@ export const COMMANDS: ReadonlyArray<Command> = [
     keywords: "perfil cerrar sesion salir",
   },
   {
+    id: "conexiones",
+    label: "Conexiones",
+    group: "Ir a",
+    href: "/conexiones",
+    Icon: Settings,
+    keywords: "sii banco sync credenciales fuentes",
+  },
+  {
     id: "admin",
     label: "Administración",
     group: "Ir a",
@@ -189,11 +197,11 @@ export const COMMANDS: ReadonlyArray<Command> = [
   },
   {
     id: "pulso",
-    label: "Pulso Empresa",
+    label: "Alertas",
     group: "SII",
-    href: "/gestion/pulso",
+    href: "/alertas",
     Icon: LineChart,
-    keywords: "salud indice",
+    keywords: "alertas pulso salud indice",
   },
 ];
 

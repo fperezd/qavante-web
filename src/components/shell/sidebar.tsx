@@ -11,6 +11,7 @@ import {
   LineChart,
   PiggyBank,
   Settings,
+  PlugZap,
   ChevronDown,
   X,
   type LucideIcon,
@@ -67,6 +68,7 @@ const GESTION_CHILDREN: ReadonlyArray<SubLink> = [
   { href: "/gestion/punto-equilibrio", label: "Punto de equilibrio" },
   { href: "/gestion/clientes", label: "Clientes 360" },
   { href: "/gestion/proveedores", label: "Proveedores 360" },
+  { href: "/alertas", label: "Alertas" },
 ];
 
 /* Navegación agrupada por dominio. "Cobros y pagos" (antes "Tesorería", jerga
@@ -93,6 +95,7 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
   {
     label: "Configuración",
     items: [
+      { href: "/conexiones", label: "Conexiones", Icon: PlugZap },
       {
         href: "/administracion",
         label: "Administración",

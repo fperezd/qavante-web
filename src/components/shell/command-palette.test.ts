@@ -45,10 +45,12 @@ describe("command-palette · matches", () => {
 describe("command-palette · visibleCommands (gating por rol)", () => {
   it("owner ve Administración; viewer no", () => {
     const asOwner = visibleCommands("owner").map((c) => c.id);
+    const asOwnerCommands = visibleCommands("owner");
     const asViewer = visibleCommands("viewer").map((c) => c.id);
     expect(asOwner).toContain("admin");
     expect(asViewer).not.toContain("admin");
     // Los destinos sin `roles` los ven todos.
     expect(asViewer).toContain("cobrar");
+    expect(asOwnerCommands.find((c) => c.id === "pulso")?.href).toBe("/alertas");
   });
 });

@@ -91,13 +91,20 @@ export function AppHeader({ onMenuClick, onOpenSearch, syncStatusEnabled }: AppH
         {/* Indicador de sincronización (gated `syncStatus`). */}
         {syncStatusEnabled && <SyncStatusIndicator />}
 
-        {/* Pulso real del negocio (mismo valor que el Inicio Ejecutivo). Solo se
-            muestra si el backend lo entrega; si no, no hay badge. */}
+        {/* Pulso del negocio (motor `dashboard_pulso`). Solo se muestra si el backend lo
+            entrega; si no, no hay badge.
+
+            OJO con el rótulo: esto es un score 0-100, NO una cantidad de alertas. Rotularlo
+            "Alertas 50" se lee como "tienes 50 alertas" — un número inventado con cara de dato.
+            El badge de conteo que pide el spec (§1.3, sólo alertas críticas accionables) necesita
+            un conteo real que hoy el backend no entrega, así que el score se muestra con SU
+            nombre —"Pulso", el que ya usan el motor y el producto— y el enlace lleva a /alertas.
+            No se inventa un tercer nombre para lo mismo. */}
         {pulso && (
           <Link
-            href="/inicio"
+            href="/alertas"
             className="hidden items-center gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 md:flex"
-            aria-label={`Pulso de tu empresa: ${pulso.score} puntos, ${pulsoStatusLabel(pulso.status)}. Ver Inicio.`}
+            aria-label={`Pulso de tu empresa: ${pulso.score} de 100, ${pulsoStatusLabel(pulso.status)}. Ver alertas.`}
           >
             <span className="text-xs text-neutral-mid" aria-hidden="true">
               Pulso

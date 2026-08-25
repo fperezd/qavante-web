@@ -15,6 +15,7 @@ import {
   useToggleClassificationRuleActive,
   type ClassificationRule,
 } from "@/lib/api/classification-rules";
+import { useCanonicalCategories } from "@/lib/api/treasury";
 
 /* Vista de Reglas — Addendum §17.5/§17.6/§18.1. Patrón "página = contenedor":
    el screen resuelve el flag `classificationRules` (ADR-0008) y monta esta
@@ -76,11 +77,13 @@ function RuleRow({
   onToggle,
   onEdit,
   isToggling,
+  canonicalLabel,
 }: {
   rule: ClassificationRule;
   onToggle: (id: string) => void;
   onEdit: (rule: ClassificationRule) => void;
   isToggling: boolean;
+  canonicalLabel: string | null;
 }) {
   return (
     <QavanteCard variant="bordered">
@@ -109,11 +112,11 @@ function RuleRow({
             <code className="rounded bg-neutral-light/40 px-1 py-0.5 text-xs">
               {rule.condition_value}
             </code>
-            {rule.canonical_category && (
+            {canonicalLabel && (
               <>
                 {" "}
                 → clasificar como{" "}
-                <span className="font-medium text-neutral-dark">{rule.canonical_category}</span>
+                <span className="font-medium text-neutral-dark">{canonicalLabel}</span>
               </>
             )}
           </p>
@@ -161,11 +164,17 @@ function RuleRow({
 
 export function RulesListView() {
   const rulesQuery = useClassificationRules();
+  const categoriesQuery = useCanonicalCategories();
   const toggle = useToggleClassificationRuleActive();
 
   const [togglingId, setTogglingId] = React.useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingRule, setEditingRule] = React.useState<ClassificationRule | null>(null);
+  const categoryByCode = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of categoriesQuery.data?.items ?? []) map[c.code] = c.label;
+    return map;
+  }, [categoriesQuery.data]);
 
   if (rulesQuery.isLoading) return <LoadingSkeleton />;
   if (rulesQuery.isError) return <QavanteInlineError error={rulesQuery.error} what="las reglas" />;
@@ -229,6 +238,11 @@ export function RulesListView() {
               onToggle={handleToggle}
               onEdit={openEdit}
               isToggling={toggle.isPending && togglingId === rule.id}
+              canonicalLabel={
+                rule.canonical_category
+                  ? (categoryByCode[rule.canonical_category] ?? rule.canonical_category)
+                  : null
+              }
             />
           </li>
         ))}

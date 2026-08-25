@@ -43,6 +43,8 @@ export interface SortableWidgetGridProps {
   items: SortableWidgetItem[];
   /** Nuevo orden de ids tras soltar (la vista live lo persiste en prefs). */
   onReorder: (ids: string[]) => void;
+  /** Modo edición activo (drag + ocultar). */
+  editable?: boolean;
   /** Ocultar una tarjeta (la "x" con confirmación de cada card). Sin esto, no se muestra la "x". */
   onHide?: (id: string) => void;
   /** Clases del contenedor de la grilla. Default 2 columnas (Inicio); Caja usa 1 col (secciones anchas). */
@@ -52,6 +54,7 @@ export interface SortableWidgetGridProps {
 export function SortableWidgetGrid({
   items,
   onReorder,
+  editable = true,
   onHide,
   gridClassName = "grid gap-3.5 sm:grid-cols-2",
 }: SortableWidgetGridProps) {
@@ -93,7 +96,8 @@ export function SortableWidgetGrid({
               key={item.id}
               id={item.id}
               label={item.label}
-              onHide={onHide}
+              onHide={editable ? onHide : undefined}
+              editable={editable}
               wide={item.wide}
             >
               {item.node}
@@ -119,15 +123,19 @@ function SortableCard({
   label,
   children,
   onHide,
+  editable,
   wide,
 }: {
   id: string;
   label: string;
   children: React.ReactNode;
   onHide?: (id: string) => void;
+  editable: boolean;
   wide?: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
   // Confirmación inline del ocultar (más liviano que un modal): la "x" pregunta "¿Ocultar? Sí/No".
   const [confirming, setConfirming] = React.useState(false);
 
@@ -150,53 +158,55 @@ function SortableCard({
     >
       {/* Controles arriba a la DERECHA (el título de la card vive a la izquierda → ahí NO los tapamos).
           Asa de arrastre + "x" para ocultar (con confirmación inline). */}
-      <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5">
-        <button
-          type="button"
-          aria-label={`Arrastrar “${label}” para reordenar`}
-          {...attributes}
-          {...listeners}
-          style={{ touchAction: "none" }}
-          className="cursor-grab touch-none rounded-lg bg-surface/80 p-1 text-neutral-mid opacity-60 shadow-sm backdrop-blur transition-opacity hover:text-neutral-dark active:cursor-grabbing group-hover/card:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-        >
-          <GripVertical className="size-4" aria-hidden />
-        </button>
+      {editable && (
+        <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5">
+          <button
+            type="button"
+            aria-label={`Arrastrar “${label}” para reordenar`}
+            {...attributes}
+            {...listeners}
+            style={{ touchAction: "none" }}
+            className="cursor-grab touch-none rounded-lg bg-surface/80 p-1 text-neutral-mid opacity-60 shadow-sm backdrop-blur transition-opacity hover:text-neutral-dark active:cursor-grabbing group-hover/card:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            <GripVertical className="size-4" aria-hidden />
+          </button>
 
-        {onHide &&
-          (confirming ? (
-            <div className="flex items-center gap-1 rounded-lg bg-surface/95 p-0.5 shadow-md ring-1 ring-border backdrop-blur">
-              <span className="pl-1 text-[11px] text-neutral-mid">¿Ocultar?</span>
+          {onHide &&
+            (confirming ? (
+              <div className="flex items-center gap-1 rounded-lg bg-surface/95 p-0.5 shadow-md ring-1 ring-border backdrop-blur">
+                <span className="pl-1 text-[11px] text-neutral-mid">¿Ocultar?</span>
+                <button
+                  type="button"
+                  aria-label={`Ocultar “${label}”`}
+                  onClick={() => {
+                    setConfirming(false);
+                    onHide(id);
+                  }}
+                  className="rounded bg-danger-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-danger-500 hover:bg-danger-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  Sí
+                </button>
+                <button
+                  type="button"
+                  aria-label="Cancelar"
+                  onClick={() => setConfirming(false)}
+                  className="rounded px-1.5 py-0.5 text-[11px] font-medium text-neutral-mid hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                >
+                  No
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
                 aria-label={`Ocultar “${label}”`}
-                onClick={() => {
-                  setConfirming(false);
-                  onHide(id);
-                }}
-                className="rounded bg-danger-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-danger-500 hover:bg-danger-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                onClick={() => setConfirming(true)}
+                className="rounded-lg bg-surface/80 p-1 text-neutral-mid opacity-60 shadow-sm backdrop-blur transition-opacity hover:text-danger-500 group-hover/card:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
               >
-                Sí
+                <X className="size-4" aria-hidden />
               </button>
-              <button
-                type="button"
-                aria-label="Cancelar"
-                onClick={() => setConfirming(false)}
-                className="rounded px-1.5 py-0.5 text-[11px] font-medium text-neutral-mid hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-              >
-                No
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              aria-label={`Ocultar “${label}”`}
-              onClick={() => setConfirming(true)}
-              className="rounded-lg bg-surface/80 p-1 text-neutral-mid opacity-60 shadow-sm backdrop-blur transition-opacity hover:text-danger-500 group-hover/card:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <X className="size-4" aria-hidden />
-            </button>
-          ))}
-      </div>
+            ))}
+        </div>
+      )}
 
       {children}
     </div>

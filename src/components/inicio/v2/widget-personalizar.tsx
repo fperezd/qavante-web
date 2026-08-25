@@ -17,18 +17,31 @@ export interface WidgetPersonalizarProps {
   hidden: string[];
   /** Prende/apaga un widget. */
   onToggle: (id: string) => void;
+  /** Modo personalización abierto/cerrado para ocultar drag por defecto. */
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function WidgetPersonalizar({ widgets, hidden, onToggle }: WidgetPersonalizarProps) {
+export function WidgetPersonalizar({
+  widgets,
+  hidden,
+  onToggle,
+  onOpenChange,
+}: WidgetPersonalizarProps) {
   const [open, setOpen] = React.useState(false);
   const visibles = widgets.filter((w) => isVisible(hidden, w.id)).length;
+  const toggleOpen = () =>
+    setOpen((o) => {
+      const next = !o;
+      onOpenChange?.(next);
+      return next;
+    });
 
   return (
     <div className="flex flex-col items-end">
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-neutral-mid transition-colors hover:text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
       >
         <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
