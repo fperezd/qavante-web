@@ -129,7 +129,14 @@ describe("mapCaja", () => {
 });
 
 describe("mapBrechaTotal / mapEstadoBrecha", () => {
-  it("brecha = obligaciones − caja proyectada, solo si has_gap y > 0", () => {
+  /* ESTE TEST FIJABA EL DOBLE CONTEO. Afirmaba `monto: 9_956_127` = 4.218.622 + 5.737.505,
+   * o sea obligaciones MAS el descubierto. Los dos no son disjuntos: la API arma
+   * `projected_cash_14d` acumulando el neto diario, que ya trae esos 4,2M de egresos
+   * restados, asi que el −5.737.505 es el saldo que queda DESPUES de pagarlos. La plata que
+   * hay que conseguir para no terminar en rojo al dia 14 es 5.737.505, no 9.956.127.
+   *
+   * El titulo del plan pedia conseguir 4,2M de mas. */
+  it("con caja bajo cero, el monto del plan es el DESCUBIERTO, no la suma", () => {
     const s = {
       ...emptySummary(),
       cash_gap: {
@@ -138,8 +145,23 @@ describe("mapBrechaTotal / mapEstadoBrecha", () => {
         projected_cash_14d: "-5737505",
       },
     } as unknown as DashboardSummaryV2;
-    expect(mapBrechaTotal(s)).toBe(9956127);
-    expect(mapEstadoBrecha(s)).toEqual({ tipo: "brecha", monto: 9956127 });
+    expect(mapEstadoBrecha(s)).toEqual({ tipo: "brecha", monto: 5_737_505 });
+    expect(mapBrechaTotal(s)).toBe(5_737_505);
+  });
+
+  it("CONTRAPESO · con la caja POSITIVA el monto SIGUE siendo obligaciones menos caja", () => {
+    /* Sin este, el cambio se satisface devolviendo siempre el descubierto — y con la caja
+     * positiva no hay descubierto: lo que falta ES la resta, y esa rama tiene que seguir viva. */
+    const s = {
+      ...emptySummary(),
+      cash_gap: {
+        has_gap: true,
+        critical_obligations_14d: "4218622",
+        projected_cash_14d: "1000000",
+      },
+    } as unknown as DashboardSummaryV2;
+    expect(mapEstadoBrecha(s)).toEqual({ tipo: "brecha", monto: 3_218_622 });
+    expect(mapBrechaTotal(s)).toBe(3_218_622);
   });
   it("null cuando no hay gap", () => {
     const s = { ...emptySummary(), cash_gap: { has_gap: false } } as unknown as DashboardSummaryV2;

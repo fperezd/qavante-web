@@ -192,6 +192,12 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
                         Te faltan <b className="tabular-nums">{formatClp(gap.faltante)}</b> para tus
                         pagos críticos de 14 días.
                       </span>
+                    ) : gap.kind === "overdraft_with_dues" ? (
+                      <span>
+                        Tu caja proyectada de 14 días queda en{" "}
+                        <b className="tabular-nums">{formatClp(-gap.descubierto)}</b>, ya contando{" "}
+                        <b className="tabular-nums">{formatClp(gap.criticas)}</b> que vencen.
+                      </span>
                     ) : gap.kind === "overdraft" ? (
                       <span>
                         Tu caja proyectada de 14 días está en{" "}
@@ -412,6 +418,13 @@ function CashGapBanner({ critical, projected }: { critical: number; projected: n
                 <>
                   Te faltan <span className="tabular-nums">{formatClp(gap.faltante)}</span> para
                   cubrir tus pagos críticos de los próximos 14 días
+                </>
+              ) : gap.kind === "overdraft_with_dues" ? (
+                <>
+                  Tu caja proyectada a 14 días queda en{" "}
+                  <span className="tabular-nums">{formatClp(-gap.descubierto)}</span>, ya contando
+                  los <span className="tabular-nums">{formatClp(gap.criticas)}</span> que vencen en
+                  ese plazo
                 </>
               ) : gap.kind === "overdraft" ? (
                 <>

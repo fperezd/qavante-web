@@ -120,6 +120,11 @@ export function mapEstadoBrecha(s: DashboardSummaryV2): EstadoBrecha {
     parseAmount(g.critical_obligations_14d),
     parseAmount(g.projected_cash_14d),
   );
+  // El CASO MIXTO (caja bajo cero Y obligaciones reales) TAMBIÉN es un plan a ejecutar: hay
+  // pagos críticos de verdad y la caja no los cubre. Pero el monto es el DESCUBIERTO, no
+  // `criticas + |proyectada|`: el saldo bajo cero ya es después de pagarlas, así que sumarlos
+  // es doble conteo y el título del plan pediría conseguir más plata de la que hace falta.
+  if (gap.kind === "overdraft_with_dues") return { tipo: "brecha", monto: gap.descubierto };
   return gap.kind === "shortfall" && gap.faltante > 0
     ? { tipo: "brecha", monto: gap.faltante }
     : { tipo: "indeterminado" };
