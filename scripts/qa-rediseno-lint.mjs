@@ -71,12 +71,48 @@ const CARGANDO_JSX = /(?<=>)\s*(Cargando|Loading)\s*(\.{3}|…)?\s*(?=<)/g;
    `src/lib/formatters/`. Se listan explícitos, no por heurística: un lint que
    adivina produce falsos positivos y termina desactivado.
 
-   `saltarSi` recibe la VENTANA de líneas alrededor del match (±4), no sólo la
-   línea. Un `${clamped}%` que arma un ancho CSS no tiene la palabra "width" en su
-   propia línea, pero sí en el nombre de su función y en su comentario. Mirar sólo
-   la línea dejaba viva toda esa familia de falsos positivos. */
+   `saltarSi` NO recibe una ventana de líneas. Recibe **la línea del match y el nombre de la
+   declaración que la contiene**, y esa decisión es medida, no estética.
+
+   La versión anterior miraba ±4 líneas. Instrumentando el script sobre `src/` salen **30
+   descartes vivos**: 26 de la regla de porcentajes y 4 de `LOCALE_ISO`. De los 30, **29 tienen
+   la evidencia en la MISMA línea del match** y **exactamente UNO** necesita mirar más lejos:
+   `scoreBarWidth` en `pulso-detail-format.ts`, donde el `return \`${clamped}%\`` está tres
+   líneas debajo del nombre de su función.
+
+   Las 29 no son todas `style={{ width }}`, aunque la familia se llame "anchos CSS": medido,
+   18 traen `width` en la línea, **5 traen `height`**, 2 traen `left` y 4 son fechas `en-CA`
+   que no llevan propiedad CSS ninguna.
+
+   O sea que la ventana compraba UN caso, y a cambio abría tres clases de falso negativo
+   SILENCIOSO, todas medidas:
+
+     · `<span>Avance: {\`${pct}%\`}</span>` con un `style={{ width }}` en la línea de abajo
+       — el porcentaje que el usuario LEE, silenciado por el ancho del div de al lado;
+     · `<Chip label={\`Cobertura ${pct}%\`} />` dentro de cualquier bloque con `maxWidth`;
+     · un `aria-label` partido en dos líneas por prettier.
+
+   Un guard que se calla es peor que uno que no existe, porque además da confianza.
+
+   El criterio nuevo cubre el caso legítimo por donde de verdad pasa: el IDENTIFICADOR.
+   `scoreBarWidth` se descarta porque su función se llama así, no porque haya una palabra
+   cerca. Es la justificación que el comentario original daba —"el nombre de su función"— y
+   que resultó ser falsa en el código, porque `/\bBarWidth\b/` no matchea `scoreBarWidth`. */
 const CSS_NO_ES_CIFRA =
-  /\b(width|height|top|left|right|bottom|inset|translate|flexBasis|flex-basis|BarWidth|strokeDash|ancho|alto)\b/i;
+  /\b(width|height|top|left|right|bottom|inset|translate|flexBasis|flex-basis|strokeDash)\b|[A-Za-z]*(Width|Height)\b/i;
+
+/* EL DESCARTE NO GANA SOBRE EL TEXTO QUE EL USUARIO LEE (#49).
+   `aria-label`, `title`, `alt` y `placeholder` renderizan como texto —el primero se
+   lo lee un lector de pantalla en voz alta—, así que un porcentaje armado a mano ahí
+   es exactamente lo que el §5.8 prohíbe, esté al lado de lo que esté.
+
+   Este override existe por un falso negativo VIVO y medido en
+   `onboarding/onboarding-shell.tsx`: el `aria-label={`…: ${pct}%`}` de la línea 61 lo
+   silenciaba el `style={{ width: `${pct}%` }}` de la línea 65, cuatro más abajo. Las
+   dos líneas son del mismo elemento y la ventana no las puede distinguir — una es
+   CSS y la otra es lo que oye una persona ciega. Por eso el criterio no es "acortar
+   la ventana" sino "mirar la línea del match": ahí sí se ven distintas. */
+const TEXTO_AL_USUARIO = /\b(aria-label|aria-valuetext|title|alt|placeholder)\s*=/i;
 
 /* `en-CA` y `sv-SE` rinden ISO (YYYY-MM-DD). No son fechas para el usuario: son el
    formato con el que se le habla a la API. Confundirlos con display es ruido. */
@@ -104,6 +140,156 @@ const FORMATO_AD_HOC = [
   { re: /from\s+["']date-fns["']/g, que: "fecha a mano (date-fns)" },
 ];
 
+/* ── Los comentarios no son código, y este guard no lo sabía (#49) ────────────
+   Este linter matchea sobre el texto crudo del archivo, así que un comentario que
+   MENCIONA un patrón cuenta igual que el patrón. Eso rompía las dos direcciones a
+   la vez, y las dos están medidas:
+
+     · FALSO POSITIVO — el comentario que explica por qué NO se usa `${x}%` queda
+       marcado como si lo usara. Me pasó escribiendo este mismo PR: documenté el
+       arreglo de `onboarding-shell` y el guard marcó mi comentario.
+     · FALSO NEGATIVO, que es el peor — la VENTANA de descarte lee comentarios como
+       si fueran evidencia. El único caso que salvaba a `scoreBarWidth`
+       (`pulso-detail-format.ts`) era la palabra "Ancho" de su JSDoc. O sea que el
+       descarte dependía de la PROSA, que es literalmente el título del #49.
+
+   `sinComentarios` los reemplaza por espacios en vez de borrarlos: conserva el
+   largo y los saltos de línea, así que los índices y los números de línea del
+   `matchAll` siguen siendo los del archivo original. Sin eso, cada hallazgo
+   reportaría una línea equivocada.
+
+   Reconoce strings y template literals ANTES que comentarios, porque `"https://x"`
+   tiene un `//` que no abre nada — sin esa rama, medio archivo desaparecía. No es
+   un parser de JS y no pretende serlo: no entiende regex literales (`/foo\/bar/`),
+   y una barra de división seguida de otra en una expresión lo confundiría. Es
+   deliberado: el precio de equivocarse acá es un descarte de más en un caso raro,
+   y la alternativa es un AST, que el #49 descartó por costo para dos casos. */
+function sinComentarios(src) {
+  let out = "";
+  let i = 0;
+  const blanco = (t) => t.replace(/[^\n]/g, " ");
+  /* ¿El `/` en esta posición abre un REGEX LITERAL o es una división?
+     Heurística estándar y conservadora: un regex sólo puede aparecer donde se espera un
+     VALOR, así que se mira el último carácter significativo anterior. Si es un operador, una
+     apertura, una coma o una palabra clave (`return`, `typeof`, `case`), lo que sigue es un
+     valor → regex. Si es un identificador, un número o un cierre, es división.
+
+     Existe porque el pase §6 encontró el caso vivo: `libro-kpis-format.ts:58` tiene
+     `return /[";\r\n]/.test(s)`, y la `"` de adentro del regex abría un string fantasma que
+     se comía el backtick de la línea siguiente y dejaba sin blanquear el JSDoc de más abajo.
+     No es teórico: estaba pasando hoy. */
+  /* EL COSTO DE ESTE SET, escrito para no descubrirlo de nuevo. `<` y `}` estan porque
+     abren valor de verdad (`a < /re/`, `${x} /re/`), pero eso implica que un cierre de tag
+     JSX y una interpolacion tambien entran en modo regex. Cuando la heuristica se equivoca,
+     el precio es que un comentario DE ESA MISMA LINEA sobreviva sin blanquear — y como el
+     descarte mira la linea del match, un comentario sobreviviente que diga `width` SILENCIA
+     un porcentaje real. El pase §6 lo reprodujo con un cierre de tag seguido de un comentario
+     de bloque en la misma linea. Cero instancias vivas en los 845 archivos de `src/`, medido,
+     y por eso se acepta. */
+  const _ANTES_DE_REGEX = new Set("(,=:[!&|?{};+-*%~^<>".split(""));
+  /* FRONTERA DE PALABRA OBLIGATORIA a la izquierda. Con `cola.endsWith(w)` pelado, `in`/`of`/
+     `case` matcheaban el final de CUALQUIER identificador — `min`, `margin`, `origin`, `join`,
+     `admin`, `indexOf`, `lowercase` — y entonces `min / 2` se leia como regex. El pase §6 lo
+     reprodujo: una division por `min` seguida en la misma linea de un `//` con la palabra
+     `width` pasaba con **exit 0**, porque el modo regex se comia la primera barra del `//` y
+     el comentario quedaba como codigo en la linea del match. Silencioso. */
+  const _PALABRA_DE_VALOR = /(?:^|[^\w$])(return|typeof|case|in|of|delete|void|yield)$/;
+  const abreRegex = (hasta) => {
+    let k = hasta - 1;
+    while (k >= 0 && /\s/.test(src[k])) k -= 1;
+    if (k < 0) return true; // principio del archivo
+    if (_ANTES_DE_REGEX.has(src[k])) return true;
+    // Palabra clave CON frontera: `return /.../` si, `margin /.../` no.
+    return _PALABRA_DE_VALOR.test(src.slice(Math.max(0, k - 8), k + 1));
+  };
+
+  while (i < src.length) {
+    const c = src[i];
+    const d = src[i + 1];
+    if (c === "/" && d !== "/" && d !== "*" && abreRegex(i)) {
+      /* Regex literal: se copia entero SIN interpretar comillas ni barras de adentro. Lo que
+         hay entre `/` y `/` es sintaxis del patrón, no del programa. */
+      let j = i + 1;
+      let enClase = false;
+      while (j < src.length && src[j] !== "\n") {
+        const ch = src[j];
+        if (ch === "\\") {
+          j += 2;
+          continue;
+        }
+        if (ch === "[") enClase = true;
+        else if (ch === "]") enClase = false;
+        else if (ch === "/" && !enClase) break;
+        j += 1;
+      }
+      if (j < src.length && src[j] === "/") {
+        out += src.slice(i, j + 1);
+        i = j + 1;
+      } else {
+        // No cerró en su línea → no era un regex. Se copia la barra y se sigue.
+        out += c;
+        i += 1;
+      }
+    } else if (c === "`") {
+      // Template literal: SÍ puede cruzar líneas. Se copia entero.
+      let j = i + 1;
+      while (j < src.length && src[j] !== c) j += src[j] === "\\" ? 2 : 1;
+      out += src.slice(i, Math.min(j + 1, src.length));
+      i = j + 1;
+    } else if (c === '"' || c === "'") {
+      /* Comilla simple o doble: en JS NO cruzan líneas. Si no encuentra su pareja ANTES del
+         próximo `\n`, no era una comilla de apertura — es una comilla dentro de un regex
+         literal, un apóstrofo dentro de un template, o texto JSX.
+
+         Sin esta condición el escáner abría un string fantasma y se comía todo hasta la
+         siguiente comilla suelta, a veces cientos de líneas más abajo. El pase §6 encontró
+         DOS casos vivos en `src/` con esa forma exacta:
+
+           · `libro-kpis-format.ts:58` — `return /[";\r\n]/.test(s)`: la `"` del regex
+             abría un fantasma que llegaba hasta el fin del archivo;
+           · `tendencia-resultado.tsx:93` — `` `${p.periodo}${anio ? ` '${anio}` : ""}` ``: el
+             apóstrofo abría un fantasma de 75 líneas.
+
+         En los dos, los comentarios de la zona NO se blanqueaban — o sea que el tokenizador
+         fallaba justo hacia donde no debe: al silencio. */
+      const finLinea = src.indexOf("\n", i + 1);
+      const limite = finLinea === -1 ? src.length : finLinea;
+      let j = i + 1;
+      while (j < limite && src[j] !== c) j += src[j] === "\\" ? 2 : 1;
+      if (j < limite) {
+        out += src.slice(i, j + 1);
+        i = j + 1;
+      } else {
+        // No cierra en su línea → no es un string. Se copia el carácter y se sigue.
+        out += c;
+        i += 1;
+      }
+    } else if (c === "/" && d === "*") {
+      const fin = src.indexOf("*/", i + 2);
+      if (fin === -1) {
+        /* Bloque SIN cerrar → no es un comentario. Antes se blanqueaba hasta el fin del
+           archivo, así que un `/*` dentro de texto JSX ("margen /* de seguridad") borraba
+           todo lo que venía después y el lint se callaba entero. Borrar de más es el peor
+           modo de falla que puede tener un guard: no se ve. */
+        out += c;
+        i += 1;
+      } else {
+        out += blanco(src.slice(i, fin + 2));
+        i = fin + 2;
+      }
+    } else if (c === "/" && d === "/") {
+      let j = src.indexOf("\n", i);
+      if (j === -1) j = src.length;
+      out += blanco(src.slice(i, j));
+      i = j;
+    } else {
+      out += c;
+      i += 1;
+    }
+  }
+  return out;
+}
+
 /* ── §5.3 — rojo por pantalla (SOLO REPORTA) ──────────────────────────────────
    "Máximo un elemento rojo por pantalla" es una propiedad de la pantalla
    RENDERIZADA, y un archivo no es una pantalla: un componente con cinco ramas
@@ -125,21 +311,49 @@ function anotar(rel, regla, motivo, linea) {
 
 for (const f of archivos) {
   const src = readFileSync(f, "utf8");
+  /* §5.8 y §5.4 miran el CÓDIGO, no la documentación. `src` sigue disponible para
+     §5.3 (contar rojo), donde un `text-danger-500` en un comentario tampoco pinta
+     nada — pero ahí sólo se reporta, no se falla, así que no vale el riesgo de
+     cambiarlo en el mismo PR. */
+  const codigo = sinComentarios(src);
   const rel = relative(".", f).split(sep).join("/");
-  const lineas = src.split(NL);
-  const nroLinea = (i) => src.slice(0, i).split(NL).length;
-  const ventana = (n) => lineas.slice(Math.max(0, n - 5), n + 4).join(NL);
+  const lineas = codigo.split(NL);
+  const nroLinea = (i) => codigo.slice(0, i).split(NL).length;
+  /* La declaración que CONTIENE la línea `n`: se busca hacia arriba el `function X` /
+     `const X =` / `class X` más cercano. Es lo que permite descartar `scoreBarWidth` por su
+     nombre en vez de por una palabra que pase cerca. */
+  /* Sólo declaraciones de FUNCIÓN (o clase), no cualquier `const`. La primera versión
+     aceptaba `const X = …` y en `pulso-detail-format.ts` encontraba el `const clamped =
+     Math.max(…)` de la línea de arriba en vez de la función que de verdad contiene el
+     `return`: devolvía "clamped" y el descarte legítimo se perdía. */
+  const _DECL =
+    /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s+([A-Za-z_$][\w$]*)|class\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*(?:async\s*)?(?:\(|function\b|[A-Za-z_$][\w$]*\s*=>))/;
+  const declaracion = (n) => {
+    for (let k = n - 1; k >= 0; k -= 1) {
+      const m = _DECL.exec(lineas[k] ?? "");
+      if (m) return m[1] || m[2] || m[3] || "";
+    }
+    return "";
+  };
+  const contexto = (n) => `${lineas[n - 1] ?? ""}\n${declaracion(n)}`;
 
   if (!esExento(f)) {
     for (const re of [CARGANDO_STRING, CARGANDO_JSX]) {
-      for (const m of src.matchAll(re)) {
+      for (const m of codigo.matchAll(re)) {
         anotar(rel, "§5.4", "'Cargando' sin decir qué se espera ni cuánto", nroLinea(m.index));
       }
     }
     for (const { re, que, saltarSi } of FORMATO_AD_HOC) {
-      for (const m of src.matchAll(re)) {
+      for (const m of codigo.matchAll(re)) {
         const n = nroLinea(m.index);
-        if (saltarSi && saltarSi.test(ventana(n))) continue;
+        /* El override sólo vale contra el descarte CSS. Aplicarlo a todos los `saltarSi`
+           lo metía en `LOCALE_ISO`, que existe para no reportar `Intl.DateTimeFormat("en-CA")`
+           —el formato con el que se le habla a la API, no al usuario—: un
+           `<time title={new Intl.DateTimeFormat("en-CA").format(d)}>` pasaba a reportarse.
+           Un falso positivo nuevo en una regla que este trabajo no toca. */
+        const puedeAnularse = saltarSi === CSS_NO_ES_CIFRA;
+        const enTextoAlUsuario = puedeAnularse && TEXTO_AL_USUARIO.test(lineas[n - 1] ?? "");
+        if (saltarSi && !enTextoAlUsuario && saltarSi.test(contexto(n))) continue;
         anotar(rel, "§5.8", que, n);
       }
     }

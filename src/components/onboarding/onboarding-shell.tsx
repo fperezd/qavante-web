@@ -3,6 +3,13 @@
 import * as React from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+/* El porcentaje que se LEE en voz alta va por el formateador de la casa, igual que
+   cualquier otro texto (§5.8). Hoy rinde idéntico —`progressPct` devuelve un entero,
+   medido de 0 a 100— así que no cambia lo que nadie oye; lo que cambia es que si la
+   regla de decimales de la casa se mueve, este texto se mueve con ella en vez de
+   quedarse solo. El `${pct}%` de la línea del `style` NO se toca: eso es un ancho CSS,
+   no una cifra. */
+import { formatPct } from "@/lib/formatters/pct";
 import {
   ONBOARDING_STEPS,
   TOTAL_ONBOARDING_STEPS,
@@ -58,7 +65,7 @@ export function OnboardingShell({ step, children, description, title }: Onboardi
             aria-valuenow={pct}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label={`Progreso del onboarding: ${pct}%`}
+            aria-label={`Progreso del onboarding: ${formatPct(pct)}`}
           >
             <div
               className="bg-gradient-brand h-full rounded-full transition-all duration-300"
