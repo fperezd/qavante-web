@@ -41,6 +41,7 @@ export const FEATURE_FLAGS = [
   "accountsReceivable",
   "accountsPayable",
   "dashboardSummary",
+  "financialDecisionHome",
   "inicioEjecutivoV2",
   "pulsoDetail",
   "assistant",
@@ -101,6 +102,9 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   accountsPayable: "/api/treasury/accounts-payable",
   /* Inicio Ejecutivo (Sprint C8) — el dashboard agregado. Endpoint VIVO en prod (acepta cookie). */
   dashboardSummary: "/api/dashboard/summary",
+  /* Financial Position & Decision Engine — read-only Home card. It stays OFF until the
+     deployed contract and its tenant data are validated; the frontend never derives a decision. */
+  financialDecisionHome: "/api/treasury/financial-position",
   /* Inicio Ejecutivo v2 (rediseño aprobado 2026-07-12) — consume la misma fuente base
      (`/api/dashboard/summary`) que dashboardSummary; su endpoint de gating `collection-forecast`
      también está VIVO (acepta cookie, sondeado). Sigue OFF por otra razón: los campos que lo

@@ -1130,9 +1130,24 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * SII: DTE recibidos por rango de fechas (scrapeo del portal)
-         * @description DTE recibidos por rango de fechas. Scrapea el portal SII y devuelve la
-         *     tabla de documentos como `data.filas[]` (la primera fila es headers).
+         * SII: DTE recibidos por rango de fechas (respaldo MiPyme, o scrapeo legacy)
+         * @description DTE recibidos por rango de fechas.
+         *
+         *     **La respuesta viene en `dte_recibidos`**, no en `data` — la clave `data` nunca existió y
+         *     este mismo endpoint la leía para contar documentos, así que el conteo daba 0 siempre.
+         *
+         *     Dos vías según las credenciales del tenant:
+         *
+         *     - con **clave del representante** + RUT de empresa: baja el respaldo XML de MiPyme (la
+         *       única vía que el portal sirve desde 2026-07-11) y devuelve `dte_recibidos.documentos[]`
+         *       con los DTE completos —incluido `fecha_vence`— más `dte_recibidos.filas[]` proyectada
+         *       para compatibilidad;
+         *     - sin ellas: scrapea el listado HTML por certificado (**legacy**) y devuelve sólo
+         *       `dte_recibidos.filas[]`, la primera fila con los headers.
+         *
+         *     OJO CON EL RANGO: por la vía MiPyme el respaldo se baja **mes a mes** (el SII trunca los
+         *     rangos grandes), así que un rango de un año son doce descargas secuenciales de hasta 120 s
+         *     cada una detrás de este request. Pedir tramos cortos.
          */
         get: operations["sii_dte_recibidos"];
         put?: never;
@@ -1698,7 +1713,10 @@ export interface paths {
         /**
          * TGR: certificado de deudas fiscales (PDF)
          * @description Certificado de deudas fiscales como PDF binario. Si la sesión TGR está
-         *     vencida, devuelve JSON con `code='session_expired'` y status 401.
+         *     vencida, devuelve JSON con `code='session_expired'` y status **412**
+         *     (Precondition Failed): la credencial que falló es la de la Tesorería, no la
+         *     del usuario. Es el mismo código que ya usan BICE y SII para esta familia. Antes era 401 y el interceptor del FE lo leía como sesión
+         *     propia vencida → refresh → expulsión a /login (H1, issue #106).
          */
         get: operations["tgr_certificado_deudas"];
         put?: never;
@@ -2652,6 +2670,63 @@ export interface paths {
         patch: operations["financial_impacts_patch"];
         trace?: never;
     };
+    "/api/treasury/financial-position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Financial Position
+         * @description Expone observables canónicos y abstiene hasta que exista policy versionada.
+         */
+        get: operations["treasury_financial_position"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Financial Decisions
+         * @description Contrato reservado para snapshots persistidos; no fabrica decisiones sin evidencia.
+         */
+        get: operations["treasury_financial_decisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/decisions/{decision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Financial Decision */
+        get: operations["treasury_financial_decision"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planning/financial-versions": {
         parameters: {
             query?: never;
@@ -2918,11 +2993,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Reporte P&L devengado por mes (income statement, COGS/gasto por giro)
-         * @description Income statement devengado por mes desde el RCV (ADR-0035) con las compras
-         *     clasificadas COGS vs gasto por el giro del proveedor + el `cost_profile` del
-         *     tenant (ADR-0039). Mismo cálculo que el bloque `operational_result` del
-         *     dashboard, extendido a un rango. Read-only.
+         * Reporte P&L canónico por mes (income statement completo)
+         * @description Income statement por mes del **motor canónico** (`operational_result_service.
+         *     operational_result_range`): RCV devengado + nómina + honorarios BHE + obligaciones +
+         *     compras extranjeras. Es EXACTAMENTE el mismo cálculo que `/api/management/
+         *     operational-result` mes a mes, extendido a un rango.
+         *
+         *     Hasta #108 este endpoint corría un motor propio RCV-only y publicaba, para el mismo
+         *     tenant y ventana, un costo directo de cero, margen bruto 100% y un resultado 3x el
+         *     real. Read-only.
          */
         get: operations["treasury_reports_operational_result"];
         put?: never;
@@ -5429,7 +5508,7 @@ export interface components {
             total_by_currency?: components["schemas"]["PayableCurrencyTotal"][];
             /**
              * Undated Amount
-             * @description Saldo por pagar de documentos SIN fecha de vencimiento (convertido a CLP). Las facturas del RCV entran sin vencimiento hasta enriquecerlas con el FchVenc del XML → este monto NO está en ningún bucket `due_*` ni en `covers_critical`. Exponerlo evita el 'agujero' entre `total` y la suma de los buckets (transparencia de frescura).
+             * @description Saldo por pagar de documentos SIN fecha de vencimiento (convertido a CLP). Las facturas del RCV entran sin vencimiento hasta enriquecerlas con el FchVenc del XML → este monto NO está en ningún bucket `due_*`, y desde el #41 su sola presencia hace que `covers_critical` se abstenga: si hay deuda sin fecha, los tramos son un PISO y no el total, así que no se puede afirmar cobertura sobre ellos. Exponerlo evita el 'agujero' entre `total` y la suma de los buckets (transparencia de frescura) y le da al FE el monto concreto con el que explicar el 'no sé'.
              * @default 0
              */
             undated_amount: string;
@@ -5443,12 +5522,18 @@ export interface components {
             items?: components["schemas"]["PayableItem"][];
             /**
              * Projected Cash 14D
-             * @description Caja proyectada a 14 días (del cash-flow); null sin saldo.
+             * @description Caja proyectada a 14 días (del cash-flow); `null` sin saldo. **Viene en la moneda funcional del tenant, que NO es necesariamente CLP** — la declara `projected_cash_currency`, acá al lado. Es el único monto de esta respuesta que no está en pesos: `total` y los `due_*` se totalizan siempre en CLP. Compararlos sin mirar la moneda es dividir dólares por pesos, y ya pasó dos veces (`covers_critical` y el plan de pagos).
              */
             projected_cash_14d?: string | null;
             /**
+             * Projected Cash Currency
+             * @description Moneda de `projected_cash_14d`, que es la moneda funcional del tenant. Se publica porque sin ella el consumidor no puede darse cuenta de que está comparando unidades distintas: la única señal que salía antes era una frase en castellano dentro de `missing_sources`, y ningún código puede parsear eso. Convertir a CLP es el #160.
+             * @default CLP
+             */
+            projected_cash_currency: string;
+            /**
              * Covers Critical
-             * @description ¿La caja proyectada cubre lo que vence en 14d? null sin saldo.
+             * @description ¿La caja proyectada cubre lo que vence en 14 días? **Tri-estado.** `null` = no se puede responder, y son SEIS casos: tres del denominador, dos del numerador y uno de la división misma. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN fecha de vencimiento (el CONTEO de documentos con `due_date` nulo, que es lo que el guard mira), porque `due_14d` no la incluye; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— un saldo bancario VIEJO: el `current_balance` que reportó el banco sólo es cierto al día de `current_balance_at`, y en esa rama no se le suman los movimientos posteriores, así que más viejo que la ventana comparada —o sin fecha— no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el sexto no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma cobertura sobre TODO lo que vence, comparado contra TODA la caja, en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
              */
             covers_critical?: boolean | null;
             /**
@@ -7047,7 +7132,7 @@ export interface components {
             dso_days: number | null;
             /**
              * Dpo Days
-             * @description Días que se tarda en pagar a proveedores.
+             * @description Días de pago sobre el saldo por pagar en CLP contra el COGS del RCV. ⚠️ Los dos lados miden universos distintos: el numerador incluye nómina, cotizaciones e impuestos (y omite otras monedas y los payables sin monto neto), mientras el denominador son sólo compras del RCV. El sesgo está declarado pero no medido (#133): no leerlo como 'días que tardas en pagar a proveedores'.
              */
             dpo_days: number | null;
             /**
@@ -7062,7 +7147,7 @@ export interface components {
             ar_total: string;
             /**
              * Ap Total
-             * @description Saldo vivo de cuentas por pagar (CLP, TC vigente).
+             * @description Saldo vivo por pagar en CLP, base neta (sin IVA). NO convierte otras monedas: las descarta. Tampoco entra ninguna fila sin `net_amount`, y las de tarjeta se insertan sin ese campo: aportan CERO. Por eso es MENOR que el total que muestra Pagar. Es el numerador del DPO.
              */
             ap_total: string;
             /**
@@ -7093,7 +7178,7 @@ export interface components {
             revenue_ceded_window: string;
             /**
              * Cogs Window
-             * @description COGS devengado de la ventana.
+             * @description COGS devengado del RCV en la ventana (no incluye gasto operacional ni nómina). Es el denominador actual del DPO.
              */
             cogs_window: string;
             /**
@@ -9407,9 +9492,16 @@ export interface components {
             url?: string | null;
             /**
              * Filas
-             * @description Tabla scrapeada del portal SII. Primera fila = headers (Ver, Emisor, Razón Social, Documento, Folio, Fecha, Monto, Estado).
+             * @description Tabla del listado del SII. Primera fila = headers (Ver, Emisor, Razon Social, Documento, Folio, Fecha, Monto, Estado) — «Razon Social» SIN tilde, que es como lo sirve el portal. Cuando el tenant tiene la clave del representante, esta tabla se PROYECTA desde `documentos` para no romper a quien ya la lee — y ahí las columnas **Ver** y **Estado** van vacías, porque el respaldo XML no las trae: son del HTML del portal. Vacío = no se sabe, no = sin estado. Y ojo con las columnas **Razon Social** y **Documento**: por la vía MiPyme sus valores salen del XML (razón social del emisor, y el nombre canónico del tipo — «FACTURA ELECTRÓNICA», en mayúsculas), no del render del portal. La forma de la tabla se conserva; el contenido de esas dos columnas no es idéntico entre las dos vías.
              */
             filas?: string[][];
+            /**
+             * Documentos
+             * @description DTE recibidos COMPLETOS: tipo, folio, fecha_emision, emisor_*, receptor_*, neto/exento/iva/total, moneda, items[], referencias[], forma_pago y **fecha_vence**. Sólo viene por la vía de la clave del representante (la que el SII exige desde 2026-07-11); por la vía legacy del certificado va vacío, porque el listado HTML no tiene esos datos. `fecha_vence` es lo que puebla los vencimientos de las cuentas por pagar.
+             */
+            documentos?: {
+                [key: string]: unknown;
+            }[];
         };
         /** DteRecibidosResponse */
         DteRecibidosResponse: {
@@ -10216,6 +10308,111 @@ export interface components {
             count: number;
         };
         /**
+         * FinancialDecisionDetailResponse
+         * @description Detalle factual; alternativas externas se exponen en su propio endpoint.
+         */
+        FinancialDecisionDetailResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Family */
+            family: string;
+            /**
+             * Event Type
+             * @enum {string}
+             */
+            event_type: "deficit" | "surplus" | "structural_warning";
+            /**
+             * Decision Support
+             * @enum {string}
+             */
+            decision_support: "eligible" | "abstain";
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Context Summary */
+            context_summary: {
+                [key: string]: unknown;
+            };
+            /** Event */
+            event: {
+                [key: string]: unknown;
+            };
+            /** Diagnosis */
+            diagnosis?: {
+                [key: string]: unknown;
+            } | null;
+            /** No Action */
+            no_action?: {
+                [key: string]: unknown;
+            } | null;
+            /** Internal Alternatives */
+            internal_alternatives?: {
+                [key: string]: unknown;
+            }[];
+            /** Simulations */
+            simulations?: {
+                [key: string]: unknown;
+            }[];
+            /** Constraints */
+            constraints?: {
+                [key: string]: unknown;
+            }[];
+            /** Evidence */
+            evidence?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * External Options Available
+             * @default false
+             */
+            external_options_available: boolean;
+            /** Outcome */
+            outcome?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** FinancialDecisionListResponse */
+        FinancialDecisionListResponse: {
+            /** Items */
+            items?: components["schemas"]["FinancialDecisionSummary"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** FinancialDecisionSummary */
+        FinancialDecisionSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Family */
+            family: string;
+            /**
+             * Event Type
+             * @enum {string}
+             */
+            event_type: "deficit" | "surplus" | "structural_warning";
+            /**
+             * Decision Support
+             * @enum {string}
+             */
+            decision_support: "eligible" | "abstain";
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /**
          * FinancialImpact
          * @description Response shape de `GET/POST/PATCH /api/planning/financial-impacts*`.
          *
@@ -10492,6 +10689,80 @@ export interface components {
             sources?: components["schemas"]["FinancialSourceIntegrity"][];
             /** Reasons */
             reasons?: string[];
+        };
+        /**
+         * FinancialPositionEventResponse
+         * @description Evento activo con monto, periodo y política usados para describirlo.
+         */
+        FinancialPositionEventResponse: {
+            /**
+             * Event Type
+             * @enum {string}
+             */
+            event_type: "deficit" | "surplus" | "structural_warning";
+            /**
+             * Event Start
+             * Format: date
+             */
+            event_start: string;
+            /**
+             * Event End
+             * Format: date
+             */
+            event_end: string;
+            /**
+             * Peak Date
+             * Format: date
+             */
+            peak_date: string;
+            /** Recovery Date */
+            recovery_date?: string | null;
+            /** Amount */
+            amount: string;
+            /** Duration Days */
+            duration_days: number;
+            /** Currency */
+            currency: string;
+            /** Baseline Safe Cash */
+            baseline_safe_cash?: string | null;
+            /** Policy Provenance */
+            policy_provenance?: ("versioned" | "legacy_unversioned") | null;
+        };
+        /**
+         * FinancialPositionResponse
+         * @description Read model para Inicio y Caja según FPDE v1.1 §23.
+         */
+        FinancialPositionResponse: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Horizon Days */
+            horizon_days: number;
+            /** Currency */
+            currency?: string | null;
+            /** Current Cash */
+            current_cash?: string | null;
+            /** Minimum Projected Cash */
+            minimum_projected_cash?: string | null;
+            /** Safe Cash */
+            safe_cash?: string | null;
+            /** Stable Surplus */
+            stable_surplus?: string | null;
+            /** Active Events */
+            active_events?: components["schemas"]["FinancialPositionEventResponse"][];
+            /** Integrity */
+            integrity: string;
+            /** Freshness */
+            freshness: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "eligible" | "abstained" | "partial";
+            /** Abstain Reasons */
+            abstain_reasons?: string[];
         };
         /**
          * FinancialSourceIntegrity
@@ -12042,7 +12313,7 @@ export interface components {
             hasta_dia: number;
             /**
              * Actual
-             * @description P&L RCV del mes al día N: revenue/cogs/gasto/gross_margin/ebitda_proxy/result.
+             * @description P&L RCV del mes al día N: revenue/cogs/gasto/unclassified_purchases/gross_margin/ebitda_proxy/result.
              */
             actual: {
                 [key: string]: unknown;
@@ -12108,23 +12379,87 @@ export interface components {
         };
         /**
          * OperationalResultBucket
-         * @description Un mes del reporte.
+         * @description Un mes del reporte por rango: las líneas de plata + la capa de honestidad.
+         *
+         *     Publica `missing_sources`/`sources`/`data_state`/`integrity` — lo MISMO que declara
+         *     `/api/management/operational-result` para ese mes. Si el endpoint se anuncia como el income
+         *     statement canónico, tiene que decir también qué le falta: un bucket con
+         *     `unclassified_purchases` distinto de cero y sin una palabra al respecto es exactamente el
+         *     silencio que #108 vino a sacar del P&L.
          */
         OperationalResultBucket: {
-            /** Revenue */
+            /**
+             * Revenue
+             * @description Ventas netas devengadas (RCV).
+             */
             revenue: string;
-            /** Cogs */
-            cogs: string;
-            /** Gross Margin */
+            /**
+             * Direct Cost
+             * @description Costo directo: COGS del RCV + nómina asignada a cuentas `direct_cost.*`.
+             */
+            direct_cost: string;
+            /**
+             * Gross Margin
+             * @description revenue - direct_cost.
+             */
             gross_margin: string;
-            /** Gasto */
-            gasto: string;
-            /** Ebitda Proxy */
+            /**
+             * Labor Cost
+             * @description Costo laboral de overhead (debajo del margen).
+             */
+            labor_cost: string;
+            /**
+             * Professional Fees
+             * @description Honorarios BHE recibidos del período.
+             */
+            professional_fees: string;
+            /**
+             * Recurring Expenses
+             * @description Gasto operativo del RCV, ya clasificado.
+             */
+            recurring_expenses: string;
+            /**
+             * Unclassified Purchases
+             * @description Compras del RCV que la cascada NO logró clasificar como costo directo o gasto. Restan del EBITDA igual (es plata gastada), pero se declaran aparte: sin este bucket, un costo directo de cero por falta de clasificación es indistinguible de un costo directo de cero real.
+             */
+            unclassified_purchases: string;
+            /**
+             * Unclassified
+             * @description Compras de tarjeta sin giro + compras extranjeras (operativo sin clasificar).
+             */
+            unclassified: string;
+            /**
+             * Ebitda Proxy
+             * @description EBITDA operativo.
+             */
             ebitda_proxy: string;
-            /** Result */
+            /**
+             * Financial Expense
+             * @description Interés de cuotas de préstamo (bajo el EBITDA).
+             */
+            financial_expense: string;
+            /**
+             * Result
+             * @description Resultado neto = ebitda_proxy - financial_expense.
+             */
             result: string;
             /** Period */
             period: string;
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "high" | "medium" | "low";
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Missing Sources */
+            missing_sources?: string[];
+            /** Sources */
+            sources?: components["schemas"]["SourceFreshness"][];
+            integrity?: components["schemas"]["FinancialIntegrityAssessment"];
         };
         /**
          * OperationalResultDocument
@@ -12201,6 +12536,7 @@ export interface components {
             period_to: string;
             /** Buckets */
             buckets: components["schemas"]["OperationalResultBucket"][];
+            /** @description Suma de las líneas de plata del rango. NO lleva capa de honestidad: lo que falta es POR PERÍODO y agregarlo escondería en cuál mes falta. Ver `buckets[].` */
             grand_total: components["schemas"]["OperationalResultTotals"];
         };
         /**
@@ -12227,6 +12563,11 @@ export interface components {
             professional_fees: string;
             /** Recurring Expenses */
             recurring_expenses: string;
+            /**
+             * Unclassified Purchases
+             * @description Compras del RCV que la cascada NO logró clasificar como costo directo o gasto (#108). Restan del EBITDA, pero NO entran ni en `direct_cost` ni en `recurring_expenses`: un margen bruto de 100% con esto distinto de cero significa 'no pude clasificar', no 'no tuve costo'. **Requerido**, igual que en `OperationalResultTotals`: si el servicio dejara de publicarlo, el endpoint tiene que romper, no servir un 0 fabricado.
+             */
+            unclassified_purchases: string;
             /**
              * Ebitda Proxy
              * @description EBITDA operativo (neto de la compra de tarjeta sin clasificar). ADR-0051 E.
@@ -12279,20 +12620,72 @@ export interface components {
         };
         /**
          * OperationalResultTotals
-         * @description Totales del income statement devengado (un período o el gran total).
+         * @description Totales del income statement canónico (un mes o el gran total del rango).
+         *
+         *     Identidad que cumple cada fila:
+         *     `ebitda_proxy = gross_margin - labor_cost - professional_fees - recurring_expenses
+         *     - unclassified_purchases - unclassified`, y `result = ebitda_proxy - financial_expense`.
+         *
+         *     Los campos `cogs` y `gasto` del contrato anterior ya no existen: eran RCV-only y
+         *     nombraban otra cosa (`cogs` no incluía la nómina de servicio, y `gasto` se tragaba en
+         *     silencio las compras sin clasificar). Renombrarlos es deliberado — un consumidor que
+         *     siga leyendo `cogs` debe enterarse, no recibir otro número bajo el mismo nombre (#108).
          */
         OperationalResultTotals: {
-            /** Revenue */
+            /**
+             * Revenue
+             * @description Ventas netas devengadas (RCV).
+             */
             revenue: string;
-            /** Cogs */
-            cogs: string;
-            /** Gross Margin */
+            /**
+             * Direct Cost
+             * @description Costo directo: COGS del RCV + nómina asignada a cuentas `direct_cost.*`.
+             */
+            direct_cost: string;
+            /**
+             * Gross Margin
+             * @description revenue - direct_cost.
+             */
             gross_margin: string;
-            /** Gasto */
-            gasto: string;
-            /** Ebitda Proxy */
+            /**
+             * Labor Cost
+             * @description Costo laboral de overhead (debajo del margen).
+             */
+            labor_cost: string;
+            /**
+             * Professional Fees
+             * @description Honorarios BHE recibidos del período.
+             */
+            professional_fees: string;
+            /**
+             * Recurring Expenses
+             * @description Gasto operativo del RCV, ya clasificado.
+             */
+            recurring_expenses: string;
+            /**
+             * Unclassified Purchases
+             * @description Compras del RCV que la cascada NO logró clasificar como costo directo o gasto. Restan del EBITDA igual (es plata gastada), pero se declaran aparte: sin este bucket, un costo directo de cero por falta de clasificación es indistinguible de un costo directo de cero real.
+             */
+            unclassified_purchases: string;
+            /**
+             * Unclassified
+             * @description Compras de tarjeta sin giro + compras extranjeras (operativo sin clasificar).
+             */
+            unclassified: string;
+            /**
+             * Ebitda Proxy
+             * @description EBITDA operativo.
+             */
             ebitda_proxy: string;
-            /** Result */
+            /**
+             * Financial Expense
+             * @description Interés de cuotas de préstamo (bajo el EBITDA).
+             */
+            financial_expense: string;
+            /**
+             * Result
+             * @description Resultado neto = ebitda_proxy - financial_expense.
+             */
             result: string;
         };
         /** OperationalVariation */
@@ -18584,8 +18977,8 @@ export interface operations {
                     "application/pdf": unknown;
                 };
             };
-            /** @description Sesión TGR expirada. */
-            401: {
+            /** @description La sesión de TGR (Tesorería) está vencida o ausente: hay que reconectar la integración con el helper local. NO es un problema de la sesión del usuario — el FE no debe mandar a /login. */
+            412: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -20722,6 +21115,109 @@ export interface operations {
             };
         };
     };
+    treasury_financial_position: {
+        parameters: {
+            query?: {
+                horizon_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialPositionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_financial_decisions: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                family?: string | null;
+                event_type?: string | null;
+                horizon?: number | null;
+                cursor?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialDecisionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_financial_decision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                decision_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancialDecisionDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     financial_versions_list: {
         parameters: {
             query?: {
@@ -21634,7 +22130,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Buckets mensuales (revenue/COGS/gross_margin/gasto/ebitda) + total. */
+            /** @description Buckets mensuales del income statement canónico + gran total. */
             200: {
                 headers: {
                     [name: string]: unknown;

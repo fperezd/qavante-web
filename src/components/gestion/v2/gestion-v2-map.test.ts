@@ -26,6 +26,7 @@ const RESP: OperationalResultResponse = {
   labor_cost: "14900000",
   professional_fees: "2300000",
   recurring_expenses: "5100000",
+  unclassified_purchases: "0",
   ebitda_proxy: "4500000",
   financial_expense: "0",
   unclassified: "0",
