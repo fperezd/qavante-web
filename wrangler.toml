@@ -34,6 +34,9 @@ NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS = "true"
 # FE-first). Inicio Ejecutivo (C8) LIVE. La page es Server Component → el flag
 # resuelve en runtime del Worker.
 NEXT_PUBLIC_FF_DASHBOARD_SUMMARY = "true"
+# Financial Position & Decision Engine — read-only Home card. API contract and UI #57
+# were deployed and verified before this explicit BO activation (2026-08-28).
+NEXT_PUBLIC_FF_FINANCIAL_DECISION_HOME = "true"
 # Inicio Ejecutivo v2 (rediseño aprobado 2026-07-12) — ON (encendido 2026-08-08 por Fernando para
 # probar el framework de widgets + la agenda). Cableado a los contratos que ya existen, con degradación
 # honesta (algunos campos Fase 2 —key_obligations/cash_sparkline/tendencia del Pulso— aún caen a lo del

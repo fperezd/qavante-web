@@ -39,6 +39,7 @@ Cambiar un flag en prod = editar `wrangler.toml` + merge a `main` (auto-deploya)
 | `cashFlowReport`             | `NEXT_PUBLIC_FF_CASH_FLOW_REPORT`             | `/api/treasury/reports/cash-flow`            |
 | `inicioMvp`                  | `NEXT_PUBLIC_FF_INICIO_MVP`                   | `/api/me`                                    |
 | `miCuenta`                   | `NEXT_PUBLIC_FF_MI_CUENTA`                    | POST `/api/auth/logout` (+ lee `/api/me`)    |
+| `financialDecisionHome`      | `NEXT_PUBLIC_FF_FINANCIAL_DECISION_HOME`      | `/api/treasury/financial-position`           |
 
 El mapping vive en `FLAG_GATING_ENDPOINT` en `src/lib/feature-flags.ts` — actualizar acá cuando se agregue un flag nuevo.
 
