@@ -10,6 +10,8 @@ import { formatRut } from "@/lib/formatters/rut";
 import { formatDateLike } from "@/lib/formatters/date";
 import { tipoDocMeta } from "@/components/sii/tipo-doc";
 import { ReclamadaBadge } from "@/components/sii/reclamada-badge";
+import { DteActions } from "@/components/sii/dte-actions";
+import { pdfUrlDeDoc } from "./maestro-pdf-url";
 import { cn } from "@/lib/utils";
 import type { ContraparteMaestro, EstadoDoc, MaestroKind } from "./terminos-pago";
 
@@ -197,6 +199,7 @@ export function MaestroContrapartes({
             <tbody>
               {cpsSorted.map((cp) => (
                 <ContraparteRow
+                  kind={kind}
                   key={cp.rut}
                   cp={cp}
                   isOpen={openRut === cp.rut}
@@ -273,6 +276,7 @@ function DefaultTermControl({
 
 function ContraparteRow({
   cp,
+  kind,
   isOpen,
   onToggle,
   onSetTerm,
@@ -281,6 +285,7 @@ function ContraparteRow({
   pending,
 }: {
   cp: ContraparteMaestro;
+  kind: MaestroKind;
   isOpen: boolean;
   onToggle: () => void;
   onSetTerm: (rut: string, days: number) => void;
@@ -356,7 +361,7 @@ function ContraparteRow({
       {isOpen && (
         <tr>
           <td colSpan={6} className="bg-surface-muted/30 px-3 py-2">
-            <DocDetail cp={cp} onTogglePagado={onTogglePagado} pending={pending} />
+            <DocDetail cp={cp} kind={kind} onTogglePagado={onTogglePagado} pending={pending} />
           </td>
         </tr>
       )}
@@ -366,10 +371,12 @@ function ContraparteRow({
 
 function DocDetail({
   cp,
+  kind,
   onTogglePagado,
   pending,
 }: {
   cp: ContraparteMaestro;
+  kind: MaestroKind;
   onTogglePagado: (rut: string, folio: number | string | null) => void;
   pending?: boolean;
 }) {
@@ -384,6 +391,7 @@ function DocDetail({
             <th className="py-1 pr-3 font-semibold">Vence</th>
             <th className="py-1 pr-3 font-semibold">Estado</th>
             <th className="py-1 pr-3 text-right font-semibold">Monto</th>
+            <th className="py-1 pr-3 text-right font-semibold">DTE</th>
             <th className="py-1 text-right font-semibold">Conciliación</th>
           </tr>
         </thead>
@@ -467,6 +475,9 @@ function DocDetail({
                   )}
                 >
                   {formatClp(d.monto)}
+                </td>
+                <td className="py-1 pr-3 text-right">
+                  <DteActions url={pdfUrlDeDoc(kind, cp.rut, d)} label={`folio ${d.folio ?? ""}`} />
                 </td>
                 <td className="py-1 text-right">
                   <button
