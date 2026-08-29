@@ -18,23 +18,34 @@ const FACTOR_DOT: Record<FactorTono, string> = {
 };
 
 /** Tono del sparkline según el estado canónico del Pulso. */
-const SPARK_TONE: Record<PulsoStatus, SparkTone> = {
+const SPARK_TONE: Record<NonNullable<PulsoStatus>, SparkTone> = {
   strong: "success",
   stable: "success",
   weak: "neutral",
   critical: "danger",
 };
 
-const DELTA_TEXT: Record<PulsoStatus, string> = {
+const DELTA_TEXT: Record<NonNullable<PulsoStatus>, string> = {
   strong: "text-success-700",
   stable: "text-success-700",
   weak: "text-warning-700",
   critical: "text-danger-500",
 };
 
-function statusValue<T>(rec: Record<PulsoStatus, T>, status: PulsoStatus): T {
+/** Valor de la tabla para un estado REAL, con fallback para un string fuera de contrato.
+ *
+ *  El `null` no pasa por aca: tiene su propio par (`SIN_DATO_*`) porque es la abstencion
+ *  declarada de la API, no un valor inesperado. Mezclarlos era lo que hacia que la tarjeta
+ *  pintara el delta en VERDE sobre un Pulso que nadie pudo calcular. */
+function statusValue<T>(
+  rec: Record<NonNullable<PulsoStatus>, T>,
+  status: NonNullable<PulsoStatus>,
+): T {
   return (rec as Record<string, T>)[status] ?? rec.stable;
 }
+
+const SIN_DATO_DELTA_TEXT = "text-neutral-mid";
+const SIN_DATO_SPARK_TONE: SparkTone = "neutral";
 
 export interface PulsoFactor {
   label: string;
@@ -42,8 +53,10 @@ export interface PulsoFactor {
 }
 
 export interface PulsoCardProps {
-  score: number;
-  status: PulsoStatus;
+  /** `null` cuando la API se abstiene: el Pulso es preliminar (qavante-api#162). */
+  score: number | null;
+  /** `null` cuando la API se abstiene. */
+  status: PulsoStatus | null;
   /** "Confianza de los datos: alta". */
   confianza: string;
   factores: PulsoFactor[];
@@ -106,13 +119,18 @@ export function PulsoCard({
             <span className="text-[11px] font-semibold text-neutral-mid">
               Continuidad · últimos 30 días
             </span>
-            <span className={cn("text-xs font-bold", statusValue(DELTA_TEXT, status))}>
+            <span
+              className={cn(
+                "text-xs font-bold",
+                status == null ? SIN_DATO_DELTA_TEXT : statusValue(DELTA_TEXT, status),
+              )}
+            >
               {delta}
             </span>
           </div>
           <Sparkline
             data={tendencia}
-            tone={statusValue(SPARK_TONE, status)}
+            tone={status == null ? SIN_DATO_SPARK_TONE : statusValue(SPARK_TONE, status)}
             width={320}
             height={44}
             className="w-full"

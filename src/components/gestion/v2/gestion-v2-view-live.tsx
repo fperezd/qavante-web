@@ -183,7 +183,20 @@ export function GestionV2ViewLive({
 }
 
 /** Insight de la tira: la tensión resultado (devengado) vs. Pulso (que incluye la caja). */
-function insightTension(resultado: number, status: string): React.ReactNode {
+function insightTension(resultado: number, status: string | null): React.ReactNode {
+  /* Los dos casos de `!known` NO son el mismo, y decirlo igual deshace la distinción que
+     `pulso-status.ts` gastó un estado entero en separar — y que `pulso-sin-dato.test.ts` fija.
+
+     `null` es la API abstenida: no se pudo calcular, y el chip de al lado dice "sin datos
+     suficientes". Decir "pendiente de actualizar" ahí contradice al chip a dos centímetros. */
+  if (status == null) {
+    return (
+      <>
+        El resultado del mes fue {resultado >= 0 ? "positivo" : "negativo"}. Todavía no se puede
+        calcular el Pulso, así que no hay lectura que cruzar con este resultado.
+      </>
+    );
+  }
   if (!resolvePulsoPresentation(status).known) {
     return (
       <>

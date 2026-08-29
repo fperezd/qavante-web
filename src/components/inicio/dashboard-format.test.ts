@@ -36,8 +36,13 @@ describe("pulsoStatusLabel", () => {
     expect(pulsoStatusLabel("stable")).toBe("Estable");
     expect(pulsoStatusLabel("strong")).toBe("Sólida");
   });
-  it("desconocido → 'Estable'", () => {
+  it("un estado FUERA DE CONTRATO cae en 'Estable' — el 'no sé' NO pasa por acá", () => {
+    // El nombre importa: la version anterior decia "desconocido → 'Estable'" y quedaba, en esta
+    // misma carpeta, publicando la afirmacion que qavante-api#162 retracta. Un string inesperado
+    // es el backend adelantandose al front; `null` es el backend diciendo que no sabe, y ese
+    // tiene su propia rama (ver `pulso-sin-dato.test.ts`).
     expect(pulsoStatusLabel("nope")).toBe("Estable");
+    expect(pulsoStatusLabel(null)).not.toBe("Estable");
   });
 });
 

@@ -74,3 +74,65 @@ export const Interaccion: Story = {
     await expect(canvas.getByText(/de 58 a 33/)).toBeInTheDocument();
   },
 };
+
+/* El caso que el pase §6 dejó sin una sola aserción, y donde vivían DOS mutantes que reponían
+   el verde: con `status: null` el delta se pintaba `text-success-700` y el sparkline `success`,
+   en la MISMA tarjeta donde el anillo ya decía "Sin datos".
+
+   Va con `play` y no sólo como args: sin `play` la story verifica que monta, nada más. */
+export const SinDatos: Story = {
+  name: "Sin datos (la API se abstiene)",
+  args: {
+    score: null,
+    status: null,
+    confianza: "Confianza de los datos: baja",
+    tendencia: BAJANDO,
+    delta: "▼ de 58 a 33 en 30 días",
+    factores: [{ label: "Falta el saldo de apertura", tono: "crit" }],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Sin datos")).toBeInTheDocument();
+    await expect(canvas.getByText("—")).toBeInTheDocument();
+    await expect(canvas.queryByText("Estable")).not.toBeInTheDocument();
+
+    // El delta NO se pinta en verde. Es el defecto que este PR cierra, en la superficie que
+    // no decía la palabra pero sí el color.
+    const delta = canvas.getByText(/de 58 a 33/);
+    await expect(delta.className).toContain("text-neutral-mid");
+    await expect(delta.className).not.toContain("success");
+
+    // Y nada del anillo ni de la tendencia queda verde. El sparkline pinta su tono como
+    // `stroke`, NO como clase: mirar solo clases dejaba vivo el mutante que le devuelve el
+    // tono `success`. Se afirman las dos formas.
+    await expect(canvasElement.querySelectorAll('[class*="success"]').length).toBe(0);
+    const trazos = [...canvasElement.querySelectorAll("path[stroke], polyline[stroke]")].map((e) =>
+      e.getAttribute("stroke"),
+    );
+    await expect(trazos.some((c) => c?.includes("success"))).toBe(false);
+    await expect(trazos.some((c) => c?.includes("neutral-mid"))).toBe(true);
+  },
+};
+
+/** EL CONTRAPESO, con la MISMA aserción en positivo: con un estado real la tarjeta SÍ se
+ *  pronuncia y SÍ usa su color. Sin este par, "no pintes verde" se satisface no pintando nunca
+ *  verde, y el Pulso es el indicador de portada. */
+export const SinDatosContrapeso: Story = {
+  name: "Con estado real (contrapeso)",
+  args: {
+    score: 78,
+    status: "stable",
+    confianza: "Confianza de los datos: alta",
+    tendencia: SUBIENDO,
+    delta: "▲ de 71 a 84 en 30 días",
+    factores: [{ label: "Días de caja: 45", tono: "ok" }],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Estable")).toBeInTheDocument();
+    await expect(canvas.queryByText("Sin datos")).not.toBeInTheDocument();
+
+    const delta = canvas.getByText(/de 71 a 84/);
+    await expect(delta.className).toContain("success");
+  },
+};

@@ -5,18 +5,10 @@ import { Bell, Menu, Search } from "lucide-react";
 import { QavanteBadge, QavanteLogo } from "@/components/qavante";
 import { useMe } from "@/lib/api/users";
 import { useDashboardSummary } from "@/lib/api/dashboard";
-import { pulsoStatusLabel } from "@/components/inicio/dashboard-format";
+import { badgeDelPulso } from "./pulso-badge-model";
 import { CompanySwitcher } from "./company-switcher";
 import { SyncStatusIndicator } from "./sync-status-indicator";
 import { SyncAllButton } from "./sync-all-button";
-
-/** Mapea el estado del Pulso (backend) al variant del badge. */
-const PULSO_VARIANT: Record<string, "success" | "warning" | "danger"> = {
-  strong: "success",
-  stable: "success",
-  weak: "warning",
-  critical: "danger",
-};
 
 export interface AppHeaderProps {
   onMenuClick: () => void;
@@ -104,14 +96,20 @@ export function AppHeader({ onMenuClick, onOpenSearch, syncStatusEnabled }: AppH
           <Link
             href="/alertas"
             className="hidden items-center gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 md:flex"
-            aria-label={`Pulso de tu empresa: ${pulso.score} de 100, ${pulsoStatusLabel(pulso.status)}. Ver alertas.`}
+            aria-label={badgeDelPulso(pulso.score, pulso.status).aria}
           >
             <span className="text-xs text-neutral-mid" aria-hidden="true">
               Pulso
             </span>
-            {/* Score + palabra de estado: "50" solo era opaco (¿bueno? ¿malo?) — auditoría UX F-09. */}
-            <QavanteBadge variant={PULSO_VARIANT[pulso.status] ?? "info"} aria-hidden="true">
-              {pulso.score} · {pulsoStatusLabel(pulso.status)}
+            {/* Score + palabra de estado: "50" solo era opaco (¿bueno? ¿malo?) — auditoría UX F-09.
+                QUÉ mostrar vive en `pulso-badge-model.ts`, puro y testeado: el pase §6 midió que
+                toda esta lógica no la afirmaba ningún test y que tres mutantes que reponían el
+                defecto —incluido el badge verde con `status: null`— sobrevivían en verde. */}
+            <QavanteBadge
+              variant={badgeDelPulso(pulso.score, pulso.status).variant}
+              aria-hidden="true"
+            >
+              {badgeDelPulso(pulso.score, pulso.status).texto}
             </QavanteBadge>
           </Link>
         )}

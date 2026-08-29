@@ -7,11 +7,18 @@ import { cn } from "@/lib/utils";
    suma (la tensión resultado devengado vs. caja). Es el MISMO Pulso del header/Inicio (misma
    fuente). Enlaza a su detalle en /alertas. */
 
-export type PulsoTono = "ok" | "warn" | "bad";
+/* `neutral` es el "no sabemos" de la API (qavante-api#162), y NO es un `warn` suavizado:
+   inventar una mala noticia es el error simetrico de inventar una buena. Las otras cuatro
+   superficies del Pulso ya van a `neutral-mid` en ese caso; esta se habia quedado en ambar
+   heredando el `UNKNOWN_PULSO_STATE` preexistente. */
+export type PulsoTono = "ok" | "warn" | "bad" | "neutral";
 
 export interface PulsoTiraProps {
   /** Score del Pulso (0-100). El mismo del header. */
-  score: number;
+  /** `null` cuando la API se abstiene: sin saldo de apertura el Pulso es preliminar
+   *  (qavante-api#162). Se pinta un guion, NO un cero: un 0 en un indice 0-100 se lee
+   *  como el peor pulso posible, que es exactamente lo que no se sabe. */
+  score: number | null;
   /** Etiqueta del estado (ej. "Pulso débil"). */
   estado: string;
   /** Tono del estado. Default "warn". */
@@ -28,12 +35,14 @@ const TONO: Record<PulsoTono, string> = {
   ok: "text-success-700 bg-success-500/10",
   warn: "text-warning-700 bg-warning-500/10",
   bad: "text-danger-500 bg-danger-500/10",
+  neutral: "text-neutral-mid bg-neutral-mid/10",
 };
 
 const NUM: Record<PulsoTono, string> = {
   ok: "text-success-700",
   warn: "text-warning-700",
   bad: "text-danger-500",
+  neutral: "text-neutral-mid",
 };
 
 export function PulsoTira({
@@ -54,7 +63,9 @@ export function PulsoTira({
     >
       <span className="inline-flex shrink-0 items-center gap-2">
         <Activity className={cn("size-4", NUM[tono])} aria-hidden="true" />
-        <span className={cn("text-[19px] font-extrabold tabular-nums", NUM[tono])}>{score}</span>
+        <span className={cn("text-[19px] font-extrabold tabular-nums", NUM[tono])}>
+          {score ?? "—"}
+        </span>
         <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", TONO[tono])}>
           {estado}
         </span>
