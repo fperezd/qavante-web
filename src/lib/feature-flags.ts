@@ -73,6 +73,7 @@ export const FEATURE_FLAGS = [
   "onboardingBanner",
   "hoyV01",
   "cajaV02",
+  "bancoV03",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -300,6 +301,19 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      `cash-projection` no consulta). Es FE-first, como el de `hoyV01`, con su issue sucesor (#80).
      Con OFF, la Caja actual queda intacta → cero regresión. */
   cajaV02: "/api/treasury/accounts-payable/{payable_id}/estimated-date",
+  /* V03 · Banco — "tus cuentas y tarjetas, con su estado, y cada movimiento con su ciclo de vida"
+     (ESPECIFICACION §V03, issue #68). Reemplaza la pantalla de `/banco` por: "Caja hoy" vía
+     `cajaHoy()` (Ley 1, la misma función que V01/V02), la tabla de cuentas con frescura + pill de
+     conexión + saldo según el banco, el banner "conectar otro banco", los filtros con conteo y la
+     tabla de movimientos con pill {Conciliado ✓ / Clasificado ✓ / Por clasificar → Clasificar}. Todo
+     sobre endpoints VIVOS (summary, bice/*, bank-accounts, sources/status, bank-movements).
+
+     Su endpoint de gating es lo ÚNICO que le falta a la vista: el PROGRESO consultable del sync
+     bancario, que la spec marca 🔧 ("Actualizando con ETA") y deja como pregunta abierta al CTO
+     (§4). Hoy `/api/sources/status` sólo trae `state`, así que el ETA es un texto fijo declarado
+     ("~30 s"). Es FE-first, como los de `hoyV01`/`cajaV02`, con su issue sucesor (#83). Con OFF, la
+     pantalla Banco actual (`bancoScreen`) queda intacta → cero regresión. */
+  bancoV03: "/api/sources/{source}/sync-progress",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

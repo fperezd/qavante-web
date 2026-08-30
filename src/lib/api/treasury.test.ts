@@ -12,6 +12,7 @@ import {
 /* Import aparte a propósito: el bloque de arriba también lo edita la rama del PR #934
    (`caja/selector-cuenta-moneda`) y tocarlo garantizaba un conflicto de merge tonto. */
 import {
+  BANK_MOVEMENTS_LIMIT_MAX,
   currencyByBankAccount,
   groupUnclassifiedInflowByCurrency,
   type BankAccountItem,
@@ -240,5 +241,14 @@ describe("groupUnclassifiedInflowByCurrency", () => {
     const r = groupUnclassifiedInflowByCurrency([mv({}), mv({ id: "2" })], new Map());
     expect(r.inflowByCurrency).toEqual([]);
     expect(r.unknownCurrencyCount).toBe(2);
+  });
+});
+
+describe("BANK_MOVEMENTS_LIMIT_MAX — el tope del contrato, no una preferencia", () => {
+  it("es 500: `bank_movements_list.limit.maximum` del snapshot OpenAPI del api y `Query(50, ge=1, le=500)`", () => {
+    /* Verificado 2026-08-30 sobre `tooxs-digital/qavante-api` `docs/contracts/openapi.snapshot.json`:
+       `/api/bank-movements` y `/api/treasury/bank-movements` → `{default: 50, minimum: 1, maximum: 500}`.
+       El tipo generado pierde el `maximum`; si el contrato sube el tope, se cambia acá con su cita. */
+    expect(BANK_MOVEMENTS_LIMIT_MAX).toBe(500);
   });
 });

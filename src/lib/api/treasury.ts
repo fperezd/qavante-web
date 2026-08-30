@@ -53,11 +53,25 @@ export type TarjetaMovimientosResponse = components["schemas"]["TarjetaMovimient
 export type TarjetaMovimiento = components["schemas"]["TarjetaMovimiento"];
 export type TarjetaSaldoData = components["schemas"]["TarjetaSaldoData"];
 
+/** Tope del `limit` que acepta `GET /api/bank-movements` (y su alias `/api/treasury/bank-movements`).
+ *  Es del CONTRATO, no una preferencia: el snapshot OpenAPI del api (`docs/contracts/openapi.snapshot.json`,
+ *  `bank_movements_list` → `limit: {default: 50, minimum: 1, maximum: 500}`) y el código
+ *  (`api/app/api/bank_movements.py:141`, `Query(50, ge=1, le=500)`). FastAPI valida el query param antes
+ *  de ejecutar: un `limit` mayor responde **422** y la pantalla que lo pidió cae entera a su estado de
+ *  error. El tipo generado (`types.ts`) pierde el `maximum` (openapi-typescript no lo emite), por eso
+ *  vive acá como constante con su cita, y un test lo fija (`treasury.test.ts`). */
+export const BANK_MOVEMENTS_LIMIT_MAX = 500;
+
 export interface BankMovementsParams {
   /** 'unclassified' | 'classified' | undefined (todos). */
   status?: string;
   /** Período YYYY-MM. */
   period?: string;
+  /** Rango de meses `YYYY-MM` (inclusive), independiente de `period` — params del OpenAPI
+   *  (`bank_movements_list`: `period_from` / `period_to`). Los usa V03 · Banco para listar los
+   *  últimos meses en UNA consulta en vez de una por mes. */
+  period_from?: string;
+  period_to?: string;
   /** Dirección del flujo: 'credit' (cobrar) / 'debit' (pagar). Filtro server-side
    *  pendiente en el backend (handoff CC-API 2026-07-04); hasta que se publique,
    *  las vistas filtran client-side. La fontanería queda lista: cuando exista el
@@ -342,6 +356,8 @@ function buildBankMovementsQuery(p: BankMovementsParams): string {
   const s = new URLSearchParams();
   if (p.status) s.set("status", p.status);
   if (p.period) s.set("period", p.period);
+  if (p.period_from) s.set("period_from", p.period_from);
+  if (p.period_to) s.set("period_to", p.period_to);
   if (p.direction) s.set("direction", p.direction);
   if (p.limit != null) s.set("limit", String(p.limit));
   if (p.offset != null) s.set("offset", String(p.offset));

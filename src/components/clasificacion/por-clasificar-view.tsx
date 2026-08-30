@@ -88,9 +88,15 @@ export interface PorClasificarViewProps {
   /** Flag `managementDimensions`. OFF ⇒ no se fetchean dimensiones ni se
    *  muestran/crean asignaciones (default, comportamiento previo). */
   dimensionsEnabled?: boolean;
+  /** Abre el drawer con ESTE movimiento apenas llega la lista (`?movimiento=<id>`, desde la fila
+   *  "Por clasificar" de V03 · Banco). Si ya no está por clasificar, se avisa en vez de abrir nada. */
+  initialMovementId?: string;
 }
 
-export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarViewProps = {}) {
+export function PorClasificarView({
+  dimensionsEnabled = false,
+  initialMovementId,
+}: PorClasificarViewProps = {}) {
   const movementsQuery = useBankMovements({ status: "unclassified", limit: 500 });
   const canonicalQuery = useCanonicalCategories();
   const accountsQuery = useManagementAccountsTree();
@@ -225,6 +231,30 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
   React.useEffect(() => {
     setChecked(new Set());
   }, [accountId, range]);
+  /* `?movimiento=<id>`: una sola vez, cuando la lista llegó. Si el movimiento no está entre los
+     sin clasificar cargados (ya se clasificó, o es más viejo que el tope de la consulta) se dice
+     en vez de abrir un drawer vacío o quedarse mudo (Ley 8). */
+  const inicialAbierto = React.useRef(false);
+  React.useEffect(() => {
+    if (!initialMovementId || inicialAbierto.current) return;
+    const items = movementsQuery.data?.items;
+    if (!items) return;
+    inicialAbierto.current = true;
+    const m = items.find((x) => x.id === initialMovementId);
+    if (m) {
+      setFormError(undefined);
+      classify.reset();
+      assign.reset();
+      setSelected(m);
+      return;
+    }
+    toast.info("Ese movimiento ya no está por clasificar", {
+      description:
+        "Puede que ya lo hayas clasificado, o que sea más antiguo que los que se muestran acá.",
+    });
+    // `classify`/`assign` son objetos de mutación estables por render; sólo importa el dato.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMovementId, movementsQuery.data]);
   /* Enfocar la lista cuando hay ítems y no hay drawer abierto → el teclado
      funciona de una (y vuelve a la lista al cerrar el drawer). */
   React.useEffect(() => {

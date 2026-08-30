@@ -7,9 +7,18 @@ import { PorClasificarView } from "@/components/clasificacion/por-clasificar-vie
    FeatureUnavailableState (sin cambio visible: /api/management/config no
    existe → fallback ADR-0008). Flag ON → flujo §17 cableado a datos reales
    (lista de movimientos + ClassificationDrawer + PATCH classify). Punto de
-   entrada desde /caja sigue diferido (landing de Caja es placeholder C8). */
-export default function PorClasificarPage() {
+   entrada desde /caja sigue diferido (landing de Caja es placeholder C8).
+
+   `?movimiento=<id>` (V03 · Banco, #68): abre el drawer con ESE movimiento ya cargado — es "el
+   flujo actual de clasificación" al que la spec manda desde la fila "Por clasificar" mientras la
+   bandeja (V07) no existe. */
+export default async function PorClasificarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ movimiento?: string }>;
+}) {
   const { bankMovementClassification, managementDimensions } = resolveFeatureFlags();
+  const { movimiento } = await searchParams;
 
   return (
     <div className="space-y-6">
@@ -24,7 +33,10 @@ export default function PorClasificarPage() {
         /* `managementDimensions` gatea la sección de vistas de gestión del
            drawer (D3): OFF ⇒ no se fetchean dimensiones (el endpoint sigue
            api-key-only). */
-        <PorClasificarView dimensionsEnabled={managementDimensions} />
+        <PorClasificarView
+          dimensionsEnabled={managementDimensions}
+          initialMovementId={movimiento || undefined}
+        />
       ) : (
         <FeatureUnavailableState />
       )}
