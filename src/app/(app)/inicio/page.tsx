@@ -5,6 +5,7 @@ import { InicioMvpView } from "@/components/inicio/inicio-mvp-view";
 import { InicioEjecutivoView } from "@/components/inicio/inicio-ejecutivo-view";
 import { InicioEjecutivoV2Live } from "@/components/inicio/v2/inicio-ejecutivo-v2-live";
 import { FinancialPositionCard } from "@/components/inicio/financial-position-card";
+import { HoyLive } from "@/components/inicio/v01/hoy-live";
 
 /* Inicio Ejecutivo (Sprint C8). **Server Component** (como gestion/cobrar/pagar):
    resuelve el flag en runtime del Worker leyendo `NEXT_PUBLIC_FF_*` vía la
@@ -24,7 +25,26 @@ export default function InicioPage() {
     inicioEjecutivoV2,
     inicioWidgets,
     inicioAgenda,
+    hoyV01,
   } = resolveFeatureFlags();
+
+  /* V01 · Hoy (rediseño Fase 2, issue #62) — gated por `hoyV01`, HOY APAGADO. Convive con el
+     Inicio actual en vez de reemplazarlo: con el flag OFF nada de abajo cambia (cero regresión).
+     Va ANTES del resto porque no es otra card del dashboard, es otra pantalla: tiene su propio
+     titular ("Hoy") y su propia pregunta, así que tampoco hereda el header de Inicio Ejecutivo. */
+  if (hoyV01) {
+    return (
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold text-neutral-dark">Hoy</h1>
+          <p className="mt-1 text-sm text-neutral-mid">
+            ¿Cómo está mi empresa y qué necesita mi OK?
+          </p>
+        </header>
+        <HoyLive />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

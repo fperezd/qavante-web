@@ -18,6 +18,7 @@ import {
   type UnclassifiedSummary,
 } from "@/lib/api/treasury";
 import { parseAmount } from "@/components/inicio/dashboard-format";
+import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import { formatClp } from "@/lib/formatters/clp";
 import { CajaV2Resumen, type CajaMovible } from "./caja-v2-resumen";
 import { CajaHero } from "./caja-hero";
@@ -143,11 +144,15 @@ function CajaV2Contenido({
   }
 
   const allBuckets = (cf.data?.buckets ?? []) as CashFlowBucket[];
-  // `cash_today` es un bloque NULLABLE del summary (banco no conectado / fuente caída / 500 del
-  // dashboard). Faltante ≠ 0 (§13): NO colapsamos un saldo desconocido a $0 "en negativo".
-  const cashTotal = dash.data?.cash_today?.total;
-  const saldoConocido = cashTotal != null;
-  const saldoHoy = parseAmount(cashTotal);
+  /* `cash_today` es un bloque NULLABLE del summary (banco no conectado / fuente caída / 500 del
+     dashboard). Faltante ≠ 0 (§13): NO colapsamos un saldo desconocido a $0 "en negativo".
+     El saldo NO se desarma acá: sale de `cajaHoy`, la fuente única de "Caja hoy" (Ley 1 del
+     rediseño). La portada V01 lee de la MISMA función, así que las dos pantallas no pueden
+     divergir por resolver el input cada una por su cuenta — que es exactamente lo que pasó con
+     el Pulso en `qavante-api#102` (16 en Inicio, 32 en su pantalla propia). */
+  const caja = cajaHoy(dash.data);
+  const saldoConocido = caja.monto != null;
+  const saldoHoy = caja.monto ?? 0;
   if (!saldoConocido && allBuckets.length === 0) return <EmptyState />;
 
   // Sin saldo base: mostramos honestamente los flujos conocidos del período, sin inventar saldo/curva.
@@ -186,9 +191,8 @@ function CajaV2Contenido({
   // de los VENCIMIENTOS (no del cash-flow histórico, que no proyecta el futuro). El flag lo resuelve
   // la PÁGINA (server) y llega por prop — resolverlo acá (cliente) no funciona: `process.env[clave
   // dinámica]` no se inlinea en el bundle del browser.
-  const ct = dash.data?.cash_today;
-  const saldoStale = ct?.data_state === "stale";
-  const ultimaSync = ct?.last_updated ? fechaCortaLabel(new Date(ct.last_updated)) : null;
+  const saldoStale = caja.estado === "stale";
+  const ultimaSync = caja.actualizado ? fechaCortaLabel(new Date(caja.actualizado)) : null;
   const curvaSlot = cajaV3 ? (
     <CajaProyeccionLive
       saldoHoy={saldoHoy}

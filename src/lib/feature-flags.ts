@@ -71,6 +71,7 @@ export const FEATURE_FLAGS = [
   "mcp",
   "cajaMarkCollected",
   "onboardingBanner",
+  "hoyV01",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -274,6 +275,18 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      canónico `/api/sources/status`, que ya es el endpoint de gating de `syncStatus` y por eso no se
      repite acá (el mapa es 1-a-1, invariante cubierta por `feature-flags.test.ts`). */
   onboardingBanner: "/api/onboarding/status",
+  /* V01 · Hoy — la portada del rediseño (ESPECIFICACION §V01, issue #62). Es la ruta `/` reescrita
+     alrededor de UNA pregunta ("¿cómo está mi empresa y qué necesita mi OK?"): crumb con frescura
+     del banco, titular-veredicto, "Esperando tu visto bueno" y strip de 4 indicadores. Consume
+     `/api/dashboard/summary`, que ya está VIVO — o sea que la vista funciona hoy, y por eso la
+     aceptación del issue pide justamente que ande con el flag apagado.
+
+     Su endpoint de gating es la BITÁCORA, y no el summary, porque es lo único que le falta para
+     estar completa: la sección 5 de la spec ("Mientras no estabas") es `🏗` y NO se entregó — no
+     se rellena con eventos de sincronización bajo un título que promete otra cosa. Ese endpoint
+     todavía no existe (FE-first) y tiene su propio issue (#65); cuando exista, encender el flag
+     deja de ser una decisión sobre una vista incompleta. Con OFF, el Inicio actual queda intacto → cero regresión. */
+  hoyV01: "/api/dashboard/activity-log",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
