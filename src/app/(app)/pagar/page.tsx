@@ -5,6 +5,7 @@ import { FeatureUnavailableState, QavanteEmpty } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { PagarView } from "@/components/pagar/pagar-view";
 import { PagarV2ViewLive } from "@/components/pagar/v2/pagar-v2-view-live";
+import { PagarV05Live } from "@/components/pagar/v05/pagar-v05-live";
 
 /* Pagar (Sprint C4). Server Component: resuelve los flags. La landing quedó limpia
    (pedido de Fernando 2026-07-28): el hero de prioridad + "Ver facturas" arriba.
@@ -12,7 +13,29 @@ import { PagarV2ViewLive } from "@/components/pagar/v2/pagar-v2-view-live";
    Impuestos y TGR, Préstamos) vive ahora en el SIDEBAR (sub-ítems de Pagar), no
    como tarjetas acá. Sin `export const runtime` (regla 4). */
 export default function PagarPage() {
-  const { siiQueries, accountsPayable, pagarV2 } = resolveFeatureFlags();
+  const { siiQueries, accountsPayable, pagarV2, pagarV05 } = resolveFeatureFlags();
+
+  /* V05 · Pagar (rediseño Fase 2, issue #70) — gated por `pagarV05`, HOY APAGADO. Reemplaza la
+     landing entera por la vista de la spec (una pantalla, una pregunta: "¿a quién le pago, y qué
+     es crítico?"). Con OFF nada de abajo cambia (cero regresión: producción sigue sirviendo el
+     Pagar clásico). Se conserva el acceso "Ver facturas": es la ruta de detalle a la que la tabla
+     enlaza por fila. */
+  if (pagarV05) {
+    return (
+      <div className="space-y-6">
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-dark">Pagar</h1>
+            <p className="mt-1 text-sm text-neutral-mid">¿A quién le pago, y qué es crítico?</p>
+          </div>
+          {siiQueries && (
+            <QuickLink href="/pagar/facturas-recibidas" icon={FileText} label="Ver facturas" />
+          )}
+        </header>
+        <PagarV05Live />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

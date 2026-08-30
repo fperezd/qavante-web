@@ -1,0 +1,318 @@
+/* Fixtures compartidas por los tests y las stories de V05 · Pagar. Sólo datos: nada se formatea
+ * acá (el lint del rediseño §5.8 corre sobre este archivo). Las cifras son inventadas con la forma
+ * del contrato vivo (`src/lib/api/types.ts` + `payables_repo.py`), no datos de un tenant:
+ * `items` sólo con `due_date` (el backend filtra los sin fecha a `undated_*`), ordenados por
+ * `due_date asc`, `source_external_id` con la clave natural del RCV ('tipo-folio-rut') o la de
+ * nómina ('payroll-YYYYMM'), y los `due_*` acumulativos INCLUYENDO lo vencido. */
+
+import type { AccountsPayableResponse, PayableItem } from "@/lib/api/pagos";
+
+export const HOY = new Date("2026-08-30T12:00:00Z");
+
+export const RUT_KENNEDY = "76222222-2";
+export const RUT_VASQUEZ = "76333333-3";
+export const RUT_CHIPAX = "76444444-4";
+export const RUT_ENTEL = "76555555-5";
+export const RUT_MELI = "76666666-6";
+
+/* La factura vencida hace ~18 meses (545 días): el caso VIVO de producción — el backend ordena
+ * por `due_date asc` e incluye lo vencido, así que esto es lo primero que llega. */
+export const KENNEDY: PayableItem = {
+  label: "Inmobiliaria Vista Kennedy SpA — Factura 1201",
+  category: "supplier",
+  due_date: "2025-03-03",
+  amount: "7078882",
+  criticality: "high",
+  source: "SII",
+  source_external_id: "33-1201-76222222-2",
+  counterparty_name: "Inmobiliaria Vista Kennedy SpA",
+  counterparty_rut: RUT_KENNEDY,
+  folio: 1201,
+  tipo_dte: 33,
+  currency: "CLP",
+  amount_clp: null,
+};
+
+export const VASQUEZ: PayableItem = {
+  label: "Soc. de Profesionales Vásquez, González y Cía. — Factura 88",
+  category: "supplier",
+  due_date: "2026-06-06",
+  amount: "1447161",
+  criticality: "high",
+  source: "SII",
+  source_external_id: "33-88-76333333-3",
+  counterparty_name: "Soc. de Profesionales Vásquez, González y Cía.",
+  counterparty_rut: RUT_VASQUEZ,
+  folio: 88,
+  tipo_dte: 33,
+  currency: "CLP",
+  amount_clp: null,
+};
+
+export const ENTEL_A: PayableItem = {
+  label: "Entel PCS Telecomunicaciones S.A. — Factura 9001",
+  category: "supplier",
+  due_date: "2026-08-12",
+  amount: "203607",
+  criticality: "high",
+  source: "SII",
+  source_external_id: "33-9001-76555555-5",
+  counterparty_name: "Entel PCS Telecomunicaciones S.A.",
+  counterparty_rut: RUT_ENTEL,
+  folio: 9001,
+  tipo_dte: 33,
+  currency: "CLP",
+  amount_clp: null,
+};
+
+/** El posible duplicado de ENTEL_A: mismo RUT, mismo tipo DTE, monto a +0,68 % y a 15 días. */
+export const ENTEL_B: PayableItem = {
+  label: "Entel PCS Telecomunicaciones S.A. — Factura 9017",
+  category: "supplier",
+  due_date: "2026-08-27",
+  amount: "205000",
+  criticality: "high",
+  source: "SII",
+  source_external_id: "33-9017-76555555-5",
+  counterparty_name: "Entel PCS Telecomunicaciones S.A.",
+  counterparty_rut: RUT_ENTEL,
+  folio: 9017,
+  tipo_dte: 33,
+  currency: "CLP",
+  amount_clp: null,
+};
+
+export const BICE: PayableItem = {
+  label: "Banco BICE — cuota crédito",
+  category: "debt",
+  due_date: "2026-09-01",
+  amount: "503076",
+  criticality: "high",
+  source: "Manual",
+  source_external_id: "obligation-77",
+  counterparty_name: "Banco BICE",
+  counterparty_rut: null,
+  folio: null,
+  tipo_dte: null,
+  currency: "CLP",
+  amount_clp: null,
+};
+
+/* ADR-0056: la nómina es un payable REAL. El backend manda el label literal "Remuneraciones"
+ * (supplier_name sin documento) y la clave natural trae el período. */
+export const REMUNERACIONES: PayableItem = {
+  label: "Remuneraciones",
+  category: "payroll",
+  due_date: "2026-09-04",
+  amount: "7400000",
+  criticality: "high",
+  source: "BUK",
+  source_external_id: "payroll-202608",
+  counterparty_name: "Remuneraciones",
+  counterparty_rut: null,
+  folio: null,
+  tipo_dte: null,
+  currency: "CLP",
+  amount_clp: null,
+};
+
+export const MELI_USD: PayableItem = {
+  label: "MercadoLibre Chile Ltda. — Factura 77",
+  category: "supplier",
+  due_date: "2026-09-08",
+  amount: "1240",
+  criticality: "medium",
+  source: "SII",
+  source_external_id: "33-77-76666666-6",
+  counterparty_name: "MercadoLibre Chile Ltda.",
+  counterparty_rut: RUT_MELI,
+  folio: 77,
+  tipo_dte: 33,
+  currency: "USD",
+  amount_clp: "1190400",
+};
+
+export const F29: PayableItem = {
+  label: "F29 · IVA de julio",
+  category: "tax",
+  due_date: "2026-09-12",
+  amount: "174979",
+  criticality: "medium",
+  source: "SII",
+  source_external_id: "f29-202607",
+  counterparty_name: null,
+  counterparty_rut: null,
+  folio: null,
+  tipo_dte: null,
+  currency: "CLP",
+  amount_clp: null,
+};
+
+export const CHIPAX: PayableItem = {
+  label: "Chipax SpA — Factura 5540",
+  category: "supplier",
+  due_date: "2026-09-20",
+  amount: "1207105",
+  criticality: "low",
+  source: "SII",
+  source_external_id: "33-5540-76444444-4",
+  counterparty_name: "Chipax SpA",
+  counterparty_rut: RUT_CHIPAX,
+  folio: 5540,
+  tipo_dte: 33,
+  currency: "CLP",
+  amount_clp: null,
+};
+
+/** Caso NORMAL: 8 pagos, 3 vencidos (el más antiguo, 545 días), 3 críticos (deuda + sueldos +
+ *  F29 = $8.078.055) contra caja proyectada de $5.200.000 → faltan $2.878.055; $1.190.400
+ *  negociable en 14 días (la factura USD, convertida); nada sin fecha; sin duplicados. */
+export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPayableResponse {
+  return {
+    total: "19205210",
+    total_by_currency: [
+      { currency: "CLP", amount: "18014810" },
+      { currency: "USD", amount: "1240" },
+    ],
+    due_7d: "16632726",
+    due_14d: "17998105",
+    due_30d: "19205210",
+    undated_amount: "0",
+    undated_count: 0,
+    items: [KENNEDY, VASQUEZ, ENTEL_A, BICE, REMUNERACIONES, MELI_USD, F29, CHIPAX],
+    projected_cash_14d: "5200000",
+    projected_cash_currency: "CLP",
+    covers_critical: false,
+    confidence: "high",
+    data_state: "available",
+    missing_sources: [],
+    generated_at: "2026-08-30T08:12:00Z",
+    ...over,
+  };
+}
+
+/** Con el posible duplicado de Entel adentro (los `due_*` del backend lo suman también). */
+export function pagosConDuplicado(
+  over: Partial<AccountsPayableResponse> = {},
+): AccountsPayableResponse {
+  return pagos({
+    total: "19410210",
+    total_by_currency: [
+      { currency: "CLP", amount: "18219810" },
+      { currency: "USD", amount: "1240" },
+    ],
+    due_7d: "16837726",
+    due_14d: "18203105",
+    due_30d: "19410210",
+    items: [KENNEDY, VASQUEZ, ENTEL_A, ENTEL_B, BICE, REMUNERACIONES, MELI_USD, F29, CHIPAX],
+    ...over,
+  });
+}
+
+/** SÓLO impuestos y sueldos: nada postergable (Ley 9), sin banner, sin rojo negociable. */
+export function pagosSoloImpuestosYSueldos(
+  over: Partial<AccountsPayableResponse> = {},
+): AccountsPayableResponse {
+  const previred: PayableItem = {
+    label: "Previred — cotizaciones",
+    category: "payroll",
+    due_date: "2026-09-10",
+    amount: "1230000",
+    criticality: "medium",
+    source: "Previred",
+    source_external_id: "previred-202608",
+    counterparty_name: "Previred",
+    counterparty_rut: null,
+    folio: null,
+    tipo_dte: null,
+    currency: "CLP",
+    amount_clp: null,
+  };
+  return pagos({
+    total: "8804979",
+    total_by_currency: undefined,
+    due_7d: "7400000",
+    due_14d: "8804979",
+    due_30d: "8804979",
+    items: [REMUNERACIONES, previred, F29],
+    projected_cash_14d: "9100000",
+    covers_critical: true,
+    ...over,
+  });
+}
+
+/** Datos degradados: una fila que llega SIN fecha parseable (defensivo — el contrato dice que no
+ *  pasa, la pantalla no puede decir "vence hoy" si pasa), una en USD sin tipo de cambio, y 3
+ *  documentos sin fecha que el backend dejó fuera de la tabla (`undated_*`). La caja proyectada
+ *  viene en la moneda funcional del tenant (USD): no se compara con pesos. */
+export function pagosDegradados(
+  over: Partial<AccountsPayableResponse> = {},
+): AccountsPayableResponse {
+  const sinFecha: PayableItem = {
+    label: "Aguas Cordillera S.A. — Factura 310",
+    category: "supplier",
+    due_date: "",
+    amount: "96500",
+    criticality: "low",
+    source: "SII",
+    source_external_id: "33-310-76777777-7",
+    counterparty_name: "Aguas Cordillera S.A.",
+    counterparty_rut: "76777777-7",
+    folio: 310,
+    tipo_dte: 33,
+    currency: "CLP",
+    amount_clp: null,
+  };
+  const usdSinTc: PayableItem = {
+    label: "Amazon Web Services — Factura 4410",
+    category: "supplier",
+    due_date: "2026-09-05",
+    amount: "830",
+    criticality: "high",
+    source: "SII",
+    source_external_id: "33-4410-76888888-8",
+    counterparty_name: "Amazon Web Services",
+    counterparty_rut: "76888888-8",
+    folio: 4410,
+    tipo_dte: 33,
+    currency: "USD",
+    amount_clp: null,
+  };
+  return pagos({
+    total: "12071716",
+    total_by_currency: [
+      { currency: "CLP", amount: "12071716" },
+      { currency: "USD", amount: "830" },
+    ],
+    due_7d: "9350237",
+    due_14d: "9525216",
+    due_30d: "9525216",
+    undated_amount: "2450000",
+    undated_count: 3,
+    items: [VASQUEZ, sinFecha, usdSinTc, BICE, REMUNERACIONES, F29],
+    projected_cash_14d: "10500",
+    projected_cash_currency: "USD",
+    data_state: "partial",
+    confidence: "medium",
+    missing_sources: ["Vencimientos de documentos (XML del DTE, pendiente)", "Tipo de cambio USD"],
+    ...over,
+  });
+}
+
+/** El registro sin nada agendado (SII sin conectar): la pantalla dice qué falta. */
+export function pagosVacio(over: Partial<AccountsPayableResponse> = {}): AccountsPayableResponse {
+  return pagos({
+    total: "0",
+    total_by_currency: undefined,
+    due_7d: "0",
+    due_14d: "0",
+    due_30d: "0",
+    items: [],
+    projected_cash_14d: null,
+    covers_critical: null,
+    data_state: "partial",
+    confidence: "low",
+    missing_sources: ["Conectar SII"],
+    ...over,
+  });
+}

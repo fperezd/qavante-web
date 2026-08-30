@@ -1,0 +1,396 @@
+import { describe, expect, it } from "vitest";
+import type { PayableItem } from "@/lib/api/pagos";
+import { formatMoney } from "@/lib/formatters/clp";
+import { sale14d } from "@/components/caja/v02/caja-v02-model";
+import {
+  DUP_VENTANA_DIAS,
+  LEY_9_TEXTO,
+  bannerPostergables,
+  coincideConsulta,
+  contarPagos,
+  csvPagos,
+  diasHasta,
+  documentoDe,
+  elUnicoRojo,
+  esPostergable,
+  explicacionCritico,
+  explicacionPorPagar,
+  explicacionVencido,
+  faltantes,
+  filtrarPagos,
+  kpiCritico,
+  kpiPorPagar,
+  kpiVencido,
+  montosCalzan,
+  nombreDe,
+  ordenarPorUrgencia,
+  pagosV05,
+  sonPosibleDuplicado,
+  tipoDe,
+  totales,
+  venceLabelDe,
+} from "./pagar-v05-model";
+import {
+  BICE,
+  CHIPAX,
+  ENTEL_A,
+  ENTEL_B,
+  F29,
+  HOY,
+  KENNEDY,
+  REMUNERACIONES,
+  pagos,
+  pagosConDuplicado,
+  pagosDegradados,
+  pagosSoloImpuestosYSueldos,
+  pagosVacio,
+} from "./pagar-v05-fixtures";
+
+/* V05 · Pagar — el modelo puro, sin DOM. Cada afirmación de plata de la pantalla se fija acá:
+ * el orden por urgencia, la regla de duplicados (con sus gemelos negativos), la Ley 9, el
+ * vencido ≠ crítico, la moneda (INV-FX-001) y el "no sé" de las fechas. */
+
+const filas = () => pagosV05(pagos(), HOY);
+
+describe("fechas — el 'no sé' es explícito, nunca 0 días ni 'vence hoy'", () => {
+  it("sin fecha parseable → null (no 0)", () => {
+    expect(diasHasta("", HOY)).toBeNull();
+    expect(diasHasta(null, HOY)).toBeNull();
+    expect(diasHasta("s/d", HOY)).toBeNull();
+    // Gemelo positivo: hoy es 0 de verdad, y ayer es −1.
+    expect(diasHasta("2026-08-30", HOY)).toBe(0);
+    expect(diasHasta("2026-08-29", HOY)).toBe(-1);
+  });
+
+  it("venceLabel: corto en el año en curso, LARGO cruzando el año, 'sin fecha' sin fecha", () => {
+    expect(venceLabelDe("2026-09-01", HOY)).toBe("1 sep");
+    expect(venceLabelDe("2025-03-03", HOY)).toBe("3 mar 2025");
+    expect(venceLabelDe("", HOY)).toBe("sin fecha");
+  });
+
+  it("una fila que llega sin fecha dice 'sin fecha' en todos lados", () => {
+    const f = pagosV05(pagosDegradados(), HOY).find((p) => p.nombre.startsWith("Aguas"));
+    expect(f).toBeDefined();
+    expect(f!.dias).toBeNull();
+    expect(f!.venceLabel).toBe("sin fecha");
+    expect(f!.relativoLabel).toBe("sin fecha");
+    expect(f!.vencido).toBe(false);
+    expect(f!.critico).toBe(false);
+    // Gemelo: la fila CON fecha del mismo fixture sí tiene relativo.
+    const g = pagosV05(pagosDegradados(), HOY).find((p) => p.nombre.startsWith("Banco BICE"));
+    expect(g!.relativoLabel).toBe("en 2 días");
+  });
+});
+
+describe("identidad de la fila", () => {
+  it("nómina (ADR-0056): el label literal 'Remuneraciones' se completa con el período", () => {
+    expect(nombreDe(REMUNERACIONES)).toBe("Remuneraciones: Agosto 2026");
+  });
+
+  it("DTE: razón social completa + documento; sin contraparte cae al label del backend", () => {
+    expect(nombreDe(KENNEDY)).toBe("Inmobiliaria Vista Kennedy SpA");
+    expect(documentoDe(KENNEDY)).toBe("Factura 1201");
+    expect(nombreDe(F29)).toBe("F29 · IVA de julio");
+    expect(documentoDe(F29)).toBeNull();
+  });
+});
+
+describe("tipo y Ley 9 — impuestos y sueldos jamás son postergables", () => {
+  it("tax y payroll NUNCA son postergables, con cualquier criticidad", () => {
+    for (const criticality of ["high", "medium", "low"] as const) {
+      expect(esPostergable({ category: "tax", criticality })).toBe(false);
+      expect(esPostergable({ category: "payroll", criticality })).toBe(false);
+    }
+    // Gemelo positivo: un proveedor sí.
+    expect(esPostergable({ category: "supplier", criticality: "high" })).toBe(true);
+  });
+
+  it("pill: deuda → Crédito; impuestos/sueldos → No se posterga; proveedor → Negociable", () => {
+    expect(tipoDe(BICE)).toBe("credito");
+    expect(tipoDe(F29)).toBe("no_se_posterga");
+    expect(tipoDe(REMUNERACIONES)).toBe("no_se_posterga");
+    expect(tipoDe(KENNEDY)).toBe("negociable");
+  });
+
+  it("el texto fijo de la Ley 9 es literal", () => {
+    expect(LEY_9_TEXTO).toBe("Impuestos y sueldos jamás entran en postergaciones automáticas.");
+  });
+});
+
+describe("orden por urgencia (default de la tabla)", () => {
+  it("lo más vencido primero, después lo que vence antes, al final lo sin fecha", () => {
+    expect(filas().map((p) => p.nombre)).toEqual([
+      "Inmobiliaria Vista Kennedy SpA",
+      "Soc. de Profesionales Vásquez, González y Cía.",
+      "Entel PCS Telecomunicaciones S.A.",
+      "Banco BICE",
+      "Remuneraciones: Agosto 2026",
+      "MercadoLibre Chile Ltda.",
+      "F29 · IVA de julio",
+      "Chipax SpA",
+    ]);
+    const deg = pagosV05(pagosDegradados(), HOY);
+    expect(deg.at(-1)!.venceLabel).toBe("sin fecha");
+  });
+
+  it("a igual día, primero lo que no se posterga y después el monto mayor", () => {
+    const mismoDia = ordenarPorUrgencia([
+      { dias: 5, tipo: "negociable" as const, montoClp: 100 },
+      { dias: 5, tipo: "no_se_posterga" as const, montoClp: 50 },
+      { dias: 5, tipo: "negociable" as const, montoClp: 900 },
+    ]);
+    expect(mismoDia.map((p) => p.montoClp)).toEqual([50, 900, 100]);
+  });
+});
+
+describe("posible duplicado — mismo RUT + monto ±1 % + 30 días (regla de la spec)", () => {
+  const a = filas().find((p) => p.key === ENTEL_A.source_external_id)!;
+
+  function pago(item: PayableItem) {
+    return pagosV05(pagos({ items: [item] }), HOY)[0]!;
+  }
+
+  it("el par de Entel calza y se marca en las DOS filas", () => {
+    const dup = pagosV05(pagosConDuplicado(), HOY);
+    const a1 = dup.find((p) => p.key === ENTEL_A.source_external_id)!;
+    const b1 = dup.find((p) => p.key === ENTEL_B.source_external_id)!;
+    expect(a1.anomalia).not.toBeNull();
+    expect(a1.anomalia!.parKey).toBe(ENTEL_B.source_external_id);
+    expect(a1.tipo).toBe("revisar");
+    expect(a1.sub).toBe(
+      "posible duplicado de Factura 9017 (vence 27 ago, $205.000): mismo RUT, monto a ±1 % y a 15 días",
+    );
+    expect(b1.anomalia!.parKey).toBe(ENTEL_A.source_external_id);
+  });
+
+  it("gemelo de la tolerancia: a ±1 % calza, a 5 % NO", () => {
+    const cerca = pago({ ...ENTEL_B, amount: "205000" }); // +0,68 %
+    const lejos = pago({ ...ENTEL_B, amount: "215000" }); // +5,6 %
+    expect(sonPosibleDuplicado(a, cerca)).toBe(true);
+    expect(sonPosibleDuplicado(a, lejos)).toBe(false);
+  });
+
+  it("montosCalzan: 1 % exacto adentro, 1,2 % afuera, cero nunca", () => {
+    expect(montosCalzan(100_000, 101_000)).toBe(true);
+    expect(montosCalzan(100_000, 101_200)).toBe(false);
+    expect(montosCalzan(0, 0)).toBe(false);
+  });
+
+  it("gemelo de la ventana: a 15 días calza, a más de 30 NO", () => {
+    const dentro = pago({ ...ENTEL_B, due_date: "2026-08-27" }); // 15 días de ENTEL_A
+    const fuera = pago({ ...ENTEL_B, due_date: "2026-10-15" }); // 64 días
+    expect(Math.abs(dentro.dias! - a.dias!)).toBeLessThanOrEqual(DUP_VENTANA_DIAS);
+    expect(sonPosibleDuplicado(a, dentro)).toBe(true);
+    expect(sonPosibleDuplicado(a, fuera)).toBe(false);
+  });
+
+  it("sin RUT no hay regla (nómina/impuestos quedan afuera aunque el monto calce)", () => {
+    const nominaA = pago(REMUNERACIONES);
+    const nominaB = pago({ ...REMUNERACIONES, source_external_id: "payroll-202607" });
+    expect(sonPosibleDuplicado(nominaA, nominaB)).toBe(false);
+    // Impuestos periódicos con RUT tampoco: son iguales mes a mes por naturaleza.
+    const taxA = pago({ ...F29, counterparty_rut: "60803000-K" });
+    const taxB = pago({
+      ...F29,
+      counterparty_rut: "60803000-K",
+      source_external_id: "f29-202606",
+      due_date: "2026-09-14",
+    });
+    expect(sonPosibleDuplicado(taxA, taxB)).toBe(false);
+  });
+
+  it("una factura y su nota de crédito NO son duplicados (tipo DTE distinto)", () => {
+    const nc = pago({ ...ENTEL_B, tipo_dte: 61, label: "Entel — NC 40" });
+    expect(sonPosibleDuplicado(a, nc)).toBe(false);
+  });
+
+  it("monedas distintas nunca calzan", () => {
+    const usd = pago({ ...ENTEL_B, currency: "USD", amount: "205000" });
+    expect(sonPosibleDuplicado(a, usd)).toBe(false);
+  });
+
+  it("en el caso normal (sin el segundo Entel) NADIE está marcado", () => {
+    expect(filas().every((p) => p.anomalia == null)).toBe(true);
+  });
+});
+
+describe("Ley 2 — el único rojo lo decide el modelo", () => {
+  it("con un duplicado, el rojo es la anomalía más urgente (no la fila crítica)", () => {
+    const rojo = elUnicoRojo(pagosV05(pagosConDuplicado(), HOY));
+    expect(rojo).toEqual({ key: ENTEL_A.source_external_id, motivo: "anomalia" });
+  });
+
+  it("sin duplicados, el rojo es la fila crítica más urgente", () => {
+    expect(elUnicoRojo(filas())).toEqual({ key: BICE.source_external_id, motivo: "critico" });
+  });
+
+  it("sin duplicados ni críticos no hay rojo", () => {
+    const soloNegociables = pagosV05(pagos({ items: [KENNEDY, CHIPAX] }), HOY);
+    expect(elUnicoRojo(soloNegociables)).toBeNull();
+  });
+});
+
+describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
+  it("Vencido: $8.729.650 en 3 pagos, el más antiguo hace 545 días (la factura de 18 meses)", () => {
+    const v = kpiVencido(filas());
+    expect(v.total).toBe(8_729_650);
+    expect(v.n).toBe(3);
+    expect(v.masAntiguoDias).toBe(545);
+    expect(v.noPostergable).toBe(0);
+  });
+
+  it("Por pagar: los tramos del backend tal cual (7/14/30), sin recalcular de la tabla", () => {
+    expect(kpiPorPagar(pagos(), 7).total).toBe(16_632_726);
+    expect(kpiPorPagar(pagos(), 14).total).toBe(17_998_105);
+    expect(kpiPorPagar(pagos(), 30).total).toBe(19_205_210);
+    expect(kpiPorPagar(pagos(), 14).sinFecha).toBeNull();
+    expect(kpiPorPagar(pagosDegradados(), 14).sinFecha).toEqual({ monto: 2_450_000, n: 3 });
+    expect(kpiPorPagar(null, 14).total).toBeNull();
+  });
+
+  it("Ley 1: 'Por pagar · 14 días' ES el total de 'Sale · 14 días' de V02 (misma función base)", () => {
+    const deV02 = sale14d(pagos(), HOY);
+    expect(kpiPorPagar(pagos(), 14).total).toBe(deV02!.total);
+  });
+
+  it("Crítico: deuda + sueldos + F29 = $8.078.055; la caja de $5.200.000 no alcanza → faltan $2.878.055", () => {
+    const c = kpiCritico(filas(), pagos());
+    expect(c.total).toBe(8_078_055);
+    expect(c.n).toBe(3);
+    expect(c.yaVencido).toBe(0);
+    expect(c.caja).toBe(5_200_000);
+    expect(c.brecha).toBe(-2_878_055);
+    expect(c.motivoSinCaja).toBeNull();
+  });
+
+  it("la factura de proveedor vencida hace 18 meses NO es crítica (es negociable y vencida)", () => {
+    const kennedy = filas()[0]!;
+    expect(kennedy.vencido).toBe(true);
+    expect(kennedy.critico).toBe(false);
+    // Gemelo: la nómina por vencer SÍ es crítica.
+    expect(filas().find((p) => p.categoria === "payroll")!.critico).toBe(true);
+  });
+
+  it("caja en otra moneda (INV-FX-001): no se compara, y el motivo lo dice", () => {
+    const c = kpiCritico(pagosV05(pagosDegradados(), HOY), pagosDegradados());
+    expect(c.caja).toBeNull();
+    expect(c.brecha).toBeNull();
+    expect(c.motivoSinCaja).toContain("USD");
+    // Gemelo: sin proyección, el motivo es otro.
+    const sinProy = kpiCritico(filas(), pagos({ projected_cash_14d: null }));
+    expect(sinProy.motivoSinCaja).toBe("el backend no pudo proyectar la caja a 14 días");
+  });
+});
+
+describe("banner de postergables — el mismo número que V02", () => {
+  it("Normal: $1.190.400 negociable en 14 días (la factura USD convertida)", () => {
+    const b = bannerPostergables(pagos(), HOY);
+    expect(b).toEqual({ monto: 1_190_400, ventana: 17_998_105 });
+    expect(b!.monto).toBe(sale14d(pagos(), HOY)!.postergable);
+  });
+
+  it("sólo impuestos y sueldos: NADA postergable → sin banner (Ley 9)", () => {
+    expect(bannerPostergables(pagosSoloImpuestosYSueldos(), HOY)).toBeNull();
+  });
+});
+
+describe("filtros con conteo + búsqueda", () => {
+  it("conteos del caso normal", () => {
+    expect(contarPagos(filas())).toEqual({
+      todos: 8,
+      vencidos: 3,
+      criticos: 3,
+      postergables: 5,
+      impuestos: 1,
+      remuneraciones: 1,
+      revisar: 0,
+      sin_fecha: 0,
+    });
+  });
+
+  it("Ley 9: con sólo impuestos y sueldos, Postergables cuenta CERO (y el filtro los muestra)", () => {
+    const conteos = contarPagos(pagosV05(pagosSoloImpuestosYSueldos(), HOY));
+    expect(conteos.postergables).toBe(0);
+    expect(conteos.impuestos).toBe(1);
+    expect(conteos.remuneraciones).toBe(2);
+    // Gemelo positivo: en el caso normal Postergables NO es cero.
+    expect(contarPagos(filas()).postergables).toBe(5);
+  });
+
+  it("filtrar por críticos deja deuda + sueldos + F29", () => {
+    expect(filtrarPagos(filas(), "criticos").map((p) => p.categoria)).toEqual([
+      "debt",
+      "payroll",
+      "tax",
+    ]);
+  });
+
+  it("búsqueda por nombre, folio y RUT (con o sin puntos)", () => {
+    const f = filas();
+    expect(filtrarPagos(f, "todos", "entel")).toHaveLength(1);
+    expect(filtrarPagos(f, "todos", "9001")).toHaveLength(1);
+    expect(filtrarPagos(f, "todos", "76.555.555-5")).toHaveLength(1);
+    expect(filtrarPagos(f, "todos", "gorbea")).toHaveLength(0);
+    expect(coincideConsulta(f[0]!, "  ")).toBe(true);
+  });
+});
+
+describe("moneda (INV-FX-001) y totales del footer", () => {
+  it("la fila USD muestra su moneda de origen y suma por su amount_clp", () => {
+    const meli = filas().find((p) => p.moneda === "USD")!;
+    expect(meli.montoLabel).toBe(formatMoney(1240, "USD"));
+    expect(meli.montoClp).toBe(1_190_400);
+    expect(meli.sinConvertir).toBe(false);
+    expect(meli.sub).toContain("$1.190.400 al tipo de cambio");
+  });
+
+  it("USD sin tipo de cambio: montoClp null, no suma, y se declara", () => {
+    const aws = pagosV05(pagosDegradados(), HOY).find((p) => p.nombre.startsWith("Amazon"))!;
+    expect(aws.sinConvertir).toBe(true);
+    expect(aws.montoClp).toBeNull();
+    expect(aws.sub).toContain("sin tipo de cambio: no se suma como pesos");
+    expect(totales(pagosDegradados(), pagosV05(pagosDegradados(), HOY)).sinConvertir).toBe(1);
+  });
+
+  it("el total del footer es el del backend, con su desglose crudo por moneda", () => {
+    const t = totales(pagos(), filas());
+    expect(t.totalClp).toBe(19_205_210);
+    expect(t.porMoneda.map((m) => m.moneda)).toEqual(["CLP", "USD"]);
+    expect(t.porMoneda[1]!.label).toBe(formatMoney(1240, "USD"));
+    expect(t.posiblementeTopeado).toBe(false);
+  });
+});
+
+describe("explicaciones (§1.4) y faltantes", () => {
+  it("cada ⓘ declara la fuente compartida con V02 y la frescura", () => {
+    for (const e of [
+      explicacionVencido(pagos(), HOY),
+      explicacionPorPagar(pagos(), 14, HOY),
+      explicacionCritico(pagos(), HOY),
+    ]) {
+      expect(e.fuente).toContain("accounts-payable");
+      expect(e.fuente).toContain("Sale · 14 días");
+      expect(e.frescura).toContain("30 ago 2026");
+    }
+  });
+
+  it("faltantes junta lo que el backend declara", () => {
+    expect(faltantes(pagosVacio())).toBe("Conectar SII");
+    expect(faltantes(pagos())).toBeNull();
+  });
+});
+
+describe("CSV (§5.5)", () => {
+  it("una fila por pago, con el 'no sé' escrito y sin inventar montos", () => {
+    const csv = csvPagos(pagosV05(pagosDegradados(), HOY));
+    const lineas = csv.split("\n");
+    expect(lineas[0]).toBe(
+      "proveedor;documento;rut;vence;dias;tipo;moneda;monto;monto_clp;fuente;anomalia",
+    );
+    expect(csv).toContain("Aguas Cordillera S.A.;Factura 310;76777777-7;sin fecha;sin fecha");
+    expect(csv).toContain(
+      "Amazon Web Services;Factura 4410;76888888-8;2026-09-05;6;Negociable;USD;830;sin dato",
+    );
+    expect(lineas).toHaveLength(1 + 6);
+  });
+});

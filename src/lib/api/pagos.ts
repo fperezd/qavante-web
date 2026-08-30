@@ -58,6 +58,11 @@ export interface PayableItem {
    *  (STATE_OF_THE_TRAIN, 2026-07-14). El día que lo manden, el badge aparece solo. Antes decía
    *  "CC-API #TBD", que no apuntaba a nada. */
   estimated?: boolean;
+  /** La factura fue RECLAMADA en el SII por el receptor (su monto ya viene en $0). El FE la
+   *  muestra marcada donde aparezca — transparencia, no excluir en silencio (ADR-0079). En el
+   *  contrato generado es requerida con default `false`; acá opcional porque esta interfaz es
+   *  hand-rolled y los fixtures viejos no la traen. */
+  reclamado?: boolean;
 }
 
 /** Desglose crudo del total por moneda (sin convertir), para "(CLP $X + USD $Y)".
@@ -83,8 +88,15 @@ export interface AccountsPayableResponse {
    *  estado `partial` (devengado vacío) → la vista debe defaultear a []. */
   items?: PayableItem[];
   /** Caja proyectada a 14 días (del cash-flow) para la relación contra caja;
-   *  `null` si no se pudo calcular. */
+   *  `null` si no se pudo calcular. OJO: viene en la MONEDA FUNCIONAL del tenant
+   *  (`projected_cash_currency`), no necesariamente CLP — es el único monto de la
+   *  respuesta que no está en pesos. */
   projected_cash_14d: string | null;
+  /** Moneda de `projected_cash_14d` (la funcional del tenant). En el contrato generado tiene
+   *  default "CLP"; acá opcional porque esta interfaz es hand-rolled y los fixtures viejos no
+   *  la traen. Compararla contra los `due_*` (siempre CLP) sin mirar esto es dividir dólares
+   *  por pesos (ya pasó dos veces aguas arriba — ver el schema). */
+  projected_cash_currency?: string;
   /** ¿La caja proyectada cubre los pagos críticos próximos? **Tri-estado** (#41).
    *
    *  `null` = NO SE PUEDE DETERMINAR, y son tres casos: sin caja proyectada; con deuda viva

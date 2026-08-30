@@ -74,6 +74,7 @@ export const FEATURE_FLAGS = [
   "hoyV01",
   "cajaV02",
   "bancoV03",
+  "pagarV05",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -314,6 +315,22 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      ("~30 s"). Es FE-first, como los de `hoyV01`/`cajaV02`, con su issue sucesor (#83). Con OFF, la
      pantalla Banco actual (`bancoScreen`) queda intacta → cero regresión. */
   bancoV03: "/api/sources/{source}/sync-progress",
+  /* V05 · Pagar — "¿a quién le pago, y qué es crítico?" (ESPECIFICACION §V05, issue #70).
+     Reemplaza la landing de `/pagar` por: la tríada (Vencido / Por pagar con selector 7-14-30 /
+     Crítico vs. caja), el banner de postergables que enlaza a Hoy (la ejecución masiva NO vive
+     acá), los filtros con conteo (Impuestos y Remuneraciones incluidos) y la tabla con proveedor
+     completo, vence absoluto+relativo, pill de tipo y "detalle ▾". Todo sobre
+     `accounts-payable` (VIVO; la misma fuente que "Sale · 14 días" en V02 → Ley 1) — la vista
+     funciona hoy, nómina de ADR-0056 incluida.
+
+     Su endpoint de gating es lo ÚNICO que le falta: la detección de anomalías (posible duplicado)
+     hecha por el BACKEND. La spec la marca 🔧 ("regla simple en front, o API liviana si el volumen
+     lo exige") y hoy la regla —mismo RUT + monto ±1 % + 30 días— corre en el front sobre los
+     ítems listados, que el endpoint TOPEA en 100: un duplicado fuera de esa ventana es invisible
+     desde acá, así que la versión completa es del backend. Es FE-first, como los de
+     `hoyV01`/`cajaV02`/`bancoV03`, con su issue sucesor. Con OFF, el Pagar actual (clásico o
+     `pagarV2`) queda intacto → cero regresión. */
+  pagarV05: "/api/treasury/accounts-payable/anomalies",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
