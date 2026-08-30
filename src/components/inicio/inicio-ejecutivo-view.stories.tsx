@@ -4,7 +4,14 @@ import { InicioEjecutivoView } from "./inicio-ejecutivo-view";
 
 /* Inicio Ejecutivo (Sprint C8). Container con `useDashboardSummary`. Contrato
    FE-first (endpoint aún no existe) → MSW reproduce los estados, incluida la
-   degradación parcial (bloques null sin tumbar el resto). */
+   degradación parcial (bloques null sin tumbar el resto).
+
+   SIN `play` A PROPÓSITO, y no por olvido: el job `test-storybook` de CI (y Chromatic) corren
+   sin `NEXT_PUBLIC_API_URL`, así que `client.ts` corta antes del fetch y TODAS las stories de
+   este archivo rinden el error "NEXT_PUBLIC_API_URL no configurada" — medido, no supuesto. Un
+   `play` que afirme copy acá pasaría en local con `.env.local` y fallaría en CI. Las
+   aserciones sobre el copy del banner viven donde SÍ son determinísticas:
+   `cash-gap-banner.stories.tsx` (presentacional, sin red) y `cash-gap-banner.test.tsx`. */
 
 const PATH = "*/api/dashboard/summary";
 
@@ -162,6 +169,31 @@ const CAJA_NEGATIVA = http.get(PATH, () =>
   ),
 );
 
+/* EL CASO MIXTO (`overdraft_with_dues`): caja proyectada BAJO CERO **y** obligaciones críticas
+   reales. Ni `FIXTURE` (6.600.000 / 5.400.000 → `shortfall`) ni `CAJA_NEGATIVA` (0 / −3.935.682
+   → `overdraft`) lo tocaban, así que el kind nuevo no se veía en Storybook ni pasaba por
+   Chromatic (#54 §3).
+
+   Los números son los canónicos de `cash-gap-14d.ts`: con críticas $2.000.000 y caja −$1.000.000
+   la plata que hay que conseguir para no terminar en rojo al día 14 es **$1.000.000, no
+   $3.000.000** — `projected_cash_14d` ya trae esos egresos restados. El copy tiene que nombrar
+   las dos cifras SIN invitar a sumarlas. */
+const CAJA_NEGATIVA_CON_CRITICAS = http.get(PATH, () =>
+  HttpResponse.json(
+    {
+      ...FIXTURE,
+      cash_gap: {
+        critical_obligations_14d: "2000000",
+        projected_cash_14d: "-1000000",
+        has_gap: true,
+        last_updated: "2026-08-26T00:00:00Z",
+        source: "bank",
+      },
+    },
+    { status: 200 },
+  ),
+);
+
 /* Caso real Tooxs (2026-07-26): el SII no entrega los vencimientos de los DTE →
    el backend manda `overdue: null` (no "$0"). La tarjeta debe decir "Sin dato de
    vencido" con el total por cobrar a la vista, NO "$0 vencido" (que mentiría "al día"). */
@@ -221,4 +253,9 @@ export const Error500: Story = { name: "Error (500)", parameters: { msw: { handl
 export const CajaNegativaSinCriticas: Story = {
   name: "Caja negativa sin obligaciones críticas (overdraft)",
   parameters: { msw: { handlers: [CAJA_NEGATIVA] } },
+};
+
+export const CajaNegativaConCriticas: Story = {
+  name: "Caja negativa CON obligaciones críticas (caso mixto)",
+  parameters: { msw: { handlers: [CAJA_NEGATIVA_CON_CRITICAS] } },
 };

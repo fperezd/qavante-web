@@ -51,6 +51,18 @@ export default defineConfig({
     projects: [
       {
         extends: true,
+        /* JSX para el proyecto `unit`. El tsconfig de Next fija `jsx: "preserve"` (Next hace la
+           transformación él mismo), así que vite no sabe compilar un `.tsx` y cualquier test que
+           importe un componente muere en el PARSEO, no en un assert — por eso el repo tenía cero
+           archivos `.test.tsx`. Acotado al proyecto `unit`: el proyecto `storybook` trae su propio
+           pipeline de React vía `@storybook/nextjs-vite` y no se toca.
+
+           `cdcfcd68` resolvía esto con un plugin propio de 26 líneas (`qavante-unit-force-jsx-runtime`)
+           que volvía a pasar CADA `.tsx` por `esbuild.transform`. Funciona, pero vite 8 en este repo
+           ya transforma con **oxc** —avisa "Both esbuild and oxc options were set"— así que ese
+           plugin duplicaba el trabajo del transformador nativo. Medido: con esta única opción, el
+           test adoptado de `cdcfcd68` pasa igual (3/3) y la suite `unit` entera queda en verde. */
+        oxc: { jsx: { runtime: "automatic" } },
         test: {
           name: "unit",
           exclude: ["**/node_modules/**", "**/.next/**", "tests/e2e/**", "**/*.stories.tsx"],
