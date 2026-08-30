@@ -72,6 +72,7 @@ export const FEATURE_FLAGS = [
   "cajaMarkCollected",
   "onboardingBanner",
   "hoyV01",
+  "cajaV02",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -287,6 +288,18 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      todavía no existe (FE-first) y tiene su propio issue (#65); cuando exista, encender el flag
      deja de ser una decisión sobre una vista incompleta. Con OFF, el Inicio actual queda intacto → cero regresión. */
   hoyV01: "/api/dashboard/activity-log",
+  /* V02 · Caja — "¿me alcanza la caja?" (ESPECIFICACION §V02, issue #67). Reemplaza la landing de
+     `/caja` por la tríada KPI (Hoy vía `cajaHoy()`, Entra 14d, Sale 14d con postergable), el banner
+     de deuda de datos, las barras de 4 semanas, la tabla "Qué te lleva al punto más bajo" y el
+     footer de exclusiones. Todo sobre endpoints VIVOS (summary, cash-projection,
+     collection-forecast, accounts-payable) — la vista funciona hoy.
+
+     Su endpoint de gating es lo ÚNICO que le falta: "Postergar ▾ (7/15/30 días)" necesita que
+     exista cómo mover la fecha estimada de un pago que la proyección lea, y hoy no existe
+     (`accounts-payable` es GET-only; los términos de pago del front viven en preferencias que
+     `cash-projection` no consulta). Es FE-first, como el de `hoyV01`, con su issue sucesor (#80).
+     Con OFF, la Caja actual queda intacta → cero regresión. */
+  cajaV02: "/api/treasury/accounts-payable/{payable_id}/estimated-date",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

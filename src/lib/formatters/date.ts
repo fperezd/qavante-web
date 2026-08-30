@@ -107,3 +107,15 @@ export function formatDateTimeLike(raw: string | null | undefined): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
+
+/** Hora corta de la spec (§1.3, chip de la tarjeta KPI: `BICE · 08:12 ✓`): `HH:MM` en hora
+ *  LOCAL, desde un timestamp ISO o un `Date`. Sólo la hora, a propósito: el chip la usa para
+ *  un sello de HOY; cuando el sello es de otro día, el llamador muestra la fecha corta en su
+ *  lugar (una hora suelta de anteayer se lee como de hoy). No reconocido → "s/d". */
+export function formatHoraCorta(raw: string | Date | null | undefined): string {
+  if (raw == null || raw === "") return "s/d";
+  const d = raw instanceof Date ? raw : new Date(raw);
+  if (Number.isNaN(d.getTime())) return "s/d";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}

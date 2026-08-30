@@ -9,6 +9,7 @@ import {
   formatDateShort,
   formatDateLong,
   formatRelative,
+  formatHoraCorta,
 } from "./date";
 
 describe("formatDate", () => {
@@ -137,5 +138,24 @@ describe("formatRelative", () => {
   it("null / no reconocido → 's/d'", () => {
     expect(formatRelative(null, HOY)).toBe("s/d");
     expect(formatRelative("no-es-fecha", HOY)).toBe("s/d");
+  });
+});
+
+describe("formatHoraCorta — el sello de hora del chip KPI (§1.3)", () => {
+  it("HH:MM local, con cero a la izquierda", () => {
+    expect(formatHoraCorta(new Date(2026, 7, 30, 8, 12, 45))).toBe("08:12");
+    expect(formatHoraCorta(new Date(2026, 7, 30, 23, 5))).toBe("23:05");
+  });
+
+  it("acepta el ISO del backend (misma hora local que el Date equivalente)", () => {
+    const d = new Date("2026-08-30T08:12:00Z");
+    const p = (n: number) => String(n).padStart(2, "0");
+    expect(formatHoraCorta("2026-08-30T08:12:00Z")).toBe(`${p(d.getHours())}:${p(d.getMinutes())}`);
+  });
+
+  it("null / vacío / no reconocido → 's/d'", () => {
+    expect(formatHoraCorta(null)).toBe("s/d");
+    expect(formatHoraCorta("")).toBe("s/d");
+    expect(formatHoraCorta("no-es-fecha")).toBe("s/d");
   });
 });

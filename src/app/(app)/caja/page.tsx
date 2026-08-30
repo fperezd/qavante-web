@@ -5,6 +5,7 @@ import { BankBalances } from "@/components/treasury/bank-balances/bank-balances"
 import { CajaV2ResumenLive } from "@/components/caja/v2/caja-v2-resumen-live";
 import { CajaSubCard } from "@/components/caja/caja-sub-card";
 import { CajaDashboardLive } from "@/components/caja/v2/caja-dashboard-live";
+import { CajaV02Live } from "@/components/caja/v02/caja-v02-live";
 
 /* Landing del módulo Caja. Sprint C3 MVP cableó `/caja/proyeccion` con el
    reporte agregado de `/api/treasury/reports/cash-flow` — si el flag
@@ -22,7 +23,33 @@ export default function CajaPage() {
     cajaV3,
     cajaDashboard,
     cajaMarkCollected,
+    cajaV02,
   } = resolveFeatureFlags();
+
+  /* V02 · Caja (rediseño Fase 2, issue #67) — gated por `cajaV02`, HOY APAGADO. Reemplaza la
+     landing entera por la vista de la spec (una pantalla, una pregunta: "¿me alcanza la caja?").
+     Con OFF nada de abajo cambia (cero regresión). Se conserva el menú de movimientos bancarios
+     como herramientas: son las rutas del flujo de clasificación al que apunta el banner de deuda
+     de datos, y sin ellas quedarían sin entrada. */
+  if (cajaV02) {
+    return (
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold text-neutral-dark">Caja</h1>
+          <p className="mt-1 text-sm text-neutral-mid">¿Me alcanza la caja?</p>
+        </header>
+        <CajaV02Live />
+        {bankMovementClassification && (
+          <section aria-labelledby="herramientas-section" className="space-y-3">
+            <h2 id="herramientas-section" className="text-base font-semibold text-neutral-dark">
+              Movimientos bancarios
+            </h2>
+            <MovimientosSubCards reconciliationReview={reconciliationReview} />
+          </section>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -65,42 +92,7 @@ export default function CajaPage() {
               <h2 id="movimientos-section" className="text-base font-semibold text-neutral-dark">
                 Movimientos bancarios
               </h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <CajaSubCard
-                  href="/caja/por-clasificar"
-                  icon={Inbox}
-                  title="Por clasificar"
-                  description="Movimientos pendientes de clasificación. Asigna categoría canónica y cuenta de gestión."
-                  badge="Acción pendiente"
-                  badgeVariant="warning"
-                />
-                <CajaSubCard
-                  href="/caja/clasificados"
-                  icon={CheckCircle2}
-                  title="Clasificados"
-                  description="Auditoría de los ya clasificados. Filtra por categoría, dirección o período."
-                  badge="Auditoría"
-                  badgeVariant="success"
-                />
-                <CajaSubCard
-                  href="/caja/compras-extranjero"
-                  icon={Globe}
-                  title="Compras al extranjero"
-                  description="Compras en moneda extranjera de tus cartolas de tarjeta. Asigna concepto y categoría."
-                  badge="Tarjeta"
-                  badgeVariant="info"
-                />
-                {reconciliationReview && (
-                  <CajaSubCard
-                    href="/caja/conciliacion"
-                    icon={ArrowLeftRight}
-                    title="Conciliación"
-                    description="Movimientos que calzan con un documento pero sin certeza. Confirmalos de a un clic."
-                    badge="Acción pendiente"
-                    badgeVariant="warning"
-                  />
-                )}
-              </div>
+              <MovimientosSubCards reconciliationReview={reconciliationReview} />
             </section>
           ) : (
             <FeatureUnavailableState />
@@ -133,6 +125,49 @@ export default function CajaPage() {
               />
             ))}
         </>
+      )}
+    </div>
+  );
+}
+
+/* El menú de movimientos bancarios (por clasificar / clasificados / compras al extranjero /
+   conciliación). Compartido por la landing clásica y por V02: es el mismo grid, sin cambios. */
+function MovimientosSubCards({ reconciliationReview }: { reconciliationReview: boolean }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <CajaSubCard
+        href="/caja/por-clasificar"
+        icon={Inbox}
+        title="Por clasificar"
+        description="Movimientos pendientes de clasificación. Asigna categoría canónica y cuenta de gestión."
+        badge="Acción pendiente"
+        badgeVariant="warning"
+      />
+      <CajaSubCard
+        href="/caja/clasificados"
+        icon={CheckCircle2}
+        title="Clasificados"
+        description="Auditoría de los ya clasificados. Filtra por categoría, dirección o período."
+        badge="Auditoría"
+        badgeVariant="success"
+      />
+      <CajaSubCard
+        href="/caja/compras-extranjero"
+        icon={Globe}
+        title="Compras al extranjero"
+        description="Compras en moneda extranjera de tus cartolas de tarjeta. Asigna concepto y categoría."
+        badge="Tarjeta"
+        badgeVariant="info"
+      />
+      {reconciliationReview && (
+        <CajaSubCard
+          href="/caja/conciliacion"
+          icon={ArrowLeftRight}
+          title="Conciliación"
+          description="Movimientos que calzan con un documento pero sin certeza. Confirmalos de a un clic."
+          badge="Acción pendiente"
+          badgeVariant="warning"
+        />
       )}
     </div>
   );
