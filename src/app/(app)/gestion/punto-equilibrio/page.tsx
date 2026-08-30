@@ -1,6 +1,8 @@
 import { Target } from "lucide-react";
 import { QavanteEmpty } from "@/components/qavante";
+import { redirect } from "next/navigation";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { destinoRutaVieja } from "@/components/gestion/v08/gestion-v08-model";
 import { PuntoEquilibrioView } from "@/components/gestion/v2/punto-equilibrio-view";
 import { currentPeriodSantiago } from "@/components/gestion/gestion-format";
 
@@ -8,7 +10,13 @@ import { currentPeriodSantiago } from "@/components/gestion/gestion-format";
    `operationalResult` (ON en prod). Todo se deriva del operational-result; la
    vista degrada honesto si no es calculable. Sin `export const runtime` (regla 4). */
 export default function Page() {
-  const { operationalResult } = resolveFeatureFlags();
+  const { operationalResult, gestionV08 } = resolveFeatureFlags();
+
+  /* V08 · Gestión (#72): con `gestionV08` ENCENDIDO esta página deja de existir por su cuenta —
+     su contenido vive como el bloque Punto de equilibrio de la tab Márgenes de `/gestion`. Se redirige en vez de dejar dos
+     copias vivas del mismo número (Ley 1: un concepto, un lugar). Con el flag APAGADO, la página
+     de siempre queda intacta → cero regresión. */
+  if (gestionV08) redirect(destinoRutaVieja("/gestion/punto-equilibrio")!);
   const initialPeriod = currentPeriodSantiago(new Date());
 
   return (

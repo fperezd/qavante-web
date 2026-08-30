@@ -77,6 +77,7 @@ export const FEATURE_FLAGS = [
   "pagarV05",
   "bandejaV07",
   "cobrarV04",
+  "gestionV08",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -371,6 +372,22 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      como los de `hoyV01`/`cajaV02`, con su issue sucesor (#86). Con OFF, el Cobrar actual (v2 en
      producción) queda intacto → cero regresión. */
   cobrarV04: "/api/treasury/collection-reminders/bulk",
+  /* V08 · Gestión — "¿gano o pierdo?" en SEIS tabs (ESPECIFICACION §V08, issue #72). Unifica las
+     nueve páginas de `/gestion` en una vista con tabs Resultado / Márgenes / Tendencia /
+     Comparativo / Clientes 360 / Proveedores 360; Costos y gastos entra como sección del Resultado
+     y Ciclo de caja + Punto de equilibrio como bloques de Márgenes (HTML 08·C/08·D). Con el flag
+     ENCENDIDO, las ocho sub-rutas viejas redirigen a su tab equivalente (`destinoRutaVieja`); con
+     OFF quedan exactamente como están → cero regresión.
+
+     Dos de los tres 🔧 que el issue daba por faltantes SÍ existen y la vista los usa: el drill-down
+     monto→documentos (`/operational-result/documents`) y el corte al día del comparativo
+     (`/operational-result/al-dia`). El tercero, el export a xls, NO existe: mientras tanto la vista
+     baja CSV (exacto sobre lo mostrado) y lo declara.
+
+     Su endpoint de gating es justamente ese hueco — el único que le falta para estar completa —,
+     igual que en `hoyV01`/`cajaV02`/`bancoV03`/`pagarV05`: FE-first, con issue sucesor. Encender =
+     editar wrangler.toml. */
+  gestionV08: "/api/management/operational-result/export",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

@@ -1,6 +1,8 @@
 import { Users } from "lucide-react";
 import { QavanteEmpty } from "@/components/qavante";
+import { redirect } from "next/navigation";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { destinoRutaVieja } from "@/components/gestion/v08/gestion-v08-model";
 import { Contraparte360View, type Config360 } from "@/components/gestion/v2/contraparte-360-view";
 
 /* Gestión → Clientes 360 (pedido de Fernando 2026-07-30): comportamiento comercial de un cliente en
@@ -16,7 +18,13 @@ const CONFIG: Config360 = {
 };
 
 export default function Page() {
-  const { operationalResult } = resolveFeatureFlags();
+  const { operationalResult, gestionV08 } = resolveFeatureFlags();
+
+  /* V08 · Gestión (#72): con `gestionV08` ENCENDIDO esta página deja de existir por su cuenta —
+     su contenido vive como la tab Clientes 360 de `/gestion`. Se redirige en vez de dejar dos
+     copias vivas del mismo número (Ley 1: un concepto, un lugar). Con el flag APAGADO, la página
+     de siempre queda intacta → cero regresión. */
+  if (gestionV08) redirect(destinoRutaVieja("/gestion/clientes")!);
 
   return (
     <div className="space-y-6">
