@@ -75,6 +75,7 @@ export const FEATURE_FLAGS = [
   "cajaV02",
   "bancoV03",
   "pagarV05",
+  "cobrarV04",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -331,6 +332,21 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      `hoyV01`/`cajaV02`/`bancoV03`, con su issue sucesor. Con OFF, el Pagar actual (clásico o
      `pagarV2`) queda intacto → cero regresión. */
   pagarV05: "/api/treasury/accounts-payable/anomalies",
+  /* V04 · Cobrar — "¿quién me debe?" (ESPECIFICACION §V04, issue #69). Reemplaza la landing de
+     `/cobrar` por: crumb con el estado de gestión como chip gris, las 5 tarjetas de aging
+     (Vigente / 1–30 / 31–60 / +61 / Vencido · bruto ⓘ) con % del total, el banner de concentración
+     ("3 clientes concentran $X del vencido" → "Enviar a los 3"), los filtros con conteo y la tabla
+     de clientes con WhatsApp · correo · Recordatorio (las plantillas actuales de Cobrar v2). Todo
+     sobre `accounts-receivable` (VIVO; la misma función del backend que alimenta "Te deben" en
+     V01 → Ley 1) y las prefs de gestión — la vista funciona hoy, con `overdue: null` incluido.
+
+     Su endpoint de gating es lo ÚNICO que le falta: el envío EN LOTE de recordatorios a terceros.
+     No existe (ni contacto del cliente ni canal): hoy "Enviar a los 3" prepara las plantillas,
+     marca a los clientes como gestionados tras la ventana de arrepentimiento (Ley 4) y deja cada
+     WhatsApp/correo listo para abrir — el envío real lo dispara el dueño por cliente. Es FE-first,
+     como los de `hoyV01`/`cajaV02`, con su issue sucesor (#86). Con OFF, el Cobrar actual (v2 en
+     producción) queda intacto → cero regresión. */
+  cobrarV04: "/api/treasury/collection-reminders/bulk",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

@@ -5,6 +5,7 @@ import { FeatureUnavailableState, QavanteEmpty } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { CobrarView } from "@/components/cobrar/cobrar-view";
 import { CobrarV2Live } from "@/components/cobrar/v2/cobrar-v2-live";
+import { CobrarV04Live } from "@/components/cobrar/v04/cobrar-v04-live";
 
 /* Cobrar (Sprint C4). Server Component: resuelve los flags. La IA usa LENGUAJE DE
    DUEÑO (pedido de Fernando 2026-07-28): arriba y a mano "Ver facturas" (lo que
@@ -12,7 +13,31 @@ import { CobrarV2Live } from "@/components/cobrar/v2/cobrar-v2-live";
    "Clientes"; debajo el hero de prioridad ("a quién le cobras primero"). Sin
    `export const runtime` (regla 4). */
 export default function CobrarPage() {
-  const { siiQueries, accountsReceivable, cobrarV2 } = resolveFeatureFlags();
+  const { siiQueries, accountsReceivable, cobrarV2, cobrarV04 } = resolveFeatureFlags();
+
+  /* V04 · Cobrar (rediseño Fase 2, issue #69) — gated por `cobrarV04`, HOY APAGADO. Reemplaza la
+     landing entera por la vista de la spec (una pantalla, una pregunta: "¿quién me debe?"). Con
+     OFF nada de abajo cambia (cero regresión: producción sigue sirviendo v2). Se conservan los
+     accesos "Ver facturas" y "Clientes": son las rutas de detalle a las que la tabla no llega sola. */
+  if (cobrarV04) {
+    return (
+      <div className="space-y-6">
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
+            <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe?</p>
+          </div>
+          {siiQueries && (
+            <div className="flex flex-wrap gap-2">
+              <QuickLink href="/cobrar/facturas-emitidas" icon={FileText} label="Ver facturas" />
+              <QuickLink href="/cobrar/clientes" icon={Users} label="Clientes" />
+            </div>
+          )}
+        </header>
+        <CobrarV04Live />
+      </div>
+    );
+  }
 
   if (cobrarV2) {
     return (

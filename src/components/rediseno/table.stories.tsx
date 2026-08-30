@@ -57,6 +57,18 @@ const columns: ColumnDef<Cliente, unknown>[] = [
   },
 ];
 
+/* Para `ColapsoViewportVsContenedor`: dos columnas de metadato, una con cada regla. */
+const columnasColapso: ColumnDef<Cliente, unknown>[] = [
+  {
+    accessorKey: "nombre",
+    header: "Cliente",
+    meta: { principal: true },
+    cell: ({ row }) => <TablePrimaryCell value={row.original.nombre} />,
+  },
+  { accessorKey: "dias", header: "PorViewport", meta: { hideBelow: "sm" } },
+  { accessorKey: "saldo", header: "PorTabla", meta: { hideBelowTable: "sm" } },
+];
+
 const meta = {
   title: "Rediseño / Table",
   component: RedisenoTable,
@@ -104,6 +116,40 @@ export const OrdenaPorHeader: Story = {
     await userEvent.click(header);
     rows = rowsInOrder();
     await expect(rows[0]).toContain("Tepille"); // saldo más bajo primero (asc)
+  },
+};
+
+/* Las DOS formas de colapsar una columna de metadato, medidas una contra la otra en el mismo
+ * render: `hideBelow` mira el VIEWPORT y `hideBelowTable` mira el ancho de la TABLA.
+ *
+ * Existe porque la distinción no era gratis y estuvo a punto de irse sin que nada la mirara: al
+ * construir V04 se cambió `hideBelow` de viewport a contenedor creyendo que era el mismo
+ * comportamiento con otros números. No lo es. Con el shell del repo (`p-6 md:p-8` + sidebar
+ * `w-60`) el contenedor mide V−48 bajo `md` y V−304 de `md` para arriba, así que las columnas
+ * 'Estado' de caja v02 y banco v03 y 'Tipo' de pagar v05 —que ya están en `main`— habrían
+ * empezado a esconderse en viewport 640–687 y 768–943, donde hoy no se esconden nunca.
+ *
+ * La story corre al viewport ancho por defecto de Chromium con la tabla en un contenedor de 360
+ * px: ahí las dos reglas dan resultados OPUESTOS, que es lo que la vuelve capaz de fallar. */
+export const ColapsoViewportVsContenedor: Story = {
+  name: "Colapso: hideBelow mira el viewport; hideBelowTable, la tabla",
+  render: () => (
+    <div data-angosta="true" style={{ width: 360 }}>
+      <RedisenoTable columns={columnasColapso} data={clientes} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const caja = canvasElement.querySelector<HTMLElement>('[data-angosta="true"]')!;
+    await expect(Math.round(caja.getBoundingClientRect().width)).toBe(360);
+    /* Control: el viewport tiene que ser ancho, o las dos columnas colapsarían y la comparación
+       no distinguiría nada. */
+    await expect(document.documentElement.clientWidth).toBeGreaterThan(640);
+
+    /* La del VIEWPORT sigue visible aunque la tabla mida 360 px… */
+    await expect(canvas.getByRole("columnheader", { name: /PorViewport/ })).toBeVisible();
+    /* …y la del CONTENEDOR no. */
+    await expect(canvas.queryByRole("columnheader", { name: /PorTabla/ })).not.toBeInTheDocument();
   },
 };
 

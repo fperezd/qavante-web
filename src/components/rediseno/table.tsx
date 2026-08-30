@@ -36,13 +36,41 @@ declare module "@tanstack/react-table" {
     principal?: boolean;
     /** Metadato: se oculta en viewport angosto en vez de forzar scroll horizontal. */
     hideBelow?: "sm" | "md";
+    /** Igual que `hideBelow`, pero medido contra el ancho de la TABLA (container query) en vez
+     *  del viewport. Opt-in: quien no lo declara conserva el comportamiento por viewport tal
+     *  cual. Sirve para tablas que tienen que caber en un contenedor angosto aunque la ventana
+     *  sea ancha, y hace que el caso se pueda FIJAR en una story sin cambiarle el viewport al
+     *  navegador. Lo usa V04 · Cobrar. */
+    hideBelowTable?: "sm" | "md";
   }
 }
 
-function colMeta(def: unknown) {
-  return (
-    (def as { align?: "right"; principal?: boolean; hideBelow?: "sm" | "md" } | undefined) ?? {}
-  );
+/** Colapso por ancho del CONTENEDOR (`hideBelowTable`). Requiere `@container` en el wrapper, que
+ *  sólo se activa cuando alguna columna lo declara: así una tabla que no lo usa queda byte por byte
+ *  como estaba. Los umbrales son los mismos números que `sm`/`md`, pero contra otra caja. */
+const OCULTAR_SI_TABLA_ANGOSTA: Record<"sm" | "md", string> = {
+  sm: "@max-[640px]:hidden",
+  md: "@max-[768px]:hidden",
+};
+
+interface MetaColumna {
+  align?: "right";
+  principal?: boolean;
+  hideBelow?: "sm" | "md";
+  hideBelowTable?: "sm" | "md";
+}
+
+function colMeta(def: unknown): MetaColumna {
+  return (def as MetaColumna | undefined) ?? {};
+}
+
+/** Las clases de colapso de una columna: por viewport, por contenedor, o ninguna. */
+function clasesColapso(meta: MetaColumna): string[] {
+  return [
+    meta.hideBelow === "sm" ? "hidden sm:table-cell" : "",
+    meta.hideBelow === "md" ? "hidden md:table-cell" : "",
+    meta.hideBelowTable ? OCULTAR_SI_TABLA_ANGOSTA[meta.hideBelowTable] : "",
+  ].filter(Boolean);
 }
 
 export interface TablePrimaryCellProps {
@@ -50,7 +78,14 @@ export interface TablePrimaryCellProps {
   sub?: React.ReactNode;
 }
 
-/** Celda de columna principal: `value` nunca trunca; `sub` sí, con tooltip. */
+/** Celda de columna principal: `value` nunca trunca; `sub` sí, con tooltip.
+ *
+ *  OJO al pasar el `sub`: su `truncate` incluye `white-space: nowrap`, y en una tabla de layout
+ *  AUTOMÁTICO eso fija el ancho MÍNIMO de la columna en el del metadato entero — la tabla no puede
+ *  angostarse y el monto se va fuera del contenedor (medido en V04: 730 px de mínimo en 360). Una
+ *  tabla que deba caber en un contenedor angosto puede pasar el `sub` ya envuelto en un elemento
+ *  que recupere `white-space: normal` en ese ancho (así lo hace V04). Acá no se decide por nadie:
+ *  el default sigue siendo truncar con tooltip, como manda el §1.3. */
 export function TablePrimaryCell({ value, sub }: TablePrimaryCellProps) {
   return (
     <div>
@@ -75,6 +110,15 @@ export interface RedisenoTableProps<TData> {
   pageSize?: number;
   onExport?: () => void;
   emptyMessage?: string;
+  /** Sustantivo del conteo del footer ("registros" por defecto; "clientes con saldo" en Cobrar). */
+  countNoun?: string;
+  /** Contenido extra del footer (§1.3 `.twf`): el total de la tabla con su apellido y su ⓘ. */
+  footer?: React.ReactNode;
+  /** Baja el padding lateral de celda de 18 a 10 px cuando la TABLA es angosta (< 640 px). Opt-in:
+   *  18 px por lado cuestan 36 px por columna, y con tres columnas visibles son 108 px de los 360
+   *  disponibles — la diferencia entre que el monto entre o no en pantallas chicas. Quien no lo
+   *  pide conserva los 18 px en todo ancho. */
+  celdasCompactasEnAngosto?: boolean;
 }
 
 export function RedisenoTable<TData>({
@@ -84,6 +128,9 @@ export function RedisenoTable<TData>({
   pageSize = 50,
   onExport,
   emptyMessage = "Sin resultados.",
+  countNoun = "registros",
+  footer,
+  celdasCompactasEnAngosto = false,
 }: RedisenoTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -104,7 +151,16 @@ export function RedisenoTable<TData>({
   const total = totalCount ?? data.length;
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie">
+    <div
+      className={cn(
+        "overflow-hidden rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie",
+        /* `container-type: inline-size` sólo donde hace falta: es un contexto de contención y no
+           se le impone a las tablas que no lo pidieron. */
+        (celdasCompactasEnAngosto ||
+          leafCols.some((c) => colMeta(c.columnDef.meta).hideBelowTable)) &&
+          "@container",
+      )}
+    >
       <div className="max-h-[70vh] overflow-y-auto">
         <table className="w-full text-[13.5px]">
           <thead className="sticky top-0 z-10 bg-[#FAFBFD]">
@@ -121,8 +177,8 @@ export function RedisenoTable<TData>({
                       className={cn(
                         "whitespace-nowrap px-[18px] py-[11px] text-left font-rediseno-mono text-[10px] font-semibold tracking-[.1em] text-rediseno-tinta-3-light uppercase",
                         meta.align === "right" && "text-right",
-                        meta.hideBelow === "sm" && "hidden sm:table-cell",
-                        meta.hideBelow === "md" && "hidden md:table-cell",
+                        celdasCompactasEnAngosto && "@max-[640px]:px-2.5",
+                        clasesColapso(meta),
                       )}
                     >
                       {canSort ? (
@@ -161,8 +217,8 @@ export function RedisenoTable<TData>({
                         "px-[18px] py-3 align-baseline text-rediseno-tinta-2",
                         meta.align === "right" &&
                           "text-right font-semibold text-rediseno-tinta tabular-nums whitespace-nowrap",
-                        meta.hideBelow === "sm" && "hidden sm:table-cell",
-                        meta.hideBelow === "md" && "hidden md:table-cell",
+                        celdasCompactasEnAngosto && "@max-[640px]:px-2.5",
+                        clasesColapso(meta),
                       )}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -186,12 +242,15 @@ export function RedisenoTable<TData>({
       </div>
 
       <div className="flex flex-wrap items-center gap-4 border-t border-rediseno-hairline-row px-[18px] py-[11px] text-[12.5px] text-rediseno-tinta-3-light">
-        <span>{total.toLocaleString("es-CL")} registros</span>
+        <span>
+          {total.toLocaleString("es-CL")} {countNoun}
+        </span>
         {onExport && (
           <button type="button" onClick={onExport} className="font-bold text-rediseno-azul">
             Exportar
           </button>
         )}
+        {footer}
         {pageCount > 1 && (
           <span className="ml-auto flex items-center gap-2">
             <button
