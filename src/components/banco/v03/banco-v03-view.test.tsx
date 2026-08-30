@@ -187,6 +187,7 @@ describe("BancoV03View — movimientos", () => {
     expect(t).toContain("Clasificado ✓");
     expect(t).toContain("Por clasificar");
     expect(h).toContain('href="/caja/por-clasificar?movimiento=m3"');
+    // bandejaV07 apagado: el enlace a /bandeja queda pendiente (#90), no es que la ruta no exista.
     expect(h).not.toContain("/bandeja");
     // La glosa completa (Ley 7) y el .sub con fecha · cuenta · categoría.
     expect(t).toContain("Abono por transferencia de Cliente Norte SpA 76.123.456-7");

@@ -75,6 +75,7 @@ export const FEATURE_FLAGS = [
   "cajaV02",
   "bancoV03",
   "pagarV05",
+  "bandejaV07",
   "cobrarV04",
 ] as const;
 
@@ -332,6 +333,29 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      `hoyV01`/`cajaV02`/`bancoV03`, con su issue sucesor. Con OFF, el Pagar actual (clásico o
      `pagarV2`) queda intacto → cero regresión. */
   pagarV05: "/api/treasury/accounts-payable/anomalies",
+  /* V07 · Bandeja de excepciones — "sólo lo que el piloto no resolvió solo" (ESPECIFICACION §V07,
+     issue #71). RUTA NUEVA (`/bandeja`): una card a la vez, con auto-avance, sobre dos fuentes ya
+     VIVAS — la cola de conciliación (`reconciliation/review` + `document-suggestions` para la
+     evidencia de los dos lados) y los movimientos sin clasificar (`bank-movements` +
+     `suggested-category`, que devuelve `null` cuando ninguna regla matchea).
+
+     Su endpoint de gating es lo ÚNICO que le falta a la vista, y es de la Ley 5: la REVERSIÓN de
+     una clasificación. Conciliar ya tiene la suya deployada
+     (`.../reconciliation/{movement_id}/revert`) y por eso su toast lleva Deshacer de verdad;
+     clasificar no tiene ninguna — `PATCH /api/bank-movements/{id}/classify` exige
+     `management_account_id`, así que no admite volver a "sin clasificar". El patrón genérico
+     (ADR-0113) está implementado pero SIN MERGEAR en `qavante-api#257`, y consumir un contrato
+     que todavía puede cambiar sería prometer un Deshacer que quizá no exista. Por eso la carta de
+     clasificar se entrega sin Deshacer, con el hueco declarado en pantalla, y el flag queda
+     apagado hasta que ese endpoint esté en el snapshot. El path que se anota abajo es la FORMA
+     esperada, no una cita: el definitivo lo fija #257 al mergear, igual que los otros gatings
+     FE-first de este archivo (`sync-progress`, `estimated-date`, `anomalies`).
+
+     Con OFF, `/bandeja` renderiza el estado "todavía no disponible" con salida a los dos flujos
+     que hacen este trabajo hoy (`/caja/conciliacion` y `/caja/por-clasificar`), que es lo que
+     ADR-0008 fija más arriba en este mismo archivo. Ninguna pantalla existente cambia → cero
+     regresión. */
+  bandejaV07: "/api/bank-movements/{movement_id}/classify/revert",
   /* V04 · Cobrar — "¿quién me debe?" (ESPECIFICACION §V04, issue #69). Reemplaza la landing de
      `/cobrar` por: crumb con el estado de gestión como chip gris, las 5 tarjetas de aging
      (Vigente / 1–30 / 31–60 / +61 / Vencido · bruto ⓘ) con % del total, el banner de concentración

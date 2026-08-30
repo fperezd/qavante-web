@@ -10,8 +10,9 @@ import { PorClasificarView } from "@/components/clasificacion/por-clasificar-vie
    entrada desde /caja sigue diferido (landing de Caja es placeholder C8).
 
    `?movimiento=<id>` (V03 · Banco, #68): abre el drawer con ESE movimiento ya cargado — es "el
-   flujo actual de clasificación" al que la spec manda desde la fila "Por clasificar" mientras la
-   bandeja (V07) no existe. */
+   flujo actual de clasificación" al que la spec manda desde la fila "Por clasificar". La bandeja
+   (V07) ya existe bajo `/bandeja`, pero detrás del flag `bandejaV07` (apagado por defecto); el
+   enlace desde acá queda pendiente, anotado en #90. */
 export default async function PorClasificarPage({
   searchParams,
 }: {

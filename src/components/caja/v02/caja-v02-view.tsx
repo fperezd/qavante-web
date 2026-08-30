@@ -168,7 +168,8 @@ export function CajaV02View({
         )}
       </section>
 
-      {/* (2) Banner de deuda de datos. La bandeja (V07) no existe: va al flujo actual de clasificación. */}
+      {/* (2) Banner de deuda de datos. La bandeja (V07) ya existe bajo /bandeja, pero detrás del
+          flag bandejaV07 (apagado); va al flujo actual de clasificación, enlace pendiente en #90. */}
       {deuda && (
         <Banner variant="warn" role="note">
           <div className="flex flex-wrap items-center gap-3">

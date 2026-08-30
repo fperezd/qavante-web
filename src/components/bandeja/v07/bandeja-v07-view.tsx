@@ -1,0 +1,1228 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { formatClp } from "@/lib/formatters/clp";
+import { formatDateLong, formatRelative } from "@/lib/formatters/date";
+import { formatPct } from "@/lib/formatters/pct";
+import { formatRut } from "@/lib/formatters/rut";
+import { Banner } from "@/components/rediseno/banner";
+import { DataState } from "@/components/rediseno/data-state";
+import { FilterChips } from "@/components/rediseno/filter-chip";
+import { Pill } from "@/components/rediseno/pill";
+import { RedisenoToastProvider, useRedisenoToast } from "@/components/rediseno/toast";
+import {
+  agruparAlFrente,
+  candidatoElegido,
+  evidenciaConciliar,
+  faltaParaGuardar,
+  frecuentes,
+  haySugerenciaConciliar,
+  lote,
+  minutosEstimados,
+  montoResuelto,
+  motivosNoAutomatico,
+  parcialidad,
+  progreso,
+  trasResolver,
+  trasSaltar,
+  type CandidatoV07,
+  type ItemClasificarV07,
+  type ItemConciliarV07,
+  type ItemV07,
+  type OpcionCuentaV07,
+  type SugerenciaCategoriaV07,
+  type TabV07,
+} from "./bandeja-v07-model";
+import type { BankMovement } from "@/lib/api/treasury";
+
+/* V07 · Bandeja de excepciones — "sólo lo que el piloto no resolvió solo" (Fase 2, issue #71).
+ *
+ * PRESENTACIONAL: entran los ítems ya adaptados y salen dos cartas; el cableado vive en
+ * `bandeja-v07-live.tsx`. El estado propio es de flujo (qué tab, qué ítem, qué se resolvió en esta
+ * sesión), no de datos.
+ *
+ * ── EL ALCANCE DE ESTA ENTREGA, ESCRITO DONDE SE PUEDE VERIFICAR ────────────────────────────
+ * La Ley 5 ("todo lo automático deja bitácora con Deshacer, 7 días") toca esta vista y sólo a una
+ * de sus dos cartas:
+ *
+ *   · CONCILIAR — el toast lleva Deshacer de verdad. La reversión existe y está deployada:
+ *     `POST /api/treasury/reconciliation/{movement_id}/revert` desasigna el match aplicado,
+ *     restaura el `outstanding` del documento y libera el movimiento.
+ *   · CLASIFICAR — el toast NO lleva Deshacer, y la pantalla dice por qué. `PATCH
+ *     /api/bank-movements/{id}/classify` exige `management_account_id`, así que no admite volver
+ *     a "sin clasificar", y el patrón genérico de reversión está implementado pero SIN MERGEAR en
+ *     `qavante-api#257`. Consumir un contrato que todavía puede cambiar sería prometer un
+ *     Deshacer que quizá no exista. El punto de extensión está listo (`onDeshacerClasificar`):
+ *     cuando #257 mergee, encenderlo es pasar un handler.
+ *
+ * Ofrecer Deshacer donde no hay reversión es peor que no ofrecerlo: el dueño aprieta, no pasa
+ * nada, y deja de creerle a los otros Deshacer que sí funcionan.
+ *
+ * ── LAS LEYES, Y DÓNDE ──────────────────────────────────────────────────────────────────────
+ * LEY 2 (máx. un rojo): el ÚNICO rojo de la pantalla es el "qué falta" que aparece al pulsar
+ * Guardar sin categoría. Ninguna diferencia de monto, ningún estado y ninguna pill van en rojo.
+ * LEY 3 (sin evidencia no hay sugerencia): la decide el modelo; acá se respeta en el render —
+ * si `haySugerenciaConciliar` es falso, la card NO ofrece "Sí, conciliar" y Enter no resuelve.
+ * LEY 6 (ningún botón deshabilitado mudo): Guardar nunca lleva `disabled`; al pulsarlo sin
+ * categoría marca en rojo qué falta.
+ * LEY 7 (el dato primario no se trunca): contraparte y monto van con `break-words`, nunca con
+ * `truncate`; lo truncable es la glosa, que es metadato.
+ * LEY 10 (una pantalla, una pregunta): "¿qué necesita tu decisión?" — una card a la vez.
+ */
+
+/** Qué candidatos corresponden al movimiento que está en pantalla. El `movimientoId` viaja con la
+ *  lista a propósito: si el usuario avanzó y el padre todavía no trajo los del ítem nuevo, la
+ *  vista NO pinta los del anterior — muestra que los está buscando. */
+export interface CandidatosDelItemV07 {
+  movimientoId: string;
+  lista: CandidatoV07[];
+  cargando?: boolean;
+  /** Por qué no se pudieron traer, en lenguaje de dueño. */
+  motivo?: string | null;
+}
+
+/** Igual que arriba, para la sugerencia de categoría. `valor: null` = ninguna regla matcheó. */
+export interface SugerenciaDelItemV07 {
+  movimientoId: string;
+  valor: SugerenciaCategoriaV07 | null;
+  cargando?: boolean;
+}
+
+export interface BandejaV07ViewProps {
+  /** Ítems de la carta de conciliar. `null` = la cola no llegó. */
+  conciliar: ItemConciliarV07[] | null;
+  /** Ítems de la carta de clasificar. `null` = el listado no llegó. */
+  clasificar: ItemClasificarV07[] | null;
+  conciliarMotivo?: string | null;
+  clasificarMotivo?: string | null;
+  candidatos?: CandidatosDelItemV07 | null;
+  sugerencia?: SugerenciaDelItemV07 | null;
+  /** Catálogo de cuentas de gestión (el selector de categoría). */
+  cuentas?: OpcionCuentaV07[];
+  /** Movimientos ya clasificados: de ahí salen los 3 frecuentes cuando no hay regla. */
+  clasificados?: BankMovement[];
+  /** Confirma el match. `documentoId` va cuando el usuario eligió otro documento. */
+  onConciliar?: (item: ItemConciliarV07, documentoId: string | null) => void;
+  /** Deshace una conciliación ya aplicada (`.../revert`). Existe hoy. */
+  onDeshacerConciliar?: (item: ItemConciliarV07) => void;
+  /** "No es esta": descarta la sugerencia (el movimiento vuelve a `unmatched`). */
+  onNoEsEsta?: (item: ItemConciliarV07, candidato: CandidatoV07 | null) => void;
+  onClasificar?: (item: ItemClasificarV07, cuentaId: string, notas: string) => void;
+  /**
+   * Punto de extensión de la Ley 5 para clasificar. HOY NO SE PASA: la reversión genérica está en
+   * `qavante-api#257`, sin mergear. Cuando exista, pasarlo enciende el Deshacer del toast sin
+   * tocar nada más de esta vista.
+   */
+  onDeshacerClasificar?: (item: ItemClasificarV07) => void;
+  onCrearRegla?: (item: ItemClasificarV07, cuentaId: string) => void;
+  /** Una escritura falló. Se muestra ARRIBA de la card y en ámbar: es "requiere tu atención",
+   *  no un crítico accionable, así que no gasta el único rojo de la pantalla (Ley 2). */
+  avisoError?: string | null;
+  onCerrarAviso?: () => void;
+  /** Avisa qué ítem está en pantalla, para que el padre traiga sus candidatos/su sugerencia. */
+  onItemActivo?: (item: ItemV07 | null) => void;
+  onReintentar?: () => void;
+  /** Issue sucesor de los huecos declarados. */
+  issueSucesor?: string;
+  hoy?: Date;
+  /** Tab inicial. Sólo para stories/tests deterministas. */
+  tabInicial?: TabV07;
+}
+
+const EYEBROW =
+  "font-rediseno-mono text-[11px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
+const LINK =
+  "font-semibold text-rediseno-azul hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul rounded";
+const BTN_PRIMARIO =
+  "inline-flex items-center gap-2 rounded-full bg-rediseno-tinta px-[18px] py-[9px] text-[13px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul";
+const BTN_SECUNDARIO =
+  "inline-flex items-center gap-2 rounded-full border border-rediseno-hairline bg-rediseno-superficie px-[15px] py-[9px] text-[13px] font-semibold text-rediseno-tinta-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul";
+const BTN_FANTASMA =
+  "inline-flex items-center gap-2 rounded-full px-3 py-[9px] text-[13px] font-semibold text-rediseno-tinta-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul";
+const KBD = "rounded px-1.5 py-px font-rediseno-mono text-[10.5px] opacity-70";
+
+export function BandejaV07View(props: BandejaV07ViewProps) {
+  return (
+    <RedisenoToastProvider>
+      <BandejaV07Contenido {...props} />
+    </RedisenoToastProvider>
+  );
+}
+
+function BandejaV07Contenido({
+  conciliar,
+  clasificar,
+  conciliarMotivo,
+  clasificarMotivo,
+  candidatos,
+  sugerencia,
+  cuentas = [],
+  clasificados = [],
+  onConciliar,
+  onDeshacerConciliar,
+  onNoEsEsta,
+  onClasificar,
+  onDeshacerClasificar,
+  onCrearRegla,
+  avisoError,
+  onCerrarAviso,
+  onItemActivo,
+  onReintentar,
+  issueSucesor,
+  hoy = new Date(),
+  tabInicial = "conciliar",
+}: BandejaV07ViewProps) {
+  const { show } = useRedisenoToast();
+  const [tab, setTab] = React.useState<TabV07>(tabInicial);
+  const [resueltos, setResueltos] = React.useState<string[]>([]);
+  const [montos, setMontos] = React.useState<number[]>([]);
+  const [iConciliar, setIConciliar] = React.useState(0);
+  const [iClasificar, setIClasificar] = React.useState(0);
+  const [ordenClasificar, setOrdenClasificar] = React.useState<string[] | null>(null);
+
+  const colaConciliar = React.useMemo(
+    () => (conciliar ?? []).filter((i) => !resueltos.includes(i.id)),
+    [conciliar, resueltos],
+  );
+  const colaClasificar = React.useMemo(() => {
+    const viva = (clasificar ?? []).filter((i) => !resueltos.includes(i.id));
+    if (!ordenClasificar) return viva;
+    const pos = new Map(ordenClasificar.map((id, idx) => [id, idx]));
+    return [...viva].sort(
+      (a, b) =>
+        (pos.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (pos.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+  }, [clasificar, resueltos, ordenClasificar]);
+
+  /* El índice EFECTIVO: el guardado, acotado a la cola viva. Se calcula una sola vez y se usa
+     tanto para pintar como para avanzar — tener dos nociones de "cuál estoy viendo" es el camino
+     directo a saltarse un ítem sin resolverlo. */
+  const idxConciliar = Math.min(iConciliar, Math.max(0, colaConciliar.length - 1));
+  const idxClasificar = Math.min(iClasificar, Math.max(0, colaClasificar.length - 1));
+  const itemConciliar = colaConciliar[idxConciliar];
+  const itemClasificar = colaClasificar[idxClasificar];
+  const itemActivo: ItemV07 | null = (tab === "conciliar" ? itemConciliar : itemClasificar) ?? null;
+
+  /* El padre necesita saber qué hay en pantalla para traer sus candidatos / su sugerencia. */
+  const idActivo = itemActivo?.id ?? null;
+  React.useEffect(() => {
+    onItemActivo?.(itemActivo ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- el disparador es el ítem, no la identidad del callback
+  }, [idActivo, tab]);
+
+  const pendientes = colaConciliar.length + colaClasificar.length;
+  const prog = progreso(resueltos.length, pendientes);
+  const totalResuelto = montoResuelto(montos);
+
+  /** Saca el ítem de la cola y avanza. `cuentaLaPlata` es false cuando el ítem se DESCARTÓ: un
+   *  "no es esta" saca la sugerencia de la bandeja, pero el movimiento sigue sin conciliar, así
+   *  que su monto no puede sumarse a lo que "dejó de estar en duda". */
+  function marcarResuelto(item: ItemV07, largoCola: number, cuentaLaPlata = true) {
+    setResueltos((prev) => [...prev, item.id]);
+    if (cuentaLaPlata) setMontos((prev) => [...prev, item.monto]);
+    const siguiente = trasResolver(
+      item.tipo === "conciliar" ? idxConciliar : idxClasificar,
+      largoCola - 1,
+    );
+    if (item.tipo === "conciliar") setIConciliar(siguiente);
+    else setIClasificar(siguiente);
+  }
+
+  function saltar() {
+    if (tab === "conciliar") setIConciliar(trasSaltar(idxConciliar, colaConciliar.length));
+    else setIClasificar(trasSaltar(idxClasificar, colaClasificar.length));
+  }
+
+  /* (0) Ninguna de las dos fuentes llegó: la pantalla no está vacía, está ciega — y lo dice. */
+  if (conciliar === null && clasificar === null) {
+    return (
+      <DataState
+        status="error"
+        what="tu bandeja de excepciones"
+        cause={
+          conciliarMotivo ??
+          clasificarMotivo ??
+          "No pudimos consultar la cola de conciliación ni los movimientos sin clasificar."
+        }
+        action={onReintentar ? { label: "Reintentar", onClick: onReintentar } : undefined}
+      />
+    );
+  }
+
+  /* (1) BANDEJA VACÍA — el estado celebratorio SOBRIO de la aceptación (§V07). Sólo se celebra
+     cuando las DOS fuentes contestaron: con una caída no sabemos si está vacía o si estamos
+     ciegos de ese lado, y felicitar a ciegas es la peor versión de esta pantalla. */
+  if (pendientes === 0 && conciliar !== null && clasificar !== null) {
+    return (
+      <div className="space-y-4">
+        <p className={EYEBROW}>Bandeja · lo que el piloto separó para ti</p>
+        <h1 className="font-rediseno-serif text-[26px] leading-tight font-medium text-rediseno-tinta">
+          Nada espera tu decisión
+        </h1>
+        <div className="rounded-[14px] border border-rediseno-hairline border-l-[3px] border-l-rediseno-verde bg-rediseno-superficie px-[17px] py-4">
+          <p className="text-[13.5px] text-rediseno-tinta-2">
+            No quedan movimientos por conciliar ni por clasificar. Tus informes y tu proyección ya
+            no dejan nada de esta bandeja afuera.
+          </p>
+          {resueltos.length > 0 && (
+            <p className="mt-1.5 text-[12.5px] text-rediseno-tinta-3">
+              Resolviste <b className="tabular-nums">{resueltos.length}</b> en esta sesión ·{" "}
+              <b className="tabular-nums">{formatClp(totalResuelto)}</b> dejaron de estar en duda.
+            </p>
+          )}
+        </div>
+        <HuecosDeclarados issueSucesor={issueSucesor} />
+      </div>
+    );
+  }
+
+  const minutos = minutosEstimados(pendientes);
+  /* Una de las dos fuentes se cayó: el conteo de la cabecera es PARCIAL y no puede presentarse
+     como si fuera el total. Con cero pendientes de la fuente viva, además, decir "nada espera tu
+     decisión" sería directamente falso — no sabemos qué hay del otro lado. */
+  const fuenteCaida = conciliar === null || clasificar === null;
+
+  return (
+    <div className="space-y-4">
+      <p className={EYEBROW}>Bandeja · lo que el piloto separó para ti</p>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <h1 className="font-rediseno-serif text-[26px] leading-tight font-medium text-rediseno-tinta">
+          {pendientes === 0 && fuenteCaida
+            ? "No podemos decirte cuánto te queda"
+            : pendientes === 0
+              ? "Nada espera tu decisión"
+              : `${pendientes} ${pendientes === 1 ? "pendiente" : "pendientes"} · ~${minutos} min`}
+        </h1>
+        <div className="ml-auto">
+          <FilterChips
+            aria-label="Qué revisar"
+            className="mt-0 mb-0"
+            options={[
+              { id: "conciliar", label: "Conciliar", count: colaConciliar.length },
+              { id: "clasificar", label: "Clasificar", count: colaClasificar.length },
+            ]}
+            value={tab}
+            onChange={(v) => setTab(v as TabV07)}
+          />
+        </div>
+      </div>
+
+      {fuenteCaida && (
+        <p className="text-[12.5px] text-rediseno-tinta-2">
+          Una de las dos fuentes no respondió, así que este conteo es parcial: falta lo que no
+          pudimos consultar.
+        </p>
+      )}
+
+      <Progreso prog={prog} monto={totalResuelto} />
+
+      {avisoError && (
+        <Banner role="alert" variant="warn" dismissible onDismiss={onCerrarAviso}>
+          {avisoError}
+        </Banner>
+      )}
+
+      {tab === "conciliar" ? (
+        <CartaConciliar
+          item={itemConciliar ?? null}
+          indice={idxConciliar}
+          total={colaConciliar.length}
+          faltaFuente={conciliar === null}
+          motivo={conciliarMotivo}
+          candidatos={candidatos ?? null}
+          hoy={hoy}
+          onReintentar={onReintentar}
+          onSaltar={saltar}
+          onConciliar={(item, docId, candidato) => {
+            onConciliar?.(item, docId);
+            marcarResuelto(item, colaConciliar.length);
+            show({
+              message: (
+                <>
+                  Conciliado:{" "}
+                  <b>{candidato?.nombre ?? item.contraparteMotor ?? "sin contraparte"}</b> ·{" "}
+                  {formatClp(item.monto)}
+                </>
+              ),
+              /* LEY 5 — acá SÍ, porque la reversión existe (`.../revert`). */
+              action: onDeshacerConciliar
+                ? { label: "Deshacer", onClick: () => onDeshacerConciliar(item) }
+                : undefined,
+            });
+          }}
+          onNoEsEsta={(item, candidato) => {
+            onNoEsEsta?.(item, candidato);
+            marcarResuelto(item, colaConciliar.length, false);
+            show({
+              message: (
+                <>
+                  Descartada la sugerencia de <b>{item.contraparteMotor ?? "esta contraparte"}</b> ·{" "}
+                  {formatClp(item.monto)}
+                </>
+              ),
+            });
+          }}
+        />
+      ) : (
+        <CartaClasificar
+          item={itemClasificar ?? null}
+          cola={colaClasificar}
+          indice={idxClasificar}
+          faltaFuente={clasificar === null}
+          motivo={clasificarMotivo}
+          sugerencia={sugerencia ?? null}
+          cuentas={cuentas}
+          clasificados={clasificados}
+          hoy={hoy}
+          onReintentar={onReintentar}
+          onSaltar={saltar}
+          onAgrupar={(ids) => {
+            setOrdenClasificar(
+              agruparAlFrente(colaClasificar, idxClasificar, ids).map((i) => i.id),
+            );
+            /* El reordenamiento deja al ítem que estás viendo PRIMERO, así que el índice tiene que
+               volver a 0: si no, la cola se mueve debajo del cursor y terminas mirando otro ítem
+               sin haber resuelto el tuyo. */
+            setIClasificar(0);
+          }}
+          onCrearRegla={
+            onCrearRegla
+              ? (item, cuentaId) => {
+                  onCrearRegla(item, cuentaId);
+                  show({ message: <>Regla creada: la próxima vez se clasifica sola.</> });
+                }
+              : undefined
+          }
+          onGuardar={(item, cuentaId, notas, nombreCuenta) => {
+            onClasificar?.(item, cuentaId, notas);
+            marcarResuelto(item, colaClasificar.length);
+            show({
+              message: (
+                <>
+                  Clasificado como <b>{nombreCuenta}</b> · {formatClp(item.monto)}
+                </>
+              ),
+              /* LEY 5 — acá NO. Ver la cabecera del archivo: no hay reversión de clasificación en
+                 el contrato deployado, y el patrón genérico (qavante-api#257) todavía no mergea.
+                 `onDeshacerClasificar` es el punto de extensión; hoy nadie lo pasa. */
+              action: onDeshacerClasificar
+                ? { label: "Deshacer", onClick: () => onDeshacerClasificar(item) }
+                : undefined,
+            });
+          }}
+        />
+      )}
+
+      <HuecosDeclarados issueSucesor={issueSucesor} />
+    </div>
+  );
+}
+
+/* ── Progreso ────────────────────────────────────────────────────────────────────────────── */
+
+function Progreso({ prog, monto }: { prog: ReturnType<typeof progreso>; monto: number }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie px-[17px] py-3">
+      <div
+        className="h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-rediseno-neutro-bg"
+        role="progressbar"
+        aria-valuenow={prog.pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Excepciones resueltas en esta sesión"
+      >
+        <div className="h-full rounded-full bg-rediseno-tinta" style={{ width: `${prog.pct}%` }} />
+      </div>
+      <p className="text-[12.5px] text-rediseno-tinta-2">
+        <b className="tabular-nums">{prog.resueltos}</b> de{" "}
+        <b className="tabular-nums">{prog.total}</b> resueltos en esta sesión ·{" "}
+        <b className="tabular-nums">{formatClp(monto)}</b> dejaron de estar en duda
+      </p>
+    </div>
+  );
+}
+
+/* ── Carta de conciliar ──────────────────────────────────────────────────────────────────── */
+
+interface CartaConciliarProps {
+  item: ItemConciliarV07 | null;
+  indice: number;
+  total: number;
+  faltaFuente: boolean;
+  motivo?: string | null;
+  candidatos: CandidatosDelItemV07 | null;
+  hoy: Date;
+  onReintentar?: () => void;
+  onSaltar: () => void;
+  onConciliar: (
+    item: ItemConciliarV07,
+    documentoId: string | null,
+    candidato: CandidatoV07 | null,
+  ) => void;
+  onNoEsEsta: (item: ItemConciliarV07, candidato: CandidatoV07 | null) => void;
+}
+
+function CartaConciliar({
+  item,
+  indice,
+  total,
+  faltaFuente,
+  motivo,
+  candidatos,
+  hoy,
+  onReintentar,
+  onSaltar,
+  onConciliar,
+  onNoEsEsta,
+}: CartaConciliarProps) {
+  const [elegido, setElegido] = React.useState<string | null>(null);
+  const [buscando, setBuscando] = React.useState(false);
+
+  React.useEffect(() => {
+    setElegido(null);
+    setBuscando(false);
+  }, [item?.id]);
+
+  const listos = candidatos && item && candidatos.movimientoId === item.id;
+  const lista = listos ? candidatos.lista : [];
+  const cargando = listos ? Boolean(candidatos.cargando) : Boolean(item);
+  const candidato = item ? candidatoElegido(lista, item.documentoPropuesto, elegido) : null;
+  const sugerible = item ? haySugerenciaConciliar(item, candidato) : false;
+
+  useAtajos({
+    activo: Boolean(item) && !cargando,
+    onEnter: () => {
+      /* LEY 3 — Enter resuelve el caso CON sugerencia. Sin evidencia dura no hay nada que
+         confirmar de un tecleo: la card ofrece buscar el documento a mano. */
+      if (item && sugerible) onConciliar(item, elegido, candidato);
+    },
+    onTecla: (k) => {
+      if (!item) return;
+      if (k === "n") onNoEsEsta(item, candidato);
+      if (k === "b") setBuscando((v) => !v);
+      if (k === "ArrowRight") onSaltar();
+    },
+  });
+
+  if (faltaFuente) {
+    return (
+      <DataState
+        status="error"
+        what="la cola de conciliación"
+        cause={motivo ?? "La cola de conciliación no respondió."}
+        action={onReintentar ? { label: "Reintentar", onClick: onReintentar } : undefined}
+      />
+    );
+  }
+
+  if (!item) {
+    return (
+      <DataState
+        status="empty"
+        what="abonos ni cargos esperando conciliación"
+        hint="Todo lo que llegó del banco ya está cruzado con su documento."
+      />
+    );
+  }
+
+  const evidencia = evidenciaConciliar(item, candidato);
+  const motivos = motivosNoAutomatico(item, candidato);
+  const parte = parcialidad(item, candidato);
+
+  return (
+    <section
+      aria-label="Excepción por conciliar"
+      className="rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie p-[18px]"
+    >
+      <p className={EYEBROW}>
+        Conciliar {indice + 1} de {total} · el piloto no lo resolvió solo: {motivos.join(" y ")}
+      </p>
+
+      <h2 className="mt-2 font-rediseno-serif text-[19px] leading-snug font-medium break-words text-rediseno-tinta">
+        {palabraDireccion(item.direccion)} de{" "}
+        {item.contraparteMotor ?? candidato?.nombre ?? "contraparte sin identificar"} ·{" "}
+        {sugerible ? "¿es este documento?" : "¿con qué documento va?"}
+      </h2>
+
+      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+        <LadoBanco item={item} />
+        <span aria-hidden className="text-center text-rediseno-tinta-3">
+          ⇄
+        </span>
+        <LadoDocumento candidato={candidato} cargando={cargando} motivo={candidatos?.motivo} />
+      </div>
+
+      {evidencia.length > 0 ? (
+        <p className="mt-3 flex flex-wrap items-center gap-1.5 text-[12.5px] text-rediseno-tinta-2">
+          <span className={EYEBROW}>Evidencia</span>
+          {evidencia.map((e) => (
+            <Pill key={e.id} variant="mut">
+              {e.texto}
+            </Pill>
+          ))}
+        </p>
+      ) : (
+        !cargando && (
+          <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">
+            <span className={EYEBROW}>Evidencia</span> ninguna verificación pasó entre estos dos
+            lados, así que no mostramos ningún chip: los chips son verificaciones reales, no
+            adornos.
+          </p>
+        )
+      )}
+
+      <LineaDiferencia parte={parte} item={item} candidato={candidato} hoy={hoy} />
+
+      {item.documentos > 1 && (
+        <p className="mt-1.5 text-[12.5px] text-rediseno-tinta-2">
+          Esta sugerencia cubre <b>{item.documentos} documentos</b> y al confirmar se aplican todos,
+          no sólo el que ves.
+        </p>
+      )}
+
+      {!sugerible && !cargando && (
+        <p className="mt-2 text-[12.5px] text-rediseno-tinta-2">
+          Sin el RUT en la glosa y sin un monto que calce, esto no se sugiere: va a revisión manual.
+          Elige tú el documento o sáltalo.
+        </p>
+      )}
+
+      {buscando && (
+        <ListaCandidatos
+          lista={lista}
+          elegido={candidato?.documentId ?? null}
+          cargando={cargando}
+          onElegir={(id) => {
+            setElegido(id);
+            setBuscando(false);
+          }}
+        />
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {sugerible ? (
+          <button
+            type="button"
+            className={BTN_PRIMARIO}
+            onClick={() => onConciliar(item, elegido, candidato)}
+          >
+            Sí, conciliar <span className={KBD}>Enter</span>
+          </button>
+        ) : (
+          <button type="button" className={BTN_PRIMARIO} onClick={() => setBuscando((v) => !v)}>
+            Buscar el documento <span className={KBD}>B</span>
+          </button>
+        )}
+        <button
+          type="button"
+          className={BTN_SECUNDARIO}
+          onClick={() => onNoEsEsta(item, candidato)}
+        >
+          No es esta <span className={KBD}>N</span>
+        </button>
+        {sugerible && (
+          <button type="button" className={BTN_SECUNDARIO} onClick={() => setBuscando((v) => !v)}>
+            Buscar otra <span className={KBD}>B</span>
+          </button>
+        )}
+        <button type="button" className={BTN_FANTASMA} onClick={onSaltar}>
+          Saltar <span className={KBD}>→</span>
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function LadoBanco({ item }: { item: ItemConciliarV07 }) {
+  return (
+    <div className="rounded-xl border border-rediseno-hairline bg-rediseno-porcelana px-4 py-3">
+      <p className={EYEBROW}>En el banco · {formatDateLong(item.fecha)}</p>
+      <p className="mt-1 font-rediseno-serif text-[20px] font-medium break-words tabular-nums text-rediseno-tinta">
+        {palabraDireccion(item.direccion)} {formatClp(item.monto)}
+      </p>
+      <p className="mt-0.5 text-[12.5px] break-words text-rediseno-tinta-2">
+        {item.glosa ?? "sin glosa"}
+      </p>
+    </div>
+  );
+}
+
+function LadoDocumento({
+  candidato,
+  cargando,
+  motivo,
+}: {
+  candidato: CandidatoV07 | null;
+  cargando: boolean;
+  motivo?: string | null;
+}) {
+  if (cargando) {
+    return (
+      <div
+        className="rounded-xl border border-rediseno-hairline bg-rediseno-superficie px-4 py-3"
+        aria-busy="true"
+      >
+        <p className={EYEBROW}>Documento candidato</p>
+        <p className="mt-1 text-[12.5px] text-rediseno-tinta-2">
+          Estamos trayendo los documentos que podrían calzar (~2 s).
+        </p>
+      </div>
+    );
+  }
+  if (!candidato) {
+    return (
+      <div className="rounded-xl border border-dashed border-rediseno-hairline px-4 py-3">
+        <p className={EYEBROW}>Documento candidato</p>
+        <p className="mt-1 text-[12.5px] text-rediseno-tinta-2">
+          {motivo ?? "No hay ningún documento candidato para este movimiento."}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-rediseno-hairline bg-rediseno-superficie px-4 py-3">
+      <p className={EYEBROW}>{etiquetaDocumento(candidato)}</p>
+      <p className="mt-1 font-rediseno-serif text-[20px] font-medium break-words tabular-nums text-rediseno-tinta">
+        {candidato.monto == null ? "monto no informado" : formatClp(candidato.monto)}
+      </p>
+      <p className="mt-0.5 text-[12.5px] break-words text-rediseno-tinta-2">
+        {candidato.nombre ?? "contraparte sin nombre"}
+        {candidato.rut ? ` · ${formatRut(candidato.rut)}` : ""} ·{" "}
+        {candidato.fecha ? formatDateLong(candidato.fecha) : "sin fecha"}
+      </p>
+    </div>
+  );
+}
+
+function etiquetaDocumento(c: CandidatoV07): string {
+  const tipo = c.tipoDte ? `DTE ${c.tipoDte}` : "Documento";
+  const folio = c.folio ? ` · ${c.folio}` : "";
+  return `Candidato · ${tipo}${folio}`;
+}
+
+function LineaDiferencia({
+  parte,
+  item,
+  candidato,
+  hoy,
+}: {
+  parte: ReturnType<typeof parcialidad>;
+  item: ItemConciliarV07;
+  candidato: CandidatoV07 | null;
+  hoy: Date;
+}) {
+  const cuando = candidato?.fecha ? formatRelative(candidato.fecha, hoy) : null;
+  let texto: React.ReactNode = null;
+  if (parte.tipo === "exacta") texto = <>El monto calza exacto con el documento.</>;
+  if (parte.tipo === "parcial") {
+    texto = (
+      <>
+        Pago parcial: entraron {formatClp(item.monto)} de {formatClp(candidato?.monto ?? 0)}; quedan{" "}
+        <b className="tabular-nums">{formatClp(parte.restante)}</b> por cobrar.
+      </>
+    );
+  }
+  if (parte.tipo === "exceso") {
+    texto = (
+      <>
+        Entró <b className="tabular-nums">{formatClp(parte.monto)}</b> más que el documento: revisa
+        si cubre más de una factura.
+      </>
+    );
+  }
+  if (parte.tipo === "sin-monto") {
+    texto = <>El documento no trae monto comparable, así que la diferencia no se puede calcular.</>;
+  }
+  if (!texto) return null;
+  return (
+    <p className="mt-2 text-[13px] text-rediseno-tinta-2">
+      {texto}
+      {cuando ? ` El documento es de ${cuando}.` : ""}
+    </p>
+  );
+}
+
+function ListaCandidatos({
+  lista,
+  elegido,
+  cargando,
+  onElegir,
+}: {
+  lista: CandidatoV07[];
+  elegido: string | null;
+  cargando: boolean;
+  onElegir: (id: string) => void;
+}) {
+  if (cargando) {
+    return (
+      <p className="mt-3 text-[12.5px] text-rediseno-tinta-2" aria-busy="true">
+        Estamos trayendo los documentos que podrían calzar (~2 s).
+      </p>
+    );
+  }
+  if (lista.length === 0) {
+    return (
+      <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">
+        No hay otros documentos candidatos para este movimiento.
+      </p>
+    );
+  }
+  return (
+    <fieldset className="mt-3 rounded-xl border border-rediseno-hairline p-3">
+      <legend className={EYEBROW}>Elegir otro documento</legend>
+      <ul className="space-y-1.5">
+        {lista.map((c) => (
+          <li key={c.documentId}>
+            <label className="flex flex-wrap items-baseline gap-2 text-[12.5px] text-rediseno-tinta-2">
+              <input
+                type="radio"
+                name="candidato"
+                value={c.documentId}
+                checked={elegido === c.documentId}
+                onChange={() => onElegir(c.documentId)}
+              />
+              <b className="break-words text-rediseno-tinta">
+                {c.nombre ?? "contraparte sin nombre"}
+              </b>
+              <span className="tabular-nums">
+                {c.monto == null ? "monto no informado" : formatClp(c.monto)}
+              </span>
+              <span>
+                {etiquetaDocumento(c)} · {c.fecha ? formatDateLong(c.fecha) : "sin fecha"}
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </fieldset>
+  );
+}
+
+function palabraDireccion(d: "credit" | "debit" | null): string {
+  if (d === "credit") return "Abono";
+  if (d === "debit") return "Cargo";
+  return "Movimiento";
+}
+
+/* ── Carta de clasificar ─────────────────────────────────────────────────────────────────── */
+
+interface CartaClasificarProps {
+  item: ItemClasificarV07 | null;
+  cola: ItemClasificarV07[];
+  indice: number;
+  faltaFuente: boolean;
+  motivo?: string | null;
+  sugerencia: SugerenciaDelItemV07 | null;
+  cuentas: OpcionCuentaV07[];
+  clasificados: BankMovement[];
+  hoy: Date;
+  onReintentar?: () => void;
+  onSaltar: () => void;
+  onAgrupar: (ids: string[]) => void;
+  onCrearRegla?: (item: ItemClasificarV07, cuentaId: string) => void;
+  onGuardar: (
+    item: ItemClasificarV07,
+    cuentaId: string,
+    notas: string,
+    nombreCuenta: string,
+  ) => void;
+}
+
+function CartaClasificar({
+  item,
+  cola,
+  indice,
+  faltaFuente,
+  motivo,
+  sugerencia,
+  cuentas,
+  clasificados,
+  hoy,
+  onReintentar,
+  onSaltar,
+  onAgrupar,
+  onCrearRegla,
+  onGuardar,
+}: CartaClasificarProps) {
+  const [cuentaId, setCuentaId] = React.useState<string | null>(null);
+  const [notas, setNotas] = React.useState("");
+  const [falta, setFalta] = React.useState<string | null>(null);
+  const [ofertaRegla, setOfertaRegla] = React.useState<{
+    item: ItemClasificarV07;
+    cuentaId: string;
+    nombre: string;
+  } | null>(null);
+
+  const sugerenciaViva =
+    sugerencia && item && sugerencia.movimientoId === item.id ? sugerencia : null;
+  const valorSugerido = sugerenciaViva?.valor ?? null;
+
+  React.useEffect(() => {
+    setCuentaId(null);
+    setNotas("");
+    setFalta(null);
+  }, [item?.id]);
+
+  /* La sugerencia PRE-SELECCIONA (spec: "sugerencia primero si existe regla"), nunca guarda sola. */
+  React.useEffect(() => {
+    if (valorSugerido?.cuentaId) setCuentaId(valorSugerido.cuentaId);
+  }, [valorSugerido?.cuentaId, item?.id]);
+
+  const cuentasPorId = React.useMemo(
+    () => new Map(cuentas.map((c) => [c.id, c] as const)),
+    [cuentas],
+  );
+  const frec = React.useMemo(
+    () =>
+      item
+        ? frecuentes(clasificados, item, cuentasPorId)
+        : { items: [], criterio: "ninguno" as const },
+    [clasificados, item, cuentasPorId],
+  );
+  const grupo = React.useMemo(() => lote(cola, item), [cola, item]);
+
+  function guardar() {
+    if (!item) return;
+    const queFalta = faltaParaGuardar({ cuentaId, notas });
+    if (queFalta) {
+      /* LEY 6 — el primario respondió: no está deshabilitado, y dice qué falta. */
+      setFalta(queFalta);
+      return;
+    }
+    const id = cuentaId as string;
+    const nombre = cuentasPorId.get(id)?.nombre ?? "la categoría elegida";
+    const fueManual = valorSugerido?.cuentaId !== id;
+    onGuardar(item, id, notas, nombre);
+    setOfertaRegla(fueManual ? { item, cuentaId: id, nombre } : null);
+  }
+
+  useAtajos({
+    activo: Boolean(item),
+    onEnter: guardar,
+    onTecla: (k) => {
+      if (k === "ArrowRight") onSaltar();
+    },
+  });
+
+  if (faltaFuente) {
+    return (
+      <DataState
+        status="error"
+        what="los movimientos sin clasificar"
+        cause={motivo ?? "El listado de movimientos no respondió."}
+        action={onReintentar ? { label: "Reintentar", onClick: onReintentar } : undefined}
+      />
+    );
+  }
+
+  if (!item) {
+    return (
+      <div className="space-y-3">
+        <DataState
+          status="empty"
+          what="movimientos sin clasificar"
+          hint="Cada movimiento del banco ya tiene su categoría, así que tus informes no dejan nada afuera de esta bandeja."
+        />
+        {ofertaRegla && (
+          <OfertaRegla
+            oferta={ofertaRegla}
+            onCrear={onCrearRegla}
+            onCerrar={() => setOfertaRegla(null)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {grupo && (
+        <Banner
+          role="note"
+          action={{
+            label: `Revisar los ${grupo.otros + 1} seguidos`,
+            onClick: () => onAgrupar(grupo.ids),
+          }}
+        >
+          Hay <b>{grupo.otros} más</b> de{" "}
+          <b className="break-words">
+            {grupo.porRut ? formatRut(grupo.etiqueta) : `“${grupo.etiqueta}”`}
+          </b>{" "}
+          esperando categoría
+          {grupo.porRut ? "" : " (agrupados por glosa idéntica, no por RUT: la glosa no trae uno)"}.
+          Clasificarlos de una sola vez todavía no se puede — ver los huecos declarados.
+        </Banner>
+      )}
+
+      <section
+        aria-label="Excepción por clasificar"
+        className="rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie p-[18px]"
+      >
+        <p className={EYEBROW}>
+          Clasificar {indice + 1} de {cola.length} ·{" "}
+          {valorSugerido
+            ? "una regla tuya calza con este movimiento"
+            : "sin regla que calce: sin evidencia no se sugiere"}
+        </p>
+
+        <h2 className="mt-2 font-rediseno-serif text-[19px] leading-snug font-medium break-words text-rediseno-tinta">
+          {palabraDireccion(item.direccion)} {formatClp(item.monto)} ·{" "}
+          {item.glosa ? `“${item.glosa}”` : "sin glosa"} · {formatDateLong(item.fecha)}
+        </h2>
+        <p className="mt-1 text-[12.5px] text-rediseno-tinta-3">
+          {formatRelative(item.fecha, hoy)}
+          {item.rutGlosa
+            ? ` · RUT en la glosa: ${formatRut(item.rutGlosa)}`
+            : " · sin RUT en la glosa"}
+        </p>
+
+        {valorSugerido && (
+          <p className="mt-3 text-[13px] text-rediseno-tinta-2">
+            <span className={EYEBROW}>Sugerido</span>{" "}
+            <b className="break-words text-rediseno-tinta">{valorSugerido.nombre}</b> · una regla
+            tuya con confianza {formatPct(valorSugerido.confianza * 100)}
+            {valorSugerido.cuentaId
+              ? ""
+              : " — pero esa cuenta no está en tu catálogo activo, así que hay que elegirla a mano"}
+          </p>
+        )}
+
+        {!valorSugerido && (
+          <Frecuentes
+            frec={frec}
+            elegido={cuentaId}
+            onElegir={(id) => {
+              setCuentaId(id);
+              setFalta(null);
+            }}
+          />
+        )}
+
+        <div className="mt-3">
+          <label
+            htmlFor="bandeja-categoria"
+            className="mb-1 block text-[12.5px] font-semibold text-rediseno-tinta-2"
+          >
+            Categoría
+          </label>
+          <select
+            id="bandeja-categoria"
+            className="w-full rounded-xl border border-rediseno-hairline bg-rediseno-superficie px-3 py-2 text-[13px] text-rediseno-tinta focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
+            value={cuentaId ?? ""}
+            onChange={(e) => {
+              setCuentaId(e.target.value || null);
+              setFalta(null);
+            }}
+          >
+            <option value="">Elige una categoría…</option>
+            {cuentas.map((c) => (
+              <option key={c.id} value={c.id} disabled={!c.seleccionable}>
+                {c.nombre}
+                {c.seleccionable ? "" : " (inactiva)"}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <details className="mt-3">
+          <summary className={cn(LINK, "cursor-pointer text-[12.5px]")}>
+            + Agregar detalle (opcional)
+          </summary>
+          <div className="mt-2 space-y-2">
+            <label
+              htmlFor="bandeja-notas"
+              className="block text-[12.5px] font-semibold text-rediseno-tinta-2"
+            >
+              Nota para el contador
+            </label>
+            <textarea
+              id="bandeja-notas"
+              rows={2}
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              className="w-full rounded-xl border border-rediseno-hairline px-3 py-2 text-[13px] focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
+            />
+            <p className="text-[12px] text-rediseno-tinta-3">
+              Las vistas de gestión (dimensiones) todavía no se asignan desde acá: el contrato las
+              crea en una llamada aparte, después de clasificar. Se asignan en{" "}
+              <Link href={`/caja/por-clasificar?movimiento=${item.id}`} className={LINK}>
+                Movimientos por clasificar
+              </Link>
+              .
+            </p>
+          </div>
+        </details>
+
+        {falta && (
+          /* EL ÚNICO ROJO DE LA PANTALLA (Ley 2), y sólo después de pulsar (Ley 6). */
+          <p role="alert" className="mt-3 text-[13px] font-semibold text-rediseno-rojo">
+            {falta}
+          </p>
+        )}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button type="button" className={BTN_PRIMARIO} onClick={guardar}>
+            Guardar <span className={KBD}>Enter</span>
+          </button>
+          <button type="button" className={BTN_FANTASMA} onClick={onSaltar}>
+            Saltar <span className={KBD}>→</span>
+          </button>
+        </div>
+
+        <p className="mt-3 text-[12px] text-rediseno-tinta-3">
+          Al guardar no vas a ver un “Deshacer”: clasificar todavía no se puede revertir desde el
+          contrato deployado. Preferimos no ofrecerte un botón que no haría nada.
+        </p>
+      </section>
+
+      {ofertaRegla && (
+        <OfertaRegla
+          oferta={ofertaRegla}
+          onCrear={onCrearRegla}
+          onCerrar={() => setOfertaRegla(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function Frecuentes({
+  frec,
+  elegido,
+  onElegir,
+}: {
+  frec: ReturnType<typeof frecuentes>;
+  elegido: string | null;
+  onElegir: (id: string) => void;
+}) {
+  if (frec.criterio === "ninguno") {
+    return (
+      <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">
+        Todavía no clasificaste nada parecido, así que no tenemos atajos que ofrecerte. Elige la
+        categoría de la lista.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-3">
+      <p className="text-[12.5px] text-rediseno-tinta-2">
+        {frec.criterio === "monto-y-direccion"
+          ? "Lo que más usaste en movimientos de este tipo y de este tamaño"
+          : "No clasificaste nada de este tamaño; esto es lo que más usaste en movimientos de este tipo"}{" "}
+        — es tu historial, no una sugerencia:
+      </p>
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {frec.items.map((f) => (
+          <button
+            key={f.cuentaId}
+            type="button"
+            onClick={() => onElegir(f.cuentaId)}
+            aria-pressed={elegido === f.cuentaId}
+            className={cn(
+              "rounded-full border border-rediseno-hairline px-[13px] py-[7px] text-xs font-semibold text-rediseno-tinta-2 focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none",
+              elegido === f.cuentaId && "border-rediseno-tinta bg-rediseno-tinta text-white",
+            )}
+          >
+            {f.nombre} · {f.veces}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OfertaRegla({
+  oferta,
+  onCrear,
+  onCerrar,
+}: {
+  oferta: { item: ItemClasificarV07; cuentaId: string; nombre: string };
+  onCrear?: (item: ItemClasificarV07, cuentaId: string) => void;
+  onCerrar: () => void;
+}) {
+  const quien = oferta.item.rutGlosa
+    ? `el RUT ${formatRut(oferta.item.rutGlosa)}`
+    : `los movimientos con la glosa “${oferta.item.glosa ?? "sin glosa"}”`;
+  return (
+    <Banner
+      role="note"
+      variant="ok"
+      dismissible
+      onDismiss={onCerrar}
+      action={
+        onCrear
+          ? {
+              label: "Crear regla",
+              onClick: () => {
+                onCrear(oferta.item, oferta.cuentaId);
+                onCerrar();
+              },
+            }
+          : undefined
+      }
+    >
+      ¿Siempre <b className="break-words">{oferta.nombre}</b> para <b>{quien}</b>?
+    </Banner>
+  );
+}
+
+/* ── Huecos declarados ───────────────────────────────────────────────────────────────────── */
+
+function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
+  return (
+    <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
+      Lo que esta bandeja todavía NO hace, dicho acá y no escondido: clasificar un lote de una sola
+      vez (no existe endpoint de clasificación masiva a una categoría elegida); deshacer una
+      clasificación (no existe reversión en el contrato deployado); y registrar el par negativo
+      cuando dices “no es esta” (el descarte devuelve el movimiento a sin conciliar, pero no le
+      enseña al motor a no volver a proponer ESE documento). El progreso cuenta lo resuelto en{" "}
+      <b>esta sesión</b> y no “hoy”, porque no hay bitácora consultable que lo respalde.
+      {issueSucesor ? ` Sucesor: ${issueSucesor}.` : ""}
+    </p>
+  );
+}
+
+/* ── Atajos de teclado ───────────────────────────────────────────────────────────────────── */
+
+/** Atajos globales de la card. Se ignoran mientras escribes (input/textarea/select/editable) y
+ *  con modificadores: un atajo que dispara una acción de plata mientras tecleas una nota es un
+ *  bug caro. */
+function useAtajos({
+  activo,
+  onEnter,
+  onTecla,
+}: {
+  activo: boolean;
+  onEnter: () => void;
+  onTecla: (k: string) => void;
+}) {
+  const refEnter = React.useRef(onEnter);
+  const refTecla = React.useRef(onTecla);
+  refEnter.current = onEnter;
+  refTecla.current = onTecla;
+
+  React.useEffect(() => {
+    if (!activo) return;
+    function handler(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || t?.isContentEditable) return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        refEnter.current();
+        return;
+      }
+      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      if (k === "n" || k === "b" || k === "ArrowRight") {
+        e.preventDefault();
+        refTecla.current(k);
+      }
+    }
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [activo]);
+}

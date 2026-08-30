@@ -1,0 +1,393 @@
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { within, expect, userEvent, fn, waitFor } from "storybook/test";
+import { BandejaV07View } from "./bandeja-v07-view";
+import {
+  candidatos as adaptarCandidatos,
+  itemsClasificar,
+  itemsConciliar,
+} from "./bandeja-v07-model";
+import {
+  HOY,
+  CUENTA_ARRIENDO,
+  CUENTA_SOFTWARE,
+  MOV_DATTATEC,
+  MOV_ENTEL_1,
+  MOV_ENTEL_2,
+  MOV_ENTEL_3,
+  MOV_KAUFMANN,
+  MOV_TERCEROS,
+  MOV_VOLCAN,
+  candidatosKaufmann,
+  candidatosVolcan,
+  clasificados,
+  colaConciliar,
+  colaConciliarVacia,
+  cuentas,
+  sinClasificar,
+  sinClasificarVacio,
+  sugerenciaSoftware,
+} from "./bandeja-v07-fixtures";
+
+/* V07 · Bandeja de excepciones, en sus estados y con sus interacciones.
+ *
+ * Corren en Chromium headless como gate (`npm run test:storybook`). Acá vive lo que el HTML
+ * estático no puede probar y que es justo lo que la spec exige:
+ *
+ *   · Enter resuelve el caso CON sugerencia — y NO hace nada sin ella (Ley 3).
+ *   · El auto-avance pasa al SIGUIENTE, sin saltarse ninguno.
+ *   · El toast de conciliar ofrece Deshacer; el de clasificar NO (y su gemelo positivo está en la
+ *     misma tanda, con la misma query, para que ningún negativo pase por estar mal escrito).
+ *   · Guardar no está deshabilitado nunca: al pulsarlo sin categoría marca en rojo qué falta
+ *     (Ley 6) y NO guarda. */
+
+const CONCILIAR = itemsConciliar(colaConciliar());
+const CLASIFICAR = itemsClasificar(sinClasificar());
+
+/** Ley 2 — los elementos con token rojo que hay en pantalla. */
+function rojos(canvasElement: HTMLElement): Element[] {
+  return Array.from(canvasElement.querySelectorAll('[class*="rediseno-rojo"], [class*="danger-"]'));
+}
+
+/** El toast vive FUERA del canvas de la story (viewport `fixed` montado por el provider). */
+function toasts(): HTMLElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>('[aria-label="Notificaciones"] [role="status"]'),
+  );
+}
+
+const meta = {
+  title: "Rediseño F2 / V07 Bandeja",
+  component: BandejaV07View,
+  parameters: {
+    layout: "padded",
+    docs: {
+      description: {
+        component:
+          "V07 · Bandeja de excepciones (ESPECIFICACION §V07): header con N pendientes y su estimación, tabs Conciliar/Clasificar con conteo, barra de progreso y UNA card a la vez con auto-avance. La carta de conciliar muestra evidencia a dos lados y sólo los chips cuyas verificaciones pasaron (Ley 3); su toast lleva Deshacer porque la reversión existe. La carta de clasificar entrega UNA decisión, con sugerencia sólo si una regla matchea, y su toast NO lleva Deshacer: la reversión de clasificación no existe todavía en el contrato deployado (qavante-api#257 sin mergear). El hueco se declara en pantalla.",
+      },
+    },
+  },
+  args: {
+    conciliar: CONCILIAR,
+    clasificar: CLASIFICAR,
+    cuentas: cuentas(),
+    clasificados: clasificados(),
+    issueSucesor: "#90",
+    hoy: HOY,
+  },
+} satisfies Meta<typeof BandejaV07View>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const ConciliarConSugerencia: Story = {
+  name: "Conciliar · con sugerencia — Enter resuelve, avanza y el toast trae Deshacer",
+  args: {
+    candidatos: {
+      movimientoId: MOV_KAUFMANN,
+      lista: adaptarCandidatos(candidatosKaufmann()),
+      cargando: false,
+    },
+    onConciliar: fn(),
+    onDeshacerConciliar: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("7 pendientes · ~9 min")).toBeInTheDocument();
+
+    // Ley 3 — los cinco chips son verificaciones que pasaron de verdad.
+    await expect(canvas.getByText("RUT en la glosa")).toBeInTheDocument();
+    await expect(canvas.getByText("folio 435 en la glosa")).toBeInTheDocument();
+    await expect(canvas.getByText("monto exacto")).toBeInTheDocument();
+    await expect(canvas.getByText("a 21 días del documento")).toBeInTheDocument();
+    // Ley 2 — ningún rojo en esta card.
+    await expect(rojos(canvasElement)).toHaveLength(0);
+
+    await userEvent.keyboard("{Enter}");
+    await expect(args.onConciliar).toHaveBeenCalledTimes(1);
+
+    // El toast, top-right, CON Deshacer (la reversión de conciliar existe).
+    await waitFor(async () => await expect(toasts()).toHaveLength(1));
+    const deshacer = within(toasts()[0]!).getByRole("button", { name: "Deshacer" });
+    await expect(deshacer).toBeInTheDocument();
+    await expect(toasts()[0]!).toHaveTextContent("Comercial Kaufmann S.A.");
+    await expect(toasts()[0]!).toHaveTextContent("$2.380.000");
+
+    // AUTO-AVANCE: pasa al SIGUIENTE de la cola (el abono de Mirko González), no se salta ninguno.
+    await waitFor(
+      async () => await expect(canvas.getByText(/Conciliar 1 de 1/)).toBeInTheDocument(),
+    );
+    await expect(canvas.getByText(/ABONO TRANSFERENCIA MIRKO GONZALEZ/)).toBeInTheDocument();
+    // Y el progreso lo cuenta.
+    await expect(canvas.getByText(/resueltos en esta sesión/)).toHaveTextContent(
+      "1 de 7 resueltos en esta sesión",
+    );
+    /* LA MUTACIÓN QUE ESTO MATA: el header que usa el total de la SESIÓN (7) en vez de los
+       pendientes VIVOS (6) después de resolver uno — mentiría "7 pendientes" con 6 en la cola. */
+    await expect(canvas.getByText("6 pendientes · ~8 min")).toBeInTheDocument();
+
+    await userEvent.click(deshacer);
+    await expect(args.onDeshacerConciliar).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const ConciliarSinEvidencia: Story = {
+  name: "Conciliar · sin evidencia suficiente — Enter NO resuelve (Ley 3)",
+  args: {
+    conciliar: CONCILIAR.filter((i) => i.id === MOV_VOLCAN),
+    candidatos: {
+      movimientoId: MOV_VOLCAN,
+      lista: adaptarCandidatos(candidatosVolcan()),
+      cargando: false,
+    },
+    onConciliar: fn(),
+    onNoEsEsta: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText(/ninguna verificación pasó entre estos dos lados/),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /Sí, conciliar/ })).toBeNull();
+    await expect(canvas.getByRole("button", { name: /Buscar el documento/ })).toBeInTheDocument();
+
+    /* LA MUTACIÓN QUE ESTO MATA: si Enter resolviera igual, acá se llamaría a onConciliar. */
+    await userEvent.keyboard("{Enter}");
+    await expect(args.onConciliar).not.toHaveBeenCalled();
+    await expect(toasts()).toHaveLength(0);
+    // Sigue en la misma card: no avanzó ni resolvió nada.
+    await expect(canvas.getByText(/Conciliar 1 de 1/)).toBeInTheDocument();
+
+    // "Buscar otro documento" sí ofrece el candidato para una elección humana explícita.
+    await userEvent.click(canvas.getByRole("button", { name: /Buscar el documento/ }));
+    await expect(canvas.getByText("Elegir otro documento")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("radio", { name: /Cia. Industrial El Volcan S.A./ }),
+    ).toBeInTheDocument();
+  },
+};
+
+export const ConciliarNoEsEsta: Story = {
+  name: "Conciliar · No es esta (botón) — descarta la sugerencia y avisa al padre",
+  args: {
+    conciliar: CONCILIAR.filter((i) => i.id === MOV_KAUFMANN || i.id === MOV_VOLCAN),
+    candidatos: {
+      movimientoId: MOV_KAUFMANN,
+      lista: adaptarCandidatos(candidatosKaufmann()),
+      cargando: false,
+    },
+    onNoEsEsta: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Conciliar 1 de 2/)).toBeInTheDocument();
+
+    /* LA MUTACIÓN QUE ESTO MATA: si se borra la llamada a `onNoEsEsta`, el clic en "No es esta"
+       queda sin efecto sobre el padre y esta aserción no se cumple. */
+    await userEvent.click(canvas.getByRole("button", { name: /No es esta/ }));
+    await expect(args.onNoEsEsta).toHaveBeenCalledTimes(1);
+    await expect(args.onNoEsEsta).toHaveBeenCalledWith(
+      expect.objectContaining({ id: MOV_KAUFMANN }),
+      expect.objectContaining({ nombre: "Comercial Kaufmann S.A." }),
+    );
+    // El toast avisa del descarte, sin Deshacer (no hay reversión de un "no es esta").
+    await waitFor(async () => await expect(toasts()).toHaveLength(1));
+    await expect(toasts()[0]!).toHaveTextContent("Descartada la sugerencia");
+    await expect(within(toasts()[0]!).queryByRole("button", { name: "Deshacer" })).toBeNull();
+
+    // AUTO-AVANCE: pasa al siguiente ítem de la cola, no se queda pegado.
+    await waitFor(
+      async () => await expect(canvas.getByText(/Conciliar 1 de 1/)).toBeInTheDocument(),
+    );
+    await expect(canvas.getByText(/ABONO TRANSFERENCIA MIRKO GONZALEZ/)).toBeInTheDocument();
+  },
+};
+
+export const ConciliarNoEsEstaTecla: Story = {
+  name: "Conciliar · No es esta (tecla N) — el atajo dispara la misma función",
+  args: {
+    conciliar: CONCILIAR.filter((i) => i.id === MOV_KAUFMANN),
+    candidatos: {
+      movimientoId: MOV_KAUFMANN,
+      lista: adaptarCandidatos(candidatosKaufmann()),
+      cargando: false,
+    },
+    onNoEsEsta: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Conciliar 1 de 1/)).toBeInTheDocument();
+
+    /* LA MUTACIÓN QUE ESTO MATA: si se borra la llamada a `onNoEsEsta` en el manejo de teclas,
+       la tecla `N` queda muda y esta aserción no se cumple. */
+    await userEvent.keyboard("n");
+    await expect(args.onNoEsEsta).toHaveBeenCalledTimes(1);
+    await expect(args.onNoEsEsta).toHaveBeenCalledWith(
+      expect.objectContaining({ id: MOV_KAUFMANN }),
+      expect.objectContaining({ nombre: "Comercial Kaufmann S.A." }),
+    );
+  },
+};
+
+export const ClasificarConRegla: Story = {
+  name: "Clasificar · con regla — Enter guarda y el toast NO trae Deshacer",
+  args: {
+    tabInicial: "clasificar",
+    sugerencia: { movimientoId: MOV_DATTATEC, valor: sugerenciaSoftware(), cargando: false },
+    onClasificar: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/una regla tuya con confianza 92%/)).toBeInTheDocument();
+    // La sugerencia PRE-SELECCIONA; nunca guarda sola.
+    const select = canvas.getByLabelText("Categoría") as HTMLSelectElement;
+    await waitFor(async () => await expect(select.value).toBe(CUENTA_SOFTWARE));
+    await expect(args.onClasificar).not.toHaveBeenCalled();
+
+    await userEvent.keyboard("{Enter}");
+    await expect(args.onClasificar).toHaveBeenCalledWith(
+      expect.objectContaining({ id: MOV_DATTATEC }),
+      CUENTA_SOFTWARE,
+      "",
+    );
+
+    /* LA MUTACIÓN QUE ESTO MATA: ofrecer Deshacer donde no hay reversión. El gemelo POSITIVO de
+       este negativo está en `ConciliarConSugerencia`, con la misma query. */
+    await waitFor(async () => await expect(toasts()).toHaveLength(1));
+    await expect(toasts()[0]!).toHaveTextContent("Software y tecnología");
+    await expect(within(toasts()[0]!).queryByRole("button", { name: "Deshacer" })).toBeNull();
+
+    // Guardó desde la sugerencia ⇒ no se ofrece crear una regla que ya existe.
+    await expect(canvas.queryByText(/¿Siempre/)).toBeNull();
+
+    /* AUTO-AVANCE sobre una cola de 5: el siguiente es el SEGUNDO de la cola, no el tercero.
+       Con dos ítems las dos ramas coinciden y la mutación "avanzar de más" pasaría inadvertida;
+       con cinco, no. */
+    await waitFor(
+      async () =>
+        await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
+          "Clasificar 1 de 4",
+        ),
+    );
+    await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
+      "TRANSF. A TERCEROS VIA INTERNET",
+    );
+  },
+};
+
+export const ClasificarSinSugerencia: Story = {
+  name: "Clasificar · sin sugerencia — Guardar responde en vez de estar deshabilitado (Ley 6)",
+  args: {
+    tabInicial: "clasificar",
+    clasificar: itemsClasificar(sinClasificar([MOV_TERCEROS, MOV_DATTATEC])),
+    sugerencia: { movimientoId: MOV_TERCEROS, valor: null, cargando: false },
+    onClasificar: fn(),
+    onCrearRegla: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText(/sin regla que calce: sin evidencia no se sugiere/),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: /Arriendo de oficina · 4/ }),
+    ).toBeInTheDocument();
+
+    /* LA MUTACIÓN QUE ESTO MATA: deshabilitar Guardar sin categoría. */
+    const guardar = canvas.getByRole("button", { name: /Guardar/ });
+    await expect(guardar).not.toBeDisabled();
+    await expect(rojos(canvasElement)).toHaveLength(0);
+
+    await userEvent.click(guardar);
+    await expect(args.onClasificar).not.toHaveBeenCalled();
+    // Ley 6 + Ley 2: aparece UN rojo, y es el "qué falta".
+    const marcados = rojos(canvasElement);
+    await expect(marcados).toHaveLength(1);
+    await expect(marcados[0]!).toHaveTextContent(
+      "Elige una categoría para guardar este movimiento.",
+    );
+
+    // Elegir un frecuente y guardar: ≤ 2 clics + categoría.
+    await userEvent.click(canvas.getByRole("button", { name: /Arriendo de oficina · 4/ }));
+    await expect(rojos(canvasElement)).toHaveLength(0);
+    await userEvent.click(canvas.getByRole("button", { name: /Guardar/ }));
+    await expect(args.onClasificar).toHaveBeenCalledWith(
+      expect.objectContaining({ id: MOV_TERCEROS }),
+      CUENTA_ARRIENDO,
+      "",
+    );
+
+    // Clasificado a mano ⇒ la oferta de regla, en una línea.
+    await expect(canvas.getByText(/¿Siempre/)).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Crear regla" }));
+    await expect(args.onCrearRegla).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const ClasificarEnLote: Story = {
+  name: "Clasificar · lote — 3 del mismo RUT: agrupar sí, bulk no (hueco declarado)",
+  args: {
+    tabInicial: "clasificar",
+    clasificar: itemsClasificar(
+      sinClasificar([MOV_DATTATEC, MOV_ENTEL_1, MOV_ENTEL_2, MOV_ENTEL_3]),
+    ),
+    sugerencia: { movimientoId: MOV_DATTATEC, valor: null, cargando: false },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // El de Dattatec está solo: sin banner de lote.
+    await expect(canvas.queryByText(/esperando categoría/)).toBeNull();
+    await userEvent.click(canvas.getByRole("button", { name: /^Saltar/ }));
+    await expect(canvas.getByText(/Hay/)).toHaveTextContent(
+      "Hay 2 más de 92.580.000-7 esperando categoría",
+    );
+    await expect(
+      canvas.getByText(/Clasificarlos de una sola vez todavía no se puede/),
+    ).toBeInTheDocument();
+    // Agrupar los pone seguidos en la cola; NO los clasifica.
+    await userEvent.click(canvas.getByRole("button", { name: /Revisar los 3 seguidos/ }));
+    /* Agrupar deja al que estabas viendo PRIMERO: la cola se reordena, el cursor no se mueve. */
+    await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
+      "Clasificar 1 de 4",
+    );
+    await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
+      "12 ago 2026",
+    );
+  },
+};
+
+export const BandejaVacia: Story = {
+  name: "Bandeja vacía — celebratorio sobrio, sin rojo y sin prometer de más",
+  args: {
+    conciliar: itemsConciliar(colaConciliarVacia()),
+    clasificar: itemsClasificar(sinClasificarVacio()),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Nada espera tu decisión")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/Tus informes y tu proyección ya no dejan nada de esta bandeja afuera/),
+    ).toBeInTheDocument();
+    await expect(rojos(canvasElement)).toHaveLength(0);
+  },
+};
+
+export const SinRespuesta: Story = {
+  name: "Error — las dos fuentes caídas: la pantalla está ciega, no vacía",
+  args: {
+    conciliar: null,
+    clasificar: null,
+    conciliarMotivo: "No pudimos conectar con la cola de conciliación (error de red).",
+    onReintentar: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText(/No pudimos consultar tu bandeja de excepciones/),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText(/error de red/)).toBeInTheDocument();
+    await expect(rojos(canvasElement)).toHaveLength(0);
+    await userEvent.click(canvas.getByRole("button", { name: "Reintentar" }));
+    await expect(args.onReintentar).toHaveBeenCalledTimes(1);
+  },
+};

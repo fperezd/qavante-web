@@ -136,6 +136,28 @@ export function useRejectReconciliation() {
   });
 }
 
+export type RevertReconciliationResponse = components["schemas"]["RevertReconciliationResponse"];
+
+/** `POST /api/treasury/reconciliation/{movement_id}/revert` — DESASIGNA un match YA APLICADO
+ *  (auto >=90 o confirmado): restaura el `outstanding` del/los documento(s), los vuelve a
+ *  `open`/`partially_paid`, libera el movimiento (`unmatched`) y borra el registro. Idempotente
+ *  (`reverted: 0` si no había match).
+ *
+ *  NO es `reject`: aquél descarta una sugerencia que todavía no se aplicó. Éste es el "Deshacer"
+ *  de la Ley 5 para una conciliación hecha, y es el único de las dos cartas de la bandeja que
+ *  existe hoy en el contrato deployado. Reabrir documentos cambia Cobrar y Pagar → misma
+ *  invalidación que `mark-collected`. */
+export function useRevertReconciliation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (movementId: string) =>
+      api.post<RevertReconciliationResponse>(
+        `/api/treasury/reconciliation/${encodeURIComponent(movementId)}/revert`,
+      ),
+    onSuccess: () => invalidarPorConciliar(qc),
+  });
+}
+
 /** `POST /api/treasury/reconciliation/confirm-batch` — "Conciliar todas (N)". Best-effort: cada
  *  movimiento se confirma por separado; devuelve cuántos confirmaron y cuántos fallaron. */
 export function useConfirmReconciliationBatch() {

@@ -95,7 +95,7 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).toContain("$1.000.000 negociable");
   });
 
-  it("banner de deuda de datos con conteo y monto por moneda, y CTA al flujo actual (no /bandeja)", () => {
+  it("banner de deuda de datos con conteo y monto por moneda, y CTA al flujo actual (bandejaV07 apagado, enlace pendiente #90)", () => {
     const h = html();
     const t = texto(h);
     expect(t).toContain("3 movimientos del banco sin clasificar (~$2.100.000 en entradas)");

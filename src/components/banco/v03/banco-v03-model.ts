@@ -651,8 +651,9 @@ export const CICLO_PILL: Record<CicloMovimiento, { texto: string; tono: "ok" | "
   por_clasificar: { texto: "Por clasificar", tono: "warn" },
 };
 
-/** Ruta del flujo ACTUAL de clasificación con ese ítem cargado. La bandeja (V07) no existe todavía;
- *  no se inventa `/bandeja`. */
+/** Ruta del flujo ACTUAL de clasificación con ese ítem cargado. La bandeja (V07) ya existe bajo
+ *  `/bandeja`, pero detrás del flag `bandejaV07` (apagado por defecto); el enlace desde acá queda
+ *  pendiente, anotado en #90 — mientras tanto no se apunta a `/bandeja`. */
 export function hrefClasificar(movimientoId: string): string {
   return `/caja/por-clasificar?movimiento=${encodeURIComponent(movimientoId)}`;
 }

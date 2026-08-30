@@ -518,7 +518,7 @@ describe("totales del footer, por moneda (INV-FX-001)", () => {
 });
 
 describe("CTA y export", () => {
-  it("'Clasificar' abre el flujo ACTUAL con el ítem cargado (no existe /bandeja)", () => {
+  it("'Clasificar' abre el flujo ACTUAL con el ítem cargado (bandejaV07 apagado, enlace pendiente #90)", () => {
     expect(hrefClasificar("m3")).toBe("/caja/por-clasificar?movimiento=m3");
     expect(hrefClasificar("m3")).not.toContain("/bandeja");
   });

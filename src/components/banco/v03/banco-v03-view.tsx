@@ -72,7 +72,8 @@ import {
  * LO QUE FALTA, dicho acá y no sólo en el PR: (1) la contraparte NO viene como campo del
  * movimiento — la glosa va completa (Ley 7); (2) el ETA de "Actualizando" es un texto fijo
  * declarado (`ETA_ACTUALIZANDO`): no hay progreso consultable del sync; (3) "Clasificar" abre el
- * flujo ACTUAL (`/caja/por-clasificar?movimiento=`), no la bandeja V07, que no existe. */
+ * flujo ACTUAL (`/caja/por-clasificar?movimiento=`), no `/bandeja` (V07) — la bandeja ya existe
+ * pero detrás del flag `bandejaV07` (apagado); el enlace desde acá queda pendiente, ver #90. */
 
 export interface BancoV03ViewProps {
   /** `GET /api/dashboard/summary`. `null` = no llegó. */
