@@ -729,3 +729,158 @@ describe("qa-rediseno-lint — una division no se lee como regex", () => {
     expect(r.err).toContain("src/componentes/sin-division.ts");
   });
 });
+
+/* ── No se hereda una hermana ya cerrada (#52) ────────────────────────────────────
+   EL BUG: `declaracion(n)` subia hasta el `_DECL` mas cercano hacia arriba SIN mirar si
+   ese bloque seguia abierto en la linea del match. Cuando el contenedor REAL no matchea
+   `_DECL` —un literal de objeto, un `export const COLUMNAS = [`, un metodo shorthand, el
+   top-level— la busqueda se pasaba de largo y devolvia la funcion HERMANA de arriba, YA
+   CERRADA. Como `CSS_NO_ES_CIFRA` es `/i` y matchea `...Width`/`...Height`, una hermana
+   `chartWidth` TAPABA el porcentaje: exit 0, silencioso.
+
+   COMO ESTE TEST PRUEBA QUE EL MECANISMO ES LA HERENCIA, y no un caso cualquiera: el
+   mismo array, con la hermana `chartWidth` y con la hermana renombrada `chartAncho`, da
+   HOY resultados distintos (exit 0 vs exit 1) — verificado a mano contra el HEAD sin el
+   fix. Esa diferencia por el NOMBRE de la hermana es la herencia. Tras el fix los dos
+   reportan igual, porque el `%` se mide por su contenedor real (el objeto del array, no
+   reconocido -> `""`), no por quien este arriba. El tercer caso es el contrapeso: un `%`
+   GENUINAMENTE en el cuerpo de `chartWidth` sigue descartandose, asi que la unica cosa que
+   cambia el resultado es el CONTENEDOR — que es lo que el fix mide. */
+describe("qa-rediseno-lint — no se hereda un contenedor hermano ya cerrado (#52)", () => {
+  const conHermana = (nombre) =>
+    [
+      `export function ${nombre}(px: number): string { return String(px); }`,
+      "export const COLUMNAS = [",
+      '  { titulo: "Avance", render: (r: { pct: number }) => `${r.pct}%` },',
+      "];",
+      "",
+    ].join(String.fromCharCode(10));
+
+  it("la hermana `chartWidth` ya NO silencia el % del array (HEAD: exit 0, silenciado)", () => {
+    /* El caso vivo del issue. En HEAD la funcion hermana `chartWidth`, ya cerrada en su
+       propia linea, se heredaba y su nombre CSS tapaba el `%`. */
+    escribir("src/componentes/columnas.tsx", conHermana("chartWidth"));
+    const r = correr();
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("interpolado");
+    expect(r.err).toContain("src/componentes/columnas.tsx");
+  });
+
+  it("y con la hermana renombrada `chartAncho` reporta IGUAL: el nombre no decide", () => {
+    /* EL GEMELO. En HEAD este daba exit 1 mientras el de arriba daba exit 0 — esa era la
+       herencia. Tras el fix los dos dan exit 1: el `%` se reporta por su contenedor real,
+       no por quien tenga arriba. Sin este assert, el de arriba podria pasar por una razon
+       ajena a la herencia. */
+    escribir("src/componentes/columnas.tsx", conHermana("chartAncho"));
+    const r = correr();
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("interpolado");
+  });
+
+  it("un % GENUINAMENTE dentro de una funcion `chartWidth` SI se descarta", () => {
+    /* EL CONTRAPESO que aisla la causa. Aca `chartWidth` es el contenedor REAL del `%` (su
+       cuerpo, no una hermana), y el descarte por identificador tiene que seguir tapandolo.
+       La unica diferencia con el primer caso es el contenedor: eso es lo que el fix mide.
+       Si el fix rompiera el descarte legitimo, este test lo cazaria. */
+    escribir(
+      "src/componentes/dentro.ts",
+      ["export function chartWidth(px: number): string {", "  return `${px}%`;", "}", ""].join(
+        String.fromCharCode(10),
+      ),
+    );
+    expect(correr().code).toBe(0);
+  });
+
+  it("un metodo shorthand de clase no hereda el nombre de la clase", () => {
+    /* La otra cara que da el issue: `class BarWidth { etiqueta(v) { ... } }` multilinea. El
+       contenedor real del `%` es el metodo `etiqueta` (no un `_DECL`), no la clase. En HEAD
+       la busqueda se pasaba de largo hasta `class BarWidth` y el `%` heredaba "BarWidth",
+       que `CSS_NO_ES_CIFRA` tapa. Ahora el metodo corta la herencia y el `%` se reporta. */
+    escribir(
+      "src/componentes/clase.tsx",
+      [
+        "export class BarWidth {",
+        "  etiqueta(v: number): string {",
+        "    return `${v}%`;",
+        "  }",
+        "}",
+        "",
+      ].join(String.fromCharCode(10)),
+    );
+    const r = correr();
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("interpolado");
+    expect(r.err).toContain("src/componentes/clase.tsx");
+  });
+
+  it("una hermana cerrada MULTILINEA tampoco se hereda", () => {
+    /* La misma herencia con la hermana escrita en varias lineas: sus llaves quedan
+       BALANCEADAS en el tramo que recorre `declaracion` —abre arriba, cierra antes del
+       array—, asi que el saldo vuelve a cero y la busqueda la ignora sola. El `%` del array
+       cae en un contenedor no reconocido y se reporta. */
+    escribir(
+      "src/componentes/columnas-multi.tsx",
+      [
+        "export function chartWidth(px: number): string {",
+        "  return String(px);",
+        "}",
+        "export const COLUMNAS = [",
+        '  { titulo: "Avance", render: (r: { pct: number }) => `${r.pct}%` },',
+        "];",
+        "",
+      ].join(String.fromCharCode(10)),
+    );
+    const r = correr();
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("interpolado");
+    expect(r.err).toContain("src/componentes/columnas-multi.tsx");
+  });
+
+  it("una `{` dentro de un string NO cuenta como llave: la hermana sigue sin tapar", () => {
+    /* Pinza la neutralizacion de strings/templates antes de contar. Sin ella, la hermana
+       `chartWidth` de UNA linea que devuelve `"{"` suma un `{` de mas, su saldo cruza a
+       negativo y vuelve a ser "el contenedor": el `%` del array heredaria `chartWidth` y
+       se silenciaria — la misma via silenciosa del issue, por otra puerta. El pase §6 lo
+       midio como mutante SOBREVIVIENTE (Ma): ningun test anterior lo cazaba. */
+    escribir(
+      "src/componentes/columnas-string.tsx",
+      [
+        'export function chartWidth(s: string): string { return "{"; }',
+        "export const COLUMNAS = [",
+        '  { titulo: "Avance", render: (r: { pct: number }) => `${r.pct}%` },',
+        "];",
+        "",
+      ].join(String.fromCharCode(10)),
+    );
+    const r = correr();
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("interpolado");
+    expect(r.err).toContain("src/componentes/columnas-string.tsx");
+  });
+
+  it("un bloque `if` es transparente: el % adentro resuelve a SU funcion", () => {
+    /* Pinza `_CONTROL`. El `{` del `if` es el primero que deja el saldo en negativo; si no
+       fuera transparente, `declaracion` devolveria `""` y el `%` legitimo de `scoreBarWidth`
+       se reportaria (mutante Mb, tambien sobreviviente en el pase §6). El gemelo con la
+       funcion renombrada prueba que el `%` SI se ve y que lo que lo descarta es el NOMBRE
+       de la funcion alcanzado A TRAVES del `if` — sin el gemelo, el exit 0 podria pasar por
+       una razon ajena. */
+    const conNombre = (nombre) =>
+      [
+        `export function ${nombre}(score: number): string {`,
+        "  if (score > 100) {",
+        "    return `${100}%`;",
+        "  }",
+        "  return String(score);",
+        "}",
+        "",
+      ].join(String.fromCharCode(10));
+    escribir("src/componentes/barra.ts", conNombre("scoreBarWidth"));
+    expect(correr().code).toBe(0);
+    escribir("src/componentes/barra.ts", conNombre("scoreBarAncho"));
+    const r = correr();
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("interpolado");
+    expect(r.err).toContain("src/componentes/barra.ts");
+  });
+});

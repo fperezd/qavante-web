@@ -328,10 +328,90 @@ for (const f of archivos) {
      `return`: devolvía "clamped" y el descarte legítimo se perdía. */
   const _DECL =
     /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\s+([A-Za-z_$][\w$]*)|class\s+([A-Za-z_$][\w$]*)|(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*(?:async\s*)?(?:\(|function\b|[A-Za-z_$][\w$]*\s*=>))/;
+  /* NO HEREDAR UNA HERMANA YA CERRADA (#52).
+     La versión anterior devolvía el `_DECL` más cercano hacia arriba SIN mirar si su bloque
+     seguía abierto en la línea del match. Cuando el contenedor REAL no matchea `_DECL` —un
+     literal de objeto, un `export const COLUMNAS = [`, un método shorthand, el top-level— la
+     búsqueda se pasaba de largo y devolvía una función HERMANA YA CERRADA. Como
+     `CSS_NO_ES_CIFRA` es `/i` y matchea `…Width`/`…Height`, cualquier `chartWidth`/`getMinHeight`
+     arriba en el archivo TAPABA un porcentaje que cayera en un contenedor no reconocido: un
+     descarte de más, silencioso — un hallazgo que NO se reporta.
+
+     El arreglo CUENTA LLAVES. El contenedor es la declaración que abre un `{` que sigue SIN
+     CERRAR en la línea del match: subiendo desde el match se suma `}` y se resta `{` (ya sin
+     comentarios ni strings), y la primera línea que deja el saldo en negativo es la que abrió el
+     bloque que nos contiene. Una hermana ya cerrada tiene sus llaves BALANCEADAS en el tramo
+     recorrido —abre arriba, cierra antes del match—, así que su saldo vuelve a cero y la
+     búsqueda la ignora SOLA. Eso es justo lo que la versión vieja no hacía.
+
+       · si esa línea es un `_DECL` -> ése es el contenedor (p.ej. `scoreBarWidth`);
+       · si es un bloque de control (`if`/`for`/…), es transparente —hereda el nombre de su
+         propia función—, así que se sigue subiendo;
+       · si es cualquier otra cosa —objeto, método shorthand, arrow sin `_DECL`— el contenedor
+         real NO es una declaración reconocida y se devuelve `""` en vez de heredar una hermana.
+
+     La línea del match, si ELLA misma es un `_DECL` (arrow de una línea, etc.), gana: el match
+     está en su cuerpo por estar en su misma línea.
+
+     Se descartan strings/templates antes de contar porque un `{` dentro de `"{"` o de un
+     `` `${x}` `` no es estructura; los `${…}` de un template de una línea igual balancean, así
+     que no corrompen el saldo. Sólo se cuentan llaves `{}` —no `()`/`[]`—: son las que delimitan
+     cuerpos de función/clase/método/objeto, que es lo único que puede heredar un nombre.
+
+     Sobre `src/` lo que NO cambia es el VEREDICTO: trazados los 42 matches §5.8 con el script
+     viejo y con éste, los 42 dan el mismo DESCARTE/REPORTE (baseline 14/14). Lo que sí cambia
+     es el NOMBRE que `declaracion` devuelve: de los 30 descartes, 20 pasan a resolver `""` (el
+     `%` vive en un objeto/JSX/callback que no es `_DECL`, y antes heredaba el componente:
+     `TarjetaCreditoItem`, `AgingCard`, `SaludView`, `OnboardingShell`…), 3 líneas de un mismo
+     sitio cambian a su contenedor real (`gestion-seccion-view.tsx:394-396`, `seg` -> `DeCada100`:
+     antes heredaban una arrow hermana ya cerrada) y 7 conservan el nombre. Entre los 12 reportes
+     cambia uno (`banco-view.tsx:100`, `statusOf` -> `BancoView`), y sigue reportándose. Nada de
+     eso mueve un veredicto porque 29 de los 30 descartes traen la evidencia CSS en su propia
+     línea; el ÚNICO que depende del nombre es `scoreBarWidth` (medido forzando `declaracion` a
+     `""`: 29 descartes, un solo flip). El agujero es latente y se cierra por lo que va a pasar.
+
+     De paso se cierra un FALSO POSITIVO viejo: una arrow hermana `const seg = (x) => {…}` cerrada
+     DENTRO de `scoreBarWidth` era el `_DECL` más cercano y el `%` heredaba `seg`, que no es
+     CSS -> se reportaba aunque el contenedor real se llamara `…Width`. Con el saldo, `seg` queda
+     balanceada y se llega a `scoreBarWidth`.
+
+     CLASE NUEVA DE FALSO POSITIVO, declarada: un `%` dentro de un `useMemo(() => {`, un `.map((v) => {`,
+     un `case X: {` o un objeto literal `{` que viven DENTRO de una función legítimamente llamada
+     `…Width`/`…Height` ahora se REPORTA (antes lo tapaba el nombre, por la misma herencia), porque
+     ese `{` no es `_DECL` ni `_CONTROL` y el saldo corta ahí con `""`. Es ruidoso, no silencioso
+     —la dirección que este script prefiere— y lo absorbe el baseline si aparece. Cero instancias
+     hoy en `src/` (el único descarte que depende del nombre no tiene callbacks).
+
+     LIMITACIÓN, medida y aceptada como las otras del script: un `class X { m(){ return `${v}%` } }`
+     de UNA sola línea todavía hereda `X`, porque el chequeo de la línea del match no cuenta
+     llaves intra-línea. Cero instancias en los 845 archivos de `src/`; el caso vivo y realista es
+     multilínea, y ése sí se corrige. */
+  const _NEUTRAL = /`[^`]*`|"[^"]*"|'[^']*'/g;
+  const _CONTROL = /^\s*\}?\s*(?:if|else|for|while|switch|do|try|catch|finally)\b/;
+  const saldoLlaves = (linea) => {
+    const s = (linea ?? "").replace(_NEUTRAL, "");
+    let d = 0;
+    for (const ch of s) {
+      if (ch === "{") d -= 1;
+      else if (ch === "}") d += 1;
+    }
+    return d;
+  };
   const declaracion = (n) => {
-    for (let k = n - 1; k >= 0; k -= 1) {
-      const m = _DECL.exec(lineas[k] ?? "");
-      if (m) return m[1] || m[2] || m[3] || "";
+    const propia = _DECL.exec(lineas[n - 1] ?? "");
+    if (propia) return propia[1] || propia[2] || propia[3] || "";
+    let saldo = 0;
+    for (let k = n - 2; k >= 0; k -= 1) {
+      saldo += saldoLlaves(lineas[k]);
+      if (saldo < 0) {
+        const linea = lineas[k] ?? "";
+        if (_CONTROL.test(linea)) {
+          saldo = 0;
+          continue;
+        }
+        const m = _DECL.exec(linea);
+        return m ? m[1] || m[2] || m[3] || "" : "";
+      }
     }
     return "";
   };
