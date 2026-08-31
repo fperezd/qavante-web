@@ -38,10 +38,14 @@
  * ── NO SE RECALCULA `variance`/`variance_pct` ────────────────────────────────────────────────
  * El endpoint YA los trae calculados (issue #74): `desvio`/`desvioPct` de este módulo son
  * `parseAmount`/`parseAmountOrNull` puros sobre `BudgetLine.variance`/`variance_pct` — nunca
- * `real - plan` recalculado en el front (eso duplicaría la fuente del concepto, Ley 1). Es la
- * diferencia deliberada con `plan-real-model.ts` (Inicio v2 / Presupuesto Fase 1a), que sí
- * recalcula: ese módulo es anterior a que el backend expusiera `variance`/`variance_pct` y queda
- * fuera de alcance de este issue (no se toca — ver `presupuesto-v09-view.tsx`).
+ * `real - plan` recalculado en el front (eso duplicaría la fuente del concepto, Ley 1).
+ * RETRACTACIÓN (qavante-web#103): esta cabecera afirmaba que `plan-real-model.ts` (Inicio v2 /
+ * Presupuesto Fase 1a) SÍ recalculaba "fuera de alcance" de este issue — dejó de ser cierto:
+ * #103 encontró exactamente esa divergencia (backend 21,1 % vs widget 21 %, sólo por el redondeo
+ * a entero DEL CÁLCULO, no de la presentación) y la corrigió. `mapPlanReal` (camino MENSUAL, el
+ * único con un `BudgetLine` por línea) lee `variance`/`variance_pct` tal cual, igual que este
+ * módulo; sólo `agregarPlanReal` (acumulado ANUAL) sigue derivando, porque el backend no expone
+ * `budget-vs-actual` de rango — no es la misma excepción que existía acá.
  *
  * ── "NO SÉ" EXPLÍCITO (Ley 3) ─────────────────────────────────────────────────────────────────
  * `estadoDatosV09` declara `sin_presupuesto` (has_budget=false) e `incompleto` (data_state≠
