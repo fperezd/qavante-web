@@ -81,6 +81,7 @@ export const FEATURE_FLAGS = [
   "administracionV12",
   "remuneracionesV16",
   "onboardingV15",
+  "presupuestoV09",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -448,6 +449,28 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      OFF, `/bienvenida` renderiza el estado "todavía no disponible" (ADR-0008) — ninguna pantalla
      existente cambia → cero regresión. Encender = editar wrangler.toml. */
   onboardingV15: "/api/onboarding/sync-progress",
+  /* V09 · Presupuesto — `/presupuesto` (ESPECIFICACION §V09, issue #74, R1). Reemplaza la landing
+     de Presupuesto (ADR-0091 Fase 1a, flag `presupuesto`) por la tríada Plan/Real/Desvío + la
+     tabla de desvíos por concepto, ambas sobre `GET /api/planning/budget-vs-actual` — endpoint
+     VIVO en prod (verificado contra el tenant productivo 2026-08-31, issue #74 comentario): trae
+     `has_budget`, `data_state`, `missing_sources` y las 4 líneas con `variance`/`variance_pct` YA
+     CALCULADOS (el front NO los recalcula — Ley 1). INV-FIN-001 se cumple al peso: el `actual` de
+     la línea `revenue` es exactamente el `revenue` de `GET /api/management/operational-result` del
+     mismo período (el "Real" de acá = el "Resultado" de V08).
+
+     Alcance RECORTADO a propósito (issue #74): NO incluye el link a los documentos que explican
+     cada desvío (drill-down monto→documentos) ni el banner de proyección de cierre ("a este
+     ritmo…"). El primero es un fork de diseño del BO (ADR-0091 F1b) — "no se decide sin
+     Fernando"; el segundo depende de la MISMA decisión de forma. El endpoint que alimentaría el
+     drill-down (`/operational-result/documents`) YA EXISTE y V08 ya lo usa: el bloqueo es de
+     FORMA, no de dato (issue #74, comentario 2026-08-31) — por eso es justamente ESE el endpoint
+     de gating: es lo único, verificado, que le falta a la vista para estar completa, igual que en
+     `hoyV01`/…/`onboardingV15`. Es FE-first, con issue sucesor declarado en pantalla
+     (`HuecosDeclarados` de `presupuesto-v09-view.tsx`).
+
+     Con OFF, `/presupuesto` sigue exactamente como hoy: la pantalla de ADR-0091 Fase 1a detrás del
+     flag `presupuesto` (que sigue ON en prod) → cero regresión. Encender = editar wrangler.toml. */
+  presupuestoV09: "/api/management/operational-result/documents",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
