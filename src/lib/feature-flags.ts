@@ -78,6 +78,7 @@ export const FEATURE_FLAGS = [
   "bandejaV07",
   "cobrarV04",
   "gestionV08",
+  "remuneracionesV16",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -388,6 +389,30 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      igual que en `hoyV01`/`cajaV02`/`bancoV03`/`pagarV05`: FE-first, con issue sucesor. Encender =
      editar wrangler.toml. */
   gestionV08: "/api/management/operational-result/export",
+  /* V16 · Remuneraciones — "Tu nómina" en una pantalla (ESPECIFICACION §V16, issue #77).
+     Reemplaza la landing de `/remuneraciones` por la tríada (Líquido / Cotizaciones (Previred) /
+     Costo empresa con % de ingresos ⓘ) y la tabla por persona con estado + link a su liquidación.
+     Todo sobre endpoints VIVOS: `/api/buk/payroll` (líquido, cotizaciones — el flag `remuneraciones`
+     ya está ON), `/api/buk/payroll/detail` (costo empresa por persona, ADR-0057), `/api/bank-movements`
+     (estado Pagado/Pendiente) y `/api/management/operational-result` (ingresos del período, el
+     flag `operationalResult` ya está ON) — la vista funciona hoy.
+
+     TRAMPA de doble conteo (ADR-0056 nómina=payable real en Pagar; ADR-0070 el monto sale de BUK):
+     "Costo empresa" NO se calcula como líquido + cotizaciones (eso duplicaría la porción que el
+     trabajador ya se descontó de su bruto) — se REUSA el `costo_empresa` que BUK entrega por
+     persona en `/api/buk/payroll/detail`, la misma fuente que ya muestra la Planilla clásica. Ver
+     `remuneraciones-v16-model.ts` (cabecera) y su test `costo empresa no duplica cotizaciones`.
+
+     Su endpoint de gating es lo ÚNICO que le falta a la vista: un documento de liquidación POR
+     PERSONA. BUK no lo expone (verificado contra `src/lib/api/types.ts` — sin `settlement_url` ni
+     campo equivalente en `EmployeeDetailResponse`), así que "liquidación" en cada fila enlaza,
+     mientras tanto, al MISMO destino que ya usa Pagar V05 para la fila "Remuneraciones" (`hrefDe`
+     de `pagar-v05-model.ts`): la Planilla del período en la vista clásica. Es FE-first, como los de
+     `hoyV01`/`cajaV02`/`bancoV03`/`pagarV05`/`bandejaV07`/`gestionV08`, con issue sucesor. El path
+     de abajo es la FORMA esperada de ese documento futuro, no una cita de un endpoint que exista
+     hoy. Con OFF, `/remuneraciones` queda exactamente como está (las pestañas Dotación / Planilla /
+     Clasificación / Conciliación) → cero regresión. Encender = editar wrangler.toml. */
+  remuneracionesV16: "/api/buk/employees/{employee_id}/settlement",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
