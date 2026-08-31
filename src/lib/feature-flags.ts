@@ -82,6 +82,7 @@ export const FEATURE_FLAGS = [
   "remuneracionesV16",
   "onboardingV15",
   "presupuestoV09",
+  "impuestosV06",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -471,6 +472,36 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      Con OFF, `/presupuesto` sigue exactamente como hoy: la pantalla de ADR-0091 Fase 1a detrás del
      flag `presupuesto` (que sigue ON en prod) → cero regresión. Encender = editar wrangler.toml. */
   presupuestoV09: "/api/management/operational-result/documents",
+  /* V06 · Impuestos — `/impuestos` (ESPECIFICACION §V06, issue #73, R1). RUTA NUEVA (no existía).
+     Tríada (Próximo vencimiento / F-29 del mes en curso / Deudas TGR) + calendario tributario
+     (F-29 declarado o no, IVA postergado del SII, Previred, TGR) sobre TRES fuentes YA vivas:
+     `/api/sii/f29/estado?anio=` (la MISMA que ya consume el panel de `/pagar/impuestos/f29`),
+     `/api/buk/payroll` (la MISMA que `previred-view.tsx` y V16 — Ley 1) y `/api/tgr/health` +
+     `/movimientos-deudas` (la MISMA que `/pagar/impuestos/tgr`; hoy `authenticated` es `false`
+     para todo tenant — la vista degrada tan honesto como esa pantalla, nunca inventa una deuda).
+     La vista funciona hoy con datos reales.
+
+     `GET /api/treasury/tax-calendar` EXISTE pero verificado VACÍO en producción (issue #73,
+     comentario 2026-08-31: `total: "0"`, `events: []`) y `GET /api/treasury/obligations` sólo
+     trae `card_purchase` — ninguno de los dos alimenta esta vista.
+
+     Su endpoint de gating es lo ÚNICO que le falta para estar completa, igual que en
+     `hoyV01`/…/`presupuestoV09`: la ESTIMACIÓN del F-29 del mes en curso (IVA débito−crédito
+     desde los DTEs). Es R2 `[money]` — vive en qavante-api, no en el front — y su propia
+     aceptación exige contrastarla contra un F-29 real declarado antes de publicarla; ese contraste
+     no existe todavía, así que la vista NUNCA la calcula ni la estima: la tríada y la tabla
+     muestran "sin dato" con el motivo (`f29EstimadoHuecoV06` en `impuestos-v06-model.ts`). Es
+     FE-first en el sentido inverso de los otros flags de este archivo: acá el front está listo y
+     lo que falta es el endpoint de negocio en el backend, sin issue sucesor todavía (por crear en
+     qavante-api). Un segundo hueco menor, verificado contra el contrato pero no pedido por el
+     endpoint de gating: `PayableItem` no liga un F-29 declarado a un movimiento bancario
+     específico, así que "conciliado con cargo bancario" tampoco se infiere (declarado en pantalla,
+     el comprobante enlaza al F-29 real del SII en su lugar).
+
+     Con OFF, `/impuestos` renderiza el estado "todavía no disponible" con salida a
+     `/pagar/impuestos` (F-29/TGR) y `/pagar/previred` — los dos flujos que hacen este trabajo hoy.
+     Ninguna pantalla existente cambia → cero regresión. Encender = editar wrangler.toml. */
+  impuestosV06: "/api/sii/f29/estimado",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).

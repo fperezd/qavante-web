@@ -68,6 +68,10 @@ export interface F29EstadoMes {
   /** Declarado pero con el IVA POSTERGADO (Consulta de Giros). Opcional: hoy solo lo trae `/f29/giros`
    *  por-período; escalado para que `/f29/estado` lo incluya y la grilla lo marque sin golpear el SII. */
   postergado_iva?: boolean;
+  /** Monto postergado en CLP (verificado contra prod 2026-08-31, issue qavante-web#73). `null` =
+   *  el F29 del mes no se parseó ⇒ NO SE SABE (nunca `0` = "no postergó"; para eso está
+   *  `postergado_iva === false`). Acompaña a `postergado_iva`. */
+  monto_postergado?: number | null;
   /** Fecha diferida del IVA postergado (ISO). Acompaña a `postergado_iva`. */
   vencimiento_postergado?: string | null;
 }
