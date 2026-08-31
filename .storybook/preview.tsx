@@ -7,10 +7,37 @@ import React from "react";
    + tipografía. Sin este import las stories pierden el styling del DS. */
 import "../src/app/globals.css";
 
+/* `NEXT_PUBLIC_API_URL` — hallazgo de revisión (PR #95): sin `.env.local` (gitignored, no
+ * existe en CI ni en un worktree fresco), `src/lib/api/client.ts` corta ANTES de llamar a
+ * `fetch` con "NEXT_PUBLIC_API_URL no configurada" (`ApiError` inmediato, NO la "loading state
+ * perpetuo" que asumía el comentario de abajo). Toda story que monta un componente con hooks de
+ * datos (`useXxx` sobre `api.get`) caía siempre a esa rama de error, nunca a los handlers MSW de
+ * `parameters.msw.handlers`: los mocks estaban ahí, escritos, pero INERTES. Nadie lo notó porque
+ * hasta ahora ninguna story tenía un `play()` que afirmara sobre texto derivado de datos reales.
+ *
+ * Se parchea ACÁ (no en `vitest.config.ts`) porque un `define` a nivel de proyecto Vitest resultó
+ * filtrarse al proyecto `unit` — reprodujo un `href` con slash final espurio en
+ * `administracion-v12-view.test.tsx` corriendo AISLADO, con `--project unit` solo. Este archivo
+ * sólo lo carga el proyecto `storybook`, así que no hay blast radius fuera de las stories.
+ *
+ * El dominio es adrede `.invalid` (RFC 2606: reservado, NUNCA resuelve) — no
+ * `https://api.qavante.com` real: con `onUnhandledRequest: "bypass"` (abajo), cualquier request
+ * de una story SIN handler para ese endpoint (p.ej. `EmpresasView` pide más de lo que su story
+ * mockea) se habría ido de verdad a producción. Contra un `.invalid`, el mismo request falla
+ * rápido con un error de red (`ApiError network_error`) — nunca un 401 real que dispare
+ * `redirectToLogin()` y navegue el iframe del test (lo probé: con un dominio real, eso rompía
+ * `empresas-view.stories.tsx` con "Cannot connect to the iframe"). Corre ANTES que cualquier
+ * story importe (transitivamente) `client.ts`, así que la constante ya queda resuelta cuando ese
+ * módulo se evalúa por primera vez. */
+if (typeof process !== "undefined") {
+  process.env.NEXT_PUBLIC_API_URL ||= "https://api.storybook.invalid";
+}
+
 /* msw-storybook-addon — habilita stories de vistas-contenedor que llaman
    hooks de TanStack Query. Cada story declara `parameters.msw.handlers`
    con un array de handlers MSW (mismo shape que `src/test/msw/handlers.ts`).
-   Sin handlers la story renderea sin red (loading state perpetuo).
+   Sin handlers la story cae a un error de red silencioso (ver nota de
+   `NEXT_PUBLIC_API_URL` arriba) — no al "loading perpetuo" que asumía este comentario.
    Service worker servido desde `/public/mockServiceWorker.js` (ya existe
    por el dev-mode MSW del app). */
 initialize({

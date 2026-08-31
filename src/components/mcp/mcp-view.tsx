@@ -57,13 +57,21 @@ function Campo({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-surface-muted/40 px-3 py-2">
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-mid">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-mid">
+          {label}
+        </p>
         <p className="truncate font-mono text-sm text-neutral-dark">{value}</p>
       </div>
       <CopyButton value={value} label={label} />
     </div>
   );
 }
+
+/* Texto FIJO de la spec (ESPECIFICACION §V12, "12C Estructura · MCP" — QA §5.10: se muestra
+   literal, no parafraseado). No se borra si el backend cambia la copia de `conn.data.docs`: es
+   una garantía del producto, no un dato del contrato. */
+export const MCP_FRASE_SOLO_LECTURA =
+  "el asistente solo lee — nunca clasifica, concilia ni mueve plata";
 
 export function McpView() {
   const list = useApiKeys();
@@ -102,12 +110,17 @@ export function McpView() {
           {conn.data?.docs?.resumen ??
             "Conecta las finanzas de tu empresa a un asistente (Claude, ChatGPT) por MCP: consulta tu caja, resultado, cobros/pagos y presupuesto en lenguaje natural, con tus datos reales."}
         </p>
+        <p className="mb-3 flex items-start gap-1.5 rounded-lg border border-warning-500/30 bg-warning-50 px-3 py-2 text-sm font-medium text-warning-700">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          {MCP_FRASE_SOLO_LECTURA}
+        </p>
         <div className="space-y-2">
           <Campo label="Dirección del servidor (MCP)" value={conn.data?.server_url ?? MCP_URL} />
           <Campo label="Header de auth" value={conn.data?.auth_header ?? "X-Api-Key"} />
           <p className="text-xs text-neutral-mid">
-            Si tu cliente solo tiene un campo <b>Token</b> o <b>Bearer</b>, pega ahí la misma key (se
-            envía como <span className="font-mono">{conn.data?.auth_bearer ?? "Bearer <API-key>"}</span>).
+            Si tu cliente solo tiene un campo <b>Token</b> o <b>Bearer</b>, pega ahí la misma key
+            (se envía como{" "}
+            <span className="font-mono">{conn.data?.auth_bearer ?? "Bearer <API-key>"}</span>).
           </p>
         </div>
 
@@ -127,7 +140,9 @@ export function McpView() {
             <ul className="space-y-1 text-xs">
               {conn.data!.docs!.clientes!.map((c) => (
                 <li key={c.nombre} className="flex items-start gap-1.5">
-                  <span className={cn("mt-0.5", c.soportado ? "text-success-700" : "text-neutral-mid")}>
+                  <span
+                    className={cn("mt-0.5", c.soportado ? "text-success-700" : "text-neutral-mid")}
+                  >
                     {c.soportado ? "✓" : "○"}
                   </span>
                   <span className="text-neutral-dark">
@@ -232,7 +247,10 @@ export function McpView() {
             {keys.map((k) => (
               <li key={k.id} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="flex min-w-0 items-start gap-2.5">
-                  <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-neutral-mid" aria-hidden="true" />
+                  <KeyRound
+                    className="mt-0.5 h-4 w-4 shrink-0 text-neutral-mid"
+                    aria-hidden="true"
+                  />
                   <div className="min-w-0">
                     <p
                       className={cn(

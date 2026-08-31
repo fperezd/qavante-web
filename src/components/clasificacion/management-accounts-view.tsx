@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { AlertCircle, Plus } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, ArrowRight, Inbox, Plus } from "lucide-react";
 import { QavanteButton, QavanteEmpty } from "@/components/qavante";
 import {
   useManagementAccountsTree,
@@ -145,6 +146,14 @@ export function ManagementAccountsView() {
       <QavanteEmpty
         title="Todavía no hay una estructura de gestión"
         description="Cuando configures tu estructura vas a poder verla y ajustarla acá, partiendo de una base sugerida."
+        cta={
+          <Link
+            href="/bandeja"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-brand-primary hover:underline"
+          >
+            Ir a la bandeja de excepciones
+          </Link>
+        }
       />
     );
   }
@@ -178,6 +187,23 @@ export function ManagementAccountsView() {
           </QavanteButton>
         </div>
       </div>
+
+      {/* "No clasificado" (ESPECIFICACION §V12, 12C Estructura): esta estructura sólo ordena lo
+          YA clasificado. Lo que todavía no calza en ninguna cuenta no aparece como un nodo más del
+          árbol —sería un grupo sin ninguna de las acciones de arriba (mover/desactivar no aplican
+          a "nada")—, así que se ofrece como lo que es: la salida a la bandeja de excepciones (V07)
+          donde SÍ se resuelve. Siempre visible: es navegación, no un conteo que pueda mentir. */}
+      <Link
+        href="/bandeja"
+        className="flex items-center gap-2 rounded-xl border border-dashed border-border px-3 py-2.5 text-sm text-neutral-mid hover:border-brand-primary hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+      >
+        <Inbox className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span className="flex-1">
+          <span className="font-medium text-neutral-dark">No clasificado</span> — los movimientos
+          que todavía no calzan en ninguna cuenta se resuelven en la bandeja de excepciones.
+        </span>
+        <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+      </Link>
 
       {mutationError && (
         <div

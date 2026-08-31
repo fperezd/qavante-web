@@ -78,6 +78,7 @@ export const FEATURE_FLAGS = [
   "bandejaV07",
   "cobrarV04",
   "gestionV08",
+  "administracionV12",
   "remuneracionesV16",
 ] as const;
 
@@ -389,6 +390,20 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      igual que en `hoyV01`/`cajaV02`/`bancoV03`/`pagarV05`: FE-first, con issue sucesor. Encender =
      editar wrangler.toml. */
   gestionV08: "/api/management/operational-result/export",
+  /* V12 · Administración — el hub como tabla de 8 entradas con estado por fila (ESPECIFICACION
+     §V12, issue #75). Reemplaza la grilla de tarjetas de `/administracion` por una tabla; la fila
+     Credenciales reusa la MISMA fuente que V11 (`sourceToConnectionCopy` sobre
+     `/api/sources/status`, ya VIVO) para "N requiere(n) tu acción → Renovar" (Ley 1). Empresas y
+     Usuarios también van sobre endpoints VIVOS (`/api/me/tenants`, `/api/users`) — la vista
+     funciona hoy.
+
+     Su endpoint de gating es lo ÚNICO que le falta: el contador "aplicada N veces, M correcciones"
+     de 12B · Reglas (issue #75, marcado 🔧) no existe — el contrato de `ClassificationRule` no
+     trae ni el conteo de aplicaciones ni el de correcciones, así que esa línea NO se renderiza
+     (hueco declarado, no un cero inventado) hasta que exista. Es FE-first, como los de
+     `hoyV01`/…/`gestionV08`, con su issue sucesor. Con OFF, `/administracion` sigue con la
+     grilla de tarjetas actual → cero regresión. Encender = editar wrangler.toml. */
+  administracionV12: "/api/treasury/classification-rules/{id}/usage",
   /* V16 · Remuneraciones — "Tu nómina" en una pantalla (ESPECIFICACION §V16, issue #77).
      Reemplaza la landing de `/remuneraciones` por la tríada (Líquido / Cotizaciones (Previred) /
      Costo empresa con % de ingresos ⓘ) y la tabla por persona con estado + link a su liquidación.

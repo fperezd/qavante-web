@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
+import { AdministracionV12Live } from "@/components/administracion/v12/administracion-v12-live";
 
 interface SubModuleCardProps {
   href: string;
@@ -46,7 +47,26 @@ function SubModuleCard({ href, icon: Icon, title, description }: SubModuleCardPr
 }
 
 export default function AdministracionPage() {
-  const { mcp } = resolveFeatureFlags();
+  const { mcp, administracionV12 } = resolveFeatureFlags();
+
+  /* V12 · Administración (rediseño Fase 2, issue #75) — gated por `administracionV12`, HOY
+     APAGADO. Reemplaza la grilla de tarjetas por la tabla de 8 (o 9, con MCP) entradas con estado
+     por fila de la spec §V12: Credenciales reusa la MISMA fuente que V11 (Ley 1), Empresas y
+     Usuarios muestran su conteo real. Con OFF nada de abajo cambia (cero regresión: la grilla
+     actual queda intacta). El hueco declarado (contador "aplicada N veces, M correcciones" de
+     12B · Reglas) está documentado en `FLAG_GATING_ENDPOINT.administracionV12`. */
+  if (administracionV12) {
+    return (
+      <div className="space-y-6">
+        <header>
+          <h1 className="text-2xl font-bold text-neutral-dark">Administración</h1>
+          <p className="mt-1 text-sm text-neutral-mid">¿Cómo configuro mi equipo y mis fuentes?</p>
+        </header>
+        <AdministracionV12Live mcp={mcp} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <header>

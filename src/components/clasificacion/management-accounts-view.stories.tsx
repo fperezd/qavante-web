@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse, delay } from "msw";
+import { within, expect } from "storybook/test";
 import { ManagementAccountsView } from "./management-accounts-view";
 import type { ManagementAccountTreeResponse } from "@/lib/api/management";
 
@@ -114,11 +115,32 @@ type Story = StoryObj<typeof meta>;
 export const Arbol: Story = {
   name: "Árbol (ingresos + gastos)",
   parameters: { msw: { handlers: [OK] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText("Ingresos")).toBeInTheDocument();
+    // Hallazgo de revisión PR #95: el enlace "No clasificado" → bandeja de excepciones (V07)
+    // vive SIEMPRE, también con el árbol lleno (ESPECIFICACION §V12, 12C Estructura).
+    const link = await canvas.findByRole("link", { name: /No clasificado/ });
+    await expect(link).toHaveAttribute("href", "/bandeja");
+    await expect(link).toHaveTextContent(
+      "No clasificado — los movimientos que todavía no calzan en ninguna cuenta se resuelven en la bandeja de excepciones.",
+    );
+  },
 };
 
 export const Vacio: Story = {
   name: "Vacío (sin estructura)",
   parameters: { msw: { handlers: [EMPTY] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText("Todavía no hay una estructura de gestión"),
+    ).toBeInTheDocument();
+    // El mismo enlace también vive en el estado vacío: "no clasificado" no depende de tener
+    // un árbol armado — la bandeja recibe movimientos aunque la estructura esté sin configurar.
+    const link = await canvas.findByRole("link", { name: /Ir a la bandeja de excepciones/ });
+    await expect(link).toHaveAttribute("href", "/bandeja");
+  },
 };
 
 export const Cargando: Story = {
