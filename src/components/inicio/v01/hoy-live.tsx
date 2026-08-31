@@ -3,6 +3,7 @@
 import * as React from "react";
 import { QavanteInlineError } from "@/components/qavante";
 import { useDashboardSummary } from "@/lib/api/dashboard";
+import { useLatestLiquidityEvaluation } from "@/lib/api/financial-decisions";
 import { useMe } from "@/lib/api/users";
 import { HoyView } from "./hoy-view";
 
@@ -18,6 +19,7 @@ import { HoyView } from "./hoy-view";
 
 export function HoyLive() {
   const summary = useDashboardSummary();
+  const liquidity = useLatestLiquidityEvaluation();
   const me = useMe();
 
   if (summary.isLoading) return <CargandoHoy />;
@@ -31,7 +33,15 @@ export function HoyLive() {
     );
   }
 
-  return <HoyView data={summary.data ?? null} empresa={me.data?.user?.tenant_name ?? null} />;
+  return (
+    <HoyView
+      data={summary.data ?? null}
+      empresa={me.data?.user?.tenant_name ?? null}
+      liquidityEvaluation={liquidity.data ?? null}
+      liquidityLoading={liquidity.isLoading}
+      liquidityFailed={liquidity.isError}
+    />
+  );
 }
 
 /* §5.4 — un estado de carga habla: qué se está trayendo y cuánto tarda. "Cargando…" a secas es

@@ -56,7 +56,12 @@ function summary(over: Partial<DashboardSummaryV2> = {}): DashboardSummaryV2 {
 const SUELDOS_EN_5_DIAS = {
   due_7d: "7400000",
   due_14d: "7400000",
-  next_critical: { label: "Sueldos de agosto", due_date: "2026-09-04", amount: "7400000" },
+  next_critical: {
+    label: "Sueldos de agosto",
+    due_date: "2026-09-04",
+    amount: "7400000",
+    is_overdue: false,
+  },
   last_updated: "2026-08-30T08:00:00Z",
   source: "buk",
 };
@@ -169,6 +174,13 @@ describe("Ley 10 · día perfecto", () => {
     // El label sí dice que no hay nada que aprobar — eso SÍ se sabe.
     expect(v.pendientesLabel).toBe("No hay nada que necesite tu OK");
   });
+
+  it("una decisión persistida vigente impide declarar día perfecto", () => {
+    const v = veredictoHoy(summary({ priority_actions: [] }), HOY, 1);
+    expect(v.diaPerfecto).toBe(false);
+    expect(v.titular).toBe("Tu empresa está sana");
+    expect(v.pendientesLabel).toBe("hay 1 cosa que necesita tu OK");
+  });
 });
 
 describe('"hay N cosas que necesitan tu OK"', () => {
@@ -223,6 +235,14 @@ describe("Esperando tu visto bueno (fallback de la spec: las acciones prioritari
     decisionesHoy(s, false);
     expect(acciones.map((a) => a.reason)).toEqual(["Tercera", "Primera"]);
   });
+
+  it("una evaluación de liquidez reserva un lugar y reemplaza el fallback en crisis", () => {
+    const s = summary({
+      priority_actions: [ACCION(1, "Primera"), ACCION(2, "Segunda"), ACCION(3, "Tercera")],
+    });
+    expect(decisionesHoy(s, false, 1).map((a) => a.reason)).toEqual(["Primera", "Segunda"]);
+    expect(decisionesHoy(s, true, 1)).toHaveLength(0);
+  });
 });
 
 /* ── Las reglas, por separado ────────────────────────────────────────────────── */
@@ -267,7 +287,12 @@ describe("sueldosEnRiesgo — Ley 3: sin evidencia dura de los DOS lados, no hay
       ...CAJA_BAJO_CERO,
       critical_payments: {
         ...SUELDOS_EN_5_DIAS,
-        next_critical: { label: "F29 de agosto", due_date: "2026-09-04", amount: "3100000" },
+        next_critical: {
+          label: "F29 de agosto",
+          due_date: "2026-09-04",
+          amount: "3100000",
+          is_overdue: false,
+        },
       },
     });
     expect(sueldosEnRiesgo(s, HOY)).toBe(false);
@@ -283,6 +308,7 @@ describe("sueldosEnRiesgo — Ley 3: sin evidencia dura de los DOS lados, no hay
           label: "Imposiciones (Previred)",
           due_date: "2026-09-04",
           amount: "900000",
+          is_overdue: false,
         },
       },
     });
@@ -307,7 +333,11 @@ describe("sueldosEnRiesgo — Ley 3: sin evidencia dura de los DOS lados, no hay
       ...CAJA_BAJO_CERO,
       critical_payments: {
         ...SUELDOS_EN_5_DIAS,
-        next_critical: { ...SUELDOS_EN_5_DIAS.next_critical, due_date: "2026-08-25" },
+        next_critical: {
+          ...SUELDOS_EN_5_DIAS.next_critical,
+          due_date: "2026-08-25",
+          is_overdue: true,
+        },
       },
     });
     expect(sueldosEnRiesgo(s, HOY)).toBe(true);

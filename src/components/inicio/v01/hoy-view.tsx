@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
+import type { LiquidityEvaluation } from "@/lib/api/financial-decisions";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import {
   crumbHoy,
@@ -15,6 +16,8 @@ import {
   type EstadoHoy,
   type IndicadorHoy,
 } from "./hoy-model";
+import { LiquidityEvaluationPanel } from "./liquidity-evaluation-panel";
+import { liquidityEvaluationView } from "./liquidity-evaluation-model";
 
 /* V01 · Hoy — "¿cómo está mi empresa y qué necesita mi OK?" (rediseño Fase 2, issue #62).
  *
@@ -45,6 +48,10 @@ export interface HoyViewProps {
   empresa?: string | null;
   /** Referencia de "hoy". Explícita para tests y stories deterministas. */
   hoy?: Date;
+  /** Snapshot F1 persistido. La vista no calcula ni completa sus campos financieros. */
+  liquidityEvaluation?: LiquidityEvaluation | null;
+  liquidityLoading?: boolean;
+  liquidityFailed?: boolean;
 }
 
 /* Tono del titular. `sin_dato` es NEUTRO y no rojo: "no sabemos" no es "está mal". */
@@ -72,11 +79,23 @@ function IconoVeredicto({ estado }: { estado: EstadoHoy }) {
   return <Icono className={cn("h-6 w-6 shrink-0", TONO_TITULAR[estado])} aria-hidden="true" />;
 }
 
-export function HoyView({ data, empresa, hoy = new Date() }: HoyViewProps) {
+export function HoyView({
+  data,
+  empresa,
+  hoy = new Date(),
+  liquidityEvaluation = null,
+  liquidityLoading = false,
+  liquidityFailed = false,
+}: HoyViewProps) {
   const caja = cajaHoy(data);
   const crumb = crumbHoy(empresa, caja, hoy);
-  const v = veredictoHoy(data, hoy);
-  const decisiones = decisionesHoy(data, v.soloDecisionCritica);
+  const liquidityView = liquidityEvaluation
+    ? liquidityEvaluationView(liquidityEvaluation, hoy)
+    : null;
+  const liquidityPending =
+    liquidityView?.decisionSupport === "eligible" && liquidityView.valid ? 1 : 0;
+  const v = veredictoHoy(data, hoy, liquidityPending);
+  const decisiones = decisionesHoy(data, v.soloDecisionCritica, liquidityPending);
   const indicadores = indicadoresHoy(data);
 
   /* Ley 10. En crisis se muestra SÓLO la decisión crítica: nada de strip de indicadores ni de
@@ -136,8 +155,20 @@ export function HoyView({ data, empresa, hoy = new Date() }: HoyViewProps) {
         </div>
       </section>
 
-      {/* (4) "Esperando tu visto bueno". Sin motor 1.2: son las acciones prioritarias actuales
-          con CTA a su módulo, tal como la propia spec resuelve el fallback. */}
+      {/* Evaluación F1 persistida: forma parte de Hoy y no abre un dashboard paralelo. La API es
+          read-only, por eso esta sección explica y compara pero no ofrece CTAs de ejecución. */}
+      {(!v.soloDecisionCritica || liquidityPending > 0) && (
+        <LiquidityEvaluationPanel
+          evaluation={liquidityEvaluation}
+          loading={liquidityLoading}
+          failed={liquidityFailed}
+          now={hoy}
+        />
+      )}
+
+      {/* (4) "Esperando tu visto bueno". Las acciones del dashboard son el fallback de los casos
+          que aún no resuelve el Decision OS. Una evaluación F1 vigente consume uno de los tres
+          lugares; en crisis reemplaza el fallback para mantener una sola decisión crítica. */}
       {mostrarDecisiones && (
         <section aria-labelledby="hoy-vb" className="space-y-3">
           <h3

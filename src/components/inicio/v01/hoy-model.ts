@@ -179,6 +179,7 @@ const TITULAR: Record<EstadoHoy, string> = {
 export function veredictoHoy(
   s: DashboardSummaryV2 | null | undefined,
   hoy: Date = new Date(),
+  pendientesAdicionales = 0,
 ): VeredictoHoy {
   const caja = cajaHoy(s);
   const bajoCero = cajaBajoCero14d(s);
@@ -190,7 +191,10 @@ export function veredictoHoy(
         ? "sana"
         : "sin_dato";
 
-  const pendientes = s?.priority_actions?.length ?? 0;
+  /* Los casos persistidos del Decision OS son decisiones, no `priority_actions` del dashboard.
+     La vista los suma de forma explícita para no decir "nada necesita tu OK" mientras muestra
+     una evaluación elegible. El caller sólo pasa casos vigentes y con soporte `eligible`. */
+  const pendientes = (s?.priority_actions?.length ?? 0) + Math.max(0, pendientesAdicionales);
   const diaPerfecto = estado === "sana" && pendientes === 0;
 
   return {
@@ -216,9 +220,15 @@ export function veredictoHoy(
 export function decisionesHoy(
   s: DashboardSummaryV2 | null | undefined,
   soloDecisionCritica: boolean,
+  lugaresReservados = 0,
 ): DashboardAction[] {
   const acciones = [...(s?.priority_actions ?? [])].sort((a, b) => a.priority - b.priority);
-  return acciones.slice(0, soloDecisionCritica ? 1 : 3);
+  const limite = soloDecisionCritica
+    ? lugaresReservados > 0
+      ? 0
+      : 1
+    : Math.max(0, 3 - lugaresReservados);
+  return acciones.slice(0, limite);
 }
 
 /* ── Sección 6 · strip de 4 indicadores ──────────────────────────────────────── */

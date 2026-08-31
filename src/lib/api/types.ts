@@ -1148,6 +1148,9 @@ export interface paths {
          *     OJO CON EL RANGO: por la vía MiPyme el respaldo se baja **mes a mes** (el SII trunca los
          *     rangos grandes), así que un rango de un año son doce descargas secuenciales de hasta 120 s
          *     cada una detrás de este request. Pedir tramos cortos.
+         *
+         *     **Un fallo del SII sale como HTTP 200 con `status: "error"` en el cuerpo**, no como 412/502
+         *     — a diferencia de los endpoints hermanos. Hay que mirar `status`, no sólo el código HTTP.
          */
         get: operations["sii_dte_recibidos"];
         put?: never;
@@ -2727,6 +2730,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/liquidity-evaluations/{decision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liquidity Evaluation
+         * @description Expone exclusivamente el snapshot F1 persistido y tenant-scoped.
+         */
+        get: operations["treasury_liquidity_evaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planning/financial-versions": {
         parameters: {
             query?: never;
@@ -4088,6 +4111,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reversible-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bitácora de lo que Qavante hizo solo, con su estado de Deshacer (Ley 5)
+         * @description Lo que Qavante hizo SOLO en este tenant, con `undo_available` y `undo_expires_at` por
+         *     item. Sólo lectura. Las acciones que dispara el usuario no entran acá: la Ley 5 cubre lo
+         *     automático.
+         */
+        get: operations["reversible_actions_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reversible-actions/{action_id}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deshace una acción automática (genérico: un endpoint para todos los tipos)
+         * @description Deshace la acción `action_id` de ESTE tenant, restaurando los efectos completos que
+         *     registró su snapshot (no sólo el campo principal).
+         *
+         *     Idempotente: repetir la llamada sobre una acción ya revertida devuelve `already_reverted`
+         *     sin volver a tocar nada. Pasada la ventana de 7 días devuelve `undo_expired`, y una acción
+         *     sin compensador o sin snapshot suficiente devuelve `undo_not_supported` — nunca una
+         *     reversión aproximada (ADR §3.2). Una acción de otro tenant responde 404, igual que una que
+         *     no existe.
+         */
+        post: operations["reversible_actions_revert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dashboard/summary": {
         parameters: {
             query?: never;
@@ -4483,6 +4555,62 @@ export interface paths {
          *     Latencia esperada: 1-3s (SII) o <1s (BUK). Timeout duro: 20s.
          */
         post: operations["admin_test_credential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/credit-notes/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aplica las notas de crédito pendientes contra su factura (cron)
+         * @description Aplica lo pendiente y devuelve el desglose por resultado, sin colapsarlo en un éxito.
+         *
+         *     Cada resultado que no sea `aplicada` es un bucket con nombre. Juntarlos en "no se pudo"
+         *     escondería justamente lo que hay que mirar: una nota sin referencia necesita que alguien
+         *     decida, y una sin factura puede significar que falta sincronizar un período viejo.
+         */
+        post: operations["admin_credit_notes_apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/credit-notes/{credit_note_id}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deshace la aplicación de una nota de crédito (le devuelve el saldo a la factura)
+         * @description Deshace una aplicación YA HECHA: le devuelve el monto a la factura y se lo saca de vuelta
+         *     a la nota, dejando a las dos en el estado que les corresponde por saldo.
+         *
+         *     **Por qué existe.** El cron aplica notas contra facturas reales todos los días — cuatro de
+         *     TD SYNNEX por $37,4M en el barrido de doce meses. `revertir` estaba escrita y probada desde
+         *     el primer commit, pero **no la llamaba nadie fuera de los tests**: en producción no había
+         *     forma de deshacer nada. Una aplicación mal hecha que no se puede desarmar es peor que no
+         *     haberla hecho, y el #209 lo pide literal ("como el revert del motor de conciliación", que sí
+         *     tiene su endpoint desde siempre). Lo cazó el segundo pase §6.
+         *
+         *     El estado **se calcula, no se fuerza a `open`**: `open` es el estado con el que el upsert del
+         *     RCV resetea el saldo al total, así que forzarlo evaporaría un pago bancario real.
+         *     Idempotente: deshacer dos veces devuelve `reverted: false` sin tocar nada.
+         */
+        post: operations["admin_credit_notes_revert"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5428,55 +5556,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/reversible-actions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Bitácora de lo que Qavante hizo solo, con su estado de Deshacer (Ley 5)
-         * @description Lo que Qavante hizo SOLO en este tenant, con `undo_available` y `undo_expires_at` por
-         *     item. Sólo lectura. Las acciones que dispara el usuario no entran acá: la Ley 5 cubre lo
-         *     automático.
-         */
-        get: operations["reversible_actions_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/reversible-actions/{action_id}/revert": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Deshace una acción automática (genérico: un endpoint para todos los tipos)
-         * @description Deshace la acción `action_id` de ESTE tenant, restaurando los efectos completos que
-         *     registró su snapshot (no sólo el campo principal).
-         *
-         *     Idempotente: repetir la llamada sobre una acción ya revertida devuelve `already_reverted`
-         *     sin volver a tocar nada. Pasada la ventana de 7 días devuelve `undo_expired`, y una acción
-         *     sin compensador o sin snapshot suficiente devuelve `undo_not_supported` — nunca una
-         *     reversión aproximada (ADR §3.2). Una acción de otro tenant responde 404, igual que una que
-         *     no existe.
-         */
-        post: operations["reversible_actions_revert"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5582,7 +5661,7 @@ export interface components {
             projected_cash_currency: string;
             /**
              * Covers Critical
-             * @description ¿La caja proyectada cubre lo que vence en 14 días? **Tri-estado.** `null` = no se puede responder, y son SEIS casos: tres del denominador, dos del numerador y uno de la división misma. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN fecha de vencimiento (el CONTEO de documentos con `due_date` nulo, que es lo que el guard mira), porque `due_14d` no la incluye; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— un saldo bancario VIEJO: el `current_balance` que reportó el banco sólo es cierto al día de `current_balance_at`, y en esa rama no se le suman los movimientos posteriores, así que más viejo que la ventana comparada —o sin fecha— no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el sexto no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma cobertura sobre TODO lo que vence, comparado contra TODA la caja, en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
+             * @description ¿La caja proyectada cubre lo que vence en 14 días? **Tri-estado.** `null` = no se puede responder, y son SEIS casos: tres del denominador, dos del numerador y uno de la división misma. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN fecha de vencimiento (el CONTEO de documentos con `due_date` nulo, que es lo que el guard mira), porque `due_14d` no la incluye; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el sexto no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma cobertura sobre TODO lo que vence, comparado contra TODA la caja, en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
              */
             covers_critical?: boolean | null;
             /**
@@ -8994,13 +9073,96 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** CreditNoteRevertResponse */
+        CreditNoteRevertResponse: {
+            /** Credit Note Id */
+            credit_note_id: string;
+            /**
+             * Reverted
+             * @description `false` si esa nota no tenía ninguna aplicación viva. Es idempotente: deshacer dos veces no devuelve el monto dos veces.
+             */
+            reverted: boolean;
+            /**
+             * Document Kind
+             * @description `receivable` o `payable`. `null` si no había nada que deshacer.
+             */
+            document_kind?: string | null;
+            /**
+             * Invoice Id
+             * @description La factura a la que se le devolvió el saldo.
+             */
+            invoice_id?: string | null;
+            /**
+             * Amount Restored
+             * @description Lo que se le devolvió a la factura, en positivo — el mismo monto que se le saca de vuelta a la nota. Un undo de plata que no dice cuánta movió no es auditable.
+             */
+            amount_restored?: string | null;
+        };
+        /** CreditNotesApplyResponse */
+        CreditNotesApplyResponse: {
+            /**
+             * Vistas
+             * @description Notas de crédito pendientes que la corrida alcanzó a mirar.
+             */
+            vistas: number;
+            /**
+             * Aplicada
+             * @description Se descontaron de su factura.
+             */
+            aplicada: number;
+            /**
+             * Sin Referencia
+             * @description La nota no declara qué documento corrige. **No se aplica a ciegas**: elegir una factura del mismo proveedor sería mover plata sobre una corazonada.
+             */
+            sin_referencia: number;
+            /**
+             * Sin Factura
+             * @description La referencia apunta a un documento que no tenemos (o que ya no está vivo).
+             */
+            sin_factura: number;
+            /**
+             * Factura Sin Saldo
+             * @description La factura ya está en cero: no hay de dónde restar.
+             */
+            factura_sin_saldo: number;
+            /**
+             * Factura Cedida
+             * @description La factura la cobra el **factor**, no la empresa (ADR-0084). Bajarle el saldo sería meterse con un documento que no es nuestro para saldar — y movería el total publicado de Cobrar, porque una nota de una cedida sí entra a ese total.
+             */
+            factura_cedida: number;
+            /**
+             * Nota Ya No Viva
+             * @description La nota dejó de estar viva entre el listado y la aplicación.
+             */
+            nota_ya_no_viva: number;
+            /**
+             * Nota Sin Saldo
+             * @description Su saldo quedó en cero — el SII la declaró reclamada, por ejemplo.
+             */
+            nota_sin_saldo: number;
+            /**
+             * Ya Aplicada
+             * @description Otra corrida la tomó primero. Lo garantiza una UNIQUE.
+             */
+            ya_aplicada: number;
+            /**
+             * Errores
+             * @description Notas que fallaron; no arrastran al resto.
+             */
+            errores: number;
+        };
         /** CriticalPayments */
         CriticalPayments: {
             /** Due 7D */
             due_7d: string;
             /** Due 14D */
             due_14d: string;
+            /** @description El PRÓXIMO vencimiento: el no vencido más cercano (`due_date >= hoy`; hoy cuenta). Empate de fecha → el de monto mayor. Si no hay ninguno hacia adelante cae al más vencido y lo declara con `is_overdue: true` (lo vencido sigue siendo exigible; no se publica `null` con deuda viva). Hasta el #254 este campo publicaba el documento MÁS VENCIDO — el extremo opuesto de su nombre. */
             next_critical?: components["schemas"]["NextCriticalPayment"] | null;
+            /** @description El documento MÁS VENCIDO (el de `due_date` más antigua entre los ya vencidos), o `null` si no hay vencidos. Es lo que `next_critical` devolvía antes del #254, ahora bajo un nombre que dice lo que trae. */
+            most_overdue?: components["schemas"]["NextCriticalPayment"] | null;
+            /** @description El próximo vencimiento de NÓMINA (misma regla que `next_critical`, restringido a `category == 'payroll'`), o `null` si no hay obligación de nómina viva. Permite detectar el riesgo de sueldos aunque la nómina no sea el vencimiento más próximo — el falso negativo del #254. */
+            next_payroll?: components["schemas"]["NextCriticalPayment"] | null;
             /** Last Updated */
             last_updated?: string | null;
             /** Source */
@@ -11515,6 +11677,111 @@ export interface components {
              */
             linked_bank_account_id: string;
         };
+        /** LiquidityAlternativeSnapshot */
+        LiquidityAlternativeSnapshot: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            /** Family */
+            family: string;
+            /** Rank */
+            rank?: number | null;
+            /** Is No Action */
+            is_no_action: boolean;
+            /** Is Rejected */
+            is_rejected: boolean;
+            /** Rejection Reason */
+            rejection_reason?: string | null;
+            /** Explanation */
+            explanation: {
+                [key: string]: unknown;
+            };
+            /** Parameters */
+            parameters: {
+                [key: string]: unknown;
+            };
+            /** Simulation */
+            simulation: {
+                [key: string]: unknown;
+            };
+            /** Comparison */
+            comparison: {
+                [key: string]: unknown;
+            };
+            /**
+             * Cost Status
+             * @enum {string}
+             */
+            cost_status: "known" | "unknown" | "not_applicable";
+            cost?: components["schemas"]["LiquidityCostSnapshot"] | null;
+        };
+        /** LiquidityCostSnapshot */
+        LiquidityCostSnapshot: {
+            /**
+             * Status
+             * @constant
+             */
+            status: "known";
+            /** Total Financial Cost */
+            total_financial_cost: string;
+            /** Contract Version */
+            contract_version: string;
+            /** Evidence Refs */
+            evidence_refs: string[];
+        };
+        /** LiquidityEvaluationResponse */
+        LiquidityEvaluationResponse: {
+            /**
+             * Decision Id
+             * Format: uuid
+             */
+            decision_id: string;
+            /** Status */
+            status: string;
+            /**
+             * Decision Support
+             * @enum {string}
+             */
+            decision_support: "eligible" | "abstain";
+            scope: components["schemas"]["LiquidityEvaluationScope"];
+            /** Situation */
+            situation: {
+                [key: string]: unknown;
+            };
+            /** Event */
+            event: {
+                [key: string]: unknown;
+            };
+            /** Alternatives */
+            alternatives: components["schemas"]["LiquidityAlternativeSnapshot"][];
+            /** Recommended Alternative Id */
+            recommended_alternative_id?: string | null;
+            /** Model Version */
+            model_version: string;
+        };
+        /** LiquidityEvaluationScope */
+        LiquidityEvaluationScope: {
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Horizon Days */
+            horizon_days: number;
+            /** Valid Until */
+            valid_until?: string | null;
+        };
         /**
          * LoanInstallmentItem
          * @description Una cuota del calendario de amortización (con split capital/interés).
@@ -12112,6 +12379,17 @@ export interface components {
             due_date: string;
             /** Amount */
             amount: string;
+            /**
+             * Category
+             * @description QUÉ es el pago: `payroll` | `tax` | `supplier` | `other` (mismo vocabulario que `PayableItem.category`). Existe para que el FE no tenga que deducir el tipo leyendo `label` con una regex: una razón social con 'Planilla' disparaba riesgo de nómina, y la nómina real no disparaba cuando el label traía el nombre de un banco (#254). `null` sólo si el bloque viene de una fuente que no la resuelve.
+             */
+            category?: string | null;
+            /**
+             * Is Overdue
+             * @description `true` si el vencimiento YA PASÓ. En `next_critical` sólo puede ser `true` cuando NO hay ningún vencimiento hacia adelante y el campo cayó al más vencido (ver la descripción de `next_critical`); en `most_overdue` es siempre `true`.
+             * @default false
+             */
+            is_overdue: boolean;
         };
         /**
          * ObligationDetailResponse
@@ -13512,14 +13790,14 @@ export interface components {
         PulsoDetailResponse: {
             /**
              * Score
-             * @description 0-100.
+             * @description 0-100, o **null** cuando el pulso es preliminar por falta de saldo de apertura. Un cero seria un score: el 'no se' va explicito, como el `covers_critical` del #41.
              */
-            score: number;
+            score: number | null;
             /**
              * Status
-             * @enum {string}
+             * @description **null** cuando el pulso es preliminar. Antes devolvia `stable` — la palabra mas tranquilizadora del enum— y se midio diciendo 'estable' sobre una caja en -$1.121.250, en la MISMA respuesta que reportaba la brecha. Y el consumidor no es solo la pantalla: el MCP le entrega este campo a un modelo que lo narra.
              */
-            status: "critical" | "weak" | "stable" | "strong";
+            status: ("critical" | "weak" | "stable" | "strong") | null;
             /**
              * Confidence
              * @description high|medium|low (string; el FE tolera otros).
@@ -14153,18 +14431,11 @@ export interface components {
              */
             pct: string;
         };
-        /** RevertMarkCollectedResponse */
-        RevertMarkCollectedResponse: {
-            /** Reabiertos */
-            reabiertos: number;
-        };
-        /** RevertOpeningCutoffResponse */
-        RevertOpeningCutoffResponse: {
-            /** Receivables Reabiertas */
-            receivables_reabiertas: number;
-            /** Payables Reabiertas */
-            payables_reabiertas: number;
-        };
+        /**
+         * ReversibleActionItem
+         * @description Un renglón de la bitácora (ADR §4). Es lo que el front necesita para pintar UN solo
+         *     componente de "Deshacer", sin conocer el feature que originó la acción.
+         */
         ReversibleActionItem: {
             /** Action Id */
             action_id: string;
@@ -14174,29 +14445,15 @@ export interface components {
              */
             action_type: string;
             /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Reverted At */
-            reverted_at?: string | null;
-            /** Reverted By */
-            reverted_by?: string | null;
-            /**
-             * Status
-             * @description 'active' | 'reverted' | 'expired' (el vencimiento se deriva).
-             */
-            status: string;
-            /**
              * Summary
              * @description Resumen humano de lo que Qavante hizo solo.
              */
             summary: string;
             /**
-             * Undo Available
-             * @description True sólo si se puede deshacer AHORA.
+             * Created At
+             * Format: date-time
              */
-            undo_available: boolean;
+            created_at: string;
             /**
              * Undo Expires At
              * Format: date-time
@@ -14204,10 +14461,24 @@ export interface components {
              */
             undo_expires_at: string;
             /**
+             * Undo Available
+             * @description True sólo si se puede deshacer AHORA.
+             */
+            undo_available: boolean;
+            /**
              * Undo Result
              * @description Por qué no se puede deshacer: 'already_reverted' | 'undo_expired' | 'undo_not_supported'. `null` mientras siga deshacible.
              */
             undo_result?: string | null;
+            /**
+             * Status
+             * @description 'active' | 'reverted' | 'expired' (el vencimiento se deriva).
+             */
+            status: string;
+            /** Reverted At */
+            reverted_at?: string | null;
+            /** Reverted By */
+            reverted_by?: string | null;
         };
         /** ReversibleActionsListResponse */
         ReversibleActionsListResponse: {
@@ -14229,19 +14500,31 @@ export interface components {
             /** Action Type */
             action_type: string;
             /**
-             * Detail
-             * @description Qué restauró el compensador (por tipo de acción). Vacío si no revirtió.
-             */
-            detail?: {
-                [key: string]: unknown;
-            };
-            /**
              * Result
              * @description 'reverted' | 'already_reverted' | 'undo_expired' | 'undo_not_supported'.
              */
             result: string;
             /** Reverted At */
             reverted_at?: string | null;
+            /**
+             * Detail
+             * @description Qué restauró el compensador (por tipo de acción). Vacío si no revirtió.
+             */
+            detail?: {
+                [key: string]: unknown;
+            };
+        };
+        /** RevertMarkCollectedResponse */
+        RevertMarkCollectedResponse: {
+            /** Reabiertos */
+            reabiertos: number;
+        };
+        /** RevertOpeningCutoffResponse */
+        RevertOpeningCutoffResponse: {
+            /** Receivables Reabiertas */
+            receivables_reabiertas: number;
+            /** Payables Reabiertas */
+            payables_reabiertas: number;
         };
         /** RevertReconciliationDoc */
         RevertReconciliationDoc: {
@@ -21103,6 +21386,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description El movimiento de origen ya está partido en componentes de cuota: agregarle un impacto 1:1 lo contaría dos veces. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Dominio inválido (CHECK / FK / NOT NULL). */
             422: {
                 headers: {
@@ -21332,6 +21622,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FinancialDecisionDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_liquidity_evaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                decision_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiquidityEvaluationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -23672,92 +23995,6 @@ export interface operations {
             };
         };
     };
-    reversible_actions_list: {
-        parameters: {
-            query?: {
-                /** @description Filtra por tipo de acción (p. ej. 'receivable.mark_ceded'). */
-                action_type?: string | null;
-                /** @description Sólo las que se pueden deshacer ahora (activas y dentro de la ventana). */
-                only_undoable?: boolean;
-                limit?: number;
-                offset?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                qavante_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Página de acciones automáticas, más reciente primero. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReversibleActionsListResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    reversible_actions_revert: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description UUID de la acción a deshacer. */
-                action_id: string;
-            };
-            cookie?: {
-                qavante_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Resultado estable: reverted / already_reverted / undo_expired / undo_not_supported. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RevertActionResponse"];
-                };
-            };
-            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description La acción no existe para este tenant. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     treasury_reconciliation_dry_run: {
         parameters: {
             query?: {
@@ -24344,6 +24581,92 @@ export interface operations {
                 content?: never;
             };
             /** @description No existe config para ese processor_code. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reversible_actions_list: {
+        parameters: {
+            query?: {
+                /** @description Filtra por tipo de acción (p. ej. 'receivable.mark_ceded'). */
+                action_type?: string | null;
+                /** @description Sólo las que se pueden deshacer ahora (activas y dentro de la ventana). */
+                only_undoable?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de acciones automáticas, más reciente primero. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReversibleActionsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reversible_actions_revert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la acción a deshacer. */
+                action_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultado estable: reverted / already_reverted / undo_expired / undo_not_supported. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevertActionResponse"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La acción no existe para este tenant. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -25039,6 +25362,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CredentialTestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_credit_notes_apply: {
+        parameters: {
+            query?: {
+                /** @description Notas por corrida. No es una cuota de nada externo —esto no sale de la base—: acota el largo de la corrida para no tener una transacción larga sobre las tablas de plata que la conciliación y el sync también tocan. */
+                max_notas?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditNotesApplyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_credit_notes_revert: {
+        parameters: {
+            query?: {
+                /** @description Obligatorio sólo con la credencial de servidor, que no tiene tenant asociado (ADR-0074). Con sesión o api-key de tenant manda el del contexto, y pedir otro es 403. */
+                tenant_id?: string | null;
+            };
+            header?: never;
+            path: {
+                credit_note_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreditNoteRevertResponse"];
                 };
             };
             /** @description Validation Error */

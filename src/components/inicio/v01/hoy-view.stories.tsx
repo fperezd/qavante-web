@@ -169,7 +169,12 @@ export const Crisis: Story = {
       critical_payments: {
         due_7d: "7400000",
         due_14d: "7400000",
-        next_critical: { label: "Sueldos de agosto", due_date: "2026-09-04", amount: "7400000" },
+        next_critical: {
+          label: "Sueldos de agosto",
+          due_date: "2026-09-04",
+          amount: "7400000",
+          is_overdue: false,
+        },
         last_updated: "2026-08-30T08:00:00Z",
         source: "buk",
       },
