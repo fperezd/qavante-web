@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCount, formatDays } from "./count";
+import { concordar, formatCount, formatDays } from "./count";
 
 describe("formatCount", () => {
   it("separa los miles a la chilena y no inventa decimales", () => {
@@ -42,5 +42,32 @@ describe("formatDays", () => {
 
   it("un no-finito NO se imprime como número", () => {
     expect(formatDays(Number.NaN)).toBe("s/d");
+  });
+});
+
+describe("concordar — centralizado desde issue #94 (antes duplicado en 6 archivos)", () => {
+  it("n=1 toma la forma singular", () => {
+    expect(concordar(1, "documento", "documentos")).toBe("documento");
+  });
+
+  /* [control positivo] gemelo del anterior con la MISMA pareja: n≠1 NUNCA devuelve el
+   * singular. Sin este gemelo, un mutante que fuerce siempre singular sobreviviría — el mismo
+   * agujero de cobertura que reapareció cuatro veces en V08. */
+  it("n=2 toma la forma plural (no el singular de arriba)", () => {
+    expect(concordar(2, "documento", "documentos")).toBe("documentos");
+  });
+
+  it("n=0 toma la forma PLURAL — «0 documentos» es correcto en español, 0 no es un caso especial", () => {
+    expect(concordar(0, "documento", "documentos")).toBe("documentos");
+  });
+
+  it("negativo también es plural (sólo n===1 es singular)", () => {
+    expect(concordar(-1, "documento", "documentos")).toBe("documentos");
+  });
+
+  it("es genérico: sirve para frases completas, no sólo sustantivos sueltos (uso real de V08)", () => {
+    expect(concordar(1, "El documento listado suma", "Los 3 documentos listados suman")).toBe(
+      "El documento listado suma",
+    );
   });
 });

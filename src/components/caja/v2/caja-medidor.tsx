@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { concordar } from "@/lib/formatters/count";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { type DiasCaja, type EstadoCaja } from "./caja-dias-model";
@@ -140,12 +141,20 @@ export function CajaMedidorGauge({
   );
 }
 
-/** Redondeo "humano" de días: mantiene enteros chicos, no inventa precisión falsa. */
+/** Redondeo "humano" de días: mantiene enteros chicos, no inventa precisión falsa.
+ *
+ * Concordancia N=1 (issue #94): "Te alcanza ~1 días" / "Entras en rojo en ~1 días" son casos
+ * REALES — una caja que se acaba mañana es justo el escenario crítico que este medidor está para
+ * avisar, no un caso de laboratorio. */
 function dLabel(d: number): string {
-  return `~${Math.max(0, Math.round(d))} días`;
+  const n = Math.max(0, Math.round(d));
+  return `~${n} ${concordar(n, "día", "días")}`;
 }
 
-function titular(m: DiasCaja, ref: number): { headline: string; detalle: string } {
+/** Headline + detalle del medidor — EXPORTADA para test directo, sin montar SVG/DOM
+ * (issue #94, revisión adversarial PR #107: el arreglo de `dLabel` vivía sin ninguna
+ * cobertura que lo ejerciera). */
+export function titular(m: DiasCaja, ref: number): { headline: string; detalle: string } {
   // #853 — sobregiro: el saldo de hoy ya está bajo el mínimo → "días de caja" es degenerado (~1). En
   // vez de un falso doom, contamos la RECUPERACIÓN (con el ingreso recurrente proyectado): cuándo la
   // caja vuelve sobre su mínimo. Es lo que le pasa a Tooxs (sobregiro hoy, pero recupera).

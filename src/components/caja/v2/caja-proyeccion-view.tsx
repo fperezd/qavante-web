@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { CajaMedidor, CajaMedidorSinDato } from "./caja-medidor";
 import { CajaCascada } from "./caja-cascada";
+import { diasAtrasoLabel } from "./caja-cash-projection-map";
 import type { DiasCaja } from "./caja-dias-model";
 import type { MovimientoCaja } from "./caja-cascada-model";
 import type { CausaQuiebre } from "./caja-proyeccion-model";
@@ -237,9 +238,7 @@ export function CajaProyeccionView({
                           ) : (
                             <>
                               <span className="text-[11px] text-neutral-mid">
-                                {c.diasAtraso == null
-                                  ? "sin fecha"
-                                  : `${c.diasAtraso} días de atraso`}
+                                {diasAtrasoLabel(c.diasAtraso) ?? "sin fecha"}
                               </span>
                               {puedeConciliar && (
                                 <button

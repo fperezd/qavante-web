@@ -206,11 +206,7 @@ export function revenueRealCoincideConResultado(
   return parseAmount(linea.actual) === parseAmount(revenueOperationalResult);
 }
 
-/* ── Concordancia singular/plural (mismo enfoque que `gestion-v08-model.ts` /
- * `remuneraciones-v16-model.ts`, issue #94: "Los 1 proveedores" no puede volver a pasar). */
-export function concordar<T>(n: number, singular: T, plural: T): T {
-  return n === 1 ? singular : plural;
-}
+export { concordar } from "@/lib/formatters/count";
 
 /* ── Exportar (§5.5): CSV de la tabla de desvíos ──────────────────────────────────────────────
  * Exacto sobre lo que está en pantalla: las mismas filas, los mismos montos y el mismo `variance`/

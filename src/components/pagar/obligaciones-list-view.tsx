@@ -15,6 +15,7 @@ import {
   useReconcileObligations,
   type ObligationListItem,
 } from "@/lib/api/obligations";
+import { concordar } from "@/lib/formatters/count";
 import { formatClp, formatClpFromString } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 
@@ -122,7 +123,9 @@ export function ObligacionesListView() {
               {items.length} {items.length === 1 ? "obligación" : "obligaciones"}
             </span>
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <QavanteBadge variant="info">{pending} cuotas pendientes</QavanteBadge>
+              <QavanteBadge variant="info">
+                {pending} {concordar(pending, "cuota pendiente", "cuotas pendientes")}
+              </QavanteBadge>
               <span className="text-neutral-mid">
                 Saldo:{" "}
                 <span className="font-medium text-neutral-dark tabular-nums">
@@ -175,7 +178,8 @@ function ObligationRow({ obligation: o }: { obligation: ObligationListItem }) {
           <p className="mt-0.5 text-xs text-neutral-mid">
             {/* Prefijo de tipo solo cuando aporta (Préstamo); las compras a plazo no lo repiten. */}
             {TYPE_LABEL[o.type] && <>{TYPE_LABEL[o.type]} · </>}
-            {o.pending_count}/{o.installments_total} cuotas pendientes
+            {o.pending_count}/{o.installments_total}{" "}
+            {concordar(o.pending_count, "cuota pendiente", "cuotas pendientes")}
             {o.next_due_date && <> · próximo {formatDateLike(o.next_due_date)}</>}
           </p>
         </div>

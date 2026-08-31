@@ -16,7 +16,7 @@ import type { DashboardSummaryResponse } from "@/lib/api/dashboard";
 import type { DocConVencimiento } from "@/components/terminos/terminos-pago";
 import { formatClp, formatClpBare } from "@/lib/formatters/clp";
 import { formatPct } from "@/lib/formatters/pct";
-import { formatCount, formatDays } from "@/lib/formatters/count";
+import { concordar, formatCount, formatDays } from "@/lib/formatters/count";
 import { formatDateLong } from "@/lib/formatters/date";
 import { MESES_CORTOS } from "@/lib/formatters/months";
 import { parseSiiDate } from "@/components/terminos/terminos-pago";
@@ -350,20 +350,6 @@ function TabResultado({
 
 function capitalizar(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-/** Concordancia número (singular/plural) del español, en un solo lugar.
- *
- * Regla: sólo `n === 1` toma la forma singular — `0` es plural en español ("0 meses" es correcto,
- * no "0 mes"). Un texto con conteo NUNCA antepone un numeral fijo a un sustantivo/artículo/verbo que
- * no concuerde ("Los 1 proveedores"); esta función es el único punto que decide esa concordancia en
- * este archivo, para que no se repita el patrón (dos veces: proveedores/clientes y documentos).
- *
- * Cuando el singular NO es sólo cambiar la terminación (un artículo plural, un verbo en plural, un
- * pronombre plural), pásale la FRASE completa de cada forma — no sólo la palabra — para que la
- * concordancia sea real y no sólo "1 proveedor" pegado a un verbo en plural. */
-function concordar<T>(n: number, singular: T, plural: T): T {
-  return n === 1 ? singular : plural;
 }
 
 /** Etiqueta corta del mes para una columna: "may 26". */

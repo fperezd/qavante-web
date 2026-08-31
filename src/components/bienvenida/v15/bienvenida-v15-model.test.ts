@@ -5,7 +5,6 @@ import {
   ETAPAS_MODELO_V15,
   HORA_PRIMER_PARTE,
   TIEMPO_CONEXION,
-  concordar,
   fuentesConectadas,
   fuentesPendientes,
   fuentesV15,
@@ -155,16 +154,6 @@ describe("promesaPrimerParte — paso 3: mañana a las 7:00, hora de Santiago", 
   });
 });
 
-describe("concordar — singular/plural, N=1 (issue #94)", () => {
-  it("n=1 toma la forma singular", () => {
-    expect(concordar(1, "fuente", "fuentes")).toBe("fuente");
-  });
-
-  it("[control positivo] n=2 toma la forma plural", () => {
-    expect(concordar(2, "fuente", "fuentes")).toBe("fuentes");
-  });
-
-  it("n=0 toma la forma PLURAL ('0 fuentes' es correcto en español)", () => {
-    expect(concordar(0, "fuente", "fuentes")).toBe("fuentes");
-  });
-});
+/* `concordar` se movió a `src/lib/formatters/count.ts` (issue #94, re-exportado acá para no
+ * romper `bienvenida-v15-view.tsx`) — su cobertura genérica vive en `count.test.ts`. El texto
+ * real que arma ("1 fuente" / "quedan N fuentes") se fija en `bienvenida-v15-view.test.tsx`. */

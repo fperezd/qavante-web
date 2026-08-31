@@ -57,12 +57,8 @@ import { vencimientoPrevired } from "@/components/pagar/previred-vencimiento";
 import { formularioLabelTgr } from "@/components/pagar/tgr-format";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { formatRelative } from "@/lib/formatters/date";
-
-/* ── Concordancia singular/plural con test de N=1 (mismo enfoque que `gestion-v08-model.ts` /
- * `presupuesto-v09-model.ts`, issue #94). */
-export function concordar<T>(n: number, singular: T, plural: T): T {
-  return n === 1 ? singular : plural;
-}
+import { concordar } from "@/lib/formatters/count";
+export { concordar };
 
 /* ── Texto fijo de la Ley 9 (issue #73, footer literal) ──────────────────────────────────────── */
 export const LEY_9_TEXTO_V06 = "Las obligaciones tributarias nunca se postergan desde Qavante";

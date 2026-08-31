@@ -3,6 +3,7 @@
    nominal (+ = DESPUÉS, − = antes). Fuente: /api/treasury/collection-projection (`vs_nominal`, ADR-0083 B2). */
 
 import type { CollectionProjectionResponse } from "@/lib/api/treasury";
+import { concordar } from "@/lib/formatters/count";
 
 export interface ComportamientoPago {
   /** Días promedio vs vencimiento nominal (+ = pagan después, − = antes); `null` sin comparables. */
@@ -26,4 +27,19 @@ export function comportamientoPago(
     docsComportamiento: v.docs_comportamiento,
     docsVencimiento: v.docs_por_vencimiento,
   };
+}
+
+/** "día"/"días" — concordancia N=1 del widget (issue #94: un shift promedio de 1 día es un caso
+ * real —una empresa recién con historial— no de laboratorio; y "3 facturas" puede ser "1
+ * factura" en el mismo arranque). PURA. */
+export function diaSufijo(n: number): string {
+  return concordar(n, "día", "días");
+}
+
+/** "3 facturas fechadas" / "1 factura fechada" — mismo criterio, para el pie del widget. Frase
+ * completa (no sólo el sustantivo): el adjetivo "fechada/fechadas" también concuerda, que es
+ * justo el tipo de defecto a medias que el issue #94 pide evitar ("1 factura fechadaS" sería
+ * tan roto como "1 facturas"). */
+export function facturaFechadaLabel(n: number): string {
+  return concordar(n, "factura fechada", "facturas fechadas");
 }

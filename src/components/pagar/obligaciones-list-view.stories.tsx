@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse } from "msw";
+import { expect, within } from "storybook/test";
 import { ObligacionesListView } from "./obligaciones-list-view";
 
 /* Lista de obligaciones / préstamos (Pagar). `GET /api/treasury/obligations`.
@@ -44,6 +45,33 @@ const LOADED = http.get("*/api/treasury/obligations", () =>
     { status: 200 },
   ),
 );
+/* issue #94: 1 SOLA obligación con 1 SOLA cuota pendiente — el caso que "9 de 12 cuotas
+ * pendientes" nunca ejercita. Antes escribía "1 cuotas pendientes" a mano, dos veces (el badge
+ * del header y el detalle por fila). */
+const UNA_CUOTA_PENDIENTE = http.get("*/api/treasury/obligations", () =>
+  HttpResponse.json(
+    {
+      items: [
+        {
+          id: "obl-1",
+          type: "loan",
+          counterparty: "Banco BICE",
+          principal_total: "1200000",
+          annual_rate: "0.18",
+          currency_code: "CLP",
+          origination_date: "2026-01-15",
+          installments_total: 12,
+          status: "active",
+          needs_review: false,
+          pending_count: 1,
+          next_due_date: "2026-07-15",
+          outstanding_total: "100000",
+        },
+      ],
+    },
+    { status: 200 },
+  ),
+);
 const EMPTY = http.get("*/api/treasury/obligations", () =>
   HttpResponse.json({ items: [] }, { status: 200 }),
 );
@@ -64,7 +92,29 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ConObligaciones: Story = { name: "Con obligaciones" };
+export const ConObligaciones: Story = {
+  name: "Con obligaciones",
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    // [control positivo] 9 y 11 cuotas pendientes: plural, nunca singular.
+    await expect((await c.findAllByText(/^\d+ cuotas pendientes$/)).length).toBeGreaterThan(0);
+    await expect(c.queryByText(/^1 cuotas pendientes$/)).not.toBeInTheDocument();
+  },
+};
+export const UnaCuotaPendiente: Story = {
+  name: "1 sola cuota pendiente (issue #94, N=1)",
+  parameters: { msw: { handlers: [UNA_CUOTA_PENDIENTE] } },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    // El badge del header (Σ de pending_count = 1): singular exacto.
+    await expect(await c.findByText("1 cuota pendiente")).toBeInTheDocument();
+    // El detalle por fila ("1/12 cuota pendiente"): mismo singular, contexto distinto — antes
+    // sólo tenía cobertura el número («9 de 12»), nunca el sustantivo de al lado con N=1.
+    await expect(c.getByText(/1\/12\s+cuota pendiente(?!s)/)).toBeInTheDocument();
+    await expect(c.queryByText(/1 cuotas pendientes/)).not.toBeInTheDocument();
+    await expect(c.queryByText(/1\/12\s+cuotas pendientes/)).not.toBeInTheDocument();
+  },
+};
 export const Vacio: Story = {
   name: "Sin obligaciones",
   parameters: { msw: { handlers: [EMPTY] } },

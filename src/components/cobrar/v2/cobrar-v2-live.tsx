@@ -19,6 +19,7 @@ import {
 import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { SortBar } from "@/components/filters/sort-bar";
 import { formatClp } from "@/lib/formatters/clp";
+import { concordar } from "@/lib/formatters/count";
 import {
   parseAmount,
   parseAmountOrNull,
@@ -429,6 +430,19 @@ function Assembled({
   );
 }
 
+/** "Marcaste como gestionado a tu 1 cliente con saldo." / "...gestionados a tus 3 clientes..." —
+ * issue #94: FRASE completa, no sólo el sustantivo — "gestionado(s)" y "tu(s)" también concuerdan
+ * (el mismo caso que el comentario histórico de `concordar` en V08 advertía y que este sitio
+ * pasaba por alto). Un tenant con 1 solo cliente con saldo, ya gestionado, es el caso real de una
+ * cartera chica, no de laboratorio. Exportada para test directo, sin montar DOM. */
+export function todoGestionadoLabel(count: number): string {
+  return concordar(
+    count,
+    `Marcaste como gestionado a tu ${count} cliente con saldo.`,
+    `Marcaste como gestionados a tus ${count} clientes con saldo.`,
+  );
+}
+
 function TodoGestionado({ count }: { count: number }) {
   return (
     <div className="p-5">
@@ -437,8 +451,7 @@ function TodoGestionado({ count }: { count: number }) {
         Gestionaste toda tu cobranza
       </p>
       <p className="mt-1.5 text-[12.5px] text-neutral-mid">
-        Marcaste como gestionados a tus {count} clientes con saldo. Reabre cualquiera abajo si
-        necesitas volver a insistir.
+        {todoGestionadoLabel(count)} Reabre cualquiera abajo si necesitas volver a insistir.
       </p>
     </div>
   );

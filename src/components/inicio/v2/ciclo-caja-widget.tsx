@@ -5,10 +5,12 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 import { cn } from "@/lib/utils";
-import type { CicloCaja } from "./ciclo-caja-model";
+import { fraseCicloCaja, statsCicloCaja, type CicloCaja } from "./ciclo-caja-model";
 
 /* Widget "Ciclo de caja" del Inicio: cobras en X días, pagas en Y, y tu plata queda atrapada Z días.
-   Presentacional: recibe el ciclo ya derivado. Lleva a /gestion (regla "todo dato lleva a su detalle"). */
+   Presentacional: recibe el ciclo ya derivado y arma la frase/stats vía `ciclo-caja-model.ts` (PURO,
+   testeable sin DOM) — la concordancia singular/plural vive ahí, no acá. Lleva a /gestion (regla
+   "todo dato lleva a su detalle"). */
 
 export interface CicloCajaWidgetProps {
   data: CicloCaja;
@@ -16,34 +18,14 @@ export interface CicloCajaWidgetProps {
   cta?: string;
 }
 
-function dias(v: number | null): string {
-  return v != null ? `${v}` : "s/d";
-}
-
-export function CicloCajaWidget({ data, href = "/gestion", cta = "Ver gestión" }: CicloCajaWidgetProps) {
+export function CicloCajaWidget({
+  data,
+  href = "/gestion",
+  cta = "Ver gestión",
+}: CicloCajaWidgetProps) {
   const { dso, dpo, ccc } = data;
-  // Frase en lenguaje de dueño según el signo del ciclo.
-  let frase: string;
-  let tono: "neg" | "pos" | "neutral";
-  if (ccc == null) {
-    frase = "Cuando tengamos cobros y pagos con fecha, calculamos cuántos días queda tu plata atrapada.";
-    tono = "neutral";
-  } else if (ccc > 0) {
-    frase = `Tu plata queda ~${ccc} días atrapada entre que pagas y cobras: financias ese tramo tú.`;
-    tono = "neg";
-  } else if (ccc < 0) {
-    frase = `Cobras antes de pagar: tienes ~${Math.abs(ccc)} días de aire (tus proveedores te financian).`;
-    tono = "pos";
-  } else {
-    frase = "Cobras y pagas casi al mismo ritmo.";
-    tono = "neutral";
-  }
-
-  const stats: { label: string; valor: string; sufijo?: string }[] = [
-    { label: "Cobras en", valor: dias(dso), sufijo: "días" },
-    { label: "Pagas en", valor: dias(dpo), sufijo: "días" },
-    { label: "Ciclo", valor: dias(ccc), sufijo: "días" },
-  ];
+  const { frase, tono } = fraseCicloCaja(ccc);
+  const stats = statsCicloCaja(dso, dpo, ccc);
 
   return (
     <QavanteCard

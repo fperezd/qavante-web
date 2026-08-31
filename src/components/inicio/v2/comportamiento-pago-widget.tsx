@@ -5,7 +5,11 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 import { cn } from "@/lib/utils";
-import type { ComportamientoPago } from "./comportamiento-pago-model";
+import {
+  diaSufijo,
+  facturaFechadaLabel,
+  type ComportamientoPago,
+} from "./comportamiento-pago-model";
 
 /* Widget "Comportamiento de pago" del Inicio: cuántos días, en promedio, pagan tus clientes respecto del
    vencimiento (el diferenciador de Qavante). Presentacional: recibe el dato ya derivado. Lleva a /cobrar. */
@@ -36,8 +40,10 @@ export function ComportamientoPagoWidget({
     titular = (
       <p className="text-sm text-neutral-strong">
         Tus clientes pagan en promedio{" "}
-        <span className="font-bold text-danger-500 tabular-nums">{shiftDays} días después</span> del
-        vencimiento.
+        <span className="font-bold text-danger-500 tabular-nums">
+          {shiftDays} {diaSufijo(shiftDays)} después
+        </span>{" "}
+        del vencimiento.
       </p>
     );
   } else if (shiftDays < 0) {
@@ -46,7 +52,7 @@ export function ComportamientoPagoWidget({
       <p className="text-sm text-neutral-strong">
         Tus clientes pagan en promedio{" "}
         <span className="font-bold text-success-700 tabular-nums">
-          {Math.abs(shiftDays)} días antes
+          {Math.abs(shiftDays)} {diaSufijo(Math.abs(shiftDays))} antes
         </span>{" "}
         del vencimiento.
       </p>
@@ -73,13 +79,13 @@ export function ComportamientoPagoWidget({
           )}
         >
           {shiftDays > 0 ? "+" : shiftDays < 0 ? "−" : ""}
-          {Math.abs(shiftDays)} días
+          {Math.abs(shiftDays)} {diaSufijo(Math.abs(shiftDays))}
         </p>
       )}
       <div className="mt-1">{titular}</div>
 
       <p className="mt-2 text-xs text-neutral-mid tabular-nums">
-        {docsComportamiento} facturas fechadas por su comportamiento real
+        {docsComportamiento} {facturaFechadaLabel(docsComportamiento)} por su comportamiento real
         {docsVencimiento > 0 && `, ${docsVencimiento} por vencimiento (sin historial)`}.
       </p>
 

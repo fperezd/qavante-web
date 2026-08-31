@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Info } from "lucide-react";
 import type { PayrollTotales } from "@/lib/api/buk";
+import { concordar } from "@/lib/formatters/count";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPct } from "@/lib/formatters/pct";
 import { formatDateShort } from "@/lib/formatters/date";
@@ -365,9 +366,4 @@ function TablaPersonas({
       emptyMessage="Sin personas en este período."
     />
   );
-}
-
-/* ── Concordancia singular/plural (mismo enfoque que `gestion-v08-view.tsx`) ─────────────────── */
-function concordar<T>(n: number, singular: T, plural: T): T {
-  return n === 1 ? singular : plural;
 }

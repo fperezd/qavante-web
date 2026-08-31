@@ -5,7 +5,6 @@ import {
   ESTADO_LABEL_V06,
   F29_ESTIMADO_MOTIVO,
   LEY_9_TEXTO_V06,
-  concordar,
   csvCalendarioV06,
   elUnicoRojoV06,
   f29EstimadoHuecoV06,
@@ -414,16 +413,9 @@ describe("f29EstimadoHuecoV06 — el motivo del recorte R2, no un cálculo", () 
   });
 });
 
-describe("concordar — N=1 (issue #94)", () => {
-  it("singular con n=1", () => {
-    expect(concordar(1, "trabajador", "trabajadores")).toBe("trabajador");
-  });
-
-  it("plural con n≠1 (gemelo negativo, incluye 0)", () => {
-    expect(concordar(0, "trabajador", "trabajadores")).toBe("trabajadores");
-    expect(concordar(2, "trabajador", "trabajadores")).toBe("trabajadores");
-  });
-});
+/* `concordar` se movió a `src/lib/formatters/count.ts` (issue #94) — su cobertura genérica vive
+ * en `count.test.ts`. El texto real ("1 trabajador" / "9 trabajadores") ya se fija arriba, en
+ * `filaPreviredV06`. */
 
 describe("LEY_9_TEXTO_V06 — literal, footer fijo", () => {
   it("es exactamente el texto del issue #73", () => {

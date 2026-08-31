@@ -7,6 +7,7 @@
 
 import type { CashProjectionResponse } from "@/lib/api/treasury";
 import { parseAmount } from "@/components/gestion/gestion-format";
+import { concordar } from "@/lib/formatters/count";
 import { formatDateLike } from "@/lib/formatters/date";
 import type { DiasCaja, EstadoCaja } from "./caja-dias-model";
 import type { CausaQuiebre } from "./caja-proyeccion-model";
@@ -119,6 +120,14 @@ export interface CobroVencido {
   sourceExternalId: string | null;
   /** 'receivable' (cobro) | 'payable' (pago) — el `side` que pide mark-collected. Default receivable. */
   side: "receivable" | "payable";
+}
+
+/** Label de atraso de un `CobroVencido` → "1 día de atraso" / "5 días de atraso", o `null` si
+ * "sin fecha" (`diasAtraso == null`, el caller decide ese copy). Issue #94: 1 día de atraso es el
+ * caso REAL más urgente de esta lista, no uno de laboratorio — un cobro que venció ayer. */
+export function diasAtrasoLabel(diasAtraso: number | null): string | null {
+  if (diasAtraso == null) return null;
+  return `${diasAtraso} ${concordar(diasAtraso, "día", "días")} de atraso`;
 }
 
 /** Escenario "con recuperación del atraso" (ADR-0087): si el por-cobrar-vencido se cobra repartido en

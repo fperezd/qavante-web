@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SourceStatus } from "@/lib/api/sources-status";
 import {
-  concordar,
   estadoCredenciales,
   estadoEmpresas,
   estadoUsuarios,
@@ -28,19 +27,9 @@ function listo<T>(valor: T): CargaV12<T> {
 const CARGANDO: CargaV12<never> = { tipo: "cargando" };
 const ERROR: CargaV12<never> = { tipo: "error" };
 
-describe("concordar", () => {
-  it("n=1 toma la forma singular", () => {
-    expect(concordar(1, "empresa", "empresas")).toBe("empresa");
-  });
-
-  it("n=0 toma la forma PLURAL — «0 empresas» es correcto en español", () => {
-    expect(concordar(0, "empresa", "empresas")).toBe("empresas");
-  });
-
-  it("n=2 toma la forma plural", () => {
-    expect(concordar(2, "empresa", "empresas")).toBe("empresas");
-  });
-});
+/* `concordar` se movió a `src/lib/formatters/count.ts` (issue #94) — su cobertura genérica
+ * vive en `count.test.ts`. Lo que este archivo sigue fijando es el TEXTO real que produce
+ * `estadoEmpresas`/`estadoUsuarios`/`estadoCredenciales` con N=1, más abajo. */
 
 describe("estadoCredenciales — Ley 1, misma fuente que V11", () => {
   it("cargando → estado propio 'Cargando…' (tono neutral), NUNCA null", () => {

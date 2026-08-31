@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useImportCardStatement } from "@/lib/api/card-statements";
 import { formatClp } from "@/lib/formatters/clp";
+import { concordar } from "@/lib/formatters/count";
 import { formatDateLike } from "@/lib/formatters/date";
 
 /* Subir cartola de tarjeta (PDF BICE). Importa compras (incl. al extranjero),
@@ -124,7 +125,10 @@ export function CardStatementUpload() {
               {res.needs_review > 0 && <li>{res.needs_review} por revisar</li>}
               {res.deuda_total_usd && <li>Deuda total: USD {res.deuda_total_usd}</li>}
               {typeof res.charges_detected === "number" && res.charges_detected > 0 && (
-                <li>{res.charges_detected} cargos detectados</li>
+                <li>
+                  {res.charges_detected}{" "}
+                  {concordar(res.charges_detected, "cargo detectado", "cargos detectados")}
+                </li>
               )}
               {res.payment_detected && (
                 <li>Pago detectado: {formatClp(Number(res.payment_detected))}</li>

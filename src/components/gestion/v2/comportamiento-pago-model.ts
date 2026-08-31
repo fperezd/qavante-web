@@ -6,6 +6,8 @@
    #858). Si el backend no trae `behavior_shift_days` (null, sin comparables) → no hay insight (no se
    inventa un desfase). La cobertura (cuántas facturas tienen historial de pago) se muestra siempre. */
 
+import { concordar } from "@/lib/formatters/count";
+
 export interface ComportamientoPagoInput {
   vs_nominal?: {
     behavior_shift_days?: number | null;
@@ -69,5 +71,14 @@ export function comportamientoPagoInsight(
 }
 
 function dia(n: number): string {
-  return n === 1 ? "día" : "días";
+  return concordar(n, "día", "días");
+}
+
+/** "Basado en 3 de 5 facturas con historial de pago" / "...1 de 1 factura..." — PURA (issue #94:
+ * una empresa recién conectada, con UNA sola factura fechada, es el caso real de arranque, no de
+ * laboratorio). `total === 0` no se llama nunca desde la card (`insight.total > 0` la gatea). */
+export function coberturaLabel(
+  insight: Pick<ComportamientoPagoInsight, "conHistorial" | "total">,
+): string {
+  return `Basado en ${insight.conHistorial} de ${insight.total} ${concordar(insight.total, "factura", "facturas")} con historial de pago.`;
 }

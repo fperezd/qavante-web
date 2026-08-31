@@ -3,6 +3,7 @@ import {
   cashProjectionToDiasCaja,
   causasFromCashProjection,
   cobrosPorCobrarVencido,
+  diasAtrasoLabel,
   recuperacionAtraso,
   ingresoProyectado,
 } from "./caja-cash-projection-map";
@@ -255,5 +256,23 @@ describe("ingresoProyectado (ADR-0089 B)", () => {
       ingresoProyectado(conIngresos({ total_ingreso_proyectado: "0", n_flujos: 0 })),
     ).toBeNull();
     expect(ingresoProyectado(tooxs)).toBeNull();
+  });
+});
+
+/* Concordancia N=1 (issue #94): un cobro vencido AYER (1 día de atraso) es el caso más urgente de
+ * esta lista, no de laboratorio — el defecto vivo escribía "1 días de atraso". */
+describe("diasAtrasoLabel", () => {
+  it("1 día: singular", () => {
+    expect(diasAtrasoLabel(1)).toBe("1 día de atraso");
+    expect(diasAtrasoLabel(1)).not.toBe("1 días de atraso");
+  });
+
+  /* [control positivo] gemelo N≠1: si un mutante forzara siempre el singular, este assert lo mata. */
+  it("[control positivo] 12 días: plural", () => {
+    expect(diasAtrasoLabel(12)).toBe("12 días de atraso");
+  });
+
+  it("null (sin fecha): el caller decide el copy, esta función no inventa uno", () => {
+    expect(diasAtrasoLabel(null)).toBeNull();
   });
 });

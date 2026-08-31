@@ -3,7 +3,11 @@
 import * as React from "react";
 import { CalendarClock } from "lucide-react";
 import { useCollectionProjection } from "@/lib/api/treasury";
-import { comportamientoPagoInsight, type ComportamientoTono } from "./comportamiento-pago-model";
+import {
+  coberturaLabel,
+  comportamientoPagoInsight,
+  type ComportamientoTono,
+} from "./comportamiento-pago-model";
 
 /* Insight "comportamiento de pago" en Ciclo de caja (gated `comportamientoPago`, OFF). Complementa el
    DSO (ratio contable) con el desfase REAL vs vencimiento que trae `collection-projection`
@@ -34,12 +38,7 @@ export function ComportamientoPagoCard({ enabled = true }: { enabled?: boolean }
           <p className="text-base font-bold text-neutral-dark">{insight.titulo}</p>
           <p className="mt-1 text-sm text-neutral-mid">
             Es el <b>comportamiento real</b> de cobro (cuándo pagan de verdad), no el plazo pactado.
-            {insight.total > 0 && (
-              <>
-                {" "}
-                Basado en {insight.conHistorial} de {insight.total} facturas con historial de pago.
-              </>
-            )}
+            {insight.total > 0 && <> {coberturaLabel(insight)}</>}
           </p>
           <p className="mt-1 text-[11px] text-neutral-light">
             Promedio del total de tus cobros. El detalle por cliente está en camino.

@@ -12,7 +12,7 @@ import {
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatDateEsCL } from "./format";
-import { getBanner } from "./expiration-banner";
+import { certificateExpiryLabel, getBanner } from "./expiration-banner";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 
 /* Vista de certificados digitales (Opción A: colección multi-holder).
@@ -50,10 +50,7 @@ function CertificateRow({
   onDelete: (cert: CertificateMetadataResponse) => void;
 }) {
   const banner = getBanner(cert.expires_at);
-  const label =
-    banner.tone === "warn" || banner.tone === "urgent"
-      ? `Vence en ${banner.daysLeft} días`
-      : BANNER_LABEL[banner.tone];
+  const label = certificateExpiryLabel(banner, BANNER_LABEL);
   return (
     <QavanteCard variant="bordered">
       <div className="flex items-start gap-3">

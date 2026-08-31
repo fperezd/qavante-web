@@ -4,7 +4,7 @@
    por la UX (banner amarillo/rojo + email automático). */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getBanner } from "./expiration-banner";
+import { certificateExpiryLabel, getBanner } from "./expiration-banner";
 
 /* Tiempo CONGELADO. Los thresholds son por día exacto (ej. "1 día → urgent")
    y `daysUntil()` hace `differenceInDays(iso, new Date())`. Sin congelar, el
@@ -86,5 +86,43 @@ describe("getBanner — certificate expiration tones", () => {
 
   it("ya expiró hace 365 días → tone expired", () => {
     expect(getBanner(isoInDays(-365)).tone).toBe("expired");
+  });
+});
+
+/* Concordancia N=1 del label (issue #94, defecto REAL y en vivo: `certificate-list-view.tsx`
+ * escribía `Vence en ${daysLeft} días` a mano, así que un certificado que expira MAÑANA (caso
+ * real del umbral `urgent`, no de laboratorio) mostraba "Vence en 1 días"). */
+const BANNER_LABEL: Record<"ok" | "warn" | "urgent" | "expired", string> = {
+  ok: "Vigente",
+  warn: "Vence pronto",
+  urgent: "Vence pronto",
+  expired: "Vencido",
+};
+
+describe("certificateExpiryLabel — concordancia N=1", () => {
+  it("vence en 1 día (urgent): singular 'Vence en 1 día'", () => {
+    const b = getBanner(isoInDays(1));
+    expect(b.tone).toBe("urgent");
+    const label = certificateExpiryLabel(b, BANNER_LABEL);
+    expect(label).toBe("Vence en 1 día");
+    expect(label).not.toBe("Vence en 1 días");
+  });
+
+  /* [control positivo] gemelo con N≠1: si un mutante forzara siempre el singular, este assert
+   * lo mata. */
+  it("[control positivo] vence en 10 días (urgent): plural 'Vence en 10 días'", () => {
+    const b = getBanner(isoInDays(10));
+    const label = certificateExpiryLabel(b, BANNER_LABEL);
+    expect(label).toBe("Vence en 10 días");
+  });
+
+  it("vence en 60 días (warn): plural, mismo criterio de concordancia", () => {
+    const b = getBanner(isoInDays(60));
+    expect(certificateExpiryLabel(b, BANNER_LABEL)).toMatch(/^Vence en \d+ días$/);
+  });
+
+  it("tone ok/expired: usa el label fijo, sin número (no pasa por concordancia)", () => {
+    expect(certificateExpiryLabel({ tone: "ok" }, BANNER_LABEL)).toBe("Vigente");
+    expect(certificateExpiryLabel({ tone: "expired" }, BANNER_LABEL)).toBe("Vencido");
   });
 });

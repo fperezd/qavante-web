@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BudgetLine, BudgetVsActualResponse } from "@/lib/api/planning";
 import {
-  concordar,
   csvDesviosV09,
   desviosV09,
   estadoDatosV09,
@@ -314,18 +313,6 @@ describe("csvDesviosV09 — exportar (§5.5), exacto sobre lo mostrado", () => {
   });
 });
 
-describe("concordar — N=1 singular, el resto plural (issue #94)", () => {
-  it("N=1 usa el singular", () => {
-    expect(concordar(1, "concepto", "conceptos")).toBe("concepto");
-  });
-
-  /* [control positivo] gemelo positivo del anterior con la MISMA pareja singular/plural: N≠1 no
-   * puede devolver el singular. */
-  it("[control positivo] N=2 usa el plural (no el singular de arriba)", () => {
-    expect(concordar(2, "concepto", "conceptos")).toBe("conceptos");
-  });
-
-  it("N=0 usa el plural", () => {
-    expect(concordar(0, "concepto", "conceptos")).toBe("conceptos");
-  });
-});
+/* `concordar` se movió a `src/lib/formatters/count.ts` (issue #94) — su cobertura genérica vive
+ * en `count.test.ts`. El texto real ("1 concepto desviado" / "N conceptos desviados") ya se fija
+ * arriba, en la tabla de desvíos. */

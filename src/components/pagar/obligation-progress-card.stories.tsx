@@ -49,6 +49,24 @@ export const Liquidado: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Liquidado")).toBeVisible();
+    // [control positivo] N≠1: plural.
     await expect(canvas.getByText(/2 de 2 cuotas pagadas/)).toBeVisible();
+  },
+};
+
+export const LiquidadoUnaCuota: Story = {
+  name: "Liquidado, 1 sola cuota (issue #94, N=1)",
+  args: {
+    installments: [cuota(1, "2025-10-15", "paid")],
+    installmentsTotal: 1,
+    originationDate: "2025-09-15",
+    principalFormatted: "$500.000",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Liquidado")).toBeVisible();
+    // El defecto vivo escribía "1 de 1 cuotas pagadas" (plural fijo sobre el total).
+    await expect(canvas.getByText(/1 de 1 cuota pagada(?!s)/)).toBeVisible();
+    await expect(canvas.queryByText(/1 de 1 cuotas pagadas/)).not.toBeInTheDocument();
   },
 };

@@ -27,13 +27,7 @@
 import type { SourceStatus } from "@/lib/api/sources-status";
 import { visibleSources } from "@/lib/api/sources-status";
 import { sourceToConnectionCopy } from "@/components/conexiones/conexiones-copy";
-import { formatCount } from "@/lib/formatters/count";
-
-/** Concordancia número (singular/plural) del español, en un solo lugar — mismo criterio que
- *  `gestion-v08-view.tsx`: sólo `n === 1` toma la forma singular ("0 empresas" es correcto). */
-export function concordar<T>(n: number, singular: T, plural: T): T {
-  return n === 1 ? singular : plural;
-}
+import { concordar, formatCount } from "@/lib/formatters/count";
 
 export type TonoEstadoV12 = "ok" | "warn" | "neutral" | "bad";
 

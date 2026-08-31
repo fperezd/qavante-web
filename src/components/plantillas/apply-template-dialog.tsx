@@ -6,11 +6,19 @@ import { CheckCircle2, X } from "lucide-react";
 import { QavanteButton } from "@/components/qavante";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+import { concordar } from "@/lib/formatters/count";
 import {
   useApplyIndustryTemplate,
   type ApplyTemplateResponse,
   type ApplyTemplateSummary,
 } from "@/lib/api/industry-templates";
+
+/** "N cuentas y M vistas ya existen, se respetan sin cambios." — issue #94: cada sustantivo
+ * concuerda por SU PROPIO número (una empresa con sólo 1 cuenta ya existente es un caso real).
+ * Exportada para test directo, sin montar DOM. */
+export function alreadyExistLabel(accountsExisting: number, dimensionsExisting: number): string {
+  return `${accountsExisting} ${concordar(accountsExisting, "cuenta", "cuentas")} y ${dimensionsExisting} ${concordar(dimensionsExisting, "vista", "vistas")} ya existen, se respetan sin cambios.`;
+}
 
 /* Dialog confirmatorio de "Aplicar plantilla" — Addendum §14.1 (NUNCA
    destructivo). Modo único expuesto: `add_missing` (crea dims faltantes;
@@ -95,8 +103,8 @@ export function ApplyTemplateDialog({
             </Dialog.Close>
           </div>
           <Dialog.Description className="mb-4 text-sm text-neutral-mid">
-            Qavante va a <strong>agregar</strong> lo que falte. Nunca borra ni pisa lo que ya tienes;
-            si algo existe igual, se queda como está.
+            Qavante va a <strong>agregar</strong> lo que falte. Nunca borra ni pisa lo que ya
+            tienes; si algo existe igual, se queda como está.
           </Dialog.Description>
 
           {nothingToDo ? (
@@ -133,8 +141,7 @@ export function ApplyTemplateDialog({
                 </div>
                 {(summary.accounts_existing > 0 || summary.dimensions_existing > 0) && (
                   <p className="pt-1 text-xs text-neutral-mid">
-                    {summary.accounts_existing} cuentas y {summary.dimensions_existing} vistas ya
-                    existen, se respetan sin cambios.
+                    {alreadyExistLabel(summary.accounts_existing, summary.dimensions_existing)}
                   </p>
                 )}
               </dl>

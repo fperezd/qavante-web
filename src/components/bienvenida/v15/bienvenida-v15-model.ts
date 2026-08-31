@@ -35,13 +35,7 @@ import {
   sourceStateDescription,
 } from "@/components/onboarding/onboarding-source-meta";
 import { routeForSource } from "@/components/onboarding/onboarding-steps";
-
-/** Concordancia número (singular/plural) del español, en un solo lugar — mismo criterio que
- *  `gestion-v08-view.tsx` / `administracion-v12-model.ts`: sólo `n === 1` toma la forma singular
- *  ("0 fuentes" es correcto, no "0 fuente"). */
-export function concordar<T>(n: number, singular: T, plural: T): T {
-  return n === 1 ? singular : plural;
-}
+export { concordar } from "@/lib/formatters/count";
 
 /* ── Paso 1 — fuentes con estado y tiempo estimado por conexión ─────────────────────────────── */
 

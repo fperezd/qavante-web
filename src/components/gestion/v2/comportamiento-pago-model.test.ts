@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { comportamientoPagoInsight } from "./comportamiento-pago-model";
+import { coberturaLabel, comportamientoPagoInsight } from "./comportamiento-pago-model";
 
 describe("comportamientoPagoInsight", () => {
   it("pagan TARDE (shift > 0): título + cobertura + tono por magnitud", () => {
@@ -57,5 +57,29 @@ describe("comportamientoPagoInsight", () => {
     expect(
       comportamientoPagoInsight({ vs_nominal: { behavior_shift_days: 12.6 } })!.shiftDias,
     ).toBe(13);
+  });
+});
+
+/* Concordancia N=1 (issue #94): una empresa recién conectada, con UNA sola factura fechada, es
+ * el caso REAL de arranque — el defecto vivo escribía "1 de 1 facturas con historial de pago". */
+describe("coberturaLabel", () => {
+  it("total=1: singular 'factura'", () => {
+    expect(coberturaLabel({ conHistorial: 1, total: 1 })).toBe(
+      "Basado en 1 de 1 factura con historial de pago.",
+    );
+    expect(coberturaLabel({ conHistorial: 1, total: 1 })).not.toContain("1 facturas");
+  });
+
+  it("total=1, conHistorial=0 (fechada pero sin comportamiento aún): sigue singular", () => {
+    expect(coberturaLabel({ conHistorial: 0, total: 1 })).toBe(
+      "Basado en 0 de 1 factura con historial de pago.",
+    );
+  });
+
+  /* [control positivo] gemelo N≠1: si un mutante forzara siempre el singular, este assert lo mata. */
+  it("[control positivo] total=25: plural 'facturas'", () => {
+    expect(coberturaLabel({ conHistorial: 18, total: 25 })).toBe(
+      "Basado en 18 de 25 facturas con historial de pago.",
+    );
   });
 });

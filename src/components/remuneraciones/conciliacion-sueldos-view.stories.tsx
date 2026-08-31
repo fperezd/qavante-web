@@ -88,6 +88,26 @@ type Story = StoryObj<typeof meta>;
 export const TodoConciliado: Story = {
   name: "Todo conciliado",
   args: { empleados: EMPLEADOS, movimientos: DEBITOS_OK },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    // [control positivo] N≠1: plural.
+    await expect(c.getByText(/3 de 3 empleados conciliados/)).toBeInTheDocument();
+  },
+};
+
+/* issue #94, N=1: una empresa con UN solo empleado es un caso real de negocio chico, no de
+ * laboratorio. El defecto vivo escribía "1 de 1 empleados conciliados". */
+export const UnEmpleado: Story = {
+  name: "1 solo empleado (issue #94, N=1)",
+  args: {
+    empleados: [EMPLEADOS[0]!],
+    movimientos: [DEBITOS_OK[0]!],
+  },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    await expect(c.getByText("1 de 1 empleado conciliado")).toBeInTheDocument();
+    await expect(c.queryByText("1 de 1 empleados conciliados")).not.toBeInTheDocument();
+  },
 };
 
 export const Parcial: Story = {

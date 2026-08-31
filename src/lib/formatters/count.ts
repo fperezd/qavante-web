@@ -16,6 +16,22 @@ export function formatCount(value: number): string {
   return Math.round(value).toLocaleString("es-CL");
 }
 
+/** Concordancia singular/plural genérica → `concordar(1, "documento", "documentos")` es
+ * `"documento"`; cualquier otro N (incluido 0) es el plural. La ÚNICA regla: `n === 1`. En
+ * español "0 meses" es plural correcto, así que 0 NO es un caso especial acá — es sólo "no 1".
+ *
+ * Por qué existe: hasta issue #94 cada pantalla del rediseño reescribía este ternario a mano
+ * (`n === 1 ? singular : plural`), y terminó duplicado IDÉNTICO en seis archivos
+ * (`administracion-v12-model.ts`, `bienvenida-v15-model.ts`, `gestion-v08-view.tsx`,
+ * `impuestos-v06-model.ts`, `presupuesto-v09-model.ts`, `remuneraciones-v16-view.tsx`) — el
+ * mismo defecto que dejaba pasar "Los 1 proveedores" reapareciendo por FALTA de un sitio único
+ * donde arreglarlo una vez. Genérico en `T` (no sólo `string`) porque V08 lo usa para frases
+ * completas ("El documento listado suma" / "Los N documentos listados suman"), no sólo para el
+ * sustantivo suelto. PURO: sin locale, sin formateo — sólo la decisión singular/plural. */
+export function concordar<T>(n: number, singular: T, plural: T): T {
+  return n === 1 ? singular : plural;
+}
+
 /** Días → "53 días", "1 día", "−7 días". Dos decisiones deliberadas:
  *
  *  - El singular importa: "1 días" se lee como un bug del sistema, no como un dato.

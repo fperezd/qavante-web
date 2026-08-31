@@ -29,6 +29,7 @@ import {
 } from "@/components/qavante";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
+import { concordar } from "@/lib/formatters/count";
 import {
   useIndustryTemplates,
   useApplyIndustryTemplate,
@@ -131,6 +132,14 @@ function PreviewBox({ preview }: { preview: ApplyTemplateResponse }) {
   );
 }
 
+/** "Plantilla aplicada. N cuentas y M vistas nuevas se agregaron a tu empresa." — issue #94: una
+ * empresa que sólo tenía UNA cuenta o UNA vista por agregar es el caso real de una plantilla casi
+ * completa, no de laboratorio. Ambos sustantivos concuerdan por separado (y "vista nueva" concuerda
+ * también el adjetivo, no sólo el sustantivo). Exportada para test directo, sin montar DOM. */
+export function appliedSummaryLabel(accountsAdded: number, dimensionsAdded: number): string {
+  return `Plantilla aplicada. ${accountsAdded} ${concordar(accountsAdded, "cuenta", "cuentas")} y ${dimensionsAdded} ${concordar(dimensionsAdded, "vista nueva", "vistas nuevas")} se agregaron a tu empresa.`;
+}
+
 function AppliedBox({ result }: { result: ApplyTemplateResponse }) {
   return (
     <div
@@ -138,10 +147,7 @@ function AppliedBox({ result }: { result: ApplyTemplateResponse }) {
       className="flex items-start gap-2 rounded-xl border border-success-500/40 bg-success-500/10 p-3 text-sm text-neutral-dark"
     >
       <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-success-600" aria-hidden="true" />
-      <p>
-        Plantilla aplicada. {result.summary.accounts_to_add} cuentas y{" "}
-        {result.summary.dimensions_to_add} vistas nuevas se agregaron a tu empresa.
-      </p>
+      <p>{appliedSummaryLabel(result.summary.accounts_to_add, result.summary.dimensions_to_add)}</p>
     </div>
   );
 }

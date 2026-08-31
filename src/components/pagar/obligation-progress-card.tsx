@@ -1,8 +1,15 @@
 import * as React from "react";
 import { QavanteCard } from "@/components/qavante";
 import { Timeline, type TimelineStep } from "@/components/ui/timeline";
+import { concordar } from "@/lib/formatters/count";
 import { formatDateLike } from "@/lib/formatters/date";
 import { computeObligationProgress, type ObligationInstallmentLike } from "./obligation-lifecycle";
+
+/** "2 de 6 cuotas pagadas" / "1 de 1 cuota pagada" — concuerda sobre el TOTAL (issue #94: un
+ * préstamo de una sola cuota, ya pagada, es un caso real, no de laboratorio). */
+function cuotasPagadasLabel(n: number, total: number): string {
+  return `${n} de ${total} ${concordar(total, "cuota pagada", "cuotas pagadas")}`;
+}
 
 /* Progreso macro del préstamo como Timeline: Originado → En curso (cuota X/N,
    próxima, vencidas) → Liquidado. Complementa la tabla densa con el "así vas"
@@ -33,7 +40,7 @@ export function ObligationProgressCard({
         {
           status: "done",
           title: "Liquidado",
-          children: `${p.total} de ${p.total} cuotas pagadas${
+          children: `${cuotasPagadasLabel(p.total, p.total)}${
             p.payoffDate ? ` · última venció el ${formatDateLike(p.payoffDate)}` : ""
           }`,
         },
@@ -43,7 +50,7 @@ export function ObligationProgressCard({
         {
           status: "current",
           title: "En curso",
-          children: `${p.paidCount} de ${p.total} cuotas pagadas${
+          children: `${cuotasPagadasLabel(p.paidCount, p.total)}${
             p.nextDueDate ? ` · próxima vence el ${formatDateLike(p.nextDueDate)}` : ""
           }${
             p.overdueCount > 0 ? ` · ${p.overdueCount} vencida${p.overdueCount > 1 ? "s" : ""}` : ""

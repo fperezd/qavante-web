@@ -6,6 +6,7 @@ import { QavanteBadge, QavanteCard, QavanteEmpty, QavanteInlineError } from "@/c
 import { SortHeader } from "@/components/qavante/sort-header";
 import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { formatClp } from "@/lib/formatters/clp";
+import { concordar } from "@/lib/formatters/count";
 import { formatRut } from "@/lib/formatters/rut";
 import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "@/components/sii/sii-period-form";
@@ -142,7 +143,8 @@ function ResumenCard({
             {formatPeriodLabel(period)}
           </p>
           <p className="mt-1 text-lg font-semibold text-neutral-dark">
-            {resumen.conciliados} de {resumen.totalEmpleados} empleados conciliados
+            {resumen.conciliados} de {resumen.totalEmpleados}{" "}
+            {concordar(resumen.totalEmpleados, "empleado conciliado", "empleados conciliados")}
           </p>
           <p className="text-sm tabular-nums text-neutral-mid">
             Conciliado: <span className="font-medium">{formatClp(resumen.montoConciliado)}</span>
