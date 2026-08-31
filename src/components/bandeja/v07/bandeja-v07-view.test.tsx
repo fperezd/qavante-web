@@ -235,10 +235,12 @@ describe("BandejaV07View — carta de clasificar", () => {
     expect(h).toContain(`href="/caja/por-clasificar?movimiento=${MOV_DATTATEC}"`);
   });
 
-  it("dice, ANTES de guardar, que no va a haber Deshacer y por qué", () => {
-    expect(texto(html(conRegla()))).toContain(
-      "Al guardar no vas a ver un “Deshacer”: clasificar todavía no se puede revertir",
+  it("dice, ANTES de guardar, que ESE guardado no va a tener Deshacer y por qué (no es un hueco: es del usuario, no automático)", () => {
+    const t = texto(html(conRegla()));
+    expect(t).toContain(
+      "Al guardar no vas a ver un “Deshacer” acá: esto lo decidiste tú, no Qavante solo",
     );
+    expect(t).toContain("la Ley 5 cubre lo automático");
   });
 
   it("lote: 3 del mismo RUT ⇒ banner 'Hay 2 más', con el bulk declarado como imposible hoy", () => {
@@ -254,6 +256,104 @@ describe("BandejaV07View — carta de clasificar", () => {
     expect(t).toContain("Revisar los 3 seguidos");
     // Gemelo: con el de Dattatec solo en pantalla, no hay banner de lote.
     expect(texto(html(conRegla()))).not.toContain("esperando categoría");
+  });
+});
+
+/* Ley 5 en clasificar — verificado contra `api/app/core/treasury_repo.py`: el "Guardar" de esta
+ * carta nunca es lo que se deshace acá (ver el test de arriba, "dice ANTES de guardar..."). Lo
+ * que sí se lista y se puede deshacer es la bitácora de auto-clasificación
+ * (`GET /api/reversible-actions`). Las interacciones de click en "Deshacer" viven en las
+ * stories (necesitan DOM vivo para esperar la promesa); acá se fija sólo lo que el HTML dice. */
+describe("BandejaV07View — bitácora de auto-clasificación (Ley 5, issue #90)", () => {
+  const accion = (
+    over: Partial<{ actionId: string; resumen: string; creadaEn: string; vencePlazo: string }> = {},
+  ) => ({
+    actionId: "accion-1",
+    resumen: "Clasificamos un movimiento con la regla 'Software recurrente'",
+    creadaEn: "2026-08-30T09:00:00Z",
+    vencePlazo: "2026-09-06T09:00:00Z",
+    ...over,
+  });
+
+  /* Nota: "Qavante clasificó" NO sirve como marcador del banner — el disclaimer del "Guardar"
+     y los huecos declarados (siempre en pantalla) también usan esa frase para explicar que
+     ESE guardado no tiene Deshacer. El marcador confiable es el botón "Deshacer" de la
+     bitácora (único en toda la carta: el de "Guardar" es texto plano, no un botón) y el
+     resumen que sólo el backend manda cuando hay algo que listar. */
+  it("sin auto-clasificaciones (el caso por defecto): no aparece el botón Deshacer de la bitácora", () => {
+    const h = html({ tabInicial: "clasificar" });
+    expect(h).not.toMatch(/<button[^>]*>\s*Deshacer\s*<\/button>/);
+  });
+
+  it("con UNA auto-clasificación: el resumen del backend, cuándo fue, y el botón Deshacer — sin 'más'", () => {
+    /* El botón sólo se pinta si hay a quién avisarle (mismo patrón que `onCrearRegla`): sin
+       handler, silencio es lo correcto — no un botón mudo. Acá SÍ pasamos uno. */
+    const h = html({
+      tabInicial: "clasificar",
+      autoClasificadas: [accion()],
+      onDeshacerAutoClasificar: async () => ({
+        action_id: "accion-1",
+        action_type: "bank_movement.auto_classify",
+        result: "reverted",
+        reverted_at: null,
+        detail: {},
+      }),
+    });
+    const t = texto(h);
+    expect(t).toContain("Qavante clasificó Clasificamos un movimiento con la regla");
+    expect(t).toContain("Software recurrente");
+    expect(t).toContain("solo, hoy.");
+    // MISMA regex que el negativo de arriba — el gemelo positivo tiene que usarla también.
+    expect(h).toMatch(/<button[^>]*>\s*Deshacer\s*<\/button>/);
+    expect(t).not.toContain("clasificación automática más");
+    expect(t).not.toContain("clasificaciones automáticas más");
+  });
+
+  it("N=1: con UNA más además de la primera, el texto va en SINGULAR ('1 clasificación automática más')", () => {
+    const t = texto(
+      html({
+        tabInicial: "clasificar",
+        autoClasificadas: [accion({ actionId: "a1" }), accion({ actionId: "a2" })],
+      }),
+    );
+    expect(t).toContain("Hay 1 clasificación automática más, también deshacible.");
+    expect(t).not.toContain("clasificaciones automáticas");
+  });
+
+  it("gemelo positivo: con DOS más, el texto va en PLURAL ('2 clasificaciones automáticas más')", () => {
+    const t = texto(
+      html({
+        tabInicial: "clasificar",
+        autoClasificadas: [
+          accion({ actionId: "a1" }),
+          accion({ actionId: "a2" }),
+          accion({ actionId: "a3" }),
+        ],
+      }),
+    );
+    expect(t).toContain("Hay 2 clasificaciones automáticas más, también deshacibles.");
+    expect(t).not.toContain("1 clasificación automática más");
+  });
+
+  it("la bitácora caída lo dice bajito, sin tapar la carta principal de clasificar", () => {
+    const t = texto(
+      html({
+        tabInicial: "clasificar",
+        autoClasificadas: null,
+        autoClasificadasMotivo: "La bitácora no respondió.",
+      }),
+    );
+    expect(t).toContain(
+      "No pudimos traer lo que Qavante clasificó solo: La bitácora no respondió.",
+    );
+    // La carta principal sigue viva: no es un DataState de pantalla completa.
+    expect(t).toContain("Clasificar 1 de 5");
+  });
+
+  it("el banner sólo aparece en el tab de clasificar, no en conciliar", () => {
+    const h = html({ tabInicial: "conciliar", autoClasificadas: [accion()] });
+    // MISMA regex que los dos tests de arriba.
+    expect(h).not.toMatch(/<button[^>]*>\s*Deshacer\s*<\/button>/);
   });
 });
 
@@ -327,7 +427,7 @@ describe("BandejaV07View — Leyes 2 y 7", () => {
   it("los huecos se declaran en pantalla, con su issue sucesor", () => {
     const t = texto(html());
     expect(t).toContain("clasificar un lote de una sola vez");
-    expect(t).toContain("deshacer una clasificación");
+    expect(t).toContain("deshacer la clasificación que TÚ decidiste al apretar Guardar");
     expect(t).toContain("registrar el par negativo");
     expect(t).toContain("Sucesor: #90.");
   });

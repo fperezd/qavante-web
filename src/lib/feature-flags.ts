@@ -345,23 +345,25 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      evidencia de los dos lados) y los movimientos sin clasificar (`bank-movements` +
      `suggested-category`, que devuelve `null` cuando ninguna regla matchea).
 
-     Su endpoint de gating es lo ÚNICO que le falta a la vista, y es de la Ley 5: la REVERSIÓN de
-     una clasificación. Conciliar ya tiene la suya deployada
-     (`.../reconciliation/{movement_id}/revert`) y por eso su toast lleva Deshacer de verdad;
-     clasificar no tiene ninguna — `PATCH /api/bank-movements/{id}/classify` exige
-     `management_account_id`, así que no admite volver a "sin clasificar". El patrón genérico
-     (ADR-0113) está implementado pero SIN MERGEAR en `qavante-api#257`, y consumir un contrato
-     que todavía puede cambiar sería prometer un Deshacer que quizá no exista. Por eso la carta de
-     clasificar se entrega sin Deshacer, con el hueco declarado en pantalla, y el flag queda
-     apagado hasta que ese endpoint esté en el snapshot. El path que se anota abajo es la FORMA
-     esperada, no una cita: el definitivo lo fija #257 al mergear, igual que los otros gatings
-     FE-first de este archivo (`sync-progress`, `estimated-date`, `anomalies`).
+     El hueco de Ley 5 que dejaba esta vista sin encender —la REVERSIÓN de una clasificación— se
+     cerró en issue #90: `qavante-api#257` (ADR-0113, patrón genérico de reversión) mergeó
+     2026-08-31 y la carta de clasificar ya consume `GET /api/reversible-actions` +
+     `POST /api/reversible-actions/{action_id}/revert` para lo que Qavante clasificó SOLO por
+     regla o por conciliación (`apply-rules` / `classify-reconciled`); deshacerlo devuelve el
+     movimiento a "sin clasificar". Conciliar sigue con la suya propia, deployada antes
+     (`.../reconciliation/{movement_id}/revert`).
 
+     El flag SIGUE apagado — no por esto, que ya está resuelto, sino por lo que el propio issue
+     #90 declara que #90 NO cierra: clasificar un lote de una sola vez a una categoría elegida (no
+     existe el endpoint), registrar el par negativo de "no es esta", y que el progreso cuente
+     "hoy" y no sólo "esta sesión" (no hay bitácora consultable para eso). Los otros gatings
+     FE-first de este archivo (`sync-progress`, `estimated-date`, `anomalies`) son la misma forma:
+     un flag no se enciende hasta que TODOS sus huecos declarados se cierran, no sólo el primero.
      Con OFF, `/bandeja` renderiza el estado "todavía no disponible" con salida a los dos flujos
      que hacen este trabajo hoy (`/caja/conciliacion` y `/caja/por-clasificar`), que es lo que
      ADR-0008 fija más arriba en este mismo archivo. Ninguna pantalla existente cambia → cero
      regresión. */
-  bandejaV07: "/api/bank-movements/{movement_id}/classify/revert",
+  bandejaV07: "/api/reversible-actions/{action_id}/revert",
   /* V04 · Cobrar — "¿quién me debe?" (ESPECIFICACION §V04, issue #69). Reemplaza la landing de
      `/cobrar` por: crumb con el estado de gestión como chip gris, las 5 tarjetas de aging
      (Vigente / 1–30 / 31–60 / +61 / Vencido · bruto ⓘ) con % del total, el banner de concentración

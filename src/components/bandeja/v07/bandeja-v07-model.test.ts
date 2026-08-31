@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type {
+  RevertActionResponse,
+  ReversibleActionsListResponse,
+} from "@/lib/api/reversible-actions";
 import {
+  accionesAutoClasificar,
   agruparAlFrente,
   candidatoElegido,
   candidatos,
@@ -11,6 +16,7 @@ import {
   folioEnGlosa,
   frecuentes,
   haySugerenciaConciliar,
+  interpretarDeshacer,
   itemsClasificar,
   itemsConciliar,
   lote,
@@ -409,5 +415,155 @@ describe("cabecera y progreso", () => {
   it("la plata resuelta suma magnitudes", () => {
     expect(montoResuelto([2380000, 89250])).toBe(2469250);
     expect(montoResuelto([])).toBe(0);
+  });
+});
+
+/* Ley 5 en clasificar — verificado contra `api/app/core/reversible_actions.py`
+ * (qavante-api#257): el PATCH manual de "Guardar" no registra nada; lo que se lista y se
+ * deshace acá es lo que corrieron `apply-rules` / `classify-reconciled` por su cuenta. */
+describe("bitácora de auto-clasificación (Ley 5)", () => {
+  function accion(over: Partial<ReversibleActionsListResponse["items"][number]> = {}) {
+    return {
+      action_id: "accion-1",
+      action_type: "bank_movement.auto_classify",
+      summary: "Clasificamos un movimiento con la regla 'Software recurrente'",
+      created_at: "2026-08-30T12:00:00Z",
+      undo_expires_at: "2026-09-06T12:00:00Z",
+      undo_available: true,
+      undo_result: null,
+      status: "active",
+      reverted_at: null,
+      reverted_by: null,
+      ...over,
+    };
+  }
+
+  it("trae SÓLO auto_classify con undo_available true, mapeado a lo que la carta necesita", () => {
+    const resp: ReversibleActionsListResponse = {
+      total: 3,
+      items: [
+        accion({ action_id: "a1" }),
+        // Otro action_type (marcado de cesión): no es de esta carta.
+        accion({ action_id: "a2", action_type: "receivable.mark_ceded" }),
+        // Mismo action_type pero YA derivado: el filtro `only_undoable` del query no lo
+        // garantiza — `undo_available` es el que manda, ítem por ítem.
+        accion({ action_id: "a3", undo_available: false, undo_result: "undo_not_supported" }),
+      ],
+    };
+    expect(accionesAutoClasificar(resp)).toEqual([
+      {
+        actionId: "a1",
+        resumen: "Clasificamos un movimiento con la regla 'Software recurrente'",
+        creadaEn: "2026-08-30T12:00:00Z",
+        vencePlazo: "2026-09-06T12:00:00Z",
+      },
+    ]);
+  });
+
+  it("sin respuesta o sin items: lista vacía, no un throw", () => {
+    expect(accionesAutoClasificar(null)).toEqual([]);
+    expect(accionesAutoClasificar(undefined)).toEqual([]);
+    expect(accionesAutoClasificar({ total: 0, items: [] })).toEqual([]);
+  });
+
+  function revert(over: Partial<RevertActionResponse> = {}): RevertActionResponse {
+    return {
+      action_id: "accion-1",
+      action_type: "bank_movement.auto_classify",
+      result: "reverted",
+      reverted_at: "2026-08-30T12:05:00Z",
+      detail: {},
+      ...over,
+    };
+  }
+
+  it("reverted / already_reverted / undo_expired: los tres resultados simples", () => {
+    expect(interpretarDeshacer(revert({ result: "reverted" }))).toEqual({ tipo: "deshecho" });
+    expect(interpretarDeshacer(revert({ result: "already_reverted" }))).toEqual({
+      tipo: "ya-deshecho",
+    });
+    expect(interpretarDeshacer(revert({ result: "undo_expired" }))).toEqual({ tipo: "vencido" });
+  });
+
+  it("LA COMPUERTA: estado_derivado y estado_bloqueado son DOS `tipo` distintos, cada uno con el texto del backend — no un 'no se pudo deshacer' genérico", () => {
+    const derivado = interpretarDeshacer(
+      revert({
+        result: "undo_not_supported",
+        detail: {
+          motivo: "estado_derivado",
+          explicacion: "Algo cambió después de esta acción: no se tocó nada.",
+        },
+      }),
+    );
+    const bloqueado = interpretarDeshacer(
+      revert({
+        result: "undo_not_supported",
+        detail: {
+          motivo: "estado_bloqueado",
+          explicacion: "Otra operación está modificando esto mismo. No se tocó nada.",
+        },
+      }),
+    );
+    expect(derivado).toEqual({
+      tipo: "protegido",
+      explicacion: "Algo cambió después de esta acción: no se tocó nada.",
+    });
+    expect(bloqueado).toEqual({
+      tipo: "bloqueado",
+      explicacion: "Otra operación está modificando esto mismo. No se tocó nada.",
+    });
+    // El positivo gemelo del assert que de verdad importa: si algún día alguien colapsa las
+    // dos ramas en un solo `tipo`, este `expect` es el que se rompe.
+    expect(derivado.tipo).not.toBe(bloqueado.tipo);
+  });
+
+  it("protegido NO es lo mismo que bloqueado tampoco a la inversa (gemelo positivo del anterior)", () => {
+    expect("protegido").not.toBe("bloqueado");
+    expect(
+      interpretarDeshacer(
+        revert({ result: "undo_not_supported", detail: { motivo: "estado_bloqueado" } }),
+      ).tipo,
+    ).toBe("bloqueado");
+    expect(
+      interpretarDeshacer(
+        revert({ result: "undo_not_supported", detail: { motivo: "estado_derivado" } }),
+      ).tipo,
+    ).toBe("protegido");
+  });
+
+  it("sin `detail.explicacion` del backend, cada motivo tiene su propio texto por defecto (no el genérico del otro)", () => {
+    const derivado = interpretarDeshacer(
+      revert({ result: "undo_not_supported", detail: { motivo: "estado_derivado" } }),
+    );
+    const bloqueado = interpretarDeshacer(
+      revert({ result: "undo_not_supported", detail: { motivo: "estado_bloqueado" } }),
+    );
+    expect(derivado.tipo).toBe("protegido");
+    expect(bloqueado.tipo).toBe("bloqueado");
+    if (derivado.tipo === "protegido" && bloqueado.tipo === "bloqueado") {
+      expect(derivado.explicacion).not.toBe(bloqueado.explicacion);
+      expect(derivado.explicacion.length).toBeGreaterThan(0);
+      expect(bloqueado.explicacion.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("undo_not_supported sin motivo reconocido: 'no sé' explícito, no se inventa un motivo", () => {
+    expect(interpretarDeshacer(revert({ result: "undo_not_supported", detail: {} }))).toEqual({
+      tipo: "no-reconocido",
+    });
+    expect(
+      interpretarDeshacer(
+        revert({ result: "undo_not_supported", detail: { motivo: "otra-cosa" } }),
+      ),
+    ).toEqual({ tipo: "no-reconocido" });
+    expect(interpretarDeshacer(revert({ result: "undo_not_supported" }))).toEqual({
+      tipo: "no-reconocido",
+    });
+  });
+
+  it("un `result` que no está en la lista cerrada tampoco se afirma como éxito", () => {
+    expect(interpretarDeshacer(revert({ result: "algo_no_documentado" }))).toEqual({
+      tipo: "no-reconocido",
+    });
   });
 });

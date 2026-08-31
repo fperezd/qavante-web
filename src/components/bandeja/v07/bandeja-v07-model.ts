@@ -28,6 +28,11 @@
 import type { BankMovement, BankMovementsListResponse } from "@/lib/api/treasury";
 import type { DocumentSuggestionsResponse, ReviewQueueResponse } from "@/lib/api/reconciliation";
 import type { SuggestedCategoryResponse } from "@/lib/api/classification-rules";
+import {
+  ACTION_TYPE_BANK_MOVEMENT_AUTO_CLASSIFY,
+  type RevertActionResponse,
+  type ReversibleActionsListResponse,
+} from "@/lib/api/reversible-actions";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 
 /* ── Constantes con su cita ──────────────────────────────────────────────────────────────── */
@@ -623,4 +628,100 @@ export function progreso(resueltos: number, pendientes: number): ProgresoV07 {
 /** Suma de los montos resueltos en la sesión. Puro, en pesos. */
 export function montoResuelto(montos: readonly number[]): number {
   return montos.reduce((a, b) => a + Math.abs(b), 0);
+}
+
+/* ── Ley 5 en clasificar: lo que Qavante clasificó SOLO, todavía deshacible ─────────────────
+ *
+ * VERIFICADO contra `api/app/core/reversible_actions.py` y `treasury_repo.classify_movement`
+ * (qavante-api#257, mergeado): el `PATCH .../classify` que dispara "Guardar" en esta carta NUNCA
+ * registra una acción reversible — sólo lo hacen los dos automatismos por lote (`apply-rules`,
+ * `classify-reconciled`), y la Ley 5 es literal en el propio código: "cubre lo que Qavante hace
+ * SOLO, no lo que el usuario decide". Por eso NO hay Deshacer para el clic de "Guardar" (ver
+ * `bandeja-v07-view.tsx`), y lo que sí se ofrece acá es la bitácora de esos dos automatismos:
+ * deshacer una de sus filas devuelve el movimiento a "sin clasificar" — de vuelta a esta carta. */
+
+export interface AccionAutoClasificarV07 {
+  actionId: string;
+  /** Texto humano que ya trae el backend (p. ej. "Clasificamos un movimiento con la regla…"). */
+  resumen: string;
+  creadaEn: string;
+  vencePlazo: string;
+}
+
+/** Las auto-clasificaciones de movimientos bancarios TODAVÍA deshacibles, del listado
+ *  `GET /api/reversible-actions`. Filtra por `action_type` Y por `undo_available`: el query
+ *  `only_undoable` es un ahorro de tráfico del backend, no una garantía por ítem — un ítem puede
+ *  volver con `undo_available: false` si el estado derivó desde que se armó la página (ver la
+ *  cita en `reversible-actions.ts`), y ofrecer un Deshacer ahí sería el botón mudo que la Ley 6
+ *  prohíbe. Orden: el que trae el backend (más reciente primero, `created_at DESC`). */
+export function accionesAutoClasificar(
+  resp: ReversibleActionsListResponse | null | undefined,
+): AccionAutoClasificarV07[] {
+  if (!resp?.items) return [];
+  return resp.items
+    .filter((i) => i.action_type === ACTION_TYPE_BANK_MOVEMENT_AUTO_CLASSIFY && i.undo_available)
+    .map((i) => ({
+      actionId: i.action_id,
+      resumen: i.summary,
+      creadaEn: i.created_at,
+      vencePlazo: i.undo_expires_at,
+    }));
+}
+
+const MOTIVO_ESTADO_DERIVADO = "estado_derivado";
+const MOTIVO_ESTADO_BLOQUEADO = "estado_bloqueado";
+
+const EXPLICACION_DERIVADO_POR_DEFECTO =
+  "Algo cambió después de esta clasificación automática (probablemente la reclasificaste tú). Ese cambio sigue en pie: no se tocó nada.";
+const EXPLICACION_BLOQUEADO_POR_DEFECTO =
+  "Otra operación está usando este movimiento justo ahora. No se tocó nada; puedes reintentar en unos segundos.";
+
+export type ResultadoDeshacerV07 =
+  | { tipo: "deshecho" }
+  | { tipo: "ya-deshecho" }
+  | { tipo: "vencido" }
+  /** `estado_derivado` (ADR-0113): el usuario cambió algo después de la acción automática. No se
+   *  tocó nada. NO reintentable — lo que cambió sigue vigente y así debe quedar; reintentar no
+   *  arregla nada porque no hay nada roto. */
+  | { tipo: "protegido"; explicacion: string }
+  /** `estado_bloqueado` (ADR-0113): otra operación tiene la fila tomada AHORA MISMO. No se tocó
+   *  nada. SÍ reintentable. */
+  | { tipo: "bloqueado"; explicacion: string }
+  /** El backend respondió `undo_not_supported` sin ninguno de los dos motivos reconocidos (o sin
+   *  `detail` legible). No se inventa cuál es — "no sé" explícito (Ley 8, política anti-default). */
+  | { tipo: "no-reconocido" };
+
+/**
+ * Traduce la respuesta cruda de `POST .../revert` (ADR §4) a lo que la vista necesita decidir:
+ * qué mensaje mostrar y si tiene sentido ofrecer reintentar. Puro — sin React, testeable con un
+ * solo `expect`.
+ *
+ * LA COMPUERTA que pide el issue #90: colapsar `estado_derivado` y `estado_bloqueado` en un "no
+ * se pudo deshacer" genérico es el default plausible que la política prohíbe. Acá es literal: un
+ * `tipo` DISTINTO para cada uno, con el texto que manda el backend (no uno inventado en el FE) y
+ * sólo un texto por defecto si `detail.explicacion` no vino.
+ */
+export function interpretarDeshacer(resp: RevertActionResponse): ResultadoDeshacerV07 {
+  switch (resp.result) {
+    case "reverted":
+      return { tipo: "deshecho" };
+    case "already_reverted":
+      return { tipo: "ya-deshecho" };
+    case "undo_expired":
+      return { tipo: "vencido" };
+    case "undo_not_supported": {
+      const motivo = typeof resp.detail?.motivo === "string" ? resp.detail.motivo : null;
+      const explicacion =
+        typeof resp.detail?.explicacion === "string" ? resp.detail.explicacion : null;
+      if (motivo === MOTIVO_ESTADO_DERIVADO) {
+        return { tipo: "protegido", explicacion: explicacion ?? EXPLICACION_DERIVADO_POR_DEFECTO };
+      }
+      if (motivo === MOTIVO_ESTADO_BLOQUEADO) {
+        return { tipo: "bloqueado", explicacion: explicacion ?? EXPLICACION_BLOQUEADO_POR_DEFECTO };
+      }
+      return { tipo: "no-reconocido" };
+    }
+    default:
+      return { tipo: "no-reconocido" };
+  }
 }

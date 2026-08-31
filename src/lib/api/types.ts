@@ -5428,6 +5428,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reversible-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bitácora de lo que Qavante hizo solo, con su estado de Deshacer (Ley 5)
+         * @description Lo que Qavante hizo SOLO en este tenant, con `undo_available` y `undo_expires_at` por
+         *     item. Sólo lectura. Las acciones que dispara el usuario no entran acá: la Ley 5 cubre lo
+         *     automático.
+         */
+        get: operations["reversible_actions_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reversible-actions/{action_id}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deshace una acción automática (genérico: un endpoint para todos los tipos)
+         * @description Deshace la acción `action_id` de ESTE tenant, restaurando los efectos completos que
+         *     registró su snapshot (no sólo el campo principal).
+         *
+         *     Idempotente: repetir la llamada sobre una acción ya revertida devuelve `already_reverted`
+         *     sin volver a tocar nada. Pasada la ventana de 7 días devuelve `undo_expired`, y una acción
+         *     sin compensador o sin snapshot suficiente devuelve `undo_not_supported` — nunca una
+         *     reversión aproximada (ADR §3.2). Una acción de otro tenant responde 404, igual que una que
+         *     no existe.
+         */
+        post: operations["reversible_actions_revert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -14115,6 +14164,84 @@ export interface components {
             receivables_reabiertas: number;
             /** Payables Reabiertas */
             payables_reabiertas: number;
+        };
+        ReversibleActionItem: {
+            /** Action Id */
+            action_id: string;
+            /**
+             * Action Type
+             * @description Clave del automatismo, p. ej. 'bank_movement.auto_classify'.
+             */
+            action_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Reverted At */
+            reverted_at?: string | null;
+            /** Reverted By */
+            reverted_by?: string | null;
+            /**
+             * Status
+             * @description 'active' | 'reverted' | 'expired' (el vencimiento se deriva).
+             */
+            status: string;
+            /**
+             * Summary
+             * @description Resumen humano de lo que Qavante hizo solo.
+             */
+            summary: string;
+            /**
+             * Undo Available
+             * @description True sólo si se puede deshacer AHORA.
+             */
+            undo_available: boolean;
+            /**
+             * Undo Expires At
+             * Format: date-time
+             * @description Fin de la ventana de 7 días.
+             */
+            undo_expires_at: string;
+            /**
+             * Undo Result
+             * @description Por qué no se puede deshacer: 'already_reverted' | 'undo_expired' | 'undo_not_supported'. `null` mientras siga deshacible.
+             */
+            undo_result?: string | null;
+        };
+        /** ReversibleActionsListResponse */
+        ReversibleActionsListResponse: {
+            /** Items */
+            items: components["schemas"]["ReversibleActionItem"][];
+            /**
+             * Total
+             * @description Total sin paginar, para que el FE pinte la paginación.
+             */
+            total: number;
+        };
+        /**
+         * RevertActionResponse
+         * @description Resultado de la reversión genérica.
+         */
+        RevertActionResponse: {
+            /** Action Id */
+            action_id: string;
+            /** Action Type */
+            action_type: string;
+            /**
+             * Detail
+             * @description Qué restauró el compensador (por tipo de acción). Vacío si no revirtió.
+             */
+            detail?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Result
+             * @description 'reverted' | 'already_reverted' | 'undo_expired' | 'undo_not_supported'.
+             */
+            result: string;
+            /** Reverted At */
+            reverted_at?: string | null;
         };
         /** RevertReconciliationDoc */
         RevertReconciliationDoc: {
@@ -23533,6 +23660,92 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RevertReconciliationResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reversible_actions_list: {
+        parameters: {
+            query?: {
+                /** @description Filtra por tipo de acción (p. ej. 'receivable.mark_ceded'). */
+                action_type?: string | null;
+                /** @description Sólo las que se pueden deshacer ahora (activas y dentro de la ventana). */
+                only_undoable?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de acciones automáticas, más reciente primero. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReversibleActionsListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reversible_actions_revert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la acción a deshacer. */
+                action_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultado estable: reverted / already_reverted / undo_expired / undo_not_supported. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevertActionResponse"];
+                };
+            };
+            /** @description Rol sin permiso de escritura (ADR-0028, §20). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La acción no existe para este tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

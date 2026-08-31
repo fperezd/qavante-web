@@ -13,9 +13,15 @@ import {
 import { useSuggestedCategory } from "@/lib/api/classification-rules";
 import { useManagementAccountsTree } from "@/lib/api/management";
 import { useBankMovements, useClassifyBankMovement } from "@/lib/api/treasury";
+import {
+  ACTION_TYPE_BANK_MOVEMENT_AUTO_CLASSIFY,
+  useReversibleActions,
+  useRevertReversibleAction,
+} from "@/lib/api/reversible-actions";
 import { toManagementAccountTreeRows } from "@/components/clasificacion/adapters";
 import { BandejaV07View } from "./bandeja-v07-view";
 import {
+  accionesAutoClasificar,
   candidatos as adaptarCandidatos,
   itemsClasificar,
   itemsConciliar,
@@ -35,22 +41,33 @@ import {
  *   · `GET  /api/treasury/bank-movements/{id}/suggested-category`     → la sugerencia, SÓLO si
  *     una regla activa matchea (devuelve `null` si no: Ley 3, no se infiere nada).
  *   · `GET  /api/management/accounts/tree`                            → el catálogo de categorías.
+ *   · `GET  /api/reversible-actions`                                  → lo que Qavante clasificó
+ *     SOLO y todavía se puede deshacer (Ley 5, issue #90).
  *
  * Escrituras: `confirm` (con o sin documento elegido), `reject`, `revert` (el Deshacer de la Ley 5
- * para conciliar) y `classify` — este último también con `create_rule: true` para la oferta de
- * regla, que es como el contrato la crea (§17).
+ * para conciliar), `classify` — este último también con `create_rule: true` para la oferta de
+ * regla (§17) — y `POST /api/reversible-actions/{action_id}/revert` (el Deshacer de la Ley 5 para
+ * lo que Qavante clasificó SOLO; `qavante-api#257`, ADR-0113, mergeado 2026-08-31).
  *
- * LO QUE NO SE CABLEA, Y POR QUÉ: no hay `onDeshacerClasificar`. La reversión genérica de
- * clasificación está implementada pero SIN MERGEAR (`qavante-api#257`); consumirla hoy sería
- * escribir contra un contrato que todavía puede cambiar. Cuando mergee, encenderlo es pasar el
- * handler que la vista ya declara.
+ * LO QUE SIGUE SIN CABLEARSE, Y POR QUÉ: no hay Deshacer para el `classify` que dispara el botón
+ * "Guardar" de la carta. Verificado contra `api/app/core/treasury_repo.py`
+ * (`classify_movement`): ese PATCH nunca pasa `auto_action_summary`, así que NUNCA registra una
+ * acción reversible — es una decisión del USUARIO, y la Ley 5 cubre lo que Qavante hace SOLO. No
+ * es un hueco pendiente de un contrato futuro: es el contrato tal como quedó.
  *
  * Los candidatos y la sugerencia se piden SÓLO del ítem visible (una card a la vez), no de la cola
- * entera: pedir N sugerencias para mostrar una es tráfico que el dueño paga en espera. */
+ * entera: pedir N sugerencias para mostrar una es tráfico que el dueño paga en espera. La bitácora
+ * de auto-clasificación, en cambio, es tenant-wide (no hay forma de acotarla a un movimiento —
+ * `GET /api/reversible-actions` no filtra por eso) y se pide siempre, sea cual sea el tab activo:
+ * es un volumen chico (acotado a `bank_movement.auto_classify` + `only_undoable`) y cambiar de tab
+ * no debería disparar un fetch nuevo. */
 
 const ISSUE_SUCESOR = "#90";
 const TOPE_CLASIFICAR = 100;
 const TOPE_HISTORIAL = 200;
+/** El banner muestra sólo la más reciente + un conteo del resto (ver `BitacoraAutoClasificar`);
+ *  este tope es de tráfico, no de UI — de sobra para lo que un tenant genera en 7 días. */
+const TOPE_AUTO_CLASIFICAR = 20;
 
 /** Por qué no llegó una fuente, en lenguaje de dueño. */
 export function motivoFuente(err: unknown, que: string): string {
@@ -69,6 +86,11 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
   const sinClasificar = useBankMovements({ status: "unclassified", limit: TOPE_CLASIFICAR });
   const historial = useBankMovements({ status: "classified", limit: TOPE_HISTORIAL });
   const arbol = useManagementAccountsTree();
+  const autoClasificadas = useReversibleActions({
+    actionType: ACTION_TYPE_BANK_MOVEMENT_AUTO_CLASSIFY,
+    onlyUndoable: true,
+    limit: TOPE_AUTO_CLASIFICAR,
+  });
 
   const idConciliar = activo?.tipo === "conciliar" ? activo.id : null;
   const idClasificar = activo?.tipo === "clasificar" ? activo.id : "";
@@ -80,6 +102,7 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
   const descartar = useRejectReconciliation();
   const revertir = useRevertReconciliation();
   const clasificar = useClassifyBankMovement();
+  const revertirAuto = useRevertReversibleAction();
 
   const cuentas: OpcionCuentaV07[] = React.useMemo(() => {
     const filas = toManagementAccountTreeRows(arbol.data?.items ?? []);
@@ -150,6 +173,14 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
       }
       cuentas={cuentas}
       clasificados={historial.data?.items ?? []}
+      autoClasificadas={
+        autoClasificadas.isError ? null : accionesAutoClasificar(autoClasificadas.data)
+      }
+      autoClasificadasMotivo={
+        autoClasificadas.isError
+          ? motivoFuente(autoClasificadas.error, "lo que Qavante clasificó solo")
+          : null
+      }
       avisoError={aviso}
       onCerrarAviso={() => setAviso(null)}
       onItemActivo={setActivo}
@@ -194,10 +225,12 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
           { onError: fallo("crear la regla") },
         );
       }}
+      onDeshacerAutoClasificar={(accion) => revertirAuto.mutateAsync(accion.actionId)}
       onReintentar={() => {
         setAviso(null);
         void review.refetch();
         void sinClasificar.refetch();
+        void autoClasificadas.refetch();
       }}
       issueSucesor={issueSucesor}
       hoy={hoy}

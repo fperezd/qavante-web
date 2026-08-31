@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
+import { concordar, formatCount } from "@/lib/formatters/count";
 import { formatDateLong, formatRelative } from "@/lib/formatters/date";
 import { formatPct } from "@/lib/formatters/pct";
 import { formatRut } from "@/lib/formatters/rut";
@@ -11,7 +12,11 @@ import { Banner } from "@/components/rediseno/banner";
 import { DataState } from "@/components/rediseno/data-state";
 import { FilterChips } from "@/components/rediseno/filter-chip";
 import { Pill } from "@/components/rediseno/pill";
-import { RedisenoToastProvider, useRedisenoToast } from "@/components/rediseno/toast";
+import {
+  RedisenoToastProvider,
+  useRedisenoToast,
+  type RedisenoToast,
+} from "@/components/rediseno/toast";
 import {
   agruparAlFrente,
   candidatoElegido,
@@ -19,6 +24,7 @@ import {
   faltaParaGuardar,
   frecuentes,
   haySugerenciaConciliar,
+  interpretarDeshacer,
   lote,
   minutosEstimados,
   montoResuelto,
@@ -27,6 +33,7 @@ import {
   progreso,
   trasResolver,
   trasSaltar,
+  type AccionAutoClasificarV07,
   type CandidatoV07,
   type ItemClasificarV07,
   type ItemConciliarV07,
@@ -36,6 +43,7 @@ import {
   type TabV07,
 } from "./bandeja-v07-model";
 import type { BankMovement } from "@/lib/api/treasury";
+import type { RevertActionResponse } from "@/lib/api/reversible-actions";
 
 /* V07 · Bandeja de excepciones — "sólo lo que el piloto no resolvió solo" (Fase 2, issue #71).
  *
@@ -44,18 +52,28 @@ import type { BankMovement } from "@/lib/api/treasury";
  * sesión), no de datos.
  *
  * ── EL ALCANCE DE ESTA ENTREGA, ESCRITO DONDE SE PUEDE VERIFICAR ────────────────────────────
- * La Ley 5 ("todo lo automático deja bitácora con Deshacer, 7 días") toca esta vista y sólo a una
- * de sus dos cartas:
+ * La Ley 5 ("todo lo automático deja bitácora con Deshacer, 7 días") toca esta vista, y las dos
+ * cartas la cumplen — pero NO de la misma forma, y la diferencia es a propósito (issue #90):
  *
- *   · CONCILIAR — el toast lleva Deshacer de verdad. La reversión existe y está deployada:
- *     `POST /api/treasury/reconciliation/{movement_id}/revert` desasigna el match aplicado,
- *     restaura el `outstanding` del documento y libera el movimiento.
- *   · CLASIFICAR — el toast NO lleva Deshacer, y la pantalla dice por qué. `PATCH
- *     /api/bank-movements/{id}/classify` exige `management_account_id`, así que no admite volver
- *     a "sin clasificar", y el patrón genérico de reversión está implementado pero SIN MERGEAR en
- *     `qavante-api#257`. Consumir un contrato que todavía puede cambiar sería prometer un
- *     Deshacer que quizá no exista. El punto de extensión está listo (`onDeshacerClasificar`):
- *     cuando #257 mergee, encenderlo es pasar un handler.
+ *   · CONCILIAR — el toast del "Sí, conciliar" que el propio dueño acaba de apretar lleva
+ *     Deshacer de verdad: `POST /api/treasury/reconciliation/{movement_id}/revert` desasigna el
+ *     match aplicado, restaura el `outstanding` del documento y libera el movimiento.
+ *   · CLASIFICAR — el toast del "Guardar" que el dueño acaba de apretar NUNCA lleva Deshacer, y
+ *     eso es CORRECTO, no un hueco: verificado contra `api/app/core/treasury_repo.py`
+ *     (`classify_movement`), el `PATCH .../classify` que dispara ese botón no registra ninguna
+ *     acción reversible — sólo lo hacen los automatismos por LOTE (`apply-rules`,
+ *     `classify-reconciled`), porque la Ley 5 es literal en el propio backend: cubre lo que
+ *     Qavante hace SOLO, no lo que el usuario decide. Lo que SÍ se conectó (`qavante-api#257`,
+ *     mergeado, patrón genérico ADR-0113) es la bitácora de esos dos automatismos: la carta
+ *     muestra, arriba de la card, lo que Qavante clasificó solo y todavía se puede deshacer
+ *     (`GET /api/reversible-actions` + `POST /api/reversible-actions/{action_id}/revert`) — y
+ *     deshacerlo devuelve el movimiento a "sin clasificar", de vuelta a esta misma carta.
+ *
+ * El Deshacer de esa bitácora puede negarse por DOS motivos que la UI distingue (no los colapsa
+ * en un "no se pudo" genérico — sería el default plausible que la política prohíbe):
+ * `estado_derivado` (el dueño reclasificó a mano después; no se tocó nada y NO es reintentable —
+ * su cambio manual sigue en pie) y `estado_bloqueado` (otra operación tiene la fila tomada AHORA;
+ * no se tocó nada y SÍ es reintentable). Ver `interpretarDeshacer` en el modelo.
  *
  * Ofrecer Deshacer donde no hay reversión es peor que no ofrecerlo: el dueño aprieta, no pasa
  * nada, y deja de creerle a los otros Deshacer que sí funcionan.
@@ -110,12 +128,16 @@ export interface BandejaV07ViewProps {
   /** "No es esta": descarta la sugerencia (el movimiento vuelve a `unmatched`). */
   onNoEsEsta?: (item: ItemConciliarV07, candidato: CandidatoV07 | null) => void;
   onClasificar?: (item: ItemClasificarV07, cuentaId: string, notas: string) => void;
-  /**
-   * Punto de extensión de la Ley 5 para clasificar. HOY NO SE PASA: la reversión genérica está en
-   * `qavante-api#257`, sin mergear. Cuando exista, pasarlo enciende el Deshacer del toast sin
-   * tocar nada más de esta vista.
-   */
-  onDeshacerClasificar?: (item: ItemClasificarV07) => void;
+  /** Lo que Qavante clasificó SOLO (auto-clasificación por regla o por conciliación) y todavía se
+   *  puede deshacer, más reciente primero. `null` = la bitácora no respondió (se avisa bajito,
+   *  no bloquea la carta: es un widget secundario, no el contenido principal). */
+  autoClasificadas?: AccionAutoClasificarV07[] | null;
+  autoClasificadasMotivo?: string | null;
+  /** Deshace UNA fila de la bitácora (`POST /api/reversible-actions/{action_id}/revert`, ADR-0113).
+   *  Devuelve la respuesta CRUDA: el resultado (éxito, ya deshecho, vencido, o negado con motivo)
+   *  lo decide `interpretarDeshacer` acá en la vista, después de esperarla — nunca se asume éxito
+   *  antes de leer la respuesta, porque un Deshacer negado es un 200, no una excepción. */
+  onDeshacerAutoClasificar?: (accion: AccionAutoClasificarV07) => Promise<RevertActionResponse>;
   onCrearRegla?: (item: ItemClasificarV07, cuentaId: string) => void;
   /** Una escritura falló. Se muestra ARRIBA de la card y en ámbar: es "requiere tu atención",
    *  no un crítico accionable, así que no gasta el único rojo de la pantalla (Ley 2). */
@@ -164,7 +186,9 @@ function BandejaV07Contenido({
   onDeshacerConciliar,
   onNoEsEsta,
   onClasificar,
-  onDeshacerClasificar,
+  autoClasificadas,
+  autoClasificadasMotivo,
+  onDeshacerAutoClasificar,
   onCrearRegla,
   avisoError,
   onCerrarAviso,
@@ -367,53 +391,59 @@ function BandejaV07Contenido({
           }}
         />
       ) : (
-        <CartaClasificar
-          item={itemClasificar ?? null}
-          cola={colaClasificar}
-          indice={idxClasificar}
-          faltaFuente={clasificar === null}
-          motivo={clasificarMotivo}
-          sugerencia={sugerencia ?? null}
-          cuentas={cuentas}
-          clasificados={clasificados}
-          hoy={hoy}
-          onReintentar={onReintentar}
-          onSaltar={saltar}
-          onAgrupar={(ids) => {
-            setOrdenClasificar(
-              agruparAlFrente(colaClasificar, idxClasificar, ids).map((i) => i.id),
-            );
-            /* El reordenamiento deja al ítem que estás viendo PRIMERO, así que el índice tiene que
-               volver a 0: si no, la cola se mueve debajo del cursor y terminas mirando otro ítem
-               sin haber resuelto el tuyo. */
-            setIClasificar(0);
-          }}
-          onCrearRegla={
-            onCrearRegla
-              ? (item, cuentaId) => {
-                  onCrearRegla(item, cuentaId);
-                  show({ message: <>Regla creada: la próxima vez se clasifica sola.</> });
-                }
-              : undefined
-          }
-          onGuardar={(item, cuentaId, notas, nombreCuenta) => {
-            onClasificar?.(item, cuentaId, notas);
-            marcarResuelto(item, colaClasificar.length);
-            show({
-              message: (
-                <>
-                  Clasificado como <b>{nombreCuenta}</b> · {formatClp(item.monto)}
-                </>
-              ),
-              /* LEY 5 — acá NO. Ver la cabecera del archivo: no hay reversión de clasificación en
-                 el contrato deployado, y el patrón genérico (qavante-api#257) todavía no mergea.
-                 `onDeshacerClasificar` es el punto de extensión; hoy nadie lo pasa. */
-              action: onDeshacerClasificar
-                ? { label: "Deshacer", onClick: () => onDeshacerClasificar(item) }
-                : undefined,
-            });
-          }}
-        />
+        <div className="space-y-3">
+          <BitacoraAutoClasificar
+            items={autoClasificadas ?? null}
+            motivo={autoClasificadasMotivo}
+            hoy={hoy}
+            onDeshacer={onDeshacerAutoClasificar}
+            show={show}
+          />
+          <CartaClasificar
+            item={itemClasificar ?? null}
+            cola={colaClasificar}
+            indice={idxClasificar}
+            faltaFuente={clasificar === null}
+            motivo={clasificarMotivo}
+            sugerencia={sugerencia ?? null}
+            cuentas={cuentas}
+            clasificados={clasificados}
+            hoy={hoy}
+            onReintentar={onReintentar}
+            onSaltar={saltar}
+            onAgrupar={(ids) => {
+              setOrdenClasificar(
+                agruparAlFrente(colaClasificar, idxClasificar, ids).map((i) => i.id),
+              );
+              /* El reordenamiento deja al ítem que estás viendo PRIMERO, así que el índice tiene
+                 que volver a 0: si no, la cola se mueve debajo del cursor y terminas mirando otro
+                 ítem sin haber resuelto el tuyo. */
+              setIClasificar(0);
+            }}
+            onCrearRegla={
+              onCrearRegla
+                ? (item, cuentaId) => {
+                    onCrearRegla(item, cuentaId);
+                    show({ message: <>Regla creada: la próxima vez se clasifica sola.</> });
+                  }
+                : undefined
+            }
+            onGuardar={(item, cuentaId, notas, nombreCuenta) => {
+              onClasificar?.(item, cuentaId, notas);
+              marcarResuelto(item, colaClasificar.length);
+              show({
+                message: (
+                  <>
+                    Clasificado como <b>{nombreCuenta}</b> · {formatClp(item.monto)}
+                  </>
+                ),
+                /* LEY 5 — acá NO, y es correcto: esto lo decidió el DUEÑO (aceptó una sugerencia
+                   o eligió a mano), no Qavante solo. Ver la cabecera del archivo. Lo que Qavante
+                   SÍ clasificó solo tiene su propio Deshacer en el banner de arriba. */
+              });
+            }}
+          />
+        </div>
       )}
 
       <HuecosDeclarados issueSucesor={issueSucesor} />
@@ -807,6 +837,125 @@ function palabraDireccion(d: "credit" | "debit" | null): string {
   return "Movimiento";
 }
 
+/* ── Ley 5 en clasificar: lo que Qavante clasificó SOLO, con Deshacer real ──────────────────
+ *
+ * Distinto del toast de "Guardar" (ver más abajo): esto es la bitácora de `apply-rules` /
+ * `classify-reconciled`, NO del clic del dueño. Un Deshacer negado es un 200 con `result:
+ * "undo_not_supported"`, nunca un error — por eso se ESPERA la respuesta y se interpreta con
+ * `interpretarDeshacer` antes de decidir el toast; no se asume éxito al pedirlo. */
+
+function BitacoraAutoClasificar({
+  items,
+  motivo,
+  hoy,
+  onDeshacer,
+  show,
+}: {
+  items: AccionAutoClasificarV07[] | null;
+  motivo?: string | null;
+  hoy: Date;
+  onDeshacer?: (accion: AccionAutoClasificarV07) => Promise<RevertActionResponse>;
+  show: (toast: Omit<RedisenoToast, "id">) => string;
+}) {
+  const [procesando, setProcesando] = React.useState<string | null>(null);
+
+  if (items === null) {
+    /* Widget secundario: si su fuente cae, lo dice bajito y sigue — no bloquea la carta
+       principal, que es "qué clasificar", con un DataState de pantalla completa. */
+    return motivo ? (
+      <p className="text-[12px] text-rediseno-tinta-3">
+        No pudimos traer lo que Qavante clasificó solo: {motivo}
+      </p>
+    ) : null;
+  }
+  const primero = items[0];
+  if (!primero) return null;
+  const resto = items.slice(1);
+
+  async function deshacer(accion: AccionAutoClasificarV07) {
+    if (!onDeshacer || procesando) return;
+    setProcesando(accion.actionId);
+    try {
+      const resultado = interpretarDeshacer(await onDeshacer(accion));
+      if (resultado.tipo === "deshecho") {
+        show({
+          message: (
+            <>
+              Deshecho: <b className="break-words">{accion.resumen}</b> volvió a &ldquo;sin
+              clasificar&rdquo;.
+            </>
+          ),
+        });
+      } else if (resultado.tipo === "ya-deshecho") {
+        show({ message: <>Esto ya se había deshecho antes: no queda nada que hacer.</> });
+      } else if (resultado.tipo === "vencido") {
+        show({
+          message: (
+            <>Pasaron más de 7 días desde esta clasificación automática: ya no se puede deshacer.</>
+          ),
+        });
+      } else if (resultado.tipo === "protegido") {
+        /* estado_derivado — NO reintentable: reintentar no arregla nada, el cambio del dueño
+           sigue vigente y así debe quedar. Por eso este toast NO lleva acción "Reintentar". */
+        show({ message: <>No se deshizo nada: {resultado.explicacion}</> });
+      } else if (resultado.tipo === "bloqueado") {
+        /* estado_bloqueado — SÍ reintentable. */
+        show({
+          message: <>No se deshizo nada: {resultado.explicacion}</>,
+          action: { label: "Reintentar", onClick: () => void deshacer(accion) },
+        });
+      } else {
+        /* "no sé" explícito: el backend no dio un motivo reconocido. No se inventa uno. */
+        show({
+          message: (
+            <>
+              No pudimos deshacer esto: el backend no dio un motivo que reconozcamos. No se tocó
+              nada.
+            </>
+          ),
+          action: { label: "Reintentar", onClick: () => void deshacer(accion) },
+        });
+      }
+    } catch {
+      show({
+        message: <>No pudimos deshacer esto: se cortó la conexión. Vuelve a intentar.</>,
+        action: { label: "Reintentar", onClick: () => void deshacer(accion) },
+      });
+    } finally {
+      setProcesando(null);
+    }
+  }
+
+  return (
+    <Banner
+      role="note"
+      action={
+        onDeshacer
+          ? {
+              label: procesando === primero.actionId ? "Deshaciendo…" : "Deshacer",
+              onClick: () => void deshacer(primero),
+            }
+          : undefined
+      }
+    >
+      Qavante clasificó <b className="break-words">{primero.resumen}</b> solo,{" "}
+      {formatRelative(primero.creadaEn, hoy)}.
+      {resto.length > 0 && (
+        <>
+          {" "}
+          Hay {formatCount(resto.length)}{" "}
+          {concordar(
+            resto.length,
+            "clasificación automática más",
+            "clasificaciones automáticas más",
+          )}
+          , también {concordar(resto.length, "deshacible", "deshacibles")}.
+        </>
+      )}
+    </Banner>
+  );
+}
+
 /* ── Carta de clasificar ─────────────────────────────────────────────────────────────────── */
 
 interface CartaClasificarProps {
@@ -1073,8 +1222,9 @@ function CartaClasificar({
         </div>
 
         <p className="mt-3 text-[12px] text-rediseno-tinta-3">
-          Al guardar no vas a ver un “Deshacer”: clasificar todavía no se puede revertir desde el
-          contrato deployado. Preferimos no ofrecerte un botón que no haría nada.
+          Al guardar no vas a ver un “Deshacer” acá: esto lo decidiste tú, no Qavante solo — la Ley
+          5 cubre lo automático. Lo que Qavante clasificó por su cuenta sí tiene Deshacer, en el
+          banner de arriba de esta carta.
         </p>
       </section>
 
@@ -1175,10 +1325,11 @@ function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
   return (
     <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
       Lo que esta bandeja todavía NO hace, dicho acá y no escondido: clasificar un lote de una sola
-      vez (no existe endpoint de clasificación masiva a una categoría elegida); deshacer una
-      clasificación (no existe reversión en el contrato deployado); y registrar el par negativo
-      cuando dices “no es esta” (el descarte devuelve el movimiento a sin conciliar, pero no le
-      enseña al motor a no volver a proponer ESE documento). El progreso cuenta lo resuelto en{" "}
+      vez (no existe endpoint de clasificación masiva a una categoría elegida); deshacer la
+      clasificación que TÚ decidiste al apretar Guardar (la Ley 5 cubre lo automático, no eso — lo
+      que Qavante clasificó solo sí tiene Deshacer, arriba de esta carta); y registrar el par
+      negativo cuando dices “no es esta” (el descarte devuelve el movimiento a sin conciliar, pero
+      no le enseña al motor a no volver a proponer ESE documento). El progreso cuenta lo resuelto en{" "}
       <b>esta sesión</b> y no “hoy”, porque no hay bitácora consultable que lo respalde.
       {issueSucesor ? ` Sucesor: ${issueSucesor}.` : ""}
     </p>

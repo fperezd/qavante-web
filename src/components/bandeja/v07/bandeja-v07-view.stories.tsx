@@ -5,7 +5,9 @@ import {
   candidatos as adaptarCandidatos,
   itemsClasificar,
   itemsConciliar,
+  type AccionAutoClasificarV07,
 } from "./bandeja-v07-model";
+import type { RevertActionResponse } from "@/lib/api/reversible-actions";
 import {
   HOY,
   CUENTA_ARRIENDO,
@@ -35,8 +37,13 @@ import {
  *
  *   · Enter resuelve el caso CON sugerencia — y NO hace nada sin ella (Ley 3).
  *   · El auto-avance pasa al SIGUIENTE, sin saltarse ninguno.
- *   · El toast de conciliar ofrece Deshacer; el de clasificar NO (y su gemelo positivo está en la
- *     misma tanda, con la misma query, para que ningún negativo pase por estar mal escrito).
+ *   · El toast del "Sí, conciliar"/"Guardar" que el DUEÑO acaba de apretar ofrece Deshacer sólo
+ *     en conciliar (existe de antes); en clasificar NO, y es correcto — ver el gemelo positivo en
+ *     la misma tanda, con la misma query, para que el negativo no pase por estar mal escrito.
+ *   · La bitácora de lo que Qavante clasificó SOLO (issue #90, ADR-0113) SÍ tiene Deshacer en la
+ *     carta de clasificar, y distingue sus dos motivos de negativa (`estado_derivado` no
+ *     reintentable, `estado_bloqueado` sí) con el MISMO botón "Reintentar" — presente en uno,
+ *     ausente en el otro.
  *   · Guardar no está deshabilitado nunca: al pulsarlo sin categoría marca en rojo qué falta
  *     (Ley 6) y NO guarda. */
 
@@ -63,7 +70,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "V07 · Bandeja de excepciones (ESPECIFICACION §V07): header con N pendientes y su estimación, tabs Conciliar/Clasificar con conteo, barra de progreso y UNA card a la vez con auto-avance. La carta de conciliar muestra evidencia a dos lados y sólo los chips cuyas verificaciones pasaron (Ley 3); su toast lleva Deshacer porque la reversión existe. La carta de clasificar entrega UNA decisión, con sugerencia sólo si una regla matchea, y su toast NO lleva Deshacer: la reversión de clasificación no existe todavía en el contrato deployado (qavante-api#257 sin mergear). El hueco se declara en pantalla.",
+          "V07 · Bandeja de excepciones (ESPECIFICACION §V07): header con N pendientes y su estimación, tabs Conciliar/Clasificar con conteo, barra de progreso y UNA card a la vez con auto-avance. La carta de conciliar muestra evidencia a dos lados y sólo los chips cuyas verificaciones pasaron (Ley 3); su toast lleva Deshacer porque la reversión existe. La carta de clasificar entrega UNA decisión, con sugerencia sólo si una regla matchea; el toast de ESE 'Guardar' nunca lleva Deshacer (lo decidió el dueño, no Qavante solo — verificado contra el backend, no es un hueco). Lo que Qavante clasificó SOLO por regla o por conciliación sí tiene Deshacer, en un banner arriba de la carta (issue #90, `qavante-api#257`/ADR-0113): distingue si el Deshacer se negó porque el dueño reclasificó a mano después (no reintentable) o porque otra operación tiene la fila tomada ahora mismo (sí reintentable).",
       },
     },
   },
@@ -321,6 +328,120 @@ export const ClasificarSinSugerencia: Story = {
     await expect(canvas.getByText(/¿Siempre/)).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Crear regla" }));
     await expect(args.onCrearRegla).toHaveBeenCalledTimes(1);
+  },
+};
+
+/** Fixture de la bitácora Ley 5 — una auto-clasificación deshacible. `actionId` es lo único que
+ *  `onDeshacerAutoClasificar` recibe (UUID de `audit.reversible_actions`, no un `movement_id`). */
+const ACCION_AUTO: AccionAutoClasificarV07 = {
+  actionId: "accion-90-1",
+  resumen: "Clasificamos un movimiento con la regla 'Software recurrente'",
+  creadaEn: "2026-08-30T09:00:00Z",
+  vencePlazo: "2026-09-06T09:00:00Z",
+};
+
+export const ClasificarAutoDeshecho: Story = {
+  name: "Clasificar · bitácora auto — Deshacer con éxito vuelve el movimiento a sin clasificar",
+  args: {
+    tabInicial: "clasificar",
+    autoClasificadas: [ACCION_AUTO],
+    onDeshacerAutoClasificar: fn(
+      async (): Promise<RevertActionResponse> => ({
+        action_id: ACCION_AUTO.actionId,
+        action_type: "bank_movement.auto_classify",
+        result: "reverted",
+        reverted_at: "2026-08-30T12:00:00Z",
+        detail: { movement_id: "mov-x", movimientos_restaurados: 1 },
+      }),
+    ),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    /* `/Qavante clasificó/` a secas también matchea el disclaimer de HuecosDeclarados ("Lo que
+     * Qavante clasificó por su cuenta sí tiene Deshacer..."), que vive siempre en esta misma
+     * carta — dos elementos, `getMultipleElementsFoundError`. "solo," (con la coma) sólo
+     * aparece en el propio banner: el resto de las apariciones de "solo" en este archivo
+     * terminan en '.', ':', '—' o 'y', nunca en coma. No tocar el copy de HuecosDeclarados: es
+     * un hueco distinto, ya revisado. */
+    await expect(canvas.getByText(/Qavante clasificó solo,/)).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Clasificamos un movimiento con la regla 'Software recurrente'"),
+    ).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Deshacer" }));
+    await expect(args.onDeshacerAutoClasificar).toHaveBeenCalledWith(
+      expect.objectContaining({ actionId: ACCION_AUTO.actionId }),
+    );
+
+    await waitFor(async () => await expect(toasts()).toHaveLength(1));
+    await expect(toasts()[0]!).toHaveTextContent("Deshecho");
+    await expect(toasts()[0]!).toHaveTextContent("sin clasificar");
+  },
+};
+
+export const ClasificarAutoProtegido: Story = {
+  name: "Clasificar · bitácora auto — negado por trabajo manual del dueño (estado_derivado): NO se ofrece reintentar",
+  args: {
+    tabInicial: "clasificar",
+    autoClasificadas: [ACCION_AUTO],
+    onDeshacerAutoClasificar: fn(
+      async (): Promise<RevertActionResponse> => ({
+        action_id: ACCION_AUTO.actionId,
+        action_type: "bank_movement.auto_classify",
+        result: "undo_not_supported",
+        reverted_at: null,
+        detail: {
+          motivo: "estado_derivado",
+          explicacion: "Algo cambió después de esta acción: no se tocó nada.",
+        },
+      }),
+    ),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Deshacer" }));
+    await expect(args.onDeshacerAutoClasificar).toHaveBeenCalledTimes(1);
+
+    await waitFor(async () => await expect(toasts()).toHaveLength(1));
+    await expect(toasts()[0]!).toHaveTextContent(
+      "Algo cambió después de esta acción: no se tocó nada.",
+    );
+    /* LA COMPUERTA que pide el issue #90: estado_derivado NO es reintentable — no hay nada que
+       arreglar reintentando, el cambio del dueño sigue vigente. Gemelo con `ClasificarAutoBloqueado`,
+       MISMA query de rol/nombre, resultado opuesto. */
+    await expect(within(toasts()[0]!).queryByRole("button", { name: "Reintentar" })).toBeNull();
+  },
+};
+
+export const ClasificarAutoBloqueado: Story = {
+  name: "Clasificar · bitácora auto — negado por bloqueo (estado_bloqueado): SÍ se ofrece reintentar",
+  args: {
+    tabInicial: "clasificar",
+    autoClasificadas: [ACCION_AUTO],
+    onDeshacerAutoClasificar: fn(
+      async (): Promise<RevertActionResponse> => ({
+        action_id: ACCION_AUTO.actionId,
+        action_type: "bank_movement.auto_classify",
+        result: "undo_not_supported",
+        reverted_at: null,
+        detail: {
+          motivo: "estado_bloqueado",
+          explicacion: "Otra operación está usando esto mismo. No se tocó nada; puedes reintentar.",
+        },
+      }),
+    ),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Deshacer" }));
+
+    await waitFor(async () => await expect(toasts()).toHaveLength(1));
+    await expect(toasts()[0]!).toHaveTextContent("Otra operación está usando esto mismo");
+    /* Gemelo POSITIVO de `ClasificarAutoProtegido`, misma query: acá SÍ está. */
+    const reintentar = within(toasts()[0]!).getByRole("button", { name: "Reintentar" });
+
+    await userEvent.click(reintentar);
+    await expect(args.onDeshacerAutoClasificar).toHaveBeenCalledTimes(2);
   },
 };
 
