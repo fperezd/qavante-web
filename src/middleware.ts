@@ -43,6 +43,7 @@ export const config = {
     "/alertas/:path*",
     "/banco/:path*",
     "/bandeja/:path*",
+    "/bienvenida/:path*",
     "/caja/:path*",
     "/cobrar/:path*",
     "/conexiones/:path*",

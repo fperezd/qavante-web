@@ -80,6 +80,7 @@ export const FEATURE_FLAGS = [
   "gestionV08",
   "administracionV12",
   "remuneracionesV16",
+  "onboardingV15",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -428,6 +429,25 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      hoy. Con OFF, `/remuneraciones` queda exactamente como está (las pestañas Dotación / Planilla /
      Clasificación / Conciliación) → cero regresión. Encender = editar wrangler.toml. */
   remuneracionesV16: "/api/buk/employees/{employee_id}/settlement",
+  /* V15 · Onboarding — `/bienvenida` (ESPECIFICACION §V15, issue #76, R1). RUTA NUEVA (no existía).
+     Tres pasos en una vista: (1) fuentes con estado y tiempo estimado por conexión — orquesta el
+     MISMO adaptador que el hub `/conexiones` y el guard del onboarding (`useOnboardingSources`
+     sobre `/api/onboarding/status`, VIVO), Ley 1; (2) progreso de construcción del modelo con
+     verbos concretos y ETA; (3) promesa final con hora ("mañana a las 7:00", derivado en el front,
+     sin backend). El paso 1 y el paso 3 funcionan hoy con datos reales.
+
+     Su endpoint de gating es lo ÚNICO que le falta a la vista, igual que en
+     `hoyV01`/…/`remuneracionesV16`: eventos de progreso consultables del sync inicial (el issue lo
+     marca 🔧, "exponer lo que el sync ya sabe" — cuántos documentos se leyeron, en qué etapa va).
+     Hoy NO existe ningún endpoint así (verificado contra `src/lib/api/types.ts` — `POST
+     /api/onboarding/sync` sólo devuelve `status` por fuente, ok|failed|skipped (`queued` no existe
+     en el schema hoy), no un conteo ni una etapa). Mientras tanto el paso 2 declara el hueco en
+     pantalla: lista los VERBOS del proceso (`ETAPAS_MODELO_V15`) y una duración típica declarada
+     (`DURACION_TIPICA_MODELO`), nunca un número ni una barra que simule avance — la spec lo pide
+     explícito ("sin eventos, nada de números inventados"). Es FE-first, con issue sucesor. Con
+     OFF, `/bienvenida` renderiza el estado "todavía no disponible" (ADR-0008) — ninguna pantalla
+     existente cambia → cero regresión. Encender = editar wrangler.toml. */
+  onboardingV15: "/api/onboarding/sync-progress",
 };
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
