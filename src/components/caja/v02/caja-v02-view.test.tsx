@@ -20,9 +20,17 @@ import {
  * `formatClp(cajaHoy(summary))` contra el DOM pasaría con las DOS implementaciones —sería un
  * ratchet textual esquivable— porque ambas dan el mismo número sobre el mismo summary.
  *
+ * El mock PRESERVA EL SIGNO del monto real (remanente #82.1): un sentinel que siempre pisa con un
+ * valor positivo no puede, por construcción, renderizar nunca un Hoy negativo — el test "un saldo
+ * de HOY negativo no agrega un segundo rojo" quedaba probando otra cosa (el conteo de rojos, no el
+ * signo). Con el signo preservado, `${MINUS}$123.456.789` SÍ aparece en pantalla cuando el summary
+ * trae un total negativo, y el mutante que vuelve a pisar el signo (ver el PR) muere en ESTE test.
+ *
  * Cada negativo va con su gemelo positivo sobre el MISMO valor. */
 
 const SENTINEL = 123_456_789;
+// Signo menos tipográfico (U+2212) de `formatClp`; no un guion.
+const MINUS = "−";
 
 vi.mock("@/lib/finanzas/caja-hoy", async (importOriginal) => {
   const real = await importOriginal<typeof import("@/lib/finanzas/caja-hoy")>();
@@ -30,8 +38,10 @@ vi.mock("@/lib/finanzas/caja-hoy", async (importOriginal) => {
     ...real,
     cajaHoy: (s: Parameters<typeof real.cajaHoy>[0]) => {
       const original = real.cajaHoy(s);
-      // Sólo cuando hay saldo: el caso "sin dato" tiene que seguir siendo null.
-      return original.monto == null ? original : { ...original, monto: SENTINEL };
+      // Conserva el signo de la fuente real: el sentinel sólo reemplaza la magnitud.
+      return original.monto == null
+        ? original
+        : { ...original, monto: Math.sign(original.monto) * SENTINEL };
     },
   };
 });
@@ -95,6 +105,27 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).toContain("$1.000.000 negociable");
   });
 
+  it('apellido de "Sale": declara que due_14d incluye lo YA vencido (remanente #82.3)', () => {
+    const t = texto(html());
+    expect(t).toContain("incluye lo ya vencido");
+  });
+
+  it("items al tope del backend → el copy declara el recorte (remanente #82.4)", () => {
+    const cien = Array.from({ length: 100 }, (_, i) => ({
+      label: `Proveedor ${i + 1}`,
+      category: "supplier" as const,
+      due_date: "2026-09-05",
+      amount: "10000",
+      criticality: "low" as const,
+      source: "SII",
+      currency: "CLP",
+    }));
+    const t = texto(html({ pagos: pagos({ items: cien }) }));
+    expect(t).toContain("primeros 100 pagos por vencer");
+    // Gemelo: bajo el tope, el copy no declara ningún recorte.
+    expect(texto(html())).not.toContain("puede haber más");
+  });
+
   it("banner de deuda de datos con conteo y monto por moneda, y CTA al flujo actual (bandejaV07 apagado, enlace pendiente #90)", () => {
     const h = html();
     const t = texto(h);
@@ -105,6 +136,23 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(
       texto(html({ sinClasificar: sinClasificar({ count: 0, inflowByCurrency: [] }) })),
     ).not.toContain("sin clasificar");
+  });
+
+  it('sin-clasificar en ERROR: el banner NO desaparece, dice "no sé" en vez de un $0 falso (remanente #82.5)', () => {
+    const h = html({
+      sinClasificar: sinClasificar({ isError: true, count: 0, inflowByCurrency: [] }),
+    });
+    const t = texto(h);
+    expect(h).toContain('role="note"');
+    expect(t).toContain("No sabemos si tu proyección está completa");
+    expect(t).toContain("no pudimos traer los movimientos sin clasificar");
+    // Gemelo: el mismo count=0 SIN error apaga el banner del todo (no es que "error" siempre
+    // muestre algo — es el count=0 real el que lo apaga, y el error el que lo prende de nuevo).
+    expect(
+      texto(
+        html({ sinClasificar: sinClasificar({ isError: false, count: 0, inflowByCurrency: [] }) }),
+      ),
+    ).not.toContain("No sabemos si tu proyección está completa");
   });
 
   it("4 barras con neto por semana y cierre; la del piso está marcada", () => {
@@ -173,6 +221,19 @@ describe("CajaV02View — Ley 2: máximo un rojo por pantalla", () => {
         data_state: "available",
       },
     });
-    expect(rojos(html({ summary: s }))).toBe(1);
+    const h = html({ summary: s });
+    // El Hoy RENDERIZADO es negativo de verdad (el mock preserva el signo): sin esto el test de
+    // abajo pasaría igual con un Hoy positivo, y el nombre prometería más de lo que mide.
+    const t = texto(h);
+    expect(t).toContain(`${MINUS}$123.456.789`);
+    expect(rojos(h)).toBe(1);
+  });
+
+  it("gemelo: el mismo summary con Hoy POSITIVO también deja exactamente un rojo (el piso)", () => {
+    // Mismo caso que arriba, sin el signo negativo: confirma que "un rojo" no depende del signo
+    // de Hoy, sino sólo del piso — así el test de arriba no es un contador que siempre da 1.
+    expect(rojos(html())).toBe(1);
+    expect(texto(html())).toContain("$123.456.789");
+    expect(texto(html())).not.toContain(`${MINUS}$123.456.789`);
   });
 });

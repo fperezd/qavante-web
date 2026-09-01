@@ -421,6 +421,10 @@ export interface UnclassifiedSummary extends UnclassifiedInflowBreakdown {
   /** Cantidad de movimientos sin clasificar en el rango. */
   count: number;
   isLoading: boolean;
+  /** Alguna de las consultas (cuentas o movimientos de algún mes) falló. Con `isError`, `count`
+   *  puede ser un cero FALSO: no es que no haya nada sin clasificar, es que no se pudo consultar.
+   *  El consumidor no debe leer `count <= 0` como "todo clasificado" cuando esto es `true`. */
+  isError: boolean;
 }
 
 /** Mapa `bank_account_id → currency_code` (normalizado). `""` ⇒ moneda desconocida. PURO. */
@@ -499,9 +503,11 @@ export function useUnclassifiedInRange(from?: string, to?: string): Unclassified
   });
   let count = 0;
   let isLoading = accounts.isLoading;
+  let isError = accounts.isError;
   const items: BankMovement[] = [];
   for (const r of results) {
     if (r.isLoading) isLoading = true;
+    if (r.isError) isError = true;
     const data = r.data;
     if (!data) continue;
     count += data.total ?? data.items.length;
@@ -511,7 +517,7 @@ export function useUnclassifiedInRange(from?: string, to?: string): Unclassified
      "moneda desconocida". Eso es lo correcto: sin las cuentas no sabemos la moneda, y el
      consumidor degrada a "no se puede determinar" en vez de asumir pesos. */
   const currencies = currencyByBankAccount(accounts.data?.items ?? []);
-  return { count, ...groupUnclassifiedInflowByCurrency(items, currencies), isLoading };
+  return { count, ...groupUnclassifiedInflowByCurrency(items, currencies), isLoading, isError };
 }
 
 /** `PATCH /api/bank-movements/{id}/classify` — clasifica/reclasifica.

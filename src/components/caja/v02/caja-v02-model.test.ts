@@ -181,6 +181,23 @@ describe("sale14d — due_14d del backend + lo negociable en 14 días", () => {
     expect(sale14d(null, HOY)).toBeNull();
     expect(sale14d(pagos({ due_14d: "" }), HOY)).toBeNull();
   });
+
+  it('items al tope EXACTO del backend (100) → posibleRecorte (remanente #82.4, sin "hay más" en el contrato)', () => {
+    const cien = Array.from({ length: 100 }, (_, i) => ({
+      label: `Proveedor ${i + 1}`,
+      category: "supplier" as const,
+      due_date: "2026-09-05",
+      amount: "10000",
+      criticality: "low" as const,
+      source: "SII",
+      currency: "CLP",
+    }));
+    expect(sale14d(pagos({ items: cien }), HOY)!.posibleRecorte).toBe(true);
+    // Gemelo: 99 no llega al tope → no hay indicio de recorte.
+    expect(sale14d(pagos({ items: cien.slice(0, 99) }), HOY)!.posibleRecorte).toBe(false);
+    // Por encima del tope (no debería pasar nunca del backend real) sigue declarando el indicio.
+    expect(sale14d(pagos({ items: [...cien, cien[0]!] }), HOY)!.posibleRecorte).toBe(true);
+  });
 });
 
 describe("puntoMasBajo + semanas — la proyección del backend, sin reinventarla", () => {
@@ -332,6 +349,20 @@ describe("deudaDeDatos — banner de sin clasificar (INV-FX-001: un monto por mo
     expect(deudaDeDatos(sinClasificar({ isLoading: true }))).toBeNull();
     expect(deudaDeDatos(null)).toBeNull();
   });
+
+  it('en error, el banner NO desaparece: "no sé" explícito, aunque count sea 0 (remanente #82.5)', () => {
+    const d = deudaDeDatos(sinClasificar({ isError: true, count: 0, inflowByCurrency: [] }))!;
+    expect(d.error).toBe(true);
+    // Gemelo: sin error, el mismo count=0 SÍ apaga el banner (no es "count 0 siempre muestra").
+    expect(
+      deudaDeDatos(sinClasificar({ isError: false, count: 0, inflowByCurrency: [] })),
+    ).toBeNull();
+  });
+
+  it("error incluso con count>0 stale de una consulta parcial: sigue siendo error, no el conteo parcial", () => {
+    const d = deudaDeDatos(sinClasificar({ isError: true, count: 5 }))!;
+    expect(d.error).toBe(true);
+  });
 });
 
 describe("comoSeCalcula — definición, incluye/excluye, fuente y frescura (§1.4)", () => {
@@ -343,9 +374,17 @@ describe("comoSeCalcula — definición, incluye/excluye, fuente y frescura (§1
     expect(c.incluye).toHaveLength(3);
   });
 
-  it("sin proyección: frescura honesta y sin exclusiones inventadas", () => {
+  it('sin proyección: frescura honesta y el "no sé" explícito, no una afirmación de exclusiones', () => {
     const c = comoSeCalcula(null, HOY);
     expect(c.frescura).toBe("Sin sello de frescura");
+    // "no declara exclusiones" afirmaría que la proyección CORRIÓ y no encontró nada que excluir;
+    // acá no hay proyección, así que no hay ni "sí" ni "no" que declarar (remanente #82.2).
+    expect(c.excluye).toEqual(["Sin proyección no hay exclusiones que declarar"]);
+  });
+
+  it("con proyección y sin exclusiones declaradas: SÍ es una afirmación real (gemelo del anterior)", () => {
+    const c = comoSeCalcula(proyeccion(), HOY);
+    expect(exclusiones(proyeccion())).toEqual([]);
     expect(c.excluye).toEqual(["La proyección no declara exclusiones para tu empresa"]);
   });
 });

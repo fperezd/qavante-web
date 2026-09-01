@@ -163,6 +163,22 @@ export const SinClasificar: Story = {
   },
 };
 
+export const SinClasificarError: Story = {
+  name: 'Sin clasificar EN ERROR — el banner no desaparece, dice "no sé" (remanente #82.5)',
+  args: { sinClasificar: sinClasificar({ isError: true, count: 0, inflowByCurrency: [] }) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("note")).toHaveTextContent(
+      "No sabemos si tu proyección está completa",
+    );
+    await expect(canvas.getByRole("note")).toHaveTextContent(
+      "no pudimos traer los movimientos sin clasificar",
+    );
+    // Sigue siendo un aviso administrativo: ámbar/neutro, nunca rojo (Ley 2).
+    await expect(rojos(canvasElement)).toHaveLength(0);
+  },
+};
+
 export const Vacio: Story = {
   name: "Vacío — sin ninguna fuente, cada tarjeta dice qué falta",
   args: {
@@ -213,5 +229,8 @@ export const ComoSeCalcula: Story = {
     await expect(panel).toHaveTextContent("calculado el 30 ago 2026");
     await userEvent.keyboard("{Escape}");
     await expect(boton).toHaveAttribute("aria-expanded", "false");
+    // El PR #81 afirmó que Escape "devuelve el foco"; el código lo hace (`ref.current?.focus()`)
+    // pero nada lo comprobaba acá — remanente #82.6.
+    await expect(boton).toHaveFocus();
   },
 };

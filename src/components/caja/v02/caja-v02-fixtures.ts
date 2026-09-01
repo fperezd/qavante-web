@@ -77,7 +77,7 @@ export function proyeccion(over: Partial<CashProjectionResponse> = {}): CashProj
   };
 }
 
-/** Semana 1 sube +3,4M; semana 2 cae −9,6M hasta −1.121.250 el 11 sep; después recupera. */
+/** Semana 1 sube +3,4M; semana 2 cae −9,6M hasta −1.121.250 el 7 sep; después recupera. */
 export const PROYECCION_BAJO_CERO: CashProjectionResponse = proyeccion({
   saldo_hoy: "5078750",
   saldo_final: "3300000",
@@ -203,6 +203,7 @@ export function sinClasificar(over: Partial<UnclassifiedSummary> = {}): Unclassi
     unknownCurrencyCount: 0,
     unknownInflowCount: 0,
     isLoading: false,
+    isError: false,
     ...over,
   };
 }

@@ -19,7 +19,9 @@ import { Banner } from "@/components/rediseno/banner";
 import { Pill } from "@/components/rediseno/pill";
 import { DataState } from "@/components/rediseno/data-state";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
+import { concordar } from "@/lib/formatters/count";
 import {
+  ITEMS_CAP,
   SEMANAS,
   VENTANA_DIAS,
   causasDelPiso,
@@ -151,11 +153,16 @@ export function CajaV02View({
             value={formatClp(-sale.total)}
             detail={
               <>
+                {/* Apellido (Ley 1): due_14d es acumulativo e incluye lo YA vencido, no sólo lo
+                    que vence en los próximos 14 días — "negociable" sí es sólo 0..14. */}
+                incluye lo ya vencido ·{" "}
                 {sale.postergable > 0
-                  ? `${formatClp(sale.postergable)} negociable`
+                  ? `${formatClp(sale.postergable)} negociable en 0-14 días`
                   : "nada negociable en la ventana"}
                 {sale.sinConvertir > 0 &&
-                  ` · ${sale.sinConvertir} ${sale.sinConvertir === 1 ? "pago" : "pagos"} en otra moneda sin convertir`}
+                  ` · ${sale.sinConvertir} ${concordar(sale.sinConvertir, "pago", "pagos")} en otra moneda sin convertir`}
+                {sale.posibleRecorte &&
+                  ` · calculado sobre los primeros ${ITEMS_CAP} pagos por vencer, puede haber más`}
               </>
             }
           />
@@ -169,8 +176,19 @@ export function CajaV02View({
       </section>
 
       {/* (2) Banner de deuda de datos. La bandeja (V07) ya existe bajo /bandeja, pero detrás del
-          flag bandejaV07 (apagado); va al flujo actual de clasificación, enlace pendiente en #90. */}
-      {deuda && (
+          flag bandejaV07 (apagado); va al flujo actual de clasificación, enlace pendiente en #90.
+          En error, el banner NO desaparece: un `count` en 0 por una consulta fallida no es "todo
+          clasificado" (Ley 8, el "no sé" es explícito, nunca un default plausible). */}
+      {deuda?.error && (
+        <Banner variant="warn" role="note">
+          <span className="min-w-0 flex-1">
+            <b className="text-rediseno-tinta">No sabemos si tu proyección está completa:</b> no
+            pudimos traer los movimientos sin clasificar (falló la consulta). Puede haber deuda de
+            datos que esta pantalla no está mostrando.
+          </span>
+        </Banner>
+      )}
+      {deuda && !deuda.error && (
         <Banner variant="warn" role="note">
           <div className="flex flex-wrap items-center gap-3">
             <span className="min-w-0 flex-1">

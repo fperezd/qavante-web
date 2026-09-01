@@ -147,6 +147,14 @@ export function entra14d(f: CollectionForecastResponse | null | undefined): Entr
   return { esperado, nominal };
 }
 
+/** Tope de `items` que publica `payables_repo` (ordenados por `due_date ASC`, vencidos primero).
+ *  Verificado en el pase §6 de #81: el backend no expone ningún indicador de "hay más" (`items`
+ *  no trae total propio ni cursor) — esto es una heurística del FE, no un hecho declarado por el
+ *  contrato. Si el conteo de `items` ALCANZA este número, "negociable" puede estar subestimado en
+ *  tenants con más de {@link ITEMS_CAP} pagos vivos (el backend nunca debería mandar más, pero el
+ *  indicio no depende de que respete el tope al pie de la letra). */
+export const ITEMS_CAP = 100;
+
 export interface Sale14V02 {
   /** `due_14d` del backend (ya en CLP). */
   total: number;
@@ -155,6 +163,10 @@ export interface Sale14V02 {
   /** Ítems en moneda extranjera SIN `amount_clp` dentro de la ventana: no se suman como pesos
    *  (INV-FX-001) y se declaran. */
   sinConvertir: number;
+  /** `true` cuando `ap.items` alcanza el tope del backend ({@link ITEMS_CAP}): señal de que puede
+   *  haber más pagos vivos de los que `postergable` alcanza a ver. El contrato no declara un
+   *  "hay más" real, así que esto es un indicio, no una certeza. */
+  posibleRecorte: boolean;
 }
 
 function dentroDeVentana(it: PayableItem, hoy: Date): boolean {
@@ -170,14 +182,15 @@ export function sale14d(
   if (!ap) return null;
   const total = parseAmountOrNull(ap.due_14d);
   if (total == null) return null;
-  const items = (ap.items ?? []).filter((it) => dentroDeVentana(it, hoy));
+  const todos = ap.items ?? [];
+  const items = todos.filter((it) => dentroDeVentana(it, hoy));
   /* Ley 9: impuestos y sueldos jamás entran en postergaciones — `postergabilidadDe` ya los deja
      en `no_postergable`; acá sólo se suma lo `negociable`. */
   const postergable = items
     .filter((it) => postergabilidadDe(it) === "negociable")
     .reduce((s, it) => s + montoCLP(it), 0);
   const sinConvertir = items.filter(montoCLPFaltante).length;
-  return { total, postergable, sinConvertir };
+  return { total, postergable, sinConvertir, posibleRecorte: todos.length >= ITEMS_CAP };
 }
 
 /* ── (3) Barras de 4 semanas + punto más bajo ─────────────────────────────────── */
@@ -357,15 +370,25 @@ export interface DeudaDatosV02 {
   entradasLabel: string | null;
   /** Entradas cuya moneda no se conoce: no están en ningún total. */
   entradasSinMoneda: number;
+  /** La consulta de sin-clasificar FALLÓ: `count` no es un cero real, es "no lo sabemos" (Ley 8).
+   *  Cuando es `true`, `count`/`entradasLabel`/`entradasSinMoneda` no se usan (banner de error). */
+  error: boolean;
 }
 
-/** `null` cuando no hay nada sin clasificar (el banner no se muestra) o mientras carga. */
+/** `null` cuando no hay nada sin clasificar (el banner no se muestra) o mientras carga.
+ *  Con error, el banner SÍ se muestra (con `error: true`): un `count` en 0 por una consulta
+ *  fallida no es "todo clasificado", y el "no sé" no puede desaparecer en silencio (Ley 8). */
 export function deudaDeDatos(sc: UnclassifiedSummary | null | undefined): DeudaDatosV02 | null {
-  if (!sc || sc.isLoading || sc.count <= 0) return null;
+  if (!sc || sc.isLoading) return null;
+  if (sc.isError) {
+    return { count: 0, entradasLabel: null, entradasSinMoneda: 0, error: true };
+  }
+  if (sc.count <= 0) return null;
   return {
     count: sc.count,
     entradasLabel: entradasSinClasificarLabel(sc),
     entradasSinMoneda: sc.unknownInflowCount,
+    error: false,
   };
 }
 
@@ -397,8 +420,15 @@ export function comoSeCalcula(
       "Cobros esperados con fecha, según el comportamiento de pago de cada cliente",
       "Pagos comprometidos: proveedores, obligaciones y F29",
     ],
+    /* Sin proyección no hay NADA que declarar (ni "sí" ni "no"): "no declara exclusiones" es una
+       afirmación sobre un cálculo que no corrió. Con proyección y sin exclusiones, en cambio, SÍ
+       hay algo que afirmar: el backend corrió y no declaró ninguna. */
     excluye:
-      excluye.length > 0 ? excluye : ["La proyección no declara exclusiones para tu empresa"],
+      excluye.length > 0
+        ? excluye
+        : p
+          ? ["La proyección no declara exclusiones para tu empresa"]
+          : ["Sin proyección no hay exclusiones que declarar"],
     fuente: "GET /api/treasury/cash-projection (una sola proyección para toda la app)",
     frescura: partes.length > 0 ? partes.join(" · ") : "Sin sello de frescura",
   };
