@@ -79,8 +79,10 @@ export function LiquidityEvaluationPanel({
   }, [currentSelection]);
   if (loading) {
     return (
-      <section aria-label="Evaluación de liquidez" className="space-y-2">
-        <p className="text-sm text-neutral-mid">Buscando una evaluación financiera vigente…</p>
+      <section aria-label="Evaluación de liquidez" aria-busy="true" className="space-y-2">
+        <p role="status" className="text-sm text-neutral-mid">
+          Buscando una evaluación financiera vigente…
+        </p>
         <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" aria-hidden="true" />
       </section>
     );
@@ -89,7 +91,7 @@ export function LiquidityEvaluationPanel({
   if (failed) {
     return (
       <QavanteCard variant="bordered">
-        <div className="flex items-start gap-3">
+        <div role="alert" className="flex items-start gap-3">
           <HelpCircle className="mt-0.5 h-5 w-5 shrink-0 text-warning-700" aria-hidden="true" />
           <div>
             <p className="font-semibold text-neutral-dark">
@@ -209,11 +211,11 @@ export function LiquidityEvaluationPanel({
         </QavanteCard>
       ) : (
         <>
-          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Metric label="Brecha detectada" value={view.gapLabel} />
             <Metric label="Caja mínima sin actuar" value={view.minimumCashLabel} />
             <Metric label="Recuperación proyectada" value={view.recoveryLabel} />
-          </dl>
+          </div>
 
           <div className="space-y-2">
             {view.alternatives.map((alternative) => (
@@ -232,7 +234,7 @@ export function LiquidityEvaluationPanel({
                         {alternative.title}
                       </p>
                       {alternative.recommended && usable && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary/10 px-2 py-0.5 text-[11px] font-semibold text-brand-primary">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary/10 px-2 py-0.5 text-[11px] font-semibold text-brand-primary-700">
                           <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
                           Mejor alternativa evaluada
                         </span>
@@ -287,12 +289,14 @@ export function LiquidityEvaluationPanel({
 function Metric({ label, value }: { label: string; value: string | null }) {
   return (
     <QavanteCard variant="bordered" className="h-full">
-      <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-        {label}
-      </dt>
-      <dd className="mt-1.5 text-lg font-bold tabular-nums text-neutral-dark">
-        {value ?? "Sin dato verificable"}
-      </dd>
+      <dl>
+        <dt className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+          {label}
+        </dt>
+        <dd className="mt-1.5 text-lg font-bold tabular-nums text-neutral-dark">
+          {value ?? "Sin dato verificable"}
+        </dd>
+      </dl>
     </QavanteCard>
   );
 }

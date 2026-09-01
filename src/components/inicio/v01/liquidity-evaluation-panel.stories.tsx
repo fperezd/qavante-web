@@ -85,7 +85,7 @@ const EVALUATION: LiquidityEvaluation = {
 const meta = {
   title: "Rediseño F2 / V01 Hoy / Evaluación de liquidez",
   component: LiquidityEvaluationPanel,
-  parameters: { layout: "padded" },
+  parameters: { layout: "padded", a11y: { test: "error" } },
   args: { evaluation: EVALUATION, now: new Date("2026-08-31T12:00:00Z") },
 } satisfies Meta<typeof LiquidityEvaluationPanel>;
 
@@ -240,6 +240,31 @@ export const Comparable: Story = {
     await expect(canvas.queryByText("$0")).not.toBeInTheDocument();
     await expect(canvas.queryByRole("link")).not.toBeInTheDocument();
     await expect(canvas.queryByRole("button")).not.toBeInTheDocument();
+  },
+};
+
+export const Cargando: Story = {
+  args: { evaluation: null, loading: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("region", { name: "Evaluación de liquidez" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    await expect(canvas.getByRole("status")).toHaveTextContent(
+      "Buscando una evaluación financiera vigente",
+    );
+  },
+};
+
+export const ErrorDeLectura: Story = {
+  args: { evaluation: null, failed: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("alert")).toHaveTextContent(
+      "No pudimos leer la evaluación financiera",
+    );
+    await expect(canvas.queryByText("$0")).not.toBeInTheDocument();
   },
 };
 
