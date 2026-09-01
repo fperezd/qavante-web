@@ -5,6 +5,15 @@ import { loginAs } from "./helpers";
    se retiró la clásica). Un mes → respuesta de dueño + cascada + drivers; el rango → hero de período
    + margen en el tiempo + matriz. Contra MSW (operational-result + breakdown + dashboard). */
 
+/** El mes siguiente a `YYYY-MM`, sin depender del reloj/zona horaria del runner. */
+function mesSiguiente(period: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(period);
+  if (!match) throw new Error(`Período inválido en el selector: ${period}`);
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  return `${year + (month === 12 ? 1 : 0)}-${String(month === 12 ? 1 : month + 1).padStart(2, "0")}`;
+}
+
 test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
   test("un mes muestra la respuesta de dueño + cascada; el rango muestra la matriz", async ({
     page,
@@ -106,14 +115,18 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
     // Abre por defecto en el último mes CERRADO (no el actual) → hay un resultado real, no "perdió".
     await expect(page.getByText("El negocio perdió este mes")).toHaveCount(0);
 
-    // Al elegir el MES ACTUAL (en curso) → reframe honesto, sin veredicto ganó/perdió.
-    const hoy = new Date();
-    const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
+    /* Al elegir el MES ACTUAL (en curso) → reframe honesto, sin veredicto ganó/perdió.
+       No usamos `new Date()` aquí: `/gestion` calcula el período inicial en el servidor con
+       America/Santiago. Al cruzar 00:00 UTC el reloj del runner puede estar en el mes siguiente
+       y elegir un futuro, no el mes en curso. El selector abre en el último mes cerrado; su
+       siguiente es exactamente el mes en curso que la página resolvió. */
     await page
       .locator('button[aria-haspopup="dialog"]')
       .filter({ hasText: /20\d{2}/ })
       .click();
     const dialog = page.getByRole("dialog", { name: "Elegir rango de períodos" });
+    const ultimoCerrado = await dialog.getByLabel("Fecha inicial").inputValue();
+    const mesActual = mesSiguiente(ultimoCerrado);
     await dialog.getByLabel("Fecha inicial").fill(mesActual);
     await dialog.getByLabel("Fecha final").fill(mesActual);
     await dialog.getByRole("button", { name: "Aplicar" }).click();
