@@ -15,6 +15,16 @@ export const RUT_CORREOS = "76.333.333-3";
 export const RUT_TEPILLE = "77.555.555-5";
 export const RUT_ANDINOS = "77.666.666-6";
 
+/* UUIDs de servidor inventados: las stories prueban que el front transmite identidad trazable,
+ * nunca que reconstruye un cobrable desde la glosa o el RUT. */
+const ID_DIVE = "00000000-0000-4000-8000-000000000001";
+const ID_KAUFMANN = "00000000-0000-4000-8000-000000000002";
+const ID_CORREOS = "00000000-0000-4000-8000-000000000003";
+const ID_GPS_1 = "00000000-0000-4000-8000-000000000004";
+const ID_GPS_2 = "00000000-0000-4000-8000-000000000005";
+const ID_TEPILLE = "00000000-0000-4000-8000-000000000006";
+const ID_ANDINOS = "00000000-0000-4000-8000-000000000007";
+
 /** Caso NORMAL: vencido conocido, un cliente por sobre los 60 días (GPS7000, 80 días), otro
  *  también grave pero menos (Diveimport, 73 días), dos entre 1 y 60, uno al día y uno cuyo vencido
  *  el registro no pudo computar. Los tramos de mora suman EXACTAMENTE `overdue` (contrato). La suma
@@ -34,20 +44,52 @@ export function ar(over: Partial<AccountsReceivableResponse> = {}): AccountsRece
       d90_plus: "4079467",
     },
     top_debtors: [
-      { name: "Diveimport S.A.", rut: RUT_DIVEIMPORT, total: "11582539", overdue: "3300000" },
-      { name: "Comercial Kaufmann S.A.", rut: RUT_KAUFMANN, total: "4322373", overdue: "4322373" },
+      {
+        name: "Diveimport S.A.",
+        rut: RUT_DIVEIMPORT,
+        total: "11582539",
+        overdue: "3300000",
+        receivable_ids: [ID_DIVE],
+      },
+      {
+        name: "Comercial Kaufmann S.A.",
+        rut: RUT_KAUFMANN,
+        total: "4322373",
+        overdue: "4322373",
+        receivable_ids: [ID_KAUFMANN],
+      },
       {
         name: "Empresa de Correos de Chile",
         rut: RUT_CORREOS,
         total: "4672594",
         overdue: "4672594",
+        receivable_ids: [ID_CORREOS],
       },
-      { name: "GPS7000", rut: RUT_GPS, total: "1792441", overdue: "1792441" },
-      { name: "Tepille SpA", rut: RUT_TEPILLE, total: "1050041", overdue: "0" },
-      { name: "Servicios Andinos Ltda", rut: RUT_ANDINOS, total: "980000", overdue: null },
+      {
+        name: "GPS7000",
+        rut: RUT_GPS,
+        total: "1792441",
+        overdue: "1792441",
+        receivable_ids: [ID_GPS_1, ID_GPS_2],
+      },
+      {
+        name: "Tepille SpA",
+        rut: RUT_TEPILLE,
+        total: "1050041",
+        overdue: "0",
+        receivable_ids: [ID_TEPILLE],
+      },
+      {
+        name: "Servicios Andinos Ltda",
+        rut: RUT_ANDINOS,
+        total: "980000",
+        overdue: null,
+        receivable_ids: [ID_ANDINOS],
+      },
     ],
     overdue_documents: [
       {
+        id: ID_DIVE,
         client_name: "Diveimport S.A.",
         client_rut: RUT_DIVEIMPORT,
         document: "Factura 450",
@@ -57,6 +99,7 @@ export function ar(over: Partial<AccountsReceivableResponse> = {}): AccountsRece
         days_overdue: 73,
       },
       {
+        id: ID_KAUFMANN,
         client_name: "Comercial Kaufmann S.A.",
         client_rut: RUT_KAUFMANN,
         document: "Factura 501",
@@ -66,6 +109,7 @@ export function ar(over: Partial<AccountsReceivableResponse> = {}): AccountsRece
         days_overdue: 34,
       },
       {
+        id: ID_CORREOS,
         client_name: "Empresa de Correos de Chile",
         client_rut: RUT_CORREOS,
         document: "Factura 490",
@@ -77,6 +121,7 @@ export function ar(over: Partial<AccountsReceivableResponse> = {}): AccountsRece
       /* El MENOS vencido va primero a propósito: si la fila tomara "el primer documento listado"
          en vez del máximo, mostraría 12 días donde corresponden 80, y los tests lo cazan. */
       {
+        id: ID_GPS_1,
         client_name: "GPS7000",
         client_rut: RUT_GPS,
         document: "Factura 401",
@@ -86,6 +131,7 @@ export function ar(over: Partial<AccountsReceivableResponse> = {}): AccountsRece
         days_overdue: 12,
       },
       {
+        id: ID_GPS_2,
         client_name: "GPS7000",
         client_rut: RUT_GPS,
         document: "Factura 388",
@@ -166,18 +212,38 @@ export function arConcentracionAlta(
       d90_plus: "5000000",
     },
     top_debtors: [
-      { name: "Diveimport S.A.", rut: RUT_DIVEIMPORT, total: "9000000", overdue: "9000000" },
-      { name: "Comercial Kaufmann S.A.", rut: RUT_KAUFMANN, total: "6000000", overdue: "6000000" },
+      {
+        name: "Diveimport S.A.",
+        rut: RUT_DIVEIMPORT,
+        total: "9000000",
+        overdue: "9000000",
+        receivable_ids: [ID_DIVE],
+      },
+      {
+        name: "Comercial Kaufmann S.A.",
+        rut: RUT_KAUFMANN,
+        total: "6000000",
+        overdue: "6000000",
+        receivable_ids: [ID_KAUFMANN],
+      },
       {
         name: "Empresa de Correos de Chile",
         rut: RUT_CORREOS,
         total: "4000000",
         overdue: "3500000",
+        receivable_ids: [ID_CORREOS],
       },
-      { name: "GPS7000", rut: RUT_GPS, total: "1500000", overdue: "1500000" },
+      {
+        name: "GPS7000",
+        rut: RUT_GPS,
+        total: "1500000",
+        overdue: "1500000",
+        receivable_ids: [ID_GPS_2],
+      },
     ],
     overdue_documents: [
       {
+        id: ID_DIVE,
         client_name: "Diveimport S.A.",
         client_rut: RUT_DIVEIMPORT,
         document: "Factura 450",
@@ -187,6 +253,7 @@ export function arConcentracionAlta(
         days_overdue: 121,
       },
       {
+        id: ID_KAUFMANN,
         client_name: "Comercial Kaufmann S.A.",
         client_rut: RUT_KAUFMANN,
         document: "Factura 501",
@@ -196,6 +263,7 @@ export function arConcentracionAlta(
         days_overdue: 34,
       },
       {
+        id: ID_CORREOS,
         client_name: "Empresa de Correos de Chile",
         client_rut: RUT_CORREOS,
         document: "Factura 490",
@@ -205,6 +273,7 @@ export function arConcentracionAlta(
         days_overdue: 66,
       },
       {
+        id: ID_GPS_2,
         client_name: "GPS7000",
         client_rut: RUT_GPS,
         document: "Factura 388",

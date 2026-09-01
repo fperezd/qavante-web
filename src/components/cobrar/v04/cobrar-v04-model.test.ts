@@ -12,6 +12,7 @@ import {
   explicacionBruto,
   filtrarClientes,
   loteRecordatorios,
+  receivableIdsDeLote,
   recordatorioDe,
   tarjetasAging,
   textoCountdown,
@@ -372,6 +373,18 @@ describe("footer — por cobrar (bruto)", () => {
 describe("recordatorios — las plantillas actuales de Cobrar v2", () => {
   const cs = clientesV04(ar(), {});
 
+  it("conserva los UUIDs que entrega el contrato; no reconstruye identidad desde datos visibles", () => {
+    const dive = cs.find((c) => c.nombre === "Diveimport S.A.")!;
+    expect(dive.receivableIds).toEqual(["00000000-0000-4000-8000-000000000001"]);
+    const sinIds = clientesV04(
+      ar({
+        top_debtors: [{ name: "Mismo nombre", rut: RUT_DIVEIMPORT, total: "1", overdue: "1" }],
+      }),
+      {},
+    )[0]!;
+    expect(sinIds.receivableIds).toEqual([]);
+  });
+
   it("con vencido conocido va en modo urgencia y nombra el monto vencido", () => {
     const r = recordatorioDe(cs.find((c) => c.nombre === "Diveimport S.A.")!);
     expect(r.texto).toContain("Estimados Diveimport S.A.:");
@@ -396,8 +409,22 @@ describe("recordatorios — las plantillas actuales de Cobrar v2", () => {
   });
 
   it("el texto de la cuenta regresiva dice qué va a pasar y en cuánto", () => {
-    expect(textoCountdown(5, 3)).toBe("Marcando a 3 clientes como gestionados en 5 s");
-    expect(textoCountdown(1, 1)).toBe("Marcando a 1 cliente como gestionados en 1 s");
+    expect(textoCountdown(5, 3)).toBe("Enviando 3 recordatorios en 5 s");
+    expect(textoCountdown(1, 1)).toBe("Enviando un recordatorio en 1 s");
+  });
+
+  it("el lote manda sólo UUIDs del contrato, sin duplicarlos ni inventarlos", () => {
+    const conc = concentracion(cs, ar())!;
+    const ids = receivableIdsDeLote(conc.clientes);
+    expect(ids).toEqual([
+      "00000000-0000-4000-8000-000000000003",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000001",
+    ]);
+    // Gemelo positivo: un ID duplicado sí se conserva una vez, no se reemplaza por RUT/nombre.
+    expect(
+      receivableIdsDeLote([{ ...conc.clientes[0]!, receivableIds: [ids[0]!, ids[0]!] }]),
+    ).toEqual([ids[0]]);
   });
 });
 

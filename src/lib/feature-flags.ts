@@ -372,13 +372,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      sobre `accounts-receivable` (VIVO; la misma función del backend que alimenta "Te deben" en
      V01 → Ley 1) y las prefs de gestión — la vista funciona hoy, con `overdue: null` incluido.
 
-     Su endpoint de gating es lo ÚNICO que le falta: el envío EN LOTE de recordatorios a terceros.
-     No existe (ni contacto del cliente ni canal): hoy "Enviar a los 3" prepara las plantillas,
-     marca a los clientes como gestionados tras la ventana de arrepentimiento (Ley 4) y deja cada
-     WhatsApp/correo listo para abrir — el envío real lo dispara el dueño por cliente. Es FE-first,
-     como los de `hoyV01`/`cajaV02`, con su issue sucesor (#86). Con OFF, el Cobrar actual (v2 en
-     producción) queda intacto → cero regresión. */
-  cobrarV04: "/api/treasury/collection-reminders/bulk",
+     Su endpoint de gating es el envío EN LOTE de recordatorios a terceros. Después de la ventana
+     cancelable de Ley 4, el front manda exclusivamente UUIDs trazables del summary junto a una
+     llave idempotente; el servidor conserva el ledger y devuelve el resultado por documento.
+     `sin_destinatario`, `skipped` y `error` se muestran como tales, nunca como éxito. Con OFF, el
+     Cobrar actual (v2 en producción) queda intacto → cero regresión. */
+  cobrarV04: "/api/treasury/collection-reminders/send",
   /* V08 · Gestión — "¿gano o pierdo?" en SEIS tabs (ESPECIFICACION §V08, issue #72). Unifica las
      nueve páginas de `/gestion` en una vista con tabs Resultado / Márgenes / Tendencia /
      Comparativo / Clientes 360 / Proveedores 360; Costos y gastos entra como sección del Resultado

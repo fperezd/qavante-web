@@ -29,9 +29,8 @@
  *     aguas arriba y el front lo declara en el ⓘ, no lo recalcula.
  *   · No separa monedas: el endpoint no trae `currency_code` y suma `outstanding_amount` crudo. Se
  *     declara (INV-FX-001) en vez de fingir que todo es CLP verificado.
- *   · No manda nada a terceros: no hay bulk en la API ni contacto del cliente. "Enviar a los 3"
- *     prepara las plantillas actuales y, tras la ventana de arrepentimiento (Ley 4), marca a los
- *     clientes como gestionados; el envío real lo abre el dueño por cliente. */
+ *   · No reconstruye identidades de cobro: los envíos usan exclusivamente `receivable_ids` que
+ *     publica el backend junto al deudor. Si faltan, no hay envío ni un default plausible (#311). */
 
 import type { AccountsReceivableResponse, OverdueDocument, TopDebtor } from "@/lib/api/cobranza";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
@@ -160,6 +159,9 @@ export interface ClienteV04 {
   rut: string | null;
   /** RUT formateado para mostrar, o "RUT no informado". */
   rutLabel: string;
+  /** UUIDs trazables de documentos vivos/no cedidos que el backend atribuye a este deudor.
+   * Nunca se derivan desde los campos visibles: se mandan tal cual al lote real (#311). */
+  receivableIds: string[];
   /** Saldo por cobrar de este cliente (CLP según el registro). */
   saldo: number;
   /** Vencido de este cliente. `null` = el contrato no pudo computarlo (#124): NO es 0. */
@@ -277,6 +279,7 @@ export function clientesV04(
       nombre: d.name,
       rut: d.rut ?? null,
       rutLabel: d.rut ? formatRut(d.rut) : "RUT no informado",
+      receivableIds: d.receivable_ids ?? [],
       saldo: parseAmount(d.total),
       vencido,
       dias: suyos?.maxDias ?? null,
@@ -547,9 +550,16 @@ export function loteRecordatorios(clientes: ReadonlyArray<ClienteV04>): Recordat
   return clientes.map(recordatorioDe);
 }
 
+/** IDs del lote real. Es una proyección, no una búsqueda: conserva exactamente los UUIDs que el
+ * backend publicó y quita sólo duplicados. Una lista vacía significa "no sabemos qué documento
+ * enviar", por lo que la vista no llama al endpoint. */
+export function receivableIdsDeLote(clientes: ReadonlyArray<ClienteV04>): string[] {
+  return [...new Set(clientes.flatMap((cliente) => cliente.receivableIds))];
+}
+
 /** Texto de la cuenta regresiva (Ley 4): qué va a pasar y en cuánto. */
 export function textoCountdown(segundos: number, n: number): string {
-  return `Marcando a ${n} ${n === 1 ? "cliente" : "clientes"} como gestionados en ${segundos} s`;
+  return `Enviando ${n === 1 ? "un recordatorio" : `${n} recordatorios`} en ${segundos} s`;
 }
 
 /* ── Exportar (§5.5) ─────────────────────────────────────────────────────────── */

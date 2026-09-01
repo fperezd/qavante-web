@@ -24,7 +24,6 @@ function html(props: Partial<ComponentProps<typeof CobrarV04View>> = {}): string
       ar={ar()}
       gestionado={gestionado()}
       hoy={HOY}
-      issueLote="#86"
       onToggleGestionado={() => {}}
       {...props}
     />,
@@ -119,10 +118,11 @@ describe("CobrarV04View — crumb, tarjetas, banner, tabla y footer (caso normal
     expect(t).not.toContain("$24.399.988");
   });
 
-  it("el hueco del lote real queda declarado con su issue", () => {
+  it("el lote real declara identidad trazable y no promete éxito cuando falta destinatario", () => {
     const t = texto(html());
-    expect(t).toContain("El envío en lote real todavía no está");
-    expect(t).toContain("(#86)");
+    expect(t).toContain("El envío se confirma documento por documento");
+    expect(t).toContain("documentos identificados por el registro");
+    expect(t).toContain("no se confirma como enviado");
   });
 });
 

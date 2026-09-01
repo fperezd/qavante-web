@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { useAccountsReceivable } from "@/lib/api/cobranza";
+import { useAccountsReceivable, useSendCollectionReminders } from "@/lib/api/cobranza";
 import { usePreferences, useUpdatePreferences } from "@/lib/api/preferences";
 import { ApiError } from "@/lib/api/errors";
 import {
@@ -25,8 +25,6 @@ import type { ClienteV04 } from "./cobrar-v04-model";
  * ellas el crumb diría "sin gestiones" sobre gestiones que sí existen) pero si FALLAN la pantalla
  * se pinta igual y registrar gestión responde diciendo qué falta (Ley 6). */
 
-const ISSUE_LOTE = "#86";
-
 /** Fecha de HOY en America/Santiago como ISO "YYYY-MM-DD" (en-CA rinde ese formato; es el mismo
  *  sello que escribe Cobrar v2, así los dos mapas son compatibles). */
 function hoyISO(): string {
@@ -46,6 +44,7 @@ export function CobrarV04Live() {
   const ar = useAccountsReceivable();
   const prefs = usePreferences();
   const update = useUpdatePreferences();
+  const reminders = useSendCollectionReminders();
 
   const gestionado = React.useMemo(() => readGestionado(prefs.data?.preferences), [prefs.data]);
 
@@ -121,6 +120,16 @@ export function CobrarV04Live() {
     }
   };
 
+  const enviarLote = async (receivableIds: string[], idempotencyKey: string) => {
+    /* La vista crea la llave al iniciar la ventana de confirmación y conserva ESA misma llave si
+     * falla la red y el dueño reintenta: así un 200 perdido no duplica un correo externo. */
+    const respuesta = await reminders.mutateAsync({
+      receivable_ids: receivableIds,
+      idempotency_key: idempotencyKey,
+    });
+    return respuesta.items;
+  };
+
   return (
     <CobrarV04View
       ar={ar.data ?? null}
@@ -129,9 +138,9 @@ export function CobrarV04Live() {
       gestionDisponible={prefs.isSuccess}
       onToggleGestionado={toggleGestionado}
       onMarcarLote={marcarLote}
+      onEnviarLote={enviarLote}
       onCopiar={copiar}
       onReintentar={() => void ar.refetch()}
-      issueLote={ISSUE_LOTE}
       hoy={hoy}
     />
   );

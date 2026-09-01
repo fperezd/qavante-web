@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -26,6 +26,8 @@ import type { components } from "./types";
 
 type GenAccountsReceivable = components["schemas"]["AccountsReceivableResponse"];
 type GenARAging = components["schemas"]["ARAging"];
+type GenTopDebtor = components["schemas"]["TopDebtor"];
+type GenOverdueDocument = components["schemas"]["OverdueDocument"];
 
 /** Vuelve nullable un subconjunto de campos de un tipo GENERADO, conservando el
  *  resto tal cual viene del contrato.
@@ -67,11 +69,34 @@ type Replace<T, K extends keyof T, V> = Omit<T, K> & { [P in K]: V };
  *  MORA pueden venir `null` = "no se pudo computar"; `current` (vigente) nunca. */
 export type ReceivableAging = GenARAging;
 
-export type TopDebtor = components["schemas"]["TopDebtor"];
+/** Extensión aditiva de API #314. El generador web aún apunta al OpenAPI desplegado, que puede
+ * ir detrás del snapshot versionado de `qavante-api/main`; este alias mantiene el contrato estricto
+ * en el único consumidor hasta la siguiente regeneración sin arrastrar miles de líneas ajenas. */
+export type TopDebtor = GenTopDebtor & { receivable_ids?: string[] };
 
-export type OverdueDocument = components["schemas"]["OverdueDocument"];
+export type OverdueDocument = GenOverdueDocument & { id: string };
 
-export type AccountsReceivableResponse = GenAccountsReceivable;
+/** El response se vuelve a componer para propagar las extensiones aditivas a todos sus hijos. */
+export type AccountsReceivableResponse = Omit<
+  GenAccountsReceivable,
+  "top_debtors" | "overdue_documents"
+> & {
+  top_debtors?: TopDebtor[];
+  overdue_documents?: OverdueDocument[];
+};
+/** API #297, fijado contra el snapshot versionado. No se usa `bulk`: esa ruta nunca existió. */
+export interface CollectionReminderBatchRequest {
+  receivable_ids: string[];
+  idempotency_key: string;
+}
+export interface CollectionReminderItemResult {
+  receivable_id: string;
+  status: "sent" | "sin_destinatario" | "skipped" | "error";
+  detail: string;
+}
+export interface CollectionReminderBatchResponse {
+  items: CollectionReminderItemResult[];
+}
 
 export const cobranzaKeys = {
   all: ["cobranza"] as const,
@@ -87,4 +112,16 @@ export function useAccountsReceivable() {
     staleTime: 30_000,
     retry: false,
   });
+}
+
+/** Envía sólo UUIDs recibidos desde `accounts-receivable`. Nunca reconstruye un documento desde
+ * nombre, RUT, monto o fecha: una contraparte puede tener varios cobrables parecidos (#311). */
+export function sendCollectionReminders(input: CollectionReminderBatchRequest) {
+  return api.post<CollectionReminderBatchResponse>("/api/treasury/collection-reminders/send", {
+    body: input,
+  });
+}
+
+export function useSendCollectionReminders() {
+  return useMutation({ mutationFn: sendCollectionReminders });
 }

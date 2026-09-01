@@ -45,7 +45,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "V04 · Cobrar (ESPECIFICACION §V04): crumb con el estado de gestión como chip gris, 5 tarjetas de aging con % del total, banner de concentración → lote con cuenta regresiva cancelable (Ley 4), filtros con conteo y la tabla de clientes con WhatsApp · correo · Recordatorio (las plantillas actuales). El envío en lote REAL queda fuera de esta entrega (#86): no hay contacto del cliente ni canal.",
+          "V04 · Cobrar (ESPECIFICACION §V04): crumb con el estado de gestión como chip gris, 5 tarjetas de aging con % del total, banner de concentración → lote real con cuenta regresiva cancelable (Ley 4), filtros con conteo y la tabla de clientes con WhatsApp · correo · Recordatorio.",
       },
     },
   },
@@ -55,9 +55,11 @@ const meta = {
     gestionDisponible: true,
     onToggleGestionado: fn(),
     onMarcarLote: fn(() => true),
+    onEnviarLote: fn(async (ids: string[]) =>
+      ids.map((receivable_id) => ({ receivable_id, status: "sent" as const, detail: "Enviado." })),
+    ),
     onCopiar: fn(() => true),
     loteSegundos: 2,
-    issueLote: "#86",
     hoy: HOY,
   },
 } satisfies Meta<typeof CobrarV04View>;
@@ -205,7 +207,7 @@ export const FiltrosYBusqueda: Story = {
 };
 
 export const LoteCancelable: Story = {
-  name: "Lote — Ley 4: la cuenta regresiva se ve, se cancela y no marca nada",
+  name: "Lote — Ley 4: la cuenta regresiva se ve, se cancela y no envía nada",
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Enviar a los 3" }));
@@ -214,25 +216,18 @@ export const LoteCancelable: Story = {
     // Antes de la cuenta no hay links de envío en el panel: nada sale sin la ventana.
     await expect(panel.queryByRole("link", { name: "WhatsApp" })).not.toBeInTheDocument();
     await userEvent.click(panel.getByRole("button", { name: "Enviar los 3 recordatorios" }));
-    await expect(panel.getByRole("status")).toHaveTextContent(
-      "Marcando a 3 clientes como gestionados en 2 s",
-    );
+    await expect(panel.getByRole("status")).toHaveTextContent("Enviando 3 recordatorios en 2 s");
     await userEvent.click(panel.getByRole("button", { name: "Cancelar" }));
     await expect(panel.queryByRole("status")).not.toBeInTheDocument();
     /* El negativo, DESPUÉS de que la ventana haya vencido: un timer que sigue corriendo (o un
        Cancelar que sólo limpia la UI) marcaría acá, y este assert lo caza. Afirmarlo antes es un
        negativo hueco — pasaba con el timer vivo. */
     await pasadaLaVentana(args.loteSegundos!);
-    await expect(args.onMarcarLote).not.toHaveBeenCalled();
-    // Gemelo positivo: sin cancelar, la cuenta termina y SÍ marca (misma query, misma función).
+    await expect(args.onEnviarLote).not.toHaveBeenCalled();
+    // Gemelo positivo: sin cancelar, la cuenta termina y SÍ envía (misma query, misma función).
     await userEvent.click(panel.getByRole("button", { name: "Enviar los 3 recordatorios" }));
-    await waitFor(() => expect(args.onMarcarLote).toHaveBeenCalledTimes(1), { timeout: 5000 });
-    await expect(args.onMarcarLote).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ nombre: "Diveimport S.A." })]),
-    );
-    await expect(panel.getByRole("status")).toHaveTextContent(
-      "los 3 quedaron marcados como gestionados",
-    );
+    await waitFor(() => expect(args.onEnviarLote).toHaveBeenCalledTimes(1), { timeout: 5000 });
+    await expect(panel.getByRole("status")).toHaveTextContent("Se enviaron 3 recordatorios");
     await expect(panel.getAllByRole("link", { name: "WhatsApp" })).toHaveLength(3);
     await expect(panel.getAllByRole("link", { name: "correo" })).toHaveLength(3);
     // Un solo rojo en toda la pantalla, también con el panel abierto.
@@ -241,17 +236,47 @@ export const LoteCancelable: Story = {
 };
 
 export const LoteSinPreferencias: Story = {
-  name: "Lote sin preferencias — Ley 6: el primario responde y dice qué falta (en ámbar)",
+  name: "Lote sin preferencias — el envío puede completar, pero no inventa una gestión local",
   args: { gestionDisponible: false, onMarcarLote: fn(() => false) },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Enviar a los 3" }));
     const panel = within(canvas.getByRole("region", { name: "Recordatorio a 3 clientes" }));
     await userEvent.click(panel.getByRole("button", { name: "Enviar los 3 recordatorios" }));
-    await waitFor(() => expect(panel.getByRole("alert")).toBeInTheDocument(), { timeout: 5000 });
-    await expect(panel.getByRole("alert")).toHaveTextContent("no cargaron tus preferencias");
+    await waitFor(() => expect(args.onEnviarLote).toHaveBeenCalledTimes(1), { timeout: 5000 });
+    await expect(args.onEnviarLote).toHaveBeenCalledWith(
+      expect.arrayContaining(["00000000-0000-4000-8000-000000000003"]),
+      expect.any(String),
+    );
     await expect(args.onMarcarLote).not.toHaveBeenCalled();
     await expect(rojos(canvasElement)).toHaveLength(1); // el ámbar no suma un segundo rojo
+  },
+};
+
+export const LoteResultadosParciales: Story = {
+  name: "Lote — resultados por documento: no confunde omitido, error ni sin destinatario con envío",
+  args: {
+    loteSegundos: 1,
+    onEnviarLote: fn(async (ids: string[]) => [
+      { receivable_id: ids[0]!, status: "sent" as const, detail: "Enviado." },
+      { receivable_id: ids[1]!, status: "sin_destinatario" as const, detail: "Sin correo." },
+      { receivable_id: ids[2]!, status: "skipped" as const, detail: "Ya existía." },
+    ]),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Enviar a los 3" }));
+    const panel = within(canvas.getByRole("region", { name: "Recordatorio a 3 clientes" }));
+    await userEvent.click(panel.getByRole("button", { name: "Enviar los 3 recordatorios" }));
+    await waitFor(() => expect(args.onEnviarLote).toHaveBeenCalledTimes(1), { timeout: 5000 });
+    await expect(panel.getByRole("status")).toHaveTextContent("Se envió 1 recordatorio");
+    await expect(panel.getByRole("status")).toHaveTextContent("1 sin destinatario");
+    await expect(panel.getByRole("status")).toHaveTextContent("1 omitido por idempotencia");
+    await expect(panel.getByRole("list", { name: "Resultado por documento" })).toHaveTextContent(
+      "sin destinatario",
+    );
+    // Gemelo positivo: sólo el resultado `sent` cuenta como envío real.
+    await expect(panel.getByRole("status")).not.toHaveTextContent("Se enviaron 3 recordatorios");
   },
 };
 
@@ -263,19 +288,19 @@ export const LoteEscapeCancela: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Enviar a los 3" }));
     const panel = within(canvas.getByRole("region", { name: "Recordatorio a 3 clientes" }));
     await userEvent.click(panel.getByRole("button", { name: "Enviar los 3 recordatorios" }));
-    await expect(panel.getByRole("status")).toHaveTextContent("Marcando a 3 clientes");
+    await expect(panel.getByRole("status")).toHaveTextContent("Enviando 3 recordatorios");
     // El foco quedó dentro del panel tras pulsar; Escape desde ahí.
     await userEvent.keyboard("{Escape}");
     await expect(panel.queryByRole("status")).not.toBeInTheDocument();
     /* Y el PUT no sale pasada la ventana: la UI volvió atrás Y el timer murió. */
     await pasadaLaVentana(args.loteSegundos!);
-    await expect(args.onMarcarLote).not.toHaveBeenCalled();
-    await expect(panel.queryByText(/quedaron marcados/)).not.toBeInTheDocument();
-    /* Gemelo positivo, con la MISMA aserción y la misma espera: sin Escape sí marca. */
+    await expect(args.onEnviarLote).not.toHaveBeenCalled();
+    await expect(panel.queryByText(/Se enviaron/)).not.toBeInTheDocument();
+    /* Gemelo positivo, con la MISMA aserción y la misma espera: sin Escape sí envía. */
     await userEvent.click(panel.getByRole("button", { name: "Enviar los 3 recordatorios" }));
     await pasadaLaVentana(args.loteSegundos!);
-    await expect(args.onMarcarLote).toHaveBeenCalledTimes(1);
-    await expect(panel.getByRole("status")).toHaveTextContent("quedaron marcados");
+    await expect(args.onEnviarLote).toHaveBeenCalledTimes(1);
+    await expect(panel.getByRole("status")).toHaveTextContent("Se enviaron");
   },
 };
 
@@ -287,7 +312,7 @@ export const LoteEscapeDesdeFuera: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Enviar a los 3" }));
     const panel = within(canvas.getByRole("region", { name: "Recordatorio a 3 clientes" }));
     await userEvent.click(panel.getByRole("button", { name: "Enviar los 3 recordatorios" }));
-    await expect(panel.getByRole("status")).toHaveTextContent("Marcando a 3 clientes");
+    await expect(panel.getByRole("status")).toHaveTextContent("Enviando 3 recordatorios");
     /* El listener vive en `document`, así que tiene que cancelar también desde afuera: se mueve
        el foco al buscador de la tabla y recién ahí se pulsa Escape. */
     const buscador = canvas.getByRole("searchbox");
@@ -296,7 +321,7 @@ export const LoteEscapeDesdeFuera: Story = {
     await userEvent.keyboard("{Escape}");
     await expect(panel.queryByRole("status")).not.toBeInTheDocument();
     await pasadaLaVentana(args.loteSegundos!);
-    await expect(args.onMarcarLote).not.toHaveBeenCalled();
+    await expect(args.onEnviarLote).not.toHaveBeenCalled();
   },
 };
 

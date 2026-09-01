@@ -4,7 +4,7 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Info, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { AccountsReceivableResponse } from "@/lib/api/cobranza";
+import type { AccountsReceivableResponse, CollectionReminderItemResult } from "@/lib/api/cobranza";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPct } from "@/lib/formatters/pct";
 import { Banner } from "@/components/rediseno/banner";
@@ -27,6 +27,7 @@ import {
   filtrarClientes,
   loteRecordatorios,
   motivoSinVencido,
+  receivableIdsDeLote,
   recordatorioDe,
   tarjetasAging,
   textoCountdown,
@@ -58,10 +59,9 @@ import {
  * con el motivo del backend, el % no existe, la pill es gris y la fila dice "vencido: no se sabe".
  * Nunca "$0", nunca "0% vencido".
  *
- * LO QUE FALTA, dicho acá y no sólo en el PR: no hay envío en lote en la API ni contacto del
- * cliente. "Enviar a los 3" prepara las plantillas ACTUALES de Cobrar v2 y, tras la ventana de
- * arrepentimiento (Ley 4, visible y cancelable), marca a los clientes como gestionados; cada
- * WhatsApp o correo lo abre el dueño. El hueco queda escrito bajo la tabla con su issue sucesor. */
+ * LEY 4 — "Enviar a los 3" no dispara al presionar: abre una ventana visible y cancelable. Al
+ * llegar a cero manda sólo UUIDs de `receivable_ids` al servidor; el resultado se muestra por
+ * documento. `sin_destinatario`, `skipped` y `error` nunca se disfrazan de envío exitoso. */
 
 export interface CobrarV04ViewProps {
   /** `GET /api/treasury/accounts-receivable`. `null` = no llegó. */
@@ -77,13 +77,16 @@ export interface CobrarV04ViewProps {
   onToggleGestionado?: (cliente: ClienteV04) => void;
   /** Marca al lote como gestionado al terminar la cuenta. Devuelve `false` si no pudo. */
   onMarcarLote?: (clientes: ClienteV04[]) => boolean;
+  /** Envía el lote real. Recibe exclusivamente UUIDs que llegaron en el contrato de cobranza. */
+  onEnviarLote?: (
+    receivableIds: string[],
+    idempotencyKey: string,
+  ) => Promise<ReadonlyArray<CollectionReminderItemResult>>;
   /** Copia el recordatorio (lo hace el contenedor: `navigator.clipboard`). `true` si copió. */
   onCopiar?: (texto: string) => Promise<boolean> | boolean;
   onReintentar?: () => void;
   /** Ventana de arrepentimiento del lote, en segundos (mínimo 1). */
   loteSegundos?: number;
-  /** Issue sucesor del hueco "envío en lote real". */
-  issueLote?: string;
   /** Referencia de "hoy". Explícita para tests y stories deterministas. */
   hoy?: Date;
 }
@@ -104,10 +107,10 @@ export function CobrarV04View({
   gestionDisponible = true,
   onToggleGestionado,
   onMarcarLote,
+  onEnviarLote,
   onCopiar,
   onReintentar,
   loteSegundos = LOTE_SEGUNDOS,
-  issueLote,
   hoy = new Date(),
 }: CobrarV04ViewProps) {
   const [filtro, setFiltro] = React.useState<FiltroV04>("prioridad");
@@ -244,6 +247,7 @@ export function CobrarV04View({
           segundos={loteSegundos}
           gestionDisponible={gestionDisponible}
           onMarcarLote={onMarcarLote}
+          onEnviarLote={onEnviarLote}
           onCopiar={copiar}
           copiadoKey={copiadoKey}
           onCerrar={() => setLoteAbierto(false)}
@@ -301,14 +305,14 @@ export function CobrarV04View({
           }
         />
 
-        {/* Hueco declarado (ver el encabezado del archivo). */}
+        {/* Límite del contrato: cada resultado conserva su estado, sin éxito implícito. */}
         <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
           <b className="font-semibold text-rediseno-tinta-2">
-            El envío en lote real todavía no está:
+            El envío se confirma documento por documento:
           </b>{" "}
-          Qavante no tiene el contacto de tus clientes ni un canal propio, así que “Enviar a los 3”
-          prepara los recordatorios, los marca gestionados tras la cuenta regresiva y cada WhatsApp
-          o correo lo abres tú{issueLote ? ` (${issueLote})` : ""}. Las facturas cedidas por
+          después de la cuenta regresiva, Qavante envía sólo los documentos identificados por el
+          registro y muestra el resultado de cada uno. Si falta destinatario o el servidor omite un
+          documento, se declara aquí; no se confirma como enviado. Las facturas cedidas por
           factoring ya vienen excluidas del registro; el registro no distingue moneda.
         </p>
       </section>
@@ -440,7 +444,7 @@ function BannerConcentracion({
 
 /* ── Lote con ventana de arrepentimiento (Ley 4) ─────────────────────────────── */
 
-type FaseLote = "preparado" | "contando" | "listo" | "sin_prefs";
+type FaseLote = "preparado" | "contando" | "enviando" | "resultado" | "sin_identidad" | "error";
 
 /** Cuenta regresiva de `segundos` a 0. `restante === null` = detenida. Al llegar a 0 dispara
  *  `onDone` UNA vez y se detiene. Cancelar antes de 0 no dispara nada. */
@@ -470,6 +474,7 @@ function LotePanel({
   segundos,
   gestionDisponible,
   onMarcarLote,
+  onEnviarLote,
   onCopiar,
   copiadoKey,
   onCerrar,
@@ -478,17 +483,50 @@ function LotePanel({
   segundos: number;
   gestionDisponible: boolean;
   onMarcarLote?: (clientes: ClienteV04[]) => boolean;
+  onEnviarLote?: (
+    receivableIds: string[],
+    idempotencyKey: string,
+  ) => Promise<ReadonlyArray<CollectionReminderItemResult>>;
   onCopiar: (r: RecordatorioV04) => void;
   copiadoKey: string | null;
   onCerrar: () => void;
 }) {
   const [fase, setFase] = React.useState<FaseLote>("preparado");
+  const [resultados, setResultados] = React.useState<ReadonlyArray<CollectionReminderItemResult>>(
+    [],
+  );
+  const [idempotencyKey, setIdempotencyKey] = React.useState<string | null>(null);
   const recordatorios = React.useMemo(() => loteRecordatorios(conc.clientes), [conc.clientes]);
+  const receivableIds = React.useMemo(() => receivableIdsDeLote(conc.clientes), [conc.clientes]);
   const n = conc.clientes.length;
-  const cuenta = useCountdown(segundos, () => {
-    const ok = gestionDisponible && (onMarcarLote ? onMarcarLote(conc.clientes) : false);
-    setFase(ok ? "listo" : "sin_prefs");
-  });
+  const enviar = React.useCallback(async () => {
+    if (!onEnviarLote || receivableIds.length === 0) {
+      setFase("sin_identidad");
+      return;
+    }
+    if (!idempotencyKey) {
+      setFase("error");
+      return;
+    }
+    setFase("enviando");
+    try {
+      const items = await onEnviarLote(receivableIds, idempotencyKey);
+      setResultados(items);
+      /* Sólo una entrega real cuenta como gestión. `skipped` podría ser una repetición idempotente
+       * y `sin_destinatario`/`error` no son acciones hechas por el dueño. */
+      const enviados = new Set(
+        items.filter((item) => item.status === "sent").map((item) => item.receivable_id),
+      );
+      const clientesEnviados = conc.clientes.filter((cliente) =>
+        cliente.receivableIds.some((id) => enviados.has(id)),
+      );
+      if (clientesEnviados.length > 0 && gestionDisponible) onMarcarLote?.(clientesEnviados);
+      setFase("resultado");
+    } catch {
+      setFase("error");
+    }
+  }, [conc.clientes, gestionDisponible, idempotencyKey, onEnviarLote, onMarcarLote, receivableIds]);
+  const cuenta = useCountdown(segundos, () => void enviar());
   const tituloId = React.useId();
 
   /* Escape cancela la cuenta: la ventana de arrepentimiento también se cierra con el teclado. */
@@ -497,6 +535,7 @@ function LotePanel({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
       cuenta.cancelar();
+      setIdempotencyKey(null);
       setFase("preparado");
     }
     document.addEventListener("keydown", onKeyDown);
@@ -514,9 +553,8 @@ function LotePanel({
         Recordatorio a {n} {n === 1 ? "cliente" : "clientes"}
       </h2>
       <p className="text-[12.5px] leading-relaxed text-rediseno-tinta-2">
-        Con la plantilla de siempre. Qavante no tiene el contacto de tus clientes: al terminar la
-        cuenta los {n === 1 ? "deja" : "deja a los " + n} marcados como gestionados (se puede
-        deshacer) y cada WhatsApp o correo lo abres tú con un clic.
+        Revisa el lote antes de enviar. Tienes {segundos} segundos para cancelar; al terminar,
+        Qavante envía sólo documentos con UUID trazable y reporta cada resultado.
       </p>
 
       <ul className="divide-y divide-rediseno-hairline-row">
@@ -541,7 +579,7 @@ function LotePanel({
                   {r.texto}
                 </pre>
               </details>
-              {fase === "listo" && (
+              {fase === "resultado" && (
                 <AccionesRecordatorio r={r} copiado={copiadoKey === r.key} onCopiar={onCopiar} />
               )}
             </li>
@@ -562,6 +600,7 @@ function LotePanel({
             type="button"
             onClick={() => {
               cuenta.cancelar();
+              setIdempotencyKey(null);
               setFase("preparado");
             }}
             className={cn(BOTON_QUIETO, "ml-auto")}
@@ -569,41 +608,130 @@ function LotePanel({
             Cancelar
           </button>
         </div>
-      ) : fase === "listo" ? (
+      ) : fase === "enviando" ? (
+        <p role="status" aria-live="polite" className="text-[13px] text-rediseno-tinta-2">
+          Enviando {receivableIds.length === 1 ? "el recordatorio" : "los recordatorios"}…
+        </p>
+      ) : fase === "resultado" ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p role="status" className="text-[13px] text-rediseno-tinta-2">
-            Listo: {n === 1 ? "quedó marcado" : `los ${n} quedaron marcados`} como gestionados. Abre
-            cada recordatorio arriba.
-          </p>
+          <ResultadosLote
+            resultados={resultados}
+            nombresPorId={
+              new Map(
+                conc.clientes.flatMap((cliente) =>
+                  cliente.receivableIds.map((id) => [id, cliente.nombre] as const),
+                ),
+              )
+            }
+          />
           <button type="button" onClick={onCerrar} className={cn(BOTON_QUIETO, "ml-auto")}>
             Cerrar
           </button>
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3">
-          {fase === "sin_prefs" && (
-            /* Ley 6: el primario respondió y dice qué falta. Ámbar, no rojo (Ley 2). */
+          {fase === "sin_identidad" && (
             <p role="alert" className="text-[12.5px] font-semibold text-rediseno-ambar">
-              No pudimos registrar la gestión: no cargaron tus preferencias. Recarga e intenta de
-              nuevo.
+              No hay documentos trazables para este lote. No enviamos ningún recordatorio.
             </p>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              setFase("contando");
-              cuenta.iniciar();
-            }}
-            className={cn(PILL_OSCURA, "ml-auto")}
-          >
-            {n === 1 ? "Enviar el recordatorio" : `Enviar los ${n} recordatorios`}
-          </button>
+          {fase === "error" && (
+            <p role="alert" className="text-[12.5px] font-semibold text-rediseno-ambar">
+              No pudimos enviar el lote. No lo mostramos como enviado; vuelve a intentar.
+            </p>
+          )}
+          {fase === "error" && idempotencyKey ? (
+            <button
+              type="button"
+              onClick={() => void enviar()}
+              className={cn(PILL_OSCURA, "ml-auto")}
+            >
+              Reintentar envío
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                const key =
+                  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+                    ? crypto.randomUUID()
+                    : null;
+                if (!key) {
+                  setFase("error");
+                  return;
+                }
+                setIdempotencyKey(key);
+                setFase("contando");
+                cuenta.iniciar();
+              }}
+              disabled={fase === "sin_identidad" || !onEnviarLote || receivableIds.length === 0}
+              className={cn(PILL_OSCURA, "ml-auto")}
+            >
+              {n === 1 ? "Enviar el recordatorio" : `Enviar los ${n} recordatorios`}
+            </button>
+          )}
           <button type="button" onClick={onCerrar} className={BOTON_QUIETO}>
             Cerrar
           </button>
         </div>
       )}
     </section>
+  );
+}
+
+function ResultadosLote({
+  resultados,
+  nombresPorId,
+}: {
+  resultados: ReadonlyArray<CollectionReminderItemResult>;
+  nombresPorId: ReadonlyMap<string, string>;
+}) {
+  const conteo = (estado: CollectionReminderItemResult["status"]) =>
+    resultados.filter((item) => item.status === estado).length;
+  const enviados = conteo("sent");
+  const sinDestinatario = conteo("sin_destinatario");
+  const omitidos = conteo("skipped");
+  const errores = conteo("error");
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="min-w-0 flex-1 text-[13px] text-rediseno-tinta-2"
+    >
+      <p className="font-semibold text-rediseno-tinta">
+        {enviados === 0
+          ? "No se envió ningún recordatorio."
+          : enviados === 1
+            ? "Se envió 1 recordatorio."
+            : `Se enviaron ${enviados} recordatorios.`}
+      </p>
+      <ul className="mt-1 space-y-0.5 text-[12px]">
+        {sinDestinatario > 0 && <li>{sinDestinatario} sin destinatario.</li>}
+        {omitidos > 0 && (
+          <li>
+            {omitidos} omitido{omitidos === 1 ? "" : "s"} por idempotencia.
+          </li>
+        )}
+        {errores > 0 && <li>{errores} con error de envío.</li>}
+      </ul>
+      <ul aria-label="Resultado por documento" className="mt-2 space-y-1 text-[12px]">
+        {resultados.map((item) => (
+          <li key={item.receivable_id}>
+            <span className="font-semibold text-rediseno-tinta">
+              {nombresPorId.get(item.receivable_id) ?? "Documento seleccionado"}:
+            </span>{" "}
+            {item.status === "sent"
+              ? "enviado"
+              : item.status === "sin_destinatario"
+                ? "sin destinatario"
+                : item.status === "skipped"
+                  ? "omitido"
+                  : "con error"}
+            {item.detail ? ` — ${item.detail}` : ""}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
