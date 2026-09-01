@@ -87,7 +87,22 @@ describe("evaluación de liquidez en Hoy", () => {
       "No financiar",
     ]);
     expect(view.alternatives[0]?.recommended).toBe(true);
+    expect(view.alternatives[0]?.selectable).toBe(true);
+    expect(view.alternatives[2]?.isNoAction).toBe(true);
     expect(view.alternatives[0]?.costLabel).toBe("Costo financiero total $250.000");
+  });
+
+  it("sólo marca seleccionables las alternativas ranked y no rechazadas", () => {
+    const value = evaluation({
+      alternatives: [
+        { ...evaluation().alternatives[0]!, rank: null },
+        { ...evaluation().alternatives[1]!, is_rejected: true },
+        evaluation().alternatives[2]!,
+      ],
+    });
+    const view = liquidityEvaluationView(value, NOW);
+
+    expect(view.alternatives.map((item) => item.selectable)).toEqual([false, false, true]);
   });
 
   it("unknown nunca se convierte en cero y no_action no recibe costo ficticio", () => {

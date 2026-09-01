@@ -1,10 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
 export type FinancialPosition = components["schemas"]["FinancialPositionResponse"];
 export type FinancialDecisionList = components["schemas"]["FinancialDecisionListResponse"];
 export type LiquidityEvaluation = components["schemas"]["LiquidityEvaluationResponse"];
+export type DecisionSelectionRequest = components["schemas"]["DecisionSelectionRequest"];
+export type DecisionSelectionResponse = components["schemas"]["DecisionSelectionResponse"];
 
 export const financialDecisionKeys = {
   all: ["financial-decisions"] as const,
@@ -56,5 +58,29 @@ export function useLatestLiquidityEvaluation() {
     },
     staleTime: 30_000,
     retry: false,
+  });
+}
+
+/**
+ * Registra el visto bueno humano sobre una alternativa ya evaluada por el backend.
+ *
+ * El cliente no aprueba ni ejecuta el OperationPlan: el endpoint sólo persiste la selección y,
+ * cuando corresponde, devuelve un borrador operativo. La vigencia, el rank y el rol vuelven a
+ * validarse en servidor; ocultar el CTA en la UI es sólo una ayuda, nunca autorización.
+ */
+export function useSelectFinancialDecisionAlternative(decisionId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: DecisionSelectionRequest) =>
+      api.post<DecisionSelectionResponse>(
+        `/api/treasury/decisions/${encodeURIComponent(decisionId)}/selection`,
+        /* La selección debe poder mostrar un 401 explícito dentro del diálogo. No se repite
+           silenciosamente tras refresh: el idempotency key sólo gobierna reintentos humanos
+           visibles del mismo intento. */
+        { body, skipAuthRetry: true },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: financialDecisionKeys.all });
+    },
   });
 }

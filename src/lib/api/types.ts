@@ -2479,6 +2479,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/counterparties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Contrapartes del tenant, con su contacto (o el 'no sé' explícito) */
+        get: operations["counterparties_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/counterparties/{counterparty_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Una contraparte por su clave */
+        get: operations["counterparties_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/counterparties/{counterparty_key}/contact-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Carga, corrige o borra el correo de contacto de una contraparte */
+        put: operations["counterparties_set_contact_email"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/core/currencies": {
         parameters: {
             query?: never;
@@ -2744,6 +2795,26 @@ export interface paths {
         get: operations["treasury_liquidity_evaluation"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/decisions/{decision_id}/selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Select Financial Decision Alternative
+         * @description Registra una selección humana; no envía solicitudes ni mueve dinero.
+         */
+        post: operations["treasury_select_financial_decision_alternative"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8627,6 +8698,59 @@ export interface components {
             /** Available Profiles */
             available_profiles?: string[];
         };
+        /**
+         * CounterpartiesResponse
+         * @description Respuesta de `GET /api/treasury/counterparties`.
+         */
+        CounterpartiesResponse: {
+            /** Items */
+            items: components["schemas"]["Counterparty"][];
+            /** Total */
+            total: number;
+            /**
+             * Without Contact Email
+             * @description Cuántas de `items` están en el 'no sé' (sin correo cargado). El front lo usa para advertir ANTES de enviar a cuántos no se les va a poder escribir.
+             */
+            without_contact_email: number;
+        };
+        /**
+         * Counterparty
+         * @description Fila de `treasury.counterparties` con su contacto.
+         *
+         *     `contact_email = None` es el **"no sé" explícito**: nadie cargó un correo para esta
+         *     contraparte. No es un error ni un default plausible — el bulk de recordatorios reporta
+         *     `sin_destinatario` para esos ítems y NO envía. La cadena vacía no existe como valor
+         *     posible (CHECK de la mig 0112 + `EmailStr` en el request), así que
+         *     `contact_email is None` es la ÚNICA forma del "no sé".
+         */
+        Counterparty: {
+            /** Counterparty Key */
+            counterparty_key: string;
+            /**
+             * Canonical Tax Id
+             * @description RUT normalizado. Para el placeholder de extranjeros del SII va compuesto con el nombre, para que dos extranjeros no compartan contacto.
+             */
+            canonical_tax_id: string;
+            /** Canonical Name */
+            canonical_name?: string | null;
+            /**
+             * Counterparty Type
+             * @description 'customer' | 'supplier' | 'both' | 'unknown'.
+             */
+            counterparty_type: string;
+            /**
+             * Contact Email
+             * @description Correo de contacto, o `null` si nadie lo cargó ('no sé').
+             */
+            contact_email?: string | null;
+            /**
+             * Contact Email Source
+             * @description Procedencia del correo: 'user' (lo cargó una persona) | 'sii'. `null` exactamente cuando `contact_email` es `null`.
+             */
+            contact_email_source?: string | null;
+            /** Contact Email Updated At */
+            contact_email_updated_at?: string | null;
+        };
         /** CounterpartySuggestion */
         CounterpartySuggestion: {
             /** Rut */
@@ -9368,6 +9492,44 @@ export interface components {
              * Format: date-time
              */
             generated_at: string;
+        };
+        /** DecisionSelectionRequest */
+        DecisionSelectionRequest: {
+            /**
+             * Alternative Id
+             * Format: uuid
+             */
+            alternative_id: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Rationale */
+            rationale: string;
+        };
+        /** DecisionSelectionResponse */
+        DecisionSelectionResponse: {
+            /**
+             * Selection Id
+             * Format: uuid
+             */
+            selection_id: string;
+            /**
+             * Decision Id
+             * Format: uuid
+             */
+            decision_id: string;
+            /**
+             * Alternative Id
+             * Format: uuid
+             */
+            alternative_id: string;
+            /** Operation Required */
+            operation_required: boolean;
+            /** Operation Plan Id */
+            operation_plan_id?: string | null;
+            /** Operation Status */
+            operation_status?: "draft" | null;
+            /** Replayed */
+            replayed: boolean;
         };
         /** DedupRcvRequest */
         DedupRcvRequest: {
@@ -14852,6 +15014,21 @@ export interface components {
              * @description Rol canónico de la membership active (e.g. 'owner', 'admin').
              */
             role: string;
+        };
+        /**
+         * SetCounterpartyContactEmailRequest
+         * @description Body de `PUT /api/treasury/counterparties/{key}/contact-email`.
+         *
+         *     `contact_email` es **requerido y nullable**, a propósito: `null` borra el correo (vuelve
+         *     al "no sé") y omitirlo es un 422. En un PATCH parcial "ausente" y "null" se confunden, y
+         *     entonces borrar una dirección equivocada sería indistinguible de no tocar nada.
+         */
+        SetCounterpartyContactEmailRequest: {
+            /**
+             * Contact Email
+             * @description Correo de contacto, o `null` para borrarlo. La cadena vacía es 422.
+             */
+            contact_email: string | null;
         };
         /**
          * SetOpeningBalanceRequest
@@ -20793,6 +20970,119 @@ export interface operations {
             };
         };
     };
+    counterparties_list: {
+        parameters: {
+            query?: {
+                /** @description Sólo las contrapartes SIN correo cargado — la pregunta de la pantalla de revisar destinatarios antes de enviar. */
+                only_missing_email?: boolean;
+                /** @description Filtra por 'customer' | 'supplier' | 'both' | 'unknown'. */
+                counterparty_type?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterpartiesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    counterparties_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description `counterparty_key` (UUID) de la contraparte. */
+                counterparty_key: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Counterparty"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    counterparties_set_contact_email: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description `counterparty_key` (UUID) de la contraparte. */
+                counterparty_key: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetCounterpartyContactEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Counterparty"];
+                };
+            };
+            /** @description La contraparte no existe en este tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Correo con forma inválida (la cadena vacía NO es válida). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     currencies_list: {
         parameters: {
             query?: never;
@@ -21655,6 +21945,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LiquidityEvaluationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_select_financial_decision_alternative: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                decision_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionSelectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionSelectionResponse"];
                 };
             };
             /** @description Validation Error */

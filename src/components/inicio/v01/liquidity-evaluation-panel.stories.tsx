@@ -1,14 +1,23 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, within } from "storybook/test";
-import type { LiquidityEvaluation } from "@/lib/api/financial-decisions";
+import { HttpResponse, http } from "msw";
+import { expect, userEvent, waitFor, within } from "storybook/test";
+import type {
+  DecisionSelectionRequest,
+  DecisionSelectionResponse,
+  LiquidityEvaluation,
+} from "@/lib/api/financial-decisions";
 import { LiquidityEvaluationPanel } from "./liquidity-evaluation-panel";
+
+const LINE_ID = "30000000-0000-4000-8000-000000000001";
+const FACTORING_ID = "30000000-0000-4000-8000-000000000002";
+const NO_ACTION_ID = "30000000-0000-4000-8000-000000000003";
 
 const EVALUATION: LiquidityEvaluation = {
   decision_id: "10000000-0000-4000-8000-000000000001",
   status: "evaluated",
   decision_support: "eligible",
   model_version: "fpde-f1",
-  recommended_alternative_id: "line",
+  recommended_alternative_id: LINE_ID,
   scope: {
     legal_entity_id: "20000000-0000-4000-8000-000000000001",
     currency: "CLP",
@@ -24,7 +33,7 @@ const EVALUATION: LiquidityEvaluation = {
   },
   alternatives: [
     {
-      id: "line",
+      id: LINE_ID,
       code: "credit_line:quote-1",
       family: "credit_line",
       rank: 1,
@@ -43,7 +52,7 @@ const EVALUATION: LiquidityEvaluation = {
       },
     },
     {
-      id: "factoring",
+      id: FACTORING_ID,
       code: "factoring:invoice-1",
       family: "factoring",
       rank: 2,
@@ -56,7 +65,7 @@ const EVALUATION: LiquidityEvaluation = {
       cost_status: "unknown",
     },
     {
-      id: "none",
+      id: NO_ACTION_ID,
       code: "no_action",
       family: "no_action",
       rank: 3,
@@ -81,6 +90,80 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function selectionResponse(
+  over: Partial<DecisionSelectionResponse> = {},
+): DecisionSelectionResponse {
+  return {
+    selection_id: "40000000-0000-4000-8000-000000000001",
+    decision_id: EVALUATION.decision_id,
+    alternative_id: LINE_ID,
+    operation_required: true,
+    operation_plan_id: "50000000-0000-4000-8000-000000000001",
+    operation_status: "draft",
+    replayed: false,
+    ...over,
+  };
+}
+
+async function openSelection(canvasElement: HTMLElement, alternative: string, rationale: string) {
+  const canvas = within(canvasElement);
+  await userEvent.click(canvas.getByRole("button", { name: `Elegir ${alternative}` }));
+  const alternativeId =
+    alternative === "No financiar"
+      ? NO_ACTION_ID
+      : alternative === "Factorizar factura completa"
+        ? FACTORING_ID
+        : LINE_ID;
+  /* Base UI conserva portales `data-closed` durante su salida. El role global puede capturar
+     uno residual de la story anterior; el contrato de esta prueba es el popup de ESTA
+     alternativa que ya está `data-open`. */
+  const dialog = await waitFor(() => {
+    const active = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        `[role="dialog"][data-selection-dialog="${alternativeId}"][data-open]`,
+      ),
+    );
+    expect(active).toHaveLength(1);
+    return active[0]!;
+  });
+  const input = within(dialog).getByLabelText("Motivo de tu decisión");
+  await userEvent.type(input, rationale);
+  return { canvas, dialog, input };
+}
+
+async function submit(dialog: HTMLElement) {
+  await userEvent.click(within(dialog).getByRole("button", { name: "Confirmar selección" }));
+}
+
+async function closeDialog(dialog: HTMLElement) {
+  await userEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+  await waitFor(() => expect(dialog).not.toHaveAttribute("data-open"));
+}
+
+const errorRequests: Partial<Record<401 | 403 | 409 | 422, DecisionSelectionRequest[]>> = {};
+
+async function expectErrorWithoutSuccess(
+  canvasElement: HTMLElement,
+  status: 401 | 403 | 409 | 422,
+  expected: RegExp,
+) {
+  errorRequests[status] = [];
+  const { canvas, dialog } = await openSelection(
+    canvasElement,
+    "Usar línea de crédito",
+    "Motivo verificable",
+  );
+  await submit(dialog);
+  await waitFor(() => expect(within(dialog).getByRole("alert")).toHaveTextContent(expected));
+  await expect(errorRequests[status]).toHaveLength(1);
+  await expect(errorRequests[status]?.[0]).toMatchObject({
+    alternative_id: LINE_ID,
+    rationale: "Motivo verificable",
+  });
+  await expect(canvas.queryByRole("status")).not.toBeInTheDocument();
+  await closeDialog(dialog);
+}
+
 export const Comparable: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -98,13 +181,207 @@ export const Comparable: Story = {
   },
 };
 
+export const SeleccionOwner: Story = {
+  args: { canSelect: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("button", { name: "Elegir Usar línea de crédito" }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Elegir Factorizar factura completa" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Elegir No financiar" })).toBeInTheDocument();
+    const { dialog } = await openSelection(
+      canvasElement,
+      "Usar línea de crédito",
+      "Motivo de prueba",
+    );
+    await expect(within(dialog).getByText("Elegir Usar línea de crédito")).toBeInTheDocument();
+    await expect(
+      within(dialog).getByText(/no solicita ni ejecuta financiamiento/i),
+    ).toBeInTheDocument();
+    await closeDialog(dialog);
+  },
+};
+
+let retryBodies: DecisionSelectionRequest[] = [];
+const RETRY_THEN_SUCCESS = http.post(
+  "*/api/treasury/decisions/:decisionId/selection",
+  async ({ request }) => {
+    retryBodies.push((await request.json()) as DecisionSelectionRequest);
+    if (retryBodies.length === 1) return HttpResponse.error();
+    return HttpResponse.json(selectionResponse());
+  },
+);
+
+/** Monta directamente V01 para el test de browser; no cambia `hoyV01` en producción. */
+export const RetryIdempotenteYExito: Story = {
+  args: { canSelect: true },
+  parameters: { msw: { handlers: [RETRY_THEN_SUCCESS] } },
+  play: async ({ canvasElement }) => {
+    retryBodies = [];
+    const { canvas, dialog } = await openSelection(
+      canvasElement,
+      "Usar línea de crédito",
+      "Protege el vencimiento con términos verificados",
+    );
+
+    await submit(dialog);
+    await waitFor(() =>
+      expect(within(dialog).getByRole("alert")).toHaveTextContent(
+        /No pudimos confirmar si la selección se registró/,
+      ),
+    );
+    await expect(canvas.queryByRole("status")).not.toBeInTheDocument();
+
+    await submit(dialog);
+    const status = await canvas.findByRole("status");
+    await expect(status).toHaveTextContent(/plan operativo en borrador/i);
+    await expect(status).toHaveTextContent(/estado draft/i);
+    await expect(document.activeElement).toBe(status);
+    await expect(retryBodies).toHaveLength(2);
+    await expect(retryBodies[0]).toEqual({
+      alternative_id: LINE_ID,
+      idempotency_key: retryBodies[0]?.idempotency_key,
+      rationale: "Protege el vencimiento con términos verificados",
+    });
+    await expect(retryBodies[1]?.idempotency_key).toBe(retryBodies[0]?.idempotency_key);
+  },
+};
+
+let changedIntentBodies: DecisionSelectionRequest[] = [];
+const CHANGE_INTENT = http.post(
+  "*/api/treasury/decisions/:decisionId/selection",
+  async ({ request }) => {
+    changedIntentBodies.push((await request.json()) as DecisionSelectionRequest);
+    if (changedIntentBodies.length === 1) return HttpResponse.error();
+    return HttpResponse.json(selectionResponse());
+  },
+);
+
+export const MotivoCambiadoUsaNuevaKey: Story = {
+  args: { canSelect: true },
+  parameters: { msw: { handlers: [CHANGE_INTENT] } },
+  play: async ({ canvasElement }) => {
+    changedIntentBodies = [];
+    const { canvas, dialog, input } = await openSelection(
+      canvasElement,
+      "Usar línea de crédito",
+      "Primer motivo",
+    );
+    await submit(dialog);
+    await waitFor(() => expect(within(dialog).getByRole("alert")).toBeInTheDocument());
+
+    await userEvent.clear(input);
+    await userEvent.type(input, "Motivo corregido");
+    await submit(dialog);
+    await canvas.findByRole("status");
+    await expect(changedIntentBodies).toHaveLength(2);
+    await expect(changedIntentBodies[1]?.rationale).toBe("Motivo corregido");
+    await expect(changedIntentBodies[1]?.idempotency_key).not.toBe(
+      changedIntentBodies[0]?.idempotency_key,
+    );
+  },
+};
+
+let noActionBodies: DecisionSelectionRequest[] = [];
+const NO_ACTION = http.post(
+  "*/api/treasury/decisions/:decisionId/selection",
+  async ({ request }) => {
+    noActionBodies.push((await request.json()) as DecisionSelectionRequest);
+    return HttpResponse.json(
+      selectionResponse({
+        alternative_id: NO_ACTION_ID,
+        operation_required: false,
+        operation_plan_id: null,
+        operation_status: null,
+      }),
+    );
+  },
+);
+
+export const NoActionSinPlan: Story = {
+  args: { canSelect: true },
+  parameters: { msw: { handlers: [NO_ACTION] } },
+  play: async ({ canvasElement }) => {
+    noActionBodies = [];
+    const { canvas, dialog } = await openSelection(
+      canvasElement,
+      "No financiar",
+      "La caja se recupera sin financiamiento",
+    );
+    await submit(dialog);
+    const status = await canvas.findByRole("status");
+    await expect(status).toHaveTextContent(/No requiere un plan operativo/i);
+    await expect(status).toHaveTextContent(/sin OperationPlan/i);
+    await expect(noActionBodies[0]?.alternative_id).toBe(NO_ACTION_ID);
+  },
+};
+
+const REPLAY = http.post("*/api/treasury/decisions/:decisionId/selection", () =>
+  HttpResponse.json(selectionResponse({ replayed: true })),
+);
+
+export const ReplayNoDuplica: Story = {
+  args: { canSelect: true },
+  parameters: { msw: { handlers: [REPLAY] } },
+  play: async ({ canvasElement }) => {
+    const { canvas, dialog } = await openSelection(
+      canvasElement,
+      "Usar línea de crédito",
+      "Mismo intento anterior",
+    );
+    await submit(dialog);
+    await expect(await canvas.findByRole("status")).toHaveTextContent(
+      "Esta misma selección ya estaba registrada.",
+    );
+  },
+};
+
+function selectionError(status: 401 | 403 | 409 | 422) {
+  return http.post("*/api/treasury/decisions/:decisionId/selection", async ({ request }) => {
+    errorRequests[status]?.push((await request.json()) as DecisionSelectionRequest);
+    return HttpResponse.json(
+      { detail: { code: "selection_rejected", detail: "rejected" } },
+      { status },
+    );
+  });
+}
+
+export const Error401NoConfirma: Story = {
+  args: { canSelect: true },
+  parameters: { msw: { handlers: [selectionError(401)] } },
+  play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 401, /sesión venció/i),
+};
+
+export const Error403NoConfirma: Story = {
+  args: { canSelect: true },
+  parameters: { msw: { handlers: [selectionError(403)] } },
+  play: ({ canvasElement }) =>
+    expectErrorWithoutSuccess(canvasElement, 403, /rol no está autorizado/i),
+};
+
+export const Error409NoConfirma: Story = {
+  args: { canSelect: true },
+  parameters: { msw: { handlers: [selectionError(409)] } },
+  play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 409, /decisión cambió/i),
+};
+
+export const Error422NoConfirma: Story = {
+  args: { canSelect: true },
+  parameters: { msw: { handlers: [selectionError(422)] } },
+  play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 422, /ya no cumple/i),
+};
+
 export const Abstencion: Story = {
-  args: { evaluation: { ...EVALUATION, decision_support: "abstain" } },
+  args: { evaluation: { ...EVALUATION, decision_support: "abstain" }, canSelect: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Qavante se abstuvo de recomendar")).toBeInTheDocument();
     await expect(canvas.getByText(/No se asumieron tasas, costos ni montos/)).toBeInTheDocument();
     await expect(canvas.queryByText("Mejor alternativa evaluada")).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /^Elegir / })).not.toBeInTheDocument();
   },
 };
 
@@ -121,6 +398,7 @@ export const SinEvaluacion: Story = {
 
 export const Vencida: Story = {
   args: {
+    canSelect: true,
     evaluation: {
       ...EVALUATION,
       scope: { ...EVALUATION.scope, valid_until: "2026-08-30T09:00:00Z" },
@@ -133,5 +411,6 @@ export const Vencida: Story = {
     ).toBeInTheDocument();
     await expect(canvas.queryByText("Mejor alternativa evaluada")).not.toBeInTheDocument();
     await expect(canvas.getByText(/no usar para decidir/i)).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /^Elegir / })).not.toBeInTheDocument();
   },
 };

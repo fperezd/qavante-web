@@ -52,6 +52,8 @@ export interface HoyViewProps {
   liquidityEvaluation?: LiquidityEvaluation | null;
   liquidityLoading?: boolean;
   liquidityFailed?: boolean;
+  /** Sólo gobierna la visibilidad; la autorización real vive en el endpoint. */
+  canSelectLiquidity?: boolean;
 }
 
 /* Tono del titular. `sin_dato` es NEUTRO y no rojo: "no sabemos" no es "está mal". */
@@ -86,6 +88,7 @@ export function HoyView({
   liquidityEvaluation = null,
   liquidityLoading = false,
   liquidityFailed = false,
+  canSelectLiquidity = false,
 }: HoyViewProps) {
   const caja = cajaHoy(data);
   const crumb = crumbHoy(empresa, caja, hoy);
@@ -155,14 +158,15 @@ export function HoyView({
         </div>
       </section>
 
-      {/* Evaluación F1 persistida: forma parte de Hoy y no abre un dashboard paralelo. La API es
-          read-only, por eso esta sección explica y compara pero no ofrece CTAs de ejecución. */}
+      {/* Evaluación F1 persistida: forma parte de Hoy y no abre un dashboard paralelo. F2 permite
+          a owner/admin registrar el visto bueno; el CTA no aprueba ni ejecuta el plan operativo. */}
       {(!v.soloDecisionCritica || liquidityPending > 0) && (
         <LiquidityEvaluationPanel
           evaluation={liquidityEvaluation}
           loading={liquidityLoading}
           failed={liquidityFailed}
           now={hoy}
+          canSelect={canSelectLiquidity}
         />
       )}
 

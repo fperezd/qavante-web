@@ -7,6 +7,8 @@ export interface LiquidityAlternativeView {
   id: string;
   title: string;
   position: number | null;
+  isNoAction: boolean;
+  selectable: boolean;
   recommended: boolean;
   rejected: boolean;
   explanation: string | null;
@@ -105,6 +107,8 @@ export function liquidityEvaluationView(
         id: alternative.id,
         title: alternativeTitle(alternative.code, alternative.family, alternative.is_no_action),
         position: alternative.rank ?? null,
+        isNoAction: alternative.is_no_action,
+        selectable: alternative.rank != null && !alternative.is_rejected,
         recommended: value.recommended_alternative_id === alternative.id,
         rejected: alternative.is_rejected,
         explanation: explanationLabel(alternative.explanation),

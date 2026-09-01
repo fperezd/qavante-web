@@ -1,14 +1,21 @@
+"use client";
+
+import * as React from "react";
 import { CheckCircle2, Clock, HelpCircle, ShieldCheck } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
-import type { LiquidityEvaluation } from "@/lib/api/financial-decisions";
+import type { DecisionSelectionResponse, LiquidityEvaluation } from "@/lib/api/financial-decisions";
 import { cn } from "@/lib/utils";
 import { liquidityEvaluationView } from "./liquidity-evaluation-model";
+import { LiquiditySelectionDialog } from "./liquidity-selection-dialog";
+import { selectionSuccessMessage } from "./liquidity-selection-model";
 
 export interface LiquidityEvaluationPanelProps {
   evaluation: LiquidityEvaluation | null;
   loading?: boolean;
   failed?: boolean;
   now?: Date;
+  /** Ayuda visual; el backend vuelve a autorizar owner/admin al registrar la selección. */
+  canSelect?: boolean;
 }
 
 export function LiquidityEvaluationPanel({
@@ -16,7 +23,17 @@ export function LiquidityEvaluationPanel({
   loading = false,
   failed = false,
   now,
+  canSelect = false,
 }: LiquidityEvaluationPanelProps) {
+  const confirmationRef = React.useRef<HTMLDivElement>(null);
+  const [selectionResult, setSelectionResult] = React.useState<DecisionSelectionResponse | null>(
+    null,
+  );
+  const currentSelection =
+    selectionResult?.decision_id === evaluation?.decision_id ? selectionResult : null;
+  React.useEffect(() => {
+    if (currentSelection) confirmationRef.current?.focus();
+  }, [currentSelection]);
   if (loading) {
     return (
       <section aria-label="Evaluación de liquidez" className="space-y-2">
@@ -65,7 +82,7 @@ export function LiquidityEvaluationPanel({
   }
 
   const view = liquidityEvaluationView(evaluation, now);
-  const usable = view.decisionSupport === "eligible" && view.valid;
+  const usable = view.decisionSupport === "eligible" && view.status === "evaluated" && view.valid;
 
   return (
     <section aria-labelledby="liquidity-evaluation-title" className="space-y-3">
@@ -91,6 +108,31 @@ export function LiquidityEvaluationPanel({
           {view.validityLabel}
         </span>
       </div>
+
+      {currentSelection && (
+        <QavanteCard variant="bordered" className="border-success-500/40 bg-success-50">
+          <div
+            ref={confirmationRef}
+            role="status"
+            aria-live="polite"
+            tabIndex={-1}
+            className="flex items-start gap-3 outline-none focus-visible:ring-2 focus-visible:ring-success-500"
+          >
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success-700" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="font-semibold text-success-700">
+                {selectionSuccessMessage(currentSelection)}
+              </p>
+              <p className="mt-1 break-all text-xs text-neutral-mid">
+                Selección: {currentSelection.selection_id}
+                {currentSelection.operation_plan_id
+                  ? ` · OperationPlan: ${currentSelection.operation_plan_id} · estado ${currentSelection.operation_status ?? "sin estado"}`
+                  : " · sin OperationPlan"}
+              </p>
+            </div>
+          </div>
+        </QavanteCard>
+      )}
 
       {view.decisionSupport === "abstain" ? (
         <QavanteCard variant="bordered">
@@ -146,6 +188,17 @@ export function LiquidityEvaluationPanel({
                     </p>
                     {alternative.evidenceLabel && (
                       <p className="mt-0.5 text-xs text-neutral-mid">{alternative.evidenceLabel}</p>
+                    )}
+                    {canSelect && usable && alternative.selectable && !currentSelection && (
+                      <div className="mt-3">
+                        <LiquiditySelectionDialog
+                          decisionId={evaluation.decision_id}
+                          alternativeId={alternative.id}
+                          alternativeTitle={alternative.title}
+                          isNoAction={alternative.isNoAction}
+                          onSelected={setSelectionResult}
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
