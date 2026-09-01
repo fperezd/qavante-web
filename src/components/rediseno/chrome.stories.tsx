@@ -48,7 +48,15 @@ export const EstadoActivoYBadges: Story = {
     await expect(hoy).not.toHaveAttribute("aria-current", "page");
 
     await expect(canvas.getByText("Bandeja · 3")).toBeVisible();
-    await expect(canvas.getByLabelText("1 alertas críticas")).toBeVisible();
+    await expect(canvas.getByLabelText("1 alerta crítica")).toBeVisible();
+  },
+};
+
+/** Gemelo plural del estado de una alerta: evita que un arreglo sólo para N=1 fije el plural. */
+export const DosAlertasCriticas: Story = {
+  args: { criticalAlertCount: 2 },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByLabelText("2 alertas críticas")).toBeVisible();
   },
 };
 

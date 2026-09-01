@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { concordar, formatCount } from "@/lib/formatters/count";
 
 /* Chrome/nav superior — ESPECIFICACION.md §1.3 "Chrome/nav superior" (`.chrome`).
  * Fija. Items: Hoy · Caja · Banco · Cobrar · Pagar · Impuestos · Gestión ·
@@ -84,7 +85,11 @@ export function Chrome({
         </a>
         <a
           href="/alertas"
-          aria-label={`${criticalAlertCount} alertas críticas`}
+          aria-label={`${formatCount(criticalAlertCount)} ${concordar(
+            criticalAlertCount,
+            "alerta crítica",
+            "alertas críticas",
+          )}`}
           className={cn(
             "rounded-full px-[11px] py-1 text-[11.5px] font-bold",
             criticalAlertCount > 0

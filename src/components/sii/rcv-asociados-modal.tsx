@@ -4,12 +4,18 @@ import * as React from "react";
 import { X } from "lucide-react";
 import { QavanteBadge } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
+import { concordar, formatCount } from "@/lib/formatters/count";
 import { formatDateLike } from "@/lib/formatters/date";
 import { tipoDocMeta } from "./tipo-doc";
 import type { AnulableDoc, FacturaRow } from "./rcv-anuladas";
 
 function mag(v: number | undefined): number {
   return typeof v === "number" && Number.isFinite(v) ? Math.abs(v) : 0;
+}
+
+/** Texto de sobre-crédito con concordancia real: una sola NC también puede superar la factura. */
+export function notasSobreCreditoLabel(n: number): string {
+  return `${concordar(n, "la", "las")} ${formatCount(n)} ${concordar(n, "nota", "notas")} de crédito`;
 }
 
 /* Modal "Documentos asociados" — muestra una factura anulada/parcial junto con
@@ -65,7 +71,7 @@ export function RcvAsociadosModal({
         <div className="p-5">
           {row.sobreCredito && (
             <p className="mb-3 rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-500">
-              <strong>Revisar:</strong> las {row.notas.length} notas de crédito (
+              <strong>Revisar:</strong> {notasSobreCreditoLabel(row.notas.length)} (
               {formatClp(ncTotal)}) superan el monto de la factura ({formatClp(facturaTotal)}).
               Suele ser un error de referencia en el SII (varias NC apuntando al mismo folio). La
               factura se considera anulada; el exceso conviene revisarlo con tu contador.

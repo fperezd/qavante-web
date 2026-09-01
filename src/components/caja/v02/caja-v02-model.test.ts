@@ -341,10 +341,21 @@ describe("exclusiones — lo que la proyección deja afuera, con conteo", () => 
     expect(exclusiones(null)).toEqual([]);
   });
 
-  it("singular: 1 documento", () => {
-    expect(exclusiones(proyeccion({ por_cobrar_vencido: { total: "1000", n: 1 } }))[0]).toBe(
+  it("singular: 1 documento y 1 obligación", () => {
+    expect(
+      exclusiones(
+        proyeccion({
+          por_cobrar_vencido: { total: "1000", n: 1 },
+          fuentes: {
+            saldo_synced_at: "2026-08-30T08:12:00Z",
+            calidad_fechas: { con_fecha_real: 0, items_totales: 1 },
+          },
+        }),
+      ),
+    ).toEqual([
       "No cuenta $1.000 por cobrar vencidos o sin fecha (1 documento)",
-    );
+      "1 de 1 obligación va con fecha estimada, no real (0% con fecha real)",
+    ]);
   });
 });
 

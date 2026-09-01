@@ -102,4 +102,10 @@ describe("titular — sano, sin cifra (no pasa por concordancia)", () => {
     const r = titular({ ...BASE, estado: "sano" }, 0);
     expect(r.headline).toBe("Te alcanza de sobra");
   });
+
+  it("horizonteDias=1: el detalle también usa singular", () => {
+    const r = titular({ ...BASE, estado: "sano", horizonteDias: 1 }, 0);
+    expect(r.detalle).toBe("No bajas de tu caja mínima en los próximos 1 día.");
+    expect(r.detalle).not.toContain("1 días");
+  });
 });

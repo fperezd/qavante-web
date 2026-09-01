@@ -9,6 +9,7 @@ import {
   pagosDegradados,
   pagosSoloImpuestosYSueldos,
   pagosVacio,
+  KENNEDY,
 } from "./pagar-v05-fixtures";
 
 /* V05 · Pagar — la vista, renderizada de verdad (react-dom/server, sin browser).
@@ -50,6 +51,13 @@ describe("PagarV05View — tríada (caso normal)", () => {
     expect(t).toContain("3 pagos · el más antiguo, 545 días");
     // El HTML de referencia pinta este KPI rojo; la spec (Ley 2) manda: acá va en tinta.
     expect(h).not.toMatch(/class="[^"]*rediseno-rojo[^"]*"[^>]*>\s*\$8\.729\.650/);
+  });
+
+  it("Vencido singular: 1 pago, el más antiguo hace 1 día", () => {
+    const t = texto(html({ pagos: pagos({ items: [{ ...KENNEDY, due_date: "2026-08-29" }] }) }));
+    expect(t).toContain("1 pago · el más antiguo, 1 día");
+    expect(t).not.toContain("1 pagos");
+    expect(t).not.toContain("1 días");
   });
 
   it("Por pagar · 14 días es el número del BACKEND, no la suma de la tabla", () => {

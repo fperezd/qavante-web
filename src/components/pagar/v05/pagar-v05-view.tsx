@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { rovingIndex } from "@/lib/a11y/roving";
 import type { AccountsPayableResponse } from "@/lib/api/pagos";
 import { formatClp } from "@/lib/formatters/clp";
+import { concordar, formatCount, formatDays } from "@/lib/formatters/count";
 import { Banner } from "@/components/rediseno/banner";
 import { DataState } from "@/components/rediseno/data-state";
 import { FilterChips } from "@/components/rediseno/filter-chip";
@@ -151,8 +152,8 @@ export function PagarV05View({
             <>
               {vencido.n > 0 ? (
                 <>
-                  {vencido.n} {vencido.n === 1 ? "pago" : "pagos"} · el más antiguo,{" "}
-                  {vencido.masAntiguoDias} días
+                  {formatCount(vencido.n)} {concordar(vencido.n, "pago", "pagos")} · el más antiguo,{" "}
+                  {formatDays(vencido.masAntiguoDias!)}
                   {vencido.noPostergable > 0 &&
                     ` · ${formatClp(vencido.noPostergable)} no se posterga`}
                   {vencido.sinConvertir > 0 &&

@@ -30,6 +30,7 @@ import type { AccountsPayableResponse, PayableItem } from "@/lib/api/pagos";
 import type { CajaHoy } from "@/lib/finanzas/caja-hoy";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 import { formatClp } from "@/lib/formatters/clp";
+import { concordar } from "@/lib/formatters/count";
 import { formatPct } from "@/lib/formatters/pct";
 import {
   formatDateLong,
@@ -368,7 +369,11 @@ export function exclusiones(p: CashProjectionResponse | null | undefined): strin
     const estimadas = cf.items_totales - Math.round(cf.con_fecha_real * cf.items_totales);
     if (estimadas > 0) {
       out.push(
-        `${estimadas} de ${cf.items_totales} obligaciones van con fecha estimada, no real (${pct} con fecha real)`,
+        `${estimadas} de ${cf.items_totales} ${concordar(
+          estimadas,
+          "obligación va",
+          "obligaciones van",
+        )} con fecha estimada, no real (${pct} con fecha real)`,
       );
     }
   }

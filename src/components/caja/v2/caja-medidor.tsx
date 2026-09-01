@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { concordar } from "@/lib/formatters/count";
+import { concordar, formatDays } from "@/lib/formatters/count";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { type DiasCaja, type EstadoCaja } from "./caja-dias-model";
@@ -181,7 +181,7 @@ export function titular(m: DiasCaja, ref: number): { headline: string; detalle: 
   // El monto del piso vive UNA vez, en la cifra "Piso proyectado" de abajo → acá solo el cuándo.
   const detalle = pisoBajo
     ? `Toca su punto más bajo en ${dLabel(m.piso!.dia)}${recup}.`
-    : `No bajas de tu caja mínima en los próximos ${Math.round(m.horizonteDias)} días.`;
+    : `No bajas de tu caja mínima en los próximos ${formatDays(m.horizonteDias)}.`;
 
   if (m.estado === "critico") {
     if (m.saldoHoy < 0) return { headline: "Tu caja está en rojo hoy", detalle };
