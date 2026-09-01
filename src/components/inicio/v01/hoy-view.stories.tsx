@@ -4,6 +4,7 @@ import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
 import { formatClp } from "@/lib/formatters/clp";
 import { saldoCajaHoy } from "@/lib/finanzas/caja-hoy";
 import { HoyView } from "./hoy-view";
+import { instrumentDecisionStoryLayer } from "./instrument-decision.fixtures";
 
 /* V01 · Hoy — la portada del rediseño, en sus cinco estados.
  *
@@ -129,6 +130,9 @@ export const Sana: Story = {
     await expect(canvas.getByText("hay 2 cosas que necesitan tu OK")).toBeInTheDocument();
     await expect(canvas.getByText("Esperando tu visto bueno")).toBeInTheDocument();
     await expect(canvas.getByText("Cobrar a Kaufmann")).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("heading", { name: "Instrumentos en evaluación" }),
+    ).not.toBeInTheDocument();
     // Ley 2: una pantalla sana no tiene NINGÚN rojo...
     await expect(rojos(canvasElement)).toHaveLength(0);
     // ...y el gemelo positivo, para que ese cero no pase por una query que no casa nunca:
@@ -276,5 +280,25 @@ export const ValueLedgerEnPreparacion: Story = {
     /* El indicador de al lado SÍ trae número: el "Sin dato" del Value Ledger no es un bug de
        render, es la ausencia declarada de un dato que no existe. */
     await expect(canvas.getByText("$9.800.000")).toBeInTheDocument();
+  },
+};
+
+export const CapaComunF3F9Integrada: Story = {
+  name: "F3–F9 — boundary puro integrado en Hoy",
+  args: {
+    data: summary(),
+    decisionLayer: instrumentDecisionStoryLayer(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("heading", { name: "No hay nada que necesite tu OK" }),
+    ).toBeVisible();
+    await expect(canvas.getByRole("heading", { name: "Instrumentos en evaluación" })).toBeVisible();
+    await expect(canvas.getByRole("heading", { name: "Resultado y Value Ledger" })).toBeVisible();
+    await expect(
+      canvas.getByText("Integraciones externas deshabilitadas · sin envío ni ejecución"),
+    ).toBeVisible();
+    await expect(canvas.queryByRole("button")).not.toBeInTheDocument();
   },
 };

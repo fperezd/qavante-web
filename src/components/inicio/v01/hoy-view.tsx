@@ -18,6 +18,8 @@ import {
 } from "./hoy-model";
 import { LiquidityEvaluationPanel } from "./liquidity-evaluation-panel";
 import { liquidityEvaluationView } from "./liquidity-evaluation-model";
+import { InstrumentDecisionPanel } from "./instrument-decision-panel";
+import type { DecisionLayerView } from "./instrument-decision-model";
 
 /* V01 · Hoy — "¿cómo está mi empresa y qué necesita mi OK?" (rediseño Fase 2, issue #62).
  *
@@ -58,6 +60,11 @@ export interface HoyViewProps {
   operationPlanLoading?: boolean;
   operationPlanError?: unknown;
   onRetryOperationPlan?: () => void;
+  /**
+   * Boundary puro F3–F9. HoyLive no lo construye mientras no existan readers públicos estables;
+   * sólo permite integrar componentes contractuales sin introducir fetches ficticios.
+   */
+  decisionLayer?: DecisionLayerView | null;
 }
 
 /* Tono del titular. `sin_dato` es NEUTRO y no rojo: "no sabemos" no es "está mal". */
@@ -97,6 +104,7 @@ export function HoyView({
   operationPlanLoading = false,
   operationPlanError = null,
   onRetryOperationPlan,
+  decisionLayer = null,
 }: HoyViewProps) {
   const caja = cajaHoy(data);
   const crumb = crumbHoy(empresa, caja, hoy);
@@ -181,6 +189,10 @@ export function HoyView({
           onRetryOperationPlan={onRetryOperationPlan}
         />
       )}
+
+      {/* F3–F9 comparte la jerarquía de Hoy, pero sólo recibe un view-model inyectado. En runtime
+          permanece ausente hasta que cada vertical publique su reader; hoyV01 sigue apagado. */}
+      {!v.soloDecisionCritica && decisionLayer && <InstrumentDecisionPanel layer={decisionLayer} />}
 
       {/* (4) "Esperando tu visto bueno". Las acciones del dashboard son el fallback de los casos
           que aún no resuelve el Decision OS. Una evaluación F1 vigente consume uno de los tres
