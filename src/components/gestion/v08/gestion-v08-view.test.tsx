@@ -164,6 +164,19 @@ describe("pivote del Resultado", () => {
 });
 
 describe("MUTANTE (d) · footer del pivote", () => {
+  it("el export del pivote espera al CSV nativo y declara su estado", () => {
+    const h = html({ exportandoPivote: true });
+    expect(h).toContain('disabled=""');
+    expect(texto(h)).toContain("Preparando CSV…");
+    expect(texto(html())).toContain("Exportar CSV");
+  });
+
+  it("si el export falla, explica qué fuente no respondió", () => {
+    const t = texto(html({ errorExportPivote: "El export no respondió." }));
+    expect(t).toContain("El export no respondió.");
+    expect(texto(html())).not.toContain("El export no respondió.");
+  });
+
   it("con el conteo del motor dice cuántas excepciones quedan fuera", () => {
     const t = texto(html());
     expect(t).toContain("no incluye 3 excepciones");

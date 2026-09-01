@@ -66,6 +66,19 @@ export const gestionKeys = {
     [...gestionKeys.all, "operational-result-al-dia", period, hastaDia] as const,
 };
 
+/** `GET /api/management/operational-result/export` — descarga el MISMO pivote
+ * mensualizado que muestra Gestión. El contrato sólo publica CSV: no se llama
+ * XLS a un CSV ni se reconstruye el archivo desde el árbol ya renderizado. */
+export function operationalResultExportCsvPath(periodFrom: string, periodTo: string): string {
+  return `/api/management/operational-result/export?period_from=${encodeURIComponent(
+    periodFrom,
+  )}&period_to=${encodeURIComponent(periodTo)}&format=csv&include_proforma=true`;
+}
+
+export function exportOperationalResultCsv(periodFrom: string, periodTo: string): Promise<string> {
+  return api.get<string>(operationalResultExportCsvPath(periodFrom, periodTo));
+}
+
 /** `GET /api/management/operational-result?period=YYYY-MM` — un mes (desglose
  *  fino + drivers). Solo corre con `period` no vacío. NO retry. */
 export function useOperationalResult(period: string) {

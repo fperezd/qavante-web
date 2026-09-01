@@ -9,6 +9,7 @@ import {
   useOperationalResultAlDia,
   useOperationalResultBreakdown,
   useOperationalResultDocuments,
+  exportOperationalResultCsv,
 } from "@/lib/api/gestion";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import type { PeriodRange } from "@/lib/period/period-range";
@@ -34,10 +35,10 @@ import { GestionV08View, type DrillAbierto } from "./gestion-v08-view";
  * `destinoRutaVieja`) y para que el enlace sea compartible. Se navega con `replace` para no llenar
  * el historial con seis entradas por sesión.
  *
- * LAS TRES FUENTES QUE LA SPEC MARCA 🔧, medidas contra el contrato del 2026-08-30:
+ * LAS TRES FUENTES QUE LA SPEC MARCA 🔧, medidas contra el contrato vigente:
  *   · drill-down monto → documentos: EXISTE (`/operational-result/documents?period&account`).
  *   · corte al día del comparativo: EXISTE (`/operational-result/al-dia?period&hasta_dia`).
- *   · export xls: NO existe. Se exporta CSV desde el front (exacto sobre lo mostrado) y se dice.
+ *   · export del pivote: EXISTE como CSV real. No se rotula XLS a un CSV.
  */
 
 /** Meses del pivote (spec §V08: "pivote May/Jun/Jul"). */
@@ -57,6 +58,8 @@ export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
 
   const [hoy] = React.useState(() => new Date());
   const [drill, setDrill] = React.useState<DrillAbierto | null>(null);
+  const [exportando, setExportando] = React.useState(false);
+  const [errorExport, setErrorExport] = React.useState<string | null>(null);
 
   const cambiarTab = React.useCallback(
     (t: TabV08) => {
@@ -100,6 +103,19 @@ export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
     drill?.account ?? "",
     drill != null,
   );
+
+  const exportarPivote = React.useCallback(async () => {
+    setExportando(true);
+    setErrorExport(null);
+    try {
+      const csv = await exportOperationalResultCsv(desdePivote, periodo);
+      descargarCsv(`resultado-operacional_${desdePivote}_${periodo}.csv`, csv);
+    } catch (error) {
+      setErrorExport(motivo(error, "el export de tu Estado de Resultados"));
+    } finally {
+      setExportando(false);
+    }
+  }, [desdePivote, periodo]);
 
   const ventas = useMaestroDocs("ventas", tab === "clientes", rango360);
   const compras = useMaestroDocs("compras", tab === "proveedores", rango360);
@@ -147,8 +163,23 @@ export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
       onReintentar={recargar}
       hoy={hoy}
       issueSucesor={issueSucesor}
+      onExportarPivote={exportarPivote}
+      exportandoPivote={exportando}
+      errorExportPivote={errorExport}
     />
   );
+}
+
+/** El backend ya entrega BOM UTF-8; no se agrega otro al bajar el archivo nativo. */
+function descargarCsv(nombre: string, contenido: string) {
+  if (typeof document === "undefined") return;
+  const blob = new Blob([contenido], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombre;
+  enlace.click();
+  URL.revokeObjectURL(url);
 }
 
 /** Por qué no llegó, en lenguaje de dueño (§5.4: un error siempre dice su causa). */

@@ -37,7 +37,6 @@ import {
   csv360,
   csvComparativo,
   csvCostos,
-  csvPivote,
   equilibrioResumen,
   excepcionesFooter,
   filasPivote,
@@ -95,8 +94,8 @@ import {
  * empujaba la columna a 438 px. Los dos están arreglados; los dos vuelven a romper el test si se
  * revierten.
  *
- * HUECOS DECLARADOS — el export xls no existe en el backend: se exporta CSV, que es exacto sobre lo
- * mostrado, y se anuncia por su nombre. "Días promedio en pagar" del 360 conserva su "en
+ * HUECOS DECLARADOS — el backend entrega el pivote como CSV real, que la pantalla anuncia por su
+ * nombre. "Días promedio en pagar" del 360 conserva su "en
  * preparación" honesto. */
 
 export interface GestionV08ViewProps {
@@ -131,6 +130,10 @@ export interface GestionV08ViewProps {
   /** Por qué no llegó cada fuente, en lenguaje de dueño. */
   motivos?: Partial<Record<"resultado" | "comparativo" | "ciclo" | "contrapartes", string>>;
   onReintentar?: () => void;
+  /** Export nativo: el backend entrega el mismo pivote como CSV UTF-8 con BOM. */
+  onExportarPivote?: () => Promise<void>;
+  exportandoPivote?: boolean;
+  errorExportPivote?: string | null;
   hoy?: Date;
   issueSucesor?: string;
 }
@@ -236,6 +239,9 @@ function TabResultado({
   onDrill,
   motivos,
   onReintentar,
+  onExportarPivote,
+  exportandoPivote = false,
+  errorExportPivote,
   issueSucesor,
 }: GestionV08ViewProps & { hoy: Date }) {
   if (!breakdown) {
@@ -341,6 +347,9 @@ function TabResultado({
         onDrill={onDrill}
         rojoDrill={rojo === "drill"}
         excepciones={excepciones}
+        onExportarPivote={onExportarPivote}
+        exportandoPivote={exportandoPivote}
+        errorExportPivote={errorExportPivote}
       />
 
       <SeccionCostos filas={filas} periodo={ultimoMes} issueSucesor={issueSucesor} />
@@ -370,6 +379,9 @@ interface PivoteProps {
   onDrill?: (d: DrillAbierto | null) => void;
   rojoDrill: boolean;
   excepciones: ReturnType<typeof excepcionesFooter>;
+  onExportarPivote?: () => Promise<void>;
+  exportandoPivote: boolean;
+  errorExportPivote?: string | null;
 }
 
 const TD = "px-2 py-2.5 align-top text-rediseno-tinta-2 sm:px-[18px]";
@@ -386,6 +398,9 @@ function Pivote({
   onDrill,
   rojoDrill,
   excepciones,
+  onExportarPivote,
+  exportandoPivote,
+  errorExportPivote,
 }: PivoteProps) {
   /* Las secciones arrancan ABIERTAS: el pivote existe para ver las cuentas, y el drill-down al
      documento cuelga de ellas. Colapsarlas por defecto escondería el contenido detrás de un clic
@@ -549,11 +564,16 @@ function Pivote({
         <button
           type="button"
           className={LINK}
-          onClick={() => descargarCsv("gestion-resultado.csv", csvPivote(filas, months))}
+          disabled={exportandoPivote}
+          onClick={() => {
+            if (onExportarPivote) void onExportarPivote();
+          }}
         >
           ⬇ Exportar CSV
         </button>
         <span>· devengado, sin IVA ·</span>
+        {exportandoPivote && <span role="status">Preparando CSV…</span>}
+        {errorExportPivote && <span role="status">· {errorExportPivote}</span>}
         <span>
           {excepciones.n == null ? (
             <>

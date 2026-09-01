@@ -386,14 +386,11 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      ENCENDIDO, las ocho sub-rutas viejas redirigen a su tab equivalente (`destinoRutaVieja`); con
      OFF quedan exactamente como están → cero regresión.
 
-     Dos de los tres 🔧 que el issue daba por faltantes SÍ existen y la vista los usa: el drill-down
+     Las tres fuentes que el issue daba por faltantes existen y la vista las usa: el drill-down
      monto→documentos (`/operational-result/documents`) y el corte al día del comparativo
-     (`/operational-result/al-dia`). El tercero, el export a xls, NO existe: mientras tanto la vista
-     baja CSV (exacto sobre lo mostrado) y lo declara.
+     (`/operational-result/al-dia`) y el export nativo CSV del mismo pivote. Se anuncia CSV, no XLS.
 
-     Su endpoint de gating es justamente ese hueco — el único que le falta para estar completa —,
-     igual que en `hoyV01`/`cajaV02`/`bancoV03`/`pagarV05`: FE-first, con issue sucesor. Encender =
-     editar wrangler.toml. */
+     Su endpoint de gating ya existe. Encender = editar wrangler.toml. */
   gestionV08: "/api/management/operational-result/export",
   /* V12 · Administración — el hub como tabla de 8 entradas con estado por fila (ESPECIFICACION
      §V12, issue #75). Reemplaza la grilla de tarjetas de `/administracion` por una tabla; la fila

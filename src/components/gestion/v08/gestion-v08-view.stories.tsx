@@ -182,6 +182,39 @@ export const ResultadoDrillPidePorMontoYMes: Story = {
   },
 };
 
+/* Este clic atraviesa el límite Resultado → Pivote: si `TabResultado` deja de entregar el
+ * callback, el botón queda inerte y esta story cae. La URL/rango del export nativo se fija en
+ * `gestion-export.test.ts`; aquí comprobamos que esa acción llega al control que la persona usa. */
+export const ResultadoExportaCsv: Story = {
+  name: "Resultado · exporta el pivote como CSV",
+  args: { onExportarPivote: fn(async () => {}) },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    await userEvent.click(c.getByRole("button", { name: "⬇ Exportar CSV" }));
+    await expect(args.onExportarPivote).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const ResultadoExportandoCsv: Story = {
+  name: "Resultado · preparando CSV",
+  args: { exportandoPivote: true },
+  play: async ({ canvasElement }) => {
+    const c = within(canvasElement);
+    await expect(c.getByRole("button", { name: "⬇ Exportar CSV" })).toBeDisabled();
+    await expect(c.getByRole("status")).toHaveTextContent("Preparando CSV…");
+  },
+};
+
+export const ResultadoExportCsvConError: Story = {
+  name: "Resultado · el export CSV no respondió",
+  args: { errorExportPivote: "El export no respondió." },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByRole("status")).toHaveTextContent(
+      "El export no respondió.",
+    );
+  },
+};
+
 export const ResultadoDrillDescuadrado: Story = {
   name: "Resultado · el detalle no suma su total",
   args: {
