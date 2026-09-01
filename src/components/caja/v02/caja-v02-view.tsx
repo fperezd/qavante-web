@@ -20,6 +20,7 @@ import { Pill } from "@/components/rediseno/pill";
 import { DataState } from "@/components/rediseno/data-state";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
 import { concordar } from "@/lib/formatters/count";
+import type { PostponeDays } from "@/lib/api/pagos";
 import {
   ITEMS_CAP,
   SEMANAS,
@@ -38,6 +39,7 @@ import {
   type ComoSeCalculaV02,
   type SemanaV02,
 } from "./caja-v02-model";
+import { PostponePayableControl } from "./postpone-payable-control";
 
 /* V02 · Caja — "¿me alcanza la caja?" (rediseño Fase 2, issue #67).
  *
@@ -55,11 +57,9 @@ import {
  * negativo se muestra con su menos tipográfico en tinta (no es un segundo rojo); "vencido" va en
  * ámbar; el "no sé" en gris. Las stories cuentan `rediseno-rojo` + `danger-` sobre el DOM.
  *
- * LO QUE FALTA, dicho acá y no sólo en el PR: "Postergar ▾ (7/15/30 días)" NO se construye.
- * Ningún endpoint edita la fecha estimada de un pago que la proyección lea (`accounts-payable`
- * es GET-only; los términos de pago del front viven en preferencias que el backend de
- * `cash-projection` no consulta). Un botón que no mueve nada es un botón mudo (Ley 6). Cada fila
- * enlaza a Pagar y el hueco queda escrito bajo la tabla, con su issue sucesor. */
+ * POSTERGAR (Ley 4/9): sólo aparece con el `payable_id` publicado por la proyección; nunca se
+ * infiere una identidad desde el texto. Antes del POST hay cinco segundos cancelables (incluido
+ * Escape); impuestos, remuneraciones y causas sin UUID conservan sólo su enlace a Pagar. */
 
 export interface CajaV02ViewProps {
   /** `GET /api/dashboard/summary`. `null` = no llegó. */
@@ -78,8 +78,8 @@ export interface CajaV02ViewProps {
   bancos?: readonly string[];
   /** El saldo falta por un ERROR del dashboard, no porque el banco esté sin conectar. */
   saldoError?: boolean;
-  /** Issue sucesor del hueco "Postergar ▾". */
-  issuePostergar?: string;
+  /** Ejecuta el POST sólo cuando terminó la ventana cancelable. */
+  onPostpone: (payableId: string, days: PostponeDays) => Promise<void>;
   /** Referencia de "hoy". Explícita para tests y stories deterministas. */
   hoy?: Date;
 }
@@ -96,7 +96,7 @@ export function CajaV02View({
   sinClasificar,
   bancos = [],
   saldoError = false,
-  issuePostergar,
+  onPostpone,
   hoy = new Date(),
 }: CajaV02ViewProps) {
   const caja = cajaHoy(summary);
@@ -263,19 +263,15 @@ export function CajaV02View({
           </p>
           {causas.length > 0 && (
             <RedisenoTable
-              columns={COLUMNAS}
+              columns={columnasCausas(onPostpone)}
               data={causas}
               emptyMessage="La proyección no nombra pagos para este punto."
             />
           )}
-          {/* Hueco declarado (ver el encabezado del archivo). */}
           <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-            <b className="font-semibold text-rediseno-tinta-2">
-              Postergar ▾ (7/15/30 días) todavía no está:
-            </b>{" "}
-            no existe cómo mover la fecha estimada que lee la proyección, así que no ponemos un
-            botón que no mueva nada. Mientras, se gestiona desde Pagar
-            {issuePostergar ? ` (${issuePostergar})` : ""}.
+            Postergar mueve la fecha comprometida 7, 15 o 30 días y refresca la proyección. La
+            acción espera cinco segundos para que puedas cancelarla; impuestos, remuneraciones y
+            causas sin identidad segura se gestionan desde Pagar.
           </p>
         </section>
       )}
@@ -433,48 +429,62 @@ const TIPO_LABEL: Record<CausaV02["tipo"], string> = {
   otro: "Egreso",
 };
 
-const COLUMNAS: ColumnDef<CausaV02, unknown>[] = [
-  {
-    accessorKey: "glosa",
-    header: "Pago",
-    meta: { principal: true },
-    cell: ({ row }) => (
-      <TablePrimaryCell
-        value={row.original.glosa}
-        sub={`vence ${row.original.fechaLabel} · ${TIPO_LABEL[row.original.tipo].toLowerCase()}`}
-      />
-    ),
-  },
-  {
-    id: "estado",
-    header: "Estado",
-    enableSorting: false,
-    meta: { hideBelow: "sm" },
-    cell: ({ row }) => {
-      const c = row.original;
-      /* Ley 9: el impuesto no se posterga y se dice. Lo demás: no sabemos si es negociable (el
-         backend no lo manda) y no se pinta "Negociable" por defecto. "Vencido" va en ámbar: es
-         atención, no el rojo de la pantalla. */
-      if (c.tipo === "impuesto") return <Pill variant="mut">No se posterga</Pill>;
-      if (c.tipo === "vencido") return <Pill variant="warn">Vencido</Pill>;
-      return <Pill variant="mut">{TIPO_LABEL[c.tipo]}</Pill>;
+function columnasCausas(
+  onPostpone: (payableId: string, days: PostponeDays) => Promise<void>,
+): ColumnDef<CausaV02, unknown>[] {
+  return [
+    {
+      accessorKey: "glosa",
+      header: "Pago",
+      meta: { principal: true },
+      cell: ({ row }) => (
+        <TablePrimaryCell
+          value={row.original.glosa}
+          sub={`vence ${row.original.fechaLabel} · ${TIPO_LABEL[row.original.tipo].toLowerCase()}`}
+        />
+      ),
     },
-  },
-  {
-    accessorKey: "monto",
-    header: "Monto",
-    meta: { align: "right" },
-    cell: ({ row }) => formatClp(row.original.monto),
-  },
-  {
-    id: "accion",
-    header: "",
-    enableSorting: false,
-    meta: { align: "right" },
-    cell: () => (
-      <Link href="/pagar" className={LINK}>
-        Pagar
-      </Link>
-    ),
-  },
-];
+    {
+      id: "estado",
+      header: "Estado",
+      enableSorting: false,
+      meta: { hideBelow: "sm" },
+      cell: ({ row }) => {
+        const c = row.original;
+        /* Ley 9: la UI excluye impuestos y remuneraciones; el backend valida de nuevo. */
+        if (c.postergable === "no") return <Pill variant="mut">No se posterga</Pill>;
+        if (c.tipo === "vencido") return <Pill variant="warn">Vencido</Pill>;
+        return <Pill variant="mut">{TIPO_LABEL[c.tipo]}</Pill>;
+      },
+    },
+    {
+      accessorKey: "monto",
+      header: "Monto",
+      meta: { align: "right" },
+      cell: ({ row }) => formatClp(row.original.monto),
+    },
+    {
+      id: "accion",
+      header: "",
+      enableSorting: false,
+      meta: { align: "right" },
+      cell: ({ row }) => {
+        const c = row.original;
+        return (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Link href="/pagar" className={LINK}>
+              Pagar
+            </Link>
+            {c.postergable === "si" && c.payableId && (
+              <PostponePayableControl
+                payableId={c.payableId}
+                glosa={c.glosa}
+                onPostpone={onPostpone}
+              />
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+}

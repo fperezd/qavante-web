@@ -8,7 +8,7 @@ import {
   useCollectionForecast,
   useUnclassifiedInRange,
 } from "@/lib/api/treasury";
-import { useAccountsPayable } from "@/lib/api/pagos";
+import { useAccountsPayable, usePostponePayable } from "@/lib/api/pagos";
 import { ApiError } from "@/lib/api/errors";
 import { CajaV02View } from "./caja-v02-view";
 
@@ -43,8 +43,6 @@ export function motivoSinProyeccion(err: unknown): string {
   return "No pudimos traer la proyección ahora. Vuelve a intentar en un momento.";
 }
 
-const ISSUE_POSTERGAR = "#80";
-
 export function CajaV02Live() {
   const [hoy] = React.useState(() => new Date());
   const mesAnterior = periodo(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1));
@@ -56,6 +54,7 @@ export function CajaV02Live() {
   const ap = useAccountsPayable();
   const cuentas = useBankAccounts();
   const sinClasificar = useUnclassifiedInRange(mesAnterior, mesActual);
+  const postergar = usePostponePayable();
 
   if (dash.isLoading || proj.isLoading) return <CargandoCaja />;
 
@@ -71,7 +70,9 @@ export function CajaV02Live() {
       pagos={ap.data ?? null}
       sinClasificar={sinClasificar}
       bancos={bancos}
-      issuePostergar={ISSUE_POSTERGAR}
+      onPostpone={(payableId, days) =>
+        postergar.mutateAsync({ payableId, days }).then(() => undefined)
+      }
       hoy={hoy}
     />
   );

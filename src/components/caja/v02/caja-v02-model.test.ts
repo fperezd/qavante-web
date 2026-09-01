@@ -272,7 +272,13 @@ describe("causasDelPiso — las causas del quiebre del backend, de mayor a menor
       "F29 · IVA agosto",
       "Inmobiliaria Vista Kennedy",
     ]);
-    expect(c[0]).toMatchObject({ monto: -674_473, tipo: "pago", fechaLabel: "7 sep" });
+    expect(c[0]).toMatchObject({
+      monto: -674_473,
+      tipo: "pago",
+      fechaLabel: "7 sep",
+      payableId: "11111111-1111-4111-8111-111111111111",
+      postergable: "si",
+    });
     expect(c[2]).toMatchObject({ tipo: "impuesto", fechaLabel: "12 sep", postergable: "no" });
     expect(c[3]).toMatchObject({ tipo: "vencido" });
   });
@@ -282,13 +288,32 @@ describe("causasDelPiso — las causas del quiebre del backend, de mayor a menor
     expect(c.filter((x) => x.postergable === "no").map((x) => x.glosa)).toEqual([
       "F29 · IVA agosto",
     ]);
-    expect(c.filter((x) => x.postergable === "desconocido")).toHaveLength(3);
+    expect(c.filter((x) => x.postergable === "si")).toHaveLength(3);
   });
 
   it("sin quiebre → sin causas y sin fecha de quiebre", () => {
     expect(causasDelPiso(proyeccion())).toEqual([]);
     expect(fechaQuiebre(proyeccion())).toBeNull();
     expect(fechaQuiebre(PROYECCION_BAJO_CERO)).toBe("7 sep");
+  });
+
+  it("Ley 9: una remuneración y una causa sin UUID no ofrecen Postergar", () => {
+    const p = proyeccion({
+      punto_quiebre: {
+        fecha: "2026-09-08",
+        saldo: "-1",
+        causas: [
+          { glosa: "Proveedor sin identidad", monto: "-10", tipo: "pago" },
+          {
+            glosa: "Remuneraciones agosto",
+            monto: "-20",
+            tipo: "pago",
+            payable_id: "44444444-4444-4444-8444-444444444444",
+          },
+        ],
+      },
+    });
+    expect(causasDelPiso(p).map((c) => c.postergable)).toEqual(["no", "sin_identidad"]);
   });
 
   it("una causa sin fecha propia cae a la del quiebre", () => {

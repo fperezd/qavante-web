@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { dashboardKeys } from "./dashboard";
+import type { components } from "./types";
 
 /* Capa de datos — Pagar / Cuentas por pagar (Sprint C4, Documento Maestro
    §7.4).
@@ -124,6 +126,41 @@ export const pagosKeys = {
   all: ["pagos"] as const,
   accountsPayable: () => [...pagosKeys.all, "accounts-payable"] as const,
 };
+
+/** Los únicos saltos que permite el contrato de Postergar. */
+export type PostponeDays = components["schemas"]["PostponePayableRequest"]["days"];
+export type PostponePayableResponse = components["schemas"]["PostponePayableResponse"];
+
+export interface PostponePayableInput {
+  payableId: string;
+  days: PostponeDays;
+}
+
+/**
+ * `POST /api/treasury/accounts-payable/{payable_id}/postpone`.
+ *
+ * La identidad viene de `cash-projection.punto_quiebre.causas[].payable_id`: nunca se
+ * reconstruye a partir de glosa, monto o fecha. Tras éxito se invalida el listado de pagos,
+ * la proyección y el resumen, porque los tres pueden cambiar con la nueva fecha.
+ */
+export function usePostponePayable() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ payableId, days }: PostponePayableInput) =>
+      api.post<PostponePayableResponse>(
+        `/api/treasury/accounts-payable/${encodeURIComponent(payableId)}/postpone`,
+        { body: { days } },
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pagosKeys.all }),
+        queryClient.invalidateQueries({ queryKey: ["treasury", "cash-projection"] }),
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+      ]);
+    },
+  });
+}
 
 /** `GET /api/treasury/accounts-payable` — snapshot actual de cuentas por pagar.
  *  NO retry. */

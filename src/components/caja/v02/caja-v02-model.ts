@@ -16,11 +16,10 @@
  *                      con causas, `por_cobrar_vencido`, `calidad_fechas`, `fuentes`).
  *   · Deuda de datos → movimientos `unclassified` (`useUnclassifiedInRange`, por moneda: INV-FX-001).
  *
- * LO QUE NO EXISTE, dicho acá y no sólo en el PR: ningún endpoint edita la fecha estimada de un
- * pago que la proyección lea. `accounts-payable` es GET-only y los "términos de pago" del front
- * viven en `/api/me/preferences`, que el backend de `cash-projection` no consulta (buscado en
- * `qavante-api`: cero referencias a `terminos_pago`). Por eso "Postergar ▾" NO se construye como
- * acción muda: la tabla enlaza al pago en Pagar y el hueco queda declarado en la vista. */
+ * POSTERGAR (#80): `Causa.payable_id` identifica el pago de forma inequívoca y se manda a
+ * `POST /api/treasury/accounts-payable/{payable_id}/postpone`. Jamás se infiere identidad desde
+ * glosa, monto o fecha. Sin UUID no hay acción; impuestos y remuneraciones se excluyen también
+ * en la UI, y el backend vuelve a validar estructuralmente la Ley 9. */
 
 import type {
   CashProjectionResponse,
@@ -298,9 +297,10 @@ export interface CausaV02 {
   /** Monto FIRMADO (negativo = egreso), como lo manda el backend. */
   monto: number;
   tipo: TipoCausaV02;
-  /** Ley 9: impuestos y sueldos jamás se postergan. El resto NO se sabe: el backend no manda
-   *  postergabilidad por causa, y no se inventa. */
-  postergable: "no" | "desconocido";
+  /** UUID entregado por el backend. Ausente = no se ofrece Postergar. */
+  payableId: string | null;
+  /** Ley 9: impuestos y remuneraciones nunca se postergan. */
+  postergable: "si" | "no" | "sin_identidad";
 }
 
 function tipoCausa(t: string | null | undefined): TipoCausaV02 {
@@ -310,6 +310,11 @@ function tipoCausa(t: string | null | undefined): TipoCausaV02 {
   return "otro";
 }
 
+/** Exclusión conservadora de remuneraciones conocidas; el backend vuelve a validar Ley 9. */
+function esRemuneracion(glosa: string): boolean {
+  return /remuneraci[oó]n|sueldo|n[oó]mina|planilla/i.test(glosa);
+}
+
 /** Las causas del punto de quiebre del backend (los mayores egresos hasta cruzar el mínimo),
  *  ordenadas del más grande al más chico. Vacío si no hay quiebre. */
 export function causasDelPiso(p: CashProjectionResponse | null | undefined): CausaV02[] {
@@ -317,12 +322,20 @@ export function causasDelPiso(p: CashProjectionResponse | null | undefined): Cau
   return causas
     .map((c) => {
       const tipo = tipoCausa(c.tipo);
+      const payableId = c.payable_id ?? null;
+      const postergable =
+        tipo === "impuesto" || esRemuneracion(c.glosa)
+          ? ("no" as const)
+          : payableId
+            ? ("si" as const)
+            : ("sin_identidad" as const);
       return {
         glosa: c.glosa,
         fechaLabel: formatDateShort(c.fecha ?? p?.punto_quiebre?.fecha ?? null),
         monto: parseAmount(c.monto),
         tipo,
-        postergable: tipo === "impuesto" ? ("no" as const) : ("desconocido" as const),
+        payableId,
+        postergable,
       };
     })
     .sort((a, b) => a.monto - b.monto);

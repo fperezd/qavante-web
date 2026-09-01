@@ -55,6 +55,7 @@ function html(props: Partial<ComponentProps<typeof CajaV02View>> = {}): string {
       pagos={pagos()}
       sinClasificar={sinClasificar()}
       bancos={["BICE"]}
+      onPostpone={async () => undefined}
       hoy={HOY}
       {...props}
     />,
@@ -164,7 +165,7 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).toContain("cierra en −$1.121.250");
   });
 
-  it("tabla: las causas del quiebre con fecha, estado y monto; Pagar por fila; el hueco declarado", () => {
+  it("tabla: las causas del quiebre con fecha, estado y monto; Postergar sólo con UUID seguro", () => {
     const h = html();
     const t = texto(h);
     expect(t).toContain("Qué te lleva al punto más bajo · 7 sep · −$1.121.250");
@@ -174,7 +175,8 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).toContain("No se posterga"); // Ley 9: el F29
     expect(t).toContain("Vencido");
     expect((h.match(/href="\/pagar"/g) ?? []).length).toBeGreaterThanOrEqual(4);
-    expect(t).toContain("Postergar ▾ (7/15/30 días) todavía no está");
+    expect((h.match(/data-postergar="true"/g) ?? []).length).toBe(3);
+    expect(t).toContain("causas sin identidad segura se gestionan desde Pagar");
   });
 
   it("footer con las exclusiones y su conteo", () => {

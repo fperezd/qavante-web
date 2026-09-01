@@ -91,12 +91,19 @@ export const PROYECCION_BAJO_CERO: CashProjectionResponse = proyeccion({
     fecha: "2026-09-07",
     saldo: "-1121250",
     causas: [
-      { glosa: "Tradolarpeso", monto: "-674473", tipo: "pago", fecha: "2026-09-07" },
+      {
+        glosa: "Tradolarpeso",
+        monto: "-674473",
+        tipo: "pago",
+        fecha: "2026-09-07",
+        payable_id: "11111111-1111-4111-8111-111111111111",
+      },
       {
         glosa: "Soc. de Profesionales Vásquez y Cía.",
         monto: "-483766",
         tipo: "pago",
         fecha: "2026-09-07",
+        payable_id: "22222222-2222-4222-8222-222222222222",
       },
       { glosa: "F29 · IVA agosto", monto: "-174979", tipo: "f29", fecha: "2026-09-12" },
       {
@@ -104,6 +111,7 @@ export const PROYECCION_BAJO_CERO: CashProjectionResponse = proyeccion({
         monto: "-88619",
         tipo: "pago_vencido",
         fecha: "2026-09-07",
+        payable_id: "33333333-3333-4333-8333-333333333333",
       },
     ],
   },

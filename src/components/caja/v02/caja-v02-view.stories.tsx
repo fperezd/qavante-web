@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { within, expect, userEvent } from "storybook/test";
+import { within, expect, fn, userEvent } from "storybook/test";
 import { formatClp } from "@/lib/formatters/clp";
 import { saldoCajaHoy } from "@/lib/finanzas/caja-hoy";
 import { CajaV02View } from "./caja-v02-view";
@@ -39,7 +39,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V02 · Caja (ESPECIFICACION §V02): tríada KPI (Hoy con chip banco+hora ✓ / Entra 14d / Sale 14d con postergable), banner de deuda de datos, barras de 4 semanas con "¿cómo se calcula?", tabla "Qué te lleva al punto más bajo" y footer con exclusiones. "Postergar ▾" queda fuera de esta entrega: no existe cómo mover la fecha estimada que lee la proyección.',
+          'V02 · Caja (ESPECIFICACION §V02): tríada KPI (Hoy con chip banco+hora ✓ / Entra 14d / Sale 14d con postergable), banner de deuda de datos, barras de 4 semanas con "¿cómo se calcula?", tabla "Qué te lleva al punto más bajo" y footer con exclusiones. Postergar usa sólo el UUID publicado por la causa y tiene una ventana cancelable.',
       },
     },
   },
@@ -50,7 +50,7 @@ const meta = {
     pagos: pagos(),
     sinClasificar: sinClasificar({ count: 0, inflowByCurrency: [] }),
     bancos: ["BICE"],
-    issuePostergar: "#80",
+    onPostpone: fn(),
     hoy: HOY,
   },
 } satisfies Meta<typeof CajaV02View>;
@@ -114,14 +114,30 @@ export const BajoCero: Story = {
     // Ley 9: el F29 dice que no se posterga; el vencido va en ámbar (no rojo).
     await expect(canvas.getByText("No se posterga")).toBeInTheDocument();
     await expect(canvas.getByText("Vencido")).toBeInTheDocument();
-    // El hueco declarado, visible.
-    await expect(
-      canvas.getByText(/Postergar ▾ \(7\/15\/30 días\) todavía no está/),
-    ).toBeInTheDocument();
+    // Sólo las causas con UUID seguro ofrecen Postergar; F29 no y la Ley 2 sigue en un rojo.
+    await expect(canvas.getAllByRole("button", { name: /^Postergar/ })).toHaveLength(3);
     // Footer con exclusiones y conteo.
     await expect(
       canvas.getByText("No cuenta $39.600.000 por cobrar vencidos o sin fecha (17 documentos)"),
     ).toBeInTheDocument();
+  },
+};
+
+export const PostergarCancelable: Story = {
+  name: "Postergar — Ley 4: la cuenta se ve y Cancelar no llama la API",
+  args: {
+    proyeccion: PROYECCION_BAJO_CERO,
+    onPostpone: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    // El glifo decorativo de la primera etiqueta depende de la codificación del runner;
+    // el prefijo semántico estable es la accesibilidad que importa aquí.
+    await userEvent.click(canvas.getAllByRole("button", { name: /^Postergar/ })[0]!);
+    await userEvent.click(canvas.getByRole("button", { name: /^7 d/ }));
+    await expect(canvas.getByRole("status")).toHaveTextContent("Postergaremos");
+    await userEvent.click(canvas.getByRole("button", { name: "Cancelar" }));
+    await expect(args.onPostpone).not.toHaveBeenCalled();
   },
 };
 
