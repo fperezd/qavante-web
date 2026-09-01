@@ -3,7 +3,10 @@
 import * as React from "react";
 import { QavanteInlineError } from "@/components/qavante";
 import { useDashboardSummary } from "@/lib/api/dashboard";
-import { useLatestLiquidityEvaluation } from "@/lib/api/financial-decisions";
+import {
+  useLatestLiquidityEvaluation,
+  useOperationPlanForDecision,
+} from "@/lib/api/financial-decisions";
 import { useMe } from "@/lib/api/users";
 import { asUserRole } from "@/lib/auth/types";
 import { HoyView } from "./hoy-view";
@@ -22,6 +25,7 @@ import { HoyView } from "./hoy-view";
 export function HoyLive() {
   const summary = useDashboardSummary();
   const liquidity = useLatestLiquidityEvaluation();
+  const operationPlan = useOperationPlanForDecision(liquidity.data?.decision_id ?? null);
   const me = useMe();
   const role = asUserRole(me.data?.user?.role);
 
@@ -44,6 +48,10 @@ export function HoyLive() {
       liquidityLoading={liquidity.isLoading}
       liquidityFailed={liquidity.isError}
       canSelectLiquidity={role === "owner" || role === "admin"}
+      operationPlanRead={operationPlan.data ?? null}
+      operationPlanLoading={operationPlan.isLoading}
+      operationPlanError={operationPlan.error}
+      onRetryOperationPlan={() => void operationPlan.refetch()}
     />
   );
 }

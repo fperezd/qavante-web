@@ -7,6 +7,9 @@ export type FinancialDecisionList = components["schemas"]["FinancialDecisionList
 export type LiquidityEvaluation = components["schemas"]["LiquidityEvaluationResponse"];
 export type DecisionSelectionRequest = components["schemas"]["DecisionSelectionRequest"];
 export type DecisionSelectionResponse = components["schemas"]["DecisionSelectionResponse"];
+export type OperationPlanRead = components["schemas"]["OperationPlanReadResponse"];
+export type OperationApprovalRequest = components["schemas"]["OperationApprovalRequest"];
+export type OperationApprovalResponse = components["schemas"]["OperationApprovalResponse"];
 
 export const financialDecisionKeys = {
   all: ["financial-decisions"] as const,
@@ -14,6 +17,8 @@ export const financialDecisionKeys = {
   list: () => [...financialDecisionKeys.all, "list"] as const,
   latestLiquidityEvaluation: () =>
     [...financialDecisionKeys.all, "liquidity-evaluation", "latest"] as const,
+  operationPlanForDecision: (decisionId: string) =>
+    [...financialDecisionKeys.all, "operation-plan", "decision", decisionId] as const,
 };
 
 /** Read-only FPDE projection. The backend remains the sole owner of diagnosis and policy. */
@@ -58,6 +63,36 @@ export function useLatestLiquidityEvaluation() {
     },
     staleTime: 30_000,
     retry: false,
+  });
+}
+
+/** Reader F2 publicado por qavante-api#306; el estado viene reducido desde operation_events. */
+export function useOperationPlanForDecision(decisionId: string | null) {
+  return useQuery({
+    queryKey: financialDecisionKeys.operationPlanForDecision(decisionId ?? ""),
+    queryFn: () =>
+      api.get<OperationPlanRead>(
+        `/api/treasury/decisions/${encodeURIComponent(decisionId!)}/operation-plan`,
+        { skipAuthRetry: true },
+      ),
+    enabled: Boolean(decisionId),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** Solicita revisión humana; no aprueba, envía ni ejecuta el OperationPlan. */
+export function useRequestOperationPlanApproval(operationPlanId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: OperationApprovalRequest) =>
+      api.post<OperationApprovalResponse>(
+        `/api/treasury/operation-plans/${encodeURIComponent(operationPlanId)}/request-approval`,
+        { body, skipAuthRetry: true },
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: financialDecisionKeys.all });
+    },
   });
 }
 

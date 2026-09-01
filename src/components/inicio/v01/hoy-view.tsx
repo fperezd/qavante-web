@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
-import type { LiquidityEvaluation } from "@/lib/api/financial-decisions";
+import type { LiquidityEvaluation, OperationPlanRead } from "@/lib/api/financial-decisions";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import {
   crumbHoy,
@@ -54,6 +54,10 @@ export interface HoyViewProps {
   liquidityFailed?: boolean;
   /** Sólo gobierna la visibilidad; la autorización real vive en el endpoint. */
   canSelectLiquidity?: boolean;
+  operationPlanRead?: OperationPlanRead | null;
+  operationPlanLoading?: boolean;
+  operationPlanError?: unknown;
+  onRetryOperationPlan?: () => void;
 }
 
 /* Tono del titular. `sin_dato` es NEUTRO y no rojo: "no sabemos" no es "está mal". */
@@ -89,6 +93,10 @@ export function HoyView({
   liquidityLoading = false,
   liquidityFailed = false,
   canSelectLiquidity = false,
+  operationPlanRead = null,
+  operationPlanLoading = false,
+  operationPlanError = null,
+  onRetryOperationPlan,
 }: HoyViewProps) {
   const caja = cajaHoy(data);
   const crumb = crumbHoy(empresa, caja, hoy);
@@ -167,6 +175,10 @@ export function HoyView({
           failed={liquidityFailed}
           now={hoy}
           canSelect={canSelectLiquidity}
+          operationPlanRead={operationPlanRead}
+          operationPlanLoading={operationPlanLoading}
+          operationPlanError={operationPlanError}
+          onRetryOperationPlan={onRetryOperationPlan}
         />
       )}
 

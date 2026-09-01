@@ -3,11 +3,24 @@
 import * as React from "react";
 import { CheckCircle2, Clock, HelpCircle, ShieldCheck } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
-import type { DecisionSelectionResponse, LiquidityEvaluation } from "@/lib/api/financial-decisions";
+import type {
+  DecisionSelectionResponse,
+  OperationApprovalResponse,
+  LiquidityEvaluation,
+  OperationPlanRead,
+} from "@/lib/api/financial-decisions";
 import { cn } from "@/lib/utils";
 import { liquidityEvaluationView } from "./liquidity-evaluation-model";
 import { LiquiditySelectionDialog } from "./liquidity-selection-dialog";
 import { selectionSuccessMessage } from "./liquidity-selection-model";
+import {
+  operationPlanErrorMessage,
+  operationPlanStatusView,
+  operationPlanViewFromRead,
+  operationPlanViewFromSelection,
+} from "./operation-plan-model";
+import { OperationPlanApprovalDialog } from "./operation-plan-approval-dialog";
+import { OperationPlanPanel } from "./operation-plan-panel";
 
 export interface LiquidityEvaluationPanelProps {
   evaluation: LiquidityEvaluation | null;
@@ -16,6 +29,10 @@ export interface LiquidityEvaluationPanelProps {
   now?: Date;
   /** Ayuda visual; el backend vuelve a autorizar owner/admin al registrar la selección. */
   canSelect?: boolean;
+  operationPlanRead?: OperationPlanRead | null;
+  operationPlanLoading?: boolean;
+  operationPlanError?: unknown;
+  onRetryOperationPlan?: () => void;
 }
 
 export function LiquidityEvaluationPanel({
@@ -24,13 +41,39 @@ export function LiquidityEvaluationPanel({
   failed = false,
   now,
   canSelect = false,
+  operationPlanRead = null,
+  operationPlanLoading = false,
+  operationPlanError = null,
+  onRetryOperationPlan,
 }: LiquidityEvaluationPanelProps) {
   const confirmationRef = React.useRef<HTMLDivElement>(null);
   const [selectionResult, setSelectionResult] = React.useState<DecisionSelectionResponse | null>(
     null,
   );
+  const [approvalResult, setApprovalResult] = React.useState<OperationApprovalResponse | null>(
+    null,
+  );
   const currentSelection =
     selectionResult?.decision_id === evaluation?.decision_id ? selectionResult : null;
+  const readPlan = operationPlanRead
+    ? operationPlanViewFromRead(operationPlanRead, canSelect)
+    : null;
+  const selectionPlan =
+    currentSelection && evaluation
+      ? operationPlanViewFromSelection(evaluation, currentSelection, now)
+      : null;
+  /* El POST recién confirmado es más fresco que un GET cacheado anterior a la selección. */
+  const baseOperationPlan = selectionPlan ?? readPlan;
+  const operationPlan =
+    baseOperationPlan?.kind === "present" &&
+    approvalResult?.operation_plan_id === baseOperationPlan.planId
+      ? {
+          ...baseOperationPlan,
+          status: approvalResult.to_status,
+          ...operationPlanStatusView(approvalResult.to_status),
+          canRequestApproval: false,
+        }
+      : baseOperationPlan;
   React.useEffect(() => {
     if (currentSelection) confirmationRef.current?.focus();
   }, [currentSelection]);
@@ -132,6 +175,28 @@ export function LiquidityEvaluationPanel({
             </div>
           </div>
         </QavanteCard>
+      )}
+
+      {(operationPlan || operationPlanLoading || Boolean(operationPlanError)) && (
+        <OperationPlanPanel
+          plan={operationPlan}
+          loading={operationPlanLoading && !operationPlan}
+          errorMessage={
+            operationPlanError && !operationPlan
+              ? operationPlanErrorMessage(operationPlanError, "read")
+              : null
+          }
+          onRetry={onRetryOperationPlan}
+          requestApprovalControl={
+            operationPlan?.kind === "present" && operationPlan.canRequestApproval ? (
+              <OperationPlanApprovalDialog
+                operationPlanId={operationPlan.planId}
+                evidenceRefs={operationPlan.approvalEvidenceRefs}
+                onRequested={setApprovalResult}
+              />
+            ) : undefined
+          }
+        />
       )}
 
       {view.decisionSupport === "abstain" ? (
