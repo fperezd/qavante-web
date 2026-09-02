@@ -30,6 +30,9 @@ function mk({
   labels = [],
   comments = [],
   reviews = [],
+  eventName,
+  eventReview,
+  reviewById,
   head = HEAD,
 } = {}) {
   const core = {
@@ -61,11 +64,22 @@ function mk({
       pulls: {
         get: async () => ({ data: pr }),
         listReviews: Object.assign(() => {}, { _data: reviews }),
+        getReview: async () => ({ data: reviewById }),
       },
       issues: { listComments: Object.assign(() => {}, { _data: comments }) },
+      repos: {
+        // El caso por defecto no simula un update-branch: corta la caminata
+        // de ancestros y permite ejercitar el resto del gate.
+        getCommit: async () => ({ data: { parents: [] } }),
+        compareCommitsWithBasehead: async () => ({ data: { status: "ahead" } }),
+      },
     },
   };
-  const context = { repo: { owner: "o", repo: "r" }, payload: { pull_request: { number: 1 } } };
+  const context = {
+    eventName,
+    repo: { owner: "o", repo: "r" },
+    payload: { action: "submitted", pull_request: { number: 1 }, review: eventReview },
+  };
   return { github, context, core };
 }
 
@@ -169,6 +183,22 @@ const casos = [
           html_url: "u",
         },
       ],
+    },
+    "pasa",
+  ],
+  [
+    "R2: payload de review sin body se rehidrata por id y pasa",
+    {
+      labels: ["risk:R2"],
+      eventName: "pull_request_review",
+      eventReview: { id: 42 },
+      reviewById: {
+        state: "COMMENTED",
+        user: { login: "revisor" },
+        body: `veredicto: PASS\nrevisado: ${HEAD}`,
+        submitted_at: T(1),
+        html_url: "u",
+      },
     },
     "pasa",
   ],

@@ -190,12 +190,36 @@ jobs:
               );
             }
             const reviews = [];
+            const reviewActual = context.payload.review;
             if (
               context.eventName === 'pull_request_review' &&
               context.payload.action !== 'dismissed' &&
-              context.payload.review?.body
+              reviewActual?.id
             ) {
-              reviews.push(context.payload.review);
+              // El webhook puede llegar sin `body` aunque el review ya quedó
+              // persistido (observado en PR #139). Leer el recurso por su ID
+              // evita que ese detalle de entrega convierta un PASS válido en
+              // "cero señales". El payload sigue como fallback si la lectura
+              // histórica está restringida.
+              try {
+                const { data: reviewPersistido } = await github.rest.pulls.getReview({
+                  owner, repo, pull_number: number, review_id: reviewActual.id,
+                });
+                reviews.push(reviewPersistido);
+              } catch (error) {
+                if (error.status !== 403) throw error;
+                core.warning(
+                  'GitHub denego la lectura del review que disparó el gate; ' +
+                  'se usará el payload del evento si contiene cuerpo.'
+                );
+              }
+            }
+            if (
+              context.eventName === 'pull_request_review' &&
+              context.payload.action !== 'dismissed' &&
+              reviewActual?.body
+            ) {
+              reviews.push(reviewActual);
             }
             try {
               reviews.push(...await github.paginate(github.rest.pulls.listReviews, {
