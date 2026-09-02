@@ -107,6 +107,7 @@ export type EstadoBrecha =
   | { tipo: "sin_dato" } // el bloque cash_gap no vino
   | { tipo: "cubierto" } // el backend dice que NO hay brecha
   | { tipo: "brecha"; monto: number } // hay brecha y la pudimos cuantificar
+  | { tipo: "brecha_mixta"; descubierto: number; criticas: number }
   | { tipo: "indeterminado" }; // el backend dice que hay brecha pero no la podemos cuantificar
 
 export function mapEstadoBrecha(s: DashboardSummaryV2): EstadoBrecha {
@@ -124,7 +125,9 @@ export function mapEstadoBrecha(s: DashboardSummaryV2): EstadoBrecha {
   // pagos críticos de verdad y la caja no los cubre. Pero el monto es el DESCUBIERTO, no
   // `criticas + |proyectada|`: el saldo bajo cero ya es después de pagarlas, así que sumarlos
   // es doble conteo y el título del plan pediría conseguir más plata de la que hace falta.
-  if (gap.kind === "overdraft_with_dues") return { tipo: "brecha", monto: gap.descubierto };
+  if (gap.kind === "overdraft_with_dues") {
+    return { tipo: "brecha_mixta", descubierto: gap.descubierto, criticas: gap.criticas };
+  }
   return gap.kind === "shortfall" && gap.faltante > 0
     ? { tipo: "brecha", monto: gap.faltante }
     : { tipo: "indeterminado" };
@@ -135,7 +138,23 @@ export function mapEstadoBrecha(s: DashboardSummaryV2): EstadoBrecha {
  *  de "hay brecha pero no la podemos cuantificar"). */
 export function mapBrechaTotal(s: DashboardSummaryV2): number | null {
   const e = mapEstadoBrecha(s);
-  return e.tipo === "brecha" ? e.monto : null;
+  if (e.tipo === "brecha") return e.monto;
+  return e.tipo === "brecha_mixta" ? e.descubierto : null;
+}
+
+/** Copy Q1: el descubierto mixto es saldo final DESPUÉS de los pagos críticos; no los suma ni
+ * los presenta como si fueran el mismo concepto. */
+export function respuestaEstadoBrecha(e: EstadoBrecha): string {
+  if (e.tipo === "brecha_mixta") {
+    return `La caja proyectada queda ${formatClp(-e.descubierto)} bajo cero, ya considerando ${formatClp(e.criticas)} en pagos críticos de 14 días.`;
+  }
+  if (e.tipo === "brecha") {
+    return `La empresa debe asegurar ${formatClp(e.monto)} para sus pagos de 14 días.`;
+  }
+  if (e.tipo === "indeterminado") {
+    return "Hay una brecha de caja declarada, pero no podemos cuantificarla con los datos de hoy.";
+  }
+  return "La caja proyectada cubre las obligaciones críticas de los próximos 14 días.";
 }
 
 /** Cobranza. DEGRADADA sin Fase 2: sin segmentos por comportamiento → muestra el

@@ -38,6 +38,7 @@ import { PuntoEquilibrioLive } from "./punto-equilibrio-live";
 import {
   mapBrechaTotal,
   mapEstadoBrecha,
+  respuestaEstadoBrecha,
   margenPlausiblePct,
   mapCaja,
   cicloCajaExtra,
@@ -299,7 +300,7 @@ function buildTermometros(s: DashboardSummaryV2): Termometro[] {
   // nuestra resta no la cuantifica → "sin confirmar", ni alarma ni tranquilidad falsa.
   const estadoBrecha = mapEstadoBrecha(s);
   if (estadoBrecha.tipo !== "sin_dato") {
-    const crit = estadoBrecha.tipo === "brecha";
+    const crit = estadoBrecha.tipo === "brecha" || estadoBrecha.tipo === "brecha_mixta";
     const indet = estadoBrecha.tipo === "indeterminado";
     items.push({
       n: 1,
@@ -308,11 +309,7 @@ function buildTermometros(s: DashboardSummaryV2): Termometro[] {
       pillTono: crit ? "crit" : indet ? "warn" : "ok",
       // "focus" para lo indeterminado: llama la atención sin afirmar ni crítico ni cubierto.
       destacado: crit ? "crit" : indet ? "focus" : "ok",
-      respuesta: crit
-        ? `La empresa debe asegurar ${formatClp(estadoBrecha.monto)} para sus pagos de 14 días.`
-        : indet
-          ? "Hay una brecha de caja declarada, pero no podemos cuantificarla con los datos de hoy."
-          : "La caja proyectada cubre las obligaciones críticas de los próximos 14 días.",
+      respuesta: respuestaEstadoBrecha(estadoBrecha),
       masLabel: "Ver caja →",
       masHref: "/caja/proyeccion",
     });

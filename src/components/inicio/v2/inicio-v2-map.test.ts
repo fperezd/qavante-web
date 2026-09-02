@@ -6,6 +6,7 @@ import {
   mapCaja,
   mapBrechaTotal,
   mapEstadoBrecha,
+  respuestaEstadoBrecha,
   margenPlausiblePct,
   cicloCajaExtra,
   mapCobranza,
@@ -145,8 +146,15 @@ describe("mapBrechaTotal / mapEstadoBrecha", () => {
         projected_cash_14d: "-5737505",
       },
     } as unknown as DashboardSummaryV2;
-    expect(mapEstadoBrecha(s)).toEqual({ tipo: "brecha", monto: 5_737_505 });
+    expect(mapEstadoBrecha(s)).toEqual({
+      tipo: "brecha_mixta",
+      descubierto: 5_737_505,
+      criticas: 4_218_622,
+    });
     expect(mapBrechaTotal(s)).toBe(5_737_505);
+    expect(respuestaEstadoBrecha(mapEstadoBrecha(s))).toBe(
+      "La caja proyectada queda −$5.737.505 bajo cero, ya considerando $4.218.622 en pagos críticos de 14 días.",
+    );
   });
 
   it("CONTRAPESO · con la caja POSITIVA el monto SIGUE siendo obligaciones menos caja", () => {
