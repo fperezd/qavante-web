@@ -22,6 +22,7 @@ import { parseAmountOrNull } from "@/lib/formatters/amount";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLong, formatDateShort, formatRelative } from "@/lib/formatters/date";
 import { cajaHoy, type CajaHoy } from "@/lib/finanzas/caja-hoy";
+import { estadoVencimientoCritico } from "../critical-payment-status";
 
 /** Estado del titular-veredicto. `sin_dato` NO es un color: es la ausencia de uno. */
 export type EstadoHoy = "sana" | "atencion" | "crisis" | "sin_dato";
@@ -96,12 +97,6 @@ export function cajaBajoCero14d(s: DashboardSummaryV2 | null | undefined): boole
   return null;
 }
 
-/* Un pago crítico es "de sueldos" por lo que el backend le puso de etiqueta. Es texto libre, así
-   que el reconocimiento es por familia de palabra y no por igualdad — pero NO se estira a
-   "imposiciones"/"cotizaciones": esos son aportes previsionales, un vencimiento distinto del
-   líquido a pagar, y meterlos acá haría que el titular gritara "crisis de sueldos" por un F30. */
-const ES_SUELDO = /sueldo|remuneraci|planilla|n[oó]mina/i;
-
 /** Días civiles entre `hoy` y una fecha ISO (`YYYY-MM-DD`). `null` si no se reconoce.
  *  UTC a ambos lados: un cambio de horario en el medio no corre la cuenta en un día. */
 function diasHasta(iso: string | null | undefined, hoy: Date): number | null {
@@ -114,8 +109,8 @@ function diasHasta(iso: string | null | undefined, hoy: Date): number | null {
 
 /** ¿Hay sueldos en riesgo? SÓLO con evidencia dura de los dos lados (Ley 3):
  *
- *   1. el próximo pago crítico que el backend nombra ES de sueldos y vence dentro de 14 días
- *      (o ya venció), y
+ *   1. `next_payroll` del backend identifica estructuralmente una nómina y vence dentro de 14
+ *      días (o ya venció), y
  *   2. la caja queda bajo cero en esa misma ventana.
  *
  *  Sin las dos, no hay crisis. Un `true` acá apaga la mitad de la pantalla (Ley 10), así que el
@@ -123,9 +118,12 @@ function diasHasta(iso: string | null | undefined, hoy: Date): number | null {
  *  como "atención". */
 export function sueldosEnRiesgo(s: DashboardSummaryV2 | null | undefined, hoy: Date): boolean {
   if (cajaBajoCero14d(s) !== true) return false;
-  const proximo = s?.critical_payments?.next_critical;
-  if (!proximo || !ES_SUELDO.test(proximo.label)) return false;
-  const dias = diasHasta(proximo.due_date, hoy);
+  const nomina = s?.critical_payments?.next_payroll;
+  /* `next_payroll` viene restringido por el backend; si la fuente alcanzó a entregar
+     `category`, ésta además debe confirmar payroll. Nunca se consulta el label: un rollout que
+     aún no llena `category` conserva la evidencia estructural del selector `next_payroll`. */
+  if (!nomina || (nomina.category != null && nomina.category !== "payroll")) return false;
+  const dias = diasHasta(nomina.due_date, hoy);
   return dias != null && dias <= 14;
 }
 
@@ -147,8 +145,13 @@ export function contextoHoy(s: DashboardSummaryV2 | null | undefined, caja: Caja
   if (min14 != null && min14 < 0) {
     lineas.push(`En los próximos 14 días tu caja llega a ${formatClp(min14)}.`);
   } else if (proximo) {
+    const estado = estadoVencimientoCritico(proximo);
     lineas.push(
-      `Lo próximo que vence es ${proximo.label}, el ${formatDateShort(proximo.due_date)}.`,
+      estado === "vencido"
+        ? `El pago más vencido es ${proximo.label}, del ${formatDateShort(proximo.due_date)}.`
+        : estado === "proximo"
+          ? `Lo próximo que vence es ${proximo.label}, el ${formatDateShort(proximo.due_date)}.`
+          : `No sabemos si ${proximo.label} está vencido: falta ese estado del pago.`,
     );
   } else if (min14 != null) {
     lineas.push(`Lo más bajo que llega tu caja en 14 días es ${formatClp(min14)}.`);

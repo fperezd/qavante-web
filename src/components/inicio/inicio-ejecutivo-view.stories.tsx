@@ -55,7 +55,13 @@ const FIXTURE = {
   critical_payments: {
     due_7d: "3800000",
     due_14d: "6200000",
-    next_critical: { label: "IVA / F29 mayo", due_date: "2026-06-12", amount: "2400000" },
+    next_critical: {
+      label: "IVA / F29 mayo",
+      due_date: "2026-06-12",
+      amount: "2400000",
+      category: "tax",
+      is_overdue: false,
+    },
     last_updated: "2026-06-02T08:00:00Z",
     source: "sii_rcv",
   },

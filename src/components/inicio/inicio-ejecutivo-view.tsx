@@ -21,12 +21,17 @@ import {
   AmountCountUp,
 } from "@/components/qavante";
 import { cn } from "@/lib/utils";
-import { useDashboardSummary, type DashboardSummaryResponse } from "@/lib/api/dashboard";
+import {
+  useDashboardSummary,
+  type DashboardCriticalPayments,
+  type DashboardSummaryResponse,
+} from "@/lib/api/dashboard";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike, formatDateTimeLike } from "@/lib/formatters/date";
 import { parseAmount, confidenceLabel, isEmptySummary } from "./dashboard-format";
 import { describeCashGap14d } from "./cash-gap-14d";
 import { PulsoRing } from "./pulso-ring";
+import { estadoVencimientoCritico } from "./critical-payment-status";
 
 /* Inicio Ejecutivo (Sprint C8, Maestro §7.1): "¿Cómo está mi empresa hoy?".
    Refresh v1.3 — diseñado alrededor de LA DECISIÓN: el Pulso es la respuesta
@@ -46,6 +51,17 @@ export function InicioEjecutivoView() {
   }
   if (!query.data) return null;
   return <Dashboard data={query.data} />;
+}
+
+/** Etiqueta honesta para el destaque: el contrato #254 sólo llama "próximo" a un pago futuro.
+ * Si no hay pago futuro, `next_critical` cae explícitamente al más vencido y trae `is_overdue`.
+ * Una respuesta parcial no permite inferir ninguno de los dos estados. */
+export function etiquetaProximoPago(
+  pago: NonNullable<DashboardCriticalPayments["next_critical"]>,
+): "Próximo" | "Más vencido" | "Estado de vencimiento sin dato" {
+  const estado = estadoVencimientoCritico(pago);
+  if (estado === "sin_dato") return "Estado de vencimiento sin dato";
+  return estado === "vencido" ? "Más vencido" : "Próximo";
 }
 
 function Dashboard({ data }: { data: DashboardSummaryResponse }) {
@@ -269,7 +285,8 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
               </dl>
               {data.critical_payments.next_critical && (
                 <p className="mt-2 text-xs text-neutral-mid">
-                  Próximo: {data.critical_payments.next_critical.label} ·{" "}
+                  {etiquetaProximoPago(data.critical_payments.next_critical)}:{" "}
+                  {data.critical_payments.next_critical.label} ·{" "}
                   {formatDateLike(data.critical_payments.next_critical.due_date)}
                 </p>
               )}

@@ -174,9 +174,17 @@ export const Crisis: Story = {
         due_7d: "7400000",
         due_14d: "7400000",
         next_critical: {
-          label: "Sueldos de agosto",
+          label: "Proveedor próximo",
           due_date: "2026-09-04",
           amount: "7400000",
+          category: "supplier",
+          is_overdue: false,
+        },
+        next_payroll: {
+          label: "Remuneraciones de agosto",
+          due_date: "2026-09-04",
+          amount: "7400000",
+          category: "payroll",
           is_overdue: false,
         },
         last_updated: "2026-08-30T08:00:00Z",

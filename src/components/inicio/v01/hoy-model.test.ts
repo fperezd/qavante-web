@@ -5,6 +5,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { saldoCajaHoy } from "@/lib/finanzas/caja-hoy";
 import {
   cajaBajoCero14d,
+  contextoHoy,
   crumbHoy,
   decisionesHoy,
   indicadoresHoy,
@@ -57,9 +58,17 @@ const SUELDOS_EN_5_DIAS = {
   due_7d: "7400000",
   due_14d: "7400000",
   next_critical: {
-    label: "Sueldos de agosto",
+    label: "Proveedor próximo",
     due_date: "2026-09-04",
     amount: "7400000",
+    category: "supplier",
+    is_overdue: false,
+  },
+  next_payroll: {
+    label: "Remuneraciones de agosto",
+    due_date: "2026-09-04",
+    amount: "7400000",
+    category: "payroll",
     is_overdue: false,
   },
   last_updated: "2026-08-30T08:00:00Z",
@@ -109,7 +118,7 @@ describe("titular-veredicto (spec §V01, aceptación)", () => {
     const v = veredictoHoy(summary(CAJA_BAJO_CERO), HOY);
     expect(v.estado).toBe("atencion");
     expect(v.titular).toBe("Tu caja necesita atención");
-    // Y NO escala a crisis: sin un vencimiento de sueldos nombrado, no hay evidencia de sueldos.
+    // Y NO escala a crisis: sin `next_payroll` estructural, no hay evidencia de sueldos.
     expect(v.estado).not.toBe("crisis");
     expect(v.soloDecisionCritica).toBe(false);
   });
@@ -278,11 +287,22 @@ describe("sueldosEnRiesgo — Ley 3: sin evidencia dura de los DOS lados, no hay
     expect(sueldosEnRiesgo(conSueldos, HOY)).toBe(true);
   });
 
+  it("sí: next_payroll sigue siendo evidencia estructural si su fuente aún no llena category", () => {
+    const s = summary({
+      ...CAJA_BAJO_CERO,
+      critical_payments: {
+        ...SUELDOS_EN_5_DIAS,
+        next_payroll: { ...SUELDOS_EN_5_DIAS.next_payroll, category: null },
+      },
+    });
+    expect(sueldosEnRiesgo(s, HOY)).toBe(true);
+  });
+
   it("no: la caja alcanza (mismo vencimiento de sueldos)", () => {
     expect(sueldosEnRiesgo(summary({ critical_payments: SUELDOS_EN_5_DIAS }), HOY)).toBe(false);
   });
 
-  it("no: caja bajo cero pero lo que vence NO son sueldos", () => {
+  it("no: caja bajo cero pero no hay nómina estructural", () => {
     const s = summary({
       ...CAJA_BAJO_CERO,
       critical_payments: {
@@ -293,13 +313,14 @@ describe("sueldosEnRiesgo — Ley 3: sin evidencia dura de los DOS lados, no hay
           amount: "3100000",
           is_overdue: false,
         },
+        next_payroll: null,
       },
     });
     expect(sueldosEnRiesgo(s, HOY)).toBe(false);
     expect(veredictoHoy(s, HOY).estado).toBe("atencion");
   });
 
-  it('no: "imposiciones" no son sueldos — es otro vencimiento y no dispara el titular de crisis', () => {
+  it('no: "imposiciones" no son sueldos — aunque el texto lo diga, la categoría evita inferirlo', () => {
     const s = summary({
       ...CAJA_BAJO_CERO,
       critical_payments: {
@@ -308,6 +329,13 @@ describe("sueldosEnRiesgo — Ley 3: sin evidencia dura de los DOS lados, no hay
           label: "Imposiciones (Previred)",
           due_date: "2026-09-04",
           amount: "900000",
+          is_overdue: false,
+        },
+        next_payroll: {
+          label: "Imposiciones (Previred)",
+          due_date: "2026-09-04",
+          amount: "900000",
+          category: "tax",
           is_overdue: false,
         },
       },
@@ -320,7 +348,7 @@ describe("sueldosEnRiesgo — Ley 3: sin evidencia dura de los DOS lados, no hay
       ...CAJA_BAJO_CERO,
       critical_payments: {
         ...SUELDOS_EN_5_DIAS,
-        next_critical: { ...SUELDOS_EN_5_DIAS.next_critical, due_date: "2026-09-30" },
+        next_payroll: { ...SUELDOS_EN_5_DIAS.next_payroll, due_date: "2026-09-30" },
       },
     });
     expect(sueldosEnRiesgo(s, HOY)).toBe(false);
@@ -333,8 +361,8 @@ describe("sueldosEnRiesgo — Ley 3: sin evidencia dura de los DOS lados, no hay
       ...CAJA_BAJO_CERO,
       critical_payments: {
         ...SUELDOS_EN_5_DIAS,
-        next_critical: {
-          ...SUELDOS_EN_5_DIAS.next_critical,
+        next_payroll: {
+          ...SUELDOS_EN_5_DIAS.next_payroll,
           due_date: "2026-08-25",
           is_overdue: true,
         },
@@ -343,17 +371,23 @@ describe("sueldosEnRiesgo — Ley 3: sin evidencia dura de los DOS lados, no hay
     expect(sueldosEnRiesgo(s, HOY)).toBe(true);
   });
 
-  it("reconoce las formas vivas de la etiqueta", () => {
-    for (const label of ["Sueldos de agosto", "Remuneraciones agosto", "Planilla BUK", "Nómina"]) {
-      const s = summary({
-        ...CAJA_BAJO_CERO,
-        critical_payments: {
-          ...SUELDOS_EN_5_DIAS,
-          next_critical: { ...SUELDOS_EN_5_DIAS.next_critical, label },
+  it("no infiere nómina desde un label aunque parezca sueldo; usa sólo categoría estructural", () => {
+    const s = summary({
+      ...CAJA_BAJO_CERO,
+      critical_payments: {
+        ...SUELDOS_EN_5_DIAS,
+        next_payroll: {
+          label: "Planilla BUK",
+          due_date: "2026-09-04",
+          amount: "7400000",
+          category: "supplier",
+          is_overdue: false,
         },
-      });
-      expect(sueldosEnRiesgo(s, HOY)).toBe(true);
-    }
+      },
+    });
+    expect(sueldosEnRiesgo(s, HOY)).toBe(false);
+    // Gemelo positivo: mismo label, sólo cambia el hecho estructural que entrega el backend.
+    expect(sueldosEnRiesgo(conSueldos, HOY)).toBe(true);
   });
 });
 
@@ -533,5 +567,56 @@ describe("subtítulo de contexto (máximo 2 líneas)", () => {
     const v = veredictoHoy(summary({ cash_today: null }), HOY);
     expect(v.contexto[0]).toBe("Todavía no sabemos cuánta caja tienes: falta el saldo del banco.");
     expect(v.contexto[0]).not.toContain("$0");
+  });
+
+  it("un pago vencido se nombra como tal, nunca como lo próximo", () => {
+    const s = summary({
+      critical_payments: {
+        due_7d: "0",
+        due_14d: "0",
+        next_critical: {
+          label: "Factura atrasada",
+          due_date: "2026-08-01",
+          amount: "1000",
+          category: "supplier",
+          is_overdue: true,
+        },
+        next_payroll: null,
+        last_updated: "2026-08-30T08:00:00Z",
+        source: "sii_rcv",
+      },
+    });
+    const lineas = contextoHoy(s, cajaHoy(s));
+    expect(lineas[1]).toBe("El pago más vencido es Factura atrasada, del 1 ago.");
+    expect(lineas[1]).not.toContain("Lo próximo que vence");
+  });
+
+  it.each([
+    [false, "Lo próximo que vence es Factura con estado, el 4 sep."],
+    [true, "El pago más vencido es Factura con estado, del 4 sep."],
+    [undefined, "No sabemos si Factura con estado está vencido: falta ese estado del pago."],
+    ["false", "No sabemos si Factura con estado está vencido: falta ese estado del pago."],
+  ])("publica el contexto estricto para is_overdue=%s", (is_overdue, esperado) => {
+    const proximo = {
+      label: "Factura con estado",
+      due_date: "2026-09-04",
+      amount: "1000",
+      category: "supplier",
+      ...(is_overdue === undefined ? {} : { is_overdue }),
+    } as NonNullable<NonNullable<DashboardSummaryV2["critical_payments"]>["next_critical"]>;
+    const s = summary({
+      critical_payments: {
+        due_7d: "0",
+        due_14d: "0",
+        next_critical: proximo,
+        next_payroll: null,
+        last_updated: "2026-08-30T08:00:00Z",
+        source: "sii_rcv",
+      },
+    });
+
+    const lineas = contextoHoy(s, cajaHoy(s));
+    expect(lineas[1]).toBe(esperado);
+    if (typeof is_overdue !== "boolean") expect(lineas[1]).not.toContain("Lo próximo que vence");
   });
 });
