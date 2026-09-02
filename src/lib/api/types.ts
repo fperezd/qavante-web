@@ -16287,6 +16287,17 @@ export interface components {
              * @description Categoría de la fuente (bank, tax, labor, pension, sectoral, public). Solo presente en respuestas agregadas.
              */
             category?: string | null;
+            /** Progreso verificable de la sincronización vigente. */
+            sync_progress?: components["schemas"]["SourceSyncProgress"] | null;
+        };
+        /** SourceSyncProgress */
+        SourceSyncProgress: {
+            /** Timestamp ISO 8601 UTC del inicio del sync actual. */
+            started_at: string;
+            /** Segundos estimados restantes, si la integración los publica. */
+            eta_seconds?: number | null;
+            /** Etapa actual publicada por la integración, si existe. */
+            step?: string | null;
         };
         /**
          * SourceSyncConfigResponse

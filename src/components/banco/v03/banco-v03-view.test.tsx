@@ -157,7 +157,7 @@ describe("BancoV03View — estado de conexión: el 'no sé' es explícito", () =
   it("actualizando → pill 'Actualizando' y ETA declarado", () => {
     const t = texto(html({ sources: sourcesSyncing(), saldo: null, tarjetas: null, links: null }));
     expect(t).toContain("Actualizando");
-    expect(t).toContain("trayendo la cartola… listo en ~30 s");
+    expect(t).toContain("trayendo la cartola… listo en 45 s · Leyendo cartola");
   });
 
   it("sin banco conectado → estado vacío con la acción de conectar", () => {

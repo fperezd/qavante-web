@@ -317,12 +317,13 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      tabla de movimientos con pill {Conciliado ✓ / Clasificado ✓ / Por clasificar → Clasificar}. Todo
      sobre endpoints VIVOS (summary, bice/*, bank-accounts, sources/status, bank-movements).
 
-     Su endpoint de gating es lo ÚNICO que le falta a la vista: el PROGRESO consultable del sync
-     bancario, que la spec marca 🔧 ("Actualizando con ETA") y deja como pregunta abierta al CTO
-     (§4). Hoy `/api/sources/status` sólo trae `state`, así que el ETA es un texto fijo declarado
-     ("~30 s"). Es FE-first, como los de `hoyV01`/`cajaV02`, con su issue sucesor (#83). Con OFF, la
-     pantalla Banco actual (`bancoScreen`) queda intacta → cero regresión. */
-  bancoV03: "/api/sources/{source}/sync-progress",
+     El contrato vivo `/api/sources/status` ahora publica `sync_progress` por fuente: `started_at`
+     siempre que el sync siga vigente, y `eta_seconds`/`step` sólo cuando la integración los sabe.
+     La vista nunca calcula una ETA: muestra la recibida o el tiempo transcurrido y declara que falta.
+     `FLAG_GATING_FIELD` declara el campo que distingue este consumidor del indicador global de
+     sincronización, sin inventar rutas ni query params. Con OFF, la pantalla Banco actual (`bancoScreen`)
+     queda intacta → cero regresión. */
+  bancoV03: "/api/sources/status",
   /* V05 · Pagar — "¿a quién le pago, y qué es crítico?" (ESPECIFICACION §V05, issue #70).
      Reemplaza la landing de `/pagar` por: la tríada (Vencido / Por pagar con selector 7-14-30 /
      Crítico vs. caja), el banner de postergables que enlaza a Hoy (la ejecución masiva NO vive
@@ -501,6 +502,16 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      Ninguna pantalla existente cambia → cero regresión. Encender = editar wrangler.toml. */
   impuestosV06: "/api/sii/f29/estimado",
 };
+
+/** Campo de contrato que un consumidor necesita además del endpoint. La identidad de gating es
+ * endpoint + campo; sólo se declara cuando compartir endpoint no implica compartir capacidad. */
+export const FLAG_GATING_FIELD: Partial<Record<FeatureFlag, string>> = {
+  bancoV03: "sync_progress",
+};
+
+export function flagGatingIdentity(flag: FeatureFlag): string {
+  return `${FLAG_GATING_ENDPOINT[flag]}#${FLAG_GATING_FIELD[flag] ?? ""}`;
+}
 
 /* Shape de `GET /api/management/config` (cuando el backend lo exponga).
  * Parcial: el backend puede mandar solo los flags que conoce; los ausentes

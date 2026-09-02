@@ -187,6 +187,11 @@ export function sourcesSyncing(): SourceStatus[] {
       last_sync: "2026-08-29T00:12:00Z",
       display_name: "Banco BICE",
       category: "bank",
+      sync_progress: {
+        started_at: "2026-08-30T11:58:00Z",
+        eta_seconds: 45,
+        step: "Leyendo cartola",
+      },
     },
   ];
 }

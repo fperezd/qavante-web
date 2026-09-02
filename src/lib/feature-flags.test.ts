@@ -6,7 +6,9 @@
 import { describe, expect, it } from "vitest";
 import {
   FEATURE_FLAGS,
+  FLAG_GATING_FIELD,
   FLAG_GATING_ENDPOINT,
+  flagGatingIdentity,
   type FeatureFlag,
   flagEnvVar,
   resolveFeatureFlag,
@@ -175,9 +177,13 @@ describe("consistencia interna FEATURE_FLAGS ↔ FLAG_GATING_ENDPOINT", () => {
     expect(set.size).toBe(envVars.length);
   });
 
-  it("FLAG_GATING_ENDPOINT también es 1-a-1 (no dos flags con el mismo endpoint)", () => {
-    const endpoints = FEATURE_FLAGS.map((f) => FLAG_GATING_ENDPOINT[f]);
-    const set = new Set(endpoints);
-    expect(set.size).toBe(endpoints.length);
+  it("la identidad endpoint+campo es 1-a-1; compartir endpoint exige campo explícito", () => {
+    const identities = FEATURE_FLAGS.map(flagGatingIdentity);
+    const set = new Set(identities);
+    expect(set.size).toBe(identities.length);
+    expect(FLAG_GATING_ENDPOINT.bancoV03).toBe("/api/sources/status");
+    expect(FLAG_GATING_FIELD.bancoV03).toBe("sync_progress");
+    expect(flagGatingIdentity("bancoV03")).toBe("/api/sources/status#sync_progress");
+    expect(flagGatingIdentity("bancoV03")).not.toBe("/api/sources/status#otro_campo");
   });
 });

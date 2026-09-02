@@ -23,6 +23,7 @@ import {
   quedaPorConciliar,
   subMovimiento,
   sumaPorMoneda,
+  textoActualizando,
   tarjetasV03,
   totalesPorMoneda,
   type MovimientoV03,
@@ -132,11 +133,21 @@ describe("frescuraCuenta — el `.sub` en humano", () => {
     expect(frescuraCuenta(c, HOY)).toBe("desde el 28 ago no llegan movimientos");
   });
 
-  it("actualizando → ETA declarado (texto fijo, no hay progreso consultable)", () => {
-    expect(frescuraCuenta(conexionBanco(sourcesSyncing(), null), HOY)).toBe(
-      `trayendo la cartola… listo en ${ETA_ACTUALIZANDO}`,
+  it("actualizando usa el ETA y la etapa publicados por el backend", () => {
+    const conexion = conexionBanco(sourcesSyncing(), null);
+    expect(frescuraCuenta(conexion, HOY)).toBe("trayendo la cartola… listo en 45 s · Leyendo cartola");
+    expect(textoActualizando(conexion, HOY)).toContain("45 s");
+    expect(textoActualizando(conexion, HOY)).toContain("Leyendo cartola");
+  });
+
+  it("sin ETA backend muestra progreso transcurrido y declara la ausencia; sin progreso conserva la referencia fija", () => {
+    const sinEta = conexionBanco(
+      [{ source: "bank_bice", state: "syncing", category: "bank", sync_progress: { started_at: "2026-08-30T11:58:00Z" } }],
+      null,
     );
-    expect(ETA_ACTUALIZANDO).toBe("~30 s");
+    expect(textoActualizando(sinEta, HOY)).toBe("trayendo la cartola… en curso hace 2 min; el banco no informó ETA");
+    const legado = conexionBanco([{ source: "bank_bice", state: "syncing", category: "bank" }], null);
+    expect(textoActualizando(legado, HOY)).toBe(`trayendo la cartola… listo en ${ETA_ACTUALIZANDO} (referencia fija)`);
   });
 
   it("sin dato → lo dice; conectada sin fecha → lo dice", () => {

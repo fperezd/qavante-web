@@ -57,11 +57,11 @@ export interface ConexionBanco {
   ultimaSync: string | null;
   /** Motivo declarado por el backend (`reason` / `message`), o `null`. */
   motivo: string | null;
+  /** Progreso que el backend pudo comprobar durante este sync, o `null` si no lo publicó. */
+  progreso: { startedAt: string; etaSeconds: number | null; step: string | null } | null;
 }
 
-/** ETA del estado "Actualizando" (spec §V03, 🔧): no existe progreso consultable del sync bancario
- *  (spec §4, pregunta abierta al CTO; `/api/sources/status` sólo trae `state`), así que el texto es
- *  FIJO y declarado como tal. Cuando exista el endpoint, se reemplaza acá. */
+/** Referencia heredada para servidores que aún no publican progreso. No es una ETA calculada. */
 export const ETA_ACTUALIZANDO = "~30 s";
 
 const PILL: Record<EstadoConexion, { pill: string; tono: ConexionBanco["tono"] }> = {
@@ -102,6 +102,27 @@ export function fuenteBanco(
     sources.find((s) => /^bank[_-]|^bice$/i.test(s.source)) ??
     null
   );
+}
+
+function progresoDe(fuente: SourceStatus | null): ConexionBanco["progreso"] {
+  const progreso = fuente?.sync_progress;
+  if (
+    !progreso ||
+    typeof progreso.started_at !== "string" ||
+    Number.isNaN(Date.parse(progreso.started_at))
+  ) {
+    return null;
+  }
+  return {
+    startedAt: progreso.started_at,
+    etaSeconds:
+      typeof progreso.eta_seconds === "number" &&
+      Number.isFinite(progreso.eta_seconds) &&
+      progreso.eta_seconds >= 0
+        ? progreso.eta_seconds
+        : null,
+    step: typeof progreso.step === "string" && progreso.step.trim() ? progreso.step.trim() : null,
+  };
 }
 
 /** El estado de la conexión, cruzando `/api/sources/status` con lo que respondió `/api/bice/*`.
@@ -160,7 +181,39 @@ export function conexionBanco(
         estado = "sin_dato";
     }
   }
-  return { estado, ...PILL[estado], ultimaSync, motivo };
+  return {
+    estado,
+    ...PILL[estado],
+    ultimaSync,
+    motivo,
+    progreso: estado === "actualizando" ? progresoDe(fuente) : null,
+  };
+}
+
+function duracionHumana(segundos: number): string {
+  if (segundos < 60) return `${segundos} s`;
+  const minutos = Math.floor(segundos / 60);
+  const resto = segundos % 60;
+  return resto === 0 ? `${minutos} min` : `${minutos} min ${resto} s`;
+}
+
+/** Texto de actualización: ETA sólo si lo publicó la integración; de otro modo, progreso real o
+ * fallback explícitamente fijo para servidores aún sin `sync_progress`. */
+export function textoActualizando(conexion: ConexionBanco, hoy: Date): string {
+  const progreso = conexion.progreso;
+  if (progreso?.etaSeconds != null) {
+    const etapa = progreso.step ? ` · ${progreso.step}` : "";
+    return `trayendo la cartola… listo en ${duracionHumana(progreso.etaSeconds)}${etapa}`;
+  }
+  if (progreso) {
+    const transcurrido = Math.max(
+      0,
+      Math.floor((hoy.getTime() - Date.parse(progreso.startedAt)) / 1000),
+    );
+    const etapa = progreso.step ? ` · ${progreso.step}` : "";
+    return `trayendo la cartola… en curso hace ${duracionHumana(transcurrido)}${etapa}; el banco no informó ETA`;
+  }
+  return `trayendo la cartola… listo en ${ETA_ACTUALIZANDO} (referencia fija)`;
 }
 
 /** La frescura de una cuenta, en lenguaje humano, para el `.sub` (spec §V03). `hoy` explícito. */
@@ -168,7 +221,7 @@ export function frescuraCuenta(conexion: ConexionBanco, hoy: Date): string {
   const cuando = conexion.ultimaSync ? formatRelative(conexion.ultimaSync, hoy) : null;
   switch (conexion.estado) {
     case "actualizando":
-      return `trayendo la cartola… listo en ${ETA_ACTUALIZANDO}`;
+      return textoActualizando(conexion, hoy);
     case "accion_requerida":
       return conexion.ultimaSync
         ? `desde el ${formatDateShort(conexion.ultimaSync)} no llegan movimientos`
@@ -281,7 +334,7 @@ export function cuentasV03(input: CuentasInput): CuentaV03[] {
     conexion.estado === "accion_requerida"
       ? `No pudimos consultar el saldo: ${conexion.motivo ?? "la sesión con el banco no está disponible"}.`
       : conexion.estado === "actualizando"
-        ? `Estamos trayendo el saldo del banco (${ETA_ACTUALIZANDO}).`
+        ? textoActualizando(conexion, hoy)
         : "El banco no respondió el saldo de esta cuenta.";
   return (cuentasQavante ?? [])
     .filter((a) => a.account_type !== "credit_card")
@@ -335,7 +388,7 @@ export function tarjetasV03(
         saldo: null,
         saldoMotivo:
           conexion.estado === "actualizando"
-            ? `Estamos trayendo el cupo de la tarjeta (${ETA_ACTUALIZANDO}).`
+            ? textoActualizando(conexion, hoy)
             : "El banco no informó el cupo usado de esta tarjeta.",
         href,
         accion: "ver",

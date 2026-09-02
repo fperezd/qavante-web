@@ -26,7 +26,6 @@ import { SinDato } from "@/components/rediseno/sin-dato";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
 import {
   CICLO_PILL,
-  ETA_ACTUALIZANDO,
   chipCajaHoy,
   conexionBanco,
   contarMovimientosV03,
@@ -42,6 +41,7 @@ import {
   subMovimiento,
   sumaPorMoneda,
   tarjetasV03,
+  textoActualizando,
   totalesPorMoneda,
   type CuentaV03,
   type FiltroMovimientos,
@@ -70,8 +70,8 @@ import {
  * $0; sin dato de conexión el pill dice "Sin dato de conexión", nunca "Conectada ✓".
  *
  * LO QUE FALTA, dicho acá y no sólo en el PR: (1) la contraparte NO viene como campo del
- * movimiento — la glosa va completa (Ley 7); (2) el ETA de "Actualizando" es un texto fijo
- * declarado (`ETA_ACTUALIZANDO`): no hay progreso consultable del sync; (3) "Clasificar" abre el
+ * movimiento — la glosa va completa (Ley 7); (2) "Actualizando" usa `sync_progress` publicado
+ * por la fuente: sin ETA muestra el tiempo transcurrido y declara esa ausencia; (3) "Clasificar" abre el
  * flujo ACTUAL (`/caja/por-clasificar?movimiento=`), no `/bandeja` (V07) — la bandeja ya existe
  * pero detrás del flag `bandejaV07` (apagado); el enlace desde acá queda pendiente, ver #90. */
 
@@ -148,6 +148,7 @@ export function BancoV03View({
 
   const caja = cajaHoy(summary);
   const conexion = conexionBanco(sources, saldo, tarjetas);
+  const actualizando = textoActualizando(conexion, hoy);
 
   const cuentasMap = React.useMemo(
     () => new Map((cuentasQavante ?? []).map((a) => [a.id, a])),
@@ -248,13 +249,13 @@ export function BancoV03View({
               aria-live="polite"
             >
               <RefreshCw className="size-3.5 animate-spin" aria-hidden />
-              Actualizando saldos con el banco ({ETA_ACTUALIZANDO})
+              Actualizando saldos con el banco ({actualizando})
             </span>
           )}
         </div>
 
         {cuentasCargando && filas.length === 0 ? (
-          <CargandoCuentas banco={banco} />
+          <CargandoCuentas banco={banco} detalle={actualizando} />
         ) : filas.length === 0 ? (
           conexion.estado === "sin_conectar" ? (
             <DataState
@@ -647,11 +648,11 @@ function TablaMovimientos({
 }
 
 /* §5.4 — los estados de carga hablan: qué se trae y cuánto tarda. */
-function CargandoCuentas({ banco }: { banco: string }) {
+function CargandoCuentas({ banco, detalle }: { banco: string; detalle: string }) {
   return (
     <div className="space-y-2" aria-busy="true" aria-live="polite">
       <p className="text-sm text-rediseno-tinta-3">
-        Consultando tus cuentas y tarjetas en {banco} ({ETA_ACTUALIZANDO}): el banco responde lento.
+        Consultando tus cuentas y tarjetas en {banco}: {detalle}.
       </p>
       <div className="h-28 animate-pulse rounded-[14px] bg-rediseno-neutro-bg" aria-hidden />
     </div>

@@ -39,7 +39,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V03 · Banco (ESPECIFICACION §V03): "Caja hoy" (la misma función que V01/V02), tabla de cuentas con frescura + pill de conexión + saldo según el banco, banner "conectar otro banco", filtros con conteo y tabla de movimientos con su ciclo de vida. El ETA de "Actualizando" es fijo (~30 s): no hay progreso consultable del sync.',
+          'V03 · Banco (ESPECIFICACION §V03): "Caja hoy" (la misma función que V01/V02), tabla de cuentas con frescura + pill de conexión + saldo según el banco, banner "conectar otro banco", filtros con conteo y tabla de movimientos con su ciclo de vida. "Actualizando" muestra ETA/etapa sólo si la fuente los publica; con inicio sin ETA declara esa ausencia.',
       },
     },
   },
@@ -167,7 +167,7 @@ export const SinMovimientos: Story = {
 };
 
 export const Actualizando: Story = {
-  name: "Actualizando — ETA declarado (~30 s), sin progreso consultable",
+  name: "Actualizando — ETA y etapa publicados por el sync",
   args: {
     saldo: null,
     tarjetas: null,
@@ -181,9 +181,11 @@ export const Actualizando: Story = {
     await expect(canvas.getAllByText("Actualizando").length).toBeGreaterThan(0);
     // El `.sub` lleva además los pendientes ("· N movimientos por conciliar"): se busca por prefijo.
     await expect(
-      canvas.getAllByText(/^trayendo la cartola… listo en ~30 s/).length,
+      canvas.getAllByText(/^trayendo la cartola… listo en 45 s · Leyendo cartola/).length,
     ).toBeGreaterThan(0);
-    await expect(canvas.getByText("Actualizando saldos con el banco (~30 s)")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Actualizando saldos con el banco (trayendo la cartola… listo en 45 s · Leyendo cartola)"),
+    ).toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };
