@@ -6,9 +6,9 @@ import { explicarVencidoSinDato } from "./cobranza-format";
 
 /* Hallazgo H6 — el "no se sabe" del vencido de Cobrar.
  *
- * Piezas PRESENTACIONALES (ADR-0018): reciben todo por props, sin red. El container
- * `CobrarView` no se afirma por story — en `test:storybook` muere antes con
- * "NEXT_PUBLIC_API_URL no configurada" y MSW nunca intercepta. */
+ * Piezas PRESENTACIONALES (ADR-0018): reciben todo por props, sin red. El
+ * container `CobrarView` afirma su propio camino MSW en `cobrar-view.stories.tsx`;
+ * estas stories mantienen aislada la semántica del "sin dato". */
 
 const meta = {
   title: "Capa 2 / Cobrar / Vencido sin dato (H6)",

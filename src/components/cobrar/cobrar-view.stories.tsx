@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse, delay } from "msw";
-import { within, expect } from "storybook/test";
+import { within, expect, waitFor } from "storybook/test";
 import { CobrarView, DebtorInvoicesPanel } from "./cobrar-view";
 import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 
@@ -126,7 +126,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Disponible: Story = { parameters: { msw: { handlers: [OK] } } };
+export const Disponible: Story = {
+  parameters: { msw: { handlers: [OK] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    /* Prueba que el handler MSW alimenta al container: antes de #95 esta story
+       terminaba en config_missing sin llegar a esta respuesta. */
+    await waitFor(() => expect(canvas.getAllByText("Constructora Andes SpA").length).toBeGreaterThan(0));
+    await expect(canvas.getByText("Factura 1234")).toBeInTheDocument();
+  },
+};
 export const SinSii: Story = {
   name: "Sin acceso SII (siiEnabled=false)",
   args: { siiEnabled: false },
@@ -135,19 +144,32 @@ export const SinSii: Story = {
 export const SinDeuda: Story = {
   name: "Sin cuentas por cobrar",
   parameters: { msw: { handlers: [EMPTY] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByText("No tienes cuentas por cobrar")).toBeInTheDocument());
+  },
 };
-/* Estados del contrato #123 (H6) para inspección visual en Storybook. NO llevan
-   `play`: este container muere antes con "NEXT_PUBLIC_API_URL no configurada", así
-   que MSW nunca llega a interceptar en `test:storybook` (pasa con TODAS las stories
-   MSW del repo — ninguna afirma nada). Lo que SÍ se afirma vive en las stories
-   presentacionales (`aging-desconocido.stories.tsx`, ADR-0018) y en los unit tests. */
+/* Estados del contrato #123 (H6). Desde #95 el preview fija un host `.invalid`
+   sólo para Storybook: MSW intercepta antes de que exista una salida a red. Estas
+   plays fijan el dato que provee cada handler, no sólo que el container monte. */
 export const VencidoSinDato: Story = {
   name: "Vencido sin dato (contrato #123)",
   parameters: { msw: { handlers: [SIN_VENCIMIENTOS] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByText("Vencido")).toBeInTheDocument());
+    await expect(canvas.getAllByText("s/d").length).toBeGreaterThan(0);
+    await expect(canvas.getAllByText(/No podemos calcular cuánto está vencido/i).length).toBeGreaterThan(0);
+  },
 };
 export const AlDia: Story = {
   name: "Cero verificado — estás al día",
   parameters: { msw: { handlers: [AL_DIA] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByText("Vencido")).toBeInTheDocument());
+    await expect(canvas.getByText(/Estás al día: no tienes saldo vencido/i)).toBeInTheDocument();
+  },
 };
 
 export const Cargando: Story = { parameters: { msw: { handlers: [LOADING] } } };

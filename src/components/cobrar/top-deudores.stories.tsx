@@ -4,10 +4,10 @@ import { TopDebtors } from "./cobrar-view";
 
 /* Los TRES estados del vencido POR DEUDOR, en la tabla de Cobrar **v1**.
  *
- * Por qué acá y no en `cobrar-view.stories.tsx`: las stories del container no pueden
- * llevar `play` — el container muere con "NEXT_PUBLIC_API_URL no configurada" antes de
- * que MSW llegue a interceptar, y eso vale para TODAS las stories MSW del repo. El
- * patrón de la casa (ADR-0018) es afirmar sobre el presentacional.
+ * Por qué acá y también en `cobrar-view.stories.tsx`: el patrón de la casa
+ * (ADR-0018) permite fijar la semántica del presentacional de forma aislada; el
+ * container ahora tiene sus propias plays MSW desde que #95 fijó el host de
+ * Storybook en un dominio `.invalid` que no sale a producción.
  *
  * Por qué importa que sea v1, y esto costó dos correcciones seguidas hasta quedar bien:
  * `wrangler.toml` pone `NEXT_PUBLIC_FF_COBRAR_V2 = "true"`, así que **producción sirve

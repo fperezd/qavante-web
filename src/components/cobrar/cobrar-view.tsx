@@ -294,9 +294,8 @@ function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato: Vencido
    NO está (gap del backend: vencimientos del SII) → se dice honestamente.
 
    EXPORTADO sólo para poder afirmarlo en Storybook, igual que `DebtorInvoicesPanel`.
-   Las stories del CONTAINER (`CobrarView`) no pueden llevar `play` — muere antes con
-   "NEXT_PUBLIC_API_URL no configurada" y MSW nunca intercepta— así que el "vencido:
-   no se sabe" de ESTA vista no tenía quien lo afirmara.
+   Las stories del CONTAINER (`CobrarView`) fijan su respuesta MSW desde #95; esta
+   pieza mantiene además una cobertura aislada de los tres estados por deudor.
 
    Qué es esta vista hoy, dicho con precisión: `wrangler.toml` pone
    `NEXT_PUBLIC_FF_COBRAR_V2 = "true"`, así que **producción sirve v2**. Esta se
