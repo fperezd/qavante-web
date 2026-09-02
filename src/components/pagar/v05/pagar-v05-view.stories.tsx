@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, expect, userEvent, fn } from "storybook/test";
 import { PagarV05View } from "./pagar-v05-view";
 import {
+  ANOMALIA_ENTEL,
   HOY,
   pagos,
   pagosConDuplicado,
@@ -35,7 +36,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V05 · Pagar (ESPECIFICACION §V05): tríada (Vencido / Por pagar · selector 7-14-30 / Crítico vs. caja), banner de postergables que enlaza a Hoy (la ejecución masiva NO vive aquí), filtros con conteo (Impuestos y Remuneraciones incluidos) y tabla con proveedor completo, vence absoluto+relativo, pill de tipo y "detalle ▾". El posible duplicado (mismo RUT + monto ±1 % + 30 días) se marca con pill Revisar. NO existe "pagar todo" (Ley 9). Detección por backend, "Servicio" y "Postergar" quedan fuera de esta entrega (huecos declarados).',
+          'V05 · Pagar (ESPECIFICACION §V05): tríada (Vencido / Por pagar · selector 7-14-30 / Crítico vs. caja), banner de postergables que enlaza a Hoy (la ejecución masiva NO vive aquí), filtros con conteo (Impuestos y Remuneraciones incluidos) y tabla con proveedor completo, vence absoluto+relativo, pill de tipo y "detalle ▾". El posible duplicado llega como par UUID del backend y se marca con pill Revisar. NO existe "pagar todo" (Ley 9). "Servicio" y Postergar quedan fuera de esta entrega (huecos declarados).',
       },
     },
   },
@@ -102,21 +103,19 @@ export const SelectorDePeriodo: Story = {
 
 export const ConDuplicado: Story = {
   name: "Posible duplicado — pill roja Revisar con su .sub; la fila crítica cede el rojo (Ley 2)",
-  args: { pagos: pagosConDuplicado() },
+  args: { pagos: pagosConDuplicado(), anomalias: [ANOMALIA_ENTEL] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // Ley 2: sigue habiendo UN rojo, y ahora es la pill Revisar del duplicado más urgente.
     const marcados = rojos(canvasElement);
     await expect(marcados).toHaveLength(1);
     await expect(marcados[0]!).toHaveTextContent("Revisar");
-    // El .sub explica la regla con las dos puntas del par.
-    await expect(canvas.getAllByText(/posible duplicado de Factura/).length).toBeGreaterThanOrEqual(
-      2,
-    );
+    // El .sub usa el par UUID publicado, no una regla recalculada en el cliente.
+    await expect(canvas.getAllByText(/posible duplicado señalado por el registro/).length).toBeGreaterThanOrEqual(2);
     // El .sub de la fila y su popover de detalle dicen lo mismo (2 apariciones).
     await expect(
       canvas.getAllByText(
-        "posible duplicado de Factura 9017 (vence 27 ago, $205.000): mismo RUT, monto a ±1 % y a 15 días",
+        "posible duplicado señalado por el registro: Factura 9017 (27 ago, $205.000)",
       ),
     ).toHaveLength(2);
     // El chip condicional aparece con su conteo y filtra.
@@ -126,6 +125,16 @@ export const ConDuplicado: Story = {
     await userEvent.click(canvas.getByRole("radio", { name: "Todos · 9" }));
     const critico = canvas.getByText("en 2 días");
     await expect(critico.className).not.toContain("rediseno-rojo");
+  },
+};
+
+export const AnomaliasSinDato: Story = {
+  name: "Señal de anomalías no disponible — no se concluye que no haya duplicados",
+  args: { pagos: pagosConDuplicado(), anomalias: null, anomaliasMotivo: "No pudimos revisar posibles duplicados; no los estamos descartando." },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/No pudimos revisar posibles duplicados/)).toBeInTheDocument();
+    await expect(canvas.queryByText("Revisar")).not.toBeInTheDocument();
   },
 };
 

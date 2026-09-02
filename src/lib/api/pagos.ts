@@ -23,6 +23,10 @@ export type PaymentCategory =
   | "other";
 
 export interface PayableItem {
+  /** UUID estable del payable. Comparte espacio de identidad con los pares de anomalías (#318/#322).
+   * Opcional sólo durante el despliegue gradual: las pantallas que correlacionan anomalías deben
+   * abstenerse si falta; nunca reconstruirlo desde campos de negocio. */
+  id?: string | null;
   /** Proveedor u obligación (ej. "Arriendo bodega", "IVA / F29"). */
   label: string;
   category: PaymentCategory;
@@ -122,9 +126,21 @@ export interface AccountsPayableResponse {
   generated_at: string;
 }
 
+/** Par read-only que el backend marcó para revisión humana sobre todo el devengado elegible.
+ * No permite reconstruir identidad desde texto, RUT, monto ni fecha. */
+export interface PayableDuplicatePair {
+  payable_id: string;
+  duplicate_payable_id: string;
+}
+
+export interface PayableDuplicateAnomaliesResponse {
+  items: PayableDuplicatePair[];
+}
+
 export const pagosKeys = {
   all: ["pagos"] as const,
   accountsPayable: () => [...pagosKeys.all, "accounts-payable"] as const,
+  payableDuplicateAnomalies: () => [...pagosKeys.all, "accounts-payable", "anomalies"] as const,
 };
 
 /** Los únicos saltos que permite el contrato de Postergar. */
@@ -168,6 +184,19 @@ export function useAccountsPayable() {
   return useQuery({
     queryKey: pagosKeys.accountsPayable(),
     queryFn: () => api.get<AccountsPayableResponse>("/api/treasury/accounts-payable"),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** `GET /api/treasury/accounts-payable/anomalies` — pares UUID read-only, sin el tope de 100
+ * del listado. Si falla, el consumidor debe declarar que la señal de duplicados no llegó; nunca
+ * concluir que no hay anomalías. */
+export function usePayableDuplicateAnomalies() {
+  return useQuery({
+    queryKey: pagosKeys.payableDuplicateAnomalies(),
+    queryFn: () =>
+      api.get<PayableDuplicateAnomaliesResponse>("/api/treasury/accounts-payable/anomalies"),
     staleTime: 30_000,
     retry: false,
   });

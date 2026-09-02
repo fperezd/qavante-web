@@ -26,13 +26,11 @@
  *     vigente (`postergabilidadDe`) para que el banner de acá y "Sale · 14 días" de V02 digan el
  *     mismo número. Impuestos y sueldos NUNCA son postergables (Ley 9), y el texto fijo de la ley
  *     se muestra literal.
- *   · POSIBLE DUPLICADO (spec: mismo RUT + monto ±1 % + 30 días), en el front sobre los ítems del
- *     endpoint. El contrato SÍ trae `counterparty_rut` (derivado de la clave natural del RCV), así
- *     que la clave es el RUT normalizado; los ítems sin RUT (nómina, RCV sin RUT) quedan FUERA de la
- *     regla — no se cae al nombre porque "Remuneraciones" mes a mes calzaría por monto y sería un
- *     falso positivo de manual. Tampoco entran impuestos ni sueldos (son periódicos por naturaleza).
- *     Los 30 días se miden entre `due_date`s porque el contrato no trae fecha de emisión; y un par
- *     con `tipo_dte` distinto (factura y su nota de crédito) no es un duplicado.
+ *   · POSIBLE DUPLICADO llega como un par de UUID de
+ *     `GET /api/treasury/accounts-payable/anomalies`, calculado por el backend sobre todo el
+ *     devengado elegible. Esta vista sólo relaciona esos UUID con `PayableItem.id`: NUNCA infiere
+ *     identidad desde RUT, monto, fecha ni texto. Si esa señal no llega, la vista declara el
+ *     "no sé" y no afirma que no existan duplicados.
  *   · LEY 2 — un rojo por pantalla. Si hay algún posible duplicado, el rojo es la pill "Revisar" del
  *     duplicado más urgente (revisar antes de pagar dos veces es lo crítico Y accionable de esta
  *     pantalla; los demás duplicados van en ámbar). Si no hay ninguno, el rojo es el relativo
@@ -40,10 +38,14 @@
  *     (el HTML de referencia lo pinta rojo; la spec manda en lógica).
  *   · "Servicio" (una de las cuatro pills de la spec) NO se produce: el contrato no distingue un
  *     servicio recurrente de una factura cualquiera, y adivinarlo sería un default plausible.
- *   · No hay "pagar todo" ni "postergar": mover plata lleva firma humana (Ley 9) y no existe cómo
- *     mover una fecha que la proyección lea (#80). La ejecución masiva vive en Hoy, no acá. */
+ *   · No hay "pagar todo" ni "postergar" en esta vista: mover plata lleva firma humana (Ley 9).
+ *     La postergación operativa vive en Caja/Hoy, no acá. */
 
-import type { AccountsPayableResponse, PayableItem } from "@/lib/api/pagos";
+import type {
+  AccountsPayableResponse,
+  PayableDuplicatePair,
+  PayableItem,
+} from "@/lib/api/pagos";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { formatDateLong, formatDateShort, formatRelative } from "@/lib/formatters/date";
@@ -59,9 +61,6 @@ export const VENTANA_DIAS = 14;
 /** Los tres tramos que el backend publica (`due_7d`, `due_14d`, `due_30d`). */
 export const PERIODOS = [7, 14, 30] as const;
 export type PeriodoV05 = (typeof PERIODOS)[number];
-/** Regla de duplicado de la spec: mismo RUT + monto ±1 % + 30 días. */
-export const DUP_TOLERANCIA = 0.01;
-export const DUP_VENTANA_DIAS = 30;
 /** Tope de `items` del endpoint (`_ITEMS_CAP` en `payables_repo.py`). */
 export const TOPE_ITEMS = 100;
 /** Texto FIJO de la Ley 9 (spec §2 y §5.10): se muestra literal donde la spec lo indica. */
@@ -137,7 +136,7 @@ export function nombreDe(item: PayableItem): string {
   return item.counterparty_name?.trim() || item.label;
 }
 
-/** RUT normalizado para agrupar. `null` sin RUT. */
+/** RUT normalizado sólo para búsqueda de la fila; no participa en detectar anomalías. */
 export function rutKeyDe(rut: string | null | undefined): string | null {
   const r = (rut ?? "").trim();
   if (!r) return null;
@@ -169,7 +168,7 @@ export interface AnomaliaV05 {
 }
 
 export interface PagoV05 {
-  /** Clave estable de la fila (clave natural del backend o posición). */
+  /** Clave de presentación. El UUID del item, si llegó; fallback sólo para React/orden, nunca para anomalías. */
   key: string;
   nombre: string;
   /** "Factura 1201" o `null`. */
@@ -209,13 +208,13 @@ export interface PagoV05 {
   item: PayableItem;
 }
 
-function keyDe(item: PayableItem, i: number): string {
-  return item.source_external_id?.trim() || `${item.label}#${i}`;
-}
-
 function relativoDe(dias: number | null, dueDate: string | null, hoy: Date): string {
   if (dias == null || !dueDate) return "sin fecha";
   return formatRelative(dueDate, hoy);
+}
+
+function keyDe(item: PayableItem, i: number): string {
+  return item.id?.trim() || item.source_external_id?.trim() || `${item.label}#${i}`;
 }
 
 function baseDe(item: PayableItem, i: number, hoy: Date): Omit<PagoV05, "anomalia" | "sub"> {
@@ -255,52 +254,31 @@ function baseDe(item: PayableItem, i: number, hoy: Date): Omit<PagoV05, "anomali
 
 /* ── Posible duplicado ───────────────────────────────────────────────────────── */
 
-/** ¿Los dos montos están dentro de ±1 % (sobre el mayor)? Compara en la MONEDA DE ORIGEN: un par
- *  en USD se compara en USD, y un par en monedas distintas nunca calza. */
-export function montosCalzan(a: number, b: number, tolerancia: number = DUP_TOLERANCIA): boolean {
-  const mayor = Math.max(Math.abs(a), Math.abs(b));
-  if (mayor === 0) return false;
-  return Math.abs(a - b) <= mayor * tolerancia;
-}
-
-/** ¿El par (i, j) es un posible duplicado según la regla de la spec? */
-export function sonPosibleDuplicado(
-  a: Pick<PagoV05, "rutKey" | "categoria" | "dias" | "moneda" | "item">,
-  b: Pick<PagoV05, "rutKey" | "categoria" | "dias" | "moneda" | "item">,
-): boolean {
-  if (!a.rutKey || a.rutKey !== b.rutKey) return false;
-  if (a.categoria === "tax" || a.categoria === "payroll") return false;
-  if (b.categoria === "tax" || b.categoria === "payroll") return false;
-  if (a.moneda !== b.moneda) return false;
-  if (a.dias == null || b.dias == null) return false;
-  if (Math.abs(a.dias - b.dias) > DUP_VENTANA_DIAS) return false;
-  if (a.item.tipo_dte != null && b.item.tipo_dte != null && a.item.tipo_dte !== b.item.tipo_dte)
-    return false;
-  return montosCalzan(parseAmount(a.item.amount), parseAmount(b.item.amount));
-}
-
-/** Marca cada fila con su posible duplicado (el par más cercano en fecha). Sólo entre filas con RUT. */
+/** Marca sólo los UUID que el backend publicó. No deduce pares de campos que pueden colisionar. */
 function marcarDuplicados(
   base: ReadonlyArray<Omit<PagoV05, "anomalia" | "sub">>,
+  pares: ReadonlyArray<PayableDuplicatePair>,
 ): Map<string, AnomaliaV05> {
   const out = new Map<string, AnomaliaV05>();
-  for (let i = 0; i < base.length; i += 1) {
-    const a = base[i]!;
-    if (!a.rutKey) continue;
-    let mejor: Omit<PagoV05, "anomalia" | "sub"> | null = null;
-    for (let j = 0; j < base.length; j += 1) {
-      if (i === j) continue;
-      const b = base[j]!;
-      if (!sonPosibleDuplicado(a, b)) continue;
-      if (mejor == null || Math.abs(b.dias! - a.dias!) < Math.abs(mejor.dias! - a.dias!)) mejor = b;
+  const porId = new Map(
+    base.flatMap((p) => (p.item.id?.trim() ? [[p.item.id.trim(), p] as const] : [])),
+  );
+  for (const par of pares) {
+    for (const [id, otroId] of [
+      [par.payable_id, par.duplicate_payable_id],
+      [par.duplicate_payable_id, par.payable_id],
+    ] as const) {
+      const fila = porId.get(id);
+      if (!fila || out.has(id)) continue;
+      const otra = porId.get(otroId);
+      out.set(id, {
+        tipo: "posible_duplicado",
+        parKey: otra?.key ?? otroId,
+        detalle: otra
+          ? `posible duplicado señalado por el registro: ${otra.documento ?? "otro pago"} (${otra.venceLabel}, ${otra.montoLabel})`
+          : "posible duplicado señalado por el registro; el otro pago no está entre los visibles",
+      });
     }
-    if (!mejor) continue;
-    const doc = mejor.documento ?? "otro pago";
-    out.set(a.key, {
-      tipo: "posible_duplicado",
-      parKey: mejor.key,
-      detalle: `posible duplicado de ${doc} (vence ${mejor.venceLabel}, ${mejor.montoLabel}): mismo RUT, monto a ±1 % y a ${Math.abs(mejor.dias! - a.dias!)} días`,
-    });
   }
   return out;
 }
@@ -351,9 +329,13 @@ export function ordenarPorUrgencia<
 }
 
 /** Las filas de la tabla, ordenadas por urgencia y con sus anomalías. Vacío sin respuesta. */
-export function pagosV05(ap: AccountsPayableResponse | null | undefined, hoy: Date): PagoV05[] {
+export function pagosV05(
+  ap: AccountsPayableResponse | null | undefined,
+  hoy: Date,
+  pares: ReadonlyArray<PayableDuplicatePair> = [],
+): PagoV05[] {
   const base = (ap?.items ?? []).map((it, i) => baseDe(it, i, hoy));
-  const dups = marcarDuplicados(base);
+  const dups = marcarDuplicados(base, pares);
   const filas = base.map((b) => {
     const anomalia = dups.get(b.key) ?? null;
     const conAnomalia = { ...b, anomalia, tipo: anomalia ? ("revisar" as const) : b.tipo };

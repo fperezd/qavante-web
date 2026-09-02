@@ -6,7 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Info, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rovingIndex } from "@/lib/a11y/roving";
-import type { AccountsPayableResponse } from "@/lib/api/pagos";
+import type { AccountsPayableResponse, PayableDuplicatePair } from "@/lib/api/pagos";
 import { formatClp } from "@/lib/formatters/clp";
 import { concordar, formatCount, formatDays } from "@/lib/formatters/count";
 import { Banner } from "@/components/rediseno/banner";
@@ -56,7 +56,7 @@ import {
  * (`items` está topeado y las monedas sin TC no suman).
  *
  * LEY 2 — máximo UN rojo por pantalla, decidido en el modelo (`elUnicoRojo`): la pill "Revisar"
- * del posible duplicado más urgente si hay alguno; si no, el relativo de la fila crítica más
+ * del posible duplicado más urgente que publicó el backend; si no, el relativo de la fila crítica más
  * urgente. El KPI "Vencido" NO va en rojo (el HTML de referencia lo pinta rojo; la spec manda en
  * lógica). Lo demás es ámbar o gris. Las stories y el test CUENTAN `rediseno-rojo` + `danger-`.
  *
@@ -72,8 +72,11 @@ export interface PagarV05ViewProps {
   pagos: AccountsPayableResponse | null;
   /** Por qué no llegó, en lenguaje de dueño (cuando `pagos` es null). */
   pagosMotivo?: string | null;
+  /** Pares UUID de `/anomalies`. `null` = no llegó la señal: no se concluye que no haya duplicados. */
+  anomalias?: ReadonlyArray<PayableDuplicatePair> | null;
+  anomaliasMotivo?: string | null;
   onReintentar?: () => void;
-  /** Issue sucesor de los huecos declarados (duplicados por backend, "Servicio", Postergar). */
+  /** Issue sucesor de los huecos declarados (por ejemplo, la taxonomía "Servicio"). */
   issueSucesor?: string;
   /** Referencia de "hoy". Explícita para tests y stories deterministas. */
   hoy?: Date;
@@ -87,6 +90,8 @@ const EYEBROW =
 export function PagarV05View({
   pagos: ap,
   pagosMotivo,
+  anomalias = [],
+  anomaliasMotivo,
   onReintentar,
   issueSucesor,
   hoy = new Date(),
@@ -95,7 +100,7 @@ export function PagarV05View({
   const [filtro, setFiltro] = React.useState<FiltroV05>("todos");
   const [consulta, setConsulta] = React.useState("");
 
-  const filas = React.useMemo(() => pagosV05(ap, hoy), [ap, hoy]);
+  const filas = React.useMemo(() => pagosV05(ap, hoy, anomalias ?? []), [ap, hoy, anomalias]);
   const rojo = elUnicoRojo(filas);
   const vencido = kpiVencido(filas);
   const porPagar = kpiPorPagar(ap, periodo);
@@ -105,6 +110,10 @@ export function PagarV05View({
   const visibles = filtrarPagos(filas, filtro, consulta);
   const tot = totales(ap, filas);
   const falta = faltantes(ap);
+  const correlacionAnomaliasIncompleta =
+    anomalias != null && (ap?.items ?? []).some((item) => !item.id?.trim());
+  const motivoAnomaliasIncompletas =
+    "Algunos pagos no tienen identificador estable; no pudimos correlacionar sus posibles duplicados.";
 
   /* (0) Sin respuesta: la pantalla no está vacía, está ciega — y lo dice. */
   if (!ap) {
@@ -245,6 +254,21 @@ export function PagarV05View({
         </Banner>
       )}
 
+      {(anomalias == null || correlacionAnomaliasIncompleta) && (
+        <Banner role="status">
+          <span>
+            {anomalias == null
+              ? (anomaliasMotivo ?? "No tenemos la señal de posibles duplicados todavía.")
+              : motivoAnomaliasIncompletas}
+          </span>
+          {onReintentar && (
+            <button type="button" onClick={onReintentar} className={LINK}>
+              Reintentar
+            </button>
+          )}
+        </Banner>
+      )}
+
       {/* (3) Filtros con conteo + búsqueda, (4) tabla. */}
       <section aria-labelledby="v05-pagos" className="space-y-2">
         <h2 id="v05-pagos" className={EYEBROW}>
@@ -310,11 +334,12 @@ export function PagarV05View({
           <b className="font-semibold text-rediseno-tinta-2">
             No existe un botón “pagar todo”, y postergar no es una acción aquí:
           </b>{" "}
-          mover plata siempre lleva firma humana. {LEY_9_TEXTO} No hay cómo mover una fecha que la
-          proyección lea (#80), así que cada pago enlaza a su detalle en vez de prometer una acción
-          muda. El “posible duplicado” se calcula en esta pantalla sobre los pagos listados —mismo
-          RUT, monto a ±1 % y vencimientos a 30 días— y la pill “Servicio” de la spec no se produce:
-          el contrato no distingue un servicio recurrente de una factura cualquiera
+          mover plata siempre lleva firma humana. {LEY_9_TEXTO} Esta vista enlaza cada pago a su
+          detalle en vez de duplicar la decisión de postergar que vive en Caja/Hoy. El “posible
+          duplicado” llega como una señal read-only del registro, correlacionada
+          por UUID y calculada sobre el devengado completo; esta pantalla no lo reconstruye desde
+          texto, RUT, monto ni fecha; la pill “Servicio” de la spec no se produce: el contrato no
+          distingue un servicio recurrente de una factura cualquiera
           {issueSucesor ? ` (${issueSucesor})` : ""}.
         </p>
       </section>

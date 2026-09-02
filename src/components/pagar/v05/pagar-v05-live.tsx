@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useAccountsPayable } from "@/lib/api/pagos";
+import { useAccountsPayable, usePayableDuplicateAnomalies } from "@/lib/api/pagos";
 import { ApiError } from "@/lib/api/errors";
 import { PagarV05View } from "./pagar-v05-view";
 
@@ -30,6 +30,7 @@ export function motivoSinPagos(err: unknown): string {
 export function PagarV05Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?: string }) {
   const [hoy] = React.useState(() => new Date());
   const ap = useAccountsPayable();
+  const anomalias = usePayableDuplicateAnomalies();
 
   if (ap.isLoading) return <CargandoPagar />;
 
@@ -37,7 +38,18 @@ export function PagarV05Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?: 
     <PagarV05View
       pagos={ap.data ?? null}
       pagosMotivo={ap.isError ? motivoSinPagos(ap.error) : null}
-      onReintentar={() => void ap.refetch()}
+      anomalias={anomalias.isSuccess ? anomalias.data.items : null}
+      anomaliasMotivo={
+        anomalias.isError
+          ? "No pudimos revisar posibles duplicados; no los estamos descartando."
+          : anomalias.isLoading
+            ? "Estamos revisando posibles duplicados (~5 s)."
+            : null
+      }
+      onReintentar={() => {
+        void ap.refetch();
+        void anomalias.refetch();
+      }}
       issueSucesor={issueSucesor}
       hoy={hoy}
     />

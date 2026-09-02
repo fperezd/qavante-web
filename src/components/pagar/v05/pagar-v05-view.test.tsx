@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentProps } from "react";
 import { PagarV05View } from "./pagar-v05-view";
 import {
+  ANOMALIA_ENTEL,
   HOY,
   pagos,
   pagosConDuplicado,
@@ -137,7 +138,7 @@ describe("PagarV05View — Ley 2: máximo un rojo por pantalla", () => {
   });
 
   it("con un posible duplicado: EXACTAMENTE un rojo, y es la pill Revisar — la fila crítica ya no lo lleva", () => {
-    const h = html({ pagos: pagosConDuplicado() });
+    const h = html({ pagos: pagosConDuplicado(), anomalias: [ANOMALIA_ENTEL] });
     expect(rojos(h)).toBe(1);
     expect(elRojo(h)).toBe("Revisar");
     // El otro duplicado va en ámbar con la misma palabra (dos "Revisar", un solo rojo).
@@ -145,13 +146,30 @@ describe("PagarV05View — Ley 2: máximo un rojo por pantalla", () => {
     // Gemelo del negativo: la MISMA query que en el caso normal ya no encuentra la fecha en rojo.
     expect(elRojo(h)).not.toBe("en 2 días");
     expect(texto(h)).toContain(
-      "posible duplicado de Factura 9017 (vence 27 ago, $205.000): mismo RUT, monto a ±1 % y a 15 días",
+      "posible duplicado señalado por el registro: Factura 9017 (27 ago, $205.000)",
     );
   });
 
   it("sin datos o sin respuesta: ningún rojo", () => {
     expect(rojos(html({ pagos: pagosVacio() }))).toBe(0);
     expect(rojos(html({ pagos: null }))).toBe(0);
+  });
+
+  it("sin señal de anomalías no afirma que no haya duplicados", () => {
+    const t = texto(html({ pagos: pagosConDuplicado(), anomalias: null }));
+    expect(t).toContain("No tenemos la señal de posibles duplicados todavía.");
+    expect(t).not.toContain("posible duplicado señalado por el registro");
+  });
+
+  it("un pago sin UUID declara correlación de anomalías incompleta", () => {
+    const t = texto(html({ pagos: pagos({ items: [{ ...KENNEDY, id: null }] }), anomalias: [] }));
+    expect(t).toContain(
+      "Algunos pagos no tienen identificador estable; no pudimos correlacionar sus posibles duplicados.",
+    );
+    // Gemelo positivo: con UUID la misma señal vacía no abre el aviso.
+    expect(texto(html({ pagos: pagos({ items: [KENNEDY] }), anomalias: [] }))).not.toContain(
+      "Algunos pagos no tienen identificador estable; no pudimos correlacionar sus posibles duplicados.",
+    );
   });
 });
 

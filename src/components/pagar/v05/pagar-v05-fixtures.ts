@@ -5,7 +5,11 @@
  * `due_date asc`, `source_external_id` con la clave natural del RCV ('tipo-folio-rut') o la de
  * nómina ('payroll-YYYYMM'), y los `due_*` acumulativos INCLUYENDO lo vencido. */
 
-import type { AccountsPayableResponse, PayableItem } from "@/lib/api/pagos";
+import type {
+  AccountsPayableResponse,
+  PayableDuplicatePair,
+  PayableItem,
+} from "@/lib/api/pagos";
 
 export const HOY = new Date("2026-08-30T12:00:00Z");
 
@@ -18,6 +22,7 @@ export const RUT_MELI = "76666666-6";
 /* La factura vencida hace ~18 meses (545 días): el caso VIVO de producción — el backend ordena
  * por `due_date asc` e incluye lo vencido, así que esto es lo primero que llega. */
 export const KENNEDY: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000001",
   label: "Inmobiliaria Vista Kennedy SpA — Factura 1201",
   category: "supplier",
   due_date: "2025-03-03",
@@ -34,6 +39,7 @@ export const KENNEDY: PayableItem = {
 };
 
 export const VASQUEZ: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000002",
   label: "Soc. de Profesionales Vásquez, González y Cía. — Factura 88",
   category: "supplier",
   due_date: "2026-06-06",
@@ -50,6 +56,7 @@ export const VASQUEZ: PayableItem = {
 };
 
 export const ENTEL_A: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000003",
   label: "Entel PCS Telecomunicaciones S.A. — Factura 9001",
   category: "supplier",
   due_date: "2026-08-12",
@@ -65,8 +72,9 @@ export const ENTEL_A: PayableItem = {
   amount_clp: null,
 };
 
-/** El posible duplicado de ENTEL_A: mismo RUT, mismo tipo DTE, monto a +0,68 % y a 15 días. */
+/** La contraparte del par UUID que publica el registro de anomalías. */
 export const ENTEL_B: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000004",
   label: "Entel PCS Telecomunicaciones S.A. — Factura 9017",
   category: "supplier",
   due_date: "2026-08-27",
@@ -83,6 +91,7 @@ export const ENTEL_B: PayableItem = {
 };
 
 export const BICE: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000005",
   label: "Banco BICE — cuota crédito",
   category: "debt",
   due_date: "2026-09-01",
@@ -101,6 +110,7 @@ export const BICE: PayableItem = {
 /* ADR-0056: la nómina es un payable REAL. El backend manda el label literal "Remuneraciones"
  * (supplier_name sin documento) y la clave natural trae el período. */
 export const REMUNERACIONES: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000006",
   label: "Remuneraciones",
   category: "payroll",
   due_date: "2026-09-04",
@@ -117,6 +127,7 @@ export const REMUNERACIONES: PayableItem = {
 };
 
 export const MELI_USD: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000007",
   label: "MercadoLibre Chile Ltda. — Factura 77",
   category: "supplier",
   due_date: "2026-09-08",
@@ -133,6 +144,7 @@ export const MELI_USD: PayableItem = {
 };
 
 export const F29: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000008",
   label: "F29 · IVA de julio",
   category: "tax",
   due_date: "2026-09-12",
@@ -149,6 +161,7 @@ export const F29: PayableItem = {
 };
 
 export const CHIPAX: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000009",
   label: "Chipax SpA — Factura 5540",
   category: "supplier",
   due_date: "2026-09-20",
@@ -209,11 +222,17 @@ export function pagosConDuplicado(
   });
 }
 
+export const ANOMALIA_ENTEL: PayableDuplicatePair = {
+  payable_id: ENTEL_A.id!,
+  duplicate_payable_id: ENTEL_B.id!,
+};
+
 /** SÓLO impuestos y sueldos: nada postergable (Ley 9), sin banner, sin rojo negociable. */
 export function pagosSoloImpuestosYSueldos(
   over: Partial<AccountsPayableResponse> = {},
 ): AccountsPayableResponse {
   const previred: PayableItem = {
+    id: "00000000-0000-4000-8000-000000000010",
     label: "Previred — cotizaciones",
     category: "payroll",
     due_date: "2026-09-10",
@@ -249,6 +268,7 @@ export function pagosDegradados(
   over: Partial<AccountsPayableResponse> = {},
 ): AccountsPayableResponse {
   const sinFecha: PayableItem = {
+    id: "00000000-0000-4000-8000-000000000011",
     label: "Aguas Cordillera S.A. — Factura 310",
     category: "supplier",
     due_date: "",
@@ -264,6 +284,7 @@ export function pagosDegradados(
     amount_clp: null,
   };
   const usdSinTc: PayableItem = {
+    id: "00000000-0000-4000-8000-000000000012",
     label: "Amazon Web Services — Factura 4410",
     category: "supplier",
     due_date: "2026-09-05",

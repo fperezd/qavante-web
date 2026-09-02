@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { PayableItem } from "@/lib/api/pagos";
 import { formatMoney } from "@/lib/formatters/clp";
 import { sale14d } from "@/components/caja/v02/caja-v02-model";
 import {
-  DUP_VENTANA_DIAS,
   LEY_9_TEXTO,
   bannerPostergables,
   coincideConsulta,
@@ -21,17 +19,16 @@ import {
   kpiCritico,
   kpiPorPagar,
   kpiVencido,
-  montosCalzan,
   nombreDe,
   ordenarPorUrgencia,
   pagosV05,
-  sonPosibleDuplicado,
   tipoDe,
   totales,
   venceLabelDe,
 } from "./pagar-v05-model";
 import {
   BICE,
+  ANOMALIA_ENTEL,
   CHIPAX,
   ENTEL_A,
   ENTEL_B,
@@ -143,85 +140,40 @@ describe("orden por urgencia (default de la tabla)", () => {
   });
 });
 
-describe("posible duplicado — mismo RUT + monto ±1 % + 30 días (regla de la spec)", () => {
-  const a = filas().find((p) => p.key === ENTEL_A.source_external_id)!;
-
-  function pago(item: PayableItem) {
-    return pagosV05(pagos({ items: [item] }), HOY)[0]!;
-  }
-
-  it("el par de Entel calza y se marca en las DOS filas", () => {
-    const dup = pagosV05(pagosConDuplicado(), HOY);
-    const a1 = dup.find((p) => p.key === ENTEL_A.source_external_id)!;
-    const b1 = dup.find((p) => p.key === ENTEL_B.source_external_id)!;
+describe("posible duplicado — sólo el par UUID publicado por el backend", () => {
+  it("el par de anomalías marca las DOS filas por UUID", () => {
+    const dup = pagosV05(pagosConDuplicado(), HOY, [ANOMALIA_ENTEL]);
+    const a1 = dup.find((p) => p.key === ENTEL_A.id)!;
+    const b1 = dup.find((p) => p.key === ENTEL_B.id)!;
     expect(a1.anomalia).not.toBeNull();
-    expect(a1.anomalia!.parKey).toBe(ENTEL_B.source_external_id);
+    expect(a1.anomalia!.parKey).toBe(ENTEL_B.id);
     expect(a1.tipo).toBe("revisar");
     expect(a1.sub).toBe(
-      "posible duplicado de Factura 9017 (vence 27 ago, $205.000): mismo RUT, monto a ±1 % y a 15 días",
+      "posible duplicado señalado por el registro: Factura 9017 (27 ago, $205.000)",
     );
-    expect(b1.anomalia!.parKey).toBe(ENTEL_A.source_external_id);
+    expect(b1.anomalia!.parKey).toBe(ENTEL_A.id);
   });
 
-  it("gemelo de la tolerancia: a ±1 % calza, a 5 % NO", () => {
-    const cerca = pago({ ...ENTEL_B, amount: "205000" }); // +0,68 %
-    const lejos = pago({ ...ENTEL_B, amount: "215000" }); // +5,6 %
-    expect(sonPosibleDuplicado(a, cerca)).toBe(true);
-    expect(sonPosibleDuplicado(a, lejos)).toBe(false);
+  it("dos filas que se parecen por RUT, monto y fecha NO se marcan sin par UUID", () => {
+    const sinPar = pagosV05(pagosConDuplicado(), HOY, []);
+    expect(sinPar.find((p) => p.key === ENTEL_A.id)!.anomalia).toBeNull();
+    expect(sinPar.find((p) => p.key === ENTEL_B.id)!.anomalia).toBeNull();
   });
 
-  it("montosCalzan: 1 % exacto adentro, 1,2 % afuera, cero nunca", () => {
-    expect(montosCalzan(100_000, 101_000)).toBe(true);
-    expect(montosCalzan(100_000, 101_200)).toBe(false);
-    expect(montosCalzan(0, 0)).toBe(false);
-  });
-
-  it("gemelo de la ventana: a 15 días calza, a más de 30 NO", () => {
-    const dentro = pago({ ...ENTEL_B, due_date: "2026-08-27" }); // 15 días de ENTEL_A
-    const fuera = pago({ ...ENTEL_B, due_date: "2026-10-15" }); // 64 días
-    expect(Math.abs(dentro.dias! - a.dias!)).toBeLessThanOrEqual(DUP_VENTANA_DIAS);
-    expect(sonPosibleDuplicado(a, dentro)).toBe(true);
-    expect(sonPosibleDuplicado(a, fuera)).toBe(false);
-  });
-
-  it("sin RUT no hay regla (nómina/impuestos quedan afuera aunque el monto calce)", () => {
-    const nominaA = pago(REMUNERACIONES);
-    const nominaB = pago({ ...REMUNERACIONES, source_external_id: "payroll-202607" });
-    expect(sonPosibleDuplicado(nominaA, nominaB)).toBe(false);
-    // Impuestos periódicos con RUT tampoco: son iguales mes a mes por naturaleza.
-    const taxA = pago({ ...F29, counterparty_rut: "60803000-K" });
-    const taxB = pago({
-      ...F29,
-      counterparty_rut: "60803000-K",
-      source_external_id: "f29-202606",
-      due_date: "2026-09-14",
-    });
-    expect(sonPosibleDuplicado(taxA, taxB)).toBe(false);
-  });
-
-  it("una factura y su nota de crédito NO son duplicados (tipo DTE distinto)", () => {
-    const nc = pago({ ...ENTEL_B, tipo_dte: 61, label: "Entel — NC 40" });
-    expect(sonPosibleDuplicado(a, nc)).toBe(false);
-  });
-
-  it("monedas distintas nunca calzan", () => {
-    const usd = pago({ ...ENTEL_B, currency: "USD", amount: "205000" });
-    expect(sonPosibleDuplicado(a, usd)).toBe(false);
-  });
-
-  it("en el caso normal (sin el segundo Entel) NADIE está marcado", () => {
-    expect(filas().every((p) => p.anomalia == null)).toBe(true);
+  it("si el par incluye un pago fuera de los visibles, no inventa sus datos", () => {
+    const soloA = pagosV05(pagos({ items: [ENTEL_A] }), HOY, [ANOMALIA_ENTEL]);
+    expect(soloA[0]!.sub).toContain("el otro pago no está entre los visibles");
   });
 });
 
 describe("Ley 2 — el único rojo lo decide el modelo", () => {
   it("con un duplicado, el rojo es la anomalía más urgente (no la fila crítica)", () => {
-    const rojo = elUnicoRojo(pagosV05(pagosConDuplicado(), HOY));
-    expect(rojo).toEqual({ key: ENTEL_A.source_external_id, motivo: "anomalia" });
+    const rojo = elUnicoRojo(pagosV05(pagosConDuplicado(), HOY, [ANOMALIA_ENTEL]));
+    expect(rojo).toEqual({ key: ENTEL_A.id, motivo: "anomalia" });
   });
 
   it("sin duplicados, el rojo es la fila crítica más urgente", () => {
-    expect(elUnicoRojo(filas())).toEqual({ key: BICE.source_external_id, motivo: "critico" });
+    expect(elUnicoRojo(filas())).toEqual({ key: BICE.id, motivo: "critico" });
   });
 
   it("sin duplicados ni críticos no hay rojo", () => {
