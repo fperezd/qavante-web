@@ -7,6 +7,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
 import type { LiquidityEvaluation, OperationPlanRead } from "@/lib/api/financial-decisions";
+import type { CollectionEvaluation, CollectionSituation } from "@/lib/api/collection-decisions";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import {
   crumbHoy,
@@ -17,6 +18,7 @@ import {
   type IndicadorHoy,
 } from "./hoy-model";
 import { LiquidityEvaluationPanel } from "./liquidity-evaluation-panel";
+import { CollectionEvaluationPanel } from "./collection-evaluation-panel";
 import { liquidityEvaluationView } from "./liquidity-evaluation-model";
 import { InstrumentDecisionPanel } from "./instrument-decision-panel";
 import type { DecisionLayerView } from "./instrument-decision-model";
@@ -60,9 +62,16 @@ export interface HoyViewProps {
   operationPlanLoading?: boolean;
   operationPlanError?: unknown;
   onRetryOperationPlan?: () => void;
+  /** F3 reader snapshots. The live layer leaves this scope unavailable until it has a canonical entity source. */
+  collectionSituation?: CollectionSituation | null;
+  collectionEvaluation?: CollectionEvaluation | null;
+  collectionLoading?: boolean;
+  collectionError?: unknown;
+  collectionScopeAvailable?: boolean;
+  onRetryCollection?: () => void;
   /**
-   * Boundary puro F3–F9. HoyLive no lo construye mientras no existan readers públicos estables;
-   * sólo permite integrar componentes contractuales sin introducir fetches ficticios.
+   * Boundary puro F4–F9. F3 usa el reader público y el panel de cobranza de arriba; esta capa
+   * conserva los dominios que siguen sin reader público estable.
    */
   decisionLayer?: DecisionLayerView | null;
 }
@@ -104,6 +113,12 @@ export function HoyView({
   operationPlanLoading = false,
   operationPlanError = null,
   onRetryOperationPlan,
+  collectionSituation = null,
+  collectionEvaluation = null,
+  collectionLoading = false,
+  collectionError = null,
+  collectionScopeAvailable = false,
+  onRetryCollection,
   decisionLayer = null,
 }: HoyViewProps) {
   const caja = cajaHoy(data);
@@ -190,7 +205,18 @@ export function HoyView({
         />
       )}
 
-      {/* F3–F9 comparte la jerarquía de Hoy, pero sólo recibe un view-model inyectado. En runtime
+      {!v.soloDecisionCritica && (
+        <CollectionEvaluationPanel
+          situation={collectionSituation}
+          evaluation={collectionEvaluation}
+          loading={collectionLoading}
+          error={collectionError}
+          scopeAvailable={collectionScopeAvailable}
+          onRetry={onRetryCollection}
+        />
+      )}
+
+      {/* F4–F9 comparte la jerarquía de Hoy, pero sólo recibe un view-model inyectado. En runtime
           permanece ausente hasta que cada vertical publique su reader; hoyV01 sigue apagado. */}
       {!v.soloDecisionCritica && decisionLayer && <InstrumentDecisionPanel layer={decisionLayer} />}
 

@@ -4,6 +4,11 @@ import * as React from "react";
 import { QavanteInlineError } from "@/components/qavante";
 import { useDashboardSummary } from "@/lib/api/dashboard";
 import {
+  useCollectionEvaluation,
+  useCollectionSituation,
+  type CollectionReadQuery,
+} from "@/lib/api/collection-decisions";
+import {
   useLatestLiquidityEvaluation,
   useOperationPlanForDecision,
 } from "@/lib/api/financial-decisions";
@@ -28,6 +33,13 @@ export function HoyLive() {
   const operationPlan = useOperationPlanForDecision(liquidity.data?.decision_id ?? null);
   const me = useMe();
   const role = asUserRole(me.data?.user?.role);
+  /* F3's public reader requires legal_entity_id + currency + as_of. `/api/me` only publishes
+     tenant_id, so using it here would silently scope a financial decision to the wrong entity.
+     Keep this explicit until a canonical scope source is published; disabled queries issue no HTTP
+     request. This does not alter the still-OFF hoyV01 feature gate. */
+  const collectionScope: CollectionReadQuery | null = null;
+  const collectionSituation = useCollectionSituation(collectionScope);
+  const collectionEvaluation = useCollectionEvaluation(collectionScope);
 
   if (summary.isLoading) return <CargandoHoy />;
   if (summary.isError) {
@@ -52,6 +64,19 @@ export function HoyLive() {
       operationPlanLoading={operationPlan.isLoading}
       operationPlanError={operationPlan.error}
       onRetryOperationPlan={() => void operationPlan.refetch()}
+      collectionSituation={collectionSituation.data ?? null}
+      collectionEvaluation={collectionEvaluation.data ?? null}
+      collectionLoading={collectionSituation.isLoading || collectionEvaluation.isLoading}
+      collectionError={collectionSituation.error ?? collectionEvaluation.error}
+      collectionScopeAvailable={collectionScope !== null}
+      onRetryCollection={
+        collectionScope
+          ? () => {
+              void collectionSituation.refetch();
+              void collectionEvaluation.refetch();
+            }
+          : undefined
+      }
     />
   );
 }

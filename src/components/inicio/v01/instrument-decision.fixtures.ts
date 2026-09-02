@@ -1,5 +1,4 @@
 import {
-  collectionContractDependencyView,
   externalDeliveryDisabledLabel,
   financingAlternativeView,
   fxAlternativeView,
@@ -12,7 +11,6 @@ import {
 export function instrumentDecisionStoryLayer(): DecisionLayerView {
   return {
     instruments: [
-      collectionContractDependencyView(),
       financingAlternativeView("working_capital", {
         code: "working_capital:fixture",
         instrument_type: "working_capital",

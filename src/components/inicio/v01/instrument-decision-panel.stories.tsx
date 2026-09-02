@@ -4,7 +4,7 @@ import { instrumentDecisionStoryLayer } from "./instrument-decision.fixtures";
 import { InstrumentDecisionPanel } from "./instrument-decision-panel";
 
 const meta = {
-  title: "Rediseño F3-F9 / Capa común de instrumentos",
+  title: "Rediseño F4-F9 / Capa común de instrumentos",
   component: InstrumentDecisionPanel,
   parameters: {
     layout: "padded",
@@ -12,7 +12,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Boundary de presentación puro para contratos internos F4–F8. F3 y F9 declaran sus dependencias abiertas; no hay fetch, CTA, aprobación, submission ni ejecución.",
+          "Boundary de presentación puro para contratos internos F4–F8. F3 usa su reader separado; F9 declara su dependencia abierta. No hay CTA, aprobación, submission ni ejecución.",
       },
     },
   },
@@ -23,7 +23,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const CuatroEstadosYDependencias: Story = {
-  name: "Cuatro estados, no_action y contratos pendientes",
+  name: "Cuatro estados, no_action y contrato pendiente",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
@@ -33,8 +33,6 @@ export const CuatroEstadosYDependencias: Story = {
       await expect(canvas.getByText(state)).toBeVisible();
     }
 
-    await expect(canvas.getByRole("heading", { name: "Cobranza y reprogramación" })).toBeVisible();
-    await expect(canvas.getByText("Dependencia: qavante-api#300")).toBeVisible();
     await expect(canvas.getByRole("heading", { name: "No actuar" })).toBeVisible();
     await expect(canvas.getByText("Alternativa no_action · sin operación")).toBeVisible();
     await expect(canvas.getByText("Costo de instrumento no aplica")).toBeVisible();

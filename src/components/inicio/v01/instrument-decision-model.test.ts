@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  collectionContractDependencyView,
   externalDeliveryDisabledLabel,
   financingAlternativeView,
   fxAlternativeView,
@@ -55,7 +54,7 @@ function investment(
   };
 }
 
-describe("instrument decision presentation boundary F3–F9", () => {
+describe("instrument decision presentation boundary F4–F9", () => {
   it("transporta los cuatro estados sin reinterpretarlos", () => {
     const states = [
       financingAlternativeView("working_capital", financing()).eligibilityState,
@@ -134,11 +133,7 @@ describe("instrument decision presentation boundary F3–F9", () => {
     expect(view.costLabel).not.toContain("$0");
   });
 
-  it("declara F3 y F9 como dependencias sin fabricar datos", () => {
-    expect(collectionContractDependencyView()).toMatchObject({
-      kind: "dependency",
-      dependency: "qavante-api#300",
-    });
+  it("declara F9 como dependencia sin fabricar datos", () => {
     expect(outcomeLedgerContractDependencyView()).toMatchObject({
       kind: "dependency",
       dependency: "qavante-api#304",

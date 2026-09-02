@@ -3,11 +3,12 @@ import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 
 /**
- * Boundary de presentación F3–F9.
+ * Boundary de presentación F4–F9.
  *
  * No es un contrato de red. F4–F8 sólo tienen contratos de dominio internos fusionados en
- * qavante-api#308/#309/#310; F3 (#300) y F9 (#304) aún no publican un reader estable. Estos
- * adapters copian únicamente el subconjunto exacto que la UI puede transportar de esos dominios.
+ * qavante-api#308/#309/#310; F9 (#304) aún no publica un reader estable. F3 usa su reader
+ * público en `collection-evaluation-panel`. Estos adapters copian únicamente el subconjunto
+ * exacto que la UI puede transportar de esos dominios.
  * Ningún tipo de este archivo autoriza un fetch, una selección o una ejecución.
  */
 export type InstrumentEligibilityState =
@@ -249,19 +250,6 @@ export function investmentAlternativeView(
     title: FAMILY_LABEL.investment,
     costLabel: knownCostLabel(source.total_cost, terms?.currency ?? null, "Costo total"),
     validityLabel: validityLabel(terms?.valid_through ?? null),
-  };
-}
-
-/** F3 sigue sin reader público estable; la card declara la dependencia y no simula evaluación. */
-export function collectionContractDependencyView(): ContractDependencyView {
-  return {
-    kind: "dependency",
-    id: "collection:contract-pending",
-    family: "collection",
-    title: FAMILY_LABEL.collection,
-    dependency: "qavante-api#300",
-    description:
-      "Contrato F3 verificable pendiente. Este boundary no consulta ni simula un plan de cobranza.",
   };
 }
 
