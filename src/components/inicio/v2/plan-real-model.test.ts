@@ -148,12 +148,15 @@ describe("mapPlanReal", () => {
     expect(byConcept.result).toBe(false);
   });
 
-  it("variacionPct null si el plan es 0 (no dividir por cero)", () => {
-    const r = mapPlanReal(
-      resp(true, [{ concept: "revenue", budget: "0", actual: "500000" }]),
-      "julio",
-    );
-    expect(r!.filas[0]!.variacionPct).toBeNull();
+  it("Ley 1: con plan 0 conserva el 0 contractual del backend, igual que V09", () => {
+    const backend = resp(true, [
+      { concept: "result", budget: "0", actual: "500000", variance: "500000", variance_pct: "0" },
+    ]);
+    const inicio = mapPlanReal(backend, "julio")!.resultado!;
+    const v09 = triadaV09("julio", backend)!;
+
+    expect(inicio.variacionPct).toBe(0);
+    expect(inicio.variacionPct).toBe(v09.desvioPct);
   });
 
   it("has_budget=false se propaga (el contenedor muestra estado honesto)", () => {

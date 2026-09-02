@@ -128,6 +128,18 @@ describe("PresupuestoV09View — tríada", () => {
     expect(t).toContain("en contra · 5,6%");
     expect(t).not.toContain("a favor · 5,6%");
   });
+
+  it("con plan 0 muestra el 0% contractual, nunca lo oculta por una guarda local", () => {
+    const sinPlan = budgetVsActual({
+      lines: budgetVsActual().lines!.map((l) =>
+        l.concept === "result"
+          ? { ...l, budget: "0", actual: "500000", variance: "500000", variance_pct: "0" }
+          : l,
+      ),
+    });
+
+    expect(texto(html({ bva: sinPlan }))).toContain("a favor · 0%");
+  });
 });
 
 describe("PresupuestoV09View — tabla de desvíos", () => {

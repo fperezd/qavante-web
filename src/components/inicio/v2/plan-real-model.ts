@@ -51,7 +51,7 @@ export interface PlanRealFila {
   /** MENSUAL: `BudgetLine.variance_pct` del backend, tal cual (sin redondear — el redondeo a 1
    *  decimal es de PRESENTACIÓN, ver `formatPct`). ANUAL: `variacion / |plan| * 100` sobre los
    *  totales agregados (no hay `variance_pct` de backend para un rango). `null` si `plan = 0` (no
-   *  dividir por cero) en ambos casos — decisión del front, no del backend. */
+   *  dividir por cero) sólo en ANUAL; MENSUAL conserva el `0` que declara el backend. */
   variacionPct: number | null;
   /** `true` si la desviación es buena para el negocio. */
   favorable: boolean;
@@ -71,8 +71,7 @@ export interface PlanReal {
 /** `desdeBackend`: `{ variance, variancePct }` de la línea `BudgetLine` cuando existe (MENSUAL) — se
  *  leen tal cual, sin recalcular. Si no viene (línea ausente, o ANUAL agregando varios meses), se
  *  deriva `variacion = real - plan` y `variacionPct = variacion / |plan| * 100` (`null` si plan = 0
- *  en AMBOS caminos — eso sí es decisión del front, no un recálculo del monto/porcentaje que el
- *  backend ya entrega). */
+ *  sólo al derivar; cuando viene del backend se conserva incluso el `0` contractual). */
 function fila(
   concepto: PlanRealConcepto,
   label: string,
@@ -81,12 +80,11 @@ function fila(
   desdeBackend?: { variance: number; variancePct: number | null },
 ): PlanRealFila {
   const variacion = desdeBackend ? desdeBackend.variance : real - plan;
-  const variacionPct =
-    plan === 0
+  const variacionPct = desdeBackend
+    ? desdeBackend.variancePct
+    : plan === 0
       ? null
-      : desdeBackend
-        ? desdeBackend.variancePct
-        : (variacion / Math.abs(plan)) * 100;
+      : (variacion / Math.abs(plan)) * 100;
   return {
     concepto,
     label,

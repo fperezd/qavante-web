@@ -184,7 +184,7 @@ export function PresupuestoV09View({
           detail={
             <Pill variant={triada.favorable ? "ok" : "warn"}>
               {triada.favorable ? "a favor" : "en contra"}
-              {triada.desvioPct != null && triada.plan !== 0
+              {triada.desvioPct != null
                 ? ` · ${formatPct(Math.abs(triada.desvioPct))}`
                 : ""}
             </Pill>
@@ -363,7 +363,7 @@ function TablaDesvios({
         cell: ({ row }) => (
           <Pill variant={row.original.favorable ? "ok" : "warn"}>
             {row.original.favorable ? "a favor" : "en contra"}
-            {row.original.desvioPct != null && row.original.plan !== 0
+            {row.original.desvioPct != null
               ? ` · ${formatPct(Math.abs(row.original.desvioPct))}`
               : ""}
           </Pill>
