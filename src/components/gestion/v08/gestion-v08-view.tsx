@@ -90,7 +90,7 @@ import {
  * sólo el scroll da un verde falso. La medición de las stories exige además que ninguna tabla ni
  * tarjeta termine más allá del borde derecho de la ventana, y con esa versión aparecieron dos
  * desbordes reales que la lectura del código no había visto: el `colSpan` de las filas del
- * drill-down (369 px) y el `sub` largo de la tabla de costos, que `truncate` vuelve `nowrap` y
+ * drill-down (369 px) y el `sub` largo de la tabla de costos, que antes fijaba su ancho mínimo y
  * empujaba la columna a 438 px. Los dos están arreglados; los dos vuelven a romper el test si se
  * revierten.
  *
@@ -725,11 +725,8 @@ function SeccionCostos({
         header: "Cuenta",
         accessorFn: (l) => l.label,
         meta: { principal: true },
-        /* El `sub` va CORTO a propósito. `TablePrimaryCell` lo pinta con `truncate`, que incluye
-           `white-space: nowrap`, y en una celda de tabla sin ancho máximo eso empuja la columna
-           hasta el largo completo de la frase: medido en Chromium en viewport angosto, la frase que
-           estaba acá llevaba esta tabla a 438 px de ancho dentro de una ventana de 360. La
-           explicación completa vive en la prosa de abajo, donde sí puede envolver. */
+        /* El sub es corto por lectura, no por una restricción de layout: `TablePrimaryCell` deja
+           envolver el metadato largo sin recortar la tabla a 360 px (Ley 7). */
         cell: ({ row }) => (
           <TablePrimaryCell
             value={row.original.label}

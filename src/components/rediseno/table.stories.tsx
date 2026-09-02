@@ -69,6 +69,29 @@ const columnasColapso: ColumnDef<Cliente, unknown>[] = [
   { accessorKey: "saldo", header: "PorTabla", meta: { hideBelowTable: "sm" } },
 ];
 
+/** Dos columnas visibles a 360 px: el subtítulo deliberadamente largo debe envolver y dejar
+ * espacio al monto. Reproduce el riesgo compartido de V04, V05 y V08 sin acoplar el primitivo a
+ * ninguna de esas vistas. */
+const columnasSubLargo: ColumnDef<Cliente, unknown>[] = [
+  {
+    accessorKey: "nombre",
+    header: "Contraparte",
+    meta: { principal: true },
+    cell: ({ row }) => (
+      <TablePrimaryCell
+        value={row.original.nombre}
+        sub="Vencido hace 73 días; última gestión sin respuesta y requiere revisión"
+      />
+    ),
+  },
+  {
+    accessorKey: "saldo",
+    header: "Monto",
+    meta: { align: "right" },
+    cell: ({ row }) => `$${row.original.saldo.toLocaleString("es-CL")}`,
+  },
+];
+
 const meta = {
   title: "Rediseño / Table",
   component: RedisenoTable,
@@ -150,6 +173,32 @@ export const ColapsoViewportVsContenedor: Story = {
     await expect(canvas.getByRole("columnheader", { name: /PorViewport/ })).toBeVisible();
     /* …y la del CONTENEDOR no. */
     await expect(canvas.queryByRole("columnheader", { name: /PorTabla/ })).not.toBeInTheDocument();
+  },
+};
+
+/** Ley 7: a 360 px el `sub` no fija un ancho mínimo ni se oculta con ellipsis. Se mide el
+ * scroller efectivo, no el wrapper `overflow-hidden`, que reportaría cero aunque el dato quedara
+ * recortado. */
+export const SubLargo360: Story = {
+  name: "Ley 7: subtítulo largo envuelve a 360 px",
+  render: () => (
+    <div data-angosta="sub-largo" style={{ width: 360, maxWidth: 360, overflow: "hidden" }}>
+      <RedisenoTable columns={columnasSubLargo} data={clientes.slice(0, 1)} celdasCompactasEnAngosto />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const caja = canvasElement.querySelector<HTMLElement>('[data-angosta="sub-largo"]')!;
+    await expect(Math.round(caja.getBoundingClientRect().width)).toBe(360);
+
+    const tabla = caja.querySelector<HTMLElement>("table")!;
+    const scroller = tabla.parentElement!;
+    await expect(scroller.scrollWidth).toBeLessThanOrEqual(scroller.clientWidth);
+
+    const sub = canvas.getByText(/Vencido hace 73 días/);
+    await expect(getComputedStyle(sub).whiteSpace).toBe("normal");
+    await expect(getComputedStyle(sub).textOverflow).not.toBe("ellipsis");
+    await expect(sub.scrollHeight).toBeGreaterThan(12);
   },
 };
 

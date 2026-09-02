@@ -803,14 +803,9 @@ function TablaClientes({
         cell: ({ row }) => (
           <TablePrimaryCell
             value={row.original.nombre}
-            /* El `.sub` envuelve en vez de truncar cuando la tabla es angosta: su `nowrap` fijaba
-               el ancho mínimo de la columna en el metadato ENTERO y empujaba el monto fuera del
-               contenedor. Envolver muestra MÁS que truncar, y con la tabla ancha se ve igual. */
-            sub={
-              <span className="@max-[640px]:whitespace-normal" title={row.original.sub}>
-                {row.original.sub}
-              </span>
-            }
+            /* El primitivo compartido envuelve el `sub`: no se pierde el metadato ni se empuja el
+               saldo fuera del contenedor angosto (Ley 7). */
+            sub={row.original.sub}
           />
         ),
       },

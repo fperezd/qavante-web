@@ -37,9 +37,11 @@ describe("AdministracionV12View", () => {
     expect(bloqueTitulo.test(h)).toBe(true);
   });
 
-  it("la descripción (metadato) SÍ trunca — vive en el `.sub`", () => {
+  it("la descripción (metadato) envuelve y no se trunca", () => {
     const h = html(FILAS_HUB_EJEMPLO);
-    expect(h).toContain("truncate");
+    expect(h).toContain("whitespace-normal");
+    expect(h).toContain("break-words");
+    expect(h).not.toContain("truncate");
   });
 
   it("credenciales con N=1 muestra 'requiere' en singular, no 'requieren'", () => {

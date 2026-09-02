@@ -36,17 +36,9 @@ export function AdministracionV12View({ filas }: AdministracionV12ViewProps) {
         cell: ({ row }) => (
           <TablePrimaryCell
             value={row.original.titulo}
-            /* Ley 7 (hallazgo de revisión PR #95): el `.sub` de `TablePrimaryCell` trunca con
-               `nowrap` por default — en layout AUTOMÁTICO eso fija el ancho MÍNIMO de la columna
-               en la descripción entera (medido: 401 px de desborde a 360, la más larga es
-               "Ordena tus ingresos, costos, gastos, caja y obligaciones, partiendo de una base
-               sugerida."). Mismo criterio que `cobrar-v04-view.tsx`: envolver, no truncar, cuando
-               el contenedor angosta (`@container` ya lo trae `RedisenoTable`). */
-            sub={
-              <span className="@max-[640px]:whitespace-normal" title={row.original.descripcion}>
-                {row.original.descripcion}
-              </span>
-            }
+            /* Ley 7: el primitivo compartido envuelve la descripción sin sacar el resto de la
+               fila del contenedor angosto. */
+            sub={row.original.descripcion}
           />
         ),
       },

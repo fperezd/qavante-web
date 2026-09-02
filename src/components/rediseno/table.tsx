@@ -78,21 +78,20 @@ export interface TablePrimaryCellProps {
   sub?: React.ReactNode;
 }
 
-/** Celda de columna principal: `value` nunca trunca; `sub` sí, con tooltip.
+/** Celda de columna principal: ni `value` ni `sub` se truncan (Ley 7).
  *
- *  OJO al pasar el `sub`: su `truncate` incluye `white-space: nowrap`, y en una tabla de layout
- *  AUTOMÁTICO eso fija el ancho MÍNIMO de la columna en el del metadato entero — la tabla no puede
- *  angostarse y el monto se va fuera del contenedor (medido en V04: 730 px de mínimo en 360). Una
- *  tabla que deba caber en un contenedor angosto puede pasar el `sub` ya envuelto en un elemento
- *  que recupere `white-space: normal` en ese ancho (así lo hace V04). Acá no se decide por nadie:
- *  el default sigue siendo truncar con tooltip, como manda el §1.3. */
+ * El metadato se puede envolver y partir en una palabra excepcionalmente larga. Es importante que
+ * sea el comportamiento compartido: `truncate` agrega `white-space: nowrap`, que en una tabla de
+ * layout automático fija el ancho mínimo de la columna al texto entero y deja el monto recortado
+ * fuera de una pantalla de 360 px. El `title` conserva la ayuda nativa para textos simples sin
+ * ocultar información. */
 export function TablePrimaryCell({ value, sub }: TablePrimaryCellProps) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className="font-semibold text-rediseno-tinta">{value}</div>
       {sub && (
         <div
-          className="mt-0.5 truncate text-[11.5px] text-rediseno-tinta-3-light"
+          className="mt-0.5 min-w-0 whitespace-normal break-words text-[11.5px] text-rediseno-tinta-3-light"
           title={typeof sub === "string" ? sub : undefined}
         >
           {sub}

@@ -230,13 +230,15 @@ describe("CobrarV04View — Ley 7 / §5.2: en angosto colapsa el metadato, nunca
     expect(ths.filter((x) => x.includes(COLAPSA))).toHaveLength(1);
   });
 
-  it("el nombre va entero y sin truncar; el metadato trunca con tooltip", () => {
+  it("el nombre y el metadato van enteros, envuelven y conservan tooltip", () => {
     const h = html();
     expect(h).toContain(
       '<div class="font-semibold text-rediseno-tinta">Empresa de Correos de Chile</div>',
     );
     const sub = h.split("<td").find((x) => x.includes("Empresa de Correos de Chile"))!;
-    expect(sub).toContain("truncate");
+    expect(sub).toContain("whitespace-normal");
+    expect(sub).toContain("break-words");
+    expect(sub).not.toContain("truncate");
     expect(sub).toContain('title="vencido $4.672.594');
   });
 });
