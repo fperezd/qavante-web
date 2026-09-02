@@ -16,8 +16,8 @@ import { instrumentDecisionStoryLayer } from "./instrument-decision.fixtures";
  * (`within`/`getByText`) y CI las ejecuta como gate (`npm run test:storybook`), así que la
  * cobertura de vista se paga igual y no cuesta un conflicto.
  *
- * La sección 5 de la spec ("Mientras no estabas", bitácora) NO está en ninguna story porque no
- * está en la vista: su API es `🏗` y no se rellena con otra cosa. */
+ * La sección 5 usa la bitácora real de Ley 5 (`/api/reversible-actions`); la historia de ella vive
+ * junto a su componente para fijar carga, error, vacío y acciones deshacibles. */
 
 const HOY = new Date("2026-08-30T12:00:00Z");
 
@@ -107,7 +107,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V01 · Hoy (ESPECIFICACION §V01): crumb con frescura del banco, titular-veredicto {sana | atención | crisis | sin dato}, subtítulo de contexto, "Esperando tu visto bueno" (máx. 3) y strip de 4 indicadores. La sección "Mientras no estabas" queda fuera de esta entrega: su API no existe.',
+          'V01 · Hoy (ESPECIFICACION §V01): crumb con frescura del banco, titular-veredicto {sana | atención | crisis | sin dato}, subtítulo de contexto, "Esperando tu visto bueno" (máx. 3), bitácora de automatismos con Deshacer y strip de 4 indicadores.',
       },
     },
   },

@@ -14,6 +14,8 @@ import {
 } from "@/lib/api/financial-decisions";
 import { useMe } from "@/lib/api/users";
 import { asUserRole } from "@/lib/auth/types";
+import { useReversibleActions, useRevertReversibleAction } from "@/lib/api/reversible-actions";
+import { actividadesAutomaticas } from "./activity-log-model";
 import { HoyView } from "./hoy-view";
 
 /* Cableado de V01 · Hoy. La vista es presentacional; acá se resuelven las dos fuentes:
@@ -40,6 +42,10 @@ export function HoyLive() {
   const collectionScope: CollectionReadQuery | null = null;
   const collectionSituation = useCollectionSituation(collectionScope);
   const collectionEvaluation = useCollectionEvaluation(collectionScope);
+  /* Ley 5 / issue #65: la bitácora viene del reader que publica sólo automatismos de Qavante.
+     `onlyUndoable` es un filtro de servidor; la vista todavía lee `undo_available` por fila. */
+  const activity = useReversibleActions({ onlyUndoable: true, limit: 5 });
+  const revertActivity = useRevertReversibleAction();
 
   if (summary.isLoading) return <CargandoHoy />;
   if (summary.isError) {
@@ -77,6 +83,11 @@ export function HoyLive() {
             }
           : undefined
       }
+      activities={activity.isError ? null : actividadesAutomaticas(activity.data, 5)}
+      activitiesLoading={activity.isLoading}
+      activitiesError={activity.isError}
+      onRetryActivities={() => void activity.refetch()}
+      onUndoActivity={(actionId) => revertActivity.mutateAsync(actionId)}
     />
   );
 }

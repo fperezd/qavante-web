@@ -292,12 +292,12 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      `/api/dashboard/summary`, que ya está VIVO — o sea que la vista funciona hoy, y por eso la
      aceptación del issue pide justamente que ande con el flag apagado.
 
-     Su endpoint de gating es la BITÁCORA, y no el summary, porque es lo único que le falta para
-     estar completa: la sección 5 de la spec ("Mientras no estabas") es `🏗` y NO se entregó — no
-     se rellena con eventos de sincronización bajo un título que promete otra cosa. Ese endpoint
-     todavía no existe (FE-first) y tiene su propio issue (#65); cuando exista, encender el flag
-     deja de ser una decisión sobre una vista incompleta. Con OFF, el Inicio actual queda intacto → cero regresión. */
-  hoyV01: "/api/dashboard/activity-log",
+     Su endpoint de gating es la BITÁCORA, y no el summary: `/api/reversible-actions` publica
+     sólo automatismos REVERSIBLES de Qavante con estado real de Deshacer (ADR-0113). #65 monta
+     ese subconjunto de manera explícita, pero NO lo vende como la actividad integral de la spec:
+     sync, clics manuales y automatismos sin reader siguen fuera. Con OFF, el Inicio actual queda
+     intacto → cero regresión. */
+  hoyV01: "/api/reversible-actions",
   /* V02 · Caja — "¿me alcanza la caja?" (ESPECIFICACION §V02, issue #67). Reemplaza la landing de
      `/caja` por la tríada KPI (Hoy vía `cajaHoy()`, Entra 14d, Sale 14d con postergable), el banner
      de deuda de datos, las barras de 4 semanas, la tabla "Qué te lleva al punto más bajo" y el

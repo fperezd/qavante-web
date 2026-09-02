@@ -22,6 +22,9 @@ import { CollectionEvaluationPanel } from "./collection-evaluation-panel";
 import { liquidityEvaluationView } from "./liquidity-evaluation-model";
 import { InstrumentDecisionPanel } from "./instrument-decision-panel";
 import type { DecisionLayerView } from "./instrument-decision-model";
+import { ActivityLogView } from "./activity-log-view";
+import type { ActividadAutomatica } from "./activity-log-model";
+import type { RevertActionResponse } from "@/lib/api/reversible-actions";
 
 /* V01 · Hoy — "¿cómo está mi empresa y qué necesita mi OK?" (rediseño Fase 2, issue #62).
  *
@@ -29,12 +32,10 @@ import type { DecisionLayerView } from "./instrument-decision-model";
  * `hoy-live.tsx`. Así la vista entera se puede renderear en un test y en una story sin MSW, que
  * es lo que permite fijar los cuatro estados del titular con aserciones de verdad.
  *
- * LO QUE FALTA, DICHO ACÁ Y NO SÓLO EN EL PR: la sección 5 de la spec, "Mientras no estabas"
- * (bitácora), NO se implementa. La spec la marca `🏗` — no existe la API — y la aceptación de
- * V01 pide que con el flag apagado la vista ande con los datos de hoy. Las dos no pueden ser
- * ciertas a la vez. Rellenarla con eventos de sincronización y conciliaciones bajo un título que
- * promete "esto pasó mientras no estabas" sería un default plausible con nombre de otra cosa.
- * Queda como hueco declarado, con su issue sucesor: #65.
+ * (5) "Mientras no estabas" usa el SUBCONJUNTO que hoy publica `GET /api/reversible-actions`
+ * (ADR-0113, Ley 5): automatismos reversibles de Qavante, nunca sync ni clics del dueño. No se
+ * presenta como actividad integral; el reader completo sigue siendo dependencia de #65. Cada fila
+ * recibe su `undo_available` real y el Deshacer genérico; no se infiere nada.
  *
  * LEY 2 — máximo UN rojo por pantalla: el único `danger-*` de este archivo es el bloque del
  * veredicto en crisis. Atención va en ámbar, el "no sé" en neutro y los indicadores nunca se
@@ -74,6 +75,12 @@ export interface HoyViewProps {
    * conserva los dominios que siguen sin reader público estable.
    */
   decisionLayer?: DecisionLayerView | null;
+  /** Bitácora de automatismos publicada por `/api/reversible-actions` (Ley 5). */
+  activities?: readonly ActividadAutomatica[] | null;
+  activitiesLoading?: boolean;
+  activitiesError?: boolean;
+  onRetryActivities?: () => void;
+  onUndoActivity?: (actionId: string) => Promise<RevertActionResponse>;
 }
 
 /* Tono del titular. `sin_dato` es NEUTRO y no rojo: "no sabemos" no es "está mal". */
@@ -120,6 +127,11 @@ export function HoyView({
   collectionScopeAvailable = false,
   onRetryCollection,
   decisionLayer = null,
+  activities = null,
+  activitiesLoading = false,
+  activitiesError = false,
+  onRetryActivities,
+  onUndoActivity,
 }: HoyViewProps) {
   const caja = cajaHoy(data);
   const crumb = crumbHoy(empresa, caja, hoy);
@@ -271,8 +283,30 @@ export function HoyView({
         </section>
       )}
 
-      {/* (5) "Mientras no estabas" — NO EXISTE. Ver la nota del encabezado: la API de bitácora es
-          `🏗` y no se rellena con otra cosa bajo ese título. El hueco es visible y tiene issue. */}
+      {/* (5) Ley 5 — el día perfecto termina acá: titular + actividad real de Qavante. */}
+      {!v.soloDecisionCritica && (
+        <section aria-labelledby="hoy-mientras-no-estabas" className="space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3
+              id="hoy-mientras-no-estabas"
+              className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+            >
+              Mientras no estabas
+            </h3>
+            <span className="text-xs text-neutral-mid">
+              Automatismos reversibles · Deshacer dentro de 7 días
+            </span>
+          </div>
+          <ActivityLogView
+            activities={activities}
+            loading={activitiesLoading}
+            error={activitiesError}
+            onRetry={onRetryActivities}
+            onUndo={onUndoActivity}
+            detailLinks
+          />
+        </section>
+      )}
 
       {/* (6) Strip de 4 indicadores. */}
       {mostrarIndicadores && (
