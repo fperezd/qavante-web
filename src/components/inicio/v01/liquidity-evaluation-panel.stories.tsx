@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { HttpResponse, http } from "msw";
+import { applyRequestHandlers } from "msw-storybook-addon";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type {
   DecisionSelectionRequest,
@@ -210,6 +211,7 @@ async function expectErrorWithoutSuccess(
   expected: RegExp,
 ) {
   errorRequests[status] = [];
+  installErrorSelectionHandler(status);
   const { canvas, dialog } = await openSelection(
     canvasElement,
     "Usar línea de crédito",
@@ -498,17 +500,26 @@ const NO_ACTION = http.post(
   },
 );
 
+/* El worker de Storybook es compartido por las stories del archivo. Reinstalamos
+   el único handler de esta interacción justo antes del POST para que una story
+   vecina que también responde `selection` no pueda dejar su handler activo. */
+function installNoActionHandler() {
+  applyRequestHandlers({ handlers: [NO_ACTION] });
+}
+
 export const NoActionSinPlan: Story = {
   args: { canSelect: true },
   parameters: { msw: { handlers: [NO_ACTION] } },
   play: async ({ canvasElement }) => {
     noActionBodies = [];
+    installNoActionHandler();
     const { canvas, dialog } = await openSelection(
       canvasElement,
       "No financiar",
       "La caja se recupera sin financiamiento",
     );
     await submit(dialog);
+    await waitFor(() => expect(noActionBodies).toHaveLength(1));
     const status = await canvas.findByRole("status");
     await expect(status).toHaveTextContent(/No requiere un plan operativo/i);
     await expect(status).toHaveTextContent(/sin OperationPlan/i);
@@ -546,28 +557,42 @@ function selectionError(status: 401 | 403 | 409 | 422) {
   });
 }
 
+const ERROR_SELECTION_HANDLERS = {
+  401: selectionError(401),
+  403: selectionError(403),
+  409: selectionError(409),
+  422: selectionError(422),
+};
+
+/* Igual que NoActionSinPlan, cada story de rechazo reinstala su respuesta
+   justo antes del POST: el worker MSW del archivo es compartido y no puede
+   depender del handler que dejó cargado una story vecina. */
+function installErrorSelectionHandler(status: 401 | 403 | 409 | 422) {
+  applyRequestHandlers({ handlers: [ERROR_SELECTION_HANDLERS[status]] });
+}
+
 export const Error401NoConfirma: Story = {
   args: { canSelect: true },
-  parameters: { msw: { handlers: [selectionError(401)] } },
+  parameters: { msw: { handlers: [ERROR_SELECTION_HANDLERS[401]] } },
   play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 401, /sesión venció/i),
 };
 
 export const Error403NoConfirma: Story = {
   args: { canSelect: true },
-  parameters: { msw: { handlers: [selectionError(403)] } },
+  parameters: { msw: { handlers: [ERROR_SELECTION_HANDLERS[403]] } },
   play: ({ canvasElement }) =>
     expectErrorWithoutSuccess(canvasElement, 403, /rol no está autorizado/i),
 };
 
 export const Error409NoConfirma: Story = {
   args: { canSelect: true },
-  parameters: { msw: { handlers: [selectionError(409)] } },
+  parameters: { msw: { handlers: [ERROR_SELECTION_HANDLERS[409]] } },
   play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 409, /decisión cambió/i),
 };
 
 export const Error422NoConfirma: Story = {
   args: { canSelect: true },
-  parameters: { msw: { handlers: [selectionError(422)] } },
+  parameters: { msw: { handlers: [ERROR_SELECTION_HANDLERS[422]] } },
   play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 422, /ya no cumple/i),
 };
 
