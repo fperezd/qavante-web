@@ -12,6 +12,14 @@ import {
   useLatestLiquidityEvaluation,
   useOperationPlanForDecision,
 } from "@/lib/api/financial-decisions";
+import {
+  useFxEvaluations,
+  useFxExposures,
+  useInvestableSurplus,
+  useInvestmentEvaluations,
+  useOutcomeValues,
+  type DecisionReadScope,
+} from "@/lib/api/financial-decision-readers";
 import { useMe } from "@/lib/api/users";
 import { asUserRole } from "@/lib/auth/types";
 import { useReversibleActions, useRevertReversibleAction } from "@/lib/api/reversible-actions";
@@ -33,6 +41,15 @@ export function HoyLive() {
   const summary = useDashboardSummary();
   const liquidity = useLatestLiquidityEvaluation();
   const operationPlan = useOperationPlanForDecision(liquidity.data?.decision_id ?? null);
+  /* F6/F7/F9 require the complete backend-owned scope. A persisted F1 evaluation is the only
+     canonical scope available on this page; without it queries remain disabled rather than using
+     tenant identity as a substitute for legal entity, currency or as-of. */
+  const decisionReadScope: DecisionReadScope | null = liquidity.data?.scope ?? null;
+  const fxExposures = useFxExposures(decisionReadScope);
+  const fxEvaluations = useFxEvaluations(decisionReadScope);
+  const investableSurplus = useInvestableSurplus(decisionReadScope);
+  const investmentEvaluations = useInvestmentEvaluations(decisionReadScope);
+  const outcomeValues = useOutcomeValues(decisionReadScope);
   const me = useMe();
   const role = asUserRole(me.data?.user?.role);
   /* F3's public reader requires legal_entity_id + currency + as_of. `/api/me` only publishes
@@ -82,6 +99,37 @@ export function HoyLive() {
               void collectionEvaluation.refetch();
             }
           : undefined
+      }
+      decisionReaders={
+        decisionReadScope
+          ? {
+              fxExposures: {
+                data: fxExposures.data,
+                loading: fxExposures.isLoading,
+                failed: fxExposures.isError,
+              },
+              fxEvaluations: {
+                data: fxEvaluations.data,
+                loading: fxEvaluations.isLoading,
+                failed: fxEvaluations.isError,
+              },
+              investableSurplus: {
+                data: investableSurplus.data,
+                loading: investableSurplus.isLoading,
+                failed: investableSurplus.isError,
+              },
+              investmentEvaluations: {
+                data: investmentEvaluations.data,
+                loading: investmentEvaluations.isLoading,
+                failed: investmentEvaluations.isError,
+              },
+              outcomeValues: {
+                data: outcomeValues.data,
+                loading: outcomeValues.isLoading,
+                failed: outcomeValues.isError,
+              },
+            }
+          : null
       }
       activities={activity.isError ? null : actividadesAutomaticas(activity.data, 5)}
       activitiesLoading={activity.isLoading}

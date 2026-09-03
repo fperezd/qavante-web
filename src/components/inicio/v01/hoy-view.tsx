@@ -22,6 +22,7 @@ import { CollectionEvaluationPanel } from "./collection-evaluation-panel";
 import { liquidityEvaluationView } from "./liquidity-evaluation-model";
 import { InstrumentDecisionPanel } from "./instrument-decision-panel";
 import type { DecisionLayerView } from "./instrument-decision-model";
+import { DecisionReadPanel, type DecisionReadersView } from "./decision-read-panel";
 import { ActivityLogView } from "./activity-log-view";
 import type { ActividadAutomatica } from "./activity-log-model";
 import type { RevertActionResponse } from "@/lib/api/reversible-actions";
@@ -75,6 +76,8 @@ export interface HoyViewProps {
    * conserva los dominios que siguen sin reader público estable.
    */
   decisionLayer?: DecisionLayerView | null;
+  /** F6/F7/F9 readers are rendered only after a complete backend-owned scope is available. */
+  decisionReaders?: DecisionReadersView | null;
   /** Bitácora de automatismos publicada por `/api/reversible-actions` (Ley 5). */
   activities?: readonly ActividadAutomatica[] | null;
   activitiesLoading?: boolean;
@@ -127,6 +130,7 @@ export function HoyView({
   collectionScopeAvailable = false,
   onRetryCollection,
   decisionLayer = null,
+  decisionReaders = null,
   activities = null,
   activitiesLoading = false,
   activitiesError = false,
@@ -231,6 +235,8 @@ export function HoyView({
       {/* F4–F9 comparte la jerarquía de Hoy, pero sólo recibe un view-model inyectado. En runtime
           permanece ausente hasta que cada vertical publique su reader; hoyV01 sigue apagado. */}
       {!v.soloDecisionCritica && decisionLayer && <InstrumentDecisionPanel layer={decisionLayer} />}
+
+      {!v.soloDecisionCritica && decisionReaders && <DecisionReadPanel readers={decisionReaders} />}
 
       {/* (4) "Esperando tu visto bueno". Las acciones del dashboard son el fallback de los casos
           que aún no resuelve el Decision OS. Una evaluación F1 vigente consume uno de los tres
