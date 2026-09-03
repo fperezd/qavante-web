@@ -3,21 +3,18 @@
 import * as React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { formatDateLong } from "@/lib/formatters/date";
 import { DataState } from "@/components/rediseno/data-state";
 import { Pill, type PillProps } from "@/components/rediseno/pill";
 import type { OnboardingSourceState, OnboardingSourceStates } from "@/lib/api/onboarding-sources";
+import type { OnboardingSyncRun } from "@/lib/api/onboarding-sync-runs";
 import { SOURCE_STATE_LABEL } from "@/components/onboarding/onboarding-source-meta";
 import {
   concordar,
   fuentesConectadas,
   fuentesPendientes,
   fuentesV15,
-  progresoModeloV15,
-  promesaPrimerParte,
+  fuentesRunV15,
   type FuenteV15,
-  type ProgresoModeloV15,
-  type PromesaV15,
 } from "./bienvenida-v15-model";
 
 /* V15 · Bienvenida — `/bienvenida` (ESPECIFICACION §V15, issue #76, R1).
@@ -26,14 +23,10 @@ import {
  * `bienvenida-v15-live.tsx` (`useOnboardingSources`, el MISMO adaptador que el hub `/conexiones` y
  * el guard del onboarding — Ley 1).
  *
- * ── EL HUECO DE ESTA ENTREGA, DECLARADO DONDE SE PUEDE VERIFICAR ────────────────────────────
- * El paso 2 ("progreso de construcción del modelo") NO tiene un contador ni una barra que avance:
- * no existe ningún evento de progreso consultable del sync (el issue lo marca 🔧 — "exponer lo que
- * el sync ya sabe"). En vez de simular avance con un número plausible (prohibido explícito de la
+ * ── PROGRESO CONSULTABLE ─────────────────────────────────────────────────────────────────────
+ * El paso 2 consume el run estable del contrato #351. En vez de simular avance con un número plausible,
  * spec: "sin eventos, nada de números inventados"), esta vista dice QUÉ hace el motor (los verbos
- * de `ETAPAS_MODELO_V15`) y CUÁNTO SUELE tardar (`DURACION_TIPICA_MODELO`, declarado, no medido).
- * Cuando el evento exista, esta sección se reemplaza por el conteo real — el punto de extensión es
- * `PasoProgreso` de este archivo.
+ * El run conserva explícitamente los `null`: la UI no los convierte en ceros ni calcula una ETA.
  *
  * ── LAS LEYES, Y DÓNDE ──────────────────────────────────────────────────────────────────────
  * LEY 1 — el estado de cada fuente y su descripción son el MISMO dato y la MISMA frase que ya usa
@@ -61,9 +54,10 @@ export interface BienvenidaV15ViewProps {
   /** Por qué no llegó el estado, en lenguaje de dueño. */
   motivo?: string | null;
   onReintentar?: () => void;
-  hoy?: Date;
-  /** Issue que va a exponer los eventos de progreso reales del paso 2 (el hueco declarado). */
-  issueSucesor?: string;
+  run?: OnboardingSyncRun | null;
+  cargandoRun?: boolean;
+  errorRun?: boolean;
+  onIniciarRun?: () => void;
 }
 
 const EYEBROW =
@@ -80,8 +74,10 @@ export function BienvenidaV15View({
   cargando = false,
   motivo,
   onReintentar,
-  hoy = new Date(),
-  issueSucesor,
+  run = null,
+  cargandoRun = false,
+  errorRun = false,
+  onIniciarRun,
 }: BienvenidaV15ViewProps) {
   if (cargando) {
     return (
@@ -107,8 +103,6 @@ export function BienvenidaV15View({
   }
 
   const fuentes = fuentesV15(states);
-  const progreso = progresoModeloV15(fuentes);
-  const promesa = promesaPrimerParte(hoy);
 
   return (
     <div className="space-y-5">
@@ -118,8 +112,14 @@ export function BienvenidaV15View({
       </h1>
 
       <PasoFuentes fuentes={fuentes} />
-      <PasoProgreso progreso={progreso} issueSucesor={issueSucesor} />
-      <PasoPromesa promesa={promesa} />
+      <PasoProgreso
+        fuentesActivas={fuentesConectadas(fuentes).length}
+        run={run}
+        cargando={cargandoRun}
+        error={errorRun}
+        onIniciar={onIniciarRun}
+      />
+      <PasoEstado />
 
       <div className="flex justify-end">
         <Link href="/inicio" className={BTN_PRIMARIO}>
@@ -191,87 +191,113 @@ function FuenteRow({ fuente }: { fuente: FuenteV15 }) {
   );
 }
 
-/* ── Paso 2 — progreso de construcción del modelo (EL HUECO) ─────────────────────────────────── */
+/* ── Paso 2 — progreso del run consultable ───────────────────────────────────────────────────── */
 
 function PasoProgreso({
-  progreso,
-  issueSucesor,
+  fuentesActivas,
+  run,
+  cargando,
+  error,
+  onIniciar,
 }: {
-  progreso: ProgresoModeloV15;
-  issueSucesor?: string;
+  fuentesActivas: number;
+  run: OnboardingSyncRun | null;
+  cargando: boolean;
+  error: boolean;
+  onIniciar?: () => void;
 }) {
   return (
     <section aria-labelledby="paso-2-titulo" className={cn(CARD, "space-y-3")}>
       <p className={EYEBROW}>Paso 2 de 3 · cómo se arma tu primer parte</p>
 
-      {!progreso.hayAlgoQueConstruir ? (
+      {fuentesActivas === 0 ? (
         <DataState
           status="empty"
           what="algo que construir todavía"
           hint="Conecta al menos una fuente en el paso 1 para que el piloto empiece a leer tus datos."
           action={{ label: "Ir al paso 1", href: "#paso-1-titulo" }}
         />
+      ) : !run ? (
+        <>
+          <h2
+            id="paso-2-titulo"
+            className="font-rediseno-serif text-[19px] font-medium text-rediseno-tinta"
+          >
+            Todo listo para iniciar la sincronización
+          </h2>
+          <p className="text-[12.5px] text-rediseno-tinta-2">
+            Iniciaremos un run consultable para mostrar sólo el progreso que el motor publique.
+          </p>
+          {error && (
+            <DataState
+              status="error"
+              what="el inicio de la sincronización"
+              cause="No pudimos iniciar el run. Vuelve a intentarlo en un momento."
+              action={onIniciar ? { label: "Reintentar", onClick: onIniciar } : undefined}
+            />
+          )}
+          {cargando ? (
+            <p role="status" className="text-[12.5px] text-rediseno-tinta-2">
+              Iniciando la sincronización.
+            </p>
+          ) : (
+            onIniciar && (
+            <button type="button" className={BTN_PRIMARIO} onClick={onIniciar}>
+              Iniciar sincronización
+            </button>
+            )
+          )}
+        </>
       ) : (
         <>
           <h2
             id="paso-2-titulo"
             className="font-rediseno-serif text-[19px] font-medium text-rediseno-tinta"
           >
-            Con <b className="tabular-nums">{progreso.fuentesActivas}</b>{" "}
-            {concordar(progreso.fuentesActivas, "fuente conectada", "fuentes conectadas")}, así se
-            arma:
+            Sincronización: {run.status}
           </h2>
-          <ol className="space-y-1.5">
-            {progreso.etapas.map((etapa, i) => (
-              <li
-                key={etapa.id}
-                className="flex items-start gap-2 text-[13px] break-words text-rediseno-tinta-2"
-              >
-                <span className={cn(EYEBROW, "mt-px shrink-0")}>{i + 1}</span>
-                <span>{etapa.verbo}</span>
+          {cargando && (
+            <p className="text-[12.5px] text-rediseno-tinta-2">Consultando el progreso del run.</p>
+          )}
+          {error && (
+            <p className="text-[12.5px] text-rediseno-tinta-2">
+              No pudimos actualizar este run. Vuelve a intentar en un momento.
+            </p>
+          )}
+          <ul className="space-y-2">
+            {fuentesRunV15(run).map((fuente) => (
+              <li key={fuente.id} className="text-[13px] text-rediseno-tinta-2">
+                <b>{fuente.label}</b>: {fuente.estado}
+                {fuente.etapa ? ` · ${fuente.etapa}` : ""}
+                {fuente.conteo ? ` · ${fuente.conteo}` : ""}
+                {` · ${fuente.eta}`}
               </li>
             ))}
-          </ol>
-          <p className="text-[12.5px] text-rediseno-tinta-2">
-            <b>{progreso.duracionTipica}</b>.
-          </p>
-          {/* EL HUECO — declarado en pantalla, no escondido en un comentario. Ver la cabecera del
-              archivo y `ETAPAS_MODELO_V15`/`DURACION_TIPICA_MODELO` en el modelo. */}
-          <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-            Todavía no podemos decirte en qué etapa exacta va ni cuántos documentos llevamos: eso
-            necesita eventos de progreso que el motor no expone todavía
-            {issueSucesor ? ` (${issueSucesor})` : ""}. No inventamos un número ni una barra que
-            simule avance — cuando el evento exista, esta sección lo muestra de verdad.
-          </p>
+          </ul>
         </>
       )}
     </section>
   );
 }
 
-/* ── Paso 3 — promesa final CON HORA ──────────────────────────────────────────────────────────── */
+/* ── Paso 3 — disponibilidad sin promesa horaria ───────────────────────────────────────────────── */
 
-function capitalizar(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function PasoPromesa({ promesa }: { promesa: PromesaV15 }) {
+function PasoEstado() {
   return (
     <section
       aria-labelledby="paso-3-titulo"
       className={cn(CARD, "space-y-1 border-l-[3px] border-l-rediseno-verde")}
     >
-      <p className={EYEBROW}>Paso 3 de 3 · cuándo llega</p>
+      <p className={EYEBROW}>Paso 3 de 3 · tu primer parte</p>
       <h2
         id="paso-3-titulo"
         className="font-rediseno-serif text-[22px] leading-snug font-medium text-rediseno-tinta"
       >
-        {capitalizar(promesa.frase)} llega tu primer parte.
+        Tu primer parte estará disponible cuando termine la sincronización.
       </h2>
-      <p className="text-[12.5px] text-rediseno-tinta-3">{formatDateLong(promesa.fecha)}</p>
       <p className="pt-1 text-[12.5px] text-rediseno-tinta-2">
-        Mientras tanto no necesitas hacer nada más: si te falta conectar alguna fuente, hazlo en el
-        paso 1 — el resto lo hace el piloto solo.
+        No prometemos una hora de entrega: el backend no publica un calendario ni un scheduler para
+        este proceso.
       </p>
     </section>
   );

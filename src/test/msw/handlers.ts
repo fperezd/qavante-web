@@ -166,6 +166,45 @@ export const authHandlers = [
     ),
   ),
 
+  http.post("*/api/onboarding/sync-runs", () =>
+    HttpResponse.json(
+      {
+        run_id: "00000000-0000-0000-0000-000000000001",
+        status: "running",
+        updated_at: "2026-09-02T12:00:00Z",
+        sources: [
+          {
+            source: "sii",
+            status: "running",
+            step: "reading",
+            records_read: 1,
+            eta_seconds: null,
+            updated_at: "2026-09-02T12:00:00Z",
+          },
+        ],
+      },
+      { status: 202 },
+    ),
+  ),
+
+  http.get("*/api/onboarding/sync-runs/:runId", ({ params }) =>
+    HttpResponse.json({
+      run_id: params.runId,
+      status: "completed",
+      updated_at: "2026-09-02T12:01:00Z",
+      sources: [
+        {
+          source: "sii",
+          status: "ok",
+          step: null,
+          records_read: 1,
+          eta_seconds: null,
+          updated_at: "2026-09-02T12:01:00Z",
+        },
+      ],
+    }),
+  ),
+
   http.post("*/api/auth/accept-invitation", async ({ request }) => {
     const body = (await request.json()) as AcceptInvitationBody;
     if (!body?.token) {
