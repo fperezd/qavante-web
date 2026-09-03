@@ -135,6 +135,31 @@ export const AwaitingApprovalSoloLectura: Story = {
   },
 };
 
+/**
+ * El estado aprobado viene del ledger de Qavante. Esta superficie sólo lo explica:
+ * no habilita una acción externa ni presume que hubo una cotización o desembolso.
+ */
+export const AprobadoSoloLectura: Story = {
+  args: {
+    plan: {
+      ...BASE,
+      status: "approved",
+      ...operationPlanStatusView("approved"),
+      canRequestApproval: false,
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Aprobado")).toBeInTheDocument();
+    await expect(canvas.getByText("Sólo lectura")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/estado fue informado por Qavante/i),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /solicitar aprobación/i })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /cotizar|enviar|ejecutar/i })).not.toBeInTheDocument();
+  },
+};
+
 export const OtroEstadoEsSoloLectura: Story = {
   args: {
     plan: {
