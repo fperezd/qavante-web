@@ -13,6 +13,10 @@ import {
   useOperationPlanForDecision,
 } from "@/lib/api/financial-decisions";
 import {
+  toFinancialDecisionReadScope,
+  useFinancialScope,
+} from "@/lib/api/financial-scope";
+import {
   useFxEvaluations,
   useFxExposures,
   useInvestableSurplus,
@@ -41,10 +45,14 @@ export function HoyLive() {
   const summary = useDashboardSummary();
   const liquidity = useLatestLiquidityEvaluation();
   const operationPlan = useOperationPlanForDecision(liquidity.data?.decision_id ?? null);
-  /* F6/F7/F9 require the complete backend-owned scope. A persisted F1 evaluation is the only
-     canonical scope available on this page; without it queries remain disabled rather than using
-     tenant identity as a substitute for legal entity, currency or as-of. */
-  const decisionReadScope: DecisionReadScope | null = liquidity.data?.scope ?? null;
+  /* F6/F7/F9 use the persisted evaluation only for its server-owned cut-off. Entity and
+     currency are resolved again by /api/core/financial-scope, which fails closed when the
+     tenant has no single demonstrable financial scope. Neither tenant_id nor browser time is
+     ever substituted here. */
+  const canonicalScope = useFinancialScope(liquidity.data?.scope.as_of);
+  const decisionReadScope: DecisionReadScope | null = toFinancialDecisionReadScope(
+    canonicalScope.data,
+  );
   const fxExposures = useFxExposures(decisionReadScope);
   const fxEvaluations = useFxEvaluations(decisionReadScope);
   const investableSurplus = useInvestableSurplus(decisionReadScope);
