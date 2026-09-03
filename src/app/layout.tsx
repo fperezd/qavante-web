@@ -37,8 +37,8 @@ const splineSansMono = Spline_Sans_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Qavante: Avanzar con inteligencia financiera",
-  description: "Plataforma de gestión financiera para PYMEs chilenas",
+  title: "Qavante · Anticipa. Decide. Avanza.",
+  description: "Qavante · Anticipa. Decide. Avanza. Gestión financiera para PYMEs chilenas.",
 };
 
 export default function RootLayout({

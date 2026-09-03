@@ -28,7 +28,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <div className="relative max-w-md space-y-8">
           <div className="space-y-3">
             <h2 className="text-4xl font-bold leading-tight text-white">
-              Avanzar con inteligencia financiera
+              Anticipa. Decide. Avanza.
             </h2>
             <p className="text-brand-light-100 text-base">
               La gestión financiera de tu PYME, clara y al día.

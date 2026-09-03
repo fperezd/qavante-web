@@ -1,5 +1,7 @@
 # Qavante Web
 
+**Anticipa. Decide. Avanza.**
+
 Frontend de Qavante (Next.js 15 + React 19 + TypeScript strict + Tailwind 4 + shadcn/ui), desplegable en **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`.
 
 **Estado (al 2026-08-02): app LIVE en producción en [app.qavante.com](https://app.qavante.com).** Sprints C0–C9 shipeados:

@@ -1,10 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { QavanteLogo } from "./qavante-logo";
 
-/* Logo Qavante — wordmark + ola + tagline. Dos variants:
-   - hero: 96px alto, para auth screens (login, recuperar-clave, etc.).
-   - header: 32px alto, para el topbar dentro de la app. */
-
 const meta = {
   title: "Capa 1 / QavanteLogo",
   component: QavanteLogo,
@@ -12,7 +8,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Logo oficial Qavante (asset en `public/qavante-logo.png`). Servido con `next/image` para auto-optimización. Aspect ratio 1.776:1.",
+          "Logo oficial Qavante. Hero incluye el lema Anticipa. Decide. Avanza.; header usa el wordmark para conservar legibilidad.",
       },
     },
   },
@@ -29,7 +25,7 @@ export const Hero: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Variant hero (96px) — para `/login`, `/recuperar-clave`, `/aceptar-invitacion`.",
+        story: "Variant hero (96px) para login, recuperar clave y aceptar invitacion.",
       },
     },
   },
@@ -40,7 +36,7 @@ export const Header: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Variant header (32px) — compacto, para el topbar dentro de la app autenticada.",
+        story: "Variant header (32px), compacto, para el topbar dentro de la app autenticada.",
       },
     },
   },

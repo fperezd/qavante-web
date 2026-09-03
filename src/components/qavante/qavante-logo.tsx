@@ -1,22 +1,16 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/* Logo Qavante — wordmark + glifo de ola + tagline "Avanzar con inteligencia
- * financiera". Sirve para login/auth screens (variant="hero" — grande,
- * centrado) y para topbar (variant="header" — compacto, alineado a la
- * izquierda). El asset vive en `public/qavante-logo.png` y se sirve vía
- * `next/image` para auto-optimización (WebP/AVIF + tamaños responsivos).
- *
- * Ratio del asset: 1672×941 (~1.776:1). Las dimensiones se calculan a
- * partir del height para mantener proporción. */
+/* Logo Qavante: wordmark + lema "Anticipa. Decide. Avanza.".
+ * Hero conserva el lema oficial para auth y onboarding. Header usa el
+ * wordmark recortado para que siga siendo legible a 32 px de alto. */
 
 export type QavanteLogoVariant = "hero" | "header";
 
 export interface QavanteLogoProps {
   variant?: QavanteLogoVariant;
   className?: string;
-  /** Sobreescribe el alt por defecto. Útil cuando va junto a otro texto
-   *  visible que ya dice "Qavante" (evita redundancia para SR). */
+  /** Sobreescribe el texto alternativo cuando ya hay una marca visible. */
   alt?: string;
 }
 
@@ -25,30 +19,29 @@ const VARIANT_HEIGHT: Record<QavanteLogoVariant, number> = {
   header: 32,
 };
 
-const ASPECT_RATIO = 1672 / 941;
+const LOGO_ASSET: Record<QavanteLogoVariant, { src: string; aspectRatio: number }> = {
+  hero: { src: "/qavante-logo-full.png", aspectRatio: 2400 / 684 },
+  header: { src: "/qavante-logo.png", aspectRatio: 1600 / 364 },
+};
 
 export function QavanteLogo({
   variant = "hero",
   className,
-  alt = "Qavante: gestión financiera para PYMEs chilenas",
+  alt = "Qavante: Anticipa. Decide. Avanza.",
 }: QavanteLogoProps) {
   const height = VARIANT_HEIGHT[variant];
-  const width = Math.round(height * ASPECT_RATIO);
+  const asset = LOGO_ASSET[variant];
+  const width = Math.round(height * asset.aspectRatio);
 
   return (
     <Image
-      src="/qavante-logo.png"
+      src={asset.src}
       alt={alt}
       width={width}
       height={height}
       priority={variant === "hero"}
-      /* `unoptimized`: bypass del Next image optimizer. El PNG se sirve
-         directo desde public/, sin pasar por /_next/image. Razón: el
-         optimizer en dev/test genera requests adicionales que rompen
-         `waitForLoadState("networkidle")` de los e2e (timeouts a 30s en
-         /app/administracion/{usuarios,credenciales} — protected-routes
-         mobile spec). En prod el browser cachea el asset estático y el
-         peso real (~optimizado por Cloudflare CDN) compensa. */
+      /* Bypass del optimizer de Next: evita requests que rompen networkidle
+         en e2e; Cloudflare CDN cachea el asset estatico en produccion. */
       unoptimized
       className={cn("h-auto w-auto select-none", className)}
       style={{ height, width: "auto" }}
