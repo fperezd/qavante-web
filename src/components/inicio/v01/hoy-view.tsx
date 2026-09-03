@@ -9,6 +9,7 @@ import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
 import type { LiquidityEvaluation, OperationPlanRead } from "@/lib/api/financial-decisions";
 import type { CollectionEvaluation, CollectionSituation } from "@/lib/api/collection-decisions";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
+import { formatDateShort } from "@/lib/formatters/date";
 import {
   crumbHoy,
   decisionesHoy,
@@ -153,6 +154,8 @@ export function HoyView({
      aprobar, así que no se abre una sección vacía que lo desmienta. */
   const mostrarDecisiones = decisiones.length > 0;
   const mostrarIndicadores = !v.soloDecisionCritica;
+  const nominaEnRiesgo = v.soloDecisionCritica ? data?.critical_payments?.next_payroll ?? null : null;
+  const montoNominaEnRiesgo = nominaEnRiesgo ? parseAmountOrNull(nominaEnRiesgo.amount) : null;
 
   return (
     <div className="space-y-6">
@@ -269,6 +272,28 @@ export function HoyView({
                           {(monto != null || a.impact_label) && a.deadline ? " · " : ""}
                           {a.deadline && <>Plazo: {a.deadline}</>}
                         </p>
+                        {nominaEnRiesgo && (
+                          <div className="mt-3 rounded-lg border border-warning-500/30 bg-warning-50/40 p-3 text-sm text-neutral-mid">
+                            <p className="font-semibold text-neutral-dark">Nómina afectada</p>
+                            <p className="mt-1">
+                              {nominaEnRiesgo.label} · vence {formatDateShort(nominaEnRiesgo.due_date)}
+                              {montoNominaEnRiesgo != null && (
+                                <>
+                                  {" · "}
+                                  <span className="font-semibold tabular-nums text-neutral-dark">
+                                    {formatClp(montoNominaEnRiesgo)}
+                                  </span>
+                                </>
+                              )}
+                            </p>
+                            <Link
+                              href="/pagar"
+                              className="mt-2 inline-flex text-xs font-semibold text-brand-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                            >
+                              Revisar pagos
+                            </Link>
+                          </div>
+                        )}
                       </div>
                       <Link
                         href={a.cta_href}

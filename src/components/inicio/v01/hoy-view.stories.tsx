@@ -210,6 +210,16 @@ export const Crisis: Story = {
     await expect(canvas.queryByText("Cobrar a Kaufmann")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Postergar a SYNNEX")).not.toBeInTheDocument();
 
+    // La única prioridad no queda como un enlace abstracto a la proyección: publica la nómina
+    // que causa la crisis y ofrece el módulo existente para revisar pagos.
+    await expect(canvas.getByText("Nómina afectada")).toBeInTheDocument();
+    await expect(canvas.getByText(/Remuneraciones de agosto · vence 4 sep/)).toBeInTheDocument();
+    await expect(canvas.getByText("$7.400.000")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Revisar pagos" })).toHaveAttribute(
+      "href",
+      "/pagar",
+    );
+
     // Ley 10: el strip de indicadores también se oculta. Gemelo positivo del negativo:
     // el MISMO texto SÍ aparece en la story "Sana", donde el strip se muestra.
     await expect(canvas.queryByText("Value Ledger")).not.toBeInTheDocument();
@@ -223,6 +233,70 @@ export const Crisis: Story = {
     await expect(marcados.every((el) => veredicto.contains(el))).toBe(true);
   },
 };
+
+/** Fixture de respuesta incompleta: el contrato declara `amount` como string, pero la vista
+ * debe seguir siendo honesta ante `null` de una integración incompleta. */
+function nominaConMontoIncompleto(amount: string | null) {
+  return {
+    label: "Remuneraciones sin monto informado",
+    due_date: "2026-09-04",
+    amount,
+    category: "payroll",
+    is_overdue: false,
+  } as unknown as NonNullable<NonNullable<DashboardSummaryV2["critical_payments"]>["next_payroll"]>;
+}
+
+function crisisSinMontoNomina(name: string, amount: string | null): Story {
+  return {
+    name,
+    args: {
+      data: summary({
+        ...CAJA_BAJO_CERO,
+        critical_payments: {
+          due_7d: "0",
+          due_14d: "0",
+          next_critical: null,
+          next_payroll: nominaConMontoIncompleto(amount),
+          last_updated: "2026-08-30T08:00:00Z",
+          source: "buk",
+        },
+        priority_actions: [ACCION(1, "Revisar la caja antes de la nómina", "/caja")],
+      }),
+    },
+    play: async ({ canvasElement }) => {
+      const canvas = within(canvasElement);
+      const bloqueNomina = canvas.getByText("Nómina afectada").parentElement!;
+      await expect(
+        within(bloqueNomina).getByText(/Remuneraciones sin monto informado · vence 4 sep/),
+      ).toBeInTheDocument();
+      // Gemelo positivo: la story Crisis de arriba sí fija el monto válido publicado.
+      await expect(within(bloqueNomina).queryByText(/\$0/)).not.toBeInTheDocument();
+      await expect(
+        within(bloqueNomina).getByRole("link", { name: "Revisar pagos" }),
+      ).toHaveAttribute("href", "/pagar");
+    },
+  };
+}
+
+export const CrisisMontoNominaNulo = crisisSinMontoNomina(
+  "Crisis · nómina con monto nulo: no inventa $0",
+  null,
+);
+
+export const CrisisMontoNominaVacio = crisisSinMontoNomina(
+  "Crisis · nómina con monto vacío: no inventa $0",
+  "",
+);
+
+export const CrisisMontoNominaBlanco = crisisSinMontoNomina(
+  "Crisis · nómina con monto blanco: no inventa $0",
+  "   ",
+);
+
+export const CrisisMontoNominaNoNumerico = crisisSinMontoNomina(
+  "Crisis · nómina con monto no numérico: no inventa $0",
+  "no disponible",
+);
 
 export const DiaPerfecto: Story = {
   name: "Día perfecto — no hay nada que aprobar",
