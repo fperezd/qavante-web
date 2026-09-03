@@ -64,6 +64,10 @@ NEXT_PUBLIC_FF_CAJA_V2 = "true"
 # para el past-due (heurístico hasta que CC-API dé el estado "pagado" por documento vía conciliación
 # bancaria — escalado). Volver al clásico = "false".
 NEXT_PUBLIC_FF_CAJA_V3 = "true"
+# V01/V02 del rediseño (Hoy y Caja) — ON (autorizado por BO 2026-09-03).
+# Rollback inmediato: volver cada flag a "false" conserva la vista previa.
+NEXT_PUBLIC_FF_HOY_V01 = "true"
+NEXT_PUBLIC_FF_CAJA_V02 = "true"
 # Saldos de banco + LÍNEA DE CRÉDITO en Caja — ON (encendido 2026-08-04 por Fernando). CC-API migró
 # /api/bice/* a require_session (sondeado: `no_session`, ya no api-key-only), así que el FE consume el
 # saldo por cuenta + el balance con la LC (cupo/usado/disponible + venc. sobregiro) con la cookie.
@@ -72,6 +76,8 @@ NEXT_PUBLIC_FF_BANK_BALANCES = "true"
 # Pantalla Banco — ON (encendido 2026-08-04 por Fernando): productos del tenant por banco (cuentas +
 # tarjetas de crédito). Consume /api/bice/* (cookie). Volver a ocultar = poner en "false".
 NEXT_PUBLIC_FF_BANCO_SCREEN = "true"
+# V03 Banco del rediseño — ON (autorizado por BO 2026-09-03).
+NEXT_PUBLIC_FF_BANCO_V03 = "true"
 # Conciliación POR movimiento en el detalle de una cuenta de Banco (Fase 2) — ON (encendido 2026-08-07
 # por Fernando). Cada movimiento "Por conciliar" con match propuesto (cola reconciliation/review cruzada
 # por movement_id) ofrece "Conciliar" / "Rechazar" + tab "Sugerencias". Path confirm probado en vivo por
@@ -112,6 +118,8 @@ NEXT_PUBLIC_FF_PAYROLL_RECONCILE_BOARD = "true"
 # (accountsPayable) para el dato. Con ON tiene prioridad sobre el Pagar clásico. La postergabilidad es
 # HEURÍSTICA hasta que CC-API mande el flag por ítem (brecha abierta). Volver al clásico = "false".
 NEXT_PUBLIC_FF_PAGAR_V2 = "true"
+# V05 Pagar del rediseño — ON (autorizado por BO 2026-09-03).
+NEXT_PUBLIC_FF_PAGAR_V05 = "true"
 # Cobrar v2 (rediseño 2026-07-19) — ON (encendido 2026-07-19 por Fernando): respuesta de dueño
 # ("a quién le cobras primero") + acciones reales de cobranza (copiar recordatorio chileno,
 # WhatsApp/mail sin destinatario, marcar gestionado persistido en prefs #571). Reusa
@@ -119,6 +127,8 @@ NEXT_PUBLIC_FF_PAGAR_V2 = "true"
 # SII — caso Tooxs hoy: prioriza por tamaño y lo dice). Con ON tiene prioridad sobre el Cobrar
 # clásico. Volver al clásico = poner en "false".
 NEXT_PUBLIC_FF_COBRAR_V2 = "true"
+# V04 Cobrar del rediseño — ON (autorizado por BO 2026-09-03).
+NEXT_PUBLIC_FF_COBRAR_V04 = "true"
 # (Gestión v2 dejó de ser un flag: la vista clásica se retiró y v2 es la única. Antes vivía acá
 # NEXT_PUBLIC_FF_GESTION_V2; se removió al retirar el clásico — el flag quedaba muerto.)
 # Cola de conciliación (ADR-0036/0042) — pantalla /caja/conciliacion + card en la landing de Caja.
@@ -172,6 +182,9 @@ NEXT_PUBLIC_FF_CAJA_MARK_COLLECTED = "true"
 # en el próximo deploy: el wizard NO es una feature oscura. (El review del PR #935 encontró
 # comentarios en el código afirmando lo contrario; corregidos.)
 NEXT_PUBLIC_FF_ONBOARDING = "true"
+# V15 Bienvenida — ON (autorizado por BO 2026-09-03). La primera sincronización
+# se inicia de forma explícita; rollback: volver a "false".
+NEXT_PUBLIC_FF_ONBOARDING_V15 = "true"
 # Banner "te falta conectar" en el layout de (app) — 2026-08-14, separado de NEXT_PUBLIC_FF_ONBOARDING
 # tras el review del PR #935. Razón de la separación: el wizard alcanza solo a quien se registra, pero
 # este aviso alcanza a TODOS los tenants existentes (backfill onboarding_completed=true) y en todas
