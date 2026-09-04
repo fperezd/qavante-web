@@ -120,6 +120,10 @@ NEXT_PUBLIC_FF_PAYROLL_RECONCILE_BOARD = "true"
 NEXT_PUBLIC_FF_PAGAR_V2 = "true"
 # V05 Pagar del rediseño — ON (autorizado por BO 2026-09-03).
 NEXT_PUBLIC_FF_PAGAR_V05 = "true"
+# V07 · Bandeja de excepciones · ON (autorizado por BO 2026-09-04). Reúne las
+# excepciones de conciliación y clasificación con acciones reversibles. Rollback:
+# volver este valor a "false" conserva disponibles los flujos clásicos directos.
+NEXT_PUBLIC_FF_BANDEJA_V07 = "true"
 # Cobrar v2 (rediseño 2026-07-19) — ON (encendido 2026-07-19 por Fernando): respuesta de dueño
 # ("a quién le cobras primero") + acciones reales de cobranza (copiar recordatorio chileno,
 # WhatsApp/mail sin destinatario, marcar gestionado persistido en prefs #571). Reusa

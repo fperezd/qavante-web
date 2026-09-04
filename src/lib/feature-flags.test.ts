@@ -113,6 +113,7 @@ describe("flagEnvVar — mapeo camelCase → SCREAMING_SNAKE", () => {
     ["managementAccounts", "NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS"],
     ["bankMovementClassification", "NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION"],
     ["phase2PlanningPreview", "NEXT_PUBLIC_FF_PHASE2_PLANNING_PREVIEW"],
+    ["bandejaV07", "NEXT_PUBLIC_FF_BANDEJA_V07"],
   ];
   it.each(cases)("%s → %s", (flag, expected) => {
     expect(flagEnvVar(flag)).toBe(expected);
