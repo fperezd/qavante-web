@@ -2,6 +2,14 @@
 
 Closes #<numero-issue-c0>
 
+## Risk
+
+<!-- Etiqueta el PR con risk:R0, risk:R1 o risk:R2 (FACTORY_POLICY §5, en qavante-api
+docs/factory/). Sin label de riesgo el check gate-review falla, a proposito.
+  R0 = docs, typos, tests, tooling  -> CI y merge
+  R1 = bug acotado, feature, UI     -> + review independiente
+  R2 = money, auth, contrato, datos sensibles -> + review adversarial y gate del BO -->
+
 ## Cambios
 
 - [ ] Cambio 1
