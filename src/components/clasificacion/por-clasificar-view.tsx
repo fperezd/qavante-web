@@ -3,7 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { Dialog } from "@base-ui/react/dialog";
-import { ArrowRightLeft, CheckCircle2, ListChecks, RefreshCw } from "lucide-react";
+import { ArrowRightLeft, CheckCircle2, Download, ListChecks, RefreshCw } from "lucide-react";
 import { QavanteEmpty, QavanteButton, QavanteInlineError, SortHeader } from "@/components/qavante";
 import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { cn } from "@/lib/utils";
@@ -40,6 +40,7 @@ import {
   toCanonicalCategoryOptions,
   toDimensionValueOptions,
 } from "./adapters";
+import { movementsCsvFilename, movementsToCsv } from "./movements-csv";
 
 /* Columnas ordenables de la grilla (regla de producto: fecha/nombre/monto).
    Por defecto: fecha, más nueva primero (`useTableSort` arranca las fechas DESC). */
@@ -287,6 +288,32 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
      producto). `visible` acota el render a la tanda actual (F-05, evita el muro). */
   const movements = sort.sorted(allMovements.filter(passes));
   const visible = movements.slice(0, visibleCount);
+
+  /* Export CSV — mismo helper que Movimientos clasificados. Exporta `movements`
+     (todo lo filtrado y ordenado), NO `visible`: la tanda de 30 filas es un
+     recurso de render para no pintar un muro, no el recorte que el usuario pidió.
+     Acá las columnas de categoría y cuenta de gestión salen vacías por definición
+     —son movimientos SIN clasificar—, y eso es justamente lo que hay que ver. */
+  const bankAccountNameById = new Map(
+    bankAccounts.map((a) => [a.id, `${a.name} (${a.bank_name})`]),
+  );
+
+  function exportCsv() {
+    const csv = movementsToCsv(movements, {
+      currencyByAccountId: currencyMap,
+      accountNameById: bankAccountNameById,
+    });
+    // BOM para que Excel es-CL respete UTF-8 (tildes/ñ).
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = movementsCsvFilename(
+      `por-clasificar-${range.desde === range.hasta ? range.desde : `${range.desde}_${range.hasta}`}`,
+    );
+    a.click();
+    URL.revokeObjectURL(url);
+  }
   if (allMovements.length === 0) {
     return (
       <QavanteEmpty
@@ -492,6 +519,20 @@ export function PorClasificarView({ dimensionsEnabled = false }: PorClasificarVi
           size="sm"
           variant="ghost"
           className="ml-auto"
+          onClick={exportCsv}
+          disabled={movements.length === 0}
+          title={
+            movements.length === 0
+              ? "No hay movimientos que exportar con los filtros actuales"
+              : `Descargar ${movements.length} movimientos sin clasificar en CSV (abre en Excel)`
+          }
+        >
+          <Download className="h-4 w-4" aria-hidden="true" />
+          Exportar CSV
+        </QavanteButton>
+        <QavanteButton
+          size="sm"
+          variant="ghost"
           onClick={detectarTraspasos}
           loading={detectTransfers.isPending}
           disabled={detectTransfers.isPending}
