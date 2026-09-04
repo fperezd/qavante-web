@@ -80,8 +80,10 @@ export default defineConfig({
           name: "storybook",
           // Las stories comparten un único documento y el servidor MSW del navegador.
           // Ejecutarlas en paralelo permite que una interacción reemplace los handlers
-          // de otra; serializarlas conserva todos los escenarios de error como gate.
+          // de otra; `fileParallelism` cubre archivos y `maxConcurrency` cubre plays
+          // concurrentes dentro de una misma story.
           fileParallelism: false,
+          maxConcurrency: 1,
           browser: {
             enabled: true,
             headless: true,
