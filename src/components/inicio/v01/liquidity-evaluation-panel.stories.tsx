@@ -89,20 +89,6 @@ const EVALUATION: LiquidityEvaluation = {
   ],
 };
 
-const meta = {
-  title: "Rediseño F2 / V01 Hoy / Evaluación de liquidez",
-  component: LiquidityEvaluationPanel,
-  parameters: {
-    layout: "padded",
-    a11y: { test: "error" },
-    msw: { handlers: [storySelectionHandler(), requestApprovalHandler()] },
-  },
-  args: { evaluation: EVALUATION, now: new Date("2026-08-31T12:00:00Z") },
-} satisfies Meta<typeof LiquidityEvaluationPanel>;
-
-export default meta;
-type Story = StoryObj<typeof meta>;
-
 function selectionResponse(
   over: Partial<DecisionSelectionResponse> = {},
 ): DecisionSelectionResponse {
@@ -122,79 +108,112 @@ function evaluationForStory(decisionId: string): LiquidityEvaluation {
   return { ...EVALUATION, decision_id: decisionId };
 }
 
-/* Las play functions de Storybook comparten un worker. Un único router estable,
-   con IDs de decisión exclusivos por story, evita que una story reemplace el
-   handler de otra mientras ambas están interactuando. */
-function storySelectionHandler() {
-  return http.post(
-    "*/api/treasury/decisions/:decisionId/selection",
-    async ({ params, request }) => {
-      const decisionId = String(params.decisionId);
-      const body = (await request.json()) as DecisionSelectionRequest;
-
-      if (decisionId === RETRY_DECISION_ID) {
-        retryBodies.push(body);
-        return retryBodies.length === 1
-          ? HttpResponse.error()
-          : HttpResponse.json(selectionResponse({ decision_id: decisionId }));
-      }
-      if (decisionId === CHANGE_INTENT_DECISION_ID) {
-        changedIntentBodies.push(body);
-        return changedIntentBodies.length === 1
-          ? HttpResponse.error()
-          : HttpResponse.json(selectionResponse({ decision_id: decisionId }));
-      }
-      if (decisionId === NO_ACTION_DECISION_ID) {
-        noActionBodies.push(body);
-        return HttpResponse.json(
-          selectionResponse({
-            decision_id: decisionId,
-            alternative_id: NO_ACTION_ID,
-            operation_required: false,
-            operation_plan_id: null,
-            operation_status: null,
-          }),
-        );
-      }
-      if (decisionId === REPLAY_DECISION_ID) {
-        return HttpResponse.json(selectionResponse({ decision_id: decisionId, replayed: true }));
-      }
-
-      const errors: Record<string, 401 | 403 | 409 | 422> = {
-        [ERROR_401_DECISION_ID]: 401,
-        [ERROR_403_DECISION_ID]: 403,
-        [ERROR_422_DECISION_ID]: 422,
-      };
-      const status = errors[decisionId];
-      if (status) {
-        errorRequests[status]?.push(body);
-        return HttpResponse.json(
-          { detail: { code: "selection_rejected", detail: "rejected" } },
-          { status },
-        );
-      }
-
-      return HttpResponse.json(selectionResponse({ decision_id: decisionId }));
+/**
+ * Cada interacción conserva su handler y sus solicitudes en un cierre propio.
+ * El worker de Storybook vive entre stories: un router comodín y arrays de módulo
+ * dejaban que un handler registrado por otra story respondiera un POST ajeno.
+ */
+function selectionScenario(
+  decisionId: string,
+  respond: (requests: readonly DecisionSelectionRequest[]) => Response,
+) {
+  const requests: DecisionSelectionRequest[] = [];
+  return {
+    requests,
+    reset: () => {
+      requests.length = 0;
     },
-  );
+    handler: http.post(`*/api/treasury/decisions/${decisionId}/selection`, async ({ request }) => {
+      requests.push((await request.json()) as DecisionSelectionRequest);
+      return respond(requests);
+    }),
+  };
 }
 
-function requestApprovalHandler() {
-  return http.post(
-    "*/api/treasury/operation-plans/:operationPlanId/request-approval",
-    async ({ request }) => {
-      approvalBodies.push((await request.json()) as OperationApprovalRequest);
-      return HttpResponse.json({
-        operation_plan_id: OPERATION_PLAN.operation_plan!.id,
-        event_id: "80000000-0000-4000-8000-000000000001",
-        from_status: "draft",
-        to_status: "awaiting_approval",
-        occurred_at: "2026-08-31T12:10:00Z",
-        replayed: false,
-      });
+const retryScenario = selectionScenario(RETRY_DECISION_ID, (requests) =>
+  requests.length === 1
+    ? HttpResponse.error()
+    : HttpResponse.json(selectionResponse({ decision_id: RETRY_DECISION_ID })),
+);
+const changedIntentScenario = selectionScenario(CHANGE_INTENT_DECISION_ID, (requests) =>
+  requests.length === 1
+    ? HttpResponse.error()
+    : HttpResponse.json(selectionResponse({ decision_id: CHANGE_INTENT_DECISION_ID })),
+);
+const noActionScenario = selectionScenario(NO_ACTION_DECISION_ID, () =>
+  HttpResponse.json(
+    selectionResponse({
+      decision_id: NO_ACTION_DECISION_ID,
+      alternative_id: NO_ACTION_ID,
+      operation_required: false,
+      operation_plan_id: null,
+      operation_status: null,
+    }),
+  ),
+);
+const replayScenario = selectionScenario(REPLAY_DECISION_ID, () =>
+  HttpResponse.json(selectionResponse({ decision_id: REPLAY_DECISION_ID, replayed: true })),
+);
+const errorScenarios = {
+  401: selectionScenario(ERROR_401_DECISION_ID, () =>
+    HttpResponse.json(
+      { detail: { code: "selection_rejected", detail: "rejected" } },
+      { status: 401 },
+    ),
+  ),
+  403: selectionScenario(ERROR_403_DECISION_ID, () =>
+    HttpResponse.json(
+      { detail: { code: "selection_rejected", detail: "rejected" } },
+      { status: 403 },
+    ),
+  ),
+  422: selectionScenario(ERROR_422_DECISION_ID, () =>
+    HttpResponse.json(
+      { detail: { code: "selection_rejected", detail: "rejected" } },
+      { status: 422 },
+    ),
+  ),
+};
+
+function requestApprovalScenario() {
+  const requests: OperationApprovalRequest[] = [];
+  return {
+    requests,
+    reset: () => {
+      requests.length = 0;
     },
-  );
+    handler: http.post(
+      "*/api/treasury/operation-plans/50000000-0000-4000-8000-000000000001/request-approval",
+      async ({ request }) => {
+        requests.push((await request.json()) as OperationApprovalRequest);
+        return HttpResponse.json({
+          operation_plan_id: "50000000-0000-4000-8000-000000000001",
+          event_id: "80000000-0000-4000-8000-000000000001",
+          from_status: "draft",
+          to_status: "awaiting_approval",
+          occurred_at: "2026-08-31T12:10:00Z",
+          replayed: false,
+        });
+      },
+    ),
+  };
 }
+
+const approvalScenario = requestApprovalScenario();
+
+const meta = {
+  title: "Rediseño F2 / V01 Hoy / Evaluación de liquidez",
+  component: LiquidityEvaluationPanel,
+  parameters: {
+    layout: "padded",
+    a11y: { test: "error" },
+    msw: { handlers: [approvalScenario.handler] },
+  },
+  args: { evaluation: EVALUATION, now: new Date("2026-08-31T12:00:00Z") },
+} satisfies Meta<typeof LiquidityEvaluationPanel>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 const OPERATION_PLAN: OperationPlanRead = {
   lookup: "decision_id",
@@ -291,14 +310,12 @@ async function closeDialog(dialog: HTMLElement) {
   await waitFor(() => expect(dialog).not.toHaveAttribute("data-open"));
 }
 
-const errorRequests: Partial<Record<401 | 403 | 409 | 422, DecisionSelectionRequest[]>> = {};
-
 async function expectErrorWithoutSuccess(
   canvasElement: HTMLElement,
-  status: 401 | 403 | 409 | 422,
+  scenario: (typeof errorScenarios)[401 | 403 | 422],
   expected: RegExp,
 ) {
-  errorRequests[status] = [];
+  scenario.reset();
   const { canvas, dialog } = await openSelection(
     canvasElement,
     "Usar línea de crédito",
@@ -306,8 +323,8 @@ async function expectErrorWithoutSuccess(
   );
   await submit(dialog);
   await waitFor(() => expect(within(dialog).getByRole("alert")).toHaveTextContent(expected));
-  await expect(errorRequests[status]).toHaveLength(1);
-  await expect(errorRequests[status]?.[0]).toMatchObject({
+  await expect(scenario.requests).toHaveLength(1);
+  await expect(scenario.requests[0]).toMatchObject({
     alternative_id: LINE_ID,
     rationale: "Motivo verificable",
   });
@@ -357,12 +374,10 @@ export const ErrorDeLectura: Story = {
   },
 };
 
-let approvalBodies: OperationApprovalRequest[] = [];
-
 export const OperationPlanYSolicitudAprobacion: Story = {
   args: { canSelect: true, operationPlanRead: OPERATION_PLAN },
   play: async ({ canvasElement }) => {
-    approvalBodies = [];
+    approvalScenario.reset();
     const canvas = within(canvasElement);
     await expect(
       canvas.getByRole("heading", { name: "Usar línea de crédito" }),
@@ -386,8 +401,8 @@ export const OperationPlanYSolicitudAprobacion: Story = {
     await expect(await canvas.findByText("Esperando aprobación")).toBeInTheDocument();
     await expect(canvas.getByText("Sólo lectura")).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /aprobar/i })).not.toBeInTheDocument();
-    await expect(approvalBodies).toHaveLength(1);
-    await expect(approvalBodies[0]).toMatchObject({
+    await expect(approvalScenario.requests).toHaveLength(1);
+    await expect(approvalScenario.requests[0]).toMatchObject({
       evidence_refs: ["quote:1"],
       rationale: "Solicito revisión con evidencia anclada",
     });
@@ -476,13 +491,12 @@ export const SeleccionOwner: Story = {
   },
 };
 
-let retryBodies: DecisionSelectionRequest[] = [];
-
 /** Monta directamente V01 para el test de browser; no cambia `hoyV01` en producción. */
 export const RetryIdempotenteYExito: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(RETRY_DECISION_ID) },
+  parameters: { msw: { handlers: [retryScenario.handler] } },
   play: async ({ canvasElement }) => {
-    retryBodies = [];
+    retryScenario.reset();
     const { canvas, dialog } = await openSelection(
       canvasElement,
       "Usar línea de crédito",
@@ -502,22 +516,27 @@ export const RetryIdempotenteYExito: Story = {
     await expect(status).toHaveTextContent(/plan operativo en borrador/i);
     await expect(status).toHaveTextContent(/estado draft/i);
     await expect(document.activeElement).toBe(status);
-    await expect(retryBodies).toHaveLength(2);
-    await expect(retryBodies[0]).toEqual({
+    await expect(retryScenario.requests).toHaveLength(2);
+    await expect(retryScenario.requests[0]).toEqual({
       alternative_id: LINE_ID,
-      idempotency_key: retryBodies[0]?.idempotency_key,
+      idempotency_key: retryScenario.requests[0]?.idempotency_key,
       rationale: "Protege el vencimiento con términos verificados",
     });
-    await expect(retryBodies[1]?.idempotency_key).toBe(retryBodies[0]?.idempotency_key);
+    await expect(retryScenario.requests[0]?.idempotency_key).toEqual(expect.any(String));
+    await expect(retryScenario.requests[0]?.idempotency_key).not.toBe("");
+    await expect(retryScenario.requests[1]?.idempotency_key).toEqual(expect.any(String));
+    await expect(retryScenario.requests[1]?.idempotency_key).not.toBe("");
+    await expect(retryScenario.requests[1]?.idempotency_key).toBe(
+      retryScenario.requests[0]?.idempotency_key,
+    );
   },
 };
 
-let changedIntentBodies: DecisionSelectionRequest[] = [];
-
 export const MotivoCambiadoUsaNuevaKey: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(CHANGE_INTENT_DECISION_ID) },
+  parameters: { msw: { handlers: [changedIntentScenario.handler] } },
   play: async ({ canvasElement }) => {
-    changedIntentBodies = [];
+    changedIntentScenario.reset();
     const { canvas, dialog, input } = await openSelection(
       canvasElement,
       "Usar línea de crédito",
@@ -530,36 +549,36 @@ export const MotivoCambiadoUsaNuevaKey: Story = {
     await userEvent.type(input, "Motivo corregido");
     await submit(dialog);
     await canvas.findByRole("status");
-    await expect(changedIntentBodies).toHaveLength(2);
-    await expect(changedIntentBodies[1]?.rationale).toBe("Motivo corregido");
-    await expect(changedIntentBodies[1]?.idempotency_key).not.toBe(
-      changedIntentBodies[0]?.idempotency_key,
+    await expect(changedIntentScenario.requests).toHaveLength(2);
+    await expect(changedIntentScenario.requests[1]?.rationale).toBe("Motivo corregido");
+    await expect(changedIntentScenario.requests[1]?.idempotency_key).not.toBe(
+      changedIntentScenario.requests[0]?.idempotency_key,
     );
   },
 };
 
-let noActionBodies: DecisionSelectionRequest[] = [];
-
 export const NoActionSinPlan: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(NO_ACTION_DECISION_ID) },
+  parameters: { msw: { handlers: [noActionScenario.handler] } },
   play: async ({ canvasElement }) => {
-    noActionBodies = [];
+    noActionScenario.reset();
     const { canvas, dialog } = await openSelection(
       canvasElement,
       "No financiar",
       "La caja se recupera sin financiamiento",
     );
     await submit(dialog);
-    await waitFor(() => expect(noActionBodies).toHaveLength(1));
+    await waitFor(() => expect(noActionScenario.requests).toHaveLength(1));
     const status = await canvas.findByRole("status");
     await expect(status).toHaveTextContent(/No requiere un plan operativo/i);
     await expect(status).toHaveTextContent(/sin OperationPlan/i);
-    await expect(noActionBodies[0]?.alternative_id).toBe(NO_ACTION_ID);
+    await expect(noActionScenario.requests[0]?.alternative_id).toBe(NO_ACTION_ID);
   },
 };
 
 export const ReplayNoDuplica: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(REPLAY_DECISION_ID) },
+  parameters: { msw: { handlers: [replayScenario.handler] } },
   play: async ({ canvasElement }) => {
     const { canvas, dialog } = await openSelection(
       canvasElement,
@@ -575,18 +594,23 @@ export const ReplayNoDuplica: Story = {
 
 export const Error401NoConfirma: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(ERROR_401_DECISION_ID) },
-  play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 401, /sesión venció/i),
+  parameters: { msw: { handlers: [errorScenarios[401].handler] } },
+  play: ({ canvasElement }) =>
+    expectErrorWithoutSuccess(canvasElement, errorScenarios[401], /sesión venció/i),
 };
 
 export const Error403NoConfirma: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(ERROR_403_DECISION_ID) },
+  parameters: { msw: { handlers: [errorScenarios[403].handler] } },
   play: ({ canvasElement }) =>
-    expectErrorWithoutSuccess(canvasElement, 403, /rol no está autorizado/i),
+    expectErrorWithoutSuccess(canvasElement, errorScenarios[403], /rol no está autorizado/i),
 };
 
 export const Error422NoConfirma: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(ERROR_422_DECISION_ID) },
-  play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 422, /ya no cumple/i),
+  parameters: { msw: { handlers: [errorScenarios[422].handler] } },
+  play: ({ canvasElement }) =>
+    expectErrorWithoutSuccess(canvasElement, errorScenarios[422], /ya no cumple/i),
 };
 
 export const Abstencion: Story = {
