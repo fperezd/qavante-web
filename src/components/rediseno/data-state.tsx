@@ -46,6 +46,8 @@ interface DataStateBaseProps {
    */
   what: string;
   className?: string;
+  /** Ajuste visual opcional para una vista que no use la voz display del rediseño. */
+  headingClassName?: string;
 }
 
 export type DataStateProps = DataStateBaseProps &
@@ -96,7 +98,12 @@ export function DataState(props: DataStateProps) {
         className={cn("size-7", esError ? "text-rediseno-ambar" : "text-rediseno-tinta-3-light")}
         aria-hidden
       />
-      <h3 className="font-rediseno-serif text-[17px] font-medium text-rediseno-tinta">
+      <h3
+        className={cn(
+          "font-rediseno-serif text-[17px] font-medium text-rediseno-tinta",
+          props.headingClassName,
+        )}
+      >
         {esError ? `No pudimos consultar ${props.what}` : `No hay ${props.what}`}
       </h3>
       <p className="max-w-[26rem] text-[13px] leading-relaxed text-rediseno-tinta-2">

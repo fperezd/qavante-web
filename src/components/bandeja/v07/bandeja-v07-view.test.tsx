@@ -98,6 +98,42 @@ describe("BandejaV07View — cabecera y progreso", () => {
     // Y el hueco queda declarado en la pantalla, no sólo en el PR.
     expect(t).toContain("El progreso cuenta lo resuelto en esta sesión y no “hoy”");
   });
+
+  it("usa Sora en títulos y montos, Figtree en copy operativo y mono sólo en atajos", () => {
+    const h = html();
+
+    // El div raíz, no sólo el eyebrow, da Figtree a TODO el copy operativo de la pantalla.
+    // El ancla de contenido evita que una clase en un contenedor vacío certifique el contrato.
+    expect(h).toMatch(
+      /<div class="space-y-4 font-rediseno-sans">[\s\S]*?<p[^>]*>Bandeja · lo que el piloto separó para ti<\/p>/,
+    );
+    const vacia = html({
+      conciliar: itemsConciliar(colaConciliarVacia()),
+      clasificar: itemsClasificar(sinClasificarVacio()),
+    });
+    expect(vacia).toMatch(
+      /<div class="space-y-4 font-rediseno-sans">[\s\S]*?Nada espera tu decisión/,
+    );
+    const error = html({
+      conciliar: null,
+      clasificar: null,
+      conciliarMotivo: "La cola no respondió.",
+    });
+    expect(error).toMatch(
+      /<div[^>]*role="status"[^>]*class="[^"]*font-rediseno-sans[^"]*"[\s\S]*?No pudimos consultar tu bandeja de excepciones/,
+    );
+    expect(error).toMatch(/<h3[^>]*font-sans[^>]*>No pudimos consultar tu bandeja de excepciones/);
+
+    // Títulos, monto y labels de operación no deben volver a la estética editorial/técnica.
+    expect(h).toMatch(/<h1[^>]*font-sans[^>]*>/);
+    expect(h).toMatch(/<h2[^>]*font-sans[^>]*>/);
+    expect(h).toMatch(/<p[^>]*font-sans[^>]*tabular-nums[^>]*>Abono \$2\.380\.000/);
+    expect(h).toMatch(/<p[^>]*font-rediseno-sans[^>]*text-\[12px\][^>]*>Bandeja/);
+    expect(h).not.toMatch(/<(?:h1|h2|p)[^>]*font-rediseno-(?:serif|mono)[^>]*>/);
+
+    // El atajo es la única excepción: es código, no copy operativo.
+    expect(h).toMatch(/<span[^>]*font-rediseno-mono[^>]*>Enter<\/span>/);
+  });
 });
 
 describe("BandejaV07View — carta de conciliar CON evidencia (Kaufmann)", () => {

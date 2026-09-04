@@ -156,7 +156,7 @@ export interface BandejaV07ViewProps {
 }
 
 const EYEBROW =
-  "font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
+  "font-rediseno-sans text-[12px] font-semibold uppercase tracking-[.08em] text-rediseno-tinta-3";
 const LINK =
   "font-semibold text-rediseno-azul hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul rounded";
 const BTN_PRIMARIO =
@@ -276,6 +276,8 @@ function BandejaV07Contenido({
       <DataState
         status="error"
         what="tu bandeja de excepciones"
+        className="font-rediseno-sans"
+        headingClassName="font-sans font-semibold"
         cause={
           conciliarMotivo ??
           clasificarMotivo ??
@@ -291,9 +293,9 @@ function BandejaV07Contenido({
      ciegos de ese lado, y felicitar a ciegas es la peor versión de esta pantalla. */
   if (pendientes === 0 && conciliar !== null && clasificar !== null) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 font-rediseno-sans">
         <p className={EYEBROW}>Bandeja · lo que el piloto separó para ti</p>
-        <h1 className="font-rediseno-serif text-[26px] leading-tight font-medium text-rediseno-tinta">
+        <h1 className="font-sans text-[26px] leading-tight font-semibold text-rediseno-tinta">
           Nada espera tu decisión
         </h1>
         <div className="rounded-[14px] border border-rediseno-hairline border-l-[3px] border-l-rediseno-verde bg-rediseno-superficie px-[17px] py-4">
@@ -320,11 +322,11 @@ function BandejaV07Contenido({
   const fuenteCaida = conciliar === null || clasificar === null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 font-rediseno-sans">
       <p className={EYEBROW}>Bandeja · lo que el piloto separó para ti</p>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h1 className="font-rediseno-serif text-[26px] leading-tight font-medium text-rediseno-tinta">
+        <h1 className="font-sans text-[26px] leading-tight font-semibold text-rediseno-tinta">
           {pendientes === 0 && fuenteCaida
             ? "No podemos decirte cuánto te queda"
             : pendientes === 0
@@ -599,7 +601,7 @@ function CartaConciliar({
         Conciliar {indice + 1} de {total} · el piloto no lo resolvió solo: {motivos.join(" y ")}
       </p>
 
-      <h2 className="mt-2 font-rediseno-serif text-[19px] leading-snug font-medium break-words text-rediseno-tinta">
+      <h2 className="mt-2 font-sans text-[19px] leading-snug font-semibold break-words text-rediseno-tinta">
         {palabraDireccion(item.direccion)} de{" "}
         {item.contraparteMotor ?? candidato?.nombre ?? "contraparte sin identificar"} ·{" "}
         {sugerible ? "¿es este documento?" : "¿con qué documento va?"}
@@ -698,7 +700,7 @@ function LadoBanco({ item }: { item: ItemConciliarV07 }) {
   return (
     <div className="rounded-xl border border-rediseno-hairline bg-rediseno-porcelana px-4 py-3">
       <p className={EYEBROW}>En el banco · {formatDateLong(item.fecha)}</p>
-      <p className="mt-1 font-rediseno-serif text-[20px] font-medium break-words tabular-nums text-rediseno-tinta">
+      <p className="mt-1 font-sans text-[20px] font-semibold break-words tabular-nums text-rediseno-tinta">
         {palabraDireccion(item.direccion)} {formatClp(item.monto)}
       </p>
       <p className="mt-0.5 text-[12.5px] break-words text-rediseno-tinta-2">
@@ -743,7 +745,7 @@ function LadoDocumento({
   return (
     <div className="rounded-xl border border-rediseno-hairline bg-rediseno-superficie px-4 py-3">
       <p className={EYEBROW}>{etiquetaDocumento(candidato)}</p>
-      <p className="mt-1 font-rediseno-serif text-[20px] font-medium break-words tabular-nums text-rediseno-tinta">
+      <p className="mt-1 font-sans text-[20px] font-semibold break-words tabular-nums text-rediseno-tinta">
         {candidato.monto == null ? "monto no informado" : formatClp(candidato.monto)}
       </p>
       <p className="mt-0.5 text-[12.5px] break-words text-rediseno-tinta-2">
@@ -1175,7 +1177,7 @@ function CartaClasificar({
             : "sin regla que calce: sin evidencia no se sugiere"}
         </p>
 
-        <h2 className="mt-2 font-rediseno-serif text-[19px] leading-snug font-medium break-words text-rediseno-tinta">
+        <h2 className="mt-2 font-sans text-[19px] leading-snug font-semibold break-words text-rediseno-tinta">
           {palabraDireccion(item.direccion)} {formatClp(item.monto)} ·{" "}
           {item.glosa ? `“${item.glosa}”` : "sin glosa"} · {formatDateLong(item.fecha)}
         </h2>
