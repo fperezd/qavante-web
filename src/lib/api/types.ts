@@ -3013,7 +3013,7 @@ export interface paths {
         };
         /**
          * Outcome Values
-         * @description F9 cannot publish an outcome before an immutable tenant-scoped adapter exists.
+         * @description Expose operational tracking, never inventing an economic outcome or value.
          */
         get: operations["treasury_outcome_values"];
         put?: never;
@@ -3121,6 +3121,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/operation-plans/{operation_plan_id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Financial Operation Plan Tasks
+         * @description Lee tareas y estado derivado exclusivamente desde eventos append-only.
+         */
+        get: operations["treasury_financial_operation_plan_tasks"];
+        put?: never;
+        /**
+         * Create Financial Operation Task
+         * @description Crea una tarea interna; no cotiza, envía ni ejecuta una operación externa.
+         */
+        post: operations["treasury_create_financial_operation_task"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/operation-tasks/{operation_task_id}/transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transition Financial Operation Task
+         * @description Registra progreso humano append-only; no altera términos ni mueve dinero.
+         */
+        post: operations["treasury_transition_financial_operation_task"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/decisions/{decision_id}/selection": {
         parameters: {
             query?: never;
@@ -3155,6 +3199,26 @@ export interface paths {
          * @description Solicita revisión humana; no aprueba, envía ni ejecuta la operación.
          */
         post: operations["treasury_request_operation_plan_approval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/operation-plans/{operation_plan_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Financial Operation Plan
+         * @description Aprueba internamente un plan solicitado; no envía ni ejecuta una operación externa.
+         */
+        post: operations["treasury_approve_operation_plan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4287,6 +4351,26 @@ export interface paths {
         put?: never;
         /** Conciliación: descarta la sugerencia en cola */
         post: operations["treasury_reconciliation_reject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/{movement_id}/document-suggestions/{document_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conciliación: recuerda que un documento candidato no corresponde al movimiento
+         * @description Guarda el par negativo tenant-scoped; no reclasifica ni altera saldos.
+         */
+        post: operations["treasury_reconciliation_reject_document_suggestion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13829,6 +13913,48 @@ export interface components {
              */
             reason: "approval_policy_not_ratified";
         };
+        /**
+         * OperationPlanApprovalRequest
+         * @description Human approval of an already requested plan; never an external submission.
+         */
+        OperationPlanApprovalRequest: {
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Evidence Refs */
+            evidence_refs: string[];
+            /** Rationale */
+            rationale: string;
+        };
+        /** OperationPlanApprovalResponse */
+        OperationPlanApprovalResponse: {
+            /**
+             * Operation Plan Id
+             * Format: uuid
+             */
+            operation_plan_id: string;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /**
+             * From Status
+             * @constant
+             */
+            from_status: "awaiting_approval";
+            /**
+             * To Status
+             * @constant
+             */
+            to_status: "approved";
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Replayed */
+            replayed: boolean;
+        };
         /** OperationPlanChecklistSnapshot */
         OperationPlanChecklistSnapshot: {
             /** Required Terms */
@@ -14091,6 +14217,151 @@ export interface components {
          * @enum {string}
          */
         OperationStatus: "draft" | "awaiting_approval" | "approved" | "submitted" | "acknowledged" | "in_evaluation" | "approved_by_provider" | "rejected_by_provider" | "cancelled" | "expired" | "funded_or_effective" | "settled" | "observed" | "closed";
+        /**
+         * OperationTaskCreateRequest
+         * @description Creates a human operational task; never carries financial terms.
+         */
+        OperationTaskCreateRequest: {
+            /** Task Code */
+            task_code: string;
+            /**
+             * Assignee User Id
+             * Format: uuid
+             */
+            assignee_user_id: string;
+            /** Due At */
+            due_at?: string | null;
+            /**
+             * Evidence Required
+             * @default true
+             */
+            evidence_required: boolean;
+            /** Idempotency Key */
+            idempotency_key: string;
+        };
+        /** OperationTaskEventSnapshot */
+        OperationTaskEventSnapshot: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Event Sequence */
+            event_sequence: number;
+            /**
+             * From State
+             * @enum {string}
+             */
+            from_state: "pending" | "in_progress";
+            /**
+             * To State
+             * @enum {string}
+             */
+            to_state: "in_progress" | "completed" | "cancelled";
+            /**
+             * Actor User Id
+             * Format: uuid
+             */
+            actor_user_id: string;
+            /** Actor Ref */
+            actor_ref: string;
+            /** Evidence Refs */
+            evidence_refs?: string[];
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** OperationTaskListResponse */
+        OperationTaskListResponse: {
+            /**
+             * Operation Plan Id
+             * Format: uuid
+             */
+            operation_plan_id: string;
+            /** Tasks */
+            tasks?: components["schemas"]["OperationTaskSnapshot"][];
+        };
+        /** OperationTaskMutationResponse */
+        OperationTaskMutationResponse: {
+            /**
+             * Operation Task Id
+             * Format: uuid
+             */
+            operation_task_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "in_progress" | "completed" | "cancelled";
+            /** Event Id */
+            event_id?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Replayed */
+            replayed: boolean;
+        };
+        /** OperationTaskSnapshot */
+        OperationTaskSnapshot: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Operation Plan Id
+             * Format: uuid
+             */
+            operation_plan_id: string;
+            /** Task Code */
+            task_code: string;
+            /**
+             * Assignee User Id
+             * Format: uuid
+             */
+            assignee_user_id: string;
+            /** Due At */
+            due_at?: string | null;
+            /** Evidence Required */
+            evidence_required: boolean;
+            /**
+             * Created By User Id
+             * Format: uuid
+             */
+            created_by_user_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "in_progress" | "completed" | "cancelled";
+            /** Events */
+            events?: components["schemas"]["OperationTaskEventSnapshot"][];
+        };
+        /** OperationTaskTransitionRequest */
+        OperationTaskTransitionRequest: {
+            /**
+             * To State
+             * @enum {string}
+             */
+            to_state: "in_progress" | "completed" | "cancelled";
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Evidence Refs */
+            evidence_refs?: string[];
+            /** Reason */
+            reason?: string | null;
+        };
         /**
          * OperationalDriver
          * @description Factor rule-based que explica el movimiento del resultado.
@@ -14524,9 +14795,75 @@ export interface components {
             vs_previous_month?: components["schemas"]["ResultVariation"] | null;
             vs_same_month_last_year?: components["schemas"]["ResultVariation"] | null;
         };
+        /** OutcomeNotEvaluableMeasurement */
+        OutcomeNotEvaluableMeasurement: {
+            /**
+             * State
+             * @constant
+             */
+            state: "not_evaluable";
+            /** Reasons */
+            reasons: string[];
+        };
+        /**
+         * OutcomeTrackingItem
+         * @description Operational facts; it intentionally contains no observed money fields.
+         */
+        OutcomeTrackingItem: {
+            /** Outcome Ref */
+            outcome_ref: string;
+            /** Decision Ref */
+            decision_ref: string;
+            /** Selected Alternative Ref */
+            selected_alternative_ref: string;
+            /** Alternative Code */
+            alternative_code: string;
+            /** Alternative Family */
+            alternative_family: string;
+            /** Operation Plan Ref */
+            operation_plan_ref?: string | null;
+            /**
+             * Selected At
+             * Format: date-time
+             */
+            selected_at: string;
+            /** Operational State */
+            operational_state: string;
+            task_summary?: components["schemas"]["OutcomeTrackingTaskSummary"] | null;
+            economic_measurement: components["schemas"]["OutcomeNotEvaluableMeasurement"];
+            value_ledger: components["schemas"]["OutcomeTrackingValueLedger"];
+        };
+        /**
+         * OutcomeTrackingTaskSummary
+         * @description Counts derived from immutable task events, never from a financial result.
+         */
+        OutcomeTrackingTaskSummary: {
+            /** Total */
+            total: number;
+            /** Completed */
+            completed: number;
+            /** Cancelled */
+            cancelled: number;
+            /** In Progress */
+            in_progress: number;
+            /** Pending */
+            pending: number;
+        };
+        /** OutcomeTrackingValueLedger */
+        OutcomeTrackingValueLedger: {
+            /**
+             * State
+             * @constant
+             */
+            state: "not_evaluable";
+            /** Reasons */
+            reasons: string[];
+            /** Entry */
+            entry?: null;
+        };
         /**
          * OutcomeValueReadResponse
-         * @description F9 result; until immutable outcome persistence exists it is abstained.
+         * @description F9 tracking; financial measurements remain abstained until reconciled.
          */
         OutcomeValueReadResponse: {
             scope: components["schemas"]["OutcomeValueReadScope"];
@@ -14542,9 +14879,7 @@ export interface components {
             /** Snapshot Hash */
             snapshot_hash?: string | null;
             /** Outcomes */
-            outcomes?: {
-                [key: string]: unknown;
-            }[];
+            outcomes?: components["schemas"]["OutcomeTrackingItem"][];
         };
         /** OutcomeValueReadScope */
         OutcomeValueReadScope: {
@@ -16053,6 +16388,18 @@ export interface components {
              * @description Períodos por tenant (mes actual + N-1 anteriores).
              */
             periods: number;
+        };
+        /**
+         * RejectDocumentSuggestionResponse
+         * @description Par negativo persistido. Repetir la misma petición conserva el mismo resultado.
+         */
+        RejectDocumentSuggestionResponse: {
+            /** Movement Id */
+            movement_id: string;
+            /** Status */
+            status: string;
+            /** Document Id */
+            document_id: string;
         };
         /** RemanenteSeedRequest */
         RemanenteSeedRequest: {
@@ -24322,6 +24669,186 @@ export interface operations {
             };
         };
     };
+    treasury_financial_operation_plan_tasks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_plan_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationTaskListResponse"];
+                };
+            };
+            /** @description Sesión o API key ausente, inválida o expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El contexto autenticado no tiene tenant explícito. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description OperationPlan no encontrado en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_create_financial_operation_task: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_plan_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperationTaskCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationTaskMutationResponse"];
+                };
+            };
+            /** @description Sesión ausente, inválida o expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sesión humana o rol financiero insuficiente. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description OperationPlan no encontrado en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Plan no aprobado o colisión de idempotencia. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tarea, responsable o plazo inválidos. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_transition_financial_operation_task: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_task_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperationTaskTransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationTaskMutationResponse"];
+                };
+            };
+            /** @description Sesión ausente, inválida o expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sesión humana o membresía activa requerida. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tarea no encontrada en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Transición inválida o colisión de idempotencia. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Evidencia o razón de cancelación inválida. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     treasury_select_financial_decision_alternative: {
         parameters: {
             query?: never;
@@ -24421,6 +24948,76 @@ export interface operations {
                 content?: never;
             };
             /** @description Solicitud inválida o evidencia insuficiente. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_approve_operation_plan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                operation_plan_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperationPlanApprovalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationPlanApprovalResponse"];
+                };
+            };
+            /** @description Sesión ausente, inválida o expirada. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sólo owner o admin puede aprobar internamente. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description OperationPlan no encontrado en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Estado obsoleto o colisión de idempotencia. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La revalidación financiera fail-closed no se cumple. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Aprobación inválida o evidencia insuficiente. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -26848,6 +27445,45 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    treasury_reconciliation_reject_document_suggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                movement_id: string;
+                document_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RejectDocumentSuggestionResponse"];
+                };
+            };
+            /** @description El movimiento no existe para el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El documento no es un candidato vigente y compatible. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

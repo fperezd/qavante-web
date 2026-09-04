@@ -33,15 +33,9 @@ export type ReanalyzeResponse = components["schemas"]["ReanalyzeResponse"];
 export type ReconciliationAlias = components["schemas"]["ReconciliationAlias"];
 export type ReconciliationAliasesResponse = components["schemas"]["ReconciliationAliasesResponse"];
 
-/* API #359 todavía está en revisión y su schema no forma parte de `types.ts` en main.
- * Este response local replica exactamente el response_model publicado por ese PR. Al mergear
- * #359 se debe regenerar OpenAPI y reemplazar este alias por
- * `components["schemas"]["RejectDocumentSuggestionResponse"]`; no se edita el generado a mano. */
-export interface RejectDocumentSuggestionResponse {
-  movement_id: string;
-  status: string;
-  document_id: string;
-}
+/** Rechazo documentado con memoria negativa, generado desde el OpenAPI desplegado por API #359. */
+export type RejectDocumentSuggestionResponse =
+  components["schemas"]["RejectDocumentSuggestionResponse"];
 
 export const reconciliationKeys = {
   all: ["reconciliation"] as const,
