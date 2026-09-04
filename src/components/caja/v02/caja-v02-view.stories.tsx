@@ -59,7 +59,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — la caja aguanta, nada bajo cero",
+  name: "Normal · la caja aguanta, nada bajo cero",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const kpis = triada(canvasElement);
@@ -83,7 +83,7 @@ export const Normal: Story = {
 };
 
 export const BajoCero: Story = {
-  name: "Bajo cero — el mínimo es el único rojo de la pantalla",
+  name: "Bajo cero · el mínimo es el único rojo de la pantalla",
   args: {
     proyeccion: PROYECCION_BAJO_CERO,
     summary: summary({
@@ -124,7 +124,7 @@ export const BajoCero: Story = {
 };
 
 export const PostergarCancelable: Story = {
-  name: "Postergar — Ley 4: la cuenta se ve y Cancelar no llama la API",
+  name: "Postergar · Ley 4: la cuenta se ve y Cancelar no llama la API",
   args: {
     proyeccion: PROYECCION_BAJO_CERO,
     onPostpone: fn(),
@@ -142,7 +142,7 @@ export const PostergarCancelable: Story = {
 };
 
 export const SinSaldoBase: Story = {
-  name: 'Sin saldo base — el "no sé" es explícito, sin curva desde $0',
+  name: 'Sin saldo base · el "no sé" es explícito, sin curva desde $0',
   args: { summary: summary({ cash_today: null }), proyeccion: null },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -165,7 +165,7 @@ export const SinSaldoBase: Story = {
 };
 
 export const SinClasificar: Story = {
-  name: "Sin clasificar > 0 — banner de deuda de datos al flujo actual",
+  name: "Sin clasificar > 0 · banner de deuda de datos a la Bandeja",
   args: { sinClasificar: sinClasificar() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -173,14 +173,14 @@ export const SinClasificar: Story = {
       "3 movimientos del banco sin clasificar (~$2.100.000 en entradas)",
     );
     const cta = canvas.getByRole("link", { name: "Clasificar" });
-    await expect(cta).toHaveAttribute("href", "/caja/por-clasificar");
+    await expect(cta).toHaveAttribute("href", "/bandeja");
     // Un aviso administrativo es ámbar/neutro, nunca rojo (Ley 2).
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };
 
 export const SinClasificarError: Story = {
-  name: 'Sin clasificar EN ERROR — el banner no desaparece, dice "no sé" (remanente #82.5)',
+  name: 'Sin clasificar EN ERROR · el banner no desaparece, dice "no sé" (remanente #82.5)',
   args: { sinClasificar: sinClasificar({ isError: true, count: 0, inflowByCurrency: [] }) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -196,7 +196,7 @@ export const SinClasificarError: Story = {
 };
 
 export const Vacio: Story = {
-  name: "Vacío — sin ninguna fuente, cada tarjeta dice qué falta",
+  name: "Vacío · sin ninguna fuente, cada tarjeta dice qué falta",
   args: {
     summary: null,
     proyeccion: null,
@@ -217,7 +217,7 @@ export const Vacio: Story = {
 };
 
 export const Ley1MismoSaldoQueHoy: Story = {
-  name: "Ley 1 — el saldo es el de cajaHoy(), el mismo que V01",
+  name: "Ley 1 · el saldo es el de cajaHoy(), el mismo que V01",
   play: async ({ canvasElement, args }) => {
     /* El número que la tríada RENDERIZA se compara contra el que sale de `saldoCajaHoy`, la
        misma función que resuelve V01. El sentinel que prueba que la vista no desarma
@@ -230,7 +230,7 @@ export const Ley1MismoSaldoQueHoy: Story = {
 };
 
 export const ComoSeCalcula: Story = {
-  name: "¿Cómo se calcula? — definición, incluye/excluye, fuente y frescura",
+  name: "¿Cómo se calcula? · definición, incluye/excluye, fuente y frescura",
   args: { proyeccion: PROYECCION_BAJO_CERO },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

@@ -118,7 +118,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Sana: Story = {
-  name: "Sana — la caja aguanta, hay cosas que aprobar",
+  name: "Sana · la caja aguanta, hay cosas que aprobar",
   args: {
     data: summary({
       priority_actions: [ACCION(1, "Cobrar a Kaufmann"), ACCION(2, "Pagar el F29", "/impuestos")],
@@ -142,7 +142,7 @@ export const Sana: Story = {
 };
 
 export const Atencion: Story = {
-  name: "Atención — la caja cruza el cero a 14 días",
+  name: "Atención · la caja cruza el cero a 14 días",
   args: {
     data: summary({
       ...CAJA_BAJO_CERO,
@@ -166,7 +166,7 @@ export const Atencion: Story = {
 };
 
 export const Crisis: Story = {
-  name: "Crisis — sueldos en riesgo: menos interfaz, no más rojo",
+  name: "Crisis · sueldos en riesgo: menos interfaz, no más rojo",
   args: {
     data: summary({
       ...CAJA_BAJO_CERO,
@@ -299,7 +299,7 @@ export const CrisisMontoNominaNoNumerico = crisisSinMontoNomina(
 );
 
 export const DiaPerfecto: Story = {
-  name: "Día perfecto — no hay nada que aprobar",
+  name: "Día perfecto · no hay nada que aprobar",
   args: { data: summary({ priority_actions: [] }) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -316,7 +316,7 @@ export const DiaPerfecto: Story = {
 };
 
 export const SinDato: Story = {
-  name: 'Sin dato — el "no sé" es un bucket explícito',
+  name: 'Sin dato · el "no sé" es un bucket explícito',
   args: { data: summary({ cash_today: null, cash_forecast: null, cash_gap: null }) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -337,7 +337,7 @@ export const SinDato: Story = {
 };
 
 export const Ley1MismoSaldoQueCaja: Story = {
-  name: "Ley 1 — el saldo de hoy es el de /caja",
+  name: "Ley 1 · el saldo de hoy es el de /caja",
   args: { data: summary() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -353,7 +353,7 @@ export const Ley1MismoSaldoQueCaja: Story = {
 };
 
 export const ValueLedgerEnPreparacion: Story = {
-  name: "Value Ledger — hueco declarado, no un número inventado",
+  name: "Value Ledger · hueco declarado, no un número inventado",
   args: { data: summary() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -366,7 +366,7 @@ export const ValueLedgerEnPreparacion: Story = {
 };
 
 export const CapaComunF3F9Integrada: Story = {
-  name: "F3–F9 — boundary puro integrado en Hoy",
+  name: "F3–F9 · boundary puro integrado en Hoy",
   args: {
     data: summary(),
     decisionLayer: instrumentDecisionStoryLayer(),

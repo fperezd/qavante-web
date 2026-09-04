@@ -98,7 +98,7 @@ const PILL_OSCURA =
 const BOTON_QUIETO =
   "inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-rediseno-hairline bg-rediseno-superficie px-4 py-2 text-[12.5px] font-semibold text-rediseno-tinta-2 hover:bg-rediseno-porcelana focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul";
 const EYEBROW =
-  "font-rediseno-mono text-[11px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
+  "font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
 
 export function CobrarV04View({
   ar,
@@ -368,13 +368,13 @@ function InfoPopover({
         <Bloque titulo="Incluye" items={info.incluye} />
         <Bloque titulo="Deja afuera" items={info.excluye} />
         <p className="mt-2">
-          <span className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+          <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
             Fuente
           </span>{" "}
-          <span className="font-rediseno-mono text-[11px]">{info.fuente}</span>
+          <span className="font-rediseno-mono text-[12px]">{info.fuente}</span>
         </p>
         <p className="mt-1">
-          <span className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+          <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
             Frescura
           </span>{" "}
           {info.frescura}
@@ -387,7 +387,7 @@ function InfoPopover({
 function Bloque({ titulo, items }: { titulo: string; items: string[] }) {
   return (
     <div className="mt-2">
-      <p className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+      <p className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
         {titulo}
       </p>
       <ul className="mt-0.5 list-disc space-y-0.5 pl-4">
@@ -567,7 +567,7 @@ function LotePanel({
             >
               <span className="min-w-0 flex-1">
                 <span className="font-semibold text-rediseno-tinta">{r.nombre}</span>
-                <span className="block text-[11.5px] text-rediseno-tinta-3">
+                <span className="block text-[12px] text-rediseno-tinta-3">
                   {conc.kind === "vencido"
                     ? `${formatClp(c.vencido ?? 0)} vencido`
                     : `${formatClp(c.saldo)} por cobrar · vencido: no se sabe`}
@@ -727,7 +727,7 @@ function ResultadosLote({
                 : item.status === "skipped"
                   ? "omitido"
                   : "con error"}
-            {item.detail ? ` — ${item.detail}` : ""}
+            {item.detail ? ` · ${item.detail}` : ""}
           </li>
         ))}
       </ul>

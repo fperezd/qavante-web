@@ -20,6 +20,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     syncStatus,
     remuneraciones,
     bancoScreen,
+    bandejaV07,
     presupuesto,
   } = resolveFeatureFlags();
   return (
@@ -29,6 +30,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       syncStatusEnabled={syncStatus}
       remuneracionesEnabled={remuneraciones}
       bancoEnabled={bancoScreen}
+      bandejaEnabled={bandejaV07}
       presupuestoEnabled={presupuesto}
     >
       {/* Gated por `onboarding` — ⚠️ ON en prod (`wrangler.toml`), no es un flag

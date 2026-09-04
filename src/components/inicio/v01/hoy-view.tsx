@@ -154,13 +154,15 @@ export function HoyView({
      aprobar, así que no se abre una sección vacía que lo desmienta. */
   const mostrarDecisiones = decisiones.length > 0;
   const mostrarIndicadores = !v.soloDecisionCritica;
-  const nominaEnRiesgo = v.soloDecisionCritica ? data?.critical_payments?.next_payroll ?? null : null;
+  const nominaEnRiesgo = v.soloDecisionCritica
+    ? (data?.critical_payments?.next_payroll ?? null)
+    : null;
   const montoNominaEnRiesgo = nominaEnRiesgo ? parseAmountOrNull(nominaEnRiesgo.amount) : null;
 
   return (
     <div className="space-y-6">
       {/* (1) Crumb: fecha + empresa + frescura del banco. */}
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-semibold uppercase tracking-wider text-neutral-mid">
         <span>{crumb.fecha}</span>
         <span aria-hidden="true">·</span>
         <span>{crumb.empresa}</span>
@@ -248,7 +250,7 @@ export function HoyView({
         <section aria-labelledby="hoy-vb" className="space-y-3">
           <h3
             id="hoy-vb"
-            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+            className="text-[12px] font-semibold uppercase tracking-wider text-neutral-mid"
           >
             Esperando tu visto bueno
           </h3>
@@ -276,7 +278,8 @@ export function HoyView({
                           <div className="mt-3 rounded-lg border border-warning-500/30 bg-warning-50/40 p-3 text-sm text-neutral-mid">
                             <p className="font-semibold text-neutral-dark">Nómina afectada</p>
                             <p className="mt-1">
-                              {nominaEnRiesgo.label} · vence {formatDateShort(nominaEnRiesgo.due_date)}
+                              {nominaEnRiesgo.label} · vence{" "}
+                              {formatDateShort(nominaEnRiesgo.due_date)}
                               {montoNominaEnRiesgo != null && (
                                 <>
                                   {" · "}
@@ -320,7 +323,7 @@ export function HoyView({
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h3
               id="hoy-mientras-no-estabas"
-              className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+              className="text-[12px] font-semibold uppercase tracking-wider text-neutral-mid"
             >
               Mientras no estabas
             </h3>
@@ -367,7 +370,7 @@ function Indicador({ indicador }: { indicador: IndicadorHoy }) {
         indicador.href && "group-hover:shadow-lg",
       )}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+      <p className="text-[12px] font-semibold uppercase tracking-wider text-neutral-mid">
         {indicador.label}
       </p>
       <p

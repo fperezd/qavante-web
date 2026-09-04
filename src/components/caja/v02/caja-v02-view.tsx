@@ -175,9 +175,9 @@ export function CajaV02View({
         )}
       </section>
 
-      {/* (2) Banner de deuda de datos. La bandeja (V07) ya existe bajo /bandeja, pero detrás del
-          flag bandejaV07 (apagado); va al flujo actual de clasificación, enlace pendiente en #90.
-          En error, el banner NO desaparece: un `count` en 0 por una consulta fallida no es "todo
+      {/* (2) Banner de deuda de datos. La Bandeja V07 es la entrada actual para resolver estas
+          excepciones; el flujo detallado legado queda para un movimiento concreto. En error, el
+          banner NO desaparece: un `count` en 0 por una consulta fallida no es "todo
           clasificado" (Ley 8, el "no sé" es explícito, nunca un default plausible). */}
       {deuda?.error && (
         <Banner variant="warn" role="note">
@@ -202,7 +202,7 @@ export function CajaV02View({
               . Están en tu saldo, pero no en tu flujo clasificado.
             </span>
             <Link
-              href="/caja/por-clasificar"
+              href="/bandeja"
               className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-rediseno-tinta px-4 py-2 text-[12.5px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul"
             >
               Clasificar
@@ -216,7 +216,7 @@ export function CajaV02View({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2
             id="caja-semanas"
-            className="font-rediseno-mono text-[11px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3"
+            className="font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3"
           >
             Próximas {SEMANAS} semanas
           </h2>
@@ -245,7 +245,7 @@ export function CajaV02View({
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2
               id="caja-piso"
-              className="font-rediseno-mono text-[11px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3"
+              className="font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3"
             >
               Qué te lleva al punto más bajo · {piso.fechaLabel} ·{" "}
               <span className="font-rediseno-sans normal-case tracking-normal tabular-nums text-rediseno-tinta">
@@ -333,10 +333,10 @@ function Barras({ semanas, rojoEnPiso }: { semanas: SemanaV02[]; rojoEnPiso: boo
                 )}
               />
             </span>
-            <span className="font-rediseno-mono text-[10px] uppercase tracking-[.08em] text-rediseno-tinta-3">
+            <span className="font-rediseno-mono text-[12px] uppercase tracking-[.08em] text-rediseno-tinta-3">
               {s.label}
             </span>
-            <span className="text-[11px] tabular-nums text-rediseno-tinta-3-light">
+            <span className="text-[12px] tabular-nums text-rediseno-tinta-3-light">
               cierra en {formatClp(s.cierre)}
             </span>
           </li>
@@ -388,13 +388,13 @@ function ComoSeCalcula({ info }: { info: ComoSeCalculaV02 }) {
           <Bloque titulo="Incluye" items={info.incluye} />
           <Bloque titulo="Deja afuera" items={info.excluye} />
           <p className="mt-2">
-            <span className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+            <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
               Fuente
             </span>{" "}
-            <span className="font-rediseno-mono text-[11px]">{info.fuente}</span>
+            <span className="font-rediseno-mono text-[12px]">{info.fuente}</span>
           </p>
           <p className="mt-1">
-            <span className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+            <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
               Frescura
             </span>{" "}
             {info.frescura}
@@ -408,7 +408,7 @@ function ComoSeCalcula({ info }: { info: ComoSeCalculaV02 }) {
 function Bloque({ titulo, items }: { titulo: string; items: string[] }) {
   return (
     <div className="mt-2">
-      <p className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+      <p className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
         {titulo}
       </p>
       <ul className="mt-0.5 list-disc space-y-0.5 pl-4">

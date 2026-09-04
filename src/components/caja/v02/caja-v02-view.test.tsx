@@ -127,12 +127,12 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(texto(html())).not.toContain("puede haber más");
   });
 
-  it("banner de deuda de datos con conteo y monto por moneda, y CTA al flujo actual (bandejaV07 apagado, enlace pendiente #90)", () => {
+  it("banner de deuda de datos con conteo y monto por moneda, y CTA a la Bandeja", () => {
     const h = html();
     const t = texto(h);
     expect(t).toContain("3 movimientos del banco sin clasificar (~$2.100.000 en entradas)");
-    expect(h).toContain('href="/caja/por-clasificar"');
-    expect(h).not.toContain('href="/bandeja"');
+    expect(h).toContain('href="/bandeja"');
+    expect(h).not.toContain('href="/caja/por-clasificar"');
     // Gemelo: sin pendientes el banner no está.
     expect(
       texto(html({ sinClasificar: sinClasificar({ count: 0, inflowByCurrency: [] }) })),

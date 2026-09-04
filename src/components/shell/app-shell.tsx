@@ -21,6 +21,7 @@ export interface AppShellProps {
   remuneracionesEnabled?: boolean;
   /** `bancoScreen` ON → muestra el ítem "Banco" en el nav. */
   bancoEnabled?: boolean;
+  bandejaEnabled?: boolean;
   /** `presupuesto` ON → muestra el ítem "Presupuesto" en el nav. */
   presupuestoEnabled?: boolean;
 }
@@ -32,6 +33,7 @@ export function AppShell({
   syncStatusEnabled,
   remuneracionesEnabled,
   bancoEnabled,
+  bandejaEnabled,
   presupuestoEnabled,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -66,6 +68,7 @@ export function AppShell({
           userRole={userRole}
           remuneracionesEnabled={remuneracionesEnabled}
           bancoEnabled={bancoEnabled}
+          bandejaEnabled={bandejaEnabled}
           presupuestoEnabled={presupuestoEnabled}
         />
 

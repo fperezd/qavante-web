@@ -47,10 +47,10 @@ export function KpiCard(props: KpiCardProps) {
       )}
       {...rest}
     >
-      <div className="flex items-baseline gap-2 font-rediseno-mono text-[10px] tracking-[.1em] text-rediseno-tinta-3-light uppercase">
+      <div className="flex items-baseline gap-2 font-rediseno-mono text-[12px] tracking-[.1em] text-rediseno-tinta-3-light uppercase">
         <span>{label}</span>
         {period && (
-          <span className="ml-auto rounded-md bg-rediseno-porcelana px-[7px] py-px font-rediseno-sans text-[11px] tracking-normal text-rediseno-tinta-3 normal-case">
+          <span className="ml-auto rounded-md bg-rediseno-porcelana px-[7px] py-px font-rediseno-sans text-[12px] tracking-normal text-rediseno-tinta-3 normal-case">
             {period}
           </span>
         )}
@@ -69,7 +69,7 @@ export function KpiCard(props: KpiCardProps) {
       >
         {sinDato ? <SinDato label={label.toLowerCase()} {...sinDato} /> : value}
       </div>
-      {detail && <div className="mt-0.5 text-[11.5px] text-rediseno-tinta-3-light">{detail}</div>}
+      {detail && <div className="mt-0.5 text-[12px] text-rediseno-tinta-3-light">{detail}</div>}
     </div>
   );
 }

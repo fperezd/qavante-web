@@ -91,7 +91,7 @@ export function TablePrimaryCell({ value, sub }: TablePrimaryCellProps) {
       <div className="font-semibold text-rediseno-tinta">{value}</div>
       {sub && (
         <div
-          className="mt-0.5 min-w-0 whitespace-normal break-words text-[11.5px] text-rediseno-tinta-3-light"
+          className="mt-0.5 min-w-0 whitespace-normal break-words text-[12px] text-rediseno-tinta-3-light"
           title={typeof sub === "string" ? sub : undefined}
         >
           {sub}
@@ -174,7 +174,7 @@ export function RedisenoTable<TData>({
                       key={header.id}
                       scope="col"
                       className={cn(
-                        "whitespace-nowrap px-[18px] py-[11px] text-left font-rediseno-mono text-[10px] font-semibold tracking-[.1em] text-rediseno-tinta-3-light uppercase",
+                        "whitespace-nowrap px-[18px] py-[11px] text-left font-rediseno-mono text-[12px] font-semibold tracking-[.1em] text-rediseno-tinta-3-light uppercase",
                         meta.align === "right" && "text-right",
                         celdasCompactasEnAngosto && "@max-[640px]:px-2.5",
                         clasesColapso(meta),

@@ -85,7 +85,7 @@ export interface PagarV05ViewProps {
 const LINK =
   "font-semibold text-rediseno-azul hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul rounded";
 const EYEBROW =
-  "font-rediseno-mono text-[11px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
+  "font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
 
 export function PagarV05View({
   pagos: ap,
@@ -336,10 +336,10 @@ export function PagarV05View({
           </b>{" "}
           mover plata siempre lleva firma humana. {LEY_9_TEXTO} Esta vista enlaza cada pago a su
           detalle en vez de duplicar la decisión de postergar que vive en Caja/Hoy. El “posible
-          duplicado” llega como una señal read-only del registro, correlacionada
-          por UUID y calculada sobre el devengado completo; esta pantalla no lo reconstruye desde
-          texto, RUT, monto ni fecha; la pill “Servicio” de la spec no se produce: el contrato no
-          distingue un servicio recurrente de una factura cualquiera
+          duplicado” llega como una señal read-only del registro, correlacionada por UUID y
+          calculada sobre el devengado completo; esta pantalla no lo reconstruye desde texto, RUT,
+          monto ni fecha; la pill “Servicio” de la spec no se produce: el contrato no distingue un
+          servicio recurrente de una factura cualquiera
           {issueSucesor ? ` (${issueSucesor})` : ""}.
         </p>
       </section>
@@ -379,7 +379,7 @@ function SelectorPeriodo({
           onKeyDown={(e) => onKeyDown(e, idx)}
           onClick={() => onChange(p)}
           className={cn(
-            "mr-1 rounded-full border border-rediseno-hairline bg-rediseno-superficie px-2 py-0.5 text-[10.5px] font-semibold text-rediseno-tinta-2",
+            "mr-1 rounded-full border border-rediseno-hairline bg-rediseno-superficie px-2 py-0.5 text-[12px] font-semibold text-rediseno-tinta-2",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul",
             periodo === p && "border-rediseno-tinta bg-rediseno-tinta text-white",
           )}
@@ -407,13 +407,13 @@ function InfoPopover({ label, info }: { label: string; info: ExplicacionV05 }) {
         <Bloque titulo="Incluye" items={info.incluye} />
         <Bloque titulo="Deja afuera" items={info.excluye} />
         <p className="mt-2">
-          <span className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+          <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
             Fuente
           </span>{" "}
-          <span className="font-rediseno-mono text-[11px]">{info.fuente}</span>
+          <span className="font-rediseno-mono text-[12px]">{info.fuente}</span>
         </p>
         <p className="mt-1">
-          <span className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+          <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
             Frescura
           </span>{" "}
           {info.frescura}
@@ -426,7 +426,7 @@ function InfoPopover({ label, info }: { label: string; info: ExplicacionV05 }) {
 function Bloque({ titulo, items }: { titulo: string; items: string[] }) {
   return (
     <div className="mt-2">
-      <p className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+      <p className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
         {titulo}
       </p>
       <ul className="mt-0.5 list-disc space-y-0.5 pl-4">
@@ -598,7 +598,7 @@ function DetallePago({ pago: p }: { pago: PagoV05 }) {
 function Dato({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex gap-2">
-      <dt className="shrink-0 font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">
+      <dt className="shrink-0 font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
         {k}
       </dt>
       <dd className="min-w-0">{v}</dd>

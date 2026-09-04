@@ -63,7 +63,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — banco al día, movimientos con su ciclo de vida",
+  name: "Normal · banco al día, movimientos con su ciclo de vida",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     /* El KPI "Caja hoy" (cajaHoy) y el saldo que el banco informa en la tabla valen lo mismo en
@@ -87,13 +87,13 @@ export const Normal: Story = {
     ).toBeInTheDocument();
     // "Clasificar" abre el flujo actual con el ítem cargado.
     const cta = canvas.getAllByRole("link", { name: "Clasificar" })[0]!;
-    await expect(cta).toHaveAttribute("href", "/caja/por-clasificar?movimiento=m3");
+    await expect(cta).toHaveAttribute("href", "/bandeja");
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };
 
 export const SinBancoConectado: Story = {
-  name: "Sin banco conectado — el vacío dice qué falta y cómo resolverlo",
+  name: "Sin banco conectado · el vacío dice qué falta y cómo resolverlo",
   args: {
     saldo: null,
     tarjetas: null,
@@ -121,7 +121,7 @@ export const SinBancoConectado: Story = {
 };
 
 export const AccionRequerida: Story = {
-  name: "Conexión con acción requerida — la forma real con la sesión vencida",
+  name: "Conexión con acción requerida · la forma real con la sesión vencida",
   args: {
     summary: SUMMARY_STALE,
     saldo: saldoSesionVencida(),
@@ -155,7 +155,7 @@ export const AccionRequerida: Story = {
 };
 
 export const SinMovimientos: Story = {
-  name: "Sin movimientos — el cero es real y se dice",
+  name: "Sin movimientos · el cero es real y se dice",
   args: { movimientos: [], movimientosTotal: 0 },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -167,7 +167,7 @@ export const SinMovimientos: Story = {
 };
 
 export const Actualizando: Story = {
-  name: "Actualizando — ETA y etapa publicados por el sync",
+  name: "Actualizando · ETA y etapa publicados por el sync",
   args: {
     saldo: null,
     tarjetas: null,
@@ -184,7 +184,9 @@ export const Actualizando: Story = {
       canvas.getAllByText(/^trayendo la cartola… listo en 45 s · Leyendo cartola/).length,
     ).toBeGreaterThan(0);
     await expect(
-      canvas.getByText("Actualizando saldos con el banco (trayendo la cartola… listo en 45 s · Leyendo cartola)"),
+      canvas.getByText(
+        "Actualizando saldos con el banco (trayendo la cartola… listo en 45 s · Leyendo cartola)",
+      ),
     ).toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
@@ -217,7 +219,7 @@ export const BuscarYFiltrar: Story = {
 };
 
 export const Ley1CajaHoyVsBanco: Story = {
-  name: "Ley 1 — Caja hoy con apellido; cuando el banco informa otra cosa, se dice",
+  name: "Ley 1 · Caja hoy con apellido; cuando el banco informa otra cosa, se dice",
   args: {
     summary: summary({
       cash_today: {

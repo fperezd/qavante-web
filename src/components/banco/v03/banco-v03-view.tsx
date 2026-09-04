@@ -72,8 +72,8 @@ import {
  * LO QUE FALTA, dicho acá y no sólo en el PR: (1) la contraparte NO viene como campo del
  * movimiento — la glosa va completa (Ley 7); (2) "Actualizando" usa `sync_progress` publicado
  * por la fuente: sin ETA muestra el tiempo transcurrido y declara esa ausencia; (3) "Clasificar" abre el
- * flujo ACTUAL (`/caja/por-clasificar?movimiento=`), no `/bandeja` (V07) — la bandeja ya existe
- * pero detrás del flag `bandejaV07` (apagado); el enlace desde acá queda pendiente, ver #90. */
+ * Bandeja V07 (`/bandeja`), que concentra las excepciones de clasificación. El flujo detallado
+ * legado sigue disponible dentro de la Bandeja cuando hace falta clasificar un movimiento a mano. */
 
 export interface BancoV03ViewProps {
   /** `GET /api/dashboard/summary`. `null` = no llegó. */
@@ -239,7 +239,7 @@ export function BancoV03View({
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2
             id="v03-cuentas"
-            className="font-rediseno-mono text-[11px] font-semibold tracking-[.12em] text-rediseno-tinta-3 uppercase"
+            className="font-rediseno-mono text-[12px] font-semibold tracking-[.12em] text-rediseno-tinta-3 uppercase"
           >
             Cuentas
           </h2>
@@ -318,7 +318,7 @@ export function BancoV03View({
       <section aria-labelledby="v03-movimientos" className="space-y-2">
         <h2
           id="v03-movimientos"
-          className="font-rediseno-mono text-[11px] font-semibold tracking-[.12em] text-rediseno-tinta-3 uppercase"
+          className="font-rediseno-mono text-[12px] font-semibold tracking-[.12em] text-rediseno-tinta-3 uppercase"
         >
           Movimientos · {alcance}
         </h2>
@@ -620,7 +620,7 @@ function TablaMovimientos({
           const m = row.original;
           if (m.ciclo === "por_clasificar") {
             return (
-              <Link href={hrefClasificar(m.id)} className={cn(LINK, "font-bold")}>
+              <Link href={hrefClasificar()} className={cn(LINK, "font-bold")}>
                 Clasificar
               </Link>
             );

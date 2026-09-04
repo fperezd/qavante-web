@@ -12,6 +12,7 @@ import {
   PiggyBank,
   Settings,
   PlugZap,
+  Inbox,
   ChevronDown,
   X,
   type LucideIcon,
@@ -32,6 +33,7 @@ type ModuleLink = {
   children?: ReadonlyArray<SubLink>;
   /* Solo visible con el flag `bancoScreen` ON (pantalla nueva, gated hasta validar UX). */
   needsBanco?: boolean;
+  needsBandeja?: boolean;
   /* Solo visible con el flag `presupuesto` ON. */
   needsPresupuesto?: boolean;
 };
@@ -81,6 +83,7 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
     items: [
       { href: "/caja", label: "Caja", Icon: Banknote },
       { href: "/banco", label: "Banco", Icon: Landmark, needsBanco: true },
+      { href: "/bandeja", label: "Bandeja", Icon: Inbox, needsBandeja: true },
       { href: "/cobrar", label: "Cobrar", Icon: ArrowDownToLine },
       { href: "/pagar", label: "Pagar", Icon: ArrowUpFromLine, children: PAGAR_CHILDREN },
     ],
@@ -115,6 +118,7 @@ export interface AppSidebarProps {
   remuneracionesEnabled?: boolean;
   /** `bancoScreen` ON → muestra el ítem "Banco" (pantalla nueva, gated hasta validar UX). */
   bancoEnabled?: boolean;
+  bandejaEnabled?: boolean;
   /** `presupuesto` ON → muestra el ítem "Presupuesto". */
   presupuestoEnabled?: boolean;
 }
@@ -125,6 +129,7 @@ export function AppSidebar({
   userRole,
   remuneracionesEnabled,
   bancoEnabled,
+  bandejaEnabled,
   presupuestoEnabled,
 }: AppSidebarProps) {
   const pathname = usePathname();
@@ -135,6 +140,7 @@ export function AppSidebar({
   const canSee = (m: ModuleLink) =>
     (!m.visibleFor || (userRole && m.visibleFor.includes(userRole))) &&
     (!m.needsBanco || bancoEnabled) &&
+    (!m.needsBandeja || bandejaEnabled) &&
     (!m.needsPresupuesto || presupuestoEnabled);
   const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
     (g) => g.items.length > 0,

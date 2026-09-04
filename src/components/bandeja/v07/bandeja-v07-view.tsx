@@ -156,7 +156,7 @@ export interface BandejaV07ViewProps {
 }
 
 const EYEBROW =
-  "font-rediseno-mono text-[11px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
+  "font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
 const LINK =
   "font-semibold text-rediseno-azul hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul rounded";
 const BTN_PRIMARIO =
@@ -165,7 +165,7 @@ const BTN_SECUNDARIO =
   "inline-flex items-center gap-2 rounded-full border border-rediseno-hairline bg-rediseno-superficie px-[15px] py-[9px] text-[13px] font-semibold text-rediseno-tinta-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul";
 const BTN_FANTASMA =
   "inline-flex items-center gap-2 rounded-full px-3 py-[9px] text-[13px] font-semibold text-rediseno-tinta-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul";
-const KBD = "rounded px-1.5 py-px font-rediseno-mono text-[10.5px] opacity-70";
+const KBD = "rounded px-1.5 py-px font-rediseno-mono text-[12px] opacity-70";
 
 export function BandejaV07View(props: BandejaV07ViewProps) {
   return (
@@ -1193,7 +1193,7 @@ function CartaClasificar({
             tuya con confianza {formatPct(valorSugerido.confianza * 100)}
             {valorSugerido.cuentaId
               ? ""
-              : " — pero esa cuenta no está en tu catálogo activo, así que hay que elegirla a mano"}
+              : " · pero esa cuenta no está en tu catálogo activo, así que hay que elegirla a mano"}
           </p>
         )}
 
@@ -1308,7 +1308,7 @@ function CartaClasificar({
         )}
 
         <p className="mt-3 text-[12px] text-rediseno-tinta-3">
-          Al guardar no vas a ver un “Deshacer” acá: esto lo decidiste tú, no Qavante solo — la Ley
+          Al guardar no vas a ver un “Deshacer” acá: esto lo decidiste tú, no Qavante solo · la Ley
           5 cubre lo automático. Lo que Qavante clasificó por su cuenta sí tiene Deshacer, en el
           banner de arriba de esta carta.
         </p>
@@ -1348,7 +1348,7 @@ function Frecuentes({
         {frec.criterio === "monto-y-direccion"
           ? "Lo que más usaste en movimientos de este tipo y de este tamaño"
           : "No clasificaste nada de este tamaño; esto es lo que más usaste en movimientos de este tipo"}{" "}
-        — es tu historial, no una sugerencia:
+        · es tu historial, no una sugerencia:
       </p>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {frec.items.map((f) => (

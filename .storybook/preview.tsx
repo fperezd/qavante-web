@@ -2,10 +2,38 @@ import type { Preview } from "@storybook/nextjs-vite";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initialize, mswLoader } from "msw-storybook-addon";
 import React from "react";
+import { Sora, Fraunces, Figtree, Spline_Sans_Mono } from "next/font/google";
 
 /* Importa el CSS global del app — Tailwind 4 directives + tokens Qavante
    + tipografía. Sin este import las stories pierden el styling del DS. */
 import "../src/app/globals.css";
+
+/* Storybook no pasa por `src/app/layout.tsx`: carga las mismas variables tipográficas
+   para que sus capturas y revisiones visuales representen la app real. */
+const sora = Sora({
+  variable: "--font-sora",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
+const figtree = Figtree({
+  variable: "--font-figtree",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+const splineSansMono = Spline_Sans_Mono({
+  variable: "--font-spline-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
 
 /* `NEXT_PUBLIC_API_URL` — hallazgo de revisión (PR #95): sin `.env.local` (gitignored, no
  * existe en CI ni en un worktree fresco), `src/lib/api/client.ts` corta ANTES de llamar a
@@ -98,9 +126,14 @@ const preview: Preview = {
     (Story) => {
       const client = makeQueryClient();
       return (
-        <QueryClientProvider client={client}>
-          <Story />
-        </QueryClientProvider>
+        <div
+          className={`${sora.variable} ${fraunces.variable} ${figtree.variable} ${splineSansMono.variable} min-h-screen`}
+          style={{ fontFamily: "var(--font-sora), system-ui, sans-serif" }}
+        >
+          <QueryClientProvider client={client}>
+            <Story />
+          </QueryClientProvider>
+        </div>
       );
     },
   ],

@@ -19,8 +19,8 @@ import { BandejaV07Live } from "@/components/bandeja/v07/bandeja-v07-live";
  *     citado literal en `src/lib/feature-flags.ts` — "Flag false ⇒ la ruta existe pero renderiza
  *     un estado 'todavía no disponible' — nunca UI mock, nunca ruta rota".
  *
- * Nada enlaza a `/bandeja` todavía (el badge "Bandeja · N" del chrome es del rediseño y no está
- * montado), así que con el flag apagado a esta página sólo se llega escribiendo la URL.
+ * El shell y los CTA de Caja/Banco muestran esta entrada sólo cuando el flag está encendido. Con
+ * el flag apagado la URL directa conserva este estado explícito en lugar de redirigir.
  *
  * Sin `export const runtime` (regla 4). */
 export default function BandejaPage() {

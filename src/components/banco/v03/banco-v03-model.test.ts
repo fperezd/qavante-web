@@ -135,19 +135,35 @@ describe("frescuraCuenta — el `.sub` en humano", () => {
 
   it("actualizando usa el ETA y la etapa publicados por el backend", () => {
     const conexion = conexionBanco(sourcesSyncing(), null);
-    expect(frescuraCuenta(conexion, HOY)).toBe("trayendo la cartola… listo en 45 s · Leyendo cartola");
+    expect(frescuraCuenta(conexion, HOY)).toBe(
+      "trayendo la cartola… listo en 45 s · Leyendo cartola",
+    );
     expect(textoActualizando(conexion, HOY)).toContain("45 s");
     expect(textoActualizando(conexion, HOY)).toContain("Leyendo cartola");
   });
 
   it("sin ETA backend muestra progreso transcurrido y declara la ausencia; sin progreso conserva la referencia fija", () => {
     const sinEta = conexionBanco(
-      [{ source: "bank_bice", state: "syncing", category: "bank", sync_progress: { started_at: "2026-08-30T11:58:00Z" } }],
+      [
+        {
+          source: "bank_bice",
+          state: "syncing",
+          category: "bank",
+          sync_progress: { started_at: "2026-08-30T11:58:00Z" },
+        },
+      ],
       null,
     );
-    expect(textoActualizando(sinEta, HOY)).toBe("trayendo la cartola… en curso hace 2 min; el banco no informó ETA");
-    const legado = conexionBanco([{ source: "bank_bice", state: "syncing", category: "bank" }], null);
-    expect(textoActualizando(legado, HOY)).toBe(`trayendo la cartola… listo en ${ETA_ACTUALIZANDO} (referencia fija)`);
+    expect(textoActualizando(sinEta, HOY)).toBe(
+      "trayendo la cartola… en curso hace 2 min; el banco no informó ETA",
+    );
+    const legado = conexionBanco(
+      [{ source: "bank_bice", state: "syncing", category: "bank" }],
+      null,
+    );
+    expect(textoActualizando(legado, HOY)).toBe(
+      `trayendo la cartola… listo en ${ETA_ACTUALIZANDO} (referencia fija)`,
+    );
   });
 
   it("sin dato → lo dice; conectada sin fecha → lo dice", () => {
@@ -529,9 +545,9 @@ describe("totales del footer, por moneda (INV-FX-001)", () => {
 });
 
 describe("CTA y export", () => {
-  it("'Clasificar' abre el flujo ACTUAL con el ítem cargado (bandejaV07 apagado, enlace pendiente #90)", () => {
-    expect(hrefClasificar("m3")).toBe("/caja/por-clasificar?movimiento=m3");
-    expect(hrefClasificar("m3")).not.toContain("/bandeja");
+  it("'Clasificar' abre la Bandeja de excepciones", () => {
+    expect(hrefClasificar()).toBe("/bandeja");
+    expect(hrefClasificar()).not.toContain("/caja/por-clasificar");
   });
 
   it("CSV con separador ';', cabecera y monto firmado crudo; escapa comillas", () => {

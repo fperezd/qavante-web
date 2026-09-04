@@ -89,7 +89,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const ConciliarConSugerencia: Story = {
-  name: "Conciliar · con sugerencia — Enter resuelve, avanza y el toast trae Deshacer",
+  name: "Conciliar · con sugerencia · Enter resuelve, avanza y el toast trae Deshacer",
   args: {
     candidatos: {
       movimientoId: MOV_KAUFMANN,
@@ -140,7 +140,7 @@ export const ConciliarConSugerencia: Story = {
 };
 
 export const ConciliarSinEvidencia: Story = {
-  name: "Conciliar · sin evidencia suficiente — Enter NO resuelve (Ley 3)",
+  name: "Conciliar · sin evidencia suficiente · Enter NO resuelve (Ley 3)",
   args: {
     conciliar: CONCILIAR.filter((i) => i.id === MOV_VOLCAN),
     candidatos: {
@@ -176,7 +176,7 @@ export const ConciliarSinEvidencia: Story = {
 };
 
 export const ConciliarNoEsEsta: Story = {
-  name: "Conciliar · No es esta (botón) — descarta la sugerencia y avisa al padre",
+  name: "Conciliar · No es esta (botón) · descarta la sugerencia y avisa al padre",
   args: {
     conciliar: CONCILIAR.filter((i) => i.id === MOV_KAUFMANN || i.id === MOV_VOLCAN),
     candidatos: {
@@ -212,7 +212,7 @@ export const ConciliarNoEsEsta: Story = {
 };
 
 export const ConciliarNoEsEstaTecla: Story = {
-  name: "Conciliar · No es esta (tecla N) — el atajo dispara la misma función",
+  name: "Conciliar · No es esta (tecla N) · el atajo dispara la misma función",
   args: {
     conciliar: CONCILIAR.filter((i) => i.id === MOV_KAUFMANN),
     candidatos: {
@@ -238,7 +238,7 @@ export const ConciliarNoEsEstaTecla: Story = {
 };
 
 export const ClasificarConRegla: Story = {
-  name: "Clasificar · con regla — Enter guarda y el toast NO trae Deshacer",
+  name: "Clasificar · con regla · Enter guarda y el toast NO trae Deshacer",
   args: {
     tabInicial: "clasificar",
     sugerencia: { movimientoId: MOV_DATTATEC, valor: sugerenciaSoftware(), cargando: false },
@@ -284,7 +284,7 @@ export const ClasificarConRegla: Story = {
 };
 
 export const ClasificarSinSugerencia: Story = {
-  name: "Clasificar · sin sugerencia — Guardar responde en vez de estar deshabilitado (Ley 6)",
+  name: "Clasificar · sin sugerencia · Guardar responde en vez de estar deshabilitado (Ley 6)",
   args: {
     tabInicial: "clasificar",
     clasificar: itemsClasificar(sinClasificar([MOV_TERCEROS, MOV_DATTATEC])),
@@ -342,7 +342,7 @@ const ACCION_AUTO: AccionAutoClasificarV07 = {
 };
 
 export const ClasificarAutoDeshecho: Story = {
-  name: "Clasificar · bitácora auto — Deshacer con éxito vuelve el movimiento a sin clasificar",
+  name: "Clasificar · bitácora auto · Deshacer con éxito vuelve el movimiento a sin clasificar",
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
@@ -381,7 +381,7 @@ export const ClasificarAutoDeshecho: Story = {
 };
 
 export const ClasificarAutoProtegido: Story = {
-  name: "Clasificar · bitácora auto — negado por trabajo manual del dueño (estado_derivado): NO se ofrece reintentar",
+  name: "Clasificar · bitácora auto · negado por trabajo manual del dueño (estado_derivado): NO se ofrece reintentar",
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
@@ -415,7 +415,7 @@ export const ClasificarAutoProtegido: Story = {
 };
 
 export const ClasificarAutoBloqueado: Story = {
-  name: "Clasificar · bitácora auto — negado por bloqueo (estado_bloqueado): SÍ se ofrece reintentar",
+  name: "Clasificar · bitácora auto · negado por bloqueo (estado_bloqueado): SÍ se ofrece reintentar",
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
@@ -497,7 +497,7 @@ export const ClasificarEnLote: Story = {
 };
 
 export const BandejaVacia: Story = {
-  name: "Bandeja vacía — celebratorio sobrio, sin rojo y sin prometer de más",
+  name: "Bandeja vacía · celebratorio sobrio, sin rojo y sin prometer de más",
   args: {
     conciliar: itemsConciliar(colaConciliarVacia()),
     clasificar: itemsClasificar(sinClasificarVacio()),
@@ -513,7 +513,7 @@ export const BandejaVacia: Story = {
 };
 
 export const SinRespuesta: Story = {
-  name: "Error — las dos fuentes caídas: la pantalla está ciega, no vacía",
+  name: "Error · las dos fuentes caídas: la pantalla está ciega, no vacía",
   args: {
     conciliar: null,
     clasificar: null,

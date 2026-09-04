@@ -68,7 +68,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — vencido conocido, un solo rojo (el más grave)",
+  name: "Normal · vencido conocido, un solo rojo (el más grave)",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByLabelText("Estado de gestión")).toHaveTextContent(
@@ -99,7 +99,7 @@ export const Normal: Story = {
 };
 
 export const VencidoDesconocido: Story = {
-  name: 'Vencido desconocido — `overdue: null`, el caso vivo: "sin dato", nunca $0',
+  name: 'Vencido desconocido · `overdue: null`, el caso vivo: "sin dato", nunca $0',
   args: { ar: arVencidoDesconocido(), gestionado: {} },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -124,7 +124,7 @@ export const VencidoDesconocido: Story = {
 };
 
 export const SinClientes: Story = {
-  name: "Sin clientes — el registro no tiene documentos vivos y dice qué falta",
+  name: "Sin clientes · el registro no tiene documentos vivos y dice qué falta",
   args: { ar: arSinClientes(), gestionado: {} },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -140,7 +140,7 @@ export const SinClientes: Story = {
 };
 
 export const ConcentracionAlta: Story = {
-  name: "Concentración alta — 3 clientes = 92,5% del vencido; sigue siendo un rojo",
+  name: "Concentración alta · 3 clientes = 92,5% del vencido; sigue siendo un rojo",
   args: { ar: arConcentracionAlta(), gestionado: {} },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -155,7 +155,7 @@ export const ConcentracionAlta: Story = {
 };
 
 export const TodoAlDia: Story = {
-  name: "Todo al día — cero verificado: $0 y 0% son la verdad; sin banner, sin rojo",
+  name: "Todo al día · cero verificado: $0 y 0% son la verdad; sin banner, sin rojo",
   args: { ar: arTodoAlDia(), gestionado: {} },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -169,7 +169,7 @@ export const TodoAlDia: Story = {
 };
 
 export const SinRespuesta: Story = {
-  name: "Sin respuesta — la pantalla está ciega, no vacía",
+  name: "Sin respuesta · la pantalla está ciega, no vacía",
   args: {
     ar: null,
     arMotivo: "No pudimos conectar con el registro de cobranza (error de red).",
@@ -188,7 +188,7 @@ export const SinRespuesta: Story = {
 };
 
 export const FiltrosYBusqueda: Story = {
-  name: "Filtros con conteo y búsqueda — los chips filtran la tabla",
+  name: "Filtros con conteo y búsqueda · los chips filtran la tabla",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(filas(canvasElement)).toHaveLength(6);
@@ -207,7 +207,7 @@ export const FiltrosYBusqueda: Story = {
 };
 
 export const LoteCancelable: Story = {
-  name: "Lote — Ley 4: la cuenta regresiva se ve, se cancela y no envía nada",
+  name: "Lote · Ley 4: la cuenta regresiva se ve, se cancela y no envía nada",
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Enviar a los 3" }));
@@ -236,7 +236,7 @@ export const LoteCancelable: Story = {
 };
 
 export const LoteSinPreferencias: Story = {
-  name: "Lote sin preferencias — el envío puede completar, pero no inventa una gestión local",
+  name: "Lote sin preferencias · el envío puede completar, pero no inventa una gestión local",
   args: { gestionDisponible: false, onMarcarLote: fn(() => false) },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -254,7 +254,7 @@ export const LoteSinPreferencias: Story = {
 };
 
 export const LoteResultadosParciales: Story = {
-  name: "Lote — resultados por documento: no confunde omitido, error ni sin destinatario con envío",
+  name: "Lote · resultados por documento: no confunde omitido, error ni sin destinatario con envío",
   args: {
     loteSegundos: 1,
     onEnviarLote: fn(async (ids: string[]) => [
@@ -281,7 +281,7 @@ export const LoteResultadosParciales: Story = {
 };
 
 export const LoteEscapeCancela: Story = {
-  name: "Lote — Escape cancela la ventana (foco DENTRO del panel) y el PUT no sale",
+  name: "Lote · Escape cancela la ventana (foco DENTRO del panel) y el PUT no sale",
   args: { loteSegundos: 1 },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -305,7 +305,7 @@ export const LoteEscapeCancela: Story = {
 };
 
 export const LoteEscapeDesdeFuera: Story = {
-  name: "Lote — Escape cancela también con el foco FUERA del panel",
+  name: "Lote · Escape cancela también con el foco FUERA del panel",
   args: { loteSegundos: 1 },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -326,7 +326,7 @@ export const LoteEscapeDesdeFuera: Story = {
 };
 
 export const Angosto360: Story = {
-  name: "360 px — el nombre y el monto no se recortan; sólo colapsa el metadato (Ley 7 · §5.2)",
+  name: "360 px · el nombre y el monto no se recortan; sólo colapsa el metadato (Ley 7 · §5.2)",
   decorators: [
     (Story) => (
       <div data-angosto="360" style={{ width: 360, maxWidth: 360, overflow: "hidden" }}>
@@ -399,7 +399,7 @@ export const Angosto360: Story = {
 };
 
 export const RecordatorioYGestion: Story = {
-  name: "Fila — Recordatorio copia la plantilla actual; Gestionado persiste",
+  name: "Fila · Recordatorio copia la plantilla actual; Gestionado persiste",
   play: async ({ canvasElement, args }) => {
     const fila = within(filas(canvasElement)[0]!); // Empresa de Correos de Chile (prioridad 1)
     await userEvent.click(fila.getByRole("button", { name: "Recordatorio" }));

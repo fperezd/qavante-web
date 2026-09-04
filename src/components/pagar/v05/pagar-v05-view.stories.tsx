@@ -51,7 +51,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — vencido ≠ crítico; un solo rojo (la fila crítica más urgente)",
+  name: "Normal · vencido ≠ crítico; un solo rojo (la fila crítica más urgente)",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("$8.729.650")).toBeInTheDocument();
@@ -88,7 +88,7 @@ export const Normal: Story = {
 };
 
 export const SelectorDePeriodo: Story = {
-  name: "Por pagar · 7/14/30 — cada tramo es el número del backend",
+  name: "Por pagar · 7/14/30 · cada tramo es el número del backend",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("$17.998.105")).toBeInTheDocument();
@@ -102,7 +102,7 @@ export const SelectorDePeriodo: Story = {
 };
 
 export const ConDuplicado: Story = {
-  name: "Posible duplicado — pill roja Revisar con su .sub; la fila crítica cede el rojo (Ley 2)",
+  name: "Posible duplicado · pill roja Revisar con su .sub; la fila crítica cede el rojo (Ley 2)",
   args: { pagos: pagosConDuplicado(), anomalias: [ANOMALIA_ENTEL] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -111,7 +111,9 @@ export const ConDuplicado: Story = {
     await expect(marcados).toHaveLength(1);
     await expect(marcados[0]!).toHaveTextContent("Revisar");
     // El .sub usa el par UUID publicado, no una regla recalculada en el cliente.
-    await expect(canvas.getAllByText(/posible duplicado señalado por el registro/).length).toBeGreaterThanOrEqual(2);
+    await expect(
+      canvas.getAllByText(/posible duplicado señalado por el registro/).length,
+    ).toBeGreaterThanOrEqual(2);
     // El .sub de la fila y su popover de detalle dicen lo mismo (2 apariciones).
     await expect(
       canvas.getAllByText(
@@ -129,8 +131,12 @@ export const ConDuplicado: Story = {
 };
 
 export const AnomaliasSinDato: Story = {
-  name: "Señal de anomalías no disponible — no se concluye que no haya duplicados",
-  args: { pagos: pagosConDuplicado(), anomalias: null, anomaliasMotivo: "No pudimos revisar posibles duplicados; no los estamos descartando." },
+  name: "Señal de anomalías no disponible · no se concluye que no haya duplicados",
+  args: {
+    pagos: pagosConDuplicado(),
+    anomalias: null,
+    anomaliasMotivo: "No pudimos revisar posibles duplicados; no los estamos descartando.",
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(/No pudimos revisar posibles duplicados/)).toBeInTheDocument();
@@ -139,7 +145,7 @@ export const AnomaliasSinDato: Story = {
 };
 
 export const FiltrosYBusqueda: Story = {
-  name: "Filtros con conteo y búsqueda — los chips filtran; los conteos siguen la búsqueda",
+  name: "Filtros con conteo y búsqueda · los chips filtran; los conteos siguen la búsqueda",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(filas(canvasElement)).toHaveLength(8);
@@ -165,7 +171,7 @@ export const FiltrosYBusqueda: Story = {
 };
 
 export const DetallePorFila: Story = {
-  name: '"detalle ▾" — los hechos del pago y el link a su módulo',
+  name: '"detalle ▾" · los hechos del pago y el link a su módulo',
   play: async ({ canvasElement }) => {
     const fila = filas(canvasElement)[0]!; // Kennedy
     await userEvent.click(within(fila).getByText("detalle ▾"));
@@ -184,7 +190,7 @@ export const DetallePorFila: Story = {
 };
 
 export const SoloImpuestosYSueldos: Story = {
-  name: "Sólo impuestos y sueldos — Ley 9: el filtro los muestra, nada es postergable",
+  name: "Sólo impuestos y sueldos · Ley 9: el filtro los muestra, nada es postergable",
   args: { pagos: pagosSoloImpuestosYSueldos() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -209,7 +215,7 @@ export const SoloImpuestosYSueldos: Story = {
 };
 
 export const DatosDegradados: Story = {
-  name: 'Degradado — "sin fecha" nunca es "vence hoy"; USD sin TC no suma; caja en USD no se compara',
+  name: 'Degradado · "sin fecha" nunca es "vence hoy"; USD sin TC no suma; caja en USD no se compara',
   args: { pagos: pagosDegradados() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -239,7 +245,7 @@ export const DatosDegradados: Story = {
 };
 
 export const Vacio: Story = {
-  name: "Vacío — el registro no tiene pagos agendados y dice qué falta",
+  name: "Vacío · el registro no tiene pagos agendados y dice qué falta",
   args: { pagos: pagosVacio() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -254,7 +260,7 @@ export const Vacio: Story = {
 };
 
 export const SinRespuesta: Story = {
-  name: "Sin respuesta — la pantalla está ciega, no vacía",
+  name: "Sin respuesta · la pantalla está ciega, no vacía",
   args: {
     pagos: null,
     pagosMotivo: "No pudimos conectar con el registro de pagos (error de red).",

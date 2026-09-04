@@ -59,3 +59,8 @@ export const ConRemuneraciones: Story = {
   name: "Con Remuneraciones (flag ON)",
   args: { userRole: "owner", remuneracionesEnabled: true },
 };
+
+export const ConBandeja: Story = {
+  name: "Bandeja visible con el flag activo",
+  args: { userRole: "owner", bandejaEnabled: true },
+};
