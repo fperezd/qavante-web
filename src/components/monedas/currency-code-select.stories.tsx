@@ -64,12 +64,12 @@ export const Fiat: Story = {
 };
 
 export const ValorInactivo: Story = {
-  name: "#7 — value inactivo (BTC) se muestra 'no disponible'",
+  name: "#7 · value inactivo (BTC) se muestra 'no disponible'",
   render: () => <Controlled initial="BTC" />,
 };
 
 export const ValorFiltrado: Story = {
-  name: "#7 — value fuera del filterType (UF en fiat)",
+  name: "#7 · value fuera del filterType (UF en fiat)",
   render: () => <Controlled initial="UF" filterType="fiat" />,
 };
 

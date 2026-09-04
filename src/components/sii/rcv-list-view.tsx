@@ -410,7 +410,7 @@ export function RcvListView({
               {viewMode === "agrupado"
                 ? " y se muestran vinculadas a su factura (haz clic en una fila anulada para ver los documentos asociados)"
                 : ""}
-              . Las sumas son referenciales y se calculan sobre los documentos mostrados — el dato
+              . Las sumas son referenciales y se calculan sobre los documentos mostrados · el dato
               oficial sigue siendo el del F29.
             </p>
           </div>
@@ -590,7 +590,9 @@ function GroupedTable({
                       : "s/d"}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-                    {typeof d.monto_iva === "number" ? `−${formatClp(Math.abs(d.monto_iva))}` : "s/d"}
+                    {typeof d.monto_iva === "number"
+                      ? `−${formatClp(Math.abs(d.monto_iva))}`
+                      : "s/d"}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-danger-500">
                     {typeof d.monto_total === "number"

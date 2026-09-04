@@ -16,7 +16,7 @@ const meta = {
     docs: {
       description: {
         component:
-          '"Pulso del negocio" (término de marca — no se renombra). Confianza de los datos + factores + tendencia de 30 días (serie del snapshot q_score, ADR-0064).',
+          '"Pulso del negocio" (término de marca · no se renombra). Confianza de los datos + factores + tendencia de 30 días (serie del snapshot q_score, ADR-0064).',
       },
     },
   },
@@ -93,7 +93,7 @@ export const SinDatos: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Sin datos")).toBeInTheDocument();
-    await expect(canvas.getByText("—")).toBeInTheDocument();
+    await expect(canvas.getByText("·")).toBeInTheDocument();
     await expect(canvas.queryByText("Estable")).not.toBeInTheDocument();
 
     // El delta NO se pinta en verde. Es el defecto que este PR cierra, en la superficie que

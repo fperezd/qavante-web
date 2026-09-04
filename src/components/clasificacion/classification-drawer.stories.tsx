@@ -16,7 +16,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Shell del drawer de clasificación (addendum §17.2). Presentacional puro: compone los 3 selectores, mantiene solo estado de formulario local y emite el payload por callbacks. Resumen read-only (no edita glosa/fecha/monto — §17.4). El request real lo arma la integración.",
+          "Shell del drawer de clasificación (addendum §17.2). Presentacional puro: compone los 3 selectores, mantiene solo estado de formulario local y emite el payload por callbacks. Resumen read-only (no edita glosa/fecha/monto · §17.4). El request real lo arma la integración.",
       },
     },
   },

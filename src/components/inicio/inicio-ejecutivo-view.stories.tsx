@@ -85,7 +85,7 @@ const FIXTURE = {
     },
     {
       priority: 2,
-      reason: "IVA / F29 vence el 12 — asegura la caja",
+      reason: "IVA / F29 vence el 12 · asegura la caja",
       deadline: "12 jun",
       cta_label: "Ver pagos",
       cta_href: "/pagar",

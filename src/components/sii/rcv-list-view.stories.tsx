@@ -262,7 +262,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Inicial: Story = {
-  name: "Compras — Inicial (sin período consultado)",
+  name: "Compras · Inicial (sin período consultado)",
   args: {
     kind: "compras",
     period: null,
@@ -271,7 +271,7 @@ export const Inicial: Story = {
 };
 
 export const ComprasOk: Story = {
-  name: "Compras — con resultados",
+  name: "Compras · con resultados",
   args: {
     kind: "compras",
     period: "2026-04",
@@ -280,7 +280,7 @@ export const ComprasOk: Story = {
 };
 
 export const ComprasVacio: Story = {
-  name: "Compras — período sin documentos",
+  name: "Compras · período sin documentos",
   args: {
     kind: "compras",
     period: "2026-04",
@@ -289,7 +289,7 @@ export const ComprasVacio: Story = {
 };
 
 export const VentasOk: Story = {
-  name: "Ventas — con resultados",
+  name: "Ventas · con resultados",
   args: {
     kind: "ventas",
     period: "2026-04",
@@ -298,7 +298,7 @@ export const VentasOk: Story = {
 };
 
 export const VentasConAnuladas: Story = {
-  name: "Ventas — con anuladas (modo agrupado)",
+  name: "Ventas · con anuladas (modo agrupado)",
   args: {
     kind: "ventas",
     period: "2026-07",

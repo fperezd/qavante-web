@@ -14,7 +14,7 @@ import { McpView } from "./mcp-view";
  * `MCP_FRASE_SOLO_LECTURA` de `mcp-view.tsx` — importar la MISMA constante que el componente pinta
  * volvería el assert tautológico (un mutante que cambia la frase en la fuente cambiaría el string
  * esperado exactamente igual, y el test nunca podría ponerse rojo). */
-const FRASE_ESPERADA_SPEC = "el asistente solo lee — nunca clasifica, concilia ni mueve plata";
+const FRASE_ESPERADA_SPEC = "el asistente solo lee · nunca clasifica, concilia ni mueve plata";
 
 const CONNECTION_OK = http.get("*/api/mcp/connection", () =>
   HttpResponse.json(
@@ -58,7 +58,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — /api/mcp/connection responde",
+  name: "Normal · /api/mcp/connection responde",
   parameters: { msw: { handlers: [CONNECTION_OK, KEYS_VACIO] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -68,7 +68,7 @@ export const Normal: Story = {
 };
 
 export const SinRespuestaDelBackend: Story = {
-  name: "/api/mcp/connection cae (500) — la frase NO depende del backend",
+  name: "/api/mcp/connection cae (500) · la frase NO depende del backend",
   parameters: { msw: { handlers: [CONNECTION_ERROR, KEYS_VACIO] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

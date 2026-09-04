@@ -25,16 +25,16 @@ type Story = StoryObj<typeof meta>;
 
 const clientesTamano: DistribucionItem[] = [
   {
-    label: "Corp — Tramo 13",
+    label: "Corp · Tramo 13",
     monto: 64_000_000,
     pct: 64,
     hint: "Grandes empresas (tramo 13 del SII).",
   },
-  { label: "Enterprise — Tramo 13", monto: 13_800_000, pct: 13.8 },
-  { label: "Mid-Corp — Tramo 11", monto: 6_910_000, pct: 6.9 },
-  { label: "Mid-Corp — Tramo 12", monto: 5_500_000, pct: 5.5 },
-  { label: "Consolidada — Tramo 7", monto: 4_400_000, pct: 4.4 },
-  { label: "Pequeña — Tramo 4", monto: 3_000_000, pct: 3.0 },
+  { label: "Enterprise · Tramo 13", monto: 13_800_000, pct: 13.8 },
+  { label: "Mid-Corp · Tramo 11", monto: 6_910_000, pct: 6.9 },
+  { label: "Mid-Corp · Tramo 12", monto: 5_500_000, pct: 5.5 },
+  { label: "Consolidada · Tramo 7", monto: 4_400_000, pct: 4.4 },
+  { label: "Pequeña · Tramo 4", monto: 3_000_000, pct: 3.0 },
 ];
 
 const clientesIndustria: DistribucionItem[] = [
@@ -46,11 +46,11 @@ const clientesIndustria: DistribucionItem[] = [
 ];
 
 const proveedoresTamano: DistribucionItem[] = [
-  { label: "Mid-Corp — Tramo 11", monto: 38_000_000, pct: 38 },
-  { label: "Corp — Tramo 13", monto: 32_000_000, pct: 32 },
-  { label: "Consolidada — Tramo 9", monto: 14_000_000, pct: 14 },
-  { label: "Enterprise — Tramo 13", monto: 6_000_000, pct: 6 },
-  { label: "Mid-Corp — Tramo 12", monto: 2_600_000, pct: 2.6 },
+  { label: "Mid-Corp · Tramo 11", monto: 38_000_000, pct: 38 },
+  { label: "Corp · Tramo 13", monto: 32_000_000, pct: 32 },
+  { label: "Consolidada · Tramo 9", monto: 14_000_000, pct: 14 },
+  { label: "Enterprise · Tramo 13", monto: 6_000_000, pct: 6 },
+  { label: "Mid-Corp · Tramo 12", monto: 2_600_000, pct: 2.6 },
 ];
 
 /** Clientes por tamaño (ventas). */
@@ -63,7 +63,7 @@ export const ClientesPorTamano: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByText("Clientes por tamaño")).toBeInTheDocument();
-    await expect(c.getByText("Corp — Tramo 13")).toBeInTheDocument();
+    await expect(c.getByText("Corp · Tramo 13")).toBeInTheDocument();
     // 6 items, max 5 → "Otros" agrupa el 6º.
     await expect(c.getByText("Otros")).toBeInTheDocument();
   },

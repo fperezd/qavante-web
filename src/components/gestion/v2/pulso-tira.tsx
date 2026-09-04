@@ -64,7 +64,7 @@ export function PulsoTira({
       <span className="inline-flex shrink-0 items-center gap-2">
         <Activity className={cn("size-4", NUM[tono])} aria-hidden="true" />
         <span className={cn("text-[19px] font-extrabold tabular-nums", NUM[tono])}>
-          {score ?? "—"}
+          {score ?? "·"}
         </span>
         <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", TONO[tono])}>
           {estado}

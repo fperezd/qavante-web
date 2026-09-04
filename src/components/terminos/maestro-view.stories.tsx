@@ -95,7 +95,7 @@ const meta = {
     periodosLabel: "ene–jul 2026",
     titulo: "Clientes",
     subtitulo:
-      "Todos los clientes con ventas registradas este año — no solo lo pendiente por cobrar.",
+      "Todos los clientes con ventas registradas este año · no solo lo pendiente por cobrar.",
   },
 } satisfies Meta<typeof MaestroContrapartes>;
 

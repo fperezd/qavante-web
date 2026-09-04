@@ -70,8 +70,8 @@ export function SiiSyncCard() {
       <div className="space-y-3">
         <p className="text-sm text-neutral-mid">
           Trae el <strong>año completo</strong> de compras y ventas del SII ({year}, enero → hoy).
-          Úsalo para la primera carga o si te faltan meses hacia atrás — es lo que llena tus maestros
-          de Clientes, Proveedores y Honorarios. El día a día se actualiza con{" "}
+          Úsalo para la primera carga o si te faltan meses hacia atrás · es lo que llena tus
+          maestros de Clientes, Proveedores y Honorarios. El día a día se actualiza con{" "}
           <strong>Actualizar todo</strong> (arriba a la derecha).
         </p>
 
@@ -115,7 +115,9 @@ export function SiiSyncCard() {
             size="sm"
             loading={Boolean(run?.running)}
             disabled={Boolean(run?.running)}
-            onClick={() => runSync(expandPeriodRange({ desde: `${year}-01`, hasta: currentPeriod }))}
+            onClick={() =>
+              runSync(expandPeriodRange({ desde: `${year}-01`, hasta: currentPeriod }))
+            }
           >
             <CalendarRange className="h-4 w-4" aria-hidden="true" />
             Sincronizar todo {year}

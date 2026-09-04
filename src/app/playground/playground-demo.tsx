@@ -140,7 +140,7 @@ export function PlaygroundDemo() {
         </p>
       </header>
 
-      <Section title="Refresh v1.2 — gradientes · glass · profundidad">
+      <Section title="Refresh v1.2 · gradientes · glass · profundidad">
         <div className="space-y-4">
           <h3 className="text-gradient-brand text-3xl font-bold">
             Avanzar con inteligencia financiera
@@ -155,7 +155,7 @@ export function PlaygroundDemo() {
           </div>
           <div className="bg-gradient-brand relative overflow-hidden rounded-xl p-6">
             <div className="glass rounded-lg border border-white/40 px-4 py-3 text-sm font-medium text-neutral-dark shadow-lg">
-              .glass — barra translúcida con blur sobre el gradiente de marca
+              .glass · barra translúcida con blur sobre el gradiente de marca
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -298,7 +298,7 @@ export function PlaygroundDemo() {
         </div>
       </Section>
 
-      <Section title="B.2.1 — Marca Qavante (paleta provisional)">
+      <Section title="B.2.1 · Marca Qavante (paleta provisional)">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
           {brand.map((c) => (
             <Swatch key={c.label} {...c} />
@@ -314,7 +314,7 @@ export function PlaygroundDemo() {
         </div>
       </Section>
 
-      <Section title="B.2.2 — Semánticos (no negociables)">
+      <Section title="B.2.2 · Semánticos (no negociables)">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {semanticos.map((c) => (
             <Swatch key={c.label} {...c} />
@@ -322,7 +322,7 @@ export function PlaygroundDemo() {
         </div>
       </Section>
 
-      <Section title="B.2.3 — Bandas Pulso Empresa">
+      <Section title="B.2.3 · Bandas Pulso Empresa">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
           {pulso.map((p) => (
             <div key={p.label} className="flex flex-col gap-1">
@@ -334,7 +334,7 @@ export function PlaygroundDemo() {
         </div>
       </Section>
 
-      <Section title="B.3 — Tipografía Inter">
+      <Section title="B.3 · Tipografía Inter">
         <div className="space-y-2">
           {tipografia.map((t) => (
             <div key={t.className} className={`${t.className} text-neutral-dark`}>
@@ -344,7 +344,7 @@ export function PlaygroundDemo() {
         </div>
       </Section>
 
-      <Section title="B.4 — Radios">
+      <Section title="B.4 · Radios">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {radios.map((r) => (
             <div key={r.label} className="flex flex-col items-center gap-2">
@@ -356,7 +356,7 @@ export function PlaygroundDemo() {
         </div>
       </Section>
 
-      <Section title="B.4 — Sombras">
+      <Section title="B.4 · Sombras">
         <div className="grid grid-cols-1 gap-6 bg-background p-6 sm:grid-cols-3">
           {sombras.map((s) => (
             <div

@@ -45,7 +45,7 @@ const RULES: ClassificationRule[] = [
   },
   {
     id: "rule-3",
-    name: "Transferencia banco — desactivada",
+    name: "Transferencia banco · desactivada",
     source_type: "bank_movement",
     condition_field: "description",
     operator: "starts_with",
@@ -85,7 +85,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Lista de reglas de clasificación (orden por prioridad ASC). El container resuelve loading/error/empty/lista desde `GET /api/treasury/classification-rules`. Toggle activo y form de regla son por interacción. Qavante nunca borra reglas — las desactivadas se muestran apagadas pero reactivables.",
+          "Lista de reglas de clasificación (orden por prioridad ASC). El container resuelve loading/error/empty/lista desde `GET /api/treasury/classification-rules`. Toggle activo y form de regla son por interacción. Qavante nunca borra reglas · las desactivadas se muestran apagadas pero reactivables.",
       },
     },
     msw: { handlers: [OK] },

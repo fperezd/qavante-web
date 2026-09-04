@@ -184,9 +184,7 @@ export function PresupuestoV09View({
           detail={
             <Pill variant={triada.favorable ? "ok" : "warn"}>
               {triada.favorable ? "a favor" : "en contra"}
-              {triada.desvioPct != null
-                ? ` · ${formatPct(Math.abs(triada.desvioPct))}`
-                : ""}
+              {triada.desvioPct != null ? ` · ${formatPct(Math.abs(triada.desvioPct))}` : ""}
             </Pill>
           }
         />
@@ -297,7 +295,7 @@ function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
     <p className="pt-1 text-center text-[12px] text-rediseno-tinta-3-light">
       Todavía no: el link de cada desvío a los documentos que lo explican, y el aviso de cómo vas a
       cerrar el año. Esperan una decisión de forma del dueño (ADR-0091 F1b)
-      {issueSucesor ? ` — issue sucesor ${issueSucesor}` : ""}.
+      {issueSucesor ? ` · issue sucesor ${issueSucesor}` : ""}.
     </p>
   );
 }

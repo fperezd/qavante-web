@@ -44,7 +44,9 @@ export function PayrollSyncBar({
 }: PayrollSyncBarProps) {
   const [editing, setEditing] = React.useState(false);
   const [confirming, setConfirming] = React.useState(false);
-  const [dayInput, setDayInput] = React.useState<string>(paydayDay != null ? String(paydayDay) : "");
+  const [dayInput, setDayInput] = React.useState<string>(
+    paydayDay != null ? String(paydayDay) : "",
+  );
 
   function confirmSync() {
     setConfirming(false);
@@ -100,8 +102,7 @@ export function PayrollSyncBar({
             </span>
           ) : (
             <span className="flex items-center gap-1.5">
-              Día de pago:{" "}
-              <span className="font-medium">{paydayRule ?? "último día hábil"}</span>
+              Día de pago: <span className="font-medium">{paydayRule ?? "último día hábil"}</span>
               {onSavePayday && (
                 <button
                   type="button"
@@ -198,7 +199,13 @@ function ConfirmSyncDialog({
         <div className="px-5 py-4">
           <h2 className="text-base font-semibold text-neutral-dark">Registrar planilla en Pagar</h2>
           <p className="mt-2 text-sm text-neutral-mid">
-            Vas a registrar la planilla{periodLabel ? <> de <strong>{periodLabel}</strong></> : null}{" "}
+            Vas a registrar la planilla
+            {periodLabel ? (
+              <>
+                {" "}
+                de <strong>{periodLabel}</strong>
+              </>
+            ) : null}{" "}
             en Pagar como obligación{" "}
             {typeof totalLiquido === "number" && (
               <>
@@ -208,8 +215,8 @@ function ConfirmSyncDialog({
             (vence el {paydayRule ?? "último día hábil"}).
           </p>
           <p className="mt-2 rounded-lg bg-surface-muted px-3 py-2 text-xs text-neutral-mid">
-            Si esta planilla <strong>ya está registrada</strong>, se actualiza con el monto vigente —
-            no se crea una obligación duplicada.
+            Si esta planilla <strong>ya está registrada</strong>, se actualiza con el monto vigente
+            · no se crea una obligación duplicada.
           </p>
         </div>
         <div className="flex justify-end gap-2 border-t border-border px-5 py-3">

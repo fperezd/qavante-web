@@ -71,7 +71,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Vista de Boletas de Honorarios Electrónicas recibidas. Shape distinto a RCV: tiene `monto_bruto`, `retencion` (13.75% en 2026 — el pagador retiene y entera en su F29), `monto_liquido`. Presentacional: recibe `query` por prop.",
+          "Vista de Boletas de Honorarios Electrónicas recibidas. Shape distinto a RCV: tiene `monto_bruto`, `retencion` (13.75% en 2026 · el pagador retiene y entera en su F29), `monto_liquido`. Presentacional: recibe `query` por prop.",
       },
     },
   },

@@ -89,7 +89,7 @@ export const Closed: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Estado cerrado — el Portal no monta el popup. Story sólo para verificar no-break.",
+        story: "Estado cerrado · el Portal no monta el popup. Story sólo para verificar no-break.",
       },
     },
   },

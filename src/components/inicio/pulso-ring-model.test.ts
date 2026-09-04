@@ -21,8 +21,8 @@ describe("anilloDelPulso", () => {
   });
 
   it("sin estado no muestra un cero, que se lee como un pulso pésimo", () => {
-    expect(anilloDelPulso(null, null).numero).toBe("—");
-    expect(anilloDelPulso(0, null).numero).toBe("—");
+    expect(anilloDelPulso(null, null).numero).toBe("·");
+    expect(anilloDelPulso(0, null).numero).toBe("·");
   });
 
   it("un score sin estado tampoco se pronuncia", () => {

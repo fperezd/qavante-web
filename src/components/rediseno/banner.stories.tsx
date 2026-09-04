@@ -30,7 +30,7 @@ export const Warn: Story = {
     children: (
       <>
         <b>A este ritmo, agosto cierra ~$2,1M sobre el plan de gastos.</b> Te avisaré el día que la
-        proyección cruce el límite — antes de que ocurra.
+        proyección cruce el límite · antes de que ocurra.
       </>
     ),
     action: { label: "Ajustar plan" },

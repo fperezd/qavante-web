@@ -140,7 +140,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — dos fuentes conectadas, run consultable en curso",
+  name: "Normal · dos fuentes conectadas, run consultable en curso",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const fuentesPaso1 = fuentesDelPaso1(canvasElement);
@@ -162,7 +162,7 @@ export const Normal: Story = {
 };
 
 export const UnaDiferida: Story = {
-  name: "Una diferida — 'la conectas después', 1 pendiente (singular)",
+  name: "Una diferida · 'la conectas después', 1 pendiente (singular)",
   args: { states: UNA_DIFERIDA, run: null, onIniciarRun: () => {} },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -180,7 +180,7 @@ export const UnaDiferida: Story = {
 };
 
 export const NingunaConectada: Story = {
-  name: "Ninguna conectada — paso 2 dice que no hay nada que construir todavía",
+  name: "Ninguna conectada · paso 2 dice que no hay nada que construir todavía",
   args: { states: NINGUNA_CONECTADA, run: null },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -199,7 +199,7 @@ export const NingunaConectada: Story = {
 };
 
 export const Cargando: Story = {
-  name: "Cargando — dice qué se está trayendo y un ETA (Ley 8)",
+  name: "Cargando · dice qué se está trayendo y un ETA (Ley 8)",
   args: { states: null, cargando: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -210,7 +210,7 @@ export const Cargando: Story = {
 };
 
 export const ErrorDeConexion: Story = {
-  name: "Error — el estado de conexiones no respondió, con Reintentar",
+  name: "Error · el estado de conexiones no respondió, con Reintentar",
   args: { states: null, motivo: "No pudimos conectar con tus fuentes (error de red)." },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -224,7 +224,7 @@ export const ErrorDeConexion: Story = {
 
 /** El mínimo que pide la spec (§5.2): sin scroll horizontal de página en ≥ 360 px. */
 export const Ley7Angosto360: Story = {
-  name: "Ley 7 · 360 px — sin scroll horizontal de página",
+  name: "Ley 7 · 360 px · sin scroll horizontal de página",
   args: { states: UNA_DIFERIDA, run: null },
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 360);
@@ -235,7 +235,7 @@ export const Ley7Angosto360: Story = {
  *  también acá, no sólo a 360: un desborde a 320 puede existir sin necesitar la brecha de fuente
  *  Linux/Windows que motiva el margen de 346 en otras vistas de este mismo rediseño. */
 export const Ley7Angosto320: Story = {
-  name: "Ley 7 · 320 px — ancho de teléfono, sin scroll horizontal",
+  name: "Ley 7 · 320 px · ancho de teléfono, sin scroll horizontal",
   args: { states: UNA_DIFERIDA, run: null },
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 320);

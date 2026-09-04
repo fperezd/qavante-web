@@ -10,7 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Selector de tipo de movimiento (addendum §17.2/§20). Presentacional puro: labels/descripciones vienen del backend (`CanonicalCategoryMeta`, contrato vivo §11/26 — reconciliation P4-4), nunca hardcodeados. Búsqueda sin librería combobox (input + lista de botones accesible).",
+          "Selector de tipo de movimiento (addendum §17.2/§20). Presentacional puro: labels/descripciones vienen del backend (`CanonicalCategoryMeta`, contrato vivo §11/26 · reconciliation P4-4), nunca hardcodeados. Búsqueda sin librería combobox (input + lista de botones accesible).",
       },
     },
   },

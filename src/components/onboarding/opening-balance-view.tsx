@@ -69,7 +69,7 @@ export function OpeningBalanceView() {
           <p className="text-xs text-neutral-mid">
             {digits
               ? formatClp(amount)
-              : "Opcional — puedes dejarlo en blanco y cargarlo más tarde."}
+              : "Opcional · puedes dejarlo en blanco y cargarlo más tarde."}
           </p>
         </div>
 

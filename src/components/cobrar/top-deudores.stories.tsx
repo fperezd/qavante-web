@@ -57,7 +57,7 @@ export const VencidoDesconocido: Story = {
 };
 
 export const VencidoCeroVerificado: Story = {
-  name: "Cero verificado — está al día",
+  name: "Cero verificado · está al día",
   args: { debtors: [deudor("0")] },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);

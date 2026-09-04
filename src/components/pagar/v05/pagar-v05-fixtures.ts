@@ -5,11 +5,7 @@
  * `due_date asc`, `source_external_id` con la clave natural del RCV ('tipo-folio-rut') o la de
  * nómina ('payroll-YYYYMM'), y los `due_*` acumulativos INCLUYENDO lo vencido. */
 
-import type {
-  AccountsPayableResponse,
-  PayableDuplicatePair,
-  PayableItem,
-} from "@/lib/api/pagos";
+import type { AccountsPayableResponse, PayableDuplicatePair, PayableItem } from "@/lib/api/pagos";
 
 export const HOY = new Date("2026-08-30T12:00:00Z");
 
@@ -23,7 +19,7 @@ export const RUT_MELI = "76666666-6";
  * por `due_date asc` e incluye lo vencido, así que esto es lo primero que llega. */
 export const KENNEDY: PayableItem = {
   id: "00000000-0000-4000-8000-000000000001",
-  label: "Inmobiliaria Vista Kennedy SpA — Factura 1201",
+  label: "Inmobiliaria Vista Kennedy SpA · Factura 1201",
   category: "supplier",
   due_date: "2025-03-03",
   amount: "7078882",
@@ -40,7 +36,7 @@ export const KENNEDY: PayableItem = {
 
 export const VASQUEZ: PayableItem = {
   id: "00000000-0000-4000-8000-000000000002",
-  label: "Soc. de Profesionales Vásquez, González y Cía. — Factura 88",
+  label: "Soc. de Profesionales Vásquez, González y Cía. · Factura 88",
   category: "supplier",
   due_date: "2026-06-06",
   amount: "1447161",
@@ -57,7 +53,7 @@ export const VASQUEZ: PayableItem = {
 
 export const ENTEL_A: PayableItem = {
   id: "00000000-0000-4000-8000-000000000003",
-  label: "Entel PCS Telecomunicaciones S.A. — Factura 9001",
+  label: "Entel PCS Telecomunicaciones S.A. · Factura 9001",
   category: "supplier",
   due_date: "2026-08-12",
   amount: "203607",
@@ -75,7 +71,7 @@ export const ENTEL_A: PayableItem = {
 /** La contraparte del par UUID que publica el registro de anomalías. */
 export const ENTEL_B: PayableItem = {
   id: "00000000-0000-4000-8000-000000000004",
-  label: "Entel PCS Telecomunicaciones S.A. — Factura 9017",
+  label: "Entel PCS Telecomunicaciones S.A. · Factura 9017",
   category: "supplier",
   due_date: "2026-08-27",
   amount: "205000",
@@ -92,7 +88,7 @@ export const ENTEL_B: PayableItem = {
 
 export const BICE: PayableItem = {
   id: "00000000-0000-4000-8000-000000000005",
-  label: "Banco BICE — cuota crédito",
+  label: "Banco BICE · cuota crédito",
   category: "debt",
   due_date: "2026-09-01",
   amount: "503076",
@@ -128,7 +124,7 @@ export const REMUNERACIONES: PayableItem = {
 
 export const MELI_USD: PayableItem = {
   id: "00000000-0000-4000-8000-000000000007",
-  label: "MercadoLibre Chile Ltda. — Factura 77",
+  label: "MercadoLibre Chile Ltda. · Factura 77",
   category: "supplier",
   due_date: "2026-09-08",
   amount: "1240",
@@ -162,7 +158,7 @@ export const F29: PayableItem = {
 
 export const CHIPAX: PayableItem = {
   id: "00000000-0000-4000-8000-000000000009",
-  label: "Chipax SpA — Factura 5540",
+  label: "Chipax SpA · Factura 5540",
   category: "supplier",
   due_date: "2026-09-20",
   amount: "1207105",
@@ -233,7 +229,7 @@ export function pagosSoloImpuestosYSueldos(
 ): AccountsPayableResponse {
   const previred: PayableItem = {
     id: "00000000-0000-4000-8000-000000000010",
-    label: "Previred — cotizaciones",
+    label: "Previred · cotizaciones",
     category: "payroll",
     due_date: "2026-09-10",
     amount: "1230000",
@@ -269,7 +265,7 @@ export function pagosDegradados(
 ): AccountsPayableResponse {
   const sinFecha: PayableItem = {
     id: "00000000-0000-4000-8000-000000000011",
-    label: "Aguas Cordillera S.A. — Factura 310",
+    label: "Aguas Cordillera S.A. · Factura 310",
     category: "supplier",
     due_date: "",
     amount: "96500",
@@ -285,7 +281,7 @@ export function pagosDegradados(
   };
   const usdSinTc: PayableItem = {
     id: "00000000-0000-4000-8000-000000000012",
-    label: "Amazon Web Services — Factura 4410",
+    label: "Amazon Web Services · Factura 4410",
     category: "supplier",
     due_date: "2026-09-05",
     amount: "830",

@@ -83,7 +83,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — 8 módulos, Credenciales con 1 fuente que requiere acción",
+  name: "Normal · 8 módulos, Credenciales con 1 fuente que requiere acción",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Empresas")).toBeInTheDocument();
@@ -103,7 +103,7 @@ export const Normal: Story = {
 };
 
 export const TodoAlDia: Story = {
-  name: "Todo al día — Credenciales en verde, sin ninguna fuente que requiera acción",
+  name: "Todo al día · Credenciales en verde, sin ninguna fuente que requiera acción",
   args: {
     filas: FILAS_HUB_EJEMPLO.map((f) =>
       f.id === "credenciales" ? { ...f, estado: { tono: "ok" as const, texto: "Al día" } } : f,
@@ -117,7 +117,7 @@ export const TodoAlDia: Story = {
 };
 
 export const NueveConMcp: Story = {
-  name: "Con MCP habilitado — 9ª fila al final",
+  name: "Con MCP habilitado · 9ª fila al final",
   args: {
     filas: [
       ...FILAS_HUB_EJEMPLO,
@@ -144,7 +144,7 @@ export const NueveConMcp: Story = {
 
 /** El mínimo que pide la spec (§5.2): sin scroll horizontal de página en ≥ 360 px. */
 export const Ley7Angosto360: Story = {
-  name: "Ley 7 · 360 px — la tabla entra completa, sin scroll horizontal",
+  name: "Ley 7 · 360 px · la tabla entra completa, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 360);
   },
@@ -156,7 +156,7 @@ export const Ley7Angosto360: Story = {
  *  adopta el MISMO margen por la MISMA razón, en vez de reinventar un número propio. Ésta es la
  *  medición que decide el gate: si pasa acá, pasa a 360 en cualquier máquina. */
 export const Ley7Angosto346: Story = {
-  name: "Ley 7 · 346 px — margen de fuente (= 360, holgura Linux/Windows de gestion-v08)",
+  name: "Ley 7 · 346 px · margen de fuente (= 360, holgura Linux/Windows de gestion-v08)",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 346);
   },
@@ -166,7 +166,7 @@ export const Ley7Angosto346: Story = {
  *  misma tabla desbordaba 21 px incluso en Windows, sin necesitar las fuentes de Linux para
  *  romperse. Con la columna Estado colapsada (`hideBelowTable`) entra con margen real. */
 export const Ley7Angosto320: Story = {
-  name: "Ley 7 · 320 px — ancho de teléfono, sin scroll horizontal",
+  name: "Ley 7 · 320 px · ancho de teléfono, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 320);
   },

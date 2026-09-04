@@ -46,7 +46,7 @@ export const WithHeader: Story = {
     header: (
       <div className="flex items-center gap-2">
         <Building2 className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-        <span>Credenciales SII — Empresa</span>
+        <span>Credenciales SII · Empresa</span>
       </div>
     ),
   },

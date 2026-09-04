@@ -25,7 +25,7 @@ export default function AlertasPage() {
         <QavanteEmpty
           icon={Bell}
           title="Las alertas todavía no están habilitadas en esta empresa"
-          description="El motor que las calcula no está encendido acá, así que no tenemos nada que mostrarte: preferimos decírtelo antes que mostrarte una lista vacía como si no tuvieras problemas. Mientras tanto, revisa que tus fuentes estén al día — casi todas las alertas salen de ahí."
+          description="El motor que las calcula no está encendido acá, así que no tenemos nada que mostrarte: preferimos decírtelo antes que mostrarte una lista vacía como si no tuvieras problemas. Mientras tanto, revisa que tus fuentes estén al día · casi todas las alertas salen de ahí."
           cta={
             <Link
               href="/conexiones"

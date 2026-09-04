@@ -71,7 +71,7 @@ function Campo({ label, value }: { label: string; value: string }) {
    literal, no parafraseado). No se borra si el backend cambia la copia de `conn.data.docs`: es
    una garantía del producto, no un dato del contrato. */
 export const MCP_FRASE_SOLO_LECTURA =
-  "el asistente solo lee — nunca clasifica, concilia ni mueve plata";
+  "el asistente solo lee · nunca clasifica, concilia ni mueve plata";
 
 export function McpView() {
   const list = useApiKeys();

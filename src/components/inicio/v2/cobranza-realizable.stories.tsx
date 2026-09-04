@@ -35,8 +35,8 @@ export const Crisis: Story = {
     totalPorCobrar: 205_400_000,
     vencido: 0,
     segmentos: [
-      { label: "Alta prob. — pagan a tiempo", monto: 7_800_000, banda: "high" },
-      { label: "Probable — pago irregular", monto: 4_300_000, banda: "probable" },
+      { label: "Alta prob. · pagan a tiempo", monto: 7_800_000, banda: "high" },
+      { label: "Probable · pago irregular", monto: 4_300_000, banda: "probable" },
       { label: "Sin patrón de pago claro", monto: 6_100_000, banda: "unknown" },
     ],
   },

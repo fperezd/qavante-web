@@ -89,7 +89,7 @@ export const Normal: Story = {
 };
 
 export const Cargando: Story = {
-  name: "Las tres en vuelo — NO se ven como las filas sin hueco (hueco ≠ cargando)",
+  name: "Las tres en vuelo · NO se ven como las filas sin hueco (hueco ≠ cargando)",
   parameters: { msw: { handlers: [SOURCES_CARGANDO, TENANTS_CARGANDO, USERS_CARGANDO] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -108,7 +108,7 @@ export const Cargando: Story = {
 };
 
 export const UnaFuenteCaida: Story = {
-  name: "Fuentes cae (500) — Empresas y Usuarios NO se tumban con ella",
+  name: "Fuentes cae (500) · Empresas y Usuarios NO se tumban con ella",
   parameters: { msw: { handlers: [SOURCES_ERROR, TENANTS_OK, USERS_OK] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

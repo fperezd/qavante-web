@@ -270,7 +270,7 @@ function InfoPopover() {
         </p>
         <p className="mt-2">
           Costo empresa es líquido + leyes sociales de cada persona (lo suma BUK); no incluye las
-          cotizaciones de Previred otra vez — ya están dentro del costo de cada persona.
+          cotizaciones de Previred otra vez · ya están dentro del costo de cada persona.
         </p>
         <p className="mt-2">
           <span className="font-rediseno-mono text-[10px] uppercase tracking-[.1em] text-rediseno-tinta-3">

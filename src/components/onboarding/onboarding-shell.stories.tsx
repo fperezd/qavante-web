@@ -10,7 +10,7 @@ import { OnboardingShell } from "./onboarding-shell";
 
 const Placeholder = () => (
   <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-neutral-mid">
-    Contenido del paso (placeholder de la fundación — Fase 1).
+    Contenido del paso (placeholder de la fundación · Fase 1).
   </div>
 );
 
@@ -24,7 +24,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const PrimerPaso: Story = {
-  name: "Paso 1 — Crear cuenta",
+  name: "Paso 1 · Crear cuenta",
   args: {
     step: "signup",
     description: "Empieza creando tu cuenta y la empresa que vas a gestionar.",
@@ -33,7 +33,7 @@ export const PrimerPaso: Story = {
 };
 
 export const PasoIntermedio: Story = {
-  name: "Paso 3 — Conectar SII",
+  name: "Paso 3 · Conectar SII",
   args: {
     step: "connect-sii",
     description: "Conecta el SII para traer tus documentos tributarios.",
@@ -42,7 +42,7 @@ export const PasoIntermedio: Story = {
 };
 
 export const UltimoPaso: Story = {
-  name: "Paso 7 — Traer datos",
+  name: "Paso 7 · Traer datos",
   args: {
     step: "import",
     description: "Estamos trayendo tus datos para dejar todo listo.",

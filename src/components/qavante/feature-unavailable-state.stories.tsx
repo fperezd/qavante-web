@@ -8,7 +8,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Estado canónico para pantallas del Addendum Frontend v2.0 gateadas por feature flag OFF / backend no conectado (addendum §20 + §23.1, ADR-0008). Wrapper fino de `QavanteEmpty`. Regla dura: nunca UI mock, nunca ruta rota — siempre mensaje de negocio (Anexo F).",
+          "Estado canónico para pantallas del Addendum Frontend v2.0 gateadas por feature flag OFF / backend no conectado (addendum §20 + §23.1, ADR-0008). Wrapper fino de `QavanteEmpty`. Regla dura: nunca UI mock, nunca ruta rota · siempre mensaje de negocio (Anexo F).",
       },
     },
   },
@@ -23,7 +23,7 @@ export const Default: Story = {
 
 export const EstructuraGestion: Story = {
   args: {
-    title: "Estructura de gestión — todavía no disponible",
+    title: "Estructura de gestión · todavía no disponible",
     description:
       "Cuando conectemos tu información vas a poder ordenar acá tus ingresos, costos, gastos, caja y obligaciones, partiendo de una base sugerida.",
   },
@@ -31,7 +31,7 @@ export const EstructuraGestion: Story = {
 
 export const Monedas: Story = {
   args: {
-    title: "Monedas — todavía no disponible",
+    title: "Monedas · todavía no disponible",
     description:
       "Acá vas a definir la moneda principal de tu empresa y las monedas en que quieres ver tus reportes.",
   },

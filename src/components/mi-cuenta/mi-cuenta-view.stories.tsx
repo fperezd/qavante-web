@@ -9,7 +9,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Pantalla Mi cuenta: perfil del usuario logueado (nombre, correo, empresa, rol, último ingreso) + cerrar sesión. `MiCuentaContent` es la versión presentacional (recibe MeUser por prop); `MiCuentaView` envuelve con useMe() + estados loading/error. El botón de logout vive en un subcomponente que consume useLogout() — acá se renderiza pero no dispara (el QueryClientProvider del preview alcanza para montarlo).",
+          "Pantalla Mi cuenta: perfil del usuario logueado (nombre, correo, empresa, rol, último ingreso) + cerrar sesión. `MiCuentaContent` es la versión presentacional (recibe MeUser por prop); `MiCuentaView` envuelve con useMe() + estados loading/error. El botón de logout vive en un subcomponente que consume useLogout() · acá se renderiza pero no dispara (el QueryClientProvider del preview alcanza para montarlo).",
       },
     },
   },

@@ -44,7 +44,7 @@ export const Closed: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Estado cerrado — render null. Story sólo para verificar que no rompe.",
+        story: "Estado cerrado · render null. Story sólo para verificar que no rompe.",
       },
     },
   },

@@ -199,7 +199,7 @@ export function ManagementAccountsView() {
       >
         <Inbox className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="flex-1">
-          <span className="font-medium text-neutral-dark">No clasificado</span> — los movimientos
+          <span className="font-medium text-neutral-dark">No clasificado</span> · los movimientos
           que todavía no calzan en ninguna cuenta se resuelven en la bandeja de excepciones.
         </span>
         <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />

@@ -392,7 +392,7 @@ function DtePreviewSkeleton() {
       </p>
       <p className="max-w-[20rem] text-xs leading-relaxed text-neutral-mid">
         El SII genera el PDF en el momento: suele demorar unos 3 segundos. Puedes mover el mouse
-        tranquilo — esta ventana queda abierta hasta que la cierres.
+        tranquilo · esta ventana queda abierta hasta que la cierres.
       </p>
     </div>
   );

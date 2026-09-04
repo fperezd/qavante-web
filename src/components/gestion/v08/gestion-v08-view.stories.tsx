@@ -108,7 +108,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V08 · Gestión (ESPECIFICACION §V08): las nueve páginas de /gestion en UNA vista con seis tabs — Resultado (con el pivote de 3 meses, el drill-down al documento y la sección Costos y gastos), Márgenes (con Ciclo de caja y Punto de equilibrio), Tendencia, Comparativo (regla de oro: mes en curso contra el mes anterior a la MISMA altura) y los dos 360. El titular del Resultado publica el mismo número que V01 · Hoy y lo compara contra el pivote (Ley 1). El export a xls es un hueco declarado: se baja CSV. "Días promedio en pagar" conserva su "en preparación" honesto.',
+          'V08 · Gestión (ESPECIFICACION §V08): las nueve páginas de /gestion en UNA vista con seis tabs · Resultado (con el pivote de 3 meses, el drill-down al documento y la sección Costos y gastos), Márgenes (con Ciclo de caja y Punto de equilibrio), Tendencia, Comparativo (regla de oro: mes en curso contra el mes anterior a la MISMA altura) y los dos 360. El titular del Resultado publica el mismo número que V01 · Hoy y lo compara contra el pivote (Ley 1). El export a xls es un hueco declarado: se baja CSV. "Días promedio en pagar" conserva su "en preparación" honesto.',
       },
     },
   },

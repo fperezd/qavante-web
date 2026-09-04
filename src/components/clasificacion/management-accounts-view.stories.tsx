@@ -123,7 +123,7 @@ export const Arbol: Story = {
     const link = await canvas.findByRole("link", { name: /No clasificado/ });
     await expect(link).toHaveAttribute("href", "/bandeja");
     await expect(link).toHaveTextContent(
-      "No clasificado — los movimientos que todavía no calzan en ninguna cuenta se resuelven en la bandeja de excepciones.",
+      "No clasificado · los movimientos que todavía no calzan en ninguna cuenta se resuelven en la bandeja de excepciones.",
     );
   },
 };

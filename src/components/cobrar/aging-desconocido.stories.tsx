@@ -63,7 +63,7 @@ export const SinMontoConocido: Story = {
 /* La franja que REEMPLAZA a la barra apilada. Antes, con los cuatro tramos en null,
    la barra quedaba 100% "Vigente": "todo al día" justo cuando no se sabía nada. */
 export const BarraDesconocida: Story = {
-  name: "Barra de antigüedad — desconocida",
+  name: "Barra de antigüedad · desconocida",
   args: { sinDato: SIN_DATO },
   render: () => (
     <div className="max-w-md space-y-3">
@@ -82,7 +82,7 @@ export const BarraDesconocida: Story = {
 /* ── Resumen de Cobrar v2: los TRES estados, uno al lado del otro ─────────────── */
 
 export const ResumenSinDato: Story = {
-  name: "Resumen — vencido sin dato",
+  name: "Resumen · vencido sin dato",
   args: { sinDato: SIN_DATO },
   render: () => (
     <ResumenCobranza total={24800000} overdue={null} overduePct={null} sinDato={SIN_DATO} />
@@ -102,7 +102,7 @@ export const ResumenSinDato: Story = {
    vencido agregado se conoce y da cero (vía RCV, que lo deriva localmente). Antes
    el resumen la escondía detrás de una nota inventada sobre el SII. */
 export const ResumenAlDia: Story = {
-  name: "Resumen — cero VERIFICADO (estás al día)",
+  name: "Resumen · cero VERIFICADO (estás al día)",
   args: { sinDato: SIN_DATO },
   render: () => <ResumenCobranza total={24800000} overdue={0} overduePct={0} />,
   play: async ({ canvasElement }) => {
@@ -114,7 +114,7 @@ export const ResumenAlDia: Story = {
 };
 
 export const ResumenConMora: Story = {
-  name: "Resumen — vencido real",
+  name: "Resumen · vencido real",
   args: { sinDato: SIN_DATO },
   render: () => <ResumenCobranza total={24800000} overdue={7900000} overduePct={31.9} />,
   play: async ({ canvasElement }) => {

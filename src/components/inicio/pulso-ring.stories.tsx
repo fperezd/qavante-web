@@ -37,7 +37,7 @@ export const SinDatos: Story = {
     // porque la unica cobertura del componente era la del modelo puro.
     const c = within(canvasElement);
     await expect(c.getByText("Sin datos")).toBeInTheDocument();
-    await expect(c.getByText("—")).toBeInTheDocument();
+    await expect(c.getByText("·")).toBeInTheDocument();
     await expect(c.queryByText("Estable")).not.toBeInTheDocument();
 
     const anillo = canvasElement.querySelector('[role="img"]');

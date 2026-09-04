@@ -144,7 +144,7 @@ export const saludApreton: SaludModel = {
       title: "Contratar a alguien",
       verdict: "margen_justo",
       verdictLabel: "Con margen justo",
-      rule: "Generación de caja 64 ✓ · Resiliencia 58 ✓ · Pulso del mes 61 ✓ — todo pasa, pero apenas.",
+      rule: "Generación de caja 64 ✓ · Resiliencia 58 ✓ · Pulso del mes 61 ✓ · todo pasa, pero apenas.",
     },
     {
       icon: "bank",
@@ -289,7 +289,7 @@ export const saludCrisis: SaludModel = {
   matrix: {
     active: "crisis",
     reading:
-      "Estás en crisis de caja: modo sobrevivencia. La caja y la estructura están comprometidas a la vez — priorizá sueldos, renegociá vencimientos y frená todo compromiso nuevo.",
+      "Estás en crisis de caja: modo sobrevivencia. La caja y la estructura están comprometidas a la vez · priorizá sueldos, renegociá vencimientos y frená todo compromiso nuevo.",
   },
   trend: [
     { month: "Ago 25", value: 61 },
@@ -342,7 +342,7 @@ export const saludCrisis: SaludModel = {
       title: "Contratar a alguien",
       verdict: "no_por_ahora",
       verdictLabel: "No por ahora",
-      rule: "Generación de caja 28 ✗ · Resiliencia 30 ✗ — la estructura no soporta gasto fijo nuevo.",
+      rule: "Generación de caja 28 ✗ · Resiliencia 30 ✗ · la estructura no soporta gasto fijo nuevo.",
     },
     {
       icon: "bank",

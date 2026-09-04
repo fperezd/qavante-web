@@ -27,7 +27,7 @@ export const FirstTimeSetup: Story = {
   args: { active: false },
   parameters: {
     docs: {
-      description: { story: "Primera configuración — copy CTA 'Configurar clave SII'." },
+      description: { story: "Primera configuración · copy CTA 'Configurar clave SII'." },
     },
   },
 };
@@ -35,6 +35,6 @@ export const FirstTimeSetup: Story = {
 export const RotatePassword: Story = {
   args: { active: true },
   parameters: {
-    docs: { description: { story: "Rotación — copy CTA 'Cambiar clave SII'." } },
+    docs: { description: { story: "Rotación · copy CTA 'Cambiar clave SII'." } },
   },
 };

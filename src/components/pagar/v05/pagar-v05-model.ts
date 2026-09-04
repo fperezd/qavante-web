@@ -41,11 +41,7 @@
  *   · No hay "pagar todo" ni "postergar" en esta vista: mover plata lleva firma humana (Ley 9).
  *     La postergación operativa vive en Caja/Hoy, no acá. */
 
-import type {
-  AccountsPayableResponse,
-  PayableDuplicatePair,
-  PayableItem,
-} from "@/lib/api/pagos";
+import type { AccountsPayableResponse, PayableDuplicatePair, PayableItem } from "@/lib/api/pagos";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { formatDateLong, formatDateShort, formatRelative } from "@/lib/formatters/date";
@@ -627,7 +623,7 @@ export function explicacionVencido(
   }
   return {
     definicion:
-      "Vencido es la suma, en pesos, de los pagos listados cuya fecha de vencimiento ya pasó — de cualquier tipo. No es lo mismo que crítico: una factura de proveedor vencida se negocia; un impuesto vencido no.",
+      "Vencido es la suma, en pesos, de los pagos listados cuya fecha de vencimiento ya pasó · de cualquier tipo. No es lo mismo que crítico: una factura de proveedor vencida se negocia; un impuesto vencido no.",
     incluye: [
       "Facturas de compra abiertas o pagadas en parte, por lo que les falta",
       "Sueldos, impuestos y cuotas de deuda con fecha vencida",
@@ -660,7 +656,7 @@ export function explicacionCritico(
   hoy: Date,
 ): ExplicacionV05 {
   return {
-    definicion: `Crítico es lo que no se posterga —impuestos, sueldos y deuda financiera— y vence dentro de ${VENTANA_DIAS} días o ya venció. Se compara con la caja proyectada a ${VENTANA_DIAS} días del mismo endpoint; la brecha es caja menos crítico, o sea lo que faltaría aun postergando todo lo negociable.`,
+    definicion: `Crítico es lo que no se posterga ·impuestos, sueldos y deuda financiera· y vence dentro de ${VENTANA_DIAS} días o ya venció. Se compara con la caja proyectada a ${VENTANA_DIAS} días del mismo endpoint; la brecha es caja menos crítico, o sea lo que faltaría aun postergando todo lo negociable.`,
     incluye: ["Impuestos, sueldos, cotizaciones y cuotas de deuda con vencimiento en la ventana"],
     excluye: [
       "Proveedores y arriendos: son negociables por tipo de pago (el backend no manda postergabilidad por documento)",

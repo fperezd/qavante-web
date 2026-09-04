@@ -39,7 +39,7 @@ export const PorUrgencia: Story = {
       {
         id: "2",
         fecha: "13-07",
-        acreedor: "Previred — cotizaciones",
+        acreedor: "Previred · cotizaciones",
         detalle: "Leyes sociales · junio",
         monto: 3_850_000,
         postergabilidad: "no_postergable",
@@ -58,7 +58,7 @@ export const PorUrgencia: Story = {
       {
         id: "4",
         fecha: "20-07",
-        acreedor: "F29 — IVA a pagar",
+        acreedor: "F29 · IVA a pagar",
         detalle: "Impuesto SII · junio",
         monto: 4_200_000,
         postergabilidad: "no_postergable",
@@ -122,7 +122,7 @@ export const SinDestino: Story = {
       {
         id: "1",
         fecha: "20-07",
-        acreedor: "F29 — IVA a pagar",
+        acreedor: "F29 · IVA a pagar",
         detalle: "Impuesto SII",
         monto: 4_200_000,
         postergabilidad: "no_postergable",
@@ -131,7 +131,7 @@ export const SinDestino: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("F29 — IVA a pagar")).toBeInTheDocument();
+    await expect(canvas.getByText("F29 · IVA a pagar")).toBeInTheDocument();
     await expect(canvas.queryByRole("button")).not.toBeInTheDocument();
   },
 };

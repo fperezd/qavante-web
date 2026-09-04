@@ -84,7 +84,7 @@ export const Urgencia: Story = {
     monto: 12_400_000,
     montoLabel: "vencido",
     montoTono: "danger",
-    bajada: <>De $30.182.477 que te debe. Es tu cobranza vencida más grande — pártele por acá.</>,
+    bajada: <>De $30.182.477 que te debe. Es tu cobranza vencida más grande · pártele por acá.</>,
     infoHint: "Priorizamos por mora: primero el que más te debe vencido.",
     acciones,
   },

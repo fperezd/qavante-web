@@ -44,7 +44,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Editor del árbol de valores de una dimensión (drawer). Crear/editar/mover/activar valores. (Endpoint aún api-key-only — pantalla no activable hasta que el backend extienda ADR-0027.)",
+          "Editor del árbol de valores de una dimensión (drawer). Crear/editar/mover/activar valores. (Endpoint aún api-key-only · pantalla no activable hasta que el backend extienda ADR-0027.)",
       },
     },
     msw: { handlers: [OK] },

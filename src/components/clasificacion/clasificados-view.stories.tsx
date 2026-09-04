@@ -250,7 +250,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Vista `/caja/clasificados` — auditoría de movimientos clasificados (Sprint C2). Filtros locales (categoría / dirección / período / glosa) + paginación + totales (ingresos/egresos/neto). Botón 'Reclasificar' por fila abre el ClassificationDrawer prepoblado (PR-Mov2 #176).",
+          "Vista `/caja/clasificados` · auditoría de movimientos clasificados (Sprint C2). Filtros locales (categoría / dirección / período / glosa) + paginación + totales (ingresos/egresos/neto). Botón 'Reclasificar' por fila abre el ClassificationDrawer prepoblado (PR-Mov2 #176).",
       },
     },
     msw: {
@@ -268,7 +268,7 @@ export const ConMovimientos: Story = {
     docs: {
       description: {
         story:
-          "Estado típico — 4 movimientos clasificados con cobros, sueldos, servicios y pago F29. Tabla con totales al pie + botón Reclasificar por fila.",
+          "Estado típico · 4 movimientos clasificados con cobros, sueldos, servicios y pago F29. Tabla con totales al pie + botón Reclasificar por fila.",
       },
     },
   },
@@ -280,7 +280,7 @@ export const SinMovimientos: Story = {
     docs: {
       description: {
         story:
-          "Empty state — el período seleccionado no tiene movimientos clasificados. Mensaje invitando a probar otro período.",
+          "Empty state · el período seleccionado no tiene movimientos clasificados. Mensaje invitando a probar otro período.",
       },
     },
     msw: {

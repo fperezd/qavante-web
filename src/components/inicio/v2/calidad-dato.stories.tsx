@@ -23,8 +23,8 @@ export const Default: Story = {
   args: {
     texto: (
       <>
-        Hay <b>195 movimientos</b> sin clasificar por <b>hasta $3,4M</b> — pueden cambiar la
-        caja y el resultado estimado.
+        Hay <b>195 movimientos</b> sin clasificar por <b>hasta $3,4M</b> · pueden cambiar la caja y
+        el resultado estimado.
       </>
     ),
     ctaLabel: "Clasificar →",

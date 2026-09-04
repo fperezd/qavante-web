@@ -29,7 +29,7 @@ export const Inicial: Story = {
     docs: {
       description: {
         story:
-          "CTA inicial — el banner ofrece pedir una sugerencia. Click en 'Ver sugerencia' llama al endpoint suggest-rule (en storybook sin MSW, queda en estado de error inline pero el banner sigue funcionando).",
+          "CTA inicial · el banner ofrece pedir una sugerencia. Click en 'Ver sugerencia' llama al endpoint suggest-rule (en storybook sin MSW, queda en estado de error inline pero el banner sigue funcionando).",
       },
     },
   },
@@ -41,7 +41,7 @@ export const SinBotonDismiss: Story = {
     docs: {
       description: {
         story:
-          "Variante sin `onDismiss` — el botón 'No, gracias' no se renderiza. Útil si el contenedor no quiere ofrecer ocultar permanentemente el banner.",
+          "Variante sin `onDismiss` · el botón 'No, gracias' no se renderiza. Útil si el contenedor no quiere ofrecer ocultar permanentemente el banner.",
       },
     },
   },

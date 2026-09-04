@@ -65,7 +65,7 @@ export const LEY_9_TEXTO_V06 = "Las obligaciones tributarias nunca se postergan 
 
 /* ── El motivo del recorte R2 (constante, no un cálculo — ver cabecera) ──────────────────────── */
 export const F29_ESTIMADO_MOTIVO =
-  "La estimación del F-29 del mes en curso (IVA débito menos crédito, desde tus DTEs) es un cálculo nuevo de qavante-api que primero debe contrastarse contra un F-29 real declarado — antes de eso no lo calculamos ni lo mostramos: un número plausible sin ese contraste sería peor que no tener número.";
+  "La estimación del F-29 del mes en curso (IVA débito menos crédito, desde tus DTEs) es un cálculo nuevo de qavante-api que primero debe contrastarse contra un F-29 real declarado · antes de eso no lo calculamos ni lo mostramos: un número plausible sin ese contraste sería peor que no tener número.";
 
 export function f29EstimadoHuecoV06(): { reason: string } {
   return { reason: F29_ESTIMADO_MOTIVO };
@@ -213,7 +213,7 @@ export function filaF29PostergadoDeMes(m: F29EstadoMes, hoy: Date): FilaCalendar
     key: `f29-postergado-${m.periodo}`,
     concepto: "f29_postergado",
     label: `IVA postergado · ${formatPeriodLabel(m.periodo)}`,
-    sub: "Postergación oficial del SII (código 755) — Qavante no la ofrece ni la mueve, sólo la muestra.",
+    sub: "Postergación oficial del SII (código 755) · Qavante no la ofrece ni la mueve, sólo la muestra.",
     estado: "iva_postergado",
     vencimiento,
     vencimientoLabel: venceLabelDe(vencimiento, hoy),

@@ -41,9 +41,9 @@ export const Crisis: Story = {
   args: {
     frase: (
       <>
-        La caja hoy es <b>−$1,5M</b> y tocará un mínimo de <b>−$5,7M</b> en los próximos 14
-        días. Para cubrir los pagos críticos, la empresa debe asegurar <b>$9,96M</b> antes de
-        sus vencimientos.
+        La caja hoy es <b>−$1,5M</b> y tocará un mínimo de <b>−$5,7M</b> en los próximos 14 días.
+        Para cubrir los pagos críticos, la empresa debe asegurar <b>$9,96M</b> antes de sus
+        vencimientos.
       </>
     ),
     termometros: [
@@ -139,8 +139,8 @@ export const Crisis: Story = {
         totalPorCobrar={205_400_000}
         vencido={0}
         segmentos={[
-          { label: "Alta prob. — pagan a tiempo", monto: 7_800_000, banda: "high" },
-          { label: "Probable — pago irregular", monto: 4_300_000, banda: "probable" },
+          { label: "Alta prob. · pagan a tiempo", monto: 7_800_000, banda: "high" },
+          { label: "Probable · pago irregular", monto: 4_300_000, banda: "probable" },
           { label: "Sin patrón de pago claro", monto: 6_100_000, banda: "unknown" },
         ]}
       />,
@@ -150,7 +150,13 @@ export const Crisis: Story = {
         totalEnRojo
         subtitulo="Vencidos o exigibles durante los próximos 14 días"
         pagos={[
-          { fecha: "Venció 30-06", nombre: "Remuneraciones", monto: 8_600_000, tipo: "no_postergable", vencido: true },
+          {
+            fecha: "Venció 30-06",
+            nombre: "Remuneraciones",
+            monto: 8_600_000,
+            tipo: "no_postergable",
+            vencido: true,
+          },
           { fecha: "Vence día 20", nombre: "IVA / F29", monto: 4_214_448, tipo: "no_postergable" },
           { fecha: "Próx. 14 días", nombre: "Proveedores", monto: 3_800_000, tipo: "negociable" },
         ]}
@@ -174,8 +180,8 @@ export const Crisis: Story = {
       <CalidadDato
         texto={
           <>
-            Hay <b>195 movimientos</b> sin clasificar por <b>hasta $3,4M</b> — pueden cambiar
-            la caja y el resultado estimado.
+            Hay <b>195 movimientos</b> sin clasificar por <b>hasta $3,4M</b> · pueden cambiar la
+            caja y el resultado estimado.
           </>
         }
         ctaLabel="Clasificar →"
@@ -189,8 +195,8 @@ export const Sana: Story = {
   args: {
     frase: (
       <>
-        La caja cubre <b>3,2 meses</b> de operación y el resultado crece <b>+12%</b>. Sin pagos
-        en riesgo: es momento de mirar rentabilidad y crecimiento.
+        La caja cubre <b>3,2 meses</b> de operación y el resultado crece <b>+12%</b>. Sin pagos en
+        riesgo: es momento de mirar rentabilidad y crecimiento.
       </>
     ),
     termometros: [
@@ -250,7 +256,8 @@ export const Sana: Story = {
           {
             rank: 2,
             titulo: "Excedente estimado sobre el colchón operativo",
-            detalle: "$22,0M — evaluar alternativas: reserva · prepagar deuda · crecimiento · invertir",
+            detalle:
+              "$22,0M · evaluar alternativas: reserva · prepagar deuda · crecimiento · invertir",
             plazo: "Trimestre",
             cta: "Ver alternativas →",
           },
@@ -296,7 +303,7 @@ export const Sana: Story = {
         totalPorCobrar={180_000_000}
         vencido={0}
         segmentos={[
-          { label: "Alta prob. — pagan a tiempo", monto: 34_000_000, banda: "high" },
+          { label: "Alta prob. · pagan a tiempo", monto: 34_000_000, banda: "high" },
           { label: "Probable", monto: 8_000_000, banda: "probable" },
           { label: "Sin patrón claro", monto: 3_000_000, banda: "unknown" },
         ]}
@@ -320,8 +327,8 @@ export const ControlDeGestion: Story = {
   args: {
     frase: (
       <>
-        Vista de <b>control de gestión</b> — rentabilidad y márgenes primero. La continuidad
-        queda fijada abajo (nunca se oculta).
+        Vista de <b>control de gestión</b> · rentabilidad y márgenes primero. La continuidad queda
+        fijada abajo (nunca se oculta).
       </>
     ),
     termometros: [
@@ -377,13 +384,14 @@ export const ControlDeGestion: Story = {
           {
             rank: 3,
             titulo: "El ciclo de caja se alargó a 42 días",
-            detalle: "Capital de trabajo inmovilizado: ~$4,1M (cobra a 42d, paga a 28d — conciliación)",
+            detalle:
+              "Capital de trabajo inmovilizado: ~$4,1M (cobra a 42d, paga a 28d · conciliación)",
             plazo: "Seguimiento",
             cta: "Ver cobranza →",
           },
         ]}
         pin={{
-          texto: "⚠ Continuidad fijada — la empresa aún debe asegurar $9,96M a 14 días",
+          texto: "⚠ Continuidad fijada · la empresa aún debe asegurar $9,96M a 14 días",
           cta: "Ver plan →",
         }}
       />

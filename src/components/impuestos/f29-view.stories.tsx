@@ -149,7 +149,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Inicial: Story = {
-  name: "Inicial — form vacío + health OK",
+  name: "Inicial · form vacío + health OK",
   parameters: {
     docs: {
       description: {
@@ -175,7 +175,7 @@ export const SinCredencialSii: Story = {
 };
 
 export const ConsultaOkInteractivo: Story = {
-  name: "Consulta OK (post-submit — interactivo)",
+  name: "Consulta OK (post-submit · interactivo)",
   parameters: {
     docs: {
       description: {
@@ -188,7 +188,7 @@ export const ConsultaOkInteractivo: Story = {
 };
 
 export const FolioNoEncontradoInteractivo: Story = {
-  name: "Folio no encontrado (post-submit — interactivo)",
+  name: "Folio no encontrado (post-submit · interactivo)",
   parameters: {
     docs: {
       description: {
@@ -201,7 +201,7 @@ export const FolioNoEncontradoInteractivo: Story = {
 };
 
 export const SiiNoRespondeInteractivo: Story = {
-  name: "SII no responde 502 (post-submit — interactivo)",
+  name: "SII no responde 502 (post-submit · interactivo)",
   parameters: {
     docs: {
       description: {
@@ -214,7 +214,7 @@ export const SiiNoRespondeInteractivo: Story = {
 };
 
 export const FaltaClaveTributariaInteractivo: Story = {
-  name: "412 sin credencial (post-submit — interactivo)",
+  name: "412 sin credencial (post-submit · interactivo)",
   parameters: {
     docs: {
       description: {
@@ -227,12 +227,12 @@ export const FaltaClaveTributariaInteractivo: Story = {
 };
 
 export const ErrorDeNegocioInteractivo: Story = {
-  name: "status='error' (post-submit — interactivo)",
+  name: "status='error' (post-submit · interactivo)",
   parameters: {
     docs: {
       description: {
         story:
-          "Tipear cualquier folio → HTTP 200 con `status='error'` (el SII respondió pero rechazó la consulta). Tarjeta de error roja explícita, en vez de caer a la tarjeta de éxito con los montos en '—'.",
+          "Tipear cualquier folio → HTTP 200 con `status='error'` (el SII respondió pero rechazó la consulta). Tarjeta de error roja explícita, en vez de caer a la tarjeta de éxito con los montos en '·'.",
       },
     },
     msw: { handlers: [SII_HEALTH_OK, F29_ERROR] },

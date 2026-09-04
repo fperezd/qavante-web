@@ -81,7 +81,7 @@ export const ConWarnings: Story = {
   args: {
     data: {
       ...sampleWeek,
-      warnings: ["Algunos buckets tienen rate de tipo de cambio interpolado — verificar con BCCH."],
+      warnings: ["Algunos buckets tienen rate de tipo de cambio interpolado · verificar con BCCH."],
     },
   },
 };

@@ -304,7 +304,7 @@ function TabResultado({
           <span className="font-rediseno-mono text-[11px]">
             /api/management/operational-result/breakdown
           </span>
-          ) — una diferencia de <b>{formatClp(chequeo.diferencia ?? 0)}</b>. No elegimos uno por ti:
+          ) · una diferencia de <b>{formatClp(chequeo.diferencia ?? 0)}</b>. No elegimos uno por ti:
           hasta que cuadren, trata las dos cifras como estimaciones.
         </div>
       )}
@@ -324,7 +324,7 @@ function TabResultado({
           {insight.margenPct != null && <> (margen {formatPct(insight.margenPct)})</>}
           {insight.deltaVsAnterior != null && (
             <>
-              {" — "}
+              {" · "}
               {formatClp(Math.abs(insight.deltaVsAnterior))}{" "}
               {insight.deltaVsAnterior >= 0 ? "mejor" : "bajo"} el mes anterior
             </>
@@ -488,7 +488,7 @@ function Pivote({
                   ))}
                   <td className={cn(TD, MONTO)}>
                     {f.variacionPct == null ? (
-                      <span className="text-rediseno-tinta-3-light">—</span>
+                      <span className="text-rediseno-tinta-3-light">·</span>
                     ) : (
                       formatPct(f.variacionPct, { signed: true })
                     )}
@@ -533,7 +533,7 @@ function Pivote({
                           ))}
                           <td className={cn(TD, MONTO)}>
                             {h.variacionPct == null ? (
-                              <span className="text-rediseno-tinta-3-light">—</span>
+                              <span className="text-rediseno-tinta-3-light">·</span>
                             ) : (
                               formatPct(h.variacionPct, { signed: true })
                             )}
@@ -668,7 +668,7 @@ function FilasDocumentos({
             </td>
           ))}
           <td className={cn(TD, MONTO, "text-[12.5px] text-rediseno-tinta-3-light")}>
-            {d.origen ?? "—"}
+            {d.origen ?? "·"}
           </td>
         </tr>
       ))}
@@ -871,7 +871,7 @@ function TabMargenes({ mes, ciclo, breakdown, motivos, onReintentar }: GestionV0
               {ciclos[0]?.dias != null ? (
                 <>
                   <b>Cobras en {formatDays(ciclos[0].dias)}.</b> El ciclo completo necesita además
-                  cuánto tardas en pagar — y ese lado todavía no se mide con precisión: el dato de
+                  cuánto tardas en pagar · y ese lado todavía no se mide con precisión: el dato de
                   hoy compara universos distintos (por eso no lo publicamos como si fuera
                   comparable).
                 </>
@@ -913,7 +913,7 @@ function TabMargenes({ mes, ciclo, breakdown, motivos, onReintentar }: GestionV0
               .
             </Banner>
             <p className="text-[12.5px] text-rediseno-tinta-3">
-              El piso es empírico — lo que gastaste el último mes CERRADO —, no una proyección ni un
+              El piso es empírico · lo que gastaste el último mes CERRADO ·, no una proyección ni un
               margen invertido. El mes en curso no se usa: está a medio llegar.
             </p>
           </>
@@ -1097,7 +1097,7 @@ function TabComparativo({
                   {f.anteriorMismaAltura == null ? "s/d" : formatClp(f.anteriorMismaAltura)}
                 </td>
                 <td className={cn(TD, MONTO, "hidden text-rediseno-tinta-3-light sm:table-cell")}>
-                  {f.anteriorCompleto == null ? "—" : formatClp(f.anteriorCompleto)}
+                  {f.anteriorCompleto == null ? "·" : formatClp(f.anteriorCompleto)}
                 </td>
                 <td
                   className={cn(
@@ -1108,7 +1108,7 @@ function TabComparativo({
                       : "text-rediseno-tinta",
                   )}
                 >
-                  {f.deltaPct == null ? "—" : formatPct(f.deltaPct, { signed: true })}
+                  {f.deltaPct == null ? "·" : formatPct(f.deltaPct, { signed: true })}
                 </td>
               </tr>
             ))}
@@ -1313,7 +1313,7 @@ function Tab360(props: GestionV08ViewProps) {
                 {flujo}).
               </b>{" "}
               {perfil.mejorMes != null
-                ? `Su mejor mes es ${MESES_CORTOS[perfil.mejorMes - 1]} — concentra ahí tu negociación.`
+                ? `Su mejor mes es ${MESES_CORTOS[perfil.mejorMes - 1]} · concentra ahí tu negociación.`
                 : "Vale la pena tener una alternativa."}
             </Banner>
           )}

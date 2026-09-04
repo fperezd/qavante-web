@@ -155,7 +155,7 @@ export function ImpuestosV06View({
       {/* Ley 9 — texto fijo literal del issue #73. */}
       <p className="text-[12.5px] leading-relaxed text-rediseno-tinta-3">
         <b className="font-semibold text-rediseno-tinta-2">{LEY_9_TEXTO_V06}.</b> No existe un botón
-        para postergar un impuesto, una cotización ni un PPM en esta pantalla — ni siquiera la fila
+        para postergar un impuesto, una cotización ni un PPM en esta pantalla · ni siquiera la fila
         de IVA postergado, que sólo informa una postergación que ya hizo el SII.
       </p>
 
@@ -169,10 +169,10 @@ function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
   return (
     <p className="pt-1 text-center text-[12px] text-rediseno-tinta-3-light">
       Todavía no: la estimación del F-29 del mes en curso (necesita contrastarse contra un F-29 real
-      antes de publicarse — R2 en qavante-api) y el vínculo &quot;conciliado con el cargo
+      antes de publicarse · R2 en qavante-api) y el vínculo &quot;conciliado con el cargo
       bancario&quot; de cada F-29 declarado (el contrato no liga hoy un F-29 a un movimiento de
       banco específico; el comprobante de cada fila enlaza al F-29 real del SII)
-      {issueSucesor ? ` — issue sucesor ${issueSucesor}` : ""}.
+      {issueSucesor ? ` · issue sucesor ${issueSucesor}` : ""}.
     </p>
   );
 }

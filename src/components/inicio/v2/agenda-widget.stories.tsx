@@ -33,7 +33,7 @@ const GRUPOS: GrupoAgenda[] = [
       {
         fecha: new Date(2026, 7, 20),
         fechaLabel: "20-ago",
-        label: "IVA — F29 de julio",
+        label: "IVA · F29 de julio",
         monto: -210000,
         tipo: "impuesto",
       },

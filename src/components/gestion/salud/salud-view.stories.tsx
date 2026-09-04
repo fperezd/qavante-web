@@ -16,7 +16,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Prototipo de la pantalla Salud (ADR-0064). Presentacional puro: PULSO + Health Score, matriz PULSO×QHS, drivers en lenguaje de dueño de pyme, semáforo de decisiones y confianza del dato. Reutiliza PulsoRing y las primitivas Qavante. No cableado a rutas — cero impacto en prod.",
+          "Prototipo de la pantalla Salud (ADR-0064). Presentacional puro: PULSO + Health Score, matriz PULSO×QHS, drivers en lenguaje de dueño de pyme, semáforo de decisiones y confianza del dato. Reutiliza PulsoRing y las primitivas Qavante. No cableado a rutas · cero impacto en prod.",
       },
     },
   },

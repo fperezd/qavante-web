@@ -71,7 +71,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Galería de plantillas por rubro (§13/§14). El container resuelve loading/error/empty/galería desde `GET /api/management/industry-templates`. El preview (suggest_only) y aplicar (add_missing) de cada card son por interacción — nunca destructivos.",
+          "Galería de plantillas por rubro (§13/§14). El container resuelve loading/error/empty/galería desde `GET /api/management/industry-templates`. El preview (suggest_only) y aplicar (add_missing) de cada card son por interacción · nunca destructivos.",
       },
     },
     msw: { handlers: [OK] },

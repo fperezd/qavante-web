@@ -32,7 +32,7 @@ export const Default: Story = {
     docs: {
       description: {
         story:
-          "Estado por defecto — el período arranca con el mes pasado (abril 2026 si la fecha actual es 24-05-2026).",
+          "Estado por defecto · el período arranca con el mes pasado (abril 2026 si la fecha actual es 24-05-2026).",
       },
     },
   },
@@ -58,7 +58,7 @@ export const Loading: Story = {
     docs: {
       description: {
         story:
-          "Estado loading externo — el botón muestra spinner. El caller pasa `loading={query.isFetching}` cuando el query corre.",
+          "Estado loading externo · el botón muestra spinner. El caller pasa `loading={query.isFetching}` cuando el query corre.",
       },
     },
   },

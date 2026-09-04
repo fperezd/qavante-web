@@ -14,7 +14,13 @@ const meta = {
   title: "Propuestas / Pagar / Pantalla completa",
   component: PagarV2View,
   parameters: { layout: "fullscreen" },
-  decorators: [(Story) => <div className="mx-auto max-w-[1120px] p-6"><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div className="mx-auto max-w-[1120px] p-6">
+        <Story />
+      </div>
+    ),
+  ],
 } satisfies Meta<typeof PagarV2View>;
 
 export default meta;
@@ -47,16 +53,57 @@ const cardVencimientos = (
   <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
       <h2 className="text-sm font-bold text-neutral-dark">Por vencer y vencidos</h2>
-      <span className="rounded-full bg-brand-primary/10 px-2.5 py-0.5 text-[11.5px] font-bold text-brand-primary">14 pagos</span>
-      <span className="rounded-full bg-danger-500/10 px-2.5 py-0.5 text-[11.5px] font-bold text-danger-500">1 vencido</span>
+      <span className="rounded-full bg-brand-primary/10 px-2.5 py-0.5 text-[11.5px] font-bold text-brand-primary">
+        14 pagos
+      </span>
+      <span className="rounded-full bg-danger-500/10 px-2.5 py-0.5 text-[11.5px] font-bold text-danger-500">
+        1 vencido
+      </span>
     </div>
     <VencimientosTimeline
       items={[
-        { id: "1", vencido: true, fecha: "10-07", acreedor: "COMERCIAL KAUFMANN S.A.", detalle: "Proveedor · factura 8842", monto: 2_100_000, postergabilidad: "negociable" },
-        { id: "2", fecha: "13-07", acreedor: "Previred — cotizaciones", detalle: "Leyes sociales · junio", monto: 3_850_000, postergabilidad: "no_postergable" },
-        { id: "3", fecha: "15-07", acreedor: "Google Cloud", detalle: "Servicio · compra extranjera", monto: 1_190_000, montoOrigen: "US$1.240", postergabilidad: "negociable" },
-        { id: "4", fecha: "20-07", acreedor: "F29 — IVA a pagar", detalle: "Impuesto SII · junio", monto: 4_200_000, postergabilidad: "no_postergable" },
-        { id: "5", fecha: "25-07", acreedor: "DIVEIMPORT S.A.", detalle: "Proveedor · factura 1043", monto: 3_400_000, postergabilidad: "cubierto" },
+        {
+          id: "1",
+          vencido: true,
+          fecha: "10-07",
+          acreedor: "COMERCIAL KAUFMANN S.A.",
+          detalle: "Proveedor · factura 8842",
+          monto: 2_100_000,
+          postergabilidad: "negociable",
+        },
+        {
+          id: "2",
+          fecha: "13-07",
+          acreedor: "Previred · cotizaciones",
+          detalle: "Leyes sociales · junio",
+          monto: 3_850_000,
+          postergabilidad: "no_postergable",
+        },
+        {
+          id: "3",
+          fecha: "15-07",
+          acreedor: "Google Cloud",
+          detalle: "Servicio · compra extranjera",
+          monto: 1_190_000,
+          montoOrigen: "US$1.240",
+          postergabilidad: "negociable",
+        },
+        {
+          id: "4",
+          fecha: "20-07",
+          acreedor: "F29 · IVA a pagar",
+          detalle: "Impuesto SII · junio",
+          monto: 4_200_000,
+          postergabilidad: "no_postergable",
+        },
+        {
+          id: "5",
+          fecha: "25-07",
+          acreedor: "DIVEIMPORT S.A.",
+          detalle: "Proveedor · factura 1043",
+          monto: 3_400_000,
+          postergabilidad: "cubierto",
+        },
       ]}
     />
   </div>
@@ -66,8 +113,8 @@ const cardCompromisos = (
   <ConcentracionClientes
     titulo="Mayores compromisos"
     items={[
-      { nombre: "Sueldos — empleados", rut: "", monto: 8_900_000, pct: 26 },
-      { nombre: "SII — F29 / IVA", rut: "", monto: 4_200_000, pct: 12 },
+      { nombre: "Sueldos · empleados", rut: "", monto: 8_900_000, pct: 26 },
+      { nombre: "SII · F29 / IVA", rut: "", monto: 4_200_000, pct: 12 },
       { nombre: "Previred", rut: "", monto: 3_850_000, pct: 11 },
       { nombre: "DIVEIMPORT S.A.", rut: "76.008.959-1", monto: 3_400_000, pct: 10 },
       { nombre: "Leasing furgón", rut: "", monto: 2_400_000, pct: 7 },
@@ -96,15 +143,43 @@ export const Completa: Story = {
         subtitulo="5 vencimientos esta semana · 1 vencido"
       />
     ),
-    brecha: <BrechaCaja cajaProyectada={9_400_000} pagosCriticos={18_100_000} dias={14} postergable={5_500_000} />,
+    brecha: (
+      <BrechaCaja
+        cajaProyectada={9_400_000}
+        pagosCriticos={18_100_000}
+        dias={14}
+        postergable={5_500_000}
+      />
+    ),
     secundarios,
     fechasClave: (
       <FechasClaveMes
         total={16_950_000}
         items={[
-          { id: "imp", label: "Imposiciones · Previred", monto: 3_850_000, vence: "13-jul", enDias: 1, icono: "imposiciones" },
-          { id: "iva", label: "Impuestos · F29 (IVA)", monto: 4_200_000, vence: "20-jul", enDias: 6, icono: "impuestos" },
-          { id: "sue", label: "Sueldos · 6 empleados", monto: 8_900_000, vence: "30-jul", enDias: 16, icono: "sueldos" },
+          {
+            id: "imp",
+            label: "Imposiciones · Previred",
+            monto: 3_850_000,
+            vence: "13-jul",
+            enDias: 1,
+            icono: "imposiciones",
+          },
+          {
+            id: "iva",
+            label: "Impuestos · F29 (IVA)",
+            monto: 4_200_000,
+            vence: "20-jul",
+            enDias: 6,
+            icono: "impuestos",
+          },
+          {
+            id: "sue",
+            label: "Sueldos · 6 empleados",
+            monto: 8_900_000,
+            vence: "30-jul",
+            enDias: 16,
+            icono: "sueldos",
+          },
         ]}
       />
     ),
@@ -113,7 +188,9 @@ export const Completa: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("La empresa debe pagar")).toBeInTheDocument();
-    await waitFor(() => expect(canvas.getByText("$34.525.000")).toBeInTheDocument(), { timeout: 3000 });
+    await waitFor(() => expect(canvas.getByText("$34.525.000")).toBeInTheDocument(), {
+      timeout: 3000,
+    });
     // Brecha + las 3 del mes.
     await expect(canvas.getByText(/es postergable/)).toBeInTheDocument();
     await expect(canvas.getByText("Imposiciones · Previred")).toBeInTheDocument();

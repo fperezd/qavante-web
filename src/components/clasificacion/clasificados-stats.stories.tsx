@@ -236,7 +236,7 @@ export const ConDatosCompletos: Story = {
     docs: {
       description: {
         story:
-          "Estado típico — 6 movimientos clasificados con mix ingresos/egresos. Cards accionables tienen hover/focus visible. Neto positivo (verde): ingresos > egresos.",
+          "Estado típico · 6 movimientos clasificados con mix ingresos/egresos. Cards accionables tienen hover/focus visible. Neto positivo (verde): ingresos > egresos.",
       },
     },
   },
@@ -273,7 +273,7 @@ export const NetoNegativo: Story = {
     docs: {
       description: {
         story:
-          "Net negativo — egresos exceden ingresos. La card 'Neto clasificado' adopta tono warning (rojo).",
+          "Net negativo · egresos exceden ingresos. La card 'Neto clasificado' adopta tono warning (rojo).",
       },
     },
   },
@@ -289,7 +289,7 @@ export const SinDatos: Story = {
     docs: {
       description: {
         story:
-          "Empty state — no hay movimientos clasificados que cumplan los filtros actuales. Mensaje neutro en card bordered.",
+          "Empty state · no hay movimientos clasificados que cumplan los filtros actuales. Mensaje neutro en card bordered.",
       },
     },
   },
@@ -306,7 +306,7 @@ export const Loading: Story = {
     docs: {
       description: {
         story:
-          "Loading inicial — 8 cards en skeleton pulse mientras llega la respuesta. Sin texto 'Cargando...'; `aria-busy` para SR.",
+          "Loading inicial · 8 cards en skeleton pulse mientras llega la respuesta. Sin texto 'Cargando...'; `aria-busy` para SR.",
       },
     },
   },
@@ -326,7 +326,7 @@ export const AlcanceParcial: Story = {
     docs: {
       description: {
         story:
-          "Aviso de alcance parcial — el backend reporta 800 movimientos en el filtro pero solo se descargaron los visibles. Las stats se calculan sobre lo descargado, con banner warning.",
+          "Aviso de alcance parcial · el backend reporta 800 movimientos en el filtro pero solo se descargaron los visibles. Las stats se calculan sobre lo descargado, con banner warning.",
       },
     },
   },
@@ -346,7 +346,7 @@ export const ConFiltroIngresosActivo: Story = {
     docs: {
       description: {
         story:
-          "Estado tras clic en 'Ingresos': card 'Ingresos' con borde brand + sublabel 'Filtro activo · clic para quitar'. Egresos queda en $0 porque los items se filtraron a credit — el sublabel comunica que es por el filtro, no un bug.",
+          "Estado tras clic en 'Ingresos': card 'Ingresos' con borde brand + sublabel 'Filtro activo · clic para quitar'. Egresos queda en $0 porque los items se filtraron a credit · el sublabel comunica que es por el filtro, no un bug.",
       },
     },
   },

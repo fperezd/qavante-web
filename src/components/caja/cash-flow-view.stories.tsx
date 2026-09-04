@@ -216,7 +216,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Proyección de caja (Sprint C3 MVP, `/caja/proyeccion`). El container resuelve loading/error/empty/tabla desde `GET /api/treasury/reports/cash-flow`. Filtros por interacción. No inventa lógica financiera — muestra lo que devuelve el endpoint (ADR-0013).",
+          "Proyección de caja (Sprint C3 MVP, `/caja/proyeccion`). El container resuelve loading/error/empty/tabla desde `GET /api/treasury/reports/cash-flow`. Filtros por interacción. No inventa lógica financiera · muestra lo que devuelve el endpoint (ADR-0013).",
       },
     },
     msw: { handlers: [OK] },

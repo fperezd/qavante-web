@@ -242,7 +242,7 @@ export function PagarV05View({
             <b className="text-rediseno-tinta">
               {formatClp(banner.monto)} de lo que vence en {VENTANA_DIAS} días es negociable
             </b>{" "}
-            (proveedores y arriendos, por tipo de pago — el mismo número que en Caja). La decisión
+            (proveedores y arriendos, por tipo de pago · el mismo número que en Caja). La decisión
             de qué postergar vive en Hoy; acá no hay ejecución masiva.
           </span>
           <Link

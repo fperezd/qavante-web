@@ -43,7 +43,7 @@ export const ErrorGenerico: Story = {
     docs: {
       description: {
         story:
-          "Error genérico (no ApiError) → cae al fallback 'No pudimos cargar {what}.' — copy seguro y entendible para usuarios PYME.",
+          "Error genérico (no ApiError) → cae al fallback 'No pudimos cargar {what}.' · copy seguro y entendible para usuarios PYME.",
       },
     },
   },

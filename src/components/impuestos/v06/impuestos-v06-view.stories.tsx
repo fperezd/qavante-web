@@ -90,7 +90,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "V06 · Impuestos (ESPECIFICACION §V06, issue #73): tríada (Próximo vencimiento / F-29 del mes en curso / Deudas TGR) + calendario tributario sobre `/api/sii/f29/estado`, `/api/tgr/*` y `/api/buk/payroll` — las MISMAS fuentes que ya publican Pagar → Impuestos → F29/TGR, Pagar → Previred y V16 (Ley 1). Alcance recortado a propósito: la estimación del F-29 del mes en curso es R2 `[money]` (pendiente de contrastarse contra un F-29 real) y la conciliación bancaria de un F-29 declarado no existe en el contrato — ambos huecos declarados EN pantalla. Flag `impuestosV06`, apagado por defecto.",
+          "V06 · Impuestos (ESPECIFICACION §V06, issue #73): tríada (Próximo vencimiento / F-29 del mes en curso / Deudas TGR) + calendario tributario sobre `/api/sii/f29/estado`, `/api/tgr/*` y `/api/buk/payroll` · las MISMAS fuentes que ya publican Pagar → Impuestos → F29/TGR, Pagar → Previred y V16 (Ley 1). Alcance recortado a propósito: la estimación del F-29 del mes en curso es R2 `[money]` (pendiente de contrastarse contra un F-29 real) y la conciliación bancaria de un F-29 declarado no existe en el contrato · ambos huecos declarados EN pantalla. Flag `impuestosV06`, apagado por defecto.",
       },
     },
   },
@@ -105,7 +105,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — tríada + calendario, un solo rojo (F-29 vencido)",
+  name: "Normal · tríada + calendario, un solo rojo (F-29 vencido)",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Próximo vencimiento")).toBeInTheDocument();
@@ -120,7 +120,7 @@ export const Normal: Story = {
 };
 
 export const SinVencidos: Story = {
-  name: "Sin ningún F-29 vencido — cero rojo (Ley 2, existe pantalla sin rojo)",
+  name: "Sin ningún F-29 vencido · cero rojo (Ley 2, existe pantalla sin rojo)",
   args: {
     filas: filasCalendarioV06({
       mesesF29: mesesF29SinVencidosV06(),
@@ -136,7 +136,7 @@ export const SinVencidos: Story = {
 };
 
 export const TgrSinAutenticar: Story = {
-  name: "TGR en preparación — 'sin dato' honesto, no un cero ni una fila omitida",
+  name: "TGR en preparación · 'sin dato' honesto, no un cero ni una fila omitida",
   args: {
     filas: filasCalendarioV06({
       mesesF29: mesesF29V06(),
@@ -154,7 +154,7 @@ export const TgrSinAutenticar: Story = {
 };
 
 export const Cargando: Story = {
-  name: "Carga — dice qué trae y da ETA, nunca 'Cargando…' mudo",
+  name: "Carga · dice qué trae y da ETA, nunca 'Cargando…' mudo",
   args: { filas: undefined },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -165,7 +165,7 @@ export const Cargando: Story = {
 };
 
 export const ErrorDeConexion: Story = {
-  name: "Error — el SII no respondió, con Reintentar",
+  name: "Error · el SII no respondió, con Reintentar",
   args: { filas: undefined, error: "El SII no respondió. Vuelve a intentar en un momento." },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -180,21 +180,21 @@ export const ErrorDeConexion: Story = {
 /* ────────────────────────── Ley 7 · tres mediciones ────────────────────────── */
 
 export const Ley7Angosto360: Story = {
-  name: "Ley 7 · 360 px — el calendario entra completo, sin scroll horizontal",
+  name: "Ley 7 · 360 px · el calendario entra completo, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 360);
   },
 };
 
 export const Ley7Angosto346: Story = {
-  name: "Ley 7 · 346 px — margen de fuente (= 360, holgura Linux/Windows)",
+  name: "Ley 7 · 346 px · margen de fuente (= 360, holgura Linux/Windows)",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 346);
   },
 };
 
 export const Ley7Angosto320: Story = {
-  name: "Ley 7 · 320 px — ancho de teléfono, sin scroll horizontal",
+  name: "Ley 7 · 320 px · ancho de teléfono, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 320);
   },

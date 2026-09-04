@@ -9,7 +9,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Native `<select>` con styling Qavante. Muestra los 6 roles asignables (Anexo C.4) — `technical_admin` queda fuera porque es rol Tooxs.",
+          "Native `<select>` con styling Qavante. Muestra los 6 roles asignables (Anexo C.4) · `technical_admin` queda fuera porque es rol Tooxs.",
       },
     },
   },
@@ -64,7 +64,7 @@ export const OwnerExcluded: Story = {
     docs: {
       description: {
         story:
-          "Cuando el invitador NO es owner, no puede asignar role=owner — se filtra del listado.",
+          "Cuando el invitador NO es owner, no puede asignar role=owner · se filtra del listado.",
       },
     },
   },

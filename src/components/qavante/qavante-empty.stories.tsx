@@ -10,7 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Empty state canónico — usado en listados vacíos, errores recuperables, módulos en construcción. Soporta `icon` (Lucide), `title`, `description`, `cta`. Anexo B.2 + Anexo F (voice & tone). El default icon es `Inbox`.",
+          "Empty state canónico · usado en listados vacíos, errores recuperables, módulos en construcción. Soporta `icon` (Lucide), `title`, `description`, `cta`. Anexo B.2 + Anexo F (voice & tone). El default icon es `Inbox`.",
       },
     },
   },

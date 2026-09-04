@@ -30,7 +30,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V16 · Remuneraciones (ESPECIFICACION §V16, issue #77): tríada Líquido/Cotizaciones (Previred)/Costo empresa con % de ingresos ⓘ + tabla por persona con estado y link a la liquidación. "Costo empresa" viene del costo_empresa por persona que BUK entrega — nunca líquido + cotizaciones (trampa de doble conteo ADR-0056/ADR-0070). Footer con el texto fijo de la Ley 9, literal. Cero rojo en toda la pantalla (Ley 2): "Pendiente" es progreso, no alarma.',
+          'V16 · Remuneraciones (ESPECIFICACION §V16, issue #77): tríada Líquido/Cotizaciones (Previred)/Costo empresa con % de ingresos ⓘ + tabla por persona con estado y link a la liquidación. "Costo empresa" viene del costo_empresa por persona que BUK entrega · nunca líquido + cotizaciones (trampa de doble conteo ADR-0056/ADR-0070). Footer con el texto fijo de la Ley 9, literal. Cero rojo en toda la pantalla (Ley 2): "Pendiente" es progreso, no alarma.',
       },
     },
   },
@@ -47,7 +47,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — tríada + tabla, 4 de 5 pagados, cero rojo",
+  name: "Normal · tríada + tabla, 4 de 5 pagados, cero rojo",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Líquido de Julio 2026")).toBeInTheDocument();
@@ -71,7 +71,7 @@ export const Normal: Story = {
 };
 
 export const InfoIngresos: Story = {
-  name: "ⓘ % de ingresos — se abre y explica de dónde sale cada número",
+  name: "ⓘ % de ingresos · se abre y explica de dónde sale cada número",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByLabelText("Qué es % de ingresos"));
@@ -86,7 +86,7 @@ export const InfoIngresos: Story = {
 };
 
 export const SinDetallePorPersona: Story = {
-  name: "Sin detalle por persona — Costo empresa 'sin dato', nunca líquido + cotizaciones",
+  name: "Sin detalle por persona · Costo empresa 'sin dato', nunca líquido + cotizaciones",
   args: { detalle: [], movimientos: [] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -99,7 +99,7 @@ export const SinDetallePorPersona: Story = {
 };
 
 export const BancoSinConsultar: Story = {
-  name: "Banco no consultado — TODOS 'No verificado', nunca 'Pendiente' (no se sabe, no se afirma)",
+  name: "Banco no consultado · TODOS 'No verificado', nunca 'Pendiente' (no se sabe, no se afirma)",
   args: { movimientos: null },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -111,7 +111,7 @@ export const BancoSinConsultar: Story = {
 };
 
 export const UnaSolaPersona: Story = {
-  name: "1 persona — concordancia singular (issue #94)",
+  name: "1 persona · concordancia singular (issue #94)",
   args: {
     totales: totales({ empleados_contados: 1, total_liquido: 2_850_000 }),
     detalle: [detalle()[0]!],
@@ -133,7 +133,7 @@ export const UnaSolaPersona: Story = {
 };
 
 export const SinPlanillaDelPeriodo: Story = {
-  name: "Sin planilla del período — estado vacío honesto, cero rojo",
+  name: "Sin planilla del período · estado vacío honesto, cero rojo",
   args: { totales: undefined, detalle: [] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -154,7 +154,7 @@ export const SinPlanillaDelPeriodo: Story = {
  * aunque la ventana del navegador sea ancha (por eso las columnas usan `hideBelowTable`, no
  * `hideBelow`, igual que V04). */
 export const Angosto360: Story = {
-  name: "360 px — persona y líquido no se recortan; Estado y liquidación colapsan (Ley 7 · §5.2)",
+  name: "360 px · persona y líquido no se recortan; Estado y liquidación colapsan (Ley 7 · §5.2)",
   decorators: [
     (Story) => (
       <div data-angosto="360" style={{ width: 360, maxWidth: 360, overflow: "hidden" }}>
@@ -243,7 +243,7 @@ export const Angosto360: Story = {
 };
 
 export const ErrorDeConexion: Story = {
-  name: "Error — el conector no respondió, con acción de reintentar",
+  name: "Error · el conector no respondió, con acción de reintentar",
   args: { totales: undefined, payrollError: "No pudimos conectar con Remuneraciones (BUK)." },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

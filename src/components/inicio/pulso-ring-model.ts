@@ -78,7 +78,7 @@ export function anilloDelPulso(
   const sinDato = status == null || score == null;
   const acotado = Math.max(0, Math.min(100, score ?? 0));
   if (sinDato) {
-    return { sinDato, ...SIN_DATO, numero: "—", score: acotado };
+    return { sinDato, ...SIN_DATO, numero: "·", score: acotado };
   }
   return {
     sinDato,

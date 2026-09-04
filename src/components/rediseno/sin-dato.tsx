@@ -110,7 +110,7 @@ export function SinDato({
           className="absolute top-full left-0 z-40 mt-1.5 block w-[min(19rem,80vw)] rounded-xl border border-rediseno-hairline bg-rediseno-superficie p-3 text-left font-rediseno-sans text-[12.5px] leading-relaxed font-normal tracking-normal text-rediseno-tinta-2 normal-case shadow-lg"
         >
           <span className="block font-semibold text-rediseno-tinta">
-            No lo sabemos todavía — y preferimos decirlo antes que mostrarte un cero.
+            No lo sabemos todavía · y preferimos decirlo antes que mostrarte un cero.
           </span>
           {!estaVacio(reason) && <span className="mt-1 block">{reason}</span>}
           {sinMotivo && (

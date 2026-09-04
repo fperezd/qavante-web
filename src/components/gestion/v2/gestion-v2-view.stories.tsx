@@ -15,7 +15,13 @@ const meta = {
   title: "Propuestas / Gestión / Pantalla completa",
   component: GestionV2View,
   parameters: { layout: "fullscreen" },
-  decorators: [(Story) => <div className="mx-auto max-w-[1120px] p-6"><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div className="mx-auto max-w-[1120px] p-6">
+        <Story />
+      </div>
+    ),
+  ],
 } satisfies Meta<typeof GestionV2View>;
 
 export default meta;
@@ -37,7 +43,9 @@ const margenes = (
     <dl className="mt-2 flex flex-col text-[12.5px]">
       <div className="flex items-baseline justify-between gap-3 py-1.5">
         <dt className="text-neutral-mid">Margen bruto</dt>
-        <dd className="font-bold tabular-nums text-neutral-dark">$26.800.000 · <span className="text-neutral-mid">55,6%</span></dd>
+        <dd className="font-bold tabular-nums text-neutral-dark">
+          $26.800.000 · <span className="text-neutral-mid">55,6%</span>
+        </dd>
       </div>
       <div className="flex items-baseline justify-between gap-3 border-t border-dashed border-border py-1.5">
         <dt className="text-neutral-mid">Margen operacional</dt>
@@ -53,7 +61,9 @@ const margenes = (
 
 const comparativos = (
   <div className="p-5">
-    <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">Cómo viene el ritmo</p>
+    <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+      Cómo viene el ritmo
+    </p>
     <dl className="mt-2.5 flex flex-col gap-2.5 text-[12.5px]">
       <div className="flex items-baseline justify-between gap-3">
         <dt className="text-neutral-mid">vs. mes anterior</dt>
@@ -78,10 +88,34 @@ const MOVIBLES: GestionMovible[] = [
     node: (
       <DriversResultado
         items={[
-          { id: "1", direccion: "improves", concepto: "Ventas", impacto: 3_200_000, explicacion: "Las ventas subieron 8% vs. el mes pasado." },
-          { id: "2", direccion: "worsens", concepto: "Sueldos", impacto: 1_100_000, explicacion: "Sumaste 1 persona al equipo este mes." },
-          { id: "3", direccion: "improves", concepto: "Costo de venta", impacto: 800_000, explicacion: "Mejor margen por mix de productos." },
-          { id: "4", direccion: "worsens", concepto: "Honorarios", impacto: 400_000, explicacion: "Asesoría legal puntual (una vez)." },
+          {
+            id: "1",
+            direccion: "improves",
+            concepto: "Ventas",
+            impacto: 3_200_000,
+            explicacion: "Las ventas subieron 8% vs. el mes pasado.",
+          },
+          {
+            id: "2",
+            direccion: "worsens",
+            concepto: "Sueldos",
+            impacto: 1_100_000,
+            explicacion: "Sumaste 1 persona al equipo este mes.",
+          },
+          {
+            id: "3",
+            direccion: "improves",
+            concepto: "Costo de venta",
+            impacto: 800_000,
+            explicacion: "Mejor margen por mix de productos.",
+          },
+          {
+            id: "4",
+            direccion: "worsens",
+            concepto: "Honorarios",
+            impacto: 400_000,
+            explicacion: "Asesoría legal puntual (una vez).",
+          },
         ]}
       />
     ),
@@ -111,8 +145,9 @@ const pulsoTira = (
     tono="bad"
     insight={
       <>
-        Ganas en resultado, pero tu Pulso está débil: <b className="text-warning-700">la caja está en rojo</b>. El
-        resultado es <b>devengado</b> — lo facturado, no lo cobrado.
+        Ganas en resultado, pero tu Pulso está débil:{" "}
+        <b className="text-warning-700">la caja está en rojo</b>. El resultado es <b>devengado</b> ·
+        lo facturado, no lo cobrado.
       </>
     }
   />
@@ -124,7 +159,11 @@ export const Completa: Story = {
       <ResultadoHero
         titulo="El negocio ganó este mes"
         resultado={4_500_000}
-        respuesta={<>Ganó <b>12,5% más</b> que el mes pasado.</>}
+        respuesta={
+          <>
+            Ganó <b>12,5% más</b> que el mes pasado.
+          </>
+        }
         respuestaTono="ok"
         subtitulo="Resultado operacional de julio · devengado"
       />
@@ -139,7 +178,10 @@ export const Completa: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("El negocio ganó este mes")).toBeInTheDocument();
     // "$4.500.000" aparece varias veces (hero + EBITDA + resultado de la cascada).
-    await waitFor(() => expect(canvas.getAllByText("$4.500.000").length).toBeGreaterThanOrEqual(2), { timeout: 3000 });
+    await waitFor(
+      () => expect(canvas.getAllByText("$4.500.000").length).toBeGreaterThanOrEqual(2),
+      { timeout: 3000 },
+    );
     // La cascada.
     await expect(canvas.getByText("Ingresos")).toBeInTheDocument();
     await expect(canvas.getByText("−$21.400.000")).toBeInTheDocument();

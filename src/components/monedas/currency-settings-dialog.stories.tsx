@@ -119,7 +119,7 @@ export const Configurar: Story = {
     docs: {
       description: {
         story:
-          "Tenant sin settings sembrados (§15.4 — `data: null`). Defaults Chile: CLP funcional, sin reporting, sin unidad indexada. El user completa el resto.",
+          "Tenant sin settings sembrados (§15.4 · `data: null`). Defaults Chile: CLP funcional, sin reporting, sin unidad indexada. El user completa el resto.",
       },
     },
   },
@@ -148,7 +148,7 @@ export const Closed: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Estado cerrado — el Portal no monta el popup. Story sólo para verificar no-break.",
+        story: "Estado cerrado · el Portal no monta el popup. Story sólo para verificar no-break.",
       },
     },
   },

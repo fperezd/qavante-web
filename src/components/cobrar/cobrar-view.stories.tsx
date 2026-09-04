@@ -132,7 +132,9 @@ export const Disponible: Story = {
     const canvas = within(canvasElement);
     /* Prueba que el handler MSW alimenta al container: antes de #95 esta story
        terminaba en config_missing sin llegar a esta respuesta. */
-    await waitFor(() => expect(canvas.getAllByText("Constructora Andes SpA").length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(canvas.getAllByText("Constructora Andes SpA").length).toBeGreaterThan(0),
+    );
     await expect(canvas.getByText("Factura 1234")).toBeInTheDocument();
   },
 };
@@ -146,7 +148,9 @@ export const SinDeuda: Story = {
   parameters: { msw: { handlers: [EMPTY] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText("No tienes cuentas por cobrar")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(canvas.getByText("No tienes cuentas por cobrar")).toBeInTheDocument(),
+    );
   },
 };
 /* Estados del contrato #123 (H6). Desde #95 el preview fija un host `.invalid`
@@ -159,11 +163,13 @@ export const VencidoSinDato: Story = {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByText("Vencido")).toBeInTheDocument());
     await expect(canvas.getAllByText("s/d").length).toBeGreaterThan(0);
-    await expect(canvas.getAllByText(/No podemos calcular cuánto está vencido/i).length).toBeGreaterThan(0);
+    await expect(
+      canvas.getAllByText(/No podemos calcular cuánto está vencido/i).length,
+    ).toBeGreaterThan(0);
   },
 };
 export const AlDia: Story = {
-  name: "Cero verificado — estás al día",
+  name: "Cero verificado · estás al día",
   parameters: { msw: { handlers: [AL_DIA] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -183,7 +189,7 @@ const DEBTOR_DOCS: RcvDoc[] = [
 ];
 
 export const DeudorConFacturas: Story = {
-  name: "Deudor expandido — facturas + mora pendiente",
+  name: "Deudor expandido · facturas + mora pendiente",
   render: () => (
     <div className="max-w-xl">
       <DebtorInvoicesPanel docs={DEBTOR_DOCS} loading={false} error={false} siiEnabled />
@@ -199,7 +205,7 @@ export const DeudorConFacturas: Story = {
 };
 
 export const DeudorSinFacturas: Story = {
-  name: "Deudor expandido — sin facturas en el rango",
+  name: "Deudor expandido · sin facturas en el rango",
   render: () => (
     <div className="max-w-xl">
       <DebtorInvoicesPanel docs={[]} loading={false} error={false} siiEnabled />

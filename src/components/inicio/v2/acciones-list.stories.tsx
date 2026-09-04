@@ -43,7 +43,7 @@ export const Crecer: Story = {
       {
         rank: 2,
         titulo: "Excedente estimado sobre el colchón operativo",
-        detalle: "$22,0M — evaluar alternativas: reserva · prepagar deuda · crecimiento · invertir",
+        detalle: "$22,0M · evaluar alternativas: reserva · prepagar deuda · crecimiento · invertir",
         plazo: "Trimestre",
         cta: "Ver alternativas →",
       },
@@ -81,13 +81,13 @@ export const ControlDeGestion: Story = {
       {
         rank: 3,
         titulo: "El ciclo de caja se alargó a 42 días",
-        detalle: "Capital de trabajo inmovilizado: ~$4,1M (cobra a 42d, paga a 28d — conciliación)",
+        detalle: "Capital de trabajo inmovilizado: ~$4,1M (cobra a 42d, paga a 28d · conciliación)",
         plazo: "Seguimiento",
         cta: "Ver cobranza →",
       },
     ],
     pin: {
-      texto: "⚠ Continuidad fijada — la empresa aún debe asegurar $9,96M a 14 días",
+      texto: "⚠ Continuidad fijada · la empresa aún debe asegurar $9,96M a 14 días",
       cta: "Ver plan →",
     },
   },

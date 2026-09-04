@@ -99,7 +99,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V09 · Presupuesto (ESPECIFICACION §V09, issue #74): tríada Plan/Real/Desvío + tabla de desvíos por concepto sobre `GET /api/planning/budget-vs-actual` — `variance`/`variance_pct` YA calculados por el backend, nunca recalculados en el front (Ley 1). INV-FIN-001: el "Real" de acá es el MISMO número que el "Resultado" de V08. Alcance recortado a propósito: sin el link a documentos (drill-down, fork del BO) ni el banner de proyección de cierre — huecos declarados EN pantalla, issue sucesor #101. Flag `presupuestoV09`, apagado por defecto.',
+          'V09 · Presupuesto (ESPECIFICACION §V09, issue #74): tríada Plan/Real/Desvío + tabla de desvíos por concepto sobre `GET /api/planning/budget-vs-actual` · `variance`/`variance_pct` YA calculados por el backend, nunca recalculados en el front (Ley 1). INV-FIN-001: el "Real" de acá es el MISMO número que el "Resultado" de V08. Alcance recortado a propósito: sin el link a documentos (drill-down, fork del BO) ni el banner de proyección de cierre · huecos declarados EN pantalla, issue sucesor #101. Flag `presupuestoV09`, apagado por defecto.',
       },
     },
   },
@@ -116,7 +116,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal — tríada + tabla de desvíos, cero rojo",
+  name: "Normal · tríada + tabla de desvíos, cero rojo",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("$9.000.000")).toBeInTheDocument(); // Plan (result)
@@ -133,7 +133,7 @@ export const Normal: Story = {
 };
 
 export const SinPresupuesto: Story = {
-  name: "Sin presupuesto del período — estado vacío honesto, con acción",
+  name: "Sin presupuesto del período · estado vacío honesto, con acción",
   args: { bva: budgetVsActualSinPresupuesto() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -144,7 +144,7 @@ export const SinPresupuesto: Story = {
 };
 
 export const DatoIncompleto: Story = {
-  name: "Dato incompleto — declara la fuente faltante, no la esconde",
+  name: "Dato incompleto · declara la fuente faltante, no la esconde",
   args: { bva: budgetVsActualIncompleto() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -155,7 +155,7 @@ export const DatoIncompleto: Story = {
 };
 
 export const SinDesvios: Story = {
-  name: "Sin desvíos — 'clavado al plan', tabla no queda vacía muda",
+  name: "Sin desvíos · 'clavado al plan', tabla no queda vacía muda",
   args: { bva: budgetVsActualSinDesvios() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -165,7 +165,7 @@ export const SinDesvios: Story = {
 };
 
 export const ErrorDeConexion: Story = {
-  name: "Error — la fuente no respondió, con Reintentar",
+  name: "Error · la fuente no respondió, con Reintentar",
   args: { bva: undefined, error: "No pudimos conectar con Planificación (error de red)." },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -178,7 +178,7 @@ export const ErrorDeConexion: Story = {
 };
 
 export const InvarianteRoto: Story = {
-  name: "INV-FIN-001 roto — declara Real y Resultado, ninguno se elige en silencio (Ley 1)",
+  name: "INV-FIN-001 roto · declara Real y Resultado, ninguno se elige en silencio (Ley 1)",
   args: { resultOperacional: RESULT_OPERATIONAL_RESULT_DIVERGENTE },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -195,7 +195,7 @@ export const InvarianteRoto: Story = {
 
 /** El mínimo que pide la spec (§5.2): sin scroll horizontal de página en ≥ 360 px. */
 export const Ley7Angosto360: Story = {
-  name: "Ley 7 · 360 px — la tabla entra completa, sin scroll horizontal",
+  name: "Ley 7 · 360 px · la tabla entra completa, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 360);
   },
@@ -205,7 +205,7 @@ export const Ley7Angosto360: Story = {
  *  con la holgura Linux/Windows medida en esas vistas — la que de verdad decide si el gate de CI
  *  (Linux) va a pasar. */
 export const Ley7Angosto346: Story = {
-  name: "Ley 7 · 346 px — margen de fuente (= 360, holgura Linux/Windows)",
+  name: "Ley 7 · 346 px · margen de fuente (= 360, holgura Linux/Windows)",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 346);
   },
@@ -214,7 +214,7 @@ export const Ley7Angosto346: Story = {
 /** Ancho de teléfono más angosto habitual — la columna del pill (`hideBelowTable: "sm"`) colapsa
  *  acá; el concepto y el monto del desvío (dato primario) siguen enteros. */
 export const Ley7Angosto320: Story = {
-  name: "Ley 7 · 320 px — ancho de teléfono, sin scroll horizontal",
+  name: "Ley 7 · 320 px · ancho de teléfono, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 320);
   },

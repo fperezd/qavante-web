@@ -360,7 +360,7 @@ function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
         <p className="mt-2 text-[13px] text-neutral-dark">
           El resultado del mes iguala o supera a tus ingresos, lo que daría un margen imposible
           (100% o más). Suele pasar cuando un gasto se revierte o llega mal clasificado ese mes, así
-          que el resultado queda inflado. Es un problema de datos del backend, ya escalado — no lo
+          que el resultado queda inflado. Es un problema de datos del backend, ya escalado · no lo
           mostramos como si fuera real.
         </p>
         <dl className="mt-3 flex flex-col text-[12.5px]">
