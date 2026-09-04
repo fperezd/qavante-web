@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Inbox, Pencil, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, Download, Inbox, Pencil, SlidersHorizontal } from "lucide-react";
 import {
   QavanteBadge,
   QavanteButton,
@@ -38,6 +38,7 @@ import { ClassificationDrawer, type ClassificationDraft } from "./classification
 import { flattenManagementAccounts, toCanonicalCategoryOptions } from "./adapters";
 import { ClasificadosStats } from "./clasificados-stats";
 import { buildAccountsLookup, buildCategoriesLookup } from "./build-clasificados-stats";
+import { movementsCsvFilename, movementsToCsv } from "./movements-csv";
 
 /* Vista de movimientos CLASIFICADOS — Sprint C2, primera pieza visible
    del modelo canónico. Complemento de `/caja/por-clasificar`: ahí están
@@ -235,6 +236,39 @@ export function ClasificadosView() {
     [accountsQuery.data],
   );
 
+  /* Export CSV — mismo patrón que el Libro SII (`LibroKpisPanel`): FE-only sobre
+     los movimientos YA descargados, sin llamada nueva al backend. Exporta lo
+     FILTRADO Y ORDENADO (`sorted`), no la página visible: el usuario pidió el
+     período completo, no 50 filas. La moneda se deriva de la cuenta porque
+     `BankMovement` no la trae en el contrato; si no se puede derivar, la celda va
+     vacía en vez de asumir CLP (INV-FX-001). */
+  const bankAccountNameById = React.useMemo(
+    () =>
+      new Map(
+        (bankAccountsQuery.data?.items ?? []).map((a) => [a.id, `${a.name} (${a.bank_name})`]),
+      ),
+    [bankAccountsQuery.data],
+  );
+
+  function exportCsv() {
+    const csv = movementsToCsv(sorted, {
+      currencyByAccountId: currencyMap,
+      accountNameById: bankAccountNameById,
+      categoryLabelByCode: categoriesLookup,
+      managementAccountNameById: accountsLookup,
+    });
+    // BOM para que Excel es-CL respete UTF-8 (tildes/ñ).
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = movementsCsvFilename(
+      range.desde === range.hasta ? range.desde : `${range.desde}_${range.hasta}`,
+    );
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   /* Draft inicial para el drawer cuando se reclasifica: clona la
      clasificación actual del movimiento target. Cuando target === null
      el drawer está cerrado y este valor no se usa. */
@@ -392,6 +426,20 @@ export function ClasificadosView() {
                   <span className="ml-1 text-xs opacity-80">de {allItems.length}</span>
                 )}
               </QavanteBadge>
+              <QavanteButton
+                size="sm"
+                variant="ghost"
+                onClick={exportCsv}
+                disabled={filtered.length === 0}
+                title={
+                  filtered.length === 0
+                    ? "No hay movimientos que exportar con los filtros actuales"
+                    : `Descargar ${filtered.length} movimientos en CSV (abre en Excel)`
+                }
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                Exportar CSV
+              </QavanteButton>
               <QavanteButton
                 size="sm"
                 variant={filtersOpen || hasPanelFilters ? "secondary" : "ghost"}
