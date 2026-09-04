@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown, RotateCcw } from "lucide-react";
-import { QavanteCard, SortHeader } from "@/components/qavante";
+import { Check, ChevronDown, Download, RotateCcw } from "lucide-react";
+import { QavanteButton, QavanteCard, SortHeader } from "@/components/qavante";
 import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { InfoHint } from "@/components/ui/info-hint";
 import { formatClp } from "@/lib/formatters/clp";
@@ -12,6 +12,7 @@ import { tipoDocMeta } from "@/components/sii/tipo-doc";
 import { ReclamadaBadge } from "@/components/sii/reclamada-badge";
 import { cn } from "@/lib/utils";
 import type { ContraparteMaestro, EstadoDoc, MaestroKind } from "./terminos-pago";
+import { maestroCsvFilename, maestroToCsv } from "./maestro-csv";
 
 /* Columnas ordenables del maestro (regla de producto: grilla ordenable). El
    "Término" es un input editable → no se ordena. Por defecto: saldo desc (quién
@@ -85,6 +86,23 @@ export function MaestroContrapartes({
   const sort = useTableSort(SORT_COLUMNS, "saldo");
   const cpsSorted = sort.sorted(cps);
 
+  /* Export CSV — FE-only sobre lo ya descargado, mismo patrón que el Libro SII y
+     Caja. Exporta en el orden de la grilla y a nivel de DOCUMENTO (cada boleta,
+     cada factura), no de contraparte: agrupar se puede en Excel, desagregar no. */
+  const docsCount = cpsSorted.reduce((n, c) => n + c.docs.length, 0);
+
+  function exportCsv() {
+    const csv = maestroToCsv(cpsSorted, kind);
+    // BOM para que Excel es-CL respete UTF-8 (tildes/ñ).
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = maestroCsvFilename(kind, periodosLabel);
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <QavanteCard
       variant="bordered"
@@ -100,11 +118,27 @@ export function MaestroContrapartes({
               banco/pago y bajan tu {saldoLabel.toLowerCase()}.
             </InfoHint>
           </span>
-          <DefaultTermControl
-            defaultTerm={defaultTerm}
-            onSetDefault={onSetDefault}
-            pending={pending}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <QavanteButton
+              size="sm"
+              variant="ghost"
+              onClick={exportCsv}
+              disabled={docsCount === 0}
+              title={
+                docsCount === 0
+                  ? "No hay documentos que exportar"
+                  : `Descargar ${docsCount} documentos en CSV (abre en Excel)`
+              }
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden="true" />
+              Exportar CSV
+            </QavanteButton>
+            <DefaultTermControl
+              defaultTerm={defaultTerm}
+              onSetDefault={onSetDefault}
+              pending={pending}
+            />
+          </div>
         </div>
       }
     >
