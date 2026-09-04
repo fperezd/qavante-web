@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { HttpResponse, http } from "msw";
-import { applyRequestHandlers } from "msw-storybook-addon";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type {
   DecisionSelectionRequest,
@@ -14,6 +13,14 @@ import { LiquidityEvaluationPanel } from "./liquidity-evaluation-panel";
 const LINE_ID = "30000000-0000-4000-8000-000000000001";
 const FACTORING_ID = "30000000-0000-4000-8000-000000000002";
 const NO_ACTION_ID = "30000000-0000-4000-8000-000000000003";
+const RETRY_DECISION_ID = "10000000-0000-4000-8000-000000000011";
+const CHANGE_INTENT_DECISION_ID = "10000000-0000-4000-8000-000000000012";
+const NO_ACTION_DECISION_ID = "10000000-0000-4000-8000-000000000013";
+const REPLAY_DECISION_ID = "10000000-0000-4000-8000-000000000014";
+const ERROR_401_DECISION_ID = "10000000-0000-4000-8000-000000000021";
+const ERROR_403_DECISION_ID = "10000000-0000-4000-8000-000000000022";
+const ERROR_409_DECISION_ID = "10000000-0000-4000-8000-000000000023";
+const ERROR_422_DECISION_ID = "10000000-0000-4000-8000-000000000024";
 
 const EVALUATION: LiquidityEvaluation = {
   decision_id: "10000000-0000-4000-8000-000000000001",
@@ -86,7 +93,11 @@ const EVALUATION: LiquidityEvaluation = {
 const meta = {
   title: "Rediseño F2 / V01 Hoy / Evaluación de liquidez",
   component: LiquidityEvaluationPanel,
-  parameters: { layout: "padded", a11y: { test: "error" } },
+  parameters: {
+    layout: "padded",
+    a11y: { test: "error" },
+    msw: { handlers: [storySelectionHandler(), requestApprovalHandler()] },
+  },
   args: { evaluation: EVALUATION, now: new Date("2026-08-31T12:00:00Z") },
 } satisfies Meta<typeof LiquidityEvaluationPanel>;
 
@@ -106,6 +117,85 @@ function selectionResponse(
     replayed: false,
     ...over,
   };
+}
+
+function evaluationForStory(decisionId: string): LiquidityEvaluation {
+  return { ...EVALUATION, decision_id: decisionId };
+}
+
+/* Las play functions de Storybook comparten un worker. Un único router estable,
+   con IDs de decisión exclusivos por story, evita que una story reemplace el
+   handler de otra mientras ambas están interactuando. */
+function storySelectionHandler() {
+  return http.post(
+    "*/api/treasury/decisions/:decisionId/selection",
+    async ({ params, request }) => {
+      const decisionId = String(params.decisionId);
+      const body = (await request.json()) as DecisionSelectionRequest;
+
+      if (decisionId === RETRY_DECISION_ID) {
+        retryBodies.push(body);
+        return retryBodies.length === 1
+          ? HttpResponse.error()
+          : HttpResponse.json(selectionResponse({ decision_id: decisionId }));
+      }
+      if (decisionId === CHANGE_INTENT_DECISION_ID) {
+        changedIntentBodies.push(body);
+        return changedIntentBodies.length === 1
+          ? HttpResponse.error()
+          : HttpResponse.json(selectionResponse({ decision_id: decisionId }));
+      }
+      if (decisionId === NO_ACTION_DECISION_ID) {
+        noActionBodies.push(body);
+        return HttpResponse.json(
+          selectionResponse({
+            decision_id: decisionId,
+            alternative_id: NO_ACTION_ID,
+            operation_required: false,
+            operation_plan_id: null,
+            operation_status: null,
+          }),
+        );
+      }
+      if (decisionId === REPLAY_DECISION_ID) {
+        return HttpResponse.json(selectionResponse({ decision_id: decisionId, replayed: true }));
+      }
+
+      const errors: Record<string, 401 | 403 | 409 | 422> = {
+        [ERROR_401_DECISION_ID]: 401,
+        [ERROR_403_DECISION_ID]: 403,
+        [ERROR_409_DECISION_ID]: 409,
+        [ERROR_422_DECISION_ID]: 422,
+      };
+      const status = errors[decisionId];
+      if (status) {
+        errorRequests[status]?.push(body);
+        return HttpResponse.json(
+          { detail: { code: "selection_rejected", detail: "rejected" } },
+          { status },
+        );
+      }
+
+      return HttpResponse.json(selectionResponse({ decision_id: decisionId }));
+    },
+  );
+}
+
+function requestApprovalHandler() {
+  return http.post(
+    "*/api/treasury/operation-plans/:operationPlanId/request-approval",
+    async ({ request }) => {
+      approvalBodies.push((await request.json()) as OperationApprovalRequest);
+      return HttpResponse.json({
+        operation_plan_id: OPERATION_PLAN.operation_plan!.id,
+        event_id: "80000000-0000-4000-8000-000000000001",
+        from_status: "draft",
+        to_status: "awaiting_approval",
+        occurred_at: "2026-08-31T12:10:00Z",
+        replayed: false,
+      });
+    },
+  );
 }
 
 const OPERATION_PLAN: OperationPlanRead = {
@@ -211,7 +301,6 @@ async function expectErrorWithoutSuccess(
   expected: RegExp,
 ) {
   errorRequests[status] = [];
-  installErrorSelectionHandler(status);
   const { canvas, dialog } = await openSelection(
     canvasElement,
     "Usar línea de crédito",
@@ -271,24 +360,9 @@ export const ErrorDeLectura: Story = {
 };
 
 let approvalBodies: OperationApprovalRequest[] = [];
-const REQUEST_APPROVAL = http.post(
-  "*/api/treasury/operation-plans/:operationPlanId/request-approval",
-  async ({ request }) => {
-    approvalBodies.push((await request.json()) as OperationApprovalRequest);
-    return HttpResponse.json({
-      operation_plan_id: OPERATION_PLAN.operation_plan!.id,
-      event_id: "80000000-0000-4000-8000-000000000001",
-      from_status: "draft",
-      to_status: "awaiting_approval",
-      occurred_at: "2026-08-31T12:10:00Z",
-      replayed: false,
-    });
-  },
-);
 
 export const OperationPlanYSolicitudAprobacion: Story = {
   args: { canSelect: true, operationPlanRead: OPERATION_PLAN },
-  parameters: { msw: { handlers: [REQUEST_APPROVAL] } },
   play: async ({ canvasElement }) => {
     approvalBodies = [];
     const canvas = within(canvasElement);
@@ -405,19 +479,10 @@ export const SeleccionOwner: Story = {
 };
 
 let retryBodies: DecisionSelectionRequest[] = [];
-const RETRY_THEN_SUCCESS = http.post(
-  "*/api/treasury/decisions/:decisionId/selection",
-  async ({ request }) => {
-    retryBodies.push((await request.json()) as DecisionSelectionRequest);
-    if (retryBodies.length === 1) return HttpResponse.error();
-    return HttpResponse.json(selectionResponse());
-  },
-);
 
 /** Monta directamente V01 para el test de browser; no cambia `hoyV01` en producción. */
 export const RetryIdempotenteYExito: Story = {
-  args: { canSelect: true },
-  parameters: { msw: { handlers: [RETRY_THEN_SUCCESS] } },
+  args: { canSelect: true, evaluation: evaluationForStory(RETRY_DECISION_ID) },
   play: async ({ canvasElement }) => {
     retryBodies = [];
     const { canvas, dialog } = await openSelection(
@@ -450,18 +515,9 @@ export const RetryIdempotenteYExito: Story = {
 };
 
 let changedIntentBodies: DecisionSelectionRequest[] = [];
-const CHANGE_INTENT = http.post(
-  "*/api/treasury/decisions/:decisionId/selection",
-  async ({ request }) => {
-    changedIntentBodies.push((await request.json()) as DecisionSelectionRequest);
-    if (changedIntentBodies.length === 1) return HttpResponse.error();
-    return HttpResponse.json(selectionResponse());
-  },
-);
 
 export const MotivoCambiadoUsaNuevaKey: Story = {
-  args: { canSelect: true },
-  parameters: { msw: { handlers: [CHANGE_INTENT] } },
+  args: { canSelect: true, evaluation: evaluationForStory(CHANGE_INTENT_DECISION_ID) },
   play: async ({ canvasElement }) => {
     changedIntentBodies = [];
     const { canvas, dialog, input } = await openSelection(
@@ -485,34 +541,11 @@ export const MotivoCambiadoUsaNuevaKey: Story = {
 };
 
 let noActionBodies: DecisionSelectionRequest[] = [];
-const NO_ACTION = http.post(
-  "*/api/treasury/decisions/:decisionId/selection",
-  async ({ request }) => {
-    noActionBodies.push((await request.json()) as DecisionSelectionRequest);
-    return HttpResponse.json(
-      selectionResponse({
-        alternative_id: NO_ACTION_ID,
-        operation_required: false,
-        operation_plan_id: null,
-        operation_status: null,
-      }),
-    );
-  },
-);
-
-/* El worker de Storybook es compartido por las stories del archivo. Reinstalamos
-   el único handler de esta interacción justo antes del POST para que una story
-   vecina que también responde `selection` no pueda dejar su handler activo. */
-function installNoActionHandler() {
-  applyRequestHandlers({ handlers: [NO_ACTION] });
-}
 
 export const NoActionSinPlan: Story = {
-  args: { canSelect: true },
-  parameters: { msw: { handlers: [NO_ACTION] } },
+  args: { canSelect: true, evaluation: evaluationForStory(NO_ACTION_DECISION_ID) },
   play: async ({ canvasElement }) => {
     noActionBodies = [];
-    installNoActionHandler();
     const { canvas, dialog } = await openSelection(
       canvasElement,
       "No financiar",
@@ -527,13 +560,8 @@ export const NoActionSinPlan: Story = {
   },
 };
 
-const REPLAY = http.post("*/api/treasury/decisions/:decisionId/selection", () =>
-  HttpResponse.json(selectionResponse({ replayed: true })),
-);
-
 export const ReplayNoDuplica: Story = {
-  args: { canSelect: true },
-  parameters: { msw: { handlers: [REPLAY] } },
+  args: { canSelect: true, evaluation: evaluationForStory(REPLAY_DECISION_ID) },
   play: async ({ canvasElement }) => {
     const { canvas, dialog } = await openSelection(
       canvasElement,
@@ -547,52 +575,24 @@ export const ReplayNoDuplica: Story = {
   },
 };
 
-function selectionError(status: 401 | 403 | 409 | 422) {
-  return http.post("*/api/treasury/decisions/:decisionId/selection", async ({ request }) => {
-    errorRequests[status]?.push((await request.json()) as DecisionSelectionRequest);
-    return HttpResponse.json(
-      { detail: { code: "selection_rejected", detail: "rejected" } },
-      { status },
-    );
-  });
-}
-
-const ERROR_SELECTION_HANDLERS = {
-  401: selectionError(401),
-  403: selectionError(403),
-  409: selectionError(409),
-  422: selectionError(422),
-};
-
-/* Igual que NoActionSinPlan, cada story de rechazo reinstala su respuesta
-   justo antes del POST: el worker MSW del archivo es compartido y no puede
-   depender del handler que dejó cargado una story vecina. */
-function installErrorSelectionHandler(status: 401 | 403 | 409 | 422) {
-  applyRequestHandlers({ handlers: [ERROR_SELECTION_HANDLERS[status]] });
-}
-
 export const Error401NoConfirma: Story = {
-  args: { canSelect: true },
-  parameters: { msw: { handlers: [ERROR_SELECTION_HANDLERS[401]] } },
+  args: { canSelect: true, evaluation: evaluationForStory(ERROR_401_DECISION_ID) },
   play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 401, /sesión venció/i),
 };
 
 export const Error403NoConfirma: Story = {
-  args: { canSelect: true },
-  parameters: { msw: { handlers: [ERROR_SELECTION_HANDLERS[403]] } },
+  args: { canSelect: true, evaluation: evaluationForStory(ERROR_403_DECISION_ID) },
   play: ({ canvasElement }) =>
     expectErrorWithoutSuccess(canvasElement, 403, /rol no está autorizado/i),
 };
 
 export const Error409NoConfirma: Story = {
-  args: { canSelect: true },
-  parameters: { msw: { handlers: [ERROR_SELECTION_HANDLERS[409]] } },
+  args: { canSelect: true, evaluation: evaluationForStory(ERROR_409_DECISION_ID) },
   play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 409, /decisión cambió/i),
 };
 
 export const Error422NoConfirma: Story = {
-  args: { canSelect: true },
-  parameters: { msw: { handlers: [ERROR_SELECTION_HANDLERS[422]] } },
+  args: { canSelect: true, evaluation: evaluationForStory(ERROR_422_DECISION_ID) },
   play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 422, /ya no cumple/i),
 };
 
