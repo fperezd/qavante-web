@@ -19,7 +19,6 @@ const NO_ACTION_DECISION_ID = "10000000-0000-4000-8000-000000000013";
 const REPLAY_DECISION_ID = "10000000-0000-4000-8000-000000000014";
 const ERROR_401_DECISION_ID = "10000000-0000-4000-8000-000000000021";
 const ERROR_403_DECISION_ID = "10000000-0000-4000-8000-000000000022";
-const ERROR_409_DECISION_ID = "10000000-0000-4000-8000-000000000023";
 const ERROR_422_DECISION_ID = "10000000-0000-4000-8000-000000000024";
 
 const EVALUATION: LiquidityEvaluation = {
@@ -164,7 +163,6 @@ function storySelectionHandler() {
       const errors: Record<string, 401 | 403 | 409 | 422> = {
         [ERROR_401_DECISION_ID]: 401,
         [ERROR_403_DECISION_ID]: 403,
-        [ERROR_409_DECISION_ID]: 409,
         [ERROR_422_DECISION_ID]: 422,
       };
       const status = errors[decisionId];
@@ -584,11 +582,6 @@ export const Error403NoConfirma: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(ERROR_403_DECISION_ID) },
   play: ({ canvasElement }) =>
     expectErrorWithoutSuccess(canvasElement, 403, /rol no está autorizado/i),
-};
-
-export const Error409NoConfirma: Story = {
-  args: { canSelect: true, evaluation: evaluationForStory(ERROR_409_DECISION_ID) },
-  play: ({ canvasElement }) => expectErrorWithoutSuccess(canvasElement, 409, /decisión cambió/i),
 };
 
 export const Error422NoConfirma: Story = {
