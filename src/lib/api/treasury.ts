@@ -27,6 +27,9 @@ export type CashCycleResponse = components["schemas"]["CashCycleResponse"];
 export type CashProjectionResponse = components["schemas"]["CashProjectionResponse"];
 export type BankMovementsListResponse = components["schemas"]["BankMovementsListResponse"];
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
+/** API #350, presente en el OpenAPI versionado. El backend aplica todo el lote o no cambia nada. */
+export type BulkClassifyMovementRequest = components["schemas"]["BulkClassifyMovementRequest"];
+export type BulkClassifyMovementResponse = components["schemas"]["BulkClassifyMovementResponse"];
 export type ApplyRulesResponse = components["schemas"]["ApplyRulesResponse"];
 export type InternalTransferResponse = components["schemas"]["InternalTransferResponse"];
 export type PayrollPaydayResponse = components["schemas"]["PayrollPaydayResponse"];
@@ -538,6 +541,30 @@ export function useClassifyBankMovement() {
       qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
       qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
     },
+  });
+}
+
+/** `POST /api/treasury/bank-movements/classify-bulk` · API #350.
+ *
+ * Es una decisión manual y atómica, no una automatización: el contrato declara `reversible:false`.
+ * La vista debe pedir confirmación y conservar la misma `idempotency_key` al reintentar la misma
+ * intención, para que una respuesta perdida no duplique una operación. */
+export function useClassifyBankMovementsBulk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: classifyBankMovementsBulk,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: treasuryKeys.all });
+      qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
+      qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
+    },
+  });
+}
+
+/** Llamada sin React para que el contrato atómico pueda probarse aislado del arés de hooks. */
+export function classifyBankMovementsBulk(body: BulkClassifyMovementRequest) {
+  return api.post<BulkClassifyMovementResponse>("/api/treasury/bank-movements/classify-bulk", {
+    body,
   });
 }
 

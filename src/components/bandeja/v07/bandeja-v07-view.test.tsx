@@ -243,16 +243,20 @@ describe("BandejaV07View — carta de clasificar", () => {
     expect(t).toContain("la Ley 5 cubre lo automático");
   });
 
-  it("lote: 3 del mismo RUT ⇒ banner 'Hay 2 más', con el bulk declarado como imposible hoy", () => {
+  it("lote: 3 del mismo RUT ⇒ banner 'Hay 2 más' y el bulk manual pide confirmación", () => {
     const t = texto(
       html({
         tabInicial: "clasificar",
         clasificar: CLASIFICAR([MOV_ENTEL_1, MOV_ENTEL_2, MOV_ENTEL_3, MOV_DATTATEC]),
         sugerencia: { movimientoId: MOV_ENTEL_1, valor: null, cargando: false },
+        onClasificarLote: async () => undefined,
       }),
     );
     expect(t).toContain("Hay 2 más de 92.580.000-7 esperando categoría");
-    expect(t).toContain("Clasificarlos de una sola vez todavía no se puede");
+    expect(t).toContain(
+      "Puedes clasificarlos de una sola vez después de elegir categoría y confirmar",
+    );
+    expect(t).toContain("Clasificar 3 de una vez");
     expect(t).toContain("Revisar los 3 seguidos");
     // Gemelo: con el de Dattatec solo en pantalla, no hay banner de lote.
     expect(texto(html(conRegla()))).not.toContain("esperando categoría");
@@ -424,11 +428,11 @@ describe("BandejaV07View — Leyes 2 y 7", () => {
     expect(html()).toContain("break-words");
   });
 
-  it("los huecos se declaran en pantalla, con su issue sucesor", () => {
+  it("declara el límite real que queda: una decisión manual no tiene Deshacer", () => {
     const t = texto(html());
-    expect(t).toContain("clasificar un lote de una sola vez");
     expect(t).toContain("deshacer la clasificación que TÚ decidiste al apretar Guardar");
-    expect(t).toContain("registrar el par negativo");
+    expect(t).toContain("clasificar un lote");
+    expect(t).toContain("la Ley 5 cubre lo automático, no eso");
     expect(t).toContain("Sucesor: #90.");
   });
 });

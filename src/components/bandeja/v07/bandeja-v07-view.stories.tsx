@@ -12,6 +12,7 @@ import {
   HOY,
   CUENTA_ARRIENDO,
   CUENTA_SOFTWARE,
+  CUENTA_TELECOM,
   MOV_DATTATEC,
   MOV_ENTEL_1,
   MOV_ENTEL_2,
@@ -446,15 +447,16 @@ export const ClasificarAutoBloqueado: Story = {
 };
 
 export const ClasificarEnLote: Story = {
-  name: "Clasificar · lote — 3 del mismo RUT: agrupar sí, bulk no (hueco declarado)",
+  name: "Clasificar · lote · 3 del mismo RUT con confirmación explícita",
   args: {
     tabInicial: "clasificar",
     clasificar: itemsClasificar(
       sinClasificar([MOV_DATTATEC, MOV_ENTEL_1, MOV_ENTEL_2, MOV_ENTEL_3]),
     ),
     sugerencia: { movimientoId: MOV_DATTATEC, valor: null, cargando: false },
+    onClasificarLote: fn(async () => undefined),
   },
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     // El de Dattatec está solo: sin banner de lote.
     await expect(canvas.queryByText(/esperando categoría/)).toBeNull();
@@ -463,9 +465,11 @@ export const ClasificarEnLote: Story = {
       "Hay 2 más de 92.580.000-7 esperando categoría",
     );
     await expect(
-      canvas.getByText(/Clasificarlos de una sola vez todavía no se puede/),
+      canvas.getByText(
+        /Puedes clasificarlos de una sola vez después de elegir categoría y confirmar/,
+      ),
     ).toBeInTheDocument();
-    // Agrupar los pone seguidos en la cola; NO los clasifica.
+    // Agrupar los pone seguidos en la cola, sin clasificarlos todavía.
     await userEvent.click(canvas.getByRole("button", { name: /Revisar los 3 seguidos/ }));
     /* Agrupar deja al que estabas viendo PRIMERO: la cola se reordena, el cursor no se mueve. */
     await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
@@ -473,6 +477,21 @@ export const ClasificarEnLote: Story = {
     );
     await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
       "12 ago 2026",
+    );
+
+    await userEvent.selectOptions(canvas.getByLabelText("Categoría"), CUENTA_TELECOM);
+    await userEvent.click(canvas.getByRole("button", { name: "Clasificar 3 de una vez" }));
+    await expect(canvas.getByRole("alert")).toHaveTextContent(
+      "Vas a clasificar 3 movimientos como Telecomunicaciones",
+    );
+    await userEvent.click(canvas.getByRole("button", { name: "Sí, clasificar 3" }));
+    await waitFor(
+      async () =>
+        await expect(args.onClasificarLote).toHaveBeenCalledWith(
+          [MOV_ENTEL_1, MOV_ENTEL_2, MOV_ENTEL_3],
+          CUENTA_TELECOM,
+          "",
+        ),
     );
   },
 };

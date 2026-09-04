@@ -128,6 +128,8 @@ export interface BandejaV07ViewProps {
   /** "No es esta": descarta la sugerencia (el movimiento vuelve a `unmatched`). */
   onNoEsEsta?: (item: ItemConciliarV07, candidato: CandidatoV07 | null) => void;
   onClasificar?: (item: ItemClasificarV07, cuentaId: string, notas: string) => void;
+  /** Clasifica una selección explícita de la misma contraparte en una operación atómica. */
+  onClasificarLote?: (movementIds: string[], cuentaId: string, notas: string) => Promise<void>;
   /** Lo que Qavante clasificó SOLO (auto-clasificación por regla o por conciliación) y todavía se
    *  puede deshacer, más reciente primero. `null` = la bitácora no respondió (se avisa bajito,
    *  no bloquea la carta: es un widget secundario, no el contenido principal). */
@@ -186,6 +188,7 @@ function BandejaV07Contenido({
   onDeshacerConciliar,
   onNoEsEsta,
   onClasificar,
+  onClasificarLote,
   autoClasificadas,
   autoClasificadasMotivo,
   onDeshacerAutoClasificar,
@@ -252,6 +255,14 @@ function BandejaV07Contenido({
     );
     if (item.tipo === "conciliar") setIConciliar(siguiente);
     else setIClasificar(siguiente);
+  }
+
+  function marcarLoteClasificado(ids: string[]) {
+    const idSet = new Set(ids);
+    const resueltosAhora = colaClasificar.filter((item) => idSet.has(item.id));
+    setResueltos((prev) => [...new Set([...prev, ...resueltosAhora.map((item) => item.id)])]);
+    setMontos((prev) => [...prev, ...resueltosAhora.map((item) => item.monto)]);
+    setIClasificar(0);
   }
 
   function saltar() {
@@ -425,6 +436,23 @@ function BandejaV07Contenido({
                 ? (item, cuentaId) => {
                     onCrearRegla(item, cuentaId);
                     show({ message: <>Regla creada: la próxima vez se clasifica sola.</> });
+                  }
+                : undefined
+            }
+            onClasificarLote={
+              onClasificarLote
+                ? async (ids, cuentaId, notas, nombreCuenta) => {
+                    await onClasificarLote(ids, cuentaId, notas);
+                    marcarLoteClasificado(ids);
+                    show({
+                      message: (
+                        <>
+                          Clasificamos {formatCount(ids.length)}{" "}
+                          {concordar(ids.length, "movimiento", "movimientos")} como{" "}
+                          <b>{nombreCuenta}</b>.
+                        </>
+                      ),
+                    });
                   }
                 : undefined
             }
@@ -972,6 +1000,12 @@ interface CartaClasificarProps {
   onSaltar: () => void;
   onAgrupar: (ids: string[]) => void;
   onCrearRegla?: (item: ItemClasificarV07, cuentaId: string) => void;
+  onClasificarLote?: (
+    ids: string[],
+    cuentaId: string,
+    notas: string,
+    nombreCuenta: string,
+  ) => Promise<void>;
   onGuardar: (
     item: ItemClasificarV07,
     cuentaId: string,
@@ -994,11 +1028,13 @@ function CartaClasificar({
   onSaltar,
   onAgrupar,
   onCrearRegla,
+  onClasificarLote,
   onGuardar,
 }: CartaClasificarProps) {
   const [cuentaId, setCuentaId] = React.useState<string | null>(null);
   const [notas, setNotas] = React.useState("");
   const [falta, setFalta] = React.useState<string | null>(null);
+  const [confirmarLote, setConfirmarLote] = React.useState(false);
   const [ofertaRegla, setOfertaRegla] = React.useState<{
     item: ItemClasificarV07;
     cuentaId: string;
@@ -1013,6 +1049,7 @@ function CartaClasificar({
     setCuentaId(null);
     setNotas("");
     setFalta(null);
+    setConfirmarLote(false);
   }, [item?.id]);
 
   /* La sugerencia PRE-SELECCIONA (spec: "sugerencia primero si existe regla"), nunca guarda sola. */
@@ -1046,6 +1083,27 @@ function CartaClasificar({
     const fueManual = valorSugerido?.cuentaId !== id;
     onGuardar(item, id, notas, nombre);
     setOfertaRegla(fueManual ? { item, cuentaId: id, nombre } : null);
+  }
+
+  function prepararLote() {
+    if (!item || !grupo) return;
+    const queFalta = faltaParaGuardar({ cuentaId, notas });
+    if (queFalta) {
+      setFalta(queFalta);
+      return;
+    }
+    setConfirmarLote(true);
+  }
+
+  async function confirmarClasificacionLote() {
+    if (!item || !grupo || !cuentaId) return;
+    const nombre = cuentasPorId.get(cuentaId)?.nombre ?? "la categoría elegida";
+    try {
+      await onClasificarLote?.(grupo.ids, cuentaId, notas, nombre);
+      setConfirmarLote(false);
+    } catch {
+      /* El live ya mostró el error y no retiramos ningún movimiento de la cola. */
+    }
   }
 
   useAtajos({
@@ -1102,7 +1160,7 @@ function CartaClasificar({
           </b>{" "}
           esperando categoría
           {grupo.porRut ? "" : " (agrupados por glosa idéntica, no por RUT: la glosa no trae uno)"}.
-          Clasificarlos de una sola vez todavía no se puede — ver los huecos declarados.
+          Puedes clasificarlos de una sola vez después de elegir categoría y confirmar.
         </Banner>
       )}
 
@@ -1216,10 +1274,38 @@ function CartaClasificar({
           <button type="button" className={BTN_PRIMARIO} onClick={guardar}>
             Guardar <span className={KBD}>Enter</span>
           </button>
+          {grupo && onClasificarLote && !confirmarLote && (
+            <button type="button" className={BTN_SECUNDARIO} onClick={prepararLote}>
+              Clasificar {grupo.otros + 1} de una vez
+            </button>
+          )}
           <button type="button" className={BTN_FANTASMA} onClick={onSaltar}>
             Saltar <span className={KBD}>→</span>
           </button>
         </div>
+
+        {confirmarLote && grupo && (
+          <Banner
+            role="alert"
+            className="mt-3"
+            action={{
+              label: `Sí, clasificar ${grupo.otros + 1}`,
+              onClick: confirmarClasificacionLote,
+            }}
+          >
+            Vas a clasificar {formatCount(grupo.otros + 1)}{" "}
+            {concordar(grupo.otros + 1, "movimiento", "movimientos")} como{" "}
+            <b>{cuentasPorId.get(cuentaId ?? "")?.nombre ?? "la categoría elegida"}</b>. Esta
+            decisión manual no tiene Deshacer.
+            <button
+              type="button"
+              className={cn(LINK, "ml-2")}
+              onClick={() => setConfirmarLote(false)}
+            >
+              Cancelar
+            </button>
+          </Banner>
+        )}
 
         <p className="mt-3 text-[12px] text-rediseno-tinta-3">
           Al guardar no vas a ver un “Deshacer” acá: esto lo decidiste tú, no Qavante solo — la Ley
@@ -1324,13 +1410,11 @@ function OfertaRegla({
 function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
   return (
     <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-      Lo que esta bandeja todavía NO hace, dicho acá y no escondido: clasificar un lote de una sola
-      vez (no existe endpoint de clasificación masiva a una categoría elegida); deshacer la
-      clasificación que TÚ decidiste al apretar Guardar (la Ley 5 cubre lo automático, no eso — lo
-      que Qavante clasificó solo sí tiene Deshacer, arriba de esta carta); y registrar el par
-      negativo cuando dices “no es esta” (el descarte devuelve el movimiento a sin conciliar, pero
-      no le enseña al motor a no volver a proponer ESE documento). El progreso cuenta lo resuelto en{" "}
-      <b>esta sesión</b> y no “hoy”, porque no hay bitácora consultable que lo respalde.
+      Lo que esta bandeja todavía NO hace, dicho acá y no escondido: deshacer la clasificación que
+      TÚ decidiste al apretar Guardar o al clasificar un lote (la Ley 5 cubre lo automático, no eso
+      · lo que Qavante clasificó solo sí tiene Deshacer, arriba de esta carta). El progreso cuenta
+      lo resuelto en <b>esta sesión</b> y no “hoy”, porque no hay bitácora consultable que lo
+      respalde.
       {issueSucesor ? ` Sucesor: ${issueSucesor}.` : ""}
     </p>
   );

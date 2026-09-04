@@ -33,6 +33,16 @@ export type ReanalyzeResponse = components["schemas"]["ReanalyzeResponse"];
 export type ReconciliationAlias = components["schemas"]["ReconciliationAlias"];
 export type ReconciliationAliasesResponse = components["schemas"]["ReconciliationAliasesResponse"];
 
+/* API #359 todavía está en revisión y su schema no forma parte de `types.ts` en main.
+ * Este response local replica exactamente el response_model publicado por ese PR. Al mergear
+ * #359 se debe regenerar OpenAPI y reemplazar este alias por
+ * `components["schemas"]["RejectDocumentSuggestionResponse"]`; no se edita el generado a mano. */
+export interface RejectDocumentSuggestionResponse {
+  movement_id: string;
+  status: string;
+  document_id: string;
+}
+
 export const reconciliationKeys = {
   all: ["reconciliation"] as const,
   review: () => [...reconciliationKeys.all, "review"] as const,
@@ -133,6 +143,47 @@ export function useRejectReconciliation() {
         `/api/treasury/reconciliation/${encodeURIComponent(movementId)}/reject`,
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: reconciliationKeys.review() }),
+  });
+}
+
+export interface RejectReconciliationSuggestionInput {
+  movementId: string;
+  /** `null` conserva el descarte genérico de una sugerencia vieja sin documento identificable. */
+  documentId: string | null;
+}
+
+/** Ejecuta el descarte más específico que el contrato permite.
+ *
+ * Con documento, API #359 guarda el par negativo movimiento-documento para que el motor no lo
+ * proponga otra vez. Sin documento se conserva el `reject` histórico: no inventamos una memoria
+ * cuyo identificador no conocemos. Exportada sin React para probar ruta, fallback y propagación
+ * de errores sin un arés de hooks. */
+export function rejectReconciliationSuggestion({
+  movementId,
+  documentId,
+}: RejectReconciliationSuggestionInput): Promise<
+  ConfirmResponse | RejectDocumentSuggestionResponse
+> {
+  const movement = encodeURIComponent(movementId);
+  if (documentId) {
+    return api.post<RejectDocumentSuggestionResponse>(
+      `/api/treasury/reconciliation/${movement}/document-suggestions/${encodeURIComponent(documentId)}/reject`,
+    );
+  }
+  return api.post<ConfirmResponse>(`/api/treasury/reconciliation/${movement}/reject`);
+}
+
+/** Igual que `useRejectReconciliation`, pero usa el rechazo con memoria cuando la card conoce el
+ * documento. Invalida candidatos y cola en ambos caminos: el backend puede sacar el candidato
+ * puntual o devolver el movimiento a `unmatched`. */
+export function useRejectReconciliationSuggestion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: rejectReconciliationSuggestion,
+    onSuccess: (_result, { movementId }) => {
+      qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
+      qc.invalidateQueries({ queryKey: reconciliationKeys.documentSuggestions(movementId) });
+    },
   });
 }
 

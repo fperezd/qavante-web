@@ -7,12 +7,16 @@ import {
   useConfirmReconciliationWithDocument,
   useReconciliationReview,
   useDocumentSuggestions,
-  useRejectReconciliation,
+  useRejectReconciliationSuggestion,
   useRevertReconciliation,
 } from "@/lib/api/reconciliation";
 import { useSuggestedCategory } from "@/lib/api/classification-rules";
 import { useManagementAccountsTree } from "@/lib/api/management";
-import { useBankMovements, useClassifyBankMovement } from "@/lib/api/treasury";
+import {
+  useBankMovements,
+  useClassifyBankMovement,
+  useClassifyBankMovementsBulk,
+} from "@/lib/api/treasury";
 import {
   ACTION_TYPE_BANK_MOVEMENT_AUTO_CLASSIFY,
   useReversibleActions,
@@ -44,10 +48,10 @@ import {
  *   · `GET  /api/reversible-actions`                                  → lo que Qavante clasificó
  *     SOLO y todavía se puede deshacer (Ley 5, issue #90).
  *
- * Escrituras: `confirm` (con o sin documento elegido), `reject`, `revert` (el Deshacer de la Ley 5
- * para conciliar), `classify` — este último también con `create_rule: true` para la oferta de
- * regla (§17) — y `POST /api/reversible-actions/{action_id}/revert` (el Deshacer de la Ley 5 para
- * lo que Qavante clasificó SOLO; `qavante-api#257`, ADR-0113, mergeado 2026-08-31).
+ * Escrituras: `confirm` (con o sin documento elegido), `reject` con memoria del par cuando la card
+ * conoce el documento (API #359, aún pendiente de merge), `revert` (el Deshacer de la Ley 5 para
+ * conciliar), `classify`, `classify-bulk` manual y atómico (API #350) y
+ * `POST /api/reversible-actions/{action_id}/revert` para lo que Qavante clasificó SOLO.
  *
  * LO QUE SIGUE SIN CABLEARSE, Y POR QUÉ: no hay Deshacer para el `classify` que dispara el botón
  * "Guardar" de la carta. Verificado contra `api/app/core/treasury_repo.py`
@@ -99,10 +103,14 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
 
   const confirmar = useConfirmReconciliation();
   const confirmarConDocumento = useConfirmReconciliationWithDocument();
-  const descartar = useRejectReconciliation();
+  const descartar = useRejectReconciliationSuggestion();
   const revertir = useRevertReconciliation();
   const clasificar = useClassifyBankMovement();
+  const clasificarLote = useClassifyBankMovementsBulk();
   const revertirAuto = useRevertReversibleAction();
+  /* Una respuesta de red perdida se reintenta con la MISMA llave para la misma decisión. Si cambia
+     ids, cuenta o nota, cambia el fingerprint y por tanto nace una intención nueva. */
+  const llavesLote = React.useRef(new Map<string, string>());
 
   const cuentas: OpcionCuentaV07[] = React.useMemo(() => {
     const filas = toManagementAccountTreeRows(arbol.data?.items ?? []);
@@ -198,9 +206,12 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
       onDeshacerConciliar={(item) => {
         revertir.mutate(item.id, { onError: fallo("deshacer esta conciliación") });
       }}
-      onNoEsEsta={(item) => {
+      onNoEsEsta={(item, candidato) => {
         setAviso(null);
-        descartar.mutate(item.id, { onError: fallo("descartar esta sugerencia") });
+        descartar.mutate(
+          { movementId: item.id, documentId: candidato?.documentId ?? null },
+          { onError: fallo("descartar esta sugerencia") },
+        );
       }}
       onClasificar={(item, cuentaId, notas) => {
         setAviso(null);
@@ -215,6 +226,28 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
           },
           { onError: fallo("clasificar este movimiento") },
         );
+      }}
+      onClasificarLote={async (movementIds, cuentaId, notas) => {
+        setAviso(null);
+        const ordenados = [...movementIds].sort();
+        const fingerprint = JSON.stringify({ movementIds: ordenados, cuentaId, notas });
+        let idempotencyKey = llavesLote.current.get(fingerprint);
+        if (!idempotencyKey) {
+          idempotencyKey = crypto.randomUUID();
+          llavesLote.current.set(fingerprint, idempotencyKey);
+        }
+        try {
+          await clasificarLote.mutateAsync({
+            movement_ids: ordenados,
+            management_account_id: cuentaId,
+            ...(notas.trim() ? { classification_notes: notas.trim() } : {}),
+            idempotency_key: idempotencyKey,
+          });
+          llavesLote.current.delete(fingerprint);
+        } catch (err) {
+          fallo("clasificar este lote")(err);
+          throw err;
+        }
       }}
       onCrearRegla={(item, cuentaId) => {
         /* §17: la regla se crea DESDE el movimiento con `create_rule: true`. Re-clasificar al

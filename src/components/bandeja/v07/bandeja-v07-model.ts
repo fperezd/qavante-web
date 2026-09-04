@@ -545,10 +545,9 @@ export function claveContraparte(item: ItemClasificarV07): string | null {
 /**
  * §V07 — "si hay ≥3 ítems de la misma contraparte → banner 'Hay N más de X'".
  *
- * Devuelve el grupo del ítem en pantalla, o `null` si no llega a 3. El banner que esto alimenta
- * NO ejecuta un bulk: no existe endpoint de clasificación masiva a una categoría elegida
- * (`apply-rules` aplica REGLAS, que es otra cosa). Lo que sí se puede hacer con dato real es
- * ponerlos seguidos en la cola, y eso es lo que ofrece.
+ * Devuelve el grupo del ítem en pantalla, o `null` si no llega a 3. La vista puede ofrecer el
+ * bulk manual y atómico de API #350 cuando el usuario elige una categoría y lo confirma. Agrupar
+ * primero mantiene visible qué movimientos entrarán en esa decisión; no se infiere una categoría.
  */
 export function lote(
   items: readonly ItemClasificarV07[],
