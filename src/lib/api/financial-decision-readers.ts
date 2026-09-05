@@ -8,6 +8,7 @@ export type FxEvaluationRead = components["schemas"]["FxEvaluationResponse"];
 export type InvestableSurplusRead = components["schemas"]["InvestmentSituationResponse"];
 export type InvestmentEvaluationRead = components["schemas"]["InvestmentEvaluationResponse"];
 export type OutcomeValueRead = components["schemas"]["OutcomeValueReadResponse"];
+export type LearningCandidateRead = components["schemas"]["LearningCandidateReadResponse"];
 
 export const financialDecisionReaderKeys = {
   all: ["financial-decision-readers"] as const,
@@ -21,6 +22,8 @@ export const financialDecisionReaderKeys = {
     [...financialDecisionReaderKeys.all, "investment-evaluations", scope] as const,
   outcomeValues: (scope: DecisionReadScope | null) =>
     [...financialDecisionReaderKeys.all, "outcome-values", scope] as const,
+  learningCandidates: (scope: DecisionReadScope | null) =>
+    [...financialDecisionReaderKeys.all, "learning-candidates", scope] as const,
 };
 
 function decisionReaderQuery(scope: DecisionReadScope): string {
@@ -85,6 +88,18 @@ export function useOutcomeValues(scope: DecisionReadScope | null) {
   return useDecisionReader<OutcomeValueRead>(
     financialDecisionReaderKeys.outcomeValues(scope),
     "/api/treasury/outcome-values",
+    scope,
+  );
+}
+
+/**
+ * F10 exposes candidate-only observations. This reader never applies learning, recalibrates a
+ * policy, or turns an observation into a financial conclusion in the browser.
+ */
+export function useLearningCandidates(scope: DecisionReadScope | null) {
+  return useDecisionReader<LearningCandidateRead>(
+    financialDecisionReaderKeys.learningCandidates(scope),
+    "/api/treasury/learning-candidates",
     scope,
   );
 }

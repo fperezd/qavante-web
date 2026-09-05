@@ -5,8 +5,14 @@ import type {
   FxExposureRead,
   InvestmentEvaluationRead,
   InvestableSurplusRead,
+  LearningCandidateRead,
   OutcomeValueRead,
 } from "@/lib/api/financial-decision-readers";
+import {
+  learningKindLabel,
+  learningReasonLabel,
+  uniqueReferences,
+} from "./learning-candidates-model";
 import {
   itemCount,
   itemSummary,
@@ -16,7 +22,10 @@ import {
   type ReaderResponse,
 } from "./decision-read-model";
 
-interface ReaderState<T extends ReaderResponse> {
+/* F10 is deliberately not an "abstained" reader: its contract publishes
+   `not_evaluable`. Keep the generic closed over the two server contracts used
+   by this panel so an arbitrary `{ state: string }` cannot enter the view. */
+interface ReaderState<T extends ReaderResponse | LearningCandidateRead> {
   data?: T;
   loading: boolean;
   failed: boolean;
@@ -28,6 +37,7 @@ export interface DecisionReadersView {
   investableSurplus: ReaderState<InvestableSurplusRead>;
   investmentEvaluations: ReaderState<InvestmentEvaluationRead>;
   outcomeValues: ReaderState<OutcomeValueRead>;
+  learningCandidates: ReaderState<LearningCandidateRead>;
 }
 
 export function DecisionReadPanel({ readers }: { readers: DecisionReadersView }) {
@@ -102,7 +112,91 @@ export function DecisionReadPanel({ readers }: { readers: DecisionReadersView })
         outcomeDetails={readers.outcomeValues.data?.outcomes}
         outcomeCurrency={readers.outcomeValues.data?.scope.currency}
       />
+      <LearningCandidatesCard state={readers.learningCandidates} />
     </section>
+  );
+}
+
+function LearningCandidatesCard({ state }: { state: ReaderState<LearningCandidateRead> }) {
+  const data = state.data;
+  const signals = data?.signals ?? [];
+
+  return (
+    <QavanteCard variant="bordered">
+      <article aria-label="F10 · señales candidatas de aprendizaje">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h4 className="font-semibold text-neutral-dark">F10 · señales candidatas</h4>
+            <p className="mt-1 text-sm text-neutral-mid">
+              Observaciones para revisión: no recalibran políticas, proyecciones ni confianza.
+            </p>
+          </div>
+          <StateBadge
+            loading={state.loading}
+            failed={state.failed}
+            abstained={data?.state === "not_evaluable"}
+          />
+        </div>
+
+        {state.loading ? (
+          <p className="mt-3 text-sm text-neutral-mid">Consultando las señales publicadas…</p>
+        ) : state.failed ? (
+          <p className="mt-3 text-sm text-neutral-mid">
+            No fue posible verificar las señales candidatas.
+          </p>
+        ) : !data ? (
+          <p className="mt-3 text-sm text-neutral-mid">Sin lectura publicada.</p>
+        ) : data.state === "not_evaluable" ? (
+          <p className="mt-3 text-sm text-neutral-mid">
+            Sin dato · {learningReasonLabel(data.reasons)}
+          </p>
+        ) : signals.length === 0 ? (
+          <p className="mt-3 text-sm text-neutral-mid">
+            Sin señales candidatas en este snapshot publicado.
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-3 border-t border-neutral-light/60 pt-3">
+            {signals.map((signal) => (
+              <li
+                key={`${signal.kind}-${signal.subject_ref}`}
+                className="rounded-lg border border-neutral-light/70 p-3"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-neutral-dark">
+                      {learningKindLabel(signal.kind)}
+                    </p>
+                    <p className="mt-1 text-xs text-neutral-mid">
+                      Decisión o sujeto: <span className="font-mono">{signal.subject_ref}</span>
+                    </p>
+                  </div>
+                  <QavanteBadge variant="info">Sólo candidata</QavanteBadge>
+                </div>
+                <p className="mt-2 text-xs text-neutral-mid">
+                  Confianza publicada: {signal.confidence}
+                </p>
+                <TraceList label="Evidencia" refs={signal.evidence_refs} />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {data && (
+          <section className="mt-4 border-t border-neutral-light/60 pt-3 text-xs text-neutral-mid">
+            <p>
+              Alcance publicado: entidad{" "}
+              <span className="font-mono">{data.scope.legal_entity_id}</span>
+              {" · "}
+              {data.scope.currency} · corte {data.scope.as_of}
+            </p>
+            <TraceList label="Linaje" refs={uniqueReferences([data.source_refs])} />
+            {data.source_snapshot_hash && (
+              <p className="mt-3 break-all font-mono">Snapshot: {data.source_snapshot_hash}</p>
+            )}
+          </section>
+        )}
+      </article>
+    </QavanteCard>
   );
 }
 

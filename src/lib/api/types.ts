@@ -4794,6 +4794,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/decision-observability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Decision Observability
+         * @description Expose decision-only F10 metrics from persisted facts in one canonical scope.
+         */
+        get: operations["treasury_decision_observability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/decision-plans/collection": {
         parameters: {
             query?: never;
@@ -5036,6 +5056,26 @@ export interface paths {
          * @description F7 exposes no invented product, rate, yield, tax or liquidity term.
          */
         get: operations["treasury_investment_evaluations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/learning-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Learning Candidates
+         * @description Expose candidate-only F10 signals; never apply learning or mutate financial state.
+         */
+        get: operations["treasury_learning_candidates"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10287,6 +10327,79 @@ export interface components {
             reachable: boolean;
         };
         /**
+         * DecisionObservabilityMetrics
+         * @description Counts derived from persisted decisions; absent evidence stays unknown.
+         */
+        DecisionObservabilityMetrics: {
+            /** Abstained */
+            abstained?: number | null;
+            /** Abstention Rate */
+            abstention_rate?: string | null;
+            /** No Action */
+            no_action?: number | null;
+            /** Observed */
+            observed?: number | null;
+            /** Ready */
+            ready?: number | null;
+            /** Reason Codes */
+            reason_codes?: string[];
+            /** Reason Counts */
+            reason_counts?: [
+                string,
+                number
+            ][];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "not_evaluable";
+        };
+        /**
+         * DecisionObservabilityResponse
+         * @description F10 decision-only observability; no integration or freshness claims.
+         */
+        DecisionObservabilityResponse: {
+            decision_metrics: components["schemas"]["DecisionObservabilityMetrics"];
+            scope: components["schemas"]["DecisionObservabilityScope"];
+            /** Source Refs */
+            source_refs: string[];
+        };
+        /**
+         * DecisionObservabilityScope
+         * @description Canonical, explicit scope for the F10 decision metrics read model.
+         */
+        DecisionObservabilityScope: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /**
+             * Period End
+             * Format: date-time
+             */
+            period_end: string;
+            /**
+             * Period Start
+             * Format: date-time
+             */
+            period_start: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Vertical Code */
+            vertical_code: string;
+        };
+        /**
          * DecisionPlanResponse
          * @description Contrato mínimo de una recomendación explicable backend-first.
          */
@@ -12806,6 +12919,80 @@ export interface components {
              * @constant
              */
             state: "abstained";
+        };
+        /**
+         * LearningCandidateItem
+         * @description Observed candidate with no permission to mutate a model or policy.
+         */
+        LearningCandidateItem: {
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "unknown" | "low" | "medium" | "high";
+            /** Delta */
+            delta?: string | number | null;
+            /**
+             * Effect
+             * @constant
+             */
+            effect: "candidate_only";
+            /** Evidence Refs */
+            evidence_refs: string[];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "collection_behavior" | "forecast_calibration" | "operation_cost_duration" | "quote_realization" | "liquidity_redemption" | "fx_residual_exposure" | "source_quality_drift";
+            /** Observed Value */
+            observed_value?: string | number | null;
+            /** Reference Value */
+            reference_value?: string | number | null;
+            /** Subject Ref */
+            subject_ref: string;
+        };
+        /**
+         * LearningCandidateReadResponse
+         * @description Read-only F10 candidates or an explicit non-evaluable snapshot.
+         */
+        LearningCandidateReadResponse: {
+            /** Reasons */
+            reasons?: string[];
+            scope: components["schemas"]["LearningCandidateScope"];
+            /** Signals */
+            signals?: components["schemas"]["LearningCandidateItem"][];
+            /** Source Refs */
+            source_refs: string[];
+            /** Source Snapshot Hash */
+            source_snapshot_hash?: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "not_evaluable";
+        };
+        /**
+         * LearningCandidateScope
+         * @description Canonical scope inherited unchanged from the validated F9 snapshot.
+         */
+        LearningCandidateScope: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
         };
         /**
          * LibroComparativosResponse
@@ -28096,6 +28283,44 @@ export interface operations {
             };
         };
     };
+    treasury_decision_observability: {
+        parameters: {
+            query: {
+                legal_entity_id: string;
+                currency: string;
+                vertical_code: string;
+                period_start: string;
+                period_end: string;
+                as_of: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionObservabilityResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_collection_plan: {
         parameters: {
             query?: never;
@@ -28576,6 +28801,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvestmentEvaluationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_learning_candidates: {
+        parameters: {
+            query: {
+                legal_entity_id: string;
+                currency: string;
+                as_of: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LearningCandidateReadResponse"];
                 };
             };
             /** @description Validation Error */

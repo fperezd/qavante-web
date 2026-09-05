@@ -12,14 +12,12 @@ import {
   useLatestLiquidityEvaluation,
   useOperationPlanForDecision,
 } from "@/lib/api/financial-decisions";
-import {
-  toFinancialDecisionReadScope,
-  useFinancialScope,
-} from "@/lib/api/financial-scope";
+import { toFinancialDecisionReadScope, useFinancialScope } from "@/lib/api/financial-scope";
 import {
   useFxEvaluations,
   useFxExposures,
   useInvestableSurplus,
+  useLearningCandidates,
   useInvestmentEvaluations,
   useOutcomeValues,
   type DecisionReadScope,
@@ -58,6 +56,7 @@ export function HoyLive() {
   const investableSurplus = useInvestableSurplus(decisionReadScope);
   const investmentEvaluations = useInvestmentEvaluations(decisionReadScope);
   const outcomeValues = useOutcomeValues(decisionReadScope);
+  const learningCandidates = useLearningCandidates(decisionReadScope);
   const me = useMe();
   const role = asUserRole(me.data?.user?.role);
   /* F3's public reader requires legal_entity_id + currency + as_of. `/api/me` only publishes
@@ -135,6 +134,11 @@ export function HoyLive() {
                 data: outcomeValues.data,
                 loading: outcomeValues.isLoading,
                 failed: outcomeValues.isError,
+              },
+              learningCandidates: {
+                data: learningCandidates.data,
+                loading: learningCandidates.isLoading,
+                failed: learningCandidates.isError,
               },
             }
           : null
