@@ -10,7 +10,8 @@ import type {
 import {
   itemCount,
   itemSummary,
-  outcomeTrackingSummary,
+  outcomeDecisionView,
+  type OutcomeDecisionView,
   type ReaderCollection,
   type ReaderResponse,
 } from "./decision-read-model";
@@ -99,6 +100,7 @@ export function DecisionReadPanel({ readers }: { readers: DecisionReadersView })
         itemLabelPlural="resultados"
         collection="outcomes"
         outcomeDetails={readers.outcomeValues.data?.outcomes}
+        outcomeCurrency={readers.outcomeValues.data?.scope.currency}
       />
     </section>
   );
@@ -113,6 +115,7 @@ function ReaderCard({
   itemLabelPlural,
   collection,
   outcomeDetails,
+  outcomeCurrency,
 }: {
   title: string;
   data: ReaderResponse | undefined;
@@ -122,6 +125,7 @@ function ReaderCard({
   itemLabelPlural: string;
   collection: ReaderCollection;
   outcomeDetails?: OutcomeValueRead["outcomes"];
+  outcomeCurrency?: string;
 }) {
   const items = itemCount(data, collection);
   const abstained = data?.state === "abstained";
@@ -144,13 +148,13 @@ function ReaderCard({
                 : itemSummary(items, itemLabel, itemLabelPlural)}
             </p>
             <Provenance data={data} />
-            {outcomeDetails && outcomeDetails.length > 0 && (
-              <ul className="mt-4 space-y-2 border-t border-neutral-light/60 pt-3 text-xs text-neutral-mid">
-                {outcomeDetails.map((outcome) =>
-                  outcomeTrackingSummary(outcome).map((summary) => (
-                    <li key={`${outcome.outcome_ref}-${summary}`}>{summary}</li>
-                  )),
-                )}
+            {outcomeDetails && outcomeDetails.length > 0 && outcomeCurrency && (
+              <ul className="mt-4 space-y-3 border-t border-neutral-light/60 pt-3">
+                {outcomeDetails.map((outcome) => (
+                  <li key={outcome.outcome_ref}>
+                    <OutcomeDecisionCard view={outcomeDecisionView(outcome, outcomeCurrency)} />
+                  </li>
+                ))}
               </ul>
             )}
           </>
@@ -159,6 +163,112 @@ function ReaderCard({
         )}
       </article>
     </QavanteCard>
+  );
+}
+
+function OutcomeDecisionCard({ view }: { view: OutcomeDecisionView }) {
+  return (
+    <article
+      aria-label={`Resultado de la decisión ${view.decisionRef}`}
+      className="rounded-lg border border-neutral-light/70 p-4"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+            Decisión {view.decisionRef}
+          </p>
+          <h5 className="mt-1 font-semibold text-neutral-dark">{view.alternative}</h5>
+          <p className="mt-1 text-xs text-neutral-mid">Estado operativo: {view.operationalState}</p>
+        </div>
+        <QavanteBadge variant={view.valueLedgerState === "observed" ? "success" : "warning"}>
+          {view.valueLedgerState === "observed"
+            ? "Valor medido"
+            : view.valueLedgerState === "partial"
+              ? "Medición parcial"
+              : "No evaluable"}
+        </QavanteBadge>
+      </div>
+
+      <div className="mt-4 rounded-lg bg-neutral-light/20 p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+          Valor atribuido
+        </p>
+        <p className="mt-1 text-lg font-semibold text-neutral-dark">{view.attributedValue}</p>
+        {view.attributionLabel && (
+          <p className="mt-1 text-xs text-neutral-mid">{view.attributionLabel}</p>
+        )}
+        <p className="mt-1 text-xs text-neutral-mid">Confianza: {view.confidence}</p>
+      </div>
+
+      <OutcomeFieldGroup title="Resultado observado" fields={view.assessmentFields} />
+      {view.ledgerFields.length > 0 && (
+        <OutcomeFieldGroup title="Desglose del valor" fields={view.ledgerFields} />
+      )}
+      <OutcomeFieldGroup title="Error de proyección" fields={view.projectionFields} />
+      <OutcomeFieldGroup title="Cotización versus resultado" fields={view.quoteFields} />
+
+      {view.limitations.length > 0 && (
+        <p className="mt-3 text-xs text-neutral-mid">
+          Motivos y límites: {view.limitations.join(", ")}
+        </p>
+      )}
+      {view.traceGroups.some(
+        (group) => group.evidenceRefs.length > 0 || group.lineageRefs.length > 0,
+      ) && (
+        <section className="mt-4" aria-label="Trazabilidad por medición">
+          <h6 className="text-xs font-semibold text-neutral-dark">Trazabilidad por medición</h6>
+          <ul className="mt-2 space-y-3">
+            {view.traceGroups.map((group) =>
+              group.evidenceRefs.length > 0 || group.lineageRefs.length > 0 ? (
+                <li key={group.key} className="rounded-md border border-neutral-light/60 p-3">
+                  <p className="text-xs font-semibold text-neutral-dark">{group.label}</p>
+                  <TraceList label="Evidencia" refs={group.evidenceRefs} />
+                  <TraceList label="Linaje" refs={group.lineageRefs} />
+                </li>
+              ) : null,
+            )}
+          </ul>
+        </section>
+      )}
+    </article>
+  );
+}
+
+function OutcomeFieldGroup({
+  title,
+  fields,
+}: {
+  title: string;
+  fields: OutcomeDecisionView["assessmentFields"];
+}) {
+  return (
+    <section className="mt-4" aria-label={title}>
+      <h6 className="text-xs font-semibold text-neutral-dark">{title}</h6>
+      <dl className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {fields.map((field) => (
+          <div key={field.label}>
+            <dt className="text-[11px] uppercase tracking-wider text-neutral-mid">{field.label}</dt>
+            <dd className="mt-0.5 text-sm font-semibold text-neutral-dark">{field.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function TraceList({ label, refs }: { label: string; refs: string[] }) {
+  if (refs.length === 0) return null;
+  return (
+    <div className="mt-3 text-xs text-neutral-mid">
+      <p className="font-semibold text-neutral-dark">{label}</p>
+      <ul className="mt-1 space-y-1">
+        {refs.map((reference) => (
+          <li key={reference} className="break-all font-mono">
+            {reference}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
