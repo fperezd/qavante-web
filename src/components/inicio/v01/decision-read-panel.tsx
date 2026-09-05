@@ -10,6 +10,7 @@ import type {
 import {
   itemCount,
   itemSummary,
+  outcomeTrackingSummary,
   type ReaderCollection,
   type ReaderResponse,
 } from "./decision-read-model";
@@ -97,6 +98,7 @@ export function DecisionReadPanel({ readers }: { readers: DecisionReadersView })
         itemLabel="resultado"
         itemLabelPlural="resultados"
         collection="outcomes"
+        outcomeDetails={readers.outcomeValues.data?.outcomes}
       />
     </section>
   );
@@ -110,6 +112,7 @@ function ReaderCard({
   itemLabel,
   itemLabelPlural,
   collection,
+  outcomeDetails,
 }: {
   title: string;
   data: ReaderResponse | undefined;
@@ -118,6 +121,7 @@ function ReaderCard({
   itemLabel: string;
   itemLabelPlural: string;
   collection: ReaderCollection;
+  outcomeDetails?: OutcomeValueRead["outcomes"];
 }) {
   const items = itemCount(data, collection);
   const abstained = data?.state === "abstained";
@@ -140,6 +144,15 @@ function ReaderCard({
                 : itemSummary(items, itemLabel, itemLabelPlural)}
             </p>
             <Provenance data={data} />
+            {outcomeDetails && outcomeDetails.length > 0 && (
+              <ul className="mt-4 space-y-2 border-t border-neutral-light/60 pt-3 text-xs text-neutral-mid">
+                {outcomeDetails.map((outcome) =>
+                  outcomeTrackingSummary(outcome).map((summary) => (
+                    <li key={`${outcome.outcome_ref}-${summary}`}>{summary}</li>
+                  )),
+                )}
+              </ul>
+            )}
           </>
         ) : (
           <p className="mt-3 text-sm text-neutral-mid">Sin lectura publicada.</p>

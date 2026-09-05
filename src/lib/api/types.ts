@@ -3013,7 +3013,7 @@ export interface paths {
         };
         /**
          * Outcome Values
-         * @description Expose operational tracking, never inventing an economic outcome or value.
+         * @description Expose operational tracking and reconciled facts, never inferred value.
          */
         get: operations["treasury_outcome_values"];
         put?: never;
@@ -14806,6 +14806,65 @@ export interface components {
             reasons: string[];
         };
         /**
+         * OutcomeObservedMeasurement
+         * @description Facts from one unambiguous automatic observation envelope only.
+         */
+        OutcomeObservedMeasurement: {
+            /**
+             * State
+             * @constant
+             */
+            state: "partial";
+            /** Reasons */
+            reasons: string[];
+            /** Outcome Key */
+            outcome_key: string;
+            /** Metric Code */
+            metric_code: string;
+            /**
+             * Metric Basis
+             * @enum {string}
+             */
+            metric_basis: "gross_before_cost" | "net_after_cost";
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /** Actual Result */
+            actual_result?: string | null;
+            /** Actual Amount */
+            actual_amount?: string | null;
+            /** Actual Cost */
+            actual_cost?: string | null;
+            /** Recovery Amount */
+            recovery_amount?: string | null;
+            /** Effective Rate */
+            effective_rate?: string | null;
+            /** Value Date */
+            value_date?: string | null;
+            /** Residual Exposure */
+            residual_exposure?: string | null;
+            /** Duration Days */
+            duration_days?: number | null;
+            /** Source Refs */
+            source_refs: string[];
+            /** Evidence Hashes */
+            evidence_hashes: string[];
+            /** Lineage Refs */
+            lineage_refs: string[];
+        };
+        /**
          * OutcomeTrackingItem
          * @description Operational facts; it intentionally contains no observed money fields.
          */
@@ -14830,7 +14889,8 @@ export interface components {
             /** Operational State */
             operational_state: string;
             task_summary?: components["schemas"]["OutcomeTrackingTaskSummary"] | null;
-            economic_measurement: components["schemas"]["OutcomeNotEvaluableMeasurement"];
+            /** Economic Measurement */
+            economic_measurement: components["schemas"]["OutcomeNotEvaluableMeasurement"] | components["schemas"]["OutcomeObservedMeasurement"];
             value_ledger: components["schemas"]["OutcomeTrackingValueLedger"];
         };
         /**
