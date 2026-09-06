@@ -32,6 +32,7 @@ import {
   sugerenciaCategoria,
   type ItemV07,
   type OpcionCuentaV07,
+  type TabV07,
 } from "./bandeja-v07-model";
 
 /* Cableado de V07 · Bandeja. La vista es presentacional; acá se resuelven las fuentes, todas
@@ -73,6 +74,18 @@ const TOPE_HISTORIAL = 200;
  *  este tope es de tráfico, no de UI — de sobra para lo que un tenant genera en 7 días. */
 const TOPE_AUTO_CLASIFICAR = 20;
 
+type ReferenciaItemActivo = Pick<ItemV07, "id" | "tipo">;
+
+/** Selecciona sólo movimientos que todavía siguen en la cola de clasificación. */
+export function referenciaMovimientoInicial(
+  items: readonly ItemV07[] | null,
+  movimientoInicial?: string,
+): ReferenciaItemActivo | null {
+  if (!movimientoInicial || !items) return null;
+  const movimiento = items.find((item) => item.id === movimientoInicial);
+  return movimiento ? { id: movimiento.id, tipo: movimiento.tipo } : null;
+}
+
 /** Por qué no llegó una fuente, en lenguaje de dueño. */
 export function motivoFuente(err: unknown, que: string): string {
   if (err instanceof ApiError && err.isNetworkError()) {
@@ -81,9 +94,22 @@ export function motivoFuente(err: unknown, que: string): string {
   return `${que} no respondió. Vuelve a intentar en un momento; si sigue igual, revisa tus conexiones.`;
 }
 
-export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?: string }) {
+export function BandejaV07Live({
+  issueSucesor = ISSUE_SUCESOR,
+  tabInicial,
+  movimientoInicial,
+}: {
+  issueSucesor?: string;
+  /** Conserva la intención al entrar por las rutas clásicas. */
+  tabInicial?: TabV07;
+  /** Abre el movimiento pedido por un enlace clásico, si todavía está pendiente. */
+  movimientoInicial?: string;
+}) {
   const [hoy] = React.useState(() => new Date());
-  const [activo, setActivo] = React.useState<ItemV07 | null>(null);
+  /* Guardamos la identidad, no el objeto que deriva cada query. Las respuestas de React Query
+     pueden traer una referencia nueva aunque el contenido sea el mismo: guardar ese objeto haría
+     que una ruta clásica con `?movimiento=` se reabra en cada render. */
+  const [activoRef, setActivoRef] = React.useState<ReferenciaItemActivo | null>(null);
   const [aviso, setAviso] = React.useState<string | null>(null);
 
   const review = useReconciliationReview();
@@ -95,11 +121,6 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
     onlyUndoable: true,
     limit: TOPE_AUTO_CLASIFICAR,
   });
-
-  const idConciliar = activo?.tipo === "conciliar" ? activo.id : null;
-  const idClasificar = activo?.tipo === "clasificar" ? activo.id : "";
-  const documentos = useDocumentSuggestions(idConciliar);
-  const categoria = useSuggestedCategory(idClasificar);
 
   const confirmar = useConfirmReconciliation();
   const confirmarConDocumento = useConfirmReconciliationWithDocument();
@@ -124,10 +145,34 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
     );
   }, [arbol.data]);
 
-  if (review.isLoading && sinClasificar.isLoading) return <CargandoBandeja />;
+  const itemsC = React.useMemo(
+    () => (review.isError ? null : itemsConciliar(review.data)),
+    [review.data, review.isError],
+  );
+  const itemsK = React.useMemo(
+    () => (sinClasificar.isError ? null : itemsClasificar(sinClasificar.data)),
+    [sinClasificar.data, sinClasificar.isError],
+  );
+  const activo = React.useMemo(() => {
+    if (!activoRef) return null;
+    const items = activoRef.tipo === "conciliar" ? itemsC : itemsK;
+    return items?.find((item) => item.id === activoRef.id) ?? null;
+  }, [activoRef, itemsC, itemsK]);
 
-  const itemsC = review.isError ? null : itemsConciliar(review.data);
-  const itemsK = sinClasificar.isError ? null : itemsClasificar(sinClasificar.data);
+  const idConciliar = activo?.tipo === "conciliar" ? activo.id : null;
+  const idClasificar = activo?.tipo === "clasificar" ? activo.id : "";
+  const documentos = useDocumentSuggestions(idConciliar);
+  const categoria = useSuggestedCategory(idClasificar);
+
+  React.useEffect(() => {
+    const movimiento = referenciaMovimientoInicial(itemsK, movimientoInicial);
+    if (!movimiento) return;
+    setActivoRef((anterior) =>
+      anterior?.id === movimiento.id && anterior.tipo === movimiento.tipo ? anterior : movimiento,
+    );
+  }, [itemsK, movimientoInicial]);
+
+  if (review.isLoading && sinClasificar.isLoading) return <CargandoBandeja />;
 
   function fallo(accion: string) {
     return (err: unknown) => {
@@ -191,7 +236,7 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
       }
       avisoError={aviso}
       onCerrarAviso={() => setAviso(null)}
-      onItemActivo={setActivo}
+      onItemActivo={(item) => setActivoRef(item ? { id: item.id, tipo: item.tipo } : null)}
       onConciliar={(item, documentoId) => {
         setAviso(null);
         if (documentoId) {
@@ -267,6 +312,7 @@ export function BandejaV07Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?
       }}
       issueSucesor={issueSucesor}
       hoy={hoy}
+      tabInicial={tabInicial}
     />
   );
 }
