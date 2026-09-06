@@ -9,6 +9,7 @@ export type InvestableSurplusRead = components["schemas"]["InvestmentSituationRe
 export type InvestmentEvaluationRead = components["schemas"]["InvestmentEvaluationResponse"];
 export type OutcomeValueRead = components["schemas"]["OutcomeValueReadResponse"];
 export type LearningCandidateRead = components["schemas"]["LearningCandidateReadResponse"];
+export type SourceFreshnessRead = components["schemas"]["FreshnessObservabilityResponse"];
 
 export const financialDecisionReaderKeys = {
   all: ["financial-decision-readers"] as const,
@@ -24,6 +25,8 @@ export const financialDecisionReaderKeys = {
     [...financialDecisionReaderKeys.all, "outcome-values", scope] as const,
   learningCandidates: (scope: DecisionReadScope | null) =>
     [...financialDecisionReaderKeys.all, "learning-candidates", scope] as const,
+  sourceFreshness: (scope: DecisionReadScope | null) =>
+    [...financialDecisionReaderKeys.all, "source-freshness", scope] as const,
 };
 
 function decisionReaderQuery(scope: DecisionReadScope): string {
@@ -100,6 +103,18 @@ export function useLearningCandidates(scope: DecisionReadScope | null) {
   return useDecisionReader<LearningCandidateRead>(
     financialDecisionReaderKeys.learningCandidates(scope),
     "/api/treasury/learning-candidates",
+    scope,
+  );
+}
+
+/**
+ * F10 freshness is server-evaluated against its persisted policy. The browser sends only the
+ * canonical scope and never supplies thresholds, provider settings, or a replacement clock.
+ */
+export function useSourceFreshness(scope: DecisionReadScope | null) {
+  return useDecisionReader<SourceFreshnessRead>(
+    financialDecisionReaderKeys.sourceFreshness(scope),
+    "/api/treasury/source-freshness",
     scope,
   );
 }

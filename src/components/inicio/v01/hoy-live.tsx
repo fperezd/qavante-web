@@ -20,6 +20,7 @@ import {
   useLearningCandidates,
   useInvestmentEvaluations,
   useOutcomeValues,
+  useSourceFreshness,
   type DecisionReadScope,
 } from "@/lib/api/financial-decision-readers";
 import { useMe } from "@/lib/api/users";
@@ -57,6 +58,7 @@ export function HoyLive() {
   const investmentEvaluations = useInvestmentEvaluations(decisionReadScope);
   const outcomeValues = useOutcomeValues(decisionReadScope);
   const learningCandidates = useLearningCandidates(decisionReadScope);
+  const sourceFreshness = useSourceFreshness(decisionReadScope);
   const me = useMe();
   const role = asUserRole(me.data?.user?.role);
   /* F3's public reader requires legal_entity_id + currency + as_of. `/api/me` only publishes
@@ -139,6 +141,11 @@ export function HoyLive() {
                 data: learningCandidates.data,
                 loading: learningCandidates.isLoading,
                 failed: learningCandidates.isError,
+              },
+              sourceFreshness: {
+                data: sourceFreshness.data,
+                loading: sourceFreshness.isLoading,
+                failed: sourceFreshness.isError,
               },
             }
           : null

@@ -5986,6 +5986,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/source-freshness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Source Freshness
+         * @description Evaluate source age only against the active persisted freshness policy.
+         */
+        get: operations["treasury_source_freshness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/tax-calendar": {
         parameters: {
             query?: never;
@@ -12387,6 +12407,84 @@ export interface components {
         ForeignPurchasesListResponse: {
             /** Items */
             items?: components["schemas"]["ForeignPurchaseItem"][];
+        };
+        /** FreshnessMetricRead */
+        FreshnessMetricRead: {
+            /** Age Ms */
+            age_ms?: string | null;
+            /** Evidence Refs */
+            evidence_refs?: string[];
+            /**
+             * Metric State
+             * @enum {string}
+             */
+            metric_state: "ready" | "not_evaluable";
+            /** Policy Version */
+            policy_version: string;
+            /** Reason Codes */
+            reason_codes?: string[];
+            /** Source Code */
+            source_code: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "fresh" | "stale" | "unavailable" | "unknown";
+        };
+        /** FreshnessObservabilityResponse */
+        FreshnessObservabilityResponse: {
+            /** Freshness Metrics */
+            freshness_metrics?: components["schemas"]["FreshnessMetricRead"][];
+            freshness_summary: components["schemas"]["FreshnessSummaryRead"];
+            policy?: components["schemas"]["FreshnessPolicyRead"] | null;
+            scope: components["schemas"]["FreshnessObservabilityScope"];
+            /** Snapshot Ref */
+            snapshot_ref?: string | null;
+            /** Source Refs */
+            source_refs: string[];
+        };
+        /** FreshnessObservabilityScope */
+        FreshnessObservabilityScope: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Policy Code */
+            policy_code: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+        };
+        /** FreshnessPolicyRead */
+        FreshnessPolicyRead: {
+            /** Rules Ref */
+            rules_ref: string;
+            /** Version */
+            version: string;
+        };
+        /** FreshnessSummaryRead */
+        FreshnessSummaryRead: {
+            /** Fresh Sources */
+            fresh_sources?: number | null;
+            /** Reason Codes */
+            reason_codes?: string[];
+            /** Required Sources */
+            required_sources?: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "not_evaluable";
         };
         /** Fuentes */
         Fuentes: {
@@ -30854,6 +30952,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    treasury_source_freshness: {
+        parameters: {
+            query: {
+                legal_entity_id: string;
+                currency: string;
+                as_of: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FreshnessObservabilityResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

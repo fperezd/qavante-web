@@ -7,12 +7,14 @@ import type {
   InvestableSurplusRead,
   LearningCandidateRead,
   OutcomeValueRead,
+  SourceFreshnessRead,
 } from "@/lib/api/financial-decision-readers";
 import {
   learningKindLabel,
   learningReasonLabel,
   uniqueReferences,
 } from "./learning-candidates-model";
+import { freshnessReasonLabel, freshnessStateLabel } from "./source-freshness-model";
 import {
   itemCount,
   itemSummary,
@@ -25,7 +27,7 @@ import {
 /* F10 is deliberately not an "abstained" reader: its contract publishes
    `not_evaluable`. Keep the generic closed over the two server contracts used
    by this panel so an arbitrary `{ state: string }` cannot enter the view. */
-interface ReaderState<T extends ReaderResponse | LearningCandidateRead> {
+interface ReaderState<T extends ReaderResponse | LearningCandidateRead | SourceFreshnessRead> {
   data?: T;
   loading: boolean;
   failed: boolean;
@@ -38,6 +40,7 @@ export interface DecisionReadersView {
   investmentEvaluations: ReaderState<InvestmentEvaluationRead>;
   outcomeValues: ReaderState<OutcomeValueRead>;
   learningCandidates: ReaderState<LearningCandidateRead>;
+  sourceFreshness: ReaderState<SourceFreshnessRead>;
 }
 
 export function DecisionReadPanel({ readers }: { readers: DecisionReadersView }) {
@@ -113,7 +116,101 @@ export function DecisionReadPanel({ readers }: { readers: DecisionReadersView })
         outcomeCurrency={readers.outcomeValues.data?.scope.currency}
       />
       <LearningCandidatesCard state={readers.learningCandidates} />
+      <SourceFreshnessCard state={readers.sourceFreshness} />
     </section>
+  );
+}
+
+function SourceFreshnessCard({ state }: { state: ReaderState<SourceFreshnessRead> }) {
+  const data = state.data;
+  const summary = data?.freshness_summary;
+  const notEvaluable = summary?.state === "not_evaluable";
+  const metrics = data?.freshness_metrics ?? [];
+
+  return (
+    <QavanteCard variant="bordered">
+      <article aria-label="F10 · frescura de fuentes">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h4 className="font-semibold text-neutral-dark">F10 · frescura de fuentes</h4>
+            <p className="mt-1 text-sm text-neutral-mid">
+              Lectura del backend según la política publicada; no ajusta sus reglas desde aquí.
+            </p>
+          </div>
+          <StateBadge loading={state.loading} failed={state.failed} abstained={notEvaluable} />
+        </div>
+
+        {state.loading ? (
+          <p className="mt-3 text-sm text-neutral-mid">Consultando la frescura publicada…</p>
+        ) : state.failed ? (
+          <p className="mt-3 text-sm text-neutral-mid">
+            No fue posible verificar la frescura de las fuentes.
+          </p>
+        ) : !data || !summary ? (
+          <p className="mt-3 text-sm text-neutral-mid">Sin lectura publicada.</p>
+        ) : notEvaluable ? (
+          <p className="mt-3 text-sm text-neutral-mid">
+            Sin dato · {freshnessReasonLabel(summary.reason_codes)}
+          </p>
+        ) : (
+          <>
+            <p className="mt-3 text-sm text-neutral-mid">
+              Fuentes vigentes: {summary.fresh_sources ?? "Sin dato"} de{" "}
+              {summary.required_sources ?? "Sin dato"}.
+            </p>
+            {metrics.length > 0 && (
+              <ul className="mt-4 space-y-3 border-t border-neutral-light/60 pt-3">
+                {metrics.map((metric) => (
+                  <li
+                    key={metric.source_code}
+                    className="rounded-lg border border-neutral-light/70 p-3"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <p className="font-medium text-neutral-dark">{metric.source_code}</p>
+                      <QavanteBadge variant={metric.state === "fresh" ? "success" : "warning"}>
+                        {freshnessStateLabel(metric.state)}
+                      </QavanteBadge>
+                    </div>
+                    {metric.metric_state === "not_evaluable" ? (
+                      <p className="mt-2 text-xs text-neutral-mid">
+                        Sin dato · {freshnessReasonLabel(metric.reason_codes)}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-xs text-neutral-mid">
+                        Edad publicada: {metric.age_ms ?? "Sin dato"} ms
+                      </p>
+                    )}
+                    <TraceList label="Evidencia" refs={metric.evidence_refs ?? []} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+
+        {data && (
+          <section className="mt-4 border-t border-neutral-light/60 pt-3 text-xs text-neutral-mid">
+            <p>
+              Alcance publicado: entidad{" "}
+              <span className="font-mono">{data.scope.legal_entity_id}</span>
+              {" · "}
+              {data.scope.currency} · corte {data.scope.as_of}
+            </p>
+            {data.policy && (
+              <p className="mt-2">
+                Política: <span className="font-mono">{data.scope.policy_code}</span> · versión{" "}
+                <span className="font-mono">{data.policy.version}</span> · reglas{" "}
+                <span className="break-all font-mono">{data.policy.rules_ref}</span>
+              </p>
+            )}
+            <TraceList label="Linaje" refs={data.source_refs} />
+            {data.snapshot_ref && (
+              <p className="mt-3 break-all font-mono">Snapshot: {data.snapshot_ref}</p>
+            )}
+          </section>
+        )}
+      </article>
+    </QavanteCard>
   );
 }
 
