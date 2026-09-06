@@ -4,17 +4,14 @@ import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
 import { formatClp } from "@/lib/formatters/clp";
 import { saldoCajaHoy } from "@/lib/finanzas/caja-hoy";
 import { HoyView } from "./hoy-view";
+import type { CashGapProposal } from "./cash-gap-proposal-model";
 import { instrumentDecisionStoryLayer } from "./instrument-decision.fixtures";
 
-/* V01 · Hoy — la portada del rediseño, en sus cinco estados.
+/* V01 · Hoy · la portada del rediseño, en sus cinco estados.
  *
- * Estas stories son el test de VISTA de la entrega, y no un `.test.tsx`, por una razón medida:
- * en `main` el proyecto `unit` de vitest no compila `.tsx` (el tsconfig de Next fija
- * `jsx: "preserve"`, así que vite muere en el PARSEO al importar cualquier componente). El
- * arreglo de una línea vive en el PR #63, que sigue abierto y toca `vitest.config.ts` — duplicarlo
- * acá sería pisarlo. Las stories corren en Chromium headless con las queries de testing-library
- * (`within`/`getByText`) y CI las ejecuta como gate (`npm run test:storybook`), así que la
- * cobertura de vista se paga igual y no cuesta un conflicto.
+ * Las stories fijan la composición visible y las interacciones en Chromium. Los modelos puros
+ * tienen tests unitarios separados para que una propuesta no pueda aparecer sin una decisión
+ * lista y recomendada por el backend.
  *
  * La sección 5 usa la bitácora real de Ley 5 (`/api/reversible-actions`); la historia de ella vive
  * junto a su componente para fijar carga, error, vacío y acciones deshacibles. */
@@ -92,6 +89,27 @@ const CAJA_BAJO_CERO: Partial<DashboardSummaryV2> = {
     last_updated: "2026-08-30T08:00:00Z",
     source: "banco",
   },
+};
+
+const PROPUESTA_PAGOS: CashGapProposal = {
+  kind: "payment_plan",
+  label: "Negociar pagos críticos",
+  explanation: "El plan publicado permite revisar primero los pagos que explican la brecha.",
+  confidence: "medium",
+  evidenceCount: 2,
+  targets: [{ label: "Remuneraciones de agosto", amount: "7400000", reason: "vence primero" }],
+  impacts: [
+    {
+      metric: "cash_gap_14d",
+      value: "1121250",
+      currency: "CLP",
+      horizon_days: 14,
+      confidence: "medium",
+      confidence_method: "evidence_bounded",
+    },
+  ],
+  href: "/pagar",
+  cta: "Revisar pagos propuestos",
 };
 
 /** Ley 2 — los elementos con token de rojo que hay en pantalla. */
@@ -196,6 +214,7 @@ export const Crisis: Story = {
         ACCION(3, "Postergar a SYNNEX", "/pagar"),
       ],
     }),
+    cashGapProposals: [PROPUESTA_PAGOS],
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -203,10 +222,18 @@ export const Crisis: Story = {
       canvas.getByRole("heading", { name: "Tus sueldos están en riesgo" }),
     ).toBeInTheDocument();
 
-    // Ley 10: SÓLO la decisión crítica. Las otras dos no se renderizan.
+    // Ley 10: la alerta crítica se convierte en una propuesta del backend, no en una lista
+    // de acciones genéricas del summary.
+    await expect(canvas.getByText("Propuesta para proteger tu caja")).toBeInTheDocument();
+    await expect(canvas.getByText("Negociar pagos críticos")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Revisar pagos propuestos" })).toHaveAttribute(
+      "href",
+      "/pagar",
+    );
+    await expect(canvas.queryByText("Esperando tu visto bueno")).not.toBeInTheDocument();
     await expect(
-      canvas.getByText("Conseguir $1.121.250 antes del 4 de septiembre"),
-    ).toBeInTheDocument();
+      canvas.queryByText("Conseguir $1.121.250 antes del 4 de septiembre"),
+    ).not.toBeInTheDocument();
     await expect(canvas.queryByText("Cobrar a Kaufmann")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Postergar a SYNNEX")).not.toBeInTheDocument();
 

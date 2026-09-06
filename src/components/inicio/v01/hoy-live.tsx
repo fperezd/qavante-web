@@ -12,6 +12,7 @@ import {
   useLatestLiquidityEvaluation,
   useOperationPlanForDecision,
 } from "@/lib/api/financial-decisions";
+import { useCollectionDecisionPlan, usePaymentDecisionPlan } from "@/lib/api/decision-plans";
 import { toFinancialDecisionReadScope, useFinancialScope } from "@/lib/api/financial-scope";
 import {
   useFxEvaluations,
@@ -27,6 +28,7 @@ import { useMe } from "@/lib/api/users";
 import { asUserRole } from "@/lib/auth/types";
 import { useReversibleActions, useRevertReversibleAction } from "@/lib/api/reversible-actions";
 import { actividadesAutomaticas } from "./activity-log-model";
+import { cashGapProposals } from "./cash-gap-proposal-model";
 import { HoyView } from "./hoy-view";
 
 /* Cableado de V01 · Hoy. La vista es presentacional; acá se resuelven las dos fuentes:
@@ -43,6 +45,10 @@ import { HoyView } from "./hoy-view";
 export function HoyLive() {
   const summary = useDashboardSummary();
   const liquidity = useLatestLiquidityEvaluation();
+  /* No recalculan la caja: sólo se leen con el resumen ya disponible. Si fallan,
+     Hoy conserva las acciones prioritarias del summary como fallback. */
+  const paymentPlan = usePaymentDecisionPlan(summary.isSuccess);
+  const collectionPlan = useCollectionDecisionPlan(summary.isSuccess);
   const operationPlan = useOperationPlanForDecision(liquidity.data?.decision_id ?? null);
   /* F6/F7/F9 use the persisted evaluation only for its server-owned cut-off. Entity and
      currency are resolved again by /api/core/financial-scope, which fails closed when the
@@ -91,6 +97,8 @@ export function HoyLive() {
       liquidityEvaluation={liquidity.data ?? null}
       liquidityLoading={liquidity.isLoading}
       liquidityFailed={liquidity.isError}
+      cashGapProposals={cashGapProposals(paymentPlan.data, collectionPlan.data)}
+      cashGapProposalsLoading={paymentPlan.isLoading || collectionPlan.isLoading}
       canSelectLiquidity={role === "owner" || role === "admin"}
       operationPlanRead={operationPlan.data ?? null}
       operationPlanLoading={operationPlan.isLoading}

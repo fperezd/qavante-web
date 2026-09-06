@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
+import type { CashGapProposal } from "./cash-gap-proposal-model";
 import type { LiquidityEvaluation, OperationPlanRead } from "@/lib/api/financial-decisions";
 import type { CollectionEvaluation, CollectionSituation } from "@/lib/api/collection-decisions";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
@@ -27,6 +28,7 @@ import { DecisionReadPanel, type DecisionReadersView } from "./decision-read-pan
 import { ActivityLogView } from "./activity-log-view";
 import type { ActividadAutomatica } from "./activity-log-model";
 import type { RevertActionResponse } from "@/lib/api/reversible-actions";
+import { CashGapProposalPanel } from "./cash-gap-proposal-panel";
 
 /* V01 · Hoy — "¿cómo está mi empresa y qué necesita mi OK?" (rediseño Fase 2, issue #62).
  *
@@ -59,6 +61,9 @@ export interface HoyViewProps {
   liquidityEvaluation?: LiquidityEvaluation | null;
   liquidityLoading?: boolean;
   liquidityFailed?: boolean;
+  /** Propuestas de pago/cobranza ya evaluadas por el backend. */
+  cashGapProposals?: readonly CashGapProposal[];
+  cashGapProposalsLoading?: boolean;
   /** Sólo gobierna la visibilidad; la autorización real vive en el endpoint. */
   canSelectLiquidity?: boolean;
   operationPlanRead?: OperationPlanRead | null;
@@ -112,6 +117,39 @@ function IconoVeredicto({ estado }: { estado: EstadoHoy }) {
   return <Icono className={cn("h-6 w-6 shrink-0", TONO_TITULAR[estado])} aria-hidden="true" />;
 }
 
+function NominaAfectada({
+  label,
+  dueDate,
+  amount,
+}: {
+  label: string;
+  dueDate: string;
+  amount: number | null;
+}) {
+  return (
+    <div className="rounded-lg border border-warning-500/30 bg-warning-50/40 p-3 text-sm text-neutral-mid">
+      <p className="font-semibold text-neutral-dark">Nómina afectada</p>
+      <p className="mt-1">
+        {label} · vence {formatDateShort(dueDate)}
+        {amount != null && (
+          <>
+            {" · "}
+            <span className="font-semibold tabular-nums text-neutral-dark">
+              {formatClp(amount)}
+            </span>
+          </>
+        )}
+      </p>
+      <Link
+        href="/pagar"
+        className="mt-2 inline-flex text-xs font-semibold text-brand-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+      >
+        Revisar pagos
+      </Link>
+    </div>
+  );
+}
+
 export function HoyView({
   data,
   empresa,
@@ -119,6 +157,8 @@ export function HoyView({
   liquidityEvaluation = null,
   liquidityLoading = false,
   liquidityFailed = false,
+  cashGapProposals: propuestasCaja = [],
+  cashGapProposalsLoading = false,
   canSelectLiquidity = false,
   operationPlanRead = null,
   operationPlanLoading = false,
@@ -152,7 +192,10 @@ export function HoyView({
   /* Ley 10. En crisis se muestra SÓLO la decisión crítica: nada de strip de indicadores ni de
      contexto de apoyo. En el día perfecto la pantalla termina en el titular — no hay nada que
      aprobar, así que no se abre una sección vacía que lo desmienta. */
-  const mostrarDecisiones = decisiones.length > 0;
+  const mostrarPropuestaCaja =
+    (v.estado === "crisis" || v.estado === "atencion") &&
+    (propuestasCaja.length > 0 || cashGapProposalsLoading);
+  const mostrarDecisiones = decisiones.length > 0 && !mostrarPropuestaCaja;
   const mostrarIndicadores = !v.soloDecisionCritica;
   const nominaEnRiesgo = v.soloDecisionCritica
     ? (data?.critical_payments?.next_payroll ?? null)
@@ -226,6 +269,19 @@ export function HoyView({
         />
       )}
 
+      {mostrarPropuestaCaja && (
+        <div className="space-y-3">
+          <CashGapProposalPanel proposals={propuestasCaja} loading={cashGapProposalsLoading} />
+          {nominaEnRiesgo && (
+            <NominaAfectada
+              label={nominaEnRiesgo.label}
+              dueDate={nominaEnRiesgo.due_date}
+              amount={montoNominaEnRiesgo}
+            />
+          )}
+        </div>
+      )}
+
       {!v.soloDecisionCritica && (
         <CollectionEvaluationPanel
           situation={collectionSituation}
@@ -275,26 +331,12 @@ export function HoyView({
                           {a.deadline && <>Plazo: {a.deadline}</>}
                         </p>
                         {nominaEnRiesgo && (
-                          <div className="mt-3 rounded-lg border border-warning-500/30 bg-warning-50/40 p-3 text-sm text-neutral-mid">
-                            <p className="font-semibold text-neutral-dark">Nómina afectada</p>
-                            <p className="mt-1">
-                              {nominaEnRiesgo.label} · vence{" "}
-                              {formatDateShort(nominaEnRiesgo.due_date)}
-                              {montoNominaEnRiesgo != null && (
-                                <>
-                                  {" · "}
-                                  <span className="font-semibold tabular-nums text-neutral-dark">
-                                    {formatClp(montoNominaEnRiesgo)}
-                                  </span>
-                                </>
-                              )}
-                            </p>
-                            <Link
-                              href="/pagar"
-                              className="mt-2 inline-flex text-xs font-semibold text-brand-primary underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-                            >
-                              Revisar pagos
-                            </Link>
+                          <div className="mt-3">
+                            <NominaAfectada
+                              label={nominaEnRiesgo.label}
+                              dueDate={nominaEnRiesgo.due_date}
+                              amount={montoNominaEnRiesgo}
+                            />
                           </div>
                         )}
                       </div>
