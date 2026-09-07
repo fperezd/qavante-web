@@ -442,6 +442,23 @@ describe("movimientosV03 — normalización", () => {
     expect(lista).toEqual([]);
   });
 
+  it("usa el estado efectivo para vínculos especializados aunque el estado almacenado siga pendiente", () => {
+    const linked = {
+      ...movimientos()[0]!,
+      reconciliation_status: "unmatched",
+      effective_reconciliation_status: "matched",
+    } as BankMovement;
+    const [row] = movimientosV03({ items: [linked], cuentas: new Map(), categorias: new Map() });
+    expect(row?.estadoConciliacion).toBe("conciliado");
+    expect(row?.porConciliar).toBe(false);
+  });
+
+  it("declara moneda desconocida si no viene ni en el movimiento ni en su cuenta", () => {
+    const unknown = { ...movimientos()[0]!, currency_code: null } as BankMovement;
+    const [row] = movimientosV03({ items: [unknown], cuentas: new Map(), categorias: new Map() });
+    expect(row?.moneda).toBe("S/D");
+  });
+
   it("cuenta desconocida → 'Cuenta ····<últimos 4 del id>' y la moneda declarada del movimiento", () => {
     const lista = movimientosV03({
       items: movimientos(),

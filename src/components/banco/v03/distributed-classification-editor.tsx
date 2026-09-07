@@ -53,7 +53,9 @@ export function DistributedClassificationEditor({
   const [eventType, setEventType] = React.useState(events[0]?.code ?? "");
   const [error, setError] = React.useState<string | null>(null);
   const [missingByLine, setMissingByLine] = React.useState<Record<string, boolean>>({});
-  const [lines, setLines] = React.useState<EditorLine[]>(() => [newLine(accounts[0]?.id)]);
+  const [lines, setLines] = React.useState<EditorLine[]>(() => [
+    newLine(accounts[0]?.id, "percentage"),
+  ]);
 
   React.useEffect(() => {
     if (!eventType && events[0]?.code) setEventType(events[0].code);
@@ -119,6 +121,15 @@ export function DistributedClassificationEditor({
     });
   }
 
+  function removeLine(lineId: string) {
+    setLines((current) => current.filter((item) => item.id !== lineId));
+    setMissingByLine((current) => {
+      const next = { ...current };
+      delete next[lineId];
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-4 rounded-xl border border-neutral-light bg-neutral-soft p-4">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -171,14 +182,19 @@ export function DistributedClassificationEditor({
             onChange={(next) =>
               setLines((current) => current.map((item) => (item.id === line.id ? next : item)))
             }
-            onRemove={() => setLines((current) => current.filter((item) => item.id !== line.id))}
+            onRemove={() => removeLine(line.id)}
           />
         ))}
       </div>
 
       <button
         type="button"
-        onClick={() => setLines((current) => [...current, newLine(accounts[0]?.id)])}
+        onClick={() =>
+          setLines((current) => [
+            ...current,
+            newLine(accounts[0]?.id, mode === "amount" ? "amount" : "percentage"),
+          ])
+        }
         className="inline-flex items-center gap-1 text-xs font-semibold text-brand-primary"
       >
         <Plus className="size-4" aria-hidden /> Agregar distribución
@@ -334,8 +350,8 @@ function AllocationEditorLine({
 const fieldClass =
   "mt-1 w-full rounded-lg border border-neutral-light bg-surface px-3 py-2 text-sm text-neutral-dark focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:outline-none";
 
-function newLine(accountId = ""): EditorLine {
-  return { id: crypto.randomUUID(), accountId, kind: "percentage", value: "", dimensions: {} };
+function newLine(accountId = "", kind: EditorLine["kind"]): EditorLine {
+  return { id: crypto.randomUUID(), accountId, kind, value: "", dimensions: {} };
 }
 
 function parseNumber(value: string): number {

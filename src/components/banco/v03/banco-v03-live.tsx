@@ -14,6 +14,7 @@ import {
   useFinancialEventTypes,
   useReplaceBankMovementClassification,
   useUnclassifyBankMovement,
+  createTreasuryIdempotencyKey,
 } from "@/lib/api/treasury";
 import { useRevertReconciliation } from "@/lib/api/reconciliation";
 import {
@@ -63,6 +64,8 @@ export function BancoV03Live() {
   const [hoy] = React.useState(() => new Date());
   const [selectedAccountId, setSelectedAccountId] = React.useState("");
   const [selectedMovementId, setSelectedMovementId] = React.useState<string | null>(null);
+  const classificationIntent = React.useRef<{ fingerprint: string; key: string } | null>(null);
+  const unclassifyIntents = React.useRef(new Map<string, string>());
   const desde = periodo(new Date(hoy.getFullYear(), hoy.getMonth() - (MESES_ALCANCE - 1), 1));
   const hasta = periodo(hoy);
 
@@ -162,21 +165,35 @@ export function BancoV03Live() {
       onOpenMovement={setSelectedMovementId}
       onUnreconcile={(movementId) =>
         unreconcile.mutate(movementId, {
-          onSuccess: () => {
-            toast.success("Conciliación deshecha");
+          onSuccess: (result) => {
+            if (result.reverted > 0) toast.success("Conciliación deshecha");
+            else toast.error("No se revirtió ningún vínculo; el movimiento se volvió a cargar");
             refreshResolution();
           },
           onError: (error) => toast.error(error.message),
         })
       }
       onUnclassify={(movementId) =>
-        unclassify.mutate(movementId, {
-          onSuccess: () => {
-            toast.success("Clasificación eliminada");
-            refreshResolution();
+        unclassify.mutate(
+          {
+            movementId,
+            idempotencyKey:
+              unclassifyIntents.current.get(movementId) ??
+              (() => {
+                const key = createTreasuryIdempotencyKey("unclassify", movementId);
+                unclassifyIntents.current.set(movementId, key);
+                return key;
+              })(),
           },
-          onError: (error) => toast.error(error.message),
-        })
+          {
+            onSuccess: () => {
+              unclassifyIntents.current.delete(movementId);
+              toast.success("Clasificación eliminada");
+              refreshResolution();
+            },
+            onError: (error) => toast.error(error.message),
+          },
+        )
       }
       classificationEditor={
         accountOptions.length > 0 && eventOptions.length > 0
@@ -187,8 +204,20 @@ export function BancoV03Live() {
               saving: replaceClassification.isPending,
               onSave: async (body) => {
                 if (!selectedMovementId) return;
+                const fingerprint = `${selectedMovementId}:${JSON.stringify(body)}`;
+                if (classificationIntent.current?.fingerprint !== fingerprint) {
+                  classificationIntent.current = {
+                    fingerprint,
+                    key: createTreasuryIdempotencyKey("classify", selectedMovementId),
+                  };
+                }
                 try {
-                  await replaceClassification.mutateAsync({ movementId: selectedMovementId, body });
+                  await replaceClassification.mutateAsync({
+                    movementId: selectedMovementId,
+                    body,
+                    idempotencyKey: classificationIntent.current.key,
+                  });
+                  classificationIntent.current = null;
                   toast.success("Clasificación guardada");
                   refreshResolution();
                 } catch (error) {

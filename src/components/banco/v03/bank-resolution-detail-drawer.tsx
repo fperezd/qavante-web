@@ -54,12 +54,32 @@ export function BankResolutionDetailDrawer({
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
     asideRef.current?.focus();
-    function closeOnEscape(event: KeyboardEvent) {
+    function handleDialogKey(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
+      if (event.key !== "Tab" || !asideRef.current) return;
+      const focusable = Array.from(
+        asideRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), select:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute("hidden"));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        asideRef.current.focus();
+        return;
+      }
+      const first = focusable[0]!;
+      const last = focusable.at(-1)!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
-    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("keydown", handleDialogKey);
     return () => {
-      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("keydown", handleDialogKey);
       previous?.focus?.();
     };
   }, [open, onClose]);
@@ -67,6 +87,19 @@ export function BankResolutionDetailDrawer({
   if (!open) return null;
   const reconciliationPill = CONCILIACION_PILL[detail.reconciliation.status];
   const classificationPill = CLASIFICACION_PILL[detail.classification.status];
+  const canEditClassification = Boolean(classificationEditor && movement.moneda !== "S/D");
+
+  function confirmUnreconcile() {
+    if (window.confirm("¿Desconciliar este movimiento y reabrir sus documentos asociados?")) {
+      onUnreconcile?.();
+    }
+  }
+
+  function confirmUnclassify() {
+    if (window.confirm("¿Eliminar la clasificación y su distribución contable?")) {
+      onUnclassify?.();
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -139,7 +172,7 @@ export function BankResolutionDetailDrawer({
                 size="sm"
                 variant="ghost"
                 disabled={!detail.reconciliation.canUnreconcile || !onUnreconcile}
-                onClick={onUnreconcile}
+                onClick={confirmUnreconcile}
                 title={
                   !detail.reconciliation.canUnreconcile || !onUnreconcile
                     ? "Este tipo de vínculo todavía no admite una reversión segura desde Banco"
@@ -169,7 +202,7 @@ export function BankResolutionDetailDrawer({
               occurredAt={detail.classification.classifiedAt}
             />
             <History items={detail.classification.history} />
-            {editingClassification && classificationEditor && (
+            {editingClassification && classificationEditor && canEditClassification && (
               <DistributedClassificationEditor
                 totalAmount={Math.abs(movement.monto)}
                 currency={movement.moneda}
@@ -188,9 +221,14 @@ export function BankResolutionDetailDrawer({
               <QavanteButton
                 size="sm"
                 variant="secondary"
-                disabled={!classificationEditor && !onReclassify}
+                disabled={!canEditClassification && !onReclassify}
                 onClick={() =>
-                  classificationEditor ? setEditingClassification(true) : onReclassify?.()
+                  canEditClassification ? setEditingClassification(true) : onReclassify?.()
+                }
+                title={
+                  movement.moneda === "S/D"
+                    ? "Corrige la moneda del movimiento antes de clasificar"
+                    : undefined
                 }
               >
                 Modificar clasificación
@@ -200,7 +238,7 @@ export function BankResolutionDetailDrawer({
                   size="sm"
                   variant="ghost"
                   disabled={!onUnclassify}
-                  onClick={onUnclassify}
+                  onClick={confirmUnclassify}
                 >
                   Desclasificar
                 </QavanteButton>

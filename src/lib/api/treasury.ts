@@ -437,6 +437,10 @@ function idempotencyKey(action: string, movementId: string): string {
   return `${action}:${movementId}:${nonce}`;
 }
 
+export function createTreasuryIdempotencyKey(action: string, movementId: string): string {
+  return idempotencyKey(action, movementId);
+}
+
 /** Clasificación/reclasificación distribuida; la API devuelve el detalle ya refrescado. */
 export function useReplaceBankMovementClassification() {
   const qc = useQueryClient();
@@ -444,15 +448,17 @@ export function useReplaceBankMovementClassification() {
     mutationFn: ({
       movementId,
       body,
+      idempotencyKey,
     }: {
       movementId: string;
       body: ReplaceClassificationRequest;
+      idempotencyKey: string;
     }) =>
       api.put<MovementResolutionDetailResponse>(
         `/api/treasury/bank-movements/${encodeURIComponent(movementId)}/classification`,
         {
           body,
-          headers: { "Idempotency-Key": idempotencyKey("classify", movementId) },
+          headers: { "Idempotency-Key": idempotencyKey },
         },
       ),
     onSuccess: (detail, { movementId }) => {
@@ -466,12 +472,12 @@ export function useReplaceBankMovementClassification() {
 export function useUnclassifyBankMovement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (movementId: string) =>
+    mutationFn: ({ movementId, idempotencyKey }: { movementId: string; idempotencyKey: string }) =>
       api.delete<UnclassifyResponse>(
         `/api/treasury/bank-movements/${encodeURIComponent(movementId)}/classification`,
-        { headers: { "Idempotency-Key": idempotencyKey("unclassify", movementId) } },
+        { headers: { "Idempotency-Key": idempotencyKey } },
       ),
-    onSuccess: (_response, movementId) => {
+    onSuccess: (_response, { movementId }) => {
       qc.invalidateQueries({ queryKey: treasuryKeys.bankMovementResolution(movementId) });
       qc.invalidateQueries({ queryKey: treasuryKeys.bankMovementsAll() });
     },

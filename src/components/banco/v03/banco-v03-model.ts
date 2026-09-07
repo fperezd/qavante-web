@@ -511,16 +511,25 @@ export interface MovimientoV03 {
 
 const CONCILIADO = new Set(["matched"]);
 /** Estados que NO están pendientes pero tampoco son "conciliado con un documento". */
-const NO_PENDIENTE = new Set(["excluded", "prepago", "processor_batch"]);
+const NO_PENDIENTE = new Set(["excluded", "prepago", "processor_batch", "not_required"]);
+
+type ReconciliationState = Pick<
+  BankMovement,
+  "reconciliation_status" | "effective_reconciliation_status"
+>;
+
+function reconciliationStatus(m: ReconciliationState): string {
+  return (m.effective_reconciliation_status ?? m.reconciliation_status ?? "").toLowerCase();
+}
 
 /** ¿Está conciliado? Sólo `matched`. `suggested`/`review`/`rejected`/`unmatched` no lo están. */
-export function estaConciliado(m: Pick<BankMovement, "reconciliation_status">): boolean {
-  return CONCILIADO.has((m.reconciliation_status ?? "").toLowerCase());
+export function estaConciliado(m: ReconciliationState): boolean {
+  return CONCILIADO.has(reconciliationStatus(m));
 }
 
 /** ¿Queda por conciliar? Todo lo que no está conciliado ni excluido. */
-export function quedaPorConciliar(m: Pick<BankMovement, "reconciliation_status">): boolean {
-  const s = (m.reconciliation_status ?? "").toLowerCase();
+export function quedaPorConciliar(m: ReconciliationState): boolean {
+  const s = reconciliationStatus(m);
   return !CONCILIADO.has(s) && !NO_PENDIENTE.has(s);
 }
 
@@ -536,7 +545,7 @@ export function estaClasificado(
 }
 
 export function estadoConciliacionDe(m: BankMovement): EstadoConciliacionV03 {
-  const status = (m.reconciliation_status ?? "").toLowerCase();
+  const status = reconciliationStatus(m);
   if (status === "matched") return "conciliado";
   if (status === "partial" || status === "partially_matched") return "parcial";
   if (status === "excluded") return "excluido";
@@ -604,9 +613,9 @@ export function movimientosV03(input: MovimientosInput): MovimientoV03[] {
     const monto = montoFirmado(m);
     if (monto == null) continue;
     const cuenta = input.cuentas.get(m.bank_account_id);
-    /* Moneda: la del movimiento si vino; si no, la de su cuenta; si tampoco, CLP por la convención
-       DECLARADA del contrato (`currency_code: null` = "ninguna fuente informó" y el motor lo lee CLP). */
-    const moneda = (m.currency_code || cuenta?.currency_code || "CLP").toUpperCase();
+    /* Moneda: la del movimiento o su cuenta. Si ambas faltan se declara desconocida; nunca se
+       inventa CLP, y el drawer bloquea la escritura hasta corregir el dato de origen. */
+    const moneda = (m.currency_code || cuenta?.currency_code || "s/d").toUpperCase();
     const cat = m.canonical_category?.trim() || null;
     out.push({
       id: m.id,

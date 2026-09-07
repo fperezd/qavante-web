@@ -45,7 +45,7 @@ describe("resolutionDetailFromApi", () => {
           id: "case-1",
           status: "confirmed",
           decision: "match",
-          topology: "1:N",
+          topology: "N:N",
           financial_event_type: "supplier_payment",
           canonical_category: "supplier_payment",
           settlement_rail: "bank_transfer",
@@ -55,6 +55,14 @@ describe("resolutionDetailFromApi", () => {
           metadata: {},
           created_at: "2026-09-07T12:00:00Z",
           allocations: [
+            {
+              node_kind: "bank_movement",
+              node_id: "m2",
+              role: "source",
+              signed_amount: "40000",
+              currency_code: "CLP",
+              source_label: "Segundo movimiento",
+            },
             {
               node_kind: "payable",
               node_id: "p1",
@@ -108,8 +116,10 @@ describe("resolutionDetailFromApi", () => {
     const detail = resolutionDetailFromApi(apiDetail);
     expect(detail.reconciliation.status).toBe("conciliado");
     expect(detail.reconciliation.canUnreconcile).toBe(false);
-    expect(detail.reconciliation.topology).toBe("1:N");
-    expect(detail.reconciliation.allocations[0]?.origin?.href).toBe("/pagar/facturas-recibidas");
+    expect(detail.reconciliation.topology).toBe("N:N");
+    expect(detail.reconciliation.allocations[0]?.kind).toBe("bank_movement");
+    expect(detail.reconciliation.allocations[0]?.label).toBe("Segundo movimiento");
+    expect(detail.reconciliation.allocations[1]?.origin?.href).toBe("/pagar/facturas-recibidas");
     expect(detail.classification.allocations).toHaveLength(2);
     expect(detail.classification.allocations[0]?.dimensions).toEqual([
       { name: "Sucursal", value: "Santiago" },

@@ -105,15 +105,15 @@ export function resolutionDetailFromApi(
   detail: MovementResolutionDetailResponse,
 ): BankMovementResolutionDetail {
   const current = detail.reconciliation.current_case;
-  const caseAllocations: ResolutionAllocation[] = (current?.allocations ?? [])
-    .filter((item) => item.node_kind !== "bank_movement")
-    .map((item, index) => ({
+  const caseAllocations: ResolutionAllocation[] = (current?.allocations ?? []).map(
+    (item, index) => ({
       id: `${item.node_kind}:${item.node_id}:${index}`,
-      kind: "document",
+      kind: item.node_kind === "bank_movement" ? "bank_movement" : "document",
       label: item.source_label ?? `${item.node_kind} ${item.node_id}`,
       amountFormatted: formatMoney(Number(item.signed_amount), item.currency_code),
       origin: item.source_path ? { label: "Ir al origen", href: item.source_path } : null,
-    }));
+    }),
+  );
   const legacyAllocations: ResolutionAllocation[] = detail.reconciliation.legacy_documents.map(
     (item) => ({
       id: item.id,

@@ -189,7 +189,9 @@ export function BancoV03View({
       movimientos ? movimientosV03({ items: movimientos, cuentas: cuentasMap, categorias }) : null,
     [movimientos, cuentasMap, categorias],
   );
-  const pendientes = movs ? pendientesPorCuenta(movs) : null;
+  /* En modo conectado `movimientos` ya viene filtrado por la cuenta elegida. No proyectamos ese
+     subconjunto sobre las demás cuentas como si tuvieran cero pendientes. */
+  const pendientes = selectedAccountId == null && movs ? pendientesPorCuenta(movs) : null;
 
   const filasCuentas = cuentasV03({
     banco,
