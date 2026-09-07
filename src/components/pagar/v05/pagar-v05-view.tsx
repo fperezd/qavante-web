@@ -7,7 +7,7 @@ import { Info, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rovingIndex } from "@/lib/a11y/roving";
 import type { AccountsPayableResponse, PayableDuplicatePair } from "@/lib/api/pagos";
-import { formatClp } from "@/lib/formatters/clp";
+import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { concordar, formatCount, formatDays } from "@/lib/formatters/count";
 import { Banner } from "@/components/rediseno/banner";
 import { DataState } from "@/components/rediseno/data-state";
@@ -65,7 +65,7 @@ import {
  *
  * "NO SÉ" explícito — una fila sin fecha parseable dice "sin fecha" (nunca "vence hoy" ni 0
  * días); los documentos sin vencimiento que el backend deja fuera de la tabla (`undated_*`) se
- * declaran con monto y conteo; la caja proyectada en otra moneda no se compara con pesos. */
+ * declaran con monto y conteo; caja final, críticos y cobertura se presentan por separado. */
 
 export interface PagarV05ViewProps {
   /** `GET /api/treasury/accounts-payable`. `null` = no llegó. */
@@ -150,10 +150,68 @@ export function PagarV05View({
     );
   }
 
+  const coberturaTexto =
+    critico.cobertura === true
+      ? "Estado de cobertura del horizonte: cubre."
+      : critico.cobertura === false
+        ? "Estado de cobertura del horizonte: no cubre."
+        : `Estado de cobertura del horizonte: indeterminado; ${critico.motivoSinCobertura}.`;
+  const subtotalCriticoIncompleto =
+    critico.listaPosiblementeTopeada || critico.montosDesconocidos > 0;
+  const notaMontosDesconocidos =
+    critico.montosDesconocidos > 0
+      ? ` · ${critico.montosDesconocidos} ${critico.montosDesconocidos === 1 ? "pago crítico visible tiene" : "pagos críticos visibles tienen"} monto no disponible por falta de tipo de cambio`
+      : "";
+  const notaListaTopeada = critico.listaPosiblementeTopeada
+    ? ` · la lista alcanzó el tope de ${TOPE_ITEMS} y puede omitir pagos críticos`
+    : "";
+  const contextoCritico = subtotalCriticoIncompleto ? (
+    critico.total > 0 ? (
+      <>
+        Pagos críticos en la lista visible: al menos {formatClp(critico.total)} ·{" "}
+        {critico.listaPosiblementeTopeada && "al menos "}
+        {critico.n} {critico.n === 1 ? "pago" : "pagos"} en {VENTANA_DIAS} días
+        {critico.yaVencido > 0 && ` · al menos ${formatClp(critico.yaVencido)} ya vencido`}
+        {notaMontosDesconocidos}
+        {notaListaTopeada}.
+      </>
+    ) : (
+      <>
+        Pagos críticos en la lista visible: subtotal no disponible
+        {critico.n > 0 &&
+          ` · ${critico.listaPosiblementeTopeada ? "al menos " : ""}${critico.n} ${critico.n === 1 ? "pago" : "pagos"} en ${VENTANA_DIAS} días`}
+        {notaMontosDesconocidos}
+        {notaListaTopeada}.
+      </>
+    )
+  ) : (
+    <>
+      Pagos críticos en la lista visible: {formatClp(critico.total)} ·{" "}
+      {critico.n > 0
+        ? `${critico.n} ${critico.n === 1 ? "pago que no se posterga" : "pagos que no se postergan"} en ${VENTANA_DIAS} días`
+        : `ningún pago crítico visible en ${VENTANA_DIAS} días`}
+      {critico.yaVencido > 0 && ` · ${formatClp(critico.yaVencido)} ya vencido`}.
+    </>
+  );
+  const detalleCaja = (
+    <>
+      <span className="block">Saldo final del flujo vigente.</span>
+      <span className="block">{contextoCritico}</span>
+      <span className="block">
+        Los pagos visibles ya están incluidos en el flujo proyectado; no se vuelven a restar.
+      </span>
+      <span className="block">{coberturaTexto}</span>{" "}
+      <InfoPopover label="Qué significan Caja y críticos" info={explicacionCritico(ap, hoy)} />
+    </>
+  );
+
   return (
     <div className="space-y-5">
-      {/* (1) Tríada: Vencido / Por pagar · período / Crítico vs. caja. */}
-      <section aria-label="Vencido, por pagar y crítico" className="grid gap-3 sm:grid-cols-3">
+      {/* (1) Tríada: Vencido / Por pagar · período / Caja proyectada + críticos separados. */}
+      <section
+        aria-label="Vencido, por pagar y caja proyectada"
+        className="grid gap-3 sm:grid-cols-3"
+      >
         <KpiCard
           label="Vencido"
           value={formatClp(vencido.total)}
@@ -185,7 +243,7 @@ export function PagarV05View({
                 <span>
                   incluye lo vencido
                   {porPagar.sinFecha &&
-                    ` · ${porPagar.sinFecha.n} ${porPagar.sinFecha.n === 1 ? "documento" : "documentos"} por ${formatClp(porPagar.sinFecha.monto)} sin fecha, en ningún tramo`}{" "}
+                    ` · ${porPagar.sinFecha.n} ${porPagar.sinFecha.n === 1 ? "documento" : "documentos"} ${porPagar.sinFecha.monto == null ? "con monto no disponible" : `por ${formatClp(porPagar.sinFecha.monto)}`} sin fecha, en ningún tramo`}{" "}
                   <InfoPopover
                     label="Qué es Por pagar"
                     info={explicacionPorPagar(ap, periodo, hoy)}
@@ -203,36 +261,21 @@ export function PagarV05View({
             detail={<SelectorPeriodo periodo={periodo} onChange={setPeriodo} />}
           />
         )}
-        <KpiCard
-          label="Crítico vs. caja"
-          value={formatClp(critico.total)}
-          detail={
-            <>
-              {critico.n > 0
-                ? `${critico.n} ${critico.n === 1 ? "pago que no se posterga" : "pagos que no se postergan"} en ${VENTANA_DIAS} días`
-                : `nada que no se pueda postergar en ${VENTANA_DIAS} días`}
-              {critico.yaVencido > 0 && ` · ${formatClp(critico.yaVencido)} ya vencido`}
-              {critico.caja != null && critico.brecha != null ? (
-                critico.brecha >= 0 ? (
-                  <>
-                    {" "}
-                    · la caja proyectada ({formatClp(critico.caja)}) lo cubre, holgura{" "}
-                    {formatClp(critico.brecha)}
-                  </>
-                ) : (
-                  <>
-                    {" "}
-                    · caja proyectada {formatClp(critico.caja)}: faltan {formatClp(-critico.brecha)}{" "}
-                    aun postergando lo negociable
-                  </>
-                )
-              ) : (
-                <> · {critico.motivoSinCaja}</>
-              )}{" "}
-              <InfoPopover label="Qué es Crítico vs. caja" info={explicacionCritico(ap, hoy)} />
-            </>
-          }
-        />
+        {critico.cajaFinal != null ? (
+          <KpiCard
+            label="Caja proyectada"
+            period={`${VENTANA_DIAS} días`}
+            value={formatMoney(critico.cajaFinal, critico.monedaCaja)}
+            detail={detalleCaja}
+          />
+        ) : (
+          <KpiCard
+            label="Caja proyectada"
+            period={`${VENTANA_DIAS} días`}
+            sinDato={{ reason: critico.motivoSinCaja ?? "El saldo proyectado no llegó." }}
+            detail={detalleCaja}
+          />
+        )}
       </section>
 
       {/* (2) Banner de postergables → la decisión vive en Hoy (la ejecución masiva NO vive aquí). */}

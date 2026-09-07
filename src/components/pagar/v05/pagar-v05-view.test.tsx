@@ -4,10 +4,13 @@ import type { ComponentProps } from "react";
 import { PagarV05View } from "./pagar-v05-view";
 import {
   ANOMALIA_ENTEL,
+  BICE,
   HOY,
   pagos,
+  pagosAuditoriaD01,
   pagosConDuplicado,
   pagosDegradados,
+  pagosListaTopeadaSinCriticos,
   pagosSoloImpuestosYSueldos,
   pagosVacio,
   KENNEDY,
@@ -72,13 +75,71 @@ describe("PagarV05View — tríada (caso normal)", () => {
     expect(raro).not.toContain("$17.998.105");
   });
 
-  it("Crítico vs. caja: $8.078.055 contra $5.200.000 → faltan $2.878.055 aun postergando", () => {
+  it("muestra caja final, críticos y cobertura canónica por separado", () => {
     const t = texto(html());
-    expect(t).toContain("Crítico vs. caja $8.078.055");
-    expect(t).toContain("3 pagos que no se postergan en 14 días");
+    expect(t).toContain("Caja proyectada 14 días $5.200.000");
     expect(t).toContain(
-      "caja proyectada $5.200.000: faltan $2.878.055 aun postergando lo negociable",
+      "Pagos críticos en la lista visible: $8.078.055 · 3 pagos que no se postergan en 14 días",
     );
+    expect(t).toContain(
+      "Los pagos visibles ya están incluidos en el flujo proyectado; no se vuelven a restar",
+    );
+    expect(t).toContain("Estado de cobertura del horizonte: no cubre");
+    expect(t).not.toContain("$2.878.055");
+  });
+
+  it("auditoría D01 visible: −$46.865.254 y $10.373.669 nunca muestran $57.238.923", () => {
+    const t = texto(html({ pagos: pagosAuditoriaD01() }));
+
+    expect(t).toContain("Caja proyectada 14 días −$46.865.254");
+    expect(t).toContain("Pagos críticos en la lista visible: $10.373.669");
+    expect(t).not.toContain("$57.238.923");
+    expect(t).not.toContain("faltan $");
+  });
+
+  it("lista capada sin críticos visibles se abstiene del subtotal y conserva cobertura", () => {
+    const t = texto(html({ pagos: pagosListaTopeadaSinCriticos() }));
+
+    expect(t).toContain("Pagos críticos en la lista visible: subtotal no disponible");
+    expect(t).toContain("la lista alcanzó el tope de 100 y puede omitir pagos críticos");
+    expect(t).toContain("Estado de cobertura del horizonte: no cubre");
+    expect(t).not.toContain("Pagos críticos en la lista visible: $0");
+    expect(t).not.toContain("ningún pago crítico visible");
+  });
+
+  it("USD 830 crítico sin TC se abstiene del subtotal sin alterar la cobertura", () => {
+    const usdSinTc = {
+      ...KENNEDY,
+      category: "debt" as const,
+      due_date: "2026-09-01",
+      amount: "830",
+      currency: "USD",
+      amount_clp: null,
+    };
+    const t = texto(html({ pagos: pagos({ items: [usdSinTc], covers_critical: false }) }));
+
+    expect(t).toContain("Pagos críticos en la lista visible: subtotal no disponible · 1 pago");
+    expect(t).toContain(
+      "1 pago crítico visible tiene monto no disponible por falta de tipo de cambio",
+    );
+    expect(t).toContain("Estado de cobertura del horizonte: no cubre");
+    expect(t).not.toContain("Pagos críticos en la lista visible: $0 · 1 pago");
+  });
+
+  it("críticos conocidos y sin TC presentan el subtotal conocido como piso", () => {
+    const usdSinTc = {
+      ...KENNEDY,
+      id: "00000000-0000-4000-8000-000000000099",
+      category: "debt" as const,
+      due_date: "2026-09-02",
+      amount: "830",
+      currency: "USD",
+      amount_clp: null,
+    };
+    const t = texto(html({ pagos: pagos({ items: [BICE, usdSinTc] }) }));
+
+    expect(t).toContain("Pagos críticos en la lista visible: al menos $503.076 · 2 pagos");
+    expect(t).not.toContain("Pagos críticos en la lista visible: $503.076 · 2 pagos");
   });
 
   it("banner de postergables → la decisión vive en Hoy (link a /), sin ejecución masiva acá", () => {
@@ -183,11 +244,17 @@ describe("PagarV05View — el 'no sé' explícito", () => {
     expect(t).not.toMatch(/Aguas Cordillera S\.A\.[^·]*· hoy/);
   });
 
-  it("caja proyectada en USD: no se compara con pesos, y se dice", () => {
+  it("conteo sin fecha con monto ausente se muestra como no disponible, no como $0", () => {
+    const t = texto(html({ pagos: pagos({ undated_count: 1, undated_amount: undefined }) }));
+
+    expect(t).toContain("1 documento con monto no disponible sin fecha, en ningún tramo");
+    expect(t).not.toContain("1 documento por $0 sin fecha");
+  });
+
+  it("caja proyectada en USD conserva su unidad y la cobertura se abstiene", () => {
     const t = texto(html({ pagos: pagosDegradados() }));
-    expect(t).toContain(
-      "la caja proyectada viene en USD y lo crítico está en pesos: no se comparan",
-    );
+    expect(t).toMatch(/Caja proyectada 14 días US\$\s10\.500,00/);
+    expect(t).toContain("el backend no pudo determinar la cobertura con los datos disponibles");
     expect(t).not.toContain("faltan $");
   });
 

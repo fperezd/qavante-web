@@ -174,8 +174,9 @@ export const CHIPAX: PayableItem = {
 };
 
 /** Caso NORMAL: 8 pagos, 3 vencidos (el más antiguo, 545 días), 3 críticos (deuda + sueldos +
- *  F29 = $8.078.055) contra caja proyectada de $5.200.000 → faltan $2.878.055; $1.190.400
- *  negociable en 14 días (la factura USD, convertida); nada sin fecha; sin duplicados. */
+ *  F29 = $8.078.055) como contexto separado del saldo final proyectado de $5.200.000;
+ *  `covers_critical=false` viene del backend. $1.190.400 negociable en 14 días (la factura USD,
+ *  convertida); nada sin fecha; sin duplicados. */
 export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPayableResponse {
   return {
     total: "19205210",
@@ -198,6 +199,60 @@ export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPaya
     generated_at: "2026-08-30T08:12:00Z",
     ...over,
   };
+}
+
+/** Valores exactos de la auditoría V2 D01 (#197). El pago crítico ya está
+ * descontado en `projected_cash_14d`: jamás se suma a la brecha otra vez. */
+export function pagosAuditoriaD01(): AccountsPayableResponse {
+  const critico: PayableItem = {
+    id: "00000000-0000-4000-8000-000000000197",
+    label: "Pagos críticos de auditoría",
+    category: "tax",
+    due_date: "2026-09-10",
+    amount: "10373669",
+    criticality: "high",
+    source: "Auditoría V2",
+    currency: "CLP",
+    amount_clp: null,
+  };
+  return pagos({
+    total: "10373669",
+    total_by_currency: undefined,
+    due_7d: "10373669",
+    due_14d: "10373669",
+    due_30d: "10373669",
+    items: [critico],
+    projected_cash_14d: "-46865254",
+    projected_cash_currency: "CLP",
+    covers_critical: false,
+  });
+}
+
+/** Caso adversarial del cap de `items`: los 100 visibles son negociables, pero
+ * `covers_critical=false` puede responder por una obligación 101 no listada. */
+export function pagosListaTopeadaSinCriticos(): AccountsPayableResponse {
+  const items = Array.from(
+    { length: 100 },
+    (_, i): PayableItem => ({
+      ...KENNEDY,
+      id: `10000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+      label: `Proveedor negociable ${i + 1}`,
+      source_external_id: `33-${i + 1}-76222222-2`,
+      counterparty_name: `Proveedor negociable ${i + 1}`,
+      folio: i + 1,
+      amount: "1000",
+    }),
+  );
+  return pagos({
+    total: "100000",
+    total_by_currency: undefined,
+    due_7d: "100000",
+    due_14d: "100000",
+    due_30d: "100000",
+    items,
+    projected_cash_14d: "1",
+    covers_critical: false,
+  });
 }
 
 /** Con el posible duplicado de Entel adentro (los `due_*` del backend lo suman también). */
@@ -309,6 +364,7 @@ export function pagosDegradados(
     items: [VASQUEZ, sinFecha, usdSinTc, BICE, REMUNERACIONES, F29],
     projected_cash_14d: "10500",
     projected_cash_currency: "USD",
+    covers_critical: null,
     data_state: "partial",
     confidence: "medium",
     missing_sources: ["Vencimientos de documentos (XML del DTE, pendiente)", "Tipo de cambio USD"],

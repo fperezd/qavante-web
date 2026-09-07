@@ -37,8 +37,10 @@ import {
   KENNEDY,
   REMUNERACIONES,
   pagos,
+  pagosAuditoriaD01,
   pagosConDuplicado,
   pagosDegradados,
+  pagosListaTopeadaSinCriticos,
   pagosSoloImpuestosYSueldos,
   pagosVacio,
 } from "./pagar-v05-fixtures";
@@ -197,6 +199,12 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
     expect(kpiPorPagar(pagos(), 30).total).toBe(19_205_210);
     expect(kpiPorPagar(pagos(), 14).sinFecha).toBeNull();
     expect(kpiPorPagar(pagosDegradados(), 14).sinFecha).toEqual({ monto: 2_450_000, n: 3 });
+    expect(
+      kpiPorPagar(pagos({ undated_count: 1, undated_amount: undefined }), 14).sinFecha,
+    ).toEqual({
+      monto: null,
+      n: 1,
+    });
     expect(kpiPorPagar(null, 14).total).toBeNull();
   });
 
@@ -205,14 +213,59 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
     expect(kpiPorPagar(pagos(), 14).total).toBe(deV02!.total);
   });
 
-  it("Crítico: deuda + sueldos + F29 = $8.078.055; la caja de $5.200.000 no alcanza → faltan $2.878.055", () => {
+  it("mantiene caja final, críticos y cobertura canónica como conceptos separados", () => {
     const c = kpiCritico(filas(), pagos());
     expect(c.total).toBe(8_078_055);
     expect(c.n).toBe(3);
+    expect(c.listaPosiblementeTopeada).toBe(false);
     expect(c.yaVencido).toBe(0);
-    expect(c.caja).toBe(5_200_000);
-    expect(c.brecha).toBe(-2_878_055);
+    expect(c.cajaFinal).toBe(5_200_000);
+    expect(c.monedaCaja).toBe("CLP");
+    expect(c.cobertura).toBe(false);
+    expect(c).not.toHaveProperty("brecha");
     expect(c.motivoSinCaja).toBeNull();
+  });
+
+  it("auditoría D01: −$46.865.254 y $10.373.669 nunca producen −$57.238.923", () => {
+    const ap = pagosAuditoriaD01();
+    const c = kpiCritico(pagosV05(ap, HOY), ap);
+
+    expect(c.cajaFinal).toBe(-46_865_254);
+    expect(c.total).toBe(10_373_669);
+    expect(c.cobertura).toBe(false);
+    expect(c).not.toHaveProperty("brecha");
+    expect(Math.abs(c.cajaFinal!) + c.total).toBe(57_238_923);
+  });
+
+  it("no redefine covers_critical comparando el saldo final con los críticos", () => {
+    const ap = pagos({ projected_cash_14d: "1", covers_critical: true });
+    expect(kpiCritico(pagosV05(ap, HOY), ap).cobertura).toBe(true);
+  });
+
+  it("USD 830 crítico sin tipo de cambio conserva el conteo y el monto desconocido", () => {
+    const usdSinTc = {
+      ...BICE,
+      amount: "830",
+      currency: "USD",
+      amount_clp: null,
+    };
+    const ap = pagos({ items: [usdSinTc], covers_critical: false });
+    const c = kpiCritico(pagosV05(ap, HOY), ap);
+
+    expect(c.total).toBe(0);
+    expect(c.n).toBe(1);
+    expect(c.montosDesconocidos).toBe(1);
+    expect(c.cobertura).toBe(false);
+  });
+
+  it("100 ítems negociables no convierten el subtotal visible $0 en un total global", () => {
+    const ap = pagosListaTopeadaSinCriticos();
+    const c = kpiCritico(pagosV05(ap, HOY), ap);
+
+    expect(c.total).toBe(0);
+    expect(c.n).toBe(0);
+    expect(c.listaPosiblementeTopeada).toBe(true);
+    expect(c.cobertura).toBe(false);
   });
 
   it("la factura de proveedor vencida hace 18 meses NO es crítica (es negociable y vencida)", () => {
@@ -223,14 +276,15 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
     expect(filas().find((p) => p.categoria === "payroll")!.critico).toBe(true);
   });
 
-  it("caja en otra moneda (INV-FX-001): no se compara, y el motivo lo dice", () => {
+  it("caja en otra moneda conserva unidad y cobertura indeterminada; no se compara", () => {
     const c = kpiCritico(pagosV05(pagosDegradados(), HOY), pagosDegradados());
-    expect(c.caja).toBeNull();
-    expect(c.brecha).toBeNull();
-    expect(c.motivoSinCaja).toContain("USD");
+    expect(c.cajaFinal).toBe(10_500);
+    expect(c.monedaCaja).toBe("USD");
+    expect(c.cobertura).toBeNull();
+    expect(c.motivoSinCobertura).toContain("no pudo determinar");
     // Gemelo: sin proyección, el motivo es otro.
     const sinProy = kpiCritico(filas(), pagos({ projected_cash_14d: null }));
-    expect(sinProy.motivoSinCaja).toBe("el backend no pudo proyectar la caja a 14 días");
+    expect(sinProy.motivoSinCaja).toBe("el backend no pudo proyectar el saldo final a 14 días");
   });
 });
 
