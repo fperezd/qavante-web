@@ -6,6 +6,7 @@ export interface CashGapProposal {
   explanation: string;
   confidence: "high" | "medium" | "low" | "preliminary";
   evidenceCount: number;
+  caveats?: string[];
   targets: NonNullable<NonNullable<DecisionPlan["alternatives"]>[number]["targets"]>;
   impacts: NonNullable<NonNullable<DecisionPlan["alternatives"]>[number]["impacts"]>;
   href: "/pagar" | "/cobrar";
@@ -33,6 +34,7 @@ export function cashGapProposals(
         explanation: alternative.explanation,
         confidence: alternative.confidence,
         evidenceCount: alternative.evidence?.length ?? plan.evidence?.length ?? 0,
+        caveats: plan.reasons ?? [],
         targets: alternative.targets ?? [],
         impacts: alternative.impacts ?? [],
         href: paymentPlan ? "/pagar" : "/cobrar",
