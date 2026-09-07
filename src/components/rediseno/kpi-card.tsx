@@ -57,7 +57,7 @@ export function KpiCard(props: KpiCardProps) {
       </div>
       <div
         className={cn(
-          "mt-1.5 font-rediseno-serif text-[21px] font-medium tabular-nums",
+          "mt-1.5 font-rediseno-sans text-[21px] font-medium tabular-nums",
           /* Un "no sé" no se colorea: verde o rojo sobre una ausencia sería un
              veredicto sobre un dato que no tenemos (Ley 2). El `tone` se ignora
              a propósito cuando la tarjeta va en `sinDato`. */
