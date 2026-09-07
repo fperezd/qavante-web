@@ -100,7 +100,7 @@ export function DataState(props: DataStateProps) {
       />
       <h3
         className={cn(
-          "font-rediseno-serif text-[17px] font-medium text-rediseno-tinta",
+          "font-rediseno-sans text-[17px] font-medium text-rediseno-tinta",
           props.headingClassName,
         )}
       >

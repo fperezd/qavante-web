@@ -29,7 +29,7 @@ export type EstadoHoy = "sana" | "atencion" | "crisis" | "sin_dato";
 
 export interface VeredictoHoy {
   estado: EstadoHoy;
-  /** El titular (Fraunces, una línea). */
+  /** El titular (sans, una línea). */
   titular: string;
   /** Cuántas cosas esperan el OK del dueño. */
   pendientes: number;

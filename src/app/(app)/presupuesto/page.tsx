@@ -20,7 +20,7 @@ export default function PresupuestoPage() {
     return (
       <div className="space-y-6">
         <header>
-          <h1 className="font-rediseno-serif text-[28px] font-medium text-rediseno-tinta">
+          <h1 className="font-rediseno-sans text-[28px] font-medium text-rediseno-tinta">
             Presupuesto
           </h1>
         </header>

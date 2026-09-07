@@ -227,7 +227,7 @@ function EmptyStateSinPresupuesto({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-[14px] border border-dashed border-rediseno-hairline bg-rediseno-superficie px-6 py-10 text-center">
-      <h3 className="font-rediseno-serif text-[17px] font-medium text-rediseno-tinta">
+      <h3 className="font-rediseno-sans text-[17px] font-medium text-rediseno-tinta">
         Todavía no tienes presupuesto de {periodoLabel.toLowerCase()}
       </h3>
       <p className="max-w-[26rem] text-[13px] leading-relaxed text-rediseno-tinta-2">

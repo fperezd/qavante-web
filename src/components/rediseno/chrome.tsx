@@ -45,7 +45,7 @@ export function Chrome({
 }: ChromeProps) {
   return (
     <header className="flex items-center gap-3 border-b border-rediseno-hairline bg-rediseno-porcelana px-[34px] py-[15px]">
-      <span className="mr-2 font-rediseno-serif text-[17px] font-semibold text-rediseno-tinta">
+      <span className="mr-2 font-rediseno-sans text-[17px] font-semibold text-rediseno-tinta">
         Qavante
       </span>
       <nav

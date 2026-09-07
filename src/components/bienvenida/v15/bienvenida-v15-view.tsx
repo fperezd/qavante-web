@@ -107,7 +107,7 @@ export function BienvenidaV15View({
   return (
     <div className="space-y-5">
       <p className={CRUMB}>Bienvenida</p>
-      <h1 className="font-rediseno-serif text-[26px] leading-tight font-medium text-rediseno-tinta sm:text-[30px]">
+      <h1 className="font-rediseno-sans text-[26px] leading-tight font-medium text-rediseno-tinta sm:text-[30px]">
         ¿Cómo va la construcción de tu primer parte?
       </h1>
 
@@ -146,7 +146,7 @@ function PasoFuentes({ fuentes }: { fuentes: FuenteV15[] }) {
       <p className={EYEBROW}>Paso 1 de 3 · tus fuentes</p>
       <h2
         id="paso-1-titulo"
-        className="font-rediseno-serif text-[19px] font-medium text-rediseno-tinta"
+        className="font-rediseno-sans text-[19px] font-medium text-rediseno-tinta"
       >
         {fuentesConectadas(fuentes).length} de {fuentes.length} conectadas
       </h2>
@@ -221,7 +221,7 @@ function PasoProgreso({
         <>
           <h2
             id="paso-2-titulo"
-            className="font-rediseno-serif text-[19px] font-medium text-rediseno-tinta"
+            className="font-rediseno-sans text-[19px] font-medium text-rediseno-tinta"
           >
             Todo listo para iniciar la sincronización
           </h2>
@@ -242,9 +242,9 @@ function PasoProgreso({
             </p>
           ) : (
             onIniciar && (
-            <button type="button" className={BTN_PRIMARIO} onClick={onIniciar}>
-              Iniciar sincronización
-            </button>
+              <button type="button" className={BTN_PRIMARIO} onClick={onIniciar}>
+                Iniciar sincronización
+              </button>
             )
           )}
         </>
@@ -252,7 +252,7 @@ function PasoProgreso({
         <>
           <h2
             id="paso-2-titulo"
-            className="font-rediseno-serif text-[19px] font-medium text-rediseno-tinta"
+            className="font-rediseno-sans text-[19px] font-medium text-rediseno-tinta"
           >
             Sincronización: {run.status}
           </h2>
@@ -291,7 +291,7 @@ function PasoEstado() {
       <p className={EYEBROW}>Paso 3 de 3 · tu primer parte</p>
       <h2
         id="paso-3-titulo"
-        className="font-rediseno-serif text-[22px] leading-snug font-medium text-rediseno-tinta"
+        className="font-rediseno-sans text-[22px] leading-snug font-medium text-rediseno-tinta"
       >
         Tu primer parte estará disponible cuando termine la sincronización.
       </h2>
