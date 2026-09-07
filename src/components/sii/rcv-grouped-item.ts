@@ -15,6 +15,10 @@ export interface RcvDoc {
   monto_exento?: number;
   monto_iva?: number;
   monto_total?: number;
+  /** Vencimiento persistido por el backend tras leer el DTE; no viene en el RCV crudo. */
+  due_date?: string | null;
+  /** Origen del vencimiento: SII, contado o supuesto estándar de 30 días. */
+  due_date_source?: "sii" | "contado" | "assumed_30d" | string | null;
   /** Referencia del DTE (SII): la NC/ND apunta al documento que modifica. */
   ref_tipo_doc?: number;
   ref_folio?: number;

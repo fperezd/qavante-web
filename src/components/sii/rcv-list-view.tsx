@@ -381,6 +381,7 @@ export function RcvListView({
                   onToggleSort={onToggleSort}
                   dteKind={kind}
                   dteWindow={dteWindow}
+                  showDueDate={kind === "ventas"}
                 />
                 <PaginationBar
                   page={currentPage}
@@ -402,6 +403,7 @@ export function RcvListView({
                 hasActiveFilters={hasActiveFilters}
                 dteKind={kind}
                 dteWindow={dteWindow}
+                showDueDate={kind === "ventas"}
               />
             )}
 
@@ -486,6 +488,8 @@ interface GroupedTableProps {
   dteKind?: RcvKind;
   /** Ventana del rango consultado para armar la URL del PDF (ver dtePdfUrlForDoc). */
   dteWindow?: { desde: string; hasta: string } | null;
+  /** Ventas puede traer el vencimiento enriquecido desde el backend. */
+  showDueDate?: boolean;
 }
 
 /** Celda DTE (ver/descargar) de un documento del Libro (compras o ventas). */
@@ -504,6 +508,7 @@ function GroupedTable({
   onToggleSort,
   dteKind,
   dteWindow = null,
+  showDueDate = false,
 }: GroupedTableProps) {
   const showDte = dteKind !== undefined;
   return (
@@ -514,6 +519,11 @@ function GroupedTable({
             <SortHeader label="Tipo" sortKey="tipo" sort={sort} onToggleSort={onToggleSort} />
             <SortHeader label="Folio" sortKey="folio" sort={sort} onToggleSort={onToggleSort} />
             <SortHeader label="Fecha" sortKey="fecha" sort={sort} onToggleSort={onToggleSort} />
+            {showDueDate && (
+              <th scope="col" className="py-2 pr-3 font-semibold">
+                Vence
+              </th>
+            )}
             <SortHeader
               label={partyLabel}
               sortKey="cliente"
@@ -574,6 +584,9 @@ function GroupedTable({
                     {d.folio ?? "s/d"}
                   </td>
                   <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(d.fecha)}</td>
+                  {showDueDate && (
+                    <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(d.due_date)}</td>
+                  )}
                   <td className="py-2 pr-3">
                     <span className="block text-neutral-dark">
                       {d.razon_social ?? "Sin nombre"}
@@ -649,6 +662,21 @@ function GroupedTable({
                   </span>
                 </td>
                 <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(f.fecha)}</td>
+                {showDueDate && (
+                  <td
+                    className="py-2 pr-3 text-neutral-mid"
+                    title={
+                      f.due_date_source === "assumed_30d"
+                        ? "Fecha estimada: emisión + 30 días."
+                        : undefined
+                    }
+                  >
+                    {formatDateLike(f.due_date)}
+                    {f.due_date_source === "assumed_30d" && (
+                      <span className="ml-1 text-[10px]">estimado</span>
+                    )}
+                  </td>
+                )}
                 <td className="py-2 pr-3">
                   <span className={cn("block text-neutral-dark", anulada && "line-through")}>
                     {f.razon_social ?? "Sin nombre"}
