@@ -129,7 +129,7 @@ describe("titular-veredicto (spec §V01, aceptación)", () => {
       HOY,
     );
     expect(v.estado).toBe("crisis");
-    expect(v.titular).toBe("Tus sueldos están en riesgo");
+    expect(v.titular).toBe("Tu caja no alcanza para cubrir la nómina");
     // Ley 10: en crisis se muestra SÓLO la decisión crítica.
     expect(v.soloDecisionCritica).toBe(true);
   });

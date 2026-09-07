@@ -410,9 +410,10 @@ export function CashGapCardLine({ critical, projected }: { critical: number; pro
         </span>
       ) : gap.kind === "overdraft_with_dues" ? (
         <span>
-          Tu caja proyectada a 14 días queda bajo cero:{" "}
-          <b className="tabular-nums">{formatClp(-gap.descubierto)}</b>, ya contando{" "}
-          <b className="tabular-nums">{formatClp(gap.criticas)}</b> que vencen.
+          En 14 días tu caja proyectada llega a{" "}
+          <b className="tabular-nums">{formatClp(-gap.descubierto)}</b>. Incluye{" "}
+          <b className="tabular-nums">{formatClp(gap.criticas)}</b> en pagos que vencen en ese
+          período.
         </span>
       ) : gap.kind === "overdraft" ? (
         <span>
@@ -469,10 +470,10 @@ export function CashGapBanner({ critical, projected }: { critical: number; proje
                    signo se MANTIENE además de las palabras, para que las dos ramas de caja
                    negativa se lean igual. */
                 <>
-                  Tu caja proyectada a 14 días queda bajo cero:{" "}
-                  <span className="tabular-nums">{formatClp(-gap.descubierto)}</span>, ya contando
-                  los <span className="tabular-nums">{formatClp(gap.criticas)}</span> que vencen en
-                  ese plazo
+                  En 14 días tu caja proyectada llega a{" "}
+                  <span className="tabular-nums">{formatClp(-gap.descubierto)}</span>. Incluye{" "}
+                  <span className="tabular-nums">{formatClp(gap.criticas)}</span> en pagos que
+                  vencen en ese período
                 </>
               ) : gap.kind === "overdraft" ? (
                 <>

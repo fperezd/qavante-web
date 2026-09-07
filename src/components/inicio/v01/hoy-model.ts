@@ -170,7 +170,7 @@ export function pendientesLabel(n: number): string {
 }
 
 const TITULAR: Record<EstadoHoy, string> = {
-  crisis: "Tus sueldos están en riesgo",
+  crisis: "Tu caja no alcanza para cubrir la nómina",
   atencion: "Tu caja necesita atención",
   sana: "Tu empresa está sana",
   /* NO "sana", NO "atención": es el bucket explícito del "no sé". Neutro y no rojo — inventar

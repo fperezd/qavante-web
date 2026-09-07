@@ -179,7 +179,7 @@ export const Atencion: Story = {
     await expect(rojos(canvasElement)).toHaveLength(0);
     await expect(canvasElement.querySelectorAll('[class*="warning-"]').length).toBeGreaterThan(0);
     // Y NO es el titular de crisis (gemelo del positivo de la story de crisis).
-    await expect(canvas.queryByText("Tus sueldos están en riesgo")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Tu caja no alcanza para cubrir la nómina")).not.toBeInTheDocument();
   },
 };
 
@@ -219,7 +219,7 @@ export const Crisis: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      canvas.getByRole("heading", { name: "Tus sueldos están en riesgo" }),
+      canvas.getByRole("heading", { name: "Tu caja no alcanza para cubrir la nómina" }),
     ).toBeInTheDocument();
 
     // Ley 10: la alerta crítica se convierte en una propuesta del backend, no en una lista
