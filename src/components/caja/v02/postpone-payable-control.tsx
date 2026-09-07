@@ -67,7 +67,7 @@ export function PostponePayableControl({
   if (listo) {
     return (
       <p role="status" className="text-[12px] text-rediseno-tinta-2">
-        Fecha actualizada. Refrescando proyecciÃ³n.
+        Fecha actualizada. Refrescando proyección.
       </p>
     );
   }
@@ -76,7 +76,7 @@ export function PostponePayableControl({
     return (
       <div className="flex flex-wrap items-center justify-end gap-1.5">
         <p role="status" aria-live="polite" className="text-[12px] text-rediseno-tinta-2">
-          Postergaremos {glosa} {seleccion} dÃ­as en {restante} s.
+          Postergaremos {glosa} {seleccion} días en {restante} segundos.
         </p>
         <button type="button" onClick={cancelar} className={BOTON_SECUNDARIO}>
           Cancelar
@@ -100,7 +100,7 @@ export function PostponePayableControl({
               }}
               className={BOTON_SECUNDARIO}
             >
-              {days} dÃ­as
+              {days} días
             </button>
           ))}
           <button type="button" onClick={() => setMenuAbierto(false)} className={BOTON_SECUNDARIO}>
@@ -114,7 +114,7 @@ export function PostponePayableControl({
           onClick={() => setMenuAbierto(true)}
           className={BOTON_PRIMARIO}
         >
-          Postergar â–¾
+          Postergar
         </button>
       )}
       {error && (

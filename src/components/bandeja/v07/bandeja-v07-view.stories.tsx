@@ -87,7 +87,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "V07 · Bandeja de excepciones (ESPECIFICACION §V07): header con N pendientes y su estimación, tabs Conciliar/Clasificar con conteo, barra de progreso y UNA card a la vez con auto-avance. La carta de conciliar muestra evidencia a dos lados y sólo los chips cuyas verificaciones pasaron (Ley 3); su toast lleva Deshacer porque la reversión existe. La carta de clasificar entrega UNA decisión, con sugerencia sólo si una regla matchea; el toast de ESE 'Guardar' nunca lleva Deshacer (lo decidió el dueño, no Qavante solo · verificado contra el backend, no es un hueco). Lo que Qavante clasificó SOLO por regla o por conciliación sí tiene Deshacer, en un banner arriba de la carta (issue #90, `qavante-api#257`/ADR-0113): distingue si el Deshacer se negó porque el dueño reclasificó a mano después (no reintentable) o porque otra operación tiene la fila tomada ahora mismo (sí reintentable).",
+          "V07 · Bandeja de excepciones (ESPECIFICACION §V07): header con N pendientes, tabs Conciliar/Clasificar con conteo, barra de progreso y UNA card a la vez con auto-avance. La carta de conciliar muestra evidencia a dos lados y sólo los chips cuyas verificaciones pasaron (Ley 3); su toast lleva Deshacer porque la reversión existe. La carta de clasificar entrega UNA decisión, con sugerencia sólo si una regla matchea; el toast de ESE 'Guardar' nunca lleva Deshacer (lo decidió el dueño, no Qavante solo · verificado contra el backend, no es un hueco). Lo que Qavante clasificó SOLO por regla o por conciliación sí tiene Deshacer, en un banner arriba de la carta (issue #90, `qavante-api#257`/ADR-0113): distingue si el Deshacer se negó porque el dueño reclasificó a mano después (no reintentable) o porque otra operación tiene la fila tomada ahora mismo (sí reintentable).",
       },
     },
   },
@@ -121,7 +121,7 @@ export const ConciliarConSugerencia: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("7 pendientes · ~9 min")).toBeInTheDocument();
+    await expect(canvas.getByText("7 pendientes")).toBeInTheDocument();
 
     // Ley 3 — los cinco chips son verificaciones que pasaron de verdad.
     await expect(canvas.getByText("RUT en la glosa")).toBeInTheDocument();
@@ -152,7 +152,7 @@ export const ConciliarConSugerencia: Story = {
     );
     /* LA MUTACIÓN QUE ESTO MATA: el header que usa el total de la SESIÓN (7) en vez de los
        pendientes VIVOS (6) después de resolver uno — mentiría "7 pendientes" con 6 en la cola. */
-    await expect(canvas.getByText("6 pendientes · ~8 min")).toBeInTheDocument();
+    await expect(canvas.getByText("6 pendientes")).toBeInTheDocument();
 
     await userEvent.click(deshacer);
     await expect(args.onDeshacerConciliar).toHaveBeenCalledTimes(1);

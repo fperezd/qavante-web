@@ -21,7 +21,6 @@ import {
   itemsClasificar,
   itemsConciliar,
   lote,
-  minutosEstimados,
   montoCalza,
   montoResuelto,
   motivosNoAutomatico,
@@ -455,13 +454,6 @@ describe("lotes (group-by) y cola", () => {
 });
 
 describe("cabecera y progreso", () => {
-  it("~X min con X = N×80 s: 3 pendientes = 4 min, 1 = 1 min, 0 = 0", () => {
-    expect(minutosEstimados(3)).toBe(4);
-    expect(minutosEstimados(1)).toBe(1);
-    expect(minutosEstimados(7)).toBe(9);
-    expect(minutosEstimados(0)).toBe(0);
-  });
-
   it("el denominador del progreso NO se mueve al resolver", () => {
     expect(progreso(0, 8)).toEqual({ resueltos: 0, total: 8, pct: 0 });
     expect(progreso(3, 5)).toEqual({ resueltos: 3, total: 8, pct: 38 });

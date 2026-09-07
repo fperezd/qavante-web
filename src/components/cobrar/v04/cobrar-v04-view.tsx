@@ -549,7 +549,7 @@ function LotePanel({
       aria-labelledby={tituloId}
       className="space-y-3 rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie p-4"
     >
-      <h2 id={tituloId} className="font-rediseno-serif text-[17px] font-medium text-rediseno-tinta">
+      <h2 id={tituloId} className="font-rediseno-sans text-[17px] font-medium text-rediseno-tinta">
         Recordatorio a {n} {n === 1 ? "cliente" : "clientes"}
       </h2>
       <p className="text-[12.5px] leading-relaxed text-rediseno-tinta-2">

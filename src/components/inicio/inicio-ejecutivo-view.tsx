@@ -410,9 +410,10 @@ export function CashGapCardLine({ critical, projected }: { critical: number; pro
         </span>
       ) : gap.kind === "overdraft_with_dues" ? (
         <span>
-          Tu caja proyectada a 14 días queda bajo cero:{" "}
-          <b className="tabular-nums">{formatClp(-gap.descubierto)}</b>, ya contando{" "}
-          <b className="tabular-nums">{formatClp(gap.criticas)}</b> que vencen.
+          En 14 días tu caja proyectada llega a{" "}
+          <b className="tabular-nums">{formatClp(-gap.descubierto)}</b>. Incluye{" "}
+          <b className="tabular-nums">{formatClp(gap.criticas)}</b> en pagos que vencen en ese
+          período.
         </span>
       ) : gap.kind === "overdraft" ? (
         <span>
@@ -462,17 +463,14 @@ export function CashGapBanner({ critical, projected }: { critical: number; proje
                   cubrir tus pagos críticos de los próximos 14 días
                 </>
               ) : gap.kind === "overdraft_with_dues" ? (
-                /* "bajo cero" EN PALABRAS, no sólo el menos tipográfico (#54 §4). El API
-                   escribe "queda en $1M bajo cero"; la rama hermana `overdraft` de este mismo
-                   banner dice "está bajo cero: −$X". Esta rama confiaba el hecho entero a un
-                   glifo de un pixel — y es el lugar más fácil de leer mal de la pantalla. El
-                   signo se MANTIENE además de las palabras, para que las dos ramas de caja
-                   negativa se lean igual. */
+                /* El copy aprobado nombra el plazo, muestra el monto con signo negativo y
+                   explica los pagos incluidos. `tabular-nums` mantiene la cifra legible al
+                   actualizarse. */
                 <>
-                  Tu caja proyectada a 14 días queda bajo cero:{" "}
-                  <span className="tabular-nums">{formatClp(-gap.descubierto)}</span>, ya contando
-                  los <span className="tabular-nums">{formatClp(gap.criticas)}</span> que vencen en
-                  ese plazo
+                  En 14 días tu caja proyectada llega a{" "}
+                  <span className="tabular-nums">{formatClp(-gap.descubierto)}</span>. Incluye{" "}
+                  <span className="tabular-nums">{formatClp(gap.criticas)}</span> en pagos que
+                  vencen en ese período.
                 </>
               ) : gap.kind === "overdraft" ? (
                 <>

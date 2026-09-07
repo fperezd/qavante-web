@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sora, Fraunces, Figtree, Spline_Sans_Mono } from "next/font/google";
+import { Sora, Figtree, Spline_Sans_Mono } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
@@ -17,12 +17,6 @@ const sora = Sora({
    Cargadas a nivel de body (aditivo, no reemplaza Sora) para que los componentes
    nuevos bajo `src/components/rediseno/` puedan usarlas sin que el resto de la
    app cambie de tipografía todavía. */
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  display: "swap",
-});
 const figtree = Figtree({
   variable: "--font-figtree",
   subsets: ["latin"],
@@ -49,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="es-CL">
       <body
-        className={`${sora.variable} ${fraunces.variable} ${figtree.variable} ${splineSansMono.variable} antialiased`}
+        className={`${sora.variable} ${figtree.variable} ${splineSansMono.variable} antialiased`}
       >
         <AppProviders>{children}</AppProviders>
       </body>

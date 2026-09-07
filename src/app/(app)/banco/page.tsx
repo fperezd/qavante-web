@@ -19,7 +19,7 @@ export default function Page() {
           <p className="font-rediseno-mono text-[11px] font-semibold tracking-[.12em] text-rediseno-tinta-3 uppercase">
             Banco
           </p>
-          <h1 className="mt-1 font-rediseno-serif text-[28px] leading-tight font-medium text-rediseno-tinta">
+          <h1 className="mt-1 font-rediseno-sans text-[28px] leading-tight font-medium text-rediseno-tinta">
             Tus cuentas y tarjetas
           </h1>
         </header>

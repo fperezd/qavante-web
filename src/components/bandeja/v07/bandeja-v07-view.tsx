@@ -26,7 +26,6 @@ import {
   haySugerenciaConciliar,
   interpretarDeshacer,
   lote,
-  minutosEstimados,
   montoResuelto,
   motivosNoAutomatico,
   parcialidad,
@@ -359,7 +358,6 @@ function BandejaV07Contenido({
     );
   }
 
-  const minutos = minutosEstimados(pendientes);
   /* Una de las dos fuentes se cayó: el conteo de la cabecera es PARCIAL y no puede presentarse
      como si fuera el total. Con cero pendientes de la fuente viva, además, decir "nada espera tu
      decisión" sería directamente falso — no sabemos qué hay del otro lado. */
@@ -375,7 +373,7 @@ function BandejaV07Contenido({
             ? "No podemos decirte cuánto te queda"
             : pendientes === 0
               ? "Nada espera tu decisión"
-              : `${pendientes} ${pendientes === 1 ? "pendiente" : "pendientes"} · ~${minutos} min`}
+              : `${pendientes} ${pendientes === 1 ? "pendiente" : "pendientes"}`}
         </h1>
         <div className="ml-auto">
           <FilterChips

@@ -157,7 +157,7 @@ export function GestionV08View(props: GestionV08ViewProps) {
     <div className="space-y-5">
       <div className={CRUMB}>Gestión · {TAB_LABEL[tab]}</div>
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3">
-        <h1 className="font-rediseno-serif text-[26px] leading-tight font-medium text-rediseno-tinta sm:text-[30px]">
+        <h1 className="font-rediseno-sans text-[26px] leading-tight font-medium text-rediseno-tinta sm:text-[30px]">
           {TAB_PREGUNTA[tab]}
         </h1>
         <Tabs value={tab} onChange={onTabChange} />
@@ -1261,7 +1261,7 @@ function Tab360(props: GestionV08ViewProps) {
 
       {perfil && (
         <>
-          <h2 className="font-rediseno-serif text-[22px] font-medium text-rediseno-tinta">
+          <h2 className="font-rediseno-sans text-[22px] font-medium text-rediseno-tinta">
             {perfil.nombre}
           </h2>
           <p className={CRUMB}>

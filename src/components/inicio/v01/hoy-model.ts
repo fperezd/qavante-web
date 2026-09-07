@@ -29,7 +29,7 @@ export type EstadoHoy = "sana" | "atencion" | "crisis" | "sin_dato";
 
 export interface VeredictoHoy {
   estado: EstadoHoy;
-  /** El titular (Fraunces, una línea). */
+  /** El titular (sans, una línea). */
   titular: string;
   /** Cuántas cosas esperan el OK del dueño. */
   pendientes: number;
@@ -170,7 +170,7 @@ export function pendientesLabel(n: number): string {
 }
 
 const TITULAR: Record<EstadoHoy, string> = {
-  crisis: "Tus sueldos están en riesgo",
+  crisis: "Tu caja no alcanza para cubrir la nómina",
   atencion: "Tu caja necesita atención",
   sana: "Tu empresa está sana",
   /* NO "sana", NO "atención": es el bucket explícito del "no sé". Neutro y no rojo — inventar
@@ -197,7 +197,12 @@ export function veredictoHoy(
   /* Los casos persistidos del Decision OS son decisiones, no `priority_actions` del dashboard.
      La vista los suma de forma explícita para no decir "nada necesita tu OK" mientras muestra
      una evaluación elegible. El caller sólo pasa casos vigentes y con soporte `eligible`. */
-  const pendientes = (s?.priority_actions?.length ?? 0) + Math.max(0, pendientesAdicionales);
+  const pendientesDisponibles =
+    (s?.priority_actions?.length ?? 0) + Math.max(0, pendientesAdicionales);
+  /* En crisis la pantalla muestra una sola decisión crítica para no diluir la urgencia.
+     El encabezado debe contar esa misma lista visible, no las acciones de origen. */
+  const pendientes =
+    estado === "crisis" ? Math.min(1, pendientesDisponibles) : pendientesDisponibles;
   const diaPerfecto = estado === "sana" && pendientes === 0;
 
   return {

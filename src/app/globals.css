@@ -111,7 +111,6 @@
   --color-rediseno-flujo-salida: var(--rd-flujo-salida);
   --color-rediseno-flujo-critico: var(--rd-flujo-critico);
 
-  --font-rediseno-serif: var(--font-fraunces);
   --font-rediseno-sans: var(--font-figtree);
   --font-rediseno-mono: var(--font-spline-mono);
 }

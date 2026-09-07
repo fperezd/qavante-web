@@ -4,7 +4,7 @@ import { SinDato, type SinDatoMotivo } from "./sin-dato";
 import type { ContenidoVisible } from "./contenido-visible";
 
 /* Tarjeta KPI — ESPECIFICACION.md §1.3 "Tarjeta KPI" (`.kp` en `.kpi3/.k4/.k5`).
- * Label mono uppercase + valor Fraunces + detalle. Selector de período opcional
+ * Label mono uppercase + valor sans tabular + detalle. Selector de período opcional
  * (`.per`) a la derecha del label. Cifras SIEMPRE con `tabular-nums` (§1.2). */
 
 interface KpiCardBaseProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children"> {
@@ -57,7 +57,7 @@ export function KpiCard(props: KpiCardProps) {
       </div>
       <div
         className={cn(
-          "mt-1.5 font-rediseno-serif text-[21px] font-medium tabular-nums",
+          "mt-1.5 font-rediseno-sans text-[21px] font-medium tabular-nums",
           /* Un "no sé" no se colorea: verde o rojo sobre una ausencia sería un
              veredicto sobre un dato que no tenemos (Ley 2). El `tone` se ignora
              a propósito cuando la tarjeta va en `sinDato`. */

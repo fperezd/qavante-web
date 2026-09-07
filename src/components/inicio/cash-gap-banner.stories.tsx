@@ -62,7 +62,7 @@ export const OverdraftConCriticas: Story = {
     /* La frase entera: el signo (U+2212, no un guion) Y las palabras "bajo cero", con las dos
        cifras cada una con su apellido. */
     await expect(alerta).toHaveTextContent(
-      "Tu caja proyectada a 14 días queda bajo cero: −$1.000.000, ya contando los $2.000.000 que vencen en ese plazo",
+      "En 14 días tu caja proyectada llega a −$1.000.000. Incluye $2.000.000 en pagos que vencen en ese período.",
     );
     /* Lo que NO puede decir: la suma. La caja proyectada YA trae esos $2M restados, así que la
        plata a conseguir es $1M. GEMELO POSITIVO del mismo valor: la story `Shortfall` afirma

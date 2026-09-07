@@ -37,9 +37,6 @@ import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 
 /* ── Constantes con su cita ──────────────────────────────────────────────────────────────── */
 
-/** §V07: "N pendientes · ~X min" con X = N×80 s. 80 segundos por excepción. */
-export const SEGUNDOS_POR_PENDIENTE = 80;
-
 /** Tolerancia del "monto que calce" de la Ley 3 cuando no es exacto: ±1 %. Declarada acá y no
  *  escondida en un `if`, porque es la frontera entre "hay sugerencia" y "revisión manual". */
 export const TOLERANCIA_MONTO = 0.01;
@@ -617,12 +614,6 @@ export function agruparAlFrente(
 }
 
 /* ── Cola, avance y progreso ─────────────────────────────────────────────────────────────── */
-
-/** §V07: "N pendientes · ~X min", X = N×80 s redondeado a minutos. 0 pendientes ⇒ 0. */
-export function minutosEstimados(pendientes: number): number {
-  if (pendientes <= 0) return 0;
-  return Math.max(1, Math.round((pendientes * SEGUNDOS_POR_PENDIENTE) / 60));
-}
 
 /**
  * AUTO-AVANCE al resolver: el ítem resuelto SALE de la cola, así que el mismo índice ya apunta al

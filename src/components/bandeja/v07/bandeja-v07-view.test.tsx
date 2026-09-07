@@ -88,17 +88,18 @@ function chips(h: string): string[] {
 }
 
 describe("BandejaV07View — cabecera y progreso", () => {
-  it("N pendientes con su ~X min (X = N×80 s) y las dos tabs con su conteo", () => {
+  it("muestra N pendientes y las dos tabs con su conteo", () => {
     const t = texto(html());
-    // 2 por conciliar + 5 por clasificar = 7 · 80 s = 560 s ≈ 9 min.
-    expect(t).toContain("7 pendientes · ~9 min");
+    expect(t).toContain("7 pendientes");
+    expect(t).not.toContain("min");
     expect(t).toContain("Conciliar · 2");
     expect(t).toContain("Clasificar · 5");
   });
 
   it("muestra el total no paginado aunque la cola visible esté limitada", () => {
     const t = texto(html({ conciliarTotal: 2, clasificarTotal: 137 }));
-    expect(t).toContain("139 pendientes · ~185 min");
+    expect(t).toContain("139 pendientes");
+    expect(t).not.toContain("min");
     expect(t).toContain("Conciliar · 2");
     expect(t).toContain("Clasificar · 137");
   });

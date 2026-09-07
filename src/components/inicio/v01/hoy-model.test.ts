@@ -129,7 +129,7 @@ describe("titular-veredicto (spec §V01, aceptación)", () => {
       HOY,
     );
     expect(v.estado).toBe("crisis");
-    expect(v.titular).toBe("Tus sueldos están en riesgo");
+    expect(v.titular).toBe("Tu caja no alcanza para cubrir la nómina");
     // Ley 10: en crisis se muestra SÓLO la decisión crítica.
     expect(v.soloDecisionCritica).toBe(true);
   });
@@ -233,6 +233,9 @@ describe("Esperando tu visto bueno (fallback de la spec: las acciones prioritari
       priority_actions: [ACCION(1, "Primera"), ACCION(2, "Segunda"), ACCION(3, "Tercera")],
     });
     const v = veredictoHoy(s, HOY);
+    // El encabezado cuenta exactamente la única propuesta que la crisis deja visible.
+    expect(v.pendientes).toBe(1);
+    expect(v.pendientesLabel).toBe("hay 1 cosa que necesita tu OK");
     expect(decisionesHoy(s, v.soloDecisionCritica)).toHaveLength(1);
     // Gemelo positivo: la que queda es la de prioridad 1, no "la primera del array".
     expect(decisionesHoy(s, v.soloDecisionCritica)[0]!.reason).toBe("Primera");

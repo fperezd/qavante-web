@@ -112,7 +112,7 @@ describe("CashGapBanner — el caso mixto: caja bajo cero CON pagos críticos", 
   it("nombra las dos cifras, cada una con su apellido, y el saldo en negativo", () => {
     const text = bannerText({ critical: 2_000_000, projected: -1_000_000 });
     expect(text).toContain(
-      `Tu caja proyectada a 14 días queda bajo cero: ${MINUS}$1.000.000, ya contando los $2.000.000 que vencen en ese plazo`,
+      `En 14 días tu caja proyectada llega a ${MINUS}$1.000.000. Incluye $2.000.000 en pagos que vencen en ese período.`,
     );
     expect(text).toContain(`Obligaciones críticas $2.000.000 · caja proyectada ${MINUS}$1.000.000`);
   });
@@ -122,7 +122,7 @@ describe("CashGapBanner — el caso mixto: caja bajo cero CON pagos críticos", 
        La regex es la MISMA para las dos direcciones: casa con o sin el menos y se afirma cuál
        de las dos salió. Un `not.toContain("$1.000.000")` no serviría — `"−$1.000.000"` lo
        contiene como substring y el negativo pasaría siempre. */
-    const SALDO = /queda bajo cero: (−?\$1\.000\.000)/;
+    const SALDO = /llega a (−?\$1\.000\.000)/;
     const m = bannerText({ critical: 2_000_000, projected: -1_000_000 }).match(SALDO);
     expect(m?.[1]).toBe(`${MINUS}$1.000.000`); // lo que debe decir
     expect(m?.[1]).not.toBe("$1.000.000"); // lo que decía el mutante, MISMA regex
@@ -154,20 +154,21 @@ describe("CashGapBanner — lo que el copy NO puede decir", () => {
     expect(text).not.toContain("para cubrir tus pagos críticos");
     // GEMELAS POSITIVAS: la frase que SÍ corresponde, y la rama que SÍ usa ese apellido.
     expect(text).toContain(
-      `queda bajo cero: ${MINUS}$5.000.000, ya contando los $1 que vencen en ese plazo`,
+      `llega a ${MINUS}$5.000.000. Incluye $1 en pagos que vencen en ese período.`,
     );
     expect(bannerText({ critical: 5_000_000, projected: 2_000_000 })).toContain(
       "para cubrir tus pagos críticos",
     );
   });
 
-  it("'bajo cero' EN PALABRAS en las dos ramas de caja negativa, en ninguna otra (#54 §4)", () => {
-    /* El hecho no puede viajar sólo en un glifo de un pixel. El API escribe "queda en $1M bajo
-       cero"; las dos ramas del front que hablan de caja negativa dicen las palabras. */
-    expect(bannerText({ critical: 2_000_000, projected: -1_000_000 })).toContain("bajo cero");
+  it("la rama mixta publica el monto con signo negativo y la positiva no", () => {
+    expect(bannerText({ critical: 2_000_000, projected: -1_000_000 })).toContain(
+      `${MINUS}$1.000.000`,
+    );
     expect(bannerText({ critical: 0, projected: -3_935_682 })).toContain("bajo cero");
-    // GEMELA NEGATIVA con la MISMA frase: con la caja POSITIVA decirlo sería falso.
-    expect(bannerText({ critical: 5_000_000, projected: 2_000_000 })).not.toContain("bajo cero");
+    expect(bannerText({ critical: 5_000_000, projected: 2_000_000 })).not.toContain(
+      `${MINUS}$3.000.000`,
+    );
   });
 
   it("el copy nombra las críticas SÓLO cuando existen ($0 no se menciona)", () => {
@@ -176,7 +177,7 @@ describe("CashGapBanner — lo que el copy NO puede decir", () => {
     expect(bannerText({ critical: 0, projected: -3_935_682 })).not.toContain("ya contando");
     // GEMELA POSITIVA con la MISMA frase: con críticas reales sí se dice.
     expect(bannerText({ critical: 2_000_000, projected: -1_000_000 })).toContain(
-      "ya contando los $2.000.000",
+      "Incluye $2.000.000 en pagos",
     );
   });
 
@@ -204,7 +205,7 @@ describe("CashGapCardLine — el mismo hecho en la card del grid", () => {
       "Te faltan $3.000.000 para tus pagos críticos de 14 días.",
     );
     expect(cardText({ critical: 2_000_000, projected: -1_000_000 })).toContain(
-      `Tu caja proyectada a 14 días queda bajo cero: ${MINUS}$1.000.000, ya contando $2.000.000 que vencen.`,
+      `En 14 días tu caja proyectada llega a ${MINUS}$1.000.000. Incluye $2.000.000 en pagos que vencen en ese período.`,
     );
     expect(cardText({ critical: 0, projected: -3_935_682 })).toContain(
       `Tu caja proyectada a 14 días está bajo cero: ${MINUS}$3.935.682.`,
@@ -218,7 +219,7 @@ describe("CashGapCardLine — el mismo hecho en la card del grid", () => {
     /* `formatClp(-gap.descubierto)` → `formatClp(gap.descubierto)`, el mismo cambio de una
        palabra que en el banner. Misma regex en las dos direcciones, por la misma razón: un
        `not.toContain("$1.000.000")` pasaría siempre porque "−$1.000.000" lo contiene. */
-    const SALDO = /queda bajo cero: (−?\$1\.000\.000)/;
+    const SALDO = /llega a (−?\$1\.000\.000)/;
     const m = cardText({ critical: 2_000_000, projected: -1_000_000 }).match(SALDO);
     expect(m?.[1]).toBe(`${MINUS}$1.000.000`);
     expect(m?.[1]).not.toBe("$1.000.000");
@@ -237,18 +238,21 @@ describe("CashGapCardLine — el mismo hecho en la card del grid", () => {
     expect(cardText({ critical: 5_000_000, projected: 2_000_000 })).toContain("$3.000.000");
   });
 
-  it("'bajo cero' en las dos ramas de caja negativa de la card, en ninguna otra", () => {
-    expect(cardText({ critical: 2_000_000, projected: -1_000_000 })).toContain("bajo cero");
+  it("la card mixta publica el monto con signo negativo y la positiva no", () => {
+    expect(cardText({ critical: 2_000_000, projected: -1_000_000 })).toContain(
+      `${MINUS}$1.000.000`,
+    );
     expect(cardText({ critical: 0, projected: -3_935_682 })).toContain("bajo cero");
-    // GEMELA NEGATIVA con la MISMA frase: con la caja positiva decirlo sería falso.
-    expect(cardText({ critical: 5_000_000, projected: 2_000_000 })).not.toContain("bajo cero");
+    expect(cardText({ critical: 5_000_000, projected: 2_000_000 })).not.toContain(
+      `${MINUS}$3.000.000`,
+    );
   });
 
   it("la card nombra las críticas SÓLO cuando existen ($0 no se menciona)", () => {
     expect(cardText({ critical: 0, projected: -3_935_682 })).not.toContain("ya contando");
     // GEMELA POSITIVA con la MISMA frase.
     expect(cardText({ critical: 2_000_000, projected: -1_000_000 })).toContain(
-      "ya contando $2.000.000",
+      "Incluye $2.000.000 en pagos",
     );
   });
 });
@@ -272,7 +276,7 @@ describe("Banner y card — el mismo hecho, el mismo vocabulario", () => {
       nombre: "mixto",
       critical: 2_000_000,
       projected: -1_000_000,
-      hecho: "Tu caja proyectada a 14 días queda bajo cero:",
+      hecho: "En 14 días tu caja proyectada llega a",
       montosEnCard: 2,
     },
     {
