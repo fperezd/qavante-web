@@ -476,7 +476,7 @@ function SortHeader({
   );
 }
 
-export interface GroupedTableProps {
+interface GroupedTableProps {
   items: GroupedItem[];
   totals: ReturnType<typeof computeRcvTotals>;
   partyLabel: string;
@@ -498,7 +498,7 @@ function dteCell(kind: RcvKind, doc: RcvDoc, window: { desde: string; hasta: str
   return <DteActions url={dtePdfUrlForDoc(kind, doc, window)} label={`folio ${folio}`} />;
 }
 
-export function GroupedTable({
+function GroupedTable({
   items,
   totals,
   partyLabel,
@@ -585,19 +585,7 @@ export function GroupedTable({
                   </td>
                   <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(d.fecha)}</td>
                   {showDueDate && (
-                    <td
-                      className="py-2 pr-3 text-neutral-mid"
-                      title={
-                        d.due_date_source === "assumed_30d"
-                          ? "Fecha estimada: emision + 30 dias."
-                          : undefined
-                      }
-                    >
-                      {formatDateLike(d.due_date)}
-                      {d.due_date_source === "assumed_30d" && (
-                        <span className="ml-1 text-[10px]">estimado</span>
-                      )}
-                    </td>
+                    <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(d.due_date)}</td>
                   )}
                   <td className="py-2 pr-3">
                     <span className="block text-neutral-dark">
