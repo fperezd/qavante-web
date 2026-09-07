@@ -9,9 +9,22 @@ import { QavanteLogo } from "@/components/qavante";
    cambian (Lighthouse mobile ≥85 + smoke e2e). `<h1 sr-only>` conservado. */
 
 const HIGHLIGHTS = [
-  { Icon: Wallet, text: "Tu caja y proyección, siempre al día" },
-  { Icon: TrendingUp, text: "Cobranza y pagos priorizados por urgencia" },
-  { Icon: Activity, text: "Tu Pulso Empresa, de un vistazo" },
+  {
+    Icon: Wallet,
+    title: "Tu operación financiera, bajo control",
+    description: "Caja, cobranza, pagos y compromisos siempre al día.",
+  },
+  {
+    Icon: TrendingUp,
+    title: "Anticipa riesgos y oportunidades",
+    description:
+      "Identifica lo que viene y qué requiere tu atención antes de que impacte tu negocio.",
+  },
+  {
+    Icon: Activity,
+    title: "Convierte información en acción",
+    description: "Evalúa alternativas, toma mejores decisiones y mide su impacto.",
+  },
 ];
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
@@ -25,22 +38,26 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <div className="bg-brand-primary/30 absolute -bottom-32 -left-16 h-96 w-96 rounded-full blur-3xl" />
         </div>
 
-        <div className="relative max-w-md space-y-8">
+        <div className="relative max-w-xl space-y-8">
           <div className="space-y-3">
             <h2 className="text-4xl font-bold leading-tight text-white">
               Anticipa. Decide. Avanza.
             </h2>
-            <p className="text-brand-light-100 text-base">
-              La gestión financiera de tu PYME, clara y al día.
+            <p className="text-brand-light-100 text-base leading-relaxed">
+              Gestiona tu operación financiera, entiende qué está pasando y anticipa lo que viene.
+              Qavante te ayuda a decidir qué hacer, actuar y medir el resultado.
             </p>
           </div>
-          <ul className="space-y-3">
-            {HIGHLIGHTS.map(({ Icon, text }) => (
-              <li key={text} className="flex items-center gap-3 text-sm text-white/90">
+          <ul className="space-y-4">
+            {HIGHLIGHTS.map(({ Icon, title, description }) => (
+              <li key={title} className="flex items-start gap-3 text-sm text-white/90">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
                   <Icon className="h-4 w-4" aria-hidden="true" />
                 </span>
-                {text}
+                <span>
+                  <strong className="block font-semibold text-white">{title}</strong>
+                  <span className="mt-0.5 block leading-relaxed text-white/80">{description}</span>
+                </span>
               </li>
             ))}
           </ul>

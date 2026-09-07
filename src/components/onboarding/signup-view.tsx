@@ -80,10 +80,7 @@ export function SignupView() {
   }
 
   return (
-    <OnboardingShell
-      step="signup"
-      description="Crea tu cuenta y la empresa que vas a gestionar. Eres el primer usuario (owner)."
-    >
+    <OnboardingShell step="signup" description="Crea tu cuenta y la empresa que vas a gestionar.">
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="max-w-md space-y-4">
         <Field id="su-name" label="Tu nombre" error={errors.ownerFullName?.message}>
           <Controller
@@ -92,7 +89,7 @@ export function SignupView() {
             render={({ field }) => (
               <QavanteInput
                 id="su-name"
-                placeholder="Fernando Pérez"
+                placeholder="Juan González Carrasco"
                 value={field.value}
                 onValueChange={field.onChange}
                 onBlur={field.onBlur}
@@ -157,7 +154,7 @@ export function SignupView() {
               render={({ field }) => (
                 <QavanteInput
                   id="su-company"
-                  placeholder="Tooxs SpA"
+                  placeholder="Empresa SpA"
                   value={field.value}
                   onValueChange={field.onChange}
                   onBlur={field.onBlur}
