@@ -69,7 +69,10 @@ export function BankResolutionDetailDrawer({
       }
       const first = focusable[0]!;
       const last = focusable.at(-1)!;
-      if (event.shiftKey && document.activeElement === first) {
+      if (document.activeElement === asideRef.current) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -105,6 +108,7 @@ export function BankResolutionDetailDrawer({
     <div className="fixed inset-0 z-50 flex justify-end">
       <button
         type="button"
+        tabIndex={-1}
         aria-label="Cerrar detalle"
         className="absolute inset-0 cursor-default bg-neutral-dark/40"
         onClick={onClose}

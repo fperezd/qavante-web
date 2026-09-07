@@ -34,6 +34,9 @@ export type UnclassifyResponse = components["schemas"]["UnclassifyResponse"];
 export type FinancialEventTypesResponse = components["schemas"]["FinancialEventTypesResponse"];
 export type AccountDimensionPoliciesResponse =
   components["schemas"]["AccountDimensionPoliciesResponse"];
+export type SetAccountDimensionPolicyRequest =
+  components["schemas"]["SetAccountDimensionPolicyRequest"];
+export type AccountDimensionPolicy = components["schemas"]["AccountDimensionPolicy"];
 /** API #350, presente en el OpenAPI versionado. El backend aplica todo el lote o no cambia nada. */
 export type BulkClassifyMovementRequest = components["schemas"]["BulkClassifyMovementRequest"];
 export type BulkClassifyMovementResponse = components["schemas"]["BulkClassifyMovementResponse"];
@@ -428,6 +431,28 @@ export function useAccountClassificationDimensions(accountId: string) {
     enabled: Boolean(accountId),
     staleTime: 30_000,
     retry: false,
+  });
+}
+
+/** Configura explícitamente una dimensión para una cuenta de gestión. Sin policy queda apagada. */
+export function useSetAccountClassificationDimension() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      accountId,
+      dimensionId,
+      body,
+    }: {
+      accountId: string;
+      dimensionId: string;
+      body: SetAccountDimensionPolicyRequest;
+    }) =>
+      api.put<AccountDimensionPolicy>(
+        `/api/treasury/management-accounts/${encodeURIComponent(accountId)}/classification-dimensions/${encodeURIComponent(dimensionId)}`,
+        { body },
+      ),
+    onSuccess: (_result, { accountId }) =>
+      qc.invalidateQueries({ queryKey: treasuryKeys.accountClassificationDimensions(accountId) }),
   });
 }
 
