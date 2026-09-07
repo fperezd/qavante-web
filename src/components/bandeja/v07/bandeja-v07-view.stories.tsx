@@ -51,6 +51,21 @@ import {
 
 const CONCILIAR = itemsConciliar(colaConciliar());
 const CLASIFICAR = itemsClasificar(sinClasificar());
+const GLOSA_JANA =
+  "Transf. a terceros vía Internet a cuenta 32667051 B.BCI, IGNACIO MATIAS JANA, Rut 18.974.184-7, el 04-09-2026";
+
+function clasificarJana() {
+  const items = itemsClasificar(sinClasificar([MOV_TERCEROS, MOV_DATTATEC]));
+  return [
+    {
+      ...items[0]!,
+      glosa: GLOSA_JANA,
+      cuentaDestino: "32667051",
+      rutGlosa: "189741847",
+    },
+    ...items.slice(1),
+  ];
+}
 
 /** Ley 2 — los elementos con token rojo que hay en pantalla. */
 function rojos(canvasElement: HTMLElement): Element[] {
@@ -347,7 +362,7 @@ export const ClasificarSinSugerencia: Story = {
   name: "Clasificar · sin sugerencia · Guardar responde en vez de estar deshabilitado (Ley 6)",
   args: {
     tabInicial: "clasificar",
-    clasificar: itemsClasificar(sinClasificar([MOV_TERCEROS, MOV_DATTATEC])),
+    clasificar: clasificarJana(),
     sugerencia: { movimientoId: MOV_TERCEROS, valor: null, cargando: false },
     onClasificar: fn(),
     onCrearRegla: fn(
@@ -359,6 +374,8 @@ export const ClasificarSinSugerencia: Story = {
     await expect(
       canvas.getByText(/sin regla que calce: sin evidencia no se sugiere/),
     ).toBeInTheDocument();
+    await expect(canvas.getByText(/RUT en la glosa: 18\.974\.184-7/)).toBeInTheDocument();
+    await expect(canvas.queryByText(/3\.266\.705-1/)).toBeNull();
     await expect(
       canvas.getByRole("button", { name: /Arriendo de oficina · 4/ }),
     ).toBeInTheDocument();
@@ -394,6 +411,7 @@ export const ClasificarSinSugerencia: Story = {
 
     // Clasificado a mano ⇒ la oferta de regla, en una línea.
     await expect(canvas.getByText(/¿Siempre/)).toBeInTheDocument();
+    await expect(canvas.getByText(/cuenta destino 32667051/)).toBeInTheDocument();
     const crearRegla = canvas.getByRole("button", { name: "Crear regla" });
     crearRegla.click();
     crearRegla.click();

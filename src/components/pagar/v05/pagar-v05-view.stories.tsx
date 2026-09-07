@@ -5,6 +5,7 @@ import {
   ANOMALIA_ENTEL,
   HOY,
   pagos,
+  pagosAuditoriaD01,
   pagosConDuplicado,
   pagosDegradados,
   pagosSoloImpuestosYSueldos,
@@ -36,7 +37,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V05 · Pagar (ESPECIFICACION §V05): tríada (Vencido / Por pagar · selector 7-14-30 / Crítico vs. caja), banner de postergables que enlaza a Hoy (la ejecución masiva NO vive aquí), filtros con conteo (Impuestos y Remuneraciones incluidos) y tabla con proveedor completo, vence absoluto+relativo, pill de tipo y "detalle ▾". El posible duplicado llega como par UUID del backend y se marca con pill Revisar. NO existe "pagar todo" (Ley 9). "Servicio" y Postergar quedan fuera de esta entrega (huecos declarados).',
+          'V05 · Pagar (ESPECIFICACION §V05): tríada (Vencido / Por pagar · selector 7-14-30 / Caja proyectada con críticos separados), banner de postergables que enlaza a Hoy (la ejecución masiva NO vive aquí), filtros con conteo (Impuestos y Remuneraciones incluidos) y tabla con proveedor completo, vence absoluto+relativo, pill de tipo y "detalle ▾". El posible duplicado llega como par UUID del backend y se marca con pill Revisar. NO existe "pagar todo" (Ley 9). "Servicio" y Postergar quedan fuera de esta entrega (huecos declarados).',
       },
     },
   },
@@ -57,10 +58,13 @@ export const Normal: Story = {
     await expect(canvas.getByText("$8.729.650")).toBeInTheDocument();
     await expect(canvas.getByText(/3 pagos · el más antiguo, 545 días/)).toBeInTheDocument();
     await expect(canvas.getByText("$17.998.105")).toBeInTheDocument();
-    await expect(canvas.getByText("$8.078.055")).toBeInTheDocument();
     await expect(
-      canvas.getByText(/faltan \$2\.878\.055 aun postergando lo negociable/),
+      canvas.getByText(/Pagos críticos en la lista visible: \$8\.078\.055/),
     ).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/Estado de cobertura del horizonte: no cubre/),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/\$2\.878\.055/)).not.toBeInTheDocument();
     await expect(canvas.getByRole("note")).toHaveTextContent(
       "$1.190.400 de lo que vence en 14 días es negociable",
     );
@@ -84,6 +88,20 @@ export const Normal: Story = {
     // Footer §5.5 con el total del backend.
     await expect(canvas.getByText(/Total por pagar/)).toBeInTheDocument();
     await expect(canvas.getByText("$19.205.210")).toBeInTheDocument();
+  },
+};
+
+export const AuditoriaD01: Story = {
+  name: "Auditoría D01 · caja y críticos separados, sin doble resta",
+  args: { pagos: pagosAuditoriaD01() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("−$46.865.254")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/Pagos críticos en la lista visible: \$10\.373\.669/),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/57\.238\.923/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText(/faltan \$/i)).not.toBeInTheDocument();
   },
 };
 
@@ -204,10 +222,8 @@ export const SoloImpuestosYSueldos: Story = {
     await expect(
       canvas.getByText(/Impuestos y sueldos jamás entran en postergaciones automáticas\./),
     ).toBeInTheDocument();
-    // La caja cubre lo crítico: holgura, sin drama — y el único rojo sigue siendo la fila más urgente.
-    await expect(
-      canvas.getByText(/la caja proyectada \(\$9\.100\.000\) lo cubre/),
-    ).toBeInTheDocument();
+    // La cobertura canónica confirma que cubre; el único rojo sigue siendo la fila más urgente.
+    await expect(canvas.getByText(/Estado de cobertura del horizonte: cubre/)).toBeInTheDocument();
     const marcados = rojos(canvasElement);
     await expect(marcados).toHaveLength(1);
     await expect(marcados[0]!).toHaveTextContent("en 5 días");
@@ -215,7 +231,7 @@ export const SoloImpuestosYSueldos: Story = {
 };
 
 export const DatosDegradados: Story = {
-  name: 'Degradado · "sin fecha" nunca es "vence hoy"; USD sin TC no suma; caja en USD no se compara',
+  name: 'Degradado · "sin fecha" nunca es "vence hoy"; USD sin TC no suma; cobertura indeterminada',
   args: { pagos: pagosDegradados() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -232,11 +248,10 @@ export const DatosDegradados: Story = {
     await expect(
       canvas.getByText(/1 pago en otra moneda sin tipo de cambio, fuera del total/),
     ).toBeInTheDocument();
-    // La caja proyectada viene en USD: no se compara con pesos.
+    // La caja conserva su moneda y el backend se abstiene de afirmar cobertura.
+    await expect(canvas.getByText(/US\$\s10\.500,00/)).toBeInTheDocument();
     await expect(
-      canvas.getByText(
-        /la caja proyectada viene en USD y lo crítico está en pesos: no se comparan/,
-      ),
+      canvas.getByText(/el backend no pudo determinar la cobertura con los datos disponibles/),
     ).toBeInTheDocument();
     // El chip condicional "Sin fecha" existe con su conteo.
     await userEvent.click(canvas.getByRole("radio", { name: "Sin fecha · 1" }));

@@ -136,7 +136,9 @@ describe("MSW — suggest-rule (§18.7: read-only)", () => {
     );
     const countBefore = before.items.length;
 
-    const r = await fetch(`${API}/api/bank-movements/mov-9/suggest-rule`, { method: "POST" });
+    const r = await fetch(`${API}/api/treasury/bank-movements/mov-9/suggest-rule`, {
+      method: "POST",
+    });
     expect(r.status).toBe(200);
     const suggestion = (await r.json()) as SuggestRuleResponse;
     expect(typeof suggestion.name).toBe("string");

@@ -1349,10 +1349,17 @@ function CartaClasificar({
         >
           Hay <b>{grupo.otros} más</b> de{" "}
           <b className="break-words">
-            {grupo.porRut ? formatRut(grupo.etiqueta) : `“${grupo.etiqueta}”`}
+            {grupo.porCuenta
+              ? `la cuenta destino ${grupo.etiqueta}`
+              : grupo.porRut
+                ? formatRut(grupo.etiqueta)
+                : `“${grupo.etiqueta}”`}
           </b>{" "}
           esperando categoría
-          {grupo.porRut ? "" : " (agrupados por glosa idéntica, no por RUT: la glosa no trae uno)"}.
+          {grupo.porCuenta || grupo.porRut
+            ? ""
+            : " (agrupados por glosa idéntica, no por RUT: la glosa no trae uno)"}
+          .
           Puedes clasificarlos de una sola vez después de elegir categoría y confirmar.
         </Banner>
       )}
@@ -1648,9 +1655,11 @@ function OfertaRegla({
 }) {
   const [creando, setCreando] = React.useState(false);
   const creandoRef = React.useRef(false);
-  const quien = oferta.item.rutGlosa
-    ? `el RUT ${formatRut(oferta.item.rutGlosa)}`
-    : `los movimientos con la glosa “${oferta.item.glosa ?? "sin glosa"}”`;
+  const quien = oferta.item.cuentaDestino
+    ? `la cuenta destino ${oferta.item.cuentaDestino}`
+    : oferta.item.rutGlosa
+      ? `el RUT ${formatRut(oferta.item.rutGlosa)}`
+      : `los movimientos con la glosa “${oferta.item.glosa ?? "sin glosa"}”`;
   return (
     <Banner
       role="note"

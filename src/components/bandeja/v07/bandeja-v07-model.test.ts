@@ -9,6 +9,7 @@ import {
   candidatoElegido,
   candidatos,
   claveContraparte,
+  cuentaDestinoEnTexto,
   diasEntre,
   direccionDeKind,
   evidenciaConciliar,
@@ -76,6 +77,20 @@ describe("normalización de RUT y texto", () => {
     expect(primerRutEnTexto("ABONO TRANSFERENCIA MIRKO GONZALEZ")).toBeNull();
   });
 
+  it("F. Jaña: no confunde la cuenta destino con RUT y prioriza el RUT rotulado", () => {
+    const glosa =
+      "Transf. a terceros vía Internet a cuenta 32667051 B.BCI, IGNACIO MATIAS JANA, Rut 18.974.184-7, el 04-09-2026";
+
+    expect(cuentaDestinoEnTexto(glosa)).toBe("32667051");
+    expect(rutsEnTexto(glosa)).toEqual(["189741847"]);
+    expect(primerRutEnTexto(glosa)).toBe("189741847");
+  });
+
+  it("acepta un RUT sin etiqueta sólo si tiene separador y rechaza un número desnudo", () => {
+    expect(primerRutEnTexto("TEF desde 77078244-9 concepto 404579")).toBe("770782449");
+    expect(primerRutEnTexto("TRANSFERENCIA A CUENTA 32667051")).toBeNull();
+  });
+
   it("cuenta días civiles entre fechas ISO, y dice 'no sé' con basura", () => {
     expect(diasEntre("2026-08-05", "2026-08-26")).toBe(21);
     expect(diasEntre("2026-08-19", "2026-04-14")).toBe(-127);
@@ -113,6 +128,18 @@ describe("adaptadores de contrato", () => {
     expect(dattatec.direccion).toBe("debit");
     // Gemelo: la MISMA propiedad es null cuando la glosa no trae RUT.
     expect(terceros.rutGlosa).toBeNull();
+  });
+
+  it("usa cuenta destino antes que RUT como clave, igual que el backend", () => {
+    const base = itemsClasificar(sinClasificar())[0]!;
+    const item = {
+      ...base,
+      glosa: "a cuenta 32667051, Rut 18.974.184-7",
+      cuentaDestino: "32667051",
+      rutGlosa: "189741847",
+    };
+
+    expect(claveContraparte(item)).toBe("cuenta:32667051");
   });
 
   it("conserva la cuenta ya guardada de un movimiento parcial para completar sólo lo faltante", () => {
@@ -376,6 +403,7 @@ describe("lotes (group-by) y cola", () => {
       clave: "rut:925800007",
       etiqueta: "925800007",
       porRut: true,
+      porCuenta: false,
       otros: 2,
       ids: ["mov-entel-1", "mov-entel-2", "mov-entel-3"],
     });

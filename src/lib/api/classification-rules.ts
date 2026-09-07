@@ -7,7 +7,7 @@
  * - `PATCH  /api/treasury/classification-rules/{id}`          → editar parcial.
  * - `POST   /api/treasury/classification-rules/{id}/toggle-active` → activa/desactiva
  *      (§17.5: toda regla debe ser desactivable, NO se borra).
- * - `POST   /api/bank-movements/{movement_id}/suggest-rule`   → sugiere regla
+ * - `POST   /api/treasury/bank-movements/{movement_id}/suggest-rule` → sugiere regla
  *      derivada del movimiento (read-only, no persiste; §18.7).
  *
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). El
@@ -117,7 +117,9 @@ export function useToggleClassificationRuleActive() {
 export function useSuggestRuleForMovement() {
   return useMutation({
     mutationFn: (movementId: string) =>
-      api.post<SuggestRuleResponse>(`/api/bank-movements/${movementId}/suggest-rule`),
+      api.post<SuggestRuleResponse>(
+        `/api/treasury/bank-movements/${encodeURIComponent(movementId)}/suggest-rule`,
+      ),
   });
 }
 

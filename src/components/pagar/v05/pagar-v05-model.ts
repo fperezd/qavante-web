@@ -52,7 +52,7 @@ import { payrollPeriodFromExternalId } from "../pagos-group";
 import { postergabilidadDe } from "../v2/pagar-v2-map";
 import { sale14d } from "@/components/caja/v02/caja-v02-model";
 
-/** Ventana del "Crítico vs. caja" y del banner (la misma de V02: "Sale · 14 días"). */
+/** Ventana del contexto crítico y del banner (la misma de V02: "Sale · 14 días"). */
 export const VENTANA_DIAS = 14;
 /** Los tres tramos que el backend publica (`due_7d`, `due_14d`, `due_30d`). */
 export const PERIODOS = [7, 14, 30] as const;
@@ -385,7 +385,7 @@ export interface PorPagarV05 {
   /** `due_Nd` del backend (CLP convertido, acumulativo, INCLUYE lo vencido). `null` = no vino. */
   total: number | null;
   /** Lo que el backend NO pudo agendar: sin fecha de vencimiento. */
-  sinFecha: { monto: number; n: number } | null;
+  sinFecha: { monto: number | null; n: number } | null;
 }
 
 /** "Por pagar · N días": el tramo del backend tal cual (Ley 1: el de 14 es "Sale · 14 días" en
@@ -401,49 +401,67 @@ export function kpiPorPagar(
   return {
     periodo,
     total: ap ? parseAmountOrNull(campo) : null,
-    sinFecha: undatedN > 0 ? { monto: undated ?? 0, n: undatedN } : null,
+    sinFecha: undatedN > 0 ? { monto: undated, n: undatedN } : null,
   };
 }
 
 export interface CriticoV05 {
-  /** Σ CLP de lo crítico (no se posterga y vence en ≤ 14 días o ya venció). */
+  /** Σ CLP conocido de lo crítico VISIBLE (no se posterga y vence en ≤ 14 días o ya venció). */
   total: number;
   n: number;
+  /** Pagos críticos visibles cuyo monto CLP no puede conocerse por falta de tipo de cambio. */
+  montosDesconocidos: number;
+  /** `items` llegó al tope conocido: el subtotal visible puede ser sólo un piso. */
+  listaPosiblementeTopeada: boolean;
   /** De eso, lo que YA venció. */
   yaVencido: number;
-  /** Caja proyectada a 14 días en CLP, o `null` si no se puede comparar (ver `motivoSinCaja`). */
-  caja: number | null;
-  /** caja − crítico. `null` sin caja comparable. */
-  brecha: number | null;
+  /** Saldo FINAL proyectado al día 14. Ya incluye los pagos comprometidos. */
+  cajaFinal: number | null;
+  /** Moneda funcional del saldo proyectado. */
+  monedaCaja: string;
+  /** Juicio triestado canónico del API. `null` no se convierte en `false`. */
+  cobertura: boolean | null;
   motivoSinCaja: string | null;
+  motivoSinCobertura: string | null;
 }
 
-/** "Crítico vs. caja". La caja es `projected_cash_14d` del MISMO endpoint, y sólo se compara si
- *  viene en CLP: el contrato la publica en la moneda funcional del tenant (`projected_cash_currency`)
- *  y dividir dólares por pesos ya pasó dos veces aguas arriba. */
+/** Caja y críticos como cifras separadas. `projected_cash_14d` es el saldo FINAL
+ * del flujo: los pagos ya fueron descontados. Por eso jamás se calcula
+ * `caja - crítico`. La cobertura se consume de `covers_critical`, cuya fórmula y
+ * abstenciones pertenecen al backend. */
 export function kpiCritico(
   pagos: ReadonlyArray<PagoV05>,
   ap: AccountsPayableResponse | null | undefined,
 ): CriticoV05 {
   const c = pagos.filter((p) => p.critico);
   const total = c.reduce((s, p) => s + (p.montoClp ?? 0), 0);
+  const montosDesconocidos = c.filter((p) => p.montoClp == null).length;
   const yaVencido = c.filter((p) => p.vencido).reduce((s, p) => s + (p.montoClp ?? 0), 0);
-  const cajaCruda = parseAmountOrNull(ap?.projected_cash_14d);
-  const moneda = (ap?.projected_cash_currency || "CLP").toUpperCase();
-  let caja: number | null = null;
-  let motivo: string | null = null;
-  if (!ap) motivo = "sin cuentas por pagar no hay caja proyectada que comparar";
-  else if (cajaCruda == null) motivo = "el backend no pudo proyectar la caja a 14 días";
-  else if (moneda !== "CLP")
-    motivo = `la caja proyectada viene en ${moneda} y lo crítico está en pesos: no se comparan`;
-  else caja = cajaCruda;
+  const cajaFinal = parseAmountOrNull(ap?.projected_cash_14d);
+  const monedaCaja = (ap?.projected_cash_currency || "CLP").toUpperCase();
+  const cobertura = ap?.covers_critical ?? null;
+  const listaPosiblementeTopeada = (ap?.items?.length ?? 0) >= TOPE_ITEMS;
+  const motivoSinCaja = !ap
+    ? "sin cuentas por pagar no llegó el saldo proyectado"
+    : cajaFinal == null
+      ? "el backend no pudo proyectar el saldo final a 14 días"
+      : null;
+  const motivoSinCobertura = !ap
+    ? "sin cuentas por pagar no llegó el estado de cobertura"
+    : cobertura == null
+      ? "el backend no pudo determinar la cobertura con los datos disponibles"
+      : null;
   return {
     total,
     n: c.length,
+    montosDesconocidos,
+    listaPosiblementeTopeada,
     yaVencido,
-    caja,
-    brecha: caja == null ? null : caja - total,
-    motivoSinCaja: motivo,
+    cajaFinal,
+    monedaCaja,
+    cobertura,
+    motivoSinCaja,
+    motivoSinCobertura,
   };
 }
 
@@ -617,8 +635,11 @@ export function explicacionVencido(
   ];
   const n = ap?.undated_count ?? 0;
   if (n > 0) {
+    const monto = parseAmountOrNull(ap?.undated_amount);
     excluye.push(
-      `Hoy: ${n} ${n === 1 ? "documento" : "documentos"} por ${formatClp(parseAmount(ap?.undated_amount))} sin fecha`,
+      monto == null
+        ? `Hoy: ${n} ${n === 1 ? "documento" : "documentos"} con monto no disponible sin fecha`
+        : `Hoy: ${n} ${n === 1 ? "documento" : "documentos"} por ${formatClp(monto)} sin fecha`,
     );
   }
   return {
@@ -656,12 +677,12 @@ export function explicacionCritico(
   hoy: Date,
 ): ExplicacionV05 {
   return {
-    definicion: `Crítico es lo que no se posterga ·impuestos, sueldos y deuda financiera· y vence dentro de ${VENTANA_DIAS} días o ya venció. Se compara con la caja proyectada a ${VENTANA_DIAS} días del mismo endpoint; la brecha es caja menos crítico, o sea lo que faltaría aun postergando todo lo negociable.`,
+    definicion: `El saldo proyectado es la caja final al día ${VENTANA_DIAS} del flujo vigente y ya incluye los pagos comprometidos. Crítico en la lista visible es el contexto trazable de lo que no se posterga ·impuestos, sueldos y deuda financiera· y vence dentro de ${VENTANA_DIAS} días o ya venció. Si la lista alcanza ${TOPE_ITEMS} ítems o un pago no tiene conversión a pesos, ese subtotal es sólo un piso o se abstiene. No se resta de la caja. La cobertura es el estado triestado independiente que publica el backend; no se deriva del subtotal visible. El contrato actual no expone la caja mínima para cuantificar una brecha intrahorizonte.`,
     incluye: ["Impuestos, sueldos, cotizaciones y cuotas de deuda con vencimiento en la ventana"],
     excluye: [
       "Proveedores y arriendos: son negociables por tipo de pago (el backend no manda postergabilidad por documento)",
       "Documentos sin fecha de vencimiento",
-      "La caja cuando el backend no la proyecta o viene en otra moneda",
+      "La caja mínima intrahorizonte: el contrato actual no la publica en esta respuesta",
     ],
     fuente: FUENTE,
     frescura: frescuraDe(ap, hoy),

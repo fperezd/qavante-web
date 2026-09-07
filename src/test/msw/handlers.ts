@@ -2000,7 +2000,7 @@ const classificationRulesHandlers = [
     return HttpResponse.json(toggled, { status: 200 });
   }),
 
-  http.post("*/api/bank-movements/:movementId/suggest-rule", ({ params }) => {
+  http.post("*/api/treasury/bank-movements/:movementId/suggest-rule", ({ params }) => {
     /* §18.7: read-only, no persiste. Sugerencia simple basada en el id
        del movimiento (en backend real usa la glosa del movimiento). */
     const movementId = params.movementId as string;

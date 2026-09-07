@@ -85,6 +85,8 @@ export interface ItemClasificarV07 {
   glosa: string | null;
   /** RUT encontrado EN la glosa (normalizado, sin puntos). `null` = no hay. */
   rutGlosa: string | null;
+  /** Cuenta destino explícita de una transferencia. Es una clave bancaria, nunca se rotula RUT. */
+  cuentaDestino: string | null;
   /** Cuenta ya persistida. Existe en movimientos `partially_classified`; se conserva al completar. */
   cuentaIdActual: string | null;
   /** Tipo canónico ya persistido. Normalmente null en la cola; se conserva si viene parcial. */
@@ -117,12 +119,24 @@ export function normalizarRut(raw: string | null | undefined): string | null {
   return limpio.length >= 2 ? limpio : null;
 }
 
-/** Todos los RUT que aparecen en un texto libre, normalizados. Acepta con y sin puntos. */
+const RUT_ETIQUETADO_RE =
+  /\bR\.?U\.?T\.?\s*:?\s*(\d{1,2}(?:\.\d{3}){2}-?[\dkK]|\d{7,8}-?[\dkK])\b/gi;
+const RUT_CON_SEPARADOR_RE = /\b(?:\d{1,2}(?:\.\d{3}){2}-?[\dkK]|\d{7,8}-[\dkK])\b/g;
+const CUENTA_DESTINO_RE = /\bcuenta\s+n?[°º:\s]*?(\d{6,})\b/i;
+
+/**
+ * Todos los RUT que aparecen en texto libre, normalizados.
+ *
+ * Un número continuo sin contexto (por ejemplo `32667051` después de «cuenta») NO es evidencia de
+ * RUT: puede coincidir por casualidad con el formato cuerpo+DV. Sin etiqueta `RUT`, exigimos puntos
+ * o guion. Los RUT explícitamente etiquetados tienen prioridad sobre cualquier otro identificador.
+ */
 export function rutsEnTexto(texto: string | null | undefined): string[] {
   if (!texto) return [];
-  const encontrados = texto.match(/\b\d{1,2}\.?\d{3}\.?\d{3}-?[\dkK]\b/g) ?? [];
   const out: string[] = [];
-  for (const r of encontrados) {
+  const encontradosEtiquetados = Array.from(texto.matchAll(RUT_ETIQUETADO_RE), (m) => m[1]);
+  const encontradosConSeparador = texto.match(RUT_CON_SEPARADOR_RE) ?? [];
+  for (const r of [...encontradosEtiquetados, ...encontradosConSeparador]) {
     const n = normalizarRut(r);
     if (n && !out.includes(n)) out.push(n);
   }
@@ -132,6 +146,12 @@ export function rutsEnTexto(texto: string | null | undefined): string[] {
 /** El primer RUT de la glosa, o `null`. Es la evidencia dura de la Ley 3. */
 export function primerRutEnTexto(texto: string | null | undefined): string | null {
   return rutsEnTexto(texto)[0] ?? null;
+}
+
+/** Cuenta bancaria destino declarada por la glosa (`a cuenta 32667051`). */
+export function cuentaDestinoEnTexto(texto: string | null | undefined): string | null {
+  if (!texto) return null;
+  return CUENTA_DESTINO_RE.exec(texto)?.[1] ?? null;
 }
 
 /** Texto comparable: minúsculas, sin tildes, sin puntuación, espacios colapsados. */
@@ -204,6 +224,7 @@ export function itemsClasificar(
     direccion: m.direction,
     glosa: m.description || null,
     rutGlosa: primerRutEnTexto(m.description),
+    cuentaDestino: cuentaDestinoEnTexto(m.description),
     cuentaIdActual: m.management_account_id ?? null,
     categoriaCanonicaActual: m.canonical_category ?? null,
   }));
@@ -531,21 +552,23 @@ export function faltaParaGuardar(borrador: BorradorClasificarV07): string | null
 /* ── Lotes (group-by) ────────────────────────────────────────────────────────────────────── */
 
 export interface LoteV07 {
-  /** Clave de agrupación (RUT normalizado o glosa normalizada). */
+  /** Clave de agrupación (cuenta destino, RUT normalizado o glosa normalizada). */
   clave: string;
   /** Cómo se llama el grupo en pantalla. */
   etiqueta: string;
   /** `true` si la contraparte se identificó por RUT; `false` = agrupado por glosa (heurística). */
   porRut: boolean;
+  /** `true` si se identificó por la cuenta destino, prioridad canónica del backend. */
+  porCuenta: boolean;
   /** Cuántos OTROS ítems comparten la clave (sin contar el que estás viendo). */
   otros: number;
   /** Los ids de todos los del grupo, en el orden de la cola. */
   ids: string[];
 }
 
-/** Clave de contraparte de un ítem por clasificar: el RUT de la glosa si existe; si no, la glosa
- *  normalizada (heurística declarada — dos glosas idénticas suelen ser la misma contraparte). */
+/** Misma prioridad que `_counterparty_key` del backend: cuenta destino > RUT > glosa. */
 export function claveContraparte(item: ItemClasificarV07): string | null {
+  if (item.cuentaDestino) return `cuenta:${item.cuentaDestino}`;
   if (item.rutGlosa) return `rut:${item.rutGlosa}`;
   const g = normalizarTexto(item.glosa);
   return g ? `glosa:${g}` : null;
@@ -569,8 +592,9 @@ export function lote(
   if (grupo.length < MINIMO_LOTE) return null;
   return {
     clave,
-    etiqueta: actual.rutGlosa ?? (actual.glosa ?? "").trim(),
-    porRut: actual.rutGlosa != null,
+    etiqueta: actual.cuentaDestino ?? actual.rutGlosa ?? (actual.glosa ?? "").trim(),
+    porRut: actual.cuentaDestino == null && actual.rutGlosa != null,
+    porCuenta: actual.cuentaDestino != null,
     otros: grupo.length - 1,
     ids: grupo.map((i) => i.id),
   };
