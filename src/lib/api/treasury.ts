@@ -27,6 +27,13 @@ export type CashCycleResponse = components["schemas"]["CashCycleResponse"];
 export type CashProjectionResponse = components["schemas"]["CashProjectionResponse"];
 export type BankMovementsListResponse = components["schemas"]["BankMovementsListResponse"];
 export type ClassifyMovementRequest = components["schemas"]["ClassifyMovementRequest"];
+export type MovementResolutionDetailResponse =
+  components["schemas"]["MovementResolutionDetailResponse"];
+export type ReplaceClassificationRequest = components["schemas"]["ReplaceClassificationRequest"];
+export type UnclassifyResponse = components["schemas"]["UnclassifyResponse"];
+export type FinancialEventTypesResponse = components["schemas"]["FinancialEventTypesResponse"];
+export type AccountDimensionPoliciesResponse =
+  components["schemas"]["AccountDimensionPoliciesResponse"];
 /** API #350, presente en el OpenAPI versionado. El backend aplica todo el lote o no cambia nada. */
 export type BulkClassifyMovementRequest = components["schemas"]["BulkClassifyMovementRequest"];
 export type BulkClassifyMovementResponse = components["schemas"]["BulkClassifyMovementResponse"];
@@ -80,6 +87,8 @@ export interface BankMovementsParams {
    *  las vistas filtran client-side. La fontanería queda lista: cuando exista el
    *  param, el backend ignora los desconocidos, así que pasarlo es no-op seguro. */
   direction?: "credit" | "debit";
+  /** Una sola cartola. Evita mezclar cuentas/monedas y pagina sobre esa cuenta. */
+  bank_account_id?: string;
   limit?: number;
   offset?: number;
 }
@@ -91,6 +100,12 @@ export const treasuryKeys = {
   canonicalCategories: () => [...treasuryKeys.all, "canonical-categories"] as const,
   bankMovements: (params: BankMovementsParams = {}) =>
     [...treasuryKeys.all, "bank-movements", params] as const,
+  bankMovementsAll: () => [...treasuryKeys.all, "bank-movements"] as const,
+  bankMovementResolution: (movementId: string) =>
+    [...treasuryKeys.all, "bank-movement-resolution", movementId] as const,
+  financialEventTypes: () => [...treasuryKeys.all, "financial-event-types"] as const,
+  accountClassificationDimensions: (accountId: string) =>
+    [...treasuryKeys.all, "classification-dimensions", accountId] as const,
   /** El flag va DENTRO de la key: `?active=false` trae otro set de cuentas y cachearlo sobre el
    *  del selector le metería cuentas desactivadas. Prefijo común ⇒ una invalidación limpia las dos. */
   bankAccounts: (includeInactive = false) =>
@@ -362,6 +377,7 @@ function buildBankMovementsQuery(p: BankMovementsParams): string {
   if (p.period_from) s.set("period_from", p.period_from);
   if (p.period_to) s.set("period_to", p.period_to);
   if (p.direction) s.set("direction", p.direction);
+  if (p.bank_account_id) s.set("bank_account_id", p.bank_account_id);
   if (p.limit != null) s.set("limit", String(p.limit));
   if (p.offset != null) s.set("offset", String(p.offset));
   const qs = s.toString();
@@ -376,6 +392,89 @@ export function useBankMovements(params: BankMovementsParams = {}) {
       api.get<BankMovementsListResponse>(`/api/bank-movements${buildBankMovementsQuery(params)}`),
     staleTime: 30_000,
     retry: false,
+  });
+}
+
+/** Detalle canónico: conciliación y clasificación independientes, con trazabilidad. */
+export function useBankMovementResolution(movementId: string | null) {
+  return useQuery({
+    queryKey: treasuryKeys.bankMovementResolution(movementId ?? ""),
+    queryFn: () =>
+      api.get<MovementResolutionDetailResponse>(
+        `/api/treasury/bank-movements/${encodeURIComponent(movementId as string)}/resolution`,
+      ),
+    enabled: movementId != null,
+    staleTime: 10_000,
+    retry: false,
+  });
+}
+
+export function useFinancialEventTypes() {
+  return useQuery({
+    queryKey: treasuryKeys.financialEventTypes(),
+    queryFn: () => api.get<FinancialEventTypesResponse>("/api/treasury/financial-event-types"),
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  });
+}
+
+export function useAccountClassificationDimensions(accountId: string) {
+  return useQuery({
+    queryKey: treasuryKeys.accountClassificationDimensions(accountId),
+    queryFn: () =>
+      api.get<AccountDimensionPoliciesResponse>(
+        `/api/treasury/management-accounts/${encodeURIComponent(accountId)}/classification-dimensions`,
+      ),
+    enabled: Boolean(accountId),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+function idempotencyKey(action: string, movementId: string): string {
+  const nonce =
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now();
+  return `${action}:${movementId}:${nonce}`;
+}
+
+/** Clasificación/reclasificación distribuida; la API devuelve el detalle ya refrescado. */
+export function useReplaceBankMovementClassification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      movementId,
+      body,
+    }: {
+      movementId: string;
+      body: ReplaceClassificationRequest;
+    }) =>
+      api.put<MovementResolutionDetailResponse>(
+        `/api/treasury/bank-movements/${encodeURIComponent(movementId)}/classification`,
+        {
+          body,
+          headers: { "Idempotency-Key": idempotencyKey("classify", movementId) },
+        },
+      ),
+    onSuccess: (detail, { movementId }) => {
+      qc.setQueryData(treasuryKeys.bankMovementResolution(movementId), detail);
+      qc.invalidateQueries({ queryKey: treasuryKeys.bankMovementsAll() });
+    },
+  });
+}
+
+/** Desclasifica sin tocar la conciliación ni el movimiento bancario crudo. */
+export function useUnclassifyBankMovement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (movementId: string) =>
+      api.delete<UnclassifyResponse>(
+        `/api/treasury/bank-movements/${encodeURIComponent(movementId)}/classification`,
+        { headers: { "Idempotency-Key": idempotencyKey("unclassify", movementId) } },
+      ),
+    onSuccess: (_response, movementId) => {
+      qc.invalidateQueries({ queryKey: treasuryKeys.bankMovementResolution(movementId) });
+      qc.invalidateQueries({ queryKey: treasuryKeys.bankMovementsAll() });
+    },
   });
 }
 

@@ -11,6 +11,13 @@ import type {
   ResolutionAllocation,
   ResolutionHistoryEntry,
 } from "./bank-resolution-detail-model";
+import {
+  DistributedClassificationEditor,
+  type ClassificationAccountOption,
+  type ClassificationDimensionOption,
+  type ClassificationEventOption,
+} from "./distributed-classification-editor";
+import type { ReplaceClassificationRequest } from "@/lib/api/treasury";
 
 export interface BankResolutionDetailDrawerProps {
   open: boolean;
@@ -20,6 +27,13 @@ export interface BankResolutionDetailDrawerProps {
   onUnreconcile?: () => void;
   onReclassify?: () => void;
   onUnclassify?: () => void;
+  classificationEditor?: {
+    accounts: ClassificationAccountOption[];
+    events: ClassificationEventOption[];
+    dimensions: ClassificationDimensionOption[];
+    saving?: boolean;
+    onSave: (body: ReplaceClassificationRequest) => Promise<void>;
+  };
 }
 
 export function BankResolutionDetailDrawer({
@@ -30,9 +44,11 @@ export function BankResolutionDetailDrawer({
   onUnreconcile,
   onReclassify,
   onUnclassify,
+  classificationEditor,
 }: BankResolutionDetailDrawerProps) {
   const titleId = React.useId();
   const asideRef = React.useRef<HTMLElement>(null);
+  const [editingClassification, setEditingClassification] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) return;
@@ -122,11 +138,11 @@ export function BankResolutionDetailDrawer({
               <QavanteButton
                 size="sm"
                 variant="ghost"
-                disabled={!onUnreconcile}
+                disabled={!detail.reconciliation.canUnreconcile || !onUnreconcile}
                 onClick={onUnreconcile}
                 title={
-                  !onUnreconcile
-                    ? "Disponible cuando el backend publique la reversión para este caso"
+                  !detail.reconciliation.canUnreconcile || !onUnreconcile
+                    ? "Este tipo de vínculo todavía no admite una reversión segura desde Banco"
                     : undefined
                 }
               >
@@ -153,12 +169,29 @@ export function BankResolutionDetailDrawer({
               occurredAt={detail.classification.classifiedAt}
             />
             <History items={detail.classification.history} />
+            {editingClassification && classificationEditor && (
+              <DistributedClassificationEditor
+                totalAmount={Math.abs(movement.monto)}
+                currency={movement.moneda}
+                accounts={classificationEditor.accounts}
+                events={classificationEditor.events}
+                dimensions={classificationEditor.dimensions}
+                saving={classificationEditor.saving}
+                onCancel={() => setEditingClassification(false)}
+                onSave={async (body) => {
+                  await classificationEditor.onSave(body);
+                  setEditingClassification(false);
+                }}
+              />
+            )}
             <div className="flex flex-wrap gap-2">
               <QavanteButton
                 size="sm"
                 variant="secondary"
-                disabled={!onReclassify}
-                onClick={onReclassify}
+                disabled={!classificationEditor && !onReclassify}
+                onClick={() =>
+                  classificationEditor ? setEditingClassification(true) : onReclassify?.()
+                }
               >
                 Modificar clasificación
               </QavanteButton>

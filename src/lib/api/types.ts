@@ -3354,6 +3354,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/bank-movements/{movement_id}/classification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace Movement Classification
+         * @description Clasifica o reclasifica 1:N; el monto cuantizado del movimiento es la verdad.
+         */
+        put: operations["treasury_bank_movement_classification_replace"];
+        post?: never;
+        /**
+         * Unclassify Movement
+         * @description Desclasifica de forma idempotente sin modificar el movimiento bancario crudo ni su match.
+         */
+        delete: operations["treasury_bank_movement_unclassify"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/management-accounts/{management_account_id}/classification-dimensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Account Classification Dimensions */
+        get: operations["treasury_management_account_classification_dimensions_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/management-accounts/{management_account_id}/classification-dimensions/{dimension_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Account Classification Dimension */
+        put: operations["treasury_management_account_classification_dimension_set"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/financial-agreements": {
         parameters: {
             query?: never;
@@ -4342,15 +4400,34 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Configuración actual del corte de apertura de la empresa */
+        get: operations["treasury_reconciliation_opening_cutoff_status"];
         put?: never;
         /**
-         * Onboarding: marca lo previo al corte como saldado (excepto TGR/Previred y las excepciones)
-         * @description Conciliación de APERTURA (ADR-0088): asume saldado todo lo previo al `cutoff_date` (facturas de
-         *     venta/compra + honorarios) salvo `keep_open` y salvo TGR/Previred/remuneraciones (siempre reales).
-         *     Para una empresa que entra con su historia ya conciliada fuera del sistema. Idempotente.
+         * Onboarding: retira de la operación lo previo al corte sin borrar historia
+         * @description Conciliación de APERTURA (ADR-0088): asume saldados los documentos previos al corte salvo
+         *     `keep_open` y TGR/Previred/remuneraciones (siempre reales), y retira los movimientos bancarios
+         *     pendientes de las colas sin inventar categoría ni match. Para una empresa que entra con su
+         *     historia ya conciliada fuera del sistema. Idempotente y reversible.
          */
         post: operations["treasury_reconciliation_opening_cutoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/opening-cutoff/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Previsualiza el corte de apertura sin modificar datos */
+        post: operations["treasury_reconciliation_opening_cutoff_preview"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4368,9 +4445,8 @@ export interface paths {
         put?: never;
         /**
          * Onboarding: DESHACE la conciliación de apertura (re-abre lo que saldó el corte)
-         * @description Revierte la conciliación de apertura: re-abre TODOS los documentos que saldó el corte (marcados
-         *     con `opening_cutoff_at`), sin tocar los pagados de verdad. Deja el sistema como si el cutoff nunca
-         *     hubiera corrido. Idempotente. Principio: toda conciliación se desasigna.
+         * @description Revierte la conciliación de apertura: restaura sólo las filas del run activo y sus valores
+         *     anteriores, sin tocar pagos reales ni conciliaciones manuales. Idempotente.
          */
         post: operations["treasury_reconciliation_opening_cutoff_revert"];
         delete?: never;
@@ -6381,6 +6457,30 @@ export interface components {
             /** Password Confirmation */
             password_confirmation: string;
         };
+        /** AccountDimensionPoliciesResponse */
+        AccountDimensionPoliciesResponse: {
+            /** Management Account Id */
+            management_account_id: string;
+            /** Items */
+            items: components["schemas"]["AccountDimensionPolicy"][];
+        };
+        /** AccountDimensionPolicy */
+        AccountDimensionPolicy: {
+            /** Dimension Id */
+            dimension_id: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Active */
+            active: boolean;
+            /** Is Visible */
+            is_visible: boolean;
+            /** Is Enabled */
+            is_enabled: boolean;
+            /** Is Required */
+            is_required: boolean;
+        };
         /**
          * AccountsPayableResponse
          * @description Respuesta de `GET /api/treasury/accounts-payable` (pantalla Pagar).
@@ -6638,6 +6738,23 @@ export interface components {
             count: number;
         } & {
             [key: string]: unknown;
+        };
+        /** AllocationDetail */
+        AllocationDetail: {
+            /** Node Kind */
+            node_kind: string;
+            /** Node Id */
+            node_id: string;
+            /** Role */
+            role: string;
+            /** Signed Amount */
+            signed_amount: string;
+            /** Currency Code */
+            currency_code: string;
+            /** Source Label */
+            source_label?: string | null;
+            /** Source Path */
+            source_path?: string | null;
         };
         /** AllocationIn */
         AllocationIn: {
@@ -7108,6 +7225,15 @@ export interface components {
              * @description UUID de `treasury.bank_accounts` si la cuenta está vinculada; `null` si todavía no se mapeó (sus movimientos quedarían en cuarentena).
              */
             linked_bank_account_id?: string | null;
+        };
+        /** BankAccountRef */
+        BankAccountRef: {
+            /** Bank Name */
+            bank_name: string;
+            /** Account Name */
+            account_name: string;
+            /** External Ref */
+            external_ref?: string | null;
         };
         /**
          * BankCredentialStatus
@@ -8141,6 +8267,52 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** CaseDetail */
+        CaseDetail: {
+            /** Id */
+            id: string;
+            /** Status */
+            status: string;
+            /** Decision */
+            decision: string;
+            /** Topology */
+            topology: string;
+            /** Financial Event Type */
+            financial_event_type: string;
+            /** Canonical Category */
+            canonical_category: string;
+            /** Settlement Rail */
+            settlement_rail: string;
+            /** Score */
+            score: string;
+            /** Engine Version */
+            engine_version: string;
+            /** Explanation */
+            explanation: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Created By */
+            created_by?: string | null;
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /** Rejected At */
+            rejected_at?: string | null;
+            /** Reverted At */
+            reverted_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Allocations */
+            allocations: components["schemas"]["AllocationDetail"][];
+            /** Components */
+            components: components["schemas"]["ComponentDetail"][];
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceDetail"][];
+        };
         /**
          * CashCycleResponse
          * @description Ciclo de conversión de caja: DSO / DPO / CCC (ADR-0033 derivados, Fase 2).
@@ -8850,6 +9022,118 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ClassificationAllocationDetail */
+        ClassificationAllocationDetail: {
+            /** Id */
+            id?: string | null;
+            /** Management Account Id */
+            management_account_id: string;
+            /** Management Account Code */
+            management_account_code?: string | null;
+            /** Management Account Name */
+            management_account_name?: string | null;
+            /** Amount */
+            amount: string;
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Percentage */
+            percentage?: string | null;
+            /** Input Kind */
+            input_kind?: string | null;
+            /** Input Amount */
+            input_amount?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Dimensions */
+            dimensions: {
+                [key: string]: string;
+            }[];
+            /** Source */
+            source: string;
+        };
+        /** ClassificationAllocationInput */
+        ClassificationAllocationInput: {
+            /**
+             * Management Account Id
+             * Format: uuid
+             */
+            management_account_id: string;
+            /** Amount */
+            amount?: number | string | null;
+            /** Percentage */
+            percentage?: number | string | null;
+            /** Label */
+            label?: string | null;
+            /** Dimensions */
+            dimensions?: components["schemas"]["ClassificationDimensionInput"][];
+        };
+        /** ClassificationDetail */
+        ClassificationDetail: {
+            /** Id */
+            id?: string | null;
+            /** Status */
+            status: string;
+            /** Input Mode */
+            input_mode?: string | null;
+            /** Canonical Category */
+            canonical_category?: string | null;
+            /** Financial Event Type */
+            financial_event_type?: string | null;
+            /** Settlement Rail */
+            settlement_rail?: string | null;
+            /** Confidence */
+            confidence?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Model Version */
+            model_version?: string | null;
+            /** Classified At */
+            classified_at?: string | null;
+            /** Classified By */
+            classified_by?: string | null;
+            management_account?: components["schemas"]["ManagementAccountRef"] | null;
+            /** Notes */
+            notes?: string | null;
+            /** Allocations */
+            allocations: components["schemas"]["ClassificationAllocationDetail"][];
+            /** History */
+            history: components["schemas"]["ClassificationHistoryDetail"][];
+        };
+        /** ClassificationDimensionInput */
+        ClassificationDimensionInput: {
+            /**
+             * Dimension Id
+             * Format: uuid
+             */
+            dimension_id: string;
+            /**
+             * Dimension Value Id
+             * Format: uuid
+             */
+            dimension_value_id: string;
+        };
+        /** ClassificationHistoryDetail */
+        ClassificationHistoryDetail: {
+            /** Id */
+            id: string;
+            /** Action */
+            action: string;
+            /** Actor User Id */
+            actor_user_id?: string | null;
+            /** Before */
+            before?: {
+                [key: string]: unknown;
+            } | null;
+            /** After */
+            after?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** ClassificationProposal */
         ClassificationProposal: {
             /** Id */
@@ -9411,6 +9695,21 @@ export interface components {
             neto_anio_anterior: string;
         } & {
             [key: string]: unknown;
+        };
+        /** ComponentDetail */
+        ComponentDetail: {
+            /** Kind */
+            kind: string;
+            /** Signed Amount */
+            signed_amount: string;
+            /** Currency Code */
+            currency_code: string;
+            /** Source */
+            source: string;
+            /** Source Reference */
+            source_reference?: string | null;
+            /** Tax Treatment */
+            tax_treatment?: string | null;
         };
         /** ComponentResponse */
         ComponentResponse: {
@@ -11295,6 +11594,19 @@ export interface components {
              */
             total_recuperado: string;
         };
+        /** EvidenceDetail */
+        EvidenceDetail: {
+            /** Code */
+            code: string;
+            /** Result */
+            result: string;
+            /** Weight */
+            weight: string;
+            /** Observed Value */
+            observed_value?: string | null;
+            /** Source Reference */
+            source_reference?: string | null;
+        };
         /** EvidenceResponse */
         EvidenceResponse: {
             /** Code */
@@ -12233,6 +12545,11 @@ export interface components {
             /** Payment Concentration */
             payment_concentration?: string | null;
         };
+        /**
+         * FinancialEventType
+         * @enum {string}
+         */
+        FinancialEventType: "client_collection" | "card_processor_settlement" | "cash_deposit" | "supplier_payment" | "payroll_payment" | "tax_payment" | "social_security_payment" | "tgr_payment" | "bank_fee" | "interest_income" | "interest_expense" | "debt_disbursement" | "debt_service" | "factoring_advance" | "factoring_cost_or_repayment" | "owner_contribution" | "owner_withdrawal" | "internal_bank_transfer" | "intercompany_transfer" | "investment_purchase" | "investment_return" | "capex_payment" | "refund_or_reversal" | "operational_expense" | "non_operational_income" | "unknown" | "card_processor_fee" | "card_processor_chargeback" | "card_processor_reserve_hold" | "card_processor_reserve_release" | "cash_withdrawal" | "confirming_advance" | "confirming_settlement" | "leasing_payment" | "leaseback_proceeds" | "corporate_card_payment" | "capital_reduction" | "related_party_loan_received" | "related_party_loan_granted" | "related_party_loan_repayment_received" | "related_party_loan_repayment_paid" | "cash_pool_transfer" | "escrow_funding" | "escrow_release" | "fx_conversion" | "term_deposit_placement" | "term_deposit_maturity" | "dividend_income" | "securities_sale" | "derivative_receipt" | "derivative_payment" | "collateral_posting" | "collateral_release" | "digital_asset_purchase" | "digital_asset_sale" | "trade_finance_payment" | "export_collection" | "bank_guarantee_fee" | "insurance_premium" | "insurance_claim" | "government_grant" | "tax_refund" | "customs_payment" | "employee_advance" | "employee_reimbursement" | "legal_hold" | "legal_release" | "donation_payment" | "donation_income";
         /** FinancialEventTypeItem */
         FinancialEventTypeItem: {
             /** Code */
@@ -13577,6 +13894,40 @@ export interface components {
              */
             as_of: string;
         };
+        /** LegacyDocumentDetail */
+        LegacyDocumentDetail: {
+            /** Id */
+            id: string;
+            /** Document Kind */
+            document_kind: string;
+            /** Document Id */
+            document_id: string;
+            /** Amount Applied */
+            amount_applied: string;
+            /** Method */
+            method: string;
+            /** Score */
+            score: string;
+            /** Created By */
+            created_by?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Document Ref */
+            document_ref?: string | null;
+            /** Counterparty Name */
+            counterparty_name?: string | null;
+            /** Total Amount */
+            total_amount?: string | null;
+            /** Outstanding Amount */
+            outstanding_amount?: string | null;
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Source Path */
+            source_path?: string | null;
+        };
         /**
          * LibroComparativosResponse
          * @description `GET /api/sii/rcv/{kind}/comparativos` — contrato CC-WEB 2026-07-13. Neto neteado de
@@ -13943,6 +14294,19 @@ export interface components {
             /** Children */
             children?: components["schemas"]["ManagementAccountNode"][];
         };
+        /** ManagementAccountRef */
+        ManagementAccountRef: {
+            /** Id */
+            id: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+            /** Destination */
+            destination: string;
+        };
         /**
          * ManagementAccountTreeResponse
          * @description Respuesta de `GET /api/management/accounts/tree` (roots anidados).
@@ -14242,36 +14606,34 @@ export interface components {
              */
             new_parent_id?: string | null;
         };
-        /** MovementResolutionResponse */
-        MovementResolutionResponse: {
-            /** Movement Id */
-            movement_id: string;
-            /** Stored Reconciliation Status */
-            stored_reconciliation_status: string;
-            /** Effective Reconciliation Status */
-            effective_reconciliation_status: string;
-            /** Canonical Category */
-            canonical_category?: string | null;
-            /** Financial Event Type */
-            financial_event_type?: string | null;
-            /** Settlement Rail */
-            settlement_rail?: string | null;
-            /** Classification Status */
-            classification_status: string;
-            /** Classification Confidence */
-            classification_confidence?: string | null;
-            /** Classification Source */
-            classification_source?: string | null;
-            /** Classification Model Version */
-            classification_model_version?: string | null;
-            /** Latest Case Id */
-            latest_case_id?: string | null;
-            /** Latest Case Status */
-            latest_case_status?: string | null;
-            /** Latest Case Decision */
-            latest_case_decision?: string | null;
-            /** Latest Case Explanation */
-            latest_case_explanation?: string | null;
+        /** MovementDetail */
+        MovementDetail: {
+            /** Id */
+            id: string;
+            /** Bank Account Id */
+            bank_account_id: string;
+            /** External Id */
+            external_id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Description */
+            description: string;
+            /** Amount */
+            amount: string;
+            /** Direction */
+            direction: string;
+            /** Currency Code */
+            currency_code?: string | null;
+            bank_account: components["schemas"]["BankAccountRef"];
+        };
+        /** MovementResolutionDetailResponse */
+        MovementResolutionDetailResponse: {
+            movement: components["schemas"]["MovementDetail"];
+            reconciliation: components["schemas"]["ReconciliationDetail"];
+            classification: components["schemas"]["ClassificationDetail"];
         };
         /**
          * MovimientoDeuda
@@ -14659,7 +15021,7 @@ export interface components {
         OpeningCutoffRequest: {
             /**
              * Cutoff Date
-             * @description Todo con issue_date <= esta fecha se asume saldado (YYYY-MM-DD).
+             * @description Los documentos con issue_date y los movimientos bancarios con date hasta esta fecha entran al corte de apertura (YYYY-MM-DD).
              */
             cutoff_date: string;
             /**
@@ -14674,6 +15036,23 @@ export interface components {
             receivables_saldadas: number;
             /** Payables Saldadas */
             payables_saldadas: number;
+            /** Movimientos Clasificacion Retirados */
+            movimientos_clasificacion_retirados: number;
+            /** Movimientos Conciliacion Retirados */
+            movimientos_conciliacion_retirados: number;
+        };
+        /** OpeningCutoffStatusResponse */
+        OpeningCutoffStatusResponse: {
+            /** Configured */
+            configured: boolean;
+            /** Active */
+            active: boolean;
+            /** Cutoff Date */
+            cutoff_date?: string | null;
+            /** Applied At */
+            applied_at?: string | null;
+            /** Reverted At */
+            reverted_at?: string | null;
         };
         /** OperationApprovalRequest */
         OperationApprovalRequest: {
@@ -17384,6 +17763,8 @@ export interface components {
             metadata: {
                 [key: string]: unknown;
             };
+            /** Created By */
+            created_by?: string | null;
             /** Confirmed At */
             confirmed_at?: string | null;
             /** Rejected At */
@@ -17408,6 +17789,18 @@ export interface components {
             movement_id: string;
             /** Items */
             items: components["schemas"]["ReconciliationCaseResponse"][];
+        };
+        /** ReconciliationDetail */
+        ReconciliationDetail: {
+            /** Stored Status */
+            stored_status: string;
+            /** Effective Status */
+            effective_status: string;
+            current_case?: components["schemas"]["CaseDetail"] | null;
+            /** Legacy Documents */
+            legacy_documents: components["schemas"]["LegacyDocumentDetail"][];
+            /** History */
+            history: components["schemas"]["CaseDetail"][];
         };
         /**
          * ReconciliationDocument
@@ -17582,6 +17975,19 @@ export interface components {
              */
             exists: boolean;
         };
+        /** ReplaceClassificationRequest */
+        ReplaceClassificationRequest: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "amount" | "percentage" | "hybrid";
+            financial_event_type: components["schemas"]["FinancialEventType"];
+            /** Allocations */
+            allocations: components["schemas"]["ClassificationAllocationInput"][];
+            /** Notes */
+            notes?: string | null;
+        };
         /**
          * ResendVerificationRequest
          * @description Body de `POST /api/auth/resend-verification` (onboarding O-1.b).
@@ -17705,6 +18111,8 @@ export interface components {
             receivables_reabiertas: number;
             /** Payables Reabiertas */
             payables_reabiertas: number;
+            /** Movimientos Restaurados */
+            movimientos_restaurados: number;
         };
         /** RevertReconciliationDoc */
         RevertReconciliationDoc: {
@@ -18042,6 +18450,13 @@ export interface components {
              * @description Rol canónico de la membership active (e.g. 'owner', 'admin').
              */
             role: string;
+        };
+        /** SetAccountDimensionPolicyRequest */
+        SetAccountDimensionPolicyRequest: {
+            /** Is Enabled */
+            is_enabled: boolean;
+            /** Is Required */
+            is_required: boolean;
         };
         /**
          * SetCounterpartyContactEmailRequest
@@ -19140,6 +19555,15 @@ export interface components {
              * @description UUIDs trazables de los documentos vivos, no cedidos, que forman este deudor. El front los envía al lote de recordatorios sin reconstruir identidad por nombre, RUT, monto ni fecha (#311).
              */
             receivable_ids?: string[];
+        };
+        /** UnclassifyResponse */
+        UnclassifyResponse: {
+            /** Movement Id */
+            movement_id: string;
+            /** Status */
+            status: string;
+            /** Changed */
+            changed: boolean;
         };
         /**
          * UpdateClassificationRuleRequest
@@ -26412,7 +26836,152 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MovementResolutionResponse"];
+                    "application/json": components["schemas"]["MovementResolutionDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_bank_movement_classification_replace: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceClassificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovementResolutionDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_bank_movement_unclassify: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnclassifyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_management_account_classification_dimensions_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                management_account_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDimensionPoliciesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_management_account_classification_dimension_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                management_account_id: string;
+                dimension_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetAccountDimensionPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDimensionPolicy"];
                 };
             };
             /** @description Validation Error */
@@ -28635,7 +29204,71 @@ export interface operations {
             };
         };
     };
+    treasury_reconciliation_opening_cutoff_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpeningCutoffStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_reconciliation_opening_cutoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpeningCutoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpeningCutoffResponse"];
+                };
+            };
+            /** @description cutoff_date mal formado. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_reconciliation_opening_cutoff_preview: {
         parameters: {
             query?: never;
             header?: never;

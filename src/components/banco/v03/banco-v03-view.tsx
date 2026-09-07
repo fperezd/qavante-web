@@ -55,6 +55,7 @@ import {
   resolutionDetailFromMovement,
   type BankMovementResolutionDetail,
 } from "./bank-resolution-detail-model";
+import type { BankResolutionDetailDrawerProps } from "./bank-resolution-detail-drawer";
 
 /* V03 · Banco — "tus cuentas y tarjetas, con su estado, y cada movimiento con su ciclo de vida"
  * (rediseño Fase 2, issue #68).
@@ -111,6 +112,10 @@ export interface BancoV03ViewProps {
   onUnreconcile?: (movementId: string) => void;
   onReclassify?: (movementId: string) => void;
   onUnclassify?: (movementId: string) => void;
+  selectedAccountId?: string;
+  onAccountChange?: (accountId: string) => void;
+  onOpenMovement?: (movementId: string) => void;
+  classificationEditor?: BankResolutionDetailDrawerProps["classificationEditor"];
   /** Alcance declarado de la lista ("los últimos 3 meses"). */
   alcance?: string;
   cuentasCargando?: boolean;
@@ -151,6 +156,10 @@ export function BancoV03View({
   onUnreconcile,
   onReclassify,
   onUnclassify,
+  selectedAccountId,
+  onAccountChange,
+  onOpenMovement,
+  classificationEditor,
   alcance = "los últimos 3 meses",
   cuentasCargando = false,
   movimientosCargando = false,
@@ -196,9 +205,9 @@ export function BancoV03View({
   const suma = sumaPorMoneda(filasCuentas);
   const cuadre = cuadreCajaHoy(caja, filasCuentas);
 
-  const opcionesCuenta = React.useMemo(() => {
+  const opcionesCuenta = (() => {
     const options = (cuentasQavante ?? [])
-      .filter((a) => a.account_type !== "credit_card")
+      .filter((a) => a.active && a.account_type !== "credit_card")
       .map((a) => ({ id: a.id, label: `${a.bank_name} · ${a.name}`, moneda: a.currency_code }));
     const known = new Set(options.map((option) => option.id));
     for (const movement of movs ?? []) {
@@ -211,9 +220,10 @@ export function BancoV03View({
       });
     }
     return options;
-  }, [banco, cuentasQavante, movs]);
-  const cuentaActiva = opcionesCuenta.some((a) => a.id === cuentaSeleccionada)
-    ? cuentaSeleccionada
+  })();
+  const requestedAccount = selectedAccountId ?? cuentaSeleccionada;
+  const cuentaActiva = opcionesCuenta.some((a) => a.id === requestedAccount)
+    ? requestedAccount
     : (opcionesCuenta[0]?.id ?? "");
   const movimientosCuenta = movs?.filter((m) => m.bankAccountId === cuentaActiva) ?? null;
   const conteos = movimientosCuenta ? contarMovimientosV03(movimientosCuenta, consulta) : null;
@@ -374,7 +384,8 @@ export function BancoV03View({
                 aria-label="Cuenta de la cartola"
                 value={cuentaActiva}
                 onChange={(event) => {
-                  setCuentaSeleccionada(event.target.value);
+                  if (onAccountChange) onAccountChange(event.target.value);
+                  else setCuentaSeleccionada(event.target.value);
                   setMovimientoAbierto(null);
                 }}
                 className="ml-2 rounded-full border border-rediseno-hairline bg-rediseno-superficie px-3 py-2 font-normal text-rediseno-tinta focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
@@ -492,7 +503,10 @@ export function BancoV03View({
                   ? "Ningún movimiento coincide con esa búsqueda."
                   : "Ningún movimiento en este filtro."
               }
-              onOpen={(movement) => setMovimientoAbierto(movement.id)}
+              onOpen={(movement) => {
+                setMovimientoAbierto(movement.id);
+                onOpenMovement?.(movement.id);
+              }}
             />
 
             <p className="text-[12.5px] text-rediseno-tinta-3">
@@ -530,9 +544,14 @@ export function BancoV03View({
           movement={openMovement}
           detail={openDetail}
           onClose={() => setMovimientoAbierto(null)}
-          onUnreconcile={onUnreconcile ? () => onUnreconcile(openMovement.id) : undefined}
+          onUnreconcile={
+            onUnreconcile && openDetail.reconciliation.canUnreconcile
+              ? () => onUnreconcile(openMovement.id)
+              : undefined
+          }
           onReclassify={onReclassify ? () => onReclassify(openMovement.id) : undefined}
           onUnclassify={onUnclassify ? () => onUnclassify(openMovement.id) : undefined}
+          classificationEditor={classificationEditor}
         />
       )}
     </div>

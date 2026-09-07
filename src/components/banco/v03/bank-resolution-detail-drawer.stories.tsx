@@ -15,6 +15,7 @@ const detail: BankMovementResolutionDetail = {
   movementId: movement.id,
   reconciliation: {
     status: "conciliado",
+    canUnreconcile: true,
     topology: "1:N",
     balanceFormatted: "$0",
     source: "Motor canónico",

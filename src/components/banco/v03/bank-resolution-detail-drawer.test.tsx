@@ -26,6 +26,7 @@ function detail(
     movementId: "m1",
     reconciliation: {
       status: "conciliado",
+      canUnreconcile: true,
       topology: "1:1",
       allocations: [
         {
@@ -83,5 +84,13 @@ describe("BankResolutionDetailDrawer", () => {
     expect(html(detail([{ name: "Centro de costo", value: "Operaciones" }]))).toContain(
       "Centro de costo: Operaciones",
     );
+  });
+
+  it("bloquea una reversión que el backend no puede garantizar", () => {
+    const unsupported = detail();
+    unsupported.reconciliation.canUnreconcile = false;
+    const rendered = html(unsupported);
+    expect(rendered).toContain("disabled");
+    expect(rendered).toContain("no admite una reversión segura");
   });
 });
