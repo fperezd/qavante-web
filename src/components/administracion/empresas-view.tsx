@@ -9,6 +9,7 @@ import { useMe } from "@/lib/api/users";
 import { ROLE_LABELS } from "@/components/administracion/role-labels";
 import { CreateCompanyForm } from "@/components/administracion/create-company-form";
 import { EditCompanyForm } from "@/components/administracion/edit-company-form";
+import { OpeningCutoffCard } from "@/components/administracion/opening-cutoff-card";
 import type { UserRole } from "@/lib/auth/types";
 
 /* Administración → Empresas. Gestiona las empresas del usuario: listarlas,
@@ -136,6 +137,8 @@ export function EmpresasView() {
         )}
       </QavanteCard>
 
+      {active && <OpeningCutoffCard />}
+
       {editing && active && (
         <QavanteCard
           variant="bordered"
@@ -171,8 +174,8 @@ export function EmpresasView() {
           header={<span className="font-medium">Agregar empresa</span>}
         >
           <p className="mb-3 text-sm text-neutral-mid">
-            Agrega otra empresa a tu cuenta. Según tu plan puede afectar lo que facturas, revisa
-            las condiciones antes de agregar.
+            Agrega otra empresa a tu cuenta. Según tu plan puede afectar lo que facturas, revisa las
+            condiciones antes de agregar.
           </p>
           <CreateCompanyForm
             pending={createTenant.isPending || switchTenant.isPending}
