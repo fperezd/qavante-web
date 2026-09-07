@@ -1,4 +1,6 @@
 import type { BankMovement, MovementResolutionDetailResponse } from "@/lib/api/treasury";
+import { formatMoney } from "@/lib/formatters/clp";
+import { formatPct } from "@/lib/formatters/pct";
 import type { EstadoClasificacionV03, EstadoConciliacionV03 } from "./banco-v03-model";
 import { estadoClasificacionDe, estadoConciliacionDe } from "./banco-v03-model";
 
@@ -68,9 +70,7 @@ export function resolutionDetailFromMovement(
       allocations: [],
       source: null,
       confidence:
-        typeof movement.match_score === "number"
-          ? `${Math.round(movement.match_score * 100)}%`
-          : null,
+        typeof movement.match_score === "number" ? formatPct(movement.match_score * 100) : null,
     },
     classification: {
       status: estadoClasificacionDe(movement),
@@ -78,9 +78,7 @@ export function resolutionDetailFromMovement(
       allocations: [],
       source: movement.classified_by ?? null,
       confidence:
-        typeof movement.confidence === "number"
-          ? `${Math.round(movement.confidence * 100)}%`
-          : null,
+        typeof movement.confidence === "number" ? formatPct(movement.confidence * 100) : null,
       actor: movement.classified_by ?? null,
       classifiedAt: movement.classified_at ?? null,
     },
@@ -102,16 +100,6 @@ function topology(value?: string | null): "1:1" | "1:N" | "N:1" | "N:N" | null {
   return value === "1:1" || value === "1:N" || value === "N:1" || value === "N:N" ? value : null;
 }
 
-function money(amount: string, currency?: string | null): string {
-  const value = Number(amount);
-  if (!Number.isFinite(value)) return `${amount}${currency ? ` ${currency}` : ""}`;
-  return new Intl.NumberFormat("es-CL", {
-    style: currency ? "currency" : "decimal",
-    currency: currency ?? undefined,
-    maximumFractionDigits: 4,
-  }).format(value);
-}
-
 /** Adapter único desde el contrato OpenAPI. La UI no deriva matches ni recalcula montos. */
 export function resolutionDetailFromApi(
   detail: MovementResolutionDetailResponse,
@@ -123,7 +111,7 @@ export function resolutionDetailFromApi(
       id: `${item.node_kind}:${item.node_id}:${index}`,
       kind: "document",
       label: item.source_label ?? `${item.node_kind} ${item.node_id}`,
-      amountFormatted: money(item.signed_amount, item.currency_code),
+      amountFormatted: formatMoney(Number(item.signed_amount), item.currency_code),
       origin: item.source_path ? { label: "Ir al origen", href: item.source_path } : null,
     }));
   const legacyAllocations: ResolutionAllocation[] = detail.reconciliation.legacy_documents.map(
@@ -132,7 +120,7 @@ export function resolutionDetailFromApi(
       kind: "document",
       label:
         item.document_ref ?? item.counterparty_name ?? `${item.document_kind} ${item.document_id}`,
-      amountFormatted: money(item.amount_applied, item.currency_code),
+      amountFormatted: formatMoney(Number(item.amount_applied), item.currency_code),
       origin: item.source_path ? { label: "Ir al origen", href: item.source_path } : null,
     }),
   );
@@ -145,7 +133,7 @@ export function resolutionDetailFromApi(
       allocations: caseAllocations.length > 0 ? caseAllocations : legacyAllocations,
       evidence: current?.evidence.map((item) => `${item.code}: ${item.result}`) ?? [],
       source: current?.engine_version ?? null,
-      confidence: current?.score ? `${Math.round(Number(current.score) * 100)}%` : null,
+      confidence: current?.score ? formatPct(Number(current.score) * 100) : null,
       history: detail.reconciliation.history.map((item) => ({
         id: item.id,
         label: `${item.decision} · ${item.status}`,
@@ -165,8 +153,11 @@ export function resolutionDetailFromApi(
           item.management_account_code ??
           item.label ??
           item.management_account_id,
-        amountFormatted: money(item.amount, item.currency_code ?? detail.movement.currency_code),
-        percentage: item.percentage ? `${item.percentage}%` : null,
+        amountFormatted: formatMoney(
+          Number(item.amount),
+          item.currency_code ?? detail.movement.currency_code,
+        ),
+        percentage: item.percentage ? formatPct(Number(item.percentage)) : null,
         dimensions: item.dimensions.map((dimension) => ({
           name: dimension.dimension_name ?? dimension.dimension_id ?? "Dimensión",
           value: dimension.value_name ?? dimension.dimension_value_id ?? "Sin valor",
@@ -174,7 +165,7 @@ export function resolutionDetailFromApi(
       })),
       source: detail.classification.source,
       confidence: detail.classification.confidence
-        ? `${Math.round(Number(detail.classification.confidence) * 100)}%`
+        ? formatPct(Number(detail.classification.confidence) * 100)
         : null,
       actor: detail.classification.classified_by,
       classifiedAt: detail.classification.classified_at,

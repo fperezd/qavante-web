@@ -214,7 +214,7 @@ function flattenAccounts(
 ): Array<{ id: string; label: string }> {
   return nodes.flatMap((node) => [
     ...(node.active && node.is_visible
-      ? [{ id: node.id, label: `${"— ".repeat(depth)}${node.display_name ?? node.name}` }]
+      ? [{ id: node.id, label: `${"· ".repeat(depth)}${node.display_name ?? node.name}` }]
       : []),
     ...flattenAccounts(node.children ?? [], depth + 1),
   ]);

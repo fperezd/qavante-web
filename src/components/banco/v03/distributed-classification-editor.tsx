@@ -4,6 +4,7 @@ import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import type { ReplaceClassificationRequest } from "@/lib/api/treasury";
 import { useAccountClassificationDimensions } from "@/lib/api/treasury";
+import { formatMoney } from "@/lib/formatters/clp";
 
 export interface ClassificationAccountOption {
   id: string;
@@ -353,8 +354,4 @@ function sameMoney(left: number, right: number): boolean {
 
 function samePercentage(left: number, right: number): boolean {
   return Math.abs(left - right) < 0.00000001;
-}
-
-function formatMoney(value: number, currency: string): string {
-  return new Intl.NumberFormat("es-CL", { style: "currency", currency }).format(value);
 }
