@@ -197,7 +197,12 @@ export function veredictoHoy(
   /* Los casos persistidos del Decision OS son decisiones, no `priority_actions` del dashboard.
      La vista los suma de forma explícita para no decir "nada necesita tu OK" mientras muestra
      una evaluación elegible. El caller sólo pasa casos vigentes y con soporte `eligible`. */
-  const pendientes = (s?.priority_actions?.length ?? 0) + Math.max(0, pendientesAdicionales);
+  const pendientesDisponibles =
+    (s?.priority_actions?.length ?? 0) + Math.max(0, pendientesAdicionales);
+  /* En crisis la pantalla muestra una sola decisión crítica para no diluir la urgencia.
+     El encabezado debe contar esa misma lista visible, no las acciones de origen. */
+  const pendientes =
+    estado === "crisis" ? Math.min(1, pendientesDisponibles) : pendientesDisponibles;
   const diaPerfecto = estado === "sana" && pendientes === 0;
 
   return {
