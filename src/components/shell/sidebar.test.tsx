@@ -27,4 +27,12 @@ describe("AppSidebar · Bandeja V07", () => {
     expect(html(true)).toContain('href="/bandeja"');
     expect(html(false)).not.toContain('href="/bandeja"');
   });
+
+  it("ubica Bandeja inmediatamente después de Inicio y antes de Cobros y pagos", () => {
+    const rendered = html(true);
+
+    expect(rendered.indexOf('href="/inicio"')).toBeLessThan(rendered.indexOf('href="/bandeja"'));
+    expect(rendered.indexOf('href="/bandeja"')).toBeLessThan(rendered.indexOf("Cobros y pagos"));
+    expect(rendered.match(/href="\/bandeja"/g)).toHaveLength(1);
+  });
 });

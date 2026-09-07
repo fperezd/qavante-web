@@ -77,13 +77,18 @@ const GESTION_CHILDREN: ReadonlyArray<SubLink> = [
    contable — pedido de Fernando 2026-07-28). Pagar despliega sus sub-ítems al
    entrar en la sección. Los hrefs de los links NO cambian (contrato e2e). */
 const NAV_GROUPS: ReadonlyArray<NavGroup> = [
-  { label: "Principal", items: [{ href: "/inicio", label: "Inicio", Icon: Home }] },
+  {
+    label: "Principal",
+    items: [
+      { href: "/inicio", label: "Inicio", Icon: Home },
+      { href: "/bandeja", label: "Bandeja", Icon: Inbox, needsBandeja: true },
+    ],
+  },
   {
     label: "Cobros y pagos",
     items: [
       { href: "/caja", label: "Caja", Icon: Banknote },
       { href: "/banco", label: "Banco", Icon: Landmark, needsBanco: true },
-      { href: "/bandeja", label: "Bandeja", Icon: Inbox, needsBandeja: true },
       { href: "/cobrar", label: "Cobrar", Icon: ArrowDownToLine },
       { href: "/pagar", label: "Pagar", Icon: ArrowUpFromLine, children: PAGAR_CHILDREN },
     ],
