@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { RcvDetalleGrid } from "./rcv-detalle-grid";
 import { GroupedTable } from "./rcv-list-view";
@@ -7,7 +7,7 @@ const totals = { neto: 0, exento: 0, iva: 0, total: 0, grossTotal: 0, ncTotal: 0
 
 describe("vencimientos en Libro de Ventas", () => {
   it("en detalle muestra fecha, supuesto y una ausencia honesta", () => {
-    render(
+    const html = renderToStaticMarkup(
       <RcvDetalleGrid
         docs={[
           {
@@ -26,14 +26,14 @@ describe("vencimientos en Libro de Ventas", () => {
       />,
     );
 
-    expect(screen.getByText("Vence")).toBeInTheDocument();
-    expect(screen.getByText("31-07-2026")).toBeInTheDocument();
-    expect(screen.getByText("estimado")).toBeInTheDocument();
-    expect(screen.getAllByText("s/d").length).toBeGreaterThan(0);
+    expect(html).toContain("Vence");
+    expect(html).toContain("31-07-2026");
+    expect(html).toContain("estimado");
+    expect(html).toContain("s/d");
   });
 
   it("en agrupado muestra el supuesto y la ausencia en notas de credito", () => {
-    render(
+    const html = renderToStaticMarkup(
       <GroupedTable
         items={[
           {
@@ -58,8 +58,8 @@ describe("vencimientos en Libro de Ventas", () => {
       />,
     );
 
-    expect(screen.getByText("31-07-2026")).toBeInTheDocument();
-    expect(screen.getByText("estimado")).toBeInTheDocument();
-    expect(screen.getAllByText("s/d").length).toBeGreaterThan(0);
+    expect(html).toContain("31-07-2026");
+    expect(html).toContain("estimado");
+    expect(html).toContain("s/d");
   });
 });
