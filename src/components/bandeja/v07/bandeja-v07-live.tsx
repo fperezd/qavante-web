@@ -10,7 +10,13 @@ import {
   useRejectReconciliationSuggestion,
   useRevertReconciliation,
 } from "@/lib/api/reconciliation";
-import { useSuggestedCategory } from "@/lib/api/classification-rules";
+import {
+  useCreateClassificationRule,
+  useSuggestRuleForMovement,
+  useSuggestedCategory,
+  type CreateClassificationRuleRequest,
+  type SuggestRuleResponse,
+} from "@/lib/api/classification-rules";
 import { useManagementAccountsTree } from "@/lib/api/management";
 import {
   useBankMovements,
@@ -55,7 +61,8 @@ import {
  * Escrituras: `confirm` (con o sin documento elegido), `reject` con memoria del par cuando la card
  * conoce el documento (API #359, aún pendiente de merge), `revert` (el Deshacer de la Ley 5 para
  * conciliar), `classify`, `classify-bulk` manual y atómico (API #350) y
- * `POST /api/reversible-actions/{action_id}/revert` para lo que Qavante clasificó SOLO.
+ * `POST /api/reversible-actions/{action_id}/revert` para lo que Qavante clasificó SOLO. Crear una
+ * regla es un flujo separado y verificable: `suggest-rule` (read-only) → `POST classification-rules`.
  *
  * LO QUE SIGUE SIN CABLEARSE, Y POR QUÉ: no hay Deshacer para el `classify` que dispara el botón
  * "Guardar" de la carta. Verificado contra `api/app/core/treasury_repo.py`
@@ -129,6 +136,34 @@ export function cuerpoClasificacionLote(
   };
 }
 
+function textoObligatorio(propuesta: SuggestRuleResponse, campo: string): string {
+  const valor = propuesta[campo];
+  if (typeof valor !== "string" || valor.trim() === "") {
+    throw new Error(`La propuesta de regla no trajo ${campo}.`);
+  }
+  return valor.trim();
+}
+
+/** Convierte la propuesta canónica del backend en una creación explícita y confirmable. */
+export function cuerpoReglaDesdePropuesta(
+  propuesta: SuggestRuleResponse,
+  cuentaId: string,
+  categoriaCanonica: string,
+): CreateClassificationRuleRequest {
+  return {
+    name: textoObligatorio(propuesta, "name"),
+    source_type: textoObligatorio(propuesta, "source_type"),
+    condition_field: textoObligatorio(propuesta, "condition_field"),
+    operator: textoObligatorio(propuesta, "operator"),
+    condition_value: textoObligatorio(propuesta, "condition_value"),
+    management_account_id: cuentaId,
+    canonical_category:
+      categoriaCanonica as CreateClassificationRuleRequest["canonical_category"],
+    priority: typeof propuesta.priority === "number" ? propuesta.priority : 10,
+    confidence: typeof propuesta.confidence === "number" ? propuesta.confidence : 1,
+  };
+}
+
 export function BandejaV07Live({
   issueSucesor = ISSUE_SUCESOR,
   tabInicial,
@@ -164,6 +199,8 @@ export function BandejaV07Live({
   const revertir = useRevertReconciliation();
   const clasificar = useClassifyBankMovement();
   const clasificarLote = useClassifyBankMovementsBulk();
+  const sugerirRegla = useSuggestRuleForMovement();
+  const crearRegla = useCreateClassificationRule();
   const revertirAuto = useRevertReversibleAction();
   /* Una respuesta de red perdida se reintenta con la MISMA llave para la misma decisión. Si cambia
      ids, cuenta o nota, cambia el fingerprint y por tanto nace una intención nueva. */
@@ -354,17 +391,18 @@ export function BandejaV07Live({
         }
       }}
       onCrearRegla={async (item, cuentaId, categoriaCanonica) => {
-        /* §17: la regla se crea DESDE el movimiento con `create_rule: true`. Re-clasificar al
-           mismo destino es la forma que el contrato ofrece; no hay endpoint "crear regla desde
-           un movimiento ya clasificado". */
         setAviso(null);
         try {
-          await clasificar.mutateAsync({
-            movementId: item.id,
-            body: cuerpoClasificacion(cuentaId, categoriaCanonica, "", true),
-          });
+          const propuesta = await sugerirRegla.mutateAsync(item.id);
+          await crearRegla.mutateAsync(
+            cuerpoReglaDesdePropuesta(propuesta, cuentaId, categoriaCanonica),
+          );
         } catch (err) {
-          fallo("crear la regla")(err);
+          setAviso(
+            err instanceof ApiError && err.isNetworkError()
+              ? "La clasificación quedó guardada, pero no pudimos crear la regla porque se cortó la conexión. La oferta sigue disponible para reintentar."
+              : "La clasificación quedó guardada, pero la regla no se creó. La oferta sigue disponible para reintentar.",
+          );
           throw err;
         }
       }}

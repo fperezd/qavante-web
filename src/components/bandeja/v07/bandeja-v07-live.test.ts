@@ -4,6 +4,7 @@ import { MOV_DATTATEC, MOV_KAUFMANN, sinClasificar } from "./bandeja-v07-fixture
 import {
   cuerpoClasificacion,
   cuerpoClasificacionLote,
+  cuerpoReglaDesdePropuesta,
   referenciaMovimientoInicial,
 } from "./bandeja-v07-live";
 
@@ -46,5 +47,43 @@ describe("BandejaV07Live · clasificación canónica completa", () => {
       canonical_category: "payroll_payment",
       idempotency_key: "decision-1",
     });
+  });
+
+  it("crea la regla explícita con la clave canónica propuesta por el backend", () => {
+    expect(
+      cuerpoReglaDesdePropuesta(
+        {
+          name: "Auto: contraparte 32667051",
+          source_type: "bank_movement",
+          condition_field: "description",
+          operator: "contains",
+          condition_value: "32667051",
+          priority: 10,
+          confidence: 1,
+        },
+        "cuenta-honorarios",
+        "professional_fees_payment",
+      ),
+    ).toEqual({
+      name: "Auto: contraparte 32667051",
+      source_type: "bank_movement",
+      condition_field: "description",
+      operator: "contains",
+      condition_value: "32667051",
+      management_account_id: "cuenta-honorarios",
+      canonical_category: "professional_fees_payment",
+      priority: 10,
+      confidence: 1,
+    });
+  });
+
+  it("rechaza una propuesta incompleta en vez de crear una regla amplia", () => {
+    expect(() =>
+      cuerpoReglaDesdePropuesta(
+        { name: "sin condición", condition_field: "description", operator: "contains" },
+        "cuenta-1",
+        "operational_expense",
+      ),
+    ).toThrow(/source_type|condition_value/);
   });
 });
