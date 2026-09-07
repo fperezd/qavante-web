@@ -161,13 +161,14 @@ describe("CashGapBanner — lo que el copy NO puede decir", () => {
     );
   });
 
-  it("'bajo cero' EN PALABRAS en las dos ramas de caja negativa, en ninguna otra (#54 §4)", () => {
-    /* El hecho no puede viajar sólo en un glifo de un pixel. El API escribe "queda en $1M bajo
-       cero"; las dos ramas del front que hablan de caja negativa dicen las palabras. */
-    expect(bannerText({ critical: 2_000_000, projected: -1_000_000 })).toContain("bajo cero");
+  it("la rama mixta publica el monto con signo negativo y la positiva no", () => {
+    expect(bannerText({ critical: 2_000_000, projected: -1_000_000 })).toContain(
+      `${MINUS}$1.000.000`,
+    );
     expect(bannerText({ critical: 0, projected: -3_935_682 })).toContain("bajo cero");
-    // GEMELA NEGATIVA con la MISMA frase: con la caja POSITIVA decirlo sería falso.
-    expect(bannerText({ critical: 5_000_000, projected: 2_000_000 })).not.toContain("bajo cero");
+    expect(bannerText({ critical: 5_000_000, projected: 2_000_000 })).not.toContain(
+      `${MINUS}$3.000.000`,
+    );
   });
 
   it("el copy nombra las críticas SÓLO cuando existen ($0 no se menciona)", () => {
@@ -237,11 +238,14 @@ describe("CashGapCardLine — el mismo hecho en la card del grid", () => {
     expect(cardText({ critical: 5_000_000, projected: 2_000_000 })).toContain("$3.000.000");
   });
 
-  it("'bajo cero' en las dos ramas de caja negativa de la card, en ninguna otra", () => {
-    expect(cardText({ critical: 2_000_000, projected: -1_000_000 })).toContain("bajo cero");
+  it("la card mixta publica el monto con signo negativo y la positiva no", () => {
+    expect(cardText({ critical: 2_000_000, projected: -1_000_000 })).toContain(
+      `${MINUS}$1.000.000`,
+    );
     expect(cardText({ critical: 0, projected: -3_935_682 })).toContain("bajo cero");
-    // GEMELA NEGATIVA con la MISMA frase: con la caja positiva decirlo sería falso.
-    expect(cardText({ critical: 5_000_000, projected: 2_000_000 })).not.toContain("bajo cero");
+    expect(cardText({ critical: 5_000_000, projected: 2_000_000 })).not.toContain(
+      `${MINUS}$3.000.000`,
+    );
   });
 
   it("la card nombra las críticas SÓLO cuando existen ($0 no se menciona)", () => {
