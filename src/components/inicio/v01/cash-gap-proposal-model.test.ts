@@ -50,4 +50,13 @@ describe("cashGapProposals", () => {
   it("no inventa una propuesta cuando el servidor se abstiene", () => {
     expect(cashGapProposals(plan("payment_plan", "abstain"), null)).toEqual([]);
   });
+
+  it("conserva los límites que publicó el servidor", () => {
+    const payment = plan("payment_plan");
+    payment.reasons = ["Parte de los documentos de proveedor, pendiente"];
+
+    expect(cashGapProposals(payment, null)[0]?.caveats).toEqual([
+      "Parte de los documentos de proveedor, pendiente",
+    ]);
+  });
 });
