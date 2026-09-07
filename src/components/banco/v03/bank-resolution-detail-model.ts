@@ -1,5 +1,5 @@
 import type { BankMovement, MovementResolutionDetailResponse } from "@/lib/api/treasury";
-import { formatMoney } from "@/lib/formatters/clp";
+import { formatClpBare, formatMoney } from "@/lib/formatters/clp";
 import { formatPct } from "@/lib/formatters/pct";
 import type { EstadoClasificacionV03, EstadoConciliacionV03 } from "./banco-v03-model";
 import { estadoClasificacionDe, estadoConciliacionDe } from "./banco-v03-model";
@@ -105,22 +105,23 @@ export function resolutionDetailFromApi(
   detail: MovementResolutionDetailResponse,
 ): BankMovementResolutionDetail {
   const current = detail.reconciliation.current_case;
-  const caseAllocations: ResolutionAllocation[] = (current?.allocations ?? []).map(
-    (item, index) => ({
-      id: `${item.node_kind}:${item.node_id}:${index}`,
-      kind: item.node_kind === "bank_movement" ? "bank_movement" : "document",
-      label: item.source_label ?? `${item.node_kind} ${item.node_id}`,
-      amountFormatted: formatMoney(Number(item.signed_amount), item.currency_code),
-      origin: item.source_path ? { label: "Ir al origen", href: item.source_path } : null,
-    }),
-  );
+  const publishedAllocations = detail.reconciliation.allocations ?? [];
+  const effectiveAllocations: ResolutionAllocation[] = (
+    publishedAllocations.length > 0 ? publishedAllocations : (current?.allocations ?? [])
+  ).map((item, index) => ({
+    id: `${item.node_kind}:${item.node_id}:${index}`,
+    kind: item.node_kind === "bank_movement" ? "bank_movement" : "document",
+    label: item.source_label ?? `${item.node_kind} ${item.node_id}`,
+    amountFormatted: displayMoney(item.signed_amount, item.currency_code),
+    origin: item.source_path ? { label: "Ir al origen", href: item.source_path } : null,
+  }));
   const legacyAllocations: ResolutionAllocation[] = detail.reconciliation.legacy_documents.map(
     (item) => ({
       id: item.id,
       kind: "document",
       label:
         item.document_ref ?? item.counterparty_name ?? `${item.document_kind} ${item.document_id}`,
-      amountFormatted: formatMoney(Number(item.amount_applied), item.currency_code),
+      amountFormatted: displayMoney(item.amount_applied, item.currency_code),
       origin: item.source_path ? { label: "Ir al origen", href: item.source_path } : null,
     }),
   );
@@ -129,10 +130,16 @@ export function resolutionDetailFromApi(
     reconciliation: {
       status: reconciliationStatus(detail.reconciliation.effective_status),
       canUnreconcile: legacyAllocations.length > 0,
-      topology: topology(current?.topology),
-      allocations: caseAllocations.length > 0 ? caseAllocations : legacyAllocations,
-      evidence: current?.evidence.map((item) => `${item.code}: ${item.result}`) ?? [],
-      source: current?.engine_version ?? null,
+      topology: topology(detail.reconciliation.topology ?? current?.topology),
+      allocations: effectiveAllocations.length > 0 ? effectiveAllocations : legacyAllocations,
+      balanceFormatted: displayMoney(
+        detail.reconciliation.remaining_amount,
+        detail.movement.currency_code,
+      ),
+      evidence: (detail.reconciliation.evidence ?? current?.evidence ?? []).map(
+        (item) => `${item.code}: ${item.result}`,
+      ),
+      source: current?.engine_version ?? detail.reconciliation.components?.[0]?.source ?? null,
       confidence: current?.score ? formatPct(Number(current.score) * 100) : null,
       history: detail.reconciliation.history.map((item) => ({
         id: item.id,
@@ -177,4 +184,10 @@ export function resolutionDetailFromApi(
       })),
     },
   };
+}
+
+function displayMoney(amount: string, currency?: string | null): string {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return "s/d";
+  return currency ? formatMoney(value, currency) : `${formatClpBare(value)} · moneda desconocida`;
 }

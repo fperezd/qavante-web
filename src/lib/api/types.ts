@@ -6750,7 +6750,7 @@ export interface components {
             /** Signed Amount */
             signed_amount: string;
             /** Currency Code */
-            currency_code: string;
+            currency_code?: string | null;
             /** Source Label */
             source_label?: string | null;
             /** Source Path */
@@ -9703,7 +9703,7 @@ export interface components {
             /** Signed Amount */
             signed_amount: string;
             /** Currency Code */
-            currency_code: string;
+            currency_code?: string | null;
             /** Source */
             source: string;
             /** Source Reference */
@@ -17797,6 +17797,16 @@ export interface components {
             /** Effective Status */
             effective_status: string;
             current_case?: components["schemas"]["CaseDetail"] | null;
+            /** Topology */
+            topology?: string | null;
+            /** Allocations */
+            allocations: components["schemas"]["AllocationDetail"][];
+            /** Components */
+            components: components["schemas"]["ComponentDetail"][];
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceDetail"][];
+            /** Remaining Amount */
+            remaining_amount: string;
             /** Legacy Documents */
             legacy_documents: components["schemas"]["LegacyDocumentDetail"][];
             /** History */

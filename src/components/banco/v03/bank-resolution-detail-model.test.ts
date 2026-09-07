@@ -41,6 +41,29 @@ describe("resolutionDetailFromApi", () => {
       reconciliation: {
         stored_status: "unmatched",
         effective_status: "matched",
+        topology: "N:N",
+        allocations: [
+          {
+            node_kind: "bank_movement",
+            node_id: "m2",
+            role: "source",
+            signed_amount: "40000",
+            currency_code: "CLP",
+            source_label: "Segundo movimiento",
+          },
+          {
+            node_kind: "payable",
+            node_id: "p1",
+            role: "settled",
+            signed_amount: "-100000",
+            currency_code: "CLP",
+            source_label: "Factura 10",
+            source_path: "/pagar/facturas-recibidas",
+          },
+        ],
+        components: [],
+        evidence: [{ code: "rut_exact", result: "pass", weight: "1" }],
+        remaining_amount: "0",
         current_case: {
           id: "case-1",
           status: "confirmed",
@@ -117,6 +140,7 @@ describe("resolutionDetailFromApi", () => {
     expect(detail.reconciliation.status).toBe("conciliado");
     expect(detail.reconciliation.canUnreconcile).toBe(false);
     expect(detail.reconciliation.topology).toBe("N:N");
+    expect(detail.reconciliation.balanceFormatted).toBe("$0");
     expect(detail.reconciliation.allocations[0]?.kind).toBe("bank_movement");
     expect(detail.reconciliation.allocations[0]?.label).toBe("Segundo movimiento");
     expect(detail.reconciliation.allocations[1]?.origin?.href).toBe("/pagar/facturas-recibidas");
