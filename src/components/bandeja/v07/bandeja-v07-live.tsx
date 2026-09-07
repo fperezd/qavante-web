@@ -189,7 +189,9 @@ export function BandejaV07Live({
   return (
     <BandejaV07View
       conciliar={itemsC}
+      conciliarTotal={review.data?.count ?? null}
       clasificar={itemsK}
+      clasificarTotal={sinClasificar.data?.total ?? null}
       conciliarMotivo={
         review.isError ? motivoFuente(review.error, "la cola de conciliación") : null
       }
@@ -237,40 +239,56 @@ export function BandejaV07Live({
       avisoError={aviso}
       onCerrarAviso={() => setAviso(null)}
       onItemActivo={(item) => setActivoRef(item ? { id: item.id, tipo: item.tipo } : null)}
-      onConciliar={(item, documentoId) => {
+      onConciliar={async (item, documentoId) => {
         setAviso(null);
-        if (documentoId) {
-          confirmarConDocumento.mutate(
-            { movementId: item.id, documentId: documentoId },
-            { onError: fallo("conciliar contra el documento que elegiste") },
-          );
-        } else {
-          confirmar.mutate(item.id, { onError: fallo("conciliar este movimiento") });
+        try {
+          if (documentoId) {
+            await confirmarConDocumento.mutateAsync({
+              movementId: item.id,
+              documentId: documentoId,
+            });
+          } else {
+            await confirmar.mutateAsync(item.id);
+          }
+        } catch (err) {
+          fallo(
+            documentoId
+              ? "conciliar contra el documento que elegiste"
+              : "conciliar este movimiento",
+          )(err);
+          throw err;
         }
       }}
       onDeshacerConciliar={(item) => {
         revertir.mutate(item.id, { onError: fallo("deshacer esta conciliación") });
       }}
-      onNoEsEsta={(item, candidato) => {
+      onNoEsEsta={async (item, candidato) => {
         setAviso(null);
-        descartar.mutate(
-          { movementId: item.id, documentId: candidato?.documentId ?? null },
-          { onError: fallo("descartar esta sugerencia") },
-        );
+        try {
+          await descartar.mutateAsync({
+            movementId: item.id,
+            documentId: candidato?.documentId ?? null,
+          });
+        } catch (err) {
+          fallo("descartar esta sugerencia")(err);
+          throw err;
+        }
       }}
-      onClasificar={(item, cuentaId, notas) => {
+      onClasificar={async (item, cuentaId, notas) => {
         setAviso(null);
-        clasificar.mutate(
-          {
+        try {
+          await clasificar.mutateAsync({
             movementId: item.id,
             body: {
               management_account_id: cuentaId,
               create_rule: false,
               ...(notas.trim() ? { classification_notes: notas.trim() } : {}),
             },
-          },
-          { onError: fallo("clasificar este movimiento") },
-        );
+          });
+        } catch (err) {
+          fallo("clasificar este movimiento")(err);
+          throw err;
+        }
       }}
       onClasificarLote={async (movementIds, cuentaId, notas) => {
         setAviso(null);

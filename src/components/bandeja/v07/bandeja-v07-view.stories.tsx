@@ -80,6 +80,9 @@ const meta = {
     clasificar: CLASIFICAR,
     cuentas: cuentas(),
     clasificados: clasificados(),
+    onConciliar: fn(async () => undefined),
+    onNoEsEsta: fn(async () => undefined),
+    onClasificar: fn(async () => undefined),
     issueSucesor: "#90",
     hoy: HOY,
   },
@@ -136,6 +139,34 @@ export const ConciliarConSugerencia: Story = {
 
     await userEvent.click(deshacer);
     await expect(args.onDeshacerConciliar).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const ConciliarEvitaDobleEnvio: Story = {
+  name: "Conciliar · doble activación · envía una sola escritura",
+  args: {
+    candidatos: {
+      movimientoId: MOV_KAUFMANN,
+      lista: adaptarCandidatos(candidatosKaufmann()),
+      cargando: false,
+    },
+    onConciliar: fn(
+      async () => await new Promise<void>((resolve) => window.setTimeout(resolve, 30)),
+    ),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const boton = canvas.getByRole("button", { name: /Sí, conciliar/ });
+    boton.click();
+    boton.click();
+    await expect(args.onConciliar).toHaveBeenCalledTimes(1);
+    await expect(boton).toBeDisabled();
+    const saltar = canvas.getByRole("button", { name: /^Saltar/ });
+    await expect(saltar).toBeDisabled();
+    saltar.click();
+    await expect(canvas.getByLabelText("Excepción por conciliar")).toHaveTextContent(
+      "Comercial Kaufmann",
+    );
   },
 };
 
@@ -280,6 +311,30 @@ export const ClasificarConRegla: Story = {
     await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
       "TRANSF. A TERCEROS VIA INTERNET",
     );
+  },
+};
+
+export const ClasificarFallaPersistencia: Story = {
+  name: "Clasificar · la API falla · conserva el movimiento y no afirma éxito",
+  args: {
+    tabInicial: "clasificar",
+    sugerencia: { movimientoId: MOV_DATTATEC, valor: sugerenciaSoftware(), cargando: false },
+    onClasificar: fn(async () => {
+      throw new Error("falló la escritura");
+    }),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const card = canvas.getByLabelText("Excepción por clasificar");
+    await waitFor(
+      async () => await expect(canvas.getByLabelText("Categoría")).toHaveValue(CUENTA_SOFTWARE),
+    );
+
+    await userEvent.click(canvas.getByRole("button", { name: /Guardar/ }));
+    await expect(args.onClasificar).toHaveBeenCalledTimes(1);
+    await expect(card).toHaveTextContent("Clasificar 1 de 5");
+    await expect(card).toHaveTextContent("DATTATEC");
+    await expect(toasts()).toHaveLength(0);
   },
 };
 
@@ -454,7 +509,9 @@ export const ClasificarEnLote: Story = {
       sinClasificar([MOV_DATTATEC, MOV_ENTEL_1, MOV_ENTEL_2, MOV_ENTEL_3]),
     ),
     sugerencia: { movimientoId: MOV_DATTATEC, valor: null, cargando: false },
-    onClasificarLote: fn(async () => undefined),
+    onClasificarLote: fn(
+      async () => await new Promise<void>((resolve) => window.setTimeout(resolve, 30)),
+    ),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -484,7 +541,11 @@ export const ClasificarEnLote: Story = {
     await expect(canvas.getByRole("alert")).toHaveTextContent(
       "Vas a clasificar 3 movimientos como Telecomunicaciones",
     );
-    await userEvent.click(canvas.getByRole("button", { name: "Sí, clasificar 3" }));
+    const confirmar = canvas.getByRole("button", { name: "Sí, clasificar 3" });
+    confirmar.click();
+    confirmar.click();
+    await expect(args.onClasificarLote).toHaveBeenCalledTimes(1);
+    await expect(canvas.getByRole("button", { name: "Clasificando…" })).toBeInTheDocument();
     await waitFor(
       async () =>
         await expect(args.onClasificarLote).toHaveBeenCalledWith(

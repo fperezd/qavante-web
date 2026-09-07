@@ -111,8 +111,12 @@ export interface SugerenciaDelItemV07 {
 export interface BandejaV07ViewProps {
   /** Ítems de la carta de conciliar. `null` = la cola no llegó. */
   conciliar: ItemConciliarV07[] | null;
+  /** Total no paginado informado por la API. Si falta, degrada al largo recibido. */
+  conciliarTotal?: number | null;
   /** Ítems de la carta de clasificar. `null` = el listado no llegó. */
   clasificar: ItemClasificarV07[] | null;
+  /** Total no paginado informado por la API. La cola visible puede estar limitada a 100. */
+  clasificarTotal?: number | null;
   conciliarMotivo?: string | null;
   clasificarMotivo?: string | null;
   candidatos?: CandidatosDelItemV07 | null;
@@ -122,12 +126,12 @@ export interface BandejaV07ViewProps {
   /** Movimientos ya clasificados: de ahí salen los 3 frecuentes cuando no hay regla. */
   clasificados?: BankMovement[];
   /** Confirma el match. `documentoId` va cuando el usuario eligió otro documento. */
-  onConciliar?: (item: ItemConciliarV07, documentoId: string | null) => void;
+  onConciliar: (item: ItemConciliarV07, documentoId: string | null) => Promise<void>;
   /** Deshace una conciliación ya aplicada (`.../revert`). Existe hoy. */
   onDeshacerConciliar?: (item: ItemConciliarV07) => void;
   /** "No es esta": descarta la sugerencia (el movimiento vuelve a `unmatched`). */
-  onNoEsEsta?: (item: ItemConciliarV07, candidato: CandidatoV07 | null) => void;
-  onClasificar?: (item: ItemClasificarV07, cuentaId: string, notas: string) => void;
+  onNoEsEsta: (item: ItemConciliarV07, candidato: CandidatoV07 | null) => Promise<void>;
+  onClasificar: (item: ItemClasificarV07, cuentaId: string, notas: string) => Promise<void>;
   /** Clasifica una selección explícita de la misma contraparte en una operación atómica. */
   onClasificarLote?: (movementIds: string[], cuentaId: string, notas: string) => Promise<void>;
   /** Lo que Qavante clasificó SOLO (auto-clasificación por regla o por conciliación) y todavía se
@@ -177,7 +181,9 @@ export function BandejaV07View(props: BandejaV07ViewProps) {
 
 function BandejaV07Contenido({
   conciliar,
+  conciliarTotal,
   clasificar,
+  clasificarTotal,
   conciliarMotivo,
   clasificarMotivo,
   candidatos,
@@ -239,7 +245,24 @@ function BandejaV07Contenido({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- el disparador es el ítem, no la identidad del callback
   }, [idActivo, tab]);
 
-  const pendientes = colaConciliar.length + colaClasificar.length;
+  /* Una decisión confirmada se descuenta mientras todavía aparece en la respuesta anterior.
+     Cuando React Query refresca y el ítem desaparece de la fuente, deja de descontarse: así el
+     total no baja dos veces. La cabecera usa los totales NO paginados, no el máximo visible. */
+  const resueltosConciliarEnFuente = (conciliar ?? []).filter((item) =>
+    resueltos.includes(item.id),
+  ).length;
+  const resueltosClasificarEnFuente = (clasificar ?? []).filter((item) =>
+    resueltos.includes(item.id),
+  ).length;
+  const pendientesConciliar = Math.max(
+    0,
+    (conciliarTotal ?? conciliar?.length ?? 0) - resueltosConciliarEnFuente,
+  );
+  const pendientesClasificar = Math.max(
+    0,
+    (clasificarTotal ?? clasificar?.length ?? 0) - resueltosClasificarEnFuente,
+  );
+  const pendientes = pendientesConciliar + pendientesClasificar;
   const prog = progreso(resueltos.length, pendientes);
   const totalResuelto = montoResuelto(montos);
 
@@ -338,8 +361,8 @@ function BandejaV07Contenido({
             aria-label="Qué revisar"
             className="mt-0 mb-0"
             options={[
-              { id: "conciliar", label: "Conciliar", count: colaConciliar.length },
-              { id: "clasificar", label: "Clasificar", count: colaClasificar.length },
+              { id: "conciliar", label: "Conciliar", count: pendientesConciliar },
+              { id: "clasificar", label: "Clasificar", count: pendientesClasificar },
             ]}
             value={tab}
             onChange={(v) => setTab(v as TabV07)}
@@ -366,15 +389,20 @@ function BandejaV07Contenido({
         <CartaConciliar
           item={itemConciliar ?? null}
           indice={idxConciliar}
-          total={colaConciliar.length}
+          total={pendientesConciliar}
           faltaFuente={conciliar === null}
           motivo={conciliarMotivo}
           candidatos={candidatos ?? null}
           hoy={hoy}
           onReintentar={onReintentar}
           onSaltar={saltar}
-          onConciliar={(item, docId, candidato) => {
-            onConciliar?.(item, docId);
+          onConciliar={async (item, docId, candidato) => {
+            try {
+              await onConciliar(item, docId);
+            } catch {
+              /* El live conserva el movimiento y muestra el error de persistencia. */
+              return;
+            }
             marcarResuelto(item, colaConciliar.length);
             show({
               message: (
@@ -390,8 +418,12 @@ function BandejaV07Contenido({
                 : undefined,
             });
           }}
-          onNoEsEsta={(item, candidato) => {
-            onNoEsEsta?.(item, candidato);
+          onNoEsEsta={async (item, candidato) => {
+            try {
+              await onNoEsEsta(item, candidato);
+            } catch {
+              return;
+            }
             marcarResuelto(item, colaConciliar.length, false);
             show({
               message: (
@@ -416,6 +448,7 @@ function BandejaV07Contenido({
             item={itemClasificar ?? null}
             cola={colaClasificar}
             indice={idxClasificar}
+            total={pendientesClasificar}
             faltaFuente={clasificar === null}
             motivo={clasificarMotivo}
             sugerencia={sugerencia ?? null}
@@ -458,8 +491,12 @@ function BandejaV07Contenido({
                   }
                 : undefined
             }
-            onGuardar={(item, cuentaId, notas, nombreCuenta) => {
-              onClasificar?.(item, cuentaId, notas);
+            onGuardar={async (item, cuentaId, notas, nombreCuenta) => {
+              try {
+                await onClasificar(item, cuentaId, notas);
+              } catch {
+                return false;
+              }
               marcarResuelto(item, colaClasificar.length);
               show({
                 message: (
@@ -469,8 +506,9 @@ function BandejaV07Contenido({
                 ),
                 /* LEY 5 — acá NO, y es correcto: esto lo decidió el DUEÑO (aceptó una sugerencia
                    o eligió a mano), no Qavante solo. Ver la cabecera del archivo. Lo que Qavante
-                   SÍ clasificó solo tiene su propio Deshacer en el banner de arriba. */
+                  SÍ clasificó solo tiene su propio Deshacer en el banner de arriba. */
               });
+              return true;
             }}
           />
         </div>
@@ -521,8 +559,8 @@ interface CartaConciliarProps {
     item: ItemConciliarV07,
     documentoId: string | null,
     candidato: CandidatoV07 | null,
-  ) => void;
-  onNoEsEsta: (item: ItemConciliarV07, candidato: CandidatoV07 | null) => void;
+  ) => Promise<void>;
+  onNoEsEsta: (item: ItemConciliarV07, candidato: CandidatoV07 | null) => Promise<void>;
 }
 
 function CartaConciliar({
@@ -540,10 +578,14 @@ function CartaConciliar({
 }: CartaConciliarProps) {
   const [elegido, setElegido] = React.useState<string | null>(null);
   const [buscando, setBuscando] = React.useState(false);
+  const [procesando, setProcesando] = React.useState<"conciliar" | "descartar" | null>(null);
+  const procesandoRef = React.useRef(false);
 
   React.useEffect(() => {
     setElegido(null);
     setBuscando(false);
+    setProcesando(null);
+    procesandoRef.current = false;
   }, [item?.id]);
 
   const listos = candidatos && item && candidatos.movimientoId === item.id;
@@ -552,16 +594,40 @@ function CartaConciliar({
   const candidato = item ? candidatoElegido(lista, item.documentoPropuesto, elegido) : null;
   const sugerible = item ? haySugerenciaConciliar(item, candidato) : false;
 
+  async function confirmarActual() {
+    if (!item || !sugerible || procesandoRef.current) return;
+    procesandoRef.current = true;
+    setProcesando("conciliar");
+    try {
+      await onConciliar(item, elegido, candidato);
+    } finally {
+      procesandoRef.current = false;
+      setProcesando(null);
+    }
+  }
+
+  async function descartarActual() {
+    if (!item || procesandoRef.current) return;
+    procesandoRef.current = true;
+    setProcesando("descartar");
+    try {
+      await onNoEsEsta(item, candidato);
+    } finally {
+      procesandoRef.current = false;
+      setProcesando(null);
+    }
+  }
+
   useAtajos({
-    activo: Boolean(item) && !cargando,
+    activo: Boolean(item) && !cargando && !procesando,
     onEnter: () => {
       /* LEY 3 — Enter resuelve el caso CON sugerencia. Sin evidencia dura no hay nada que
          confirmar de un tecleo: la card ofrece buscar el documento a mano. */
-      if (item && sugerible) onConciliar(item, elegido, candidato);
+      if (item && sugerible) void confirmarActual();
     },
     onTecla: (k) => {
       if (!item) return;
-      if (k === "n") onNoEsEsta(item, candidato);
+      if (k === "n") void descartarActual();
       if (k === "b") setBuscando((v) => !v);
       if (k === "ArrowRight") onSaltar();
     },
@@ -667,28 +733,47 @@ function CartaConciliar({
           <button
             type="button"
             className={BTN_PRIMARIO}
-            onClick={() => onConciliar(item, elegido, candidato)}
+            disabled={Boolean(procesando)}
+            onClick={() => void confirmarActual()}
           >
-            Sí, conciliar <span className={KBD}>Enter</span>
+            {procesando === "conciliar" ? "Conciliando…" : "Sí, conciliar"}{" "}
+            <span className={KBD}>Enter</span>
           </button>
         ) : (
-          <button type="button" className={BTN_PRIMARIO} onClick={() => setBuscando((v) => !v)}>
+          <button
+            type="button"
+            className={BTN_PRIMARIO}
+            disabled={Boolean(procesando)}
+            onClick={() => setBuscando((v) => !v)}
+          >
             Buscar el documento <span className={KBD}>B</span>
           </button>
         )}
         <button
           type="button"
           className={BTN_SECUNDARIO}
-          onClick={() => onNoEsEsta(item, candidato)}
+          disabled={Boolean(procesando)}
+          onClick={() => void descartarActual()}
         >
-          No es esta <span className={KBD}>N</span>
+          {procesando === "descartar" ? "Descartando…" : "No es esta"}{" "}
+          <span className={KBD}>N</span>
         </button>
         {sugerible && (
-          <button type="button" className={BTN_SECUNDARIO} onClick={() => setBuscando((v) => !v)}>
+          <button
+            type="button"
+            className={BTN_SECUNDARIO}
+            disabled={Boolean(procesando)}
+            onClick={() => setBuscando((v) => !v)}
+          >
             Buscar otra <span className={KBD}>B</span>
           </button>
         )}
-        <button type="button" className={BTN_FANTASMA} onClick={onSaltar}>
+        <button
+          type="button"
+          className={BTN_FANTASMA}
+          disabled={Boolean(procesando)}
+          onClick={onSaltar}
+        >
           Saltar <span className={KBD}>→</span>
         </button>
       </div>
@@ -992,6 +1077,7 @@ interface CartaClasificarProps {
   item: ItemClasificarV07 | null;
   cola: ItemClasificarV07[];
   indice: number;
+  total: number;
   faltaFuente: boolean;
   motivo?: string | null;
   sugerencia: SugerenciaDelItemV07 | null;
@@ -1013,13 +1099,14 @@ interface CartaClasificarProps {
     cuentaId: string,
     notas: string,
     nombreCuenta: string,
-  ) => void;
+  ) => Promise<boolean>;
 }
 
 function CartaClasificar({
   item,
   cola,
   indice,
+  total,
   faltaFuente,
   motivo,
   sugerencia,
@@ -1036,6 +1123,9 @@ function CartaClasificar({
   const [cuentaId, setCuentaId] = React.useState<string | null>(null);
   const [notas, setNotas] = React.useState("");
   const [falta, setFalta] = React.useState<string | null>(null);
+  const [guardando, setGuardando] = React.useState(false);
+  const [clasificandoLote, setClasificandoLote] = React.useState(false);
+  const escribiendoRef = React.useRef(false);
   const [confirmarLote, setConfirmarLote] = React.useState(false);
   const [ofertaRegla, setOfertaRegla] = React.useState<{
     item: ItemClasificarV07;
@@ -1051,6 +1141,9 @@ function CartaClasificar({
     setCuentaId(null);
     setNotas("");
     setFalta(null);
+    setGuardando(false);
+    setClasificandoLote(false);
+    escribiendoRef.current = false;
     setConfirmarLote(false);
   }, [item?.id]);
 
@@ -1072,8 +1165,8 @@ function CartaClasificar({
   );
   const grupo = React.useMemo(() => lote(cola, item), [cola, item]);
 
-  function guardar() {
-    if (!item) return;
+  async function guardar() {
+    if (!item || escribiendoRef.current) return;
     const queFalta = faltaParaGuardar({ cuentaId, notas });
     if (queFalta) {
       /* LEY 6 — el primario respondió: no está deshabilitado, y dice qué falta. */
@@ -1083,12 +1176,19 @@ function CartaClasificar({
     const id = cuentaId as string;
     const nombre = cuentasPorId.get(id)?.nombre ?? "la categoría elegida";
     const fueManual = valorSugerido?.cuentaId !== id;
-    onGuardar(item, id, notas, nombre);
-    setOfertaRegla(fueManual ? { item, cuentaId: id, nombre } : null);
+    escribiendoRef.current = true;
+    setGuardando(true);
+    try {
+      const guardado = await onGuardar(item, id, notas, nombre);
+      if (guardado) setOfertaRegla(fueManual ? { item, cuentaId: id, nombre } : null);
+    } finally {
+      escribiendoRef.current = false;
+      setGuardando(false);
+    }
   }
 
   function prepararLote() {
-    if (!item || !grupo) return;
+    if (!item || !grupo || escribiendoRef.current) return;
     const queFalta = faltaParaGuardar({ cuentaId, notas });
     if (queFalta) {
       setFalta(queFalta);
@@ -1098,19 +1198,24 @@ function CartaClasificar({
   }
 
   async function confirmarClasificacionLote() {
-    if (!item || !grupo || !cuentaId) return;
+    if (!item || !grupo || !cuentaId || escribiendoRef.current) return;
     const nombre = cuentasPorId.get(cuentaId)?.nombre ?? "la categoría elegida";
+    escribiendoRef.current = true;
+    setClasificandoLote(true);
     try {
       await onClasificarLote?.(grupo.ids, cuentaId, notas, nombre);
       setConfirmarLote(false);
     } catch {
       /* El live ya mostró el error y no retiramos ningún movimiento de la cola. */
+    } finally {
+      escribiendoRef.current = false;
+      setClasificandoLote(false);
     }
   }
 
   useAtajos({
-    activo: Boolean(item),
-    onEnter: guardar,
+    activo: Boolean(item) && !guardando && !clasificandoLote,
+    onEnter: () => void guardar(),
     onTecla: (k) => {
       if (k === "ArrowRight") onSaltar();
     },
@@ -1171,7 +1276,7 @@ function CartaClasificar({
         className="rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie p-[18px]"
       >
         <p className={EYEBROW}>
-          Clasificar {indice + 1} de {cola.length} ·{" "}
+          Clasificar {indice + 1} de {total} ·{" "}
           {valorSugerido
             ? "una regla tuya calza con este movimiento"
             : "sin regla que calce: sin evidencia no se sugiere"}
@@ -1273,15 +1378,30 @@ function CartaClasificar({
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button type="button" className={BTN_PRIMARIO} onClick={guardar}>
-            Guardar <span className={KBD}>Enter</span>
+          <button
+            type="button"
+            className={BTN_PRIMARIO}
+            onClick={guardar}
+            disabled={guardando || clasificandoLote}
+          >
+            {guardando ? "Guardando…" : "Guardar"} <span className={KBD}>Enter</span>
           </button>
           {grupo && onClasificarLote && !confirmarLote && (
-            <button type="button" className={BTN_SECUNDARIO} onClick={prepararLote}>
+            <button
+              type="button"
+              className={BTN_SECUNDARIO}
+              onClick={prepararLote}
+              disabled={guardando || clasificandoLote}
+            >
               Clasificar {grupo.otros + 1} de una vez
             </button>
           )}
-          <button type="button" className={BTN_FANTASMA} onClick={onSaltar}>
+          <button
+            type="button"
+            className={BTN_FANTASMA}
+            onClick={onSaltar}
+            disabled={guardando || clasificandoLote}
+          >
             Saltar <span className={KBD}>→</span>
           </button>
         </div>
@@ -1291,7 +1411,7 @@ function CartaClasificar({
             role="alert"
             className="mt-3"
             action={{
-              label: `Sí, clasificar ${grupo.otros + 1}`,
+              label: clasificandoLote ? "Clasificando…" : `Sí, clasificar ${grupo.otros + 1}`,
               onClick: confirmarClasificacionLote,
             }}
           >
@@ -1303,6 +1423,7 @@ function CartaClasificar({
               type="button"
               className={cn(LINK, "ml-2")}
               onClick={() => setConfirmarLote(false)}
+              disabled={clasificandoLote}
             >
               Cancelar
             </button>

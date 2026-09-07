@@ -51,6 +51,9 @@ function base(): Props {
     },
     cuentas: cuentas(),
     clasificados: clasificados(),
+    onConciliar: async () => undefined,
+    onNoEsEsta: async () => undefined,
+    onClasificar: async () => undefined,
     issueSucesor: "#90",
     hoy: HOY,
   };
@@ -88,6 +91,13 @@ describe("BandejaV07View — cabecera y progreso", () => {
     expect(t).toContain("7 pendientes · ~9 min");
     expect(t).toContain("Conciliar · 2");
     expect(t).toContain("Clasificar · 5");
+  });
+
+  it("muestra el total no paginado aunque la cola visible esté limitada", () => {
+    const t = texto(html({ conciliarTotal: 2, clasificarTotal: 137 }));
+    expect(t).toContain("139 pendientes · ~185 min");
+    expect(t).toContain("Conciliar · 2");
+    expect(t).toContain("Clasificar · 137");
   });
 
   it("el progreso dice 'en esta sesión', NO 'hoy' — no hay bitácora que respalde el 'hoy'", () => {
