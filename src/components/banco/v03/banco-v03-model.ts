@@ -477,7 +477,15 @@ export function chipCajaHoy(caja: CajaHoy, banco: string, hoy: Date): string {
 
 /* ── Movimientos ─────────────────────────────────────────────────────────────── */
 
-/** Ciclo de vida de un movimiento (spec §V03): Conciliado ✓ → Clasificado ✓ → Por clasificar. */
+/** Conciliación y clasificación son ejes independientes. Nunca colapsarlos en un único estado. */
+export type EstadoConciliacionV03 =
+  | "conciliado"
+  | "parcial"
+  | "pendiente"
+  | "excluido"
+  | "no_requerido";
+export type EstadoClasificacionV03 = "clasificado" | "por_clasificar" | "revision";
+/** Compatibilidad para consumidores antiguos; la UI nueva no usa este estado colapsado. */
 export type CicloMovimiento = "conciliado" | "clasificado" | "por_clasificar";
 
 export interface MovimientoV03 {
@@ -495,7 +503,8 @@ export interface MovimientoV03 {
   cuenta: string;
   /** Etiqueta humana de la categoría, o `null` si no tiene. */
   categoria: string | null;
-  ciclo: CicloMovimiento;
+  estadoConciliacion: EstadoConciliacionV03;
+  estadoClasificacion: EstadoClasificacionV03;
   /** Pendiente de conciliar (no está `matched` ni excluido). */
   porConciliar: boolean;
 }
@@ -526,10 +535,27 @@ export function estaClasificado(
   return status === "classified" && tieneCategoria;
 }
 
+export function estadoConciliacionDe(m: BankMovement): EstadoConciliacionV03 {
+  const status = (m.reconciliation_status ?? "").toLowerCase();
+  if (status === "matched") return "conciliado";
+  if (status === "partial" || status === "partially_matched") return "parcial";
+  if (status === "excluded") return "excluido";
+  if (status === "prepago" || status === "processor_batch" || status === "not_required") {
+    return "no_requerido";
+  }
+  return "pendiente";
+}
+
+export function estadoClasificacionDe(m: BankMovement): EstadoClasificacionV03 {
+  if (estaClasificado(m)) return "clasificado";
+  const status = (m.classification_status ?? "").toLowerCase();
+  return status === "needs_review" || status === "review" ? "revision" : "por_clasificar";
+}
+
+/** @deprecated Usar `estadoConciliacionDe` y `estadoClasificacionDe` por separado. */
 export function cicloDe(m: BankMovement): CicloMovimiento {
   if (estaConciliado(m)) return "conciliado";
-  if (estaClasificado(m)) return "clasificado";
-  return "por_clasificar";
+  return estaClasificado(m) ? "clasificado" : "por_clasificar";
 }
 
 /** Monto firmado por `direction` (contrato: `amount` viene POSITIVO y el signo lo da la dirección).
@@ -592,7 +618,8 @@ export function movimientosV03(input: MovimientosInput): MovimientoV03[] {
       esAbono: monto >= 0,
       cuenta: etiquetaCuenta(input.cuentas, m.bank_account_id),
       categoria: cat ? (input.categorias.get(cat) ?? cat) : null,
-      ciclo: cicloDe(m),
+      estadoConciliacion: estadoConciliacionDe(m),
+      estadoClasificacion: estadoClasificacionDe(m),
       porConciliar: quedaPorConciliar(m),
     });
   }
@@ -611,7 +638,9 @@ export function pendientesPorCuenta(movs: readonly MovimientoV03[]): Map<string,
 
 /* ── Búsqueda y filtros ──────────────────────────────────────────────────────── */
 
-export type FiltroMovimientos = "todos" | "abonos" | "cargos" | "por_conciliar";
+export type FiltroMovimientos = "todos" | "abonos" | "cargos";
+export type FiltroConciliacion = "todos" | EstadoConciliacionV03;
+export type FiltroClasificacion = "todos" | EstadoClasificacionV03;
 
 /** Sólo dígitos (y K) de una consulta: "12.345.678-9" → "123456789", "$1.121.250" → "1121250". */
 function soloDigitos(s: string): string {
@@ -637,8 +666,6 @@ export function pasaFiltro(m: MovimientoV03, filtro: FiltroMovimientos): boolean
       return m.esAbono;
     case "cargos":
       return !m.esAbono;
-    case "por_conciliar":
-      return m.porConciliar;
     default:
       return true;
   }
@@ -649,8 +676,16 @@ export function filtrarMovimientosV03(
   movs: readonly MovimientoV03[],
   filtro: FiltroMovimientos,
   consulta: string,
+  conciliacion: FiltroConciliacion = "todos",
+  clasificacion: FiltroClasificacion = "todos",
 ): MovimientoV03[] {
-  return movs.filter((m) => coincideBusqueda(m, consulta) && pasaFiltro(m, filtro));
+  return movs.filter(
+    (m) =>
+      coincideBusqueda(m, consulta) &&
+      pasaFiltro(m, filtro) &&
+      (conciliacion === "todos" || m.estadoConciliacion === conciliacion) &&
+      (clasificacion === "todos" || m.estadoClasificacion === clasificacion),
+  );
 }
 
 export interface ConteosMovimientos {
@@ -696,12 +731,24 @@ export function totalesPorMoneda(
 
 /* ── Presentación de una fila ────────────────────────────────────────────────── */
 
-export const CICLO_PILL: Record<CicloMovimiento, { texto: string; tono: "ok" | "warn" }> = {
+export const CONCILIACION_PILL: Record<
+  EstadoConciliacionV03,
+  { texto: string; tono: "ok" | "warn" | "mut" }
+> = {
   conciliado: { texto: "Conciliado ✓", tono: "ok" },
+  parcial: { texto: "Parcial", tono: "warn" },
+  pendiente: { texto: "Pendiente", tono: "warn" },
+  excluido: { texto: "Excluido", tono: "mut" },
+  no_requerido: { texto: "No requerido", tono: "mut" },
+};
+
+export const CLASIFICACION_PILL: Record<
+  EstadoClasificacionV03,
+  { texto: string; tono: "ok" | "warn" }
+> = {
   clasificado: { texto: "Clasificado ✓", tono: "ok" },
-  /* Ámbar y no rojo: un movimiento sin clasificar es un pendiente administrativo (progreso), no
-     una emergencia (Ley 2). */
-  por_clasificar: { texto: "Por clasificar", tono: "warn" },
+  por_clasificar: { texto: "Sin clasificar", tono: "warn" },
+  revision: { texto: "Revisar", tono: "warn" },
 };
 
 /** Ruta de entrada a la Bandeja V07, donde se resuelven las excepciones de clasificación. */
@@ -731,14 +778,24 @@ function celdaCsv(v: string | number): string {
  *  Monto firmado en crudo (sin formato) para que la planilla lo sume. */
 export function csvMovimientos(movs: readonly MovimientoV03[]): string {
   const filas = [
-    ["fecha", "glosa", "cuenta", "categoria", "estado", "moneda", "monto"].join(";"),
+    [
+      "fecha",
+      "glosa",
+      "cuenta",
+      "categoria",
+      "conciliacion",
+      "clasificacion",
+      "moneda",
+      "monto",
+    ].join(";"),
     ...movs.map((m) =>
       [
         m.fecha,
         celdaCsv(m.glosa),
         celdaCsv(m.cuenta),
         celdaCsv(m.categoria ?? ""),
-        CICLO_PILL[m.ciclo].texto.replace(" ✓", ""),
+        CONCILIACION_PILL[m.estadoConciliacion].texto.replace(" ✓", ""),
+        CLASIFICACION_PILL[m.estadoClasificacion].texto.replace(" ✓", ""),
         m.moneda,
         m.monto,
       ].join(";"),

@@ -478,7 +478,7 @@ describe("filtros con conteo (spec §1.3: SIEMPRE con conteo)", () => {
 
   it("'Por conciliar · N' NO incluye conciliados ni excluidos — el conteo es el filtro", () => {
     const lista = movs();
-    const porConciliar = filtrarMovimientosV03(lista, "por_conciliar", "");
+    const porConciliar = filtrarMovimientosV03(lista, "todos", "", "pendiente");
     expect(porConciliar.map((m) => m.id).sort()).toEqual(["m2", "m3", "m4", "m6", "m7"]);
     expect(porConciliar.map((m) => m.id)).not.toContain("m1");
     expect(porConciliar.map((m) => m.id)).not.toContain("m5");
@@ -503,7 +503,23 @@ describe("filtros con conteo (spec §1.3: SIEMPRE con conteo)", () => {
     const lista = movs();
     const c = contarMovimientosV03(lista, "abono");
     expect(c).toEqual({ todos: 3, abonos: 3, cargos: 0, porConciliar: 1 });
-    expect(filtrarMovimientosV03(lista, "por_conciliar", "abono").map((m) => m.id)).toEqual(["m4"]);
+    expect(filtrarMovimientosV03(lista, "todos", "abono", "pendiente").map((m) => m.id)).toEqual([
+      "m4",
+    ]);
+  });
+
+  it("filtra conciliación y clasificación como ejes independientes", () => {
+    const lista = movs();
+    expect(filtrarMovimientosV03(lista, "todos", "", "conciliado").map((m) => m.id)).toEqual([
+      "m1",
+      "m5",
+    ]);
+    expect(
+      filtrarMovimientosV03(lista, "todos", "", "todos", "clasificado").map((m) => m.id),
+    ).toEqual(["m1", "m4", "m2", "m5"]);
+    expect(
+      filtrarMovimientosV03(lista, "todos", "", "conciliado", "clasificado").map((m) => m.id),
+    ).toEqual(["m1", "m5"]);
   });
 });
 
@@ -553,12 +569,12 @@ describe("CTA y export", () => {
   it("CSV con separador ';', cabecera y monto firmado crudo; escapa comillas", () => {
     const csv = csvMovimientos(movs().filter((m) => m.id === "m3" || m.id === "m1"));
     const lineas = csv.split("\n");
-    expect(lineas[0]).toBe("fecha;glosa;cuenta;categoria;estado;moneda;monto");
+    expect(lineas[0]).toBe("fecha;glosa;cuenta;categoria;conciliacion;clasificacion;moneda;monto");
     expect(lineas[1]).toBe(
-      "2026-08-21;Abono por transferencia de Cliente Norte SpA 76.123.456-7;CC CLP;Cobro de cliente;Conciliado;CLP;6000000",
+      "2026-08-21;Abono por transferencia de Cliente Norte SpA 76.123.456-7;CC CLP;Cobro de cliente;Conciliado;Clasificado;CLP;6000000",
     );
     expect(lineas[2]).toBe(
-      "2026-08-20;Transf. Dattatec.com hosting;CC CLP;;Por clasificar;CLP;-66222",
+      "2026-08-20;Transf. Dattatec.com hosting;CC CLP;;Pendiente;Sin clasificar;CLP;-66222",
     );
   });
 });

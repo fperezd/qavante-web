@@ -179,13 +179,14 @@ describe("BancoV03View — movimientos", () => {
   it("filtros con conteo, pill de ciclo de vida y CTA Clasificar con el ítem cargado", () => {
     const h = html();
     const t = texto(h);
-    expect(t).toContain("Todos · 8");
+    expect(t).toContain("Todos · 7");
     expect(t).toContain("Abonos · 3");
-    expect(t).toContain("Cargos · 5");
-    expect(t).toContain("Por conciliar · 5");
+    expect(t).toContain("Cargos · 4");
+    expect(t).toContain("Conciliación");
+    expect(t).toContain("Clasificación");
     expect(t).toContain("Conciliado ✓");
     expect(t).toContain("Clasificado ✓");
-    expect(t).toContain("Por clasificar");
+    expect(t).toContain("Sin clasificar");
     expect(h).toContain('href="/bandeja"');
     expect(h).not.toContain("/caja/por-clasificar");
     // La glosa completa (Ley 7) y el .sub con fecha · cuenta · categoría.
@@ -195,21 +196,21 @@ describe("BancoV03View — movimientos", () => {
     expect(t).toContain("−$7.450.761");
   });
 
-  it("'classified' sin categoría NO se pinta Clasificado ✓: cuenta 3 Clasificado/Conciliado y el resto por clasificar", () => {
+  it("muestra conciliación y clasificación simultáneamente, sin que una oculte la otra", () => {
     const t = texto(html());
     const conciliados = (t.match(/Conciliado ✓/g) ?? []).length;
     const clasificados = (t.match(/Clasificado ✓/g) ?? []).length;
-    const porClasificar = (t.match(/Por clasificar/g) ?? []).length;
+    const porClasificar = (t.match(/Sin clasificar/g) ?? []).length;
     expect(conciliados).toBe(2); // m1, m5
-    expect(clasificados).toBe(2); // m2, m4
-    expect(porClasificar).toBe(4); // m3, m6, m7, m8
+    expect(clasificados).toBe(4); // m1, m2, m4, m5
+    expect(porClasificar).toBe(4); // opción del filtro + m3, m7, m8; sólo la cuenta CLP está visible
   });
 
   it("totales del footer por moneda; el alcance se declara", () => {
     const t = texto(html({ movimientosTotal: 1200 }));
     expect(t).toContain("CLP : abonos $7.120.000 , cargos −$7.966.983 , neto −$846.983 (7)");
-    expect(t).toContain("USD : abonos US$ 0,00 , cargos −US$ 184,00 , neto −US$ 184,00 (1)");
-    expect(t).toContain("Mostrando 8 de 1200 en los últimos 3 meses");
+    expect(t).not.toContain("USD :");
+    expect(t).toContain("La API informó 1200 movimientos entre todas tus cuentas");
   });
 
   it("sin movimientos → estado vacío que dice qué falta; error → causa", () => {

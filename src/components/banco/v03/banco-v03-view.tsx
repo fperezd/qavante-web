@@ -25,7 +25,8 @@ import { Pill } from "@/components/rediseno/pill";
 import { SinDato } from "@/components/rediseno/sin-dato";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
 import {
-  CICLO_PILL,
+  CLASIFICACION_PILL,
+  CONCILIACION_PILL,
   chipCajaHoy,
   conexionBanco,
   contarMovimientosV03,
@@ -44,9 +45,16 @@ import {
   textoActualizando,
   totalesPorMoneda,
   type CuentaV03,
+  type FiltroClasificacion,
+  type FiltroConciliacion,
   type FiltroMovimientos,
   type MovimientoV03,
 } from "./banco-v03-model";
+import { BankResolutionDetailDrawer } from "./bank-resolution-detail-drawer";
+import {
+  resolutionDetailFromMovement,
+  type BankMovementResolutionDetail,
+} from "./bank-resolution-detail-model";
 
 /* V03 · Banco — "tus cuentas y tarjetas, con su estado, y cada movimiento con su ciclo de vida"
  * (rediseño Fase 2, issue #68).
@@ -98,6 +106,11 @@ export interface BancoV03ViewProps {
   movimientosMotivo?: string | null;
   /** `code → label` de las categorías canónicas. */
   categorias?: ReadonlyMap<string, string>;
+  /** Read model de #428. Ausente = detalle mínimo y honesto desde BankMovement. */
+  resolutionDetails?: ReadonlyMap<string, BankMovementResolutionDetail>;
+  onUnreconcile?: (movementId: string) => void;
+  onReclassify?: (movementId: string) => void;
+  onUnclassify?: (movementId: string) => void;
   /** Alcance declarado de la lista ("los últimos 3 meses"). */
   alcance?: string;
   cuentasCargando?: boolean;
@@ -120,7 +133,6 @@ const FILTROS: ReadonlyArray<{ id: FiltroMovimientos; label: string }> = [
   { id: "todos", label: "Todos" },
   { id: "abonos", label: "Abonos" },
   { id: "cargos", label: "Cargos" },
-  { id: "por_conciliar", label: "Por conciliar" },
 ];
 
 export function BancoV03View({
@@ -135,6 +147,10 @@ export function BancoV03View({
   movimientosTotal,
   movimientosMotivo,
   categorias = new Map(),
+  resolutionDetails = new Map(),
+  onUnreconcile,
+  onReclassify,
+  onUnclassify,
   alcance = "los últimos 3 meses",
   cuentasCargando = false,
   movimientosCargando = false,
@@ -144,7 +160,12 @@ export function BancoV03View({
 }: BancoV03ViewProps) {
   const banco = bancoProp ?? fuenteBanco(sources)?.display_name?.trim() ?? "Banco";
   const [filtro, setFiltro] = React.useState<FiltroMovimientos>("todos");
+  const [filtroConciliacion, setFiltroConciliacion] = React.useState<FiltroConciliacion>("todos");
+  const [filtroClasificacion, setFiltroClasificacion] =
+    React.useState<FiltroClasificacion>("todos");
   const [consulta, setConsulta] = React.useState("");
+  const [cuentaSeleccionada, setCuentaSeleccionada] = React.useState("");
+  const [movimientoAbierto, setMovimientoAbierto] = React.useState<string | null>(null);
 
   const caja = cajaHoy(summary);
   const conexion = conexionBanco(sources, saldo, tarjetas);
@@ -175,26 +196,44 @@ export function BancoV03View({
   const suma = sumaPorMoneda(filasCuentas);
   const cuadre = cuadreCajaHoy(caja, filasCuentas);
 
-  const conteos = movs ? contarMovimientosV03(movs, consulta) : null;
-  const visibles = movs ? filtrarMovimientosV03(movs, filtro, consulta) : [];
-  const totales = totalesPorMoneda(visibles);
-
-  /* `bank_account_id → numeroCuenta` (token bice) para el link "ver" de cada movimiento. Sin bice
-     no hay a dónde ir y el link se omite. */
-  const cartolaDe = React.useMemo(() => {
-    const porFormateado = new Map(
-      (saldo?.status !== "error" ? (saldo?.cuentas ?? []) : []).map((c) => [
-        c.numeroFormateado,
-        c.numeroCuenta,
-      ]),
-    );
-    const out = new Map<string, string>();
-    for (const l of links ?? []) {
-      const tok = porFormateado.get(l.external_id);
-      if (tok && l.linked_bank_account_id) out.set(l.linked_bank_account_id, tok);
+  const opcionesCuenta = React.useMemo(() => {
+    const options = (cuentasQavante ?? [])
+      .filter((a) => a.account_type !== "credit_card")
+      .map((a) => ({ id: a.id, label: `${a.bank_name} · ${a.name}`, moneda: a.currency_code }));
+    const known = new Set(options.map((option) => option.id));
+    for (const movement of movs ?? []) {
+      if (known.has(movement.bankAccountId)) continue;
+      known.add(movement.bankAccountId);
+      options.push({
+        id: movement.bankAccountId,
+        label: `${banco} · ${movement.cuenta}`,
+        moneda: movement.moneda,
+      });
     }
-    return out;
-  }, [saldo, links]);
+    return options;
+  }, [banco, cuentasQavante, movs]);
+  const cuentaActiva = opcionesCuenta.some((a) => a.id === cuentaSeleccionada)
+    ? cuentaSeleccionada
+    : (opcionesCuenta[0]?.id ?? "");
+  const movimientosCuenta = movs?.filter((m) => m.bankAccountId === cuentaActiva) ?? null;
+  const conteos = movimientosCuenta ? contarMovimientosV03(movimientosCuenta, consulta) : null;
+  const visibles = movimientosCuenta
+    ? filtrarMovimientosV03(
+        movimientosCuenta,
+        filtro,
+        consulta,
+        filtroConciliacion,
+        filtroClasificacion,
+      )
+    : [];
+  const totales = totalesPorMoneda(visibles);
+  const rawMovement = movimientos?.find((m) => m.id === movimientoAbierto) ?? null;
+  const openMovement = movs?.find((m) => m.id === movimientoAbierto) ?? null;
+  const openDetail =
+    openMovement && rawMovement
+      ? (resolutionDetails.get(openMovement.id) ??
+        resolutionDetailFromMovement(rawMovement, openMovement.categoria))
+      : null;
 
   return (
     <div className="space-y-5">
@@ -316,12 +355,39 @@ export function BancoV03View({
 
       {/* (3) Filtros + (4) Movimientos */}
       <section aria-labelledby="v03-movimientos" className="space-y-2">
-        <h2
-          id="v03-movimientos"
-          className="font-rediseno-mono text-[12px] font-semibold tracking-[.12em] text-rediseno-tinta-3 uppercase"
-        >
-          Movimientos · {alcance}
-        </h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2
+              id="v03-movimientos"
+              className="font-rediseno-mono text-[12px] font-semibold tracking-[.12em] text-rediseno-tinta-3 uppercase"
+            >
+              Cartola · {alcance}
+            </h2>
+            <p className="mt-1 text-xs text-rediseno-tinta-3">
+              Una cuenta y una moneda a la vez; no se mezclan cartolas.
+            </p>
+          </div>
+          {opcionesCuenta.length > 0 && (
+            <label className="text-xs font-semibold text-rediseno-tinta-2">
+              Cuenta
+              <select
+                aria-label="Cuenta de la cartola"
+                value={cuentaActiva}
+                onChange={(event) => {
+                  setCuentaSeleccionada(event.target.value);
+                  setMovimientoAbierto(null);
+                }}
+                className="ml-2 rounded-full border border-rediseno-hairline bg-rediseno-superficie px-3 py-2 font-normal text-rediseno-tinta focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
+              >
+                {opcionesCuenta.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label} · {option.moneda}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
 
         {movimientosCargando && movs == null ? (
           <CargandoMovimientos />
@@ -349,7 +415,7 @@ export function BancoV03View({
           />
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <label className="relative min-w-0 flex-1 basis-[16rem]">
                 <Search
                   className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-rediseno-tinta-3-light"
@@ -365,7 +431,7 @@ export function BancoV03View({
                 />
               </label>
               <FilterChips
-                aria-label="Filtrar movimientos"
+                aria-label="Filtrar por tipo de movimiento"
                 className="mt-0 mb-0"
                 options={FILTROS.map((f) => ({
                   ...f,
@@ -374,19 +440,50 @@ export function BancoV03View({
                       ? conteos.todos
                       : f.id === "abonos"
                         ? conteos.abonos
-                        : f.id === "cargos"
-                          ? conteos.cargos
-                          : conteos.porConciliar
+                        : conteos.cargos
                     : 0,
                 }))}
                 value={filtro}
                 onChange={setFiltro}
               />
+              <label className="text-xs text-rediseno-tinta-3">
+                Conciliación
+                <select
+                  aria-label="Filtrar por conciliación"
+                  value={filtroConciliacion}
+                  onChange={(event) =>
+                    setFiltroConciliacion(event.target.value as FiltroConciliacion)
+                  }
+                  className="ml-1 rounded-full border border-rediseno-hairline bg-rediseno-superficie px-3 py-2 text-rediseno-tinta focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="pendiente">Pendientes</option>
+                  <option value="parcial">Parciales</option>
+                  <option value="conciliado">Conciliados</option>
+                  <option value="excluido">Excluidos</option>
+                  <option value="no_requerido">No requeridos</option>
+                </select>
+              </label>
+              <label className="text-xs text-rediseno-tinta-3">
+                Clasificación
+                <select
+                  aria-label="Filtrar por clasificación"
+                  value={filtroClasificacion}
+                  onChange={(event) =>
+                    setFiltroClasificacion(event.target.value as FiltroClasificacion)
+                  }
+                  className="ml-1 rounded-full border border-rediseno-hairline bg-rediseno-superficie px-3 py-2 text-rediseno-tinta focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
+                >
+                  <option value="todos">Todos</option>
+                  <option value="por_clasificar">Sin clasificar</option>
+                  <option value="clasificado">Clasificados</option>
+                  <option value="revision">Requieren revisión</option>
+                </select>
+              </label>
             </div>
 
             <TablaMovimientos
               movimientos={visibles}
-              cartolaDe={cartolaDe}
               onExport={() =>
                 descargarCsv(`movimientos-${banco.toLowerCase()}.csv`, csvMovimientos(visibles))
               }
@@ -395,6 +492,7 @@ export function BancoV03View({
                   ? "Ningún movimiento coincide con esa búsqueda."
                   : "Ningún movimiento en este filtro."
               }
+              onOpen={(movement) => setMovimientoAbierto(movement.id)}
             />
 
             <p className="text-[12.5px] text-rediseno-tinta-3">
@@ -417,14 +515,26 @@ export function BancoV03View({
               {movimientosTotal != null && movimientosTotal > movs.length && (
                 <>
                   {" "}
-                  · Mostrando {movs.length} de {movimientosTotal} en {alcance}; los conteos de
-                  arriba son sobre los que se muestran.
+                  · La API informó {movimientosTotal} movimientos entre todas tus cuentas en{" "}
+                  {alcance}; esta cartola usa los {movs.length} que llegaron en la respuesta y los
+                  conteos de arriba corresponden sólo a la cuenta elegida.
                 </>
               )}
             </p>
           </>
         )}
       </section>
+      {openMovement && openDetail && (
+        <BankResolutionDetailDrawer
+          open
+          movement={openMovement}
+          detail={openDetail}
+          onClose={() => setMovimientoAbierto(null)}
+          onUnreconcile={onUnreconcile ? () => onUnreconcile(openMovement.id) : undefined}
+          onReclassify={onReclassify ? () => onReclassify(openMovement.id) : undefined}
+          onUnclassify={onUnclassify ? () => onUnclassify(openMovement.id) : undefined}
+        />
+      )}
     </div>
   );
 }
@@ -570,14 +680,14 @@ function TablaCuentas({
 
 function TablaMovimientos({
   movimientos,
-  cartolaDe,
   onExport,
   emptyMessage,
+  onOpen,
 }: {
   movimientos: MovimientoV03[];
-  cartolaDe: ReadonlyMap<string, string>;
   onExport: () => void;
   emptyMessage: string;
+  onOpen: (movement: MovimientoV03) => void;
 }) {
   const columns = React.useMemo<ColumnDef<MovimientoV03, unknown>[]>(
     () => [
@@ -591,12 +701,22 @@ function TablaMovimientos({
         ),
       },
       {
-        id: "estado",
-        accessorFn: (m) => m.ciclo,
-        header: "Estado",
+        id: "conciliacion",
+        accessorFn: (m) => m.estadoConciliacion,
+        header: "Conciliación",
         meta: { hideBelow: "sm" },
         cell: ({ row }) => {
-          const p = CICLO_PILL[row.original.ciclo];
+          const p = CONCILIACION_PILL[row.original.estadoConciliacion];
+          return <Pill variant={p.tono}>{p.texto}</Pill>;
+        },
+      },
+      {
+        id: "clasificacion",
+        accessorFn: (m) => m.estadoClasificacion,
+        header: "Clasificación",
+        meta: { hideBelow: "md" },
+        cell: ({ row }) => {
+          const p = CLASIFICACION_PILL[row.original.estadoClasificacion];
           return <Pill variant={p.tono}>{p.texto}</Pill>;
         },
       },
@@ -618,23 +738,33 @@ function TablaMovimientos({
         meta: { align: "right" },
         cell: ({ row }) => {
           const m = row.original;
-          if (m.ciclo === "por_clasificar") {
+          if (m.estadoClasificacion === "por_clasificar") {
             return (
-              <Link href={hrefClasificar()} className={cn(LINK, "font-bold")}>
+              <Link
+                href={hrefClasificar()}
+                onClick={(event) => event.stopPropagation()}
+                className={cn(LINK, "font-bold")}
+              >
                 Clasificar
               </Link>
             );
           }
-          const tok = cartolaDe.get(m.bankAccountId);
-          return tok ? (
-            <Link href={`/banco/cuenta/${encodeURIComponent(tok)}`} className={LINK}>
-              ver
-            </Link>
-          ) : null;
+          return (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen(m);
+              }}
+              className={LINK}
+            >
+              Ver detalle
+            </button>
+          );
         },
       },
     ],
-    [cartolaDe],
+    [onOpen],
   );
   return (
     <RedisenoTable
@@ -643,6 +773,8 @@ function TablaMovimientos({
       pageSize={50}
       onExport={onExport}
       emptyMessage={emptyMessage}
+      onRowClick={onOpen}
+      rowAriaLabel={(movement) => `Ver detalle de ${movement.glosa}`}
     />
   );
 }
