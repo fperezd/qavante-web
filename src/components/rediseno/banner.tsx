@@ -26,6 +26,7 @@ const bannerVariants = cva(
 export interface BannerAction {
   label: string;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
 export interface BannerProps
@@ -65,7 +66,8 @@ export function Banner({
         <button
           type="button"
           onClick={action.onClick}
-          className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-rediseno-tinta px-4 py-2 text-[12.5px] font-bold text-white"
+          disabled={action.disabled}
+          className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-rediseno-tinta px-4 py-2 text-[12.5px] font-bold text-white disabled:cursor-wait disabled:opacity-60"
         >
           {action.label}
         </button>

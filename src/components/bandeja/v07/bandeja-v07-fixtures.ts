@@ -11,7 +11,11 @@
  *   · VOLCÁN — el caso del HTML de referencia: pagador distinto del cliente, diferencia de
  *     $30.265 y fecha lejana ⇒ NO hay sugerencia y el why-strip queda VACÍO. */
 
-import type { BankMovement, BankMovementsListResponse } from "@/lib/api/treasury";
+import type {
+  BankMovement,
+  BankMovementsListResponse,
+  CanonicalCategoryMeta,
+} from "@/lib/api/treasury";
 import type { DocumentSuggestionsResponse, ReviewQueueResponse } from "@/lib/api/reconciliation";
 import type { SuggestedCategoryResponse } from "@/lib/api/classification-rules";
 import type { OpcionCuentaV07, SugerenciaCategoriaV07 } from "./bandeja-v07-model";
@@ -255,6 +259,38 @@ export function cuentas(): OpcionCuentaV07[] {
   ];
 }
 
+function categoriaCanonica(
+  code: string,
+  label: string,
+  expectedDirection: "credit" | "debit" | "any",
+): CanonicalCategoryMeta {
+  return {
+    code,
+    label,
+    description: `${label} de prueba`,
+    expected_direction: expectedDirection,
+    cashflow_group: expectedDirection === "credit" ? "cash_in" : "cash_out",
+    default_financial_model: "cash_flow",
+    default_impact_type: expectedDirection === "credit" ? "cash_in" : "cash_out",
+    default_management_root: "cash",
+    requires_review: false,
+    affects_operational_result_by_default: false,
+    is_internal_movement: false,
+    allowed_for_bank_movement: true,
+    sort_order: 10,
+  };
+}
+
+/** Catálogo vivo reducido para stories/tests de la Bandeja. */
+export function categoriasCanonicas(): CanonicalCategoryMeta[] {
+  return [
+    categoriaCanonica("client_collection", "Cobro de cliente", "credit"),
+    categoriaCanonica("supplier_payment", "Pago a proveedor", "debit"),
+    categoriaCanonica("operational_expense", "Gasto operacional", "debit"),
+    categoriaCanonica("unknown", "Por revisar", "any"),
+  ];
+}
+
 /** `GET .../{id}/suggested-category` con una regla que SÍ matchea. */
 export function categoriaSugeridaDattatec(): SuggestedCategoryResponse {
   return {
@@ -262,7 +298,7 @@ export function categoriaSugeridaDattatec(): SuggestedCategoryResponse {
     suggestion: {
       account_code: "5.2.03",
       account_name: "Software y tecnología",
-      canonical_category: "operating_expense.software_technology",
+      canonical_category: "operational_expense",
       confidence: 0.92,
       matched_rule_id: "regla-dattatec",
     },
@@ -278,6 +314,7 @@ export function categoriaSinSugerencia(movementId = MOV_TERCEROS): SuggestedCate
 export function sugerenciaSoftware(): SugerenciaCategoriaV07 {
   return {
     cuentaId: CUENTA_SOFTWARE,
+    categoriaCanonica: "operational_expense",
     nombre: "Software y tecnología",
     confianza: 0.92,
     reglaId: "regla-dattatec",
