@@ -85,6 +85,10 @@ export interface ItemClasificarV07 {
   glosa: string | null;
   /** RUT encontrado EN la glosa (normalizado, sin puntos). `null` = no hay. */
   rutGlosa: string | null;
+  /** Cuenta ya persistida. Existe en movimientos `partially_classified`; se conserva al completar. */
+  cuentaIdActual: string | null;
+  /** Tipo canónico ya persistido. Normalmente null en la cola; se conserva si viene parcial. */
+  categoriaCanonicaActual: string | null;
 }
 
 export type ItemV07 = ItemConciliarV07 | ItemClasificarV07;
@@ -200,6 +204,8 @@ export function itemsClasificar(
     direccion: m.direction,
     glosa: m.description || null,
     rutGlosa: primerRutEnTexto(m.description),
+    cuentaIdActual: m.management_account_id ?? null,
+    categoriaCanonicaActual: m.canonical_category ?? null,
   }));
 }
 
@@ -398,6 +404,7 @@ export interface OpcionCuentaV07 {
 
 export interface SugerenciaCategoriaV07 {
   cuentaId: string | null;
+  categoriaCanonica: string | null;
   nombre: string;
   /** [0..1] tal como la publica el backend. */
   confianza: number;
@@ -425,6 +432,7 @@ export function sugerenciaCategoria(
   if (!nombre) return null;
   return {
     cuentaId: cuenta?.seleccionable ? cuenta.id : null,
+    categoriaCanonica: s.canonical_category ?? null,
     nombre,
     confianza: s.confidence,
     reglaId: s.matched_rule_id ?? null,
@@ -501,6 +509,7 @@ function contar(
 
 export interface BorradorClasificarV07 {
   cuentaId: string | null;
+  categoriaCanonica: string | null;
   notas: string;
 }
 
@@ -512,7 +521,10 @@ export interface BorradorClasificarV07 {
  * devuelve un texto, ese texto se pinta en rojo (el ÚNICO rojo de la pantalla, Ley 2).
  */
 export function faltaParaGuardar(borrador: BorradorClasificarV07): string | null {
-  if (!borrador.cuentaId) return "Elige una categoría para guardar este movimiento.";
+  if (!borrador.categoriaCanonica) {
+    return "Elige el tipo de movimiento para completar la clasificación.";
+  }
+  if (!borrador.cuentaId) return "Elige una cuenta de gestión para guardar este movimiento.";
   return null;
 }
 

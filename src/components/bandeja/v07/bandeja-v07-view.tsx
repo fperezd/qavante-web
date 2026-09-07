@@ -41,7 +41,7 @@ import {
   type SugerenciaCategoriaV07,
   type TabV07,
 } from "./bandeja-v07-model";
-import type { BankMovement } from "@/lib/api/treasury";
+import type { BankMovement, CanonicalCategoryMeta } from "@/lib/api/treasury";
 import type { RevertActionResponse } from "@/lib/api/reversible-actions";
 
 /* V07 · Bandeja de excepciones — "sólo lo que el piloto no resolvió solo" (Fase 2, issue #71).
@@ -120,8 +120,12 @@ export interface BandejaV07ViewProps {
   clasificarMotivo?: string | null;
   candidatos?: CandidatosDelItemV07 | null;
   sugerencia?: SugerenciaDelItemV07 | null;
-  /** Catálogo de cuentas de gestión (el selector de categoría). */
+  /** Catálogo de cuentas de gestión. No es la taxonomía canónica del movimiento. */
   cuentas?: OpcionCuentaV07[];
+  /** Tipos de movimiento canónicos publicados por el backend. */
+  categoriasCanonicas?: CanonicalCategoryMeta[];
+  categoriasCanonicasCargando?: boolean;
+  categoriasCanonicasMotivo?: string | null;
   /** Movimientos ya clasificados: de ahí salen los 3 frecuentes cuando no hay regla. */
   clasificados?: BankMovement[];
   /** Confirma el match. `documentoId` va cuando el usuario eligió otro documento. */
@@ -130,9 +134,19 @@ export interface BandejaV07ViewProps {
   onDeshacerConciliar?: (item: ItemConciliarV07) => void;
   /** "No es esta": descarta la sugerencia (el movimiento vuelve a `unmatched`). */
   onNoEsEsta: (item: ItemConciliarV07, candidato: CandidatoV07 | null) => Promise<void>;
-  onClasificar: (item: ItemClasificarV07, cuentaId: string, notas: string) => Promise<void>;
+  onClasificar: (
+    item: ItemClasificarV07,
+    cuentaId: string,
+    categoriaCanonica: string,
+    notas: string,
+  ) => Promise<void>;
   /** Clasifica una selección explícita de la misma contraparte en una operación atómica. */
-  onClasificarLote?: (movementIds: string[], cuentaId: string, notas: string) => Promise<void>;
+  onClasificarLote?: (
+    movementIds: string[],
+    cuentaId: string,
+    categoriaCanonica: string,
+    notas: string,
+  ) => Promise<void>;
   /** Lo que Qavante clasificó SOLO (auto-clasificación por regla o por conciliación) y todavía se
    *  puede deshacer, más reciente primero. `null` = la bitácora no respondió (se avisa bajito,
    *  no bloquea la carta: es un widget secundario, no el contenido principal). */
@@ -143,7 +157,11 @@ export interface BandejaV07ViewProps {
    *  lo decide `interpretarDeshacer` acá en la vista, después de esperarla — nunca se asume éxito
    *  antes de leer la respuesta, porque un Deshacer negado es un 200, no una excepción. */
   onDeshacerAutoClasificar?: (accion: AccionAutoClasificarV07) => Promise<RevertActionResponse>;
-  onCrearRegla?: (item: ItemClasificarV07, cuentaId: string) => void;
+  onCrearRegla?: (
+    item: ItemClasificarV07,
+    cuentaId: string,
+    categoriaCanonica: string,
+  ) => Promise<void>;
   /** Una escritura falló. Se muestra ARRIBA de la card y en ámbar: es "requiere tu atención",
    *  no un crítico accionable, así que no gasta el único rojo de la pantalla (Ley 2). */
   avisoError?: string | null;
@@ -188,6 +206,9 @@ function BandejaV07Contenido({
   candidatos,
   sugerencia,
   cuentas = [],
+  categoriasCanonicas = [],
+  categoriasCanonicasCargando = false,
+  categoriasCanonicasMotivo,
   clasificados = [],
   onConciliar,
   onDeshacerConciliar,
@@ -451,6 +472,9 @@ function BandejaV07Contenido({
             motivo={clasificarMotivo}
             sugerencia={sugerencia ?? null}
             cuentas={cuentas}
+            categoriasCanonicas={categoriasCanonicas}
+            categoriasCanonicasCargando={categoriasCanonicasCargando}
+            categoriasCanonicasMotivo={categoriasCanonicasMotivo}
             clasificados={clasificados}
             hoy={hoy}
             onReintentar={onReintentar}
@@ -466,16 +490,16 @@ function BandejaV07Contenido({
             }}
             onCrearRegla={
               onCrearRegla
-                ? (item, cuentaId) => {
-                    onCrearRegla(item, cuentaId);
+                ? async (item, cuentaId, categoriaCanonica) => {
+                    await onCrearRegla(item, cuentaId, categoriaCanonica);
                     show({ message: <>Regla creada: la próxima vez se clasifica sola.</> });
                   }
                 : undefined
             }
             onClasificarLote={
               onClasificarLote
-                ? async (ids, cuentaId, notas, nombreCuenta) => {
-                    await onClasificarLote(ids, cuentaId, notas);
+                ? async (ids, cuentaId, categoriaCanonica, notas, nombreCuenta) => {
+                    await onClasificarLote(ids, cuentaId, categoriaCanonica, notas);
                     marcarLoteClasificado(ids);
                     show({
                       message: (
@@ -489,9 +513,9 @@ function BandejaV07Contenido({
                   }
                 : undefined
             }
-            onGuardar={async (item, cuentaId, notas, nombreCuenta) => {
+            onGuardar={async (item, cuentaId, categoriaCanonica, notas, nombreCuenta) => {
               try {
-                await onClasificar(item, cuentaId, notas);
+                await onClasificar(item, cuentaId, categoriaCanonica, notas);
               } catch {
                 return false;
               }
@@ -1080,21 +1104,30 @@ interface CartaClasificarProps {
   motivo?: string | null;
   sugerencia: SugerenciaDelItemV07 | null;
   cuentas: OpcionCuentaV07[];
+  categoriasCanonicas: CanonicalCategoryMeta[];
+  categoriasCanonicasCargando: boolean;
+  categoriasCanonicasMotivo?: string | null;
   clasificados: BankMovement[];
   hoy: Date;
   onReintentar?: () => void;
   onSaltar: () => void;
   onAgrupar: (ids: string[]) => void;
-  onCrearRegla?: (item: ItemClasificarV07, cuentaId: string) => void;
+  onCrearRegla?: (
+    item: ItemClasificarV07,
+    cuentaId: string,
+    categoriaCanonica: string,
+  ) => Promise<void>;
   onClasificarLote?: (
     ids: string[],
     cuentaId: string,
+    categoriaCanonica: string,
     notas: string,
     nombreCuenta: string,
   ) => Promise<void>;
   onGuardar: (
     item: ItemClasificarV07,
     cuentaId: string,
+    categoriaCanonica: string,
     notas: string,
     nombreCuenta: string,
   ) => Promise<boolean>;
@@ -1109,6 +1142,9 @@ function CartaClasificar({
   motivo,
   sugerencia,
   cuentas,
+  categoriasCanonicas,
+  categoriasCanonicasCargando,
+  categoriasCanonicasMotivo,
   clasificados,
   hoy,
   onReintentar,
@@ -1118,7 +1154,10 @@ function CartaClasificar({
   onClasificarLote,
   onGuardar,
 }: CartaClasificarProps) {
-  const [cuentaId, setCuentaId] = React.useState<string | null>(null);
+  const [cuentaId, setCuentaId] = React.useState<string | null>(item?.cuentaIdActual ?? null);
+  const [categoriaCanonica, setCategoriaCanonica] = React.useState<string | null>(
+    item?.categoriaCanonicaActual ?? null,
+  );
   const [notas, setNotas] = React.useState("");
   const [falta, setFalta] = React.useState<string | null>(null);
   const [guardando, setGuardando] = React.useState(false);
@@ -1128,6 +1167,7 @@ function CartaClasificar({
   const [ofertaRegla, setOfertaRegla] = React.useState<{
     item: ItemClasificarV07;
     cuentaId: string;
+    categoriaCanonica: string;
     nombre: string;
   } | null>(null);
 
@@ -1136,24 +1176,61 @@ function CartaClasificar({
   const valorSugerido = sugerenciaViva?.valor ?? null;
 
   React.useEffect(() => {
-    setCuentaId(null);
+    setCuentaId(item?.cuentaIdActual ?? null);
+    setCategoriaCanonica(item?.categoriaCanonicaActual ?? null);
     setNotas("");
     setFalta(null);
     setGuardando(false);
     setClasificandoLote(false);
     escribiendoRef.current = false;
     setConfirmarLote(false);
-  }, [item?.id]);
+  }, [item?.id, item?.cuentaIdActual, item?.categoriaCanonicaActual]);
 
   /* La sugerencia PRE-SELECCIONA (spec: "sugerencia primero si existe regla"), nunca guarda sola. */
   React.useEffect(() => {
-    if (valorSugerido?.cuentaId) setCuentaId(valorSugerido.cuentaId);
-  }, [valorSugerido?.cuentaId, item?.id]);
+    if (valorSugerido?.cuentaId && !item?.cuentaIdActual) setCuentaId(valorSugerido.cuentaId);
+    const tipoCompatible = categoriasCanonicas.some(
+      (c) =>
+        c.code === valorSugerido?.categoriaCanonica &&
+        c.code !== "unknown" &&
+        c.allowed_for_bank_movement &&
+        (c.expected_direction === "any" || c.expected_direction === item?.direccion),
+    );
+    if (valorSugerido?.categoriaCanonica && tipoCompatible && !item?.categoriaCanonicaActual) {
+      setCategoriaCanonica(valorSugerido.categoriaCanonica);
+    }
+  }, [
+    valorSugerido?.cuentaId,
+    valorSugerido?.categoriaCanonica,
+    item?.id,
+    item?.cuentaIdActual,
+    item?.categoriaCanonicaActual,
+    item?.direccion,
+    categoriasCanonicas,
+  ]);
+
+  const categoriasCompatibles = React.useMemo(
+    () =>
+      categoriasCanonicas.filter(
+        (c) =>
+          c.code !== "unknown" &&
+          c.allowed_for_bank_movement &&
+          (c.expected_direction === "any" || c.expected_direction === item?.direccion),
+      ),
+    [categoriasCanonicas, item?.direccion],
+  );
 
   const cuentasPorId = React.useMemo(
     () => new Map(cuentas.map((c) => [c.id, c] as const)),
     [cuentas],
   );
+  const categoriasPorCodigo = React.useMemo(
+    () => new Map(categoriasCanonicas.map((c) => [c.code, c] as const)),
+    [categoriasCanonicas],
+  );
+  const categoriaSugeridaDisponible =
+    valorSugerido?.categoriaCanonica != null &&
+    categoriasCompatibles.some((c) => c.code === valorSugerido.categoriaCanonica);
   const frec = React.useMemo(
     () =>
       item
@@ -1165,20 +1242,31 @@ function CartaClasificar({
 
   async function guardar() {
     if (!item || escribiendoRef.current) return;
-    const queFalta = faltaParaGuardar({ cuentaId, notas });
+    if (categoriasCanonicasCargando) {
+      setFalta("Espera un momento: estamos cargando los tipos de movimiento.");
+      return;
+    }
+    if (categoriasCanonicasMotivo) {
+      setFalta("No pudimos cargar los tipos de movimiento. Reintenta antes de guardar.");
+      return;
+    }
+    const queFalta = faltaParaGuardar({ cuentaId, categoriaCanonica, notas });
     if (queFalta) {
       /* LEY 6 — el primario respondió: no está deshabilitado, y dice qué falta. */
       setFalta(queFalta);
       return;
     }
     const id = cuentaId as string;
+    const tipo = categoriaCanonica as string;
     const nombre = cuentasPorId.get(id)?.nombre ?? "la categoría elegida";
-    const fueManual = valorSugerido?.cuentaId !== id;
+    const fueManual = valorSugerido?.cuentaId !== id || valorSugerido?.categoriaCanonica !== tipo;
     escribiendoRef.current = true;
     setGuardando(true);
     try {
-      const guardado = await onGuardar(item, id, notas, nombre);
-      if (guardado) setOfertaRegla(fueManual ? { item, cuentaId: id, nombre } : null);
+      const guardado = await onGuardar(item, id, tipo, notas, nombre);
+      if (guardado) {
+        setOfertaRegla(fueManual ? { item, cuentaId: id, categoriaCanonica: tipo, nombre } : null);
+      }
     } finally {
       escribiendoRef.current = false;
       setGuardando(false);
@@ -1187,7 +1275,7 @@ function CartaClasificar({
 
   function prepararLote() {
     if (!item || !grupo || escribiendoRef.current) return;
-    const queFalta = faltaParaGuardar({ cuentaId, notas });
+    const queFalta = faltaParaGuardar({ cuentaId, categoriaCanonica, notas });
     if (queFalta) {
       setFalta(queFalta);
       return;
@@ -1196,12 +1284,12 @@ function CartaClasificar({
   }
 
   async function confirmarClasificacionLote() {
-    if (!item || !grupo || !cuentaId || escribiendoRef.current) return;
+    if (!item || !grupo || !cuentaId || !categoriaCanonica || escribiendoRef.current) return;
     const nombre = cuentasPorId.get(cuentaId)?.nombre ?? "la categoría elegida";
     escribiendoRef.current = true;
     setClasificandoLote(true);
     try {
-      await onClasificarLote?.(grupo.ids, cuentaId, notas, nombre);
+      await onClasificarLote?.(grupo.ids, cuentaId, categoriaCanonica, notas, nombre);
       setConfirmarLote(false);
     } catch {
       /* El live ya mostró el error y no retiramos ningún movimiento de la cola. */
@@ -1299,6 +1387,9 @@ function CartaClasificar({
             {valorSugerido.cuentaId
               ? ""
               : " · pero esa cuenta no está en tu catálogo activo, así que hay que elegirla a mano"}
+            {categoriaSugeridaDisponible
+              ? ` · ${categoriasPorCodigo.get(valorSugerido.categoriaCanonica!)?.label ?? valorSugerido.categoriaCanonica}`
+              : " · la regla no define un tipo de movimiento válido para este cargo/abono, así que hay que elegirlo"}
           </p>
         )}
 
@@ -1313,30 +1404,74 @@ function CartaClasificar({
           />
         )}
 
-        <div className="mt-3">
-          <label
-            htmlFor="bandeja-categoria"
-            className="mb-1 block text-[12.5px] font-semibold text-rediseno-tinta-2"
-          >
-            Categoría
-          </label>
-          <select
-            id="bandeja-categoria"
-            className="w-full rounded-xl border border-rediseno-hairline bg-rediseno-superficie px-3 py-2 text-[13px] text-rediseno-tinta focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
-            value={cuentaId ?? ""}
-            onChange={(e) => {
-              setCuentaId(e.target.value || null);
-              setFalta(null);
-            }}
-          >
-            <option value="">Elige una categoría…</option>
-            {cuentas.map((c) => (
-              <option key={c.id} value={c.id} disabled={!c.seleccionable}>
-                {c.nombre}
-                {c.seleccionable ? "" : " (inactiva)"}
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div>
+            <label
+              htmlFor="bandeja-tipo-movimiento"
+              className="mb-1 block text-[12.5px] font-semibold text-rediseno-tinta-2"
+            >
+              Tipo de movimiento
+            </label>
+            <select
+              id="bandeja-tipo-movimiento"
+              className="w-full rounded-xl border border-rediseno-hairline bg-rediseno-superficie px-3 py-2 text-[13px] text-rediseno-tinta focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
+              value={categoriaCanonica ?? ""}
+              disabled={categoriasCanonicasCargando || Boolean(categoriasCanonicasMotivo)}
+              onChange={(e) => {
+                setCategoriaCanonica(e.target.value || null);
+                setFalta(null);
+              }}
+            >
+              <option value="">
+                {categoriasCanonicasCargando
+                  ? "Cargando tipos de movimiento…"
+                  : categoriasCanonicasMotivo
+                    ? "No pudimos cargar los tipos"
+                    : "Elige el tipo de movimiento…"}
               </option>
-            ))}
-          </select>
+              {categoriasCompatibles.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            {categoriasCanonicasMotivo && (
+              <p className="mt-1 text-[11.5px] font-semibold text-rediseno-ambar-text">
+                {categoriasCanonicasMotivo}
+              </p>
+            )}
+            <p className="mt-1 text-[11.5px] text-rediseno-tinta-3">
+              Define qué ocurrió en el banco: cobro, pago, impuesto, sueldo, factoring u otro.
+            </p>
+          </div>
+          <div>
+            <label
+              htmlFor="bandeja-categoria"
+              className="mb-1 block text-[12.5px] font-semibold text-rediseno-tinta-2"
+            >
+              Cuenta de gestión
+            </label>
+            <select
+              id="bandeja-categoria"
+              className="w-full rounded-xl border border-rediseno-hairline bg-rediseno-superficie px-3 py-2 text-[13px] text-rediseno-tinta focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
+              value={cuentaId ?? ""}
+              onChange={(e) => {
+                setCuentaId(e.target.value || null);
+                setFalta(null);
+              }}
+            >
+              <option value="">Elige una cuenta de gestión…</option>
+              {cuentas.map((c) => (
+                <option key={c.id} value={c.id} disabled={!c.seleccionable}>
+                  {c.nombre}
+                  {c.seleccionable ? "" : " (inactiva)"}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11.5px] text-rediseno-tinta-3">
+              Define dónde se analiza: ingresos, subcontratos, honorarios, impuestos u otra cuenta.
+            </p>
+          </div>
         </div>
 
         <details className="mt-3">
@@ -1415,8 +1550,10 @@ function CartaClasificar({
           >
             Vas a clasificar {formatCount(grupo.otros + 1)}{" "}
             {concordar(grupo.otros + 1, "movimiento", "movimientos")} como{" "}
-            <b>{cuentasPorId.get(cuentaId ?? "")?.nombre ?? "la categoría elegida"}</b>. Esta
-            decisión manual no tiene Deshacer.
+            <b>{categoriasPorCodigo.get(categoriaCanonica ?? "")?.label ?? "el tipo elegido"}</b>
+            {" · "}
+            <b>{cuentasPorId.get(cuentaId ?? "")?.nombre ?? "la cuenta elegida"}</b>. Esta decisión
+            manual no tiene Deshacer.
             <button
               type="button"
               className={cn(LINK, "ml-2")}
@@ -1459,7 +1596,7 @@ function Frecuentes({
     return (
       <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">
         Todavía no clasificaste nada parecido, así que no tenemos atajos que ofrecerte. Elige la
-        categoría de la lista.
+        cuenta de gestión de la lista.
       </p>
     );
   }
@@ -1496,10 +1633,21 @@ function OfertaRegla({
   onCrear,
   onCerrar,
 }: {
-  oferta: { item: ItemClasificarV07; cuentaId: string; nombre: string };
-  onCrear?: (item: ItemClasificarV07, cuentaId: string) => void;
+  oferta: {
+    item: ItemClasificarV07;
+    cuentaId: string;
+    categoriaCanonica: string;
+    nombre: string;
+  };
+  onCrear?: (
+    item: ItemClasificarV07,
+    cuentaId: string,
+    categoriaCanonica: string,
+  ) => Promise<void>;
   onCerrar: () => void;
 }) {
+  const [creando, setCreando] = React.useState(false);
+  const creandoRef = React.useRef(false);
   const quien = oferta.item.rutGlosa
     ? `el RUT ${formatRut(oferta.item.rutGlosa)}`
     : `los movimientos con la glosa “${oferta.item.glosa ?? "sin glosa"}”`;
@@ -1507,15 +1655,26 @@ function OfertaRegla({
     <Banner
       role="note"
       variant="ok"
-      dismissible
+      dismissible={!creando}
       onDismiss={onCerrar}
       action={
         onCrear
           ? {
-              label: "Crear regla",
-              onClick: () => {
-                onCrear(oferta.item, oferta.cuentaId);
-                onCerrar();
+              label: creando ? "Creando…" : "Crear regla",
+              disabled: creando,
+              onClick: async () => {
+                if (creandoRef.current) return;
+                creandoRef.current = true;
+                setCreando(true);
+                try {
+                  await onCrear(oferta.item, oferta.cuentaId, oferta.categoriaCanonica);
+                  onCerrar();
+                } catch {
+                  /* El live deja el error accionable arriba; la oferta permanece para reintentar. */
+                } finally {
+                  creandoRef.current = false;
+                  setCreando(false);
+                }
               },
             }
           : undefined

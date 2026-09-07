@@ -115,6 +115,21 @@ describe("adaptadores de contrato", () => {
     expect(terceros.rutGlosa).toBeNull();
   });
 
+  it("conserva la cuenta ya guardada de un movimiento parcial para completar sólo lo faltante", () => {
+    const resp = sinClasificar([MOV_DATTATEC]);
+    resp.items[0] = {
+      ...resp.items[0]!,
+      management_account_id: CUENTA_SOFTWARE,
+      canonical_category: null,
+      classification_status: "partially_classified",
+    };
+
+    expect(itemsClasificar(resp)[0]).toMatchObject({
+      cuentaIdActual: CUENTA_SOFTWARE,
+      categoriaCanonicaActual: null,
+    });
+  });
+
   it("los candidatos se ordenan por score descendente", () => {
     expect(candidatos(candidatosKaufmann()).map((c) => c.score)).toEqual([78, 41]);
     expect(candidatos(null)).toEqual([]);
@@ -262,6 +277,7 @@ describe("carta de clasificar — sugerencia sólo si hay regla", () => {
   it("con regla: resuelve la cuenta por CÓDIGO contra el catálogo", () => {
     expect(sugerenciaCategoria(categoriaSugeridaDattatec(), cuentasPorCodigo)).toEqual({
       cuentaId: CUENTA_SOFTWARE,
+      categoriaCanonica: "operational_expense",
       nombre: "Software y tecnología",
       confianza: 0.92,
       reglaId: "regla-dattatec",
@@ -332,12 +348,20 @@ describe("los 3 frecuentes — historial, no sugerencia", () => {
 });
 
 describe("LEY 6 — el 'qué falta' del botón que nunca se deshabilita", () => {
-  it("sin categoría hay un texto que mostrar; con categoría, ninguno", () => {
-    expect(faltaParaGuardar({ cuentaId: null, notas: "" })).toBe(
-      "Elige una categoría para guardar este movimiento.",
+  it("exige tipo canónico y cuenta de gestión; las notas siguen opcionales", () => {
+    expect(faltaParaGuardar({ cuentaId: null, categoriaCanonica: null, notas: "" })).toBe(
+      "Elige el tipo de movimiento para completar la clasificación.",
     );
-    // Gemelo positivo: las notas NO son obligatorias, así que con cuenta ya no falta nada.
-    expect(faltaParaGuardar({ cuentaId: CUENTA_SOFTWARE, notas: "" })).toBeNull();
+    expect(
+      faltaParaGuardar({ cuentaId: null, categoriaCanonica: "operational_expense", notas: "" }),
+    ).toBe("Elige una cuenta de gestión para guardar este movimiento.");
+    expect(
+      faltaParaGuardar({
+        cuentaId: CUENTA_SOFTWARE,
+        categoriaCanonica: "operational_expense",
+        notas: "",
+      }),
+    ).toBeNull();
   });
 });
 
@@ -356,7 +380,12 @@ describe("lotes (group-by) y cola", () => {
       ids: ["mov-entel-1", "mov-entel-2", "mov-entel-3"],
     });
     // Gemelo: el de Dattatec está solo, así que NO hay lote (no se fuerza uno).
-    expect(lote(cola, cola.find((i) => i.id === MOV_DATTATEC)!)).toBeNull();
+    expect(
+      lote(
+        cola,
+        cola.find((i) => i.id === MOV_DATTATEC)!,
+      ),
+    ).toBeNull();
     expect(lote(cola, null)).toBeNull();
   });
 

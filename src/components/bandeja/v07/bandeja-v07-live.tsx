@@ -14,8 +14,11 @@ import { useSuggestedCategory } from "@/lib/api/classification-rules";
 import { useManagementAccountsTree } from "@/lib/api/management";
 import {
   useBankMovements,
+  useCanonicalCategories,
   useClassifyBankMovement,
   useClassifyBankMovementsBulk,
+  type BulkClassifyMovementRequest,
+  type ClassifyMovementRequest,
 } from "@/lib/api/treasury";
 import {
   ACTION_TYPE_BANK_MOVEMENT_AUTO_CLASSIFY,
@@ -94,6 +97,38 @@ export function motivoFuente(err: unknown, que: string): string {
   return `${que} no respondió. Vuelve a intentar en un momento; si sigue igual, revisa tus conexiones.`;
 }
 
+/** Payload completo: una decisión manual en Bandeja nunca queda `partially_classified`. */
+export function cuerpoClasificacion(
+  cuentaId: string,
+  categoriaCanonica: string,
+  notas: string,
+  createRule: boolean,
+): ClassifyMovementRequest {
+  return {
+    management_account_id: cuentaId,
+    canonical_category: categoriaCanonica as ClassifyMovementRequest["canonical_category"],
+    create_rule: createRule,
+    ...(notas.trim() ? { classification_notes: notas.trim() } : {}),
+  };
+}
+
+/** Payload atómico e idempotente del lote, con las mismas dos dimensiones obligatorias. */
+export function cuerpoClasificacionLote(
+  movementIds: string[],
+  cuentaId: string,
+  categoriaCanonica: string,
+  notas: string,
+  idempotencyKey: string,
+): BulkClassifyMovementRequest {
+  return {
+    movement_ids: movementIds,
+    management_account_id: cuentaId,
+    canonical_category: categoriaCanonica as BulkClassifyMovementRequest["canonical_category"],
+    ...(notas.trim() ? { classification_notes: notas.trim() } : {}),
+    idempotency_key: idempotencyKey,
+  };
+}
+
 export function BandejaV07Live({
   issueSucesor = ISSUE_SUCESOR,
   tabInicial,
@@ -116,6 +151,7 @@ export function BandejaV07Live({
   const sinClasificar = useBankMovements({ status: "unclassified", limit: TOPE_CLASIFICAR });
   const historial = useBankMovements({ status: "classified", limit: TOPE_HISTORIAL });
   const arbol = useManagementAccountsTree();
+  const categoriasCanonicas = useCanonicalCategories();
   const autoClasificadas = useReversibleActions({
     actionType: ACTION_TYPE_BANK_MOVEMENT_AUTO_CLASSIFY,
     onlyUndoable: true,
@@ -227,6 +263,13 @@ export function BandejaV07Live({
           : null
       }
       cuentas={cuentas}
+      categoriasCanonicas={categoriasCanonicas.data?.items ?? []}
+      categoriasCanonicasCargando={categoriasCanonicas.isLoading}
+      categoriasCanonicasMotivo={
+        categoriasCanonicas.isError
+          ? motivoFuente(categoriasCanonicas.error, "los tipos de movimiento")
+          : null
+      }
       clasificados={historial.data?.items ?? []}
       autoClasificadas={
         autoClasificadas.isError ? null : accionesAutoClasificar(autoClasificadas.data)
@@ -274,58 +317,63 @@ export function BandejaV07Live({
           throw err;
         }
       }}
-      onClasificar={async (item, cuentaId, notas) => {
+      onClasificar={async (item, cuentaId, categoriaCanonica, notas) => {
         setAviso(null);
         try {
           await clasificar.mutateAsync({
             movementId: item.id,
-            body: {
-              management_account_id: cuentaId,
-              create_rule: false,
-              ...(notas.trim() ? { classification_notes: notas.trim() } : {}),
-            },
+            body: cuerpoClasificacion(cuentaId, categoriaCanonica, notas, false),
           });
         } catch (err) {
           fallo("clasificar este movimiento")(err);
           throw err;
         }
       }}
-      onClasificarLote={async (movementIds, cuentaId, notas) => {
+      onClasificarLote={async (movementIds, cuentaId, categoriaCanonica, notas) => {
         setAviso(null);
         const ordenados = [...movementIds].sort();
-        const fingerprint = JSON.stringify({ movementIds: ordenados, cuentaId, notas });
+        const fingerprint = JSON.stringify({
+          movementIds: ordenados,
+          cuentaId,
+          categoriaCanonica,
+          notas,
+        });
         let idempotencyKey = llavesLote.current.get(fingerprint);
         if (!idempotencyKey) {
           idempotencyKey = crypto.randomUUID();
           llavesLote.current.set(fingerprint, idempotencyKey);
         }
         try {
-          await clasificarLote.mutateAsync({
-            movement_ids: ordenados,
-            management_account_id: cuentaId,
-            ...(notas.trim() ? { classification_notes: notas.trim() } : {}),
-            idempotency_key: idempotencyKey,
-          });
+          await clasificarLote.mutateAsync(
+            cuerpoClasificacionLote(ordenados, cuentaId, categoriaCanonica, notas, idempotencyKey),
+          );
           llavesLote.current.delete(fingerprint);
         } catch (err) {
           fallo("clasificar este lote")(err);
           throw err;
         }
       }}
-      onCrearRegla={(item, cuentaId) => {
+      onCrearRegla={async (item, cuentaId, categoriaCanonica) => {
         /* §17: la regla se crea DESDE el movimiento con `create_rule: true`. Re-clasificar al
            mismo destino es la forma que el contrato ofrece; no hay endpoint "crear regla desde
            un movimiento ya clasificado". */
-        clasificar.mutate(
-          { movementId: item.id, body: { management_account_id: cuentaId, create_rule: true } },
-          { onError: fallo("crear la regla") },
-        );
+        setAviso(null);
+        try {
+          await clasificar.mutateAsync({
+            movementId: item.id,
+            body: cuerpoClasificacion(cuentaId, categoriaCanonica, "", true),
+          });
+        } catch (err) {
+          fallo("crear la regla")(err);
+          throw err;
+        }
       }}
       onDeshacerAutoClasificar={(accion) => revertirAuto.mutateAsync(accion.actionId)}
       onReintentar={() => {
         setAviso(null);
         void review.refetch();
         void sinClasificar.refetch();
+        void categoriasCanonicas.refetch();
         void autoClasificadas.refetch();
       }}
       issueSucesor={issueSucesor}

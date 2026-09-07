@@ -9,6 +9,7 @@ import {
 } from "./bandeja-v07-model";
 import {
   HOY,
+  CUENTA_SOFTWARE,
   MOV_DATTATEC,
   MOV_ENTEL_1,
   MOV_ENTEL_2,
@@ -18,6 +19,7 @@ import {
   MOV_VOLCAN,
   candidatosKaufmann,
   candidatosVolcan,
+  categoriasCanonicas,
   clasificados,
   colaConciliar,
   colaConciliarVacia,
@@ -50,6 +52,7 @@ function base(): Props {
       cargando: false,
     },
     cuentas: cuentas(),
+    categoriasCanonicas: categoriasCanonicas(),
     clasificados: clasificados(),
     onConciliar: async () => undefined,
     onNoEsEsta: async () => undefined,
@@ -232,6 +235,29 @@ describe("BandejaV07View — carta de conciliar SIN evidencia (el caso del HTML 
 });
 
 describe("BandejaV07View — carta de clasificar", () => {
+  it("separa tipo canónico de cuenta de gestión y filtra tipos incompatibles con el cargo", () => {
+    const h = html({ tabInicial: "clasificar" });
+    const t = texto(h);
+    expect(t).toContain("Tipo de movimiento");
+    expect(t).toContain("Cuenta de gestión");
+    expect(t).toContain("Pago a proveedor");
+    expect(t).toContain("Gasto operacional");
+    expect(t).not.toContain("Cobro de cliente");
+    expect(t).not.toContain("Por revisar");
+  });
+
+  it("un parcial conserva la cuenta que el usuario ya había elegido", () => {
+    const parcial = sinClasificar([MOV_DATTATEC]);
+    parcial.items[0] = {
+      ...parcial.items[0]!,
+      management_account_id: CUENTA_SOFTWARE,
+      canonical_category: null,
+      classification_status: "partially_classified",
+    };
+    const h = html({ tabInicial: "clasificar", clasificar: itemsClasificar(parcial) });
+    expect(h).toContain(`<option value="${CUENTA_SOFTWARE}" selected="">`);
+  });
+
   const conRegla = (): Partial<Props> => ({
     tabInicial: "clasificar",
     sugerencia: { movimientoId: MOV_DATTATEC, valor: sugerenciaSoftware(), cargando: false },
@@ -270,7 +296,7 @@ describe("BandejaV07View — carta de clasificar", () => {
     expect(boton).not.toContain("disabled");
     // El único rojo posible aparece DESPUÉS del click (eso lo ejercita la story).
     expect(rojos(h)).toBe(0);
-    expect(texto(h)).not.toContain("Elige una categoría para guardar");
+    expect(texto(h)).not.toContain("Elige el tipo de movimiento para completar");
   });
 
   it("el detalle opcional lleva notas y DECLARA que las vistas de gestión no se asignan acá", () => {

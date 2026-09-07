@@ -22,6 +22,7 @@ import {
   MOV_VOLCAN,
   candidatosKaufmann,
   candidatosVolcan,
+  categoriasCanonicas,
   clasificados,
   colaConciliar,
   colaConciliarVacia,
@@ -79,6 +80,7 @@ const meta = {
     conciliar: CONCILIAR,
     clasificar: CLASIFICAR,
     cuentas: cuentas(),
+    categoriasCanonicas: categoriasCanonicas(),
     clasificados: clasificados(),
     onConciliar: fn(async () => undefined),
     onNoEsEsta: fn(async () => undefined),
@@ -279,14 +281,16 @@ export const ClasificarConRegla: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(/una regla tuya con confianza 92%/)).toBeInTheDocument();
     // La sugerencia PRE-SELECCIONA; nunca guarda sola.
-    const select = canvas.getByLabelText("Categoría") as HTMLSelectElement;
+    const select = canvas.getByLabelText("Cuenta de gestión") as HTMLSelectElement;
     await waitFor(async () => await expect(select.value).toBe(CUENTA_SOFTWARE));
+    await expect(canvas.getByLabelText("Tipo de movimiento")).toHaveValue("operational_expense");
     await expect(args.onClasificar).not.toHaveBeenCalled();
 
     await userEvent.keyboard("{Enter}");
     await expect(args.onClasificar).toHaveBeenCalledWith(
       expect.objectContaining({ id: MOV_DATTATEC }),
       CUENTA_SOFTWARE,
+      "operational_expense",
       "",
     );
 
@@ -327,7 +331,8 @@ export const ClasificarFallaPersistencia: Story = {
     const canvas = within(canvasElement);
     const card = canvas.getByLabelText("Excepción por clasificar");
     await waitFor(
-      async () => await expect(canvas.getByLabelText("Categoría")).toHaveValue(CUENTA_SOFTWARE),
+      async () =>
+        await expect(canvas.getByLabelText("Cuenta de gestión")).toHaveValue(CUENTA_SOFTWARE),
     );
 
     await userEvent.click(canvas.getByRole("button", { name: /Guardar/ }));
@@ -345,7 +350,9 @@ export const ClasificarSinSugerencia: Story = {
     clasificar: itemsClasificar(sinClasificar([MOV_TERCEROS, MOV_DATTATEC])),
     sugerencia: { movimientoId: MOV_TERCEROS, valor: null, cargando: false },
     onClasificar: fn(),
-    onCrearRegla: fn(),
+    onCrearRegla: fn(
+      async () => await new Promise<void>((resolve) => window.setTimeout(resolve, 30)),
+    ),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -367,23 +374,70 @@ export const ClasificarSinSugerencia: Story = {
     const marcados = rojos(canvasElement);
     await expect(marcados).toHaveLength(1);
     await expect(marcados[0]!).toHaveTextContent(
-      "Elige una categoría para guardar este movimiento.",
+      "Elige el tipo de movimiento para completar la clasificación.",
     );
 
     // Elegir un frecuente y guardar: ≤ 2 clics + categoría.
     await userEvent.click(canvas.getByRole("button", { name: /Arriendo de oficina · 4/ }));
     await expect(rojos(canvasElement)).toHaveLength(0);
+    await userEvent.selectOptions(
+      canvas.getByLabelText("Tipo de movimiento"),
+      "operational_expense",
+    );
     await userEvent.click(canvas.getByRole("button", { name: /Guardar/ }));
     await expect(args.onClasificar).toHaveBeenCalledWith(
       expect.objectContaining({ id: MOV_TERCEROS }),
       CUENTA_ARRIENDO,
+      "operational_expense",
       "",
     );
 
     // Clasificado a mano ⇒ la oferta de regla, en una línea.
     await expect(canvas.getByText(/¿Siempre/)).toBeInTheDocument();
+    const crearRegla = canvas.getByRole("button", { name: "Crear regla" });
+    crearRegla.click();
+    crearRegla.click();
+    await expect(args.onCrearRegla).toHaveBeenCalledTimes(1);
+    await expect(canvas.getByRole("button", { name: "Creando…" })).toBeDisabled();
+    await expect(canvas.getByText(/¿Siempre/)).toBeInTheDocument();
+    await waitFor(async () => await expect(canvas.queryByText(/¿Siempre/)).toBeNull());
+    await waitFor(
+      async () =>
+        await expect(document.body).toHaveTextContent(
+          "Regla creada: la próxima vez se clasifica sola.",
+        ),
+    );
+  },
+};
+
+export const CrearReglaFallaPersistencia: Story = {
+  name: "Clasificar · crear regla falla · conserva la oferta y no afirma éxito",
+  args: {
+    tabInicial: "clasificar",
+    clasificar: itemsClasificar(sinClasificar([MOV_TERCEROS, MOV_DATTATEC])),
+    sugerencia: { movimientoId: MOV_TERCEROS, valor: null, cargando: false },
+    onClasificar: fn(async () => undefined),
+    onCrearRegla: fn(async () => {
+      throw new Error("falló la regla");
+    }),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: /Arriendo de oficina · 4/ }));
+    await userEvent.selectOptions(
+      canvas.getByLabelText("Tipo de movimiento"),
+      "operational_expense",
+    );
+    await userEvent.click(canvas.getByRole("button", { name: /Guardar/ }));
+    await expect(canvas.getByText(/¿Siempre/)).toBeInTheDocument();
+
     await userEvent.click(canvas.getByRole("button", { name: "Crear regla" }));
     await expect(args.onCrearRegla).toHaveBeenCalledTimes(1);
+    await expect(canvas.getByText(/¿Siempre/)).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Crear regla" })).not.toBeDisabled();
+    await expect(document.body).not.toHaveTextContent(
+      "Regla creada: la próxima vez se clasifica sola.",
+    );
   },
 };
 
@@ -401,15 +455,13 @@ export const ClasificarAutoDeshecho: Story = {
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
-    onDeshacerAutoClasificar: fn(
-      async (): Promise<RevertActionResponse> => ({
-        action_id: ACCION_AUTO.actionId,
-        action_type: "bank_movement.auto_classify",
-        result: "reverted",
-        reverted_at: "2026-08-30T12:00:00Z",
-        detail: { movement_id: "mov-x", movimientos_restaurados: 1 },
-      }),
-    ),
+    onDeshacerAutoClasificar: fn(async (): Promise<RevertActionResponse> => ({
+      action_id: ACCION_AUTO.actionId,
+      action_type: "bank_movement.auto_classify",
+      result: "reverted",
+      reverted_at: "2026-08-30T12:00:00Z",
+      detail: { movement_id: "mov-x", movimientos_restaurados: 1 },
+    })),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -440,18 +492,16 @@ export const ClasificarAutoProtegido: Story = {
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
-    onDeshacerAutoClasificar: fn(
-      async (): Promise<RevertActionResponse> => ({
-        action_id: ACCION_AUTO.actionId,
-        action_type: "bank_movement.auto_classify",
-        result: "undo_not_supported",
-        reverted_at: null,
-        detail: {
-          motivo: "estado_derivado",
-          explicacion: "Algo cambió después de esta acción: no se tocó nada.",
-        },
-      }),
-    ),
+    onDeshacerAutoClasificar: fn(async (): Promise<RevertActionResponse> => ({
+      action_id: ACCION_AUTO.actionId,
+      action_type: "bank_movement.auto_classify",
+      result: "undo_not_supported",
+      reverted_at: null,
+      detail: {
+        motivo: "estado_derivado",
+        explicacion: "Algo cambió después de esta acción: no se tocó nada.",
+      },
+    })),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -474,18 +524,16 @@ export const ClasificarAutoBloqueado: Story = {
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
-    onDeshacerAutoClasificar: fn(
-      async (): Promise<RevertActionResponse> => ({
-        action_id: ACCION_AUTO.actionId,
-        action_type: "bank_movement.auto_classify",
-        result: "undo_not_supported",
-        reverted_at: null,
-        detail: {
-          motivo: "estado_bloqueado",
-          explicacion: "Otra operación está usando esto mismo. No se tocó nada; puedes reintentar.",
-        },
-      }),
-    ),
+    onDeshacerAutoClasificar: fn(async (): Promise<RevertActionResponse> => ({
+      action_id: ACCION_AUTO.actionId,
+      action_type: "bank_movement.auto_classify",
+      result: "undo_not_supported",
+      reverted_at: null,
+      detail: {
+        motivo: "estado_bloqueado",
+        explicacion: "Otra operación está usando esto mismo. No se tocó nada; puedes reintentar.",
+      },
+    })),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -536,10 +584,11 @@ export const ClasificarEnLote: Story = {
       "12 ago 2026",
     );
 
-    await userEvent.selectOptions(canvas.getByLabelText("Categoría"), CUENTA_TELECOM);
+    await userEvent.selectOptions(canvas.getByLabelText("Cuenta de gestión"), CUENTA_TELECOM);
+    await userEvent.selectOptions(canvas.getByLabelText("Tipo de movimiento"), "supplier_payment");
     await userEvent.click(canvas.getByRole("button", { name: "Clasificar 3 de una vez" }));
     await expect(canvas.getByRole("alert")).toHaveTextContent(
-      "Vas a clasificar 3 movimientos como Telecomunicaciones",
+      "Vas a clasificar 3 movimientos como Pago a proveedor · Telecomunicaciones",
     );
     const confirmar = canvas.getByRole("button", { name: "Sí, clasificar 3" });
     confirmar.click();
@@ -551,6 +600,7 @@ export const ClasificarEnLote: Story = {
         await expect(args.onClasificarLote).toHaveBeenCalledWith(
           [MOV_ENTEL_1, MOV_ENTEL_2, MOV_ENTEL_3],
           CUENTA_TELECOM,
+          "supplier_payment",
           "",
         ),
     );
