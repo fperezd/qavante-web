@@ -2,12 +2,18 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
-import { QavanteInput } from "@/components/qavante";
+import { AlertCircle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import { QavanteInlineError, QavanteInput } from "@/components/qavante";
 import { PasswordInput } from "@/components/credenciales/password-input";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { usePutSiiCredential } from "@/lib/api/credentials";
+import {
+  monthValue,
+  startDateForMonth,
+  useOnboardingImportWindow,
+  useSetOnboardingImportWindow,
+} from "@/lib/api/onboarding-import-window";
 import { useOnboardingSources } from "@/lib/api/onboarding-sources";
 import { deferSource, undeferSource } from "@/lib/onboarding/deferred-sources";
 import { isValidRut } from "@/lib/validators/rut";
@@ -37,31 +43,51 @@ const NEXT = routeAfter("connect-sii");
 export function ConnectSiiView() {
   const router = useRouter();
   const save = usePutSiiCredential();
+  const importWindow = useOnboardingImportWindow();
+  const setImportWindow = useSetOnboardingImportWindow();
   const { states } = useOnboardingSources(true);
   const connected = states.sii === "connected";
   const [rut, setRut] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [touched, setTouched] = React.useState(false);
+  const [startDate, setStartDate] = React.useState("");
+
+  React.useEffect(() => {
+    if (importWindow.data && !startDate) setStartDate(importWindow.data.start_date);
+  }, [importWindow.data, startDate]);
 
   const rutValid = isValidRut(rut);
   // `>= 4` alinea con el dialog de Credenciales (misma clave SII); `!isPending`
   // corta el doble-submit (Enter repetido antes de que React deshabilite).
-  const canSubmit = rutValid && password.length >= 4 && !save.isPending;
+  const canSubmit =
+    rutValid &&
+    password.length >= 4 &&
+    Boolean(startDate) &&
+    importWindow.isSuccess &&
+    !save.isPending &&
+    !setImportWindow.isPending;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setTouched(true);
     if (!canSubmit) return;
-    save.mutate(
-      { rut, password },
-      {
-        onSuccess: () => {
-          // Conectada = ya no está diferida (si el usuario la había pospuesto).
-          undeferSource("sii");
-          router.push(NEXT);
+    try {
+      // La fecha va ANTES de la credencial: guardar la clave dispara el sync
+      // inicial y nunca debe usar un rango distinto del que el dueño eligió.
+      await setImportWindow.mutateAsync({ start_date: startDate });
+      save.mutate(
+        { rut, password },
+        {
+          onSuccess: () => {
+            // Conectada = ya no está diferida (si el usuario la había pospuesto).
+            undeferSource("sii");
+            router.push(NEXT);
+          },
         },
-      },
-    );
+      );
+    } catch {
+      // El error queda visible bajo la elección de período; no guardamos secretos.
+    }
   }
 
   /** "Conectar después": decisión explícita del usuario, no un descarte silencioso. */
@@ -99,6 +125,55 @@ export function ConnectSiiView() {
             ingresa al SII). Se guardan cifrados y solo se usan para consultar tus datos.
           </p>
         </div>
+
+        <section className="space-y-2 rounded-xl border border-border bg-surface-muted p-4">
+          <div>
+            <h2 className="text-sm font-medium text-neutral-dark">¿Desde qué mes leemos?</h2>
+            <p className="mt-1 text-xs text-neutral-mid">
+              Traeremos hasta seis meses antes de tu registro. Elegir un mes no cambia nada de tu
+              información; solo define desde dónde empezamos a leerla.
+            </p>
+          </div>
+
+          {importWindow.isLoading && (
+            <p className="flex items-center gap-2 text-sm text-neutral-mid" role="status">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              Preparando los meses disponibles…
+            </p>
+          )}
+
+          {importWindow.isError && (
+            <QavanteInlineError
+              error={importWindow.error}
+              what="los meses disponibles"
+              onRetry={() => void importWindow.refetch()}
+            />
+          )}
+
+          {importWindow.data && (
+            <div className="space-y-1">
+              <label htmlFor="sii-import-month" className="text-sm font-medium text-neutral-dark">
+                Mes inicial
+              </label>
+              <input
+                id="sii-import-month"
+                type="month"
+                value={monthValue(startDate)}
+                min={monthValue(importWindow.data.earliest_start_date)}
+                max={monthValue(importWindow.data.latest_start_date)}
+                onChange={(event) => setStartDate(startDateForMonth(event.target.value))}
+                className="flex h-10 w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:border-brand-primary"
+              />
+              <p className="text-xs text-neutral-mid">Siempre usamos el día 1 del mes.</p>
+            </div>
+          )}
+
+          {setImportWindow.isError && (
+            <p className="text-xs text-danger-500" role="alert">
+              No pudimos guardar el mes inicial. Intenta de nuevo antes de conectar el SII.
+            </p>
+          )}
+        </section>
 
         <div className="space-y-1">
           <label htmlFor="sii-rut" className="text-sm font-medium text-neutral-dark">
@@ -159,7 +234,7 @@ export function ConnectSiiView() {
         <OnboardingStepActions
           continueType="submit"
           continueLabel={connected ? "Actualizar y continuar" : "Conectar y continuar"}
-          continueLoading={save.isPending}
+          continueLoading={save.isPending || setImportWindow.isPending}
           continueDisabled={!canSubmit}
           onSkip={connected ? () => router.push(NEXT) : handleDefer}
           skipLabel={connected ? "Continuar" : "Conectar después"}

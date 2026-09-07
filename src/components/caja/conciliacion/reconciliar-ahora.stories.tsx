@@ -17,6 +17,9 @@ const cero = {
   prepago_applied: 0,
   processor_batch: 0,
   factoring: 0,
+  previred: 0,
+  fx: 0,
+  incomplete_currency: 0,
 };
 
 const meta = {
