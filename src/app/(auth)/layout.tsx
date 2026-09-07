@@ -66,7 +66,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
 
       {/* Panel formulario (claro) — el logo de marca vive acá, arriba del form.
           Se muestra en desktop y mobile (el logo navy lee bien sobre el claro). */}
-      <main className="flex w-full flex-col items-center justify-center bg-background p-4 lg:w-1/2">
+      <main className="flex w-full flex-col items-center justify-center bg-white p-4 lg:w-1/2">
         <div className="w-full max-w-md">
           {/* h1 sr-only para heading hierarchy a11y + e2e smoke en mobile. */}
           <h1 className="sr-only">Qavante</h1>
