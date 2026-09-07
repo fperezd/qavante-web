@@ -17014,6 +17014,32 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** RcvDocumento */
+        RcvDocumento: {
+            cedido: boolean;
+            cedido_a?: string | null;
+            dhdr_codigo?: string | null;
+            /** Fecha de vencimiento ISO (YYYY-MM-DD), si fue persistida al enriquecer el DTE. */
+            due_date?: string | null;
+            /** Origen de due_date: sii, contado o assumed_30d. */
+            due_date_source?: string | null;
+            estado?: string | null;
+            fecha?: string | null;
+            folio?: number | null;
+            monto_exento?: number | null;
+            monto_iva?: number | null;
+            monto_neto?: number | null;
+            monto_total?: number | null;
+            razon_social?: string | null;
+            reclamado: boolean;
+            ref_folio?: number | null;
+            ref_tipo_doc?: number | null;
+            rut_contraparte?: string | null;
+            tipo_doc?: number | null;
+            tipo_doc_nombre?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * RcvSyncResponse
          * @description Resultado de `POST /api/sii/sync-rcv` — devengado persistido (ADR-0035).
@@ -17052,9 +17078,7 @@ export interface components {
              * Ventas
              * @description Documentos de ventas del período. Slim por default. Con ?full=true devuelve los 50+ campos crudos del SII.
              */
-            ventas?: {
-                [key: string]: unknown;
-            }[];
+            ventas?: components["schemas"]["RcvDocumento"][];
             /**
              * Count
              * @default 0

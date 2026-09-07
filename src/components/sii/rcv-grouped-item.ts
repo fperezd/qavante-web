@@ -3,8 +3,10 @@
    compartan sin import circular. */
 
 import type { FacturaRow } from "./rcv-anuladas";
+import type { components } from "@/lib/api/types";
 
-export interface RcvDoc {
+/** Documento del Libro tipado desde el contrato OpenAPI. El RCV slim puede omitir campos. */
+export type RcvDoc = Partial<components["schemas"]["RcvDocumento"]> & {
   tipo_doc?: number;
   folio?: number;
   fecha?: string;
@@ -15,10 +17,6 @@ export interface RcvDoc {
   monto_exento?: number;
   monto_iva?: number;
   monto_total?: number;
-  /** Vencimiento persistido por el backend tras leer el DTE; no viene en el RCV crudo. */
-  due_date?: string | null;
-  /** Origen del vencimiento: SII, contado o supuesto estándar de 30 días. */
-  due_date_source?: "sii" | "contado" | "assumed_30d" | string | null;
   /** Referencia del DTE (SII): la NC/ND apunta al documento que modifica. */
   ref_tipo_doc?: number;
   ref_folio?: number;
@@ -26,7 +24,7 @@ export interface RcvDoc {
    *  su monto está en $0. El FE pinta una "R". `null` = dato de cache anterior a #744. */
   reclamado?: boolean | null;
   [key: string]: unknown;
-}
+};
 
 /** Fila del Libro en modo "agrupado": o una factura (con sus NC vinculadas) o
  *  una nota de crédito huérfana (sin factura asociada en el período). */
