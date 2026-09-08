@@ -7,6 +7,7 @@ import {
   LEY_9_TEXTO_V06,
   csvCalendarioV06,
   elUnicoRojoV06,
+  estimacionF29V06,
   f29EstimadoHuecoV06,
   filaF29DeMes,
   filaF29PostergadoDeMes,
@@ -19,10 +20,16 @@ import {
   ventanaPeriodosV06,
   type FilaCalendarioV06,
 } from "./impuestos-v06-model";
-import { HOY_V06, mesesF29V06, tgrMovimientosV06 } from "./impuestos-v06-fixtures";
+import {
+  F29_IMPUESTO_ESTIMABLE_V06,
+  F29_IMPUESTO_NO_ESTIMABLE_V06,
+  HOY_V06,
+  mesesF29V06,
+  tgrMovimientosV06,
+} from "./impuestos-v06-fixtures";
 
 /* Modelo puro de V06 · Impuestos. Cada afirmación de la pantalla — la tríada, cada fila del
- * calendario, el único rojo, el hueco del F-29 estimado — se fija acá sin montar un DOM (mismo
+ * calendario, el único rojo y el F-29 estimado — se fija acá sin montar un DOM (mismo
  * patrón que `presupuesto-v09-model.test.ts`). */
 
 describe("ventanaPeriodosV06", () => {
@@ -81,7 +88,7 @@ describe("filaF29DeMes — declarado", () => {
   });
 });
 
-describe("filaF29DeMes — sin declarar: nunca se estima (recorte R2)", () => {
+describe("filaF29DeMes — sin estimación aplicable", () => {
   const base: F29EstadoMes = {
     mes: 7,
     periodo: "2026-07",
@@ -93,7 +100,7 @@ describe("filaF29DeMes — sin declarar: nunca se estima (recorte R2)", () => {
     vencimiento: "2026-08-12",
   };
 
-  it("no_declarado_vencido: sin monto, motivo = el hueco R2, no resuelto", () => {
+  it("no_declarado_vencido: sin monto, motivo explícito, no resuelto", () => {
     const fila = filaF29DeMes(base, HOY_V06);
     expect(fila.monto).toBeNull();
     expect(fila.motivoSinMonto).toBe(F29_ESTIMADO_MOTIVO);
@@ -102,20 +109,20 @@ describe("filaF29DeMes — sin declarar: nunca se estima (recorte R2)", () => {
     expect(fila.vencimientoLabel).not.toMatch(/^\$/); // nunca un monto disfrazado de fecha
   });
 
-  it("por_declarar: sin monto, mismo motivo del hueco", () => {
+  it("por_declarar: sin monto, mismo motivo de ausencia", () => {
     const fila = filaF29DeMes({ ...base, estado: "por_declarar" }, HOY_V06);
     expect(fila.monto).toBeNull();
     expect(fila.motivoSinMonto).toBe(F29_ESTIMADO_MOTIVO);
     expect(fila.sub).toBe("Aún no vence");
   });
 
-  it("en_curso: sin monto, mismo motivo del hueco", () => {
+  it("en_curso: sin monto cuando no recibió el contrato del período", () => {
     const fila = filaF29DeMes({ ...base, estado: "en_curso" }, HOY_V06);
     expect(fila.monto).toBeNull();
     expect(fila.motivoSinMonto).toBe(F29_ESTIMADO_MOTIVO);
   });
 
-  it("sin_dato: sin monto, mismo motivo del hueco, sub distinto (pide sincronizar)", () => {
+  it("sin_dato: sin monto y sub distinto (pide sincronizar)", () => {
     const fila = filaF29DeMes({ ...base, estado: "sin_dato" }, HOY_V06);
     expect(fila.monto).toBeNull();
     expect(fila.sub).toMatch(/sincroniza/i);
@@ -407,9 +414,100 @@ describe("filasCalendarioV06 — integración con las fixtures", () => {
   });
 });
 
-describe("f29EstimadoHuecoV06 — el motivo del recorte R2, no un cálculo", () => {
-  it("cita el contraste contra un F-29 real como condición", () => {
-    expect(f29EstimadoHuecoV06().reason).toContain("contrastarse contra un F-29 real declarado");
+describe("estimacionF29V06 — estimabilidad R2", () => {
+  it("publica el total y desglose sólo cuando estimable=true", () => {
+    const estimacion = estimacionF29V06(F29_IMPUESTO_ESTIMABLE_V06);
+    expect(estimacion.monto).toBe(530000);
+    expect(estimacion.desglose).toEqual({
+      ivaDebito: 900000,
+      ivaCredito: 500000,
+      remanente: 50000,
+      ppm: 130000,
+      impuestoTrabajadores: 50000,
+    });
+    expect(estimacion.evaluadaEn).toBe("2026-08-15T12:30:00Z");
+    expect(estimacion.fuentes.map((fuente) => fuente.label)).toEqual(["RCV", "BUK sincronizado"]);
+  });
+
+  it("[mutante estimable=false] se abstiene aunque el payload traiga un total plausible", () => {
+    const estimacion = estimacionF29V06({
+      ...F29_IMPUESTO_ESTIMABLE_V06,
+      estimable: false,
+    });
+    expect(estimacion.monto).toBeNull();
+    expect(estimacion.desglose).toBeNull();
+    expect(estimacion.motivoSinMonto).toBe(F29_ESTIMADO_MOTIVO);
+  });
+
+  it("[mutante missing_inputs] se abstiene con estimable=true y montos íntegros", () => {
+    const estimacion = estimacionF29V06({
+      ...F29_IMPUESTO_ESTIMABLE_V06,
+      missing_inputs: ["remanente"],
+    });
+    expect(estimacion.monto).toBeNull();
+    expect(estimacion.desglose).toBeNull();
+    expect(estimacion.motivoSinMonto).toContain("remanente de crédito fiscal");
+  });
+
+  it("[mutante incompleto] se abstiene con estimable=true, sin faltantes y montos íntegros", () => {
+    const estimacion = estimacionF29V06({
+      ...F29_IMPUESTO_ESTIMABLE_V06,
+      incompleto: true,
+    });
+    expect(estimacion.monto).toBeNull();
+    expect(estimacion.desglose).toBeNull();
+    expect(estimacion.motivoSinMonto).toMatch(/incompleta/i);
+  });
+
+  it("[mutante falsos cero] no convierte los insumos ausentes en un $0", () => {
+    const estimacion = estimacionF29V06({
+      ...F29_IMPUESTO_NO_ESTIMABLE_V06,
+      total_con_iva: 0,
+      iva_debito: 0,
+      iva_credito: 0,
+    });
+    expect(estimacion.monto).toBeNull();
+    expect(estimacion.monto).not.toBe(0);
+  });
+
+  it("un cero confirmado sí se conserva cuando estimable=true y el desglose está completo", () => {
+    const estimacion = estimacionF29V06({
+      ...F29_IMPUESTO_ESTIMABLE_V06,
+      total_con_iva: 0,
+      iva_debito: 0,
+      iva_credito: 0,
+      remanente: 0,
+      ppm: 0,
+      impuesto_trabajadores: 0,
+    });
+    expect(estimacion.monto).toBe(0);
+  });
+
+  it("[mutante desglose nulo] se abstiene ante estimable=true inconsistente", () => {
+    const estimacion = estimacionF29V06({
+      ...F29_IMPUESTO_ESTIMABLE_V06,
+      iva_credito: null,
+    });
+    expect(estimacion.monto).toBeNull();
+    expect(estimacion.motivoSinMonto).toMatch(/no publicó todos los montos/i);
+  });
+
+  it("sin respuesta conserva el hueco explícito", () => {
+    expect(estimacionF29V06(null).motivoSinMonto).toBe(f29EstimadoHuecoV06().reason);
+  });
+
+  it("la estimación alimenta sólo la fila del mismo período", () => {
+    const estimacion = estimacionF29V06(F29_IMPUESTO_ESTIMABLE_V06);
+    const filas = filasCalendarioV06({
+      mesesF29: mesesF29V06(),
+      estimacionF29: estimacion,
+      previred: null,
+      tgrAutenticado: true,
+      tgrMovimientos: [],
+      hoy: HOY_V06,
+    });
+    expect(filas.find((fila) => fila.key === "f29-2026-08")?.monto).toBe(530000);
+    expect(filas.find((fila) => fila.key === "f29-2026-07")?.monto).toBeNull();
   });
 });
 

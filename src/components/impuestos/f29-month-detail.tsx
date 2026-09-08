@@ -144,7 +144,7 @@ export function F29MonthDetail({
         <p className="text-sm text-neutral-mid">Sin datos para este período.</p>
       ) : (
         <div className="space-y-4">
-          {data.iva_postergado > 0 ? (
+          {data.iva_postergado != null && data.iva_postergado > 0 ? (
             /* El período YA postergó el IVA (código 755 del F29 declarado, dato persistido). La decisión
                está tomada → NO mostramos las dos opciones (darían el mismo monto: el `total_a_pagar` ya
                excluye el IVA). Un panel claro: el IVA diferido se debe APARTE. El vencimiento sale de la
@@ -161,8 +161,9 @@ export function F29MonthDetail({
                 {girosData?.vencimiento_postergado
                   ? ` · vence el ${formatDateLike(girosData.vencimiento_postergado)}`
                   : ""}
-                . El total a pagar del F29 ({formatClp(data.total_con_iva)}) ya NO lo incluye, el IVA
-                se debe aparte.
+                . El total a pagar del F29 (
+                {data.total_con_iva == null ? "sin dato" : formatClp(data.total_con_iva)}) ya NO lo
+                incluye, el IVA se debe aparte.
               </p>
             </div>
           ) : (
@@ -179,7 +180,7 @@ export function F29MonthDetail({
                 label="Postergar el IVA"
                 amount={data.total_sin_iva}
                 hint={
-                  data.iva_postergable > 0
+                  data.iva_postergable != null && data.iva_postergable > 0
                     ? `Postergas ${formatClp(data.iva_postergable)} de IVA (vence en ~2 meses).`
                     : "No hay IVA postergable este período."
                 }
@@ -281,7 +282,7 @@ function PayOption({
 }: {
   tone: "full" | "defer";
   label: string;
-  amount: number;
+  amount: number | null | undefined;
   hint: string;
 }) {
   return (
@@ -300,7 +301,7 @@ function PayOption({
           tone === "full" ? "text-brand-deep" : "text-success-700",
         )}
       >
-        {formatClp(amount)}
+        {amount == null ? "sin dato" : formatClp(amount)}
       </p>
       <p className="mt-1 text-xs text-neutral-mid">{hint}</p>
     </div>
