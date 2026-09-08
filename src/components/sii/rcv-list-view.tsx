@@ -596,7 +596,11 @@ export function GroupedTable({
                         rcvDueDateIsEstimated(d) ? "Fecha estimada: emisión + 30 días." : undefined
                       }
                     >
-                      {formatDateLike(rcvDueDate(d))}
+                      {rcvDueDate(d) ? (
+                        formatDateLike(rcvDueDate(d))
+                      ) : (
+                        <span className="text-xs">No informada</span>
+                      )}
                       {rcvDueDateIsEstimated(d) && (
                         <span className="ml-1 text-[10px]">estimado</span>
                       )}
@@ -684,7 +688,11 @@ export function GroupedTable({
                       rcvDueDateIsEstimated(f) ? "Fecha estimada: emisión + 30 días." : undefined
                     }
                   >
-                    {formatDateLike(rcvDueDate(f))}
+                    {rcvDueDate(f) ? (
+                      formatDateLike(rcvDueDate(f))
+                    ) : (
+                      <span className="text-xs">No informada</span>
+                    )}
                     {rcvDueDateIsEstimated(f) && <span className="ml-1 text-[10px]">estimado</span>}
                   </td>
                 )}

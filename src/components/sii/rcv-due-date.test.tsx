@@ -36,7 +36,7 @@ describe("vencimientos en Libro de Ventas", () => {
     expect(html).toContain("Vence");
     expect(html).toContain("31-07-2026");
     expect(html).toContain("estimado");
-    expect(html).toContain("s/d");
+    expect(html).toContain("No informada");
     expect(html).toContain("Fecha estimada: emisión + 30 días.");
   });
 
@@ -70,7 +70,7 @@ describe("vencimientos en Libro de Ventas", () => {
 
     expect(html).toContain("31-07-2026");
     expect(html).toContain("estimado");
-    expect(html).toContain("s/d");
+    expect(html).toContain("No informada");
     expect(html).toMatch(/<tfoot[\s\S]*colspan="5"/i);
     expect(html).toMatch(/<tfoot[\s\S]*colspan="10"/i);
   });

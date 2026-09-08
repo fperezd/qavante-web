@@ -90,7 +90,11 @@ export function RcvDetalleGrid({
                       : undefined
                   }
                 >
-                  {formatDateLike(rcvDueDate(row.original))}
+                  {rcvDueDate(row.original) ? (
+                    formatDateLike(rcvDueDate(row.original))
+                  ) : (
+                    <span className="text-xs text-neutral-mid">No informada</span>
+                  )}
                   {rcvDueDateIsEstimated(row.original) && (
                     <span className="ml-1 text-[10px] text-neutral-mid">estimado</span>
                   )}
