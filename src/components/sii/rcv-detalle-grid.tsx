@@ -8,7 +8,7 @@ import { formatDateLike } from "@/lib/formatters/date";
 import { tipoDocMeta } from "./tipo-doc";
 import { fechaSortKey } from "./rcv-sort";
 import type { computeRcvTotals } from "./rcv-totals";
-import type { RcvDoc } from "./rcv-grouped-item";
+import { rcvDueDate, rcvDueDateIsEstimated, type RcvDoc } from "./rcv-grouped-item";
 import type { RcvKind } from "./rcv-list-view";
 import { DteActions } from "./dte-actions";
 import { dtePdfUrlForDoc } from "./dte-pdf";
@@ -26,6 +26,8 @@ export interface RcvDetalleGridProps {
   dteKind?: RcvKind;
   /** Ventana del rango consultado para armar la URL del PDF (ver dtePdfUrlForDoc). */
   dteWindow?: { desde: string; hasta: string } | null;
+  /** Ventas puede traer el vencimiento enriquecido desde el backend. */
+  showDueDate?: boolean;
 }
 
 export function RcvDetalleGrid({
@@ -35,6 +37,7 @@ export function RcvDetalleGrid({
   hasActiveFilters,
   dteKind,
   dteWindow = null,
+  showDueDate = false,
 }: RcvDetalleGridProps) {
   const columns = React.useMemo<ColumnDef<RcvDoc, unknown>[]>(
     () => [
@@ -72,6 +75,34 @@ export function RcvDetalleGrid({
           <span className="text-neutral-dark">{formatDateLike(row.original.fecha)}</span>
         ),
       },
+      ...(showDueDate
+        ? [
+            {
+              id: "vencimiento",
+              header: "Vence",
+              accessorFn: (d: RcvDoc) => rcvDueDate(d) ?? "",
+              cell: ({ row }: { row: { original: RcvDoc } }) => (
+                <span
+                  className="text-neutral-dark"
+                  title={
+                    rcvDueDateIsEstimated(row.original)
+                      ? "Fecha estimada: emisión + 30 días."
+                      : undefined
+                  }
+                >
+                  {rcvDueDate(row.original) ? (
+                    formatDateLike(rcvDueDate(row.original))
+                  ) : (
+                    <span className="text-xs text-neutral-mid">No informada</span>
+                  )}
+                  {rcvDueDateIsEstimated(row.original) && (
+                    <span className="ml-1 text-[10px] text-neutral-mid">estimado</span>
+                  )}
+                </span>
+              ),
+            } as ColumnDef<RcvDoc, unknown>,
+          ]
+        : []),
       {
         id: "cliente",
         header: partyLabel,
@@ -148,12 +179,12 @@ export function RcvDetalleGrid({
           ]
         : []),
     ],
-    [partyLabel, dteKind, dteWindow],
+    [partyLabel, dteKind, dteWindow, showDueDate],
   );
 
   return (
     <div className="space-y-2">
-      <DynamicTable columns={columns} data={docs} minWidth={720} />
+      <DynamicTable columns={columns} data={docs} minWidth={showDueDate ? 820 : 720} />
 
       <div className="rounded-xl border border-border-strong bg-surface-muted px-3 py-2 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">

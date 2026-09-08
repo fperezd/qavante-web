@@ -3,8 +3,15 @@
    compartan sin import circular. */
 
 import type { FacturaRow } from "./rcv-anuladas";
+import type { components } from "@/lib/api/types";
 
-export interface RcvDoc {
+type GeneratedDueDateFields = Pick<
+  components["schemas"]["RcvDocumento"],
+  "due_date" | "due_date_source"
+>;
+
+/** Shape histórico slim del Libro, con vencimiento tomado del contrato publicado por API #429. */
+export interface RcvDoc extends GeneratedDueDateFields {
   tipo_doc?: number;
   folio?: number;
   fecha?: string;
@@ -22,6 +29,23 @@ export interface RcvDoc {
    *  su monto está en $0. El FE pinta una "R". `null` = dato de cache anterior a #744. */
   reclamado?: boolean | null;
   [key: string]: unknown;
+}
+
+/**
+ * Aunque el contrato tipa el campo como string, validamos que sea una fecha civil ISO real antes
+ * de publicarla. Ausencia o valor inválido siguen fallando cerrado a `null`.
+ */
+export function rcvDueDate(doc: RcvDoc): string | null {
+  if (typeof doc.due_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(doc.due_date)) return null;
+  const parsed = new Date(`${doc.due_date}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === doc.due_date
+    ? doc.due_date
+    : null;
+}
+
+export function rcvDueDateIsEstimated(doc: RcvDoc): boolean {
+  const source: GeneratedDueDateFields["due_date_source"] = doc.due_date_source;
+  return rcvDueDate(doc) !== null && source === "assumed_30d";
 }
 
 /** Fila del Libro en modo "agrupado": o una factura (con sus NC vinculadas) o

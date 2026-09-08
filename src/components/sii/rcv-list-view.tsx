@@ -38,7 +38,12 @@ import { DteActions } from "./dte-actions";
 import { periodToPdfWindow } from "./dte-date";
 import { dtePdfUrlForDoc } from "./dte-pdf";
 import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-table";
-import type { GroupedItem, RcvDoc } from "./rcv-grouped-item";
+import {
+  rcvDueDate,
+  rcvDueDateIsEstimated,
+  type GroupedItem,
+  type RcvDoc,
+} from "./rcv-grouped-item";
 import { sortGroupedItems, toggleSort, type SortKey, type SortState } from "./rcv-sort";
 
 /* Vista reusable para Libro de Compras / Libro de Ventas (Sprint C1
@@ -381,6 +386,7 @@ export function RcvListView({
                   onToggleSort={onToggleSort}
                   dteKind={kind}
                   dteWindow={dteWindow}
+                  showDueDate={kind === "ventas"}
                 />
                 <PaginationBar
                   page={currentPage}
@@ -402,6 +408,7 @@ export function RcvListView({
                 hasActiveFilters={hasActiveFilters}
                 dteKind={kind}
                 dteWindow={dteWindow}
+                showDueDate={kind === "ventas"}
               />
             )}
 
@@ -474,7 +481,7 @@ function SortHeader({
   );
 }
 
-interface GroupedTableProps {
+export interface GroupedTableProps {
   items: GroupedItem[];
   totals: ReturnType<typeof computeRcvTotals>;
   partyLabel: string;
@@ -486,6 +493,8 @@ interface GroupedTableProps {
   dteKind?: RcvKind;
   /** Ventana del rango consultado para armar la URL del PDF (ver dtePdfUrlForDoc). */
   dteWindow?: { desde: string; hasta: string } | null;
+  /** Ventas puede traer el vencimiento enriquecido desde el backend. */
+  showDueDate?: boolean;
 }
 
 /** Celda DTE (ver/descargar) de un documento del Libro (compras o ventas). */
@@ -494,7 +503,7 @@ function dteCell(kind: RcvKind, doc: RcvDoc, window: { desde: string; hasta: str
   return <DteActions url={dtePdfUrlForDoc(kind, doc, window)} label={`folio ${folio}`} />;
 }
 
-function GroupedTable({
+export function GroupedTable({
   items,
   totals,
   partyLabel,
@@ -504,6 +513,7 @@ function GroupedTable({
   onToggleSort,
   dteKind,
   dteWindow = null,
+  showDueDate = false,
 }: GroupedTableProps) {
   const showDte = dteKind !== undefined;
   return (
@@ -514,6 +524,11 @@ function GroupedTable({
             <SortHeader label="Tipo" sortKey="tipo" sort={sort} onToggleSort={onToggleSort} />
             <SortHeader label="Folio" sortKey="folio" sort={sort} onToggleSort={onToggleSort} />
             <SortHeader label="Fecha" sortKey="fecha" sort={sort} onToggleSort={onToggleSort} />
+            {showDueDate && (
+              <th scope="col" className="py-2 pr-3 font-semibold">
+                Vence
+              </th>
+            )}
             <SortHeader
               label={partyLabel}
               sortKey="cliente"
@@ -574,6 +589,23 @@ function GroupedTable({
                     {d.folio ?? "s/d"}
                   </td>
                   <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(d.fecha)}</td>
+                  {showDueDate && (
+                    <td
+                      className="py-2 pr-3 text-neutral-mid"
+                      title={
+                        rcvDueDateIsEstimated(d) ? "Fecha estimada: emisión + 30 días." : undefined
+                      }
+                    >
+                      {rcvDueDate(d) ? (
+                        formatDateLike(rcvDueDate(d))
+                      ) : (
+                        <span className="text-xs">No informada</span>
+                      )}
+                      {rcvDueDateIsEstimated(d) && (
+                        <span className="ml-1 text-[10px]">estimado</span>
+                      )}
+                    </td>
+                  )}
                   <td className="py-2 pr-3">
                     <span className="block text-neutral-dark">
                       {d.razon_social ?? "Sin nombre"}
@@ -649,6 +681,21 @@ function GroupedTable({
                   </span>
                 </td>
                 <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(f.fecha)}</td>
+                {showDueDate && (
+                  <td
+                    className="py-2 pr-3 text-neutral-mid"
+                    title={
+                      rcvDueDateIsEstimated(f) ? "Fecha estimada: emisión + 30 días." : undefined
+                    }
+                  >
+                    {rcvDueDate(f) ? (
+                      formatDateLike(rcvDueDate(f))
+                    ) : (
+                      <span className="text-xs">No informada</span>
+                    )}
+                    {rcvDueDateIsEstimated(f) && <span className="ml-1 text-[10px]">estimado</span>}
+                  </td>
+                )}
                 <td className="py-2 pr-3">
                   <span className={cn("block text-neutral-dark", anulada && "line-through")}>
                     {f.razon_social ?? "Sin nombre"}
@@ -715,7 +762,7 @@ function GroupedTable({
         <tfoot className={stickyFoot}>
           <tr className="border-t-2 border-border-strong font-semibold">
             <td
-              colSpan={4}
+              colSpan={showDueDate ? 5 : 4}
               className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
             >
               Total neto del período
@@ -737,7 +784,7 @@ function GroupedTable({
           </tr>
           {totals.ncCount > 0 && (
             <tr className="text-[11px] text-neutral-mid">
-              <td colSpan={showDte ? 9 : 8} className="pb-2 pr-3">
+              <td colSpan={(showDte ? 9 : 8) + (showDueDate ? 1 : 0)} className="pb-2 pr-3">
                 Se descontaron {totals.ncCount}{" "}
                 {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
                 <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}

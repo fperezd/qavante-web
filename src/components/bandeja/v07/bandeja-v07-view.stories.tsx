@@ -482,13 +482,15 @@ export const ClasificarAutoDeshecho: Story = {
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
-    onDeshacerAutoClasificar: fn(async (): Promise<RevertActionResponse> => ({
-      action_id: ACCION_AUTO.actionId,
-      action_type: "bank_movement.auto_classify",
-      result: "reverted",
-      reverted_at: "2026-08-30T12:00:00Z",
-      detail: { movement_id: "mov-x", movimientos_restaurados: 1 },
-    })),
+    onDeshacerAutoClasificar: fn(
+      async (): Promise<RevertActionResponse> => ({
+        action_id: ACCION_AUTO.actionId,
+        action_type: "bank_movement.auto_classify",
+        result: "reverted",
+        reverted_at: "2026-08-30T12:00:00Z",
+        detail: { movement_id: "mov-x", movimientos_restaurados: 1 },
+      }),
+    ),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -519,16 +521,18 @@ export const ClasificarAutoProtegido: Story = {
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
-    onDeshacerAutoClasificar: fn(async (): Promise<RevertActionResponse> => ({
-      action_id: ACCION_AUTO.actionId,
-      action_type: "bank_movement.auto_classify",
-      result: "undo_not_supported",
-      reverted_at: null,
-      detail: {
-        motivo: "estado_derivado",
-        explicacion: "Algo cambió después de esta acción: no se tocó nada.",
-      },
-    })),
+    onDeshacerAutoClasificar: fn(
+      async (): Promise<RevertActionResponse> => ({
+        action_id: ACCION_AUTO.actionId,
+        action_type: "bank_movement.auto_classify",
+        result: "undo_not_supported",
+        reverted_at: null,
+        detail: {
+          motivo: "estado_derivado",
+          explicacion: "Algo cambió después de esta acción: no se tocó nada.",
+        },
+      }),
+    ),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -551,16 +555,18 @@ export const ClasificarAutoBloqueado: Story = {
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
-    onDeshacerAutoClasificar: fn(async (): Promise<RevertActionResponse> => ({
-      action_id: ACCION_AUTO.actionId,
-      action_type: "bank_movement.auto_classify",
-      result: "undo_not_supported",
-      reverted_at: null,
-      detail: {
-        motivo: "estado_bloqueado",
-        explicacion: "Otra operación está usando esto mismo. No se tocó nada; puedes reintentar.",
-      },
-    })),
+    onDeshacerAutoClasificar: fn(
+      async (): Promise<RevertActionResponse> => ({
+        action_id: ACCION_AUTO.actionId,
+        action_type: "bank_movement.auto_classify",
+        result: "undo_not_supported",
+        reverted_at: null,
+        detail: {
+          motivo: "estado_bloqueado",
+          explicacion: "Otra operación está usando esto mismo. No se tocó nada; puedes reintentar.",
+        },
+      }),
+    ),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
