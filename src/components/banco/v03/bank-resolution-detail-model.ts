@@ -28,6 +28,15 @@ export interface ResolutionHistoryEntry {
   actor?: string | null;
 }
 
+export interface ResolutionComponent {
+  id: string;
+  kind: string;
+  amountFormatted: string;
+  source: string;
+  sourceReference?: string | null;
+  taxTreatment?: string | null;
+}
+
 export interface BankMovementResolutionDetail {
   movementId: string;
   reconciliation: {
@@ -38,6 +47,7 @@ export interface BankMovementResolutionDetail {
     canUnreconcile: boolean;
     topology?: "1:1" | "1:N" | "N:1" | "N:N" | null;
     allocations: ResolutionAllocation[];
+    components: ResolutionComponent[];
     balanceFormatted?: string | null;
     source?: string | null;
     confidence?: string | null;
@@ -68,6 +78,7 @@ export function resolutionDetailFromMovement(
       status: estadoConciliacionDe(movement),
       canUnreconcile: false,
       allocations: [],
+      components: [],
       source: null,
       confidence:
         typeof movement.match_score === "number" ? formatPct(movement.match_score * 100) : null,
@@ -125,6 +136,10 @@ export function resolutionDetailFromApi(
       origin: item.source_path ? { label: "Ir al origen", href: item.source_path } : null,
     }),
   );
+  const publishedComponents =
+    detail.reconciliation.components.length > 0
+      ? detail.reconciliation.components
+      : (current?.components ?? []);
   return {
     movementId: detail.movement.id,
     reconciliation: {
@@ -132,6 +147,14 @@ export function resolutionDetailFromApi(
       canUnreconcile: legacyAllocations.length > 0,
       topology: topology(detail.reconciliation.topology ?? current?.topology),
       allocations: effectiveAllocations.length > 0 ? effectiveAllocations : legacyAllocations,
+      components: publishedComponents.map((item, index) => ({
+        id: `${item.kind}:${item.source_reference ?? index}`,
+        kind: item.kind,
+        amountFormatted: displayMoney(item.signed_amount, item.currency_code),
+        source: item.source,
+        sourceReference: item.source_reference,
+        taxTreatment: item.tax_treatment,
+      })),
       balanceFormatted: displayMoney(
         detail.reconciliation.remaining_amount,
         detail.movement.currency_code,
@@ -139,7 +162,7 @@ export function resolutionDetailFromApi(
       evidence: (detail.reconciliation.evidence ?? current?.evidence ?? []).map(
         (item) => `${item.code}: ${item.result}`,
       ),
-      source: current?.engine_version ?? detail.reconciliation.components?.[0]?.source ?? null,
+      source: current?.engine_version ?? publishedComponents[0]?.source ?? null,
       confidence: current?.score ? formatPct(Number(current.score) * 100) : null,
       history: detail.reconciliation.history.map((item) => ({
         id: item.id,

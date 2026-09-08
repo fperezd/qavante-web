@@ -21,20 +21,29 @@ const detail: BankMovementResolutionDetail = {
     source: "Motor canónico",
     confidence: "98%",
     evidence: ["RUT coincidente", "Monto distribuido íntegramente"],
+    components: [
+      {
+        id: "principal:facturas-450-451",
+        kind: "principal",
+        amountFormatted: "$6.000.000",
+        source: "receivables",
+        sourceReference: "450, 451",
+      },
+    ],
     allocations: [
       {
         id: "doc-1",
         label: "Factura 450 · Cliente Norte SpA",
         kind: "document",
         amountFormatted: "$4.000.000",
-        origin: { label: "Ver factura de origen", href: "/cobrar/documentos/doc-1" },
+        origin: { label: "Ver factura de origen", href: "/cobrar/facturas-emitidas" },
       },
       {
         id: "doc-2",
         label: "Factura 451 · Cliente Norte SpA",
         kind: "document",
         amountFormatted: "$2.000.000",
-        origin: { label: "Ver factura de origen", href: "/cobrar/documentos/doc-2" },
+        origin: { label: "Ver factura de origen", href: "/cobrar/facturas-emitidas" },
       },
     ],
   },
@@ -89,6 +98,7 @@ export const ConciliacionUnoAMuchosYClasificacionDistribuida: Story = {
     await expect(canvas.getByRole("dialog", { name: "Cómo se resolvió" })).toBeInTheDocument();
     await expect(canvas.getByText("1:N")).toBeInTheDocument();
     await expect(canvas.getByText("Factura 450 · Cliente Norte SpA")).toBeInTheDocument();
+    await expect(canvas.getByText("Componentes financieros")).toBeInTheDocument();
     await expect(canvas.getByText("Ventas de servicios")).toBeInTheDocument();
     await expect(canvas.getByText("Sucursal: Santiago")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Modificar clasificación" }));

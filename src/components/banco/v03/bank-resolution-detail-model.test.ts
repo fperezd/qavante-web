@@ -61,7 +61,16 @@ describe("resolutionDetailFromApi", () => {
             source_path: "/pagar/facturas-recibidas",
           },
         ],
-        components: [],
+        components: [
+          {
+            kind: "interest",
+            signed_amount: "-1500",
+            currency_code: "CLP",
+            source: "factoring_settlement",
+            source_reference: "op-77",
+            tax_treatment: "exempt",
+          },
+        ],
         evidence: [{ code: "rut_exact", result: "pass", weight: "1" }],
         remaining_amount: "0",
         current_case: {
@@ -144,6 +153,13 @@ describe("resolutionDetailFromApi", () => {
     expect(detail.reconciliation.allocations[0]?.kind).toBe("bank_movement");
     expect(detail.reconciliation.allocations[0]?.label).toBe("Segundo movimiento");
     expect(detail.reconciliation.allocations[1]?.origin?.href).toBe("/pagar/facturas-recibidas");
+    expect(detail.reconciliation.components[0]).toMatchObject({
+      kind: "interest",
+      amountFormatted: "−$1.500",
+      source: "factoring_settlement",
+      sourceReference: "op-77",
+      taxTreatment: "exempt",
+    });
     expect(detail.classification.allocations).toHaveLength(2);
     expect(detail.classification.allocations[0]?.dimensions).toEqual([
       { name: "Sucursal", value: "Santiago" },

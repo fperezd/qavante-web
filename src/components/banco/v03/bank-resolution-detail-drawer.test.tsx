@@ -36,6 +36,16 @@ function detail(
           amountFormatted: "$100.000",
         },
       ],
+      components: [
+        {
+          id: "interest:op-77",
+          kind: "interest",
+          amountFormatted: "−$1.500",
+          source: "factoring_settlement",
+          sourceReference: "op-77",
+          taxTreatment: "exempt",
+        },
+      ],
     },
     classification: {
       status: "clasificado",
@@ -73,6 +83,9 @@ describe("BankResolutionDetailDrawer", () => {
     expect(rendered).toContain("Conciliación");
     expect(rendered).toContain("Clasificación");
     expect(rendered).toContain("Nómina septiembre");
+    expect(rendered).toContain("Componentes financieros");
+    expect(rendered).toContain("factoring_settlement");
+    expect(rendered).toContain("op-77");
     expect(rendered).toContain("Remuneraciones administración");
     expect(rendered).toContain("Desconciliar");
     expect(rendered).toContain("Modificar clasificación");

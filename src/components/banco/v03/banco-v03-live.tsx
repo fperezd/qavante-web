@@ -60,6 +60,18 @@ export function motivoSinMovimientos(err: unknown): string {
   return "El listado de movimientos no respondió. Vuelve a intentar en un momento.";
 }
 
+export function unclassifyFeedback(changed: boolean): {
+  kind: "success" | "error";
+  message: string;
+} {
+  return changed
+    ? { kind: "success", message: "Clasificación eliminada" }
+    : {
+        kind: "error",
+        message: "No había una clasificación vigente; el movimiento se volvió a cargar",
+      };
+}
+
 export function BancoV03Live() {
   const [hoy] = React.useState(() => new Date());
   const [selectedAccountId, setSelectedAccountId] = React.useState("");
@@ -186,9 +198,10 @@ export function BancoV03Live() {
               })(),
           },
           {
-            onSuccess: () => {
+            onSuccess: (result) => {
               unclassifyIntents.current.delete(movementId);
-              toast.success("Clasificación eliminada");
+              const feedback = unclassifyFeedback(result.changed);
+              toast[feedback.kind](feedback.message);
               refreshResolution();
             },
             onError: (error) => toast.error(error.message),

@@ -9,6 +9,7 @@ import { CLASIFICACION_PILL, CONCILIACION_PILL, type MovimientoV03 } from "./ban
 import type {
   BankMovementResolutionDetail,
   ResolutionAllocation,
+  ResolutionComponent,
   ResolutionHistoryEntry,
 } from "./bank-resolution-detail-model";
 import {
@@ -156,6 +157,7 @@ export function BankResolutionDetailDrawer({
               items={detail.reconciliation.allocations}
               empty="El estado está disponible, pero la API todavía no publicó contra qué documento(s) se concilió."
             />
+            <Components items={detail.reconciliation.components} />
             {detail.reconciliation.balanceFormatted && (
               <Fact label="Saldo por conciliar" value={detail.reconciliation.balanceFormatted} />
             )}
@@ -251,6 +253,32 @@ export function BankResolutionDetailDrawer({
           </ResolutionSection>
         </div>
       </aside>
+    </div>
+  );
+}
+
+function Components({ items }: { items: ResolutionComponent[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <h4 className="mb-2 text-xs font-semibold text-neutral-dark">Componentes financieros</h4>
+      <ul className="divide-y divide-neutral-light rounded-lg border border-neutral-light">
+        {items.map((item) => (
+          <li key={item.id} className="space-y-1 p-3 text-xs">
+            <div className="flex items-start justify-between gap-3">
+              <span className="font-medium text-neutral-dark">{item.kind}</span>
+              <span className="whitespace-nowrap font-semibold text-neutral-dark">
+                {item.amountFormatted}
+              </span>
+            </div>
+            <p className="text-neutral-mid">
+              Origen: {item.source}
+              {item.sourceReference ? ` · Referencia: ${item.sourceReference}` : ""}
+              {item.taxTreatment ? ` · Tratamiento tributario: ${item.taxTreatment}` : ""}
+            </p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
