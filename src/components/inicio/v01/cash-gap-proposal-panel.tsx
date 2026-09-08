@@ -134,9 +134,9 @@ export function CashGapProposalPanel({
                       />
                     </Link>
                   </div>
-                  {proposal.caveats && proposal.caveats.length > 0 && (
+                  {proposal.caveats.length > 0 && (
                     <div className="rounded-lg border border-warning-500/30 bg-warning-500/5 p-3 text-sm text-neutral-mid">
-                      <p className="font-medium text-neutral-dark">Límites informados</p>
+                      <p className="font-medium text-neutral-dark">Antes de actuar</p>
                       <ul className="mt-1 list-disc space-y-1 pl-5">
                         {proposal.caveats.map((caveat) => (
                           <li key={caveat}>{caveat}</li>
