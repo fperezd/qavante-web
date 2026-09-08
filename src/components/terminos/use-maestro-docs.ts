@@ -52,16 +52,29 @@ function currentYearRange(now: Date): PeriodRange {
   return { desde: `${y}-01`, hasta: `${y}-${mm}` };
 }
 
-function adaptRcv(docs: ReadonlyArray<ApiRcvDoc>): DocConVencimiento[] {
+function normalizeFolio(value: unknown): number | string | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") return value.trim();
+  return null;
+}
+
+function normalizeInteger(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isSafeInteger(value) ? value : undefined;
+  if (typeof value !== "string" || !/^[+-]?\d+$/.test(value.trim())) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
+export function adaptRcv(docs: ReadonlyArray<ApiRcvDoc>): DocConVencimiento[] {
   return docs.map((d) => ({
     rut: String(d.rut_contraparte ?? ""),
     name: typeof d.razon_social === "string" ? d.razon_social : "",
     fecha: typeof d.fecha === "string" ? d.fecha : "",
     monto: Number(d.monto_total) || 0,
-    folio: typeof d.folio === "number" ? d.folio : null,
-    tipoDoc: typeof d.tipo_doc === "number" ? d.tipo_doc : undefined,
-    refFolio: typeof d.ref_folio === "number" ? d.ref_folio : undefined,
-    refTipoDoc: typeof d.ref_tipo_doc === "number" ? d.ref_tipo_doc : undefined,
+    folio: normalizeFolio(d.folio),
+    tipoDoc: normalizeInteger(d.tipo_doc),
+    refFolio: normalizeInteger(d.ref_folio),
+    refTipoDoc: normalizeInteger(d.ref_tipo_doc),
     reclamado: d.reclamado === true, // "R" de reclamada (#744); null/ausente (cache viejo) → false
     cedido: d.cedido === true, // cedida por factoring (RPETC) → se excluye del por-cobrar (#804)
   }));
