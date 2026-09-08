@@ -310,6 +310,10 @@ async function openSelection(canvasElement: HTMLElement, alternative: string, ra
     return active[0]!;
   });
   const input = within(dialog).getByLabelText("Motivo de tu decisión");
+  /* Storybook puede reutilizar la instancia React al cambiar de story. Una selección exitosa
+     cierra el popup directamente y conserva el motivo anterior; limpiar acá hace que cada play
+     parta del texto que declara, sin depender del orden ni relajar los asserts de error/éxito. */
+  await userEvent.clear(input);
   await userEvent.type(input, rationale);
   return { canvas, dialog, input };
 }
