@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentProps } from "react";
 import { ImpuestosV06View } from "./impuestos-v06-view";
-import { filasCalendarioV06, type FilaCalendarioV06 } from "./impuestos-v06-model";
 import {
+  estimacionF29V06,
+  filasCalendarioV06,
+  type FilaCalendarioV06,
+} from "./impuestos-v06-model";
+import {
+  F29_IMPUESTO_ESTIMABLE_V06,
+  F29_IMPUESTO_NO_ESTIMABLE_V06,
   HOY_V06,
   PREVIRED_TOTALES_V06,
   mesesF29SinVencidosV06,
@@ -20,6 +26,7 @@ import {
 function filasNormales(): FilaCalendarioV06[] {
   return filasCalendarioV06({
     mesesF29: mesesF29V06(),
+    estimacionF29: estimacionF29V06(F29_IMPUESTO_ESTIMABLE_V06),
     previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
     tgrAutenticado: true,
     tgrMovimientos: tgrMovimientosV06(),
@@ -29,7 +36,12 @@ function filasNormales(): FilaCalendarioV06[] {
 
 function html(props: Partial<ComponentProps<typeof ImpuestosV06View>> = {}): string {
   return renderToStaticMarkup(
-    <ImpuestosV06View hoy={HOY_V06} filas={filasNormales()} {...props} />,
+    <ImpuestosV06View
+      hoy={HOY_V06}
+      filas={filasNormales()}
+      estimacionF29={estimacionF29V06(F29_IMPUESTO_ESTIMABLE_V06)}
+      {...props}
+    />,
   );
 }
 
@@ -104,36 +116,38 @@ describe("ImpuestosV06View — tríada", () => {
   });
 });
 
-describe("ImpuestosV06View — el F-29 del mes en curso NUNCA muestra un número (recorte R2)", () => {
-  it("la tríada muestra 'sin dato' junto al label — nunca un monto (el motivo completo va en el ⓘ, verificado en impuestos-v06-model.test.ts)", () => {
+describe("ImpuestosV06View — F-29 del mes en curso", () => {
+  it("muestra el monto estimado, el desglose, el corte y las fuentes cuando estimable=true", () => {
     const t = texto(html());
     const i = t.indexOf("F-29 · mes en curso (estimado)");
     expect(i).toBeGreaterThan(-1);
-    expect(t.slice(i, i + 80)).toContain("sin dato");
+    expect(t.slice(i, i + 100)).toContain("$530.000");
+    expect(t).toContain("IVA débito $900.000");
+    expect(t).toContain("IVA crédito $500.000");
+    expect(t).toContain("RCV (al día");
+    expect(t).toContain("BUK sincronizado (al día");
+    expect(t).toMatch(/15-08-2026 \d{2}:30:00/);
   });
 
-  it("el ⓘ del hueco existe (aria-label del trigger de SinDato)", () => {
-    expect(html()).toContain('aria-label="Por qué no sabemos f-29 · mes en curso (estimado)"');
-  });
-
-  it("[mutante nulo de control] el hueco aparece igual (sin dato, nunca un número) en TODOS los escenarios de datos", () => {
-    const conVencidos = texto(html());
-    const sinVencidos = texto(
-      html({
-        filas: filasCalendarioV06({
-          mesesF29: mesesF29SinVencidosV06(),
-          previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-          tgrAutenticado: true,
-          tgrMovimientos: tgrMovimientosV06(),
-          hoy: HOY_V06,
-        }),
-      }),
-    );
-    for (const t of [conVencidos, sinVencidos]) {
-      const i = t.indexOf("F-29 · mes en curso (estimado)");
-      expect(i).toBeGreaterThan(-1);
-      expect(t.slice(i, i + 80)).toContain("sin dato");
-    }
+  it("[mutante estimable=false] muestra sin dato y missing_inputs aunque el total sea cero", () => {
+    const contrato = { ...F29_IMPUESTO_NO_ESTIMABLE_V06, total_con_iva: 0 };
+    const estimacion = estimacionF29V06(contrato);
+    const filas = filasCalendarioV06({
+      mesesF29: mesesF29V06(),
+      estimacionF29: estimacion,
+      previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
+      tgrAutenticado: true,
+      tgrMovimientos: tgrMovimientosV06(),
+      hoy: HOY_V06,
+    });
+    const h = html({ filas, estimacionF29: estimacion });
+    const t = texto(h);
+    const i = t.indexOf("F-29 · mes en curso (estimado)");
+    expect(t.slice(i, i + 100)).toContain("sin dato");
+    expect(t).toContain("remanente de crédito fiscal");
+    expect(t).toContain("impuesto de trabajadores");
+    expect(h).not.toContain(">$0<");
+    expect(h).toContain('aria-label="Por qué no sabemos f-29 · mes en curso (estimado)"');
   });
 });
 
@@ -175,10 +189,10 @@ describe("ImpuestosV06View — Ley 9: footer fijo literal (issue #73)", () => {
 });
 
 describe("ImpuestosV06View — huecos declarados (issue #73)", () => {
-  it("declara en pantalla la estimación pendiente y la conciliación bancaria faltante", () => {
+  it("declara en pantalla sólo la conciliación bancaria faltante", () => {
     const t = texto(html());
-    expect(t).toMatch(/estimación del F-29 del mes en curso/i);
     expect(t).toMatch(/conciliado con el cargo\s*bancario/i);
+    expect(t).not.toMatch(/necesita contrastarse contra un F-29 real/i);
   });
 
   it("incluye el issue sucesor cuando se lo pasan", () => {
@@ -201,8 +215,9 @@ describe("ImpuestosV06View — calendario tributario", () => {
     expect(t).toContain("$300.000");
   });
 
-  it("el F-29 sin declarar del mes en curso queda con 's/d' en la columna Monto, no un $0", () => {
+  it("el F-29 sin declarar del mes en curso muestra la estimación y nunca un falso $0", () => {
     const h = html();
+    expect(h).toContain("$530.000");
     expect(h).not.toContain("$0");
   });
 });
@@ -227,11 +242,11 @@ describe("ImpuestosV06View — concordancia singular/plural (N=1, issue #94)", (
 });
 
 describe("ImpuestosV06View — estados de carga y error (Ley 8)", () => {
-  it("carga: dice qué se trae y da un ETA, nunca 'Cargando…' desnudo", () => {
+  it("carga: dice qué se trae y declara que no hay ETA, nunca 'Cargando…' desnudo", () => {
     const t = texto(html({ filas: undefined }));
     expect(t).not.toBe("Cargando…");
     expect(t).toMatch(/trayendo/i);
-    expect(t).toMatch(/~3 s/);
+    expect(t).toMatch(/no publica un tiempo estimado/i);
   });
 
   it("error: dice la causa y ofrece reintentar", () => {

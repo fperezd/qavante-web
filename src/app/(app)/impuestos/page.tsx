@@ -59,7 +59,6 @@ export default function ImpuestosPage() {
   );
 }
 
-/** Huecos declarados de V06: la estimación del F-29 del mes en curso (R2, pendiente de contraste)
- *  y la conciliación bancaria de un F-29 declarado (sin issue sucesor todavía — ver
- *  `src/lib/feature-flags.ts`). */
+/** Hueco restante de V06: la conciliación bancaria de un F-29 declarado no tiene todavía vínculo
+ *  contractual con un movimiento específico. */
 const ISSUE_SUCESOR = undefined;

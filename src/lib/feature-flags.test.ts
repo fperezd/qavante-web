@@ -184,7 +184,10 @@ describe("consistencia interna FEATURE_FLAGS ↔ FLAG_GATING_ENDPOINT", () => {
     expect(set.size).toBe(identities.length);
     expect(FLAG_GATING_ENDPOINT.bancoV03).toBe("/api/sources/status");
     expect(FLAG_GATING_FIELD.bancoV03).toBe("sync_progress");
+    expect(FLAG_GATING_ENDPOINT.impuestosV06).toBe("/api/sii/f29/impuesto");
+    expect(FLAG_GATING_FIELD.impuestosV06).toBe("estimable");
     expect(flagGatingIdentity("bancoV03")).toBe("/api/sources/status#sync_progress");
     expect(flagGatingIdentity("bancoV03")).not.toBe("/api/sources/status#otro_campo");
+    expect(flagGatingIdentity("impuestosV06")).toBe("/api/sii/f29/impuesto#estimable");
   });
 });

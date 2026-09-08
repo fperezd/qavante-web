@@ -476,29 +476,25 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      comentario 2026-08-31: `total: "0"`, `events: []`) y `GET /api/treasury/obligations` sólo
      trae `card_purchase` — ninguno de los dos alimenta esta vista.
 
-     Su endpoint de gating es lo ÚNICO que le falta para estar completa, igual que en
-     `hoyV01`/…/`presupuestoV09`: la ESTIMACIÓN del F-29 del mes en curso (IVA débito−crédito
-     desde los DTEs). Es R2 `[money]` — vive en qavante-api, no en el front — y su propia
-     aceptación exige contrastarla contra un F-29 real declarado antes de publicarla; ese contraste
-     no existe todavía, así que la vista NUNCA la calcula ni la estima: la tríada y la tabla
-     muestran "sin dato" con el motivo (`f29EstimadoHuecoV06` en `impuestos-v06-model.ts`). Es
-     FE-first en el sentido inverso de los otros flags de este archivo: acá el front está listo y
-     lo que falta es el endpoint de negocio en el backend, sin issue sucesor todavía (por crear en
-     qavante-api). Un segundo hueco menor, verificado contra el contrato pero no pedido por el
-     endpoint de gating: `PayableItem` no liga un F-29 declarado a un movimiento bancario
-     específico, así que "conciliado con cargo bancario" tampoco se infiere (declarado en pantalla,
-     el comprobante enlaza al F-29 real del SII en su lugar).
+     El endpoint de gating ya existe: `/api/sii/f29/impuesto` publica `estimable`, `missing_inputs`,
+     `as_of` e `input_sources` (qavante-api #401). La vista no recalcula el impuesto y muestra el
+     monto sólo con `estimable=true`; ausencia e inconsistencia quedan como "sin dato". El campo
+     `estimable` forma parte de la identidad de gating para no confundir el endpoint histórico con
+     el contrato seguro. Queda un hueco independiente: `PayableItem` no liga un F-29 declarado a
+     un movimiento bancario específico, así que "conciliado con cargo bancario" tampoco se infiere
+     (declarado en pantalla, el comprobante enlaza al F-29 real del SII en su lugar).
 
      Con OFF, `/impuestos` renderiza el estado "todavía no disponible" con salida a
      `/pagar/impuestos` (F-29/TGR) y `/pagar/previred` — los dos flujos que hacen este trabajo hoy.
      Ninguna pantalla existente cambia → cero regresión. Encender = editar wrangler.toml. */
-  impuestosV06: "/api/sii/f29/estimado",
+  impuestosV06: "/api/sii/f29/impuesto",
 };
 
 /** Campo de contrato que un consumidor necesita además del endpoint. La identidad de gating es
  * endpoint + campo; sólo se declara cuando compartir endpoint no implica compartir capacidad. */
 export const FLAG_GATING_FIELD: Partial<Record<FeatureFlag, string>> = {
   bancoV03: "sync_progress",
+  impuestosV06: "estimable",
 };
 
 export function flagGatingIdentity(flag: FeatureFlag): string {

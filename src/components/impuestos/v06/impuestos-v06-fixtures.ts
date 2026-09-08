@@ -4,7 +4,7 @@
  * `impuestos-v06-model.ts`): campos exactos de `/f29/estado`, `/tgr/movimientos-deudas`,
  * `/buk/payroll`. */
 
-import type { F29EstadoMes } from "@/lib/api/sii";
+import type { F29EstadoMes, F29ImpuestoResponse } from "@/lib/api/sii";
 import type { TgrMovimiento } from "@/lib/api/tgr";
 
 /** Referencia fija de "hoy": 15 de agosto de 2026, a mitad de mes para que el F-29 de julio (vence
@@ -94,6 +94,60 @@ export function mesesF29SinVencidosV06(): F29EstadoMes[] {
 }
 
 export const PREVIRED_TOTALES_V06 = { totalCotizaciones: 612000, empleados: 9 };
+
+export const F29_IMPUESTO_ESTIMABLE_V06: F29ImpuestoResponse = {
+  status: "ok",
+  periodo: PERIODO_ACTUAL_V06,
+  declarado: false,
+  derivado: true,
+  estimable: true,
+  incompleto: false,
+  missing_inputs: [],
+  as_of: "2026-08-15T12:30:00Z",
+  input_sources: {
+    rcv: {
+      source: "sii_rcv",
+      provenance: "rcv",
+      freshness: "fresh",
+      last_synced_at: "2026-08-15T12:00:00Z",
+    },
+    impuesto_trabajadores: {
+      source: "buk",
+      provenance: "buk_cache",
+      freshness: "fresh",
+      last_synced_at: "2026-08-15T11:00:00Z",
+    },
+  },
+  iva_debito: 900000,
+  iva_credito: 500000,
+  remanente: 50000,
+  ppm: 130000,
+  impuesto_trabajadores: 50000,
+  fuente_impuesto_trabajadores: "buk",
+  impuesto_trabajadores_cached: true,
+  impuesto_trabajadores_stale: false,
+  iva_determinado: 350000,
+  iva_postergable: 350000,
+  iva_postergado: 0,
+  total_con_iva: 530000,
+  total_sin_iva: 180000,
+};
+
+export const F29_IMPUESTO_NO_ESTIMABLE_V06: F29ImpuestoResponse = {
+  ...F29_IMPUESTO_ESTIMABLE_V06,
+  estimable: false,
+  missing_inputs: ["remanente", "impuesto_trabajadores"],
+  remanente: null,
+  impuesto_trabajadores: null,
+  iva_debito: null,
+  iva_credito: null,
+  iva_determinado: null,
+  iva_postergable: null,
+  iva_postergado: null,
+  ppm: null,
+  total_con_iva: null,
+  total_sin_iva: null,
+};
 
 export function tgrMovimientosV06(): TgrMovimiento[] {
   return [

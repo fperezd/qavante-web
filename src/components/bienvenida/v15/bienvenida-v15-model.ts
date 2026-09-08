@@ -11,12 +11,8 @@ import {
   sourceStateDescription,
 } from "@/components/onboarding/onboarding-source-meta";
 import { routeForSource } from "@/components/onboarding/onboarding-steps";
-export { concordar } from "@/lib/formatters/count";
-
-export const TIEMPO_CONEXION: Record<OnboardingSourceId, string> = {
-  sii: "~2 minutos",
-  bank: "~3 minutos",
-};
+import { concordar } from "@/lib/formatters/count";
+export { concordar };
 
 export interface FuenteV15 {
   id: OnboardingSourceId;
@@ -34,7 +30,10 @@ export function fuentesV15(states: OnboardingSourceStates): FuenteV15[] {
     label: ONBOARDING_SOURCE_META[id].label,
     estado: states[id],
     descripcion: sourceStateDescription(id, states[id]),
-    tiempoConexion: states[id] === "connected" ? null : TIEMPO_CONEXION[id],
+    // El status de onboarding no publica una ETA de conexión. Declaramos el hueco en vez de
+    // convertir una duración histórica o de diseño en una promesa para esta empresa.
+    tiempoConexion:
+      states[id] === "connected" ? null : "Sin tiempo estimado publicado por la fuente.",
     accion: sourceActionLabel(states[id]),
     href: routeForSource(id),
   }));
@@ -50,12 +49,53 @@ export function fuentesPendientes(fuentes: ReadonlyArray<FuenteV15>): FuenteV15[
 
 export function etaLegible(seconds: number | null): string {
   if (seconds === null) return "Sin tiempo estimado disponible.";
+  if (seconds === 0) return "Finalización estimada ahora.";
   if (seconds < 60) return "Menos de un minuto estimado.";
   return `Aproximadamente ${Math.ceil(seconds / 60)} minutos estimados.`;
 }
 
 export function conteoLeido(recordsRead: number | null): string | null {
-  return recordsRead === null ? null : `${recordsRead} documentos leídos`;
+  return recordsRead === null
+    ? null
+    : `${recordsRead} ${concordar(recordsRead, "documento leído", "documentos leídos")}`;
+}
+
+const RUN_STATUS_LABEL: Record<OnboardingSyncRun["status"], string> = {
+  queued: "En espera",
+  running: "En curso",
+  completed: "Completada",
+  failed: "No completada",
+};
+
+type RunSource = OnboardingSyncRun["sources"][number];
+
+const SOURCE_STATUS_LABEL: Record<RunSource["status"], string> = {
+  queued: "En espera",
+  running: "Leyendo datos",
+  ok: "Completada",
+  failed: "No completada",
+  skipped: "Omitida",
+};
+
+const STEP_LABEL: Readonly<Record<string, string>> = {
+  not_connected: "Fuente no conectada",
+  syncing_bank: "Leyendo movimientos bancarios",
+  reading_documents: "Leyendo documentos",
+  normalizing_documents: "Ordenando documentos",
+  completed: "Lectura terminada",
+};
+
+export function estadoRunLegible(status: OnboardingSyncRun["status"]): string {
+  return RUN_STATUS_LABEL[status];
+}
+
+export function estadoFuenteRunLegible(status: RunSource["status"]): string {
+  return SOURCE_STATUS_LABEL[status];
+}
+
+export function etapaRunLegible(step: string | null): string | null {
+  if (step === null) return null;
+  return STEP_LABEL[step] ?? `Etapa informada por el motor: ${step.replaceAll("_", " ")}`;
 }
 
 export interface FuenteRunV15 {
@@ -72,8 +112,8 @@ export function fuentesRunV15(run: OnboardingSyncRun): FuenteRunV15[] {
   return run.sources.map((source) => ({
     id: source.source,
     label: ONBOARDING_SOURCE_META[source.source].label,
-    estado: source.status,
-    etapa: source.step ?? null,
+    estado: estadoFuenteRunLegible(source.status),
+    etapa: etapaRunLegible(source.step ?? null),
     conteo: conteoLeido(source.records_read ?? null),
     eta: etaLegible(source.eta_seconds ?? null),
   }));

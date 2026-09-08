@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, expect, waitFor } from "storybook/test";
 import { ImpuestosV06View } from "./impuestos-v06-view";
-import { filasCalendarioV06 } from "./impuestos-v06-model";
+import { estimacionF29V06, filasCalendarioV06 } from "./impuestos-v06-model";
 import {
+  F29_IMPUESTO_ESTIMABLE_V06,
+  F29_IMPUESTO_NO_ESTIMABLE_V06,
   HOY_V06,
   PREVIRED_TOTALES_V06,
   mesesF29SinVencidosV06,
@@ -22,6 +24,7 @@ import {
 function filasNormales() {
   return filasCalendarioV06({
     mesesF29: mesesF29V06(),
+    estimacionF29: estimacionF29V06(F29_IMPUESTO_ESTIMABLE_V06),
     previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
     tgrAutenticado: true,
     tgrMovimientos: tgrMovimientosV06(),
@@ -90,13 +93,14 @@ const meta = {
     docs: {
       description: {
         component:
-          "V06 · Impuestos (ESPECIFICACION §V06, issue #73): tríada (Próximo vencimiento / F-29 del mes en curso / Deudas TGR) + calendario tributario sobre `/api/sii/f29/estado`, `/api/tgr/*` y `/api/buk/payroll` · las MISMAS fuentes que ya publican Pagar → Impuestos → F29/TGR, Pagar → Previred y V16 (Ley 1). Alcance recortado a propósito: la estimación del F-29 del mes en curso es R2 `[money]` (pendiente de contrastarse contra un F-29 real) y la conciliación bancaria de un F-29 declarado no existe en el contrato · ambos huecos declarados EN pantalla. Flag `impuestosV06`, apagado por defecto.",
+          "V06 · Impuestos (ESPECIFICACION §V06, issue #73): tríada y calendario tributario sobre fuentes canónicas. La estimación del mes consume `/api/sii/f29/impuesto` y sólo muestra total cuando `estimable=true`; `missing_inputs`, `as_of` e `input_sources` permanecen visibles. La conciliación bancaria de un F-29 declarado sigue como hueco explícito. Flag `impuestosV06`, apagado por defecto.",
       },
     },
   },
   args: {
     hoy: HOY_V06,
     filas: filasNormales(),
+    estimacionF29: estimacionF29V06(F29_IMPUESTO_ESTIMABLE_V06),
     issueSucesor: "#105",
   },
 } satisfies Meta<typeof ImpuestosV06View>;
@@ -110,6 +114,8 @@ export const Normal: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Próximo vencimiento")).toBeInTheDocument();
     await expect(canvas.getByText("F-29 · mes en curso (estimado)")).toBeInTheDocument();
+    await expect(canvas.getAllByText("$530.000").length).toBeGreaterThanOrEqual(1);
+    await expect(canvas.getByText(/IVA débito \$900\.000/)).toBeInTheDocument();
     await expect(canvas.getByText("$525.000")).toBeInTheDocument(); // Deudas TGR
     await expect(rojos(canvasElement)).toHaveLength(1); // el F-29 de julio, no declarado y vencido
     // Huecos declarados, visibles en pantalla.
@@ -153,13 +159,34 @@ export const TgrSinAutenticar: Story = {
   },
 };
 
+export const F29NoEstimable: Story = {
+  name: "F-29 no estimable · missing inputs, nunca un falso cero",
+  args: {
+    estimacionF29: estimacionF29V06(F29_IMPUESTO_NO_ESTIMABLE_V06),
+    filas: filasCalendarioV06({
+      mesesF29: mesesF29V06(),
+      estimacionF29: estimacionF29V06(F29_IMPUESTO_NO_ESTIMABLE_V06),
+      previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
+      tgrAutenticado: true,
+      tgrMovimientos: tgrMovimientosV06(),
+      hoy: HOY_V06,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/remanente de crédito fiscal/i)).toBeInTheDocument();
+    await expect(canvas.getByText(/impuesto de trabajadores/i)).toBeInTheDocument();
+    expect((canvasElement.textContent ?? "").replace(/\s+/g, " ")).not.toContain("$0");
+  },
+};
+
 export const Cargando: Story = {
-  name: "Carga · dice qué trae y da ETA, nunca 'Cargando…' mudo",
+  name: "Carga · dice qué trae y declara ETA no disponible",
   args: { filas: undefined },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(/trayendo/i)).toBeInTheDocument();
-    await expect(canvas.getByText(/~3 s/)).toBeInTheDocument();
+    await expect(canvas.getByText(/no publica un tiempo estimado/i)).toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };

@@ -9,8 +9,9 @@ import {
   type BheRecibida,
 } from "@/lib/api/sii";
 import { expandPeriodRange, type PeriodRange } from "@/lib/period/period-range";
-import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 import type { MaestroKind, DocConVencimiento } from "./terminos-pago";
+
+type ApiRcvDoc = Record<string, unknown>;
 
 /* Datos del maestro — trae los documentos del AÑO EN CURSO (enero → mes actual) del
    tipo pedido y los adapta a `DocConVencimiento`. El SII entrega por mes → una query
@@ -51,13 +52,13 @@ function currentYearRange(now: Date): PeriodRange {
   return { desde: `${y}-01`, hasta: `${y}-${mm}` };
 }
 
-function adaptRcv(docs: ReadonlyArray<RcvDoc>): DocConVencimiento[] {
+function adaptRcv(docs: ReadonlyArray<ApiRcvDoc>): DocConVencimiento[] {
   return docs.map((d) => ({
     rut: String(d.rut_contraparte ?? ""),
-    name: d.razon_social ?? "",
-    fecha: d.fecha ?? "",
+    name: typeof d.razon_social === "string" ? d.razon_social : "",
+    fecha: typeof d.fecha === "string" ? d.fecha : "",
     monto: Number(d.monto_total) || 0,
-    folio: d.folio ?? null,
+    folio: typeof d.folio === "number" ? d.folio : null,
     tipoDoc: typeof d.tipo_doc === "number" ? d.tipo_doc : undefined,
     refFolio: typeof d.ref_folio === "number" ? d.ref_folio : undefined,
     refTipoDoc: typeof d.ref_tipo_doc === "number" ? d.ref_tipo_doc : undefined,

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatDateTimeLike } from "@/lib/formatters/date";
 import { DataState } from "@/components/rediseno/data-state";
 import { KpiCard } from "@/components/rediseno/kpi-card";
 import { Pill } from "@/components/rediseno/pill";
@@ -16,9 +17,11 @@ import {
   concordar,
   csvCalendarioV06,
   elUnicoRojoV06,
+  estimacionF29V06,
   f29EstimadoHuecoV06,
   proximoVencimientoV06,
   triadaTgrV06,
+  type EstimacionF29V06,
   type FilaCalendarioV06,
 } from "./impuestos-v06-model";
 
@@ -30,11 +33,9 @@ import {
  * ── ALCANCE (issue #73) ──────────────────────────────────────────────────────────────────────
  * Entra: la tríada (Próximo vencimiento / F-29 del mes en curso / Deudas TGR) y la tabla
  * calendario (F-29 declarado o no, IVA postergado del SII, Previred, TGR).
- * NO entra, huecos DECLARADOS acá mismo (Ver `HuecosDeclarados` — el mensaje vive EN la pantalla,
- * no sólo en el PR):
- *   1. La estimación del F-29 del mes en curso (débito−crédito desde los DTEs): R2 `[money]`,
- *      pendiente de contrastarse contra un F-29 real antes de publicarse.
- *   2. El vínculo "conciliado con el cargo bancario" de un F-29 ya declarado: el contrato no liga
+ * La estimación del mes consume el contrato R2 de qavante-api #401. Sólo se muestra si el backend
+ * afirma `estimable=true`; incluye desglose, fuentes y frescura. NO entra, como hueco declarado:
+ *   1. El vínculo "conciliado con el cargo bancario" de un F-29 ya declarado: el contrato no liga
  *      hoy un F-29 a un movimiento de banco específico (verificado contra `PayableItem` y el motor
  *      de conciliación). El "comprobante" de cada fila declarada enlaza al F-29 real del SII.
  *
@@ -50,15 +51,18 @@ export interface ImpuestosV06ViewProps {
   hoy: Date;
   /** `undefined` = todavía sin respuesta (ver `error` cuando la consulta falló). */
   filas: FilaCalendarioV06[] | undefined;
+  /** Contrato de `/api/sii/f29/impuesto` ya protegido por `estimable`. */
+  estimacionF29?: EstimacionF29V06;
   error?: string | null;
   onReintentar?: () => void;
-  /** Issue sucesor de los huecos declarados (estimación F-29 + conciliación bancaria). */
+  /** Issue sucesor del vínculo pendiente entre F-29 declarado y cargo bancario. */
   issueSucesor?: string;
 }
 
 export function ImpuestosV06View({
   hoy,
   filas,
+  estimacionF29,
   error,
   onReintentar,
   issueSucesor,
@@ -83,14 +87,14 @@ export function ImpuestosV06View({
       <DataState
         status="empty"
         what="tu calendario tributario"
-        hint="Estamos trayendo tus F-29, Previred y TGR (~3 s)."
+        hint="Estamos trayendo tus F-29, Previred y TGR. El servicio todavía no publica un tiempo estimado para esta consulta."
       />
     );
   }
 
   const proximo = proximoVencimientoV06(filas, hoy);
   const tgr = triadaTgrV06(filas);
-  const f29Hueco = f29EstimadoHuecoV06();
+  const f29 = estimacionF29 ?? estimacionF29V06(undefined);
   const rojoKey = elUnicoRojoV06(filas);
 
   return (
@@ -117,7 +121,19 @@ export function ImpuestosV06View({
           />
         )}
 
-        <KpiCard label="F-29 · mes en curso (estimado)" sinDato={{ reason: f29Hueco.reason }} />
+        {f29.monto != null ? (
+          <KpiCard
+            label="F-29 · mes en curso (estimado)"
+            value={formatClp(f29.monto)}
+            detail={<DetalleEstimacionF29 estimacion={f29} />}
+          />
+        ) : (
+          <KpiCard
+            label="F-29 · mes en curso (estimado)"
+            sinDato={{ reason: f29.motivoSinMonto ?? f29EstimadoHuecoV06().reason }}
+            detail={<DetalleEstimacionF29 estimacion={f29} />}
+          />
+        )}
 
         {tgr.total != null ? (
           <KpiCard
@@ -168,12 +184,44 @@ export function ImpuestosV06View({
 function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
   return (
     <p className="pt-1 text-center text-[12px] text-rediseno-tinta-3-light">
-      Todavía no: la estimación del F-29 del mes en curso (necesita contrastarse contra un F-29 real
-      antes de publicarse · R2 en qavante-api) y el vínculo &quot;conciliado con el cargo
-      bancario&quot; de cada F-29 declarado (el contrato no liga hoy un F-29 a un movimiento de
-      banco específico; el comprobante de cada fila enlaza al F-29 real del SII)
+      Todavía no: el vínculo &quot;conciliado con el cargo bancario&quot; de cada F-29 declarado (el
+      contrato no liga hoy un F-29 a un movimiento de banco específico; el comprobante de cada fila
+      enlaza al F-29 real del SII)
       {issueSucesor ? ` · issue sucesor ${issueSucesor}` : ""}.
     </p>
+  );
+}
+
+function DetalleEstimacionF29({ estimacion }: { estimacion: EstimacionF29V06 }) {
+  return (
+    <div className="space-y-1">
+      {estimacion.desglose && (
+        <p>
+          IVA débito {formatClp(estimacion.desglose.ivaDebito)} · IVA crédito{" "}
+          {formatClp(estimacion.desglose.ivaCredito)} · remanente{" "}
+          {formatClp(estimacion.desglose.remanente)} · PPM {formatClp(estimacion.desglose.ppm)} ·
+          trabajadores {formatClp(estimacion.desglose.impuestoTrabajadores)}
+        </p>
+      )}
+      {estimacion.faltantes.length > 0 && (
+        <p>Insumos faltantes · {estimacion.faltantes.join(" · ")}</p>
+      )}
+      <p>
+        Evaluación · {formatDateTimeLike(estimacion.evaluadaEn)} · fuente{" "}
+        {estimacion.fuentes.length > 0
+          ? estimacion.fuentes
+              .map(
+                (fuente) =>
+                  `${fuente.label} (${fuente.frescura}${
+                    fuente.sincronizadaEn
+                      ? ` · sincronizada ${formatDateTimeLike(fuente.sincronizadaEn)}`
+                      : ""
+                  })`,
+              )
+              .join(" · ")
+          : "sin trazabilidad publicada"}
+      </p>
+    </div>
   );
 }
 
