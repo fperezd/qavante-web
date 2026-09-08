@@ -30,7 +30,7 @@ describe("vencimientos en Libro de Ventas", () => {
     expect(html).toContain("31-07-2026");
     expect(html).toContain("estimado");
     expect(html).toContain("s/d");
-    expect(html).toContain("Fecha estimada: emision + 30 dias.");
+    expect(html).toContain("Fecha estimada: emisión + 30 días.");
   });
 
   it("en agrupado muestra el supuesto y la ausencia en notas de credito", () => {

@@ -589,7 +589,7 @@ export function GroupedTable({
                       className="py-2 pr-3 text-neutral-mid"
                       title={
                         d.due_date_source === "assumed_30d"
-                          ? "Fecha estimada: emision + 30 dias."
+                          ? "Fecha estimada: emisión + 30 días."
                           : undefined
                       }
                     >
