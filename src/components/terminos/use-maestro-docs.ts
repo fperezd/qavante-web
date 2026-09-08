@@ -9,7 +9,6 @@ import {
   type BheRecibida,
 } from "@/lib/api/sii";
 import { expandPeriodRange, type PeriodRange } from "@/lib/period/period-range";
-import type { RcvDoc } from "@/components/sii/rcv-grouped-item";
 import type { MaestroKind, DocConVencimiento } from "./terminos-pago";
 
 /* Datos del maestro — trae los documentos del AÑO EN CURSO (enero → mes actual) del
@@ -51,7 +50,20 @@ function currentYearRange(now: Date): PeriodRange {
   return { desde: `${y}-01`, hasta: `${y}-${mm}` };
 }
 
-function adaptRcv(docs: ReadonlyArray<RcvDoc>): DocConVencimiento[] {
+type RcvDocLike = {
+  rut_contraparte?: string | null;
+  razon_social?: string | null;
+  fecha?: string | null;
+  monto_total?: number | null;
+  folio?: number | null;
+  tipo_doc?: number | null;
+  ref_folio?: number | null;
+  ref_tipo_doc?: number | null;
+  reclamado?: boolean | null;
+  cedido?: boolean | null;
+};
+
+function adaptRcv(docs: ReadonlyArray<RcvDocLike>): DocConVencimiento[] {
   return docs.map((d) => ({
     rut: String(d.rut_contraparte ?? ""),
     name: d.razon_social ?? "",
