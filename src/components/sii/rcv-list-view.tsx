@@ -38,7 +38,12 @@ import { DteActions } from "./dte-actions";
 import { periodToPdfWindow } from "./dte-date";
 import { dtePdfUrlForDoc } from "./dte-pdf";
 import { stickyScroll, stickyHead, stickyFoot } from "@/components/table/sticky-table";
-import type { GroupedItem, RcvDoc } from "./rcv-grouped-item";
+import {
+  rcvDueDate,
+  rcvDueDateIsEstimated,
+  type GroupedItem,
+  type RcvDoc,
+} from "./rcv-grouped-item";
 import { sortGroupedItems, toggleSort, type SortKey, type SortState } from "./rcv-sort";
 
 /* Vista reusable para Libro de Compras / Libro de Ventas (Sprint C1
@@ -588,13 +593,11 @@ export function GroupedTable({
                     <td
                       className="py-2 pr-3 text-neutral-mid"
                       title={
-                        d.due_date_source === "assumed_30d"
-                          ? "Fecha estimada: emisión + 30 días."
-                          : undefined
+                        rcvDueDateIsEstimated(d) ? "Fecha estimada: emisión + 30 días." : undefined
                       }
                     >
-                      {formatDateLike(d.due_date)}
-                      {d.due_date_source === "assumed_30d" && (
+                      {formatDateLike(rcvDueDate(d))}
+                      {rcvDueDateIsEstimated(d) && (
                         <span className="ml-1 text-[10px]">estimado</span>
                       )}
                     </td>
@@ -678,15 +681,11 @@ export function GroupedTable({
                   <td
                     className="py-2 pr-3 text-neutral-mid"
                     title={
-                      f.due_date_source === "assumed_30d"
-                        ? "Fecha estimada: emisión + 30 días."
-                        : undefined
+                      rcvDueDateIsEstimated(f) ? "Fecha estimada: emisión + 30 días." : undefined
                     }
                   >
-                    {formatDateLike(f.due_date)}
-                    {f.due_date_source === "assumed_30d" && (
-                      <span className="ml-1 text-[10px]">estimado</span>
-                    )}
+                    {formatDateLike(rcvDueDate(f))}
+                    {rcvDueDateIsEstimated(f) && <span className="ml-1 text-[10px]">estimado</span>}
                   </td>
                 )}
                 <td className="py-2 pr-3">
@@ -755,7 +754,7 @@ export function GroupedTable({
         <tfoot className={stickyFoot}>
           <tr className="border-t-2 border-border-strong font-semibold">
             <td
-              colSpan={4}
+              colSpan={showDueDate ? 5 : 4}
               className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
             >
               Total neto del período
@@ -777,7 +776,7 @@ export function GroupedTable({
           </tr>
           {totals.ncCount > 0 && (
             <tr className="text-[11px] text-neutral-mid">
-              <td colSpan={showDte ? 9 : 8} className="pb-2 pr-3">
+              <td colSpan={(showDte ? 9 : 8) + (showDueDate ? 1 : 0)} className="pb-2 pr-3">
                 Se descontaron {totals.ncCount}{" "}
                 {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
                 <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}

@@ -3,13 +3,9 @@
    compartan sin import circular. */
 
 import type { FacturaRow } from "./rcv-anuladas";
-import type { components } from "@/lib/api/types";
 
-/** Campos de vencimiento publicados por el contrato de ventas. */
-type RcvDueDate = Pick<components["schemas"]["RcvDocumento"], "due_date" | "due_date_source">;
-
-/** Documento del Libro: sus campos históricos siguen siendo slim y los vencimientos vienen del contrato. */
-export interface RcvDoc extends RcvDueDate {
+/** Documento del Libro: shape histórico slim; el contrato tipado de vencimientos depende de API #429. */
+export interface RcvDoc {
   tipo_doc?: number;
   folio?: number;
   fecha?: string;
@@ -27,6 +23,23 @@ export interface RcvDoc extends RcvDueDate {
    *  su monto está en $0. El FE pinta una "R". `null` = dato de cache anterior a #744. */
   reclamado?: boolean | null;
   [key: string]: unknown;
+}
+
+/**
+ * Frontera temporal para el contrato aditivo de API #429 mientras no esté mergeado. No declara
+ * campos generados localmente: valida el payload unknown y falla cerrado. Tras el merge de #429,
+ * `types.ts` se regenera y este acceso se reemplaza por el Pick del schema publicado.
+ */
+export function rcvDueDate(doc: RcvDoc): string | null {
+  if (typeof doc.due_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(doc.due_date)) return null;
+  const parsed = new Date(`${doc.due_date}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === doc.due_date
+    ? doc.due_date
+    : null;
+}
+
+export function rcvDueDateIsEstimated(doc: RcvDoc): boolean {
+  return rcvDueDate(doc) !== null && doc.due_date_source === "assumed_30d";
 }
 
 /** Fila del Libro en modo "agrupado": o una factura (con sus NC vinculadas) o

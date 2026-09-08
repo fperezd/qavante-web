@@ -8,7 +8,7 @@ import { formatDateLike } from "@/lib/formatters/date";
 import { tipoDocMeta } from "./tipo-doc";
 import { fechaSortKey } from "./rcv-sort";
 import type { computeRcvTotals } from "./rcv-totals";
-import type { RcvDoc } from "./rcv-grouped-item";
+import { rcvDueDate, rcvDueDateIsEstimated, type RcvDoc } from "./rcv-grouped-item";
 import type { RcvKind } from "./rcv-list-view";
 import { DteActions } from "./dte-actions";
 import { dtePdfUrlForDoc } from "./dte-pdf";
@@ -80,18 +80,18 @@ export function RcvDetalleGrid({
             {
               id: "vencimiento",
               header: "Vence",
-              accessorFn: (d: RcvDoc) => d.due_date ?? "",
+              accessorFn: (d: RcvDoc) => rcvDueDate(d) ?? "",
               cell: ({ row }: { row: { original: RcvDoc } }) => (
                 <span
                   className="text-neutral-dark"
                   title={
-                    row.original.due_date_source === "assumed_30d"
+                    rcvDueDateIsEstimated(row.original)
                       ? "Fecha estimada: emisión + 30 días."
                       : undefined
                   }
                 >
-                  {formatDateLike(row.original.due_date)}
-                  {row.original.due_date_source === "assumed_30d" && (
+                  {formatDateLike(rcvDueDate(row.original))}
+                  {rcvDueDateIsEstimated(row.original) && (
                     <span className="ml-1 text-[10px] text-neutral-mid">estimado</span>
                   )}
                 </span>
