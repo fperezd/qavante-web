@@ -17,6 +17,26 @@ export function motivoFuenteBienvenida(err: unknown): string {
   return "El estado de tus conexiones no respondió. Vuelve a intentar en un momento.";
 }
 
+export function motivoInicioBienvenida(err: unknown): string {
+  if (err instanceof ApiError && err.isForbidden()) {
+    return "Sólo una persona propietaria o administradora de la empresa activa puede iniciar esta sincronización.";
+  }
+  if (err instanceof ApiError && err.isNetworkError()) {
+    return "No pudimos iniciar la sincronización por un error de red. Vuelve a intentar en un momento.";
+  }
+  return "No pudimos iniciar la sincronización. Vuelve a intentar en un momento.";
+}
+
+export function motivoConsultaBienvenida(err: unknown): string {
+  if (err instanceof ApiError && err.isNotFound()) {
+    return "Este proceso ya no está disponible para la empresa activa. Inicia una nueva sincronización.";
+  }
+  if (err instanceof ApiError && err.isNetworkError()) {
+    return "No pudimos actualizar el progreso por un error de red. El último estado visible puede estar desactualizado.";
+  }
+  return "No pudimos actualizar el progreso. El último estado visible puede estar desactualizado.";
+}
+
 /** Reclama el único POST permitido durante una iniciación; protege doble click antes del re-render. */
 export function claimSyncRunStart(inFlight: { current: boolean }): boolean {
   if (inFlight.current) return false;
@@ -30,6 +50,12 @@ export function BienvenidaV15Live() {
   const { states, isUnknown, isLoading, isError, error, refetch } = useOnboardingSources(true);
   const startRun = useStartOnboardingSyncRun();
   const run = useOnboardingSyncRun(runId);
+
+  React.useEffect(() => {
+    if (run.data?.status === "completed" || run.data?.status === "failed") {
+      startInFlight.current = false;
+    }
+  }, [run.data?.status]);
 
   const iniciarRun = () => {
     if (!claimSyncRunStart(startInFlight)) return;
@@ -49,8 +75,10 @@ export function BienvenidaV15Live() {
       onReintentar={() => refetch()}
       run={run.data ?? null}
       cargandoRun={startRun.isPending || (runId !== null && run.isLoading)}
-      errorRun={startRun.isError || run.isError}
+      errorInicioRun={startRun.isError ? motivoInicioBienvenida(startRun.error) : null}
+      errorConsultaRun={run.isError ? motivoConsultaBienvenida(run.error) : null}
       onIniciarRun={iniciarRun}
+      onReintentarConsultaRun={() => void run.refetch()}
     />
   );
 }
