@@ -11,6 +11,10 @@ import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { useUpdateManagementAccount } from "@/lib/api/management";
 import {
+  useAccountClassificationDimensions,
+  useSetAccountClassificationDimension,
+} from "@/lib/api/treasury";
+import {
   accountEditFormSchema,
   accountToEditForm,
   formToUpdateRequest,
@@ -49,7 +53,13 @@ export function ManagementAccountEditDialog({
   account,
 }: ManagementAccountEditDialogProps) {
   const update = useUpdateManagementAccount();
+  const accountId = account?.id ?? "";
+  const dimensionPolicies = useAccountClassificationDimensions(open ? accountId : "");
+  const setDimensionPolicy = useSetAccountClassificationDimension();
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [policyDraft, setPolicyDraft] = React.useState<
+    Record<string, { is_enabled: boolean; is_required: boolean }>
+  >({});
 
   const {
     control,
@@ -70,11 +80,39 @@ export function ManagementAccountEditDialog({
     }
   }, [open, account, reset]);
 
+  React.useEffect(() => {
+    if (!open || !account) return;
+    setPolicyDraft(
+      Object.fromEntries(
+        (dimensionPolicies.data?.items ?? []).map((policy) => [
+          policy.dimension_id,
+          { is_enabled: policy.is_enabled, is_required: policy.is_required },
+        ]),
+      ),
+    );
+  }, [open, account, dimensionPolicies.data]);
+
   async function onSubmit(values: AccountEditFormValues) {
     if (!account) return;
     setSubmitError(null);
     try {
       await update.mutateAsync({ accountId: account.id, body: formToUpdateRequest(values) });
+      const changedPolicies = (dimensionPolicies.data?.items ?? []).filter((policy) => {
+        const draft = policyDraft[policy.dimension_id];
+        return (
+          draft &&
+          (draft.is_enabled !== policy.is_enabled || draft.is_required !== policy.is_required)
+        );
+      });
+      await Promise.all(
+        changedPolicies.map((policy) =>
+          setDimensionPolicy.mutateAsync({
+            accountId: account.id,
+            dimensionId: policy.dimension_id,
+            body: policyDraft[policy.dimension_id]!,
+          }),
+        ),
+      );
       onOpenChange(false);
     } catch (err) {
       setSubmitError(
@@ -206,6 +244,77 @@ export function ManagementAccountEditDialog({
               )}
             />
 
+            <fieldset className="space-y-3 rounded-lg border border-neutral-light p-3">
+              <legend className="px-1 text-sm font-medium text-neutral-dark">
+                Campos de clasificación
+              </legend>
+              <p className="text-xs text-neutral-mid">
+                Activa sólo los campos que necesites completar al distribuir movimientos en esta
+                cuenta.
+              </p>
+              {dimensionPolicies.isLoading ? (
+                <p className="text-xs text-neutral-mid">Cargando campos…</p>
+              ) : (dimensionPolicies.data?.items ?? []).filter(
+                  (policy) => policy.active && policy.is_visible,
+                ).length === 0 ? (
+                <p className="text-xs text-neutral-mid">
+                  No hay dimensiones activas y visibles configuradas para la empresa.
+                </p>
+              ) : (
+                (dimensionPolicies.data?.items ?? [])
+                  .filter((policy) => policy.active && policy.is_visible)
+                  .map((policy) => {
+                    const draft = policyDraft[policy.dimension_id] ?? {
+                      is_enabled: false,
+                      is_required: false,
+                    };
+                    return (
+                      <div
+                        key={policy.dimension_id}
+                        className="flex flex-wrap items-center justify-between gap-3"
+                      >
+                        <span className="text-sm text-neutral-dark">{policy.name}</span>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2 text-xs text-neutral-mid">
+                            <input
+                              type="checkbox"
+                              checked={draft.is_enabled}
+                              onChange={(event) =>
+                                setPolicyDraft((current) => ({
+                                  ...current,
+                                  [policy.dimension_id]: {
+                                    is_enabled: event.target.checked,
+                                    is_required: event.target.checked ? draft.is_required : false,
+                                  },
+                                }))
+                              }
+                            />
+                            Usar
+                          </label>
+                          <label className="flex items-center gap-2 text-xs text-neutral-mid">
+                            <input
+                              type="checkbox"
+                              disabled={!draft.is_enabled}
+                              checked={draft.is_required}
+                              onChange={(event) =>
+                                setPolicyDraft((current) => ({
+                                  ...current,
+                                  [policy.dimension_id]: {
+                                    is_enabled: true,
+                                    is_required: event.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            Obligatorio
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
+            </fieldset>
+
             {submitError && (
               <div
                 role="alert"
@@ -219,7 +328,11 @@ export function ManagementAccountEditDialog({
               <Dialog.Close render={<QavanteButton variant="ghost" type="button" />}>
                 Cancelar
               </Dialog.Close>
-              <QavanteButton type="submit" loading={isSubmitting}>
+              <QavanteButton
+                type="submit"
+                loading={isSubmitting || setDimensionPolicy.isPending}
+                disabled={dimensionPolicies.isError}
+              >
                 Guardar cambios
               </QavanteButton>
             </div>

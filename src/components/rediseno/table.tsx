@@ -118,6 +118,9 @@ export interface RedisenoTableProps<TData> {
    *  disponibles — la diferencia entre que el monto entre o no en pantallas chicas. Quien no lo
    *  pide conserva los 18 px en todo ancho. */
   celdasCompactasEnAngosto?: boolean;
+  /** Hace la fila navegable sin sacrificar teclado. Los controles internos conservan su acción. */
+  onRowClick?: (row: TData) => void;
+  rowAriaLabel?: (row: TData) => string;
 }
 
 export function RedisenoTable<TData>({
@@ -130,6 +133,8 @@ export function RedisenoTable<TData>({
   countNoun = "registros",
   footer,
   celdasCompactasEnAngosto = false,
+  onRowClick,
+  rowAriaLabel,
 }: RedisenoTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -206,7 +211,27 @@ export function RedisenoTable<TData>({
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b border-rediseno-hairline-row-2 last:border-b-0">
+              <tr
+                key={row.id}
+                tabIndex={onRowClick ? 0 : undefined}
+                aria-label={onRowClick ? rowAriaLabel?.(row.original) : undefined}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onRowClick(row.original);
+                        }
+                      }
+                    : undefined
+                }
+                className={cn(
+                  "border-b border-rediseno-hairline-row-2 last:border-b-0",
+                  onRowClick &&
+                    "cursor-pointer hover:bg-rediseno-neutro-bg focus-visible:bg-rediseno-neutro-bg focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rediseno-azul focus-visible:outline-none",
+                )}
+              >
                 {row.getVisibleCells().map((cell) => {
                   const meta = colMeta(cell.column.columnDef.meta);
                   return (

@@ -4388,6 +4388,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/bank-movements/{movement_id}/classification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace Movement Classification
+         * @description Clasifica o reclasifica 1:N; el monto cuantizado del movimiento es la verdad.
+         */
+        put: operations["treasury_bank_movement_classification_replace"];
+        post?: never;
+        /**
+         * Unclassify Movement
+         * @description Desclasifica de forma idempotente sin modificar el movimiento bancario crudo ni su match.
+         */
+        delete: operations["treasury_bank_movement_unclassify"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/bank-movements/{movement_id}/classify": {
         parameters: {
             query?: never;
@@ -5207,6 +5231,40 @@ export interface paths {
          */
         get: operations["treasury_liquidity_evaluation"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/management-accounts/{management_account_id}/classification-dimensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Account Classification Dimensions */
+        get: operations["treasury_management_account_classification_dimensions_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/management-accounts/{management_account_id}/classification-dimensions/{dimension_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Account Classification Dimension */
+        put: operations["treasury_management_account_classification_dimension_set"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6399,11 +6457,46 @@ export interface components {
              */
             token: string;
         };
+        /** AccountDimensionPoliciesResponse */
+        AccountDimensionPoliciesResponse: {
+            /** Items */
+            items: components["schemas"]["AccountDimensionPolicy"][];
+            /** Management Account Id */
+            management_account_id: string;
+        };
+        /** AccountDimensionPolicy */
+        AccountDimensionPolicy: {
+            /** Active */
+            active: boolean;
+            /** Code */
+            code: string;
+            /** Dimension Id */
+            dimension_id: string;
+            /**
+             * Is Enabled
+             * @description Estado efectivo para la cuenta: hereda true de una dimensión global activa/visible cuando no existe override; una policy explícita is_enabled=false la deshabilita.
+             */
+            is_enabled: boolean;
+            /**
+             * Is Required
+             * @description Obligatoriedad efectiva: hereda is_required global y puede endurecerse por cuenta; es false cuando la dimensión está deshabilitada.
+             */
+            is_required: boolean;
+            /** Is Visible */
+            is_visible: boolean;
+            /** Name */
+            name: string;
+        };
         /**
          * AccountsPayableResponse
          * @description Respuesta de `GET /api/treasury/accounts-payable` (pantalla Pagar).
          */
         AccountsPayableResponse: {
+            /**
+             * By Category
+             * @description Totales SIGNADOS y cantidades por categoría sobre todo el universo vivo, incluidos créditos y documentos sin fecha. La suma de `known_amount_clp` cuadra con `total`; si excede la cota matemática de redondeo FX, los buckets fallan cerrados con `complete=false` y `amount_clp=null`.
+             */
+            by_category: components["schemas"]["PayableCategorySummary"][];
             /**
              * Confidence
              * @enum {string}
@@ -6414,6 +6507,8 @@ export interface components {
              * @description ¿La caja proyectada cubre lo que vence en 14 días? **Tri-estado.** `null` = no se puede responder, y son SEIS casos: tres del denominador, dos del numerador y uno de la división misma. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN fecha de vencimiento (el CONTEO de documentos con `due_date` nulo, que es lo que el guard mira), porque `due_14d` no la incluye; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el sexto no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma cobertura sobre TODO lo que vence, comparado contra TODA la caja, en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
              */
             covers_critical?: boolean | null;
+            /** @description Créditos/ajustes con saldo negativo, separados de las obligaciones críticas. El monto conserva su signo negativo y también recorre todo el universo vivo. */
+            credits: components["schemas"]["PayableAggregateSummary"];
             /**
              * Data State
              * @enum {string}
@@ -6429,17 +6524,42 @@ export interface components {
              */
             due_7d: string;
             /**
+             * Excluded From Total By Currency
+             * @description Montos crudos excluidos del `total` CLP por falta de tipo de cambio. Vacío significa que el total no tuvo exclusiones de moneda.
+             */
+            excluded_from_total_by_currency: components["schemas"]["PayableCurrencyTotal"][];
+            /**
              * Generated At
              * Format: date-time
              */
             generated_at: string;
-            /** Items */
+            /**
+             * Has More
+             * @description `true` cuando existen más obligaciones fechadas que las incluidas en `items`.
+             */
+            has_more: boolean;
+            /**
+             * Items
+             * @description Primera ventana de obligaciones fechadas, ordenada por vencimiento e identidad y limitada por `limit`. Los agregados de esta respuesta nunca se derivan de esta lista.
+             */
             items?: components["schemas"]["PayableItem"][];
+            /**
+             * Items Total
+             * @description Cantidad total de obligaciones vivas con fecha que son elegibles para `items`, antes del límite. No incluye las sin fecha, declaradas en `undated_count`.
+             */
+            items_total: number;
+            /**
+             * Limit
+             * @description Límite aplicado a `items` en esta respuesta.
+             */
+            limit: number;
             /** Missing Sources */
             missing_sources?: string[];
+            /** @description Regla ejecutable de V05 sobre todo el universo vivo: saldos POSITIVOS ya vencidos de cualquier categoría, más saldos POSITIVOS `tax`, `payroll` o `debt` que vencen entre hoy y 14 días inclusive (Ley 9: no postergables). La taxonomía ejecutable clasifica `tgr` como tax, `buk`/`previred` como payroll y `bice` como debt porque ADR-0050 persiste sus cargos de tarjeta como pasivos AP; proveedores desconocidos son `other`. No deriva de `PayableItem.criticality` ni redefine `covers_critical`, que evalúa la proyección completa. Si hay saldos positivos sin fecha o falta un TC dentro del bucket, `complete=false` y `amount_clp=null`; la parte conocida queda explícita. */
+            non_postponable_or_overdue_14d: components["schemas"]["PayableAggregateSummary"];
             /**
              * Projected Cash 14D
-             * @description Caja proyectada a 14 días (del cash-flow); `null` sin saldo. **Viene en la moneda funcional del tenant, que NO es necesariamente CLP** — la declara `projected_cash_currency`, acá al lado. Es el único monto de esta respuesta que no está en pesos: `total` y los `due_*` se totalizan siempre en CLP. Compararlos sin mirar la moneda es dividir dólares por pesos, y ya pasó dos veces (`covers_critical` y el plan de pagos).
+             * @description Saldo FINAL proyectado al cierre del día 14 (del cash-flow), no el mínimo de la ventana; `null` sin saldo. **Viene en la moneda funcional del tenant, que NO es necesariamente CLP** — la declara `projected_cash_currency`, acá al lado. Es el único monto de esta respuesta que no está en pesos: `total` y los `due_*` se totalizan siempre en CLP. Compararlos sin mirar la moneda es dividir dólares por pesos, y ya pasó dos veces (`covers_critical` y el plan de pagos).
              */
             projected_cash_14d?: string | null;
             /**
@@ -6470,6 +6590,13 @@ export interface components {
              * @default 0
              */
             undated_count: number;
+            /** @description Agregado firmado de obligaciones sin fecha sobre todo el universo vivo. Mantiene `undated_amount`/`undated_count` por compatibilidad y añade cobertura FX explícita. */
+            undated_summary: components["schemas"]["PayableAggregateSummary"];
+            /**
+             * Zero Balance Count
+             * @description Cantidad de obligaciones vivas con saldo exactamente cero. No entran en créditos ni en el agregado de pagos vencidos/no postergables. `null` cuando el store no tiene cobertura suficiente para afirmar el conteo.
+             */
+            zero_balance_count: number | null;
         };
         /**
          * AccountsReceivableResponse
@@ -6656,6 +6783,23 @@ export interface components {
             events?: components["schemas"]["AdminEventResponse"][];
         } & {
             [key: string]: unknown;
+        };
+        /** AllocationDetail */
+        AllocationDetail: {
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Node Id */
+            node_id: string;
+            /** Node Kind */
+            node_kind: string;
+            /** Role */
+            role: string;
+            /** Signed Amount */
+            signed_amount: string;
+            /** Source Label */
+            source_label?: string | null;
+            /** Source Path */
+            source_path?: string | null;
         };
         /** AllocationIn */
         AllocationIn: {
@@ -7126,6 +7270,15 @@ export interface components {
              * @description Nombre de cuenta según BICE.
              */
             name?: string | null;
+        };
+        /** BankAccountRef */
+        BankAccountRef: {
+            /** Account Name */
+            account_name: string;
+            /** Bank Name */
+            bank_name: string;
+            /** External Ref */
+            external_ref?: string | null;
         };
         /**
          * BankCredentialStatus
@@ -8159,6 +8312,52 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** CaseDetail */
+        CaseDetail: {
+            /** Allocations */
+            allocations: components["schemas"]["AllocationDetail"][];
+            /** Canonical Category */
+            canonical_category: string;
+            /** Components */
+            components: components["schemas"]["ComponentDetail"][];
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Decision */
+            decision: string;
+            /** Engine Version */
+            engine_version: string;
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceDetail"][];
+            /** Explanation */
+            explanation: string;
+            /** Financial Event Type */
+            financial_event_type: string;
+            /** Id */
+            id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Rejected At */
+            rejected_at?: string | null;
+            /** Reverted At */
+            reverted_at?: string | null;
+            /** Score */
+            score: string;
+            /** Settlement Rail */
+            settlement_rail: string;
+            /** Status */
+            status: string;
+            /** Topology */
+            topology: string;
+        };
         /**
          * CashCycleResponse
          * @description Ciclo de conversión de caja: DSO / DPO / CCC (ADR-0033 derivados, Fase 2).
@@ -8868,6 +9067,118 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** ClassificationAllocationDetail */
+        ClassificationAllocationDetail: {
+            /** Amount */
+            amount: string;
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Dimensions */
+            dimensions: {
+                [key: string]: string;
+            }[];
+            /** Id */
+            id?: string | null;
+            /** Input Amount */
+            input_amount?: string | null;
+            /** Input Kind */
+            input_kind?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Management Account Code */
+            management_account_code?: string | null;
+            /** Management Account Id */
+            management_account_id: string;
+            /** Management Account Name */
+            management_account_name?: string | null;
+            /** Percentage */
+            percentage?: string | null;
+            /** Source */
+            source: string;
+        };
+        /** ClassificationAllocationInput */
+        ClassificationAllocationInput: {
+            /** Amount */
+            amount?: number | string | null;
+            /** Dimensions */
+            dimensions?: components["schemas"]["ClassificationDimensionInput"][];
+            /** Label */
+            label?: string | null;
+            /**
+             * Management Account Id
+             * Format: uuid
+             */
+            management_account_id: string;
+            /** Percentage */
+            percentage?: number | string | null;
+        };
+        /** ClassificationDetail */
+        ClassificationDetail: {
+            /** Allocations */
+            allocations: components["schemas"]["ClassificationAllocationDetail"][];
+            /** Canonical Category */
+            canonical_category?: string | null;
+            /** Classified At */
+            classified_at?: string | null;
+            /** Classified By */
+            classified_by?: string | null;
+            /** Confidence */
+            confidence?: string | null;
+            /** Financial Event Type */
+            financial_event_type?: string | null;
+            /** History */
+            history: components["schemas"]["ClassificationHistoryDetail"][];
+            /** Id */
+            id?: string | null;
+            /** Input Mode */
+            input_mode?: string | null;
+            management_account?: components["schemas"]["ManagementAccountRef"] | null;
+            /** Model Version */
+            model_version?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Settlement Rail */
+            settlement_rail?: string | null;
+            /** Source */
+            source?: string | null;
+            /** Status */
+            status: string;
+        };
+        /** ClassificationDimensionInput */
+        ClassificationDimensionInput: {
+            /**
+             * Dimension Id
+             * Format: uuid
+             */
+            dimension_id: string;
+            /**
+             * Dimension Value Id
+             * Format: uuid
+             */
+            dimension_value_id: string;
+        };
+        /** ClassificationHistoryDetail */
+        ClassificationHistoryDetail: {
+            /** Action */
+            action: string;
+            /** Actor User Id */
+            actor_user_id?: string | null;
+            /** After */
+            after?: {
+                [key: string]: unknown;
+            } | null;
+            /** Before */
+            before?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+        };
         /** ClassificationProposal */
         ClassificationProposal: {
             /** Account Code */
@@ -9429,6 +9740,21 @@ export interface components {
             pct: number;
         } & {
             [key: string]: unknown;
+        };
+        /** ComponentDetail */
+        ComponentDetail: {
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Kind */
+            kind: string;
+            /** Signed Amount */
+            signed_amount: string;
+            /** Source */
+            source: string;
+            /** Source Reference */
+            source_reference?: string | null;
+            /** Tax Treatment */
+            tax_treatment?: string | null;
         };
         /** ComponentResponse */
         ComponentResponse: {
@@ -11313,6 +11639,19 @@ export interface components {
              */
             total_recuperado: string;
         };
+        /** EvidenceDetail */
+        EvidenceDetail: {
+            /** Code */
+            code: string;
+            /** Observed Value */
+            observed_value?: string | null;
+            /** Result */
+            result: string;
+            /** Source Reference */
+            source_reference?: string | null;
+            /** Weight */
+            weight: string;
+        };
         /** EvidenceResponse */
         EvidenceResponse: {
             /** Code */
@@ -12277,6 +12616,11 @@ export interface components {
             /** Total Financial Cost */
             total_financial_cost?: string | null;
         };
+        /**
+         * FinancialEventType
+         * @enum {string}
+         */
+        FinancialEventType: "client_collection" | "card_processor_settlement" | "cash_deposit" | "supplier_payment" | "payroll_payment" | "tax_payment" | "social_security_payment" | "tgr_payment" | "bank_fee" | "interest_income" | "interest_expense" | "debt_disbursement" | "debt_service" | "factoring_advance" | "factoring_cost_or_repayment" | "owner_contribution" | "owner_withdrawal" | "internal_bank_transfer" | "intercompany_transfer" | "investment_purchase" | "investment_return" | "capex_payment" | "refund_or_reversal" | "operational_expense" | "non_operational_income" | "unknown" | "card_processor_fee" | "card_processor_chargeback" | "card_processor_reserve_hold" | "card_processor_reserve_release" | "cash_withdrawal" | "confirming_advance" | "confirming_settlement" | "leasing_payment" | "leaseback_proceeds" | "corporate_card_payment" | "capital_reduction" | "related_party_loan_received" | "related_party_loan_granted" | "related_party_loan_repayment_received" | "related_party_loan_repayment_paid" | "cash_pool_transfer" | "escrow_funding" | "escrow_release" | "fx_conversion" | "term_deposit_placement" | "term_deposit_maturity" | "dividend_income" | "securities_sale" | "derivative_receipt" | "derivative_payment" | "collateral_posting" | "collateral_release" | "digital_asset_purchase" | "digital_asset_sale" | "trade_finance_payment" | "export_collection" | "bank_guarantee_fee" | "insurance_premium" | "insurance_claim" | "government_grant" | "tax_refund" | "customs_payment" | "employee_advance" | "employee_reimbursement" | "legal_hold" | "legal_release" | "donation_payment" | "donation_income";
         /** FinancialEventTypeItem */
         FinancialEventTypeItem: {
             /** Canonical Category */
@@ -13621,6 +13965,40 @@ export interface components {
              */
             tenant_id: string;
         };
+        /** LegacyDocumentDetail */
+        LegacyDocumentDetail: {
+            /** Amount Applied */
+            amount_applied: string;
+            /** Counterparty Name */
+            counterparty_name?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by?: string | null;
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Document Id */
+            document_id: string;
+            /** Document Kind */
+            document_kind: string;
+            /** Document Ref */
+            document_ref?: string | null;
+            /** Id */
+            id: string;
+            /** Method */
+            method: string;
+            /** Outstanding Amount */
+            outstanding_amount?: string | null;
+            /** Score */
+            score: string;
+            /** Source Path */
+            source_path?: string | null;
+            /** Total Amount */
+            total_amount?: string | null;
+        };
         /**
          * LibroComparativosResponse
          * @description `GET /api/sii/rcv/{kind}/comparativos` — contrato CC-WEB 2026-07-13. Neto neteado de
@@ -13987,6 +14365,19 @@ export interface components {
             /** Updated At */
             updated_at?: string | null;
         };
+        /** ManagementAccountRef */
+        ManagementAccountRef: {
+            /** Code */
+            code: string;
+            /** Destination */
+            destination: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+        };
         /**
          * ManagementAccountTreeResponse
          * @description Respuesta de `GET /api/management/accounts/tree` (roots anidados).
@@ -14286,36 +14677,34 @@ export interface components {
              */
             new_parent_id?: string | null;
         };
-        /** MovementResolutionResponse */
-        MovementResolutionResponse: {
-            /** Canonical Category */
-            canonical_category?: string | null;
-            /** Classification Confidence */
-            classification_confidence?: string | null;
-            /** Classification Model Version */
-            classification_model_version?: string | null;
-            /** Classification Source */
-            classification_source?: string | null;
-            /** Classification Status */
-            classification_status: string;
-            /** Effective Reconciliation Status */
-            effective_reconciliation_status: string;
-            /** Financial Event Type */
-            financial_event_type?: string | null;
-            /** Latest Case Decision */
-            latest_case_decision?: string | null;
-            /** Latest Case Explanation */
-            latest_case_explanation?: string | null;
-            /** Latest Case Id */
-            latest_case_id?: string | null;
-            /** Latest Case Status */
-            latest_case_status?: string | null;
-            /** Movement Id */
-            movement_id: string;
-            /** Settlement Rail */
-            settlement_rail?: string | null;
-            /** Stored Reconciliation Status */
-            stored_reconciliation_status: string;
+        /** MovementDetail */
+        MovementDetail: {
+            /** Amount */
+            amount: string;
+            bank_account: components["schemas"]["BankAccountRef"];
+            /** Bank Account Id */
+            bank_account_id: string;
+            /** Currency Code */
+            currency_code?: string | null;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Description */
+            description: string;
+            /** Direction */
+            direction: string;
+            /** External Id */
+            external_id: string;
+            /** Id */
+            id: string;
+        };
+        /** MovementResolutionDetailResponse */
+        MovementResolutionDetailResponse: {
+            classification: components["schemas"]["ClassificationDetail"];
+            movement: components["schemas"]["MovementDetail"];
+            reconciliation: components["schemas"]["ReconciliationDetail"];
         };
         /**
          * MovimientoDeuda
@@ -16047,6 +16436,86 @@ export interface components {
             status?: string | null;
         };
         /**
+         * PayableAggregateSummary
+         * @description Agregado sobre el universo completo de cuentas por pagar vivas.
+         *
+         *     `known_amount_clp` nunca finge cobertura: contiene sólo la parte que se pudo convertir.
+         *     `amount_clp` es el total publicable y se nulifica cuando `complete=false`.
+         */
+        PayableAggregateSummary: {
+            /**
+             * Amount Clp
+             * @description Monto completo en CLP, o `null` si falta una fecha necesaria para clasificarlo o un tipo de cambio. Un agregado parcial nunca se publica como $0 conocido.
+             */
+            amount_clp: string | null;
+            /**
+             * Complete
+             * @description `true` sólo cuando `amount_clp` cubre todo el universo del bucket.
+             */
+            complete: boolean;
+            /**
+             * Count
+             * @description Cantidad conocida de obligaciones del bucket. En el agregado de pagos vencidos/no postergables, sólo cuenta las fechadas; `unknown_due_date_count` declara las que no se pudieron clasificar.
+             */
+            count: number;
+            /**
+             * Excluded By Currency
+             * @description Montos crudos que no entraron en `known_amount_clp` porque falta el tipo de cambio.
+             */
+            excluded_by_currency: components["schemas"]["PayableCurrencyTotal"][];
+            /**
+             * Known Amount Clp
+             * @description Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`.
+             */
+            known_amount_clp: string;
+            /**
+             * Unknown Due Date Count
+             * @description Obligaciones positivas sin vencimiento que podrían pertenecer a la ventana. Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.
+             */
+            unknown_due_date_count: number;
+        };
+        /**
+         * PayableCategorySummary
+         * @description Total y cantidad de una categoría sobre todas las obligaciones vivas, no sobre `items`.
+         */
+        PayableCategorySummary: {
+            /**
+             * Amount Clp
+             * @description Monto completo en CLP, o `null` si falta una fecha necesaria para clasificarlo o un tipo de cambio. Un agregado parcial nunca se publica como $0 conocido.
+             */
+            amount_clp: string | null;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "supplier" | "tax" | "payroll" | "rent" | "debt" | "leasing" | "other";
+            /**
+             * Complete
+             * @description `true` sólo cuando `amount_clp` cubre todo el universo del bucket.
+             */
+            complete: boolean;
+            /**
+             * Count
+             * @description Cantidad conocida de obligaciones del bucket. En el agregado de pagos vencidos/no postergables, sólo cuenta las fechadas; `unknown_due_date_count` declara las que no se pudieron clasificar.
+             */
+            count: number;
+            /**
+             * Excluded By Currency
+             * @description Montos crudos que no entraron en `known_amount_clp` porque falta el tipo de cambio.
+             */
+            excluded_by_currency: components["schemas"]["PayableCurrencyTotal"][];
+            /**
+             * Known Amount Clp
+             * @description Parte efectivamente conocida y convertida a CLP. Es informativa cuando `complete=false`; no reemplaza a `amount_clp`.
+             */
+            known_amount_clp: string;
+            /**
+             * Unknown Due Date Count
+             * @description Obligaciones positivas sin vencimiento que podrían pertenecer a la ventana. Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.
+             */
+            unknown_due_date_count: number;
+        };
+        /**
          * PayableCurrencyTotal
          * @description Total por pagar de UNA moneda, sin convertir — para el desglose '(CLP $X + USD $Y)'.
          */
@@ -16124,7 +16593,7 @@ export interface components {
             criticality: "high" | "medium" | "low";
             /**
              * Currency
-             * @description Moneda ISO-4217 del `amount`. Hoy siempre 'CLP' (el RCV reporta en pesos; las compras en USD viven en el listado de compras extranjeras, no acá).
+             * @description Moneda ISO-4217 del `amount` (por ejemplo, 'CLP' o 'USD'). El RCV reporta en pesos, pero los cargos internacionales de tarjeta persistidos por ADR-0050 pueden venir en USD.
              * @default CLP
              */
             currency: string;
@@ -17076,6 +17545,91 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * RcvDocumento
+         * @description Documento del RCV en formato slim (default). Para todos los campos del SII
+         *     pasar `?full=true`.
+         */
+        RcvDocumento: {
+            /**
+             * Cedido
+             * @description Solo VENTAS. True si la factura fue CEDIDA a un factor vía RPETC (existe en `treasury.cesiones`): la cobra el factor, no el emisor → el FE debe EXCLUIRLA del 'por cobrar' (el libro del SII no lo sabe; se cruza por tipo+folio+RUT-deudor normalizado). None/False en cache anterior a esta versión.
+             * @default false
+             */
+            cedido: boolean;
+            /**
+             * Cedido A
+             * @description Solo si `cedido`: RUT del factor (cesionario) al que se cedió la factura.
+             */
+            cedido_a?: string | null;
+            /**
+             * Dhdr Codigo
+             * @description Código interno del DTE en el SII (dhdrCodigo/detCodigo). Sirve para enlazar el documento con su PDF/XML oficial cuando se habilite la descarga.
+             */
+            dhdr_codigo?: string | null;
+            /**
+             * Due Date
+             * @description Fecha de vencimiento ISO (YYYY-MM-DD), si fue persistida al enriquecer el DTE.
+             */
+            due_date?: string | null;
+            /**
+             * Due Date Source
+             * @description Origen de due_date: sii, contado o assumed_30d.
+             */
+            due_date_source?: string | null;
+            /**
+             * Estado
+             * @description Estado contable del documento en el SII: REGISTRO, PENDIENTE, NO_INCLUIR, RECLAMADO o ACEPTADO_RECLAMADO. None si el dato viene de cache anterior a esta versión.
+             */
+            estado?: string | null;
+            /**
+             * Fecha
+             * @description Formato dd/mm/yyyy
+             */
+            fecha?: string | null;
+            /** Folio */
+            folio?: number | null;
+            /** Monto Exento */
+            monto_exento?: number | null;
+            /** Monto Iva */
+            monto_iva?: number | null;
+            /** Monto Neto */
+            monto_neto?: number | null;
+            /** Monto Total */
+            monto_total?: number | null;
+            /** Razon Social */
+            razon_social?: string | null;
+            /**
+             * Reclamado
+             * @description True si el receptor RECLAMÓ el documento (estado=RECLAMADO). En compras no cuenta como crédito/gasto; en ventas no cuenta como ingreso (pero la venta sigue vigente hasta la NC). El FE pinta la 'R' de reclamada. El maestro RCV incluye igual el documento (transparencia).
+             * @default false
+             */
+            reclamado: boolean;
+            /**
+             * Ref Folio
+             * @description Folio del documento referenciado (detFolioDocRef). Permite linkear la NC a la factura que anula de forma exacta (sin heurística) y netear el Libro.
+             */
+            ref_folio?: number | null;
+            /**
+             * Ref Tipo Doc
+             * @description Tipo del documento referenciado (detTipoDocRef). Presente en NC/ND (tipo 61/56): el DTE que la nota anula/modifica.
+             */
+            ref_tipo_doc?: number | null;
+            /**
+             * Rut Contraparte
+             * @description RUT con dígito verificador (ej. '76489841-9')
+             */
+            rut_contraparte?: string | null;
+            /**
+             * Tipo Doc
+             * @description 33=Factura, 34=Factura Exenta, 39=Boleta, 61=Nota Crédito, etc.
+             */
+            tipo_doc?: number | null;
+            /** Tipo Doc Nombre */
+            tipo_doc_nombre?: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * RcvSyncResponse
          * @description Resultado de `POST /api/sii/sync-rcv` — devengado persistido (ADR-0035).
          */
@@ -17133,9 +17687,7 @@ export interface components {
              * Ventas
              * @description Documentos de ventas del período. Slim por default. Con ?full=true devuelve los 50+ campos crudos del SII.
              */
-            ventas?: {
-                [key: string]: unknown;
-            }[];
+            ventas?: components["schemas"]["RcvDocumento"][];
         } & {
             [key: string]: unknown;
         };
@@ -17434,6 +17986,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Created By */
+            created_by?: string | null;
             /** Decision */
             decision: string;
             /** Engine Version */
@@ -17469,6 +18023,28 @@ export interface components {
             items: components["schemas"]["ReconciliationCaseResponse"][];
             /** Movement Id */
             movement_id: string;
+        };
+        /** ReconciliationDetail */
+        ReconciliationDetail: {
+            /** Allocations */
+            allocations: components["schemas"]["AllocationDetail"][];
+            /** Components */
+            components: components["schemas"]["ComponentDetail"][];
+            current_case?: components["schemas"]["CaseDetail"] | null;
+            /** Effective Status */
+            effective_status: string;
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceDetail"][];
+            /** History */
+            history: components["schemas"]["CaseDetail"][];
+            /** Legacy Documents */
+            legacy_documents: components["schemas"]["LegacyDocumentDetail"][];
+            /** Remaining Amount */
+            remaining_amount: string;
+            /** Stored Status */
+            stored_status: string;
+            /** Topology */
+            topology?: string | null;
         };
         /**
          * ReconciliationDocument
@@ -17642,6 +18218,19 @@ export interface components {
              * Format: uuid
              */
             tenant_id: string;
+        };
+        /** ReplaceClassificationRequest */
+        ReplaceClassificationRequest: {
+            /** Allocations */
+            allocations: components["schemas"]["ClassificationAllocationInput"][];
+            financial_event_type: components["schemas"]["FinancialEventType"];
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "amount" | "percentage" | "hybrid";
+            /** Notes */
+            notes?: string | null;
         };
         /**
          * ResendVerificationRequest
@@ -18105,6 +18694,19 @@ export interface components {
              * @description Rol canónico de la membership active (e.g. 'owner', 'admin').
              */
             role: string;
+        };
+        /** SetAccountDimensionPolicyRequest */
+        SetAccountDimensionPolicyRequest: {
+            /**
+             * Is Enabled
+             * @description Override explícito por cuenta. false deshabilita incluso una dimensión global activa/visible/obligatoria; omitir la policy conserva la semántica global.
+             */
+            is_enabled: boolean;
+            /**
+             * Is Required
+             * @description true vuelve obligatoria la dimensión para la cuenta y exige is_enabled=true.
+             */
+            is_required: boolean;
         };
         /**
          * SetCounterpartyContactEmailRequest
@@ -19203,6 +19805,15 @@ export interface components {
             rut?: string | null;
             /** Total */
             total: string;
+        };
+        /** UnclassifyResponse */
+        UnclassifyResponse: {
+            /** Changed */
+            changed: boolean;
+            /** Movement Id */
+            movement_id: string;
+            /** Status */
+            status: string;
         };
         /**
          * UpdateClassificationRuleRequest
@@ -28244,6 +28855,80 @@ export interface operations {
             };
         };
     };
+    treasury_bank_movement_classification_replace: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceClassificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MovementResolutionDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_bank_movement_unclassify: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                movement_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnclassifyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_bank_movements_classify: {
         parameters: {
             query?: never;
@@ -28313,7 +28998,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MovementResolutionResponse"];
+                    "application/json": components["schemas"]["MovementResolutionDetailResponse"];
                 };
             };
             /** @description Validation Error */
@@ -29961,6 +30646,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LiquidityEvaluationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_management_account_classification_dimensions_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                management_account_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDimensionPoliciesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_management_account_classification_dimension_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                management_account_id: string;
+                dimension_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetAccountDimensionPolicyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDimensionPolicy"];
                 };
             };
             /** @description Validation Error */

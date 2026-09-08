@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BANK_MOVEMENTS_LIMIT_MAX } from "@/lib/api/treasury";
-import { LIMITE_MOVIMIENTOS, MESES_ALCANCE } from "./banco-v03-live";
+import { LIMITE_MOVIMIENTOS, MESES_ALCANCE, unclassifyFeedback } from "./banco-v03-live";
 
 /* El cableado de V03, fijado contra el CONTRATO.
  *
@@ -21,5 +21,16 @@ describe("BancoV03Live — el limit que se pide al backend", () => {
 
   it("el alcance declarado en pantalla es de 3 meses", () => {
     expect(MESES_ALCANCE).toBe(3);
+  });
+
+  it("no anuncia éxito cuando el backend informa que no desclasificó nada", () => {
+    expect(unclassifyFeedback(false)).toEqual({
+      kind: "error",
+      message: "No había una clasificación vigente; el movimiento se volvió a cargar",
+    });
+    expect(unclassifyFeedback(true)).toEqual({
+      kind: "success",
+      message: "Clasificación eliminada",
+    });
   });
 });
