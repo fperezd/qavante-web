@@ -11,7 +11,7 @@ const RUN_EN_CURSO = {
     {
       source: "sii" as const,
       status: "running" as const,
-      step: "reading",
+      step: "reading_documents",
       records_read: 0,
       eta_seconds: null,
       updated_at: "2026-09-02T12:00:00Z",
@@ -148,7 +148,7 @@ export const Normal: Story = {
     await expect(fuentesPaso1.getByText("SII", { exact: true })).toBeInTheDocument();
     await expect(fuentesPaso1.getByText("Banco", { exact: true })).toBeInTheDocument();
     await expect(canvas.getAllByText("Conectada")).toHaveLength(2);
-    expect(texto(canvasElement)).toContain("Sincronización: running");
+    expect(texto(canvasElement)).toContain("Sincronización · En curso");
     expect(texto(canvasElement)).toContain("0 documentos leídos");
     expect(texto(canvasElement)).toContain("Sin tiempo estimado disponible.");
     expect(texto(canvasElement)).not.toMatch(/mañana a las 7/i);
@@ -199,12 +199,12 @@ export const NingunaConectada: Story = {
 };
 
 export const Cargando: Story = {
-  name: "Cargando · dice qué se está trayendo y un ETA (Ley 8)",
+  name: "Cargando · dice qué se está trayendo (Ley 8)",
   args: { states: null, cargando: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      canvas.getByText(/revisando el estado de tus conexiones \(~2 s\)/),
+      canvas.getByText(/revisando el estado de tus conexiones para la empresa activa/i),
     ).toBeInTheDocument();
   },
 };
@@ -217,6 +217,32 @@ export const ErrorDeConexion: Story = {
     await expect(
       canvas.getByText("No pudimos conectar con tus fuentes (error de red).", { exact: false }),
     ).toBeInTheDocument();
+  },
+};
+
+export const SincronizacionTerminada: Story = {
+  name: "Completada · el primer parte ya está disponible",
+  args: {
+    run: { ...RUN_EN_CURSO, status: "completed" },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Sincronización · Completada")).toBeInTheDocument();
+    await expect(canvas.getByText("Tu primer parte ya está disponible.")).toBeInTheDocument();
+  },
+};
+
+export const ProgresoNoDisponible: Story = {
+  name: "Error · no pudimos consultar el progreso, con reintento",
+  args: {
+    run: null,
+    errorConsultaRun:
+      "No pudimos actualizar el progreso por un error de red. El último estado visible puede estar desactualizado.",
+    onReintentarConsultaRun: () => {},
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: "Reintentar consulta" })).toBeInTheDocument();
   },
 };
 

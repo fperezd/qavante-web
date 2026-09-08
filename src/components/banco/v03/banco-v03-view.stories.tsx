@@ -77,10 +77,18 @@ export const Normal: Story = {
     await expect(
       canvas.getByText("actualizada hoy · 4 movimientos por conciliar"),
     ).toBeInTheDocument();
-    await expect(canvas.getByRole("radio", { name: "Por conciliar · 5" })).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox", { name: "Cuenta de la cartola" })).toHaveValue(
+      "acc-clp",
+    );
+    await expect(
+      canvas.getByRole("combobox", { name: "Filtrar por conciliación" }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("combobox", { name: "Filtrar por clasificación" }),
+    ).toBeInTheDocument();
     await expect(canvas.getAllByText("Conciliado ✓")).toHaveLength(2);
-    await expect(canvas.getAllByText("Clasificado ✓")).toHaveLength(2);
-    await expect(canvas.getAllByText("Por clasificar")).toHaveLength(4);
+    await expect(canvas.getAllByText("Clasificado ✓")).toHaveLength(4);
+    await expect(canvas.getAllByText("Sin clasificar")).toHaveLength(4);
     // Ley 7: la glosa completa está en el DOM.
     await expect(
       canvas.getByText("Abono por transferencia de Cliente Norte SpA 76.123.456-7"),
@@ -89,6 +97,11 @@ export const Normal: Story = {
     const cta = canvas.getAllByRole("link", { name: "Clasificar" })[0]!;
     await expect(cta).toHaveAttribute("href", "/bandeja");
     await expect(rojos(canvasElement)).toHaveLength(0);
+    await userEvent.click(canvas.getAllByRole("button", { name: "Ver detalle" })[0]!);
+    const page = within(canvasElement.ownerDocument.body);
+    await expect(page.getByRole("dialog", { name: "Cómo se resolvió" })).toBeInTheDocument();
+    await expect(page.getByRole("region", { name: "Conciliación" })).toBeInTheDocument();
+    await expect(page.getByRole("region", { name: "Clasificación" })).toBeInTheDocument();
   },
 };
 
@@ -210,7 +223,10 @@ export const BuscarYFiltrar: Story = {
     await expect(canvas.getByRole("radio", { name: "Cargos · 1" })).toBeInTheDocument();
 
     await userEvent.clear(input);
-    await userEvent.click(canvas.getByRole("radio", { name: "Por conciliar · 5" }));
+    await userEvent.selectOptions(
+      canvas.getByRole("combobox", { name: "Filtrar por conciliación" }),
+      "pendiente",
+    );
     // El filtro muestra exactamente lo que el chip contó: los conciliados no están.
     await expect(canvas.queryByText("Nómina en línea agosto")).not.toBeInTheDocument();
     await expect(canvas.getByText("Pago SII F29")).toBeInTheDocument();

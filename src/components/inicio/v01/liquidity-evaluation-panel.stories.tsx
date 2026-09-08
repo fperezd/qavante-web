@@ -109,34 +109,37 @@ function evaluationForStory(decisionId: string): LiquidityEvaluation {
 }
 
 /**
- * Cada interacción conserva su handler y sus solicitudes en un cierre propio.
- * El worker de Storybook vive entre stories: un router comodín y arrays de módulo
- * dejaban que un handler registrado por otra story respondiera un POST ajeno.
+ * Cada decisión conserva una ruta exacta. El worker de Storybook vive entre stories, por eso el
+ * router se registra una vez y nunca decide el resultado desde un contador global reiniciable.
+ * El intento de retry se cuenta por idempotency_key; el historial sólo respalda asserts acotados
+ * a las solicitudes agregadas durante el play actual.
  */
 function selectionScenario(
   decisionId: string,
-  respond: (requests: readonly DecisionSelectionRequest[]) => Response,
+  respond: (request: DecisionSelectionRequest, attemptForKey: number) => Response,
 ) {
   const requests: DecisionSelectionRequest[] = [];
+  const attemptsByKey = new Map<string, number>();
   return {
     requests,
-    reset: () => {
-      requests.length = 0;
-    },
+    requestsForKey: (key: string) => requests.filter((request) => request.idempotency_key === key),
     handler: http.post(`*/api/treasury/decisions/${decisionId}/selection`, async ({ request }) => {
-      requests.push((await request.json()) as DecisionSelectionRequest);
-      return respond(requests);
+      const body = (await request.json()) as DecisionSelectionRequest;
+      requests.push(body);
+      const attemptForKey = (attemptsByKey.get(body.idempotency_key) ?? 0) + 1;
+      attemptsByKey.set(body.idempotency_key, attemptForKey);
+      return respond(body, attemptForKey);
     }),
   };
 }
 
-const retryScenario = selectionScenario(RETRY_DECISION_ID, (requests) =>
-  requests.length === 1
+const retryScenario = selectionScenario(RETRY_DECISION_ID, (_request, attemptForKey) =>
+  attemptForKey === 1
     ? HttpResponse.error()
     : HttpResponse.json(selectionResponse({ decision_id: RETRY_DECISION_ID })),
 );
-const changedIntentScenario = selectionScenario(CHANGE_INTENT_DECISION_ID, (requests) =>
-  requests.length === 1
+const changedIntentScenario = selectionScenario(CHANGE_INTENT_DECISION_ID, (request) =>
+  request.rationale === "Primer motivo"
     ? HttpResponse.error()
     : HttpResponse.json(selectionResponse({ decision_id: CHANGE_INTENT_DECISION_ID })),
 );
@@ -179,9 +182,6 @@ function requestApprovalScenario() {
   const requests: OperationApprovalRequest[] = [];
   return {
     requests,
-    reset: () => {
-      requests.length = 0;
-    },
     handler: http.post(
       "*/api/treasury/operation-plans/50000000-0000-4000-8000-000000000001/request-approval",
       async ({ request }) => {
@@ -207,7 +207,20 @@ const meta = {
   parameters: {
     layout: "padded",
     a11y: { test: "error" },
-    msw: { handlers: [approvalScenario.handler] },
+    /* El service worker vive durante todo el archivo. Mantener un router estable evita que el
+       loader retire un handler mientras todavía termina una interacción de la story anterior. */
+    msw: {
+      handlers: [
+        approvalScenario.handler,
+        retryScenario.handler,
+        changedIntentScenario.handler,
+        noActionScenario.handler,
+        replayScenario.handler,
+        errorScenarios[401].handler,
+        errorScenarios[403].handler,
+        errorScenarios[422].handler,
+      ],
+    },
   },
   args: { evaluation: EVALUATION, now: new Date("2026-08-31T12:00:00Z") },
 } satisfies Meta<typeof LiquidityEvaluationPanel>;
@@ -297,6 +310,10 @@ async function openSelection(canvasElement: HTMLElement, alternative: string, ra
     return active[0]!;
   });
   const input = within(dialog).getByLabelText("Motivo de tu decisión");
+  /* Storybook puede reutilizar la instancia React al cambiar de story. Una selección exitosa
+     cierra el popup directamente y conserva el motivo anterior; limpiar acá hace que cada play
+     parta del texto que declara, sin depender del orden ni relajar los asserts de error/éxito. */
+  await userEvent.clear(input);
   await userEvent.type(input, rationale);
   return { canvas, dialog, input };
 }
@@ -315,7 +332,7 @@ async function expectErrorWithoutSuccess(
   scenario: (typeof errorScenarios)[401 | 403 | 422],
   expected: RegExp,
 ) {
-  scenario.reset();
+  const requestCountBefore = scenario.requests.length;
   const { canvas, dialog } = await openSelection(
     canvasElement,
     "Usar línea de crédito",
@@ -323,8 +340,8 @@ async function expectErrorWithoutSuccess(
   );
   await submit(dialog);
   await waitFor(() => expect(within(dialog).getByRole("alert")).toHaveTextContent(expected));
-  await expect(scenario.requests).toHaveLength(1);
-  await expect(scenario.requests[0]).toMatchObject({
+  await expect(scenario.requests).toHaveLength(requestCountBefore + 1);
+  await expect(scenario.requests.at(-1)).toMatchObject({
     alternative_id: LINE_ID,
     rationale: "Motivo verificable",
   });
@@ -377,7 +394,7 @@ export const ErrorDeLectura: Story = {
 export const OperationPlanYSolicitudAprobacion: Story = {
   args: { canSelect: true, operationPlanRead: OPERATION_PLAN },
   play: async ({ canvasElement }) => {
-    approvalScenario.reset();
+    const requestCountBefore = approvalScenario.requests.length;
     const canvas = within(canvasElement);
     await expect(
       canvas.getByRole("heading", { name: "Usar línea de crédito" }),
@@ -401,8 +418,8 @@ export const OperationPlanYSolicitudAprobacion: Story = {
     await expect(await canvas.findByText("Esperando aprobación")).toBeInTheDocument();
     await expect(canvas.getByText("Sólo lectura")).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /aprobar/i })).not.toBeInTheDocument();
-    await expect(approvalScenario.requests).toHaveLength(1);
-    await expect(approvalScenario.requests[0]).toMatchObject({
+    await expect(approvalScenario.requests).toHaveLength(requestCountBefore + 1);
+    await expect(approvalScenario.requests.at(-1)).toMatchObject({
       evidence_refs: ["quote:1"],
       rationale: "Solicito revisión con evidencia anclada",
     });
@@ -494,9 +511,8 @@ export const SeleccionOwner: Story = {
 /** Monta directamente V01 para el test de browser; no cambia `hoyV01` en producción. */
 export const RetryIdempotenteYExito: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(RETRY_DECISION_ID) },
-  parameters: { msw: { handlers: [retryScenario.handler] } },
   play: async ({ canvasElement }) => {
-    retryScenario.reset();
+    const requestCountBefore = retryScenario.requests.length;
     const { canvas, dialog } = await openSelection(
       canvasElement,
       "Usar línea de crédito",
@@ -509,6 +525,11 @@ export const RetryIdempotenteYExito: Story = {
         /No pudimos confirmar si la selección se registró/,
       ),
     );
+    const firstRequest = retryScenario.requests.slice(requestCountBefore).at(0);
+    const firstKey = firstRequest?.idempotency_key;
+    await expect(firstKey).toEqual(expect.any(String));
+    await expect(firstKey).not.toBe("");
+    if (!firstKey) throw new Error("La primera solicitud no incluyó idempotency_key");
     await expect(canvas.queryByRole("status")).not.toBeInTheDocument();
 
     await submit(dialog);
@@ -516,27 +537,21 @@ export const RetryIdempotenteYExito: Story = {
     await expect(status).toHaveTextContent(/plan operativo en borrador/i);
     await expect(status).toHaveTextContent(/estado draft/i);
     await expect(document.activeElement).toBe(status);
-    await expect(retryScenario.requests).toHaveLength(2);
-    await expect(retryScenario.requests[0]).toEqual({
+    const requestsForIntent = retryScenario.requestsForKey(firstKey);
+    await expect(requestsForIntent).toHaveLength(2);
+    await expect(requestsForIntent[0]).toEqual({
       alternative_id: LINE_ID,
-      idempotency_key: retryScenario.requests[0]?.idempotency_key,
+      idempotency_key: firstKey,
       rationale: "Protege el vencimiento con términos verificados",
     });
-    await expect(retryScenario.requests[0]?.idempotency_key).toEqual(expect.any(String));
-    await expect(retryScenario.requests[0]?.idempotency_key).not.toBe("");
-    await expect(retryScenario.requests[1]?.idempotency_key).toEqual(expect.any(String));
-    await expect(retryScenario.requests[1]?.idempotency_key).not.toBe("");
-    await expect(retryScenario.requests[1]?.idempotency_key).toBe(
-      retryScenario.requests[0]?.idempotency_key,
-    );
+    await expect(requestsForIntent[1]?.idempotency_key).toBe(firstKey);
   },
 };
 
 export const MotivoCambiadoUsaNuevaKey: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(CHANGE_INTENT_DECISION_ID) },
-  parameters: { msw: { handlers: [changedIntentScenario.handler] } },
   play: async ({ canvasElement }) => {
-    changedIntentScenario.reset();
+    const requestCountBefore = changedIntentScenario.requests.length;
     const { canvas, dialog, input } = await openSelection(
       canvasElement,
       "Usar línea de crédito",
@@ -544,41 +559,40 @@ export const MotivoCambiadoUsaNuevaKey: Story = {
     );
     await submit(dialog);
     await waitFor(() => expect(within(dialog).getByRole("alert")).toBeInTheDocument());
+    const firstRequest = changedIntentScenario.requests.slice(requestCountBefore).at(0);
 
     await userEvent.clear(input);
     await userEvent.type(input, "Motivo corregido");
     await submit(dialog);
     await canvas.findByRole("status");
-    await expect(changedIntentScenario.requests).toHaveLength(2);
-    await expect(changedIntentScenario.requests[1]?.rationale).toBe("Motivo corregido");
-    await expect(changedIntentScenario.requests[1]?.idempotency_key).not.toBe(
-      changedIntentScenario.requests[0]?.idempotency_key,
-    );
+    const currentRequests = changedIntentScenario.requests.slice(requestCountBefore);
+    await expect(currentRequests).toHaveLength(2);
+    const secondRequest = currentRequests[1];
+    await expect(secondRequest?.rationale).toBe("Motivo corregido");
+    await expect(secondRequest?.idempotency_key).not.toBe(firstRequest?.idempotency_key);
   },
 };
 
 export const NoActionSinPlan: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(NO_ACTION_DECISION_ID) },
-  parameters: { msw: { handlers: [noActionScenario.handler] } },
   play: async ({ canvasElement }) => {
-    noActionScenario.reset();
+    const requestCountBefore = noActionScenario.requests.length;
     const { canvas, dialog } = await openSelection(
       canvasElement,
       "No financiar",
       "La caja se recupera sin financiamiento",
     );
     await submit(dialog);
-    await waitFor(() => expect(noActionScenario.requests).toHaveLength(1));
+    await waitFor(() => expect(noActionScenario.requests).toHaveLength(requestCountBefore + 1));
     const status = await canvas.findByRole("status");
     await expect(status).toHaveTextContent(/No requiere un plan operativo/i);
     await expect(status).toHaveTextContent(/sin OperationPlan/i);
-    await expect(noActionScenario.requests[0]?.alternative_id).toBe(NO_ACTION_ID);
+    await expect(noActionScenario.requests.at(-1)?.alternative_id).toBe(NO_ACTION_ID);
   },
 };
 
 export const ReplayNoDuplica: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(REPLAY_DECISION_ID) },
-  parameters: { msw: { handlers: [replayScenario.handler] } },
   play: async ({ canvasElement }) => {
     const { canvas, dialog } = await openSelection(
       canvasElement,
@@ -594,21 +608,18 @@ export const ReplayNoDuplica: Story = {
 
 export const Error401NoConfirma: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(ERROR_401_DECISION_ID) },
-  parameters: { msw: { handlers: [errorScenarios[401].handler] } },
   play: ({ canvasElement }) =>
     expectErrorWithoutSuccess(canvasElement, errorScenarios[401], /sesión venció/i),
 };
 
 export const Error403NoConfirma: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(ERROR_403_DECISION_ID) },
-  parameters: { msw: { handlers: [errorScenarios[403].handler] } },
   play: ({ canvasElement }) =>
     expectErrorWithoutSuccess(canvasElement, errorScenarios[403], /rol no está autorizado/i),
 };
 
 export const Error422NoConfirma: Story = {
   args: { canSelect: true, evaluation: evaluationForStory(ERROR_422_DECISION_ID) },
-  parameters: { msw: { handlers: [errorScenarios[422].handler] } },
   play: ({ canvasElement }) =>
     expectErrorWithoutSuccess(canvasElement, errorScenarios[422], /ya no cumple/i),
 };

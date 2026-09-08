@@ -10,6 +10,7 @@ import type { OnboardingSyncRun } from "@/lib/api/onboarding-sync-runs";
 import { SOURCE_STATE_LABEL } from "@/components/onboarding/onboarding-source-meta";
 import {
   concordar,
+  estadoRunLegible,
   fuentesConectadas,
   fuentesPendientes,
   fuentesV15,
@@ -38,9 +39,9 @@ import {
  * SIEMPRE navegan a algún lado.
  * LEY 7 — el nombre de la fuente y su monto (si lo hubiera) no se truncan; acá el dato primario es
  * el LABEL de la fuente y la frase de estado, que envuelven (`break-words`), nunca `truncate`.
- * LEY 8 — el estado de carga dice qué se está trayendo y cuánto tarda (~2 s); el error dice la
- * causa y ofrece Reintentar; el paso 2 sin fuentes conectadas dice qué falta (conectar el paso 1)
- * con su acción.
+ * LEY 8 — el estado de carga dice qué se está trayendo; el error dice la causa y ofrece
+ * Reintentar; el paso 2 sin fuentes conectadas dice qué falta (conectar el paso 1) con su acción.
+ * Las fuentes que no publican un tiempo estimado lo declaran en vez de mostrar una cifra local.
  * LEY 10 — una pantalla, una pregunta: "¿cómo va la construcción de tu primer parte?".
  *
  * MULTIEMPRESA: nada acá asume una sola empresa — `states` ya viene scopeado a la empresa activa
@@ -56,8 +57,10 @@ export interface BienvenidaV15ViewProps {
   onReintentar?: () => void;
   run?: OnboardingSyncRun | null;
   cargandoRun?: boolean;
-  errorRun?: boolean;
+  errorInicioRun?: string | null;
+  errorConsultaRun?: string | null;
   onIniciarRun?: () => void;
+  onReintentarConsultaRun?: () => void;
 }
 
 const EYEBROW =
@@ -76,14 +79,16 @@ export function BienvenidaV15View({
   onReintentar,
   run = null,
   cargandoRun = false,
-  errorRun = false,
+  errorInicioRun = null,
+  errorConsultaRun = null,
   onIniciarRun,
+  onReintentarConsultaRun,
 }: BienvenidaV15ViewProps) {
   if (cargando) {
     return (
       <div className="space-y-4" aria-busy="true" aria-live="polite">
         <p className="text-[13.5px] text-rediseno-tinta-2">
-          Estamos revisando el estado de tus conexiones (~2 s).
+          Estamos revisando el estado de tus conexiones para la empresa activa.
         </p>
         <div className="h-40 animate-pulse rounded-[14px] bg-rediseno-neutro-bg" aria-hidden />
         <div className="h-32 animate-pulse rounded-[14px] bg-rediseno-neutro-bg" aria-hidden />
@@ -110,16 +115,21 @@ export function BienvenidaV15View({
       <h1 className="font-rediseno-sans text-[26px] leading-tight font-medium text-rediseno-tinta sm:text-[30px]">
         ¿Cómo va la construcción de tu primer parte?
       </h1>
+      <p className="text-[12.5px] text-rediseno-tinta-2">
+        Estos estados y este avance corresponden únicamente a la empresa activa.
+      </p>
 
       <PasoFuentes fuentes={fuentes} />
       <PasoProgreso
         fuentesActivas={fuentesConectadas(fuentes).length}
         run={run}
         cargando={cargandoRun}
-        error={errorRun}
+        errorInicio={errorInicioRun}
+        errorConsulta={errorConsultaRun}
         onIniciar={onIniciarRun}
+        onReintentarConsulta={onReintentarConsultaRun}
       />
-      <PasoEstado />
+      <PasoEstado run={run} />
 
       <div className="flex justify-end">
         <Link href="/inicio" className={BTN_PRIMARIO}>
@@ -180,7 +190,7 @@ function FuenteRow({ fuente }: { fuente: FuenteV15 }) {
         </p>
         {fuente.tiempoConexion && (
           <p className="mt-0.5 text-[12px] text-rediseno-tinta-3">
-            Conectarla toma {fuente.tiempoConexion}.
+            Tiempo de conexión · {fuente.tiempoConexion}
           </p>
         )}
       </div>
@@ -197,14 +207,18 @@ function PasoProgreso({
   fuentesActivas,
   run,
   cargando,
-  error,
+  errorInicio,
+  errorConsulta,
   onIniciar,
+  onReintentarConsulta,
 }: {
   fuentesActivas: number;
   run: OnboardingSyncRun | null;
   cargando: boolean;
-  error: boolean;
+  errorInicio: string | null;
+  errorConsulta: string | null;
   onIniciar?: () => void;
+  onReintentarConsulta?: () => void;
 }) {
   return (
     <section aria-labelledby="paso-2-titulo" className={cn(CARD, "space-y-3")}>
@@ -217,6 +231,17 @@ function PasoProgreso({
           hint="Conecta al menos una fuente en el paso 1 para que el piloto empiece a leer tus datos."
           action={{ label: "Ir al paso 1", href: "#paso-1-titulo" }}
         />
+      ) : !run && errorConsulta ? (
+        <DataState
+          status="error"
+          what="el progreso de la sincronización"
+          cause={errorConsulta}
+          action={
+            onReintentarConsulta
+              ? { label: "Reintentar consulta", onClick: onReintentarConsulta }
+              : undefined
+          }
+        />
       ) : !run ? (
         <>
           <h2
@@ -226,13 +251,13 @@ function PasoProgreso({
             Todo listo para iniciar la sincronización
           </h2>
           <p className="text-[12.5px] text-rediseno-tinta-2">
-            Iniciaremos un run consultable para mostrar sólo el progreso que el motor publique.
+            Iniciaremos un proceso consultable para mostrar sólo el progreso que el motor publique.
           </p>
-          {error && (
+          {errorInicio && (
             <DataState
               status="error"
               what="el inicio de la sincronización"
-              cause="No pudimos iniciar el run. Vuelve a intentarlo en un momento."
+              cause={errorInicio}
               action={onIniciar ? { label: "Reintentar", onClick: onIniciar } : undefined}
             />
           )}
@@ -254,15 +279,32 @@ function PasoProgreso({
             id="paso-2-titulo"
             className="font-rediseno-sans text-[19px] font-medium text-rediseno-tinta"
           >
-            Sincronización: {run.status}
+            Sincronización · {estadoRunLegible(run.status)}
           </h2>
           {cargando && (
-            <p className="text-[12.5px] text-rediseno-tinta-2">Consultando el progreso del run.</p>
-          )}
-          {error && (
             <p className="text-[12.5px] text-rediseno-tinta-2">
-              No pudimos actualizar este run. Vuelve a intentar en un momento.
+              Consultando el progreso de la sincronización.
             </p>
+          )}
+          {run.status === "failed" && errorInicio && (
+            <DataState
+              status="error"
+              what="el inicio de otra sincronización"
+              cause={errorInicio}
+              action={onIniciar ? { label: "Reintentar", onClick: onIniciar } : undefined}
+            />
+          )}
+          {errorConsulta && (
+            <DataState
+              status="error"
+              what="el progreso de la sincronización"
+              cause={errorConsulta}
+              action={
+                onReintentarConsulta
+                  ? { label: "Reintentar consulta", onClick: onReintentarConsulta }
+                  : undefined
+              }
+            />
           )}
           <ul className="space-y-2">
             {fuentesRunV15(run).map((fuente) => (
@@ -274,6 +316,11 @@ function PasoProgreso({
               </li>
             ))}
           </ul>
+          {run.status === "failed" && onIniciar && (
+            <button type="button" className={BTN_PRIMARIO} onClick={onIniciar}>
+              Iniciar otra sincronización
+            </button>
+          )}
         </>
       )}
     </section>
@@ -282,7 +329,10 @@ function PasoProgreso({
 
 /* ── Paso 3 — disponibilidad sin promesa horaria ───────────────────────────────────────────────── */
 
-function PasoEstado() {
+function PasoEstado({ run }: { run: OnboardingSyncRun | null }) {
+  const terminada = run?.status === "completed";
+  const fallida = run?.status === "failed";
+
   return (
     <section
       aria-labelledby="paso-3-titulo"
@@ -293,11 +343,16 @@ function PasoEstado() {
         id="paso-3-titulo"
         className="font-rediseno-sans text-[22px] leading-snug font-medium text-rediseno-tinta"
       >
-        Tu primer parte estará disponible cuando termine la sincronización.
+        {terminada
+          ? "Tu primer parte ya está disponible."
+          : fallida
+            ? "Tu primer parte aún no está disponible."
+            : "Tu primer parte estará disponible cuando termine la sincronización."}
       </h2>
       <p className="pt-1 text-[12.5px] text-rediseno-tinta-2">
-        No prometemos una hora de entrega: el backend no publica un calendario ni un scheduler para
-        este proceso.
+        {fallida
+          ? "La sincronización no terminó. Reinténtala desde el paso 2."
+          : "No prometemos una hora de entrega: el servicio todavía no publica un calendario ni una hora para este proceso."}
       </p>
     </section>
   );

@@ -289,11 +289,15 @@ export const ClasificarConRegla: Story = {
   name: "Clasificar · con regla · Enter guarda y el toast NO trae Deshacer",
   args: {
     tabInicial: "clasificar",
+    conciliarTotal: 2,
+    clasificarTotal: 117,
     sugerencia: { movimientoId: MOV_DATTATEC, valor: sugerenciaSoftware(), cargando: false },
     onClasificar: fn(),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.getByText("119 pendientes")).toBeInTheDocument();
+    await expect(canvas.getByText("Clasificar · 117")).toBeInTheDocument();
     await expect(canvas.getByText(/una regla tuya con confianza 92%/)).toBeInTheDocument();
     // La sugerencia PRE-SELECCIONA; nunca guarda sola.
     const select = canvas.getByLabelText("Cuenta de gestión") as HTMLSelectElement;
@@ -324,8 +328,13 @@ export const ClasificarConRegla: Story = {
     await waitFor(
       async () =>
         await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
-          "Clasificar 1 de 4",
+          "Clasificar 1 de 116",
         ),
+    );
+    await expect(canvas.getByText("118 pendientes")).toBeInTheDocument();
+    await expect(canvas.getByText("Clasificar · 116")).toBeInTheDocument();
+    await expect(canvas.getByText(/resueltos en esta sesión/)).toHaveTextContent(
+      "1 de 119 resueltos en esta sesión",
     );
     await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
       "TRANSF. A TERCEROS VIA INTERNET",
@@ -473,13 +482,15 @@ export const ClasificarAutoDeshecho: Story = {
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
-    onDeshacerAutoClasificar: fn(async (): Promise<RevertActionResponse> => ({
-      action_id: ACCION_AUTO.actionId,
-      action_type: "bank_movement.auto_classify",
-      result: "reverted",
-      reverted_at: "2026-08-30T12:00:00Z",
-      detail: { movement_id: "mov-x", movimientos_restaurados: 1 },
-    })),
+    onDeshacerAutoClasificar: fn(
+      async (): Promise<RevertActionResponse> => ({
+        action_id: ACCION_AUTO.actionId,
+        action_type: "bank_movement.auto_classify",
+        result: "reverted",
+        reverted_at: "2026-08-30T12:00:00Z",
+        detail: { movement_id: "mov-x", movimientos_restaurados: 1 },
+      }),
+    ),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -510,16 +521,18 @@ export const ClasificarAutoProtegido: Story = {
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
-    onDeshacerAutoClasificar: fn(async (): Promise<RevertActionResponse> => ({
-      action_id: ACCION_AUTO.actionId,
-      action_type: "bank_movement.auto_classify",
-      result: "undo_not_supported",
-      reverted_at: null,
-      detail: {
-        motivo: "estado_derivado",
-        explicacion: "Algo cambió después de esta acción: no se tocó nada.",
-      },
-    })),
+    onDeshacerAutoClasificar: fn(
+      async (): Promise<RevertActionResponse> => ({
+        action_id: ACCION_AUTO.actionId,
+        action_type: "bank_movement.auto_classify",
+        result: "undo_not_supported",
+        reverted_at: null,
+        detail: {
+          motivo: "estado_derivado",
+          explicacion: "Algo cambió después de esta acción: no se tocó nada.",
+        },
+      }),
+    ),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -542,16 +555,18 @@ export const ClasificarAutoBloqueado: Story = {
   args: {
     tabInicial: "clasificar",
     autoClasificadas: [ACCION_AUTO],
-    onDeshacerAutoClasificar: fn(async (): Promise<RevertActionResponse> => ({
-      action_id: ACCION_AUTO.actionId,
-      action_type: "bank_movement.auto_classify",
-      result: "undo_not_supported",
-      reverted_at: null,
-      detail: {
-        motivo: "estado_bloqueado",
-        explicacion: "Otra operación está usando esto mismo. No se tocó nada; puedes reintentar.",
-      },
-    })),
+    onDeshacerAutoClasificar: fn(
+      async (): Promise<RevertActionResponse> => ({
+        action_id: ACCION_AUTO.actionId,
+        action_type: "bank_movement.auto_classify",
+        result: "undo_not_supported",
+        reverted_at: null,
+        detail: {
+          motivo: "estado_bloqueado",
+          explicacion: "Otra operación está usando esto mismo. No se tocó nada; puedes reintentar.",
+        },
+      }),
+    ),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

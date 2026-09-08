@@ -97,6 +97,7 @@ const PROPUESTA_PAGOS: CashGapProposal = {
   explanation: "El plan publicado permite revisar primero los pagos que explican la brecha.",
   confidence: "medium",
   evidenceCount: 2,
+  caveats: ["Una o más fuentes pueden estar desactualizadas."],
   targets: [{ label: "Remuneraciones de agosto", amount: "7400000", reason: "vence primero" }],
   impacts: [
     {
@@ -179,7 +180,9 @@ export const Atencion: Story = {
     await expect(rojos(canvasElement)).toHaveLength(0);
     await expect(canvasElement.querySelectorAll('[class*="warning-"]').length).toBeGreaterThan(0);
     // Y NO es el titular de crisis (gemelo del positivo de la story de crisis).
-    await expect(canvas.queryByText("Tu caja no alcanza para cubrir la nómina")).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByText("Tu caja no alcanza para cubrir la nómina"),
+    ).not.toBeInTheDocument();
   },
 };
 

@@ -11,6 +11,8 @@ import {
 import { expandPeriodRange, type PeriodRange } from "@/lib/period/period-range";
 import type { MaestroKind, DocConVencimiento } from "./terminos-pago";
 
+type ApiRcvDoc = Record<string, unknown>;
+
 /* Datos del maestro — trae los documentos del AÑO EN CURSO (enero → mes actual) del
    tipo pedido y los adapta a `DocConVencimiento`. El SII entrega por mes → una query
    por mes (useQueries, cacheada 10min y compartida con el Libro/BHE). Adaptadores:
@@ -50,29 +52,29 @@ function currentYearRange(now: Date): PeriodRange {
   return { desde: `${y}-01`, hasta: `${y}-${mm}` };
 }
 
-type RcvDocLike = {
-  rut_contraparte?: string | null;
-  razon_social?: string | null;
-  fecha?: string | null;
-  monto_total?: number | null;
-  folio?: number | null;
-  tipo_doc?: number | null;
-  ref_folio?: number | null;
-  ref_tipo_doc?: number | null;
-  reclamado?: boolean | null;
-  cedido?: boolean | null;
-};
+function normalizeFolio(value: unknown): number | string | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") return value.trim();
+  return null;
+}
 
-function adaptRcv(docs: ReadonlyArray<RcvDocLike>): DocConVencimiento[] {
+function normalizeInteger(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isSafeInteger(value) ? value : undefined;
+  if (typeof value !== "string" || !/^[+-]?\d+$/.test(value.trim())) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
+export function adaptRcv(docs: ReadonlyArray<ApiRcvDoc>): DocConVencimiento[] {
   return docs.map((d) => ({
     rut: String(d.rut_contraparte ?? ""),
-    name: d.razon_social ?? "",
-    fecha: d.fecha ?? "",
+    name: typeof d.razon_social === "string" ? d.razon_social : "",
+    fecha: typeof d.fecha === "string" ? d.fecha : "",
     monto: Number(d.monto_total) || 0,
-    folio: d.folio ?? null,
-    tipoDoc: typeof d.tipo_doc === "number" ? d.tipo_doc : undefined,
-    refFolio: typeof d.ref_folio === "number" ? d.ref_folio : undefined,
-    refTipoDoc: typeof d.ref_tipo_doc === "number" ? d.ref_tipo_doc : undefined,
+    folio: normalizeFolio(d.folio),
+    tipoDoc: normalizeInteger(d.tipo_doc),
+    refFolio: normalizeInteger(d.ref_folio),
+    refTipoDoc: normalizeInteger(d.ref_tipo_doc),
     reclamado: d.reclamado === true, // "R" de reclamada (#744); null/ausente (cache viejo) → false
     cedido: d.cedido === true, // cedida por factoring (RPETC) → se excluye del por-cobrar (#804)
   }));

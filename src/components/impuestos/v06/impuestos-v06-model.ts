@@ -21,13 +21,11 @@
  *     del mes siguiente), reusada TAL CUAL de `pagar/previred-vencimiento.ts` — no una segunda
  *     fórmula que podría desincronizarse de la que ya está en pantalla.
  *
- * ── EL RECORTE (issue #73): la estimación del F-29 del mes en curso NO se calcula ────────────────
- * La espec pide, para el mes que aún no se declara, "estimación y desglose IVA débito−crédito
- * (desde los DTEs)". Ese cálculo es R2 `[money]` — va por `qavante-api`, y su propia aceptación
- * exige contrastarlo contra un F-29 real declarado antes de publicarlo. Ese contraste no existe
- * todavía, así que este módulo NUNCA deriva ese número desde el RCV/DTE del mes: `f29EstimadoHuecoV06`
- * es una CONSTANTE (el motivo, no un cálculo), y toda fila del mes en curso/no declarado sale con
- * `monto: null` + `motivoSinMonto` citando esta misma razón — un hueco declarado, no un plausible.
+ * ── ESTIMACIÓN R2 (qavante-api #401) ─────────────────────────────────────────────────────────────
+ * `GET /api/sii/f29/impuesto` publica el cálculo canónico, su desglose, `estimable`, insumos
+ * faltantes y frescura. Este módulo no recalcula nada: `estimacionF29V06` sólo deja pasar el monto
+ * cuando `estimable === true` y el desglose material está completo. Con false, null o una respuesta
+ * inconsistente conserva "sin dato" y explica los insumos faltantes; nunca sustituye ausencia por 0.
  *
  * ── SEGUNDO HUECO, no pedido por el issue pero verificado contra el contrato: "conciliado con
  * cargo bancario" ──────────────────────────────────────────────────────────────────────────────
@@ -50,7 +48,7 @@
  * SII ya lo hizo. `filaF29PostergadoDeMes` agrega una fila SEPARADA, sin ningún botón de acción,
  * cuyo `sub` aclara que es una postergación del SII, no de Qavante. */
 
-import type { F29EstadoMes } from "@/lib/api/sii";
+import type { F29EstadoMes, F29ImpuestoResponse } from "@/lib/api/sii";
 import type { TgrMovimiento } from "@/lib/api/tgr";
 import { diasHasta, venceLabelDe } from "@/components/pagar/v05/pagar-v05-model";
 import { vencimientoPrevired } from "@/components/pagar/previred-vencimiento";
@@ -63,12 +61,152 @@ export { concordar };
 /* ── Texto fijo de la Ley 9 (issue #73, footer literal) ──────────────────────────────────────── */
 export const LEY_9_TEXTO_V06 = "Las obligaciones tributarias nunca se postergan desde Qavante";
 
-/* ── El motivo del recorte R2 (constante, no un cálculo — ver cabecera) ──────────────────────── */
+/* ── Estimación F-29 canónica (API #401) ─────────────────────────────────────────────────────── */
 export const F29_ESTIMADO_MOTIVO =
-  "La estimación del F-29 del mes en curso (IVA débito menos crédito, desde tus DTEs) es un cálculo nuevo de qavante-api que primero debe contrastarse contra un F-29 real declarado · antes de eso no lo calculamos ni lo mostramos: un número plausible sin ese contraste sería peor que no tener número.";
+  "El servicio no publicó una estimación afirmable para este período. No sustituimos insumos ausentes por cero.";
 
 export function f29EstimadoHuecoV06(): { reason: string } {
   return { reason: F29_ESTIMADO_MOTIVO };
+}
+
+const INPUT_FALTANTE_LABEL: Readonly<Record<string, string>> = {
+  remanente: "remanente de crédito fiscal",
+  impuesto_trabajadores: "impuesto de trabajadores",
+  rcv_incompleto: "RCV completo del período",
+};
+
+const PROCEDENCIA_LABEL: Readonly<Record<string, string>> = {
+  rcv: "RCV",
+  f29_oficial: "F-29 oficial",
+  buk_cache: "BUK sincronizado",
+  buk_live: "BUK",
+  manual: "Dato manual",
+  unavailable: "Fuente no disponible",
+};
+
+const FRESCURA_LABEL: Readonly<Record<string, string>> = {
+  fresh: "al día",
+  stale: "desactualizada",
+  unknown: "frescura desconocida",
+  not_used: "no usada",
+};
+
+export interface FuenteEstimacionF29V06 {
+  key: string;
+  label: string;
+  frescura: string;
+  sincronizadaEn: string | null;
+}
+
+export interface DesgloseEstimacionF29V06 {
+  ivaDebito: number;
+  ivaCredito: number;
+  remanente: number;
+  ppm: number;
+  impuestoTrabajadores: number;
+}
+
+export interface EstimacionF29V06 {
+  periodo: string | null;
+  monto: number | null;
+  motivoSinMonto: string | null;
+  faltantes: string[];
+  desglose: DesgloseEstimacionF29V06 | null;
+  evaluadaEn: string | null;
+  fuentes: FuenteEstimacionF29V06[];
+}
+
+function faltantesLegibles(inputs: readonly string[]): string[] {
+  return inputs.map((input) => INPUT_FALTANTE_LABEL[input] ?? input.replaceAll("_", " "));
+}
+
+function fuentesEstimacionF29V06(
+  sources: F29ImpuestoResponse["input_sources"],
+): FuenteEstimacionF29V06[] {
+  return Object.entries(sources ?? {}).map(([key, source]) => ({
+    key,
+    label: PROCEDENCIA_LABEL[source.provenance] ?? source.source,
+    frescura: FRESCURA_LABEL[source.freshness] ?? source.freshness,
+    sincronizadaEn: source.last_synced_at ?? null,
+  }));
+}
+
+/**
+ * Adapta el contrato R2 sin recalcular impuestos. El monto sólo cruza al modelo visible cuando
+ * `estimable=true`, `incompleto` no está marcado, no hay `missing_inputs` y todos los campos del
+ * desglose que explican el total vienen publicados.
+ */
+export function estimacionF29V06(
+  data: F29ImpuestoResponse | null | undefined,
+  motivoConsulta?: string | null,
+): EstimacionF29V06 {
+  if (!data) {
+    return {
+      periodo: null,
+      monto: null,
+      motivoSinMonto: motivoConsulta ?? F29_ESTIMADO_MOTIVO,
+      faltantes: [],
+      desglose: null,
+      evaluadaEn: null,
+      fuentes: [],
+    };
+  }
+
+  const faltantes = faltantesLegibles(data.missing_inputs ?? []);
+  const fuentes = fuentesEstimacionF29V06(data.input_sources);
+  if (data.estimable !== true || data.incompleto === true || faltantes.length > 0) {
+    return {
+      periodo: data.periodo,
+      monto: null,
+      motivoSinMonto:
+        faltantes.length > 0
+          ? `Faltan insumos para estimar: ${faltantes.join(", ")}.`
+          : data.incompleto === true
+            ? "El servicio publicó la evaluación como incompleta. No mostramos un monto tributario."
+            : F29_ESTIMADO_MOTIVO,
+      faltantes,
+      desglose: null,
+      evaluadaEn: data.as_of,
+      fuentes,
+    };
+  }
+
+  const campos = [
+    data.total_con_iva,
+    data.iva_debito,
+    data.iva_credito,
+    data.remanente,
+    data.ppm,
+    data.impuesto_trabajadores,
+  ];
+  if (campos.some((value) => value == null)) {
+    return {
+      periodo: data.periodo,
+      monto: null,
+      motivoSinMonto:
+        "El servicio marcó la estimación como disponible, pero no publicó todos los montos del desglose.",
+      faltantes,
+      desglose: null,
+      evaluadaEn: data.as_of,
+      fuentes,
+    };
+  }
+
+  return {
+    periodo: data.periodo,
+    monto: data.total_con_iva!,
+    motivoSinMonto: null,
+    faltantes,
+    desglose: {
+      ivaDebito: data.iva_debito!,
+      ivaCredito: data.iva_credito!,
+      remanente: data.remanente!,
+      ppm: data.ppm!,
+      impuestoTrabajadores: data.impuesto_trabajadores!,
+    },
+    evaluadaEn: data.as_of,
+    fuentes,
+  };
 }
 
 const TGR_EN_PREPARACION_MOTIVO =
@@ -176,27 +314,36 @@ function subF29(m: F29EstadoMes, estado: EstadoFilaV06): string {
 
 /** Una fila por mes del `/f29/estado`. `estado === "sin_periodo"` (futuro sin período esperado) no
  *  produce fila — el caller lo filtra antes de llamar, igual que hace `f29-panel-view.tsx`. */
-export function filaF29DeMes(m: F29EstadoMes, hoy: Date): FilaCalendarioV06 {
+export function filaF29DeMes(
+  m: F29EstadoMes,
+  hoy: Date,
+  estimacion?: EstimacionF29V06 | null,
+): FilaCalendarioV06 {
   const estado = ESTADO_F29_MAP[m.estado] ?? "sin_dato";
   const declarado = estado === "declarado";
   const vencimiento = m.vencimiento ?? null;
   /* Declarado con `saldo` null = el SII declaró pero el backend no dejó el monto parseado (NO es
-   *  $0 — regla del handoff CC-API). No declarado = el hueco R2 (ver cabecera): nunca se estima. */
+   *  $0). No declarado sólo recibe la estimación canónica del mismo período, ya filtrada arriba. */
+  const estimacionDelPeriodo = !declarado && estimacion?.periodo === m.periodo ? estimacion : null;
+  const montoEstimado = estimacionDelPeriodo?.monto ?? null;
   const motivoSinMonto = declarado
     ? m.saldo == null
       ? "El SII declaró este F-29 sin dejar el monto parseado."
       : null
-    : F29_ESTIMADO_MOTIVO;
+    : (estimacionDelPeriodo?.motivoSinMonto ?? F29_ESTIMADO_MOTIVO);
   return {
     key: `f29-${m.periodo}`,
     concepto: "f29",
     label: `F-29 · ${formatPeriodLabel(m.periodo)}`,
-    sub: subF29(m, estado),
+    sub:
+      montoEstimado == null
+        ? subF29(m, estado)
+        : `${subF29(m, estado)} · estimación, no declaración oficial`,
     estado,
     vencimiento,
     vencimientoLabel: venceLabelDe(vencimiento, hoy),
     dias: diasHasta(vencimiento, hoy),
-    monto: declarado ? (m.saldo ?? null) : null,
+    monto: declarado ? (m.saldo ?? null) : montoEstimado,
     motivoSinMonto,
     resuelto: declarado,
     href: "/pagar/impuestos/f29",
@@ -338,6 +485,7 @@ export function filasTgrV06(
 
 export interface EntradaCalendarioV06 {
   mesesF29: readonly F29EstadoMes[];
+  estimacionF29?: EstimacionF29V06 | null;
   previred: { period: string; totalCotizaciones: number | null; empleados: number | null } | null;
   tgrAutenticado: boolean;
   tgrMovimientos: readonly TgrMovimiento[] | undefined;
@@ -368,7 +516,7 @@ export function filasCalendarioV06(entrada: EntradaCalendarioV06): FilaCalendari
   const filas: FilaCalendarioV06[] = [];
   for (const m of entrada.mesesF29) {
     if (m.estado === "sin_periodo") continue;
-    filas.push(filaF29DeMes(m, entrada.hoy));
+    filas.push(filaF29DeMes(m, entrada.hoy, entrada.estimacionF29));
     const postergado = filaF29PostergadoDeMes(m, entrada.hoy);
     if (postergado) filas.push(postergado);
   }
