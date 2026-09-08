@@ -289,11 +289,15 @@ export const ClasificarConRegla: Story = {
   name: "Clasificar · con regla · Enter guarda y el toast NO trae Deshacer",
   args: {
     tabInicial: "clasificar",
+    conciliarTotal: 2,
+    clasificarTotal: 117,
     sugerencia: { movimientoId: MOV_DATTATEC, valor: sugerenciaSoftware(), cargando: false },
     onClasificar: fn(),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.getByText("119 pendientes")).toBeInTheDocument();
+    await expect(canvas.getByText("Clasificar · 117")).toBeInTheDocument();
     await expect(canvas.getByText(/una regla tuya con confianza 92%/)).toBeInTheDocument();
     // La sugerencia PRE-SELECCIONA; nunca guarda sola.
     const select = canvas.getByLabelText("Cuenta de gestión") as HTMLSelectElement;
@@ -324,8 +328,13 @@ export const ClasificarConRegla: Story = {
     await waitFor(
       async () =>
         await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
-          "Clasificar 1 de 4",
+          "Clasificar 1 de 116",
         ),
+    );
+    await expect(canvas.getByText("118 pendientes")).toBeInTheDocument();
+    await expect(canvas.getByText("Clasificar · 116")).toBeInTheDocument();
+    await expect(canvas.getByText(/resueltos en esta sesión/)).toHaveTextContent(
+      "1 de 119 resueltos en esta sesión",
     );
     await expect(canvas.getByLabelText("Excepción por clasificar")).toHaveTextContent(
       "TRANSF. A TERCEROS VIA INTERNET",
