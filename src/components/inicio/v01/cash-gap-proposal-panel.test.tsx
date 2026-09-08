@@ -21,7 +21,7 @@ describe("CashGapProposalPanel", () => {
             explanation: "La evidencia permite priorizar esta alternativa.",
             confidence: "medium",
             evidenceCount: 1,
-            caveats: ["Banco con última actualización publicada hace 2 días"],
+            caveats: ["Una o más fuentes pueden estar desactualizadas."],
             targets: [
               { label: "Remuneraciones de agosto", amount: "7400000", reason: "vence primero" },
             ],
@@ -46,8 +46,8 @@ describe("CashGapProposalPanel", () => {
     expect(rendered).toContain("Propuesta para proteger tu caja");
     expect(rendered).toContain("Negociar pagos críticos");
     expect(rendered).toContain("$1.121.250");
-    expect(rendered).toContain("Límites informados");
-    expect(rendered).toContain("Banco con última actualización publicada hace 2 días");
+    expect(rendered).toContain("Antes de actuar");
+    expect(rendered).toContain("Una o más fuentes pueden estar desactualizadas.");
     expect(rendered).toContain("Remuneraciones de agosto · vence primero");
     expect(html).toContain('href="/pagar"');
     expect(rendered).not.toContain("Remuneraciones de agosto · $7.400.000");
@@ -69,6 +69,9 @@ describe("CashGapProposalPanel", () => {
             explanation: "Hay evidencia para revisar esta alternativa.",
             confidence: "low",
             evidenceCount: 0,
+            caveats: [
+              "La propuesta se basa en información parcial; pueden faltar documentos o vencimientos.",
+            ],
             targets: [],
             impacts: [
               {
@@ -87,6 +90,8 @@ describe("CashGapProposalPanel", () => {
     );
     const rendered = text(html);
     expect(rendered).toContain("Sin monto publicable");
+    expect(rendered).toContain("pueden faltar documentos o vencimientos");
+    expect(rendered).not.toContain("missing_due_dates");
     expect(rendered).not.toContain("$120.000");
   });
 });
