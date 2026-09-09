@@ -3,6 +3,7 @@ import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 import { formatMoney } from "@/lib/formatters/clp";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
+import { normalizeVisibleText } from "@/lib/formatters/visible-text";
 import type { CashGapProposal } from "./cash-gap-proposal-model";
 
 function confidenceLabel(value: CashGapProposal["confidence"]): string {
@@ -70,9 +71,11 @@ export function CashGapProposalPanel({
                         {proposal.kind === "payment_plan" ? "Pagos" : "Cobranza"}
                       </p>
                       <h4 className="mt-1 text-base font-semibold text-neutral-dark">
-                        {proposal.label}
+                        {normalizeVisibleText(proposal.label)}
                       </h4>
-                      <p className="mt-1 text-sm text-neutral-mid">{proposal.explanation}</p>
+                      <p className="mt-1 text-sm text-neutral-mid">
+                        {normalizeVisibleText(proposal.explanation)}
+                      </p>
                     </div>
                     <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary/10 px-2.5 py-1 text-xs font-semibold text-brand-primary-700">
                       <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -109,8 +112,10 @@ export function CashGapProposalPanel({
                       <ul className="mt-2 space-y-1.5 text-sm text-neutral-mid">
                         {proposal.targets.map((target, index) => (
                           <li key={`${target.label}-${index}`}>
-                            <span className="font-medium text-neutral-dark">{target.label}</span>
-                            <span> · {target.reason}</span>
+                            <span className="font-medium text-neutral-dark">
+                              {normalizeVisibleText(target.label)}
+                            </span>
+                            <span> · {normalizeVisibleText(target.reason)}</span>
                           </li>
                         ))}
                       </ul>
@@ -139,7 +144,7 @@ export function CashGapProposalPanel({
                       <p className="font-medium text-neutral-dark">Antes de actuar</p>
                       <ul className="mt-1 list-disc space-y-1 pl-5">
                         {proposal.caveats.map((caveat) => (
-                          <li key={caveat}>{caveat}</li>
+                          <li key={caveat}>{normalizeVisibleText(caveat)}</li>
                         ))}
                       </ul>
                     </div>

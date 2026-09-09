@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CashGapProposalPanel } from "./cash-gap-proposal-panel";
 
+const EM_DASH = /\u2014/;
+
 function text(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
@@ -10,6 +12,34 @@ function text(html: string): string {
 }
 
 describe("CashGapProposalPanel", () => {
+  it("normaliza U+2014 sólo al presentar un target dinámico", () => {
+    const rawLabel = "BANCO BICE — Factura 3218763";
+    expect(rawLabel).toMatch(EM_DASH);
+
+    const proposals = [
+      {
+        kind: "payment_plan" as const,
+        label: "Negociar pagos críticos",
+        explanation: "La evidencia permite priorizar esta alternativa.",
+        confidence: "medium" as const,
+        evidenceCount: 1,
+        caveats: [],
+        targets: [{ label: rawLabel, amount: "120000", reason: "vence primero" }],
+        impacts: [],
+        href: "/pagar" as const,
+        cta: "Revisar pagos propuestos",
+      },
+    ];
+
+    const rendered = text(
+      renderToStaticMarkup(<CashGapProposalPanel loading={false} proposals={proposals} />),
+    );
+
+    expect(rendered).toContain("BANCO BICE · Factura 3218763 · vence primero");
+    expect(rendered).not.toMatch(EM_DASH);
+    expect(proposals[0]?.targets[0]?.label).toBe(rawLabel);
+  });
+
   it("muestra una propuesta del backend con su impacto y CTA, sin inventar moneda en los targets", () => {
     const html = renderToStaticMarkup(
       <CashGapProposalPanel
