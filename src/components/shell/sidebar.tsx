@@ -10,6 +10,7 @@ import {
   ArrowUpFromLine,
   LineChart,
   PiggyBank,
+  WalletCards,
   Settings,
   PlugZap,
   Inbox,
@@ -36,6 +37,7 @@ type ModuleLink = {
   needsBandeja?: boolean;
   /* Solo visible con el flag `presupuesto` ON. */
   needsPresupuesto?: boolean;
+  needsFinanciamiento?: boolean;
 };
 
 type NavGroup = { label: string; items: ReadonlyArray<ModuleLink> };
@@ -98,6 +100,12 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
     items: [
       { href: "/gestion", label: "Gestión", Icon: LineChart, children: GESTION_CHILDREN },
       { href: "/presupuesto", label: "Presupuesto", Icon: PiggyBank, needsPresupuesto: true },
+      {
+        href: "/financiamiento",
+        label: "Financiamiento",
+        Icon: WalletCards,
+        needsFinanciamiento: true,
+      },
     ],
   },
   {
@@ -126,6 +134,8 @@ export interface AppSidebarProps {
   bandejaEnabled?: boolean;
   /** `presupuesto` ON → muestra el ítem "Presupuesto". */
   presupuestoEnabled?: boolean;
+  /** `financiamientoV13` ON muestra la lectura canónica de deuda y alternativas. */
+  financiamientoEnabled?: boolean;
 }
 
 export function AppSidebar({
@@ -136,6 +146,7 @@ export function AppSidebar({
   bancoEnabled,
   bandejaEnabled,
   presupuestoEnabled,
+  financiamientoEnabled,
 }: AppSidebarProps) {
   const pathname = usePathname();
 
@@ -146,7 +157,8 @@ export function AppSidebar({
     (!m.visibleFor || (userRole && m.visibleFor.includes(userRole))) &&
     (!m.needsBanco || bancoEnabled) &&
     (!m.needsBandeja || bandejaEnabled) &&
-    (!m.needsPresupuesto || presupuestoEnabled);
+    (!m.needsPresupuesto || presupuestoEnabled) &&
+    (!m.needsFinanciamiento || financiamientoEnabled);
   const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
     (g) => g.items.length > 0,
   );

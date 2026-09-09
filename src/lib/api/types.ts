@@ -5116,6 +5116,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/financing-overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Financing Overview
+         * @description Lee deuda F5 sólo con cadena monetaria concordante.
+         *
+         *     El scope histórico de obligaciones legacy se declara no reproducible; nunca se
+         *     infiere desde columnas mutables ni se convierte configuración en cupo o costo.
+         */
+        get: operations["treasury_financing_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/foreign-purchases": {
         parameters: {
             query?: never;
@@ -13617,6 +13640,81 @@ export interface components {
             /** Policy Ref */
             policy_ref: string;
         };
+        /** FinancingOverviewDebtRead */
+        FinancingOverviewDebtRead: {
+            /** Contract Rate Type */
+            contract_rate_type?: string | null;
+            /** Contract Rate Value */
+            contract_rate_value?: string | null;
+            /** Counterparty */
+            counterparty?: string | null;
+            /** Debt Ref */
+            debt_ref: string;
+            /** Instrument Type */
+            instrument_type?: string | null;
+            /** Maturity Date */
+            maturity_date?: string | null;
+            /** Next Payment Amount */
+            next_payment_amount?: string | null;
+            /** Next Payment Date */
+            next_payment_date?: string | null;
+            /** Outstanding Principal */
+            outstanding_principal: string;
+            /** Reason Codes */
+            reason_codes?: string[];
+            /** Remaining Financial Cost */
+            remaining_financial_cost?: string | null;
+            /** Source Refs */
+            source_refs: string[];
+        };
+        /** FinancingOverviewFreshness */
+        FinancingOverviewFreshness: {
+            /** Observed At */
+            observed_at?: string | null;
+            /** Reason Codes */
+            reason_codes?: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "fresh" | "unknown";
+            /** Valid Through */
+            valid_through?: string | null;
+        };
+        /**
+         * FinancingOverviewResponse
+         * @description Read model V13; ``None`` significa que la fuente no puede certificar la cifra.
+         */
+        FinancingOverviewResponse: {
+            /** Comparable Cost Rate */
+            comparable_cost_rate?: string | null;
+            /**
+             * Debt Coverage
+             * @enum {string}
+             */
+            debt_coverage: "complete" | "partial" | "unknown";
+            /** Debts */
+            debts?: components["schemas"]["FinancingOverviewDebtRead"][];
+            freshness: components["schemas"]["FinancingOverviewFreshness"];
+            /** Outstanding Principal */
+            outstanding_principal?: string | null;
+            /** Reason Codes */
+            reason_codes?: string[];
+            /** Remaining Financial Cost */
+            remaining_financial_cost?: string | null;
+            scope: components["schemas"]["WorkingCapitalReadScope"];
+            /** Snapshot Hash */
+            snapshot_hash: string;
+            /** Source Refs */
+            source_refs?: string[];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "partial" | "abstained";
+            /** Verified Available Capacity */
+            verified_available_capacity?: string | null;
+        };
         /**
          * ForecastAmount
          * @description Monto nominal (Σ outstanding) vs esperado (Σ ponderado por prob de pago).
@@ -18587,10 +18685,25 @@ export interface components {
         /** RefreshCacheResponse */
         RefreshCacheResponse: {
             /**
+             * Buk Tenants
+             * @description Tenants con la fuente BUK conectada.
+             */
+            buk_tenants: number;
+            /**
              * Cached
              * @description (tenant, período, side) cacheados OK.
              */
             cached: number;
+            /**
+             * Derivation Errors
+             * @description Errores al recalcular derivaciones para Pulso.
+             */
+            derivation_errors: number;
+            /**
+             * Due Date Enrichment Enabled
+             * @description Indica si esta corrida incluye el enriquecimiento automático de vencimientos.
+             */
+            due_date_enrichment_enabled: boolean;
             /**
              * Errors
              * @description Errores best-effort (no abortan el resto).
@@ -18602,13 +18715,23 @@ export interface components {
              */
             periods: number;
             /**
+             * Registry Errors
+             * @description Errores del registry genérico de fuentes SII.
+             */
+            registry_errors: number;
+            /**
+             * Sii Tenants
+             * @description Tenants con la fuente SII conectada.
+             */
+            sii_tenants: number;
+            /**
              * Skipped Consent
              * @description Saltados por consent faltante/expirado.
              */
             skipped_consent: number;
             /**
              * Tenants
-             * @description Tenants con SII conectado procesados.
+             * @description Tenants únicos con SII o BUK conectados procesados.
              */
             tenants: number;
         };
@@ -30894,6 +31017,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FinancialPositionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_financing_overview: {
+        parameters: {
+            query: {
+                legal_entity_id: string;
+                currency: string;
+                as_of: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FinancingOverviewResponse"];
                 };
             };
             /** @description Validation Error */

@@ -156,6 +156,9 @@ NEXT_PUBLIC_FF_MI_CUENTA = "true"
 # V12 Administración: origen y uso verificable de reglas. API #441 desplegada antes del flip;
 # rollback = "false", conservando la grilla anterior.
 NEXT_PUBLIC_FF_ADMINISTRACION_V12 = "true"
+# V13 Financiamiento: read model canónico API #443 desplegado y sondeado (401 sin sesión),
+# sin ofertas ejecutables ni cálculos financieros en el front. Rollback = "false".
+NEXT_PUBLIC_FF_FINANCIAMIENTO_V13 = "true"
 # Activadas 2026-06-21: CC-API construyó accounts-receivable/payable +
 # operational-result + management/pulso (404→401), schemas verificados vs
 # contratos FE (top-level + anidados + enums). Pendiente confirmar que aceptan

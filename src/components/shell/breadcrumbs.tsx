@@ -11,6 +11,7 @@ const labels: Record<string, string> = {
   pagar: "Pagar",
   gestion: "Gestión",
   administracion: "Administración",
+  financiamiento: "Financiamiento",
   usuarios: "Usuarios",
   credenciales: "Credenciales",
   "mi-cuenta": "Mi cuenta",

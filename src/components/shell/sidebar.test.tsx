@@ -11,13 +11,14 @@ vi.mock("./company-switcher", () => ({
 
 import { AppSidebar } from "./sidebar";
 
-function html(bandejaEnabled?: boolean) {
+function html(bandejaEnabled?: boolean, financiamientoEnabled?: boolean) {
   return renderToStaticMarkup(
     <AppSidebar
       mobileOpen={false}
       onCloseMobile={() => undefined}
       userRole="owner"
       bandejaEnabled={bandejaEnabled}
+      financiamientoEnabled={financiamientoEnabled}
     />,
   );
 }
@@ -34,5 +35,13 @@ describe("AppSidebar · Bandeja V07", () => {
     expect(rendered.indexOf('href="/inicio"')).toBeLessThan(rendered.indexOf('href="/bandeja"'));
     expect(rendered.indexOf('href="/bandeja"')).toBeLessThan(rendered.indexOf("Cobros y pagos"));
     expect(rendered.match(/href="\/bandeja"/g)).toHaveLength(1);
+  });
+});
+
+describe("AppSidebar · Financiamiento V13", () => {
+  it("muestra Financiamiento sólo con el flag habilitado", () => {
+    const route = /href="\/financiamiento"/;
+    expect(html(false, true)).toMatch(route);
+    expect(html(false, false)).not.toMatch(route);
   });
 });

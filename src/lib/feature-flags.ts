@@ -83,6 +83,7 @@ export const FEATURE_FLAGS = [
   "onboardingV15",
   "presupuestoV09",
   "impuestosV06",
+  "financiamientoV13",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -487,6 +488,11 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      Producción activa el override explícito en wrangler.toml; el default sigue false.
      La conciliación bancaria pendiente se sigue en tooxs-digital/qavante-api#440. */
   impuestosV06: "/api/sii/f29/impuesto",
+  /* V13 · Financiamiento. Publica deuda, costo y capacidad sólo desde un read model F5
+     scopeado por entidad legal, moneda funcional y corte del servidor. Las alternativas
+     existentes se muestran como comparables o referencias, nunca como ofertas ejecutables.
+     Default OFF hasta que qavante-api#443 esté revisado y desplegado. */
+  financiamientoV13: "/api/treasury/financing-overview",
 };
 
 /** Campo de contrato que un consumidor necesita además del endpoint. La identidad de gating es
