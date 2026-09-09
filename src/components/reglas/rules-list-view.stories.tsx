@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse, delay } from "msw";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import { RulesListView } from "./rules-list-view";
 import type { ClassificationRule } from "@/lib/api/classification-rules";
 
@@ -165,6 +165,8 @@ export const ErrorDeUso: Story = {
   parameters: { msw: { handlers: [OK, USAGE_ERROR] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findAllByText("No se pudo medir el uso")).toHaveLength(RULES.length);
+    await waitFor(() =>
+      expect(canvas.getAllByText("No se pudo medir el uso")).toHaveLength(RULES.length),
+    );
   },
 };
