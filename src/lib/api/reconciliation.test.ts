@@ -4,7 +4,11 @@ const post = vi.hoisted(() => vi.fn());
 
 vi.mock("./client", () => ({ api: { post } }));
 
-import { rejectReconciliationSuggestion } from "./reconciliation";
+import {
+  DOCUMENT_STATUS_BATCH_SIZE,
+  fetchDocumentStatuses,
+  rejectReconciliationSuggestion,
+} from "./reconciliation";
 
 describe("rejectReconciliationSuggestion", () => {
   beforeEach(() => post.mockReset());
@@ -39,5 +43,39 @@ describe("rejectReconciliationSuggestion", () => {
       rejectReconciliationSuggestion({ movementId: "mov-1", documentId: "doc-1" }),
     ).rejects.toBe(fallo);
     expect(post).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("fetchDocumentStatuses", () => {
+  beforeEach(() => post.mockReset());
+
+  it("consulta todos los documentos en lotes contractuales sin truncar después de 500", async () => {
+    post.mockImplementation(async (...args: [string, { body: { documents: unknown[] } }?]) => ({
+      items: args[1]?.body.documents ?? [],
+    }));
+    const documents = Array.from({ length: 1_001 }, (_, index) => ({
+      document_kind: "payable",
+      source_external_id: `doc-${index}`,
+    }));
+
+    const result = await fetchDocumentStatuses(documents);
+
+    expect(result.items).toHaveLength(1_001);
+    expect(post).toHaveBeenCalledTimes(3);
+    expect(post.mock.calls.map((call) => call[1].body.documents.length)).toEqual([
+      DOCUMENT_STATUS_BATCH_SIZE,
+      DOCUMENT_STATUS_BATCH_SIZE,
+      1,
+    ]);
+  });
+
+  it("deduplica identidades antes de consultar", async () => {
+    post.mockResolvedValueOnce({ items: [] });
+    const key = { document_kind: "receivable", source_external_id: "33-1-1-9" };
+
+    await fetchDocumentStatuses([key, key]);
+
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post.mock.calls[0]?.[1].body.documents).toEqual([key]);
   });
 });

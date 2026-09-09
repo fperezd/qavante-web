@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, userEvent, expect } from "storybook/test";
 import { BancoV03View } from "./banco-v03-view";
+import { movimientosV03 } from "./banco-v03-model";
+import { resolutionDetailFromMovement } from "./bank-resolution-detail-model";
 import {
   BANCO,
   HOY,
@@ -102,6 +104,47 @@ export const Normal: Story = {
     await expect(page.getByRole("dialog", { name: "Cómo se resolvió" })).toBeInTheDocument();
     await expect(page.getByRole("region", { name: "Conciliación" })).toBeInTheDocument();
     await expect(page.getByRole("region", { name: "Clasificación" })).toBeInTheDocument();
+  },
+};
+
+const rawHistoricalMovement = {
+  ...movimientos()[0]!,
+  id: "movement-historical",
+  bank_account_id: "account-historical",
+  date: "2025-01-15",
+  description: "Pago histórico abierto desde una factura",
+};
+const historicalMovement = movimientosV03({
+  items: [rawHistoricalMovement],
+  cuentas: new Map(),
+  categorias: categorias(),
+})[0]!;
+
+export const EnlaceHistorico: Story = {
+  name: "Enlace documental · abre un movimiento fuera de los tres meses",
+  args: {
+    selectedAccountId: "account-historical",
+    deepLinkedMovement: historicalMovement,
+    resolutionDetails: new Map([
+      [
+        historicalMovement.id,
+        resolutionDetailFromMovement(rawHistoricalMovement, historicalMovement.categoria),
+      ],
+    ]),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("row", {
+        name: "Ver detalle de Pago histórico abierto desde una factura",
+      }),
+    ).toBeInTheDocument();
+    const page = within(canvasElement.ownerDocument.body);
+    const dialog = page.getByRole("dialog", { name: "Cómo se resolvió" });
+    await expect(dialog).toBeInTheDocument();
+    await expect(
+      within(dialog).getByText("Pago histórico abierto desde una factura"),
+    ).toBeInTheDocument();
   },
 };
 

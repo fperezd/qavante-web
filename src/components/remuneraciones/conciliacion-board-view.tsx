@@ -7,10 +7,14 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatRut } from "@/lib/formatters/rut";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
+import type { WorkerClassification } from "@/lib/api/payroll-workers";
 import {
+  CONCILIADO_TOL,
+  payrollRutKey,
   workerPendiente,
   type SettlementBoard,
   type DebitoCandidato,
+  type PayrollReconcilePreview,
 } from "./settlement-board-model";
 
 /* Conciliación de sueldos ACCIONABLE (#835): el board del backend es la fuente de verdad. Deja:
@@ -24,8 +28,10 @@ export interface ConciliacionBoardViewProps {
   board: SettlementBoard;
   /** Débitos del banco (categoría sueldos, sin asignar) elegibles para conciliar. */
   candidatos: DebitoCandidato[];
-  /** Confirmado: asigna el débito a esos trabajadores (el contenedor hace dry-run + apply). */
-  onAssign: (debitoId: string, workerRuts: string[]) => void;
+  classifications?: WorkerClassification[];
+  classificationsState?: "loading" | "error" | "ready";
+  onValidate: (debitoId: string, workerRuts: string[]) => Promise<PayrollReconcilePreview>;
+  onAssign: (debitoId: string, workerRuts: string[]) => Promise<boolean>;
   /** Deshace un match ya aplicado por su `link_id`. */
   onRevert: (linkId: string) => void;
   assignPending?: boolean;
@@ -37,6 +43,9 @@ export function ConciliacionBoardView({
   periodLabel,
   board,
   candidatos,
+  classifications = [],
+  classificationsState = "ready",
+  onValidate,
   onAssign,
   onRevert,
   assignPending = false,
@@ -44,7 +53,10 @@ export function ConciliacionBoardView({
 }: ConciliacionBoardViewProps) {
   const [debitoSel, setDebitoSel] = React.useState<string | null>(null);
   const [workersSel, setWorkersSel] = React.useState<Set<string>>(() => new Set());
-  const [confirming, setConfirming] = React.useState(false);
+  const [preview, setPreview] = React.useState<PayrollReconcilePreview | null>(null);
+  const [validating, setValidating] = React.useState(false);
+  const [validationError, setValidationError] = React.useState<string | null>(null);
+  const [confirmRevertId, setConfirmRevertId] = React.useState<string | null>(null);
 
   const pendientes = board.workers.filter(workerPendiente);
   const conciliados = board.links;
@@ -57,14 +69,23 @@ export function ConciliacionBoardView({
       const next = new Set([...prev].filter((r) => vivos.has(r)));
       return next.size === prev.size ? prev : next;
     });
-    setConfirming(false);
+    setPreview(null);
+    setValidationError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board, candidatos]);
 
   const debito = candidatos.find((c) => c.id === debitoSel) ?? null;
   const rutsSel = [...workersSel];
   const puedeConciliar = Boolean(debito) && rutsSel.length > 0;
-  const nombresSel = pendientes.filter((w) => workersSel.has(w.workerRut)).map((w) => w.workerName);
+  const classificationsByRut = React.useMemo(
+    () => new Map(classifications.map((row) => [payrollRutKey(row.worker_rut), row])),
+    [classifications],
+  );
+
+  const clearPreview = () => {
+    setPreview(null);
+    setValidationError(null);
+  };
 
   const toggleWorker = (rut: string) =>
     setWorkersSel((prev) => {
@@ -74,13 +95,32 @@ export function ConciliacionBoardView({
       return next;
     });
 
-  const confirmAssign = () => {
+  const validateAssign = async () => {
     if (!debito || rutsSel.length === 0) return;
-    onAssign(debito.id, rutsSel);
+    setValidating(true);
+    setValidationError(null);
+    try {
+      const result = await onValidate(debito.id, rutsSel);
+      setPreview(result);
+    } catch {
+      setPreview(null);
+      setValidationError("La simulación no pudo verificarse. No se habilitó la conciliación.");
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const confirmAssign = async () => {
+    if (!debito || rutsSel.length === 0) return;
+    const applied = await onAssign(debito.id, rutsSel);
+    if (!applied) clearPreview();
     // No cerramos el panel acá: mientras aplica, el botón muestra su spinner (loading=assignPending);
     // al refrescar el board el useEffect limpia selección + confirmación. Si falla, el panel queda
     // abierto para reintentar/cancelar.
   };
+
+  const previewApplicable =
+    preview != null && preview.applied.length > 0 && preview.unapplied <= CONCILIADO_TOL;
 
   return (
     <div className="space-y-4">
@@ -110,6 +150,141 @@ export function ConciliacionBoardView({
           </div>
         </div>
       </QavanteCard>
+
+      {board.workers.length > 0 && (
+        <QavanteCard variant="bordered">
+          <div className="space-y-2">
+            <div>
+              <h3 className="text-sm font-semibold text-neutral-dark">Estado por trabajador</h3>
+              <p className="text-xs text-neutral-mid">
+                Clasificación contable y conciliación bancaria son estados independientes.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
+                    <th className="py-2 pr-3 font-semibold">Trabajador</th>
+                    <th className="py-2 pr-3 font-semibold">Clasificación</th>
+                    <th className="py-2 pr-3 font-semibold">Conciliación</th>
+                    <th className="py-2 text-right font-semibold">Evidencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {board.workers.map((worker) => {
+                    const classification = classificationsByRut.get(
+                      payrollRutKey(worker.workerRut),
+                    );
+                    const allocations = classification?.allocations ?? [];
+                    const isPending = workerPendiente(worker);
+                    const reconciliationLabel = !isPending
+                      ? "Conciliado"
+                      : worker.paidAmount > CONCILIADO_TOL
+                        ? "Pago parcial"
+                        : "Por conciliar";
+                    const workerLinks = board.links.filter(
+                      (link) => payrollRutKey(link.workerRut) === payrollRutKey(worker.workerRut),
+                    );
+                    return (
+                      <tr
+                        key={worker.workerRut}
+                        className="border-b border-border/60 last:border-b-0"
+                      >
+                        <td className="py-3 pr-3">
+                          <span className="block font-medium text-neutral-dark">
+                            {worker.workerName}
+                          </span>
+                          <span className="font-mono text-[11px] text-neutral-mid">
+                            {worker.workerRut ? formatRut(worker.workerRut) : "s/d"}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-3">
+                          {classificationsState !== "ready" ? (
+                            <QavanteBadge variant="warning">No verificado</QavanteBadge>
+                          ) : allocations.length > 0 ? (
+                            <QavanteBadge variant="info">Clasificado</QavanteBadge>
+                          ) : (
+                            <QavanteBadge variant="warning">Por clasificar</QavanteBadge>
+                          )}
+                        </td>
+                        <td className="py-3 pr-3">
+                          <QavanteBadge
+                            variant={
+                              reconciliationLabel === "Conciliado"
+                                ? "success"
+                                : reconciliationLabel === "Pago parcial"
+                                  ? "info"
+                                  : "warning"
+                            }
+                          >
+                            {reconciliationLabel}
+                          </QavanteBadge>
+                        </td>
+                        <td className="py-3 text-right">
+                          <details className="inline-block max-w-md text-left">
+                            <summary className="cursor-pointer text-xs font-medium text-brand-primary">
+                              Ver detalle
+                            </summary>
+                            <div className="mt-2 space-y-2 rounded-lg border border-border bg-neutral-light/20 p-3 text-xs text-neutral-mid">
+                              <p>
+                                Líquido {formatClp(worker.liquido)} · pagado{" "}
+                                {formatClp(worker.paidAmount)} · pendiente{" "}
+                                {formatClp(worker.outstanding)} · estado API{" "}
+                                {worker.status || "s/d"}
+                              </p>
+                              {classificationsState === "ready" && allocations.length > 0 ? (
+                                <div>
+                                  <p className="font-medium text-neutral-dark">Reparto vigente</p>
+                                  <ul>
+                                    {allocations.map((allocation) => (
+                                      <li key={allocation.account_code}>
+                                        {allocation.account_name || allocation.account_code} (
+                                        {allocation.account_code}) · {allocation.pct}%
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  <p className="mt-1">
+                                    Puedes modificar el reparto en Clasificación. Retirarlo requiere
+                                    el comando auditable del API.
+                                  </p>
+                                </div>
+                              ) : classificationsState === "ready" ? (
+                                <p>Sin reparto contable vigente.</p>
+                              ) : (
+                                <p>No fue posible verificar el reparto contable.</p>
+                              )}
+                              {workerLinks.length > 0 ? (
+                                <div>
+                                  <p className="font-medium text-neutral-dark">Matches bancarios</p>
+                                  <ul className="space-y-1">
+                                    {workerLinks.map((link) => (
+                                      <li key={link.linkId}>
+                                        {formatClp(link.amount)} · {link.glosa || "sin glosa"} ·
+                                        mov.{" "}
+                                        <span className="font-mono">{link.bankMovementId}</span> ·
+                                        link <span className="font-mono">{link.linkId}</span>
+                                        {link.createdAt
+                                          ? ` · ${formatDateLike(link.createdAt)}`
+                                          : ""}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : (
+                                <p>Sin match bancario aplicado.</p>
+                              )}
+                            </div>
+                          </details>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </QavanteCard>
+      )}
 
       {/* Zona de asignación: elige un débito + trabajador(es) → conciliar */}
       {pendientes.length > 0 && (
@@ -148,9 +323,10 @@ export function ConciliacionBoardView({
                             type="button"
                             role="radio"
                             aria-checked={sel}
+                            disabled={validating || assignPending}
                             onClick={() => {
                               setDebitoSel(sel ? null : c.id);
-                              setConfirming(false);
+                              clearPreview();
                             }}
                             className={cn(
                               "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
@@ -200,9 +376,10 @@ export function ConciliacionBoardView({
                             <input
                               type="checkbox"
                               checked={sel}
+                              disabled={validating || assignPending}
                               onChange={() => {
                                 toggleWorker(w.workerRut);
-                                setConfirming(false);
+                                clearPreview();
                               }}
                               className="h-4 w-4 shrink-0 accent-brand-primary"
                             />
@@ -226,45 +403,81 @@ export function ConciliacionBoardView({
               </div>
             </div>
 
-            {/* Barra de acción + confirmación explícita */}
-            {!confirming ? (
+            {!preview ? (
               <div className="flex items-center justify-end">
                 <QavanteButton
                   size="sm"
-                  disabled={!puedeConciliar || assignPending}
-                  onClick={() => setConfirming(true)}
+                  disabled={!puedeConciliar || assignPending || validating}
+                  loading={validating}
+                  onClick={() => void validateAssign()}
                 >
-                  Conciliar
+                  Validar antes de conciliar
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </QavanteButton>
               </div>
             ) : (
-              <div className="rounded-lg border border-brand-primary/40 bg-brand-primary-50/60 p-3 text-sm">
-                <p className="text-neutral-dark">
-                  Asignar <b className="tabular-nums">{formatClp(debito?.monto ?? 0)}</b> del débito
-                  «{debito?.glosa || "s/d"}» a{" "}
-                  <b>
-                    {nombresSel.length === 1 ? nombresSel[0] : `${nombresSel.length} trabajadores`}
-                  </b>
-                  {nombresSel.length > 1 && (
-                    <span className="text-neutral-mid"> ({nombresSel.join(", ")})</span>
-                  )}
-                  .
+              <div
+                className="rounded-lg border border-brand-primary/40 bg-brand-primary-50/60 p-3 text-sm"
+                aria-live="polite"
+              >
+                <p className="font-semibold text-neutral-dark">Simulación verificada por el API</p>
+                <p className="mt-1 text-xs text-neutral-mid">
+                  Aún no se modificó ningún dato. Método: {preview.method || "s/d"} · período{" "}
+                  {preview.period}.
                 </p>
+                <ul className="mt-2 space-y-1" aria-label="Aplicaciones simuladas">
+                  {preview.applied.map((row) => (
+                    <li
+                      key={row.settlementId}
+                      className="rounded border border-border bg-white/70 p-2"
+                    >
+                      <span className="font-medium text-neutral-dark">{row.workerName}</span>{" "}
+                      <span className="font-mono text-xs text-neutral-mid">
+                        ({formatRut(row.workerRut)})
+                      </span>
+                      <span className="block text-xs text-neutral-mid">
+                        Aplicará {formatClp(row.applyAmount)} · pagado resultante{" "}
+                        {formatClp(row.newPaid)} · saldo resultante {formatClp(row.newOutstanding)}{" "}
+                        · estado {row.newStatus}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-neutral-mid">
+                  Total aplicado {formatClp(preview.appliedTotal)} · sin aplicar{" "}
+                  {formatClp(preview.unapplied)} · saldo del período después{" "}
+                  {formatClp(preview.periodOutstandingAfter)}
+                </p>
+                {!previewApplicable && (
+                  <p className="mt-2 text-xs font-medium text-danger-500" role="alert">
+                    La simulación dejó monto sin aplicar o no produjo aplicaciones. No se puede
+                    confirmar.
+                  </p>
+                )}
                 <div className="mt-2 flex items-center justify-end gap-2">
                   <QavanteButton
                     size="sm"
                     variant="ghost"
                     disabled={assignPending}
-                    onClick={() => setConfirming(false)}
+                    onClick={clearPreview}
                   >
-                    Cancelar
+                    Cambiar selección
                   </QavanteButton>
-                  <QavanteButton size="sm" loading={assignPending} onClick={confirmAssign}>
+                  <QavanteButton
+                    size="sm"
+                    loading={assignPending}
+                    disabled={!previewApplicable || assignPending}
+                    onClick={() => void confirmAssign()}
+                  >
                     Confirmar conciliación
                   </QavanteButton>
                 </div>
               </div>
+            )}
+            {validationError && (
+              <p className="text-xs font-medium text-danger-500" role="alert">
+                {validationError}
+              </p>
             )}
           </div>
         </QavanteCard>
@@ -306,12 +519,42 @@ export function ConciliacionBoardView({
                             variant="ghost"
                             loading={reverting}
                             disabled={reverting}
-                            onClick={() => onRevert(l.linkId)}
+                            onClick={() => setConfirmRevertId(l.linkId)}
                             className="text-danger-500 hover:bg-danger-500/10"
                           >
                             {!reverting && <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />}
                             Desasignar
                           </QavanteButton>
+                          {confirmRevertId === l.linkId && !reverting && (
+                            <div
+                              className="mt-2 rounded-lg border border-danger-500/30 bg-danger-500/5 p-2 text-left text-xs"
+                              role="alertdialog"
+                              aria-label={`Confirmar desasignación de ${l.workerName}`}
+                            >
+                              <p className="text-neutral-dark">
+                                ¿Desasignar {formatClp(l.amount)} de {l.workerName}? Movimiento{" "}
+                                <span className="font-mono">{l.bankMovementId}</span>, link{" "}
+                                <span className="font-mono">{l.linkId}</span>. Esta acción queda
+                                registrada por el API.
+                              </p>
+                              <div className="mt-2 flex justify-end gap-1">
+                                <QavanteButton
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setConfirmRevertId(null)}
+                                >
+                                  Cancelar
+                                </QavanteButton>
+                                <QavanteButton
+                                  size="sm"
+                                  variant="danger"
+                                  onClick={() => onRevert(l.linkId)}
+                                >
+                                  Confirmar desasignación
+                                </QavanteButton>
+                              </div>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );

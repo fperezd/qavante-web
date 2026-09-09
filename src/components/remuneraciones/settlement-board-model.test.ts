@@ -6,6 +6,9 @@ import {
   periodToYyyymm,
   debitosCandidatos,
   buildReconcileBody,
+  normalizeReconcilePreview,
+  normalizeReconcileOutcome,
+  payrollRutKey,
   type SettlementBoard,
 } from "./settlement-board-model";
 
@@ -198,5 +201,76 @@ describe("buildReconcileBody", () => {
       worker_ruts: ["20.009.075-6"],
       dry_run: true,
     });
+  });
+});
+
+describe("normalizeReconcilePreview", () => {
+  const rawPreview = {
+    dry_run: true,
+    period: "202607",
+    amount: "1000000",
+    method: "manual",
+    applied: [
+      {
+        settlement_id: "settlement_1",
+        worker_rut: "20.009.075-6",
+        worker_name: "Carrasco",
+        apply_amount: "1000000",
+        new_paid: "1000000",
+        new_outstanding: "0",
+        new_status: "paid",
+      },
+    ],
+    applied_total: "1000000",
+    unapplied: "0",
+    period_outstanding_after: "0",
+  };
+
+  it("preserva la evidencia y los montos exactos entregados por el dry-run", () => {
+    expect(normalizeReconcilePreview(rawPreview)).toEqual({
+      dryRun: true,
+      period: "202607",
+      amount: 1_000_000,
+      method: "manual",
+      applied: [
+        {
+          settlementId: "settlement_1",
+          workerRut: "20.009.075-6",
+          workerName: "Carrasco",
+          applyAmount: 1_000_000,
+          newPaid: 1_000_000,
+          newOutstanding: 0,
+          newStatus: "paid",
+        },
+      ],
+      appliedTotal: 1_000_000,
+      unapplied: 0,
+      periodOutstandingAfter: 0,
+    });
+  });
+
+  it("falla cerrado si no es dry-run o falta evidencia verificable", () => {
+    expect(normalizeReconcilePreview({ ...rawPreview, dry_run: false })).toBeNull();
+    expect(normalizeReconcilePreview({ ...rawPreview, applied_total: "no-numérico" })).toBeNull();
+    expect(
+      normalizeReconcilePreview({
+        ...rawPreview,
+        applied: [{ ...rawPreview.applied[0], settlement_id: null }],
+      }),
+    ).toBeNull();
+  });
+
+  it("valida por separado la evidencia de apply", () => {
+    const apply = normalizeReconcileOutcome({ ...rawPreview, dry_run: false }, false);
+    expect(apply?.dryRun).toBe(false);
+    expect(apply?.applied[0]?.settlementId).toBe("settlement_1");
+    expect(normalizeReconcileOutcome(rawPreview, false)).toBeNull();
+  });
+});
+
+describe("payrollRutKey", () => {
+  it("enlaza formatos equivalentes sin alterar la identidad mostrada", () => {
+    expect(payrollRutKey("20.009.075-6")).toBe("200090756");
+    expect(payrollRutKey("20 009 075-k")).toBe("20009075K");
   });
 });

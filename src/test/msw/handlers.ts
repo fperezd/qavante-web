@@ -3761,52 +3761,95 @@ const bukHandlers = [
   ),
   http.post("*/api/admin/treasury/payroll-reconcile", async ({ request }) => {
     const body = (await request.json()) as {
+      period?: string;
+      amount?: number;
       worker_ruts?: string[];
       bank_movement_id?: string;
       dry_run?: boolean;
     };
     const ruts = body.worker_ruts ?? [];
-    if (body.dry_run) {
-      // Previsualiza: NO muta (devuelve un plan simple).
-      return HttpResponse.json(
-        { dry_run: true, plan: ruts.map((r) => ({ worker_rut: r })) },
-        { status: 200 },
-      );
+    const requestedAmount = Math.max(0, Number(body.amount ?? 0));
+    let remaining = requestedAmount;
+    const applications = [];
+    for (const rut of [...ruts].sort()) {
+      const worker = settlementBoard.workers.find((item) => item.worker_rut === rut);
+      if (!worker || remaining <= 0) continue;
+      const outstanding = Number(worker.outstanding);
+      const applyAmount = Math.min(remaining, outstanding);
+      if (applyAmount <= 0) continue;
+      const newPaid = Number(worker.paid_amount) + applyAmount;
+      const newOutstanding = Math.max(0, Number(worker.liquido) - newPaid);
+      applications.push({
+        settlement_id: `settlement_${worker.worker_rut}`,
+        worker_rut: worker.worker_rut,
+        worker_name: worker.worker_name,
+        apply_amount: applyAmount.toString(),
+        new_paid: newPaid.toString(),
+        new_outstanding: newOutstanding.toString(),
+        new_status: newOutstanding <= 0 ? "paid" : "partially_paid",
+      });
+      remaining -= applyAmount;
     }
+    const appliedTotal = requestedAmount - remaining;
+    const response = {
+      dry_run: body.dry_run === true,
+      period: body.period ?? "",
+      amount: requestedAmount.toString(),
+      method: "manual",
+      applied: applications,
+      applied_total: appliedTotal.toString(),
+      unapplied: remaining.toString(),
+      period_outstanding_after: Math.max(
+        0,
+        Number(settlementPeriodOutstanding()) - appliedTotal,
+      ).toString(),
+    };
+    if (body.dry_run) return HttpResponse.json(response, { status: 200 });
+
     const glosa =
       bankMovementsFixture.find((m) => m.id === body.bank_movement_id)?.description ??
       "Débito banco";
-    for (const rut of ruts) {
-      const w = settlementBoard.workers.find((x) => x.worker_rut === rut);
-      if (!w || w.status === "conciliado") continue;
-      w.outstanding = "0";
-      w.paid_amount = w.liquido;
-      w.status = "conciliado";
+    for (const application of applications) {
+      const w = settlementBoard.workers.find((x) => x.worker_rut === application.worker_rut);
+      if (!w) continue;
+      w.outstanding = application.new_outstanding;
+      w.paid_amount = application.new_paid;
+      w.status = application.new_status;
       settlementBoard.links.push({
         link_id: `lnk_${settlementLinkSeq++}`,
         worker_rut: w.worker_rut,
         worker_name: w.worker_name,
-        amount: w.liquido,
+        amount: application.apply_amount,
         bank_movement_id: body.bank_movement_id ?? "",
         glosa,
         created_at: "2026-08-04T12:00:00Z",
       });
     }
-    return HttpResponse.json({ ok: true }, { status: 200 });
+    return HttpResponse.json(response, { status: 200 });
   }),
   http.post("*/api/admin/treasury/payroll-reconcile/revert", async ({ request }) => {
     const body = (await request.json()) as { link_id?: string };
     const idx = settlementBoard.links.findIndex((l) => l.link_id === body.link_id);
-    if (idx >= 0) {
-      const [link] = settlementBoard.links.splice(idx, 1);
-      const w = settlementBoard.workers.find((x) => x.worker_rut === link!.worker_rut);
-      if (w) {
-        w.outstanding = w.liquido;
-        w.paid_amount = "0";
-        w.status = "pendiente";
-      }
+    if (idx < 0) {
+      return HttpResponse.json({ detail: { code: "link_not_found" } }, { status: 404 });
     }
-    return HttpResponse.json({ ok: true }, { status: 200 });
+    const [link] = settlementBoard.links.splice(idx, 1);
+    const w = settlementBoard.workers.find((x) => x.worker_rut === link!.worker_rut);
+    if (w) {
+      w.outstanding = w.liquido;
+      w.paid_amount = "0";
+      w.status = "pendiente";
+    }
+    return HttpResponse.json(
+      {
+        reverted: true,
+        settlement: w ?? {
+          worker_rut: link!.worker_rut,
+          worker_name: link!.worker_name,
+        },
+      },
+      { status: 200 },
+    );
   }),
 ];
 

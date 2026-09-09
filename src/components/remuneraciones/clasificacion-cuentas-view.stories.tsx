@@ -52,6 +52,7 @@ const meta = {
     unclassifiedCount: 1,
     onAssign: fn(),
     onBulkAssign: fn(),
+    onClear: fn(),
     workers: WORKERS,
   },
 } satisfies Meta<typeof ClasificacionCuentasView>;
@@ -113,6 +114,23 @@ export const Split: Story = {
       ],
       "2026-07",
     );
+  },
+};
+
+export const DesclasificarConCorteFechado: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const originalConfirm = window.confirm;
+    window.confirm = fn(() => true);
+    try {
+      await userEvent.click(canvas.getByRole("button", { name: /Desclasificar a Mirko/ }));
+      await expect(window.confirm).toHaveBeenCalledWith(
+        expect.stringContaining("desde julio 2026"),
+      );
+      await expect(args.onClear).toHaveBeenCalledWith("2915291-1", "2026-07");
+    } finally {
+      window.confirm = originalConfirm;
+    }
   },
 };
 

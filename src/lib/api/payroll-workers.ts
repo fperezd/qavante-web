@@ -14,6 +14,7 @@ import type { components } from "./types";
 export type WorkerClassification = components["schemas"]["WorkerClassification"];
 export type PayrollWorkersResponse = components["schemas"]["PayrollWorkersResponse"];
 export type AllocationOut = components["schemas"]["AllocationOut"];
+export type ClearAllocationsResponse = components["schemas"]["ClearAllocationsResponse"];
 /** Reparto a enviar: cuenta + %. El caso simple = 1 cuenta al 100%. */
 export type AllocationIn = { account_code: string; pct: number };
 
@@ -77,6 +78,18 @@ export function useBulkSetWorkerAllocations() {
       api.patch<{ updated: number } | unknown>(`/api/treasury/payroll-workers/allocations`, {
         body: { worker_ruts: workerRuts, allocations, effective_from: effectiveFrom },
       }),
+    onSuccess: () => invalidateAfterAssign(qc),
+  });
+}
+
+/** Retira el reparto vigente desde un período mediante un tombstone auditable. */
+export function useClearWorkerAllocations() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ workerRut, effectiveFrom }: { workerRut: string; effectiveFrom: string }) =>
+      api.delete<ClearAllocationsResponse>(
+        `/api/treasury/payroll-workers/${encodeURIComponent(workerRut)}/allocations/${encodeURIComponent(effectiveFrom)}`,
+      ),
     onSuccess: () => invalidateAfterAssign(qc),
   });
 }

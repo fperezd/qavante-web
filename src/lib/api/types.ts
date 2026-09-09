@@ -2458,6 +2458,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/management/operational-result/classifications/clear-document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retira la clasificación específica de un documento
+         * @description Desclasifica sin borrar historia y conserva las reglas aprendidas para otros documentos.
+         */
+        post: operations["management_clear_document_classification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/management/operational-result/classifications/proposals": {
         parameters: {
             query?: never;
@@ -5575,6 +5595,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/payroll-workers/{worker_rut}/allocations/{effective_from}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Retira la clasificación efectiva de un empleado desde un período (owner/admin)
+         * @description Crea un corte fechado sin inventar una cuenta ni borrar la historia anterior.
+         */
+        delete: operations["payroll_worker_clear_allocations"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/reconcile": {
         parameters: {
             query?: never;
@@ -5662,6 +5702,72 @@ export interface paths {
          *     falle (`error`) NO aborta el resto. Cada ítem reporta su `status`.
          */
         post: operations["treasury_reconciliation_confirm_batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/document-resolution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Conciliación: estado y movimientos elegibles vistos desde un documento RCV
+         * @description Devuelve la misma conciliación banco↔devengado desde el lado del documento.
+         *
+         *     ``candidates`` sólo contiene movimientos que aprobaron filtros duros e identidad; el monto por
+         *     sí solo nunca crea una sugerencia. La lectura no modifica saldos ni estados.
+         */
+        get: operations["treasury_reconciliation_document_resolution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/document-resolution/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conciliación: asigna un movimiento elegido desde un documento RCV
+         * @description Entrada inversa de la conciliación canónica.
+         *
+         *     Resuelve el UUID interno desde la clave natural y delega la escritura al mismo comando que usa
+         *     Banco → documento; por eso saldo, auditoría y reversión no divergen entre pantallas.
+         */
+        post: operations["treasury_reconciliation_document_assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/reconciliation/document-resolution/statuses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Estados livianos de clasificación y conciliación para listas de documentos
+         * @description Una sola lectura por lote; no genera candidatos ni incurre en N+1 por fila.
+         */
+        post: operations["treasury_reconciliation_document_statuses"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6097,8 +6203,9 @@ export interface paths {
         /**
          * Conciliación: DESASIGNA un match ya aplicado (re-abre el doc, libera el movimiento)
          * @description Deshace una conciliación banco↔documento YA APLICADA (auto ≥90 o confirmada): restaura el
-         *     `outstanding` del/los documento(s), los vuelve a `open`/`partially_paid`, libera el movimiento
-         *     (`unmatched`) y borra el registro de conciliación. Idempotente (`reverted=0` si no había match).
+         *     `outstanding` del/los documento(s), los vuelve a `open`/`partially_paid` y libera todas las
+         *     patas bancarias del caso (`unmatched`). Puede invocarse desde el ancla o desde un movimiento
+         *     hermano N:1/N:N. Idempotente (`reverted=0` si no había match).
          *     Para una sugerencia en cola (no aplicada) usar `.../reject`. Principio: toda conciliación se
          *     desasigna.
          */
@@ -6985,6 +7092,29 @@ export interface components {
              * @description Período YYYY-MM desde el que rige (hacia adelante hasta que otra lo supere).
              */
             effective_from: string;
+        };
+        /** AssignDocumentPaymentRequest */
+        AssignDocumentPaymentRequest: {
+            /**
+             * Document Kind
+             * @description 'receivable' (venta) | 'payable' (compra) | 'professional_fee' (BHE).
+             */
+            document_kind: string;
+            /**
+             * Expected Allocations
+             * @description Plan exacto que la persona vio y consintió. Obligatorio para pagos consolidados; el API rechaza si el subconjunto vigente cambió.
+             */
+            expected_allocations?: components["schemas"]["ExpectedDocumentAllocation"][] | null;
+            /**
+             * Movement Id
+             * @description UUID del movimiento bancario elegido por la persona.
+             */
+            movement_id: string;
+            /**
+             * Source External Id
+             * @description Clave natural del documento en su sistema origen.
+             */
+            source_external_id: string;
         };
         /** AssignmentsListResponse */
         AssignmentsListResponse: {
@@ -8359,6 +8489,24 @@ export interface components {
             topology: string;
         };
         /**
+         * CaseMovementDetail
+         * @description Pata bancaria alcanzada por el mismo caso canónico.
+         */
+        CaseMovementDetail: {
+            /** Amount */
+            amount: string;
+            /** Bank Account Id */
+            bank_account_id: string;
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Date */
+            date: string;
+            /** Description */
+            description?: string | null;
+            /** Movement Id */
+            movement_id: string;
+        };
+        /**
          * CashCycleResponse
          * @description Ciclo de conversión de caja: DSO / DPO / CCC (ADR-0033 derivados, Fase 2).
          *
@@ -9272,12 +9420,12 @@ export interface components {
             account_code: string;
             /**
              * Side
-             * @description 'compras' | 'ventas'.
+             * @description 'compras' | 'ventas' | 'bhe'.
              */
             side: string;
             /**
              * Source External Id
-             * @description Clave natural del documento en el RCV: '{tipo}-{folio}-{rut}'.
+             * @description Clave natural: RCV '{tipo}-{folio}-{rut}' o BHE '{periodo}:{rut}:{folio}'.
              */
             source_external_id: string;
         };
@@ -9391,6 +9539,52 @@ export interface components {
             status: string;
         } & {
             [key: string]: unknown;
+        };
+        /** ClearAllocationsResponse */
+        ClearAllocationsResponse: {
+            /**
+             * Action Id
+             * @description Acción auditable que permite restaurar el reparto exacto; null en un retry no-op.
+             */
+            action_id: string | null;
+            /**
+             * Cleared
+             * @description True si el comando creó una nueva desclasificación efectiva.
+             */
+            cleared: boolean;
+            /**
+             * Effective From
+             * @description Período YYYY-MM desde el que se retiró la clasificación.
+             */
+            effective_from: string;
+            /**
+             * Removed Allocations
+             * @description Filas del split exacto retiradas; puede ser 0 al cortar una asignación heredada.
+             */
+            removed_allocations: number;
+            /** Worker Rut */
+            worker_rut: string;
+        };
+        /**
+         * ClearDocumentClassificationRequest
+         * @description Identidad canónica de un documento cuya clasificación se retira.
+         */
+        ClearDocumentClassificationRequest: {
+            /**
+             * Classification Id
+             * @description Versión aplicada que se desea retirar; hace el retry seguro.
+             */
+            classification_id: string;
+            /**
+             * Side
+             * @description 'compras' | 'ventas' | 'bhe'.
+             */
+            side: string;
+            /**
+             * Source External Id
+             * @description Clave natural persistida desde el origen.
+             */
+            source_external_id: string;
         };
         /** CollectionEvaluationAlternative */
         CollectionEvaluationAlternative: {
@@ -11084,6 +11278,197 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * DocumentAllocationDetail
+         * @description Documento alcanzado por el mismo caso/movimiento de conciliación.
+         */
+        DocumentAllocationDetail: {
+            /** Amount */
+            amount: string;
+            /** Document Id */
+            document_id: string;
+            /** Document Kind */
+            document_kind: string;
+            /** Name */
+            name?: string | null;
+            /** Source External Id */
+            source_external_id: string;
+        };
+        /** DocumentCandidateAllocation */
+        DocumentCandidateAllocation: {
+            /** Amount */
+            amount: string;
+            /** Document Id */
+            document_id: string;
+            /** Document Kind */
+            document_kind: string;
+            /** Name */
+            name?: string | null;
+            /** Source External Id */
+            source_external_id: string;
+        };
+        /** DocumentClassificationState */
+        DocumentClassificationState: {
+            /** Account Code */
+            account_code: string;
+            /** Classification Id */
+            classification_id: string;
+            /** Confidence */
+            confidence?: string | null;
+            /** Origin */
+            origin: string;
+            /** Reasoning */
+            reasoning?: string | null;
+            /** Status */
+            status: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** DocumentMovementAssignment */
+        DocumentMovementAssignment: {
+            /** Adjustment Amount */
+            adjustment_amount: string;
+            /** Allocations */
+            allocations?: components["schemas"]["DocumentAllocationDetail"][];
+            /** Amount Applied */
+            amount_applied: string;
+            /** Bank Account Id */
+            bank_account_id: string;
+            /** Case Id */
+            case_id?: string | null;
+            /** Currency Code */
+            currency_code: string;
+            /** Date */
+            date: string;
+            /** Description */
+            description?: string | null;
+            /** Method */
+            method: string;
+            /** Movement Amount */
+            movement_amount: string;
+            /** Movement Id */
+            movement_id: string;
+            /** Movements */
+            movements?: components["schemas"]["CaseMovementDetail"][];
+            /**
+             * Topology
+             * @description 1:1 | 1:N | N:1 | N:N
+             */
+            topology?: string | null;
+        };
+        /** DocumentMovementCandidate */
+        DocumentMovementCandidate: {
+            /** Allocations */
+            allocations?: components["schemas"]["DocumentCandidateAllocation"][];
+            /** Amount */
+            amount: string;
+            /**
+             * Application Mode
+             * @description single | subset
+             */
+            application_mode: string;
+            /** Bank Account Id */
+            bank_account_id: string;
+            /** Currency Code */
+            currency_code: string;
+            /** Date */
+            date: string;
+            /** Description */
+            description?: string | null;
+            /** Eligibility */
+            eligibility?: string[];
+            /** Movement Id */
+            movement_id: string;
+            /** Reasons */
+            reasons?: string[];
+            /** Score */
+            score: number;
+        };
+        /**
+         * DocumentResolutionResponse
+         * @description Estado y movimientos del mismo grafo canónico visto desde un documento RCV.
+         */
+        DocumentResolutionResponse: {
+            /** Assignments */
+            assignments?: components["schemas"]["DocumentMovementAssignment"][];
+            /** Blocked Reason */
+            blocked_reason?: string | null;
+            /** Candidates */
+            candidates?: components["schemas"]["DocumentMovementCandidate"][];
+            classification?: components["schemas"]["DocumentClassificationState"] | null;
+            /** Currency Code */
+            currency_code?: string | null;
+            /** Document Id */
+            document_id: string;
+            /** Document Kind */
+            document_kind: string;
+            /** Document Type */
+            document_type?: number | null;
+            /** Due Date */
+            due_date?: string | null;
+            /** Folio */
+            folio?: string | null;
+            /** Issue Date */
+            issue_date?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Outstanding Amount */
+            outstanding_amount: string;
+            /** Rut */
+            rut?: string | null;
+            /** Source External Id */
+            source_external_id: string;
+            /** Status */
+            status: string;
+            /** Total Amount */
+            total_amount: string;
+        };
+        /** DocumentRowStatus */
+        DocumentRowStatus: {
+            /** Account Code */
+            account_code?: string | null;
+            /**
+             * Assignment Count
+             * @default 0
+             */
+            assignment_count: number;
+            /** Case Id */
+            case_id?: string | null;
+            /** Classification Id */
+            classification_id?: string | null;
+            /** Classification Status */
+            classification_status: string;
+            /** Document Kind */
+            document_kind: string;
+            /** Movements */
+            movements?: components["schemas"]["CaseMovementDetail"][];
+            /** Reconciliation Status */
+            reconciliation_status: string;
+            /** Source External Id */
+            source_external_id: string;
+            /**
+             * Topology
+             * @description 1:1 | 1:N | N:1 | N:N
+             */
+            topology?: string | null;
+        };
+        /** DocumentStatusKey */
+        DocumentStatusKey: {
+            /** Document Kind */
+            document_kind: string;
+            /** Source External Id */
+            source_external_id: string;
+        };
+        /** DocumentStatusesRequest */
+        DocumentStatusesRequest: {
+            /** Documents */
+            documents: components["schemas"]["DocumentStatusKey"][];
+        };
+        /** DocumentStatusesResponse */
+        DocumentStatusesResponse: {
+            /** Items */
+            items: components["schemas"]["DocumentRowStatus"][];
+        };
+        /**
          * DocumentSuggestion
          * @description Documento candidato para conciliar un movimiento (#794-4 b). El humano confirma.
          */
@@ -11707,6 +12092,15 @@ export interface components {
             component_codes: string[];
             /** Reason Code */
             reason_code: string;
+        };
+        /** ExpectedDocumentAllocation */
+        ExpectedDocumentAllocation: {
+            /** Amount */
+            amount: string;
+            /** Document Id */
+            document_id: string;
+            /** Source External Id */
+            source_external_id: string;
         };
         /** ExpiriesResponse */
         ExpiriesResponse: {
@@ -18377,8 +18771,13 @@ export interface components {
             /** Movement Id */
             movement_id: string;
             /**
+             * Movements
+             * @description Todas las patas bancarias liberadas al revertir el caso canónico.
+             */
+            movements?: components["schemas"]["CaseMovementDetail"][];
+            /**
              * Reverted
-             * @description Nº de documentos re-abiertos (0 si el mov no tenía match).
+             * @description Nº de documentos re-abiertos; para un caso canónico sin espejo legacy, nº de casos revertidos (0 si el movimiento no tenía conciliación).
              */
             reverted: number;
         };
@@ -24766,7 +25165,7 @@ export interface operations {
                     "application/json": components["schemas"]["app__api__operational_result__ConfirmResponse"];
                 };
             };
-            /** @description El documento no existe en el RCV del tenant. */
+            /** @description El documento no existe en la fuente canónica del tenant. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -24774,6 +25173,46 @@ export interface operations {
                 content?: never;
             };
             /** @description La cuenta no existe en el plan del tenant, o el side es inválido. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    management_clear_document_classification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClearDocumentClassificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__operational_result__ConfirmResponse"];
+                };
+            };
+            /** @description El documento no existe o no tiene clasificación aplicada. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El side es inválido. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -31593,6 +32032,49 @@ export interface operations {
             };
         };
     };
+    payroll_worker_clear_allocations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description RUT del trabajador (como viene en la nómina). */
+                worker_rut: string;
+                /** @description Período YYYY-MM desde el que queda sin clasificación hasta otra asignación. */
+                effective_from: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearAllocationsResponse"];
+                };
+            };
+            /** @description Rol sin permiso (owner/admin). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_reconcile: {
         parameters: {
             query?: never;
@@ -31758,6 +32240,135 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    treasury_reconciliation_document_resolution: {
+        parameters: {
+            query: {
+                /** @description 'receivable' (venta) | 'payable' (compra) | 'professional_fee' (BHE). */
+                document_kind: string;
+                /** @description Clave natural persistida desde el origen. */
+                source_external_id: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentResolutionResponse"];
+                };
+            };
+            /** @description El documento no existe para este tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La clave de origen identifica documentos duplicados. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Tipo o identidad de documento inválidos. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_reconciliation_document_assign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignDocumentPaymentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["app__api__reconciliation__ConfirmResponse"];
+                };
+            };
+            /** @description El documento o movimiento no existe para este tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El movimiento/documento ya no admite la asignación. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Moneda, dirección, fecha, cesión o identidad inválidas. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    treasury_reconciliation_document_statuses: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentStatusesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentStatusesResponse"];
+                };
+            };
+            /** @description Tipo o cantidad de documentos inválidos. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

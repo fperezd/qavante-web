@@ -42,6 +42,8 @@ export interface DynamicTableProps<TData> {
   initialColumnOrder?: string[];
   /** Ancho mínimo de la tabla (para el scroll horizontal). */
   minWidth?: number;
+  /** Hace la fila navegable/accionable por mouse y teclado. */
+  onRowActivate?: (row: TData) => void;
 }
 
 function colAlign(meta: unknown): boolean {
@@ -53,6 +55,7 @@ export function DynamicTable<TData>({
   data,
   initialColumnOrder,
   minWidth = 720,
+  onRowActivate,
 }: DynamicTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -193,7 +196,31 @@ export function DynamicTable<TData>({
             {table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted"
+                onClick={
+                  onRowActivate
+                    ? (event) => {
+                        if ((event.target as HTMLElement).closest("a,button,input,select")) return;
+                        onRowActivate(row.original);
+                      }
+                    : undefined
+                }
+                onKeyDown={
+                  onRowActivate
+                    ? (event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onRowActivate(row.original);
+                        }
+                      }
+                    : undefined
+                }
+                tabIndex={onRowActivate ? 0 : undefined}
+                className={cn(
+                  "border-b border-border/60 last:border-b-0 hover:bg-surface-muted",
+                  onRowActivate &&
+                    "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary",
+                )}
               >
                 {row.getVisibleCells().map((cell) => {
                   const align = colAlign(cell.column.columnDef.meta);

@@ -1,7 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, expect, userEvent, fn } from "storybook/test";
 import { ConciliacionBoardView } from "./conciliacion-board-view";
-import { normalizeBoard, type DebitoCandidato } from "./settlement-board-model";
+import {
+  normalizeBoard,
+  type DebitoCandidato,
+  type PayrollReconcilePreview,
+} from "./settlement-board-model";
 
 /* ConciliacionBoardView — conciliación de sueldos accionable (#835): asignar (una-a-una / varias
    marcadas) y desasignar. Presentacional PURO con callbacks (el POST lo hace el contenedor). */
@@ -44,6 +48,27 @@ const CANDIDATOS: DebitoCandidato[] = [
   { id: "bm_transf", date: "2026-05-29", glosa: "TRANSFERENCIA NÓMINA", monto: 1_500_000 },
 ];
 
+const PREVIEW: PayrollReconcilePreview = {
+  dryRun: true,
+  period: "202605",
+  amount: 2_500_000,
+  method: "manual",
+  applied: [
+    {
+      settlementId: "st_ana",
+      workerRut: "12.345.678-9",
+      workerName: "Ana Pérez Soto",
+      applyAmount: 2_500_000,
+      newPaid: 2_500_000,
+      newOutstanding: 0,
+      newStatus: "paid",
+    },
+  ],
+  appliedTotal: 2_500_000,
+  unapplied: 0,
+  periodOutstandingAfter: 1_500_000,
+};
+
 const meta = {
   title: "Propuestas / Remuneraciones / ConciliacionBoardView",
   component: ConciliacionBoardView,
@@ -52,7 +77,18 @@ const meta = {
     periodLabel: "Mayo 2026",
     board: BOARD,
     candidatos: CANDIDATOS,
-    onAssign: fn(),
+    classifications: [
+      {
+        worker_rut: "12.345.678-9",
+        worker_name: "Ana Pérez Soto",
+        costo_empresa: "3000000",
+        allocations: [
+          { account_code: "direct_cost.delivery", account_name: "Delivery", pct: "100" },
+        ],
+      },
+    ],
+    onValidate: fn(async () => PREVIEW),
+    onAssign: fn(async () => true),
     onRevert: fn(),
   },
 } satisfies Meta<typeof ConciliacionBoardView>;
@@ -69,9 +105,10 @@ export const AsignarUnaAUna: Story = {
     await userEvent.click(c.getByRole("radio", { name: /SUELDO FERNANDO PEREZ MAYO/ }));
     // Marca al trabajador.
     await userEvent.click(c.getByRole("checkbox", { name: /Ana Pérez Soto/ }));
-    // Conciliar → panel de confirmación explícito (mueve plata → nunca de un clic).
-    await userEvent.click(c.getByRole("button", { name: /^Conciliar/ }));
-    await expect(c.getByText(/Asignar/)).toBeInTheDocument();
+    await userEvent.click(c.getByRole("button", { name: /Validar antes de conciliar/ }));
+    await expect(args.onValidate).toHaveBeenCalledWith("bm_sueldos", ["12.345.678-9"]);
+    await expect(c.getByText("Simulación verificada por el API")).toBeInTheDocument();
+    await expect(c.getByText(/pagado resultante/)).toBeInTheDocument();
     await userEvent.click(c.getByRole("button", { name: /Confirmar conciliación/ }));
     await expect(args.onAssign).toHaveBeenCalledWith("bm_sueldos", ["12.345.678-9"]);
   },
@@ -79,13 +116,30 @@ export const AsignarUnaAUna: Story = {
 
 /* Varias marcadas: un débito + N trabajadores → onAssign con los N ruts. */
 export const VariasMarcadas: Story = {
+  args: {
+    onValidate: fn(async () => ({
+      ...PREVIEW,
+      applied: [
+        PREVIEW.applied[0]!,
+        {
+          settlementId: "st_benjamin",
+          workerRut: "9.876.543-2",
+          workerName: "Benjamín Rojas Díaz",
+          applyAmount: 0,
+          newPaid: 0,
+          newOutstanding: 1_500_000,
+          newStatus: "open",
+        },
+      ],
+    })),
+  },
   play: async ({ canvasElement, args }) => {
     const c = within(canvasElement);
     await userEvent.click(c.getByRole("radio", { name: /SUELDO FERNANDO PEREZ MAYO/ }));
     await userEvent.click(c.getByRole("checkbox", { name: /Ana Pérez Soto/ }));
     await userEvent.click(c.getByRole("checkbox", { name: /Benjamín Rojas Díaz/ }));
-    await userEvent.click(c.getByRole("button", { name: /^Conciliar/ }));
-    await expect(c.getByText(/2 trabajadores/)).toBeInTheDocument();
+    await userEvent.click(c.getByRole("button", { name: /Validar antes de conciliar/ }));
+    await expect(c.getByText("Simulación verificada por el API")).toBeInTheDocument();
     await userEvent.click(c.getByRole("button", { name: /Confirmar conciliación/ }));
     await expect(args.onAssign).toHaveBeenCalledWith("bm_sueldos", ["12.345.678-9", "9.876.543-2"]);
   },
@@ -97,6 +151,11 @@ export const Desasignar: Story = {
     const c = within(canvasElement);
     await expect(c.getByText("TRANSFERENCIA A FERNANDO PEREZ")).toBeInTheDocument();
     await userEvent.click(c.getByRole("button", { name: /Desasignar/ }));
+    await expect(args.onRevert).not.toHaveBeenCalled();
+    await expect(
+      c.getByRole("alertdialog", { name: /Confirmar desasignación de Carrasco/i }),
+    ).toHaveTextContent("bm_fp");
+    await userEvent.click(c.getByRole("button", { name: /Confirmar desasignación/ }));
     await expect(args.onRevert).toHaveBeenCalledWith("lnk_carrasco");
   },
 };

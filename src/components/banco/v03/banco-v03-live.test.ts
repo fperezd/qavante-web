@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { BANK_MOVEMENTS_LIMIT_MAX } from "@/lib/api/treasury";
-import { LIMITE_MOVIMIENTOS, MESES_ALCANCE, unclassifyFeedback } from "./banco-v03-live";
+import {
+  initialBankSelection,
+  LIMITE_MOVIMIENTOS,
+  MESES_ALCANCE,
+  unclassifyFeedback,
+  movementFromResolution,
+} from "./banco-v03-live";
 
 /* El cableado de V03, fijado contra el CONTRATO.
  *
@@ -31,6 +37,55 @@ describe("BancoV03Live — el limit que se pide al backend", () => {
     expect(unclassifyFeedback(true)).toEqual({
       kind: "success",
       message: "Clasificación eliminada",
+    });
+  });
+
+  it("consume la cuenta y el movimiento del enlace documental para abrir el origen", () => {
+    expect(
+      initialBankSelection({ initialAccountId: "account-7", initialMovementId: "movement-9" }),
+    ).toEqual({ accountId: "account-7", movementId: "movement-9" });
+    expect(initialBankSelection({ initialAccountId: "", initialMovementId: "" })).toEqual({
+      accountId: "",
+      movementId: null,
+    });
+  });
+
+  it("construye el movimiento del enlace aunque esté fuera de los últimos tres meses", () => {
+    const response = {
+      movement: {
+        id: "movement-old",
+        amount: "125000",
+        direction: "debit",
+        date: "2025-01-15",
+        description: "Pago histórico",
+        external_id: "ext-1",
+        bank_account_id: "account-old",
+        currency_code: "CLP",
+        bank_account: { bank_name: "BICE", account_name: "Cuenta antigua" },
+      },
+      reconciliation: {
+        stored_status: "matched",
+        effective_status: "matched",
+        topology: "1:1",
+        allocations: [],
+        legacy_documents: [],
+        components: [],
+        evidence: [],
+        history: [],
+        remaining_amount: "0",
+      },
+      classification: {
+        status: "unclassified",
+        allocations: [],
+        history: [],
+      },
+    } as Parameters<typeof movementFromResolution>[0];
+
+    expect(movementFromResolution(response)).toMatchObject({
+      id: "movement-old",
+      bankAccountId: "account-old",
+      monto: -125000,
+      estadoConciliacion: "conciliado",
     });
   });
 });

@@ -1,6 +1,6 @@
-import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { fn } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
+import { http, HttpResponse } from "msw";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { BheListView } from "./bhe-list-view";
 import type { BheResponse } from "@/lib/api/sii";
@@ -10,6 +10,52 @@ import type { BheResponse } from "@/lib/api/sii";
    `monto_bruto`, `retencion`, `monto_liquido` (no IVA / total). */
 
 type BheQuery = UseQueryResult<BheResponse, unknown>;
+
+const DOCUMENT_STATES = http.post(
+  "*/api/treasury/reconciliation/document-resolution/statuses",
+  async ({ request }) => {
+    const body = (await request.json()) as {
+      documents: Array<{ document_kind: string; source_external_id: string }>;
+    };
+    return HttpResponse.json({
+      items: body.documents.map((document) => ({
+        ...document,
+        classification_status: "unclassified",
+        reconciliation_status: "unreconciled",
+        assignment_count: 0,
+      })),
+    });
+  },
+);
+const MANAGEMENT_ACCOUNTS = http.get("*/api/management/accounts/tree", () =>
+  HttpResponse.json({ items: [] }),
+);
+const DOCUMENT_DETAIL = http.get(
+  "*/api/treasury/reconciliation/document-resolution",
+  ({ request }) => {
+    const url = new URL(request.url);
+    const sourceExternalId = url.searchParams.get("source_external_id") ?? "documento";
+    return HttpResponse.json({
+      document_id: sourceExternalId,
+      document_kind: "professional_fee",
+      source_external_id: sourceExternalId,
+      document_type: null,
+      folio: "101",
+      rut: "12345678-9",
+      name: "Profesional Asesor 1",
+      issue_date: "2026-04-15",
+      due_date: null,
+      total_amount: "1000000",
+      outstanding_amount: "862500",
+      currency_code: "CLP",
+      status: "open",
+      blocked_reason: null,
+      classification: null,
+      assignments: [],
+      candidates: [],
+    });
+  },
+);
 
 function buildQuery(opts: Partial<BheQuery>): BheQuery {
   return {
@@ -68,6 +114,7 @@ const meta = {
   component: BheListView,
   parameters: {
     layout: "padded",
+    msw: { handlers: [DOCUMENT_STATES, MANAGEMENT_ACCOUNTS, DOCUMENT_DETAIL] },
     docs: {
       description: {
         component:
@@ -95,6 +142,18 @@ export const ConResultados: Story = {
   args: {
     period: "2026-04",
     query: buildQuery({ data: SUCCESS }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const documentRow = canvas.getAllByRole("row").find((row) => {
+      const scoped = within(row);
+      return scoped.queryByText("101") && scoped.queryByText("Profesional Asesor 1");
+    });
+    await expect(documentRow).toBeDefined();
+    await userEvent.click(documentRow!);
+    const dialog = await canvas.findByRole("dialog");
+    await expect(within(dialog).getByText("Clasificación y pago")).toBeInTheDocument();
+    await expect(await within(dialog).findByText(/monto líquido/)).toBeInTheDocument();
   },
 };
 

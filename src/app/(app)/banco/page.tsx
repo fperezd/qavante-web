@@ -6,7 +6,12 @@ import { BancoV03Live } from "@/components/banco/v03/banco-v03-live";
 
 /* Banco (gated `bancoScreen`): los productos del tenant por banco — cuentas + tarjetas de crédito.
    Sin `export const runtime` (regla 4): el flag resuelve en runtime del Worker. */
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ movement?: string; account?: string }>;
+}) {
+  const { movement, account } = await searchParams;
   const { bancoScreen, bancoV03 } = resolveFeatureFlags();
 
   /* V03 · Banco (rediseño Fase 2, issue #68) — gated por `bancoV03`, HOY APAGADO. Reemplaza la
@@ -23,7 +28,7 @@ export default function Page() {
             Tus cuentas y tarjetas
           </h1>
         </header>
-        <BancoV03Live />
+        <BancoV03Live initialAccountId={account} initialMovementId={movement} />
       </div>
     );
   }

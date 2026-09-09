@@ -15,6 +15,7 @@ import {
   useReplaceBankMovementClassification,
   useUnclassifyBankMovement,
   createTreasuryIdempotencyKey,
+  type MovementResolutionDetailResponse,
 } from "@/lib/api/treasury";
 import { useRevertReconciliation } from "@/lib/api/reconciliation";
 import {
@@ -27,6 +28,7 @@ import { ApiError } from "@/lib/api/errors";
 import { toast } from "sonner";
 import { BancoV03View } from "./banco-v03-view";
 import { resolutionDetailFromApi } from "./bank-resolution-detail-model";
+import type { MovimientoV03 } from "./banco-v03-model";
 
 /* Cableado de V03 · Banco. La vista es presentacional; acá se resuelven las fuentes:
  *
@@ -72,10 +74,51 @@ export function unclassifyFeedback(changed: boolean): {
       };
 }
 
-export function BancoV03Live() {
+export interface BancoV03LiveProps {
+  initialAccountId?: string;
+  initialMovementId?: string;
+}
+
+export function initialBankSelection({ initialAccountId, initialMovementId }: BancoV03LiveProps): {
+  accountId: string;
+  movementId: string | null;
+} {
+  return {
+    accountId: initialAccountId?.trim() ?? "",
+    movementId: initialMovementId?.trim() || null,
+  };
+}
+
+export function movementFromResolution(response: MovementResolutionDetailResponse): MovimientoV03 {
+  const detail = resolutionDetailFromApi(response);
+  const amount = Math.abs(Number(response.movement.amount));
+  const signedAmount = response.movement.direction === "credit" ? amount : -amount;
+  return {
+    id: response.movement.id,
+    bankAccountId: response.movement.bank_account_id,
+    fecha: response.movement.date,
+    glosa: response.movement.description,
+    monto: signedAmount,
+    moneda: response.movement.currency_code?.trim().toUpperCase() || "S/D",
+    esAbono: response.movement.direction === "credit",
+    cuenta: `${response.movement.bank_account.bank_name} · ${response.movement.bank_account.account_name}`,
+    categoria: detail.classification.canonicalType ?? null,
+    estadoConciliacion: detail.reconciliation.status,
+    estadoClasificacion: detail.classification.status,
+    porConciliar:
+      detail.reconciliation.status === "pendiente" || detail.reconciliation.status === "parcial",
+  };
+}
+
+export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03LiveProps = {}) {
   const [hoy] = React.useState(() => new Date());
-  const [selectedAccountId, setSelectedAccountId] = React.useState("");
-  const [selectedMovementId, setSelectedMovementId] = React.useState<string | null>(null);
+  const [initialSelection] = React.useState(() =>
+    initialBankSelection({ initialAccountId, initialMovementId }),
+  );
+  const [selectedAccountId, setSelectedAccountId] = React.useState(initialSelection.accountId);
+  const [selectedMovementId, setSelectedMovementId] = React.useState<string | null>(
+    initialSelection.movementId,
+  );
   const classificationIntent = React.useRef<{ fingerprint: string; key: string } | null>(null);
   const unclassifyIntents = React.useRef(new Map<string, string>());
   const desde = periodo(new Date(hoy.getFullYear(), hoy.getMonth() - (MESES_ALCANCE - 1), 1));
@@ -93,13 +136,26 @@ export function BancoV03Live() {
   const links = useBiceAccounts();
   const sources = useSourcesStatus();
   React.useEffect(() => {
+    if (selectedAccountId && cuentas.data?.items) {
+      const exists = cuentas.data.items.some(
+        (account) => account.id === selectedAccountId && account.account_type !== "credit_card",
+      );
+      // Un enlace desde un documento puede apuntar a una cuenta histórica/inactiva que ya no
+      // forma parte del selector actual. Conservamos esa cuenta mientras resolvemos el movimiento:
+      // el read model agrega una opción explícita y permite auditar su origen.
+      if (!exists && !selectedMovementId) {
+        setSelectedAccountId("");
+        setSelectedMovementId(null);
+      }
+      return;
+    }
     const firstAccountId = cuentas.data?.items?.find(
       (account) => account.active && account.account_type !== "credit_card",
     )?.id;
     if (!selectedAccountId && firstAccountId) {
       setSelectedAccountId(firstAccountId);
     }
-  }, [cuentas.data, selectedAccountId]);
+  }, [cuentas.data, selectedAccountId, selectedMovementId]);
   const movs = useBankMovements({
     period_from: desde,
     period_to: hasta,
@@ -126,6 +182,10 @@ export function BancoV03Live() {
     }
     return result;
   }, [resolution.data, selectedMovementId]);
+  const deepLinkedMovement = React.useMemo(
+    () => (resolution.data ? movementFromResolution(resolution.data) : null),
+    [resolution.data],
+  );
   const accountOptions = React.useMemo(
     () => flattenAccounts(managementAccounts.data?.items ?? []),
     [managementAccounts.data],
@@ -169,6 +229,7 @@ export function BancoV03Live() {
       movimientosMotivo={movs.isError ? motivoSinMovimientos(movs.error) : null}
       categorias={categorias}
       resolutionDetails={resolutionDetails}
+      deepLinkedMovement={deepLinkedMovement}
       selectedAccountId={selectedAccountId}
       onAccountChange={(accountId) => {
         setSelectedAccountId(accountId);

@@ -5,6 +5,7 @@ import { Briefcase, Inbox } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import {
   QavanteBadge,
+  QavanteButton,
   QavanteCard,
   QavanteEmpty,
   QavanteInlineError,
@@ -21,6 +22,17 @@ import { formatPeriodLabel } from "./sii-period-form-schema";
 import { DteActions } from "./dte-actions";
 import { fechaToPeriodo } from "./dte-date";
 import { BheKpisPanel } from "./bhe-v2/bhe-kpis-panel";
+import {
+  DocumentResolutionDrawer,
+  type DocumentResolutionTarget,
+} from "./document-resolution-drawer";
+import { bheSourceExternalId } from "./document-resolution-id";
+import {
+  useDocumentStatuses,
+  type DocumentRowStatus,
+  type DocumentStatusKey,
+} from "@/lib/api/reconciliation";
+import { DocumentRowStatusBadges } from "./document-row-status";
 
 /* Columnas ordenables de la grilla BHE (regla de producto). Por defecto: fecha,
    más nueva primero (lista cronológica de boletas). El folio y los montos son
@@ -86,6 +98,54 @@ export function BheListView({
   /* Orden de la grilla (por defecto fecha, más nueva primero; regla de producto). */
   const sort = useTableSort(SORT_COLUMNS, "fecha");
   const sortedItems = sort.sorted(items);
+  const [resolutionTarget, setResolutionTarget] = React.useState<DocumentResolutionTarget | null>(
+    null,
+  );
+  const [resolutionFilter, setResolutionFilter] = React.useState<
+    "all" | "unreconciled" | "unclassified"
+  >("all");
+  const statusDocuments = React.useMemo<DocumentStatusKey[]>(
+    () =>
+      sortedItems.flatMap((item) => {
+        const sourceExternalId = bheSourceExternalId(item);
+        return sourceExternalId
+          ? [{ document_kind: "professional_fee", source_external_id: sourceExternalId }]
+          : [];
+      }),
+    [sortedItems],
+  );
+  const statuses = useDocumentStatuses(statusDocuments, Boolean(period));
+  const statusById = React.useMemo(
+    () =>
+      new Map<string, DocumentRowStatus>(
+        (statuses.data?.items ?? []).map((item) => [item.source_external_id, item]),
+      ),
+    [statuses.data?.items],
+  );
+  const visibleItems = React.useMemo(
+    () =>
+      sortedItems.filter((item) => {
+        if (resolutionFilter === "all") return true;
+        if (!statuses.isSuccess) return true;
+        const status = statusById.get(bheSourceExternalId(item) ?? "");
+        if (!status) return false;
+        return resolutionFilter === "unreconciled"
+          ? status.reconciliation_status !== "reconciled"
+          : status.classification_status !== "classified";
+      }),
+    [resolutionFilter, sortedItems, statusById, statuses.isSuccess],
+  );
+
+  const openResolution = (document: BheRecibida) => {
+    const sourceExternalId = bheSourceExternalId(document);
+    if (!sourceExternalId || document.anulada) return;
+    setResolutionTarget({
+      documentKind: "professional_fee",
+      classificationSide: "bhe",
+      sourceExternalId,
+      label: `BHE ${document.folio ?? "s/d"} · ${document.nombre_emisor ?? "Sin nombre"}`,
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -146,6 +206,38 @@ export function BheListView({
             </div>
           }
         >
+          <div className="mb-3 flex flex-wrap gap-2" aria-label="Filtrar por estado del documento">
+            {(
+              [
+                ["all", "Todos"],
+                ["unreconciled", "Por conciliar"],
+                ["unclassified", "Por clasificar"],
+              ] as const
+            ).map(([value, label]) => (
+              <QavanteButton
+                key={value}
+                size="sm"
+                variant={resolutionFilter === value ? "secondary" : "ghost"}
+                aria-pressed={resolutionFilter === value}
+                onClick={() => setResolutionFilter(value)}
+              >
+                {label}
+              </QavanteButton>
+            ))}
+          </div>
+          {statuses.isFetching && resolutionFilter !== "all" && (
+            <p className="mb-3 text-xs text-neutral-mid" role="status">
+              Consultando el estado de todas las boletas… Mientras carga no se ocultan filas.
+            </p>
+          )}
+          {statuses.isError && (
+            <div className="mb-3">
+              <QavanteInlineError
+                error={statuses.error}
+                what="los estados de clasificación y conciliación"
+              />
+            </div>
+          )}
           <div className={stickyScroll}>
             <table className="w-full min-w-[600px] text-sm">
               <thead className={stickyHead}>
@@ -213,14 +305,35 @@ export function BheListView({
                   >
                     DTE
                   </th>
+                  <th
+                    scope="col"
+                    className="py-2 text-right text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
+                  >
+                    Estado
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {sortedItems.map((b, i) => (
+                {visibleItems.map((b, i) => (
                   <tr
                     key={`${b.folio ?? "x"}-${b.rut_emisor ?? i}`}
+                    onClick={(event) => {
+                      if ((event.target as HTMLElement).closest("a,button,input,select")) return;
+                      openResolution(b);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openResolution(b);
+                      }
+                    }}
+                    tabIndex={b.anulada || !bheSourceExternalId(b) ? undefined : 0}
                     className={cn(
                       "border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted",
+                      !b.anulada &&
+                        bheSourceExternalId(b) &&
+                        "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary",
                       b.anulada && "text-neutral-mid",
                     )}
                   >
@@ -285,6 +398,11 @@ export function BheListView({
                         label={`boleta ${b.folio ?? ""}`}
                       />
                     </td>
+                    <td className="py-2 text-right">
+                      <DocumentRowStatusBadges
+                        status={statusById.get(bheSourceExternalId(b) ?? "")}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -304,6 +422,10 @@ export function BheListView({
           </p>
         </QavanteCard>
       )}
+      <DocumentResolutionDrawer
+        target={resolutionTarget}
+        onClose={() => setResolutionTarget(null)}
+      />
     </div>
   );
 }

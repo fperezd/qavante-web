@@ -60,14 +60,20 @@ test.describe("Flujo: Remuneraciones (/remuneraciones)", () => {
     const carrasco = page.getByRole("row", { name: /TRANSFERENCIA A FERNANDO PEREZ/ });
     await expect(carrasco).toBeVisible();
     await carrasco.getByRole("button", { name: /Desasignar/ }).click();
+    const confirmRevert = page.getByRole("alertdialog", {
+      name: /Confirmar desasignación de Carrasco Díaz/i,
+    });
+    await expect(confirmRevert).toBeVisible();
+    await confirmRevert.getByRole("button", { name: /Confirmar desasignación/ }).click();
     await expect(page.getByText(/Match desasignado/i)).toBeVisible();
     await expect(page.getByText("TRANSFERENCIA A FERNANDO PEREZ")).toHaveCount(0);
 
-    // Asignar bien: elige el débito de sueldos + marca a Ana → Conciliar → Confirmar.
+    // Asignar bien: elige el débito de sueldos + marca a Ana → valida en API → confirma.
     await page.getByRole("radio", { name: /SUELDO FERNANDO PEREZ MAYO/ }).click();
     await page.getByRole("checkbox", { name: /Ana P/ }).click();
-    await page.getByRole("button", { name: /^Conciliar$/ }).click();
-    await expect(page.getByText(/Asignar/)).toBeVisible();
+    await page.getByRole("button", { name: /Validar antes de conciliar/ }).click();
+    await expect(page.getByText("Simulación verificada por el API")).toBeVisible();
+    await expect(page.getByText(/pagado resultante/)).toBeVisible();
     await page.getByRole("button", { name: /Confirmar conciliación/ }).click();
 
     // Refetch del board → toast + Ana pasa a Conciliados (fila con su Desasignar).

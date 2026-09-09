@@ -53,6 +53,8 @@ export type ClassificationProposal = components["schemas"]["ClassificationPropos
 export type ClassificationProposals = components["schemas"]["ProposalsResponse"];
 export type ClassifyRunResponse = components["schemas"]["ClassifyRunResponse"];
 export type ClassifyDocumentRequest = components["schemas"]["ClassifyDocumentRequest"];
+export type ClearDocumentClassificationRequest =
+  components["schemas"]["ClearDocumentClassificationRequest"];
 
 export const gestionKeys = {
   all: ["gestion"] as const,
@@ -239,6 +241,25 @@ export function useClassifyDocument() {
       }),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: gestionKeys.all });
+      qc.invalidateQueries({ queryKey: ["reconciliation", "document-resolution"] });
+      qc.invalidateQueries({ queryKey: ["reconciliation", "document-statuses"] });
+    },
+  });
+}
+
+/** Retira la decisión específica sin borrar su historia. El API deja un override para que una regla
+ * amplia no vuelva a clasificar inmediatamente el mismo documento. */
+export function useClearDocumentClassification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (req: ClearDocumentClassificationRequest) =>
+      api.post<unknown>("/api/management/operational-result/classifications/clear-document", {
+        body: req,
+      }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: gestionKeys.all });
+      qc.invalidateQueries({ queryKey: ["reconciliation", "document-resolution"] });
+      qc.invalidateQueries({ queryKey: ["reconciliation", "document-statuses"] });
     },
   });
 }

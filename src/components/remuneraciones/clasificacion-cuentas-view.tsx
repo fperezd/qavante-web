@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Inbox, ListChecks, TriangleAlert, Pencil } from "lucide-react";
+import { Inbox, ListChecks, TriangleAlert, Pencil, Trash2 } from "lucide-react";
 import {
   QavanteBadge,
   QavanteButton,
@@ -39,6 +39,7 @@ export interface ClasificacionCuentasViewProps {
   pending?: boolean;
   onAssign: (workerRut: string, allocations: AllocationIn[], effectiveFrom: string) => void;
   onBulkAssign: (workerRuts: string[], allocations: AllocationIn[], effectiveFrom: string) => void;
+  onClear?: (workerRut: string, effectiveFrom: string) => void;
   periodForm?: React.ReactNode;
 }
 
@@ -84,6 +85,7 @@ export function ClasificacionCuentasView({
   pending,
   onAssign,
   onBulkAssign,
+  onClear,
   periodForm,
 }: ClasificacionCuentasViewProps) {
   const [checked, setChecked] = React.useState<Set<string>>(new Set());
@@ -278,16 +280,39 @@ export function ClasificacionCuentasView({
                     </td>
                     <td className="py-2 text-right">
                       {canEdit && (
-                        <QavanteButton
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => setDialog({ modo: "individual", worker: w })}
-                          disabled={pending}
-                          aria-label={`Clasificar a ${w.worker_name ?? w.worker_rut}`}
-                        >
-                          <Pencil className="mr-1 size-3.5" aria-hidden="true" />
-                          {w.allocations && w.allocations.length > 0 ? "Editar" : "Clasificar"}
-                        </QavanteButton>
+                        <div className="inline-flex items-center gap-1">
+                          <QavanteButton
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setDialog({ modo: "individual", worker: w })}
+                            disabled={pending}
+                            aria-label={`Clasificar a ${w.worker_name ?? w.worker_rut}`}
+                          >
+                            <Pencil className="mr-1 size-3.5" aria-hidden="true" />
+                            {w.allocations && w.allocations.length > 0 ? "Editar" : "Clasificar"}
+                          </QavanteButton>
+                          {onClear && (w.allocations?.length ?? 0) > 0 && months[0] && (
+                            <QavanteButton
+                              size="sm"
+                              variant="ghost"
+                              disabled={pending}
+                              aria-label={`Desclasificar a ${w.worker_name ?? w.worker_rut}`}
+                              onClick={() => {
+                                const effectiveFrom = months[0]!.value;
+                                if (
+                                  window.confirm(
+                                    `¿Retirar la clasificación de ${w.worker_name ?? w.worker_rut} desde ${months[0]!.label}? Los meses anteriores no cambian.`,
+                                  )
+                                ) {
+                                  onClear(w.worker_rut, effectiveFrom);
+                                }
+                              }}
+                            >
+                              <Trash2 className="mr-1 size-3.5" aria-hidden="true" />
+                              Desclasificar
+                            </QavanteButton>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>

@@ -11,13 +11,18 @@ import {
   usePayrollReconcileRevert,
 } from "@/lib/api/payroll-settlements";
 import { ApiError } from "@/lib/api/errors";
+import { usePayrollWorkers } from "@/lib/api/payroll-workers";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { ConciliacionBoardView } from "./conciliacion-board-view";
 import {
   normalizeBoard,
   debitosCandidatos,
   buildReconcileBody,
+  normalizeReconcileOutcome,
+  normalizeReconcilePreview,
+  payrollRutKey,
   periodToYyyymm,
+  type PayrollReconcilePreview,
 } from "./settlement-board-model";
 
 /* Contenedor de la conciliación accionable (#835): trae el board (fuente de verdad del backend) +
@@ -43,7 +48,9 @@ export function ConciliacionBoardLive({
   const yyyymm = period ? periodToYyyymm(period) : "";
   const boardQuery = usePayrollSettlementBoard(yyyymm, Boolean(period));
   const bankQuery = useBankMovements({ period: period ?? "" });
-  const reconcile = usePayrollReconcile();
+  const classificationsQuery = usePayrollWorkers(period ?? "", Boolean(period));
+  const validateReconcile = usePayrollReconcile();
+  const applyReconcile = usePayrollReconcile();
   const revert = usePayrollReconcileRevert();
 
   const [assigning, setAssigning] = React.useState(false);
@@ -55,34 +62,61 @@ export function ConciliacionBoardLive({
     [bankQuery.data, board],
   );
 
-  const onAssign = (debitoId: string, workerRuts: string[]) => {
+  const onValidate = async (
+    debitoId: string,
+    workerRuts: string[],
+  ): Promise<PayrollReconcilePreview> => {
     const debito = candidatos.find((c) => c.id === debitoId);
-    if (!debito || !period) return;
+    if (!debito || !period) throw new Error("Selección incompleta");
+    try {
+      const raw = await validateReconcile.mutateAsync(
+        buildReconcileBody(period, debito, workerRuts, true),
+      );
+      const preview = normalizeReconcilePreview(raw);
+      if (!preview) throw new Error("La simulación del API no contiene evidencia verificable");
+      const selectedRuts = new Set(workerRuts.map(payrollRutKey));
+      if (
+        preview.period !== periodToYyyymm(period) ||
+        preview.amount !== debito.monto ||
+        preview.applied.some((row) => !selectedRuts.has(payrollRutKey(row.workerRut)))
+      ) {
+        throw new Error("La simulación del API no corresponde a la selección vigente");
+      }
+      return preview;
+    } catch (e) {
+      toast.error("No se puede conciliar ese débito", { description: errMsg(e) });
+      throw e;
+    }
+  };
+
+  const onAssign = async (debitoId: string, workerRuts: string[]) => {
+    const debito = candidatos.find((c) => c.id === debitoId);
+    if (!debito || !period) return false;
     setAssigning(true);
-    // 1) dry-run: valida sin mutar (el backend rechaza montos/movimientos inválidos).
-    reconcile.mutate(buildReconcileBody(period, debito, workerRuts, true), {
-      onSuccess: () => {
-        // 2) apply: recién ahora muta e invalida el board + la cartola.
-        reconcile.mutate(buildReconcileBody(period, debito, workerRuts, false), {
-          onSuccess: () => {
-            toast.success(
-              workerRuts.length === 1
-                ? "Sueldo conciliado"
-                : `${workerRuts.length} sueldos conciliados`,
-            );
-            setAssigning(false);
-          },
-          onError: (e) => {
-            toast.error("No se pudo conciliar", { description: errMsg(e) });
-            setAssigning(false);
-          },
+    try {
+      const raw = await applyReconcile.mutateAsync(
+        buildReconcileBody(period, debito, workerRuts, false),
+      );
+      const outcome = normalizeReconcileOutcome(raw, false);
+      if (!outcome) {
+        toast.error("La conciliación respondió sin evidencia verificable", {
+          description: "Revisa el estado actualizado antes de volver a intentar.",
         });
-      },
-      onError: (e) => {
-        toast.error("No se puede conciliar ese débito", { description: errMsg(e) });
-        setAssigning(false);
-      },
-    });
+        return true;
+      }
+      toast.success(
+        workerRuts.length === 1 ? "Sueldo conciliado" : `${workerRuts.length} sueldos conciliados`,
+        {
+          description: `Aplicado ${outcome.appliedTotal}. Evidencia: ${outcome.applied.map((row) => row.settlementId).join(", ")}`,
+        },
+      );
+      return true;
+    } catch (e) {
+      toast.error("No se pudo conciliar", { description: errMsg(e) });
+      return false;
+    } finally {
+      setAssigning(false);
+    }
   };
 
   const onRevert = (linkId: string) => {
@@ -90,8 +124,16 @@ export function ConciliacionBoardLive({
     revert.mutate(
       { link_id: linkId },
       {
-        onSuccess: () => {
-          toast.success("Match desasignado");
+        onSuccess: (raw) => {
+          const result = raw as { reverted?: unknown } | null;
+          if (result?.reverted !== true) {
+            toast.error("No se confirmó la desasignación", {
+              description: "El API no devolvió evidencia de que el match fue revertido.",
+            });
+            setRevertingId(null);
+            return;
+          }
+          toast.success("Match desasignado", { description: `Evidencia: ${linkId}` });
           setRevertingId(null);
         },
         onError: (e) => {
@@ -141,6 +183,15 @@ export function ConciliacionBoardLive({
           periodLabel={formatPeriodLabel(period)}
           board={board}
           candidatos={candidatos}
+          classifications={classificationsQuery.data?.workers ?? []}
+          classificationsState={
+            classificationsQuery.isLoading
+              ? "loading"
+              : classificationsQuery.error
+                ? "error"
+                : "ready"
+          }
+          onValidate={onValidate}
           onAssign={onAssign}
           onRevert={onRevert}
           assignPending={assigning}

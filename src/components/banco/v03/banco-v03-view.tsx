@@ -109,6 +109,8 @@ export interface BancoV03ViewProps {
   categorias?: ReadonlyMap<string, string>;
   /** Read model de #428. Ausente = detalle mínimo y honesto desde BankMovement. */
   resolutionDetails?: ReadonlyMap<string, BankMovementResolutionDetail>;
+  /** Movimiento cargado por enlace directo, incluso si queda fuera del período visible. */
+  deepLinkedMovement?: MovimientoV03 | null;
   onUnreconcile?: (movementId: string) => void;
   onReclassify?: (movementId: string) => void;
   onUnclassify?: (movementId: string) => void;
@@ -153,6 +155,7 @@ export function BancoV03View({
   movimientosMotivo,
   categorias = new Map(),
   resolutionDetails = new Map(),
+  deepLinkedMovement = null,
   onUnreconcile,
   onReclassify,
   onUnclassify,
@@ -175,6 +178,13 @@ export function BancoV03View({
   const [consulta, setConsulta] = React.useState("");
   const [cuentaSeleccionada, setCuentaSeleccionada] = React.useState("");
   const [movimientoAbierto, setMovimientoAbierto] = React.useState<string | null>(null);
+  const deepLinkOpened = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (!deepLinkedMovement || deepLinkOpened.current === deepLinkedMovement.id) return;
+    deepLinkOpened.current = deepLinkedMovement.id;
+    setMovimientoAbierto(deepLinkedMovement.id);
+  }, [deepLinkedMovement]);
 
   const caja = cajaHoy(summary);
   const conexion = conexionBanco(sources, saldo, tarjetas);
@@ -221,13 +231,29 @@ export function BancoV03View({
         moneda: movement.moneda,
       });
     }
+    if (deepLinkedMovement && !known.has(deepLinkedMovement.bankAccountId)) {
+      options.push({
+        id: deepLinkedMovement.bankAccountId,
+        label: deepLinkedMovement.cuenta,
+        moneda: deepLinkedMovement.moneda,
+      });
+    }
     return options;
   })();
   const requestedAccount = selectedAccountId ?? cuentaSeleccionada;
   const cuentaActiva = opcionesCuenta.some((a) => a.id === requestedAccount)
     ? requestedAccount
     : (opcionesCuenta[0]?.id ?? "");
-  const movimientosCuenta = movs?.filter((m) => m.bankAccountId === cuentaActiva) ?? null;
+  const movimientosDisponibles = [...(movs ?? [])];
+  if (
+    deepLinkedMovement &&
+    !movimientosDisponibles.some((movement) => movement.id === deepLinkedMovement.id)
+  ) {
+    movimientosDisponibles.push(deepLinkedMovement);
+  }
+  const movimientosCuenta = movimientos
+    ? movimientosDisponibles.filter((m) => m.bankAccountId === cuentaActiva)
+    : null;
   const conteos = movimientosCuenta ? contarMovimientosV03(movimientosCuenta, consulta) : null;
   const visibles = movimientosCuenta
     ? filtrarMovimientosV03(
@@ -240,12 +266,15 @@ export function BancoV03View({
     : [];
   const totales = totalesPorMoneda(visibles);
   const rawMovement = movimientos?.find((m) => m.id === movimientoAbierto) ?? null;
-  const openMovement = movs?.find((m) => m.id === movimientoAbierto) ?? null;
+  const openMovement =
+    movs?.find((m) => m.id === movimientoAbierto) ??
+    (deepLinkedMovement?.id === movimientoAbierto ? deepLinkedMovement : null);
   const openDetail =
-    openMovement && rawMovement
-      ? (resolutionDetails.get(openMovement.id) ??
-        resolutionDetailFromMovement(rawMovement, openMovement.categoria))
-      : null;
+    openMovement && resolutionDetails.has(openMovement.id)
+      ? resolutionDetails.get(openMovement.id)!
+      : openMovement && rawMovement
+        ? resolutionDetailFromMovement(rawMovement, openMovement.categoria)
+        : null;
 
   return (
     <div className="space-y-5">

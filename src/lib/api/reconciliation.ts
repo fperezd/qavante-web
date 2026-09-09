@@ -13,7 +13,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import { cobranzaKeys } from "./cobranza";
+import { gestionKeys } from "./gestion";
 import { pagosKeys } from "./pagos";
+import { siiKeys } from "./sii";
 import type { components } from "./types";
 
 export type ReviewQueueResponse = components["schemas"]["ReviewQueueResponse"];
@@ -32,6 +34,45 @@ export type ReconcileResponse = components["schemas"]["ReconcileResponse"];
 export type ReanalyzeResponse = components["schemas"]["ReanalyzeResponse"];
 export type ReconciliationAlias = components["schemas"]["ReconciliationAlias"];
 export type ReconciliationAliasesResponse = components["schemas"]["ReconciliationAliasesResponse"];
+export type DocumentResolutionResponse = components["schemas"]["DocumentResolutionResponse"];
+export type DocumentCandidateAllocation = components["schemas"]["DocumentCandidateAllocation"];
+export type DocumentAllocationDetail = components["schemas"]["DocumentAllocationDetail"];
+export type CaseMovementDetail = components["schemas"]["CaseMovementDetail"];
+export type AssignDocumentPaymentRequest = components["schemas"]["AssignDocumentPaymentRequest"];
+export type DocumentStatusKey = components["schemas"]["DocumentStatusKey"];
+export type DocumentRowStatus = components["schemas"]["DocumentRowStatus"];
+export type DocumentStatusesResponse = components["schemas"]["DocumentStatusesResponse"];
+
+export const DOCUMENT_STATUS_BATCH_SIZE = 500;
+
+export function uniqueDocumentStatusKeys(documents: DocumentStatusKey[]): DocumentStatusKey[] {
+  const seen = new Set<string>();
+  return documents.filter((item) => {
+    const key = `${item.document_kind}:${item.source_external_id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export async function fetchDocumentStatuses(
+  documents: DocumentStatusKey[],
+): Promise<DocumentStatusesResponse> {
+  const unique = uniqueDocumentStatusKeys(documents);
+  const batches: DocumentStatusKey[][] = [];
+  for (let index = 0; index < unique.length; index += DOCUMENT_STATUS_BATCH_SIZE) {
+    batches.push(unique.slice(index, index + DOCUMENT_STATUS_BATCH_SIZE));
+  }
+  const responses = await Promise.all(
+    batches.map((batch) =>
+      api.post<DocumentStatusesResponse>(
+        "/api/treasury/reconciliation/document-resolution/statuses",
+        { body: { documents: batch } },
+      ),
+    ),
+  );
+  return { items: responses.flatMap((response) => response.items) };
+}
 
 /** Rechazo documentado con memoria negativa, generado desde el OpenAPI desplegado por API #359. */
 export type RejectDocumentSuggestionResponse =
@@ -45,7 +86,68 @@ export const reconciliationKeys = {
   aliases: () => [...reconciliationKeys.all, "aliases"] as const,
   documentSuggestions: (movementId: string) =>
     [...reconciliationKeys.all, "document-suggestions", movementId] as const,
+  documentResolution: (documentKind: string, sourceExternalId: string) =>
+    [...reconciliationKeys.all, "document-resolution", documentKind, sourceExternalId] as const,
+  documentStatuses: (signature: string) =>
+    [...reconciliationKeys.all, "document-statuses", signature] as const,
 };
+
+/** Estados de ambas relaciones para una tabla completa, en una sola llamada (sin N+1). */
+export function useDocumentStatuses(documents: DocumentStatusKey[], enabled = true) {
+  const unique = uniqueDocumentStatusKeys(documents);
+  const signature = unique
+    .map((item) => `${item.document_kind}:${item.source_external_id}`)
+    .join("|");
+  return useQuery({
+    queryKey: reconciliationKeys.documentStatuses(signature),
+    queryFn: () => fetchDocumentStatuses(unique),
+    enabled: enabled && unique.length > 0,
+    staleTime: 15_000,
+    retry: false,
+  });
+}
+
+/** Estado canónico visto desde una factura/BHE: clasificación, pagos aplicados y candidatos
+ * elegibles. Es sólo lectura; jamás preselecciona ni concilia por abrir el detalle. */
+export function useDocumentResolution(
+  documentKind: "receivable" | "payable" | "professional_fee",
+  sourceExternalId: string | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: reconciliationKeys.documentResolution(documentKind, sourceExternalId ?? ""),
+    queryFn: () =>
+      api.get<DocumentResolutionResponse>(
+        `/api/treasury/reconciliation/document-resolution?document_kind=${encodeURIComponent(
+          documentKind,
+        )}&source_external_id=${encodeURIComponent(sourceExternalId as string)}`,
+      ),
+    enabled: enabled && Boolean(sourceExternalId),
+    staleTime: 15_000,
+    retry: false,
+  });
+}
+
+/** Asigna el movimiento que el usuario eligió al documento. La API vuelve a validar el mismo
+ * conjunto elegible, de modo que una fila stale no puede forzar una conciliación inválida. */
+export function useAssignDocumentPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AssignDocumentPaymentRequest) =>
+      api.post<ConfirmResponse>("/api/treasury/reconciliation/document-resolution/assign", {
+        body,
+      }),
+    onSuccess: (_result, body) => {
+      qc.invalidateQueries({
+        queryKey: reconciliationKeys.documentResolution(
+          body.document_kind,
+          body.source_external_id,
+        ),
+      });
+      invalidarDocumentos(qc);
+    },
+  });
+}
 
 /** `GET /api/treasury/reconciliation/review` — cola de revisión: movimientos con una sugerencia
  *  de match de confianza media (score 60-90) esperando confirmación. */
@@ -199,7 +301,7 @@ export function useRevertReconciliation() {
       api.post<RevertReconciliationResponse>(
         `/api/treasury/reconciliation/${encodeURIComponent(movementId)}/revert`,
       ),
-    onSuccess: () => invalidarPorConciliar(qc),
+    onSuccess: () => invalidarDocumentos(qc),
   });
 }
 
@@ -237,6 +339,14 @@ function invalidarPorConciliar(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: cobranzaKeys.all });
   qc.invalidateQueries({ queryKey: pagosKeys.all });
   qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
+}
+
+/** Una acción desde el documento cambia Banco, libros, Cobrar/Pagar y Gestión. */
+function invalidarDocumentos(qc: ReturnType<typeof useQueryClient>) {
+  invalidarPorConciliar(qc);
+  qc.invalidateQueries({ queryKey: reconciliationKeys.all });
+  qc.invalidateQueries({ queryKey: gestionKeys.all });
+  qc.invalidateQueries({ queryKey: siiKeys.all });
 }
 
 /** `POST /api/treasury/reconciliation/mark-collected/revert` — DESHACE un `mark-collected`: re-abre los

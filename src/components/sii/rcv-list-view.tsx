@@ -45,6 +45,17 @@ import {
   type RcvDoc,
 } from "./rcv-grouped-item";
 import { sortGroupedItems, toggleSort, type SortKey, type SortState } from "./rcv-sort";
+import {
+  DocumentResolutionDrawer,
+  type DocumentResolutionTarget,
+} from "./document-resolution-drawer";
+import { rcvSourceExternalId } from "./document-resolution-id";
+import {
+  useDocumentStatuses,
+  type DocumentRowStatus,
+  type DocumentStatusKey,
+} from "@/lib/api/reconciliation";
+import { DocumentRowStatusBadges } from "./document-row-status";
 
 /* Vista reusable para Libro de Compras / Libro de Ventas (Sprint C1
    PR-Lib, mejora 2026-05-24). Hoy el backend expone /api/sii/rcv/compras
@@ -198,7 +209,13 @@ export function RcvListView({
   /* "agrupado" = facturas anuladas mostradas con sus NC vinculadas (estilo
      Chipax, default). "detalle" = lista plana documento por documento. */
   const [viewMode, setViewMode] = React.useState<"agrupado" | "detalle">("agrupado");
+  const [resolutionFilter, setResolutionFilter] = React.useState<
+    "all" | "unreconciled" | "unclassified"
+  >("all");
   const [selected, setSelected] = React.useState<FacturaRow<RcvDoc> | null>(null);
+  const [resolutionTarget, setResolutionTarget] = React.useState<DocumentResolutionTarget | null>(
+    null,
+  );
   /* Orden por columna (clic en el título): none → asc → desc → none. */
   const [sort, setSort] = React.useState<SortState | null>(null);
 
@@ -215,10 +232,42 @@ export function RcvListView({
   }, [period]);
 
   const filteredDocs = React.useMemo(() => applyFilters(allDocs, filters), [allDocs, filters]);
+  const statusKind = kind === "ventas" ? "receivable" : "payable";
+  const statusDocuments = React.useMemo<DocumentStatusKey[]>(
+    () =>
+      filteredDocs.flatMap((doc) => {
+        const sourceExternalId = rcvSourceExternalId(doc);
+        return sourceExternalId
+          ? [{ document_kind: statusKind, source_external_id: sourceExternalId }]
+          : [];
+      }),
+    [filteredDocs, statusKind],
+  );
+  const statuses = useDocumentStatuses(statusDocuments);
+  const statusById = React.useMemo(
+    () =>
+      new Map<string, DocumentRowStatus>(
+        (statuses.data?.items ?? []).map((item) => [item.source_external_id, item]),
+      ),
+    [statuses.data?.items],
+  );
+  const visibleDocs = React.useMemo(
+    () =>
+      filteredDocs.filter((doc) => {
+        if (resolutionFilter === "all") return true;
+        if (!statuses.isSuccess) return true;
+        const status = statusById.get(rcvSourceExternalId(doc) ?? "");
+        if (!status) return false;
+        return resolutionFilter === "unreconciled"
+          ? status.reconciliation_status !== "reconciled"
+          : status.classification_status !== "classified";
+      }),
+    [filteredDocs, resolutionFilter, statusById, statuses.isSuccess],
+  );
 
   /* Agrupación NC→factura (modo "agrupado"). Facturas primero, luego las NC
      huérfanas (sin factura del período). */
-  const grouped = React.useMemo(() => agruparConReferencias(filteredDocs), [filteredDocs]);
+  const grouped = React.useMemo(() => agruparConReferencias(visibleDocs), [visibleDocs]);
   const groupedItems = React.useMemo<GroupedItem[]>(
     () => [
       ...grouped.rows.map((row) => ({ t: "fac" as const, row })),
@@ -241,11 +290,10 @@ export function RcvListView({
     () => sortedGrouped.slice((currentPage - 1) * pageSize, currentPage * pageSize),
     [sortedGrouped, currentPage, pageSize],
   );
-
   /* Totales sobre el SET FILTRADO COMPLETO (no solo la página actual). Netea las
      Notas de Crédito (restan) — antes se sumaban como una venta más, inflando el
      total. Ver computeRcvTotals (robusto al signo de la NC). */
-  const totals = React.useMemo(() => computeRcvTotals(filteredDocs), [filteredDocs]);
+  const totals = React.useMemo(() => computeRcvTotals(visibleDocs), [visibleDocs]);
   const anuladasCount = React.useMemo(
     () => grouped.rows.filter((r) => r.estado !== "vigente").length,
     [grouped],
@@ -353,6 +401,39 @@ export function RcvListView({
           }
         >
           <div className="space-y-3">
+            <div className="flex flex-wrap gap-2" aria-label="Filtrar por estado del documento">
+              {(
+                [
+                  ["all", "Todos"],
+                  ["unreconciled", "Por conciliar"],
+                  ["unclassified", "Por clasificar"],
+                ] as const
+              ).map(([value, label]) => (
+                <QavanteButton
+                  key={value}
+                  size="sm"
+                  variant={resolutionFilter === value ? "secondary" : "ghost"}
+                  aria-pressed={resolutionFilter === value}
+                  onClick={() => {
+                    setResolutionFilter(value);
+                    setPage(1);
+                  }}
+                >
+                  {label}
+                </QavanteButton>
+              ))}
+            </div>
+            {statuses.isFetching && resolutionFilter !== "all" && (
+              <p className="text-xs text-neutral-mid" role="status">
+                Consultando el estado de todos los documentos… Mientras carga no se ocultan filas.
+              </p>
+            )}
+            {statuses.isError && (
+              <QavanteInlineError
+                error={statuses.error}
+                what="los estados de clasificación y conciliación"
+              />
+            )}
             {filtersOpen && (
               <FiltersPanel
                 kind={kind}
@@ -386,6 +467,19 @@ export function RcvListView({
                   onToggleSort={onToggleSort}
                   dteKind={kind}
                   dteWindow={dteWindow}
+                  onManageDocument={(doc) => {
+                    const sourceExternalId = rcvSourceExternalId(doc);
+                    if (!sourceExternalId) return;
+                    setResolutionTarget({
+                      documentKind: kind === "ventas" ? "receivable" : "payable",
+                      classificationSide: kind,
+                      sourceExternalId,
+                      label: `${tipoDocMeta(doc.tipo_doc ?? null).abbr} ${doc.folio ?? "s/d"} · ${
+                        doc.razon_social ?? "Sin nombre"
+                      }`,
+                    });
+                  }}
+                  statusById={statusById}
                   showDueDate={kind === "ventas"}
                 />
                 <PaginationBar
@@ -402,12 +496,25 @@ export function RcvListView({
               </>
             ) : (
               <RcvDetalleGrid
-                docs={filteredDocs}
+                docs={visibleDocs}
                 totals={totals}
                 partyLabel={copy.partyLabel}
                 hasActiveFilters={hasActiveFilters}
                 dteKind={kind}
                 dteWindow={dteWindow}
+                onManageDocument={(doc) => {
+                  const sourceExternalId = rcvSourceExternalId(doc);
+                  if (!sourceExternalId) return;
+                  setResolutionTarget({
+                    documentKind: kind === "ventas" ? "receivable" : "payable",
+                    classificationSide: kind,
+                    sourceExternalId,
+                    label: `${tipoDocMeta(doc.tipo_doc ?? null).abbr} ${doc.folio ?? "s/d"} · ${
+                      doc.razon_social ?? "Sin nombre"
+                    }`,
+                  });
+                }}
+                statusById={statusById}
                 showDueDate={kind === "ventas"}
               />
             )}
@@ -431,6 +538,10 @@ export function RcvListView({
           onClose={() => setSelected(null)}
         />
       )}
+      <DocumentResolutionDrawer
+        target={resolutionTarget}
+        onClose={() => setResolutionTarget(null)}
+      />
     </div>
   );
 }
@@ -493,6 +604,8 @@ export interface GroupedTableProps {
   dteKind?: RcvKind;
   /** Ventana del rango consultado para armar la URL del PDF (ver dtePdfUrlForDoc). */
   dteWindow?: { desde: string; hasta: string } | null;
+  onManageDocument?: (doc: RcvDoc) => void;
+  statusById?: Map<string, DocumentRowStatus>;
   /** Ventas puede traer el vencimiento enriquecido desde el backend. */
   showDueDate?: boolean;
 }
@@ -513,6 +626,8 @@ export function GroupedTable({
   onToggleSort,
   dteKind,
   dteWindow = null,
+  onManageDocument,
+  statusById,
   showDueDate = false,
 }: GroupedTableProps) {
   const showDte = dteKind !== undefined;
@@ -564,6 +679,11 @@ export function GroupedTable({
                 DTE
               </th>
             )}
+            {onManageDocument && (
+              <th scope="col" className="py-2 text-right font-semibold">
+                Gestión
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -575,7 +695,32 @@ export function GroupedTable({
               return (
                 <tr
                   key={`nc-${d.folio ?? "x"}-${i}`}
-                  className="border-b border-border/60 last:border-b-0 hover:bg-surface-muted"
+                  onClick={
+                    onManageDocument
+                      ? (event) => {
+                          if ((event.target as HTMLElement).closest("a,button,input,select"))
+                            return;
+                          onManageDocument(d);
+                        }
+                      : undefined
+                  }
+                  onKeyDown={
+                    onManageDocument
+                      ? (event) => {
+                          if (event.target !== event.currentTarget) return;
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            onManageDocument(d);
+                          }
+                        }
+                      : undefined
+                  }
+                  tabIndex={onManageDocument ? 0 : undefined}
+                  className={cn(
+                    "border-b border-border/60 last:border-b-0 hover:bg-surface-muted",
+                    onManageDocument &&
+                      "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary",
+                  )}
                 >
                   <td className="py-2 pr-3">
                     <span
@@ -633,6 +778,13 @@ export function GroupedTable({
                   </td>
                   <td className="py-2 text-[11px] text-neutral-mid">Nota de crédito</td>
                   {dteKind && <td className="py-2 text-right">{dteCell(dteKind, d, dteWindow)}</td>}
+                  {onManageDocument && (
+                    <td className="py-2 text-right">
+                      <DocumentRowStatusBadges
+                        status={statusById?.get(rcvSourceExternalId(d) ?? "")}
+                      />
+                    </td>
+                  )}
                 </tr>
               );
             }
@@ -641,24 +793,31 @@ export function GroupedTable({
             const f = row.factura;
             const meta = tipoDocMeta(f.tipo_doc ?? null);
             const anulada = row.estado === "anulada";
-            const clickable = row.notas.length > 0;
+            const clickable = Boolean(onManageDocument);
             const badge = row.estado !== "vigente" ? ESTADO_BADGE[row.estado] : null;
             return (
               <tr
                 key={`fac-${f.folio ?? "x"}-${i}`}
-                onClick={clickable ? () => onSelect(row) : undefined}
+                onClick={
+                  clickable
+                    ? (event) => {
+                        if ((event.target as HTMLElement).closest("a,button,input,select")) return;
+                        onManageDocument?.(f);
+                      }
+                    : undefined
+                }
                 onKeyDown={
                   clickable
                     ? (e) => {
+                        if (e.target !== e.currentTarget) return;
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          onSelect(row);
+                          onManageDocument?.(f);
                         }
                       }
                     : undefined
                 }
                 tabIndex={clickable ? 0 : undefined}
-                role={clickable ? "button" : undefined}
                 className={cn(
                   "border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted",
                   clickable &&
@@ -745,16 +904,29 @@ export function GroupedTable({
                           revisar
                         </span>
                       )}
-                      <span className="inline-flex items-center gap-0.5 text-xs text-brand-primary">
-                        <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-                        asociados
-                      </span>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-0.5 text-xs text-brand-primary hover:underline"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelect(row);
+                        }}
+                      >
+                        <Layers className="h-3.5 w-3.5" aria-hidden="true" /> asociados
+                      </button>
                     </span>
                   ) : (
                     <span className="text-neutral-mid">s/d</span>
                   )}
                 </td>
                 {dteKind && <td className="py-2 text-right">{dteCell(dteKind, f, dteWindow)}</td>}
+                {onManageDocument && (
+                  <td className="py-2 text-right">
+                    <DocumentRowStatusBadges
+                      status={statusById?.get(rcvSourceExternalId(f) ?? "")}
+                    />
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -781,10 +953,14 @@ export function GroupedTable({
             </td>
             <td className="py-2" />
             {showDte && <td className="py-2" />}
+            {onManageDocument && <td className="py-2" />}
           </tr>
           {totals.ncCount > 0 && (
             <tr className="text-[11px] text-neutral-mid">
-              <td colSpan={(showDte ? 9 : 8) + (showDueDate ? 1 : 0)} className="pb-2 pr-3">
+              <td
+                colSpan={8 + (showDte ? 1 : 0) + (showDueDate ? 1 : 0) + (onManageDocument ? 1 : 0)}
+                className="pb-2 pr-3"
+              >
                 Se descontaron {totals.ncCount}{" "}
                 {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
                 <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}

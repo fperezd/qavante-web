@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { fn } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
+import { http, HttpResponse } from "msw";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { RcvListView } from "./rcv-list-view";
 import type { RcvComprasResponse, RcvVentasResponse } from "@/lib/api/sii";
@@ -10,6 +11,52 @@ import type { RcvComprasResponse, RcvVentasResponse } from "@/lib/api/sii";
    estados canónicos (loading, success, empty, error). */
 
 type RcvQuery = UseQueryResult<RcvComprasResponse | RcvVentasResponse, unknown>;
+
+const DOCUMENT_STATES = http.post(
+  "*/api/treasury/reconciliation/document-resolution/statuses",
+  async ({ request }) => {
+    const body = (await request.json()) as {
+      documents: Array<{ document_kind: string; source_external_id: string }>;
+    };
+    return HttpResponse.json({
+      items: body.documents.map((document) => ({
+        ...document,
+        classification_status: "unclassified",
+        reconciliation_status: "unreconciled",
+        assignment_count: 0,
+      })),
+    });
+  },
+);
+const MANAGEMENT_ACCOUNTS = http.get("*/api/management/accounts/tree", () =>
+  HttpResponse.json({ items: [] }),
+);
+const DOCUMENT_DETAIL = http.get(
+  "*/api/treasury/reconciliation/document-resolution",
+  ({ request }) => {
+    const url = new URL(request.url);
+    const sourceExternalId = url.searchParams.get("source_external_id") ?? "documento";
+    return HttpResponse.json({
+      document_id: "document-1",
+      document_kind: "payable",
+      source_external_id: sourceExternalId,
+      document_type: 33,
+      folio: "1001",
+      rut: "76555444-K",
+      name: "Proveedor SpA",
+      issue_date: "2026-04-03",
+      due_date: null,
+      total_amount: "952000",
+      outstanding_amount: "952000",
+      currency_code: "CLP",
+      status: "open",
+      blocked_reason: null,
+      classification: null,
+      assignments: [],
+      candidates: [],
+    });
+  },
+);
 
 /* Helper para construir un fake-UseQueryResult sin caer en `as any`. Solo
    las props que el componente lee están tipadas estrictas; el resto se
@@ -246,6 +293,7 @@ const meta = {
   component: RcvListView,
   parameters: {
     layout: "padded",
+    msw: { handlers: [DOCUMENT_STATES, MANAGEMENT_ACCOUNTS, DOCUMENT_DETAIL] },
     docs: {
       description: {
         component:
@@ -276,6 +324,18 @@ export const ComprasOk: Story = {
     kind: "compras",
     period: "2026-04",
     query: buildQuery({ data: SUCCESS_COMPRAS }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const documentRow = canvas.getAllByRole("row").find((row) => {
+      const scoped = within(row);
+      return scoped.queryByText("1001") && scoped.queryByText("Proveedor SpA");
+    });
+    await expect(documentRow).toBeDefined();
+    await userEvent.click(documentRow!);
+    const dialog = await canvas.findByRole("dialog");
+    await expect(within(dialog).getByText("Clasificación y pago")).toBeInTheDocument();
+    await expect(await within(dialog).findByText("Por conciliar")).toBeInTheDocument();
   },
 };
 

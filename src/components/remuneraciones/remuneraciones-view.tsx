@@ -15,8 +15,10 @@ import {
   usePayrollWorkers,
   useSetWorkerAllocations,
   useBulkSetWorkerAllocations,
+  useClearWorkerAllocations,
   type AllocationIn,
 } from "@/lib/api/payroll-workers";
+import { useRevertReversibleAction } from "@/lib/api/reversible-actions";
 import { useManagementAccountsTree } from "@/lib/api/management";
 import { useSiiF29Impuesto } from "@/lib/api/sii";
 import { ApiError } from "@/lib/api/errors";
@@ -218,6 +220,8 @@ function ClasificacionCuentasLive({
   const accountsQuery = useManagementAccountsTree();
   const setAlloc = useSetWorkerAllocations();
   const bulkSet = useBulkSetWorkerAllocations();
+  const clearAlloc = useClearWorkerAllocations();
+  const revertAction = useRevertReversibleAction();
 
   const options = React.useMemo(
     () => payrollCuentaOptions(accountsQuery.data?.items ?? []),
@@ -270,6 +274,42 @@ function ClasificacionCuentasLive({
         onError: (e) => toast.error("No se pudo asignar en lote", { description: errMsg(e) }),
       },
     );
+  const onClear = (workerRut: string, effectiveFrom: string) =>
+    clearAlloc.mutate(
+      { workerRut, effectiveFrom },
+      {
+        onSuccess: (result) => {
+          if (!result.cleared) {
+            toast.error("No había una clasificación vigente que retirar");
+            return;
+          }
+          toast.success("Clasificación retirada", {
+            description: `Sin clasificación desde ${formatPeriodLabel(effectiveFrom)}; los meses anteriores se conservan.`,
+            action: result.action_id
+              ? {
+                  label: "Deshacer",
+                  onClick: () =>
+                    revertAction.mutate(result.action_id!, {
+                      onSuccess: (undo) => {
+                        if (undo.result === "reverted") {
+                          toast.success("Clasificación restaurada");
+                          void workersQuery.refetch();
+                        } else {
+                          toast.error("No se pudo restaurar", {
+                            description: "El reparto cambió después de la desclasificación.",
+                          });
+                        }
+                      },
+                      onError: (error) =>
+                        toast.error("No se pudo restaurar", { description: error.message }),
+                    }),
+                }
+              : undefined,
+          });
+        },
+        onError: (error) => toast.error("No se pudo desclasificar", { description: errMsg(error) }),
+      },
+    );
 
   return (
     <ClasificacionCuentasView
@@ -279,9 +319,12 @@ function ClasificacionCuentasLive({
       unclassifiedCount={workersQuery.data?.unclassified_count ?? 0}
       loading={workersQuery.isLoading}
       error={workersQuery.error}
-      pending={setAlloc.isPending || bulkSet.isPending}
+      pending={
+        setAlloc.isPending || bulkSet.isPending || clearAlloc.isPending || revertAction.isPending
+      }
       onAssign={onAssign}
       onBulkAssign={onBulkAssign}
+      onClear={onClear}
       periodForm={periodForm}
     />
   );

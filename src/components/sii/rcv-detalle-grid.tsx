@@ -12,6 +12,9 @@ import { rcvDueDate, rcvDueDateIsEstimated, type RcvDoc } from "./rcv-grouped-it
 import type { RcvKind } from "./rcv-list-view";
 import { DteActions } from "./dte-actions";
 import { dtePdfUrlForDoc } from "./dte-pdf";
+import { rcvSourceExternalId } from "./document-resolution-id";
+import type { DocumentRowStatus } from "@/lib/api/reconciliation";
+import { DocumentRowStatusBadges } from "./document-row-status";
 
 /* Grilla del Libro en modo "detalle" (lista plana): la tabla dinámica completa
    —ordenar (clic), mover columnas (arrastrar), filtrar por columna—. La vista
@@ -26,6 +29,8 @@ export interface RcvDetalleGridProps {
   dteKind?: RcvKind;
   /** Ventana del rango consultado para armar la URL del PDF (ver dtePdfUrlForDoc). */
   dteWindow?: { desde: string; hasta: string } | null;
+  onManageDocument?: (doc: RcvDoc) => void;
+  statusById?: Map<string, DocumentRowStatus>;
   /** Ventas puede traer el vencimiento enriquecido desde el backend. */
   showDueDate?: boolean;
 }
@@ -37,6 +42,8 @@ export function RcvDetalleGrid({
   hasActiveFilters,
   dteKind,
   dteWindow = null,
+  onManageDocument,
+  statusById,
   showDueDate = false,
 }: RcvDetalleGridProps) {
   const columns = React.useMemo<ColumnDef<RcvDoc, unknown>[]>(
@@ -178,13 +185,34 @@ export function RcvDetalleGrid({
             } as ColumnDef<RcvDoc, unknown>,
           ]
         : []),
+      ...(onManageDocument
+        ? [
+            {
+              id: "gestion",
+              header: "Estado",
+              enableColumnFilter: false,
+              enableSorting: false,
+              meta: { align: "right" as const },
+              cell: ({ row }: { row: { original: RcvDoc } }) => (
+                <DocumentRowStatusBadges
+                  status={statusById?.get(rcvSourceExternalId(row.original) ?? "")}
+                />
+              ),
+            } as ColumnDef<RcvDoc, unknown>,
+          ]
+        : []),
     ],
-    [partyLabel, dteKind, dteWindow, showDueDate],
+    [partyLabel, dteKind, dteWindow, showDueDate, onManageDocument, statusById],
   );
 
   return (
     <div className="space-y-2">
-      <DynamicTable columns={columns} data={docs} minWidth={showDueDate ? 820 : 720} />
+      <DynamicTable
+        columns={columns}
+        data={docs}
+        minWidth={showDueDate ? 820 : 720}
+        onRowActivate={onManageDocument}
+      />
 
       <div className="rounded-xl border border-border-strong bg-surface-muted px-3 py-2 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">

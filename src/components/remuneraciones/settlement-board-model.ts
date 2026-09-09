@@ -43,6 +43,30 @@ export interface DebitoCandidato {
   monto: number;
 }
 
+/** Resultado exacto de la simulación del backend. El FE no redistribuye ni recalcula montos. */
+export interface PayrollReconcilePreviewApplication {
+  settlementId: string;
+  workerRut: string;
+  workerName: string;
+  applyAmount: number;
+  newPaid: number;
+  newOutstanding: number;
+  newStatus: string;
+}
+
+export interface PayrollReconcileOutcome {
+  dryRun: boolean;
+  period: string;
+  amount: number;
+  method: string;
+  applied: PayrollReconcilePreviewApplication[];
+  appliedTotal: number;
+  unapplied: number;
+  periodOutstandingAfter: number;
+}
+
+export type PayrollReconcilePreview = PayrollReconcileOutcome & { dryRun: true };
+
 /** Tolerancia (CLP) para tratar un saldo como "conciliado": redondeo acumulado del backend con
  *  muchos empleados puede dejar centavos. $1 es lo que ya usa la conciliación por-monto. */
 export const CONCILIADO_TOL = 1;
@@ -58,6 +82,88 @@ function amt(v: unknown): number {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   if (typeof v === "string") return parseAmount(v);
   return 0;
+}
+
+function strictAmount(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v !== "string" || v.trim() === "") return null;
+  const parsed = Number(v);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** Adapta una respuesta genérica de reconcile. Falla cerrado si falta evidencia: una respuesta
+ * incompleta de dry-run jamás habilita el POST que muta. */
+export function normalizeReconcileOutcome(
+  raw: unknown,
+  expectedDryRun: boolean,
+): PayrollReconcileOutcome | null {
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const amount = strictAmount(o.amount);
+  const appliedTotal = strictAmount(o.applied_total);
+  const unapplied = strictAmount(o.unapplied);
+  const periodOutstandingAfter = strictAmount(o.period_outstanding_after);
+  if (
+    o.dry_run !== expectedDryRun ||
+    typeof o.period !== "string" ||
+    typeof o.method !== "string" ||
+    amount == null ||
+    appliedTotal == null ||
+    unapplied == null ||
+    periodOutstandingAfter == null ||
+    !Array.isArray(o.applied)
+  ) {
+    return null;
+  }
+
+  const applied: PayrollReconcilePreviewApplication[] = [];
+  for (const item of o.applied) {
+    if (item == null || typeof item !== "object" || Array.isArray(item)) return null;
+    const row = item as Record<string, unknown>;
+    const applyAmount = strictAmount(row.apply_amount);
+    const newPaid = strictAmount(row.new_paid);
+    const newOutstanding = strictAmount(row.new_outstanding);
+    if (
+      typeof row.settlement_id !== "string" ||
+      typeof row.worker_rut !== "string" ||
+      typeof row.worker_name !== "string" ||
+      typeof row.new_status !== "string" ||
+      applyAmount == null ||
+      newPaid == null ||
+      newOutstanding == null
+    ) {
+      return null;
+    }
+    applied.push({
+      settlementId: row.settlement_id,
+      workerRut: row.worker_rut,
+      workerName: row.worker_name,
+      applyAmount,
+      newPaid,
+      newOutstanding,
+      newStatus: row.new_status,
+    });
+  }
+
+  return {
+    dryRun: expectedDryRun,
+    period: o.period,
+    amount,
+    method: o.method,
+    applied,
+    appliedTotal,
+    unapplied,
+    periodOutstandingAfter,
+  };
+}
+
+export function normalizeReconcilePreview(raw: unknown): PayrollReconcilePreview | null {
+  return normalizeReconcileOutcome(raw, true) as PayrollReconcilePreview | null;
+}
+
+/** Clave estable sólo para enlazar visualmente las dos fuentes por RUT. */
+export function payrollRutKey(rut: string): string {
+  return rut.replace(/[.\s-]/g, "").toUpperCase();
 }
 
 /** Board genérico del backend → `SettlementBoard` tipado. Defensivo: campos ausentes caen a vacío/0,
@@ -151,7 +257,9 @@ function pareceNomina(m: BankMovement, montosPendientes: Set<number>): boolean {
 
 function glosaNomina(m: BankMovement): boolean {
   const g = (m.description ?? "").toLowerCase();
-  return g.includes("nómina") || g.includes("nomina") || g.includes("sueldo") || g.includes("remun");
+  return (
+    g.includes("nómina") || g.includes("nomina") || g.includes("sueldo") || g.includes("remun")
+  );
 }
 
 /** El débito paga EXACTAMENTE el saldo pendiente de algún trabajador (transferencia individual del
