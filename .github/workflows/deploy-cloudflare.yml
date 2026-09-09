@@ -95,7 +95,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install Chromium para tests con hidratación
-        run: npx playwright install chromium --with-deps
+        run: bash scripts/install-playwright-ci.sh chromium
       - name: Smoke contra app.qavante.com
         env:
           SMOKE_BASE_URL: https://app.qavante.com

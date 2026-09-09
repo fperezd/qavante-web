@@ -17,6 +17,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: node scripts/install-playwright-ci.check.mjs
 
   qa-rediseno:
     # Los criterios de aceptación del rediseño (ESPECIFICACION §5) que se pueden
@@ -65,7 +66,7 @@ jobs:
       # `chromium-headless-shell` es lo que @vitest/browser-playwright usa por
       # default (no el chromium full). Si solo instalamos `chromium` el job
       # falla con "Executable doesn't exist at chrome-headless-shell".
-      - run: npx playwright install --with-deps chromium chromium-headless-shell
+      - run: bash scripts/install-playwright-ci.sh chromium chromium-headless-shell
       - run: npm run test:storybook
 
   build:
@@ -90,7 +91,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: bash scripts/install-playwright-ci.sh chromium
       - run: npm run e2e
 
   lighthouse:

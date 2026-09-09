@@ -31,7 +31,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install Chromium
-        run: npx playwright install chromium --with-deps
+        run: bash scripts/install-playwright-ci.sh chromium
       - name: Smoke FE-alive contra prod (sin creds)
         env:
           SMOKE_BASE_URL: https://app.qavante.com
