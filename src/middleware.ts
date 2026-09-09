@@ -48,6 +48,7 @@ export const config = {
     "/cobrar/:path*",
     "/conexiones/:path*",
     "/financiamiento/:path*",
+    "/simular/:path*",
     "/gestion/:path*",
     "/impuestos/:path*",
     "/inicio/:path*",

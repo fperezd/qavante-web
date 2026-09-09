@@ -144,6 +144,7 @@ function movimiento(over: Partial<BankMovement> & Pick<BankMovement, "id">): Ban
     description: "",
     amount: "0",
     direction: "debit",
+    currency_source: "account_context",
     reconciliation_status: "unmatched",
     data_status: "available",
     imported_at: "2026-08-22T09:00:00Z",

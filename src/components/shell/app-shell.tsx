@@ -25,6 +25,7 @@ export interface AppShellProps {
   /** `presupuesto` ON → muestra el ítem "Presupuesto" en el nav. */
   presupuestoEnabled?: boolean;
   financiamientoEnabled?: boolean;
+  simuladorEnabled?: boolean;
 }
 
 export function AppShell({
@@ -37,6 +38,7 @@ export function AppShell({
   bandejaEnabled,
   presupuestoEnabled,
   financiamientoEnabled,
+  simuladorEnabled,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -73,6 +75,7 @@ export function AppShell({
           bandejaEnabled={bandejaEnabled}
           presupuestoEnabled={presupuestoEnabled}
           financiamientoEnabled={financiamientoEnabled}
+          simuladorEnabled={simuladorEnabled}
         />
 
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">

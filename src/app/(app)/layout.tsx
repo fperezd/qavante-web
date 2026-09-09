@@ -23,6 +23,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     bandejaV07,
     presupuesto,
     financiamientoV13,
+    simuladorV14,
   } = resolveFeatureFlags();
   return (
     <AppShell
@@ -34,6 +35,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       bandejaEnabled={bandejaV07}
       presupuestoEnabled={presupuesto}
       financiamientoEnabled={financiamientoV13}
+      simuladorEnabled={simuladorV14}
     >
       {/* Gated por `onboarding` — ⚠️ ON en prod (`wrangler.toml`), no es un flag
           oscuro. Si el tenant no completó onboarding redirige al wizard, y solo

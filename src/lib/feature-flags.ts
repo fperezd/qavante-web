@@ -84,6 +84,7 @@ export const FEATURE_FLAGS = [
   "presupuestoV09",
   "impuestosV06",
   "financiamientoV13",
+  "simuladorV14",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -493,6 +494,10 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      existentes se muestran como comparables o referencias, nunca como ofertas ejecutables.
      Default OFF hasta que qavante-api#443 esté revisado y desplegado. */
   financiamientoV13: "/api/treasury/financing-overview",
+  /* V14 · Simulador. Evalúa una hipótesis contra el scope financiero canónico y
+     devuelve un memo explícitamente no ejecutable. Default OFF hasta que
+     qavante-api#455 esté desplegado y su smoke productivo quede aprobado. */
+  simuladorV14: "/api/treasury/simulations/evaluate",
 };
 
 /** Campo de contrato que un consumidor necesita además del endpoint. La identidad de gating es

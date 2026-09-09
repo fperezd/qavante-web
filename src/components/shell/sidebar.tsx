@@ -11,6 +11,7 @@ import {
   LineChart,
   PiggyBank,
   WalletCards,
+  FlaskConical,
   Settings,
   PlugZap,
   Inbox,
@@ -38,6 +39,7 @@ type ModuleLink = {
   /* Solo visible con el flag `presupuesto` ON. */
   needsPresupuesto?: boolean;
   needsFinanciamiento?: boolean;
+  needsSimulador?: boolean;
 };
 
 type NavGroup = { label: string; items: ReadonlyArray<ModuleLink> };
@@ -106,6 +108,12 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
         Icon: WalletCards,
         needsFinanciamiento: true,
       },
+      {
+        href: "/simular",
+        label: "Simular",
+        Icon: FlaskConical,
+        needsSimulador: true,
+      },
     ],
   },
   {
@@ -136,6 +144,8 @@ export interface AppSidebarProps {
   presupuestoEnabled?: boolean;
   /** `financiamientoV13` ON muestra la lectura canónica de deuda y alternativas. */
   financiamientoEnabled?: boolean;
+  /** `simuladorV14` ON muestra la evaluación no ejecutable de hipótesis. */
+  simuladorEnabled?: boolean;
 }
 
 export function AppSidebar({
@@ -147,6 +157,7 @@ export function AppSidebar({
   bandejaEnabled,
   presupuestoEnabled,
   financiamientoEnabled,
+  simuladorEnabled,
 }: AppSidebarProps) {
   const pathname = usePathname();
 
@@ -158,7 +169,8 @@ export function AppSidebar({
     (!m.needsBanco || bancoEnabled) &&
     (!m.needsBandeja || bandejaEnabled) &&
     (!m.needsPresupuesto || presupuestoEnabled) &&
-    (!m.needsFinanciamiento || financiamientoEnabled);
+    (!m.needsFinanciamiento || financiamientoEnabled) &&
+    (!m.needsSimulador || simuladorEnabled);
   const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
     (g) => g.items.length > 0,
   );

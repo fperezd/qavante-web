@@ -641,8 +641,8 @@ export interface paths {
         /**
          * SII: refresca el cache de reportes de todos los tenants (cron F3, ADR-0055)
          * @description Refresca el cache de reportes SII de **todos** los tenants conectados. Lo llama
-         *     el cron cada 6 h (GitHub Actions) con `SERVER_API_KEY`. Idempotente (repuebla el
-         *     cache); best-effort por (tenant, período, side).
+         *     el cron horario de Cloudflare con `SERVER_API_KEY`. Idempotente (repuebla el cache);
+         *     best-effort por (tenant, período, side).
          */
         post: operations["admin_sii_refresh_cache"];
         delete?: never;
@@ -6336,6 +6336,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/simulations/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evalúa una hipótesis financiera sin guardar ni ejecutar */
+        post: operations["simulations_evaluate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/source-freshness": {
         parameters: {
             query?: never;
@@ -7505,9 +7522,15 @@ export interface components {
             confidence?: string | null;
             /**
              * Currency Code
-             * @description Moneda del movimiento (ISO-4217, catálogo `core.currencies`). `null` = NINGUNA fuente informó la moneda (filas históricas). El motor de conciliación lee ese `null` como CLP por convención declarada; el dato en disco sigue siendo 'no informado' para que un backfill pueda corregirlo.
+             * @description Moneda del movimiento (ISO-4217, catálogo `core.currencies`). `null` = NINGUNA fuente informó la moneda (filas históricas). No se convierte ni interpreta implícitamente como CLP; queda pendiente de remediación autoritativa.
              */
             currency_code?: string | null;
+            /**
+             * Currency Source
+             * @description Procedencia verificable de `currency_code`: `bank_declared`, `account_context` o `legacy_unknown`. Es obligatorio en la respuesta para que una consulta que omita la columna falle en vez de inventar procedencia.
+             * @enum {string}
+             */
+            currency_source: "bank_declared" | "account_context" | "legacy_unknown";
             /**
              * Data Status
              * @description Estado del dato. Conocidos: available, stale, inconsistent, missing, requires_attention.
@@ -8545,6 +8568,48 @@ export interface components {
             description?: string | null;
             /** Movement Id */
             movement_id: string;
+        };
+        /** CashAssumption */
+        "CashAssumption-Input": {
+            /** Amount */
+            amount: number | string;
+            /** Assumption Id */
+            assumption_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Effective Date
+             * Format: date
+             */
+            effective_date: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "cash_inflow" | "cash_outflow";
+            /** Label */
+            label: string;
+        };
+        /** CashAssumption */
+        "CashAssumption-Output": {
+            /** Amount */
+            amount: string;
+            /** Assumption Id */
+            assumption_id: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Effective Date
+             * Format: date
+             */
+            effective_date: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "cash_inflow" | "cash_outflow";
+            /** Label */
+            label: string;
         };
         /**
          * CashCycleResponse
@@ -17423,6 +17488,34 @@ export interface components {
              */
             rule_id: string;
         };
+        /** PercentageAssumption */
+        "PercentageAssumption-Input": {
+            /** Assumption Id */
+            assumption_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "direct_cost_change" | "operating_expense_change" | "revenue_change";
+            /** Label */
+            label: string;
+            /** Percent Change */
+            percent_change: number | string;
+        };
+        /** PercentageAssumption */
+        "PercentageAssumption-Output": {
+            /** Assumption Id */
+            assumption_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "direct_cost_change" | "operating_expense_change" | "revenue_change";
+            /** Label */
+            label: string;
+            /** Percent Change */
+            percent_change: string;
+        };
         /** PermissionResponse */
         PermissionResponse: {
             /** Action */
@@ -19546,6 +19639,137 @@ export interface components {
             name?: string | null;
             /** Rut */
             rut: string;
+        };
+        /** SimulationEvaluateRequest */
+        SimulationEvaluateRequest: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Assumptions */
+            assumptions: (components["schemas"]["CashAssumption-Input"] | components["schemas"]["PercentageAssumption-Input"])[];
+            /** Currency */
+            currency: string;
+            /** Horizon Days */
+            horizon_days: number;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Question */
+            question: string;
+        };
+        /** SimulationEvaluateResponse */
+        SimulationEvaluateResponse: {
+            /** Evaluation Hash */
+            evaluation_hash: string;
+            execution?: components["schemas"]["SimulationExecutionContract"];
+            /** Interpretation */
+            interpretation: string;
+            /**
+             * Label
+             * @default simulation_no_execution
+             * @constant
+             */
+            label: "simulation_no_execution";
+            memo: components["schemas"]["SimulationMemo"];
+            save?: components["schemas"]["SimulationSaveCapability"];
+            scope: components["schemas"]["SimulationScope"];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "partial" | "abstained";
+        };
+        /** SimulationExecutionContract */
+        SimulationExecutionContract: {
+            /**
+             * Actions Executed
+             * @default false
+             * @constant
+             */
+            actions_executed: false;
+            /**
+             * Evaluation Persisted
+             * @default false
+             * @constant
+             */
+            evaluation_persisted: false;
+        };
+        /** SimulationImpact */
+        SimulationImpact: {
+            /** After */
+            after?: string | null;
+            /** Before */
+            before?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Delta */
+            delta?: string | null;
+            /** Reason Codes */
+            reason_codes?: string[];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "known" | "unknown";
+        };
+        /** SimulationMemo */
+        SimulationMemo: {
+            /** Assumptions */
+            assumptions: (components["schemas"]["CashAssumption-Output"] | components["schemas"]["PercentageAssumption-Output"])[];
+            break_even: components["schemas"]["SimulationImpact"];
+            cash: components["schemas"]["SimulationImpact"];
+            /** Condition */
+            condition: string;
+            /** Evidence Refs */
+            evidence_refs?: string[];
+            /**
+             * Freshness
+             * @enum {string}
+             */
+            freshness: "current" | "stale" | "unknown";
+            /** Limitations */
+            limitations?: string[];
+            margin: components["schemas"]["SimulationImpact"];
+            /** Verdict */
+            verdict: string;
+        };
+        /** SimulationSaveCapability */
+        SimulationSaveCapability: {
+            /** Reason Codes */
+            reason_codes?: ("scenario_save_not_idempotent" | "scenario_save_api_key_only")[];
+            /**
+             * Reference Endpoint
+             * @default /api/planning/scenarios
+             * @constant
+             */
+            reference_endpoint: "/api/planning/scenarios";
+            /**
+             * State
+             * @default unavailable
+             * @constant
+             */
+            state: "unavailable";
+        };
+        /** SimulationScope */
+        SimulationScope: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Currency */
+            currency: string;
+            /** Horizon Days */
+            horizon_days: number;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
         };
         /** SourceDetailResponse */
         SourceDetailResponse: {
@@ -33666,6 +33890,53 @@ export interface operations {
             };
             /** @description period mal formado, rango invertido, o rango > 36 meses. */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    simulations_evaluate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationEvaluateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationEvaluateResponse"];
+                };
+            };
+            /** @description La credencial no entrega un tenant verificable. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La hipótesis contradice el contrato financiero. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No fue posible verificar las fuentes requeridas. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
