@@ -399,13 +399,11 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      Usuarios también van sobre endpoints VIVOS (`/api/me/tenants`, `/api/users`) — la vista
      funciona hoy.
 
-     Su endpoint de gating es lo ÚNICO que le falta: el contador "aplicada N veces, M correcciones"
-     de 12B · Reglas (issue #75, marcado 🔧) no existe — el contrato de `ClassificationRule` no
-     trae ni el conteo de aplicaciones ni el de correcciones, así que esa línea NO se renderiza
-     (hueco declarado, no un cero inventado) hasta que exista. Es FE-first, como los de
-     `hoyV01`/…/`gestionV08`, con su issue sucesor. Con OFF, `/administracion` sigue con la
-     grilla de tarjetas actual → cero regresión. Encender = editar wrangler.toml. */
-  administracionV12: "/api/treasury/classification-rules/{id}/usage",
+     El contrato de API #441 publica origen y uso verificable desde el inicio de medición. Las
+     fuentes no instrumentadas conservan cobertura desconocida y la UI dice "Uso sin dato";
+     nunca las convierte en cero. Con OFF, `/administracion` vuelve a la grilla de tarjetas
+     anterior. */
+  administracionV12: "/api/treasury/classification-rules/{rule_id}/usage",
   /* V16 · Remuneraciones — "Tu nómina" en una pantalla (ESPECIFICACION §V16, issue #77).
      Reemplaza la landing de `/remuneraciones` por la tríada (Líquido / Cotizaciones (Previred) /
      Costo empresa con % de ingresos ⓘ) y la tabla por persona con estado + link a su liquidación.

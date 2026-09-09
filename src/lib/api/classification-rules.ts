@@ -12,12 +12,19 @@
  *
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). El
  * gating de la UI lo hace `classificationRules` (ADR-0008) en su PR de wire. */
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
 export type ClassificationRule = components["schemas"]["ClassificationRule"];
 export type ClassificationRulesResponse = components["schemas"]["ClassificationRulesResponse"];
+export type ClassificationRuleUsage = components["schemas"]["ClassificationRuleUsage"];
 export type CreateClassificationRuleRequest =
   components["schemas"]["CreateClassificationRuleRequest"];
 export type UpdateClassificationRuleRequest =
@@ -48,6 +55,7 @@ export interface SuggestRuleResponse {
 export const classificationRulesKeys = {
   all: ["classification-rules"] as const,
   list: () => [...classificationRulesKeys.all, "list"] as const,
+  usage: (ruleId: string) => [...classificationRulesKeys.all, "usage", ruleId] as const,
   suggestForMovement: (movementId: string) =>
     [...classificationRulesKeys.all, "suggest", movementId] as const,
   suggestedCategory: (movementId: string) =>
@@ -76,6 +84,29 @@ export function useClassificationRules() {
     staleTime: 30_000,
     retry: false,
   });
+}
+
+function usageQuery(ruleId: string) {
+  return {
+    queryKey: classificationRulesKeys.usage(ruleId),
+    queryFn: () =>
+      api.get<ClassificationRuleUsage>(
+        `/api/treasury/classification-rules/${encodeURIComponent(ruleId)}/usage`,
+      ),
+    staleTime: 30_000,
+    retry: false,
+  } as const;
+}
+
+/** Uso atribuible de una regla. Un cero sólo cubre desde `tracking_started_at`; las fuentes aún
+ * no instrumentadas devuelven conteos nulos y `coverage=unknown`, nunca un cero plausible. */
+export function useClassificationRuleUsage(ruleId: string) {
+  return useQuery(usageQuery(ruleId));
+}
+
+/** Misma consulta por regla para construir el resumen del hub sin inventar totales parciales. */
+export function useClassificationRuleUsages(ruleIds: string[]) {
+  return useQueries({ queries: ruleIds.map(usageQuery) });
 }
 
 /** `POST /api/treasury/classification-rules` — crear regla. 403 si

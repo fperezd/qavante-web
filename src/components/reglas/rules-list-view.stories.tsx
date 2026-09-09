@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse, delay } from "msw";
+import { expect, userEvent, within } from "storybook/test";
 import { RulesListView } from "./rules-list-view";
 import type { ClassificationRule } from "@/lib/api/classification-rules";
 
@@ -13,6 +14,7 @@ const RULES: ClassificationRule[] = [
     id: "rule-1",
     name: "Sueldo Fernando",
     source_type: "bank_movement",
+    origin: "learned_from_usage",
     condition_field: "description",
     operator: "contains",
     condition_value: "REMUN FERNANDO",
@@ -30,6 +32,7 @@ const RULES: ClassificationRule[] = [
     id: "rule-2",
     name: "Proveedor Movistar",
     source_type: "bank_movement",
+    origin: "created_by_user",
     condition_field: "counterparty_name",
     operator: "equals",
     condition_value: "TELEFONICA CHILE S.A.",
@@ -47,6 +50,7 @@ const RULES: ClassificationRule[] = [
     id: "rule-3",
     name: "Transferencia banco · desactivada",
     source_type: "bank_movement",
+    origin: "unknown",
     condition_field: "description",
     operator: "starts_with",
     condition_value: "TRANSF",
@@ -63,8 +67,27 @@ const RULES: ClassificationRule[] = [
 ];
 
 const PATH = "*/api/treasury/classification-rules";
+const USAGE_PATH = "*/api/treasury/classification-rules/:ruleId/usage";
 
 const OK = http.get(PATH, () => HttpResponse.json({ items: RULES }, { status: 200 }));
+const USAGE_OK = http.get(USAGE_PATH, ({ params }) => {
+  const unknown = params.ruleId === "rule-3";
+  return HttpResponse.json(
+    {
+      rule_id: params.ruleId,
+      application_count: unknown ? null : params.ruleId === "rule-1" ? 1 : 12,
+      correction_count: unknown ? null : params.ruleId === "rule-1" ? 0 : 2,
+      generated_at: "2026-09-09T12:00:00Z",
+      as_of: "2026-09-09T12:00:00Z",
+      tracking_started_at: unknown ? null : "2026-09-01T12:00:00Z",
+      last_applied_at: unknown ? null : "2026-09-08T12:00:00Z",
+      last_corrected_at: unknown ? null : "2026-09-07T12:00:00Z",
+      coverage: unknown ? "unknown" : "complete_since_tracking_started_at",
+      correction_basis: "reverted_auto_classification",
+    },
+    { status: 200 },
+  );
+});
 const EMPTY = http.get(PATH, () => HttpResponse.json({ items: [] }, { status: 200 }));
 const LOADING = http.get(PATH, async () => {
   await delay("infinite");
@@ -73,6 +96,12 @@ const LOADING = http.get(PATH, async () => {
 const ERROR = http.get(PATH, () =>
   HttpResponse.json(
     { code: "internal_error", detail: "No pudimos cargar las reglas." },
+    { status: 500 },
+  ),
+);
+const USAGE_ERROR = http.get(USAGE_PATH, () =>
+  HttpResponse.json(
+    { code: "internal_error", detail: "No pudimos medir el uso de la regla." },
     { status: 500 },
   ),
 );
@@ -88,7 +117,7 @@ const meta = {
           "Lista de reglas de clasificación (orden por prioridad ASC). El container resuelve loading/error/empty/lista desde `GET /api/treasury/classification-rules`. Toggle activo y form de regla son por interacción. Qavante nunca borra reglas · las desactivadas se muestran apagadas pero reactivables.",
       },
     },
-    msw: { handlers: [OK] },
+    msw: { handlers: [OK, USAGE_OK] },
   },
 } satisfies Meta<typeof RulesListView>;
 
@@ -97,20 +126,45 @@ type Story = StoryObj<typeof meta>;
 
 export const Lista: Story = {
   name: "Lista (activas + desactivada)",
-  parameters: { msw: { handlers: [OK] } },
+  parameters: { msw: { handlers: [OK, USAGE_OK] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText("Aprendida del uso")).toBeInTheDocument();
+    await expect(
+      await canvas.findByText("1 aplicación · 0 correcciones · medido desde 1 sep 2026"),
+    ).toBeInTheDocument();
+    await expect(
+      await canvas.findByText("Uso sin dato · esta fuente aún no registra atribución"),
+    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Creadas por ti · 1" }));
+    await expect(canvas.getByText("Proveedor Movistar")).toBeInTheDocument();
+  },
 };
 
 export const Vacio: Story = {
   name: "Vacío (sin reglas)",
-  parameters: { msw: { handlers: [EMPTY] } },
+  parameters: { msw: { handlers: [EMPTY, USAGE_OK] } },
 };
 
 export const Cargando: Story = {
   name: "Cargando (skeleton)",
   parameters: { msw: { handlers: [LOADING] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("status")).toHaveTextContent("Cargando reglas…");
+  },
 };
 
 export const Error500: Story = {
   name: "Error (500)",
   parameters: { msw: { handlers: [ERROR] } },
+};
+
+export const ErrorDeUso: Story = {
+  name: "Error al medir uso por regla",
+  parameters: { msw: { handlers: [OK, USAGE_ERROR] } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findAllByText("No se pudo medir el uso")).toHaveLength(RULES.length);
+  },
 };

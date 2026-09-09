@@ -3,6 +3,8 @@ import type { SourceStatus } from "@/lib/api/sources-status";
 import {
   estadoCredenciales,
   estadoEmpresas,
+  estadoReglas,
+  resumenReglas,
   estadoUsuarios,
   filasHubV12,
   type CargaV12,
@@ -128,11 +130,81 @@ describe("estadoUsuarios", () => {
   });
 });
 
+describe("estadoReglas", () => {
+  it("no convierte fuentes sin trazabilidad en cero aplicaciones", () => {
+    expect(
+      estadoReglas(
+        listo({ activas: 1, aplicaciones: 0, correcciones: 0, medidas: 0, sinMedicion: 1 }),
+      ),
+    ).toEqual({ tono: "neutral", texto: "1 regla activa · uso sin dato en 1 regla" });
+  });
+
+  it("declara el alcance cuando sólo una parte tiene medición", () => {
+    expect(
+      estadoReglas(
+        listo({ activas: 3, aplicaciones: 7, correcciones: 1, medidas: 2, sinMedicion: 1 }),
+      )?.texto,
+    ).toBe(
+      "3 reglas activas · 7 aplicaciones y 1 corrección en 2 reglas medidas · 1 regla sin medición",
+    );
+  });
+
+  it("con cobertura completa conserva singular y plural", () => {
+    expect(
+      estadoReglas(
+        listo({ activas: 1, aplicaciones: 1, correcciones: 0, medidas: 1, sinMedicion: 0 }),
+      )?.texto,
+    ).toBe("1 regla activa · 1 aplicación y 0 correcciones en 1 regla medida");
+  });
+});
+
+describe("resumenReglas", () => {
+  it("una fuente desconocida no suma cero al universo medido", () => {
+    expect(
+      resumenReglas(
+        [{ active: true }, { active: false }],
+        [
+          {
+            coverage: "complete_since_tracking_started_at",
+            application_count: 7,
+            correction_count: 1,
+          },
+          { coverage: "unknown", application_count: null, correction_count: null },
+        ],
+      ),
+    ).toEqual({ activas: 1, aplicaciones: 7, correcciones: 1, medidas: 1, sinMedicion: 1 });
+  });
+
+  it.each([
+    {
+      coverage: "complete_since_tracking_started_at" as const,
+      application_count: null,
+      correction_count: null,
+    },
+    { coverage: "complete_since_tracking_started_at" as const },
+  ])("conteos nulos o ausentes fallan cerrados como sin medición", (uso) => {
+    expect(resumenReglas([{ active: true }], [uso])).toEqual({
+      activas: 1,
+      aplicaciones: 0,
+      correcciones: 0,
+      medidas: 0,
+      sinMedicion: 1,
+    });
+  });
+});
+
 describe("filasHubV12", () => {
   const inputsBase = {
     sources: CARGANDO as CargaV12<SourceStatus[]>,
     empresas: CARGANDO as CargaV12<number>,
     usuarios: CARGANDO as CargaV12<number>,
+    reglas: CARGANDO as CargaV12<{
+      activas: number;
+      aplicaciones: number;
+      correcciones: number;
+      medidas: number;
+      sinMedicion: number;
+    }>,
     mcpVisible: false,
   };
 
@@ -159,7 +231,11 @@ describe("filasHubV12", () => {
   it("cada fila SIN estado calculado (hueco declarado) trae estado null, no un objeto vacío", () => {
     const filas = filasHubV12(inputsBase);
     const sinEstado = filas.filter(
-      (f) => f.id !== "credenciales" && f.id !== "empresas" && f.id !== "usuarios",
+      (f) =>
+        f.id !== "credenciales" &&
+        f.id !== "empresas" &&
+        f.id !== "usuarios" &&
+        f.id !== "reglas-clasificacion",
     );
     expect(sinEstado.length).toBeGreaterThan(0);
     for (const f of sinEstado) expect(f.estado).toBeNull();
@@ -170,6 +246,13 @@ describe("filasHubV12", () => {
       sources: listo([source({ state: "missing" })]),
       empresas: listo(2),
       usuarios: listo(7),
+      reglas: listo({
+        activas: 2,
+        aplicaciones: 4,
+        correcciones: 1,
+        medidas: 2,
+        sinMedicion: 0,
+      }),
       mcpVisible: false,
     });
     const porId = Object.fromEntries(filas.map((f) => [f.id, f]));
@@ -186,6 +269,13 @@ describe("filasHubV12", () => {
       sources: ERROR,
       empresas: listo(2),
       usuarios: CARGANDO,
+      reglas: listo({
+        activas: 2,
+        aplicaciones: 4,
+        correcciones: 1,
+        medidas: 2,
+        sinMedicion: 0,
+      }),
       mcpVisible: false,
     });
     const porId = Object.fromEntries(filas.map((f) => [f.id, f]));

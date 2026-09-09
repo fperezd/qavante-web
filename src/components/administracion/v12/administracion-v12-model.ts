@@ -16,13 +16,12 @@
  * usuarios, VIVOS en prod.
  *
  * HUECO DECLARADO (no se rellena, se dice): las filas Estructura de gestión, Vistas de gestión,
- * Monedas, Reglas de clasificación, Plantillas y MCP no llevan estado calculado en este PR — cada
+ * Monedas, Plantillas y MCP no llevan estado calculado en este PR · cada
  * una vive detrás de su propio flag (`managementAccounts`, `managementDimensions`,
  * `classificationRules`, `mcp`) y no hay todavía una señal barata y honesta que resuma su estado
  * sin una consulta adicional por fila. Se declara acá y en el PR; el sucesor las completa fila por
- * fila. La cuenta de "aplicada N veces, M correcciones" de 12B (issue #75) tampoco existe en el
- * contrato de `ClassificationRule` — no se pinta un cero ni se inventa: ver `FLAG_GATING_ENDPOINT`
- * en `feature-flags.ts`. */
+ * fila. Reglas sí consume el contrato verificable de qavante-api#439: las aplicaciones se
+ * atribuyen por id estable y las correcciones son acciones automáticas deshechas. */
 
 import type { SourceStatus } from "@/lib/api/sources-status";
 import { visibleSources } from "@/lib/api/sources-status";
@@ -80,6 +79,69 @@ export function estadoUsuarios(carga: CargaV12<number>): EstadoFilaV12 | null {
   return { tono: "neutral", texto: `${formatCount(n)} ${concordar(n, "usuario", "usuarios")}` };
 }
 
+export interface ResumenReglasV12 {
+  activas: number;
+  aplicaciones: number;
+  correcciones: number;
+  medidas: number;
+  sinMedicion: number;
+}
+
+export interface UsoReglaV12 {
+  coverage: "complete_since_tracking_started_at" | "unknown";
+  application_count?: number | null;
+  correction_count?: number | null;
+}
+
+type UsoReglaMedidoV12 = UsoReglaV12 & {
+  application_count: number;
+  correction_count: number;
+};
+
+function esUsoMedido(uso: UsoReglaV12): uso is UsoReglaMedidoV12 {
+  return (
+    uso.coverage === "complete_since_tracking_started_at" &&
+    uso.application_count != null &&
+    uso.correction_count != null
+  );
+}
+
+/** Agrega sólo reglas con cobertura completa. Las reglas sin trazabilidad conservan un contador
+ * separado; no entran como ceros en aplicaciones/correcciones. */
+export function resumenReglas(
+  reglas: ReadonlyArray<{ active: boolean }>,
+  usos: ReadonlyArray<UsoReglaV12>,
+): ResumenReglasV12 {
+  const medidos = usos.filter(esUsoMedido);
+  return {
+    activas: reglas.filter((regla) => regla.active).length,
+    aplicaciones: medidos.reduce((total, uso) => total + uso.application_count, 0),
+    correcciones: medidos.reduce((total, uso) => total + uso.correction_count, 0),
+    medidas: medidos.length,
+    sinMedicion: usos.length - medidos.length,
+  };
+}
+
+export function estadoReglas(carga: CargaV12<ResumenReglasV12>): EstadoFilaV12 | null {
+  if (carga.tipo === "cargando") return { tono: "neutral", texto: "Midiendo uso de reglas…" };
+  if (carga.tipo === "error") return { tono: "bad", texto: "No se pudo medir el uso" };
+  const { activas, aplicaciones, correcciones, medidas, sinMedicion } = carga.valor;
+  if (medidas === 0 && sinMedicion > 0) {
+    return {
+      tono: "neutral",
+      texto: `${formatCount(activas)} ${concordar(activas, "regla activa", "reglas activas")} · uso sin dato en ${formatCount(sinMedicion)} ${concordar(sinMedicion, "regla", "reglas")}`,
+    };
+  }
+  const cobertura =
+    sinMedicion > 0
+      ? ` · ${formatCount(sinMedicion)} ${concordar(sinMedicion, "regla sin medición", "reglas sin medición")}`
+      : "";
+  return {
+    tono: "neutral",
+    texto: `${formatCount(activas)} ${concordar(activas, "regla activa", "reglas activas")} · ${formatCount(aplicaciones)} ${concordar(aplicaciones, "aplicación", "aplicaciones")} y ${formatCount(correcciones)} ${concordar(correcciones, "corrección", "correcciones")} en ${formatCount(medidas)} ${concordar(medidas, "regla medida", "reglas medidas")}${cobertura}`,
+  };
+}
+
 export interface HubInputsV12 {
   /** Estado de `/api/sources/status` — cargando/error/listo, nunca colapsado a `null`. */
   sources: CargaV12<SourceStatus[]>;
@@ -87,6 +149,8 @@ export interface HubInputsV12 {
   empresas: CargaV12<number>;
   /** Estado de `/api/users`. */
   usuarios: CargaV12<number>;
+  /** Conteos verificables desde el comienzo de cobertura que publica cada regla. */
+  reglas: CargaV12<ResumenReglasV12>;
   /** Flag `mcp` (ADR-0092): sólo se ofrece la fila cuando la funcionalidad existe. */
   mcpVisible: boolean;
 }
@@ -145,7 +209,7 @@ export function filasHubV12(inputs: HubInputsV12): FilaHubV12[] {
       titulo: "Reglas de clasificación",
       descripcion: "Reglas que Qavante usa para clasificar movimientos similares en el futuro.",
       href: "/administracion/reglas-clasificacion",
-      estado: null,
+      estado: estadoReglas(inputs.reglas),
     },
     {
       id: "plantillas",

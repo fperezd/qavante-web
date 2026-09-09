@@ -1837,6 +1837,7 @@ const rulesV2State: Array<{
   id: string;
   name: string;
   source_type: string;
+  origin: "unknown" | "learned_from_usage" | "created_by_user" | "qavante_base";
   condition_field: string;
   operator: string;
   condition_value: string;
@@ -1854,6 +1855,7 @@ const rulesV2State: Array<{
     id: "rule-1",
     name: "Sueldo Fernando",
     source_type: "bank_movement",
+    origin: "learned_from_usage",
     condition_field: "description",
     operator: "contains",
     condition_value: "REMUN FERNANDO",
@@ -1871,6 +1873,7 @@ const rulesV2State: Array<{
     id: "rule-2",
     name: "Proveedor Movistar",
     source_type: "bank_movement",
+    origin: "created_by_user",
     condition_field: "counterparty_name",
     operator: "equals",
     condition_value: "TELEFONICA CHILE S.A.",
@@ -1886,8 +1889,9 @@ const rulesV2State: Array<{
   },
   {
     id: "rule-3",
-    name: "Transferencia banco — desactivada",
+    name: "Transferencia banco · desactivada",
     source_type: "bank_movement",
+    origin: "unknown",
     condition_field: "description",
     operator: "starts_with",
     condition_value: "TRANSF",
@@ -1910,6 +1914,25 @@ const classificationRulesHandlers = [
     /* Listado ordenado por priority ASC (orden de evaluación). */
     const sorted = [...rulesV2State].sort((a, b) => a.priority - b.priority);
     return HttpResponse.json({ items: sorted }, { status: 200 });
+  }),
+
+  http.get("*/api/treasury/classification-rules/:ruleId/usage", ({ params }) => {
+    const known = params.ruleId !== "rule-3";
+    return HttpResponse.json(
+      {
+        rule_id: params.ruleId,
+        application_count: known ? 3 : null,
+        correction_count: known ? 1 : null,
+        generated_at: "2026-09-09T12:00:00Z",
+        as_of: "2026-09-09T12:00:00Z",
+        tracking_started_at: known ? "2026-09-01T12:00:00Z" : null,
+        last_applied_at: known ? "2026-09-08T12:00:00Z" : null,
+        last_corrected_at: known ? "2026-09-07T12:00:00Z" : null,
+        coverage: known ? "complete_since_tracking_started_at" : "unknown",
+        correction_basis: "reverted_auto_classification",
+      },
+      { status: 200 },
+    );
   }),
 
   http.post("*/api/treasury/classification-rules", async ({ request }) => {
@@ -1938,6 +1961,7 @@ const classificationRulesHandlers = [
       id: `rule-${rulesV2Counter}`,
       name: body.name,
       source_type: body.source_type ?? "bank_movement",
+      origin: "created_by_user" as const,
       condition_field: body.condition_field,
       operator: body.operator,
       condition_value: body.condition_value,

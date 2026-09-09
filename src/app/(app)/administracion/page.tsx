@@ -49,12 +49,13 @@ function SubModuleCard({ href, icon: Icon, title, description }: SubModuleCardPr
 export default function AdministracionPage() {
   const { mcp, administracionV12 } = resolveFeatureFlags();
 
-  /* V12 · Administración (rediseño Fase 2, issue #75) — gated por `administracionV12`, HOY
-     APAGADO. Reemplaza la grilla de tarjetas por la tabla de 8 (o 9, con MCP) entradas con estado
+  /* V12 · Administración (rediseño Fase 2, issue #75) — gated por `administracionV12`, activado
+     en producción desde `wrangler.toml`. Reemplaza la grilla de tarjetas por la tabla de 8 (o 9,
+     con MCP) entradas con estado
      por fila de la spec §V12: Credenciales reusa la MISMA fuente que V11 (Ley 1), Empresas y
      Usuarios muestran su conteo real. Con OFF nada de abajo cambia (cero regresión: la grilla
-     actual queda intacta). El hueco declarado (contador "aplicada N veces, M correcciones" de
-     12B · Reglas) está documentado en `FLAG_GATING_ENDPOINT.administracionV12`. */
+     actual queda intacta y sirve como rollback). La fila 12B · Reglas consume el origen y uso
+     verificables del contrato API #441; las seis señales restantes siguen declaradas en #96. */
   if (administracionV12) {
     return (
       <div className="space-y-6">

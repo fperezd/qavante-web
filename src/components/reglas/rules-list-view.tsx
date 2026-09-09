@@ -12,10 +12,14 @@ import {
 } from "@/components/qavante";
 import {
   useClassificationRules,
+  useClassificationRuleUsages,
   useToggleClassificationRuleActive,
   type ClassificationRule,
+  type ClassificationRuleUsage,
 } from "@/lib/api/classification-rules";
 import { formatPct } from "@/lib/formatters/pct";
+import { concordar, formatCount } from "@/lib/formatters/count";
+import { formatDateLong } from "@/lib/formatters/date";
 import { useCanonicalCategories } from "@/lib/api/treasury";
 
 /* Vista de Reglas — Addendum §17.5/§17.6/§18.1. Patrón "página = contenedor":
@@ -44,10 +48,13 @@ const RuleFormDialog = dynamic(
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-2" aria-hidden="true">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-20 animate-pulse rounded-xl bg-neutral-light/30" />
-      ))}
+    <div className="space-y-2" role="status" aria-live="polite">
+      <span className="sr-only">Cargando reglas…</span>
+      <div className="space-y-2" aria-hidden="true">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-neutral-light/30" />
+        ))}
+      </div>
     </div>
   );
 }
@@ -73,18 +80,83 @@ const FIELD_LABEL: Record<string, string> = {
   bank_account_id: "Cuenta bancaria",
 };
 
+export type RuleFilter =
+  | "all"
+  | "learned_from_usage"
+  | "created_by_user"
+  | "qavante_base"
+  | "unknown"
+  | "inactive";
+
+const FILTERS: ReadonlyArray<{ id: RuleFilter; label: string }> = [
+  { id: "all", label: "Todas" },
+  { id: "learned_from_usage", label: "Aprendidas del uso" },
+  { id: "created_by_user", label: "Creadas por ti" },
+  { id: "qavante_base", label: "Base Qavante" },
+  { id: "unknown", label: "Origen no disponible" },
+  { id: "inactive", label: "Desactivadas" },
+];
+
+const ORIGIN_LABEL: Record<ClassificationRule["origin"], string> = {
+  learned_from_usage: "Aprendida del uso",
+  created_by_user: "Creada por ti",
+  qavante_base: "Base Qavante",
+  unknown: "Origen no disponible",
+};
+
+export function filterRules(rules: ClassificationRule[], filter: RuleFilter) {
+  if (filter === "all") return rules;
+  if (filter === "inactive") return rules.filter((rule) => !rule.active);
+  return rules.filter((rule) => rule.active && rule.origin === filter);
+}
+
+function UsageCopy({
+  usage,
+  loading,
+  error,
+}: {
+  usage: ClassificationRuleUsage | undefined;
+  loading: boolean;
+  error: boolean;
+}) {
+  if (error) return <span>No se pudo medir el uso</span>;
+  if (loading || !usage) return <span>Midiendo uso…</span>;
+  if (
+    usage.coverage === "unknown" ||
+    usage.application_count == null ||
+    usage.correction_count == null
+  ) {
+    return <span>Uso sin dato · esta fuente aún no registra atribución</span>;
+  }
+  const applications = usage.application_count;
+  const corrections = usage.correction_count;
+  return (
+    <span>
+      {formatCount(applications)} {concordar(applications, "aplicación", "aplicaciones")} ·{" "}
+      {formatCount(corrections)} {concordar(corrections, "corrección", "correcciones")} · medido
+      desde {formatDateLong(usage.tracking_started_at)}
+    </span>
+  );
+}
+
 function RuleRow({
   rule,
   onToggle,
   onEdit,
   isToggling,
   canonicalLabel,
+  usage,
+  usageLoading,
+  usageError,
 }: {
   rule: ClassificationRule;
   onToggle: (id: string) => void;
   onEdit: (rule: ClassificationRule) => void;
   isToggling: boolean;
   canonicalLabel: string | null;
+  usage: ClassificationRuleUsage | undefined;
+  usageLoading: boolean;
+  usageError: boolean;
 }) {
   return (
     <QavanteCard variant="bordered">
@@ -101,6 +173,10 @@ function RuleRow({
               <QavanteBadge variant="default">Desactivada</QavanteBadge>
             )}
             <QavanteBadge variant="info">Prioridad {rule.priority}</QavanteBadge>
+            <QavanteBadge variant="default">{ORIGIN_LABEL[rule.origin]}</QavanteBadge>
+            <QavanteBadge variant="info">
+              Confianza {formatPct(Number(rule.confidence) * 100)}
+            </QavanteBadge>
           </div>
           <p className="text-sm text-neutral-mid">
             Si la{" "}
@@ -122,8 +198,8 @@ function RuleRow({
             )}
           </p>
           <p className="text-xs text-neutral-mid">
-            Confianza: {formatPct(Number(rule.confidence) * 100)} · Creada:{" "}
-            {new Date(rule.created_at).toLocaleDateString("es-CL")}
+            <UsageCopy usage={usage} loading={usageLoading} error={usageError} /> · Creada{" "}
+            {formatDateLong(rule.created_at)}
           </p>
         </div>
         <div className="flex flex-col gap-1.5 sm:flex-row">
@@ -167,8 +243,11 @@ export function RulesListView() {
   const rulesQuery = useClassificationRules();
   const categoriesQuery = useCanonicalCategories();
   const toggle = useToggleClassificationRuleActive();
+  const rules = rulesQuery.data?.items ?? [];
+  const usageQueries = useClassificationRuleUsages(rules.map((rule) => rule.id));
 
   const [togglingId, setTogglingId] = React.useState<string | null>(null);
+  const [filter, setFilter] = React.useState<RuleFilter>("all");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingRule, setEditingRule] = React.useState<ClassificationRule | null>(null);
   const categoryByCode = React.useMemo(() => {
@@ -180,7 +259,7 @@ export function RulesListView() {
   if (rulesQuery.isLoading) return <LoadingSkeleton />;
   if (rulesQuery.isError) return <QavanteInlineError error={rulesQuery.error} what="las reglas" />;
 
-  const rules = rulesQuery.data?.items ?? [];
+  const visibleRules = filterRules(rules, filter);
 
   function openCreate() {
     setEditingRule(null);
@@ -231,23 +310,51 @@ export function RulesListView() {
           Nueva regla
         </QavanteButton>
       </div>
+      <div className="flex flex-wrap gap-2" aria-label="Filtrar reglas por origen o estado">
+        {FILTERS.map((option) => {
+          const count = filterRules(rules, option.id).length;
+          return (
+            <QavanteButton
+              key={option.id}
+              size="sm"
+              variant={filter === option.id ? "secondary" : "ghost"}
+              aria-pressed={filter === option.id}
+              onClick={() => setFilter(option.id)}
+            >
+              {option.label} · {formatCount(count)}
+            </QavanteButton>
+          );
+        })}
+      </div>
       <ul className="space-y-2">
-        {rules.map((rule) => (
-          <li key={rule.id}>
-            <RuleRow
-              rule={rule}
-              onToggle={handleToggle}
-              onEdit={openEdit}
-              isToggling={toggle.isPending && togglingId === rule.id}
-              canonicalLabel={
-                rule.canonical_category
-                  ? (categoryByCode[rule.canonical_category] ?? rule.canonical_category)
-                  : null
-              }
-            />
-          </li>
-        ))}
+        {visibleRules.map((rule) => {
+          const index = rules.findIndex((candidate) => candidate.id === rule.id);
+          const usage = usageQueries[index];
+          return (
+            <li key={rule.id}>
+              <RuleRow
+                rule={rule}
+                onToggle={handleToggle}
+                onEdit={openEdit}
+                isToggling={toggle.isPending && togglingId === rule.id}
+                canonicalLabel={
+                  rule.canonical_category
+                    ? (categoryByCode[rule.canonical_category] ?? rule.canonical_category)
+                    : null
+                }
+                usage={usage?.data}
+                usageLoading={usage?.isLoading ?? true}
+                usageError={usage?.isError ?? false}
+              />
+            </li>
+          );
+        })}
       </ul>
+      {visibleRules.length === 0 && (
+        <p className="rounded-xl border border-neutral-light bg-surface p-4 text-sm text-neutral-mid">
+          No hay reglas en este filtro.
+        </p>
+      )}
       {toggle.isError && <QavanteInlineError error={toggle.error} what="al cambiar el estado" />}
 
       <RuleFormDialog open={dialogOpen} onOpenChange={setDialogOpen} rule={editingRule} />

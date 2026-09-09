@@ -3,13 +3,19 @@
 import { useSourcesStatus } from "@/lib/api/sources-status";
 import { useMyTenants } from "@/lib/api/tenants";
 import { useUsers } from "@/lib/api/users";
-import { filasHubV12, type CargaV12 } from "./administracion-v12-model";
+import {
+  useClassificationRules,
+  useClassificationRuleUsages,
+  type ClassificationRuleUsage,
+} from "@/lib/api/classification-rules";
+import { filasHubV12, resumenReglas, type CargaV12 } from "./administracion-v12-model";
 import { AdministracionV12View } from "./administracion-v12-view";
 
-/* Cableado de V12 · Administración (issue #75). Tres queries independientes, cada una con su
+/* Cableado de V12 · Administración (issue #75). Cuatro fuentes independientes, cada una con su
  * propio `CargaV12` mientras no responde — si una falla (p.ej. `/api/sources/status` es
  * `skipAuthRetry`, ver `sources-status.ts`) las otras dos filas igual muestran su estado: no hay
- * una sola pantalla de error que tumbe el hub entero por una fuente caída.
+ * una sola pantalla de error que tumbe el hub entero por una fuente caída. Reglas usa una lista
+ * y una consulta de uso por id; una cobertura desconocida se conserva como tal.
  *
  * Ley 8 (hallazgo de revisión, PR #95): mientras una query está en vuelo o falló, la fila NO
  * puede verse igual que una fila con hueco declarado (`estado: null`) — serían indistinguibles de
@@ -36,6 +42,33 @@ export function AdministracionV12Live({ mcp }: AdministracionV12LiveProps) {
   const sourcesQuery = useSourcesStatus();
   const tenantsQuery = useMyTenants();
   const usersQuery = useUsers();
+  const rulesQuery = useClassificationRules();
+  const rules = rulesQuery.data?.items ?? [];
+  const usageQueries = useClassificationRuleUsages(rules.map((rule) => rule.id));
+
+  let reglas: CargaV12<{
+    activas: number;
+    aplicaciones: number;
+    correcciones: number;
+    medidas: number;
+    sinMedicion: number;
+  }>;
+  if (rulesQuery.isError || usageQueries.some((query) => query.isError)) {
+    reglas = { tipo: "error" };
+  } else if (rulesQuery.data === undefined) {
+    reglas = { tipo: "cargando" };
+  } else {
+    const usos = usageQueries
+      .map((query) => query.data)
+      .filter((uso): uso is ClassificationRuleUsage => uso !== undefined);
+    reglas =
+      usos.length !== rules.length
+        ? { tipo: "cargando" }
+        : {
+            tipo: "listo",
+            valor: resumenReglas(rules, usos),
+          };
+  }
 
   const filas = filasHubV12({
     /* Sin filtrar por `visibleSources` acá: `estadoCredenciales` ya lo hace (es su fuente de
@@ -56,6 +89,7 @@ export function AdministracionV12Live({ mcp }: AdministracionV12LiveProps) {
       isLoading: usersQuery.isLoading,
       isError: usersQuery.isError,
     }),
+    reglas,
     mcpVisible: mcp,
   });
 

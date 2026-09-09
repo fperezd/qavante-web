@@ -9,6 +9,7 @@ const SEED_RULE: ClassificationRule = {
   id: "rule-1",
   name: "Sueldo Fernando",
   source_type: "bank_movement",
+  origin: "created_by_user",
   condition_field: "description",
   operator: "contains",
   condition_value: "SUELDO FERNANDO",

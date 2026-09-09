@@ -4701,6 +4701,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/classification-rules/{rule_id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cuenta aplicaciones automáticas y correcciones atribuibles a una regla */
+        get: operations["classification_rules_usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/collection-evaluation": {
         parameters: {
             query?: never;
@@ -9391,6 +9408,11 @@ export interface components {
              */
             operator: string;
             /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "unknown" | "learned_from_usage" | "created_by_user" | "qavante_base";
+            /**
              * Priority
              * @default 100
              */
@@ -9402,6 +9424,45 @@ export interface components {
             source_type: string;
             /** Updated At */
             updated_at?: string | null;
+        };
+        /**
+         * ClassificationRuleUsage
+         * @description Uso atribuible a una regla desde el inicio explícito de su medición.
+         */
+        ClassificationRuleUsage: {
+            /** Application Count */
+            application_count?: number | null;
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /**
+             * Correction Basis
+             * @default reverted_auto_classification
+             * @constant
+             */
+            correction_basis: "reverted_auto_classification";
+            /** Correction Count */
+            correction_count?: number | null;
+            /**
+             * Coverage
+             * @enum {string}
+             */
+            coverage: "complete_since_tracking_started_at" | "unknown";
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Last Applied At */
+            last_applied_at?: string | null;
+            /** Last Corrected At */
+            last_corrected_at?: string | null;
+            /** Rule Id */
+            rule_id: string;
+            /** Tracking Started At */
+            tracking_started_at?: string | null;
         };
         /** ClassificationRulesResponse */
         ClassificationRulesResponse: {
@@ -29953,6 +30014,47 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ClassificationRule"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    classification_rules_usage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description UUID de la regla. */
+                rule_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClassificationRuleUsage"];
+                };
+            };
+            /** @description La regla no existe en el tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
