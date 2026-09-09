@@ -147,7 +147,7 @@ describe("resolutionDetailFromApi", () => {
 
     const detail = resolutionDetailFromApi(apiDetail);
     expect(detail.reconciliation.status).toBe("conciliado");
-    expect(detail.reconciliation.canUnreconcile).toBe(false);
+    expect(detail.reconciliation.canUnreconcile).toBe(true);
     expect(detail.reconciliation.topology).toBe("N:N");
     expect(detail.reconciliation.balanceFormatted).toBe("$0");
     expect(detail.reconciliation.allocations[0]?.kind).toBe("bank_movement");
@@ -164,5 +164,30 @@ describe("resolutionDetailFromApi", () => {
     expect(detail.classification.allocations[0]?.dimensions).toEqual([
       { name: "Sucursal", value: "Santiago" },
     ]);
+  });
+
+  it("permite revertir el estado efectivo parcial aunque no haya allocations legacy", () => {
+    const apiDetail = {
+      movement: movimientos()[0]!,
+      reconciliation: {
+        stored_status: "unmatched",
+        effective_status: "partial",
+        allocations: [],
+        components: [],
+        evidence: [],
+        legacy_documents: [],
+        history: [],
+      },
+      classification: {
+        status: "unclassified",
+        allocations: [],
+        history: [],
+      },
+    } as unknown as MovementResolutionDetailResponse;
+
+    expect(resolutionDetailFromApi(apiDetail).reconciliation).toMatchObject({
+      status: "parcial",
+      canUnreconcile: true,
+    });
   });
 });

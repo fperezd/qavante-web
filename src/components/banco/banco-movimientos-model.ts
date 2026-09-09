@@ -64,7 +64,6 @@ export function bankAccountIdDeCuenta(
 export function movimientosDeCuenta(
   items: BankMovement[],
   bankAccountId: string | null,
-  moneda: string,
 ): MovimientoBanco[] {
   if (!bankAccountId) return [];
   return items
@@ -76,7 +75,9 @@ export function movimientosDeCuenta(
         fecha: m.date,
         glosa: m.description ?? "s/d",
         monto,
-        moneda,
+        // La moneda pertenece al movimiento. La cuenta puede ser multi-moneda y `null`
+        // significa que ninguna fuente entregó evidencia: nunca lo aplastamos a CLP.
+        moneda: m.currency_code?.trim().toUpperCase() || "S/D",
         esAbono: monto >= 0,
         estado: estadoConciliacion(m.reconciliation_status),
         documento: m.external_id ?? null,

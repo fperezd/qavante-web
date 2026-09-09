@@ -4,7 +4,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Loader2, X } from "lucide-react";
 import { QavanteButton, QavanteInlineError } from "@/components/qavante";
 import { useDocumentSuggestions } from "@/lib/api/reconciliation";
-import { formatClp } from "@/lib/formatters/clp";
+import { formatClp, formatClpBare, formatMoney } from "@/lib/formatters/clp";
 
 type Props = {
   movementId: string | null;
@@ -12,7 +12,18 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onChoose: (documentId: string) => void;
   choosing: boolean;
+  /** Moneda del movimiento que el backend usa para filtrar los candidatos. */
+  currencyCode?: string | null;
 };
+
+export function formatDocumentSuggestionAmount(
+  amount: string | number,
+  currencyCode?: string | null,
+): string {
+  const value = Number(amount);
+  if (currencyCode === "S/D") return `${formatClpBare(value)} · moneda desconocida`;
+  return currencyCode ? formatMoney(value, currencyCode) : formatClp(value);
+}
 
 /** Elección explícita de documento: muestra candidatos, pero nunca infiere ni ejecuta por sí sola. */
 export function DocumentSuggestionsDialog({
@@ -21,6 +32,7 @@ export function DocumentSuggestionsDialog({
   onOpenChange,
   onChoose,
   choosing,
+  currencyCode,
 }: Props) {
   const suggestions = useDocumentSuggestions(movementId, open);
 
@@ -91,7 +103,7 @@ export function DocumentSuggestionsDialog({
                           {reference || "Sin referencia disponible"}
                         </p>
                         <p className="mt-1 text-sm tabular-nums text-neutral-dark">
-                          {formatClp(Number(document.amount))}
+                          {formatDocumentSuggestionAmount(document.amount, currencyCode)}
                         </p>
                       </div>
                       <QavanteButton

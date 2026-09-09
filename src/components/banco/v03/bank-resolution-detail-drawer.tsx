@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { ExternalLink, X } from "lucide-react";
-import { QavanteButton } from "@/components/qavante";
+import { QavanteButton, QavanteInlineError } from "@/components/qavante";
 import { Pill } from "@/components/rediseno/pill";
 import { formatDateShort } from "@/lib/formatters/date";
 import { CLASIFICACION_PILL, CONCILIACION_PILL, type MovimientoV03 } from "./banco-v03-model";
@@ -24,7 +24,11 @@ export interface BankResolutionDetailDrawerProps {
   open: boolean;
   movement: MovimientoV03;
   detail: BankMovementResolutionDetail;
+  resolutionLoading?: boolean;
+  resolutionError?: unknown;
+  onRetryResolution?: () => void;
   onClose: () => void;
+  onReconcile?: () => void;
   onUnreconcile?: () => void;
   onReclassify?: () => void;
   onUnclassify?: () => void;
@@ -41,7 +45,11 @@ export function BankResolutionDetailDrawer({
   open,
   movement,
   detail,
+  resolutionLoading = false,
+  resolutionError,
+  onRetryResolution,
   onClose,
+  onReconcile,
   onUnreconcile,
   onReclassify,
   onUnclassify,
@@ -146,111 +154,138 @@ export function BankResolutionDetailDrawer({
         </header>
 
         <div className="flex-1 space-y-5 p-5">
-          <ResolutionSection
-            title="Conciliación"
-            pill={<Pill variant={reconciliationPill.tono}>{reconciliationPill.texto}</Pill>}
-          >
-            {detail.reconciliation.topology && (
-              <Fact label="Relación" value={detail.reconciliation.topology} />
-            )}
-            <Allocations
-              items={detail.reconciliation.allocations}
-              empty="El estado está disponible, pero la API todavía no publicó contra qué documento(s) se concilió."
+          {resolutionLoading && (
+            <p role="status" aria-live="polite" className="text-sm text-neutral-mid">
+              Cargando el detalle canónico del movimiento…
+            </p>
+          )}
+          {resolutionError != null && (
+            <QavanteInlineError
+              error={resolutionError}
+              what="el detalle canónico del movimiento"
+              onRetry={onRetryResolution}
             />
-            <Components items={detail.reconciliation.components} />
-            {detail.reconciliation.balanceFormatted && (
-              <Fact label="Saldo por conciliar" value={detail.reconciliation.balanceFormatted} />
-            )}
-            <Trace
-              source={detail.reconciliation.source}
-              confidence={detail.reconciliation.confidence}
-            />
-            {(detail.reconciliation.evidence?.length ?? 0) > 0 && (
-              <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-mid">
-                {detail.reconciliation.evidence!.map((e) => (
-                  <li key={e}>{e}</li>
-                ))}
-              </ul>
-            )}
-            <History items={detail.reconciliation.history} />
-            {detail.reconciliation.status === "conciliado" && (
-              <QavanteButton
-                size="sm"
-                variant="ghost"
-                disabled={!detail.reconciliation.canUnreconcile || !onUnreconcile}
-                onClick={confirmUnreconcile}
-                title={
-                  !detail.reconciliation.canUnreconcile || !onUnreconcile
-                    ? "Este tipo de vínculo todavía no admite una reversión segura desde Banco"
-                    : undefined
-                }
+          )}
+          {!resolutionLoading && resolutionError == null && (
+            <>
+              <ResolutionSection
+                title="Conciliación"
+                pill={<Pill variant={reconciliationPill.tono}>{reconciliationPill.texto}</Pill>}
               >
-                Desconciliar
-              </QavanteButton>
-            )}
-          </ResolutionSection>
+                {detail.reconciliation.topology && (
+                  <Fact label="Relación" value={detail.reconciliation.topology} />
+                )}
+                <Allocations
+                  items={detail.reconciliation.allocations}
+                  empty="El estado está disponible, pero la API todavía no publicó contra qué documento(s) se concilió."
+                />
+                <Components items={detail.reconciliation.components} />
+                {detail.reconciliation.balanceFormatted && (
+                  <Fact
+                    label="Saldo por conciliar"
+                    value={detail.reconciliation.balanceFormatted}
+                  />
+                )}
+                <Trace
+                  source={detail.reconciliation.source}
+                  confidence={detail.reconciliation.confidence}
+                />
+                {(detail.reconciliation.evidence?.length ?? 0) > 0 && (
+                  <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-mid">
+                    {detail.reconciliation.evidence!.map((e) => (
+                      <li key={e}>{e}</li>
+                    ))}
+                  </ul>
+                )}
+                <History items={detail.reconciliation.history} />
+                {(detail.reconciliation.status === "pendiente" ||
+                  detail.reconciliation.status === "parcial") &&
+                  onReconcile && (
+                    <QavanteButton size="sm" onClick={onReconcile}>
+                      Conciliar movimiento
+                    </QavanteButton>
+                  )}
+                {(detail.reconciliation.status === "conciliado" ||
+                  detail.reconciliation.status === "parcial") && (
+                  <QavanteButton
+                    size="sm"
+                    variant="ghost"
+                    disabled={!detail.reconciliation.canUnreconcile || !onUnreconcile}
+                    onClick={confirmUnreconcile}
+                    title={
+                      !detail.reconciliation.canUnreconcile || !onUnreconcile
+                        ? "Este tipo de vínculo todavía no admite una reversión segura desde Banco"
+                        : undefined
+                    }
+                  >
+                    Desconciliar
+                  </QavanteButton>
+                )}
+              </ResolutionSection>
 
-          <ResolutionSection
-            title="Clasificación"
-            pill={<Pill variant={classificationPill.tono}>{classificationPill.texto}</Pill>}
-          >
-            {detail.classification.canonicalType && (
-              <Fact label="Tipo financiero" value={detail.classification.canonicalType} />
-            )}
-            <Allocations
-              items={detail.classification.allocations}
-              empty="La API todavía no publicó la cuenta de gestión o su distribución para este movimiento."
-            />
-            <Trace
-              source={detail.classification.source}
-              confidence={detail.classification.confidence}
-              actor={detail.classification.actor}
-              occurredAt={detail.classification.classifiedAt}
-            />
-            <History items={detail.classification.history} />
-            {editingClassification && classificationEditor && canEditClassification && (
-              <DistributedClassificationEditor
-                totalAmount={Math.abs(movement.monto)}
-                currency={movement.moneda}
-                accounts={classificationEditor.accounts}
-                events={classificationEditor.events}
-                dimensions={classificationEditor.dimensions}
-                saving={classificationEditor.saving}
-                onCancel={() => setEditingClassification(false)}
-                onSave={async (body) => {
-                  await classificationEditor.onSave(body);
-                  setEditingClassification(false);
-                }}
-              />
-            )}
-            <div className="flex flex-wrap gap-2">
-              <QavanteButton
-                size="sm"
-                variant="secondary"
-                disabled={!canEditClassification && !onReclassify}
-                onClick={() =>
-                  canEditClassification ? setEditingClassification(true) : onReclassify?.()
-                }
-                title={
-                  movement.moneda === "S/D"
-                    ? "Corrige la moneda del movimiento antes de clasificar"
-                    : undefined
-                }
+              <ResolutionSection
+                title="Clasificación"
+                pill={<Pill variant={classificationPill.tono}>{classificationPill.texto}</Pill>}
               >
-                Modificar clasificación
-              </QavanteButton>
-              {detail.classification.status === "clasificado" && (
-                <QavanteButton
-                  size="sm"
-                  variant="ghost"
-                  disabled={!onUnclassify}
-                  onClick={confirmUnclassify}
-                >
-                  Desclasificar
-                </QavanteButton>
-              )}
-            </div>
-          </ResolutionSection>
+                {detail.classification.canonicalType && (
+                  <Fact label="Tipo financiero" value={detail.classification.canonicalType} />
+                )}
+                <Allocations
+                  items={detail.classification.allocations}
+                  empty="La API todavía no publicó la cuenta de gestión o su distribución para este movimiento."
+                />
+                <Trace
+                  source={detail.classification.source}
+                  confidence={detail.classification.confidence}
+                  actor={detail.classification.actor}
+                  occurredAt={detail.classification.classifiedAt}
+                />
+                <History items={detail.classification.history} />
+                {editingClassification && classificationEditor && canEditClassification && (
+                  <DistributedClassificationEditor
+                    totalAmount={Math.abs(movement.monto)}
+                    currency={movement.moneda}
+                    accounts={classificationEditor.accounts}
+                    events={classificationEditor.events}
+                    dimensions={classificationEditor.dimensions}
+                    saving={classificationEditor.saving}
+                    onCancel={() => setEditingClassification(false)}
+                    onSave={async (body) => {
+                      await classificationEditor.onSave(body);
+                      setEditingClassification(false);
+                    }}
+                  />
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <QavanteButton
+                    size="sm"
+                    variant="secondary"
+                    disabled={!canEditClassification && !onReclassify}
+                    onClick={() =>
+                      canEditClassification ? setEditingClassification(true) : onReclassify?.()
+                    }
+                    title={
+                      movement.moneda === "S/D"
+                        ? "Corrige la moneda del movimiento antes de clasificar"
+                        : undefined
+                    }
+                  >
+                    Modificar clasificación
+                  </QavanteButton>
+                  {detail.classification.status === "clasificado" && (
+                    <QavanteButton
+                      size="sm"
+                      variant="ghost"
+                      disabled={!onUnclassify}
+                      onClick={confirmUnclassify}
+                    >
+                      Desclasificar
+                    </QavanteButton>
+                  )}
+                </div>
+              </ResolutionSection>
+            </>
+          )}
         </div>
       </aside>
     </div>

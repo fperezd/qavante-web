@@ -66,6 +66,8 @@ export interface MovimientosDetalleProps {
   onRechazar?: (movId: string) => void;
   /** Acción individual en curso (spinner + deshabilita esa fila). */
   accionEnCurso?: AccionConciliar | null;
+  /** Abre el detalle canónico del movimiento. Abrir es siempre read-only. */
+  onOpenMovement?: (movement: MovimientoBanco) => void;
 }
 
 export function MovimientosDetalle({
@@ -85,6 +87,7 @@ export function MovimientosDetalle({
   onConciliar,
   onRechazar,
   accionEnCurso,
+  onOpenMovement,
 }: MovimientosDetalleProps) {
   const [tab, setTab] = React.useState<MovTab>("todos");
   const [texto, setTexto] = React.useState("");
@@ -215,29 +218,43 @@ export function MovimientosDetalle({
                 conConciliar && m.id != null && m.estado === "por_conciliar"
                   ? sugerencias?.get(m.id)
                   : undefined;
+              const contenido = (
+                <>
+                  <div className="min-w-0 text-left">
+                    <p className="truncate text-sm text-neutral-dark">{m.glosa}</p>
+                    <p className="text-xs text-neutral-mid">
+                      {formatDateLike(m.fecha)}
+                      {m.cuotas && <> · cuota {m.cuotas}</>}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    {conEstado && m.estado && <EstadoBadge estado={m.estado} />}
+                    <span
+                      className={cn(
+                        "whitespace-nowrap font-medium tabular-nums",
+                        m.monto < 0 ? "text-danger-500" : "text-success-600",
+                      )}
+                    >
+                      {m.monto < 0 ? "−" : "+"}
+                      {formatMoney(Math.abs(m.monto), m.moneda)}
+                    </span>
+                  </div>
+                </>
+              );
               return (
                 <li key={m.id ?? `${m.fecha}-${i}`} className="py-2.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-neutral-dark">{m.glosa}</p>
-                      <p className="text-xs text-neutral-mid">
-                        {formatDateLike(m.fecha)}
-                        {m.cuotas && <> · cuota {m.cuotas}</>}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      {conEstado && m.estado && <EstadoBadge estado={m.estado} />}
-                      <span
-                        className={cn(
-                          "whitespace-nowrap font-medium tabular-nums",
-                          m.monto < 0 ? "text-danger-500" : "text-success-600",
-                        )}
-                      >
-                        {m.monto < 0 ? "−" : "+"}
-                        {formatMoney(Math.abs(m.monto), m.moneda)}
-                      </span>
-                    </div>
-                  </div>
+                  {m.id && onOpenMovement ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenMovement(m)}
+                      aria-label={`Abrir detalle de ${m.glosa}`}
+                      className="-my-2.5 flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-brand-primary-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                    >
+                      {contenido}
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">{contenido}</div>
+                  )}
                   {sug && (
                     <SugerenciaBanda
                       sug={sug}

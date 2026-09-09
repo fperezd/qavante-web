@@ -115,6 +115,7 @@ function topology(value?: string | null): "1:1" | "1:N" | "N:1" | "N:N" | null {
 export function resolutionDetailFromApi(
   detail: MovementResolutionDetailResponse,
 ): BankMovementResolutionDetail {
+  const effectiveStatus = reconciliationStatus(detail.reconciliation.effective_status);
   const current = detail.reconciliation.current_case;
   const publishedAllocations = detail.reconciliation.allocations ?? [];
   const effectiveAllocations: ResolutionAllocation[] = (
@@ -143,8 +144,11 @@ export function resolutionDetailFromApi(
   return {
     movementId: detail.movement.id,
     reconciliation: {
-      status: reconciliationStatus(detail.reconciliation.effective_status),
-      canUnreconcile: legacyAllocations.length > 0,
+      status: effectiveStatus,
+      // El endpoint de reversa acepta también casos canónicos sin espejo legacy y es
+      // idempotente. El estado efectivo publicado es la evidencia de que existe algo que
+      // deshacer; exigir `legacy_documents` dejaba atrapados los casos N:1 y N:N.
+      canUnreconcile: effectiveStatus === "conciliado" || effectiveStatus === "parcial",
       topology: topology(detail.reconciliation.topology ?? current?.topology),
       allocations: effectiveAllocations.length > 0 ? effectiveAllocations : legacyAllocations,
       components: publishedComponents.map((item, index) => ({

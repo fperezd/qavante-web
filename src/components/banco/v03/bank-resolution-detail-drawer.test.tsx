@@ -106,4 +106,49 @@ describe("BankResolutionDetailDrawer", () => {
     expect(rendered).toContain("disabled");
     expect(rendered).toContain("no admite una reversión segura");
   });
+
+  it("ofrece conciliación explícita sólo cuando el movimiento sigue pendiente", () => {
+    const pending = detail();
+    pending.reconciliation.status = "pendiente";
+    const rendered = renderToStaticMarkup(
+      <BankResolutionDetailDrawer
+        open
+        movement={{ ...movement, estadoConciliacion: "pendiente", porConciliar: true }}
+        detail={pending}
+        onClose={vi.fn()}
+        onReconcile={vi.fn()}
+      />,
+    );
+    expect(rendered).toContain("Conciliar movimiento");
+    expect(rendered).not.toContain("Desconciliar");
+  });
+
+  it("declara la carga y el error canónicos sin dejar acciones habilitadas", () => {
+    const loading = renderToStaticMarkup(
+      <BankResolutionDetailDrawer
+        open
+        movement={movement}
+        detail={detail()}
+        resolutionLoading
+        onClose={vi.fn()}
+        onUnreconcile={vi.fn()}
+      />,
+    );
+    expect(loading).toContain("Cargando el detalle canónico del movimiento");
+    expect(loading).not.toContain("Desconciliar");
+
+    const error = renderToStaticMarkup(
+      <BankResolutionDetailDrawer
+        open
+        movement={movement}
+        detail={detail()}
+        resolutionError={new Error("falló el read model")}
+        onRetryResolution={vi.fn()}
+        onClose={vi.fn()}
+        onUnreconcile={vi.fn()}
+      />,
+    );
+    expect(error).toContain("No pudimos cargar el detalle canónico del movimiento");
+    expect(error).not.toContain("Desconciliar");
+  });
 });

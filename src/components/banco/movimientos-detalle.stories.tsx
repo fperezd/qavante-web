@@ -83,6 +83,21 @@ export const Vacio: Story = {
   },
 };
 
+export const DetalleInteractivo: Story = {
+  args: { onOpenMovement: fn() },
+  play: async ({ canvasElement, args }) => {
+    const c = within(canvasElement);
+    const fila = c.getByRole("button", { name: "Abrir detalle de MERCADOLIBRE" });
+    await userEvent.click(fila);
+    await expect(args.onOpenMovement).toHaveBeenCalledWith(MOVS[0]);
+    fila.focus();
+    await userEvent.keyboard("{Enter}");
+    await expect(args.onOpenMovement).toHaveBeenCalledTimes(2);
+    await userEvent.keyboard(" ");
+    await expect(args.onOpenMovement).toHaveBeenCalledTimes(3);
+  },
+};
+
 /* Fase 2 — conciliar por movimiento (flag `bancoConciliacion` ON): el movimiento "Por conciliar" con
    match propuesto muestra la banda "Pago/Cobro a …" + Conciliar / Rechazar, y aparece el tab
    "Sugerencias". */
@@ -103,6 +118,7 @@ export const ConConciliacion: Story = {
     ]),
     onConciliar: fn(),
     onRechazar: fn(),
+    onOpenMovement: fn(),
   },
   play: async ({ canvasElement, args }) => {
     const c = within(canvasElement);
@@ -119,5 +135,7 @@ export const ConConciliacion: Story = {
     // Rechazar también.
     await userEvent.click(c.getByRole("button", { name: /Rechazar sugerencia/ }));
     await expect(args.onRechazar).toHaveBeenCalledWith("m1");
+    // Las acciones de la sugerencia son hermanas de la fila interactiva: no deben abrir el detalle.
+    await expect(args.onOpenMovement).not.toHaveBeenCalled();
   },
 };

@@ -3,14 +3,46 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { useBiceSaldo, useBiceAccounts, useBankMovements, treasuryKeys } from "@/lib/api/treasury";
+import {
+  createTreasuryIdempotencyKey,
+  useBankMovementResolution,
+  useBiceSaldo,
+  useBiceAccounts,
+  useBankMovements,
+  useFinancialEventTypes,
+  useReplaceBankMovementClassification,
+  useUnclassifyBankMovement,
+  treasuryKeys,
+  BANK_MOVEMENTS_LIMIT_MAX,
+} from "@/lib/api/treasury";
+import { useMyPermissions } from "@/lib/api/users";
+import { hasPermission } from "@/lib/auth/permissions";
 import {
   useReconciliationReview,
   useConfirmReconciliation,
+  useConfirmReconciliationWithDocument,
   useRejectReconciliation,
+  useRevertReconciliation,
 } from "@/lib/api/reconciliation";
+import {
+  useClassificationDimensions,
+  useManagementAccountsTree,
+  type ManagementAccountNode,
+} from "@/lib/api/management";
 import { interpretarErrorConciliar } from "@/components/caja/conciliacion/reconciliacion-cola-map";
+import { DocumentSuggestionsDialog } from "@/components/caja/conciliacion/document-suggestions-dialog";
 import { MovimientosDetalle, type AccionConciliar } from "./movimientos-detalle";
+import { BankResolutionDetailDrawer } from "./v03/bank-resolution-detail-drawer";
+import {
+  resolutionDetailFromApi,
+  resolutionDetailFromMovement,
+} from "./v03/bank-resolution-detail-model";
+import {
+  estadoClasificacionDe,
+  estadoConciliacionDe,
+  quedaPorConciliar,
+  type MovimientoV03,
+} from "./v03/banco-v03-model";
 import {
   bankAccountIdDeCuenta,
   movimientosDeCuenta,
@@ -36,6 +68,10 @@ export function CuentaDetalleLive({
   conciliarEnabled?: boolean;
 }) {
   const [period, setPeriod] = React.useState(mesActual);
+  const [selectedMovementId, setSelectedMovementId] = React.useState<string | null>(null);
+  const [documentPickerOpen, setDocumentPickerOpen] = React.useState(false);
+  const classificationIntent = React.useRef<{ fingerprint: string; key: string } | null>(null);
+  const unclassifyIntents = React.useRef(new Map<string, string>());
   const qc = useQueryClient();
 
   const saldoQuery = useBiceSaldo();
@@ -45,16 +81,88 @@ export function CuentaDetalleLive({
     accountsQuery.data?.accounts,
     cuenta?.numeroFormateado,
   );
-  const bankQuery = useBankMovements({ period });
+  const bankQuery = useBankMovements({
+    period,
+    bank_account_id: bankAccountId ?? undefined,
+    limit: BANK_MOVEMENTS_LIMIT_MAX,
+  });
+  const permissionsQuery = useMyPermissions();
+  const canWrite =
+    conciliarEnabled && hasPermission(permissionsQuery.data?.permissions, "financial.write");
+  const resolutionQuery = useBankMovementResolution(selectedMovementId);
+  const financialEventTypes = useFinancialEventTypes();
+  const managementAccounts = useManagementAccountsTree();
+  const classificationDimensions = useClassificationDimensions(selectedMovementId != null);
+  const replaceClassification = useReplaceBankMovementClassification();
+  const unclassify = useUnclassifyBankMovement();
+  const unreconcile = useRevertReconciliation();
+  const confirmWithDocument = useConfirmReconciliationWithDocument();
 
-  const moneda = cuenta?.moneda ?? "CLP";
   const movimientos = React.useMemo(
-    () => movimientosDeCuenta(bankQuery.data?.items ?? [], bankAccountId, moneda),
-    [bankQuery.data, bankAccountId, moneda],
+    () => movimientosDeCuenta(bankQuery.data?.items ?? [], bankAccountId),
+    [bankQuery.data, bankAccountId],
+  );
+  const selectedRawMovement = React.useMemo(
+    () => (bankQuery.data?.items ?? []).find((item) => item.id === selectedMovementId) ?? null,
+    [bankQuery.data, selectedMovementId],
+  );
+  const selectedListMovement = React.useMemo(
+    () => movimientos.find((item) => item.id === selectedMovementId) ?? null,
+    [movimientos, selectedMovementId],
+  );
+  const selectedMovement = React.useMemo<MovimientoV03 | null>(() => {
+    if (!selectedRawMovement || !selectedListMovement) return null;
+    return {
+      id: selectedRawMovement.id,
+      bankAccountId: selectedRawMovement.bank_account_id,
+      fecha: selectedListMovement.fecha,
+      glosa: selectedListMovement.glosa,
+      monto: selectedListMovement.monto,
+      moneda: selectedListMovement.moneda,
+      esAbono: selectedListMovement.esAbono,
+      cuenta: cuenta?.numeroFormateado ? `${cuenta.numeroFormateado} · BICE` : "BICE",
+      categoria: selectedRawMovement.canonical_category ?? null,
+      estadoConciliacion: estadoConciliacionDe(selectedRawMovement),
+      estadoClasificacion: estadoClasificacionDe(selectedRawMovement),
+      porConciliar: quedaPorConciliar(selectedRawMovement),
+    };
+  }, [cuenta, selectedListMovement, selectedRawMovement]);
+  const selectedDetail = React.useMemo(() => {
+    if (resolutionQuery.data) return resolutionDetailFromApi(resolutionQuery.data);
+    if (selectedRawMovement) {
+      return resolutionDetailFromMovement(
+        selectedRawMovement,
+        selectedRawMovement.canonical_category ?? null,
+      );
+    }
+    return null;
+  }, [resolutionQuery.data, selectedRawMovement]);
+  const accountOptions = React.useMemo(
+    () => flattenAccounts(managementAccounts.data?.items ?? []),
+    [managementAccounts.data],
+  );
+  const eventOptions = React.useMemo(
+    () =>
+      (financialEventTypes.data?.items ?? []).map((item) => ({
+        code: item.code,
+        label: item.code.replaceAll("_", " "),
+      })),
+    [financialEventTypes.data],
+  );
+  const dimensionOptions = React.useMemo(
+    () =>
+      classificationDimensions.data.map(({ dimension, values }) => ({
+        id: dimension.id,
+        name: dimension.name,
+        values: values
+          .filter((value) => value.active)
+          .map((value) => ({ id: value.id, name: value.name })),
+      })),
+    [classificationDimensions.data],
   );
 
   // Fase 2: cola de conciliación (solo si el flag está ON). Cruzamos por movement_id.
-  const reviewQuery = useReconciliationReview(conciliarEnabled);
+  const reviewQuery = useReconciliationReview(canWrite);
   const confirmar = useConfirmReconciliation();
   const rechazar = useRejectReconciliation();
   const sugerencias = React.useMemo(
@@ -67,7 +175,8 @@ export function CuentaDetalleLive({
     // Tras conciliar/rechazar, el estado del movimiento cambió → refrescar movimientos + cola.
     qc.invalidateQueries({ queryKey: treasuryKeys.all });
     reviewQuery.refetch();
-  }, [qc, reviewQuery]);
+    void resolutionQuery.refetch();
+  }, [qc, resolutionQuery, reviewQuery]);
 
   const manejarError = React.useCallback(
     (err: unknown) => {
@@ -127,23 +236,171 @@ export function CuentaDetalleLive({
       : null;
 
   return (
-    <MovimientosDetalle
-      titulo={cuenta?.nombreCuenta ?? "Cuenta corriente"}
-      subtitulo={cuenta?.numeroFormateado ? `${cuenta.numeroFormateado} · BICE` : "BICE"}
-      mesActual={mesActual}
-      period={period}
-      onPeriodChange={setPeriod}
-      movimientos={movimientos}
-      conEstado
-      loading={loading}
-      actualizando={actualizando}
-      error={bankQuery.error}
-      horaTexto={horaTexto}
-      conciliarEnabled={conciliarEnabled}
-      sugerencias={sugerencias}
-      onConciliar={onConciliar}
-      onRechazar={onRechazar}
-      accionEnCurso={accionEnCurso}
-    />
+    <>
+      <MovimientosDetalle
+        titulo={cuenta?.nombreCuenta ?? "Cuenta corriente"}
+        subtitulo={cuenta?.numeroFormateado ? `${cuenta.numeroFormateado} · BICE` : "BICE"}
+        mesActual={mesActual}
+        period={period}
+        onPeriodChange={(nextPeriod) => {
+          setSelectedMovementId(null);
+          setDocumentPickerOpen(false);
+          setPeriod(nextPeriod);
+        }}
+        movimientos={movimientos}
+        conEstado
+        loading={loading}
+        actualizando={actualizando}
+        error={bankQuery.error}
+        horaTexto={horaTexto}
+        conciliarEnabled={canWrite}
+        sugerencias={sugerencias}
+        onConciliar={canWrite ? onConciliar : undefined}
+        onRechazar={canWrite ? onRechazar : undefined}
+        accionEnCurso={accionEnCurso}
+        onOpenMovement={
+          conciliarEnabled ? (movement) => setSelectedMovementId(movement.id ?? null) : undefined
+        }
+      />
+      {selectedMovement && selectedDetail && (
+        <BankResolutionDetailDrawer
+          open={!documentPickerOpen}
+          movement={selectedMovement}
+          detail={selectedDetail}
+          resolutionLoading={resolutionQuery.isLoading}
+          resolutionError={resolutionQuery.error}
+          onRetryResolution={() => resolutionQuery.refetch()}
+          onClose={() => {
+            setSelectedMovementId(null);
+            setDocumentPickerOpen(false);
+          }}
+          onReconcile={
+            canWrite &&
+            !resolutionQuery.isLoading &&
+            !resolutionQuery.isError &&
+            selectedMovement.porConciliar
+              ? () => setDocumentPickerOpen(true)
+              : undefined
+          }
+          onUnreconcile={
+            canWrite &&
+            !resolutionQuery.isLoading &&
+            !resolutionQuery.isError &&
+            selectedDetail.reconciliation.canUnreconcile
+              ? () =>
+                  unreconcile.mutate(selectedMovement.id, {
+                    onSuccess: (result) => {
+                      if (result.reverted > 0) toast.success("Conciliación deshecha");
+                      else toast.error("No se revirtió ningún vínculo; el movimiento se recargó");
+                      refrescarMovimientos();
+                    },
+                    onError: (error) => toast.error(error.message),
+                  })
+              : undefined
+          }
+          onUnclassify={
+            canWrite && !resolutionQuery.isLoading && !resolutionQuery.isError
+              ? () =>
+                  unclassify.mutate(
+                    {
+                      movementId: selectedMovement.id,
+                      idempotencyKey:
+                        unclassifyIntents.current.get(selectedMovement.id) ??
+                        (() => {
+                          const key = createTreasuryIdempotencyKey(
+                            "unclassify",
+                            selectedMovement.id,
+                          );
+                          unclassifyIntents.current.set(selectedMovement.id, key);
+                          return key;
+                        })(),
+                    },
+                    {
+                      onSuccess: (result) => {
+                        unclassifyIntents.current.delete(selectedMovement.id);
+                        toast[result.changed ? "success" : "error"](
+                          result.changed
+                            ? "Clasificación eliminada"
+                            : "No había una clasificación vigente; el movimiento se recargó",
+                        );
+                        refrescarMovimientos();
+                      },
+                      onError: (error) => toast.error(error.message),
+                    },
+                  )
+              : undefined
+          }
+          classificationEditor={
+            canWrite &&
+            !resolutionQuery.isLoading &&
+            !resolutionQuery.isError &&
+            accountOptions.length > 0 &&
+            eventOptions.length > 0
+              ? {
+                  accounts: accountOptions,
+                  events: eventOptions,
+                  dimensions: dimensionOptions,
+                  saving: replaceClassification.isPending,
+                  onSave: async (body) => {
+                    const fingerprint = `${selectedMovement.id}:${JSON.stringify(body)}`;
+                    if (classificationIntent.current?.fingerprint !== fingerprint) {
+                      classificationIntent.current = {
+                        fingerprint,
+                        key: createTreasuryIdempotencyKey("classify", selectedMovement.id),
+                      };
+                    }
+                    try {
+                      await replaceClassification.mutateAsync({
+                        movementId: selectedMovement.id,
+                        body,
+                        idempotencyKey: classificationIntent.current.key,
+                      });
+                      classificationIntent.current = null;
+                      toast.success("Clasificación guardada");
+                      refrescarMovimientos();
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "No se pudo clasificar");
+                      throw error;
+                    }
+                  },
+                }
+              : undefined
+          }
+        />
+      )}
+      <DocumentSuggestionsDialog
+        movementId={selectedMovementId}
+        currencyCode={selectedMovement?.moneda ?? null}
+        open={canWrite && documentPickerOpen}
+        onOpenChange={setDocumentPickerOpen}
+        choosing={confirmWithDocument.isPending}
+        onChoose={async (documentId) => {
+          if (!selectedMovementId) return;
+          try {
+            await confirmWithDocument.mutateAsync({
+              movementId: selectedMovementId,
+              documentId,
+            });
+            toast.success("Conciliado con el documento seleccionado.");
+            setDocumentPickerOpen(false);
+            refrescarMovimientos();
+          } catch (error) {
+            manejarError(error);
+          }
+        }}
+      />
+    </>
   );
+}
+
+function flattenAccounts(
+  nodes: ManagementAccountNode[],
+  depth = 0,
+): Array<{ id: string; label: string }> {
+  return nodes.flatMap((node) => [
+    ...(node.active && node.is_visible
+      ? [{ id: node.id, label: `${"· ".repeat(depth)}${node.display_name ?? node.name}` }]
+      : []),
+    ...flattenAccounts(node.children ?? [], depth + 1),
+  ]);
 }

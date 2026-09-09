@@ -80,7 +80,7 @@ describe("movimientosDeCuenta", () => {
     }),
   ];
   it("filtra por bank_account_id, firma el monto (egreso negativo) y ordena por fecha desc", () => {
-    const r = movimientosDeCuenta(items, "acc-1", "CLP");
+    const r = movimientosDeCuenta(items, "acc-1");
     expect(r.map((m) => m.glosa === "" || m.fecha)).toEqual([
       "2026-08-04",
       "2026-08-02",
@@ -109,7 +109,6 @@ describe("movimientosDeCuenta", () => {
         }),
       ],
       "acc-1",
-      "CLP",
     );
     const ab = r.find((m) => m.id === "ab")!;
     const ca = r.find((m) => m.id === "ca")!;
@@ -120,7 +119,20 @@ describe("movimientosDeCuenta", () => {
   });
 
   it("sin bankAccountId → [] (no muestra toda la cartola)", () => {
-    expect(movimientosDeCuenta(items, null, "CLP")).toEqual([]);
+    expect(movimientosDeCuenta(items, null)).toEqual([]);
+  });
+
+  it("preserva la moneda por fila y deja S/D cuando la API no trae evidencia", () => {
+    const r = movimientosDeCuenta(
+      [
+        bm({ id: "usd", bank_account_id: "acc-1", currency_code: "usd" }),
+        bm({ id: "unknown", bank_account_id: "acc-1", currency_code: null }),
+      ],
+      "acc-1",
+    );
+
+    expect(r.find((m) => m.id === "usd")?.moneda).toBe("USD");
+    expect(r.find((m) => m.id === "unknown")?.moneda).toBe("S/D");
   });
 });
 
