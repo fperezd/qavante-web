@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { formatClp } from "@/lib/formatters/clp";
+import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { formatDateTimeLike } from "@/lib/formatters/date";
 import { DataState } from "@/components/rediseno/data-state";
 import { KpiCard } from "@/components/rediseno/kpi-card";
@@ -135,14 +135,20 @@ export function ImpuestosV06View({
           />
         )}
 
-        {tgr.total != null ? (
+        {tgr.totales != null ? (
           <KpiCard
             label="Deudas TGR"
-            value={formatClp(tgr.total)}
+            value={
+              tgr.sinDeudaConfirmada
+                ? "Sin deuda"
+                : tgr.totales
+                    .map(({ moneda, monto }) => `${moneda} ${formatMoney(monto, moneda)}`)
+                    .join(" · ")
+            }
             detail={
               tgr.n > 0
                 ? `${tgr.n} ${concordar(tgr.n, "giro o deuda vigente", "giros o deudas vigentes")}`
-                : "Sin deudas vigentes"
+                : "Consulta TGR exitosa · 0 deudas vigentes"
             }
           />
         ) : (
@@ -279,7 +285,7 @@ function TablaCalendario({
       {
         id: "monto",
         accessorFn: (f) => f.monto ?? Number.NEGATIVE_INFINITY,
-        header: "Monto",
+        header: "Monto y moneda",
         meta: { align: "right" },
         cell: ({ row }) => {
           const f = row.original;
@@ -290,7 +296,9 @@ function TablaCalendario({
               variant="compact"
             />
           ) : (
-            <span className="tabular-nums">{formatClp(f.monto)}</span>
+            <span className="tabular-nums">
+              {f.moneda ? `${f.moneda} ${formatMoney(f.monto, f.moneda)}` : "sin dato"}
+            </span>
           );
         },
       },

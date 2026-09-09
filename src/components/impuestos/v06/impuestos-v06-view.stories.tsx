@@ -26,8 +26,7 @@ function filasNormales() {
     mesesF29: mesesF29V06(),
     estimacionF29: estimacionF29V06(F29_IMPUESTO_ESTIMABLE_V06),
     previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-    tgrAutenticado: true,
-    tgrMovimientos: tgrMovimientosV06(),
+    tgr: { estado: "ok", movimientos: tgrMovimientosV06() },
     hoy: HOY_V06,
   });
 }
@@ -76,7 +75,7 @@ async function medirLey7SinDesborde(canvasElement: HTMLElement, ancho: number): 
       expect(nodo.className).not.toContain("truncate");
       expect(nodo.scrollWidth).toBeLessThanOrEqual(nodo.clientWidth + 1);
     }
-    for (const monto of ["$850.000", "$612.000"]) {
+    for (const monto of ["CLP $850.000", "CLP $612.000"]) {
       const celda = canvas.getByText(monto);
       expect(celda.getBoundingClientRect().right).toBeLessThanOrEqual(borde + 1);
     }
@@ -116,7 +115,7 @@ export const Normal: Story = {
     await expect(canvas.getByText("F-29 · mes en curso (estimado)")).toBeInTheDocument();
     await expect(canvas.getAllByText("$530.000").length).toBeGreaterThanOrEqual(1);
     await expect(canvas.getByText(/IVA débito \$900\.000/)).toBeInTheDocument();
-    await expect(canvas.getByText("$525.000")).toBeInTheDocument(); // Deudas TGR
+    await expect(canvas.getByText("CLP $525.000")).toBeInTheDocument(); // Deudas TGR
     await expect(rojos(canvasElement)).toHaveLength(1); // el F-29 de julio, no declarado y vencido
     // Huecos declarados, visibles en pantalla.
     const texto = (canvasElement.textContent ?? "").replace(/\s+/g, " ");
@@ -131,8 +130,7 @@ export const SinVencidos: Story = {
     filas: filasCalendarioV06({
       mesesF29: mesesF29SinVencidosV06(),
       previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-      tgrAutenticado: true,
-      tgrMovimientos: tgrMovimientosV06(),
+      tgr: { estado: "ok", movimientos: tgrMovimientosV06() },
       hoy: HOY_V06,
     }),
   },
@@ -147,8 +145,7 @@ export const TgrSinAutenticar: Story = {
     filas: filasCalendarioV06({
       mesesF29: mesesF29V06(),
       previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-      tgrAutenticado: false,
-      tgrMovimientos: undefined,
+      tgr: { estado: "sin_dato", motivo: "TGR en preparación" },
       hoy: HOY_V06,
     }),
   },
@@ -156,6 +153,66 @@ export const TgrSinAutenticar: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(/en preparación/i)).toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(1); // el F-29 de julio sigue vencido
+  },
+};
+
+export const TgrConMonedasSeparadas: Story = {
+  name: "TGR CLP y USD · montos separados, nunca sumados",
+  args: {
+    filas: filasCalendarioV06({
+      mesesF29: mesesF29V06(),
+      previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
+      tgr: {
+        estado: "ok",
+        movimientos: [
+          { formulario: "29", folio: "clp", moneda: "CLP", saldo: 1000 },
+          { formulario: "21", folio: "usd", moneda: "USD", saldo: 20 },
+        ],
+      },
+      hoy: HOY_V06,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const texto = (canvasElement.textContent ?? "").replace(/\s+/g, " ");
+    expect(texto).toContain("CLP $1.000");
+    expect(texto).toMatch(/USD US\$\s?20,00/);
+    await expect(rojos(canvasElement)).toHaveLength(1);
+  },
+};
+
+export const TgrConError: Story = {
+  name: "TGR con error · sin dato, nunca deuda cero",
+  args: {
+    filas: filasCalendarioV06({
+      mesesF29: mesesF29V06(),
+      previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
+      tgr: { estado: "error", motivo: "TGR no respondió; no sabemos si existen deudas." },
+      hoy: HOY_V06,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const texto = (canvasElement.textContent ?? "").replace(/\s+/g, " ");
+    await expect(canvas.getAllByText(/sin dato/i).length).toBeGreaterThanOrEqual(1);
+    expect(texto).not.toMatch(/Deudas TGR\s*Sin deuda/i);
+    await expect(rojos(canvasElement)).toHaveLength(1);
+  },
+};
+
+export const TgrSinDeudaConfirmada: Story = {
+  name: "TGR OK y vacío · Sin deuda confirmada",
+  args: {
+    filas: filasCalendarioV06({
+      mesesF29: mesesF29V06(),
+      previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
+      tgr: { estado: "ok", movimientos: [] },
+      hoy: HOY_V06,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const texto = (canvasElement.textContent ?? "").replace(/\s+/g, " ");
+    expect(texto).toMatch(/Deudas TGR\s*Sin deuda/i);
+    await expect(rojos(canvasElement)).toHaveLength(1);
   },
 };
 
@@ -167,8 +224,7 @@ export const F29NoEstimable: Story = {
       mesesF29: mesesF29V06(),
       estimacionF29: estimacionF29V06(F29_IMPUESTO_NO_ESTIMABLE_V06),
       previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-      tgrAutenticado: true,
-      tgrMovimientos: tgrMovimientosV06(),
+      tgr: { estado: "ok", movimientos: tgrMovimientosV06() },
       hoy: HOY_V06,
     }),
   },

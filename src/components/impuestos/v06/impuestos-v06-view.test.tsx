@@ -28,8 +28,7 @@ function filasNormales(): FilaCalendarioV06[] {
     mesesF29: mesesF29V06(),
     estimacionF29: estimacionF29V06(F29_IMPUESTO_ESTIMABLE_V06),
     previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-    tgrAutenticado: true,
-    tgrMovimientos: tgrMovimientosV06(),
+    tgr: { estado: "ok", movimientos: tgrMovimientosV06() },
     hoy: HOY_V06,
   });
 }
@@ -66,8 +65,7 @@ describe("ImpuestosV06View — Ley 2: máximo un rojo por pantalla", () => {
     const filas = filasCalendarioV06({
       mesesF29: mesesF29SinVencidosV06(),
       previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-      tgrAutenticado: true,
-      tgrMovimientos: tgrMovimientosV06(),
+      tgr: { estado: "ok", movimientos: tgrMovimientosV06() },
       hoy: HOY_V06,
     });
     expect(rojos(html({ filas }))).toBe(0);
@@ -87,8 +85,7 @@ describe("ImpuestosV06View — Ley 2: máximo un rojo por pantalla", () => {
           : m,
       ),
       previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-      tgrAutenticado: true,
-      tgrMovimientos: tgrMovimientosV06(),
+      tgr: { estado: "ok", movimientos: tgrMovimientosV06() },
       hoy: HOY_V06,
     });
     expect(rojos(html({ filas }))).toBe(1);
@@ -111,8 +108,8 @@ describe("ImpuestosV06View — tríada", () => {
     expect(t).toContain("Deudas TGR");
   });
 
-  it("Deudas TGR muestra la suma real de las filas con deuda ($525.000)", () => {
-    expect(texto(html())).toContain("$525.000");
+  it("Deudas TGR muestra la suma CLP con su moneda explícita", () => {
+    expect(texto(html())).toContain("CLP $525.000");
   });
 });
 
@@ -136,8 +133,7 @@ describe("ImpuestosV06View — F-29 del mes en curso", () => {
       mesesF29: mesesF29V06(),
       estimacionF29: estimacion,
       previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-      tgrAutenticado: true,
-      tgrMovimientos: tgrMovimientosV06(),
+      tgr: { estado: "ok", movimientos: tgrMovimientosV06() },
       hoy: HOY_V06,
     });
     const h = html({ filas, estimacionF29: estimacion });
@@ -156,8 +152,7 @@ describe("ImpuestosV06View — TGR 'no sé' explícito (Ley 3)", () => {
     const filas = filasCalendarioV06({
       mesesF29: mesesF29V06(),
       previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-      tgrAutenticado: false,
-      tgrMovimientos: undefined,
+      tgr: { estado: "sin_dato", motivo: "TGR en preparación" },
       hoy: HOY_V06,
     });
     const t = texto(html({ filas }));
@@ -166,6 +161,49 @@ describe("ImpuestosV06View — TGR 'no sé' explícito (Ley 3)", () => {
 
   it("[control positivo] autenticado y con deuda, ese texto NO aparece", () => {
     expect(texto(html())).not.toMatch(/en preparación/i);
+  });
+
+  it("payload TGR exitoso y vacío: afirma Sin deuda como gemelo positivo", () => {
+    const filas = filasCalendarioV06({
+      mesesF29: [],
+      previred: null,
+      tgr: { estado: "ok", movimientos: [] },
+      hoy: HOY_V06,
+    });
+    expect(texto(html({ filas }))).toMatch(/Deudas TGR Sin deuda/i);
+  });
+
+  it("saldo TGR nulo: muestra sin dato y no afirma Sin deuda", () => {
+    const filas = filasCalendarioV06({
+      mesesF29: [],
+      previred: null,
+      tgr: {
+        estado: "ok",
+        movimientos: [{ formulario: "29", folio: "nulo", moneda: "CLP", saldo: null }],
+      },
+      hoy: HOY_V06,
+    });
+    const t = texto(html({ filas }));
+    expect(t).toMatch(/Deudas TGR sin dato/i);
+    expect(t).not.toMatch(/Deudas TGR Sin deuda/i);
+  });
+
+  it("CLP y USD se muestran por separado, con ambas monedas visibles", () => {
+    const filas = filasCalendarioV06({
+      mesesF29: [],
+      previred: null,
+      tgr: {
+        estado: "ok",
+        movimientos: [
+          { formulario: "29", folio: "clp", moneda: "CLP", saldo: 1000 },
+          { formulario: "21", folio: "usd", moneda: "USD", saldo: 20 },
+        ],
+      },
+      hoy: HOY_V06,
+    });
+    const t = texto(html({ filas }));
+    expect(t).toContain("CLP $1.000");
+    expect(t).toMatch(/USD US\$\s?20,00/);
   });
 });
 
@@ -227,8 +265,7 @@ describe("ImpuestosV06View — concordancia singular/plural (N=1, issue #94)", (
     const filas = filasCalendarioV06({
       mesesF29: mesesF29V06(),
       previred: { period: "2026-08", ...PREVIRED_TOTALES_V06 },
-      tgrAutenticado: true,
-      tgrMovimientos: [tgrMovimientosV06()[0]!],
+      tgr: { estado: "ok", movimientos: [tgrMovimientosV06()[0]!] },
       hoy: HOY_V06,
     });
     const t = texto(html({ filas }));

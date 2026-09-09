@@ -120,6 +120,10 @@ NEXT_PUBLIC_FF_PAYROLL_RECONCILE_BOARD = "true"
 NEXT_PUBLIC_FF_PAGAR_V2 = "true"
 # V05 Pagar del rediseño — ON (autorizado por BO 2026-09-03).
 NEXT_PUBLIC_FF_PAGAR_V05 = "true"
+# V06 Impuestos — activación autorizada por BO 2026-09-09 (web #73/#223).
+# Estimación segura API #401; conciliación F29-banco pendiente en API #440.
+# Rollback: "false" restaura el estado no disponible con acceso a los flujos clásicos.
+NEXT_PUBLIC_FF_IMPUESTOS_V06 = "true"
 # V07 · Bandeja de excepciones · ON (autorizado por BO 2026-09-04). Reúne las
 # excepciones de conciliación y clasificación con acciones reversibles. Rollback:
 # volver este valor a "false" conserva disponibles los flujos clásicos directos.

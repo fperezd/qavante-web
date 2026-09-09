@@ -195,7 +195,7 @@ describe("filaPreviredV06", () => {
 
 describe("filasTgrV06", () => {
   it("sin autenticar: UNA fila honesta, nunca una tabla vacía muda", () => {
-    const filas = filasTgrV06(false, undefined, HOY_V06);
+    const filas = filasTgrV06({ estado: "sin_dato", motivo: "TGR en preparación" }, HOY_V06);
     expect(filas).toHaveLength(1);
     expect(filas[0]!.estado).toBe("sin_dato");
     expect(filas[0]!.monto).toBeNull();
@@ -203,7 +203,7 @@ describe("filasTgrV06", () => {
   });
 
   it("autenticado, sin deuda: UNA fila resuelta con monto real 0 (no un 'sin dato' disfrazado)", () => {
-    const filas = filasTgrV06(true, [], HOY_V06);
+    const filas = filasTgrV06({ estado: "ok", movimientos: [] }, HOY_V06);
     expect(filas).toHaveLength(1);
     expect(filas[0]!.estado).toBe("tgr_sin_deuda");
     expect(filas[0]!.monto).toBe(0);
@@ -215,12 +215,40 @@ describe("filasTgrV06", () => {
       ...tgrMovimientosV06(),
       { formulario: "29", folio: "99999", saldo: 0, estado: "pagada" },
     ];
-    const filas = filasTgrV06(true, movimientos, HOY_V06);
+    const filas = filasTgrV06({ estado: "ok", movimientos }, HOY_V06);
     expect(filas).toHaveLength(2);
     expect(filas.every((f) => f.estado === "tgr_deuda")).toBe(true);
     expect(filas.map((f) => f.monto)).toEqual([430000, 95000]);
+    expect(filas.map((f) => f.moneda)).toEqual(["CLP", "CLP"]);
     expect(filas[0]!.label).toBe("TGR · IVA (mensual)");
     expect(filas[1]!.label).toBe("TGR · PPM");
+  });
+
+  it("saldo nulo: publica sin dato y jamás lo filtra como si fuera cero", () => {
+    const filas = filasTgrV06(
+      {
+        estado: "ok",
+        movimientos: [{ formulario: "29", folio: "nulo", moneda: "CLP", saldo: null }],
+      },
+      HOY_V06,
+    );
+    expect(filas).toHaveLength(1);
+    expect(filas[0]!.estado).toBe("sin_dato");
+    expect(filas[0]!.monto).toBeNull();
+    expect(filas[0]!.motivoSinMonto).toMatch(/no informó el saldo/i);
+  });
+
+  it("moneda ausente: no interpreta el saldo como CLP", () => {
+    const filas = filasTgrV06(
+      {
+        estado: "ok",
+        movimientos: [{ formulario: "29", folio: "sin-moneda", moneda: null, saldo: 100 }],
+      },
+      HOY_V06,
+    );
+    expect(filas[0]!.estado).toBe("sin_dato");
+    expect(filas[0]!.monto).toBeNull();
+    expect(filas[0]!.motivoSinMonto).toMatch(/no su moneda/i);
   });
 });
 
@@ -236,6 +264,7 @@ describe("ordenarFilasV06", () => {
       vencimientoLabel: "sin fecha",
       dias: null,
       monto: null,
+      moneda: "CLP",
       motivoSinMonto: null,
       resuelto: false,
       href: null,
@@ -282,6 +311,7 @@ describe("elUnicoRojoV06 — Ley 2, máximo un rojo por pantalla", () => {
       vencimientoLabel: "s/d",
       dias,
       monto: null,
+      moneda: "CLP",
       motivoSinMonto: null,
       resuelto: false,
       href: null,
@@ -319,6 +349,7 @@ describe("proximoVencimientoV06", () => {
       vencimientoLabel: "12 sep",
       dias: 10,
       monto: null,
+      moneda: "CLP",
       motivoSinMonto: null,
       resuelto: false,
       href: null,
@@ -344,25 +375,58 @@ describe("proximoVencimientoV06", () => {
 
 describe("triadaTgrV06 — deriva de las MISMAS filas que la tabla", () => {
   it("sin autenticar: sin dato, con el motivo", () => {
-    const filas = filasTgrV06(false, undefined, HOY_V06);
+    const filas = filasTgrV06({ estado: "sin_dato", motivo: "TGR en preparación" }, HOY_V06);
     const triada = triadaTgrV06(filas);
-    expect(triada.total).toBeNull();
+    expect(triada.totales).toBeNull();
     expect(triada.motivo).toMatch(/en preparación/i);
   });
 
   it("con deuda: suma exacta de los montos de las filas de deuda", () => {
-    const filas = filasTgrV06(true, tgrMovimientosV06(), HOY_V06);
+    const filas = filasTgrV06({ estado: "ok", movimientos: tgrMovimientosV06() }, HOY_V06);
     const triada = triadaTgrV06(filas);
-    expect(triada.total).toBe(525000); // 430000 + 95000
+    expect(triada.totales).toEqual([{ moneda: "CLP", monto: 525000, n: 2 }]);
     expect(triada.n).toBe(2);
     expect(triada.motivo).toBeNull();
   });
 
   it("sin deuda: total real 0, no 'sin dato'", () => {
-    const filas = filasTgrV06(true, [], HOY_V06);
+    const filas = filasTgrV06({ estado: "ok", movimientos: [] }, HOY_V06);
     const triada = triadaTgrV06(filas);
-    expect(triada.total).toBe(0);
+    expect(triada.totales).toEqual([]);
+    expect(triada.sinDeudaConfirmada).toBe(true);
     expect(triada.motivo).toBeNull();
+  });
+
+  it("CLP y USD quedan en totales separados, nunca sumados (INV-FX-001)", () => {
+    const filas = filasTgrV06(
+      {
+        estado: "ok",
+        movimientos: [
+          { formulario: "29", folio: "clp", moneda: "CLP", saldo: 1000 },
+          { formulario: "21", folio: "usd", moneda: "USD", saldo: 20 },
+        ],
+      },
+      HOY_V06,
+    );
+    expect(triadaTgrV06(filas).totales).toEqual([
+      { moneda: "CLP", monto: 1000, n: 1 },
+      { moneda: "USD", monto: 20, n: 1 },
+    ]);
+  });
+
+  it("una fila con saldo desconocido invalida el total aunque existan otras deudas conocidas", () => {
+    const filas = filasTgrV06(
+      {
+        estado: "ok",
+        movimientos: [
+          { formulario: "29", folio: "clp", moneda: "CLP", saldo: 1000 },
+          { formulario: "21", folio: "nulo", moneda: "USD", saldo: null },
+        ],
+      },
+      HOY_V06,
+    );
+    expect(triadaTgrV06(filas).totales).toBeNull();
+    expect(triadaTgrV06(filas).motivo).toMatch(/no informó el saldo/i);
   });
 });
 
@@ -371,8 +435,7 @@ describe("filasCalendarioV06 — integración con las fixtures", () => {
     const filas = filasCalendarioV06({
       mesesF29: mesesF29V06(),
       previred: { period: "2026-08", totalCotizaciones: 612000, empleados: 9 },
-      tgrAutenticado: true,
-      tgrMovimientos: tgrMovimientosV06(),
+      tgr: { estado: "ok", movimientos: tgrMovimientosV06() },
       hoy: HOY_V06,
     });
     // 6 meses F-29 + 1 postergado + 1 Previred + 2 TGR = 10.
@@ -404,8 +467,7 @@ describe("filasCalendarioV06 — integración con las fixtures", () => {
         },
       ],
       previred: null,
-      tgrAutenticado: false,
-      tgrMovimientos: undefined,
+      tgr: { estado: "sin_dato", motivo: "TGR en preparación" },
       hoy: HOY_V06,
     });
     // Sin Previred (null) y TGR sin autenticar aporta su propia fila honesta (1).
@@ -502,8 +564,7 @@ describe("estimacionF29V06 — estimabilidad R2", () => {
       mesesF29: mesesF29V06(),
       estimacionF29: estimacion,
       previred: null,
-      tgrAutenticado: true,
-      tgrMovimientos: [],
+      tgr: { estado: "ok", movimientos: [] },
       hoy: HOY_V06,
     });
     expect(filas.find((fila) => fila.key === "f29-2026-08")?.monto).toBe(530000);
@@ -543,6 +604,7 @@ describe("csvCalendarioV06", () => {
         vencimientoLabel: "sin fecha",
         dias: null,
         monto: null,
+        moneda: "CLP",
         motivoSinMonto: F29_ESTIMADO_MOTIVO,
         resuelto: false,
         href: null,
@@ -550,7 +612,7 @@ describe("csvCalendarioV06", () => {
       },
     ]);
     const filas = csv.split("\n");
-    expect(filas[0]).toBe("concepto;estado;vencimiento;dias;monto");
-    expect(filas[1]).toBe("F-29 · agosto 2026;En curso;sin fecha;sin fecha;sin dato");
+    expect(filas[0]).toBe("concepto;estado;vencimiento;dias;monto;moneda");
+    expect(filas[1]).toBe("F-29 · agosto 2026;En curso;sin fecha;sin fecha;sin dato;CLP");
   });
 });

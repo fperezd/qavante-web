@@ -2,10 +2,16 @@
 
 import * as React from "react";
 import { useSiiF29Estado, useSiiF29Impuesto, type F29EstadoMes } from "@/lib/api/sii";
-import { useTgrHealth, useTgrMovimientosDeudas } from "@/lib/api/tgr";
+import { useTgrHealth, useTgrMovimientosDeudas, type TgrDeudas } from "@/lib/api/tgr";
 import { useBukPayroll } from "@/lib/api/buk";
 import { ApiError } from "@/lib/api/errors";
-import { estimacionF29V06, filasCalendarioV06, ventanaPeriodosV06 } from "./impuestos-v06-model";
+import {
+  estimacionF29V06,
+  filasCalendarioV06,
+  TGR_EN_PREPARACION_MOTIVO,
+  ventanaPeriodosV06,
+  type FuenteTgrV06,
+} from "./impuestos-v06-model";
 import { ImpuestosV06View } from "./impuestos-v06-view";
 
 /* Cableado de V06 · Impuestos. La vista es presentacional; acá se resuelven las fuentes
@@ -22,9 +28,9 @@ import { ImpuestosV06View } from "./impuestos-v06-view";
  *     MISMA fuente que `deudas-tgr-view.tsx`; `authenticated` decide si se pide la segunda.
  *
  * El F-29 es la fuente CRÍTICA (sin ella no hay calendario que armar): si su query principal
- * falla, la pantalla completa entra en estado de error. Previred/TGR degradan solas dentro del
- * modelo puro (`filaPreviredV06`/`filasTgrV06` ya declaran su propio "sin dato" cuando falta el
- * dato o la fuente todavía no autentica) — no hace falta un segundo estado de error acá para ellas. */
+ * falla, la pantalla completa entra en estado de error. Previred/TGR degradan dentro del modelo
+ * puro. TGR transporta explícitamente error, payload ausente y lista confirmada: sólo esta última
+ * puede sostener "Sin deuda". */
 
 const VENTANA_MESES = 6;
 
@@ -89,6 +95,13 @@ export function ImpuestosV06Live({ issueSucesor }: { issueSucesor?: string }) {
     f29Impuesto.data,
     f29Impuesto.isError ? motivoSinEstimacion(f29Impuesto.error) : null,
   );
+  const tgr = resolverFuenteTgrV06({
+    authenticated: tgrAutenticado,
+    healthError: tgrHealth.isError,
+    healthStatus: tgrHealth.data?.status,
+    debtError: tgrDeudas.isError,
+    deudas: tgrDeudas.data,
+  });
 
   const filas = filasCalendarioV06({
     mesesF29,
@@ -98,8 +111,7 @@ export function ImpuestosV06Live({ issueSucesor }: { issueSucesor?: string }) {
       totalCotizaciones: totales?.total_cotizaciones ?? null,
       empleados: totales?.empleados_contados ?? null,
     },
-    tgrAutenticado,
-    tgrMovimientos: tgrDeudas.data?.movimientos,
+    tgr,
     hoy,
   });
 
@@ -111,6 +123,62 @@ export function ImpuestosV06Live({ issueSucesor }: { issueSucesor?: string }) {
       issueSucesor={issueSucesor}
     />
   );
+}
+
+export function resolverFuenteTgrV06(entrada: {
+  authenticated: boolean;
+  healthError: boolean;
+  healthStatus: string | undefined;
+  debtError: boolean;
+  deudas: TgrDeudas | undefined;
+}): FuenteTgrV06 {
+  if (entrada.healthError) {
+    return {
+      estado: "error",
+      motivo:
+        "No pudimos consultar el estado de conexión con TGR. No afirmamos que la deuda sea cero.",
+    };
+  }
+  if (!entrada.healthStatus) {
+    return {
+      estado: "sin_dato",
+      motivo: "TGR no entregó el estado de conexión. No sabemos si existen deudas vigentes.",
+    };
+  }
+  if (entrada.healthStatus !== "ok") {
+    return {
+      estado: "error",
+      motivo: "TGR respondió con error al consultar la conexión. No afirmamos una deuda cero.",
+    };
+  }
+  if (!entrada.authenticated) {
+    return { estado: "sin_dato", motivo: TGR_EN_PREPARACION_MOTIVO };
+  }
+  if (entrada.debtError) {
+    return {
+      estado: "error",
+      motivo: "TGR no respondió al consultar las deudas. No mostramos un cero como reemplazo.",
+    };
+  }
+  if (!entrada.deudas) {
+    return {
+      estado: "sin_dato",
+      motivo: "TGR no entregó el detalle de deudas. No sabemos si el saldo es cero.",
+    };
+  }
+  if (entrada.deudas.status !== "ok") {
+    return {
+      estado: "error",
+      motivo: "TGR respondió con error. No sabemos si existen deudas vigentes.",
+    };
+  }
+  if (!Array.isArray(entrada.deudas.movimientos)) {
+    return {
+      estado: "sin_dato",
+      motivo: "TGR respondió sin la lista de movimientos. No sabemos si el saldo es cero.",
+    };
+  }
+  return { estado: "ok", movimientos: entrada.deudas.movimientos };
 }
 
 /** Por qué no llegó el F-29, en lenguaje de dueño (mismo patrón que `presupuesto-v09-live.tsx`). */

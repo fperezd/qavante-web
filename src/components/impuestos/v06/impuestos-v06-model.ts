@@ -209,7 +209,7 @@ export function estimacionF29V06(
   };
 }
 
-const TGR_EN_PREPARACION_MOTIVO =
+export const TGR_EN_PREPARACION_MOTIVO =
   "TGR: en preparación. Conectamos la Tesorería server-side; hasta entonces no leemos tus deudas fiscales desde acá (mismo estado honesto que Pagar → Impuestos → Deudas TGR).";
 
 /* ── Ventana de periodos del calendario (últimos N meses, incluido el actual) ────────────────── */
@@ -282,6 +282,8 @@ export interface FilaCalendarioV06 {
   vencimientoLabel: string;
   dias: number | null;
   monto: number | null;
+  /** Moneda ISO-4217 del monto. `null` = la fuente no la informó; nunca se interpreta como CLP. */
+  moneda: string | null;
   /** Por qué `monto` es `null` — NUNCA vacío cuando `monto` lo es (Ley 3, "no sé" explícito). */
   motivoSinMonto: string | null;
   /** Ya pasó / ya se resolvió (declarado, sin deuda) — ordena después de lo pendiente. */
@@ -344,6 +346,7 @@ export function filaF29DeMes(
     vencimientoLabel: venceLabelDe(vencimiento, hoy),
     dias: diasHasta(vencimiento, hoy),
     monto: declarado ? (m.saldo ?? null) : montoEstimado,
+    moneda: "CLP",
     motivoSinMonto,
     resuelto: declarado,
     href: "/pagar/impuestos/f29",
@@ -366,6 +369,7 @@ export function filaF29PostergadoDeMes(m: F29EstadoMes, hoy: Date): FilaCalendar
     vencimientoLabel: venceLabelDe(vencimiento, hoy),
     dias: diasHasta(vencimiento, hoy),
     monto: m.monto_postergado ?? null,
+    moneda: "CLP",
     motivoSinMonto:
       m.monto_postergado == null
         ? "El SII declaró la postergación sin dejar el monto parseado."
@@ -402,6 +406,7 @@ export function filaPreviredV06(
     vencimientoLabel: venceLabelDe(vencimiento, hoy),
     dias: diasHasta(vencimiento, hoy),
     monto: sinPlanilla ? null : totalCotizaciones,
+    moneda: "CLP",
     motivoSinMonto: sinPlanilla ? "No hay planilla de BUK para este período." : null,
     resuelto: false,
     href: "/pagar/previred",
@@ -411,28 +416,28 @@ export function filaPreviredV06(
 
 /* ── TGR ───────────────────────────────────────────────────────────────────────────────────────── */
 
-/** Filas de TGR. `authenticated=false` (el estado de HOY para todo tenant, ver cabecera) produce
- *  UNA fila "sin dato" honesta en vez de omitir la fuente en silencio (Ley 8). Autenticado y sin
- *  deuda produce UNA fila "sin deuda" (cero real, no inventado — mismo criterio que
- *  `deudas-tgr-view.tsx`). Autenticado con deuda produce una fila por movimiento con saldo > 0. */
-export function filasTgrV06(
-  authenticated: boolean,
-  movimientos: readonly TgrMovimiento[] | undefined,
-  hoy: Date,
-): FilaCalendarioV06[] {
-  if (!authenticated) {
+export type FuenteTgrV06 =
+  | { estado: "ok"; movimientos: readonly TgrMovimiento[] }
+  | { estado: "sin_dato" | "error"; motivo: string };
+
+/** Sólo `estado="ok"` con una lista explícita puede afirmar "Sin deuda". Error, payload ausente y
+ *  saldos/monedas ausentes conservan "sin dato"; nunca se convierten en cero. Cada deuda mantiene
+ *  su moneda original y la vista la formatea sin conversión implícita. */
+export function filasTgrV06(fuente: FuenteTgrV06, hoy: Date): FilaCalendarioV06[] {
+  if (fuente.estado !== "ok") {
     return [
       {
-        key: "tgr-sin-autenticar",
+        key: `tgr-${fuente.estado}`,
         concepto: "tgr",
         label: "TGR",
-        sub: "En preparación: conectamos la Tesorería server-side.",
+        sub: fuente.motivo,
         estado: "sin_dato",
         vencimiento: null,
         vencimientoLabel: "sin fecha",
         dias: null,
         monto: null,
-        motivoSinMonto: TGR_EN_PREPARACION_MOTIVO,
+        moneda: null,
+        motivoSinMonto: fuente.motivo,
         resuelto: false,
         href: "/pagar/impuestos/tgr",
         hrefLabel: "Ver estado de TGR",
@@ -440,8 +445,13 @@ export function filasTgrV06(
     ];
   }
 
-  const conDeuda = (movimientos ?? []).filter((m) => (m.saldo ?? 0) > 0);
-  if (conDeuda.length === 0) {
+  const desconocidos = fuente.movimientos.filter(
+    (m) => m.saldo == null || (m.saldo > 0 && normalizarMonedaTgr(m.moneda) == null),
+  );
+  const conDeuda = fuente.movimientos.filter(
+    (m) => m.saldo != null && m.saldo > 0 && normalizarMonedaTgr(m.moneda) != null,
+  );
+  if (conDeuda.length === 0 && desconocidos.length === 0) {
     return [
       {
         key: "tgr-sin-deuda",
@@ -453,6 +463,7 @@ export function filasTgrV06(
         vencimientoLabel: "sin fecha",
         dias: null,
         monto: 0,
+        moneda: "CLP",
         motivoSinMonto: null,
         resuelto: true,
         href: "/pagar/impuestos/tgr",
@@ -461,24 +472,56 @@ export function filasTgrV06(
     ];
   }
 
-  return conDeuda.map((m, i) => {
+  const filasConDeuda = conDeuda.map((m, i): FilaCalendarioV06 => {
     const vencimiento = m.fecha_vencimiento ?? null;
+    const moneda = normalizarMonedaTgr(m.moneda)!;
     return {
       key: `tgr-${m.folio ?? i}`,
       concepto: "tgr" as const,
       label: `TGR · ${formularioLabelTgr(m.formulario)}`,
-      sub: m.folio ? `Folio ${m.folio}` : "Sin folio",
+      sub: `${m.folio ? `Folio ${m.folio}` : "Sin folio"} · moneda ${moneda}`,
       estado: "tgr_deuda" as const,
       vencimiento,
       vencimientoLabel: venceLabelDe(vencimiento, hoy),
       dias: diasHasta(vencimiento, hoy),
-      monto: m.saldo ?? null,
-      motivoSinMonto: m.saldo == null ? "TGR no informó el saldo de este giro." : null,
+      monto: m.saldo!,
+      moneda,
+      motivoSinMonto: null,
       resuelto: false,
       href: "/pagar/impuestos/tgr",
       hrefLabel: "Ver en TGR",
     };
   });
+  const filasDesconocidas = desconocidos.map((m, i): FilaCalendarioV06 => {
+    const vencimiento = m.fecha_vencimiento ?? null;
+    const moneda = normalizarMonedaTgr(m.moneda);
+    const motivo =
+      m.saldo == null
+        ? "TGR no informó el saldo de este giro."
+        : "TGR informó el saldo, pero no su moneda; no lo interpretamos como CLP.";
+    return {
+      key: `tgr-sin-dato-${m.folio ?? i}`,
+      concepto: "tgr",
+      label: `TGR · ${formularioLabelTgr(m.formulario)}`,
+      sub: m.folio ? `Folio ${m.folio}` : "Sin folio",
+      estado: "sin_dato",
+      vencimiento,
+      vencimientoLabel: venceLabelDe(vencimiento, hoy),
+      dias: diasHasta(vencimiento, hoy),
+      monto: null,
+      moneda,
+      motivoSinMonto: motivo,
+      resuelto: false,
+      href: "/pagar/impuestos/tgr",
+      hrefLabel: "Ver en TGR",
+    };
+  });
+  return [...filasConDeuda, ...filasDesconocidas];
+}
+
+function normalizarMonedaTgr(moneda: string | null | undefined): string | null {
+  const normalizada = moneda?.trim().toUpperCase() ?? "";
+  return normalizada || null;
 }
 
 /* ── Ensamblado + orden ───────────────────────────────────────────────────────────────────────── */
@@ -487,8 +530,7 @@ export interface EntradaCalendarioV06 {
   mesesF29: readonly F29EstadoMes[];
   estimacionF29?: EstimacionF29V06 | null;
   previred: { period: string; totalCotizaciones: number | null; empleados: number | null } | null;
-  tgrAutenticado: boolean;
-  tgrMovimientos: readonly TgrMovimiento[] | undefined;
+  tgr: FuenteTgrV06;
   hoy: Date;
 }
 
@@ -530,7 +572,7 @@ export function filasCalendarioV06(entrada: EntradaCalendarioV06): FilaCalendari
       ),
     );
   }
-  filas.push(...filasTgrV06(entrada.tgrAutenticado, entrada.tgrMovimientos, entrada.hoy));
+  filas.push(...filasTgrV06(entrada.tgr, entrada.hoy));
   return ordenarFilasV06(filas);
 }
 
@@ -573,9 +615,10 @@ export function proximoVencimientoV06(
 }
 
 export interface TriadaTgrV06 {
-  total: number | null;
+  totales: { moneda: string; monto: number; n: number }[] | null;
   n: number;
   motivo: string | null;
+  sinDeudaConfirmada: boolean;
 }
 
 /** Deuda TGR de la tríada, derivada de las MISMAS filas que la tabla (nunca un segundo cómputo
@@ -583,13 +626,31 @@ export interface TriadaTgrV06 {
  *  distintos del mismo concepto dentro de la propia pantalla). */
 export function triadaTgrV06(filas: readonly FilaCalendarioV06[]): TriadaTgrV06 {
   const tgr = filas.filter((f) => f.concepto === "tgr");
-  const sinAutenticar = tgr.find((f) => f.estado === "sin_dato");
-  if (sinAutenticar) return { total: null, n: 0, motivo: sinAutenticar.motivoSinMonto };
+  const sinDato = tgr.find((f) => f.estado === "sin_dato");
+  if (sinDato) {
+    return {
+      totales: null,
+      n: 0,
+      motivo: sinDato.motivoSinMonto,
+      sinDeudaConfirmada: false,
+    };
+  }
   const conDeuda = tgr.filter((f) => f.estado === "tgr_deuda");
+  const porMoneda = new Map<string, { monto: number; n: number }>();
+  for (const fila of conDeuda) {
+    if (fila.monto == null || fila.moneda == null) continue;
+    const total = porMoneda.get(fila.moneda) ?? { monto: 0, n: 0 };
+    total.monto += fila.monto;
+    total.n += 1;
+    porMoneda.set(fila.moneda, total);
+  }
   return {
-    total: conDeuda.reduce((s, f) => s + (f.monto ?? 0), 0),
+    totales: [...porMoneda.entries()]
+      .sort(([a], [b]) => (a === "CLP" ? -1 : b === "CLP" ? 1 : a.localeCompare(b)))
+      .map(([moneda, total]) => ({ moneda, ...total })),
     n: conDeuda.length,
     motivo: null,
+    sinDeudaConfirmada: conDeuda.length === 0,
   };
 }
 
@@ -603,7 +664,7 @@ function csvCampo(v: string | number | null): string {
 
 export function csvCalendarioV06(filas: readonly FilaCalendarioV06[]): string {
   return [
-    ["concepto", "estado", "vencimiento", "dias", "monto"].join(";"),
+    ["concepto", "estado", "vencimiento", "dias", "monto", "moneda"].join(";"),
     ...filas.map((f) =>
       [
         csvCampo(f.label),
@@ -611,6 +672,7 @@ export function csvCalendarioV06(filas: readonly FilaCalendarioV06[]): string {
         f.vencimiento == null ? "sin fecha" : csvCampo(f.vencimiento),
         f.dias == null ? "sin fecha" : csvCampo(f.dias),
         f.monto == null ? "sin dato" : csvCampo(f.monto),
+        f.moneda == null ? "sin dato" : csvCampo(f.moneda),
       ].join(";"),
     ),
   ].join("\n");

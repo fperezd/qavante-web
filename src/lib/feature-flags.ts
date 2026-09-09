@@ -463,13 +463,13 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      Con OFF, `/presupuesto` sigue exactamente como hoy: la pantalla de ADR-0091 Fase 1a detrás del
      flag `presupuesto` (que sigue ON en prod) → cero regresión. Encender = editar wrangler.toml. */
   presupuestoV09: "/api/management/operational-result/documents",
-  /* V06 · Impuestos — `/impuestos` (ESPECIFICACION §V06, issue #73, R1). RUTA NUEVA (no existía).
+  /* V06 · Impuestos — `/impuestos` (ESPECIFICACION §V06, issue #73, R2). RUTA NUEVA (no existía).
      Tríada (Próximo vencimiento / F-29 del mes en curso / Deudas TGR) + calendario tributario
      (F-29 declarado o no, IVA postergado del SII, Previred, TGR) sobre TRES fuentes YA vivas:
      `/api/sii/f29/estado?anio=` (la MISMA que ya consume el panel de `/pagar/impuestos/f29`),
      `/api/buk/payroll` (la MISMA que `previred-view.tsx` y V16 — Ley 1) y `/api/tgr/health` +
-     `/movimientos-deudas` (la MISMA que `/pagar/impuestos/tgr`; hoy `authenticated` es `false`
-     para todo tenant — la vista degrada tan honesto como esa pantalla, nunca inventa una deuda).
+     `/movimientos-deudas` (la MISMA que `/pagar/impuestos/tgr`; si `authenticated` es `false`,
+     la vista degrada como esa pantalla, nunca inventa una deuda).
      La vista funciona hoy con datos reales.
 
      `GET /api/treasury/tax-calendar` EXISTE pero verificado VACÍO en producción (issue #73,
@@ -486,7 +486,8 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
 
      Con OFF, `/impuestos` renderiza el estado "todavía no disponible" con salida a
      `/pagar/impuestos` (F-29/TGR) y `/pagar/previred` — los dos flujos que hacen este trabajo hoy.
-     Ninguna pantalla existente cambia → cero regresión. Encender = editar wrangler.toml. */
+     Producción activa el override explícito en wrangler.toml; el default sigue false.
+     La conciliación bancaria pendiente se sigue en tooxs-digital/qavante-api#440. */
   impuestosV06: "/api/sii/f29/impuesto",
 };
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { ImpuestosV06Live } from "@/components/impuestos/v06/impuestos-v06-live";
 
-/* V06 · Impuestos — `/impuestos` (ESPECIFICACION §V06, issue #73, R1). RUTA NUEVA: no existía, así
+/* V06 · Impuestos — `/impuestos` (ESPECIFICACION §V06, issue #73, R2). RUTA NUEVA: no existía, así
  * que "cero regresión" con el flag apagado significa lo mismo que en `/bandeja` (V07) y
  * `/bienvenida` (V15): la ruta no puede mentir.
  *
@@ -61,4 +61,4 @@ export default function ImpuestosPage() {
 
 /** Hueco restante de V06: la conciliación bancaria de un F-29 declarado no tiene todavía vínculo
  *  contractual con un movimiento específico. */
-const ISSUE_SUCESOR = undefined;
+const ISSUE_SUCESOR = "tooxs-digital/qavante-api#440";
