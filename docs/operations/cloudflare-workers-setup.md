@@ -29,7 +29,8 @@ src/ (Next.js 15 + React 19)
 
 ## Setup manual — primera vez (no documentado en ningún ticket previo)
 
-Hace falta hacer estos pasos UNA vez en tu cuenta de Cloudflare. Después de esto, cada `push` a `main` deploya solo.
+Hace falta hacer estos pasos UNA vez en tu cuenta de Cloudflare. Después, cada
+promoción sigue el release manual y human-gated; un `push` a `main` no despliega.
 
 ### 1. Crear cuenta y obtener Account ID
 
@@ -44,14 +45,22 @@ Hace falta hacer estos pasos UNA vez en tu cuenta de Cloudflare. Después de est
 4. Zone Resources → All zones (necesario más tarde para attach del Custom Domain)
 5. **Continue → Create Token** → **Copialo** (Cloudflare lo muestra solo una vez)
 
-### 3. Agregar secrets al repo GitHub
+### 3. Configurar el environment protegido y sus secrets
 
-`Settings → Secrets and variables → Actions → New repository secret`:
+En `Settings → Environments → production`, restringir a ramas protegidas y
+configurar los controles compensatorios de `main` y sign-off BO que detalla el
+[runbook](./deploy-runbook.md). Luego agregar **Environment secrets**:
 
-| Secret                  | Valor                    |
-| ----------------------- | ------------------------ |
-| `CLOUDFLARE_ACCOUNT_ID` | el Account ID del paso 1 |
-| `CLOUDFLARE_API_TOKEN`  | el API Token del paso 2  |
+| Secret                             | Valor                    |
+| ---------------------------------- | ------------------------ |
+| `PRODUCTION_CLOUDFLARE_ACCOUNT_ID` | el Account ID del paso 1 |
+| `PRODUCTION_CLOUDFLARE_API_TOKEN`  | el API Token del paso 2  |
+
+No crear nuevas credenciales de producción como Repository secrets. Si existen
+los nombres antiguos `CLOUDFLARE_*`, conservarlos sólo durante la transición:
+el workflow vigente en `main` todavía los usa. Eliminarlos y revocar el token
+anterior únicamente después de fusionar el workflow gated y verificar su primer
+release exitoso con `PRODUCTION_*`.
 
 ### 4. Crear el Worker vacío (una sola vez)
 
@@ -62,14 +71,10 @@ npx wrangler login           # OAuth en browser, queda autenticado en tu máquin
 npx wrangler deploy --dry-run  # valida que el bundle se arma sin subir nada
 ```
 
-Si está OK, hacer el primer deploy real desde local (después GH Actions lo cubre):
-
-```bash
-npm run build:cloudflare
-npx wrangler deploy
-```
-
-Esto crea el Worker `qavante-web` en tu cuenta y publica el bundle. Probarlo:
+No hacer el primer deploy real desde local. Configurar antes el environment
+`production` como indica el [runbook de release](./deploy-runbook.md), mergear un
+PR revisado y promover su SHA exacto con el workflow. Ese flujo crea el Worker
+`qavante-web` si no existe y publica el artefacto trazable. Probarlo:
 
 ```
 https://qavante-web.<tu-subdomain>.workers.dev
@@ -89,16 +94,18 @@ https://qavante-web.<tu-subdomain>.workers.dev
 
 Verificar: `curl -I https://qavante.com` debería responder 200 (o 307 a /login si hay middleware) con `Server: cloudflare`.
 
-## Deploy automático desde `main`
+## Release manual desde `main`
 
 Ya configurado en [.github/workflows/deploy-cloudflare.yml](../../.github/workflows/deploy-cloudflare.yml):
 
-- Trigger: cada push a `main` (también `workflow_dispatch` manual desde Actions UI).
-- Node 24 + npm cache + `npm ci`.
-- `npm run build:cloudflare` (OpenNext).
-- `cloudflare/wrangler-action@v3` con `command: deploy`.
-- `concurrency` evita 2 deploys simultáneos.
-- `environment: production` con URL `qavante.com` para que GitHub muestre el link en Deployments.
+- Trigger único: `workflow_dispatch` desde `main` con su SHA completo actual.
+- Preflight: CI, review, PR/árbol, environment protegido y SHA exactos.
+- Node 24 + `npm ci` + un solo `npm run build:cloudflare`.
+- Artefacto `.open-next` inmutable verificado por SHA-256 antes de Wrangler.
+- Revalidación después del build y justo antes de promover, para bloquear un
+  SHA que haya quedado histórico mientras esperaba.
+- `concurrency` evita dos promociones simultáneas; `/api/release` y el artefacto
+  de procedencia permiten verificar y revertir.
 
 ## Feature flags en producción (ADR-0012)
 
@@ -107,29 +114,26 @@ Desde [ADR-0012](../adr/0012-flags-prod-override-env-vars.md), las variables
 explícitamente seteadas en Cloudflare Workers**. Sin setear → flag OFF
 (default seguro de ADR-0008 preservado).
 
-### Cómo setear vars de prod en Cloudflare
+### Cómo setear vars de prod
 
-1. Cloudflare Dashboard → **Workers & Pages** → seleccionar `qavante-web`.
-2. **Settings** → **Variables and Secrets** → **Add variable**.
-3. Type: **Plaintext** (las `NEXT_PUBLIC_*` son client-visible, no son secrets).
-4. Encoding: **Text**.
-5. Repetir por cada flag a habilitar:
+Las vars públicas son versionadas: editar `[vars]` en `wrangler.toml`, abrir PR,
+completar CI/review, mergear y ejecutar el release gated. No usar **Variables
+and Secrets → Save and deploy** como bypass. Valores disponibles:
 
-   | Variable                                      | Valor    | Habilita                                                                   |
-   | --------------------------------------------- | -------- | -------------------------------------------------------------------------- |
-   | `NEXT_PUBLIC_FF_SII_QUERIES`                  | `"true"` | Sprint C1 — `/pagar/impuestos/f29` + facturas-recibidas + RCV ventas + BHE |
-   | `NEXT_PUBLIC_FF_MULTI_CURRENCY`               | `"true"` | `/administracion/monedas` con editor                                       |
-   | `NEXT_PUBLIC_FF_CLASSIFICATION_RULES`         | `"true"` | `/administracion/reglas-clasificacion` con create+edit                     |
-   | `NEXT_PUBLIC_FF_INDUSTRY_TEMPLATES`           | `"true"` | `/administracion/plantillas` con apply confirmatorio                       |
-   | `NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS`          | `"true"` | `/administracion/estructura-gestion`                                       |
-   | `NEXT_PUBLIC_FF_MANAGEMENT_DIMENSIONS`        | `"true"` | `/administracion/vistas-gestion`                                           |
-   | `NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION` | `"true"` | Drawer §17 + banner §18.7 en `/caja/por-clasificar`                        |
+| Variable                                      | Valor    | Habilita                                                                   |
+| --------------------------------------------- | -------- | -------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_FF_SII_QUERIES`                  | `"true"` | Sprint C1 — `/pagar/impuestos/f29` + facturas-recibidas + RCV ventas + BHE |
+| `NEXT_PUBLIC_FF_MULTI_CURRENCY`               | `"true"` | `/administracion/monedas` con editor                                       |
+| `NEXT_PUBLIC_FF_CLASSIFICATION_RULES`         | `"true"` | `/administracion/reglas-clasificacion` con create+edit                     |
+| `NEXT_PUBLIC_FF_INDUSTRY_TEMPLATES`           | `"true"` | `/administracion/plantillas` con apply confirmatorio                       |
+| `NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS`          | `"true"` | `/administracion/estructura-gestion`                                       |
+| `NEXT_PUBLIC_FF_MANAGEMENT_DIMENSIONS`        | `"true"` | `/administracion/vistas-gestion`                                           |
+| `NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION` | `"true"` | Drawer §17 + banner §18.7 en `/caja/por-clasificar`                        |
 
-   **Dejar `NEXT_PUBLIC_FF_PHASE2_PLANNING_PREVIEW` sin setear** (Fase 2 no entra en Fase 1).
+**Dejar `NEXT_PUBLIC_FF_PHASE2_PLANNING_PREVIEW` sin setear** (Fase 2 no entra en Fase 1).
 
-6. **Save and deploy** → Cloudflare hace re-deploy automático (Next.js
-   inlinea `NEXT_PUBLIC_*` en build time, por eso requiere re-deploy
-   para que tomen efecto en el bundle servido).
+Después de la aprobación del environment, el workflow construye el bundle con
+la configuración versionada y verifica el SHA servido.
 
 ### Cómo verificar que un flag está activo en prod
 
@@ -142,8 +146,9 @@ explícitamente seteadas en Cloudflare Workers**. Sin setear → flag OFF
 
 Para **desactivar** un flag en prod (ej. una feature tiene bug en producción):
 
-1. Cloudflare Dashboard → Variables → cambiar el valor a `"false"`.
-2. **Save and deploy** (re-deploy automático).
+1. cambiar el valor versionado en `wrangler.toml` a `"false"` mediante PR;
+2. completar el release manual con human gate. Para una urgencia que requiera
+   volver el artefacto completo, usar el rollback registrado en el runbook.
 
 El override `"false"` gana sobre la config inyectada del backend (cuando
 `/api/management/config` exista), funcionando como kill-switch sin

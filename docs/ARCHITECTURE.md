@@ -52,7 +52,7 @@ flowchart LR
 - **Runtime:** Cloudflare Workers vía adapter [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare). Bundle empaquetado para `workerd` con `compatibility_flags = ["nodejs_compat"]`. Ver [ADR-0001](./adr/0001-cloudflare-workers-vs-pages.md).
 - **Auth (cliente):** cookie httpOnly `qavante_session` (Domain=.qavante.com, SameSite=Lax, Secure, ver [ADR-0003](./adr/0003-api-qavante-com-shared-parent.md)). Middleware Next.js en `src/middleware.ts` valida cookie y redirige a `/login` si falta. El interceptor en [`src/lib/api/client.ts:64`](../src/lib/api/client.ts#L64) hace refresh automático en 401.
 - **State management:** TanStack Query (server state) + Zustand (UI state local). React-hook-form + zod para validación.
-- **Deploy:** push a `main` dispara [.github/workflows/deploy-cloudflare.yml](../.github/workflows/deploy-cloudflare.yml) — `npm run build:cloudflare` + `wrangler deploy` + smoke test post-deploy contra prod.
+- **Release:** el deploy automático por `push` está suspendido. [.github/workflows/deploy-cloudflare.yml](../.github/workflows/deploy-cloudflare.yml) se ejecuta manualmente desde `main`, valida CI/review/árbol/human gate del SHA exacto, construye una vez y promueve el mismo artefacto con procedencia y rollback registrables. Ver [runbook](./operations/deploy-runbook.md).
 
 ### Backend: FastAPI `tooxs-gestion-api`
 

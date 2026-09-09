@@ -6,6 +6,12 @@
 - **Tickets / PRs:** Sprint C1 — pantallas SII listas pero no visibles en prod (#165, #168). Bloqueante similar para Monedas/Reglas/Plantillas (#155-#157) que llevan mergeadas desde 2026-05-22 y siguen invisibles en prod.
 - **Supersede parcialmente:** [ADR-0008](./0008-feature-flags-gating-pantallas-sin-backend.md) — invariante "el override env nunca aplica en prod".
 
+> **Addendum operacional 2026-09-07 (T06):** la decisión sobre resolución de
+> flags sigue vigente, pero el mecanismo de promoción cambió. Las vars viven en
+> `wrangler.toml` y llegan a producción sólo mediante el release manual por SHA
+> exacto, CI/review y environment human-gated. Las instrucciones antiguas de
+> dashboard o push vacío no autorizan un deploy.
+
 ## Contexto
 
 [ADR-0008](./0008-feature-flags-gating-pantallas-sin-backend.md) estableció 3
@@ -122,8 +128,9 @@ cada activación quede trazada.
       Settings > Variables): - `NEXT_PUBLIC_FF_SII_QUERIES=true` - `NEXT_PUBLIC_FF_MULTI_CURRENCY=true` - `NEXT_PUBLIC_FF_CLASSIFICATION_RULES=true` - `NEXT_PUBLIC_FF_INDUSTRY_TEMPLATES=true` - `NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS=true` - `NEXT_PUBLIC_FF_MANAGEMENT_DIMENSIONS=true` - `NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION=true`
       (deja `PHASE2_PLANNING_PREVIEW` en false — Fase 2 no entra en
       Fase 1)
-- [ ] Trigger re-deploy (push vacío o desde Cloudflare dashboard) para
-      que `NEXT_PUBLIC_*` se inlineen al bundle.
+- [ ] Ejecutar el release manual del SHA exacto de `main` según
+      `docs/operations/deploy-runbook.md`; no usar push vacío ni dashboard como
+      bypass del gate.
 - [ ] Actualizar `docs/operations/cloudflare-workers-setup.md` con la
       lista de env vars activas en prod (lo hago en este mismo PR).
 - [ ] Cuando CC-API exponga `/api/management/config`, este ADR queda

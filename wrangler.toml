@@ -14,13 +14,17 @@ NEXT_PUBLIC_APP_ENV = "production"
 # client-side → el valor real lo inlinea el build (ver build env en
 # deploy-cloudflare.yml); esto queda por consistencia/runtime.
 NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAADpQkYv0x2Mvz7Xp"
+# Se reemplazan en una copia efectiva del config sólo desde el workflow release-gated.
+# Valores inválidos mantienen `/api/release` en 503 y evitan afirmar procedencia.
+QAVANTE_RELEASE_SHA = "unreleased"
+QAVANTE_RELEASE_BUNDLE_SHA256 = "unreleased"
 
 # Feature flags de prod (ADR-0008/0012). Las pantallas gateadas son Server
 # Components: resuelven `process.env.NEXT_PUBLIC_FF_*` en runtime del Worker,
 # que se llena con estas `[vars]`. IMPORTANTE: viven ACÁ (versionado), NO en
 # el panel de Cloudflare — `wrangler deploy` resetea las vars del Worker a
 # este archivo en cada deploy, así que lo del panel se borra. Para activar/
-# desactivar una pantalla: editar acá + merge a main (auto-deploya).
+# desactivar una pantalla: editar acá + PR + merge + release manual con human gate.
 #
 # Activadas 2026-05-30 tras ADR-0027 (backend acepta cookie en tesorería C3).
 NEXT_PUBLIC_FF_CASH_FLOW_REPORT = "true"

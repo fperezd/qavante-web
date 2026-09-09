@@ -64,7 +64,7 @@ Sin `.env.local`, el API client lanza `ApiError("NEXT_PUBLIC_API_URL no configur
 Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (`build:cloudflare`) produce `.open-next/worker.js` + `.open-next/assets/`. Wrangler hace el upload al Worker `qavante-web`.
 
 - Config: [wrangler.toml](./wrangler.toml) (entrypoint, compatibility flags `nodejs_compat`, assets binding).
-- Workflow deploy: [.github/workflows/deploy-cloudflare.yml](./.github/workflows/deploy-cloudflare.yml) — corre en cada push a `main` con `cloudflare/wrangler-action@v3`.
+- Workflow release: [.github/workflows/deploy-cloudflare.yml](./.github/workflows/deploy-cloudflare.yml) — se ejecuta manualmente desde `main`, valida CI/review/árbol/human gate del SHA exacto y promueve un artefacto OpenNext inmutable. No hay deploy por `push`.
 - Setup operativo (primera vez): [docs/operations/cloudflare-workers-setup.md](./docs/operations/cloudflare-workers-setup.md).
 - Activar feature flags en prod: [docs/operations/feature-flags-activation.md](./docs/operations/feature-flags-activation.md).
 

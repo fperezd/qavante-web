@@ -17,12 +17,14 @@ Por eso los flags **viven en `wrangler.toml [vars]` (versionado en el repo)**, n
 en el panel del dashboard.
 
 ⚠️ **NO usar el panel de Cloudflare ("Variables and secrets") para los flags:**
-`wrangler deploy` (que corre en cada push a `main`) **resetea** las vars del Worker
+Cada release gated ejecuta `wrangler deploy` y **resetea** las vars del Worker
 a lo que diga `wrangler.toml`, así que **cualquier var agregada a mano en el panel
 se borra en el siguiente deploy**. (Si se prefiriera el panel, habría que agregar
 `keep_vars = true` al toml — pero hoy la fuente de verdad es el toml.)
 
-Cambiar un flag en prod = editar `wrangler.toml` + merge a `main` (auto-deploya).
+Cambiar un flag en prod = editar `wrangler.toml` + PR + CI/review + merge a
+`main` + release manual con human gate según
+[`deploy-runbook.md`](./deploy-runbook.md). Un merge por sí solo no despliega.
 
 ## Mapping flag → env var → endpoint que gobierna
 
@@ -56,8 +58,10 @@ El mapping vive en `FLAG_GATING_ENDPOINT` en `src/lib/feature-flags.ts` — actu
 2. **Editar `wrangler.toml`** (en el repo, NO el dashboard):
    - En el bloque `[vars]`, agregar/editar la línea `NEXT_PUBLIC_FF_<...> = "true"`
      (o `"false"` para apagar; o borrar/comentar la línea → cae al default `false`).
-   - Commit + PR + merge a `main`. El workflow `deploy-cloudflare.yml` corre
-     `wrangler deploy` y el Worker queda con la var nueva, de forma persistente.
+   - Commit + PR + merge a `main`.
+   - Tras CI/review, ejecutar el release manual del SHA completo de `main` y
+     aprobar el environment `production` según `deploy-runbook.md`. Ese workflow
+     promueve el artefacto y deja la var persistida.
 
 3. **Validar**:
    - Refresh `https://app.qavante.com/<ruta-gateada>` en una ventana nueva (Ctrl+F5 para saltar caché CDN).
@@ -106,13 +110,13 @@ No hay endpoint dedicado para esto (todavía — eventualmente vendrá `/api/man
 
 ## Errores comunes
 
-| Síntoma                                        | Causa probable                                                             | Fix                                                        |
-| ---------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Variable seteada pero pantalla no cambia       | No hiciste redeploy del Worker (env var inlineada en build-time)           | Click "Save **and deploy**" en CF Dashboard.               |
-| Pantalla cargando infinito tras activar        | Endpoint backend no deployado todavía                                      | Verificar con `curl` y/o desactivar el flag.               |
-| Variable con valor `True` o `TRUE` no funciona | Parser case-insensitive solo acepta `true`/`false` exactos                 | Usar minúsculas. Ver `readOverride` en `feature-flags.ts`. |
-| Variable con valor `yes` o `1` no funciona     | Mismo motivo                                                               | Usar `true`/`false`.                                       |
-| Pantalla muestra UI mock o datos raros         | Tienes `NEXT_PUBLIC_API_MOCKING=enabled` activo en prod (no debería pasar) | Borrar la variable de mocking en CF Dashboard.             |
+| Síntoma                                        | Causa probable                                                             | Fix                                                         |
+| ---------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Variable seteada pero pantalla no cambia       | El commit aún no fue promovido por el release gated                        | Ejecutar el workflow por SHA exacto y aprobar `production`. |
+| Pantalla cargando infinito tras activar        | Endpoint backend no deployado todavía                                      | Verificar con `curl` y/o desactivar el flag.                |
+| Variable con valor `True` o `TRUE` no funciona | Parser case-insensitive solo acepta `true`/`false` exactos                 | Usar minúsculas. Ver `readOverride` en `feature-flags.ts`.  |
+| Variable con valor `yes` o `1` no funciona     | Mismo motivo                                                               | Usar `true`/`false`.                                        |
+| Pantalla muestra UI mock o datos raros         | Tienes `NEXT_PUBLIC_API_MOCKING=enabled` activo en prod (no debería pasar) | Borrar la variable de mocking en CF Dashboard.              |
 
 ## Cuando agregar un flag nuevo
 

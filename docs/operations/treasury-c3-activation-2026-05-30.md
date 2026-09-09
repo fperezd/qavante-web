@@ -1,5 +1,11 @@
 # Activar pantallas de tesorería C3 en prod (post-ADR-0027) — handoff para Fernando
 
+> **Nota operacional 2026-09-07:** este documento conserva el resultado
+> histórico de la activación. Sus pasos directos por dashboard fueron
+> reemplazados por el flujo versionado y human-gated de
+> [`feature-flags-activation.md`](./feature-flags-activation.md). No ejecutar
+> `Save and deploy` desde Cloudflare para cambios nuevos.
+
 > ### ✅ Resultado de la activación — 4/4 OK (al 2026-05-31)
 >
 > **Las 4 pantallas de tesorería C3 están LIVE en prod:** `/caja/proyeccion`,
@@ -40,13 +46,14 @@
 | `/administracion/reglas-clasificacion`        | `NEXT_PUBLIC_FF_CLASSIFICATION_RULES`         | `GET\|POST\|PATCH /api/treasury/classification-rules` |
 | `/administracion/estructura-gestion`          | `NEXT_PUBLIC_FF_MANAGEMENT_ACCOUNTS`          | `GET /api/management/accounts/tree` (+ CRUD)          |
 
-## Pasos (Cloudflare, ~1 var por pantalla + 1 redeploy)
+## Pasos vigentes
 
 Mismo procedimiento que [`feature-flags-activation.md`](./feature-flags-activation.md):
 
-1. dash.cloudflare.com → **Workers & Pages** → **`qavante-web`** → **Settings** → **Variables and secrets**.
-2. **Add variable** (Plain Text) por cada flag de arriba que quieras activar. Value `true` (exacto, minúsculas).
-3. **Save and deploy** (un solo redeploy cubre todas las vars que agregues).
+1. editar el flag versionado en `wrangler.toml` y abrir PR;
+2. completar CI, review y merge;
+3. ejecutar el release manual del SHA exacto de `main` y aprobar el environment
+   `production`;
 4. Validar cada ruta con Ctrl+F5 (saltar caché CDN):
    - Si muestra datos reales → flag ON + endpoint respondiendo con tu cookie. ✅
    - Si muestra `FeatureUnavailableState` → flag mal seteado.
@@ -79,5 +86,7 @@ C1 SII, multimoneda, vistas-gestión).
 
 ## Kill-switch
 
-Si una pantalla activada da problemas en prod: misma var con valor `false` (o
-borrarla) + redeploy → vuelve a `FeatureUnavailableState`. Sin riesgo.
+Si una pantalla activada da problemas en prod: misma var versionada con valor
+`false` (o borrarla), PR y release gated → vuelve a `FeatureUnavailableState`.
+Si la urgencia exige rollback del artefacto completo, seguir el runbook de
+deploy y su gate humano; no usar el dashboard como bypass.
