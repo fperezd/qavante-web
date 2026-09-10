@@ -72,59 +72,45 @@ describe("cashGapProposals", () => {
     expect(cashGapProposals(plan("payment_plan", "abstain"), null)).toEqual([]);
   });
 
-  it("traduce una fuente stale sin exponer el código interno", () => {
+  it("conserva el límite publicado por el servidor sin inferir frescura", () => {
     const payment = plan("payment_plan", "ready", "low", [sourceEvidence("available", "stale")]);
     payment.reasons = ["source_stale:sii_rcv"];
 
-    expect(cashGapProposals(payment, null)[0]?.caveats).toEqual([
-      "Una o más fuentes pueden estar desactualizadas.",
-    ]);
-    expect(cashGapProposals(payment, null)[0]?.caveats.join(" ")).not.toContain("source_stale");
+    expect(cashGapProposals(payment, null)[0]?.limitations).toEqual(["source_stale:sii_rcv"]);
   });
 
-  it("conserva evidencia stale del plan aunque la alternativa publique evidence vacío", () => {
+  it("conserva evidencia del plan aunque la alternativa publique evidence vacío", () => {
     const payment = plan("payment_plan", "ready", "low", [sourceEvidence("available", "stale")]);
     payment.alternatives![0]!.evidence = [];
     payment.reasons = [];
 
     const proposal = cashGapProposals(payment, null)[0];
     expect(proposal?.evidenceCount).toBe(1);
-    expect(proposal?.caveats).toEqual(["Una o más fuentes pueden estar desactualizadas."]);
-    expect(proposal?.caveats.join(" ")).not.toMatch(
-      /stale|source_metric|treasury\.source|internal_reference/,
-    );
+    expect(proposal?.limitations).toEqual([]);
   });
 
-  it("declara información incompleta en un plan ready preliminar sin filtrar tokens", () => {
+  it("muestra el límite publicado en un plan ready preliminar", () => {
     const collection = plan("collection_plan", "ready", "preliminary", [
       sourceEvidence("partial", "fresh"),
     ]);
     collection.reasons = ["missing_due_dates"];
 
-    expect(cashGapProposals(null, collection)[0]?.caveats).toEqual([
-      "La propuesta se basa en información parcial; pueden faltar documentos o vencimientos.",
-    ]);
-    expect(cashGapProposals(null, collection)[0]?.caveats.join(" ")).not.toContain(
-      "missing_due_dates",
-    );
+    expect(cashGapProposals(null, collection)[0]?.limitations).toEqual(["missing_due_dates"]);
   });
 
-  it("usa un aviso genérico honesto para una razón no reconocida", () => {
+  it("no reemplaza una razón no reconocida por un aviso genérico", () => {
     const payment = plan("payment_plan");
     payment.reasons = ["engine_private_reason"];
 
-    expect(cashGapProposals(payment, null)[0]?.caveats).toEqual([
-      "Esta propuesta usa evidencia limitada; revisa los datos antes de actuar.",
-    ]);
+    expect(cashGapProposals(payment, null)[0]?.limitations).toEqual(["engine_private_reason"]);
   });
 
-  it("traduce la ausencia de política sin exponer PolicyConstraint", () => {
+  it("no recalcula un límite de política publicado", () => {
     const payment = plan("payment_plan");
     payment.reasons = ["missing_policy:versioned_cash_safety_minimum"];
 
-    expect(cashGapProposals(payment, null)[0]?.caveats).toEqual([
-      "La empresa aún no tiene configurado un criterio de caja vigente para esta propuesta.",
+    expect(cashGapProposals(payment, null)[0]?.limitations).toEqual([
+      "missing_policy:versioned_cash_safety_minimum",
     ]);
-    expect(cashGapProposals(payment, null)[0]?.caveats.join(" ")).not.toContain("missing_policy");
   });
 });

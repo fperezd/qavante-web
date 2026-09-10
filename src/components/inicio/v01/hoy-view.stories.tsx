@@ -97,7 +97,7 @@ const PROPUESTA_PAGOS: CashGapProposal = {
   explanation: "El plan publicado permite revisar primero los pagos que explican la brecha.",
   confidence: "medium",
   evidenceCount: 2,
-  caveats: ["Una o más fuentes pueden estar desactualizadas."],
+  limitations: ["source_stale:sii_rcv"],
   targets: [{ label: "Remuneraciones de agosto", amount: "7400000", reason: "vence primero" }],
   impacts: [
     {
