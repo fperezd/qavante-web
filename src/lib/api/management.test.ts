@@ -3,7 +3,9 @@
    management.ts, el mock dejó de respetar el shape §10.2/§10.4. */
 import { describe, expect, it } from "vitest";
 import {
+  dimensionesConValorActivo,
   managementKeys,
+  publicarDimensionesResueltas,
   type ManagementAccount,
   type ManagementAccountTreeResponse,
   type ManagementDimension,
@@ -36,6 +38,64 @@ describe("managementKeys", () => {
       "dimensions",
       { onlyActive: true },
     ]);
+  });
+});
+
+describe("dimensionesConValorActivo · V12 §12C", () => {
+  const dimension = (id: string) => ({ id, name: id }) as ManagementDimension;
+  const value = (id: string, active: boolean) =>
+    ({ id, dimension_id: "dim", name: id, active }) as ManagementDimensionValue;
+
+  it("no publica una dimensión con cero valores", () => {
+    expect(
+      dimensionesConValorActivo([{ dimension: dimension("sin-valores"), values: [] }]),
+    ).toEqual([]);
+  });
+
+  it("no cuenta valores inactivos como el primer valor que activa la vista", () => {
+    expect(
+      dimensionesConValorActivo([
+        { dimension: dimension("sólo-inactivos"), values: [value("archivado", false)] },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("publica la dimensión cuando existe al menos un valor activo", () => {
+    const conValor = {
+      dimension: dimension("proyecto"),
+      values: [value("cerrado", false), value("proyecto-norte", true)],
+    };
+    expect(dimensionesConValorActivo([conValor])).toEqual([conValor]);
+  });
+
+  it("no publica un resultado parcial mientras otra consulta sigue cargando", () => {
+    const conValor = {
+      dimension: dimension("proyecto"),
+      values: [value("proyecto-norte", true)],
+    };
+    expect(
+      publicarDimensionesResueltas({
+        enabled: true,
+        isLoading: true,
+        isError: false,
+        items: [conValor],
+      }),
+    ).toEqual([]);
+  });
+
+  it("publica el mismo resultado completo cuando ya no hay consultas cargando", () => {
+    const conValor = {
+      dimension: dimension("proyecto"),
+      values: [value("proyecto-norte", true)],
+    };
+    expect(
+      publicarDimensionesResueltas({
+        enabled: true,
+        isLoading: false,
+        isError: false,
+        items: [conValor],
+      }),
+    ).toEqual([conValor]);
   });
 });
 

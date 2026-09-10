@@ -83,14 +83,47 @@ export function useManagementDimensions(opts: { onlyActive?: boolean; enabled?: 
   });
 }
 
-/** Dimensiones activas+visibles con sus valores, para el selector de vistas en
- *  el drawer de clasificación. Compone `useManagementDimensions` + `useQueries`
- *  (un GET de valores por dimensión). Todo gateado por `enabled` (el flag
- *  `managementDimensions`): con `enabled=false` no dispara NINGÚN request. El
- *  endpoint ya acepta cookie (sondeado 2026-07-17); el gateo por `enabled` sigue
- *  siendo útil para no pedir dimensiones cuando el drawer no las necesita. */
+export interface ClassificationDimensionData {
+  dimension: ManagementDimension;
+  values: ManagementDimensionValue[];
+}
+
+/** V12 §12C: una vista aparece en formularios recién cuando tiene al menos un valor elegible.
+ * Los valores inactivos siguen en `values` para no cambiar el contrato de los tres consumidores;
+ * cada uno ya los excluye de sus opciones. Esta función sólo decide si la dimensión puede aparecer. */
+export function dimensionesConValorActivo(
+  items: ReadonlyArray<ClassificationDimensionData>,
+): ClassificationDimensionData[] {
+  return items.filter(({ values }) => values.some((value) => value.active));
+}
+
+/** Publica dimensiones sólo cuando el conjunto completo está resuelto. Un resultado parcial de
+ * `useQueries` no equivale a una lista completa y no puede filtrarse como si lo fuera. */
+export function publicarDimensionesResueltas({
+  enabled,
+  isLoading,
+  isError,
+  items,
+}: {
+  enabled: boolean;
+  isLoading: boolean;
+  isError: boolean;
+  items: ReadonlyArray<ClassificationDimensionData>;
+}): ClassificationDimensionData[] {
+  if (!enabled || isLoading || isError) return [];
+  return dimensionesConValorActivo(items);
+}
+
+/** Dimensiones activas+visibles que ya tienen al menos un valor activo, para los selectores de
+ * clasificación de Bandeja, Banco V03 y detalle de cuenta. Compone `useManagementDimensions` +
+ * `useQueries` (un GET de valores por dimensión) y espera a que TODAS terminen antes de publicar
+ * una lista: una query aún en vuelo o fallida no equivale a una dimensión vacía.
+ *
+ * Todo queda gateado por `enabled` (flag `managementDimensions`): con `enabled=false` no dispara
+ * NINGÚN request. El endpoint acepta cookie (sondeado 2026-07-17); el gate evita pedir dimensiones
+ * cuando el formulario no está abierto. */
 export function useClassificationDimensions(enabled: boolean): {
-  data: Array<{ dimension: ManagementDimension; values: ManagementDimensionValue[] }>;
+  data: ClassificationDimensionData[];
   isLoading: boolean;
   isError: boolean;
 } {
@@ -108,13 +141,16 @@ export function useClassificationDimensions(enabled: boolean): {
       retry: false,
     })),
   });
+  const isLoading = dimsQuery.isLoading || valueQueries.some((q) => q.isLoading);
+  const isError = dimsQuery.isError || valueQueries.some((q) => q.isError);
+  const resolved = dims.map((dimension, i) => ({
+    dimension,
+    values: valueQueries[i]?.data?.items ?? [],
+  }));
   return {
-    data: dims.map((dimension, i) => ({
-      dimension,
-      values: valueQueries[i]?.data?.items ?? [],
-    })),
-    isLoading: dimsQuery.isLoading || valueQueries.some((q) => q.isLoading),
-    isError: dimsQuery.isError || valueQueries.some((q) => q.isError),
+    data: publicarDimensionesResueltas({ enabled, isLoading, isError, items: resolved }),
+    isLoading,
+    isError,
   };
 }
 
