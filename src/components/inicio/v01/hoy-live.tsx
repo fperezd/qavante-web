@@ -4,6 +4,7 @@ import * as React from "react";
 import { QavanteInlineError } from "@/components/qavante";
 import { useDashboardSummary } from "@/lib/api/dashboard";
 import {
+  collectionReadScopeFromFinancialScope,
   useCollectionEvaluation,
   useCollectionSituation,
   type CollectionReadQuery,
@@ -67,11 +68,11 @@ export function HoyLive() {
   const sourceFreshness = useSourceFreshness(decisionReadScope);
   const me = useMe();
   const role = asUserRole(me.data?.user?.role);
-  /* F3's public reader requires legal_entity_id + currency + as_of. `/api/me` only publishes
-     tenant_id, so using it here would silently scope a financial decision to the wrong entity.
-     Keep this explicit until a canonical scope source is published; disabled queries issue no HTTP
-     request. This does not alter the still-OFF hoyV01 feature gate. */
-  const collectionScope: CollectionReadQuery | null = null;
+  /* F3's public reader requires legal_entity_id + currency + as_of. The canonical reader owns
+     all three values, so this never substitutes `/api/me`'s tenant id, a browser currency or
+     today's clock. An absent/ambiguous canonical scope keeps both F3 requests disabled. */
+  const collectionScope: CollectionReadQuery | null =
+    collectionReadScopeFromFinancialScope(decisionReadScope);
   const collectionSituation = useCollectionSituation(collectionScope);
   const collectionEvaluation = useCollectionEvaluation(collectionScope);
   /* Ley 5 / issue #65: la bitácora viene del reader que publica sólo automatismos de Qavante.

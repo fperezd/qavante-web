@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { CollectionEvaluation, CollectionSituation } from "@/lib/api/collection-decisions";
+import {
+  collectionReadScopeFromFinancialScope,
+  type CollectionEvaluation,
+  type CollectionSituation,
+} from "@/lib/api/collection-decisions";
 import { collectionEvaluationView } from "./collection-evaluation-model";
 
 const SCOPE = {
@@ -114,5 +118,25 @@ describe("collectionEvaluationView", () => {
       receivables: null,
       payables: null,
     });
+  });
+});
+
+describe("collectionReadScopeFromFinancialScope", () => {
+  it("propaga sólo el scope financiero canónico al reader F3", () => {
+    expect(
+      collectionReadScopeFromFinancialScope({
+        legal_entity_id: "entity-server-id",
+        currency: "USD",
+        as_of: "2026-09-09",
+      }),
+    ).toEqual({
+      legal_entity_id: "entity-server-id",
+      currency: "USD",
+      as_of: "2026-09-09",
+    });
+  });
+
+  it("mantiene F3 sin request cuando el scope canónico no existe", () => {
+    expect(collectionReadScopeFromFinancialScope(null)).toBeNull();
   });
 });

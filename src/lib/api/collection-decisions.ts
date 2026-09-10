@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./client";
+import type { FinancialDecisionReadScope } from "./financial-scope";
 import type { components, operations } from "./types";
 
 export type CollectionSituation = components["schemas"]["CollectionSituationResponse"];
@@ -15,6 +16,23 @@ export const collectionDecisionKeys = {
   evaluation: (scope: CollectionReadQuery | null) =>
     [...collectionDecisionKeys.all, "evaluation", scope] as const,
 };
+
+/**
+ * F3 and the canonical financial-scope reader share this exact three-field scope.
+ * Keeping the adaptation explicit prevents callers from falling back to tenant identity,
+ * a browser currency or the browser clock when a financial scope cannot be demonstrated.
+ */
+export function collectionReadScopeFromFinancialScope(
+  scope: FinancialDecisionReadScope | null,
+): CollectionReadQuery | null {
+  if (!scope) return null;
+
+  return {
+    legal_entity_id: scope.legal_entity_id,
+    currency: scope.currency,
+    as_of: scope.as_of,
+  };
+}
 
 function collectionQuery(scope: CollectionReadQuery): string {
   return new URLSearchParams({
