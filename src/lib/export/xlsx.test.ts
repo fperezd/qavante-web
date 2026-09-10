@@ -27,11 +27,23 @@ async function read(bytes: Uint8Array) {
 
 describe("Excel tipado", () => {
   it("Libro SII distingue los montos ausentes del cero real", async () => {
-    const table = docsToCsvTable([{ tipo_doc: 33, folio: 123, monto_iva: 0 }]);
+    const table = docsToCsvTable([
+      {
+        tipo_doc: 33,
+        folio: 123,
+        complete: true,
+        neto_afecto: 0,
+        exento: 0,
+        iva: 0,
+        otros_ajustes_residual: 0,
+        total: 0,
+      },
+      { tipo_doc: 33, folio: 124, monto_iva: 0 },
+    ]);
     const sheet = (await read(await xlsxBytes(table))).getWorksheet("Datos")!;
-    expect(sheet.getCell("F2").value).toBeNull();
-    expect(sheet.getCell("G2").value).toBe(0);
-    expect(sheet.getCell("H2").value).toBeNull();
+    expect(sheet.getCell("F2").value).toBe(0);
+    expect(sheet.getCell("F3").value).toBeNull();
+    expect(sheet.getCell("H3").value).toBeNull();
   });
   it("exporta el folio real del modelo 360 sin perder ceros ni el signo de una nota de crédito", async () => {
     const table = csv360Table([

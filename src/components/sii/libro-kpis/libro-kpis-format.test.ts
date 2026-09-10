@@ -1,148 +1,73 @@
 import { describe, expect, it } from "vitest";
-import { concentrationByCounterparty, docsToCsv } from "./libro-kpis-format";
+import { csvCell } from "@/lib/export/csv";
+import { concentrationByCounterparty, docsToCsv, docsToCsvTable } from "./libro-kpis-format";
 import type { RcvDoc } from "../rcv-grouped-item";
 
-const docs: RcvDoc[] = [
-  {
-    tipo_doc: 33,
-    folio: 1,
-    rut_contraparte: "76418976-0",
-    razon_social: "Aguas de Antofagasta",
-    monto_neto: 1000000,
-    monto_iva: 190000,
-    monto_total: 1190000,
-  },
-  {
-    tipo_doc: 33,
-    folio: 2,
-    rut_contraparte: "96572360-9",
-    razon_social: "Kaufmann",
-    monto_neto: 2000000,
-    monto_iva: 380000,
-    monto_total: 2380000,
-  },
-  {
-    tipo_doc: 33,
-    folio: 3,
-    rut_contraparte: "76418976-0",
-    razon_social: "Aguas de Antofagasta",
-    monto_neto: 500000,
-    monto_iva: 95000,
-    monto_total: 595000,
-  },
-  {
-    tipo_doc: 61,
-    folio: 4,
-    rut_contraparte: "96572360-9",
-    razon_social: "Kaufmann",
-    monto_neto: 200000,
-    monto_iva: 38000,
-    monto_total: 238000,
-  }, // NC
-];
+const complete = (overrides: Partial<RcvDoc>): RcvDoc => ({
+  tipo_doc: 33,
+  complete: true,
+  neto_afecto: 100,
+  exento: 0,
+  iva: 19,
+  otros_ajustes_residual: 0,
+  total: 119,
+  ...overrides,
+});
 
 describe("libro-kpis-format", () => {
-  it("concentrationByCounterparty agrupa por RUT excluyendo NC, ordenado desc", () => {
-    const c = concentrationByCounterparty(docs, 5);
-    expect(c[0]?.rut).toBe("96572360-9"); // 2.380.000
-    expect(c[1]?.rut).toBe("76418976-0"); // 1.190.000 + 595.000 = 1.785.000
-    // La NC (folio 4) NO cuenta → el denominador es solo el bruto (facturas).
-    expect((c[0]?.pct ?? 0) + (c[1]?.pct ?? 0)).toBeCloseTo(100);
-    expect(c).toHaveLength(2);
-  });
-
-  it("concentrationByCounterparty respeta topN", () => {
-    expect(concentrationByCounterparty(docs, 1)).toHaveLength(1);
-    expect(concentrationByCounterparty([])).toHaveLength(0);
-  });
-
-  it("las NC netean el total de su contraparte (mismo neto que el hero)", () => {
-    const conNc = [
-      {
-        tipo_doc: 33,
-        folio: 1,
-        rut_contraparte: "96572360-9",
-        razon_social: "Kaufmann",
-        monto_total: 2380000,
-      },
-      {
-        tipo_doc: 61,
-        folio: 2,
-        rut_contraparte: "96572360-9",
-        razon_social: "Kaufmann",
-        monto_total: 380000,
-      }, // NC
-      {
-        tipo_doc: 33,
-        folio: 3,
-        rut_contraparte: "76418976-0",
-        razon_social: "Aguas",
-        monto_total: 1000000,
-      },
-    ] as RcvDoc[];
-    const c = concentrationByCounterparty(conNc, 5);
-    const kauf = c.find((x) => x.rut === "96572360-9");
-    expect(kauf?.total).toBe(2000000); // 2.380.000 − 380.000
-  });
-
-  it("excluye una contraparte totalmente anulada (neto <= 0)", () => {
-    const anulada = [
-      {
-        tipo_doc: 33,
-        folio: 1,
-        rut_contraparte: "1-9",
-        razon_social: "Anulado",
-        monto_total: 500000,
-      },
-      {
-        tipo_doc: 61,
-        folio: 2,
-        rut_contraparte: "1-9",
-        razon_social: "Anulado",
-        monto_total: 500000,
-      }, // NC total
-      {
-        tipo_doc: 33,
-        folio: 3,
-        rut_contraparte: "2-7",
-        razon_social: "Vigente",
-        monto_total: 300000,
-      },
-    ] as RcvDoc[];
-    const c = concentrationByCounterparty(anulada, 5);
-    expect(c.map((x) => x.rut)).toEqual(["2-7"]); // Anulado (neto 0) no aparece
-  });
-
-  it("no funde contrapartes distintas sin RUT (keyea por razón social)", () => {
-    const sinRut = [
-      { tipo_doc: 39, folio: 1, razon_social: "Cliente A", monto_total: 1000 },
-      { tipo_doc: 39, folio: 2, razon_social: "Cliente B", monto_total: 2000 },
-    ] as RcvDoc[];
-    const c = concentrationByCounterparty(sinRut, 5);
-    expect(c).toHaveLength(2); // no se funden en un único bucket "s/d"
-    expect(c.map((x) => x.name).sort()).toEqual(["Cliente A", "Cliente B"]);
-  });
-
-  it("docsToCsv arma headers + filas con separador ; y escapa comillas", () => {
-    const csv = docsToCsv(docs.slice(0, 1));
-    const lines = csv.split("\r\n");
-    expect(lines[0]).toBe("Tipo;Folio;Fecha;RUT;Razon social;Neto;IVA;Total");
-    expect(lines[1]).toContain("76418976-0");
-    expect(lines[1]).toContain("1190000");
-    // Sin caracteres especiales → sin comillas (RFC 4180).
-    expect(lines[1]).toContain("Aguas de Antofagasta");
-  });
-
-  it("docsToCsv escapa comillas dobles en la razón social", () => {
-    const csv = docsToCsv([
-      {
-        tipo_doc: 33,
-        folio: 9,
-        rut_contraparte: "1-9",
-        razon_social: 'Bar "El Rincón"',
-        monto_total: 1000,
-      },
+  it("concentración netea NC sólo desde el bridge completo", () => {
+    const rows = concentrationByCounterparty([
+      complete({ rut_contraparte: "1-9", razon_social: "Uno", total: 119 }),
+      complete({ tipo_doc: 61, rut_contraparte: "1-9", razon_social: "Uno", total: 19 }),
+      complete({ rut_contraparte: "2-7", razon_social: "Dos", total: 238 }),
     ]);
-    expect(csv.split("\r\n")[1]).toContain('"Bar ""El Rincón"""');
+    expect(rows).toEqual([
+      expect.objectContaining({ rut: "2-7", total: 238 }),
+      expect.objectContaining({ rut: "1-9", total: 100 }),
+    ]);
+  });
+
+  it("no publica concentración parcial usando monto_total histórico", () => {
+    const rows = concentrationByCounterparty([
+      complete({ rut_contraparte: "1-9", razon_social: "Completo" }),
+      { tipo_doc: 33, rut_contraparte: "2-7", razon_social: "Parcial", monto_total: 999999 },
+    ] as RcvDoc[]);
+    expect(rows).toEqual([]);
+  });
+
+  it("exporta sólo componentes canónicos y marca las filas incompletas", () => {
+    const table = docsToCsvTable([
+      complete({
+        folio: 1,
+        neto_afecto: 0,
+        exento: 10,
+        iva: 0,
+        otros_ajustes_residual: 0,
+        total: 10,
+      }),
+      { tipo_doc: 33, folio: 2, monto_neto: 999, monto_iva: 99, monto_total: 1098 },
+    ] as RcvDoc[]);
+    expect(table.headers).toEqual(
+      expect.arrayContaining(["Neto afecto", "Exento", "Otros/ajustes", "Desglose"]),
+    );
+    expect(table.rows[0]?.slice(5)).toEqual([
+      csvCell.decimal(0),
+      csvCell.decimal(10),
+      csvCell.decimal(0),
+      csvCell.decimal(0),
+      csvCell.decimal(10),
+      csvCell.text("completo"),
+    ]);
+    expect(table.rows[1]?.slice(5)).toEqual([
+      csvCell.missing(),
+      csvCell.missing(),
+      csvCell.missing(),
+      csvCell.missing(),
+      csvCell.missing(),
+      csvCell.text("incompleto"),
+    ]);
+    expect(docsToCsv([complete({ razon_social: 'Bar "El Rincón"' })])).toContain(
+      '"Bar ""El Rincón"""',
+    );
   });
 });

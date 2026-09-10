@@ -18162,9 +18162,7 @@ export interface components {
              * Compras
              * @description Documentos de compras (incluye facturas, notas, honorarios deduplicados). Slim por default.
              */
-            compras?: {
-                [key: string]: unknown;
-            }[];
+            compras?: components["schemas"]["RcvDocumento"][];
             /**
              * Count
              * @default 0
@@ -18207,6 +18205,8 @@ export interface components {
              * @description Solo si `cedido`: RUT del factor (cesionario) al que se cedió la factura.
              */
             cedido_a?: string | null;
+            /** True sólo si el desglose canónico está completo. */
+            complete: boolean;
             /**
              * Dhdr Codigo
              * @description Código interno del DTE en el SII (dhdrCodigo/detCodigo). Sirve para enlazar el documento con su PDF/XML oficial cuando se habilite la descarga.
@@ -18227,6 +18227,8 @@ export interface components {
              * @description Estado contable del documento en el SII: REGISTRO, PENDIENTE, NO_INCLUIR, RECLAMADO o ACEPTADO_RECLAMADO. None si el dato viene de cache anterior a esta versión.
              */
             estado?: string | null;
+            /** Componente exento; null si SII no lo entregó o es inválido. */
+            exento?: number | null;
             /**
              * Fecha
              * @description Formato dd/mm/yyyy
@@ -18234,6 +18236,10 @@ export interface components {
             fecha?: string | null;
             /** Folio */
             folio?: number | null;
+            /** IVA informado por el SII. */
+            iva?: number | null;
+            /** Componentes faltantes, nulos o inválidos del desglose. */
+            missing_components?: string[];
             /** Monto Exento */
             monto_exento?: number | null;
             /** Monto Iva */
@@ -18242,6 +18248,10 @@ export interface components {
             monto_neto?: number | null;
             /** Monto Total */
             monto_total?: number | null;
+            /** Componente afecto sin IVA; null si SII no lo entregó o es inválido. */
+            neto_afecto?: number | null;
+            /** Residual provisto por API; nunca recalculado en el cliente. */
+            otros_ajustes_residual?: number | null;
             /** Razon Social */
             razon_social?: string | null;
             /**
@@ -18265,6 +18275,10 @@ export interface components {
              * @description RUT con dígito verificador (ej. '76489841-9')
              */
             rut_contraparte?: string | null;
+            /** Payload original exacto en modo full; null en slim. */
+            sii_raw?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Tipo Doc
              * @description 33=Factura, 34=Factura Exenta, 39=Boleta, 61=Nota Crédito, etc.
@@ -18272,6 +18286,8 @@ export interface components {
             tipo_doc?: number | null;
             /** Tipo Doc Nombre */
             tipo_doc_nombre?: string | null;
+            /** Total informado por el SII. */
+            total?: number | null;
         } & {
             [key: string]: unknown;
         };

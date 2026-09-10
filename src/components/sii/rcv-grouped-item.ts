@@ -5,28 +5,34 @@
 import type { FacturaRow } from "./rcv-anuladas";
 import type { components } from "@/lib/api/types";
 
-type GeneratedDueDateFields = Pick<
-  components["schemas"]["RcvDocumento"],
-  "due_date" | "due_date_source"
+type GeneratedBridgeFields = Partial<
+  Pick<
+    components["schemas"]["RcvDocumento"],
+    | "neto_afecto"
+    | "exento"
+    | "iva"
+    | "otros_ajustes_residual"
+    | "total"
+    | "complete"
+    | "missing_components"
+  >
 >;
 
-/** Shape histórico slim del Libro, con vencimiento tomado del contrato publicado por API #429. */
-export interface RcvDoc extends GeneratedDueDateFields {
+/** Documento RCV slim, puente tipado desde el contrato publicado por API #420. */
+export interface RcvDoc extends GeneratedBridgeFields {
   tipo_doc?: number;
   folio?: number;
   fecha?: string;
   rut_contraparte?: string;
   razon_social?: string;
   monto_neto?: number;
-  /** Monto exento (exportaciones / ventas exentas). Puede no venir en el slim aún. */
   monto_exento?: number;
   monto_iva?: number;
   monto_total?: number;
-  /** Referencia del DTE (SII): la NC/ND apunta al documento que modifica. */
+  due_date?: string;
+  due_date_source?: string;
   ref_tipo_doc?: number;
   ref_folio?: number;
-  /** El receptor RECLAMÓ el documento en el SII (rechazado) → no cuenta como costo/crédito/ingreso;
-   *  su monto está en $0. El FE pinta una "R". `null` = dato de cache anterior a #744. */
   reclamado?: boolean | null;
   [key: string]: unknown;
 }
@@ -44,7 +50,7 @@ export function rcvDueDate(doc: RcvDoc): string | null {
 }
 
 export function rcvDueDateIsEstimated(doc: RcvDoc): boolean {
-  const source: GeneratedDueDateFields["due_date_source"] = doc.due_date_source;
+  const source: RcvDoc["due_date_source"] = doc.due_date_source;
   return rcvDueDate(doc) !== null && source === "assumed_30d";
 }
 

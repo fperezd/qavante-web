@@ -33,7 +33,7 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
   const conc = React.useMemo(() => concentrationByCounterparty(docs, 5), [docs]);
   const docCount = docs.length - totals.ncCount;
   const partyLabel = kind === "ventas" ? "cliente" : "proveedor";
-  const netoLabel = kind === "ventas" ? "Ventas netas" : "Compras netas";
+  const netoLabel = kind === "ventas" ? "Neto sin IVA" : "Neto sin IVA";
   const ivaLabel = kind === "ventas" ? "IVA débito" : "IVA crédito";
 
   function exportCsv() {
@@ -44,10 +44,15 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
     <div className="space-y-4">
       <QavanteCard variant="bordered" className="p-0">
         <div className="grid grid-cols-2 sm:grid-cols-4 sm:divide-x sm:divide-border">
-          <KpiCell label={netoLabel} value={formatClp(totals.neto)} />
+          <KpiCell
+            label={netoLabel}
+            value={
+              totals.breakdown ? formatClp(totals.breakdown.netoSinIva) : "Cobertura incompleta"
+            }
+          />
           <KpiCell
             label={ivaLabel}
-            value={formatClp(totals.iva)}
+            value={totals.breakdown ? formatClp(totals.breakdown.iva) : "s/d"}
             valueClassName="text-brand-primary"
           />
           <KpiCell
@@ -57,8 +62,16 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
           />
           <KpiCell
             label="Notas de crédito"
-            value={totals.ncCount > 0 ? `−${formatClp(totals.ncTotal)}` : "s/d"}
-            sub={totals.ncCount > 0 ? `${totals.ncCount} NC` : "Sin NC"}
+            value={
+              totals.breakdown && totals.ncTotal !== null && totals.ncCount > 0
+                ? `−${formatClp(totals.ncTotal)}`
+                : "s/d"
+            }
+            sub={
+              totals.breakdown && totals.ncTotal !== null && totals.ncCount > 0
+                ? `${totals.ncCount} NC`
+                : "Sin NC"
+            }
           />
         </div>
       </QavanteCard>
@@ -83,7 +96,12 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
           </div>
         }
       >
-        {conc.length === 0 ? (
+        {totals.breakdown === null ? (
+          <p className="text-sm text-neutral-mid">
+            Cobertura incompleta: no se publica concentración hasta contar con el desglose canónico
+            completo.
+          </p>
+        ) : conc.length === 0 ? (
           <p className="text-sm text-neutral-mid">Sin documentos en el período.</p>
         ) : (
           <ul className="space-y-2.5">

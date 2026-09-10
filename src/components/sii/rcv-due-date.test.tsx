@@ -4,7 +4,28 @@ import { RcvDetalleGrid } from "./rcv-detalle-grid";
 import { rcvDueDate, rcvDueDateIsEstimated } from "./rcv-grouped-item";
 import { GroupedTable } from "./rcv-list-view";
 
-const totals = { neto: 0, exento: 0, iva: 0, total: 0, grossTotal: 0, ncTotal: 0, ncCount: 0 };
+const totals = {
+  neto: null,
+  exento: null,
+  iva: null,
+  total: null,
+  grossTotal: null,
+  ncTotal: null,
+  ncCount: 0,
+  breakdown: null,
+  incompleteCount: 1,
+};
+const completeTotals = {
+  neto: 100,
+  exento: 0,
+  iva: 19,
+  total: 119,
+  grossTotal: 119,
+  ncTotal: 19,
+  ncCount: 1,
+  breakdown: { netoAfecto: 100, exento: 0, iva: 19, otrosAjustes: 0, total: 119, netoSinIva: 100 },
+  incompleteCount: 0,
+};
 
 describe("vencimientos en Libro de Ventas", () => {
   it("la frontera temporal rechaza fechas ausentes o inválidas sin fabricar un default", () => {
@@ -38,6 +59,7 @@ describe("vencimientos en Libro de Ventas", () => {
     expect(html).toContain("estimado");
     expect(html).toContain("No informada");
     expect(html).toContain("Fecha estimada: emisión + 30 días.");
+    expect(html).toContain("Cobertura incompleta");
   });
 
   it("en agrupado muestra el supuesto y la ausencia en notas de credito", () => {
@@ -50,13 +72,32 @@ describe("vencimientos en Libro de Ventas", () => {
               tipo_doc: 61,
               folio: 11,
               fecha: "2026-07-01",
+              complete: true,
+              neto_afecto: 100,
+              exento: 0,
+              iva: 19,
+              otros_ajustes_residual: 0,
+              total: 119,
               due_date: "2026-07-31",
               due_date_source: "assumed_30d",
             },
           },
-          { t: "nc", doc: { tipo_doc: 61, folio: 12, fecha: "2026-07-02" } },
+          {
+            t: "nc",
+            doc: {
+              tipo_doc: 61,
+              folio: 12,
+              fecha: "2026-07-02",
+              complete: true,
+              neto_afecto: 0,
+              exento: 0,
+              iva: 0,
+              otros_ajustes_residual: 0,
+              total: 0,
+            },
+          },
         ]}
-        totals={{ ...totals, grossTotal: 100, ncTotal: 100, ncCount: 1 }}
+        totals={completeTotals}
         partyLabel="Cliente"
         hasActiveFilters={false}
         onSelect={() => undefined}
@@ -72,6 +113,6 @@ describe("vencimientos en Libro de Ventas", () => {
     expect(html).toContain("estimado");
     expect(html).toContain("No informada");
     expect(html).toMatch(/<tfoot[\s\S]*colspan="5"/i);
-    expect(html).toMatch(/<tfoot[\s\S]*colspan="10"/i);
+    expect(html).toMatch(/<tfoot[\s\S]*colspan="12"/i);
   });
 });

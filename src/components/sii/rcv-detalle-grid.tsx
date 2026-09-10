@@ -35,6 +35,15 @@ export interface RcvDetalleGridProps {
   showDueDate?: boolean;
 }
 
+function bridgeAmount(
+  doc: RcvDoc,
+  field: "neto_afecto" | "exento" | "iva" | "otros_ajustes_residual" | "total",
+) {
+  if (doc.complete !== true) return "incompleto";
+  const value = doc[field];
+  return typeof value === "number" ? formatClp(value) : "s/d";
+}
+
 export function RcvDetalleGrid({
   docs,
   totals,
@@ -128,42 +137,52 @@ export function RcvDetalleGrid({
         ),
       },
       {
-        id: "neto",
-        header: "Neto",
+        id: "neto_afecto",
+        header: "Neto afecto",
         accessorFn: (d) =>
-          typeof d.monto_neto === "number" ? d.monto_neto : Number.NEGATIVE_INFINITY,
+          typeof d.neto_afecto === "number" ? d.neto_afecto : Number.NEGATIVE_INFINITY,
         enableColumnFilter: false,
         meta: { align: "right" },
-        cell: ({ row }) =>
-          typeof row.original.monto_neto === "number" ? formatClp(row.original.monto_neto) : "s/d",
+        cell: ({ row }) => bridgeAmount(row.original, "neto_afecto"),
+      },
+      {
+        id: "exento",
+        header: "Exento",
+        accessorFn: (d) => (typeof d.exento === "number" ? d.exento : Number.NEGATIVE_INFINITY),
+        enableColumnFilter: false,
+        meta: { align: "right" },
+        cell: ({ row }) => bridgeAmount(row.original, "exento"),
       },
       {
         id: "iva",
         header: "IVA",
-        accessorFn: (d) =>
-          typeof d.monto_iva === "number" ? d.monto_iva : Number.NEGATIVE_INFINITY,
+        accessorFn: (d) => (typeof d.iva === "number" ? d.iva : Number.NEGATIVE_INFINITY),
         enableColumnFilter: false,
         meta: { align: "right" },
-        cell: ({ row }) =>
-          typeof row.original.monto_iva === "number" ? (
-            <span className="text-neutral-mid">{formatClp(row.original.monto_iva)}</span>
-          ) : (
-            "s/d"
-          ),
+        cell: ({ row }) => (
+          <span className="text-neutral-mid">{bridgeAmount(row.original, "iva")}</span>
+        ),
+      },
+      {
+        id: "otros_ajustes",
+        header: "Otros/ajustes",
+        accessorFn: (d) =>
+          typeof d.otros_ajustes_residual === "number"
+            ? d.otros_ajustes_residual
+            : Number.NEGATIVE_INFINITY,
+        enableColumnFilter: false,
+        meta: { align: "right" },
+        cell: ({ row }) => bridgeAmount(row.original, "otros_ajustes_residual"),
       },
       {
         id: "total",
         header: "Total",
-        accessorFn: (d) =>
-          typeof d.monto_total === "number" ? d.monto_total : Number.NEGATIVE_INFINITY,
+        accessorFn: (d) => (typeof d.total === "number" ? d.total : Number.NEGATIVE_INFINITY),
         enableColumnFilter: false,
         meta: { align: "right" },
-        cell: ({ row }) =>
-          typeof row.original.monto_total === "number" ? (
-            <span className="font-medium">{formatClp(row.original.monto_total)}</span>
-          ) : (
-            "s/d"
-          ),
+        cell: ({ row }) => (
+          <span className="font-medium">{bridgeAmount(row.original, "total")}</span>
+        ),
       },
       ...(dteKind !== undefined
         ? [
@@ -210,33 +229,48 @@ export function RcvDetalleGrid({
       <DynamicTable
         columns={columns}
         data={docs}
-        minWidth={showDueDate ? 820 : 720}
+        minWidth={showDueDate ? 1080 : 980}
         onRowActivate={onManageDocument}
       />
 
       <div className="rounded-xl border border-border-strong bg-surface-muted px-3 py-2 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-            Total neto del período
+            Neto sin IVA del período
             {hasActiveFilters && (
               <span className="ml-1 normal-case text-neutral-mid">(con filtros aplicados)</span>
             )}
           </span>
-          <span className="tabular-nums text-neutral-dark">
-            neto <strong>{formatClp(totals.neto)}</strong> · IVA{" "}
-            <span className="text-neutral-mid">{formatClp(totals.iva)}</span> · total{" "}
-            <strong>{formatClp(totals.total)}</strong>
-          </span>
+          {totals.breakdown ? (
+            <span className="tabular-nums text-neutral-dark">
+              neto afecto <strong>{formatClp(totals.breakdown.netoAfecto)}</strong> · exento{" "}
+              <strong>{formatClp(totals.breakdown.exento)}</strong> · neto sin IVA{" "}
+              <strong>{formatClp(totals.breakdown.netoSinIva)}</strong> · IVA{" "}
+              <span className="text-neutral-mid">{formatClp(totals.breakdown.iva)}</span> ·
+              otros/ajustes{" "}
+              <span className="text-neutral-mid">{formatClp(totals.breakdown.otrosAjustes)}</span> ·
+              total <strong>{formatClp(totals.breakdown.total)}</strong>
+            </span>
+          ) : (
+            <span className="text-neutral-mid">
+              Cobertura incompleta: {totals.incompleteCount}{" "}
+              {totals.incompleteCount === 1 ? "documento no tiene" : "documentos no tienen"}{" "}
+              desglose canónico completo.
+            </span>
+          )}
         </div>
-        {totals.ncCount > 0 && (
-          <p className="mt-1 text-[11px] text-neutral-mid">
-            Se descontaron {totals.ncCount}{" "}
-            {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
-            <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}
-            <span className="tabular-nums text-danger-500">{formatClp(totals.ncTotal)}</span> = neto{" "}
-            <span className="tabular-nums">{formatClp(totals.total)}</span>.
-          </p>
-        )}
+        {totals.ncCount > 0 &&
+          totals.breakdown &&
+          totals.grossTotal !== null &&
+          totals.ncTotal !== null && (
+            <p className="mt-1 text-[11px] text-neutral-mid">
+              Se descontaron {totals.ncCount}{" "}
+              {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
+              <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}
+              <span className="tabular-nums text-danger-500">{formatClp(totals.ncTotal)}</span> =
+              neto <span className="tabular-nums">{formatClp(totals.breakdown.total)}</span>.
+            </p>
+          )}
       </div>
     </div>
   );

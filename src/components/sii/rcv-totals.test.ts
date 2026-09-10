@@ -1,9 +1,33 @@
 import { describe, expect, it } from "vitest";
 import { computeRcvTotals, type RcvDocLike } from "./rcv-totals";
 
-const fac = (total: number): RcvDocLike => ({ tipo_doc: 33, monto_neto: total / 1.19, monto_iva: total - total / 1.19, monto_total: total });
-const nc = (total: number): RcvDocLike => ({ tipo_doc: 61, monto_total: total, monto_neto: total, monto_iva: 0 });
-const nd = (total: number): RcvDocLike => ({ tipo_doc: 56, monto_total: total, monto_neto: total, monto_iva: 0 });
+const fac = (total: number): RcvDocLike => ({
+  tipo_doc: 33,
+  complete: true,
+  neto_afecto: total,
+  exento: 0,
+  iva: 0,
+  otros_ajustes_residual: 0,
+  total,
+});
+const nc = (total: number): RcvDocLike => ({
+  tipo_doc: 61,
+  complete: true,
+  neto_afecto: total,
+  exento: 0,
+  iva: 0,
+  otros_ajustes_residual: 0,
+  total,
+});
+const nd = (total: number): RcvDocLike => ({
+  tipo_doc: 56,
+  complete: true,
+  neto_afecto: total,
+  exento: 0,
+  iva: 0,
+  otros_ajustes_residual: 0,
+  total,
+});
 
 describe("computeRcvTotals — neteo de notas de crédito", () => {
   it("NC POSITIVA (convención A) → resta del total", () => {
@@ -33,23 +57,119 @@ describe("computeRcvTotals — neteo de notas de crédito", () => {
     expect(t.total).toBe(0);
   });
 
-  it("tolera montos nulos/no-numéricos", () => {
-    const t = computeRcvTotals([{ tipo_doc: 33 }, { tipo_doc: 61, monto_total: undefined }]);
-    expect(t.total).toBe(0);
+  it("un documento sin bridge no fabrica montos", () => {
+    const t = computeRcvTotals([{ tipo_doc: 33 }, { tipo_doc: 61 }]);
+    expect(t.total).toBeNull();
   });
 
   it("suma el exento por separado (exportaciones tipo 110), neteando NC", () => {
     const t = computeRcvTotals([
-      { tipo_doc: 33, monto_neto: 1000 }, // afecto
-      { tipo_doc: 110, monto_exento: 5000 }, // exportación exenta
-      { tipo_doc: 61, monto_exento: 500 }, // NC exenta → resta del exento
+      {
+        tipo_doc: 33,
+        complete: true,
+        neto_afecto: 1000,
+        exento: 0,
+        iva: 0,
+        otros_ajustes_residual: 0,
+        total: 1000,
+      },
+      {
+        tipo_doc: 110,
+        complete: true,
+        neto_afecto: 0,
+        exento: 5000,
+        iva: 0,
+        otros_ajustes_residual: 0,
+        total: 5000,
+      },
+      {
+        tipo_doc: 61,
+        complete: true,
+        neto_afecto: 0,
+        exento: 500,
+        iva: 0,
+        otros_ajustes_residual: 0,
+        total: 500,
+      },
     ]);
     expect(t.neto).toBe(1000); // afecto no cambia
     expect(t.exento).toBe(4500); // 5000 − 500
   });
 
-  it("exento = 0 cuando el backend no manda monto_exento (default seguro)", () => {
-    const t = computeRcvTotals([{ tipo_doc: 33, monto_neto: 1000, monto_total: 1190 }]);
-    expect(t.exento).toBe(0);
+  it("no afirma desglose canónico cuando falta el bridge", () => {
+    const t = computeRcvTotals([{ tipo_doc: 33, complete: false }]);
+    expect(t.neto).toBeNull();
+    expect(t.exento).toBeNull();
+    expect(t.iva).toBeNull();
+    expect(t.total).toBeNull();
+    expect(t.grossTotal).toBeNull();
+    expect(t.ncTotal).toBeNull();
+    expect(t.breakdown).toBeNull();
+    expect(t.incompleteCount).toBe(1);
+  });
+
+  it("usa el bridge canónico, conserva ceros y netea NC/ND sin recalcular residual", () => {
+    const t = computeRcvTotals([
+      {
+        tipo_doc: 33,
+        complete: true,
+        neto_afecto: 1247820,
+        exento: 113342,
+        iva: 237086,
+        otros_ajustes_residual: 0,
+        total: 1598248,
+      },
+      {
+        tipo_doc: 61,
+        complete: true,
+        neto_afecto: 100,
+        exento: 0,
+        iva: 19,
+        otros_ajustes_residual: 1,
+        total: 120,
+      },
+      {
+        tipo_doc: 56,
+        complete: true,
+        neto_afecto: 20,
+        exento: 0,
+        iva: 4,
+        otros_ajustes_residual: 0,
+        total: 24,
+      },
+    ]);
+    expect(t.breakdown).toEqual({
+      netoAfecto: 1247740,
+      exento: 113342,
+      iva: 237071,
+      otrosAjustes: -1,
+      total: 1598152,
+      netoSinIva: 1361082,
+    });
+  });
+
+  it("un null o campo faltante deja el total del filtro como cobertura incompleta", () => {
+    const t = computeRcvTotals([
+      {
+        tipo_doc: 33,
+        complete: true,
+        neto_afecto: 0,
+        exento: 0,
+        iva: 0,
+        otros_ajustes_residual: 0,
+        total: 0,
+      },
+      {
+        tipo_doc: 33,
+        complete: false,
+        neto_afecto: null,
+        exento: 0,
+        iva: 0,
+        total: 0,
+        missing_components: ["neto_afecto:null"],
+      },
+    ]);
+    expect(t.breakdown).toBeNull();
+    expect(t.incompleteCount).toBe(1);
   });
 });

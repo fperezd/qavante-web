@@ -30,8 +30,8 @@ export interface HeroSecundario {
 export interface VentasHeroProps {
   /** Antetítulo, ej. "La empresa vendió". */
   titulo: string;
-  /** Neto del período (con notas de crédito ya descontadas). */
-  montoNeto: number;
+  /** Neto del período (con notas de crédito ya descontadas), o null si la cobertura no permite afirmarlo. */
+  montoNeto: number | null;
   /** Pie del número de oro, ej. "Neto del período · 58 facturas emitidas". */
   subtitulo: string;
   /** Texto del ⓘ que explica la cifra (opcional). */
@@ -105,7 +105,7 @@ export function VentasHero({
       <div className="bg-surface p-5">
         <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">{titulo}</p>
         <p className="mt-1.5 text-[33px] font-extrabold leading-none tracking-tight text-neutral-dark tabular-nums">
-          <AmountCountUp value={montoNeto} />
+          {montoNeto === null ? "Cobertura incompleta" : <AmountCountUp value={montoNeto} />}
         </p>
         {comps.length > 0 && (
           <div className="mt-3 flex flex-col gap-1.5">

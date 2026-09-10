@@ -30,7 +30,7 @@ describe("rcv-sort · fechaSortKey", () => {
 describe("rcv-sort · sortValue", () => {
   it("montos ausentes van al fondo en asc (-Infinity)", () => {
     expect(sortValue(doc({}), "total")).toBe(Number.NEGATIVE_INFINITY);
-    expect(sortValue(doc({ monto_total: 100 }), "total")).toBe(100);
+    expect(sortValue(doc({ complete: true, total: 100 }), "total")).toBe(100);
   });
   it("cliente en minúscula", () => {
     expect(sortValue(doc({ razon_social: "Zeta SA" }), "cliente")).toBe("zeta sa");
@@ -39,15 +39,15 @@ describe("rcv-sort · sortValue", () => {
 
 describe("rcv-sort · sortDocs", () => {
   const docs = [
-    doc({ folio: 3, monto_total: 300, razon_social: "C", fecha: "01/03/2026" }),
-    doc({ folio: 1, monto_total: 100, razon_social: "A", fecha: "01/01/2026" }),
-    doc({ folio: 2, monto_total: 200, razon_social: "B", fecha: "01/02/2026" }),
+    doc({ folio: 3, complete: true, total: 300, razon_social: "C", fecha: "01/03/2026" }),
+    doc({ folio: 1, complete: true, total: 100, razon_social: "A", fecha: "01/01/2026" }),
+    doc({ folio: 2, complete: true, total: 200, razon_social: "B", fecha: "01/02/2026" }),
   ];
   it("ordena por total asc/desc sin mutar", () => {
     const asc = sortDocs(docs, { key: "total", dir: "asc" });
-    expect(asc.map((d) => d.monto_total)).toEqual([100, 200, 300]);
+    expect(asc.map((d) => d.total)).toEqual([100, 200, 300]);
     const desc = sortDocs(docs, { key: "total", dir: "desc" });
-    expect(desc.map((d) => d.monto_total)).toEqual([300, 200, 100]);
+    expect(desc.map((d) => d.total)).toEqual([300, 200, 100]);
     expect(docs[0]?.folio).toBe(3); // input intacto
   });
   it("sin sort devuelve el mismo orden", () => {
@@ -68,7 +68,7 @@ describe("rcv-sort · sortGroupedItems / docOf", () => {
     {
       t: "fac",
       row: {
-        factura: { folio: 2, monto_total: 200 },
+        factura: { folio: 2, complete: true, total: 200 },
         notas: [],
         neto: 200,
         estado: "vigente",
@@ -76,7 +76,7 @@ describe("rcv-sort · sortGroupedItems / docOf", () => {
         sobreCredito: false,
       },
     },
-    { t: "nc", doc: { folio: 1, monto_total: 100 } },
+    { t: "nc", doc: { folio: 1, complete: true, total: 100 } },
   ];
   it("docOf extrae la factura o la NC huérfana", () => {
     expect(docOf(items[0]!).folio).toBe(2);
@@ -84,7 +84,7 @@ describe("rcv-sort · sortGroupedItems / docOf", () => {
   });
   it("ordena filas agrupadas por el doc representativo", () => {
     const asc = sortGroupedItems(items, { key: "total", dir: "asc" });
-    expect(asc.map((i) => docOf(i).monto_total)).toEqual([100, 200]);
+    expect(asc.map((i) => docOf(i).total)).toEqual([100, 200]);
   });
 });
 

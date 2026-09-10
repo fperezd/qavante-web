@@ -19,9 +19,10 @@ export interface SortableDoc {
   folio?: number;
   fecha?: string;
   razon_social?: string;
-  monto_neto?: number;
-  monto_iva?: number;
-  monto_total?: number;
+  complete?: boolean;
+  neto_afecto?: number | null;
+  iva?: number | null;
+  total?: number | null;
 }
 
 function ymdNum(y: string, m: string, d: string): number {
@@ -55,11 +56,15 @@ export function sortValue(d: SortableDoc, key: SortKey): number | string {
     case "cliente":
       return (d.razon_social ?? "").toLowerCase();
     case "neto":
-      return typeof d.monto_neto === "number" ? d.monto_neto : Number.NEGATIVE_INFINITY;
+      return d.complete === true && typeof d.neto_afecto === "number"
+        ? d.neto_afecto
+        : Number.NEGATIVE_INFINITY;
     case "iva":
-      return typeof d.monto_iva === "number" ? d.monto_iva : Number.NEGATIVE_INFINITY;
+      return d.complete === true && typeof d.iva === "number" ? d.iva : Number.NEGATIVE_INFINITY;
     case "total":
-      return typeof d.monto_total === "number" ? d.monto_total : Number.NEGATIVE_INFINITY;
+      return d.complete === true && typeof d.total === "number"
+        ? d.total
+        : Number.NEGATIVE_INFINITY;
   }
 }
 

@@ -7,12 +7,9 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  * Testeable. */
 
 import { isNotaCredito } from "../tipo-doc";
+import { hasCompleteRcvBreakdown } from "../rcv-totals";
 import { csv, csvCell } from "@/lib/export/csv";
 import type { RcvDoc } from "../rcv-grouped-item";
-
-function num(v: number | undefined): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : 0;
-}
 
 export interface CounterpartyShare {
   rut: string;
@@ -25,15 +22,19 @@ export interface CounterpartyShare {
  *  (las NC restan al total de su contraparte), `pct` sobre el neto del período —
  *  así usa el MISMO neto que el hero y una contraparte anulada no aparece inflada. */
 export function concentrationByCounterparty(docs: RcvDoc[], topN = 5): CounterpartyShare[] {
+  // Una sola fila parcial vuelve incierto el denominador. No se publica un top
+  // aparentemente exacto basado sólo en el subconjunto completo.
+  if (!docs.every(hasCompleteRcvBreakdown)) return [];
   const map = new Map<string, { rut: string; name: string; total: number }>();
   let grand = 0;
   for (const d of docs) {
+    if (!hasCompleteRcvBreakdown(d)) return [];
     // NC RESTA (neteo); factura/boleta suma.
     const sign = isNotaCredito(d.tipo_doc) ? -1 : 1;
     // Clave por RUT; si no hay RUT, por razón social — así dos contrapartes
     // distintas sin RUT no se funden en un único bucket "s/d".
     const key = d.rut_contraparte ?? d.razon_social ?? "sin-identificar";
-    const t = sign * num(d.monto_total);
+    const t = sign * d.total;
     grand += t;
     const cur = map.get(key) ?? {
       rut: d.rut_contraparte ?? "s/d",
@@ -56,7 +57,19 @@ export function concentrationByCounterparty(docs: RcvDoc[], topN = 5): Counterpa
 
 /** Documentos con tipos conservados hasta escoger XLSX o CSV interoperable. */
 export function docsToCsvTable(docs: RcvDoc[]): ExportTable {
-  const headers = ["Tipo", "Folio", "Fecha", "RUT", "Razon social", "Neto", "IVA", "Total"];
+  const headers = [
+    "Tipo",
+    "Folio",
+    "Fecha",
+    "RUT",
+    "Razon social",
+    "Neto afecto",
+    "Exento",
+    "IVA",
+    "Otros/ajustes",
+    "Total",
+    "Desglose",
+  ];
   return exportTable(
     headers,
     docs.map((d) => [
@@ -65,9 +78,12 @@ export function docsToCsvTable(docs: RcvDoc[]): ExportTable {
       d.fecha == null ? csvCell.missing() : csvCell.date(d.fecha),
       d.rut_contraparte == null ? csvCell.missing() : csvCell.identifier(d.rut_contraparte),
       d.razon_social == null ? csvCell.missing() : csvCell.text(d.razon_social),
-      d.monto_neto == null ? csvCell.missing() : csvCell.decimal(d.monto_neto),
-      d.monto_iva == null ? csvCell.missing() : csvCell.decimal(d.monto_iva),
-      d.monto_total == null ? csvCell.missing() : csvCell.decimal(d.monto_total),
+      hasCompleteRcvBreakdown(d) ? csvCell.decimal(d.neto_afecto) : csvCell.missing(),
+      hasCompleteRcvBreakdown(d) ? csvCell.decimal(d.exento) : csvCell.missing(),
+      hasCompleteRcvBreakdown(d) ? csvCell.decimal(d.iva) : csvCell.missing(),
+      hasCompleteRcvBreakdown(d) ? csvCell.decimal(d.otros_ajustes_residual) : csvCell.missing(),
+      hasCompleteRcvBreakdown(d) ? csvCell.decimal(d.total) : csvCell.missing(),
+      csvCell.text(hasCompleteRcvBreakdown(d) ? "completo" : "incompleto"),
     ]),
     { eol: "\r\n" },
   );

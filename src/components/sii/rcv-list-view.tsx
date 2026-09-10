@@ -169,6 +169,17 @@ const DEFAULT_FILTERS: Filters = {
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
 
+function formatBridgeAmount(
+  doc: RcvDoc,
+  field: "neto_afecto" | "exento" | "iva" | "otros_ajustes_residual" | "total",
+  negative = false,
+) {
+  if (doc.complete !== true) return "incompleto";
+  const value = doc[field];
+  if (typeof value !== "number") return "s/d";
+  return negative ? `−${formatClp(Math.abs(value))}` : formatClp(value);
+}
+
 function applyFilters(docs: RcvDoc[], filters: Filters): RcvDoc[] {
   const folioQ = filters.folio.trim();
   const razonQ = filters.razonSocial.trim().toLowerCase();
@@ -651,12 +662,15 @@ export function GroupedTable({
               onToggleSort={onToggleSort}
             />
             <SortHeader
-              label="Neto"
+              label="Neto afecto"
               sortKey="neto"
               sort={sort}
               onToggleSort={onToggleSort}
               align="right"
             />
+            <th scope="col" className="py-2 pr-3 text-right font-semibold">
+              Exento
+            </th>
             <SortHeader
               label="IVA"
               sortKey="iva"
@@ -664,6 +678,9 @@ export function GroupedTable({
               onToggleSort={onToggleSort}
               align="right"
             />
+            <th scope="col" className="py-2 pr-3 text-right font-semibold">
+              Otros/ajustes
+            </th>
             <SortHeader
               label="Total"
               sortKey="total"
@@ -762,19 +779,19 @@ export function GroupedTable({
                     )}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-                    {typeof d.monto_neto === "number"
-                      ? `−${formatClp(Math.abs(d.monto_neto))}`
-                      : "s/d"}
+                    {formatBridgeAmount(d, "neto_afecto", true)}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-                    {typeof d.monto_iva === "number"
-                      ? `−${formatClp(Math.abs(d.monto_iva))}`
-                      : "s/d"}
+                    {formatBridgeAmount(d, "exento", true)}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
+                    {formatBridgeAmount(d, "iva", true)}
+                  </td>
+                  <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
+                    {formatBridgeAmount(d, "otros_ajustes_residual", true)}
                   </td>
                   <td className="py-2 pr-3 text-right tabular-nums text-danger-500">
-                    {typeof d.monto_total === "number"
-                      ? `−${formatClp(Math.abs(d.monto_total))}`
-                      : "s/d"}
+                    {formatBridgeAmount(d, "total", true)}
                   </td>
                   <td className="py-2 text-[11px] text-neutral-mid">Nota de crédito</td>
                   {dteKind && <td className="py-2 text-right">{dteCell(dteKind, d, dteWindow)}</td>}
@@ -871,7 +888,7 @@ export function GroupedTable({
                     anulada && "line-through",
                   )}
                 >
-                  {typeof f.monto_neto === "number" ? formatClp(f.monto_neto) : "s/d"}
+                  {formatBridgeAmount(f, "neto_afecto")}
                 </td>
                 <td
                   className={cn(
@@ -879,7 +896,23 @@ export function GroupedTable({
                     anulada && "line-through",
                   )}
                 >
-                  {typeof f.monto_iva === "number" ? formatClp(f.monto_iva) : "s/d"}
+                  {formatBridgeAmount(f, "exento")}
+                </td>
+                <td
+                  className={cn(
+                    "py-2 pr-3 text-right tabular-nums text-neutral-mid",
+                    anulada && "line-through",
+                  )}
+                >
+                  {formatBridgeAmount(f, "iva")}
+                </td>
+                <td
+                  className={cn(
+                    "py-2 pr-3 text-right tabular-nums text-neutral-mid",
+                    anulada && "line-through",
+                  )}
+                >
+                  {formatBridgeAmount(f, "otros_ajustes_residual")}
                 </td>
                 <td
                   className={cn(
@@ -887,7 +920,7 @@ export function GroupedTable({
                     anulada && "font-normal line-through",
                   )}
                 >
-                  {typeof f.monto_total === "number" ? formatClp(f.monto_total) : "s/d"}
+                  {formatBridgeAmount(f, "total")}
                 </td>
                 <td className="py-2">
                   {badge ? (
@@ -937,38 +970,63 @@ export function GroupedTable({
               colSpan={showDueDate ? 5 : 4}
               className="py-2 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
             >
-              Total neto del período
+              Neto sin IVA del período
               {hasActiveFilters && (
                 <span className="ml-1 normal-case text-neutral-mid">(con filtros aplicados)</span>
               )}
             </td>
             <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-              {formatClp(totals.neto)}
+              {totals.breakdown ? formatClp(totals.breakdown.netoAfecto) : "incompleto"}
             </td>
             <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
-              {formatClp(totals.iva)}
+              {totals.breakdown ? formatClp(totals.breakdown.exento) : "incompleto"}
             </td>
             <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-              {formatClp(totals.total)}
+              {totals.breakdown ? formatClp(totals.breakdown.iva) : "incompleto"}
+            </td>
+            <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+              {totals.breakdown ? formatClp(totals.breakdown.otrosAjustes) : "incompleto"}
+            </td>
+            <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
+              {totals.breakdown ? formatClp(totals.breakdown.total) : "incompleto"}
             </td>
             <td className="py-2" />
             {showDte && <td className="py-2" />}
             {onManageDocument && <td className="py-2" />}
           </tr>
-          {totals.ncCount > 0 && (
+          {totals.breakdown === null && (
             <tr className="text-[11px] text-neutral-mid">
               <td
-                colSpan={8 + (showDte ? 1 : 0) + (showDueDate ? 1 : 0) + (onManageDocument ? 1 : 0)}
+                colSpan={
+                  10 + (showDte ? 1 : 0) + (showDueDate ? 1 : 0) + (onManageDocument ? 1 : 0)
+                }
                 className="pb-2 pr-3"
               >
-                Se descontaron {totals.ncCount}{" "}
-                {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
-                <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}
-                <span className="tabular-nums text-danger-500">{formatClp(totals.ncTotal)}</span> ={" "}
-                neto <span className="tabular-nums">{formatClp(totals.total)}</span>.
+                Cobertura incompleta: {totals.incompleteCount}{" "}
+                {totals.incompleteCount === 1 ? "documento no tiene" : "documentos no tienen"}{" "}
+                desglose canónico completo.
               </td>
             </tr>
           )}
+          {totals.ncCount > 0 &&
+            totals.breakdown &&
+            totals.grossTotal !== null &&
+            totals.ncTotal !== null && (
+              <tr className="text-[11px] text-neutral-mid">
+                <td
+                  colSpan={
+                    10 + (showDte ? 1 : 0) + (showDueDate ? 1 : 0) + (onManageDocument ? 1 : 0)
+                  }
+                  className="pb-2 pr-3"
+                >
+                  Se descontaron {totals.ncCount}{" "}
+                  {totals.ncCount === 1 ? "nota de crédito" : "notas de crédito"}: bruto{" "}
+                  <span className="tabular-nums">{formatClp(totals.grossTotal)}</span> − NC{" "}
+                  <span className="tabular-nums text-danger-500">{formatClp(totals.ncTotal)}</span>{" "}
+                  = total <span className="tabular-nums">{formatClp(totals.breakdown.total)}</span>.
+                </td>
+              </tr>
+            )}
         </tfoot>
       </table>
     </div>
