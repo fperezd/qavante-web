@@ -196,6 +196,26 @@ describe("BancoV03View — movimientos", () => {
     expect(t).toContain("−$7.450.761");
   });
 
+  it("muestra el documento conciliado como etiqueta secundaria sin reemplazar la glosa", () => {
+    const t = texto(
+      html({
+        movimientos: [
+          {
+            ...movimientos()[0]!,
+            reconciliation_document: {
+              document_id: "doc-1",
+              document_kind: "receivable",
+              counterparty_label: "Cliente conciliado",
+            },
+          },
+        ],
+      }),
+    );
+
+    expect(t).toContain("Documento conciliado · Cliente conciliado");
+    expect(t).toContain("Abono por transferencia de Cliente Norte SpA 76.123.456-7");
+  });
+
   it("muestra conciliación y clasificación simultáneamente, sin que una oculte la otra", () => {
     const t = texto(html());
     const conciliados = (t.match(/Conciliado ✓/g) ?? []).length;

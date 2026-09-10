@@ -497,6 +497,9 @@ export interface MovimientoV03 {
   fecha: string;
   /** La glosa COMPLETA del banco (Ley 7: nunca se trunca). */
   glosa: string;
+  /** Etiqueta del documento conciliado publicada sólo para un vínculo efectivo 1:1.
+   * No es contraparte bancaria ni se deriva de la glosa. */
+  documentoConciliado?: string | null;
   /** Firmado: abono positivo, cargo negativo. El signo sale de `direction`, no del `amount`. */
   monto: number;
   moneda: string;
@@ -606,6 +609,14 @@ export interface MovimientosInput {
   categorias: ReadonlyMap<string, string>;
 }
 
+/** La API sólo publica este objeto para una conciliación efectiva 1:1. La UI no
+ * infiere topología ni identidad desde `description`; un valor vacío queda ausente. */
+export function documentoConciliadoDe(
+  movement: Pick<BankMovement, "reconciliation_document">,
+): string | null {
+  return movement.reconciliation_document?.counterparty_label.trim() || null;
+}
+
 /** Normaliza los movimientos del backend. Los que no traen monto numérico se descartan: una fila sin
  *  monto no se puede filtrar por abono/cargo ni sumar, y pintarla como $0 sería inventarlo. Orden
  *  fecha desc (la regla de grillas del repo). */
@@ -624,6 +635,7 @@ export function movimientosV03(input: MovimientosInput): MovimientoV03[] {
       bankAccountId: m.bank_account_id,
       fecha: m.date,
       glosa: (m.description ?? "").trim() || "Sin glosa",
+      documentoConciliado: documentoConciliadoDe(m),
       monto,
       moneda,
       esAbono: monto >= 0,
@@ -775,7 +787,10 @@ export function montoConSigno(m: Pick<MovimientoV03, "monto" | "moneda">): strin
 
 /** El `.sub` del movimiento: `21 ago · CC CLP · Impuestos`. Sin categoría lo dice. */
 export function subMovimiento(m: MovimientoV03): string {
-  return `${formatDateShort(m.fecha)} · ${m.cuenta} · ${m.categoria ?? "sin categoría"}`;
+  const metadata = `${formatDateShort(m.fecha)} · ${m.cuenta} · ${m.categoria ?? "sin categoría"}`;
+  return m.documentoConciliado
+    ? `Documento conciliado · ${m.documentoConciliado} · ${metadata}`
+    : metadata;
 }
 
 /* ── Exportar ────────────────────────────────────────────────────────────────── */

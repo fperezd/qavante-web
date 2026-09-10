@@ -8,6 +8,7 @@ import {
   coincideBusqueda,
   conexionBanco,
   contarMovimientosV03,
+  documentoConciliadoDe,
   csvMovimientos,
   cuadreCajaHoy,
   cuentasV03,
@@ -434,6 +435,36 @@ describe("movimientosV03 — normalización", () => {
   it("la glosa va COMPLETA (Ley 7): ni se recorta ni se le extrae una contraparte", () => {
     const m1 = movs().find((m) => m.id === "m1")!;
     expect(m1.glosa).toBe("Abono por transferencia de Cliente Norte SpA 76.123.456-7");
+  });
+
+  it("sólo toma la etiqueta del documento conciliado publicado por API", () => {
+    const linked = {
+      ...movimientos()[0]!,
+      reconciliation_document: {
+        document_id: "doc-1",
+        document_kind: "receivable",
+        counterparty_label: " Cliente Norte SpA ",
+      },
+    } as BankMovement;
+    const review = {
+      ...movimientos()[1]!,
+      reconciliation_status: "review",
+      reconciliation_document: null,
+    } as BankMovement;
+    const rows = movimientosV03({
+      items: [linked, review],
+      cuentas: new Map(),
+      categorias: new Map(),
+    });
+    const row = rows.find((movement) => movement.id === linked.id);
+    const reviewRow = rows.find((movement) => movement.id === review.id);
+
+    expect(row?.documentoConciliado).toBe("Cliente Norte SpA");
+    expect(row && subMovimiento(row)).toContain("Documento conciliado · Cliente Norte SpA");
+    expect(row?.glosa).toBe("Abono por transferencia de Cliente Norte SpA 76.123.456-7");
+    expect(reviewRow?.documentoConciliado).toBeNull();
+    expect(reviewRow && subMovimiento(reviewRow)).not.toContain("Documento conciliado");
+    expect(documentoConciliadoDe({ reconciliation_document: null })).toBeNull();
   });
 
   it("un movimiento sin monto numérico se descarta (no se pinta como $0)", () => {
