@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, expect, userEvent } from "storybook/test";
 import { RemuneracionesV16View } from "./remuneraciones-v16-view";
-import { PERIODO, REVENUE, detalle, movimientos, totales } from "./remuneraciones-v16-fixtures";
+import { PERIODO, REVENUE, detalle, totales } from "./remuneraciones-v16-fixtures";
 
 /* V16 · Remuneraciones — "Tu nómina" en sus estados.
  *
@@ -30,7 +30,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V16 · Remuneraciones (ESPECIFICACION §V16, issue #77): tríada Líquido/Cotizaciones (Previred)/Costo empresa con % de ingresos ⓘ + tabla por persona con estado y link a la liquidación. "Costo empresa" viene del costo_empresa por persona que BUK entrega · nunca líquido + cotizaciones (trampa de doble conteo ADR-0056/ADR-0070). Footer con el texto fijo de la Ley 9, literal. Cero rojo en toda la pantalla (Ley 2): "Pendiente" es progreso, no alarma.',
+          'V16 · Remuneraciones (ESPECIFICACION §V16, issue #77): tríada Líquido/Cotizaciones (Previred)/Costo empresa con % de ingresos ⓘ + tabla por persona con link a la liquidación. "Costo empresa" viene del costo_empresa por persona que BUK entrega · nunca líquido + cotizaciones (trampa de doble conteo ADR-0056/ADR-0070). Un monto bancario no acredita un pago individual: hasta D14/API #422 la tabla declara "Pago no verificado". Footer con el texto fijo de la Ley 9, literal.',
       },
     },
   },
@@ -38,7 +38,6 @@ const meta = {
     periodo: PERIODO,
     totales: totales(),
     detalle: detalle(),
-    movimientos: movimientos(),
     revenue: REVENUE,
   },
 } satisfies Meta<typeof RemuneracionesV16View>;
@@ -47,7 +46,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
-  name: "Normal · tríada + tabla, 4 de 5 pagados, cero rojo",
+  name: "Normal · tríada + tabla, pago individual no verificado, cero rojo",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Líquido de Julio 2026")).toBeInTheDocument();
@@ -55,9 +54,7 @@ export const Normal: Story = {
     await expect(canvas.getByText("$3.190.631")).toBeInTheDocument();
     await expect(canvas.getByText("$18.990.000")).toBeInTheDocument();
     await expect(canvas.getByText(/48,8% de tus ingresos/)).toBeInTheDocument();
-    // La persona sin débito calzado queda "Pendiente", NUNCA roja.
-    await expect(canvas.getByText("Pendiente")).toBeInTheDocument();
-    await expect(canvas.getAllByText("Pagado ✓")).toHaveLength(4);
+    await expect(canvas.getAllByText("Pago no verificado")).toHaveLength(5);
     await expect(rojos(canvasElement)).toHaveLength(0);
     // Ley 9: literal (el texto cruza el <b> y su hermano, se busca en el textContent completo).
     expect(texto(canvasElement)).toContain(
@@ -87,7 +84,7 @@ export const InfoIngresos: Story = {
 
 export const SinDetallePorPersona: Story = {
   name: "Sin detalle por persona · Costo empresa 'sin dato', nunca líquido + cotizaciones",
-  args: { detalle: [], movimientos: [] },
+  args: { detalle: [] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Costo empresa total")).toBeInTheDocument();
@@ -98,12 +95,11 @@ export const SinDetallePorPersona: Story = {
   },
 };
 
-export const BancoSinConsultar: Story = {
-  name: "Banco no consultado · TODOS 'No verificado', nunca 'Pendiente' (no se sabe, no se afirma)",
-  args: { movimientos: null },
+export const PagoNoCorroborado: Story = {
+  name: "Pago no corroborado · sin inferir Pagado/Pendiente desde montos",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getAllByText("No verificado")).toHaveLength(5);
+    await expect(canvas.getAllByText("Pago no verificado")).toHaveLength(5);
     await expect(canvas.queryByText("Pagado ✓")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Pendiente")).not.toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
@@ -115,19 +111,18 @@ export const UnaSolaPersona: Story = {
   args: {
     totales: totales({ empleados_contados: 1, total_liquido: 2_850_000 }),
     detalle: [detalle()[0]!],
-    movimientos: [movimientos()[0]!],
   },
   play: async ({ canvasElement }) => {
-    // "1 persona · pagado ✓" vive entero en un solo <div> (el detalle del KpiCard): getByText
+    // "1 persona · 1 sin pago verificado" vive entero en un solo <div> (el detalle del KpiCard): getByText
     // matchea su textContent propio sin ambigüedad.
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("1 persona · pagado ✓")).toBeInTheDocument();
+    await expect(canvas.getByText("1 persona · 1 sin pago verificado")).toBeInTheDocument();
     // El footer cruza el <b> de la Ley 9: se busca en el textContent completo de la pantalla.
     const t = texto(canvasElement);
-    expect(t).toContain("1 de 1 persona conciliada con el cargo de nómina del banco.");
+    expect(t).toContain("1 pago individual requiere asignación corroborada");
     // Gemelos negativos con la MISMA frase en plural — no deben aparecer en ningún lado.
     expect(t).not.toContain("1 personas");
-    expect(t).not.toContain("1 de 1 personas conciliadas");
+    expect(t).not.toContain("1 pagos individuales requieren");
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };

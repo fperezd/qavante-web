@@ -5,7 +5,6 @@
 
 import type { PayrollTotales } from "@/lib/api/buk";
 import type { EmployeePayroll } from "../payroll-detalle";
-import type { BankDebitLike } from "../payroll-conciliacion";
 
 export const HOY = new Date("2026-08-30T15:00:00Z");
 export const PERIODO = "2026-07";
@@ -71,19 +70,6 @@ export const EMPLEADO_PIZARRO: EmployeePayroll = {
 export function detalle(over: EmployeePayroll[] | null = null): EmployeePayroll[] {
   return (
     over ?? [EMPLEADO_ROJAS, EMPLEADO_SOTO, EMPLEADO_NUNEZ, EMPLEADO_CONTRERAS, EMPLEADO_PIZARRO]
-  );
-}
-
-/** Débitos bancarios del período: 4 de las 5 personas ya tienen su cargo de nómina en la cartola
- *  (Fernanda Pizarro queda "Pendiente" — sin alarma, es progreso administrativo). */
-export function movimientos(over: BankDebitLike[] | null = null): BankDebitLike[] {
-  return (
-    over ?? [
-      { id: "m1", date: "2026-08-19", description: "Cargo nómina", amount: "-2850000" },
-      { id: "m2", date: "2026-08-19", description: "Cargo nómina", amount: "-2610000" },
-      { id: "m3", date: "2026-08-19", description: "Cargo nómina", amount: "-2245500" },
-      { id: "m4", date: "2026-08-19", description: "Cargo nómina", amount: "-2281259" },
-    ]
   );
 }
 

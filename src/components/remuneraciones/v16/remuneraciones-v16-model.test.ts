@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PayrollTotales } from "@/lib/api/buk";
 import type { EmployeePayroll } from "../payroll-detalle";
-import type { BankDebitLike } from "../payroll-conciliacion";
+import type { SettlementBoard } from "../settlement-board-model";
 import {
   ESTADO_LABEL,
   periodoDefaultV16,
@@ -164,73 +164,159 @@ describe("triadaV16 — % de ingresos (ⓘ, sobre Costo empresa)", () => {
   });
 });
 
-describe("personasV16 — estado por persona (Ley 2: nunca rojo)", () => {
-  const movimientos: BankDebitLike[] = [
-    { id: "m1", date: "2026-08-19", description: "Cargo nómina", amount: "-2850000" },
-    { id: "m2", date: "2026-08-19", description: "Cargo nómina", amount: "-2610000" },
-  ];
-
-  it("pagado: el líquido calza con un débito del banco", () => {
-    const filas = personasV16(DETALLE, movimientos, "2026-07");
-    expect(filas.find((p) => p.nombre === "Javiera Rojas")?.estado).toBe("pagado");
-  });
-
-  it("pendiente: sin débito que calce, pero el banco SÍ se consultó", () => {
-    const filas = personasV16(DETALLE, movimientos, "2026-07");
-    expect(filas.find((p) => p.nombre === "Camila Núñez")?.estado).toBe("pendiente");
-  });
-
-  it("sin_verificar: el banco del período no se consultó (movimientos === null)", () => {
-    const filas = personasV16(DETALLE, null, "2026-07");
+describe("personasV16 — pago individual no inferido desde un monto", () => {
+  it("un detalle con líquidos repetidos sigue íntegramente no verificado", () => {
+    const filas = personasV16(DETALLE, "2026-07");
     expect(filas.every((p) => p.estado === "sin_verificar")).toBe(true);
   });
 
-  it("[control] con banco consultado y match perfecto, NADA queda sin_verificar", () => {
-    const soloA = [EMPLEADO_A];
-    const filas = personasV16(soloA, [movimientos[0]!], "2026-07");
-    expect(filas.some((p) => p.estado === "sin_verificar")).toBe(false);
-  });
-
-  it("ningún estado producido es una alarma roja (el set es cerrado a 3 valores neutros/verdes)", () => {
-    const filas = personasV16(DETALLE, movimientos, "2026-07");
-    for (const p of filas) {
-      expect(["pagado", "pendiente", "sin_verificar"]).toContain(p.estado);
-    }
+  it("el set cerrado no permite afirmar Pagado o Pendiente sin asignación D14", () => {
+    const filas = personasV16(DETALLE, "2026-07");
+    for (const p of filas) expect(p.estado).toBe("sin_verificar");
   });
 
   it("ordena por líquido descendente", () => {
-    const filas = personasV16(DETALLE, movimientos, "2026-07");
+    const filas = personasV16(DETALLE, "2026-07");
     expect(filas.map((p) => p.nombre)).toEqual(["Javiera Rojas", "Matías Soto", "Camila Núñez"]);
   });
 
   it("el href de cada fila enlaza a la Planilla clásica del período", () => {
-    const filas = personasV16(DETALLE, movimientos, "2026-07");
+    const filas = personasV16(DETALLE, "2026-07");
     expect(filas.every((p) => p.href === "/remuneraciones?period=2026-07")).toBe(true);
+  });
+
+  it("líquidos repetidos sin link persistido no producen ningún pago confirmado", () => {
+    const repetidos = [
+      { ...EMPLEADO_A, liquido: 500_000 },
+      { ...EMPLEADO_B, liquido: 500_000 },
+    ];
+    const board: SettlementBoard = {
+      workers: [
+        {
+          workerRut: EMPLEADO_A.rut!,
+          workerName: EMPLEADO_A.nombre,
+          liquido: 500_000,
+          paidAmount: 0,
+          outstanding: 500_000,
+          status: "pending",
+        },
+        {
+          workerRut: EMPLEADO_B.rut!,
+          workerName: EMPLEADO_B.nombre,
+          liquido: 500_000,
+          paidAmount: 0,
+          outstanding: 500_000,
+          status: "pending",
+        },
+      ],
+      periodOutstanding: 1_000_000,
+      links: [],
+    };
+    expect(personasV16(repetidos, "2026-07", board).map((p) => p.estado)).toEqual([
+      "sin_verificar",
+      "sin_verificar",
+    ]);
+  });
+
+  it("conserva un link persistido confirmado para su trabajador", () => {
+    const board: SettlementBoard = {
+      workers: [
+        {
+          workerRut: EMPLEADO_A.rut!,
+          workerName: EMPLEADO_A.nombre,
+          liquido: 2_850_000,
+          paidAmount: 2_850_000,
+          outstanding: 0,
+          status: "confirmed",
+        },
+      ],
+      periodOutstanding: 0,
+      links: [
+        {
+          linkId: "link-a",
+          workerRut: EMPLEADO_A.rut!,
+          workerName: EMPLEADO_A.nombre,
+          amount: 2_850_000,
+          bankMovementId: "bank-a",
+          glosa: "",
+          createdAt: "2026-07-31T00:00:00Z",
+        },
+      ],
+    };
+    expect(
+      personasV16([EMPLEADO_A, EMPLEADO_B], "2026-07", board).find((p) => p.key === "1")?.estado,
+    ).toBe("confirmado");
+    expect(
+      personasV16([EMPLEADO_A, EMPLEADO_B], "2026-07", board).find((p) => p.key === "2")?.estado,
+    ).toBe("sin_verificar");
+  });
+
+  it("presenta parcial sólo con link persistido y una reversión sin link como no verificada", () => {
+    const board: SettlementBoard = {
+      workers: [
+        {
+          workerRut: EMPLEADO_A.rut!,
+          workerName: EMPLEADO_A.nombre,
+          liquido: 2_850_000,
+          paidAmount: 500_000,
+          outstanding: 2_350_000,
+          status: "partial",
+        },
+        {
+          workerRut: EMPLEADO_B.rut!,
+          workerName: EMPLEADO_B.nombre,
+          liquido: 2_610_000,
+          paidAmount: 0,
+          outstanding: 2_610_000,
+          status: "reverted",
+        },
+      ],
+      periodOutstanding: 4_960_000,
+      links: [
+        {
+          linkId: "link-a",
+          workerRut: EMPLEADO_A.rut!,
+          workerName: EMPLEADO_A.nombre,
+          amount: 500_000,
+          bankMovementId: "bank-a",
+          glosa: "",
+          createdAt: "2026-07-31T00:00:00Z",
+        },
+      ],
+    };
+    const estados = personasV16([EMPLEADO_A, EMPLEADO_B], "2026-07", board).map((p) => p.estado);
+    expect(estados).toContain("parcial");
+    expect(estados).toContain("sin_verificar");
+  });
+
+  it("403 y error no se disfrazan de pago no verificado", () => {
+    expect(personasV16([EMPLEADO_A], "2026-07", undefined, "forbidden")[0]?.estado).toBe(
+      "sin_acceso",
+    );
+    expect(personasV16([EMPLEADO_A], "2026-07", undefined, "error")[0]?.estado).toBe("error");
   });
 });
 
 describe("ESTADO_LABEL", () => {
-  it("pagado lleva el check literal de la spec", () => {
-    expect(ESTADO_LABEL.pagado).toBe("Pagado ✓");
-  });
-  it("pendiente NO lleva lenguaje de alarma", () => {
-    expect(ESTADO_LABEL.pendiente).not.toMatch(/atras|vencid|urgen|alerta/i);
+  it("declara que el pago individual no está corroborado", () => {
+    expect(ESTADO_LABEL.sin_verificar).toMatch(/no verificado/i);
   });
 });
 
 describe("resumenPersonas", () => {
   it("cuenta por estado", () => {
-    const filas = personasV16(
-      DETALLE,
-      [{ id: "m1", date: "2026-08-19", amount: "-2850000" }],
-      "2026-07",
-    );
+    const filas = personasV16(DETALLE, "2026-07");
     const r = resumenPersonas(filas);
-    expect(r).toEqual({ total: 3, pagados: 1, pendientes: 2, sinVerificar: 0 });
+    expect(r).toEqual({ total: 3, sinVerificar: 3, confirmados: 0, parciales: 0 });
   });
 
   it("[control] arreglo vacío da todos los conteos en cero, no undefined", () => {
-    expect(resumenPersonas([])).toEqual({ total: 0, pagados: 0, pendientes: 0, sinVerificar: 0 });
+    expect(resumenPersonas([])).toEqual({
+      total: 0,
+      sinVerificar: 0,
+      confirmados: 0,
+      parciales: 0,
+    });
   });
 });
 

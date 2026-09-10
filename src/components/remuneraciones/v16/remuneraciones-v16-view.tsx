@@ -17,7 +17,7 @@ import { Pill } from "@/components/rediseno/pill";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
 import { LEY_9_TEXTO } from "@/components/pagar/v05/pagar-v05-model";
 import type { EmployeePayroll } from "../payroll-detalle";
-import type { BankDebitLike } from "../payroll-conciliacion";
+import type { SettlementBoard } from "../settlement-board-model";
 import {
   ESTADO_LABEL,
   personasProtegidas,
@@ -26,12 +26,13 @@ import {
   triadaV16,
   type EstadoPersonaV16,
   type PersonaV16,
+  type DisponibilidadAsignacionesV16,
 } from "./remuneraciones-v16-model";
 
 /* V16 · Remuneraciones — "Tu nómina" (rediseño Fase 2, issue #77, ESPECIFICACION §V16).
  *
  * PRESENTACIONAL, como `pagar-v05-view.tsx`: entran las respuestas ya resueltas (planilla,
- * detalle por persona, movimientos del banco, ingresos del período), sale una pantalla. El
+ * detalle por persona e ingresos del período), sale una pantalla. El
  * cableado de hooks vive en `remuneraciones-v16-live.tsx`.
  *
  * LEY 1 — "Cotizaciones" es la MISMA cifra (`totales.total_cotizaciones`) que ya publica el
@@ -42,9 +43,9 @@ import {
  * líquido + cotizaciones. Ver la cabecera de `remuneraciones-v16-model.ts` para el razonamiento
  * completo y `remuneraciones-v16-model.test.ts` para la guarda.
  *
- * LEY 2 — cero rojo en toda la pantalla: "Pendiente" (una persona sin débito calzado todavía)
- * es ámbar/neutro, nunca alarma. `ESTADO_LABEL` tiene un solo set cerrado de 3 estados y ninguno
- * usa el token `danger-`/`rediseno-rojo`.
+ * Pago individual — nunca se infiere desde una coincidencia de monto. Sí se muestran las
+ * asignaciones persistidas del board legacy (confirmado/parcial), y se declara de forma
+ * explícita si ese board no es accesible. D14/#422 lo reemplazará por su read model versionado.
  *
  * LEY 9 — el footer lleva el texto FIJO literal (`LEY_9_TEXTO`, reusado de `pagar-v05-model.ts`,
  * no retipeado): los sueldos jamás entran en postergaciones automáticas. No hay ningún botón de
@@ -62,13 +63,12 @@ export interface RemuneracionesV16ViewProps {
   detalle: EmployeePayroll[];
   /** El detalle vino 403: "solo para el dueño", no "sin dato". */
   detalleForbidden?: boolean;
-  /** Movimientos del banco del período, para el cruce de estado. `null` = todavía no se
-   *  consultaron (o fallaron): el estado de CADA persona queda "No verificado", nunca
-   *  "Pendiente" (eso afirmaría algo que no se sabe). */
-  movimientos: BankDebitLike[] | null;
   /** Ingresos del período (`GET /api/management/operational-result`, campo `revenue`). `null` =
    *  sin dato: el % de ingresos de "Costo empresa" queda "no disponible", nunca 0%. */
   revenue: number | null;
+  /** Asignaciones persistidas del board legacy de nómina (owner/admin). */
+  settlementBoard?: SettlementBoard;
+  settlementDisponibilidad?: DisponibilidadAsignacionesV16;
 }
 
 export function RemuneracionesV16View({
@@ -78,16 +78,17 @@ export function RemuneracionesV16View({
   onReintentar,
   detalle,
   detalleForbidden = false,
-  movimientos,
   revenue,
+  settlementBoard,
+  settlementDisponibilidad = "available",
 }: RemuneracionesV16ViewProps) {
   const triada = React.useMemo(
     () => triadaV16(periodo, totales, detalle, revenue),
     [periodo, totales, detalle, revenue],
   );
   const personas = React.useMemo(
-    () => personasV16(detalle, movimientos, periodo),
-    [detalle, movimientos, periodo],
+    () => personasV16(detalle, periodo, settlementBoard, settlementDisponibilidad),
+    [detalle, periodo, settlementBoard, settlementDisponibilidad],
   );
   const resumen = resumenPersonas(personas);
   const protegidos = triada ? personasProtegidas(triada, personas.length) : 0;
@@ -203,7 +204,10 @@ export function RemuneracionesV16View({
             }
           />
         ) : (
-          <TablaPersonas personas={personas} periodoLabel={periodoLabel} />
+          <>
+            <EstadoAsignaciones disponibilidad={settlementDisponibilidad} />
+            <TablaPersonas personas={personas} periodoLabel={periodoLabel} />
+          </>
         )}
 
         {/* Footer §5.5 (resumen) + Ley 9 (texto fijo, literal). */}
@@ -221,10 +225,12 @@ export function RemuneracionesV16View({
  * Construidos como STRING (no JSX intercalado) a propósito: la concordancia singular/plural es
  * plata legible, y un espacio perdido/duplicado por colapso de JSX ya mordió a este repo cuatro
  * veces ("Los 1 proveedores", issue #94). Un string se testea con `toContain` sin ambigüedad. */
-function resumenPagoLabel(r: ReturnType<typeof resumenPersonas>): string {
-  if (r.sinVerificar === r.total) return "estado del banco no verificado";
-  if (r.pagados === r.total) return "pagado ✓";
-  return `${r.pagados} de ${r.total} pagados`;
+function resumenPagoLabel(resumen: ReturnType<typeof resumenPersonas>): string {
+  const partes: string[] = [];
+  if (resumen.confirmados > 0) partes.push(`${resumen.confirmados} confirmado(s)`);
+  if (resumen.parciales > 0) partes.push(`${resumen.parciales} parcial(es)`);
+  if (resumen.sinVerificar > 0) partes.push(`${resumen.sinVerificar} sin pago verificado`);
+  return partes.join(" · ") || "asignación individual en verificación";
 }
 
 function liquidoDetalleTexto(
@@ -241,17 +247,29 @@ function liquidoDetalleTexto(
   return partes.join(" · ");
 }
 
-/** `null` cuando no hay a quién conciliar (footer sin esa cláusula). */
+/** `null` cuando no hay personas (footer sin esa cláusula). */
 function footerConciliacionTexto(resumen: ReturnType<typeof resumenPersonas>): string | null {
   if (resumen.total === 0) return null;
-  const base = `${resumen.pagados} de ${resumen.total} ${concordar(
+  return `${resumen.total} ${concordar(
     resumen.total,
-    "persona conciliada",
-    "personas conciliadas",
-  )} con el cargo de nómina del banco`;
-  return resumen.sinVerificar > 0
-    ? `${base} · ${resumen.sinVerificar} sin verificar (no se pudo leer la cartola del período)`
-    : base;
+    "pago individual requiere",
+    "pagos individuales requieren",
+  )} asignación corroborada; una coincidencia de monto no acredita quién fue pagado`;
+}
+
+function EstadoAsignaciones({ disponibilidad }: { disponibilidad: DisponibilidadAsignacionesV16 }) {
+  if (disponibilidad === "available") return null;
+  const mensaje =
+    disponibilidad === "forbidden"
+      ? "No tienes permiso para ver las asignaciones de pago; no se muestra un estado de pago supuesto."
+      : disponibilidad === "error"
+        ? "No pudimos consultar las asignaciones de pago; no se muestra un estado de pago supuesto."
+        : "Estamos verificando las asignaciones de pago persistidas.";
+  return (
+    <p className="text-[12.5px] text-rediseno-tinta-3" role="status">
+      {mensaje}
+    </p>
+  );
 }
 
 /* ── ⓘ "% de ingresos" (§1.4: definición + fuente) ────────────────────────────────────────── */
@@ -288,10 +306,13 @@ function InfoPopover() {
 
 /* ── (2) La tabla (§1.3 `.tw > table.t`, §5.5) ───────────────────────────────────────────────── */
 
-const ESTADO_VARIANT: Record<EstadoPersonaV16, "ok" | "warn" | "mut"> = {
-  pagado: "ok",
-  pendiente: "warn",
+const ESTADO_VARIANT: Record<EstadoPersonaV16, "ok" | "warn" | "mut" | "blue"> = {
+  confirmado: "ok",
+  parcial: "warn",
   sin_verificar: "mut",
+  verificando: "blue",
+  sin_acceso: "mut",
+  error: "mut",
 };
 
 function TablaPersonas({

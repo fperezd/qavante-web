@@ -28,10 +28,9 @@
  * El texto fijo se REUSA de `pagar-v05-model.ts` (`LEY_9_TEXTO`), no se retipea acá: el MISMO
  * string en las dos pantallas, cubierto por el mismo valor de referencia en ambos tests.
  *
- * ── TRAMPA #3 — Ley 2, sin alarmas ────────────────────────────────────────────────────────────
- * El estado de una persona sin débito bancario calzado es "Pendiente" (ámbar), NUNCA rojo: un
- * sueldo que todavía no se paga dentro del mes es progreso administrativo, no una alarma. Esta
- * pantalla no usa NINGÚN rojo — cero tokens `danger-*`, a propósito (issue #77, Ley 2). */
+ * ── TRAMPA #3 — pago individual sin inferencia ─────────────────────────────────────────────────
+ * Un débito con el mismo monto no prueba a quién se pagó. Mientras API #422 no entregue una
+ * asignación corroborada, esta pantalla declara "Pago no verificado" y no usa NINGÚN rojo. */
 
 import type { PayrollTotales } from "@/lib/api/buk";
 import { vencimientoPrevired } from "@/components/pagar/previred-vencimiento";
@@ -42,7 +41,7 @@ import {
   tieneCostoEmpresa,
   type EmployeePayroll,
 } from "../payroll-detalle";
-import { matchPayrollToBank, type BankDebitLike } from "../payroll-conciliacion";
+import { CONCILIADO_TOL, type SettlementBoard } from "../settlement-board-model";
 
 /* ── Período por defecto ───────────────────────────────────────────────────────────────────── */
 
@@ -106,13 +105,22 @@ export function triadaV16(
 
 /* ── (2) Tabla por persona: estado + link a la liquidación ───────────────────────────────────── */
 
-export type EstadoPersonaV16 = "pagado" | "pendiente" | "sin_verificar";
+/** Una coincidencia de monto no identifica a una persona. La única evidencia individual que esta
+ * vista presenta es una asignación YA persistida por el board de conciliación. D14/#422 deberá
+ * reemplazar este contrato legacy por uno versionado; mientras tanto no se borra evidencia real. */
+export type EstadoPersonaV16 =
+  "confirmado" | "parcial" | "sin_verificar" | "verificando" | "sin_acceso" | "error";
 
 export const ESTADO_LABEL: Record<EstadoPersonaV16, string> = {
-  pagado: "Pagado ✓",
-  pendiente: "Pendiente",
-  sin_verificar: "No verificado",
+  confirmado: "Pago confirmado",
+  parcial: "Pago parcial",
+  sin_verificar: "Pago no verificado",
+  verificando: "Verificando asignación",
+  sin_acceso: "Asignación no accesible",
+  error: "No se pudo verificar asignación",
 };
+
+export type DisponibilidadAsignacionesV16 = "available" | "loading" | "forbidden" | "error";
 
 export interface PersonaV16 {
   key: string;
@@ -133,35 +141,65 @@ function keyDeEmpleado(e: Pick<EmployeePayroll, "id" | "rut" | "nombre">): strin
 }
 
 /** Las filas de la tabla, líquido descendente por defecto (la persona de mayor sueldo primero —
- *  sin fecha que ordenar, es un roster; la tabla sigue siendo ordenable por columna en la vista).
- *
- *  `movimientos === null` = el banco del período no se consultó/no llegó todavía: el estado es
- *  "sin verificar", NUNCA "pendiente" — decir "pendiente" sin haber mirado el banco sería un
- *  default plausible sobre un dato que no se tiene (bucket "no sé" explícito, Ley 3). */
+ * sin fecha que ordenar, es un roster; la tabla sigue siendo ordenable por columna en la vista).
+ * Nunca convierte un match de monto en "Pagado": el contrato no ofrece contraparte, asignación
+ * ni lineage. La evidencia individual pertenece al read model D14 de API #422. */
+function rutKey(rut: string | null): string {
+  return (rut ?? "").replace(/[.\s-]/g, "").toUpperCase();
+}
+
+function estadoPersistido(
+  rut: string | null,
+  board: SettlementBoard | undefined,
+  disponibilidad: DisponibilidadAsignacionesV16,
+): EstadoPersonaV16 {
+  if (disponibilidad === "loading") return "verificando";
+  if (disponibilidad === "forbidden") return "sin_acceso";
+  if (disponibilidad === "error") return "error";
+  if (!board || !rut) return "sin_verificar";
+
+  const key = rutKey(rut);
+  const worker = board.workers.find((item) => rutKey(item.workerRut) === key);
+  if (!worker) return "sin_verificar";
+  const links = board.links.filter((item) => rutKey(item.workerRut) === key);
+  const status = worker.status.trim().toLowerCase();
+
+  // Sin link persistido no hay una asignación individual que presentar, aunque el monto coincida.
+  if (links.length === 0) return "sin_verificar";
+  if (
+    status.includes("partial") ||
+    status.includes("parcial") ||
+    (worker.paidAmount > 0 && worker.outstanding > CONCILIADO_TOL)
+  ) {
+    return "parcial";
+  }
+  if (
+    status.includes("paid") ||
+    status.includes("confirm") ||
+    status.includes("conciliad") ||
+    worker.outstanding <= CONCILIADO_TOL
+  ) {
+    return "confirmado";
+  }
+  // Un link activo es una asignación persistida; sin semántica suficiente para total/parcial,
+  // no inventamos "pagado" y lo declaramos como verificación todavía incompleta.
+  return "verificando";
+}
+
 export function personasV16(
   detalle: EmployeePayroll[],
-  movimientos: BankDebitLike[] | null,
   periodo: string,
+  board?: SettlementBoard,
+  disponibilidad: DisponibilidadAsignacionesV16 = "available",
 ): PersonaV16[] {
   const href = `/remuneraciones?period=${periodo}`;
-  const matchedKeys =
-    movimientos === null
-      ? null
-      : new Set(
-          matchPayrollToBank(detalle, movimientos).matched.map((m) => keyDeEmpleado(m.empleado)),
-        );
 
   const filas: PersonaV16[] = detalle.map((e) => ({
     key: keyDeEmpleado(e),
     nombre: e.nombre,
     rut: e.rut,
     liquido: e.liquido,
-    estado:
-      matchedKeys === null
-        ? "sin_verificar"
-        : matchedKeys.has(keyDeEmpleado(e))
-          ? "pagado"
-          : "pendiente",
+    estado: estadoPersistido(e.rut, board, disponibilidad),
     href,
   }));
 
@@ -170,18 +208,18 @@ export function personasV16(
 
 export interface ResumenPersonasV16 {
   total: number;
-  pagados: number;
-  pendientes: number;
   sinVerificar: number;
+  confirmados: number;
+  parciales: number;
 }
 
 /** Cuenta por estado — alimenta el detalle de la tarjeta "Líquido" y el footer de la tabla. */
 export function resumenPersonas(personas: ReadonlyArray<PersonaV16>): ResumenPersonasV16 {
   return {
     total: personas.length,
-    pagados: personas.filter((p) => p.estado === "pagado").length,
-    pendientes: personas.filter((p) => p.estado === "pendiente").length,
     sinVerificar: personas.filter((p) => p.estado === "sin_verificar").length,
+    confirmados: personas.filter((p) => p.estado === "confirmado").length,
+    parciales: personas.filter((p) => p.estado === "parcial").length,
   };
 }
 
