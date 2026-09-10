@@ -172,7 +172,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry?: () => voi
 }
 
 function Memo({ model, onDismiss }: { model: SimuladorV14Model; onDismiss: () => void }) {
-  const incomplete = model.state !== "ready" || model.freshness !== "current";
+  const incomplete = !model.structurallyComplete;
   return (
     <article
       className={`${CARD} border-l-[3px] ${incomplete ? "border-l-rediseno-ambar" : "border-l-rediseno-verde"}`}
@@ -180,11 +180,11 @@ function Memo({ model, onDismiss }: { model: SimuladorV14Model; onDismiss: () =>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-rediseno-mono text-[11px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3">
           Memo ·{" "}
-          {model.state === "ready"
+          {model.structurallyComplete
             ? "Evaluación completa"
-            : model.state === "partial"
-              ? "Evaluación parcial"
-              : "El motor se abstuvo"}
+            : model.state === "abstained"
+              ? "El motor se abstuvo"
+              : "Evaluación parcial"}
         </p>
         <span className="rounded-full bg-rediseno-neutro-bg px-3 py-1 text-[11.5px] font-semibold text-rediseno-neutro-text">
           {model.freshnessLabel}
@@ -238,16 +238,18 @@ function Memo({ model, onDismiss }: { model: SimuladorV14Model; onDismiss: () =>
         <Evidence title="Supuestos usados" items={model.assumptions} empty="Supuestos sin dato" />
         <Evidence title="Evidencia del motor" items={model.evidence} empty="Evidencia sin dato" />
       </div>
+      {model.sources.length > 0 ? <Sources model={model} /> : null}
       {model.limitations.length > 0 ? (
         <Evidence title="Qué limita esta respuesta" items={model.limitations} empty="" />
       ) : null}
       <p className="mt-3 text-[11.5px] text-rediseno-tinta-3">
+        Contrato de contexto {model.contextContractVersion} ·{" "}
         {normalizeVisibleText(model.scopeLabel)}
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2 border-t border-rediseno-hairline pt-4">
         <button type="button" disabled className={`${SECONDARY} cursor-not-allowed opacity-55`}>
-          Guardar en memoria · no disponible
+          Guardar en memoria · pendiente en esta pantalla
         </button>
         <Link href="/financiamiento" className={SECONDARY}>
           Ver alternativa
@@ -257,7 +259,9 @@ function Memo({ model, onDismiss }: { model: SimuladorV14Model; onDismiss: () =>
         </button>
       </div>
       <p className="mt-2 text-[11.5px] text-rediseno-tinta-3">
-        Guardar requiere una operación idempotente para tu sesión. Seguimiento: #454.
+        {model.saveAdvertisedByApi
+          ? "La API publica un guardado idempotente separado; esta preparación no lo ejecuta."
+          : "El guardado sigue separado de evaluar y no está conectado en esta pantalla."}
       </p>
       {model.saveReasons.length > 0 ? (
         <p className="mt-1 text-[11.5px] text-rediseno-tinta-3">
@@ -265,6 +269,37 @@ function Memo({ model, onDismiss }: { model: SimuladorV14Model; onDismiss: () =>
         </p>
       ) : null}
     </article>
+  );
+}
+
+function Sources({ model }: { model: SimuladorV14Model }) {
+  return (
+    <section className="mt-3 rounded-xl bg-rediseno-porcelana p-4">
+      <h3 className="text-[12px] font-semibold">Fuentes del contexto</h3>
+      <ul className="mt-2 space-y-2 text-[12px] text-rediseno-tinta-2">
+        {model.sources.map((source) => (
+          <li
+            key={source.block}
+            className="min-w-0 border-t border-rediseno-hairline pt-2 first:border-0 first:pt-0"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-semibold text-rediseno-tinta">{source.label}</span>
+              <span>{source.stateLabel}</span>
+            </div>
+            {source.reasons.map((reason) => (
+              <p key={reason} className="mt-1 break-words text-rediseno-tinta-3">
+                {normalizeVisibleText(reason)}
+              </p>
+            ))}
+            {source.evidence.map((reference) => (
+              <p key={reference} className="mt-1 break-all text-rediseno-tinta-3">
+                {normalizeVisibleText(reference)}
+              </p>
+            ))}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

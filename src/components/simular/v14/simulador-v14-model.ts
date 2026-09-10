@@ -7,6 +7,7 @@ export type SimulationRequest = components["schemas"]["SimulationEvaluateRequest
 export type SimulationResponse = components["schemas"]["SimulationEvaluateResponse"];
 type SimulationImpact = components["schemas"]["SimulationImpact"];
 type SimulationAssumption = SimulationResponse["memo"]["assumptions"][number];
+type SimulationSourceStatus = components["schemas"]["SimulationSourceStatus"];
 
 export interface SimulationImpactView {
   id: "cash" | "margin" | "break-even";
@@ -18,8 +19,19 @@ export interface SimulationImpactView {
   reasons: string[];
 }
 
+export interface SimulationSourceView {
+  block: SimulationSourceStatus["block"];
+  label: string;
+  state: SimulationSourceStatus["state"];
+  stateLabel: string;
+  evidence: string[];
+  reasons: string[];
+}
+
 export interface SimuladorV14Model {
   state: SimulationResponse["state"];
+  structurallyComplete: boolean;
+  contextContractVersion: SimulationResponse["context_contract_version"];
   verdict: string;
   interpretation: string;
   condition: string;
@@ -29,8 +41,10 @@ export interface SimuladorV14Model {
   impacts: SimulationImpactView[];
   assumptions: string[];
   evidence: string[];
+  sources: SimulationSourceView[];
   limitations: string[];
   saveAvailable: false;
+  saveAdvertisedByApi: boolean;
   saveReasons: string[];
   evaluationHash: string;
 }
@@ -40,8 +54,6 @@ const REASONS: Record<string, string> = {
   projection_context_stale: "La proyección base está vencida.",
   simulation_context_unavailable: "Falta contexto financiero verificable.",
   unsupported_assumption: "Ese supuesto todavía no puede evaluarse.",
-  scenario_save_not_idempotent: "Guardar todavía no tiene protección contra duplicados.",
-  scenario_save_api_key_only: "Guardar todavía no acepta tu sesión de usuario.",
 };
 
 function reasonLabel(code: string): string {
@@ -87,6 +99,69 @@ function impactView(
   };
 }
 
+function sourceLabel(block: SimulationSourceStatus["block"]): string {
+  const labels: Partial<Record<SimulationSourceStatus["block"], string>> = {
+    cash: "Caja",
+    hard_reserves: "Reservas duras",
+    policy: "Política de caja",
+    margin: "Margen",
+    break_even: "Punto de equilibrio",
+  };
+  return labels[block] ?? block;
+}
+
+function sourceStateLabel(state: SimulationSourceStatus["state"]): string {
+  if (state === "current") return "Vigente";
+  if (state === "stale") return "Vencida";
+  return "Faltante";
+}
+
+function sourceView(source: SimulationSourceStatus): SimulationSourceView {
+  return {
+    block: source.block,
+    label: sourceLabel(source.block),
+    state: source.state,
+    stateLabel: sourceStateLabel(source.state),
+    evidence: source.evidence_refs ?? [],
+    reasons: (source.reason_codes ?? []).map(reasonLabel),
+  };
+}
+
+const REQUIRED_SOURCE_BLOCKS = [
+  "cash",
+  "hard_reserves",
+  "policy",
+  "margin",
+  "break_even",
+] as const satisfies readonly SimulationSourceStatus["block"][];
+
+/** `ready` only means complete when the producer published each required block exactly
+ * once and current. Missing, empty, partial and duplicated manifests are coverage gaps. */
+function hasExactCurrentSources(
+  sources: readonly SimulationSourceStatus[] | null | undefined,
+): boolean {
+  if (sources == null || sources.length !== REQUIRED_SOURCE_BLOCKS.length) return false;
+
+  const blocks = new Set(sources.map((source) => source.block));
+  return (
+    blocks.size === REQUIRED_SOURCE_BLOCKS.length &&
+    REQUIRED_SOURCE_BLOCKS.every((block) => blocks.has(block)) &&
+    sources.every((source) => source.state === "current")
+  );
+}
+
+/** Defensa de presentación, no cálculo financiero. Un `ready` contradictorio
+ * nunca se pinta completo: los importes y la frescura siguen viniendo del backend. */
+function isStructurallyComplete(response: SimulationResponse): boolean {
+  const impacts = [response.memo.cash, response.memo.margin, response.memo.break_even];
+  return (
+    response.state === "ready" &&
+    response.memo.freshness === "current" &&
+    impacts.every((impact) => impact.state === "known") &&
+    hasExactCurrentSources(response.memo.sources)
+  );
+}
+
 function assumptionLabel(assumption: SimulationAssumption): string {
   if (assumption.kind === "cash_inflow" || assumption.kind === "cash_outflow") {
     const amount = decimal(assumption.amount);
@@ -102,6 +177,8 @@ function assumptionLabel(assumption: SimulationAssumption): string {
 export function simuladorV14Model(response: SimulationResponse): SimuladorV14Model {
   return {
     state: response.state,
+    structurallyComplete: isStructurallyComplete(response),
+    contextContractVersion: response.context_contract_version,
     verdict: response.memo.verdict,
     interpretation: response.interpretation,
     condition: response.memo.condition,
@@ -120,8 +197,10 @@ export function simuladorV14Model(response: SimulationResponse): SimuladorV14Mod
     ],
     assumptions: response.memo.assumptions.map(assumptionLabel),
     evidence: response.memo.evidence_refs ?? [],
+    sources: (response.memo.sources ?? []).map(sourceView),
     limitations: response.memo.limitations ?? [],
     saveAvailable: false,
+    saveAdvertisedByApi: response.save?.state === "available",
     saveReasons: response.save?.reason_codes?.map(reasonLabel) ?? [],
     evaluationHash: response.evaluation_hash,
   };

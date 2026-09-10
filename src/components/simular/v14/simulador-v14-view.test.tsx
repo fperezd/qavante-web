@@ -44,6 +44,15 @@ describe("SimuladorV14View", () => {
         ],
         evidence_refs: ["evidence — dinámica"],
         limitations: ["Limitación — dinámica"],
+        sources: simulationReadyV14.memo.sources?.map((source, index) =>
+          index === 0
+            ? {
+                ...source,
+                evidence_refs: ["source evidence — dinámica"],
+                reason_codes: ["source reason — dinámica"],
+              }
+            : source,
+        ),
       },
     };
     const rawInputs = [
@@ -53,6 +62,8 @@ describe("SimuladorV14View", () => {
       dynamic.memo.assumptions[0]?.label,
       dynamic.memo.evidence_refs?.[0],
       dynamic.memo.limitations?.[0],
+      dynamic.memo.sources?.[0]?.evidence_refs?.[0],
+      dynamic.memo.sources?.[0]?.reason_codes?.[0],
     ];
     for (const rawInput of rawInputs) expect(rawInput).toMatch(EM_DASH);
 
@@ -65,6 +76,8 @@ describe("SimuladorV14View", () => {
     expect(rendered).toContain("Supuesto · dinámico");
     expect(rendered).toContain("evidence · dinámica");
     expect(rendered).toContain("Limitación · dinámica");
+    expect(rendered).toContain("source evidence · dinámica");
+    expect(rendered).toContain("source reason · dinámica");
     expect(JSON.stringify(dynamic)).toMatch(EM_DASH);
   });
 
@@ -74,11 +87,58 @@ describe("SimuladorV14View", () => {
     expect(rendered).toContain("Puedes asumir el gasto, con una condición");
     expect(rendered).toContain("Actual");
     expect(rendered).toContain("Propuesto");
-    expect(rendered).toContain("−$1.234.567");
+    expect(rendered).toContain("−$2.500.000");
     expect(rendered).toContain("projection:baseline-2026-09-09");
     expect(rendered).toContain("user_assumption:suggestion.consultor");
+    expect(rendered).toContain("Fuentes del contexto");
+    expect(rendered).toContain("Política de caja");
+    expect(rendered).toContain("cash-policy:v1");
+    expect(rendered).toContain("Contrato de contexto v1");
     expect(rendered).toContain("Simulación · no ejecuta");
-    expect(rendered).toContain("Guardar en memoria · no disponible");
+    expect(rendered).toContain("Guardar en memoria · pendiente en esta pantalla");
+    expect(rendered).toContain("La API publica un guardado idempotente separado");
+  });
+
+  it("un ready/current contradictorio con impacto unknown se presenta parcial y ámbar", () => {
+    const contradictory = {
+      ...simulationReadyV14,
+      memo: {
+        ...simulationReadyV14.memo,
+        break_even: {
+          state: "unknown" as const,
+          before: null,
+          after: null,
+          delta: null,
+          currency: null,
+          reason_codes: ["break_even_producer_unavailable"],
+        },
+      },
+    };
+
+    const rendered = html(contradictory);
+
+    expect(rendered).toContain("Memo · Evaluación parcial");
+    expect(rendered).not.toContain("Memo · Evaluación completa");
+    expect(rendered).toContain("border-l-rediseno-ambar");
+    expect(rendered).not.toContain("border-l-rediseno-verde");
+  });
+
+  it("un ready/current con fuente vencida tampoco se presenta completa", () => {
+    const contradictory = {
+      ...simulationReadyV14,
+      memo: {
+        ...simulationReadyV14.memo,
+        sources: simulationReadyV14.memo.sources?.map((source) =>
+          source.block === "policy" ? { ...source, state: "stale" as const } : source,
+        ),
+      },
+    };
+
+    const rendered = html(contradictory);
+
+    expect(rendered).toContain("Memo · Evaluación parcial");
+    expect(rendered).toContain("Política de caja");
+    expect(rendered).toContain("Vencida");
   });
 
   it.each([

@@ -35,8 +35,8 @@ export const Lista: Story = {
     await expect(
       canvas.getByText("Puedes asumir el gasto, con una condición."),
     ).toBeInTheDocument();
-    await expect(canvas.getByText("−$1.234.567")).toBeInTheDocument();
-    await expect(canvas.getByText("projection:baseline-2026-09-09")).toBeInTheDocument();
+    await expect(canvas.getAllByText("−$2.500.000")).toHaveLength(2);
+    await expect(canvas.getAllByText("projection:baseline-2026-09-09")).toHaveLength(2);
   },
 };
 

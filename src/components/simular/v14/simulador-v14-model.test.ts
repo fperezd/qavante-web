@@ -12,6 +12,7 @@ const scope = {
   currency: "CLP",
   as_of: "2026-09-09T12:00:00Z",
 };
+const readySources = simulationReadyV14.memo.sources ?? [];
 
 describe("simuladorV14Model", () => {
   it("publica el signo que entregó el backend y no recompone el delta", () => {
@@ -20,8 +21,72 @@ describe("simuladorV14Model", () => {
 
     expect(cash?.before).toBe("$5.100.000");
     expect(cash?.after).toBe("$2.600.000");
-    expect(cash?.delta).toBe("−$1.234.567");
-    expect(cash?.delta).not.toBe("−$2.500.000");
+    expect(cash?.delta).toBe("−$2.500.000");
+  });
+
+  it("sólo marca completa la respuesta ready/current con impactos y cinco bloques exactos", () => {
+    const model = simuladorV14Model(simulationReadyV14);
+
+    expect(model.structurallyComplete).toBe(true);
+    expect(model.impacts.every((impact) => impact.state === "known")).toBe(true);
+    expect(model.sources.every((source) => source.state === "current")).toBe(true);
+  });
+
+  it.each([
+    ["omite el manifiesto", undefined],
+    ["publica un manifiesto vacío", []],
+    ["omite un bloque requerido", readySources.slice(0, -1)],
+    [
+      "duplica un bloque y oculta otro",
+      [...readySources.slice(0, -1), ...readySources.slice(0, 1)],
+    ],
+  ])("no certifica completa cuando %s", (_case, sources) => {
+    const contradictory = {
+      ...simulationReadyV14,
+      memo: { ...simulationReadyV14.memo, sources },
+    };
+
+    expect(simuladorV14Model(contradictory).structurallyComplete).toBe(false);
+  });
+
+  it("degrada un ready/current contradictorio si un impacto queda unknown", () => {
+    const contradictory = {
+      ...simulationReadyV14,
+      memo: {
+        ...simulationReadyV14.memo,
+        margin: {
+          state: "unknown" as const,
+          before: null,
+          after: null,
+          delta: null,
+          currency: null,
+          reason_codes: ["margin_producer_unavailable"],
+        },
+      },
+    };
+
+    expect(simuladorV14Model(contradictory).structurallyComplete).toBe(false);
+  });
+
+  it("degrada un ready/current si una fuente publicada no está vigente", () => {
+    const contradictory = {
+      ...simulationReadyV14,
+      memo: {
+        ...simulationReadyV14.memo,
+        sources: simulationReadyV14.memo.sources?.map((source) =>
+          source.block === "policy"
+            ? { ...source, state: "stale" as const, reason_codes: ["policy_stale"] }
+            : source,
+        ),
+      },
+    };
+
+    const model = simuladorV14Model(contradictory);
+    expect(model.structurallyComplete).toBe(false);
+    expect(model.sources.find((source) => source.block === "policy")).toMatchObject({
+      state: "stale",
+      stateLabel: "Vencida",
+    });
   });
 
   it("un impacto unknown permanece sin dato y nunca se aplasta a cero", () => {

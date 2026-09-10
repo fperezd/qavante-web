@@ -6353,6 +6353,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/simulations/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Guarda una hipótesis de simulación sin evaluarla ni ejecutarla */
+        post: operations["simulations_save"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/source-freshness": {
         parameters: {
             query?: never;
@@ -19679,6 +19696,12 @@ export interface components {
         };
         /** SimulationEvaluateResponse */
         SimulationEvaluateResponse: {
+            /**
+             * Context Contract Version
+             * @default v1
+             * @constant
+             */
+            context_contract_version: "v1";
             /** Evaluation Hash */
             evaluation_hash: string;
             execution?: components["schemas"]["SimulationExecutionContract"];
@@ -19750,25 +19773,56 @@ export interface components {
             /** Limitations */
             limitations?: string[];
             margin: components["schemas"]["SimulationImpact"];
+            /** Sources */
+            sources?: components["schemas"]["SimulationSourceStatus"][];
             /** Verdict */
             verdict: string;
         };
         /** SimulationSaveCapability */
         SimulationSaveCapability: {
             /** Reason Codes */
-            reason_codes?: ("scenario_save_not_idempotent" | "scenario_save_api_key_only")[];
+            reason_codes?: string[];
             /**
              * Reference Endpoint
-             * @default /api/planning/scenarios
+             * @default /api/treasury/simulations/save
              * @constant
              */
-            reference_endpoint: "/api/planning/scenarios";
+            reference_endpoint: "/api/treasury/simulations/save";
             /**
              * State
-             * @default unavailable
+             * @default available
              * @constant
              */
-            state: "unavailable";
+            state: "available";
+        };
+        /** SimulationSaveRequest */
+        SimulationSaveRequest: {
+            evaluation: components["schemas"]["SimulationEvaluateRequest"];
+            /** Idempotency Key */
+            idempotency_key: string;
+        };
+        /** SimulationSaveResponse */
+        SimulationSaveResponse: {
+            /**
+             * Context Contract Version
+             * @default v1
+             * @constant
+             */
+            context_contract_version: "v1";
+            /** Evaluation Hash */
+            evaluation_hash: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /**
+             * Scenario Id
+             * Format: uuid
+             */
+            scenario_id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "created" | "replayed";
         };
         /** SimulationScope */
         SimulationScope: {
@@ -19786,6 +19840,23 @@ export interface components {
              * Format: uuid
              */
             legal_entity_id: string;
+        };
+        /** SimulationSourceStatus */
+        SimulationSourceStatus: {
+            /**
+             * Block
+             * @enum {string}
+             */
+            block: "cash" | "hard_reserves" | "policy" | "margin" | "break_even";
+            /** Evidence Refs */
+            evidence_refs?: string[];
+            /** Reason Codes */
+            reason_codes?: string[];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "current" | "stale" | "missing";
         };
         /** SourceDetailResponse */
         SourceDetailResponse: {
@@ -33953,6 +34024,53 @@ export interface operations {
             };
             /** @description No fue posible verificar las fuentes requeridas. */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    simulations_save: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationSaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationSaveResponse"];
+                };
+            };
+            /** @description Tenant o rol de escritura no verificable. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Clave idempotente reutilizada con otro payload. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scope financiero no verificable. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

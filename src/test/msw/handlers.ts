@@ -14,6 +14,8 @@
 // devuelve HttpOnly + Secure normalmente (regla 6 de CLAUDE.md
 // sigue vigente — los tokens reales nunca pasan por JS).
 import { http, HttpResponse } from "msw";
+import { simulationReadyV14 } from "@/components/simular/v14/simulador-v14-fixtures";
+import type { SimulationEvaluateRequest } from "@/lib/api/simulations";
 import type {
   InviteUserBody,
   UpdateUserBody,
@@ -4259,7 +4261,27 @@ const apiKeysHandlers = [
   ),
 ];
 
+const simulationHandlers = [
+  http.post("*/api/treasury/simulations/evaluate", async ({ request }) => {
+    const body = (await request.json()) as SimulationEvaluateRequest;
+    return HttpResponse.json(
+      {
+        ...simulationReadyV14,
+        scope: {
+          legal_entity_id: body.legal_entity_id,
+          currency: body.currency,
+          as_of: body.as_of,
+          horizon_days: body.horizon_days,
+        },
+        memo: { ...simulationReadyV14.memo, assumptions: body.assumptions },
+      },
+      { status: 200 },
+    );
+  }),
+];
+
 export const handlers = [
+  ...simulationHandlers,
   ...apiKeysHandlers,
   ...authHandlers,
   ...cajaV2Handlers,

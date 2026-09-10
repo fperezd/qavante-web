@@ -496,7 +496,7 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
   financiamientoV13: "/api/treasury/financing-overview",
   /* V14 · Simulador. Evalúa una hipótesis contra el scope financiero canónico y
      devuelve un memo explícitamente no ejecutable. Default OFF hasta que
-     qavante-api#455 esté desplegado y su smoke productivo quede aprobado. */
+     qavante-api#467 integre los productores live y su smoke productivo quede aprobado. */
   simuladorV14: "/api/treasury/simulations/evaluate",
 };
 
