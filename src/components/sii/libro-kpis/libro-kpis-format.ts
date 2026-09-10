@@ -1,3 +1,4 @@
+import { exportTable, type ExportTable } from "@/lib/export/table";
 /* Helpers PUROS del Panel de KPIs del Libro (Ventas/Compras): concentración por
  * contraparte y export CSV. Agregados de LECTURA sobre los documentos que el
  * backend ya descargó — presentación, no cálculo financiero nuevo (el dato
@@ -6,6 +7,7 @@
  * Testeable. */
 
 import { isNotaCredito } from "../tipo-doc";
+import { csv, csvCell } from "@/lib/export/csv";
 import type { RcvDoc } from "../rcv-grouped-item";
 
 function num(v: number | undefined): number {
@@ -52,29 +54,27 @@ export function concentrationByCounterparty(docs: RcvDoc[], topN = 5): Counterpa
   );
 }
 
-/** Escapa una celda CSV: entrecomilla si tiene separador/comillas/salto de línea
- *  (convención RFC 4180 — duplica las comillas internas). */
-function csvCell(value: string | number): string {
-  const s = String(value);
-  return /[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+/** Documentos con tipos conservados hasta escoger XLSX o CSV interoperable. */
+export function docsToCsvTable(docs: RcvDoc[]): ExportTable {
+  const headers = ["Tipo", "Folio", "Fecha", "RUT", "Razon social", "Neto", "IVA", "Total"];
+  return exportTable(
+    headers,
+    docs.map((d) => [
+      d.tipo_doc == null ? csvCell.missing() : csvCell.integer(d.tipo_doc),
+      d.folio == null ? csvCell.missing() : csvCell.integer(d.folio),
+      d.fecha == null ? csvCell.missing() : csvCell.date(d.fecha),
+      d.rut_contraparte == null ? csvCell.missing() : csvCell.identifier(d.rut_contraparte),
+      d.razon_social == null ? csvCell.missing() : csvCell.text(d.razon_social),
+      d.monto_neto == null ? csvCell.missing() : csvCell.decimal(d.monto_neto),
+      d.monto_iva == null ? csvCell.missing() : csvCell.decimal(d.monto_iva),
+      d.monto_total == null ? csvCell.missing() : csvCell.decimal(d.monto_total),
+    ]),
+    { eol: "\r\n" },
+  );
 }
 
-/** Serializa los documentos a CSV (separador `;` — convención Excel es-CL). */
+/** CSV interoperable: no contiene tipos de celda para Excel. */
 export function docsToCsv(docs: RcvDoc[]): string {
-  const headers = ["Tipo", "Folio", "Fecha", "RUT", "Razon social", "Neto", "IVA", "Total"];
-  const rows = docs.map((d) =>
-    [
-      d.tipo_doc ?? "",
-      d.folio ?? "",
-      d.fecha ?? "",
-      d.rut_contraparte ?? "",
-      d.razon_social ?? "",
-      num(d.monto_neto),
-      num(d.monto_iva),
-      num(d.monto_total),
-    ]
-      .map(csvCell)
-      .join(";"),
-  );
-  return [headers.join(";"), ...rows].join("\r\n");
+  const table = docsToCsvTable(docs);
+  return csv(table.headers, table.rows, table.dialect);
 }

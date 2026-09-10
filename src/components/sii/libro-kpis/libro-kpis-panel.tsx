@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { downloadXlsx } from "@/lib/export/xlsx";
 import { Download, Users } from "lucide-react";
 import { QavanteButton, QavanteCard } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
@@ -9,7 +10,7 @@ import { KpiCell } from "@/components/ui/kpi-strip";
 import { computeRcvTotals } from "../rcv-totals";
 import type { RcvDoc } from "../rcv-grouped-item";
 import type { RcvKind } from "../rcv-list-view";
-import { concentrationByCounterparty, docsToCsv } from "./libro-kpis-format";
+import { concentrationByCounterparty, docsToCsvTable } from "./libro-kpis-format";
 import { formatPct } from "@/lib/formatters/pct";
 
 /* Panel de KPIs del Libro (Ventas/Compras) — control de gestión.
@@ -36,15 +37,7 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
   const ivaLabel = kind === "ventas" ? "IVA débito" : "IVA crédito";
 
   function exportCsv() {
-    const csv = docsToCsv(docs);
-    // BOM para que Excel es-CL respete UTF-8 (tildes/ñ).
-    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `libro-${kind}${periodo ? `-${periodo}` : ""}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadXlsx(`libro-${kind}${periodo ? `-${periodo}` : ""}.xlsx`, docsToCsvTable(docs));
   }
 
   return (
@@ -85,7 +78,7 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
               disabled={docs.length === 0}
             >
               <Download className="h-3.5 w-3.5" aria-hidden="true" />
-              Exportar CSV
+              Exportar Excel
             </QavanteButton>
           </div>
         }

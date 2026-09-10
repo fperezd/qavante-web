@@ -1,3 +1,4 @@
+import { exportTable, type ExportTable } from "@/lib/export/table";
 /* V04 · Cobrar — el modelo PURO de la vista (rediseño Fase 2, issue #69).
  *
  * Contesta UNA pregunta: "¿quién me debe?".
@@ -38,6 +39,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatPct } from "@/lib/formatters/pct";
 import { formatDateLong, formatDateShort, formatRelative } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
+import { csv, csvCell } from "@/lib/export/csv";
 import { concentracionPct } from "@/components/gestion/v2/contraparte-360-model";
 import {
   explicarVencidoSinDato,
@@ -564,29 +566,24 @@ export function textoCountdown(segundos: number, n: number): string {
 
 /* ── Exportar (§5.5) ─────────────────────────────────────────────────────────── */
 
-function csvCampo(v: string | number | null): string {
-  if (v == null) return "";
-  const s = String(v);
-  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+/** CSV con `;` (Excel es-CL). Montos crudos, sin formatear; el "no se sabe" va como "sin dato". */
+export function csvClientesTable(clientes: ReadonlyArray<ClienteV04>): ExportTable {
+  return exportTable(
+    ["cliente", "rut", "saldo", "vencido", "dias_vencido", "antiguedad", "ultima_gestion"],
+    clientes.map((c) => [
+      csvCell.text(c.nombre),
+      c.rut == null ? csvCell.missing() : csvCell.identifier(c.rut),
+      csvCell.decimal(c.saldo),
+      c.vencido == null ? csvCell.text("sin dato") : csvCell.decimal(c.vencido),
+      c.dias == null ? csvCell.missing() : csvCell.integer(c.dias),
+      csvCell.text(c.antiguedad.texto),
+      c.ultimaGestion == null ? csvCell.missing() : csvCell.text(c.ultimaGestion),
+    ]),
+  );
 }
 
-/** CSV con `;` (Excel es-CL). Montos crudos, sin formatear; el "no se sabe" va como "sin dato". */
+/** CSV interoperable: no contiene tipos de celda para Excel. */
 export function csvClientes(clientes: ReadonlyArray<ClienteV04>): string {
-  const filas = [
-    ["cliente", "rut", "saldo", "vencido", "dias_vencido", "antiguedad", "ultima_gestion"].join(
-      ";",
-    ),
-    ...clientes.map((c) =>
-      [
-        csvCampo(c.nombre),
-        csvCampo(c.rut),
-        csvCampo(c.saldo),
-        c.vencido == null ? "sin dato" : csvCampo(c.vencido),
-        csvCampo(c.dias),
-        csvCampo(c.antiguedad.texto),
-        csvCampo(c.ultimaGestion),
-      ].join(";"),
-    ),
-  ];
-  return filas.join("\n");
+  const table = csvClientesTable(clientes);
+  return csv(table.headers, table.rows, table.dialect);
 }

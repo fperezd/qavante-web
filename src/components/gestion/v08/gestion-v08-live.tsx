@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { downloadCsv } from "@/lib/export/csv";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDashboardSummary } from "@/lib/api/dashboard";
 import { useCashCycle } from "@/lib/api/treasury";
@@ -170,17 +171,8 @@ export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
   );
 }
 
-/** El backend ya entrega BOM UTF-8; no se agrega otro al bajar el archivo nativo. */
-function descargarCsv(nombre: string, contenido: string) {
-  if (typeof document === "undefined") return;
-  const blob = new Blob([contenido], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const enlace = document.createElement("a");
-  enlace.href = url;
-  enlace.download = nombre;
-  enlace.click();
-  URL.revokeObjectURL(url);
-}
+/** El helper conserva exactamente un BOM también para el archivo nativo API. */
+const descargarCsv = downloadCsv;
 
 /** Por qué no llegó, en lenguaje de dueño (§5.4: un error siempre dice su causa). */
 export function motivo(err: unknown, fuente: string): string {

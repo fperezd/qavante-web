@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { downloadXlsx } from "@/lib/export/xlsx";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Info, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,7 +22,7 @@ import {
   concentracion,
   contarClientes,
   crumbGestion,
-  csvClientes,
+  csvClientesTable,
   explicacionBruto,
   explicacionVencido,
   filtrarClientes,
@@ -295,7 +296,7 @@ export function CobrarV04View({
           copiadoKey={copiadoKey}
           onCopiar={copiar}
           onToggleGestionado={onToggleGestionado}
-          onExport={() => descargarCsv("clientes-por-cobrar.csv", csvClientes(visibles))}
+          onExport={() => descargarExcel("clientes-por-cobrar.xlsx", csvClientesTable(visibles))}
           emptyMessage={
             clientes.length === 0
               ? "El registro no trae el detalle por cliente todavía."
@@ -898,14 +899,5 @@ function TablaClientes({
   );
 }
 
-/** Exportar (§5.5): descarga el CSV en el navegador. Sólo corre en cliente. */
-function descargarCsv(nombre: string, contenido: string) {
-  if (typeof document === "undefined") return;
-  const blob = new Blob([`﻿${contenido}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+/** Exportar (§5.5): descarga Excel con celdas tipadas en el navegador. Sólo corre en cliente. */
+const descargarExcel = downloadXlsx;

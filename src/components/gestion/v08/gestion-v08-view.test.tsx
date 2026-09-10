@@ -274,10 +274,9 @@ describe("sección Costos y gastos (dentro de Resultado)", () => {
     expect(t).toContain("bajan la confianza del dato");
   });
 
-  it("declara el hueco del export xls por su nombre", () => {
+  it("declara que la descarga Excel conserva las filas y montos del cuadro", () => {
     const t = texto(html());
-    expect(t).toContain("El export nativo a xls todavía no existe en el backend (#92)");
-    expect(t).toContain("lo que baja acá es CSV, exacto sobre lo que ves");
+    expect(t).toContain("La descarga Excel contiene las mismas filas y montos del cuadro");
   });
 });
 

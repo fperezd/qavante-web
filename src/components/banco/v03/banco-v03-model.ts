@@ -1,3 +1,4 @@
+import { exportTable, type ExportTable } from "@/lib/export/table";
 /* V03 · Banco — el modelo PURO de la vista (rediseño Fase 2, issue #68).
  *
  * Contesta: "¿qué hay en mis cuentas y en qué estado está cada movimiento?".
@@ -33,6 +34,7 @@ import type { CajaHoy } from "@/lib/finanzas/caja-hoy";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateShort, formatRelative } from "@/lib/formatters/date";
+import { csv, csvCell } from "@/lib/export/csv";
 
 /* ── Conexión ────────────────────────────────────────────────────────────────── */
 
@@ -778,37 +780,26 @@ export function subMovimiento(m: MovimientoV03): string {
 
 /* ── Exportar ────────────────────────────────────────────────────────────────── */
 
-function celdaCsv(v: string | number): string {
-  const s = String(v);
-  return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+/** Movimientos filtrados con celdas tipadas para XLSX y CSV interoperable.
+ * Monto firmado en crudo (sin formato) para que la planilla lo sume. */
+export function csvMovimientosTable(movs: readonly MovimientoV03[]): ExportTable {
+  return exportTable(
+    ["fecha", "glosa", "cuenta", "categoria", "conciliacion", "clasificacion", "moneda", "monto"],
+    movs.map((m) => [
+      csvCell.date(m.fecha),
+      csvCell.text(m.glosa),
+      csvCell.text(m.cuenta),
+      m.categoria == null ? csvCell.missing() : csvCell.text(m.categoria),
+      csvCell.text(CONCILIACION_PILL[m.estadoConciliacion].texto.replace(" ✓", "")),
+      csvCell.text(CLASIFICACION_PILL[m.estadoClasificacion].texto.replace(" ✓", "")),
+      csvCell.text(m.moneda),
+      csvCell.decimal(m.monto),
+    ]),
+  );
 }
 
-/** CSV (separador `;`, el que abre Excel en es-CL sin asistente) de los movimientos filtrados.
- *  Monto firmado en crudo (sin formato) para que la planilla lo sume. */
+/** CSV interoperable: no contiene tipos de celda para Excel. */
 export function csvMovimientos(movs: readonly MovimientoV03[]): string {
-  const filas = [
-    [
-      "fecha",
-      "glosa",
-      "cuenta",
-      "categoria",
-      "conciliacion",
-      "clasificacion",
-      "moneda",
-      "monto",
-    ].join(";"),
-    ...movs.map((m) =>
-      [
-        m.fecha,
-        celdaCsv(m.glosa),
-        celdaCsv(m.cuenta),
-        celdaCsv(m.categoria ?? ""),
-        CONCILIACION_PILL[m.estadoConciliacion].texto.replace(" ✓", ""),
-        CLASIFICACION_PILL[m.estadoClasificacion].texto.replace(" ✓", ""),
-        m.moneda,
-        m.monto,
-      ].join(";"),
-    ),
-  ];
-  return filas.join("\n");
+  const table = csvMovimientosTable(movs);
+  return csv(table.headers, table.rows, table.dialect);
 }

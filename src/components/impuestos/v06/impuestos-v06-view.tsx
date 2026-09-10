@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { downloadXlsx } from "@/lib/export/xlsx";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
@@ -15,7 +16,7 @@ import {
   ESTADO_TONO_V06,
   LEY_9_TEXTO_V06,
   concordar,
-  csvCalendarioV06,
+  csvCalendarioV06Table,
   elUnicoRojoV06,
   estimacionF29V06,
   f29EstimadoHuecoV06,
@@ -314,21 +315,12 @@ function TablaCalendario({
       pageSize={25}
       countNoun={concordar(filas.length, "obligación tributaria", "obligaciones tributarias")}
       emptyMessage="Sin movimientos tributarios."
-      onExport={() => descargarCsv("impuestos-calendario.csv", csvCalendarioV06(filas))}
+      onExport={() => descargarExcel("impuestos-calendario.xlsx", csvCalendarioV06Table(filas))}
       celdasCompactasEnAngosto
     />
   );
 }
 
-/** Exportar (§5.5): descarga el CSV en el navegador (mismo patrón que
+/** Exportar (§5.5): descarga Excel con celdas tipadas en el navegador (mismo patrón que
  *  `presupuesto-v09-view.tsx` / `gestion-v08-view.tsx`). Sólo corre en cliente. */
-function descargarCsv(nombre: string, contenido: string) {
-  if (typeof document === "undefined") return;
-  const blob = new Blob([`﻿${contenido}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+const descargarExcel = downloadXlsx;

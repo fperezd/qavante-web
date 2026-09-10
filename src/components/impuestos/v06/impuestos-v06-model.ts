@@ -1,3 +1,4 @@
+import { exportTable, type ExportTable } from "@/lib/export/table";
 /* V06 · Impuestos — modelo PURO (issue tooxs-digital/qavante-web#73, ESPECIFICACION §V06). Sin
  * React, como `presupuesto-v09-model.ts` / `gestion-v08-model.ts`: cada cifra de la tríada y cada
  * fila del calendario tributario se fija en un test sin montar un DOM.
@@ -56,6 +57,7 @@ import { formularioLabelTgr } from "@/components/pagar/tgr-format";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { formatRelative } from "@/lib/formatters/date";
 import { concordar } from "@/lib/formatters/count";
+import { csv, csvCell } from "@/lib/export/csv";
 export { concordar };
 
 /* ── Texto fijo de la Ley 9 (issue #73, footer literal) ──────────────────────────────────────── */
@@ -656,24 +658,22 @@ export function triadaTgrV06(filas: readonly FilaCalendarioV06[]): TriadaTgrV06 
 
 /* ── Exportar (§5.5): CSV del calendario ─────────────────────────────────────────────────────── */
 
-function csvCampo(v: string | number | null): string {
-  if (v == null) return "";
-  const s = String(v);
-  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+export function csvCalendarioV06Table(filas: readonly FilaCalendarioV06[]): ExportTable {
+  return exportTable(
+    ["concepto", "estado", "vencimiento", "dias", "monto", "moneda"],
+    filas.map((f) => [
+      csvCell.text(f.label),
+      csvCell.text(ESTADO_LABEL_V06[f.estado]),
+      f.vencimiento == null ? csvCell.text("sin fecha") : csvCell.date(f.vencimiento),
+      f.dias == null ? csvCell.text("sin fecha") : csvCell.integer(f.dias),
+      f.monto == null ? csvCell.text("sin dato") : csvCell.decimal(f.monto),
+      f.moneda == null ? csvCell.text("sin dato") : csvCell.text(f.moneda),
+    ]),
+  );
 }
 
+/** CSV interoperable: no contiene tipos de celda para Excel. */
 export function csvCalendarioV06(filas: readonly FilaCalendarioV06[]): string {
-  return [
-    ["concepto", "estado", "vencimiento", "dias", "monto", "moneda"].join(";"),
-    ...filas.map((f) =>
-      [
-        csvCampo(f.label),
-        csvCampo(ESTADO_LABEL_V06[f.estado]),
-        f.vencimiento == null ? "sin fecha" : csvCampo(f.vencimiento),
-        f.dias == null ? "sin fecha" : csvCampo(f.dias),
-        f.monto == null ? "sin dato" : csvCampo(f.monto),
-        f.moneda == null ? "sin dato" : csvCampo(f.moneda),
-      ].join(";"),
-    ),
-  ].join("\n");
+  const table = csvCalendarioV06Table(filas);
+  return csv(table.headers, table.rows, table.dialect);
 }

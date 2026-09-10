@@ -1,3 +1,4 @@
+import { exportTable, type ExportTable } from "@/lib/export/table";
 /* V05 · Pagar — el modelo PURO de la vista (rediseño Fase 2, issue #70).
  *
  * Contesta UNA pregunta: "¿a quién le pago, y qué es crítico?".
@@ -43,6 +44,7 @@
 
 import type { AccountsPayableResponse, PayableDuplicatePair, PayableItem } from "@/lib/api/pagos";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
+import { csv, csvCell } from "@/lib/export/csv";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { formatDateLong, formatDateShort, formatRelative } from "@/lib/formatters/date";
 import { formatRut } from "@/lib/formatters/rut";
@@ -699,16 +701,10 @@ export function faltantes(ap: AccountsPayableResponse | null | undefined): strin
 
 /* ── Exportar (§5.5) ─────────────────────────────────────────────────────────── */
 
-function csvCampo(v: string | number | null): string {
-  if (v == null) return "";
-  const s = String(v);
-  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 /** CSV con `;` (Excel es-CL). Montos crudos en su moneda; el CLP convertido aparte; el "no sé" va
  *  como "sin dato"/"sin fecha". */
-export function csvPagos(pagos: ReadonlyArray<PagoV05>): string {
-  const filas = [
+export function csvPagosTable(pagos: ReadonlyArray<PagoV05>): ExportTable {
+  return exportTable(
     [
       "proveedor",
       "documento",
@@ -721,22 +717,25 @@ export function csvPagos(pagos: ReadonlyArray<PagoV05>): string {
       "monto_clp",
       "fuente",
       "anomalia",
-    ].join(";"),
-    ...pagos.map((p) =>
-      [
-        csvCampo(p.nombre),
-        csvCampo(p.documento),
-        csvCampo(p.rut),
-        p.dueDate == null ? "sin fecha" : csvCampo(p.dueDate),
-        p.dias == null ? "sin fecha" : csvCampo(p.dias),
-        csvCampo(TIPO_LABEL[p.tipo]),
-        csvCampo(p.moneda),
-        csvCampo(parseAmount(p.item.amount)),
-        p.montoClp == null ? "sin dato" : csvCampo(p.montoClp),
-        csvCampo(p.fuente),
-        csvCampo(p.anomalia?.detalle ?? null),
-      ].join(";"),
-    ),
-  ];
-  return filas.join("\n");
+    ],
+    pagos.map((p) => [
+      csvCell.text(p.nombre),
+      p.documento == null ? csvCell.missing() : csvCell.identifier(p.documento),
+      p.rut == null ? csvCell.missing() : csvCell.identifier(p.rut),
+      p.dueDate == null ? csvCell.text("sin fecha") : csvCell.date(p.dueDate),
+      p.dias == null ? csvCell.text("sin fecha") : csvCell.integer(p.dias),
+      csvCell.text(TIPO_LABEL[p.tipo]),
+      csvCell.text(p.moneda),
+      csvCell.decimal(parseAmount(p.item.amount)),
+      p.montoClp == null ? csvCell.text("sin dato") : csvCell.decimal(p.montoClp),
+      csvCell.text(p.fuente),
+      p.anomalia?.detalle == null ? csvCell.missing() : csvCell.text(p.anomalia.detalle),
+    ]),
+  );
+}
+
+/** CSV interoperable: no contiene tipos de celda para Excel. */
+export function csvPagos(pagos: ReadonlyArray<PagoV05>): string {
+  const table = csvPagosTable(pagos);
+  return csv(table.headers, table.rows, table.dialect);
 }

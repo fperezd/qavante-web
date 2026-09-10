@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { downloadXlsx } from "@/lib/export/xlsx";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { BudgetVsActualResponse } from "@/lib/api/planning";
 import { parseAmount } from "@/lib/formatters/amount";
@@ -12,7 +13,7 @@ import { Pill } from "@/components/rediseno/pill";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
 import {
   concordar,
-  csvDesviosV09,
+  csvDesviosV09Table,
   desviosV09,
   estadoDatosV09,
   resultRealCoincideConResultado,
@@ -380,7 +381,7 @@ function TablaDesvios({
       countNoun={concordar(desvios.length, "concepto desviado", "conceptos desviados")}
       emptyMessage="Sin desvíos en este período."
       onExport={() =>
-        descargarCsv(`presupuesto-desvios-${periodoLabel}.csv`, csvDesviosV09(desvios))
+        descargarExcel(`presupuesto-desvios-${periodoLabel}.xlsx`, csvDesviosV09Table(desvios))
       }
       /* Ley 7 a 320 px (revisión adversarial, PR #102 vuelta 2): en el Chromium headless de Linux
          que corre `test-storybook`, la tabla desbordaba 1 px a 320 — las fuentes de ese runner
@@ -394,16 +395,7 @@ function TablaDesvios({
   );
 }
 
-/** Exportar (§5.5): descarga el CSV en el navegador. Sólo corre en cliente (mismo patrón que
+/** Exportar (§5.5): descarga Excel con celdas tipadas en el navegador. Sólo corre en cliente (mismo patrón que
  *  `gestion-v08-view.tsx` / `remuneraciones-v16-view.tsx` — cada V-pantalla trae su propia copia,
  *  consolidación pendiente allá también). */
-function descargarCsv(nombre: string, contenido: string) {
-  if (typeof document === "undefined") return;
-  const blob = new Blob([`﻿${contenido}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+const descargarExcel = downloadXlsx;

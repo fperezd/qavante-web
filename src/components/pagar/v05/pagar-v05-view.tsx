@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { downloadXlsx } from "@/lib/export/xlsx";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Info, Search } from "lucide-react";
@@ -24,7 +25,7 @@ import {
   VENTANA_DIAS,
   bannerPostergables,
   contarPagos,
-  csvPagos,
+  csvPagosTable,
   elUnicoRojo,
   explicacionCritico,
   explicacionPorPagar,
@@ -347,7 +348,7 @@ export function PagarV05View({
           pagos={visibles}
           totalPagos={filas.length}
           rojo={rojo}
-          onExport={() => descargarCsv("pagos-por-pagar.csv", csvPagos(visibles))}
+          onExport={() => descargarExcel("pagos-por-pagar.xlsx", csvPagosTable(visibles))}
           emptyMessage={
             consulta.trim()
               ? "Ningún pago coincide con esa búsqueda."
@@ -649,14 +650,5 @@ function Dato({ k, v }: { k: string; v: string }) {
   );
 }
 
-/** Exportar (§5.5): descarga el CSV en el navegador. Sólo corre en cliente. */
-function descargarCsv(nombre: string, contenido: string) {
-  if (typeof document === "undefined") return;
-  const blob = new Blob([`﻿${contenido}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+/** Exportar (§5.5): descarga Excel con celdas tipadas en el navegador. Sólo corre en cliente. */
+const descargarExcel = downloadXlsx;

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { downloadXlsx } from "@/lib/export/xlsx";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Info, RefreshCw, Search } from "lucide-react";
@@ -30,7 +31,7 @@ import {
   chipCajaHoy,
   conexionBanco,
   contarMovimientosV03,
-  csvMovimientos,
+  csvMovimientosTable,
   cuadreCajaHoy,
   cuentasV03,
   filtrarMovimientosV03,
@@ -527,7 +528,10 @@ export function BancoV03View({
             <TablaMovimientos
               movimientos={visibles}
               onExport={() =>
-                descargarCsv(`movimientos-${banco.toLowerCase()}.csv`, csvMovimientos(visibles))
+                descargarExcel(
+                  `movimientos-${banco.toLowerCase()}.xlsx`,
+                  csvMovimientosTable(visibles),
+                )
               }
               emptyMessage={
                 consulta.trim()
@@ -852,14 +856,5 @@ function CargandoMovimientos() {
   );
 }
 
-/** Exportar (§5.5): descarga el CSV en el navegador. Sólo corre en cliente. */
-function descargarCsv(nombre: string, contenido: string) {
-  if (typeof document === "undefined") return;
-  const blob = new Blob([`﻿${contenido}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+/** Exportar (§5.5): descarga Excel con celdas tipadas en el navegador. Sólo corre en cliente. */
+const descargarExcel = downloadXlsx;

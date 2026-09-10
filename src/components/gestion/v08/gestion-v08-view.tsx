@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { downloadXlsx } from "@/lib/export/xlsx";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,9 +35,9 @@ import {
   comparativoAlDia,
   confianzaDato,
   costosDelMes,
-  csv360,
-  csvComparativo,
-  csvCostos,
+  csv360Table,
+  csvComparativoTable,
+  csvCostosTable,
   equilibrioResumen,
   excepcionesFooter,
   filasPivote,
@@ -705,7 +706,6 @@ function FilasDocumentos({
 function SeccionCostos({
   filas,
   periodo,
-  issueSucesor,
 }: {
   filas: FilaPivote[];
   periodo: string | null;
@@ -793,7 +793,10 @@ function SeccionCostos({
           data={lineas}
           pageSize={12}
           onExport={() =>
-            descargarCsv(`gestion-costos-${periodo ?? "mes"}.csv`, csvCostos(lineas, periodo ?? ""))
+            descargarExcel(
+              `gestion-costos-${periodo ?? "mes"}.xlsx`,
+              csvCostosTable(lineas, periodo ?? ""),
+            )
           }
         />
       )}
@@ -805,8 +808,7 @@ function SeccionCostos({
       )}
       <p className="text-[12.5px] text-rediseno-tinta-3">
         Cada cuenta se abre hasta el documento desde el cuadro de arriba (clic en el monto del mes).
-        El export nativo a xls todavía no existe en el backend
-        {issueSucesor ? ` (${issueSucesor})` : ""}: lo que baja acá es CSV, exacto sobre lo que ves.
+        La descarga Excel contiene las mismas filas y montos del cuadro.
       </p>
     </section>
   );
@@ -1118,9 +1120,9 @@ function TabComparativo({
           <button
             type="button"
             className={LINK}
-            onClick={() => descargarCsv("gestion-comparativo.csv", csvComparativo(c))}
+            onClick={() => descargarExcel("gestion-comparativo.xlsx", csvComparativoTable(c))}
           >
-            ⬇ Exportar CSV
+            ⬇ Exportar Excel
           </button>
           <span>
             · flujo del registro de compras y ventas, sin nómina ni honorarios (no devengan por día)
@@ -1387,7 +1389,7 @@ function TablaDocs360({ docs, nombre }: { docs: DocContraparte[]; nombre: string
         data={docs}
         pageSize={12}
         emptyMessage="Sin documentos en los últimos 12 meses."
-        onExport={() => descargarCsv(`360-${nombre}.csv`, csv360(docs))}
+        onExport={() => descargarExcel(`360-${nombre}.xlsx`, csv360Table(docs))}
       />
       <p className="text-[12.5px] text-rediseno-tinta-3">
         Suman {formatClp(docs.reduce((s, d) => s + d.monto, 0))} · las notas de crédito restan.
@@ -1396,14 +1398,5 @@ function TablaDocs360({ docs, nombre }: { docs: DocContraparte[]; nombre: string
   );
 }
 
-/** Exportar (§5.5): descarga el CSV en el navegador. Sólo corre en cliente. */
-function descargarCsv(nombre: string, contenido: string) {
-  if (typeof document === "undefined") return;
-  const blob = new Blob([`﻿${contenido}`], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+/** Exportar (§5.5): descarga Excel con celdas tipadas en el navegador. Sólo corre en cliente. */
+const descargarExcel = downloadXlsx;

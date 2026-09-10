@@ -1,3 +1,4 @@
+import { exportTable, type ExportTable } from "@/lib/export/table";
 /* V08 · Gestión — modelo PURO (sin React, sin DOM → testeable en vitest unit).
  *
  * La spec (§V08) unifica NUEVE páginas en UNA vista de SEIS tabs. Todo lo que decide qué número
@@ -38,6 +39,7 @@ import type {
 import type { CashCycleResponse } from "@/lib/api/treasury";
 import type { DashboardSummaryResponse } from "@/lib/api/dashboard";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
+import { csv, csvCell } from "@/lib/export/csv";
 import { montoDocEnCuenta, shiftPeriod } from "../gestion-format";
 import { computePuntoEquilibrio } from "../v2/punto-equilibrio-model";
 import {
@@ -722,77 +724,84 @@ export { concentracionPct };
 
 /* ────────────────────────── Exportar (§5.5) ────────────────────────── */
 
-function csvCampo(v: string | number | null): string {
-  if (v == null) return "";
-  const s = String(v);
-  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 /** CSV del pivote con `;` (Excel es-CL). Exporta EXACTAMENTE lo que está en pantalla: las mismas
  *  filas, los mismos meses, los mismos montos. El "no sé" viaja como "sin dato", nunca como 0.
  *
  *  El xls nativo es un 🔧 de backend que NO existe: exportar CSV es exacto sobre lo mostrado y se
  *  anuncia por su nombre ("Exportar CSV"), no como "xls". */
-export function csvPivote(filas: ReadonlyArray<FilaPivote>, months: ReadonlyArray<string>): string {
-  const cab = ["concepto", "nivel", ...months, "total"].join(";");
-  const linea = (f: FilaPivote) =>
-    [
-      csvCampo(f.label),
-      f.nivel === 0 ? "seccion" : "cuenta",
+export function csvPivoteTable(
+  filas: ReadonlyArray<FilaPivote>,
+  months: ReadonlyArray<string>,
+): ExportTable {
+  const flatten = filas.flatMap((f) => [f, ...f.hijos]);
+  return exportTable(
+    ["concepto", "nivel", ...months, "total"],
+    flatten.map((f) => [
+      csvCell.text(f.label),
+      csvCell.text(f.nivel === 0 ? "seccion" : "cuenta"),
       ...months.map((m) => {
-        const c = f.celdas.find((x) => x.periodo === m);
-        return c?.monto == null ? "sin dato" : csvCampo(c.monto);
+        const cell = f.celdas.find((x) => x.periodo === m);
+        return cell?.monto == null ? csvCell.text("sin dato") : csvCell.decimal(cell.monto);
       }),
-      csvCampo(f.total),
-    ].join(";");
-  const filasCsv: string[] = [];
-  for (const f of filas) {
-    filasCsv.push(linea(f));
-    for (const h of f.hijos) filasCsv.push(linea(h));
-  }
-  return [cab, ...filasCsv].join("\n");
+      csvCell.decimal(f.total),
+    ]),
+  );
+}
+
+/** CSV interoperable: no contiene tipos de celda para Excel. */
+export function csvPivote(filas: ReadonlyArray<FilaPivote>, months: ReadonlyArray<string>): string {
+  const table = csvPivoteTable(filas, months);
+  return csv(table.headers, table.rows, table.dialect);
 }
 
 /** CSV del comparativo. Las tres columnas viajan con su nombre completo, incluido el corte al día:
  *  un archivo que dijera sólo "agosto" y "julio" reintroduciría fuera de la app la ambigüedad que
  *  la regla de oro vino a matar. */
+export function csvComparativoTable(c: ComparativoV08): ExportTable {
+  const missingOrDecimal = (value: number | null) =>
+    value == null ? csvCell.text("sin dato") : csvCell.decimal(value);
+  return exportTable(
+    [
+      "concepto",
+      `${c.periodo}_al_dia_${c.hastaDia}`,
+      `${c.periodoAnterior}_al_dia_${c.hastaDia}`,
+      `${c.periodoAnterior}_completo`,
+      "variacion_pct_misma_altura",
+    ],
+    c.filas.map((f) => [
+      csvCell.text(f.label),
+      missingOrDecimal(f.actual),
+      missingOrDecimal(f.anteriorMismaAltura),
+      missingOrDecimal(f.anteriorCompleto),
+      missingOrDecimal(f.deltaPct),
+    ]),
+  );
+}
+
+/** CSV interoperable: no contiene tipos de celda para Excel. */
 export function csvComparativo(c: ComparativoV08): string {
-  const cab = [
-    "concepto",
-    `${c.periodo}_al_dia_${c.hastaDia}`,
-    `${c.periodoAnterior}_al_dia_${c.hastaDia}`,
-    `${c.periodoAnterior}_completo`,
-    "variacion_pct_misma_altura",
-  ].join(";");
-  const sd = (v: number | null) => (v == null ? "sin dato" : csvCampo(v));
-  return [
-    cab,
-    ...c.filas.map((f) =>
-      [
-        csvCampo(f.label),
-        sd(f.actual),
-        sd(f.anteriorMismaAltura),
-        sd(f.anteriorCompleto),
-        sd(f.deltaPct),
-      ].join(";"),
-    ),
-  ].join("\n");
+  const table = csvComparativoTable(c);
+  return csv(table.headers, table.rows, table.dialect);
 }
 
 /** CSV de los costos del mes. */
+export function csvCostosTable(lineas: ReadonlyArray<LineaCosto>, periodo: string): ExportTable {
+  return exportTable(
+    ["cuenta", "codigo", `monto_${periodo}`, "pct_ingresos", "sin_clasificar"],
+    lineas.map((l) => [
+      csvCell.text(l.label),
+      csvCell.identifier(l.codigo),
+      csvCell.decimal(l.monto),
+      l.pctIngresos == null ? csvCell.text("sin dato") : csvCell.decimal(l.pctIngresos),
+      csvCell.text(l.sinClasificar ? "si" : "no"),
+    ]),
+  );
+}
+
+/** CSV interoperable: no contiene tipos de celda para Excel. */
 export function csvCostos(lineas: ReadonlyArray<LineaCosto>, periodo: string): string {
-  return [
-    ["cuenta", "codigo", `monto_${periodo}`, "pct_ingresos", "sin_clasificar"].join(";"),
-    ...lineas.map((l) =>
-      [
-        csvCampo(l.label),
-        csvCampo(l.codigo),
-        csvCampo(l.monto),
-        l.pctIngresos == null ? "sin dato" : csvCampo(l.pctIngresos),
-        l.sinClasificar ? "si" : "no",
-      ].join(";"),
-    ),
-  ].join("\n");
+  const table = csvCostosTable(lineas, periodo);
+  return csv(table.headers, table.rows, table.dialect);
 }
 
 /* ────────────────────────── 360 · perfil de la contraparte ────────────────────────── */
@@ -924,13 +933,22 @@ export function perfil360(
 }
 
 /** CSV de los documentos del 360. */
+export function csv360Table(docs: ReadonlyArray<DocContraparte>): ExportTable {
+  return exportTable(
+    ["fecha", "folio", "tipo", "monto"],
+    docs.map((d) => [
+      csvCell.date(d.fecha),
+      d.folio == null ? csvCell.missing() : csvCell.identifier(d.folio),
+      csvCell.text(d.tipo),
+      csvCell.decimal(d.monto),
+    ]),
+  );
+}
+
+/** CSV interoperable: no contiene tipos de celda para Excel. */
 export function csv360(docs: ReadonlyArray<DocContraparte>): string {
-  return [
-    ["fecha", "folio", "tipo", "monto"].join(";"),
-    ...docs.map((d) =>
-      [csvCampo(d.fecha), csvCampo(d.folio), csvCampo(d.tipo), csvCampo(d.monto)].join(";"),
-    ),
-  ].join("\n");
+  const table = csv360Table(docs);
+  return csv(table.headers, table.rows, table.dialect);
 }
 
 export interface Lista360 {

@@ -1,3 +1,4 @@
+import { exportTable, type ExportTable } from "@/lib/export/table";
 /* V09 · Presupuesto — modelo PURO (issue qavante-web#74, ESPECIFICACION §V09). Sin React, como
  * `gestion-v08-model.ts` / `remuneraciones-v16-model.ts`: cada cifra de la tríada y de la tabla de
  * desvíos se fija en un test sin montar un DOM.
@@ -54,6 +55,7 @@
 
 import type { BudgetLine, BudgetVsActualResponse } from "@/lib/api/planning";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
+import { csv, csvCell } from "@/lib/export/csv";
 import { currentPeriodSantiago, shiftPeriod } from "../../gestion/gestion-format";
 
 /* ── Período por defecto: el último mes CERRADO ───────────────────────────────────────────────
@@ -211,23 +213,21 @@ export { concordar } from "@/lib/formatters/count";
 /* ── Exportar (§5.5): CSV de la tabla de desvíos ──────────────────────────────────────────────
  * Exacto sobre lo que está en pantalla: las mismas filas, los mismos montos y el mismo `variance`/
  * `variance_pct` sin recalcular (mismo patrón que `csvCostos`/`csvPivote` de `gestion-v08-model.ts`). */
-function csvCampo(v: string | number | null): string {
-  if (v == null) return "";
-  const s = String(v);
-  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+export function csvDesviosV09Table(filas: ReadonlyArray<DesvioLineaV09>): ExportTable {
+  return exportTable(
+    ["concepto", "plan", "real", "desvio", "desvio_pct"],
+    filas.map((f) => [
+      csvCell.text(f.label),
+      csvCell.decimal(f.plan),
+      csvCell.decimal(f.real),
+      csvCell.decimal(f.desvio),
+      f.desvioPct == null ? csvCell.text("sin dato") : csvCell.decimal(f.desvioPct),
+    ]),
+  );
 }
 
+/** CSV interoperable: no contiene tipos de celda para Excel. */
 export function csvDesviosV09(filas: ReadonlyArray<DesvioLineaV09>): string {
-  return [
-    ["concepto", "plan", "real", "desvio", "desvio_pct"].join(";"),
-    ...filas.map((f) =>
-      [
-        csvCampo(f.label),
-        csvCampo(f.plan),
-        csvCampo(f.real),
-        csvCampo(f.desvio),
-        f.desvioPct == null ? "sin dato" : csvCampo(f.desvioPct),
-      ].join(";"),
-    ),
-  ].join("\n");
+  const table = csvDesviosV09Table(filas);
+  return csv(table.headers, table.rows, table.dialect);
 }
