@@ -71,7 +71,7 @@ export function OpeningCutoffCardView({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="flex items-center gap-2 font-medium">
             <CalendarClock className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-            Conciliación de apertura
+            Corte de apertura
           </span>
           {active && <QavanteBadge variant="success">Activo</QavanteBadge>}
         </div>

@@ -21,6 +21,8 @@ function render(props: Partial<React.ComponentProps<typeof OpeningCutoffCardView
 describe("OpeningCutoffCardView", () => {
   it("explica que el corte conserva historia y no inventa conciliaciones", () => {
     const html = render();
+    expect(html).toContain("Corte de apertura");
+    expect(html).not.toContain("Conciliación de apertura");
     expect(html).toContain("El historial anterior se conserva");
     expect(html).toContain("no crea clasificaciones ni conciliaciones ficticias");
     expect(html).toContain("Tampoco presume pagadas");
