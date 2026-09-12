@@ -4,6 +4,21 @@ import type { BalanceData } from "@/lib/api/treasury";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 
+/** Only published financial actions; the forecast and bookkeeping already have their own destinations. */
+export function accionesFinancierasInicio(data: DashboardSummaryV2 | null) {
+  const seen = new Set<string>();
+  return [...(data?.priority_actions ?? [])]
+    .filter((action) => /^\/(cobrar|pagar)(\/|\?|#|$)/.test(action.cta_href))
+    .sort((a, b) => a.priority - b.priority)
+    .filter((action) => {
+      const key = [action.cta_href, action.reason, action.deadline].join("|");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3);
+}
+
 /** Presentation only: never reconstruct a gap from obligations minus projected cash. */
 export function resumenCaja(data: DashboardSummaryV2 | null, now = new Date()) {
   const cash = cajaHoy(data);

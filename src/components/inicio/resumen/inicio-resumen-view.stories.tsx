@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { InicioResumenView } from "./inicio-resumen-view";
-import { InicioCreditoLinea } from "./inicio-creditos-live";
-import { BUDGET, DEFICIT, EVALUATION, NO_DEFICIT, NOW } from "./inicio-resumen.fixtures";
+import { InicioCreditos } from "./inicio-creditos-live";
+import { InicioBancos } from "./inicio-bancos-live";
+import { DEFICIT, EVALUATION, NO_DEFICIT, NOW } from "./inicio-resumen.fixtures";
+import { MULTI_BANK_ACCOUNTS, MULTI_BANK_CREDITS } from "./inicio-bancos.fixtures";
 
 const meta = {
   title: "Inicio/Resumen aprobado",
@@ -12,14 +14,12 @@ const meta = {
     data: DEFICIT,
     empresa: "Empresa de ejemplo",
     hoy: NOW,
-    budget: BUDGET,
-    budgetPeriod: "2026-08",
     liquidityEvaluation: EVALUATION,
-    activities: [],
+    balances: <InicioBancos accounts={MULTI_BANK_ACCOUNTS} now={NOW} />,
     credits: (
-      <div className="mt-3 space-y-3 rounded-xl bg-background p-3 text-sm">
-        <p className="text-xs text-neutral-mid">Líneas de crédito · BICE</p>
-        <InicioCreditoLinea account="1234" currency="CLP" available={4000000} total={6000000} />
+      <div className="mt-4 rounded-xl bg-background p-3">
+        <p className="mb-3 text-sm font-medium">Líneas de crédito</p>
+        <InicioCreditos lines={MULTI_BANK_CREDITS} />
       </div>
     ),
   },
@@ -27,73 +27,195 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+async function verifyLayout(canvasElement: HTMLElement, mobile: boolean) {
+  const canvas = within(canvasElement);
+  const sections = canvas.getByTestId("inicio-caja").children;
+  await expect(sections[0]).toHaveAttribute("aria-labelledby", "inicio-proyeccion");
+  const left = sections[0]!.getBoundingClientRect();
+  const right = sections[1]!.getBoundingClientRect();
+  await expect(Math.abs(left.width - right.width)).toBeLessThan(1);
+  if (mobile) {
+    await expect(right.top).toBeGreaterThanOrEqual(left.bottom);
+    await expect(canvas.getByTestId("inicio-resumen").scrollWidth).toBeLessThanOrEqual(
+      canvas.getByTestId("inicio-resumen").clientWidth,
+    );
+  } else {
+    await expect(Math.abs(left.height - right.height)).toBeLessThan(1);
+    await expect(Math.abs(left.top - right.top)).toBeLessThan(1);
+  }
+}
+
 export const ConDeficit: Story = {
+  decorators: [
+    (Story) => (
+      <div style={{ width: 1080, maxWidth: "100%" }}>
+        <Story />
+      </div>
+    ),
+  ],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Faltante proyectado · CLP")).toBeVisible();
-    await expect(canvas.getByText(/Gastos · agosto de 2026/)).toBeVisible();
-    const sections = canvas.getByTestId("inicio-caja").children;
-    await expect(sections[0]).toHaveAttribute("aria-labelledby", "inicio-proyeccion");
-    const control = canvas.getByText("Evaluar decisión", { selector: "summary" });
-    await expect(control.closest("details")).not.toHaveAttribute("open");
+    await expect(canvas.getByText("Faltante proyectado", { selector: "h2" })).toBeVisible();
+    await expect(canvas.queryByText(/sobre presupuesto/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Revisión operativa")).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("heading", { name: "Requiere atención" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Control de decisiones y actividad")).not.toBeInTheDocument();
+    await verifyLayout(canvasElement, false);
+    const control = canvas.getByRole("button", { name: "Revisar opciones" });
+    await expect(control).toHaveAttribute("aria-expanded", "false");
     await userEvent.click(control);
-    await expect(control.closest("details")).toHaveAttribute("open");
     await expect(canvas.getByText("Alternativas para proteger tu caja")).toBeVisible();
+    await verifyLayout(canvasElement, false);
     await userEvent.click(control);
-    await expect(control.closest("details")).not.toHaveAttribute("open");
-    const comparison = canvas.getByText("Ver comparación", { selector: "summary" });
-    await expect(canvas.getByText("Presupuestado", { selector: "dt" })).not.toBeVisible();
-    await userEvent.click(comparison);
-    await expect(canvas.getByText("Presupuestado", { selector: "dt" })).toBeVisible();
-    await expect(canvas.getByRole("link", { name: "Ver detalle en Presupuesto" })).toHaveAttribute(
-      "href",
-      "/presupuesto",
-    );
-    await userEvent.click(comparison);
+    await expect(control).toHaveAttribute("aria-expanded", "false");
+    const comparison = canvas.getByText("Cómo se calcula", { selector: "summary" });
     await expect(comparison.closest("details")).not.toHaveAttribute("open");
+    await userEvent.click(comparison);
+    await expect(canvas.getByText("Saldo al final de los 14 días · CLP")).toBeVisible();
+    await userEvent.click(comparison);
   },
 };
 export const SinDeficit: Story = {
   args: { data: NO_DEFICIT, liquidityEvaluation: null },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByText("Evaluar decisión")).not.toBeInTheDocument();
-    await expect(canvas.getByText(/Sin necesidad de caja informada/)).toBeVisible();
-    await expect(canvas.getByText(/Gastos · agosto de 2026/)).toBeVisible();
-    await expect(canvas.getByTestId("inicio-caja").children[0]).toHaveAttribute(
-      "aria-labelledby",
-      "inicio-saldo",
-    );
+    await expect(
+      canvas.queryByRole("button", { name: "Revisar opciones" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.getByText("Pagos cubiertos")).toBeVisible();
+    await expect(canvas.getByText("$16.000.000", { selector: "p" })).toBeVisible();
+    await verifyLayout(canvasElement, false);
   },
 };
 export const SinDatos: Story = {
-  args: { data: null, budget: null, liquidityEvaluation: null, credits: null },
+  args: { data: null, liquidityEvaluation: null, credits: null, balances: null },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByText(/Sin necesidad de caja informada/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Pagos cubiertos")).not.toBeInTheDocument();
     await expect(canvas.getAllByText("Sin dato").length).toBeGreaterThan(0);
+    await expect(canvas.getByText("Proyección por confirmar")).toBeVisible();
   },
 };
 export const DatosAntiguos: Story = {
   args: {
     data: NO_DEFICIT,
     hoy: new Date("2026-09-15T12:15:00Z"),
-    budget: { ...BUDGET, data_state: "partial" },
+    balances: (
+      <InicioBancos accounts={MULTI_BANK_ACCOUNTS} now={new Date("2026-09-15T12:15:00Z")} />
+    ),
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByText(/Sin necesidad de caja informada/)).not.toBeInTheDocument();
-    await expect(canvas.queryByText(/sobre presupuesto/)).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Pagos cubiertos")).not.toBeInTheDocument();
     await expect(canvas.getByText(/Proyección pendiente de actualizar/)).toBeVisible();
+    await expect(canvas.getByText(/Hay saldos sin actualización de hoy/)).toBeVisible();
   },
 };
 export const Celular: Story = {
-  ...ConDeficit,
   decorators: [
     (Story) => (
-      <div style={{ maxWidth: 360 }}>
+      <div style={{ width: 360, maxWidth: "100%" }}>
         <Story />
       </div>
     ),
   ],
+  play: async ({ canvasElement }) => {
+    const { page } = await import("@vitest/browser/context");
+    await page.viewport(390, 844);
+    try {
+      await waitFor(() => expect(document.documentElement.clientWidth).toBe(390));
+      const canvas = within(canvasElement);
+      await verifyLayout(canvasElement, true);
+      await page.viewport(390, 844);
+      const lines = canvas.getByText("Ver todas las líneas (3)", { selector: "summary" });
+      await expect(canvas.getByText(/Santander · Cuenta 9988/)).not.toBeVisible();
+      await userEvent.click(lines);
+      await expect(canvas.getByText(/Santander · Cuenta 9988 · USD/)).toBeVisible();
+      await verifyLayout(canvasElement, true);
+      await userEvent.click(lines);
+      const accounts = canvas.getByText("Ver saldos por cuenta y fecha", { selector: "summary" });
+      await userEvent.click(accounts);
+      await expect(canvas.getByText("Banco de Chile · Operación CLP")).toBeVisible();
+      await verifyLayout(canvasElement, true);
+      await userEvent.click(accounts);
+      const options = canvas.getByRole("button", { name: "Revisar opciones" });
+      await userEvent.click(options);
+      await verifyLayout(canvasElement, true);
+      await userEvent.click(options);
+    } finally {
+      await page.viewport(1280, 800);
+    }
+  },
+};
+export const CelularSinDeficit: Story = {
+  ...Celular,
+  args: { data: NO_DEFICIT, liquidityEvaluation: null },
+  play: async ({ canvasElement }) => {
+    const { page } = await import("@vitest/browser/context");
+    await page.viewport(390, 844);
+    try {
+      await waitFor(() => expect(document.documentElement.clientWidth).toBe(390));
+      await verifyLayout(canvasElement, true);
+      await expect(within(canvasElement).getByText("Pagos cubiertos")).toBeVisible();
+      await page.viewport(390, 844);
+    } finally {
+      await page.viewport(1280, 800);
+    }
+  },
+};
+
+export const SeguimientoConErrorSinDeficit: Story = {
+  args: {
+    data: NO_DEFICIT,
+    operationPlanError: new Error("Consulta fallida"),
+    onRetryOperationPlan: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Ver plan y seguimiento" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Actualizar plan" }));
+    await expect(args.onRetryOperationPlan).toHaveBeenCalledOnce();
+  },
+};
+export const AccionesFinancieras: Story = {
+  args: {
+    data: {
+      ...DEFICIT,
+      priority_actions: [
+        {
+          priority: 1,
+          reason: "Revisar cobro de Factura 123 · Cliente de ejemplo",
+          deadline: "Vence el 14-09-2026",
+          cta_href: "/cobrar",
+          cta_label: "Ver cobro",
+          amount: "3500000",
+        },
+        {
+          priority: 2,
+          reason: "Revisar pago de Factura 456 · Proveedor de ejemplo",
+          deadline: "Vence el 15-09-2026",
+          cta_href: "/pagar",
+          cta_label: "Ver pago",
+          amount: "1200000",
+        },
+        {
+          priority: 3,
+          reason: "12 movimientos sin clasificar",
+          deadline: "",
+          cta_href: "/caja/por-clasificar",
+          cta_label: "Clasificar",
+        },
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("link", { name: "Ver cobro" })).toHaveAttribute(
+      "href",
+      "/cobrar",
+    );
+    await expect(canvas.queryByText(/12 movimientos/)).not.toBeInTheDocument();
+  },
 };

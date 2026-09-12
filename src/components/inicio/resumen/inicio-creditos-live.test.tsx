@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { InicioCreditosLive } from "./inicio-creditos-live";
 
-const mocks = vi.hoisted(() => ({ accounts: vi.fn(), balances: vi.fn() }));
+const mocks = vi.hoisted(() => ({ accounts: vi.fn(), balances: vi.fn(), bankAccounts: vi.fn() }));
 vi.mock("@/lib/api/treasury", () => ({
   useBiceSaldo: mocks.accounts,
+  useBankAccounts: mocks.bankAccounts,
   treasuryKeys: { biceCuentaBalance: (id: string) => ["balance", id] },
 }));
 vi.mock("@tanstack/react-query", () => ({ useQueries: mocks.balances }));
@@ -21,6 +22,10 @@ const credit = {
 const render = () => renderToStaticMarkup(<InicioCreditosLive enabled />);
 
 beforeEach(() => {
+  mocks.bankAccounts.mockReturnValue({
+    isError: false,
+    data: { items: [{ active: true, account_type: "checking", bank_name: "Banco de Chile" }] },
+  });
   mocks.accounts.mockReturnValue({
     isLoading: false,
     isError: false,
@@ -30,6 +35,8 @@ beforeEach(() => {
 });
 describe("Inicio: errores funcionales y parciales del banco", () => {
   it("presenta disponible y total del banco sin sumarlos", () => {
+    expect(render()).toContain("BICE · Cuenta 1234 · CLP");
+    expect(render()).toContain("Banco de Chile: información de cupos no disponible.");
     expect(render()).toContain("4.000.000");
     expect(render()).toContain("6.000.000");
     expect(render()).not.toContain("10.000.000");

@@ -27,13 +27,10 @@ import {
 } from "@/lib/api/financial-decision-readers";
 import { useMe } from "@/lib/api/users";
 import { asUserRole } from "@/lib/auth/types";
-import { useReversibleActions, useRevertReversibleAction } from "@/lib/api/reversible-actions";
-import { actividadesAutomaticas } from "./activity-log-model";
 import { cashGapProposals } from "./cash-gap-proposal-model";
 import { InicioResumenView } from "../resumen/inicio-resumen-view";
 import { InicioCreditosLive } from "../resumen/inicio-creditos-live";
-import { useBudgetVsActual } from "@/lib/api/planning";
-import { currentPeriodSantiago, shiftPeriod } from "@/components/gestion/gestion-format";
+import { InicioBancosLive } from "../resumen/inicio-bancos-live";
 
 /* Cableado de V01 · Hoy. La vista es presentacional; acá se resuelven las dos fuentes:
  *
@@ -48,8 +45,6 @@ import { currentPeriodSantiago, shiftPeriod } from "@/components/gestion/gestion
 
 export function HoyLive({ bankBalancesEnabled = false }: { bankBalancesEnabled?: boolean }) {
   const summary = useDashboardSummary();
-  const budgetPeriod = shiftPeriod(currentPeriodSantiago(new Date()), -1);
-  const budget = useBudgetVsActual(budgetPeriod, summary.isSuccess);
   const liquidity = useLatestLiquidityEvaluation();
   /* No recalculan la caja: sólo se leen con el resumen ya disponible. Si fallan,
      Hoy conserva las acciones prioritarias del summary como fallback. */
@@ -80,10 +75,6 @@ export function HoyLive({ bankBalancesEnabled = false }: { bankBalancesEnabled?:
     collectionReadScopeFromFinancialScope(decisionReadScope);
   const collectionSituation = useCollectionSituation(collectionScope);
   const collectionEvaluation = useCollectionEvaluation(collectionScope);
-  /* Ley 5 / issue #65: la bitácora viene del reader que publica sólo automatismos de Qavante.
-     `onlyUndoable` es un filtro de servidor; la vista todavía lee `undo_available` por fila. */
-  const activity = useReversibleActions({ onlyUndoable: true, limit: 5 });
-  const revertActivity = useRevertReversibleAction();
 
   if (summary.isLoading) return <CargandoHoy />;
   if (summary.isError) {
@@ -98,11 +89,8 @@ export function HoyLive({ bankBalancesEnabled = false }: { bankBalancesEnabled?:
 
   return (
     <InicioResumenView
+      balances={bankBalancesEnabled ? <InicioBancosLive /> : undefined}
       credits={<InicioCreditosLive enabled={bankBalancesEnabled} />}
-      budget={budget.isError ? null : budget.data}
-      budgetPeriod={budgetPeriod}
-      budgetLoading={budget.isLoading}
-      budgetFailed={budget.isError}
       data={summary.data ?? null}
       empresa={me.data?.user?.tenant_name ?? null}
       liquidityEvaluation={liquidity.data ?? null}
@@ -169,11 +157,6 @@ export function HoyLive({ bankBalancesEnabled = false }: { bankBalancesEnabled?:
             }
           : null
       }
-      activities={activity.isError ? null : actividadesAutomaticas(activity.data, 5)}
-      activitiesLoading={activity.isLoading}
-      activitiesError={activity.isError}
-      onRetryActivities={() => void activity.refetch()}
-      onUndoActivity={(actionId) => revertActivity.mutateAsync(actionId)}
     />
   );
 }

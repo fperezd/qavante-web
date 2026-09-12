@@ -1,13 +1,24 @@
 "use client";
 
 import { useQueries } from "@tanstack/react-query";
-import { useBiceSaldo, treasuryKeys, type CuentaBalanceResponse } from "@/lib/api/treasury";
+import {
+  useBiceSaldo,
+  useBankAccounts,
+  treasuryKeys,
+  type CuentaBalanceResponse,
+} from "@/lib/api/treasury";
 import { api } from "@/lib/api/client";
 import { formatMoney } from "@/lib/formatters/clp";
 import { creditoInformado } from "./inicio-resumen-model";
 
 /** BICE is the only existing detailed credit reader. Never label its subtotal as all banks. */
 export function InicioCreditosLive({ enabled }: { enabled: boolean }) {
+  return enabled ? <CreditosConectados /> : null;
+}
+
+function CreditosConectados() {
+  const enabled = true;
+  const bankAccounts = useBankAccounts();
   const accounts = useBiceSaldo(enabled);
   const accountsFailed =
     accounts.isError || (!accounts.isLoading && accounts.data?.status !== "ok");
@@ -42,32 +53,80 @@ export function InicioCreditosLive({ enabled }: { enabled: boolean }) {
         : undefined,
     );
     return credit
-      ? [{ ...credit, id: account.numeroCuenta, account: account.numeroFormateado }]
+      ? [{ ...credit, id: account.numeroCuenta, bank: "BICE", account: account.numeroFormateado }]
       : [];
   });
+  const otherBanks = [
+    ...new Set(
+      (bankAccounts.isError ? [] : (bankAccounts.data?.items ?? []))
+        .filter((a) => a.active && ["checking", "savings"].includes(a.account_type))
+        .map((a) => a.bank_name.trim())
+        .filter((name) => name && !/^(banco\s+)?bice$/i.test(name)),
+    ),
+  ];
   return (
-    <div className="mt-3 space-y-3 rounded-xl bg-background p-3 text-sm">
-      <p className="text-xs text-neutral-mid">Líneas de crédito · BICE</p>
+    <div className="mt-4 space-y-3 rounded-xl bg-background p-3 text-sm">
+      <p className="text-sm font-medium">Líneas de crédito</p>
       {accounts.isLoading || balancesLoading ? (
         <p role="status">Consultando cupos…</p>
       ) : (
-        lines.map((line) => <InicioCreditoLinea key={line.id} {...line} />)
+        <InicioCreditos lines={lines} />
       )}
       {accountsFailed || balancesFailed ? (
         <p className="text-xs text-warning-700">No se pudieron consultar todos los cupos.</p>
       ) : !accounts.isLoading && !balancesLoading && !lines.length ? (
-        <p className="text-xs text-neutral-mid">Sin cupos informados.</p>
+        <p className="text-xs text-neutral-mid">BICE: sin cupos informados.</p>
       ) : null}
+      <p className="text-xs text-neutral-mid">Cupos consultados: BICE.</p>
+      {otherBanks.length > 0 && (
+        <p className="text-xs text-neutral-mid">
+          {otherBanks.join(", ")}: información de cupos no disponible.
+        </p>
+      )}
+    </div>
+  );
+}
+
+export interface InicioCredito {
+  id: string;
+  bank: string;
+  account: string;
+  currency: string;
+  available: number | null;
+  total: number;
+}
+
+/** One row per bank/account/currency, never a combined cross-currency credit total. */
+export function InicioCreditos({ lines }: { lines: readonly InicioCredito[] }) {
+  const first = lines[0];
+  if (!first) return null;
+  return (
+    <div className="space-y-3">
+      <InicioCreditoLinea {...first} />
+      {lines.length > 1 && (
+        <details>
+          <summary className="min-h-11 cursor-pointer content-center rounded-md text-xs text-brand-primary focus-visible:outline-2 focus-visible:outline-brand-primary">
+            Ver todas las líneas ({lines.length})
+          </summary>
+          <div className="space-y-3 border-t border-border pt-3">
+            {lines.slice(1).map((line) => (
+              <InicioCreditoLinea key={[line.bank, line.id, line.currency].join("|")} {...line} />
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }
 
 export function InicioCreditoLinea({
+  bank = "BICE",
   account,
   currency,
   available,
   total,
 }: {
+  bank?: string;
   account: string;
   currency: string;
   available: number | null;
@@ -76,7 +135,7 @@ export function InicioCreditoLinea({
   return (
     <div className="min-w-0">
       <p className="break-words text-xs text-neutral-mid">
-        Cuenta {account} · {currency}
+        {bank} · Cuenta {account} · {currency}
       </p>
       <dl className="mt-2 grid grid-cols-2 gap-3 text-sm tabular-nums">
         <div className="min-w-0">

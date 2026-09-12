@@ -2,11 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle2, ChevronDown } from "lucide-react";
-import type { BudgetVsActualResponse } from "@/lib/api/planning";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateShort } from "@/lib/formatters/date";
-import { periodoLargo } from "@/lib/formatters/months";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 import { cn } from "@/lib/utils";
 import { crumbHoy } from "../v01/hoy-model";
@@ -16,313 +14,293 @@ import { CollectionEvaluationPanel } from "../v01/collection-evaluation-panel";
 import { CashGapProposalPanel } from "../v01/cash-gap-proposal-panel";
 import { DecisionReadPanel } from "../v01/decision-read-panel";
 import { InstrumentDecisionPanel } from "../v01/instrument-decision-panel";
-import { ActivityLogView } from "../v01/activity-log-view";
-import { gastosSobrePresupuesto, resumenCaja } from "./inicio-resumen-model";
+import { accionesFinancierasInicio, resumenCaja } from "./inicio-resumen-model";
 
-const panel = "min-w-0 rounded-2xl border border-border bg-surface p-4 md:rounded-xl md:p-5";
+const panel = "min-w-0 rounded-2xl border border-border bg-surface p-5 @3xl:p-6";
 const link =
-  "inline-flex min-h-11 items-center rounded-md text-sm font-medium text-brand-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-primary";
-const number =
-  "mt-2 break-words text-3xl font-semibold tracking-tight tabular-nums text-neutral-dark";
+  "inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium text-brand-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-primary";
+const primary =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-primary px-5 py-3 text-sm font-medium text-white hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-primary";
 
 export interface InicioResumenViewProps extends HoyViewProps {
   credits?: React.ReactNode;
-  budget?: BudgetVsActualResponse | null;
-  budgetPeriod: string;
-  budgetLoading?: boolean;
-  budgetFailed?: boolean;
+  balances?: React.ReactNode;
 }
 
 export function InicioResumenView(props: InicioResumenViewProps) {
-  const { data, hoy = new Date(), budget, budgetPeriod, credits } = props;
+  const { data, hoy = new Date(), credits, balances } = props;
   const cash = resumenCaja(data, hoy);
   const crumb = crumbHoy(props.empresa, cash.cash, hoy);
-  const evaluation = props.liquidityEvaluation;
-  const overBudget =
-    props.budgetFailed || budget?.period !== budgetPeriod ? [] : gastosSobrePresupuesto(budget);
-  const periodLabel = periodoLargo(budgetPeriod) ?? "el período consultado";
-  const liquidityPanel = (
-    <LiquidityEvaluationPanel
-      evaluation={evaluation ?? null}
-      loading={props.liquidityLoading}
-      failed={props.liquidityFailed}
-      now={hoy}
-      canSelect={props.canSelectLiquidity}
-      operationPlanRead={props.operationPlanRead}
-      operationPlanLoading={props.operationPlanLoading}
-      operationPlanError={props.operationPlanError}
-      onRetryOperationPlan={props.onRetryOperationPlan}
-    />
+  const [decisionOpen, setDecisionOpen] = React.useState(false);
+  const hasPlan = Boolean(
+    props.operationPlanRead?.selection || props.operationPlanRead?.operation_plan,
   );
-  const hasPlan =
-    !props.operationPlanError &&
-    Boolean(props.operationPlanRead?.selection || props.operationPlanRead?.operation_plan);
-  const firstAction = data?.priority_actions?.[0];
-  const balanceCard = (
-    <section className={panel} aria-labelledby="inicio-saldo" key="saldo">
-      <h2 id="inicio-saldo" className="text-sm font-medium text-neutral-mid md:text-base">
-        Saldo bancario · CLP
-      </h2>
-      <p className={number}>{cash.cash.monto == null ? "Sin dato" : formatClp(cash.cash.monto)}</p>
-      {cash.cash.estado === "estimated" && (
-        <p className="mt-2 text-sm text-warning-700">Saldo estimado</p>
-      )}
-      {credits}
-      <Link className={cn(link, "mt-2")} href="/banco">
-        Ver cuentas y tarjetas
-      </Link>
-    </section>
-  );
-  const projectionCard = (
-    <section
-      key="proyeccion"
-      className={cn(
-        panel,
-        cash.needsAttention &&
-          "border-t-4 border-t-danger-700 shadow-sm md:[&:has(details[open])]:col-span-2",
-      )}
-      aria-labelledby="inicio-proyeccion"
-    >
-      <h2 id="inicio-proyeccion" className="text-sm font-medium text-neutral-mid md:text-base">
-        {cash.needsAttention ? "Faltante proyectado · CLP" : "Saldo proyectado a 14 días · CLP"}
-      </h2>
-      <p className={cn(number, cash.needsAttention && "text-danger-700")}>
-        {cash.needsAttention
-          ? cash.gapAmount == null
-            ? "Por confirmar"
-            : formatClp(cash.gapAmount)
-          : cash.projected == null
-            ? "Sin dato"
-            : formatClp(cash.projected)}
-      </p>
-      <p className="mt-2 text-sm text-neutral-mid">
-        {cash.needsAttention
-          ? "Para evitar un saldo bajo cero en los próximos 14 días."
-          : "Después de los cobros y pagos previstos."}
-      </p>
-      <p
-        className={cn(
-          "mt-2 text-xs",
-          cash.projectionCurrent ? "text-neutral-mid" : "text-warning-700",
-        )}
-      >
-        Horizonte: 14 días ·{" "}
-        {data?.cash_gap?.last_updated
-          ? `Cálculo del ${formatDateShort(data.cash_gap.last_updated)}`
-          : "Sin fecha de cálculo"}
-        {!cash.projectionCurrent && " · Proyección pendiente de actualizar"}
-      </p>
-      <Link className={cn(link, "mt-1")} href="/caja">
-        Ver flujo de caja
-      </Link>
-      {cash.needsAttention && (
-        <Disclosure label={hasPlan ? "Ver plan y seguimiento" : "Evaluar decisión"} prominent>
-          <p className="text-sm text-neutral-mid">
-            Las evaluaciones disponibles tienen su propia fecha, moneda y horizonte. Revisa si
-            corresponden a este faltante antes de decidir.
-          </p>
-          {liquidityPanel}
-          <CashGapProposalPanel
-            proposals={props.cashGapProposals ?? []}
-            loading={props.cashGapProposalsLoading ?? false}
-          />
-        </Disclosure>
-      )}
-    </section>
-  );
+  const showDecision =
+    cash.needsAttention ||
+    hasPlan ||
+    Boolean(props.operationPlanError) ||
+    props.operationPlanLoading;
+  const actions = accionesFinancierasInicio(data);
+  const heroAmount = cash.needsAttention ? cash.gapAmount : cash.minimum;
 
   return (
-    <div className="space-y-4" data-testid="inicio-resumen">
-      <p className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-neutral-mid">
-        <span>{crumb.fecha}</span>
-        <span aria-hidden="true">·</span>
-        <span>{crumb.empresa}</span>
-        <span aria-hidden="true">·</span>
-        <span className={cn(crumb.bancoConReparo && "text-warning-700")}>{crumb.banco}</span>
-      </p>
-      {cash.noGapReported && (
-        <p className="flex items-start gap-2 rounded-lg bg-success-50 px-4 py-3 text-sm text-success-700">
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-          Sin necesidad de caja informada para los próximos 14 días.
+    <div className="@container space-y-5" data-testid="inicio-resumen">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-neutral-mid">
+          <span>{crumb.fecha}</span>
+          <span aria-hidden="true">·</span>
+          <span>{crumb.empresa}</span>
         </p>
-      )}
-      <div className="grid items-start gap-3 md:grid-cols-2 md:gap-4" data-testid="inicio-caja">
-        {cash.needsAttention ? [projectionCard, balanceCard] : [balanceCard, projectionCard]}
+        <Link href="/caja" className={cn(link, "border border-border bg-surface px-4")}>
+          Ver caja <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
       </div>
 
-      {!cash.needsAttention && firstAction && (
-        <section className={cn(panel, "border-l-4 border-l-brand-primary")}>
-          <p className="text-xs font-medium uppercase tracking-wide text-neutral-mid">
-            Por revisar
-          </p>
-          <h2 className="mt-2 text-lg font-medium">{firstAction.reason}</h2>
-          <Link className={cn(link, "mt-2")} href={firstAction.cta_href}>
-            {firstAction.cta_label}
-          </Link>
-        </section>
-      )}
-
-      {overBudget.map((expense) => (
-        <section key={expense.concept} className={cn(panel, "border-l-4 border-l-warning-500")}>
-          <p className="text-xs font-medium text-neutral-mid">
-            {expense.concept === "direct_cost" ? "Costos directos" : "Gastos"} · {periodLabel} · CLP
-          </p>
-          <h2 className="mt-2 text-xl font-semibold leading-snug">
-            {formatClp(expense.over)}{" "}
-            <span className="block text-sm font-normal text-neutral-mid">sobre presupuesto</span>
-          </h2>
-          <Disclosure label="Ver comparación" compact>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <dt className="text-xs text-neutral-mid">Presupuestado</dt>
-                <dd className="mt-1 break-words font-medium tabular-nums">
-                  {formatClp(expense.budget)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-neutral-mid">Registrado</dt>
-                <dd className="mt-1 break-words font-medium tabular-nums">
-                  {formatClp(expense.actual)}
-                </dd>
-              </div>
-            </dl>
-            <Link href="/presupuesto" className={link}>
-              Ver detalle en Presupuesto
-            </Link>
-          </Disclosure>
-        </section>
-      ))}
-
-      <div
-        className="overflow-hidden rounded-xl border border-border bg-surface"
-        data-testid="inicio-detalles"
-      >
-        <Disclosure label="Revisión operativa" grouped>
-          <Link href="/bandeja" className={link}>
-            Revisar movimientos
-          </Link>
-          {(data?.priority_actions?.length ?? 0) > 0 && (
-            <ul className="mt-3 divide-y divide-border">
-              {data?.priority_actions?.map((action, index) => (
-                <li key={`${action.priority}-${index}`} className="py-3">
-                  <p className="font-medium">{action.reason}</p>
-                  {parseAmountOrNull(action.amount) != null && (
-                    <p className="mt-1 tabular-nums">
-                      {formatClp(parseAmountOrNull(action.amount)!)}
-                    </p>
-                  )}
-                  <Link className={link} href={action.cta_href}>
-                    {action.cta_label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+      <div className="grid items-stretch gap-4 @3xl:grid-cols-2" data-testid="inicio-caja">
+        <section
+          aria-labelledby="inicio-proyeccion"
+          className={cn(
+            panel,
+            "flex flex-col border-t-4",
+            cash.needsAttention
+              ? "border-t-danger-700"
+              : cash.noGapReported
+                ? "border-t-success-700"
+                : "border-t-warning-500",
           )}
-          <CollectionEvaluationPanel
-            situation={props.collectionSituation ?? null}
-            evaluation={props.collectionEvaluation ?? null}
-            loading={props.collectionLoading}
-            error={props.collectionError}
-            scopeAvailable={props.collectionScopeAvailable}
-            onRetry={props.onRetryCollection}
-          />
-        </Disclosure>
-
-        <Disclosure label="Control de decisiones y actividad" grouped>
-          {!cash.needsAttention && liquidityPanel}
-          {props.decisionLayer && <InstrumentDecisionPanel layer={props.decisionLayer} />}
-          {props.decisionReaders && <DecisionReadPanel readers={props.decisionReaders} />}
-          <ActivityLogView
-            activities={props.activities ?? null}
-            loading={props.activitiesLoading}
-            error={props.activitiesError}
-            onRetry={props.onRetryActivities}
-            onUndo={props.onUndoActivity}
-            detailLinks
-          />
-        </Disclosure>
-
-        <Disclosure label="Datos del resumen" grouped>
-          <dl className="space-y-2 text-sm">
-            <div>
-              <dt className="text-neutral-mid">Menor saldo proyectado en 14 días · CLP</dt>
-              <dd className="tabular-nums">
-                {cash.minimum == null ? "Sin dato" : formatClp(cash.minimum)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-neutral-mid">Actualización de la proyección</dt>
-              <dd>
-                {data?.cash_gap?.last_updated
-                  ? formatDateShort(data.cash_gap.last_updated)
-                  : "Sin fecha informada"}
-              </dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-sm text-neutral-mid">
-            El saldo en CLP no incorpora una conversión calculada aquí de cuentas en otras monedas.
-            Los cupos de crédito se muestran por separado.
+        >
+          <p className="text-xs font-medium uppercase tracking-wider text-neutral-mid">
+            Próximos 14 días · CLP
+          </p>
+          <h2
+            id="inicio-proyeccion"
+            className="mt-3 text-2xl font-semibold tracking-tight text-neutral-dark"
+          >
+            {cash.needsAttention
+              ? "Faltante proyectado"
+              : cash.noGapReported
+                ? "Pagos cubiertos"
+                : "Proyección por confirmar"}
+          </h2>
+          <p
+            className={cn(
+              "mt-4 break-words text-4xl font-semibold tracking-tight tabular-nums @3xl:text-5xl",
+              cash.needsAttention
+                ? "text-danger-700"
+                : cash.noGapReported
+                  ? "text-success-700"
+                  : "text-neutral-dark",
+            )}
+          >
+            {heroAmount == null ? "Sin dato" : formatClp(heroAmount)}
           </p>
           <p className="mt-2 text-sm text-neutral-mid">
-            {props.budgetLoading
-              ? "Consultando el presupuesto…"
-              : props.budgetFailed
-                ? "No se pudo consultar el presupuesto."
-                : !budget?.has_budget
-                  ? `Sin presupuesto informado para ${periodLabel}.`
-                  : budget.data_state !== "available" || budget.missing_sources?.length
-                    ? "La comparación de presupuesto está incompleta."
-                    : `Presupuesto consultado: ${periodLabel}.`}
+            {cash.needsAttention
+              ? "Monto faltante para cubrir los pagos previstos."
+              : "Menor saldo proyectado en el período."}
           </p>
-        </Disclosure>
+          {!cash.projectionCurrent && (
+            <p className="mt-3 text-sm text-warning-700">Proyección pendiente de actualizar.</p>
+          )}
+          {!cash.needsAttention && !cash.noGapReported && (
+            <p className="mt-2 text-sm text-warning-700">
+              No se puede confirmar la cobertura con los datos disponibles.
+            </p>
+          )}
+          <div className="mb-5 mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
+            {showDecision && (
+              <button
+                type="button"
+                className={primary}
+                aria-expanded={decisionOpen}
+                aria-controls="inicio-opciones"
+                onClick={() => setDecisionOpen(!decisionOpen)}
+              >
+                {hasPlan || props.operationPlanError || props.operationPlanLoading
+                  ? "Ver plan y seguimiento"
+                  : "Revisar opciones"}
+                <ChevronDown
+                  className={cn("size-4", decisionOpen && "rotate-180")}
+                  aria-hidden="true"
+                />
+              </button>
+            )}
+            <Link href="/caja" className={showDecision ? link : primary}>
+              Ver flujo de caja
+            </Link>
+          </div>
+          <div className="mt-auto border-t border-border pt-1">
+            <InicioDisclosure label="Cómo se calcula">
+              <dl className="space-y-3 text-sm">
+                <div>
+                  <dt className="text-neutral-mid">Menor saldo proyectado · CLP</dt>
+                  <dd className="mt-1 tabular-nums">
+                    {cash.minimum == null ? "Sin dato" : formatClp(cash.minimum)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-neutral-mid">Saldo al final de los 14 días · CLP</dt>
+                  <dd className="mt-1 tabular-nums">
+                    {cash.projected == null ? "Sin dato" : formatClp(cash.projected)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-neutral-mid">Actualización de la proyección</dt>
+                  <dd>
+                    {data?.cash_forecast?.last_updated
+                      ? formatDateShort(data.cash_forecast.last_updated)
+                      : "Sin fecha informada"}
+                  </dd>
+                </div>
+              </dl>
+              <p className="text-sm text-neutral-mid">
+                La proyección considera los cobros y pagos previstos; no es el saldo bancario de
+                hoy.
+              </p>
+              <Link href="/caja" className={link}>
+                Revisar proyección
+              </Link>
+            </InicioDisclosure>
+          </div>
+        </section>
+
+        <section aria-labelledby="inicio-saldo" className={cn(panel, "flex flex-col")}>
+          <h2 id="inicio-saldo" className="text-2xl font-semibold tracking-tight text-neutral-dark">
+            Saldo bancario
+          </h2>
+          {balances ?? (
+            <div className="mt-5">
+              <p className="text-xs text-neutral-mid">CLP · Resumen financiero</p>
+              <p className="mt-1 break-words text-3xl font-semibold tracking-tight tabular-nums">
+                {cash.cash.monto == null ? "Sin dato" : formatClp(cash.cash.monto)}
+              </p>
+              <p
+                className={cn(
+                  "mt-2 text-xs",
+                  crumb.bancoConReparo ? "text-warning-700" : "text-neutral-mid",
+                )}
+              >
+                {crumb.banco}
+              </p>
+              {cash.cash.estado === "estimated" && (
+                <p className="mt-2 text-sm text-warning-700">Saldo estimado</p>
+              )}
+            </div>
+          )}
+          {credits}
+          <div className="mt-auto pt-3">
+            <Link className={link} href="/banco">
+              Ver cuentas y tarjetas <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
       </div>
+
+      {showDecision && (
+        <section
+          id="inicio-opciones"
+          hidden={!decisionOpen}
+          className={panel}
+          aria-label="Opciones y seguimiento"
+        >
+          {decisionOpen && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Opciones y seguimiento</h2>
+              <p className="text-sm text-neutral-mid">
+                Revisa la fecha, moneda y plazo de cada evaluación antes de decidir.
+              </p>
+              <LiquidityEvaluationPanel
+                evaluation={props.liquidityEvaluation ?? null}
+                loading={props.liquidityLoading}
+                failed={props.liquidityFailed}
+                now={hoy}
+                canSelect={props.canSelectLiquidity}
+                operationPlanRead={props.operationPlanRead}
+                operationPlanLoading={props.operationPlanLoading}
+                operationPlanError={props.operationPlanError}
+                onRetryOperationPlan={props.onRetryOperationPlan}
+              />
+              <CashGapProposalPanel
+                proposals={props.cashGapProposals ?? []}
+                loading={props.cashGapProposalsLoading ?? false}
+              />
+              {props.collectionScopeAvailable && (
+                <CollectionEvaluationPanel
+                  situation={props.collectionSituation ?? null}
+                  evaluation={props.collectionEvaluation ?? null}
+                  loading={props.collectionLoading}
+                  error={props.collectionError}
+                  scopeAvailable={props.collectionScopeAvailable}
+                  onRetry={props.onRetryCollection}
+                />
+              )}
+              {(props.decisionLayer || props.decisionReaders) && (
+                <InicioDisclosure label="Ver otras evaluaciones">
+                  {props.decisionLayer && <InstrumentDecisionPanel layer={props.decisionLayer} />}
+                  {props.decisionReaders && <DecisionReadPanel readers={props.decisionReaders} />}
+                </InicioDisclosure>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {actions.length > 0 && (
+        <section className={panel} aria-labelledby="inicio-atencion">
+          <h2 id="inicio-atencion" className="text-lg font-semibold">
+            Requiere atención
+          </h2>
+          <ul className="mt-2 divide-y divide-border">
+            {actions.map((action) => {
+              const amount = parseAmountOrNull(action.amount);
+              return (
+                <li
+                  key={[action.cta_href, action.reason, action.deadline].join("|")}
+                  className="grid min-w-0 gap-3 py-4 @3xl:grid-cols-[1fr_auto] @3xl:items-center"
+                >
+                  <div className="min-w-0">
+                    <p className="break-words font-medium">{action.reason}</p>
+                    {action.deadline && (
+                      <p className="mt-1 text-sm text-neutral-mid">{action.deadline}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-1">
+                    {amount != null && (
+                      <p className="break-words text-lg font-semibold tabular-nums">
+                        {formatClp(amount)}
+                      </p>
+                    )}
+                    <Link href={action.cta_href} className={link}>
+                      {action.cta_label} <ArrowRight className="size-4" aria-hidden="true" />
+                    </Link>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
 
-function Disclosure({
+export function InicioDisclosure({
   label,
   children,
-  prominent = false,
-  compact = false,
-  grouped = false,
 }: {
   label: string;
   children: React.ReactNode;
-  prominent?: boolean;
-  compact?: boolean;
-  grouped?: boolean;
 }) {
   return (
-    <details
-      className={cn(
-        "group/disclosure min-w-0 bg-surface",
-        grouped ? "border-b border-border last:border-b-0" : "rounded-lg border border-border",
-        prominent && "mt-2",
-        compact && "mt-3 border-x-0 border-b-0 rounded-none",
-      )}
-    >
-      <summary
-        className={cn(
-          "flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-primary [&::-webkit-details-marker]:hidden",
-          prominent && "bg-brand-primary text-white focus-visible:outline-white",
-          compact && "px-0 text-brand-primary",
-        )}
-      >
+    <details className="group/disclosure min-w-0">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-3 text-sm font-medium text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary [&::-webkit-details-marker]:hidden">
         {label}
         <ChevronDown
           className="size-4 shrink-0 transition-transform group-open/disclosure:rotate-180 motion-reduce:transition-none"
           aria-hidden="true"
         />
       </summary>
-      <div
-        className={cn(
-          "min-w-0 space-y-4 border-t border-border p-3 md:p-4",
-          compact && "px-0 md:px-0",
-        )}
-      >
-        {children}
-      </div>
+      <div className="min-w-0 space-y-3 border-t border-border py-3">{children}</div>
     </details>
   );
 }
