@@ -164,24 +164,32 @@ describe("pivote del Resultado", () => {
 });
 
 describe("MUTANTE (d) · footer del pivote", () => {
-  it("el export del pivote espera al CSV nativo y declara su estado", () => {
+  it("el export del pivote espera al Excel nativo y declara su estado", () => {
     const h = html({ exportandoPivote: true });
     expect(h).toContain('disabled=""');
-    expect(texto(h)).toContain("Preparando CSV…");
-    expect(texto(html())).toContain("Exportar CSV");
+    expect(texto(h)).toContain("Preparando Excel…");
+    expect(texto(html())).toContain("Exportar Excel");
   });
 
-  it("si el export falla, explica qué fuente no respondió", () => {
-    const t = texto(html({ errorExportPivote: "El export no respondió." }));
-    expect(t).toContain("El export no respondió.");
-    expect(texto(html())).not.toContain("El export no respondió.");
+  it("si Excel falla, explica qué fuente no respondió", () => {
+    const mensaje = "El archivo Excel no respondió.";
+    const t = texto(html({ errorExportPivote: mensaje }));
+    expect(t).toContain(mensaje);
+    expect(texto(html())).not.toContain(mensaje);
+  });
+
+  it("si la descarga termina, confirma Excel sin confundirlo con CSV", () => {
+    const t = texto(html({ exitoExportPivote: "Excel descargado." }));
+    expect(t).toContain("Excel descargado.");
+    expect(t).toContain("Exportar Excel");
+    expect(t).not.toContain("Exportar CSV");
   });
 
   it("con el conteo del motor dice cuántas excepciones quedan fuera", () => {
     const t = texto(html());
     expect(t).toContain("no incluye 3 excepciones");
     expect(t).toContain("devengado, sin IVA");
-    expect(t).toContain("Exportar CSV");
+    expect(t).toContain("Exportar Excel");
   });
 
   it("SIN el conteo dice que no lo sabe — y NUNCA muestra 0", () => {

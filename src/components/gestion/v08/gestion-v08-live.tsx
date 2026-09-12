@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { downloadCsv } from "@/lib/export/csv";
+import { downloadBinary } from "@/lib/export/download";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDashboardSummary } from "@/lib/api/dashboard";
 import { useCashCycle } from "@/lib/api/treasury";
@@ -10,7 +10,7 @@ import {
   useOperationalResultAlDia,
   useOperationalResultBreakdown,
   useOperationalResultDocuments,
-  exportOperationalResultCsv,
+  exportOperationalResultXlsx,
 } from "@/lib/api/gestion";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import type { PeriodRange } from "@/lib/period/period-range";
@@ -39,7 +39,7 @@ import { GestionV08View, type DrillAbierto } from "./gestion-v08-view";
  * LAS TRES FUENTES QUE LA SPEC MARCA 🔧, medidas contra el contrato vigente:
  *   · drill-down monto → documentos: EXISTE (`/operational-result/documents?period&account`).
  *   · corte al día del comparativo: EXISTE (`/operational-result/al-dia?period&hasta_dia`).
- *   · export del pivote: EXISTE como CSV real. No se rotula XLS a un CSV.
+ *   · export del pivote: EXISTE como XLSX tipado del backend.
  */
 
 /** Meses del pivote (spec §V08: "pivote May/Jun/Jul"). */
@@ -61,6 +61,7 @@ export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
   const [drill, setDrill] = React.useState<DrillAbierto | null>(null);
   const [exportando, setExportando] = React.useState(false);
   const [errorExport, setErrorExport] = React.useState<string | null>(null);
+  const [exitoExport, setExitoExport] = React.useState<string | null>(null);
 
   const cambiarTab = React.useCallback(
     (t: TabV08) => {
@@ -108,11 +109,13 @@ export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
   const exportarPivote = React.useCallback(async () => {
     setExportando(true);
     setErrorExport(null);
+    setExitoExport(null);
     try {
-      const csv = await exportOperationalResultCsv(desdePivote, periodo);
-      descargarCsv(`resultado-operacional_${desdePivote}_${periodo}.csv`, csv);
+      const file = await exportOperationalResultXlsx(desdePivote, periodo);
+      downloadBinary(file, ".xlsx");
+      setExitoExport("Excel descargado.");
     } catch (error) {
-      setErrorExport(motivo(error, "el export de tu Estado de Resultados"));
+      setErrorExport(motivoExportExcel(error));
     } finally {
       setExportando(false);
     }
@@ -167,12 +170,10 @@ export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
       onExportarPivote={exportarPivote}
       exportandoPivote={exportando}
       errorExportPivote={errorExport}
+      exitoExportPivote={exitoExport}
     />
   );
 }
-
-/** El helper conserva exactamente un BOM también para el archivo nativo API. */
-const descargarCsv = downloadCsv;
 
 /** Por qué no llegó, en lenguaje de dueño (§5.4: un error siempre dice su causa). */
 export function motivo(err: unknown, fuente: string): string {
@@ -180,6 +181,22 @@ export function motivo(err: unknown, fuente: string): string {
     return `No pudimos conectar con ${fuente} (error de red). Vuelve a intentar en un momento.`;
   }
   return `${capitalizarPrimera(fuente)} no respondió. Vuelve a intentar en un momento; si sigue igual, revisa tus conexiones.`;
+}
+
+export function motivoExportExcel(err: unknown): string {
+  if (
+    err instanceof ApiError &&
+    [
+      "empty_file_response",
+      "invalid_xlsx_mime",
+      "invalid_content_disposition",
+      "invalid_xlsx_filename",
+      "invalid_xlsx_magic",
+    ].includes(err.code ?? "")
+  ) {
+    return `${err.message} No se descargó nada.`;
+  }
+  return motivo(err, "el archivo Excel de tu Estado de Resultados");
 }
 
 function capitalizarPrimera(s: string): string {

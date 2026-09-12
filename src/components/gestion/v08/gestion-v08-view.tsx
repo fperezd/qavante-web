@@ -95,9 +95,8 @@ import {
  * empujaba la columna a 438 px. Los dos están arreglados; los dos vuelven a romper el test si se
  * revierten.
  *
- * HUECOS DECLARADOS — el backend entrega el pivote como CSV real, que la pantalla anuncia por su
- * nombre. "Días promedio en pagar" del 360 conserva su "en
- * preparación" honesto. */
+ * El pivote se exporta como XLSX tipado por el backend; la pantalla no vuelve a construir sus
+ * filas. "Días promedio en pagar" del 360 conserva su "en preparación" honesto. */
 
 export interface GestionV08ViewProps {
   tab: TabV08;
@@ -131,10 +130,11 @@ export interface GestionV08ViewProps {
   /** Por qué no llegó cada fuente, en lenguaje de dueño. */
   motivos?: Partial<Record<"resultado" | "comparativo" | "ciclo" | "contrapartes", string>>;
   onReintentar?: () => void;
-  /** Export nativo: el backend entrega el mismo pivote como CSV UTF-8 con BOM. */
+  /** Export nativo: el backend entrega el mismo pivote como XLSX tipado. */
   onExportarPivote?: () => Promise<void>;
   exportandoPivote?: boolean;
   errorExportPivote?: string | null;
+  exitoExportPivote?: string | null;
   hoy?: Date;
   issueSucesor?: string;
 }
@@ -243,6 +243,7 @@ function TabResultado({
   onExportarPivote,
   exportandoPivote = false,
   errorExportPivote,
+  exitoExportPivote,
   issueSucesor,
 }: GestionV08ViewProps & { hoy: Date }) {
   if (!breakdown) {
@@ -351,6 +352,7 @@ function TabResultado({
         onExportarPivote={onExportarPivote}
         exportandoPivote={exportandoPivote}
         errorExportPivote={errorExportPivote}
+        exitoExportPivote={exitoExportPivote}
       />
 
       <SeccionCostos filas={filas} periodo={ultimoMes} issueSucesor={issueSucesor} />
@@ -383,6 +385,7 @@ interface PivoteProps {
   onExportarPivote?: () => Promise<void>;
   exportandoPivote: boolean;
   errorExportPivote?: string | null;
+  exitoExportPivote?: string | null;
 }
 
 const TD = "px-2 py-2.5 align-top text-rediseno-tinta-2 sm:px-[18px]";
@@ -402,6 +405,7 @@ function Pivote({
   onExportarPivote,
   exportandoPivote,
   errorExportPivote,
+  exitoExportPivote,
 }: PivoteProps) {
   /* Las secciones arrancan ABIERTAS: el pivote existe para ver las cuentas, y el drill-down al
      documento cuelga de ellas. Colapsarlas por defecto escondería el contenido detrás de un clic
@@ -570,11 +574,14 @@ function Pivote({
             if (onExportarPivote) void onExportarPivote();
           }}
         >
-          ⬇ Exportar CSV
+          ⬇ Exportar Excel
         </button>
         <span>· devengado, sin IVA ·</span>
-        {exportandoPivote && <span role="status">Preparando CSV…</span>}
-        {errorExportPivote && <span role="status">· {errorExportPivote}</span>}
+        {exportandoPivote && <span role="status">Preparando Excel…</span>}
+        {!exportandoPivote && errorExportPivote && <span role="status">· {errorExportPivote}</span>}
+        {!exportandoPivote && !errorExportPivote && exitoExportPivote && (
+          <span role="status">· {exitoExportPivote}</span>
+        )}
         <span>
           {excepciones.n == null ? (
             <>

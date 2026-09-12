@@ -10,7 +10,6 @@ import {
   confianzaDato,
   costosDelMes,
   csvComparativo,
-  csvPivote,
   deltaReglaDeOro,
   destinoRutaVieja,
   diaDelMesSantiago,
@@ -447,27 +446,5 @@ describe("MUTANTE (c) · 360 — el umbral de concentración es 30 %", () => {
 
   it("una contraparte sin actividad en la ventana no devuelve un perfil vacío", () => {
     expect(perfil360(docsCompras(), "99.999.999-9", "2025-09", "2026-08", 1000)).toBeNull();
-  });
-});
-
-describe("exportar (§5.5)", () => {
-  it("el CSV del pivote lleva las mismas filas y los mismos montos que la pantalla", () => {
-    const filas = filasPivote(breakdown());
-    const csv = csvPivote(filas, ["2026-05", "2026-06", "2026-07"]);
-    const lineas = csv.split("\n");
-    expect(lineas[0]).toBe("concepto;nivel;2026-05;2026-06;2026-07;total");
-    expect(lineas[1]).toBe("Ingresos;seccion;30958134;28267191;39945158;99170483");
-    expect(lineas).toContain("Servicio mensual;cuenta;15352888;6853953;14616879;36823720");
-    expect(lineas.at(-1)).toBe("Resultado operacional;seccion;22132476;18798111;16779336;57709923");
-  });
-
-  it("un mes sin dato viaja como 'sin dato', no como 0", () => {
-    const bd = {
-      months: ["2026-05", "2026-06"],
-      rows: [{ kind: "section", key: "income", label: "Ingresos", by_month: ["1"], total: "1" }],
-    } as never;
-    expect(csvPivote(filasPivote(bd), ["2026-05", "2026-06"]).split("\n")[1]).toBe(
-      "Ingresos;seccion;sin dato;sin dato;1",
-    );
   });
 });

@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { ApiError } from "./errors";
+import { XLSX_MIME } from "@/lib/export/xlsx";
 import type { components } from "./types";
 
 /* Capa de datos — Resultado Operacional de Gestión (Sprint C5, Documento
@@ -68,17 +70,70 @@ export const gestionKeys = {
     [...gestionKeys.all, "operational-result-al-dia", period, hastaDia] as const,
 };
 
-/** `GET /api/management/operational-result/export` — descarga el MISMO pivote
- * mensualizado que muestra Gestión. El contrato sólo publica CSV: no se llama
- * XLS a un CSV ni se reconstruye el archivo desde el árbol ya renderizado. */
-export function operationalResultExportCsvPath(periodFrom: string, periodTo: string): string {
+/** `GET /api/management/operational-result/export` descarga el MISMO pivote
+ * mensualizado que muestra Gestión. XLSX conserva tipos; el frontend no
+ * reconstruye las filas ni renombra un CSV. */
+export function operationalResultExportXlsxPath(periodFrom: string, periodTo: string): string {
   return `/api/management/operational-result/export?period_from=${encodeURIComponent(
     periodFrom,
-  )}&period_to=${encodeURIComponent(periodTo)}&format=csv&include_proforma=true`;
+  )}&period_to=${encodeURIComponent(periodTo)}&format=xlsx&include_proforma=true`;
 }
 
-export function exportOperationalResultCsv(periodFrom: string, periodTo: string): Promise<string> {
-  return api.get<string>(operationalResultExportCsvPath(periodFrom, periodTo));
+export interface OperationalResultXlsx {
+  bytes: Uint8Array<ArrayBuffer>;
+  filename: string;
+  contentType: typeof XLSX_MIME;
+}
+
+export async function exportOperationalResultXlsx(
+  periodFrom: string,
+  periodTo: string,
+): Promise<OperationalResultXlsx> {
+  const file = await api.getFile(operationalResultExportXlsxPath(periodFrom, periodTo), {
+    headers: { Accept: XLSX_MIME },
+  });
+  const contentType = file.contentType.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== XLSX_MIME) {
+    throw new ApiError(
+      "El servidor no entregó un archivo Excel válido.",
+      200,
+      "invalid_xlsx_mime",
+      file.contentType,
+    );
+  }
+  if (!/^\s*attachment\s*;/i.test(file.contentDisposition ?? "")) {
+    throw new ApiError(
+      "El servidor no declaró la descarga del archivo Excel.",
+      200,
+      "invalid_content_disposition",
+      file.contentDisposition,
+    );
+  }
+
+  const expectedFilename = `resultado-operacional_${periodFrom}_${periodTo}.xlsx`;
+  if (file.filename !== expectedFilename) {
+    throw new ApiError(
+      "El servidor entregó un nombre de archivo inesperado.",
+      200,
+      "invalid_xlsx_filename",
+      file.filename,
+    );
+  }
+  if (
+    file.bytes.length < 4 ||
+    file.bytes[0] !== 0x50 ||
+    file.bytes[1] !== 0x4b ||
+    file.bytes[2] !== 0x03 ||
+    file.bytes[3] !== 0x04
+  ) {
+    throw new ApiError(
+      "El servidor no entregó un archivo Excel válido.",
+      200,
+      "invalid_xlsx_magic",
+    );
+  }
+
+  return { bytes: file.bytes, filename: expectedFilename, contentType: XLSX_MIME };
 }
 
 /** `GET /api/management/operational-result?period=YYYY-MM` — un mes (desglose

@@ -10,6 +10,15 @@ export interface ApiRequestOptions extends Omit<RequestInit, "body" | "method"> 
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+export interface ApiFileResponse {
+  bytes: Uint8Array<ArrayBuffer>;
+  contentType: string;
+  contentDisposition: string | null;
+  filename: string | null;
+}
+
+type SuccessParser<T> = (response: Response) => Promise<T>;
+
 /* Single-flight: si ya hay un refresh en vuelo, los 401 concurrentes lo COMPARTEN
    en vez de disparar N refresh en paralelo. Sin esto, cuando el dashboard lanza
    varias requests juntas y el access-token expiró, cada 401 pedía su propio
@@ -50,6 +59,7 @@ async function request<T>(
   method: HttpMethod,
   path: string,
   options: ApiRequestOptions = {},
+  parseSuccess: SuccessParser<T> = parseResponse<T>,
 ): Promise<T> {
   if (!API_URL) {
     throw new ApiError(
@@ -99,7 +109,7 @@ async function request<T>(
          skipAuthRetry, así que su 401 cae en `!response.ok` y se lanza como
          ApiError — lo atrapamos para redirigir antes de re-lanzar. */
       try {
-        return await request<T>(method, path, { ...options, skipAuthRetry: true });
+        return await request<T>(method, path, { ...options, skipAuthRetry: true }, parseSuccess);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           redirectToLogin();
@@ -122,8 +132,11 @@ async function request<T>(
     throw new ApiError(message, response.status, code, parsed);
   }
 
-  if (response.status === 204) return undefined as T;
+  return parseSuccess(response);
+}
 
+async function parseResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) return undefined as T;
   const contentType = response.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
     /* Body vacío con content-type JSON (p.ej. 200/201 sin cuerpo) → undefined,
@@ -139,6 +152,40 @@ async function request<T>(
     }
   }
   return (await response.text()) as unknown as T;
+}
+
+/** Extrae el nombre declarado por HTTP sin normalizarlo. El consumidor decide
+ * si ese nombre coincide con su contrato antes de entregarlo al navegador. */
+export function filenameFromContentDisposition(value: string | null): string | null {
+  if (!value) return null;
+
+  const extended = /(?:^|;)\s*filename\*\s*=\s*(?:UTF-8'')?([^;]+)/i.exec(value)?.[1];
+  if (extended) {
+    const encoded = extended.trim().replace(/^"|"$/g, "");
+    try {
+      return decodeURIComponent(encoded);
+    } catch {
+      return null;
+    }
+  }
+
+  const quoted = /(?:^|;)\s*filename\s*=\s*"((?:\\.|[^"])*)"/i.exec(value)?.[1];
+  if (quoted != null) return quoted.replace(/\\(["\\])/g, "$1");
+
+  return /(?:^|;)\s*filename\s*=\s*([^;\s]+)/i.exec(value)?.[1] ?? null;
+}
+
+async function parseFileResponse(response: Response): Promise<ApiFileResponse> {
+  if (response.status === 204) {
+    throw new ApiError("El servidor no entregó el archivo.", 204, "empty_file_response");
+  }
+  const contentDisposition = response.headers.get("content-disposition");
+  return {
+    bytes: new Uint8Array(await response.arrayBuffer()),
+    contentType: response.headers.get("content-type") ?? "",
+    contentDisposition,
+    filename: filenameFromContentDisposition(contentDisposition),
+  };
 }
 
 /* El backend usa varias formas de error y NINGUNA debe escapar como
@@ -174,6 +221,8 @@ function extractApiError(parsed: unknown, status: number): { message: string; co
 
 export const api = {
   get: <T>(path: string, options?: ApiRequestOptions) => request<T>("GET", path, options),
+  getFile: (path: string, options?: ApiRequestOptions) =>
+    request<ApiFileResponse>("GET", path, options, parseFileResponse),
   post: <T>(path: string, options?: ApiRequestOptions) => request<T>("POST", path, options),
   put: <T>(path: string, options?: ApiRequestOptions) => request<T>("PUT", path, options),
   patch: <T>(path: string, options?: ApiRequestOptions) => request<T>("PATCH", path, options),

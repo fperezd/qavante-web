@@ -19,8 +19,17 @@ El build de Next y presupuesto de bundle de CI siguen siendo gates.
 Los serializadores CSV conservan separador `;`, finales de línea y BOM único.
 Texto peligroso lleva un apóstrofo literal. Ese prefijo forma parte del valor
 del CSV. Las funciones CSV siguen disponibles para consumidores que requieren
-ese formato; el pivote nativo de Gestión continúa descargando el CSV del API
-y su botón dice `Exportar CSV`.
+ese formato. El endpoint del pivote de Gestión conserva `format=csv` como
+contrato legacy para integraciones, pero la interfaz solicita `format=xlsx`.
+
+## XLSX nativo de Gestión
+
+El pivote principal no se reconstruye en el navegador. Gestión solicita el
+XLSX tipado al endpoint canónico con la misma ventana y el mes proforma. El
+cliente HTTP común conserva cookies, refresh single-flight, reintento y
+`ApiError`. Antes de descargar, valida el MIME OOXML, la firma ZIP `PK`, el
+`Content-Disposition` y el nombre contractual `.xlsx`. Si una de esas piezas
+falta, muestra un error y no entrega al usuario un archivo plausible.
 
 CSV no describe tipos de celda. Abrirlo directamente en Excel puede convertir
 folios en números o fechas y decimales según el locale. Para importar CSV sin

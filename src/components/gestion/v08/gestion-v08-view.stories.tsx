@@ -108,7 +108,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V08 · Gestión (ESPECIFICACION §V08): las nueve páginas de /gestion en UNA vista con seis tabs · Resultado (con el pivote de 3 meses, el drill-down al documento y la sección Costos y gastos), Márgenes (con Ciclo de caja y Punto de equilibrio), Tendencia, Comparativo (regla de oro: mes en curso contra el mes anterior a la MISMA altura) y los dos 360. El titular del Resultado publica el mismo número que V01 · Hoy y lo compara contra el pivote (Ley 1). El export a xls es un hueco declarado: se baja CSV. "Días promedio en pagar" conserva su "en preparación" honesto.',
+          'V08 · Gestión (ESPECIFICACION §V08): las nueve páginas de /gestion en UNA vista con seis tabs · Resultado (con el pivote de 3 meses, el drill-down al documento y la sección Costos y gastos), Márgenes (con Ciclo de caja y Punto de equilibrio), Tendencia, Comparativo (regla de oro: mes en curso contra el mes anterior a la MISMA altura) y los dos 360. El titular del Resultado publica el mismo número que V01 · Hoy y lo compara contra el pivote (Ley 1). El pivote se descarga como XLSX tipado por el backend. "Días promedio en pagar" conserva su "en preparación" honesto.',
       },
     },
   },
@@ -185,32 +185,40 @@ export const ResultadoDrillPidePorMontoYMes: Story = {
 /* Este clic atraviesa el límite Resultado → Pivote: si `TabResultado` deja de entregar el
  * callback, el botón queda inerte y esta story cae. La URL/rango del export nativo se fija en
  * `gestion-export.test.ts`; aquí comprobamos que esa acción llega al control que la persona usa. */
-export const ResultadoExportaCsv: Story = {
-  name: "Resultado · exporta el pivote como CSV",
+export const ResultadoExportaExcel: Story = {
+  name: "Resultado · exporta el pivote como Excel",
   args: { onExportarPivote: fn(async () => {}) },
   play: async ({ canvasElement, args }) => {
     const c = within(canvasElement);
-    await userEvent.click(c.getByRole("button", { name: "⬇ Exportar CSV" }));
+    await userEvent.click(c.getByRole("button", { name: "⬇ Exportar Excel" }));
     await expect(args.onExportarPivote).toHaveBeenCalledTimes(1);
   },
 };
 
-export const ResultadoExportandoCsv: Story = {
-  name: "Resultado · preparando CSV",
+export const ResultadoExportandoExcel: Story = {
+  name: "Resultado · preparando Excel",
   args: { exportandoPivote: true },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await expect(c.getByRole("button", { name: "⬇ Exportar CSV" })).toBeDisabled();
-    await expect(c.getByRole("status")).toHaveTextContent("Preparando CSV…");
+    await expect(c.getByRole("button", { name: "⬇ Exportar Excel" })).toBeDisabled();
+    await expect(c.getByRole("status")).toHaveTextContent("Preparando Excel…");
   },
 };
 
-export const ResultadoExportCsvConError: Story = {
-  name: "Resultado · el export CSV no respondió",
-  args: { errorExportPivote: "El export no respondió." },
+export const ResultadoExcelDescargado: Story = {
+  name: "Resultado · Excel descargado",
+  args: { exitoExportPivote: "Excel descargado." },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByRole("status")).toHaveTextContent("Excel descargado.");
+  },
+};
+
+export const ResultadoExportExcelConError: Story = {
+  name: "Resultado · el export Excel no respondió",
+  args: { errorExportPivote: "El archivo Excel no respondió." },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole("status")).toHaveTextContent(
-      "El export no respondió.",
+      "El archivo Excel no respondió.",
     );
   },
 };

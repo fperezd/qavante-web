@@ -724,35 +724,9 @@ export { concentracionPct };
 
 /* ────────────────────────── Exportar (§5.5) ────────────────────────── */
 
-/** CSV del pivote con `;` (Excel es-CL). Exporta EXACTAMENTE lo que está en pantalla: las mismas
- *  filas, los mismos meses, los mismos montos. El "no sé" viaja como "sin dato", nunca como 0.
- *
- *  El xls nativo es un 🔧 de backend que NO existe: exportar CSV es exacto sobre lo mostrado y se
- *  anuncia por su nombre ("Exportar CSV"), no como "xls". */
-export function csvPivoteTable(
-  filas: ReadonlyArray<FilaPivote>,
-  months: ReadonlyArray<string>,
-): ExportTable {
-  const flatten = filas.flatMap((f) => [f, ...f.hijos]);
-  return exportTable(
-    ["concepto", "nivel", ...months, "total"],
-    flatten.map((f) => [
-      csvCell.text(f.label),
-      csvCell.text(f.nivel === 0 ? "seccion" : "cuenta"),
-      ...months.map((m) => {
-        const cell = f.celdas.find((x) => x.periodo === m);
-        return cell?.monto == null ? csvCell.text("sin dato") : csvCell.decimal(cell.monto);
-      }),
-      csvCell.decimal(f.total),
-    ]),
-  );
-}
-
-/** CSV interoperable: no contiene tipos de celda para Excel. */
-export function csvPivote(filas: ReadonlyArray<FilaPivote>, months: ReadonlyArray<string>): string {
-  const table = csvPivoteTable(filas, months);
-  return csv(table.headers, table.rows, table.dialect);
-}
+/* El pivote principal no tiene escritor local: su XLSX sale del endpoint que reutiliza el mismo
+ * breakdown canónico. Los helpers siguientes sólo cubren tablas secundarias que aún se exportan
+ * desde sus modelos presentacionales. */
 
 /** CSV del comparativo. Las tres columnas viajan con su nombre completo, incluido el corte al día:
  *  un archivo que dijera sólo "agosto" y "julio" reintroduciría fuera de la app la ambigüedad que

@@ -15,7 +15,7 @@ vi.hoisted(() => {
   process.env.NEXT_PUBLIC_API_URL = "http://api.test";
 });
 
-import { api } from "./client";
+import { api, filenameFromContentDisposition } from "./client";
 import { ApiError } from "./errors";
 
 const BASE = "http://api.test";
@@ -62,6 +62,84 @@ describe("api — respuestas OK", () => {
       isMultipart: true,
       fileName: "cartola.pdf",
     });
+  });
+
+  it("GET binario conserva bytes, MIME, nombre y credentials del cliente común", async () => {
+    const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0x01]);
+    server.use(
+      http.get(`${BASE}/api/export`, ({ request }) => {
+        expect(request.credentials).toBe("include");
+        expect(request.headers.get("accept")).toBe(
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        );
+        return new HttpResponse(bytes, {
+          headers: {
+            "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "content-disposition": 'attachment; filename="resultado-operacional.xlsx"',
+          },
+        });
+      }),
+    );
+
+    await expect(
+      api.getFile("/api/export", {
+        headers: { Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+      }),
+    ).resolves.toEqual({
+      bytes,
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      contentDisposition: 'attachment; filename="resultado-operacional.xlsx"',
+      filename: "resultado-operacional.xlsx",
+    });
+  });
+
+  it("GET binario comparte el refresh y reintenta con el mismo parser", async () => {
+    let refreshCalls = 0;
+    let exportCalls = 0;
+    server.use(
+      http.post(`${BASE}/api/auth/refresh`, () => {
+        refreshCalls += 1;
+        return new HttpResponse(null, { status: 204 });
+      }),
+      http.get(`${BASE}/api/export`, () => {
+        exportCalls += 1;
+        if (exportCalls === 1) return new HttpResponse(null, { status: 401 });
+        return new HttpResponse(new Uint8Array([0x50, 0x4b, 0x03, 0x04]), {
+          headers: { "content-type": "application/octet-stream" },
+        });
+      }),
+    );
+
+    await expect(api.getFile("/api/export")).resolves.toMatchObject({
+      bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04]),
+    });
+    expect(refreshCalls).toBe(1);
+    expect(exportCalls).toBe(2);
+  });
+
+  it("GET binario sin contenido falla como ApiError, no como archivo vacío", async () => {
+    server.use(http.get(`${BASE}/api/export`, () => new HttpResponse(null, { status: 204 })));
+    await expect(api.getFile("/api/export")).rejects.toMatchObject({
+      status: 204,
+      code: "empty_file_response",
+    });
+    await expect(api.getFile("/api/export")).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("Content-Disposition", () => {
+  it("extrae filename entre comillas y filename* UTF-8", () => {
+    expect(filenameFromContentDisposition('attachment; filename="reporte.xlsx"')).toBe(
+      "reporte.xlsx",
+    );
+    expect(
+      filenameFromContentDisposition("attachment; filename*=UTF-8''resultado%20operacional.xlsx"),
+    ).toBe("resultado operacional.xlsx");
+  });
+
+  it("un filename* mal codificado no se convierte en un nombre plausible", () => {
+    expect(filenameFromContentDisposition("attachment; filename*=UTF-8''%ZZ.xlsx")).toBeNull();
+    expect(filenameFromContentDisposition(null)).toBeNull();
   });
 });
 
