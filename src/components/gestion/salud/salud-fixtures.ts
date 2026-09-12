@@ -284,7 +284,7 @@ export const saludCrisis: SaludModel = {
       { label: "Cruce cobros-facturas", value: 48 },
       { label: "Historia", value: 62 },
     ],
-    note: "Confianza media: faltan conciliar movimientos y conectar todas las fuentes. Aun así, la señal de caja negativa es clara y consistente.",
+    note: "Faltan movimientos por conciliar y fuentes por conectar.",
   },
   matrix: {
     active: "crisis",

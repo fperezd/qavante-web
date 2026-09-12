@@ -121,6 +121,12 @@ describe("ruleToForm — snapshot → defaults", () => {
     expect(form.name).toBe("Movistar");
     expect(form.condition_field).toBe("counterparty_name");
     expect(form.confidence).toBe(0.95);
+    // Sin control visible: editar otros campos no debe cambiar el parámetro interno,
+    // incluido cero, que antes caía al default por usar ||.
+    for (const confidence of ["0", "0.6", "0.95", "1"]) {
+      const unchanged = ruleToForm({ ...rule, confidence });
+      expect(formToUpdateRequest(unchanged).confidence).toBe(Number(confidence));
+    }
     expect(form.canonical_category).toBe("");
     expect(form.priority).toBe(50);
   });

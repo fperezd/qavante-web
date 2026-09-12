@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Info, CalendarClock } from "lucide-react";
-import { QavanteBadge } from "@/components/qavante";
 import { useOperationalResultBreakdown, type OperationalResultResponse } from "@/lib/api/gestion";
 import { useDashboardSummary } from "@/lib/api/dashboard";
 import { parseAmount } from "../gestion-format";
@@ -281,29 +280,12 @@ function Comparativos({ items }: { items: Comparativo[] }) {
   );
 }
 
-const CONF_LABEL: Record<OperationalResultResponse["confidence"], string> = {
-  high: "Confianza alta",
-  medium: "Confianza media",
-  low: "Confianza baja",
-};
-const CONF_VARIANT: Record<
-  OperationalResultResponse["confidence"],
-  "success" | "warning" | "danger"
-> = {
-  high: "success",
-  medium: "warning",
-  low: "danger",
-};
-
 /** Pie de confianza + fuentes faltantes (§13: no se asume 0). Va como footer con label y separador
  *  para que califique al resultado con contexto — antes era un chip suelto huérfano (auditoría UX F-09). */
 function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
+  if (!mes.missing_sources?.length) return null;
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 text-xs text-neutral-mid">
-      <span className="font-medium text-neutral-dark">Confianza de este resultado:</span>
-      <QavanteBadge variant={CONF_VARIANT[mes.confidence]}>
-        {CONF_LABEL[mes.confidence]}
-      </QavanteBadge>
       {(mes.missing_sources ?? []).length > 0 && (
         <span className="inline-flex items-center gap-1">
           <Info className="h-3.5 w-3.5" aria-hidden="true" />
@@ -355,7 +337,7 @@ function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
       <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5">
         <p className="inline-flex items-center gap-2 text-[13px] font-bold text-warning-700">
           <AlertTriangle className="size-[18px] shrink-0" aria-hidden="true" />
-          No podemos mostrar tu resultado con confianza
+          El resultado requiere revisión
         </p>
         <p className="mt-2 text-[13px] text-neutral-dark">
           El resultado del mes iguala o supera a tus ingresos, lo que daría un margen imposible

@@ -86,10 +86,7 @@ export function BrechaPlan({
 
       <ol className="flex-1">
         {acciones.map((a, i) => (
-          <li
-            key={i}
-            className="flex items-center gap-3 border-t border-border px-5 py-3"
-          >
+          <li key={i} className="flex items-center gap-3 border-t border-border px-5 py-3">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-neutral-dark">{a.titulo}</p>
               <p className="mt-0.5 text-xs text-neutral-mid">
@@ -125,7 +122,7 @@ export function BrechaPlan({
 
       <footer className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t-2 border-border-strong px-5 py-3 text-xs text-neutral-mid">
         <span>
-          Cobertura identificada (certeza alta/media){" "}
+          Cobertura identificada{" "}
           <span className="font-bold tabular-nums text-neutral-dark">
             {formatClp(coberturaIdentificada)}
           </span>

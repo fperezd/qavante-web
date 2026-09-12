@@ -393,7 +393,7 @@ export function motivosNoAutomatico(item: ItemConciliarV07, cand: CandidatoV07 |
   if (!rutEnGlosa(item.glosa, cand.rut)) out.push("el RUT no aparece en la glosa");
   const dias = diasEntre(cand.fecha, item.fecha);
   if (dias != null && Math.abs(dias) > DIAS_FECHA_CERCANA) out.push("la fecha está lejos");
-  if (out.length === 0) out.push("el motor no superó su umbral de confianza");
+  if (out.length === 0) out.push("requiere confirmación manual");
   return out;
 }
 

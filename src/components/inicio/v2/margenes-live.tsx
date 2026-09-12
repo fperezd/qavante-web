@@ -15,10 +15,7 @@ import { margenesMesAnterior } from "./margenes-model";
    Siempre renderiza una tarjeta (no null): con los márgenes, o un estado honesto. */
 
 export function MargenesLive() {
-  const mesAnterior = React.useMemo(
-    () => shiftPeriod(currentPeriodSantiago(new Date()), -1),
-    [],
-  );
+  const mesAnterior = React.useMemo(() => shiftPeriod(currentPeriodSantiago(new Date()), -1), []);
   const query = useOperationalResult(mesAnterior);
   const data = React.useMemo(() => margenesMesAnterior(query.data), [query.data]);
 
@@ -34,7 +31,7 @@ export function MargenesLive() {
         header={<span className="font-medium">Márgenes</span>}
       >
         <p className="py-3 text-sm text-neutral-mid">
-          Todavía no podemos calcular tus márgenes de {mesCorto(mesAnterior)} con confianza.
+          Los datos para calcular los márgenes de {mesCorto(mesAnterior)} requieren revisión.
         </p>
         <Link
           href="/gestion"

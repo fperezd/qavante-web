@@ -124,7 +124,7 @@ export const ConConciliacion: Story = {
     const c = within(canvasElement);
     // La banda del match propuesto bajo el movimiento por conciliar (m1 = MERCADOLIBRE).
     await expect(c.getByText("MercadoLibre Chile")).toBeInTheDocument();
-    await expect(c.getByText(/82% de certeza/)).toBeInTheDocument();
+    await expect(c.queryByText(/de certeza/)).not.toBeInTheDocument();
     // El tab "Sugerencias" deja solo el movimiento con match (badge = 1).
     await userEvent.click(c.getByRole("tab", { name: /Sugerencias/ }));
     await expect(c.getByText("MERCADOLIBRE")).toBeInTheDocument();

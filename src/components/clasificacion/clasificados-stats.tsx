@@ -164,10 +164,8 @@ export function ClasificadosStats({
             label="Requieren revisión"
             value={String(stats.needsReviewCount)}
             tone={needsReviewTone}
-            sublabel={
-              stats.needsReviewCount > 0 ? "Confianza baja o estado pendiente" : "Todo en orden"
-            }
-            tooltip="Movimientos clasificados marcados para revisión por confianza baja o datos inconsistentes."
+            sublabel={stats.needsReviewCount > 0 ? "Clasificación por revisar" : "Todo en orden"}
+            tooltip="Movimientos cuya clasificación requiere confirmación o revisión de datos."
           />
           {stats.topCanonical && (
             <ClasificadosStatCard

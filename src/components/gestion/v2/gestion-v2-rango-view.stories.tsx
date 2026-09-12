@@ -107,7 +107,7 @@ export const DatosIncompletos: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      canvas.getByText(/No podemos mostrar el resultado del período con confianza/),
+      canvas.getByText(/El resultado del período requiere revisión/),
     ).toBeInTheDocument();
   },
 };
@@ -124,7 +124,7 @@ export const ConAvisos: Story = {
     await expect(canvas.getByText(/costo de venta/i)).toBeInTheDocument();
     // …pero el margen inflado NO se muestra como cifra confiada: degrada a la matriz cruda (#734).
     await expect(
-      canvas.getByText(/No podemos mostrar el resultado del período con confianza/),
+      canvas.getByText(/El resultado del período requiere revisión/),
     ).toBeInTheDocument();
     await expect(canvas.queryByText("El negocio ganó en el período")).not.toBeInTheDocument();
   },

@@ -97,7 +97,7 @@ export function CajaDashboardLive({
               href="/caja/conciliacion"
               icon={ArrowLeftRight}
               title="Conciliación"
-              description="Movimientos que calzan con un documento pero sin certeza. Confirmalos de a un clic."
+              description="Revisa y confirma los documentos propuestos para cada movimiento."
               badge="Acción pendiente"
               badgeVariant="warning"
             />

@@ -107,7 +107,7 @@ export const ConSeguimiento: Story = {
       {
         status: "current",
         title: "Por clasificar",
-        children: "Qavante no lo clasificó con confianza. Elige la categoría de gestión abajo.",
+        children: "Clasificación pendiente. Elige la categoría de gestión abajo.",
       },
     ],
   },
@@ -116,7 +116,7 @@ export const ConSeguimiento: Story = {
     await expect(canvas.getByText("Seguimiento")).toBeVisible();
     await expect(canvas.getByText("Detectado en tu banco")).toBeVisible();
     // Texto único del paso "en curso" (evita colisión con la categoría homónima).
-    await expect(canvas.getByText(/no lo clasificó con confianza/i)).toBeVisible();
+    await expect(canvas.getByText(/Clasificación pendiente/i)).toBeVisible();
   },
 };
 

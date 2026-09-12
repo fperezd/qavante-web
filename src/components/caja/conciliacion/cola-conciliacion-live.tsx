@@ -112,7 +112,7 @@ export function ColaConciliacionLive() {
         <QavanteEmpty
           icon={CheckCircle2}
           title="No hay nada que revisar"
-          description="Qavante concilió solo lo que pudo con certeza. Cuando aparezca un movimiento que calce con un documento pero sin seguridad, va a esperarte acá."
+          description="No hay conciliaciones propuestas por confirmar. Las nuevas propuestas aparecerán aquí."
         />
       </div>
     );

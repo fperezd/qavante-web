@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Calendar } from "lucide-react";
-import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/qavante";
+import { QavanteInlineError, QavanteStatTile } from "@/components/qavante";
 import {
   useOperationalResult,
   useOperationalResultBreakdown,
@@ -539,20 +539,10 @@ function Eficiencia({
   );
 }
 
-const CONF_LABEL = {
-  high: "Confianza alta",
-  medium: "Confianza media",
-  low: "Confianza baja",
-} as const;
-const CONF_VARIANT = { high: "success", medium: "warning", low: "danger" } as const;
-
 function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
+  if (!mes.missing_sources?.length) return null;
   return (
     <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 text-xs text-neutral-mid">
-      <span className="font-medium text-neutral-dark">Confianza de este dato:</span>
-      <QavanteBadge variant={CONF_VARIANT[mes.confidence]}>
-        {CONF_LABEL[mes.confidence]}
-      </QavanteBadge>
       {(mes.missing_sources ?? []).length > 0 && (
         <span>Faltan fuentes: {(mes.missing_sources ?? []).join(", ")} (no se asumen en cero)</span>
       )}
@@ -563,7 +553,7 @@ function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
 function NoConfiable() {
   return (
     <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5 text-[13px]">
-      <p className="font-bold text-warning-700">No podemos comparar con confianza</p>
+      <p className="font-bold text-warning-700">Los datos de la comparación requieren revisión</p>
       <p className="mt-1 text-neutral-dark">
         El resultado del mes da un margen imposible (≥100%), típicamente un gasto revertido o mal
         clasificado. Está escalado; mira el detalle en <b>Resultado</b>.

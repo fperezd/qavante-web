@@ -10,11 +10,7 @@ import { usePreferences, useUpdatePreferences } from "@/lib/api/preferences";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { formatDateLike } from "@/lib/formatters/date";
-import {
-  pulsoStatusLabel,
-  pulsoStatusTone,
-  confidenceLabel,
-} from "@/components/inicio/dashboard-format";
+import { pulsoStatusLabel, pulsoStatusTone } from "@/components/inicio/dashboard-format";
 import {
   scoreBarWidth,
   sortDriversByImpact,
@@ -122,10 +118,7 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
               {data.score}
               <span className="ml-2 text-xl">{pulsoStatusLabel(data.status)}</span>
             </p>
-            <p className="mt-0.5 text-xs text-neutral-mid">
-              {confidenceLabel(data.confidence)}
-              {data.preliminary && " · preliminar"}
-            </p>
+            {data.preliminary && <p className="mt-0.5 text-xs text-neutral-mid">Preliminar</p>}
           </div>
         </div>
         {data.headline && <p className="mt-3 text-sm text-neutral-dark">{data.headline}</p>}

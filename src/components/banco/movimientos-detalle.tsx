@@ -18,7 +18,6 @@ import { formatDateLike } from "@/lib/formatters/date";
 import { formatPeriodLabel } from "@/components/gestion/gestion-format";
 import { cn } from "@/lib/utils";
 import { MesFilter } from "./mes-filter";
-import { formatPct } from "@/lib/formatters/pct";
 import {
   filtrarMovimientos,
   contarMovimientos,
@@ -308,9 +307,6 @@ function SugerenciaBanda({
           <span className="font-medium">{sug.nombre}</span>
           {sug.documentCount > 1 && (
             <span className="text-neutral-mid"> · {sug.documentCount} documentos</span>
-          )}
-          {sug.score != null && (
-            <span className="text-neutral-mid"> · {formatPct(sug.score)} de certeza</span>
           )}
         </span>
       </div>

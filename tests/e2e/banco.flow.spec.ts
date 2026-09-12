@@ -67,7 +67,7 @@ test.describe("Flujo: Banco (/banco)", () => {
     // Nombre del documento sugerido en su span (exact: la glosa "ABONO CLIENTE X CAPITAL SPA" también
     // contiene el texto, así que evitamos el match por substring).
     await expect(page.getByText("X Capital SpA", { exact: true })).toBeVisible();
-    await expect(page.getByText(/83% de certeza/)).toBeVisible();
+    await expect(page.getByText(/de certeza|confianza/i)).toHaveCount(0);
 
     // El tab "Sugerencias" deja solo el movimiento con match.
     await page.getByRole("tab", { name: /Sugerencias/ }).click();

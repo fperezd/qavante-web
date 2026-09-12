@@ -536,23 +536,6 @@ export function SaludView({ model, className }: SaludViewProps) {
                 {model.qhs.deltaLabel}
               </p>
             </div>
-            <div className="ml-auto max-w-[190px] rounded-xl border border-dashed border-border-strong bg-surface-muted p-3 text-right text-[11.5px] text-neutral-mid">
-              <div>Confianza del dato</div>
-              <div>
-                <span className="text-lg font-bold text-neutral-dark tabular-nums">
-                  {model.confidence.score}
-                </span>
-                {" · "}
-                <span className="font-semibold text-success-700">
-                  {model.confidence.score >= 80
-                    ? "Alta"
-                    : model.confidence.score >= 55
-                      ? "Media"
-                      : "Baja"}
-                </span>
-              </div>
-              <div>Califica el diagnóstico, no la salud.</div>
-            </div>
           </div>
           <div className="mt-4">
             <ComponentBars rows={model.qhs.components} />
@@ -699,10 +682,7 @@ export function SaludView({ model, className }: SaludViewProps) {
 
       {/* Confianza */}
       <QavanteCard className="p-6">
-        <SectionHead
-          eyebrow={`Confianza del dato: ${model.confidence.score} / 100`}
-          question="¿Qué tan confiable es este diagnóstico?"
-        />
+        <SectionHead eyebrow="Datos del diagnóstico" question="¿Qué información falta completar?" />
         <div className="mt-4 grid grid-cols-2 gap-3.5 lg:grid-cols-5">
           {model.confidence.factors.map((f) => (
             <div key={f.label} className="text-[11.5px] text-neutral-mid">

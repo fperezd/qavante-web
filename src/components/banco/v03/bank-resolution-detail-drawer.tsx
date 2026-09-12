@@ -186,10 +186,7 @@ export function BankResolutionDetailDrawer({
                     value={detail.reconciliation.balanceFormatted}
                   />
                 )}
-                <Trace
-                  source={detail.reconciliation.source}
-                  confidence={detail.reconciliation.confidence}
-                />
+                <Trace source={detail.reconciliation.source} />
                 {(detail.reconciliation.evidence?.length ?? 0) > 0 && (
                   <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-mid">
                     {detail.reconciliation.evidence!.map((e) => (
@@ -236,7 +233,6 @@ export function BankResolutionDetailDrawer({
                 />
                 <Trace
                   source={detail.classification.source}
-                  confidence={detail.classification.confidence}
                   actor={detail.classification.actor}
                   occurredAt={detail.classification.classifiedAt}
                 />
@@ -390,18 +386,15 @@ function Allocations({ items, empty }: { items: ResolutionAllocation[]; empty: s
 
 function Trace({
   source,
-  confidence,
   actor,
   occurredAt,
 }: {
   source?: string | null;
-  confidence?: string | null;
   actor?: string | null;
   occurredAt?: string | null;
 }) {
   const values = [
     source && `Origen: ${source}`,
-    confidence && `Confianza: ${confidence}`,
     actor && `Actor: ${actor}`,
     occurredAt && `Fecha: ${formatDateShort(occurredAt)}`,
   ].filter(Boolean);

@@ -275,7 +275,7 @@ describe("por qué no lo resolvió solo, y la línea de diferencia", () => {
 
   it("Kaufmann: no falta ninguna verificación ⇒ el motivo es el umbral del motor", () => {
     expect(motivosNoAutomatico(KAUFMANN(), CAND_KAUFMANN())).toEqual([
-      "el motor no superó su umbral de confianza",
+      "requiere confirmación manual",
     ]);
   });
 
@@ -408,12 +408,7 @@ describe("lotes (group-by) y cola", () => {
       ids: ["mov-entel-1", "mov-entel-2", "mov-entel-3"],
     });
     // Gemelo: el de Dattatec está solo, así que NO hay lote (no se fuerza uno).
-    expect(
-      lote(
-        cola,
-        cola.find((i) => i.id === MOV_DATTATEC)!,
-      ),
-    ).toBeNull();
+    expect(lote(cola, cola.find((i) => i.id === MOV_DATTATEC)!)).toBeNull();
     expect(lote(cola, null)).toBeNull();
   });
 

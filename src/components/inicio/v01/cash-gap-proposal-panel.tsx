@@ -1,19 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
 import { formatMoney } from "@/lib/formatters/clp";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 import { normalizeVisibleText } from "@/lib/formatters/visible-text";
 import type { CashGapProposal } from "./cash-gap-proposal-model";
-
-function confidenceLabel(value: CashGapProposal["confidence"]): string {
-  return {
-    high: "Confianza alta",
-    medium: "Confianza media",
-    low: "Confianza baja",
-    preliminary: "Confianza preliminar",
-  }[value];
-}
+import { decisionLimitationText } from "./decision-limitation-text";
 
 function impactLabel(metric: string, horizonDays: number | null | undefined): string {
   if (metric === "cash_gap_14d") return "Brecha de caja a 14 días";
@@ -77,10 +69,9 @@ export function CashGapProposalPanel({
                         {normalizeVisibleText(proposal.explanation)}
                       </p>
                     </div>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-brand-primary/10 px-2.5 py-1 text-xs font-semibold text-brand-primary-700">
-                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      {confidenceLabel(proposal.confidence)}
-                    </span>
+                    {proposal.confidence === "preliminary" && (
+                      <span className="text-xs text-neutral-mid">Propuesta preliminar</span>
+                    )}
                   </div>
 
                   {proposal.impacts.length > 0 && (
@@ -148,7 +139,7 @@ export function CashGapProposalPanel({
                         aria-label="Límites informados por Qavante"
                       >
                         {proposal.limitations.map((limitation) => (
-                          <li key={limitation}>{normalizeVisibleText(limitation)}</li>
+                          <li key={limitation}>{decisionLimitationText(limitation)}</li>
                         ))}
                       </ul>
                     </div>

@@ -9,7 +9,7 @@ import {
   CalendarClock,
   Minus,
 } from "lucide-react";
-import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/qavante";
+import { QavanteInlineError, QavanteStatTile } from "@/components/qavante";
 import { Sparkline } from "@/components/ui/sparkline";
 import { PeriodRangeFilter } from "@/components/filters/period-range-filter";
 import { type PeriodRange } from "@/lib/period/period-range";
@@ -452,7 +452,7 @@ function CostosGastos({
 function TendenciaNoConfiable() {
   return (
     <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5 text-[13px]">
-      <p className="font-bold text-warning-700">No podemos mostrar la tendencia con confianza</p>
+      <p className="font-bold text-warning-700">La tendencia requiere revisión de los datos</p>
       <p className="mt-1 text-neutral-dark">
         Algún mes da un margen imposible (≥100%), típicamente un gasto revertido o mal clasificado.
         Está escalado; mira el detalle en <b>Resultado</b>.
@@ -574,23 +574,10 @@ function Delta({ label, actual, base }: { label: string; actual: number; base?: 
 }
 
 /* ---------- Compartidos ---------- */
-const CONF_LABEL: Record<OperationalResultResponse["confidence"], string> = {
-  high: "Confianza alta",
-  medium: "Confianza media",
-  low: "Confianza baja",
-};
-const CONF_VARIANT: Record<
-  OperationalResultResponse["confidence"],
-  "success" | "warning" | "danger"
-> = { high: "success", medium: "warning", low: "danger" };
-
 function ConfianzaPie({ mes }: { mes: OperationalResultResponse }) {
+  if (!mes.missing_sources?.length) return null;
   return (
     <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 text-xs text-neutral-mid">
-      <span className="font-medium text-neutral-dark">Confianza de este dato:</span>
-      <QavanteBadge variant={CONF_VARIANT[mes.confidence]}>
-        {CONF_LABEL[mes.confidence]}
-      </QavanteBadge>
       {(mes.missing_sources ?? []).length > 0 && (
         <span>Faltan fuentes: {(mes.missing_sources ?? []).join(", ")} (no se asumen en cero)</span>
       )}
@@ -603,7 +590,7 @@ function NoConfiable() {
     <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5">
       <p className="inline-flex items-center gap-2 text-[13px] font-bold text-warning-700">
         <AlertTriangle className="size-[18px] shrink-0" aria-hidden="true" />
-        No podemos mostrar este dato con confianza
+        Este dato requiere revisión
       </p>
       <p className="mt-2 text-[13px] text-neutral-dark">
         El resultado del mes da un margen imposible (100% o más), típicamente un gasto revertido o

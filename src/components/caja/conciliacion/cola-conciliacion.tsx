@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight, Check, Loader2, X } from "lucide-react";
-import { QavanteBadge, QavanteButton, QavanteCard } from "@/components/qavante";
+import { QavanteButton, QavanteCard } from "@/components/qavante";
 import { cn } from "@/lib/utils";
 import type { FilaCola } from "./reconciliacion-cola-map";
 
@@ -38,8 +38,8 @@ export function ColaConciliacion({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-neutral-mid">
           {total === 1
-            ? "Hay 1 movimiento que calza con un documento, pero no con certeza. Revísalo."
-            : `Hay ${total} movimientos que calzan con un documento, pero no con certeza. Revísalos.`}
+            ? "Hay 1 conciliación propuesta por confirmar."
+            : `Hay ${total} conciliaciones propuestas por confirmar.`}
         </p>
         <QavanteButton
           size="sm"
@@ -110,9 +110,6 @@ function FilaConciliacion({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="text-xs uppercase tracking-wide text-neutral-mid">Parece ser</p>
-            {fila.scoreTexto !== "" && (
-              <QavanteBadge variant="info">{fila.scoreTexto} de certeza</QavanteBadge>
-            )}
           </div>
           <p
             className={cn(

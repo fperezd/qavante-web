@@ -16,10 +16,8 @@ import {
   type SuggestRuleResponse,
 } from "@/lib/api/classification-rules";
 import { useCanonicalCategories } from "@/lib/api/treasury";
-import { formatPct } from "@/lib/formatters/pct";
 import {
   CONDITION_FIELDS,
-  CONFIDENCE_STEPS,
   OPERATORS,
   formToCreateRequest,
   formToUpdateRequest,
@@ -299,7 +297,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-3">
               <div className="space-y-1">
                 <label htmlFor="rule-priority" className="text-sm font-medium text-neutral-dark">
                   Prioridad
@@ -339,30 +337,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
                   </p>
                 )}
               </div>
-              <div className="space-y-1">
-                <label htmlFor="rule-confidence" className="text-sm font-medium text-neutral-dark">
-                  Confianza
-                </label>
-                <Controller
-                  control={control}
-                  name="confidence"
-                  render={({ field }) => (
-                    <select
-                      id="rule-confidence"
-                      value={field.value}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                      className={selectClass}
-                    >
-                      {CONFIDENCE_STEPS.map((c) => (
-                        <option key={c} value={c}>
-                          {formatPct(c * 100)}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                />
-                <p className="text-xs text-neutral-mid">Qué tan seguro es el match.</p>
-              </div>
+              {/* confidence conserva el valor inicial del formulario; no es un control visible. */}
             </div>
 
             {submitError && (

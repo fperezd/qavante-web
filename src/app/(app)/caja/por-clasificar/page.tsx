@@ -34,7 +34,7 @@ export default async function PorClasificarPage({
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Movimientos por clasificar</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Revisa los movimientos que Qavante no pudo clasificar con suficiente confianza.
+          Revisa los movimientos pendientes de clasificación.
         </p>
       </header>
 

@@ -279,7 +279,8 @@ describe("sección Costos y gastos (dentro de Resultado)", () => {
     expect(t).toContain("−$11.968.052");
     expect(t).toContain("30%");
     expect(t).toContain("Otros sin clasificar");
-    expect(t).toContain("bajan la confianza del dato");
+    expect(t).toContain("todavía no tienen categoría asignada");
+    expect(t).not.toMatch(/confianza/i);
   });
 
   it("declara que la descarga Excel conserva las filas y montos del cuadro", () => {

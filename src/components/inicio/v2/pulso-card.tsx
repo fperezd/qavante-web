@@ -70,7 +70,6 @@ export interface PulsoCardProps {
 export function PulsoCard({
   score,
   status,
-  confianza,
   factores,
   tendencia,
   delta,
@@ -89,7 +88,6 @@ export function PulsoCard({
           <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-mid">
             Pulso del negocio
           </span>
-          <span className="text-xs text-neutral-mid">🛡️ {confianza}</span>
         </div>
         {factores.length > 0 && (
           <div className="mt-3 flex flex-wrap justify-center gap-1.5">

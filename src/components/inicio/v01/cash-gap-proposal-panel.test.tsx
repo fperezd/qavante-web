@@ -12,6 +12,45 @@ function text(html: string): string {
 }
 
 describe("CashGapProposalPanel", () => {
+  it.each(["high", "medium", "low", "preliminary"] as const)(
+    "omite la calificación %s sin ocultar límites ni cambiar importes",
+    (confidence) => {
+      const limitation =
+        "No existe una PolicyConstraint versionada, vigente y no ambigua para este plan, ni un mínimo de caja CLP declarado por la empresa; la propuesta usa sólo evidencia concreta y queda con confianza baja, sin asumir un mínimo de caja de $0.";
+      const proposal = {
+        kind: "payment_plan" as const,
+        label: "Revisar pagos",
+        explanation: "Proyección a 14 días",
+        confidence,
+        evidenceCount: 1,
+        limitations: [limitation, "Faltan vencimientos", "Banco desactualizado"],
+        targets: [],
+        impacts: [
+          {
+            metric: "cash_gap_14d",
+            value: "120000",
+            currency: "CLP",
+            confidence,
+            confidence_method: "evidence_bounded",
+          },
+        ],
+        href: "/pagar" as const,
+        cta: "Revisar pagos propuestos",
+      };
+      const rendered = text(
+        renderToStaticMarkup(<CashGapProposalPanel loading={false} proposals={[proposal]} />),
+      );
+      expect(rendered).not.toMatch(/confianza|PolicyConstraint/i);
+      expect(rendered).toContain("$120.000");
+      expect(rendered).toContain("Faltan vencimientos");
+      expect(rendered).toContain("Banco desactualizado");
+      expect(rendered).toContain("no supone un mínimo de caja de $0");
+      expect(rendered.includes("Propuesta preliminar")).toBe(confidence === "preliminary");
+      expect(proposal.limitations[0]).toBe(limitation);
+      expect(proposal.confidence).toBe(confidence);
+    },
+  );
+
   it("normaliza U+2014 sólo al presentar un target dinámico", () => {
     const rawLabel = "BANCO BICE — Factura 3218763";
     expect(rawLabel).toMatch(EM_DASH);

@@ -17,7 +17,6 @@ import {
   type ClassificationRule,
   type ClassificationRuleUsage,
 } from "@/lib/api/classification-rules";
-import { formatPct } from "@/lib/formatters/pct";
 import { concordar, formatCount } from "@/lib/formatters/count";
 import { formatDateLong } from "@/lib/formatters/date";
 import { useCanonicalCategories } from "@/lib/api/treasury";
@@ -174,9 +173,6 @@ function RuleRow({
             )}
             <QavanteBadge variant="info">Prioridad {rule.priority}</QavanteBadge>
             <QavanteBadge variant="default">{ORIGIN_LABEL[rule.origin]}</QavanteBadge>
-            <QavanteBadge variant="info">
-              Confianza {formatPct(Number(rule.confidence) * 100)}
-            </QavanteBadge>
           </div>
           <p className="text-sm text-neutral-mid">
             Si la{" "}

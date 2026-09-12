@@ -298,7 +298,10 @@ export const ClasificarConRegla: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("119 pendientes")).toBeInTheDocument();
     await expect(canvas.getByText("Clasificar · 117")).toBeInTheDocument();
-    await expect(canvas.getByText(/una regla tuya con confianza 92%/)).toBeInTheDocument();
+    // El origen aparece en el encabezado y en la sugerencia; comprobar ambos
+    // evita depender de un selector singular para dos textos válidos.
+    await expect(canvas.getAllByText(/una regla tuya/)).toHaveLength(2);
+    await expect(canvas.queryByText(/confianza/i)).not.toBeInTheDocument();
     // La sugerencia PRE-SELECCIONA; nunca guarda sola.
     const select = canvas.getByLabelText("Cuenta de gestión") as HTMLSelectElement;
     await waitFor(async () => await expect(select.value).toBe(CUENTA_SOFTWARE));

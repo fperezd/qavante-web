@@ -8,7 +8,6 @@ import {
   Banknote,
   CheckCircle2,
   Clock,
-  ShieldCheck,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -28,7 +27,7 @@ import {
 } from "@/lib/api/dashboard";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike, formatDateTimeLike } from "@/lib/formatters/date";
-import { parseAmount, confidenceLabel, isEmptySummary } from "./dashboard-format";
+import { parseAmount, isEmptySummary } from "./dashboard-format";
 import { describeCashGap14d } from "./cash-gap-14d";
 import { PulsoRing } from "./pulso-ring";
 import { estadoVencimientoCritico } from "./critical-payment-status";
@@ -103,11 +102,9 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
                       />
                     </span>
                   </p>
-                  <p className="mt-2 inline-flex items-center gap-1 text-xs text-neutral-mid">
-                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                    {confidenceLabel(data.pulso.confidence)}
-                    {data.pulso.preliminary && " · preliminar"}
-                  </p>
+                  {data.pulso.preliminary && (
+                    <p className="mt-2 text-xs text-neutral-mid">Preliminar</p>
+                  )}
                 </div>
               </div>
               <div className="space-y-1.5 text-sm">

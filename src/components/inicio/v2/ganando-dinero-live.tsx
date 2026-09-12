@@ -35,7 +35,7 @@ export function GanandoDineroLive() {
         header={<span className="font-medium">¿Estás ganando dinero?</span>}
       >
         <p className="py-3 text-sm text-neutral-mid">
-          Todavía no podemos afirmar tu resultado de {mesCorto(mesAnterior)} con confianza.
+          El resultado de {mesCorto(mesAnterior)} requiere revisión.
         </p>
         <Link
           href="/gestion"

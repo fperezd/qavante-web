@@ -322,7 +322,7 @@ export function PorClasificarView({
       <QavanteEmpty
         icon={CheckCircle2}
         title="¡Todo al día! 🎉"
-        description="No te queda ningún movimiento por clasificar. Cuando lleguen nuevos que Qavante no pueda clasificar con confianza, aparecerán acá."
+        description="No quedan movimientos por clasificar. Los nuevos movimientos que requieran revisión aparecerán aquí."
       />
     );
   }
@@ -756,8 +756,7 @@ export function PorClasificarView({
             {
               status: "current",
               title: "Por clasificar",
-              children:
-                "Qavante no lo clasificó con confianza. Elige la categoría de gestión abajo.",
+              children: "Clasificación pendiente. Elige la categoría de gestión abajo.",
             },
           ]}
           canonicalCategories={canonicalOptions}

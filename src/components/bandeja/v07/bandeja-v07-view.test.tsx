@@ -153,7 +153,7 @@ describe("BandejaV07View — cabecera y progreso", () => {
 describe("BandejaV07View — carta de conciliar CON evidencia (Kaufmann)", () => {
   it("el why dice por qué no lo resolvió solo", () => {
     expect(texto(html())).toContain(
-      "Conciliar 1 de 2 · el piloto no lo resolvió solo: el motor no superó su umbral de confianza",
+      "Conciliar 1 de 2 · el piloto no lo resolvió solo: requiere confirmación manual",
     );
   });
 
@@ -269,11 +269,12 @@ describe("BandejaV07View — carta de clasificar", () => {
     sugerencia: { movimientoId: MOV_TERCEROS, valor: null, cargando: false },
   });
 
-  it("con regla: la sugerencia va primero, con su confianza", () => {
+  it("con regla: la sugerencia va primero, sin calificar su confianza", () => {
     const t = texto(html(conRegla()));
     expect(t).toContain("Clasificar 1 de 5 · una regla tuya calza con este movimiento");
     expect(t).toContain("Cargo $89.250 · “PAGO SERVICIOS DATTATEC.COM 76888888-8” · 18 ago 2026");
-    expect(t).toContain("Sugerido Software y tecnología · una regla tuya con confianza 92%");
+    expect(t).toContain("Sugerido Software y tecnología · una regla tuya");
+    expect(t).not.toMatch(/confianza|92%/i);
   });
 
   it("sin regla: NO hay sugerencia y aparecen 3 frecuentes rotulados como lo que son", () => {

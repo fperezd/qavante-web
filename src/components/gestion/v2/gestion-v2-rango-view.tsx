@@ -156,7 +156,7 @@ function RangoIncompleto({ data }: { data: OperationalResultBreakdown }) {
       <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-5">
         <p className="inline-flex items-center gap-2 text-[13px] font-bold text-warning-700">
           <AlertTriangle className="size-[18px] shrink-0" aria-hidden="true" />
-          No podemos mostrar el resultado del período con confianza
+          El resultado del período requiere revisión
         </p>
         <p className="mt-2 text-[13px] text-neutral-dark">
           El cálculo llega inconsistente (el resultado supera a los ingresos o faltan costos). Es un

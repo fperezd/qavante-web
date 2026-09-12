@@ -779,12 +779,14 @@ function SeccionCostos({
           detail="de mayor a menor"
         />
         <KpiCard
-          label="Confianza del dato"
-          value={capitalizar(conf.nivel)}
+          label="Costos sin clasificar"
+          value={lineas.length === 0 ? "Sin datos" : formatClp(conf.montoSinClasificar)}
           detail={
             conf.montoSinClasificar > 0
               ? `${formatClp(conf.montoSinClasificar)} aún sin clasificar`
-              : "todo el costo del mes está clasificado"
+              : lineas.length === 0
+                ? "sin movimientos en el período"
+                : "todo el costo del mes está clasificado"
           }
         />
       </div>
@@ -809,8 +811,8 @@ function SeccionCostos({
       )}
       {conf.montoSinClasificar > 0 && (
         <p className="text-[12.5px] text-rediseno-tinta-3">
-          Las cuentas marcadas <b>sin clasificar</b> bajan la confianza del dato: la plata salió
-          igual, pero todavía no sabemos a qué categoría va. Se resuelven en la bandeja.
+          Las cuentas marcadas <b>sin clasificar</b> todavía no tienen categoría asignada. Revisa su
+          clasificación en Bandeja.
         </p>
       )}
       <p className="text-[12.5px] text-rediseno-tinta-3">

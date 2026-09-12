@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { concordar, formatCount } from "@/lib/formatters/count";
 import { formatDateLong, formatRelative } from "@/lib/formatters/date";
-import { formatPct } from "@/lib/formatters/pct";
 import { formatRut } from "@/lib/formatters/rut";
 import { Banner } from "@/components/rediseno/banner";
 import { DataState } from "@/components/rediseno/data-state";
@@ -1359,8 +1358,7 @@ function CartaClasificar({
           {grupo.porCuenta || grupo.porRut
             ? ""
             : " (agrupados por glosa idéntica, no por RUT: la glosa no trae uno)"}
-          .
-          Puedes clasificarlos de una sola vez después de elegir categoría y confirmar.
+          . Puedes clasificarlos de una sola vez después de elegir categoría y confirmar.
         </Banner>
       )}
 
@@ -1390,7 +1388,7 @@ function CartaClasificar({
           <p className="mt-3 text-[13px] text-rediseno-tinta-2">
             <span className={EYEBROW}>Sugerido</span>{" "}
             <b className="break-words text-rediseno-tinta">{valorSugerido.nombre}</b> · una regla
-            tuya con confianza {formatPct(valorSugerido.confianza * 100)}
+            tuya
             {valorSugerido.cuentaId
               ? ""
               : " · pero esa cuenta no está en tu catálogo activo, así que hay que elegirla a mano"}
@@ -1646,11 +1644,7 @@ function OfertaRegla({
     categoriaCanonica: string;
     nombre: string;
   };
-  onCrear?: (
-    item: ItemClasificarV07,
-    cuentaId: string,
-    categoriaCanonica: string,
-  ) => Promise<void>;
+  onCrear?: (item: ItemClasificarV07, cuentaId: string, categoriaCanonica: string) => Promise<void>;
   onCerrar: () => void;
 }) {
   const [creando, setCreando] = React.useState(false);

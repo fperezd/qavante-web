@@ -225,7 +225,7 @@ function LearningCandidatesCard({ state }: { state: ReaderState<LearningCandidat
           <div>
             <h4 className="font-semibold text-neutral-dark">F10 · señales candidatas</h4>
             <p className="mt-1 text-sm text-neutral-mid">
-              Observaciones para revisión: no recalibran políticas, proyecciones ni confianza.
+              Observaciones para revisión: no modifican políticas ni proyecciones.
             </p>
           </div>
           <StateBadge
@@ -269,9 +269,6 @@ function LearningCandidatesCard({ state }: { state: ReaderState<LearningCandidat
                   </div>
                   <QavanteBadge variant="info">Sólo candidata</QavanteBadge>
                 </div>
-                <p className="mt-2 text-xs text-neutral-mid">
-                  Confianza publicada: {signal.confidence}
-                </p>
                 <TraceList label="Evidencia" refs={signal.evidence_refs} />
               </li>
             ))}
@@ -388,7 +385,6 @@ function OutcomeDecisionCard({ view }: { view: OutcomeDecisionView }) {
         {view.attributionLabel && (
           <p className="mt-1 text-xs text-neutral-mid">{view.attributionLabel}</p>
         )}
-        <p className="mt-1 text-xs text-neutral-mid">Confianza: {view.confidence}</p>
       </div>
 
       <OutcomeFieldGroup title="Resultado observado" fields={view.assessmentFields} />

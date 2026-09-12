@@ -70,7 +70,7 @@ export const Interaccion: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Pulso del negocio")).toBeInTheDocument();
-    await expect(canvas.getByText(/Confianza de los datos/)).toBeInTheDocument();
+    await expect(canvas.queryByText(/Confianza de los datos/)).not.toBeInTheDocument();
     await expect(canvas.getByText(/de 58 a 33/)).toBeInTheDocument();
   },
 };

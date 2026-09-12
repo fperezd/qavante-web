@@ -64,7 +64,7 @@ export const ruleFormSchema = z.object({
     .int("La prioridad es un número entero")
     .min(1, "La prioridad mínima es 1")
     .max(1000, "La prioridad máxima es 1000"),
-  confidence: z.number({ message: "Elige un nivel de confianza" }).min(0).max(1),
+  confidence: z.number({ message: "No se pudo cargar la configuración de la regla" }).min(0).max(1),
 });
 
 export type RuleFormValues = z.infer<typeof ruleFormSchema>;
@@ -94,7 +94,7 @@ export function ruleToForm(rule: ClassificationRule | null | undefined): RuleFor
     condition_value: rule.condition_value,
     canonical_category: rule.canonical_category ?? "",
     priority: rule.priority,
-    confidence: parseFloat(rule.confidence) || 0.8,
+    confidence: Number.isFinite(parseFloat(rule.confidence)) ? parseFloat(rule.confidence) : 0.8,
   };
 }
 
