@@ -14,6 +14,8 @@ type Props = {
   choosing: boolean;
   /** Moneda del movimiento que el backend usa para filtrar los candidatos. */
   currencyCode?: string | null;
+  /** Vuelve al detalle, donde conciliación y clasificación permanecen independientes. */
+  onReturnToDetail?: () => void;
 };
 
 export function formatDocumentSuggestionAmount(
@@ -33,6 +35,7 @@ export function DocumentSuggestionsDialog({
   onChoose,
   choosing,
   currencyCode,
+  onReturnToDetail,
 }: Props) {
   const suggestions = useDocumentSuggestions(movementId, open);
 
@@ -74,10 +77,27 @@ export function DocumentSuggestionsDialog({
             {!suggestions.isLoading &&
               !suggestions.isError &&
               suggestions.data?.suggestions.length === 0 && (
-                <p className="py-6 text-sm text-neutral-mid">
-                  No encontramos otro documento candidato para este movimiento. Puedes descartarlo y
-                  revisarlo después.
-                </p>
+                <div className="space-y-4 py-6">
+                  <div className="rounded-lg bg-neutral-soft p-4 text-sm text-neutral-mid">
+                    <p className="font-medium text-neutral-dark">
+                      No hay un documento compatible para conciliar.
+                    </p>
+                    <p className="mt-1">
+                      No confirmaremos una coincidencia sin evidencia. El movimiento puede
+                      clasificarse aunque siga pendiente de conciliación.
+                    </p>
+                  </div>
+                  <QavanteButton
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      onReturnToDetail?.();
+                      onOpenChange(false);
+                    }}
+                  >
+                    Volver al detalle para clasificar
+                  </QavanteButton>
+                </div>
               )}
             <ul className="space-y-2">
               {suggestions.data?.suggestions.map((document) => {

@@ -6,6 +6,7 @@ import {
   mesDeFecha,
   movimientosDeTarjeta,
   estadoConciliacion,
+  estadoClasificacion,
   filtrarMovimientos,
   contarMovimientos,
   mapaSugerencias,
@@ -114,6 +115,7 @@ describe("movimientosDeCuenta", () => {
     const ca = r.find((m) => m.id === "ca")!;
     expect(ab.esAbono).toBe(true);
     expect(ab.estado).toBe("conciliado");
+    expect(ab.estadoClasificacion).toBe("por_clasificar");
     expect(ca.esAbono).toBe(false);
     expect(ca.estado).toBe("por_conciliar");
   });
@@ -143,7 +145,30 @@ describe("estadoConciliacion", () => {
     expect(estadoConciliacion("")).toBe("por_conciliar");
     expect(estadoConciliacion("matched")).toBe("conciliado");
     expect(estadoConciliacion("reconciled")).toBe("conciliado");
+    expect(estadoConciliacion("partial")).toBe("parcial");
+    expect(estadoConciliacion("not_required")).toBe("no_requerido");
     expect(estadoConciliacion("excluded")).toBe("excluido");
+    expect(estadoConciliacion("unexpected_status")).toBe("por_conciliar");
+  });
+});
+
+describe("estadoClasificacion", () => {
+  it("exige estado classified y un destino real", () => {
+    expect(
+      estadoClasificacion(
+        bm({ classification_status: "classified", canonical_category: "supplier_payment" }),
+      ),
+    ).toBe("clasificado");
+    expect(
+      estadoClasificacion(
+        bm({
+          classification_status: "classified",
+          canonical_category: null,
+          management_account_id: null,
+        }),
+      ),
+    ).toBe("por_clasificar");
+    expect(estadoClasificacion(bm({ classification_status: "needs_review" }))).toBe("revision");
   });
 });
 
@@ -183,6 +208,7 @@ describe("filtrarMovimientos / contarMovimientos", () => {
       cargos: 2,
       porConciliar: 1,
       sugerencias: 0,
+      porClasificar: 0,
     });
   });
   it("cuenta sugerencias = intersección con los ids con match propuesto", () => {
@@ -244,7 +270,7 @@ describe("mapaSugerencias", () => {
       { movement_id: "m4", suggestion: null },
       { movement_id: "", suggestion: { document_kind: "receivable", name: "X", score: "90" } },
     ]);
-    expect(map.get("m3")).toMatchObject({ nombre: "s/d", score: null, documentCount: 1 });
+    expect(map.get("m3")).toMatchObject({ nombre: null, score: null, documentCount: 1 });
     expect(map.has("m4")).toBe(false);
     expect(map.has("")).toBe(false);
     expect(map.size).toBe(1);

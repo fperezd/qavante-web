@@ -266,7 +266,9 @@ export function BankResolutionDetailDrawer({
                         : undefined
                     }
                   >
-                    Modificar clasificación
+                    {detail.classification.status === "clasificado"
+                      ? "Modificar clasificación"
+                      : "Clasificar movimiento"}
                   </QavanteButton>
                   {detail.classification.status === "clasificado" && (
                     <QavanteButton

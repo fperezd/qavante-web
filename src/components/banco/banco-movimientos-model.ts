@@ -8,7 +8,13 @@ import { parseAmount } from "@/components/gestion/gestion-format";
 import type { BankMovement, TarjetaMovimiento } from "@/lib/api/treasury";
 
 /** Estado de conciliación de un movimiento de cuenta (banco). `null` = no aplica (tarjeta). */
-export type EstadoConciliacion = "conciliado" | "por_conciliar" | "excluido";
+export type EstadoConciliacion =
+  | "conciliado"
+  | "parcial"
+  | "por_conciliar"
+  | "excluido"
+  | "no_requerido";
+export type EstadoClasificacion = "clasificado" | "por_clasificar" | "revision";
 
 /** Un movimiento normalizado para la lista del detalle. `monto` FIRMADO (negativo = egreso/cargo). */
 export interface MovimientoBanco {
@@ -22,6 +28,8 @@ export interface MovimientoBanco {
   esAbono: boolean;
   /** Estado de conciliación (solo cuentas); `null` en tarjeta. */
   estado?: EstadoConciliacion | null;
+  /** Estado independiente de la clasificación contable/financiera. */
+  estadoClasificacion?: EstadoClasificacion | null;
   /** Nº de documento del banco, si lo trae. */
   documento?: string | null;
   /** Extra de tarjeta: cuotas ("1 de 3"), si aplica. */
@@ -32,15 +40,12 @@ export interface MovimientoBanco {
 export function estadoConciliacion(status: string | null | undefined): EstadoConciliacion {
   const s = (status ?? "").toLowerCase();
   if (s.includes("exclud") || s.includes("exclu")) return "excluido";
-  if (
-    s === "" ||
-    s.includes("unrecon") ||
-    s.includes("unmatch") ||
-    s.includes("pend") ||
-    s.includes("review")
-  )
-    return "por_conciliar";
-  return "conciliado";
+  if (s === "matched" || s === "reconciled") return "conciliado";
+  if (s === "partial" || s === "partially_matched") return "parcial";
+  if (s === "prepago" || s === "processor_batch" || s === "not_required") {
+    return "no_requerido";
+  }
+  return "por_conciliar";
 }
 
 interface BiceAccountLike {
@@ -79,11 +84,27 @@ export function movimientosDeCuenta(
         // significa que ninguna fuente entregó evidencia: nunca lo aplastamos a CLP.
         moneda: m.currency_code?.trim().toUpperCase() || "S/D",
         esAbono: monto >= 0,
-        estado: estadoConciliacion(m.reconciliation_status),
+        estado: estadoConciliacion(m.effective_reconciliation_status ?? m.reconciliation_status),
+        estadoClasificacion: estadoClasificacion(m),
         documento: m.external_id ?? null,
       } satisfies MovimientoBanco;
     })
     .sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+}
+
+export function estadoClasificacion(
+  movement: Pick<
+    BankMovement,
+    "classification_status" | "canonical_category" | "management_account_id"
+  >,
+): EstadoClasificacion {
+  const status = (movement.classification_status ?? "").toLowerCase();
+  const tieneDestino = Boolean(
+    movement.canonical_category?.trim() || movement.management_account_id?.trim(),
+  );
+  if (status === "classified" && tieneDestino) return "clasificado";
+  if (status === "review" || status === "needs_review") return "revision";
+  return "por_clasificar";
 }
 
 /** Monto firmado del movimiento de banco: el signo del `amount` si lo trae; si el `amount` viene en
@@ -142,7 +163,7 @@ export interface SugerenciaConciliacion {
   /** "receivable" (cobro) | "payable" (pago) | otro. */
   kind: string;
   /** Nombre del documento/contraparte sugerido. */
-  nombre: string;
+  nombre: string | null;
   /** Score 0-100 (confianza del match); `null` si el backend no lo trae. */
   score: number | null;
   /** Cuántos documentos cubre la sugerencia (subset-sum / NC-netting cubren N). */
@@ -172,7 +193,7 @@ export function mapaSugerencias(
     map.set(it.movement_id, {
       movementId: it.movement_id,
       kind: s.document_kind ?? "",
-      nombre: s.name ?? "s/d",
+      nombre: s.name?.trim() || null,
       score: score != null && Number.isFinite(score) ? score : null,
       documentCount: s.document_count ?? 1,
     });
@@ -181,7 +202,13 @@ export function mapaSugerencias(
 }
 
 /** Tab activo de la lista de movimientos (estilo Chipax). "sugerencias" = con match propuesto (Fase 2). */
-export type MovTab = "todos" | "sugerencias" | "abonos" | "cargos" | "por_conciliar";
+export type MovTab =
+  | "todos"
+  | "sugerencias"
+  | "abonos"
+  | "cargos"
+  | "por_conciliar"
+  | "por_clasificar";
 
 /** Filtra los movimientos por tab + texto de búsqueda (en la glosa). Puro. `conSugerencia` = ids con
  *  match propuesto (para el tab "sugerencias"). */
@@ -195,7 +222,10 @@ export function filtrarMovimientos(
   return movs.filter((m) => {
     if (tab === "abonos" && !m.esAbono) return false;
     if (tab === "cargos" && m.esAbono) return false;
-    if (tab === "por_conciliar" && m.estado !== "por_conciliar") return false;
+    if (tab === "por_conciliar" && m.estado !== "por_conciliar" && m.estado !== "parcial") {
+      return false;
+    }
+    if (tab === "por_clasificar" && m.estadoClasificacion !== "por_clasificar") return false;
     if (tab === "sugerencias" && !(m.id != null && conSugerencia?.has(m.id))) return false;
     if (q && !m.glosa.toLowerCase().includes(q)) return false;
     return true;
@@ -211,13 +241,15 @@ export function contarMovimientos(
   cargos: number;
   porConciliar: number;
   sugerencias: number;
+  porClasificar: number;
 } {
   return {
     abonos: movs.filter((m) => m.esAbono).length,
     cargos: movs.filter((m) => !m.esAbono).length,
-    porConciliar: movs.filter((m) => m.estado === "por_conciliar").length,
+    porConciliar: movs.filter((m) => m.estado === "por_conciliar" || m.estado === "parcial").length,
     sugerencias: conSugerencia
       ? movs.filter((m) => m.id != null && conSugerencia.has(m.id)).length
       : 0,
+    porClasificar: movs.filter((m) => m.estadoClasificacion === "por_clasificar").length,
   };
 }

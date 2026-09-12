@@ -24,6 +24,7 @@ import {
   type MovimientoBanco,
   type MovTab,
   type EstadoConciliacion,
+  type EstadoClasificacion,
   type SugerenciaConciliacion,
 } from "./banco-movimientos-model";
 
@@ -116,6 +117,9 @@ export function MovimientosDetalle({
     { id: "cargos", label: "Cargos", n: counts.cargos },
     ...(conEstado
       ? [{ id: "por_conciliar" as MovTab, label: "Por conciliar", n: counts.porConciliar }]
+      : []),
+    ...(conEstado
+      ? [{ id: "por_clasificar" as MovTab, label: "Sin clasificar", n: counts.porClasificar }]
       : []),
   ];
 
@@ -227,7 +231,14 @@ export function MovimientosDetalle({
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
-                    {conEstado && m.estado && <EstadoBadge estado={m.estado} />}
+                    {conEstado && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {m.estado && <EstadoBadge estado={m.estado} />}
+                        {m.estadoClasificacion && (
+                          <ClasificacionBadge estado={m.estadoClasificacion} />
+                        )}
+                      </div>
+                    )}
                     <span
                       className={cn(
                         "whitespace-nowrap font-medium tabular-nums",
@@ -257,6 +268,7 @@ export function MovimientosDetalle({
                   {sug && (
                     <SugerenciaBanda
                       sug={sug}
+                      onReview={m.id && onOpenMovement ? () => onOpenMovement(m) : undefined}
                       onConciliar={onConciliar}
                       onRechazar={onRechazar}
                       accionEnCurso={accionEnCurso}
@@ -274,23 +286,38 @@ export function MovimientosDetalle({
 
 function EstadoBadge({ estado }: { estado: EstadoConciliacion }) {
   if (estado === "conciliado") return <QavanteBadge variant="success">Conciliado</QavanteBadge>;
+  if (estado === "parcial")
+    return <QavanteBadge variant="warning">Conciliado parcial</QavanteBadge>;
   if (estado === "excluido") return <QavanteBadge variant="default">Excluido</QavanteBadge>;
+  if (estado === "no_requerido") return <QavanteBadge variant="default">No requiere</QavanteBadge>;
   return <QavanteBadge variant="warning">Por conciliar</QavanteBadge>;
+}
+
+function ClasificacionBadge({ estado }: { estado: EstadoClasificacion }) {
+  if (estado === "clasificado") {
+    return <QavanteBadge variant="success">Clasificado</QavanteBadge>;
+  }
+  if (estado === "revision")
+    return <QavanteBadge variant="warning">Revisar clasificación</QavanteBadge>;
+  return <QavanteBadge variant="default">Sin clasificar</QavanteBadge>;
 }
 
 /** Banda con el match propuesto para un movimiento por conciliar + las acciones Conciliar / Rechazar. */
 function SugerenciaBanda({
   sug,
+  onReview,
   onConciliar,
   onRechazar,
   accionEnCurso,
 }: {
   sug: SugerenciaConciliacion;
+  onReview?: () => void;
   onConciliar?: (movId: string) => void;
   onRechazar?: (movId: string) => void;
   accionEnCurso?: AccionConciliar | null;
 }) {
   const esCobro = sug.kind === "receivable";
+  const contraparteIdentificada = Boolean(sug.nombre);
   const enCurso = accionEnCurso?.movId === sug.movementId ? accionEnCurso.tipo : null;
   const bloqueada = enCurso != null;
 
@@ -303,27 +330,44 @@ function SugerenciaBanda({
           <ArrowUpRight className="h-4 w-4 shrink-0 text-danger-500" aria-hidden="true" />
         )}
         <span className="min-w-0 text-xs text-neutral-dark">
-          <span className="text-neutral-mid">{esCobro ? "Cobro a " : "Pago a "}</span>
-          <span className="font-medium">{sug.nombre}</span>
+          <span className="text-neutral-mid">
+            {contraparteIdentificada
+              ? esCobro
+                ? "Posible cobro de "
+                : "Posible pago a "
+              : "Propuesta incompleta: falta identificar la contraparte"}
+          </span>
+          {sug.nombre && <span className="font-medium">{sug.nombre}</span>}
           {sug.documentCount > 1 && (
             <span className="text-neutral-mid"> · {sug.documentCount} documentos</span>
           )}
         </span>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => onConciliar?.(sug.movementId)}
-          disabled={bloqueada}
-          className="inline-flex items-center gap-1 rounded-md bg-brand-primary px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-brand-primary-700 disabled:opacity-50"
-        >
-          {enCurso === "conciliar" ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-          ) : (
-            <Check className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          Conciliar
-        </button>
+        {contraparteIdentificada ? (
+          <button
+            type="button"
+            onClick={() => onConciliar?.(sug.movementId)}
+            disabled={bloqueada}
+            className="inline-flex items-center gap-1 rounded-md bg-brand-primary px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-brand-primary-700 disabled:opacity-50"
+          >
+            {enCurso === "conciliar" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            Conciliar
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onReview}
+            disabled={!onReview || bloqueada}
+            className="inline-flex items-center rounded-md bg-brand-primary px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-brand-primary-700 disabled:opacity-50"
+          >
+            Revisar
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onRechazar?.(sug.movementId)}

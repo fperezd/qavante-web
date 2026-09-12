@@ -374,6 +374,7 @@ export function CuentaDetalleLive({
         open={canWrite && documentPickerOpen}
         onOpenChange={setDocumentPickerOpen}
         choosing={confirmWithDocument.isPending}
+        onReturnToDetail={() => setDocumentPickerOpen(false)}
         onChoose={async (documentId) => {
           if (!selectedMovementId) return;
           try {
