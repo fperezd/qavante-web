@@ -8,7 +8,21 @@ import {
   MESES_CORTOS_CAP,
   MESES_LARGOS_CAP,
   mesCortoDePeriodo,
+  periodoLargo,
 } from "./months";
+
+describe("periodoLargo", () => {
+  it("usa los doce nombres centrales y conserva el año", () => {
+    MESES_LARGOS.forEach((month, index) => {
+      expect(periodoLargo(`2026-${String(index + 1).padStart(2, "0")}`)).toBe(`${month} de 2026`);
+    });
+    expect(periodoLargo("2025-12")).toBe("diciembre de 2025");
+  });
+  it.each(["", "2026-00", "2026-13", "2026-8", "2026-08-01", "no-es-periodo"])(
+    "no inventa un mes para %s",
+    (period) => expect(periodoLargo(period)).toBeNull(),
+  );
+});
 
 describe("arrays de meses", () => {
   it("los cuatro tienen 12 entradas, índice 0 = enero", () => {

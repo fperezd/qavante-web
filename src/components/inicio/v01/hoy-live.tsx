@@ -30,7 +30,10 @@ import { asUserRole } from "@/lib/auth/types";
 import { useReversibleActions, useRevertReversibleAction } from "@/lib/api/reversible-actions";
 import { actividadesAutomaticas } from "./activity-log-model";
 import { cashGapProposals } from "./cash-gap-proposal-model";
-import { HoyView } from "./hoy-view";
+import { InicioResumenView } from "../resumen/inicio-resumen-view";
+import { InicioCreditosLive } from "../resumen/inicio-creditos-live";
+import { useBudgetVsActual } from "@/lib/api/planning";
+import { currentPeriodSantiago, shiftPeriod } from "@/components/gestion/gestion-format";
 
 /* Cableado de V01 · Hoy. La vista es presentacional; acá se resuelven las dos fuentes:
  *
@@ -43,8 +46,10 @@ import { HoyView } from "./hoy-view";
  * `/api/me` NO bloquea la pantalla: si falla o tarda, el crumb dice "Tu empresa" y el resto se
  * pinta igual. El nombre de la empresa es contexto, no el dato de la vista. */
 
-export function HoyLive() {
+export function HoyLive({ bankBalancesEnabled = false }: { bankBalancesEnabled?: boolean }) {
   const summary = useDashboardSummary();
+  const budgetPeriod = shiftPeriod(currentPeriodSantiago(new Date()), -1);
+  const budget = useBudgetVsActual(budgetPeriod, summary.isSuccess);
   const liquidity = useLatestLiquidityEvaluation();
   /* No recalculan la caja: sólo se leen con el resumen ya disponible. Si fallan,
      Hoy conserva las acciones prioritarias del summary como fallback. */
@@ -92,7 +97,12 @@ export function HoyLive() {
   }
 
   return (
-    <HoyView
+    <InicioResumenView
+      credits={<InicioCreditosLive enabled={bankBalancesEnabled} />}
+      budget={budget.isError ? null : budget.data}
+      budgetPeriod={budgetPeriod}
+      budgetLoading={budget.isLoading}
+      budgetFailed={budget.isError}
       data={summary.data ?? null}
       empresa={me.data?.user?.tenant_name ?? null}
       liquidityEvaluation={liquidity.data ?? null}
@@ -173,9 +183,7 @@ export function HoyLive() {
 function CargandoHoy() {
   return (
     <div className="space-y-6">
-      <p className="text-sm text-neutral-mid">
-        Estamos armando tu parte del día con tu banco y tus documentos del SII (~5 s).
-      </p>
+      <p className="text-sm text-neutral-mid">Consultando saldos y proyección de caja…</p>
       <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" aria-hidden="true" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-hidden="true">
         {Array.from({ length: 4 }).map((_, i) => (

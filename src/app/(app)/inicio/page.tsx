@@ -26,6 +26,7 @@ export default function InicioPage() {
     inicioWidgets,
     inicioAgenda,
     hoyV01,
+    bankBalances,
   } = resolveFeatureFlags();
 
   /* V01 · Hoy (rediseño Fase 2, issue #62) — gated por `hoyV01`, HOY APAGADO. Convive con el
@@ -36,12 +37,9 @@ export default function InicioPage() {
     return (
       <div className="space-y-6">
         <header>
-          <h1 className="text-2xl font-bold text-neutral-dark">Hoy</h1>
-          <p className="mt-1 text-sm text-neutral-mid">
-            ¿Cómo está mi empresa y qué necesita mi OK?
-          </p>
+          <h1 className="text-2xl font-semibold text-neutral-dark">Inicio</h1>
         </header>
-        <HoyLive />
+        <HoyLive bankBalancesEnabled={bankBalances} />
       </div>
     );
   }

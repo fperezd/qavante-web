@@ -58,3 +58,10 @@ export function mesCortoDePeriodo(period: string): string {
   const idx = m ? Number(m[1]) - 1 : NaN;
   return MESES_CORTOS[idx] ?? period;
 }
+
+/** Período mensual estricto, sin conversión horaria. Inválido → null. */
+export function periodoLargo(period: string): string | null {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(period);
+  if (!match) return null;
+  return `${MESES_LARGOS[Number(match[2]) - 1]} de ${match[1]}`;
+}
