@@ -70,7 +70,7 @@ test.describe("Flujo: Banco (/banco)", () => {
     await expect(page.getByText("ABONO CLIENTE FACTURA 1042")).toBeVisible();
 
     // Conciliar → confirma y avisa (toast).
-    await page.getByRole("button", { name: "Conciliar" }).click();
+    await page.getByRole("button", { name: "Conciliar", exact: true }).click();
     await expect(page.getByText("Conciliado.")).toBeVisible();
   });
 

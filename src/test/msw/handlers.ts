@@ -4107,12 +4107,34 @@ const reconciliationReviewSeed = [
     movement_id: "mov-unclas-2",
     date: "2026-05-13",
     amount: "1190000",
+    direction: "credit",
+    currency_code: "CLP",
     description: "ABONO CLIENTE FACTURA 1042",
     suggestion: {
       document_kind: "receivable",
       document_id: "r-fac-1042",
       name: "X Capital SpA",
       score: "83",
+      document_count: 1,
+      topology: "1:1",
+      reasons: ["RUT coincidente", "monto exacto"],
+      eligibility: ["same_tenant", "same_currency", "open_balance", "feasible_date"],
+      can_confirm: true,
+      bulk_eligible: true,
+      documents: [
+        {
+          document_id: "r-fac-1042",
+          kind: "receivable",
+          document_type: 33,
+          folio: "1042",
+          rut: "76123456-7",
+          name: "X Capital SpA",
+          amount: "1190000",
+          date: "2026-05-13",
+          due_date: "2026-06-13",
+          source_provider: "sii_rcv",
+        },
+      ],
     },
   },
   {
@@ -4125,6 +4147,8 @@ const reconciliationReviewSeed = [
       document_id: "r1",
       name: "Comercial Los Andes SpA",
       score: "86",
+      can_confirm: false,
+      bulk_eligible: false,
     },
   },
   {
@@ -4137,6 +4161,8 @@ const reconciliationReviewSeed = [
       document_id: "p1",
       name: "Distribuidora del Sur Ltda",
       score: "72",
+      can_confirm: false,
+      bulk_eligible: false,
     },
   },
   {
@@ -4144,7 +4170,14 @@ const reconciliationReviewSeed = [
     date: "2026-07-10",
     amount: "89900",
     description: "CARGO PAC",
-    suggestion: { document_kind: "payable", document_id: null, name: null, score: "64" },
+    suggestion: {
+      document_kind: "payable",
+      document_id: null,
+      name: null,
+      score: "64",
+      can_confirm: false,
+      bulk_eligible: false,
+    },
   },
 ];
 

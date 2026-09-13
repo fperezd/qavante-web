@@ -122,6 +122,7 @@ vi.mock("@/lib/api/reconciliation", () => ({
     return query({ items: [] });
   },
   useConfirmReconciliation: () => ({ mutate: vi.fn() }),
+  useConfirmReconciliationBatch: () => ({ mutate: vi.fn(), isPending: false }),
   useConfirmReconciliationWithDocument: () => ({
     isPending: false,
     mutateAsync: arnes.confirmDocument,

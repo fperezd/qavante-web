@@ -22,6 +22,7 @@ import { unknownErrorToUserMessage } from "@/lib/api/error-messages";
 import {
   useReconciliationReview,
   useConfirmReconciliation,
+  useConfirmReconciliationBatch,
   useConfirmReconciliationWithDocument,
   useRejectReconciliation,
   useRevertReconciliation,
@@ -166,6 +167,7 @@ export function CuentaDetalleLive({
   // Fase 2: cola de conciliación (solo si el flag está ON). Cruzamos por movement_id.
   const reviewQuery = useReconciliationReview(canWrite);
   const confirmar = useConfirmReconciliation();
+  const confirmarLote = useConfirmReconciliationBatch();
   const rechazar = useRejectReconciliation();
   const sugerencias = React.useMemo(
     () => mapaSugerencias(reviewQuery.data?.items),
@@ -223,6 +225,22 @@ export function CuentaDetalleLive({
     [rechazar, manejarError, refrescarMovimientos],
   );
 
+  const onConciliarLote = React.useCallback(
+    (movementIds: string[]) => {
+      confirmarLote.mutate(movementIds, {
+        onSuccess: (result) => {
+          if (result.confirmed > 0)
+            toast.success(`${result.confirmed} conciliaciones confirmadas.`);
+          if (result.failed > 0)
+            toast.warning(`${result.failed} propuestas cambiaron y requieren revisión.`);
+          refrescarMovimientos();
+        },
+        onError: manejarError,
+      });
+    },
+    [confirmarLote, manejarError, refrescarMovimientos],
+  );
+
   // Cargando mientras no sepamos aún el mapeo (saldo/accounts) o los movimientos del mes.
   const loading =
     bankQuery.isLoading ||
@@ -259,6 +277,8 @@ export function CuentaDetalleLive({
         sugerencias={sugerencias}
         onConciliar={canWrite ? onConciliar : undefined}
         onRechazar={canWrite ? onRechazar : undefined}
+        onConciliarLote={canWrite ? onConciliarLote : undefined}
+        loteEnCurso={confirmarLote.isPending}
         accionEnCurso={accionEnCurso}
         onOpenMovement={
           conciliarEnabled ? (movement) => setSelectedMovementId(movement.id ?? null) : undefined

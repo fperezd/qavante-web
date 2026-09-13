@@ -239,20 +239,50 @@ describe("mapaSugerencias", () => {
     const map = mapaSugerencias([
       {
         movement_id: "m1",
+        date: "2026-08-31",
+        amount: "1250000",
+        direction: "credit",
+        currency_code: "USD",
+        description: "Cobro canónico API",
         suggestion: {
           document_kind: "receivable",
           name: "Kaufmann",
           score: "60",
           document_count: 1,
+          topology: "1:1",
+          reasons: ["RUT en glosa", "monto exacto"],
+          can_confirm: true,
+          bulk_eligible: true,
+          documents: [
+            {
+              document_id: "doc-1",
+              kind: "receivable",
+              document_type: 33,
+              folio: "435",
+              rut: "76123456-7",
+              name: "Kaufmann",
+              amount: "1250000",
+              date: "2026-08-20",
+              source_provider: "sii_rcv",
+            },
+          ],
         },
       },
       {
         movement_id: "m2",
+        date: "2026-08-30",
+        amount: "100",
+        direction: "debit",
+        currency_code: "CLP",
+        description: "Snapshot con respaldos incompletos",
         suggestion: {
           document_kind: "payable",
           name: "Remuneraciones",
           score: "80",
           document_count: 3,
+          topology: "1:N",
+          can_confirm: true,
+          bulk_eligible: true,
         },
       },
     ]);
@@ -261,19 +291,107 @@ describe("mapaSugerencias", () => {
       nombre: "Kaufmann",
       score: 60,
       documentCount: 1,
+      topology: "1:1",
+      canConfirm: true,
+      bulkEligible: true,
+      movimiento: {
+        fecha: "2026-08-31",
+        monto: 1250000,
+        direccion: "credit",
+        moneda: "USD",
+        glosa: "Cobro canónico API",
+        completo: true,
+      },
     });
-    expect(map.get("m2")).toMatchObject({ kind: "payable", documentCount: 3 });
+    expect(map.get("m1")?.documents[0]).toMatchObject({
+      folio: "435",
+      monto: 1250000,
+      nombre: "Kaufmann",
+    });
+    expect(map.get("m2")).toMatchObject({
+      kind: "payable",
+      documentCount: null,
+      topology: null,
+      canConfirm: false,
+      bulkEligible: false,
+      movimiento: expect.objectContaining({ completo: true }),
+    });
   });
-  it("score null/'' → null; sin suggestion o sin movement_id → se ignora", () => {
+  it("score null/'' → null; sin movement_id → se ignora", () => {
     const map = mapaSugerencias([
-      { movement_id: "m3", suggestion: { document_kind: "payable", name: null, score: null } },
-      { movement_id: "m4", suggestion: null },
-      { movement_id: "", suggestion: { document_kind: "receivable", name: "X", score: "90" } },
+      {
+        movement_id: "m3",
+        date: "2026-08-30",
+        amount: "100",
+        suggestion: {
+          document_kind: "payable",
+          name: null,
+          score: null,
+          document_count: 1,
+          topology: "1:1",
+          can_confirm: true,
+          bulk_eligible: true,
+        },
+      },
+      {
+        movement_id: "",
+        date: "2026-08-30",
+        amount: "100",
+        suggestion: {
+          document_kind: "receivable",
+          name: "X",
+          score: "90",
+          document_count: 1,
+          topology: "1:1",
+          can_confirm: true,
+          bulk_eligible: true,
+        },
+      },
     ]);
-    expect(map.get("m3")).toMatchObject({ nombre: null, score: null, documentCount: 1 });
-    expect(map.has("m4")).toBe(false);
+    expect(map.get("m3")).toMatchObject({
+      nombre: null,
+      score: null,
+      documentCount: null,
+      topology: null,
+      canConfirm: false,
+      bulkEligible: false,
+    });
     expect(map.has("")).toBe(false);
     expect(map.size).toBe(1);
+  });
+  it("oculta topología y bloquea acciones si document_count no calza con los respaldos", () => {
+    const suggestion = mapaSugerencias([
+      {
+        movement_id: "m5",
+        date: "2026-08-30",
+        amount: "100",
+        direction: "credit",
+        currency_code: "CLP",
+        description: "Cobro con un respaldo faltante",
+        suggestion: {
+          document_kind: "receivable",
+          document_count: 2,
+          topology: "1:N",
+          can_confirm: true,
+          bulk_eligible: true,
+          documents: [
+            {
+              document_id: "doc-1",
+              kind: "receivable",
+              amount: "100",
+            },
+          ],
+        },
+      },
+    ]).get("m5");
+
+    expect(suggestion).toMatchObject({
+      documentCount: null,
+      topology: null,
+      canConfirm: false,
+      bulkEligible: false,
+    });
+    expect(suggestion?.documents).toHaveLength(1);
   });
   it("undefined → mapa vacío", () => {
     expect(mapaSugerencias(undefined).size).toBe(0);

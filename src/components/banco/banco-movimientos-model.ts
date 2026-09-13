@@ -6,6 +6,7 @@
 
 import { parseAmount } from "@/components/gestion/gestion-format";
 import type { BankMovement, TarjetaMovimiento } from "@/lib/api/treasury";
+import type { components } from "@/lib/api/types";
 
 /** Estado de conciliación de un movimiento de cuenta (banco). `null` = no aplica (tarjeta). */
 export type EstadoConciliacion =
@@ -160,24 +161,67 @@ export function movimientosDeTarjeta(
 /** Una sugerencia de conciliación para un movimiento (viene de la cola `reconciliation/review`). */
 export interface SugerenciaConciliacion {
   movementId: string;
+  /** Snapshot canónico de `ReviewItem`; la mesa no reutiliza `/bank-movements` para mostrarlo. */
+  movimiento: MovimientoRevisionConciliacion;
   /** "receivable" (cobro) | "payable" (pago) | otro. */
   kind: string;
   /** Nombre del documento/contraparte sugerido. */
   nombre: string | null;
   /** Score 0-100 (confianza del match); `null` si el backend no lo trae. */
   score: number | null;
-  /** Cuántos documentos cubre la sugerencia (subset-sum / NC-netting cubren N). */
-  documentCount: number;
+  /** Cuántos documentos cubre la sugerencia; `null` si el API no publicó el snapshot completo. */
+  documentCount: number | null;
+  /** Topología publicada por el API; `null` evita atribuir una a una respuesta incompleta. */
+  topology: string | null;
+  reasons: string[];
+  eligibility: string[];
+  canConfirm: boolean;
+  bulkEligible: boolean;
+  documents: DocumentoSugeridoConciliacion[];
 }
 
-interface ReviewItemLike {
-  movement_id: string;
-  suggestion?: {
-    document_kind?: string;
-    name?: string | null;
-    score?: string | null;
-    document_count?: number;
-  } | null;
+export interface MovimientoRevisionConciliacion {
+  fecha: string | null;
+  monto: number | null;
+  direccion: "credit" | "debit" | null;
+  moneda: string | null;
+  glosa: string | null;
+  /** Sólo un snapshot financiero completo puede habilitar acciones de conciliación. */
+  completo: boolean;
+}
+
+export interface DocumentoSugeridoConciliacion {
+  documentId: string;
+  kind: string;
+  documentType: number | null;
+  folio: string | null;
+  rut: string | null;
+  nombre: string | null;
+  monto: number;
+  fecha: string | null;
+  vencimiento: string | null;
+  sourceProvider: string | null;
+}
+
+type ReviewItemLike = components["schemas"]["ReviewItem"];
+
+function snapshotMovimientoRevision(item: ReviewItemLike): MovimientoRevisionConciliacion {
+  const fecha = item.date?.trim() || null;
+  const glosa = item.description?.trim() || null;
+  const moneda = item.currency_code?.trim().toUpperCase() || null;
+  const direccion = item.direction === "credit" || item.direction === "debit" ? item.direction : null;
+  const monto =
+    typeof item.amount === "string" && item.amount.trim() !== "" ? parseAmount(item.amount) : null;
+  const montoValido = monto != null && Number.isFinite(monto);
+
+  return {
+    fecha,
+    monto: montoValido ? monto : null,
+    direccion,
+    moneda,
+    glosa,
+    completo: fecha != null && montoValido && direccion != null && moneda != null && glosa != null,
+  };
 }
 
 /** Mapa `movement_id → sugerencia` desde la cola de conciliación. Puro: no filtra por cuenta (eso lo
@@ -190,12 +234,36 @@ export function mapaSugerencias(
     const s = it.suggestion;
     if (!it.movement_id || !s) continue;
     const score = s.score != null && s.score !== "" ? Number(s.score) : null;
+    const movimiento = snapshotMovimientoRevision(it);
+    const documents = (s.documents ?? []).map((doc) => ({
+      documentId: doc.document_id,
+      kind: doc.kind,
+      documentType: doc.document_type ?? null,
+      folio: doc.folio?.trim() || null,
+      rut: doc.rut?.trim() || null,
+      nombre: doc.name?.trim() || null,
+      monto: parseAmount(doc.amount),
+      fecha: doc.date ?? null,
+      vencimiento: doc.due_date ?? null,
+      sourceProvider: doc.source_provider ?? null,
+    }));
+    const documentosCompletos =
+      typeof s.document_count === "number" &&
+      s.document_count > 0 &&
+      documents.length === s.document_count;
     map.set(it.movement_id, {
       movementId: it.movement_id,
+      movimiento,
       kind: s.document_kind ?? "",
       nombre: s.name?.trim() || null,
       score: score != null && Number.isFinite(score) ? score : null,
-      documentCount: s.document_count ?? 1,
+      documentCount: documentosCompletos ? s.document_count : null,
+      topology: documentosCompletos ? s.topology : null,
+      reasons: s.reasons ?? [],
+      eligibility: s.eligibility ?? [],
+      canConfirm: movimiento.completo && documentosCompletos && s.can_confirm,
+      bulkEligible: movimiento.completo && documentosCompletos && s.bulk_eligible,
+      documents,
     });
   }
   return map;

@@ -109,15 +109,43 @@ export const ConConciliacion: Story = {
         "m1",
         {
           movementId: "m1",
+          movimiento: {
+            fecha: "2026-08-04",
+            monto: -45990,
+            direccion: "debit",
+            moneda: "CLP",
+            glosa: "MERCADOLIBRE",
+            completo: true,
+          },
           kind: "payable",
           nombre: "MercadoLibre Chile",
           score: 82,
           documentCount: 1,
+          topology: "1:1",
+          reasons: ["nombre en glosa", "monto exacto"],
+          eligibility: ["same_tenant", "same_currency", "open_balance", "feasible_date"],
+          canConfirm: true,
+          bulkEligible: true,
+          documents: [
+            {
+              documentId: "doc-story-1",
+              kind: "payable",
+              documentType: 33,
+              folio: "1042",
+              rut: "76123456-7",
+              nombre: "Proveedor Andes SpA",
+              monto: 254250,
+              fecha: "2026-08-20",
+              vencimiento: "2026-09-20",
+              sourceProvider: "sii_rcv",
+            },
+          ],
         },
       ],
     ]),
     onConciliar: fn(),
     onRechazar: fn(),
+    onConciliarLote: fn(),
     onOpenMovement: fn(),
   },
   play: async ({ canvasElement, args }) => {
@@ -133,7 +161,7 @@ export const ConConciliacion: Story = {
     await userEvent.click(c.getByRole("button", { name: "Conciliar" }));
     await expect(args.onConciliar).toHaveBeenCalledWith("m1");
     // Rechazar también.
-    await userEvent.click(c.getByRole("button", { name: /Rechazar sugerencia/ }));
+    await userEvent.click(c.getByRole("button", { name: "Rechazar" }));
     await expect(args.onRechazar).toHaveBeenCalledWith("m1");
     // Las acciones de la sugerencia son hermanas de la fila interactiva: no deben abrir el detalle.
     await expect(args.onOpenMovement).not.toHaveBeenCalled();
