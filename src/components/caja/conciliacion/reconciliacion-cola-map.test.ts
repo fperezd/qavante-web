@@ -32,6 +32,9 @@ const item = (
       name: "Comercial Los Andes",
       score: "78",
       document_count: 1,
+      bulk_eligible: true,
+      can_confirm: true,
+      topology: "1:1",
       ...suggestion,
     },
   };

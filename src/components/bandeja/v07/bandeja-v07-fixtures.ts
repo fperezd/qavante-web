@@ -57,6 +57,9 @@ export function colaConciliar(over: Partial<ReviewQueueResponse> = {}): ReviewQu
         name: "Comercial Kaufmann S.A.",
         score: "78",
         document_count: 1,
+        bulk_eligible: true,
+        can_confirm: true,
+        topology: "1:1",
       },
     },
     {
@@ -70,6 +73,9 @@ export function colaConciliar(over: Partial<ReviewQueueResponse> = {}): ReviewQu
         name: "Cia. Industrial El Volcan S.A.",
         score: "62",
         document_count: 1,
+        bulk_eligible: false,
+        can_confirm: false,
+        topology: "1:1",
       },
     },
   ];
