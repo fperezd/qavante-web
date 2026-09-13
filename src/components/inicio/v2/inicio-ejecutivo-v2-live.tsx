@@ -263,16 +263,18 @@ function Assembled({
     />
   );
 
-  // Plan: con brecha real (cash_gap) + forecast → plan de cierre cuantificado
-  // (BrechaPlan). Sin eso, cae a "Qué hacer primero" desde priority_actions.
+  // Plan cuantificado y decisiones server-owned se muestran juntos cuando ambos existen;
+  // una superficie local no puede ocultar `priority_actions`.
   const brechaTotal = mapBrechaTotal(data);
   const planBrecha = brechaTotal != null && forecast ? mapPlanBrecha(brechaTotal, forecast) : null;
   const acciones = buildAcciones(data);
-  const plan = planBrecha ? (
-    <BrechaPlan {...planBrecha} />
-  ) : acciones.length > 0 ? (
-    <AccionesList titulo="Qué hacer primero" acciones={acciones} />
-  ) : null;
+  const plan =
+    planBrecha || acciones.length > 0 ? (
+      <div className="space-y-3">
+        {planBrecha && <BrechaPlan {...planBrecha} />}
+        {acciones.length > 0 && <AccionesList titulo="Qué hacer primero" acciones={acciones} />}
+      </div>
+    ) : null;
 
   return (
     <InicioEjecutivoV2
@@ -336,8 +338,8 @@ function buildTermometros(s: DashboardSummaryV2): Termometro[] {
 
 /** "Qué hacer primero" desde `priority_actions` (dato del summary). El plan de
  *  cierre de brecha cuantificado llega con collection-forecast (Fase 2). */
-function buildAcciones(s: DashboardSummaryV2): Accion[] {
-  return (s.priority_actions ?? []).slice(0, 3).map((a, i) => ({
+export function buildAcciones(s: DashboardSummaryV2): Accion[] {
+  return (s.priority_actions ?? []).map((a, i) => ({
     rank: i + 1,
     titulo: a.reason,
     detalle: a.amount ? (

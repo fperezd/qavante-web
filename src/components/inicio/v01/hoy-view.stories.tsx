@@ -225,20 +225,20 @@ export const Crisis: Story = {
       canvas.getByRole("heading", { name: "Tu caja no alcanza para cubrir la nómina" }),
     ).toBeInTheDocument();
 
-    // Ley 10: la alerta crítica se convierte en una propuesta del backend, no en una lista
-    // de acciones genéricas del summary.
+    // La propuesta específica de nómina y las decisiones del backend se muestran juntas:
+    // ninguna capa local puede ocultar o reemplazar una decisión publicada por el servidor.
     await expect(canvas.getByText("Propuesta para proteger tu caja")).toBeInTheDocument();
     await expect(canvas.getByText("Negociar pagos críticos")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Revisar pagos propuestos" })).toHaveAttribute(
       "href",
       "/pagar",
     );
-    await expect(canvas.queryByText("Esperando tu visto bueno")).not.toBeInTheDocument();
+    await expect(canvas.getByText("Esperando tu visto bueno")).toBeInTheDocument();
     await expect(
-      canvas.queryByText("Conseguir $1.121.250 antes del 4 de septiembre"),
-    ).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Cobrar a Kaufmann")).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Postergar a SYNNEX")).not.toBeInTheDocument();
+      canvas.getByText("Conseguir $1.121.250 antes del 4 de septiembre"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Cobrar a Kaufmann")).toBeInTheDocument();
+    await expect(canvas.getByText("Postergar a SYNNEX")).toBeInTheDocument();
 
     // La única prioridad no queda como un enlace abstracto a la proyección: publica la nómina
     // que causa la crisis y ofrece el módulo existente para revisar pagos.

@@ -165,14 +165,14 @@ export const SinSaldoBase: Story = {
 };
 
 export const SinClasificar: Story = {
-  name: "Sin clasificar > 0 · banner de deuda de datos a la Bandeja",
+  name: "Calidad del dato > 0 · aviso secundario de auditoría",
   args: { sinClasificar: sinClasificar() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("note")).toHaveTextContent(
-      "3 movimientos del banco sin clasificar (~$2.100.000 en entradas)",
+      "Calidad del dato: 3 movimientos del banco sin clasificar (~$2.100.000 en entradas). Están en tu saldo; revisarlos puede mejorar el detalle del flujo.",
     );
-    const cta = canvas.getByRole("link", { name: "Clasificar" });
+    const cta = canvas.getByRole("link", { name: "Ver auditoría" });
     await expect(cta).toHaveAttribute("href", "/bandeja");
     // Un aviso administrativo es ámbar/neutro, nunca rojo (Ley 2).
     await expect(rojos(canvasElement)).toHaveLength(0);
@@ -180,15 +180,15 @@ export const SinClasificar: Story = {
 };
 
 export const SinClasificarError: Story = {
-  name: 'Sin clasificar EN ERROR · el banner no desaparece, dice "no sé" (remanente #82.5)',
+  name: "Calidad del dato en error · la lectura financiera no desaparece",
   args: { sinClasificar: sinClasificar({ isError: true, count: 0, inflowByCurrency: [] }) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("note")).toHaveTextContent(
-      "No sabemos si tu proyección está completa",
+      "No pudimos revisar la calidad de tus datos:",
     );
     await expect(canvas.getByRole("note")).toHaveTextContent(
-      "no pudimos traer los movimientos sin clasificar",
+      "la proyección conserva las fuentes que sí llegaron, pero puede faltar detalle de movimientos del banco.",
     );
     // Sigue siendo un aviso administrativo: ámbar/neutro, nunca rojo (Ley 2).
     await expect(rojos(canvasElement)).toHaveLength(0);

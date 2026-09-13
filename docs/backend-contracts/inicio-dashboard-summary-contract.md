@@ -94,8 +94,11 @@ renderiza el bloque "Qué hacer primero"). Primer drop esperado: `cash_today` +
 ## Notas para CC-API
 
 - Cualquier bloque puede ser `null` (fuente faltante) — el FE NO asume 0.
-- `priority_actions`: **máximo 3**, `cta_href` ruta interna del FE (`/cobrar`,
-  `/pagar`, `/caja/proyeccion`, `/gestion`, `/caja/por-clasificar`).
+- `priority_actions`: **máximo 3** decisiones financieras publicadas por el backend. El FE
+  conserva `cta_href` literalmente —incluidos parámetros como `decision_id`— y no filtra,
+  reordena ni reemplaza acciones por heurísticas locales. Ejemplos: `/cobrar`, `/pagar`,
+  `/caja/proyeccion`, `/gestion`, `/caja/conciliacion?decision_id=…`. La auditoría o
+  clasificación de datos se muestra aparte y nunca se convierte en la acción prioritaria.
 - `pulso.status` ∈ critical | weak | stable | strong; `score` 0–100.
 - `cash_today.data_state` ∈ available | stale | estimated (frescura del saldo).
 - Este endpoint **reutiliza** los cálculos de operational-result / accounts-

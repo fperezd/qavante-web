@@ -164,7 +164,7 @@ describe("Ley 10 · día perfecto", () => {
     expect(v.diaPerfecto).toBe(true);
     expect(v.titular).toBe("No hay nada que necesite tu OK");
     expect(v.pendientes).toBe(0);
-    expect(decisionesHoy(summary({ priority_actions: [] }), false)).toHaveLength(0);
+    expect(decisionesHoy(summary({ priority_actions: [] }))).toHaveLength(0);
   });
 
   it("con una acción pendiente YA no es día perfecto (contrapeso del caso de arriba)", () => {
@@ -172,6 +172,24 @@ describe("Ley 10 · día perfecto", () => {
     expect(v.diaPerfecto).toBe(false);
     expect(v.titular).toBe("Tu empresa está sana");
     expect(v.titular).not.toBe("No hay nada que necesite tu OK");
+  });
+
+  it("conserva una decisión financiera que el servidor publica con ruta de conciliación", () => {
+    const decision = {
+      ...ACCION(1, "Revisa el pago que evita que tu caja quede bajo cero"),
+      cta_label: "Ver propuesta",
+      cta_href: "/caja/conciliacion?decision_id=evitar-caja-negativa",
+    };
+    const s = summary({ priority_actions: [decision] });
+
+    expect(veredictoHoy(s, HOY).pendientes).toBe(1);
+    expect(veredictoHoy(s, HOY).diaPerfecto).toBe(false);
+    expect(decisionesHoy(s)).toEqual([decision]);
+    expect(decisionesHoy(s)[0]).toMatchObject({
+      reason: "Revisa el pago que evita que tu caja quede bajo cero",
+      cta_label: "Ver propuesta",
+      cta_href: "/caja/conciliacion?decision_id=evitar-caja-negativa",
+    });
   });
 
   it("caja sin dato y nada pendiente NO es día perfecto: no se sabe si lo es", () => {
@@ -201,20 +219,20 @@ describe('"hay N cosas que necesitan tu OK"', () => {
     expect(pendientesLabel(1)).not.toContain("cosas");
   });
 
-  it("N cuenta TODAS las pendientes aunque sólo se muestren 3 cards", () => {
+  it("N y las cards respetan todas las acciones publicadas", () => {
     const s = summary({
       priority_actions: [1, 2, 3, 4, 5].map((n) => ACCION(n, `Acción ${n}`)),
     });
     expect(veredictoHoy(s, HOY).pendientes).toBe(5);
     expect(veredictoHoy(s, HOY).pendientesLabel).toBe("hay 5 cosas que necesitan tu OK");
-    expect(decisionesHoy(s, false)).toHaveLength(3);
+    expect(decisionesHoy(s)).toHaveLength(5);
   });
 });
 
 /* ── Sección 4 · cards de decisión ───────────────────────────────────────────── */
 
-describe("Esperando tu visto bueno (fallback de la spec: las acciones prioritarias de hoy)", () => {
-  it("ordena por prioridad y corta en 3", () => {
+describe("Esperando tu visto bueno (acciones prioritarias server-owned)", () => {
+  it("conserva el orden publicado y no corta la lista", () => {
     const s = summary({
       priority_actions: [
         ACCION(3, "Tercera"),
@@ -223,37 +241,31 @@ describe("Esperando tu visto bueno (fallback de la spec: las acciones prioritari
         ACCION(4, "Cuarta"),
       ],
     });
-    expect(decisionesHoy(s, false).map((a) => a.reason)).toEqual(["Primera", "Segunda", "Tercera"]);
+    expect(decisionesHoy(s).map((a) => a.reason)).toEqual([
+      "Tercera",
+      "Primera",
+      "Segunda",
+      "Cuarta",
+    ]);
   });
 
-  it("en crisis queda UNA sola (Ley 10: menos interfaz, no más rojo)", () => {
+  it("en crisis conserva todas las decisiones publicadas", () => {
     const s = summary({
       ...CAJA_BAJO_CERO,
       critical_payments: SUELDOS_EN_5_DIAS,
       priority_actions: [ACCION(1, "Primera"), ACCION(2, "Segunda"), ACCION(3, "Tercera")],
     });
     const v = veredictoHoy(s, HOY);
-    // El encabezado cuenta exactamente la única propuesta que la crisis deja visible.
-    expect(v.pendientes).toBe(1);
-    expect(v.pendientesLabel).toBe("hay 1 cosa que necesita tu OK");
-    expect(decisionesHoy(s, v.soloDecisionCritica)).toHaveLength(1);
-    // Gemelo positivo: la que queda es la de prioridad 1, no "la primera del array".
-    expect(decisionesHoy(s, v.soloDecisionCritica)[0]!.reason).toBe("Primera");
+    expect(v.pendientes).toBe(3);
+    expect(v.pendientesLabel).toBe("hay 3 cosas que necesitan tu OK");
+    expect(decisionesHoy(s)).toEqual(s.priority_actions);
   });
 
-  it("no muta el array del backend al ordenarlo", () => {
+  it("devuelve el array del backend sin transformarlo", () => {
     const acciones = [ACCION(3, "Tercera"), ACCION(1, "Primera")];
     const s = summary({ priority_actions: acciones });
-    decisionesHoy(s, false);
+    expect(decisionesHoy(s)).toBe(acciones);
     expect(acciones.map((a) => a.reason)).toEqual(["Tercera", "Primera"]);
-  });
-
-  it("una evaluación de liquidez reserva un lugar y reemplaza el fallback en crisis", () => {
-    const s = summary({
-      priority_actions: [ACCION(1, "Primera"), ACCION(2, "Segunda"), ACCION(3, "Tercera")],
-    });
-    expect(decisionesHoy(s, false, 1).map((a) => a.reason)).toEqual(["Primera", "Segunda"]);
-    expect(decisionesHoy(s, true, 1)).toHaveLength(0);
   });
 });
 

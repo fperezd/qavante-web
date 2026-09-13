@@ -39,7 +39,7 @@ export interface VeredictoHoy {
   contexto: string[];
   /** Ley 10 · día perfecto: empresa sana y nada que aprobar → el titular lo dice y termina. */
   diaPerfecto: boolean;
-  /** Ley 10 · crisis: se muestra SÓLO la decisión crítica; el resto de las secciones se oculta. */
+  /** Ley 10 · crisis: simplifica el contexto visual; las decisiones publicadas se conservan completas. */
   soloDecisionCritica: boolean;
 }
 
@@ -199,10 +199,7 @@ export function veredictoHoy(
      una evaluación elegible. El caller sólo pasa casos vigentes y con soporte `eligible`. */
   const pendientesDisponibles =
     (s?.priority_actions?.length ?? 0) + Math.max(0, pendientesAdicionales);
-  /* En crisis la pantalla muestra una sola decisión crítica para no diluir la urgencia.
-     El encabezado debe contar esa misma lista visible, no las acciones de origen. */
-  const pendientes =
-    estado === "crisis" ? Math.min(1, pendientesDisponibles) : pendientesDisponibles;
+  const pendientes = pendientesDisponibles;
   const diaPerfecto = estado === "sana" && pendientes === 0;
 
   return {
@@ -220,23 +217,12 @@ export function veredictoHoy(
 
 /* ── Sección 4 · "Esperando tu visto bueno" ──────────────────────────────────── */
 
-/** Las cards de decisión. El motor 1.2 NO existe, así que —como la propia spec resuelve— la
- *  sección muestra las acciones prioritarias actuales de "qué hacer primero" (✅ hoy en
- *  producción) con su CTA al módulo que corresponde. No se inventa un motor.
- *
- *  Máximo 3 (spec). En crisis, UNA: Ley 10 pide menos interfaz, no más rojo. */
-export function decisionesHoy(
-  s: DashboardSummaryV2 | null | undefined,
-  soloDecisionCritica: boolean,
-  lugaresReservados = 0,
-): DashboardAction[] {
-  const acciones = [...(s?.priority_actions ?? [])].sort((a, b) => a.priority - b.priority);
-  const limite = soloDecisionCritica
-    ? lugaresReservados > 0
-      ? 0
-      : 1
-    : Math.max(0, 3 - lugaresReservados);
-  return acciones.slice(0, limite);
+/**
+ * Cards de decisión publicadas por el servidor. El frontend no reordena, limita ni deduplica:
+ * pueden compartir copy/ruta base y aun así representar decisiones distintas.
+ */
+export function decisionesHoy(s: DashboardSummaryV2 | null | undefined): DashboardAction[] {
+  return s?.priority_actions ?? [];
 }
 
 /* ── Sección 6 · strip de 4 indicadores ──────────────────────────────────────── */

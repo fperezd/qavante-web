@@ -13,9 +13,10 @@ test.describe("Flujo: Caja reordenable (/caja, cajaDashboard)", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Caja" })).toBeVisible();
 
-    // Mismo contenido que la landing clásica (el dashboard no cambia los datos, solo los hace movibles).
+    // La lectura financiera se presenta primero; la auditoría de datos queda disponible, pero secundaria.
     await expect(page.getByText("La empresa tiene en caja")).toBeVisible();
-    await expect(page.getByText("Por clasificar")).toBeVisible();
+    await expect(page.getByText("Calidad y auditoría de movimientos")).toBeVisible();
+    await expect(page.getByText("Movimientos pendientes")).toBeVisible();
 
     const main = page.locator("#main-content");
     // Cada bloque trae su asa de arrastre y su "x" de ocultar (siempre en el DOM; visibles atenuadas).

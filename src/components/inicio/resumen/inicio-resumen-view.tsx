@@ -256,11 +256,11 @@ export function InicioResumenView(props: InicioResumenViewProps) {
             Requiere atención
           </h2>
           <ul className="mt-2 divide-y divide-border">
-            {actions.map((action) => {
+            {actions.map((action, index) => {
               const amount = parseAmountOrNull(action.amount);
               return (
                 <li
-                  key={[action.cta_href, action.reason, action.deadline].join("|")}
+                  key={`${[action.cta_href, action.reason, action.deadline].join("|")}-${index}`}
                   className="grid min-w-0 gap-3 py-4 @3xl:grid-cols-[1fr_auto] @3xl:items-center"
                 >
                   <div className="min-w-0">

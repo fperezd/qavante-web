@@ -38,8 +38,9 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
     // v2 arriba: respuesta de dueño + medidor de caja (contesta el "¿me alcanza?" del título).
     await expect(page.getByText("La empresa tiene en caja")).toBeVisible();
     await expect(page.getByText(/Caja (holgada|ajustada|en riesgo)/)).toBeVisible();
-    // Herramientas debajo (Movimientos bancarios).
-    await expect(page.getByText("Por clasificar")).toBeVisible();
+    // La auditoría de movimientos queda después de la respuesta financiera, no como requisito.
+    await expect(page.getByText("Calidad y auditoría de movimientos")).toBeVisible();
+    await expect(page.getByText("Movimientos pendientes")).toBeVisible();
     // La card "Reporte de caja" es redundante con el v2 arriba → se omite.
     await expect(page.getByText("Reporte de caja")).toHaveCount(0);
   });

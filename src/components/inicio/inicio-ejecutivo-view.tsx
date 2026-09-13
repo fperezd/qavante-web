@@ -63,7 +63,11 @@ export function etiquetaProximoPago(
   return estado === "vencido" ? "Más vencido" : "Próximo";
 }
 
-function Dashboard({ data }: { data: DashboardSummaryResponse }) {
+export function Dashboard({ data }: { data: DashboardSummaryResponse }) {
+  // El servidor decide qué acciones son prioritarias. Esta vista sólo las presenta;
+  // no infiere auditoría o clasificación desde rutas ni texto.
+  const actions = data.priority_actions ?? [];
+
   /* Empresa nueva / sin fuentes: el backend responde 200 con todo null. */
   if (isEmptySummary(data)) return <EmptySummary />;
 
@@ -327,8 +331,8 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
         </DashCard>
       </div>
 
-      {/* Qué hacer primero — la decisión (máx 3 acciones priorizadas). */}
-      {data.priority_actions && data.priority_actions.length > 0 && (
+      {/* Qué hacer primero — decisiones publicadas por el servidor, sin límite local. */}
+      {actions.length > 0 && (
         <QavanteCard
           variant="bordered"
           header={
@@ -338,9 +342,9 @@ function Dashboard({ data }: { data: DashboardSummaryResponse }) {
           }
         >
           <ul className="divide-y divide-border">
-            {data.priority_actions.slice(0, 3).map((a, i) => (
+            {actions.map((a, i) => (
               <li
-                key={a.priority}
+                key={`${a.priority}-${i}`}
                 className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
               >
                 <div className="flex min-w-0 items-start gap-3">
@@ -619,15 +623,15 @@ function EmptySummary() {
     <QavanteEmpty
       icon={Sparkles}
       title="Estamos preparando tu resumen"
-      description="Todavía no hay datos para mostrar. A medida que conectes tus fuentes (SII, banco) y clasifiques tus movimientos, acá vas a ver tu Pulso, tu caja, alertas y las acciones prioritarias."
+      description="Todavía no hay datos para mostrar. Cuando conectes tu banco y el SII, acá vas a ver tu Pulso, tu caja, alertas y las acciones prioritarias."
       cta={
         <div className="flex flex-wrap justify-center gap-2">
-          <Link href="/administracion/credenciales">
-            <QavanteButton size="sm">Conectar SII</QavanteButton>
+          <Link href="/conexiones">
+            <QavanteButton size="sm">Conectar banco</QavanteButton>
           </Link>
-          <Link href="/caja/por-clasificar">
+          <Link href="/administracion/credenciales">
             <QavanteButton size="sm" variant="ghost">
-              Clasificar movimientos
+              Conectar SII
             </QavanteButton>
           </Link>
         </div>

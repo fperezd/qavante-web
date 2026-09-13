@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
    oportunidades o hallazgos de gestión. Cada acción con su plazo y CTA; un "pin"
    opcional fija la continuidad abajo (baranda: nunca se oculta). Presentacional puro.
 
-   En crisis se usa BrechaPlan (plan cuantificado); acá, verbos ordenados por impacto
-   con dato que sale del SII + banco (sin margen por cliente ni CRM). */
+   Puede acompañar a BrechaPlan (plan cuantificado): las decisiones publicadas no se
+   reemplazan ni se reducen localmente. */
 
 export type PlazoTono = "hot" | "warn" | "neutral";
 

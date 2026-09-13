@@ -186,20 +186,22 @@ export function HoyView({
   const liquidityPending =
     liquidityView?.decisionSupport === "eligible" && liquidityView.valid ? 1 : 0;
   const v = veredictoHoy(data, hoy, liquidityPending);
-  const decisiones = decisionesHoy(data, v.soloDecisionCritica, liquidityPending);
+  const decisiones = decisionesHoy(data);
   const indicadores = indicadoresHoy(data);
 
-  /* Ley 10. En crisis se muestra SÓLO la decisión crítica: nada de strip de indicadores ni de
-     contexto de apoyo. En el día perfecto la pantalla termina en el titular — no hay nada que
-     aprobar, así que no se abre una sección vacía que lo desmienta. */
+  /* Ley 10. En crisis se simplifica el contexto visual (sin strip de indicadores), pero la lista
+     de decisiones publicada por el servidor sigue completa. En el día perfecto la pantalla
+     termina en el titular: no hay nada que aprobar, así que no se abre una sección vacía. */
   const mostrarPropuestaCaja =
     (v.estado === "crisis" || v.estado === "atencion") &&
     (propuestasCaja.length > 0 || cashGapProposalsLoading);
-  const mostrarDecisiones = decisiones.length > 0 && !mostrarPropuestaCaja;
+  const mostrarDecisiones = decisiones.length > 0;
   const mostrarIndicadores = !v.soloDecisionCritica;
   const nominaEnRiesgo = v.soloDecisionCritica
     ? (data?.critical_payments?.next_payroll ?? null)
     : null;
+  // La nómina es evidencia de la situación, no una decisión distinta: se publica una sola vez.
+  const mostrarNominaEnDecisiones = Boolean(nominaEnRiesgo && !mostrarPropuestaCaja);
   const montoNominaEnRiesgo = nominaEnRiesgo ? parseAmountOrNull(nominaEnRiesgo.amount) : null;
 
   return (
@@ -299,9 +301,8 @@ export function HoyView({
 
       {!v.soloDecisionCritica && decisionReaders && <DecisionReadPanel readers={decisionReaders} />}
 
-      {/* (4) "Esperando tu visto bueno". Las acciones del dashboard son el fallback de los casos
-          que aún no resuelve el Decision OS. Una evaluación F1 vigente consume uno de los tres
-          lugares; en crisis reemplaza el fallback para mantener una sola decisión crítica. */}
+      {/* (4) "Esperando tu visto bueno". Las acciones del dashboard las publica el servidor;
+          propuestas o evaluaciones se suman como contexto, sin ocultarlas ni reordenarlas. */}
       {mostrarDecisiones && (
         <section aria-labelledby="hoy-vb" className="space-y-3">
           <h3
@@ -311,10 +312,10 @@ export function HoyView({
             Esperando tu visto bueno
           </h3>
           <ul className="space-y-3">
-            {decisiones.map((a) => {
+            {decisiones.map((a, index) => {
               const monto = parseAmountOrNull(a.amount);
               return (
-                <li key={a.priority}>
+                <li key={`${a.priority}-${index}`}>
                   <QavanteCard variant="bordered">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -330,15 +331,6 @@ export function HoyView({
                           {(monto != null || a.impact_label) && a.deadline ? " · " : ""}
                           {a.deadline && <>Plazo: {a.deadline}</>}
                         </p>
-                        {nominaEnRiesgo && (
-                          <div className="mt-3">
-                            <NominaAfectada
-                              label={nominaEnRiesgo.label}
-                              dueDate={nominaEnRiesgo.due_date}
-                              amount={montoNominaEnRiesgo}
-                            />
-                          </div>
-                        )}
                       </div>
                       <Link
                         href={a.cta_href}
@@ -356,6 +348,13 @@ export function HoyView({
               );
             })}
           </ul>
+          {mostrarNominaEnDecisiones && nominaEnRiesgo && (
+            <NominaAfectada
+              label={nominaEnRiesgo.label}
+              dueDate={nominaEnRiesgo.due_date}
+              amount={montoNominaEnRiesgo}
+            />
+          )}
         </section>
       )}
 

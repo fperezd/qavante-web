@@ -54,7 +54,7 @@ describe("Inicio: varias cuentas, bancos y monedas", () => {
     expect(bancosInicio([]).currencies).toEqual([]);
   });
 });
-describe("Inicio: atención financiera acotada", () => {
+describe("Inicio: acciones prioritarias server-owned", () => {
   const action = {
     priority: 1,
     reason: "Revisar cobro",
@@ -62,23 +62,42 @@ describe("Inicio: atención financiera acotada", () => {
     cta_href: "/cobrar",
     cta_label: "Ver cobro",
   };
-  it("no duplica ni altera las acciones recibidas; excluye proyección y clasificación", () => {
+  it("conserva orden, multiplicidad y CTA aunque una decisión navegue a conciliación", () => {
     const data = {
       ...DEFICIT,
       priority_actions: [
         { ...action, priority: 5, reason: "Pago", cta_href: "/pagar?estado=pendiente" },
-        { ...action, cta_href: "/caja/proyeccion" },
-        action,
-        action,
-        { ...action, cta_href: "/caja/por-clasificar" },
-        { ...action, cta_href: "https://example.com/cobrar" },
+        {
+          ...action,
+          priority: 1,
+          reason: "Revisa el pago que evita que tu caja quede bajo cero",
+          cta_label: "Ver propuesta",
+          cta_href: "/caja/conciliacion?decision_id=evitar-caja-negativa-a",
+        },
+        {
+          ...action,
+          priority: 2,
+          reason: "Revisa el pago que evita que tu caja quede bajo cero",
+          cta_label: "Ver propuesta",
+          cta_href: "/caja/conciliacion?decision_id=evitar-caja-negativa-b",
+        },
+        { ...action, priority: 3, cta_href: "/caja/proyeccion" },
       ],
     };
     const before = JSON.stringify(data);
-    expect(accionesFinancierasInicio(data).map((a) => a.reason)).toEqual(["Revisar cobro", "Pago"]);
+    const actions = accionesFinancierasInicio(data);
+
+    expect(actions).toEqual(data.priority_actions);
+    expect(actions).not.toBe(data.priority_actions);
+    expect(actions.map((item) => item.cta_href)).toEqual([
+      "/pagar?estado=pendiente",
+      "/caja/conciliacion?decision_id=evitar-caja-negativa-a",
+      "/caja/conciliacion?decision_id=evitar-caja-negativa-b",
+      "/caja/proyeccion",
+    ]);
     expect(JSON.stringify(data)).toBe(before);
   });
-  it("ordena por prioridad y limita el resumen a tres sin afirmar que no hay más", () => {
+  it("no reordena ni limita las acciones que el servidor publicó", () => {
     const data = {
       ...DEFICIT,
       priority_actions: [4, 3, 2, 1].map((priority) => ({
@@ -87,7 +106,7 @@ describe("Inicio: atención financiera acotada", () => {
         reason: String(priority),
       })),
     };
-    expect(accionesFinancierasInicio(data).map((a) => a.priority)).toEqual([1, 2, 3]);
+    expect(accionesFinancierasInicio(data).map((a) => a.priority)).toEqual([4, 3, 2, 1]);
     expect(accionesFinancierasInicio(null)).toEqual([]);
   });
 });

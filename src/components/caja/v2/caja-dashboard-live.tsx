@@ -61,52 +61,6 @@ export function CajaDashboardLive({
     });
   }
 
-  if (bankMovementClassification) {
-    items.push({
-      id: "movimientos",
-      label: "Movimientos bancarios",
-      node: seccion(
-        "Movimientos bancarios",
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <CajaSubCard
-            href="/caja/por-clasificar"
-            icon={Inbox}
-            title="Por clasificar"
-            description="Movimientos pendientes de clasificación. Asigna tipo de movimiento y cuenta de gestión."
-            badge="Acción pendiente"
-            badgeVariant="warning"
-          />
-          <CajaSubCard
-            href="/caja/clasificados"
-            icon={CheckCircle2}
-            title="Clasificados"
-            description="Auditoría de los ya clasificados. Filtra por categoría, dirección o período."
-            badge="Auditoría"
-            badgeVariant="success"
-          />
-          <CajaSubCard
-            href="/caja/compras-extranjero"
-            icon={Globe}
-            title="Compras al extranjero"
-            description="Compras en moneda extranjera de tus cartolas de tarjeta. Asigna concepto y categoría."
-            badge="Tarjeta"
-            badgeVariant="info"
-          />
-          {reconciliationReview && (
-            <CajaSubCard
-              href="/caja/conciliacion"
-              icon={ArrowLeftRight}
-              title="Conciliación"
-              description="Revisa y confirma los documentos propuestos para cada movimiento."
-              badge="Acción pendiente"
-              badgeVariant="warning"
-            />
-          )}
-        </div>,
-      ),
-    });
-  }
-
   // "Caja proyectada" solo si el resumen v2 NO encabeza (si no, es redundante con el medidor).
   if (!(cajaV2 && cashFlowReport)) {
     items.push({
@@ -132,6 +86,52 @@ export function CajaDashboardLive({
           title="Caja proyectada"
           description="Aquí vas a ver tu flujo de caja, la brecha frente a tu caja mínima, las columnas de cobros, pagos, sueldos, impuestos y deuda, y acciones recomendadas. Muy pronto disponible."
         />
+      ),
+    });
+  }
+
+  if (bankMovementClassification) {
+    items.push({
+      id: "movimientos",
+      label: "Calidad y auditoría de movimientos",
+      node: seccion(
+        "Calidad y auditoría de movimientos",
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <CajaSubCard
+            href="/caja/por-clasificar"
+            icon={Inbox}
+            title="Movimientos pendientes"
+            description="Movimientos sin categoría automática. Revísalos si necesitas mejorar el detalle de tus informes."
+            badge="Calidad del dato"
+            badgeVariant="info"
+          />
+          <CajaSubCard
+            href="/caja/clasificados"
+            icon={CheckCircle2}
+            title="Clasificados"
+            description="Auditoría de los ya clasificados. Filtra por categoría, dirección o período."
+            badge="Auditoría"
+            badgeVariant="success"
+          />
+          <CajaSubCard
+            href="/caja/compras-extranjero"
+            icon={Globe}
+            title="Compras al extranjero"
+            description="Compras en moneda extranjera de tus cartolas de tarjeta. Asigna concepto y categoría."
+            badge="Tarjeta"
+            badgeVariant="info"
+          />
+          {reconciliationReview && (
+            <CajaSubCard
+              href="/caja/conciliacion"
+              icon={ArrowLeftRight}
+              title="Conciliación"
+              description="Audita los documentos propuestos para cada movimiento."
+              badge="Auditoría"
+              badgeVariant="info"
+            />
+          )}
+        </div>,
       ),
     });
   }

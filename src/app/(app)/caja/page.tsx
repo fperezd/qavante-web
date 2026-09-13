@@ -28,9 +28,8 @@ export default function CajaPage() {
 
   /* V02 · Caja (rediseño Fase 2, issue #67) — gated por `cajaV02`, HOY APAGADO. Reemplaza la
      landing entera por la vista de la spec (una pantalla, una pregunta: "¿me alcanza la caja?").
-     Con OFF nada de abajo cambia (cero regresión). Se conserva el menú de movimientos bancarios
-     como herramientas: son las rutas del flujo de clasificación al que apunta el banner de deuda
-     de datos, y sin ellas quedarían sin entrada. */
+     Con OFF nada de abajo cambia (cero regresión). La auditoría de movimientos queda disponible
+     como detalle secundario: no es el paso que responde si la caja alcanza. */
   if (cajaV02) {
     return (
       <div className="space-y-6">
@@ -42,7 +41,7 @@ export default function CajaPage() {
         {bankMovementClassification && (
           <section aria-labelledby="herramientas-section" className="space-y-3">
             <h2 id="herramientas-section" className="text-base font-semibold text-neutral-dark">
-              Movimientos bancarios
+              Calidad y auditoría de movimientos
             </h2>
             <MovimientosSubCards reconciliationReview={reconciliationReview} />
           </section>
@@ -87,17 +86,6 @@ export default function CajaPage() {
             </section>
           )}
 
-          {bankMovementClassification ? (
-            <section aria-labelledby="movimientos-section" className="space-y-3">
-              <h2 id="movimientos-section" className="text-base font-semibold text-neutral-dark">
-                Movimientos bancarios
-              </h2>
-              <MovimientosSubCards reconciliationReview={reconciliationReview} />
-            </section>
-          ) : (
-            <FeatureUnavailableState />
-          )}
-
           {/* "Caja proyectada" como card sólo cuando el v2 NO encabeza (fallback): con el v2 arriba
               apunta a lo mismo (redundante), así que se omite. */}
           {!(cajaV2 && cashFlowReport) &&
@@ -124,24 +112,35 @@ export default function CajaPage() {
                 description="Aquí vas a ver tu flujo de caja, la brecha frente a tu caja mínima, las columnas de cobros, pagos, sueldos, impuestos y deuda, y acciones recomendadas. Muy pronto disponible."
               />
             ))}
+
+          {bankMovementClassification ? (
+            <section aria-labelledby="movimientos-section" className="space-y-3">
+              <h2 id="movimientos-section" className="text-base font-semibold text-neutral-dark">
+                Calidad y auditoría de movimientos
+              </h2>
+              <MovimientosSubCards reconciliationReview={reconciliationReview} />
+            </section>
+          ) : (
+            <FeatureUnavailableState />
+          )}
         </>
       )}
     </div>
   );
 }
 
-/* El menú de movimientos bancarios (por clasificar / clasificados / compras al extranjero /
-   conciliación). Compartido por la landing clásica y por V02: es el mismo grid, sin cambios. */
+/* Auditoría de movimientos bancarios. Compartida por la landing clásica y por V02: conserva el
+   acceso a revisar/reclasificar sin convertirlo en la acción principal de Caja. */
 function MovimientosSubCards({ reconciliationReview }: { reconciliationReview: boolean }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <CajaSubCard
         href="/caja/por-clasificar"
         icon={Inbox}
-        title="Por clasificar"
-        description="Movimientos pendientes de clasificación. Asigna tipo de movimiento y cuenta de gestión."
-        badge="Acción pendiente"
-        badgeVariant="warning"
+        title="Movimientos pendientes"
+        description="Movimientos sin categoría automática. Revísalos si necesitas mejorar el detalle de tus informes."
+        badge="Calidad del dato"
+        badgeVariant="info"
       />
       <CajaSubCard
         href="/caja/clasificados"
@@ -164,9 +163,9 @@ function MovimientosSubCards({ reconciliationReview }: { reconciliationReview: b
           href="/caja/conciliacion"
           icon={ArrowLeftRight}
           title="Conciliación"
-          description="Revisa y confirma los documentos propuestos para cada movimiento."
-          badge="Acción pendiente"
-          badgeVariant="warning"
+          description="Audita los documentos propuestos para cada movimiento."
+          badge="Auditoría"
+          badgeVariant="info"
         />
       )}
     </div>

@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { concordar, formatDays } from "@/lib/formatters/count";
 import { formatClp } from "@/lib/formatters/clp";
@@ -301,6 +302,12 @@ export function CajaMedidorSinDato({ ultimaSync, className }: CajaMedidorSinDato
         {ultimaSync ? `Banco sincronizado por última vez el ${ultimaSync}. ` : ""}
         Actualiza el banco para ver cuántos días te alcanza la caja.
       </p>
+      <Link
+        href="/conexiones"
+        className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+      >
+        Revisar conexiones
+      </Link>
     </div>
   );
 }

@@ -175,16 +175,15 @@ export function CajaV02View({
         )}
       </section>
 
-      {/* (2) Banner de deuda de datos. La Bandeja V07 es la entrada actual para resolver estas
-          excepciones; el flujo detallado legado queda para un movimiento concreto. En error, el
-          banner NO desaparece: un `count` en 0 por una consulta fallida no es "todo
-          clasificado" (Ley 8, el "no sé" es explícito, nunca un default plausible). */}
+      {/* (2) Calidad del dato. Nunca reemplaza la lectura principal de caja ni pide clasificar como
+          siguiente acción: deja el detalle disponible en auditoría. En error, el aviso NO
+          desaparece: un `count` en 0 por una consulta fallida no es "todo clasificado". */}
       {deuda?.error && (
         <Banner variant="warn" role="note">
           <span className="min-w-0 flex-1">
-            <b className="text-rediseno-tinta">No sabemos si tu proyección está completa:</b> no
-            pudimos traer los movimientos sin clasificar (falló la consulta). Puede haber deuda de
-            datos que esta pantalla no está mostrando.
+            <b className="text-rediseno-tinta">No pudimos revisar la calidad de tus datos:</b> la
+            proyección conserva las fuentes que sí llegaron, pero puede faltar detalle de
+            movimientos del banco.
           </span>
         </Banner>
       )}
@@ -192,20 +191,19 @@ export function CajaV02View({
         <Banner variant="warn" role="note">
           <div className="flex flex-wrap items-center gap-3">
             <span className="min-w-0 flex-1">
-              <b className="text-rediseno-tinta">Tu proyección puede estar incompleta:</b>{" "}
-              {deuda.count} {deuda.count === 1 ? "movimiento" : "movimientos"} del banco sin
-              clasificar
+              <b className="text-rediseno-tinta">Calidad del dato:</b> {deuda.count}{" "}
+              {deuda.count === 1 ? "movimiento" : "movimientos"} del banco sin clasificar
               {deuda.entradasLabel ? ` (~${deuda.entradasLabel} en entradas)` : ""}
               {deuda.entradasSinMoneda > 0
                 ? ` y ${deuda.entradasSinMoneda} ${deuda.entradasSinMoneda === 1 ? "entrada" : "entradas"} cuya moneda no conocemos`
                 : ""}
-              . Están en tu saldo, pero no en tu flujo clasificado.
+              . Están en tu saldo; revisarlos puede mejorar el detalle del flujo.
             </span>
             <Link
               href="/bandeja"
-              className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-rediseno-tinta px-4 py-2 text-[12.5px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul"
+              className="ml-auto inline-flex min-h-11 shrink-0 items-center whitespace-nowrap font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul"
             >
-              Clasificar
+              Ver auditoría
             </Link>
           </div>
         </Banner>

@@ -3063,6 +3063,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/planning/budget-closing-projection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Proyección autoritativa de cierre anual
+         * @description Meses cerrados usan el P&L canónico; mes en curso y restantes, presupuesto.
+         *
+         *     El reader no extrapola un parcial ni convierte cobertura ausente en cero: ante
+         *     cualquier mes insuficiente devuelve ``projected_result=null`` con la razón.
+         */
+        get: operations["planning_budget_closing_projection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planning/budget-vs-actual": {
         parameters: {
             query?: never;
@@ -8279,6 +8302,61 @@ export interface components {
             period: string;
         };
         /**
+         * BudgetClosingProjectionResponse
+         * @description Cierre anual autoritativo, sin extrapolación de interfaz.
+         *
+         *     Método fijo: resultado operacional canónico de meses cerrados + presupuesto
+         *     vigente de meses aún no cerrados. Sólo publica ``projected_result`` si todos
+         *     los meses requeridos tienen cobertura suficiente.
+         */
+        BudgetClosingProjectionResponse: {
+            /** Abstention Reasons */
+            abstention_reasons?: string[];
+            /**
+             * As Of
+             * Format: date
+             * @description Fecha de corte; el mes que la contiene aún usa presupuesto.
+             */
+            as_of: string;
+            /**
+             * Coverage
+             * @enum {string}
+             */
+            coverage: "complete" | "partial" | "unknown";
+            /**
+             * Currency
+             * @description Moneda funcional de los montos, sin mezcla implícita.
+             */
+            currency: string;
+            /**
+             * Data State
+             * @description estimated si el cierre está cubierto; partial cuando el servidor se abstiene.
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Fiscal Year */
+            fiscal_year: number;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Method
+             * @constant
+             */
+            method: "closed_actual_plus_remaining_budget";
+            /** Periods */
+            periods?: components["schemas"]["ClosingProjectionPeriod"][];
+            /**
+             * Projected Result
+             * @description Cierre anual signado; null si falta cobertura en cualquier mes requerido.
+             */
+            projected_result?: string | null;
+            /** Sources */
+            sources?: components["schemas"]["ClosingProjectionSource"][];
+        };
+        /**
          * BudgetEditRequest
          * @description Editar UNA celda (categoría x mes) del presupuesto.
          */
@@ -10242,6 +10320,52 @@ export interface components {
              * @description Clave natural persistida desde el origen.
              */
             source_external_id: string;
+        };
+        /**
+         * ClosingProjectionPeriod
+         * @description Un mes que participa (o impide participar) en el cierre anual.
+         *
+         *     ``amount`` es nulo cuando la fuente no es suficiente. Nunca se transforma una
+         *     ausencia/estado parcial en un cero para poder sumar el cierre.
+         */
+        ClosingProjectionPeriod: {
+            /**
+             * Amount
+             * @description Resultado signado del mes; null si el mes no puede sostener el cierre.
+             */
+            amount?: string | null;
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "actual_closed" | "budget_remaining";
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Missing Sources */
+            missing_sources?: string[];
+            /**
+             * Period
+             * @description Período YYYY-MM.
+             */
+            period: string;
+        };
+        /**
+         * ClosingProjectionSource
+         * @description Cobertura declarada por cada fuente canónica del cierre.
+         */
+        ClosingProjectionSource: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "operational_result" | "approved_budget";
+            /** Covered Periods */
+            covered_periods?: string[];
+            /** Missing Periods */
+            missing_periods?: string[];
         };
         /** CollectionEvaluationAlternative */
         CollectionEvaluationAlternative: {
@@ -18918,12 +19042,18 @@ export interface components {
         /**
          * PriorityAction
          * @description Máx 3 en la respuesta. `cta_href` = ruta interna del FE
-         *     (/cobrar, /pagar, /caja/proyeccion, /gestion, /caja/por-clasificar).
+         *     (/cobrar, /pagar, /caja/proyeccion, /gestion).
+         *
+         *     Cada acción es una recomendación financiera que el dueño puede evaluar. La
+         *     clasificación y el enriquecimiento son trabajo automático de Qavante: no
+         *     pueden convertirse en un CTA primario para preparar el análisis
+         *     (INV-DEC-010). El decision brief de #549 publicará evidencia, confianza y
+         *     rangos de incertidumbre cuando correspondan.
          *
          *     `amount`/`impact_label` (opcionales, Ola 3): cuánta plata está en juego para
          *     poder priorizar. `amount` = string decimal; `impact_label` = etiqueta legible
-         *     ("$4,2M descubierto a 14 días"). Nulos cuando la acción no tiene monto (ej.
-         *     'N movimientos sin clasificar' es un conteo, no plata) → el FE degrada.
+         *     ("$4,2M descubierto a 14 días"). Nulos cuando no hay monto monetario
+         *     atribuible; los consumidores no deben interpretarlos como $0 conocido.
          */
         PriorityAction: {
             /** Amount */
@@ -28681,6 +28811,40 @@ export interface operations {
                 };
             };
             /** @description period mal formado. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    planning_budget_closing_projection: {
+        parameters: {
+            query?: {
+                /** @description Año fiscal; default año de corte. */
+                year?: number | null;
+                /** @description Fecha de corte ISO-8601; default fecha UTC actual. */
+                as_of?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cierre cubierto o abstención explícita por cobertura insuficiente. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetClosingProjectionResponse"];
+                };
+            };
+            /** @description year/as_of mal formado. */
             422: {
                 headers: {
                     [name: string]: unknown;

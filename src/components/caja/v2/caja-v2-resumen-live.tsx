@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Banknote, Plus } from "lucide-react";
-import { QavanteEmpty, QavanteInlineError } from "@/components/qavante";
+import { QavanteButton, QavanteEmpty, QavanteInlineError } from "@/components/qavante";
 import { useDashboardSummary } from "@/lib/api/dashboard";
 import {
   defaultCashFlowRange,
@@ -31,7 +31,6 @@ import {
   primerCruceFuturo,
   completitudFlujoVisible,
   entradasSinClasificarLabel,
-  motivoIndeterminado,
 } from "./caja-v2-map";
 import { CajaProyeccionLive } from "./caja-proyeccion-live";
 import { fechaCortaLabel } from "./caja-proyeccion-model";
@@ -307,14 +306,14 @@ function AvisosDelReporte({ warnings }: { warnings: string[] }) {
   );
 }
 
-function FlujoBlock({
+export function FlujoBlock({
   flujo,
   minimo,
   sinClasificar,
 }: {
   flujo: { entra: number; sale: number; neto: number };
   minimo: number | null;
-  /** Movimientos sin clasificar del período (no cuentan en "committed") — se avisan honesto. */
+  /** Señal de calidad del dato para el flujo del período. */
   sinClasificar?: UnclassifiedSummary;
 }) {
   const { entra, sale, neto } = flujo;
@@ -325,121 +324,74 @@ function FlujoBlock({
     </div>
   );
   const hayPendientes = sinClasificar != null && sinClasificar.count > 0;
-  /* El flujo "committed" solo cuenta lo CLASIFICADO. Si lo sin clasificar es una porción material
-     del ingreso (>20%), mostrar el número clasificado como "Entra del período" MIENTE por omisión →
-     lo degradamos a "Incompleto" (patrón §13: no mostrar cifras sin confianza). Validado: Tooxs
-     julio $1,6M clasificado vs $61,5M sin clasificar → mostrar $1,6M como el flujo era engañoso.
-
-     INV-FX-001: la decisión se calcula SOLO con la porción en pesos (cota inferior); si hay
-     entradas sin clasificar en otra moneda —o de moneda desconocida— el veredicto no se puede
-     cerrar sin tipo de cambio y degrada a `indeterminado`. Antes se sumaba USD como si fueran CLP,
-     así que la mezcla no solo mal-etiquetaba: decidía.
-
-     `completitudFlujoVisible` (y no `completitudFlujo` a secas) porque mientras el resumen carga el
-     mapa de monedas está vacío, todo caería en "moneda desconocida" y el titular parpadearía a "No
-     podemos determinar si está completo" antes de acomodarse. Ese `isLoading` ya se calculaba pero
-     no lo leía ningún consumidor. Durante la carga NO se rendea veredicto ninguno: ni el alarmante
-     ni el tranquilizador (mostrar Entra/Sale como "el flujo del período" y sin rótulo ES afirmar
-     completitud), sino un placeholder — no se puede afirmar nada sin la evidencia. */
+  /* El reporte sigue siendo la fuente de las cifras: este componente no calcula ni completa montos.
+     `completitudFlujoVisible` sólo define cómo explicamos la calidad de ese reporte. La revisión de
+     movimientos puede mejorar el detalle, pero no debe esconder la lectura financiera ni convertirse
+     en la siguiente tarea principal del usuario (INV-DEC-010). */
   const completitud = completitudFlujoVisible(entra, sinClasificar);
-  const cargando = completitud === "cargando";
   const incompleto = completitud === "incompleto";
   const indeterminado = completitud === "indeterminado";
   const entradasLabel = entradasSinClasificarLabel(sinClasificar);
-  const motivoFx = motivoIndeterminado(sinClasificar);
+  const calidadPendiente =
+    completitud === "cargando" || incompleto || indeterminado || sinClasificar?.isError === true;
 
-  const avisoSinClasificar = hayPendientes ? (
-    <div className="mt-3 rounded-lg border border-warning-500/30 bg-warning-500/[.07] px-3 py-2 text-[12px] leading-snug text-neutral-dark">
-      <b className="font-semibold">
-        {sinClasificar!.count} {sinClasificar!.count === 1 ? "movimiento" : "movimientos"} sin
-        clasificar
-      </b>
-      {/* Un monto POR MONEDA ("$61.500.000 · US$1.200,00"): nunca un total mezclado pintado como
-          pesos, que es exactamente lo que prohíbe INV-FX-001. */}
-      {entradasLabel ? ` (~${entradasLabel} en entradas)` : ""}{" "}
-      {incompleto ? "no están contados." : "no están en este flujo."}{" "}
+  const avisoCalidad = calidadPendiente ? (
+    <aside
+      aria-label="Calidad del dato"
+      className="mt-3 rounded-lg border border-warning-500/30 bg-warning-500/[.07] px-3 py-2 text-[12px] leading-snug text-neutral-dark"
+      role="note"
+    >
+      <b className="font-semibold">Calidad del dato.</b>{" "}
+      {sinClasificar?.isError
+        ? "No pudimos revisar todos los movimientos del banco."
+        : hayPendientes
+          ? `${sinClasificar!.count} ${sinClasificar!.count === 1 ? "movimiento pendiente" : "movimientos pendientes"} de revisión${entradasLabel ? ` (~${entradasLabel} en entradas)` : ""}.`
+          : completitud === "cargando"
+            ? "Estamos revisando los movimientos disponibles."
+            : indeterminado
+              ? "Hay movimientos con moneda distinta o no identificada; no los convertimos automáticamente a pesos."
+              : "Hay movimientos que requieren una revisión adicional."}{" "}
+      El flujo muestra los datos registrados. Puedes abrir la auditoría si necesitas revisar el
+      detalle.{" "}
       <Link
-        href="/caja/por-clasificar"
+        href="/bandeja"
         className="rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
       >
-        Ir a clasificar →
+        Ver auditoría de movimientos
       </Link>
-    </div>
+    </aside>
   ) : null;
-
-  /* Todavía sin evidencia: el resumen de sin-clasificar está en vuelo, así que no hay veredicto que
-     rendear. Placeholder, no cifras: mostrar Entra/Sale acá sería la rama `completo`, que es la que
-     afirma "este es el flujo del período" y esconde el aviso. El flash dura lo que la query. */
-  if (cargando) {
-    return (
-      <div className="p-5" aria-busy="true">
-        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
-          Flujo del período
-        </p>
-        <div className="mt-2 space-y-2">
-          <div className="h-5 w-40 animate-pulse rounded bg-surface-muted" />
-          <div className="h-4 w-full animate-pulse rounded bg-surface-muted" />
-          <div className="h-4 w-full animate-pulse rounded bg-surface-muted" />
-          <div className="h-4 w-2/3 animate-pulse rounded bg-surface-muted" />
-        </div>
-      </div>
-    );
-  }
-
-  // Degradado honesto: cuando falta clasificar la mayor parte del ingreso NO mostramos "Entra/Sale del
-  // período" — ni el parcial clasificado (un $1,6M sobre ~$63M reales no aporta, solo ancla mal). Solo el
-  // estado honesto + qué falta clasificar (Fernando: "¿aporta algo ese número si no está todo clasificado?").
-  if (incompleto) {
-    return (
-      <div className="p-5">
-        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
-          Flujo del período
-        </p>
-        <p className="mt-1 text-[20px] font-bold text-neutral-mid">Falta clasificar</p>
-        <p className="mt-1.5 text-[12.5px] text-neutral-mid">
-          No podemos mostrar tu entra/sale del período hasta clasificar los movimientos del banco.
-        </p>
-        {avisoSinClasificar}
-      </div>
-    );
-  }
 
   const filas = (
     <dl className="flex flex-col text-[13px]">
-      {row("Entra (período)", formatClp(entra), "text-success-700")}
-      {row("Sale (período)", formatClp(-Math.abs(sale)), "text-danger-500")}
-      {row("Neto del período", formatClp(neto), neto < 0 ? "text-danger-500" : "text-neutral-dark")}
+      {row(
+        calidadPendiente ? "Entra registrado" : "Entra (período)",
+        formatClp(entra),
+        "text-success-700",
+      )}
+      {row(
+        calidadPendiente ? "Sale registrado" : "Sale (período)",
+        formatClp(-Math.abs(sale)),
+        "text-danger-500",
+      )}
+      {row(
+        calidadPendiente ? "Neto registrado" : "Neto del período",
+        formatClp(neto),
+        neto < 0 ? "text-danger-500" : "text-neutral-dark",
+      )}
       {minimo != null && row("Tu caja mínima", formatClp(minimo))}
     </dl>
   );
 
-  /* Estado "no se puede determinar": las cifras de abajo SIGUEN siendo ciertas (son lo clasificado,
-     ya en moneda funcional CLP); lo que perdimos es la certificación de que representan el período.
-     Se dice explícito y se rotula qué son, en vez de (a) mentir con un veredicto calculado sobre una
-     mezcla de monedas o (b) esconder datos verdaderos por una condición que tampoco pudimos probar. */
-  if (indeterminado) {
-    return (
-      <div className="p-5">
-        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
-          Flujo del período
-        </p>
-        <p className="mt-1 text-[20px] font-bold text-neutral-mid">
-          No podemos determinar si está completo
-        </p>
-        {motivoFx && <p className="mt-1.5 text-[12.5px] text-neutral-mid">{motivoFx}</p>}
-        <p className="mt-3 text-[11.5px] font-semibold uppercase tracking-wide text-neutral-mid">
-          Lo que sí está clasificado (en pesos)
-        </p>
-        <div className="mt-1">{filas}</div>
-        {avisoSinClasificar}
-      </div>
-    );
-  }
-
   return (
     <div className="p-5">
+      {calidadPendiente && (
+        <p className="mb-2 text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+          Flujo registrado
+        </p>
+      )}
       {filas}
-      {avisoSinClasificar}
+      {avisoCalidad}
     </div>
   );
 }
@@ -600,10 +552,13 @@ function SinSaldoBase({
               No pudimos traer tu saldo ahora (hubo un error). Vuelve a intentar en un momento.
             </p>
           ) : (
-            <p className="mt-3 inline-flex items-start gap-1.5 text-[13px] font-semibold text-brand-primary">
+            <Link
+              href="/conexiones"
+              className="mt-3 inline-flex items-start gap-1.5 rounded text-[13px] font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            >
               <Plus className="mt-px size-4 shrink-0" aria-hidden="true" />
               Conecta tu banco para ver tu saldo real y proyectar tu caja.
-            </p>
+            </Link>
           )}
           <p className="mt-2.5 text-[12.5px] text-neutral-mid">
             El flujo de acá abajo (entradas y salidas) sí viene de tus movimientos.
@@ -635,6 +590,18 @@ function EmptyState() {
       icon={Banknote}
       title="Aún no hay datos de caja"
       description="Conecta tu banco y el SII para ver tu saldo, la proyección y cuándo la caja toca su mínimo."
+      cta={
+        <div className="flex flex-wrap justify-center gap-2">
+          <Link href="/conexiones">
+            <QavanteButton size="sm">Conectar banco</QavanteButton>
+          </Link>
+          <Link href="/administracion/credenciales">
+            <QavanteButton size="sm" variant="ghost">
+              Conectar SII
+            </QavanteButton>
+          </Link>
+        </div>
+      }
     />
   );
 }

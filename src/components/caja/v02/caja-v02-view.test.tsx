@@ -127,12 +127,16 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(texto(html())).not.toContain("puede haber más");
   });
 
-  it("banner de deuda de datos con conteo y monto por moneda, y CTA a la Bandeja", () => {
+  it("muestra la calidad del dato como auditoría secundaria, no como CTA de clasificación", () => {
     const h = html();
     const t = texto(h);
+    expect(t).toContain("Calidad del dato:");
     expect(t).toContain("3 movimientos del banco sin clasificar (~$2.100.000 en entradas)");
+    expect(t).toContain("Están en tu saldo; revisarlos puede mejorar el detalle del flujo.");
+    expect(t).toContain("Ver auditoría");
     expect(h).toContain('href="/bandeja"');
     expect(h).not.toContain('href="/caja/por-clasificar"');
+    expect(h).not.toMatch(/<a[^>]*>Clasificar<\/a>/);
     // Gemelo: sin pendientes el banner no está.
     expect(
       texto(html({ sinClasificar: sinClasificar({ count: 0, inflowByCurrency: [] }) })),
@@ -145,15 +149,15 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     });
     const t = texto(h);
     expect(h).toContain('role="note"');
-    expect(t).toContain("No sabemos si tu proyección está completa");
-    expect(t).toContain("no pudimos traer los movimientos sin clasificar");
+    expect(t).toContain("No pudimos revisar la calidad de tus datos");
+    expect(t).toContain("puede faltar detalle de movimientos del banco");
     // Gemelo: el mismo count=0 SIN error apaga el banner del todo (no es que "error" siempre
     // muestre algo — es el count=0 real el que lo apaga, y el error el que lo prende de nuevo).
     expect(
       texto(
         html({ sinClasificar: sinClasificar({ isError: false, count: 0, inflowByCurrency: [] }) }),
       ),
-    ).not.toContain("No sabemos si tu proyección está completa");
+    ).not.toContain("No pudimos revisar la calidad de tus datos");
   });
 
   it("4 barras con neto por semana y cierre; la del piso está marcada", () => {

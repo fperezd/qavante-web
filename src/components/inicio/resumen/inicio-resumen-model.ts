@@ -4,19 +4,12 @@ import type { BalanceData } from "@/lib/api/treasury";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 
-/** Only published financial actions; the forecast and bookkeeping already have their own destinations. */
+/**
+ * Las acciones prioritarias son contrato del servidor: esta vista conserva orden, multiplicidad
+ * y CTA sin inferir su dominio desde la ruta o el texto.
+ */
 export function accionesFinancierasInicio(data: DashboardSummaryV2 | null) {
-  const seen = new Set<string>();
-  return [...(data?.priority_actions ?? [])]
-    .filter((action) => /^\/(cobrar|pagar)(\/|\?|#|$)/.test(action.cta_href))
-    .sort((a, b) => a.priority - b.priority)
-    .filter((action) => {
-      const key = [action.cta_href, action.reason, action.deadline].join("|");
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, 3);
+  return [...(data?.priority_actions ?? [])];
 }
 
 /** Presentation only: never reconstruct a gap from obligations minus projected cash. */

@@ -202,10 +202,11 @@ export const AccionesFinancieras: Story = {
         },
         {
           priority: 3,
-          reason: "12 movimientos sin clasificar",
-          deadline: "",
-          cta_href: "/caja/por-clasificar",
-          cta_label: "Clasificar",
+          reason: "Revisar conciliación de Factura 789",
+          deadline: "Hoy",
+          cta_href: "/caja/conciliacion?decision_id=11111111-1111-4111-8111-111111111111",
+          cta_label: "Ver conciliación",
+          amount: "800000",
         },
       ],
     },
@@ -216,6 +217,13 @@ export const AccionesFinancieras: Story = {
       "href",
       "/cobrar",
     );
-    await expect(canvas.queryByText(/12 movimientos/)).not.toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Ver pago" })).toHaveAttribute(
+      "href",
+      "/pagar",
+    );
+    await expect(canvas.getByRole("link", { name: "Ver conciliación" })).toHaveAttribute(
+      "href",
+      "/caja/conciliacion?decision_id=11111111-1111-4111-8111-111111111111",
+    );
   },
 };
