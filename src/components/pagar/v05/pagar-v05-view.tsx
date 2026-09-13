@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DocumentActionButton } from "@/components/documents/document-actions";
 import { downloadXlsx } from "@/lib/export/xlsx";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -69,6 +70,7 @@ import {
  * declaran con monto y conteo; caja final, críticos y cobertura se presentan por separado. */
 
 export interface PagarV05ViewProps {
+  deferredIds?: readonly string[];
   /** `GET /api/treasury/accounts-payable`. `null` = no llegó. */
   pagos: AccountsPayableResponse | null;
   /** Por qué no llegó, en lenguaje de dueño (cuando `pagos` es null). */
@@ -89,6 +91,7 @@ const EYEBROW =
   "font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
 
 export function PagarV05View({
+  deferredIds = [],
   pagos: ap,
   pagosMotivo,
   anomalias = [],
@@ -101,6 +104,7 @@ export function PagarV05View({
   const [periodo, setPeriodo] = React.useState<PeriodoV05>(14);
   const [filtro, setFiltro] = React.useState<FiltroV05>("todos");
   const [consulta, setConsulta] = React.useState("");
+  const [includeFollowup, setIncludeFollowup] = React.useState(false);
 
   const filas = React.useMemo(() => pagosV05(ap, hoy, anomalias ?? []), [ap, hoy, anomalias]);
   const rojo = elUnicoRojo(filas);
@@ -109,7 +113,9 @@ export function PagarV05View({
   const critico = kpiCritico(filas, ap);
   const banner = bannerPostergables(ap, hoy);
   const conteos = contarPagos(filas, consulta);
-  const visibles = filtrarPagos(filas, filtro, consulta);
+  const visibles = filtrarPagos(filas, filtro, consulta).filter(
+    (p) => includeFollowup || !p.item.id || !deferredIds.includes(p.item.id),
+  );
   const tot = totales(ap, filas);
   const falta = faltantes(ap);
   const correlacionAnomaliasIncompleta =
@@ -345,6 +351,19 @@ export function PagarV05View({
           />
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <DocumentActionButton kind="payable" label="Buscar documento o pago registrado" />
+          {deferredIds.length > 0 && (
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={includeFollowup}
+                onChange={(e) => setIncludeFollowup(e.target.checked)}
+              />
+              Incluir en seguimiento ({deferredIds.length})
+            </label>
+          )}
+        </div>
         <TablaPagos
           pagos={visibles}
           totalPagos={filas.length}
@@ -609,6 +628,7 @@ function DetallePago({ pago: p }: { pago: PagoV05 }) {
       </summary>
       <div className="absolute right-0 top-full z-40 mt-1.5 w-[min(20rem,80vw)] rounded-xl border border-rediseno-hairline bg-rediseno-superficie p-3 text-left text-[12.5px] font-normal leading-relaxed text-rediseno-tinta-2 shadow-lg">
         <p className="font-semibold text-rediseno-tinta">{p.nombre}</p>
+        {p.item.id && <DocumentActionButton kind="payable" documentId={p.item.id} />}
         <dl className="mt-1 space-y-0.5">
           {p.documento && <Dato k="Documento" v={p.documento} />}
           {p.rutLabel && <Dato k="RUT" v={p.rutLabel} />}

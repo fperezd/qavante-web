@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useDeferredDocuments } from "@/lib/api/document-actions";
 import { useAccountsPayable, usePayableDuplicateAnomalies } from "@/lib/api/pagos";
 import { ApiError } from "@/lib/api/errors";
 import { PagarV05View } from "./pagar-v05-view";
@@ -30,29 +31,41 @@ export function motivoSinPagos(err: unknown): string {
 export function PagarV05Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?: string }) {
   const [hoy] = React.useState(() => new Date());
   const ap = useAccountsPayable();
+  const deferred = useDeferredDocuments("payable");
   const anomalias = usePayableDuplicateAnomalies();
 
-  if (ap.isLoading) return <CargandoPagar />;
+  if (ap.isLoading || deferred.isLoading) return <CargandoPagar />;
 
   return (
-    <PagarV05View
-      pagos={ap.data ?? null}
-      pagosMotivo={ap.isError ? motivoSinPagos(ap.error) : null}
-      anomalias={anomalias.isSuccess ? anomalias.data.items : null}
-      anomaliasMotivo={
-        anomalias.isError
-          ? "No pudimos revisar posibles duplicados; no los estamos descartando."
-          : anomalias.isLoading
-            ? "Estamos revisando posibles duplicados (~5 s)."
-            : null
-      }
-      onReintentar={() => {
-        void ap.refetch();
-        void anomalias.refetch();
-      }}
-      issueSucesor={issueSucesor}
-      hoy={hoy}
-    />
+    <>
+      {deferred.isError && (
+        <p role="alert" className="mb-3 text-sm">
+          No pudimos cargar los seguimientos. Se muestran todos los documentos.{" "}
+          <button onClick={() => void deferred.refetch()} className="underline">
+            Reintentar
+          </button>
+        </p>
+      )}
+      <PagarV05View
+        deferredIds={deferred.data?.document_ids}
+        pagos={ap.data ?? null}
+        pagosMotivo={ap.isError ? motivoSinPagos(ap.error) : null}
+        anomalias={anomalias.isSuccess ? anomalias.data.items : null}
+        anomaliasMotivo={
+          anomalias.isError
+            ? "No pudimos revisar posibles duplicados; no los estamos descartando."
+            : anomalias.isLoading
+              ? "Estamos revisando posibles duplicados (~5 s)."
+              : null
+        }
+        onReintentar={() => {
+          void ap.refetch();
+          void anomalias.refetch();
+        }}
+        issueSucesor={issueSucesor}
+        hoy={hoy}
+      />
+    </>
   );
 }
 

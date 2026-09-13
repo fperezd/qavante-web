@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useDeferredDocuments } from "@/lib/api/document-actions";
 import { toast } from "sonner";
 import { useAccountsReceivable, useSendCollectionReminders } from "@/lib/api/cobranza";
 import { usePreferences, useUpdatePreferences } from "@/lib/api/preferences";
@@ -42,13 +43,14 @@ export function motivoSinRegistro(err: unknown): string {
 export function CobrarV04Live() {
   const [hoy] = React.useState(() => new Date());
   const ar = useAccountsReceivable();
+  const deferred = useDeferredDocuments("receivable");
   const prefs = usePreferences();
   const update = useUpdatePreferences();
   const reminders = useSendCollectionReminders();
 
   const gestionado = React.useMemo(() => readGestionado(prefs.data?.preferences), [prefs.data]);
 
-  if (ar.isLoading || prefs.isLoading) return <CargandoCobrar />;
+  if (ar.isLoading || prefs.isLoading || deferred.isLoading) return <CargandoCobrar />;
 
   const sinPrefs = () =>
     toast.error("No pudimos guardar la gestión", {
@@ -131,18 +133,29 @@ export function CobrarV04Live() {
   };
 
   return (
-    <CobrarV04View
-      ar={ar.data ?? null}
-      arMotivo={ar.isError ? motivoSinRegistro(ar.error) : null}
-      gestionado={gestionado}
-      gestionDisponible={prefs.isSuccess}
-      onToggleGestionado={toggleGestionado}
-      onMarcarLote={marcarLote}
-      onEnviarLote={enviarLote}
-      onCopiar={copiar}
-      onReintentar={() => void ar.refetch()}
-      hoy={hoy}
-    />
+    <>
+      {deferred.isError && (
+        <p role="alert" className="mb-3 text-sm">
+          No pudimos cargar los seguimientos. Se muestran todos los documentos.{" "}
+          <button onClick={() => void deferred.refetch()} className="underline">
+            Reintentar
+          </button>
+        </p>
+      )}
+      <CobrarV04View
+        deferredIds={deferred.data?.document_ids}
+        ar={ar.data ?? null}
+        arMotivo={ar.isError ? motivoSinRegistro(ar.error) : null}
+        gestionado={gestionado}
+        gestionDisponible={prefs.isSuccess}
+        onToggleGestionado={toggleGestionado}
+        onMarcarLote={marcarLote}
+        onEnviarLote={enviarLote}
+        onCopiar={copiar}
+        onReintentar={() => void ar.refetch()}
+        hoy={hoy}
+      />
+    </>
   );
 }
 

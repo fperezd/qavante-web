@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DocumentActionButton } from "@/components/documents/document-actions";
 import { downloadXlsx } from "@/lib/export/xlsx";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Info, Search } from "lucide-react";
@@ -65,6 +66,7 @@ import {
  * documento. `sin_destinatario`, `skipped` y `error` nunca se disfrazan de envío exitoso. */
 
 export interface CobrarV04ViewProps {
+  deferredIds?: readonly string[];
   /** `GET /api/treasury/accounts-receivable`. `null` = no llegó. */
   ar: AccountsReceivableResponse | null;
   /** Por qué no llegó, en lenguaje de dueño (cuando `ar` es null). */
@@ -102,6 +104,7 @@ const EYEBROW =
   "font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3";
 
 export function CobrarV04View({
+  deferredIds = [],
   ar,
   arMotivo,
   gestionado = {},
@@ -116,6 +119,7 @@ export function CobrarV04View({
 }: CobrarV04ViewProps) {
   const [filtro, setFiltro] = React.useState<FiltroV04>("prioridad");
   const [consulta, setConsulta] = React.useState("");
+  const [includeFollowup, setIncludeFollowup] = React.useState(false);
   const [loteAbierto, setLoteAbierto] = React.useState(false);
   const [copiadoKey, setCopiadoKey] = React.useState<string | null>(null);
   const copyTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -125,9 +129,21 @@ export function CobrarV04View({
   const crumb = crumbGestion(clientes, hoy);
   const tarjetas = tarjetasAging(ar);
   const sinVencido = motivoSinVencido(ar);
-  const conc = concentracion(clientes, ar);
+  const concentration = concentracion(clientes, ar);
+  // Do not recommend a bulk reminder that includes a document already being followed up.
+  // Financial totals remain untouched; no client-side redistribution of overdue amounts.
+  const conc = concentration?.clientes.some((c) =>
+    c.receivableIds.some((id) => deferredIds.includes(id)),
+  )
+    ? null
+    : concentration;
   const conteos = contarClientes(clientes, consulta);
-  const visibles = filtrarClientes(clientes, filtro, consulta);
+  const visibles = filtrarClientes(clientes, filtro, consulta).filter(
+    (c) =>
+      includeFollowup ||
+      !c.receivableIds.length ||
+      !c.receivableIds.every((id) => deferredIds.includes(id)),
+  );
   const bruto = totalBruto(ar);
 
   const copiar = async (r: RecordatorioV04) => {
@@ -288,6 +304,19 @@ export function CobrarV04View({
           />
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <DocumentActionButton kind="receivable" label="Buscar documento o cobro registrado" />
+          {deferredIds.length > 0 && (
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={includeFollowup}
+                onChange={(e) => setIncludeFollowup(e.target.checked)}
+              />
+              Incluir en seguimiento ({deferredIds.length} documentos)
+            </label>
+          )}
+        </div>
         <TablaClientes
           clientes={visibles}
           totalClientes={clientes.length}
@@ -845,6 +874,7 @@ function TablaClientes({
           const r = recordatorioDe(c);
           return (
             <span className="flex flex-wrap justify-end gap-x-1 text-[12.5px] font-normal">
+              <DocumentActionButton kind="receivable" query={c.nombre} />
               <AccionesRecordatorio r={r} copiado={copiadoKey === c.key} onCopiar={onCopiar} />
               {onToggleGestionado && (
                 <>

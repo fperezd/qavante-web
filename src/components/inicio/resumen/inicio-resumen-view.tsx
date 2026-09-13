@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { DocumentActionButton } from "@/components/documents/document-actions";
 import Link from "next/link";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { formatClp } from "@/lib/formatters/clp";
@@ -206,6 +207,10 @@ export function InicioResumenView(props: InicioResumenViewProps) {
           {decisionOpen && (
             <div className="space-y-4">
               <h2 className="text-lg font-semibold">Opciones y seguimiento</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <DocumentActionButton kind="payable" label="Gestionar pagos" />
+                <DocumentActionButton kind="receivable" label="Gestionar cobros" />
+              </div>
               <p className="text-sm text-neutral-mid">
                 Revisa la fecha, moneda y plazo de cada evaluación antes de decidir.
               </p>
