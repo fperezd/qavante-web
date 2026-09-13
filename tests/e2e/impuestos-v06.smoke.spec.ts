@@ -24,7 +24,8 @@ test("V06 autenticada muestra calendario, Ley 9 y limitación bancaria", async (
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.getByText(/Todavía no: el vínculo/)).toBeVisible();
+  await expect(page.getByText(/pago son estados distintos/i)).toBeVisible();
+  await expect(page.getByText(/movimiento bancario específico/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /postergar/i })).toHaveCount(0);
   await expect(
     page.getByText("Esta pantalla todavía no está disponible", { exact: true }),
