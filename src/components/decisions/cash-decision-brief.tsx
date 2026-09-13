@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock, FileWarning } from "lucide-react";
 import { useCashDecisionBrief, type CashDecisionBrief } from "@/lib/api/cash-decision-brief";
+import { ApiError } from "@/lib/api/errors";
 import { formatMoney } from "@/lib/formatters/clp";
 
 export function withDecisionContext(href: string, brief: CashDecisionBrief) {
@@ -20,6 +21,11 @@ export function shouldRenderDecisionCta(alternative: {
   return Boolean(alternative.cta_href && alternative.cta_label);
 }
 
+/** El endpoint puede no estar disponible durante una actualización gradual; sólo ese 404 se omite. */
+export function shouldOmitDecisionBrief(error: unknown) {
+  return error instanceof ApiError && error.isNotFound();
+}
+
 function money(value: { amount: string; currency: string; label: string } | null | undefined) {
   if (!value) return null;
   const amount = Number(value.amount);
@@ -33,7 +39,32 @@ function money(value: { amount: string; currency: string; label: string } | null
 export function CashDecisionBriefCard() {
   const query = useCashDecisionBrief();
 
-  if (query.isLoading || query.isError || !query.data) return null;
+  if (query.isLoading) return null;
+  if (query.isError) {
+    if (shouldOmitDecisionBrief(query.error)) return null;
+    return (
+      <section
+        aria-label="Decisión de caja no disponible"
+        role="alert"
+        aria-live="assertive"
+        className="rounded-xl border border-warning-300 bg-warning-50 px-5 py-4 text-sm text-neutral-dark"
+      >
+        <p className="font-semibold">No pudimos actualizar la decisión de caja.</p>
+        <p className="mt-1 text-neutral-mid">
+          No mostraremos una recomendación alternativa hasta recuperar la respuesta del servidor.
+        </p>
+        <button
+          type="button"
+          onClick={() => void query.refetch()}
+          disabled={query.isFetching}
+          className="mt-3 rounded-lg border border-brand-primary px-3 py-2 font-semibold text-brand-primary hover:bg-brand-primary-50 disabled:cursor-wait disabled:opacity-60"
+        >
+          {query.isFetching ? "Reintentando…" : "Reintentar"}
+        </button>
+      </section>
+    );
+  }
+  if (!query.data) return null;
   const brief = query.data;
   const recommended = brief.alternatives.find(
     (alternative) => alternative.alternative_id === brief.recommended_alternative_id,

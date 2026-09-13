@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { CashDecisionBrief } from "@/lib/api/cash-decision-brief";
-import { shouldRenderDecisionCta, withDecisionContext } from "./cash-decision-brief";
+import { ApiError } from "@/lib/api/errors";
+import {
+  shouldOmitDecisionBrief,
+  shouldRenderDecisionCta,
+  withDecisionContext,
+} from "./cash-decision-brief";
 
 const brief = {
   decision_id: "10000000-0000-4000-8000-000000000001",
@@ -30,5 +35,16 @@ describe("shouldRenderDecisionCta", () => {
 
   it("does not manufacture a CTA from incomplete alternative data", () => {
     expect(shouldRenderDecisionCta({ cta_label: "Ver conexiones" })).toBe(false);
+  });
+});
+
+describe("shouldOmitDecisionBrief", () => {
+  it("omits only the gradual-rollout 404", () => {
+    expect(shouldOmitDecisionBrief(new ApiError("No existe", 404))).toBe(true);
+  });
+
+  it("keeps other failures visible for an explicit retry", () => {
+    expect(shouldOmitDecisionBrief(new ApiError("Caído", 503))).toBe(false);
+    expect(shouldOmitDecisionBrief(new Error("red"))).toBe(false);
   });
 });
