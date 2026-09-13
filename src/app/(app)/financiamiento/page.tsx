@@ -3,8 +3,6 @@ import { FinanciamientoV13Live } from "@/components/financiamiento/v13/financiam
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import Link from "next/link";
 
-export const runtime = "edge";
-
 export default function FinanciamientoPage() {
   const { financiamientoV13 } = resolveFeatureFlags();
 

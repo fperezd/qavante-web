@@ -26,7 +26,14 @@ export default defineConfig({
       name: "http",
       use: {},
       // `*.real.spec.ts` corre SOLO con playwright.real.config.ts (backend en vivo), nunca en el CI/MSW.
-      testIgnore: ["**/*.mobile.spec.ts", "**/*.flow.spec.ts", "**/*.real.spec.ts"],
+      // Los smoke post-deploy autentican contra app.qavante.com con una cookie de
+      // ese dominio; no pueden ejecutarse de forma válida contra localhost.
+      testIgnore: [
+        "**/*.mobile.spec.ts",
+        "**/*.flow.spec.ts",
+        "**/*.real.spec.ts",
+        "**/*.smoke.spec.ts",
+      ],
     },
     {
       name: "mobile",
