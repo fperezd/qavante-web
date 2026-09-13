@@ -17,6 +17,10 @@ vi.mock("@/components/bandeja/bandeja-audit-landing", () => ({
   BandejaAuditLanding: () => <div data-testid="bandeja-audit-landing">Landing de auditoría</div>,
 }));
 
+vi.mock("@/components/decisions/cash-decision-brief", () => ({
+  CashDecisionBriefCard: () => <div data-testid="cash-decision-brief">Decisión de caja</div>,
+}));
+
 import BandejaPage from "./page";
 
 describe("BandejaPage", () => {

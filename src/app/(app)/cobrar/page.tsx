@@ -6,6 +6,7 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { CobrarView } from "@/components/cobrar/cobrar-view";
 import { CobrarV2Live } from "@/components/cobrar/v2/cobrar-v2-live";
 import { CobrarV04Live } from "@/components/cobrar/v04/cobrar-v04-live";
+import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brief";
 
 /* Cobrar (Sprint C4). Server Component: resuelve los flags. La IA usa LENGUAJE DE
    DUEÑO (pedido de Fernando 2026-07-28): arriba y a mano "Ver facturas" (lo que
@@ -34,6 +35,7 @@ export default function CobrarPage() {
             </div>
           )}
         </header>
+        <CashDecisionBriefCard />
         <CobrarV04Live />
       </div>
     );
@@ -57,6 +59,7 @@ export default function CobrarPage() {
             </div>
           )}
         </header>
+        <CashDecisionBriefCard />
         <CobrarV2Live siiEnabled={siiQueries} />
       </div>
     );
@@ -69,6 +72,7 @@ export default function CobrarPage() {
           <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
           <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
         </header>
+        <CashDecisionBriefCard />
         <CobrarView siiEnabled={siiQueries} />
       </div>
     );
@@ -85,6 +89,8 @@ export default function CobrarPage() {
           <QuickLink href="/cobrar/facturas-emitidas" icon={FileText} label="Ver facturas" />
         )}
       </header>
+
+      <CashDecisionBriefCard />
 
       {!siiQueries && <FeatureUnavailableState />}
 

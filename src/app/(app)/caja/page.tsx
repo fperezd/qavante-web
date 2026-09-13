@@ -6,6 +6,7 @@ import { CajaV2ResumenLive } from "@/components/caja/v2/caja-v2-resumen-live";
 import { CajaSubCard } from "@/components/caja/caja-sub-card";
 import { CajaDashboardLive } from "@/components/caja/v2/caja-dashboard-live";
 import { CajaV02Live } from "@/components/caja/v02/caja-v02-live";
+import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brief";
 
 /* Landing del módulo Caja. Sprint C3 MVP cableó `/caja/proyeccion` con el
    reporte agregado de `/api/treasury/reports/cash-flow` — si el flag
@@ -37,6 +38,7 @@ export default function CajaPage() {
           <h1 className="text-2xl font-bold text-neutral-dark">Caja</h1>
           <p className="mt-1 text-sm text-neutral-mid">¿Me alcanza la caja?</p>
         </header>
+        <CashDecisionBriefCard />
         <CajaV02Live />
         {bankMovementClassification && (
           <section aria-labelledby="herramientas-section" className="space-y-3">
@@ -56,6 +58,8 @@ export default function CajaPage() {
         <h1 className="text-2xl font-bold text-neutral-dark">Caja</h1>
         <p className="mt-1 text-sm text-neutral-mid">¿Me alcanza la caja y qué puedo hacer?</p>
       </header>
+
+      <CashDecisionBriefCard />
 
       {cajaDashboard ? (
         /* Piloto `cajaDashboard`: las mismas secciones, como bloques movibles/apagables (motor iPad). */

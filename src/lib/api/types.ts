@@ -109,6 +109,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/automatic-enrichment/drain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Drena enriquecimiento automático durable (cron; gated)
+         * @description Reclama hasta tres cortes. OFF es un no-op honesto y no toca la cola ni hechos financieros.
+         */
+        post: operations["admin_automatic_enrichment_drain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/banks/keepwarm-all": {
         parameters: {
             query?: never;
@@ -5086,6 +5106,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/decision-brief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cash Decision Brief
+         * @description Entrega una sola evaluación de caja, con alternativas antes de auditoría.
+         *
+         *     No clasifica, no solicita pagos/cobros y no ejecuta acciones externas. La
+         *     interfaz consume este brief tal cual para no recalcular ni reinterpretar la
+         *     decisión entre Inicio, Caja, Pagar, Cobrar y Bandeja.
+         */
+        get: operations["treasury_cash_decision_brief"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/decision-observability": {
         parameters: {
             query?: never;
@@ -7626,6 +7670,24 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** AutomaticEnrichmentDrainResponse */
+        AutomaticEnrichmentDrainResponse: {
+            /**
+             * Enabled
+             * @description Estado de AUTOMATIC_ENRICHMENT_ENABLED.
+             */
+            enabled: boolean;
+            /**
+             * Processed
+             * @default 0
+             */
+            processed: number;
+            /**
+             * Reclaimed
+             * @default 0
+             */
+            reclaimed: number;
+        };
         /**
          * BackfillHistoricoRequest
          * @description Body de `POST /backfill-historico`.
@@ -9161,6 +9223,71 @@ export interface components {
              * @description 1º del último mes de la ventana (YYYY-MM-DD).
              */
             window_to: string;
+        };
+        /**
+         * CashDecisionBriefResponse
+         * @description Brief tipado, server-owned y estable para un mismo corte de caja.
+         *
+         *     ``decision_id`` se deriva del corte financiero y no del estado de
+         *     clasificación. Por eso una corrección posterior puede mejorar la auditoría
+         *     sin borrar la orientación que la persona ya estaba evaluando.
+         */
+        CashDecisionBriefResponse: {
+            /** Alternatives */
+            alternatives: components["schemas"]["DecisionBriefAlternative"][];
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /**
+             * Confidence
+             * @enum {string}
+             */
+            confidence: "high" | "limited" | "unavailable";
+            /** Context Hash */
+            context_hash: string;
+            /**
+             * Contract Version
+             * @constant
+             */
+            contract_version: "cash-decision-brief.v1";
+            coverage: components["schemas"]["DecisionBriefCoverage"];
+            /** Currency */
+            currency?: string | null;
+            /**
+             * Decision Id
+             * Format: uuid
+             */
+            decision_id: string;
+            /**
+             * Decision Kind
+             * @enum {string}
+             */
+            decision_kind: "financial_decision" | "source_recovery";
+            /** Evidence */
+            evidence?: components["schemas"]["DecisionBriefEvidence"][];
+            freshness: components["schemas"]["DecisionBriefFreshness"];
+            /**
+             * Horizon Days
+             * @constant
+             */
+            horizon_days: 14;
+            problem: components["schemas"]["DecisionBriefProblem"];
+            /**
+             * Recommended Alternative Id
+             * Format: uuid
+             */
+            recommended_alternative_id: string;
+            /** Secondary Actions */
+            secondary_actions?: components["schemas"]["DecisionBriefSecondaryAction"][];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "recommended" | "observed" | "abstained";
+            /** Uncertainties */
+            uncertainties?: components["schemas"]["DecisionBriefUncertainty"][];
         };
         /**
          * CashFlowBucket
@@ -12061,6 +12188,172 @@ export interface components {
             latency_ms?: number | null;
             /** Reachable */
             reachable: boolean;
+        };
+        /** DecisionBriefAlternative */
+        DecisionBriefAlternative: {
+            /**
+             * Alternative Id
+             * Format: uuid
+             */
+            alternative_id: string;
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "no_action" | "review_payments" | "review_projection" | "refresh_sources";
+            /** Cta Href */
+            cta_href?: string | null;
+            /** Cta Label */
+            cta_label?: string | null;
+            /**
+             * Decision Kind
+             * @enum {string}
+             */
+            decision_kind: "financial_decision" | "source_recovery";
+            /** Description */
+            description: string;
+            /** Requires Human Confirmation */
+            requires_human_confirmation: boolean;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "available" | "not_evaluable";
+            /** Targets */
+            targets?: components["schemas"]["DecisionBriefTarget"][];
+            /** Title */
+            title: string;
+        };
+        /** DecisionBriefCoverage */
+        DecisionBriefCoverage: {
+            assumed_receivables_excluded?: components["schemas"]["DecisionBriefMoney"] | null;
+            /** Assumed Receivables Excluded Count */
+            assumed_receivables_excluded_count?: number | null;
+            /** Dated Items */
+            dated_items?: number | null;
+            /** Excluded Other Currency Items */
+            excluded_other_currency_items?: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "complete" | "partial" | "unavailable";
+            /** Summary */
+            summary: string;
+            /** Undated Items */
+            undated_items?: number | null;
+        };
+        /** DecisionBriefEvidence */
+        DecisionBriefEvidence: {
+            amount?: components["schemas"]["DecisionBriefMoney"] | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "cash_projection" | "scheduled_payments" | "source_status";
+            /** Label */
+            label: string;
+            /** Note */
+            note?: string | null;
+            /**
+             * Observed On
+             * Format: date
+             */
+            observed_on: string;
+        };
+        /** DecisionBriefFreshness */
+        DecisionBriefFreshness: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "current" | "needs_update" | "unavailable";
+            /** Summary */
+            summary: string;
+        };
+        /**
+         * DecisionBriefMoney
+         * @description Monto decimal acompañado siempre por su moneda y significado.
+         */
+        DecisionBriefMoney: {
+            /**
+             * Amount
+             * @description Decimal exacto; nunca se interpreta como cero si es desconocido.
+             */
+            amount: string;
+            /** Currency */
+            currency: string;
+            /** Label */
+            label: string;
+        };
+        /** DecisionBriefProblem */
+        DecisionBriefProblem: {
+            amount?: components["schemas"]["DecisionBriefMoney"] | null;
+            /** Summary */
+            summary: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * DecisionBriefSecondaryAction
+         * @description Trabajo de auditoría separado de las alternativas que responden al riesgo.
+         */
+        DecisionBriefSecondaryAction: {
+            /** Cta Href */
+            cta_href: string;
+            /** Cta Label */
+            cta_label: string;
+            /**
+             * Decision Kind
+             * @constant
+             */
+            decision_kind: "data_quality_audit";
+            /** Description */
+            description: string;
+            /** Item Count */
+            item_count: number;
+            /** Title */
+            title: string;
+        };
+        /**
+         * DecisionBriefTarget
+         * @description Objetivo identificado sin inventar una instrucción externa.
+         */
+        DecisionBriefTarget: {
+            amount?: components["schemas"]["DecisionBriefMoney"] | null;
+            /** Due By */
+            due_by?: string | null;
+            /** Label */
+            label: string;
+            /**
+             * Target Kind
+             * @enum {string}
+             */
+            target_kind: "cash_gap" | "scheduled_payments" | "source_connection";
+        };
+        /** DecisionBriefUncertainty */
+        DecisionBriefUncertainty: {
+            /** Blocks Recommendation */
+            blocks_recommendation: boolean;
+            /** Item Count */
+            item_count?: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pending_interpretation" | "incomplete_financial_source";
+            /**
+             * Monetary Effect
+             * @enum {string}
+             */
+            monetary_effect: "not_material_to_bank_balance" | "unknown";
+            /** Summary */
+            summary: string;
         };
         /**
          * DecisionObservabilityMetrics
@@ -23079,6 +23372,39 @@ export interface operations {
             };
         };
     };
+    admin_automatic_enrichment_drain: {
+        parameters: {
+            query?: {
+                max_runs?: number;
+            };
+            header?: {
+                "X-Api-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomaticEnrichmentDrainResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_banks_keepwarm_all: {
         parameters: {
             query?: never;
@@ -33137,6 +33463,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    treasury_cash_decision_brief: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashDecisionBriefResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

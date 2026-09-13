@@ -6,6 +6,7 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { PagarView } from "@/components/pagar/pagar-view";
 import { PagarV2ViewLive } from "@/components/pagar/v2/pagar-v2-view-live";
 import { PagarV05Live } from "@/components/pagar/v05/pagar-v05-live";
+import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brief";
 
 /* Pagar (Sprint C4). Server Component: resuelve los flags. La landing quedó limpia
    (pedido de Fernando 2026-07-28): el hero de prioridad + "Ver facturas" arriba.
@@ -32,6 +33,7 @@ export default function PagarPage() {
             <QuickLink href="/pagar/facturas-recibidas" icon={FileText} label="Ver facturas" />
           )}
         </header>
+        <CashDecisionBriefCard />
         <PagarV05Live />
       </div>
     );
@@ -51,6 +53,8 @@ export default function PagarPage() {
           <QuickLink href="/pagar/facturas-recibidas" icon={FileText} label="Ver facturas" />
         )}
       </header>
+
+      <CashDecisionBriefCard />
 
       {/* `pagarV2` (rediseño 2026-07-14) tiene prioridad: respuesta de dueño + brecha de caja.
          Requiere `accountsPayable` (misma fuente). Con OFF, el Pagar clásico intacto. */}

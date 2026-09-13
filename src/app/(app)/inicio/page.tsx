@@ -6,6 +6,7 @@ import { InicioEjecutivoView } from "@/components/inicio/inicio-ejecutivo-view";
 import { InicioEjecutivoV2Live } from "@/components/inicio/v2/inicio-ejecutivo-v2-live";
 import { FinancialPositionCard } from "@/components/inicio/financial-position-card";
 import { HoyLive } from "@/components/inicio/v01/hoy-live";
+import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brief";
 
 /* Inicio Ejecutivo (Sprint C8). **Server Component** (como gestion/cobrar/pagar):
    resuelve el flag en runtime del Worker leyendo `NEXT_PUBLIC_FF_*` vía la
@@ -39,6 +40,7 @@ export default function InicioPage() {
         <header>
           <h1 className="text-2xl font-semibold text-neutral-dark">Inicio</h1>
         </header>
+        <CashDecisionBriefCard />
         <HoyLive bankBalancesEnabled={bankBalances} />
       </div>
     );
@@ -50,6 +52,8 @@ export default function InicioPage() {
         <h1 className="text-gradient-brand text-2xl font-bold">Inicio Ejecutivo</h1>
         <p className="mt-1 text-sm text-neutral-mid">¿Cómo está mi empresa hoy?</p>
       </header>
+
+      <CashDecisionBriefCard />
 
       {financialDecisionHome && <FinancialPositionCard />}
 
