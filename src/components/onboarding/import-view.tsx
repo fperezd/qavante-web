@@ -75,7 +75,7 @@ export function ImportView() {
         {synced && (
           <>
             <CheckCircle2 className="h-12 w-12 text-success-600" aria-hidden="true" />
-            <p className="text-sm text-neutral-dark">¡Listo! Tu información está cargándose.</p>
+            <p className="text-sm text-neutral-dark">La importación fue iniciada.</p>
             {sync.data?.sources && (
               <ul className="space-y-1 text-xs text-neutral-mid">
                 {(["sii", "bank"] as const).map((src) => {
@@ -98,7 +98,8 @@ export function ImportView() {
           <>
             <Sparkles className="h-12 w-12 text-brand-primary" aria-hidden="true" />
             <p className="text-sm text-neutral-dark">
-              Seguimos trayendo tus datos en segundo plano. Puedes entrar a tu panel mientras tanto.
+              No pudimos iniciar la importación ahora. Puedes entrar a tu panel; algunas cifras no
+              estarán disponibles hasta que vuelvas a sincronizar.
             </p>
           </>
         )}

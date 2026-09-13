@@ -251,7 +251,7 @@ export const DatosDegradados: Story = {
     // La caja conserva su moneda y el backend se abstiene de afirmar cobertura.
     await expect(canvas.getByText(/US\$\s10\.500,00/)).toBeInTheDocument();
     await expect(
-      canvas.getByText(/el backend no pudo determinar la cobertura con los datos disponibles/),
+      canvas.getByText(/no se pudo determinar la cobertura con los datos disponibles/),
     ).toBeInTheDocument();
     // El chip condicional "Sin fecha" existe con su conteo.
     await userEvent.click(canvas.getByRole("radio", { name: "Sin fecha · 1" }));

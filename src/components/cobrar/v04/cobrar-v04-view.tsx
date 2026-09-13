@@ -554,8 +554,8 @@ function LotePanel({
         Recordatorio a {n} {n === 1 ? "cliente" : "clientes"}
       </h2>
       <p className="text-[12.5px] leading-relaxed text-rediseno-tinta-2">
-        Revisa el lote antes de enviar. Tienes {segundos} segundos para cancelar; al terminar,
-        Qavante envía sólo documentos con UUID trazable y reporta cada resultado.
+        Revisa los destinatarios y documentos antes de enviar. Tienes {segundos} segundos para
+        cancelar; al terminar, Qavante mostrará el resultado de cada documento.
       </p>
 
       <ul className="divide-y divide-rediseno-hairline-row">
@@ -633,7 +633,7 @@ function LotePanel({
         <div className="flex flex-wrap items-center gap-3">
           {fase === "sin_identidad" && (
             <p role="alert" className="text-[12.5px] font-semibold text-rediseno-ambar">
-              No hay documentos trazables para este lote. No enviamos ningún recordatorio.
+              No pudimos identificar documentos aptos para este lote. No enviamos recordatorios.
             </p>
           )}
           {fase === "error" && (
@@ -710,7 +710,7 @@ function ResultadosLote({
         {sinDestinatario > 0 && <li>{sinDestinatario} sin destinatario.</li>}
         {omitidos > 0 && (
           <li>
-            {omitidos} omitido{omitidos === 1 ? "" : "s"} por idempotencia.
+            {omitidos} ya procesado{omitidos === 1 ? "" : "s"} anteriormente.
           </li>
         )}
         {errores > 0 && <li>{errores} con error de envío.</li>}
@@ -728,7 +728,6 @@ function ResultadosLote({
                 : item.status === "skipped"
                   ? "omitido"
                   : "con error"}
-            {item.detail ? ` · ${item.detail}` : ""}
           </li>
         ))}
       </ul>

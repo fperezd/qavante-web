@@ -119,7 +119,10 @@ export const Normal: Story = {
     await expect(rojos(canvasElement)).toHaveLength(1); // el F-29 de julio, no declarado y vencido
     // Huecos declarados, visibles en pantalla.
     const texto = (canvasElement.textContent ?? "").replace(/\s+/g, " ");
-    expect(texto).toContain("issue sucesor #105");
+    expect(texto).toContain(
+      "La declaración del F-29 y la verificación de su pago son estados distintos.",
+    );
+    expect(texto).not.toContain("issue sucesor");
     expect(texto).toContain("Las obligaciones tributarias nunca se postergan desde Qavante.");
   },
 };

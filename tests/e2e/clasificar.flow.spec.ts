@@ -1,159 +1,95 @@
-import { test, expect } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo de usuario REAL — clasificar un movimiento bancario (Addendum §17,
-   pantalla LIVE en prod). Maneja el formulario contra MSW, no solo render:
-   abre el drawer, elige una categoría de gestión y guarda. Cubre el loop
-   central del producto (el balde más débil del DoD: e2e de flujos reales).
+/* La ruta histórica conserva el marcador, pero con Bandeja V07 activa presenta la experiencia
+   vigente de clasificación: una decisión por vez y sin prometer Deshacer para decisiones manuales. */
 
-   Flag `bankMovementClassification` ON vía playwright.config (espeja prod).
-   La fixture MSW sirve movimientos sin clasificar + el árbol de cuentas. */
+async function abrirClasificacion(page: Page, context: BrowserContext) {
+  await loginAs(context, "owner");
+  await page.goto("/caja/por-clasificar");
+  await expect(page.getByRole("heading", { level: 1, name: /pendientes/ })).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Clasificar/ })).toBeChecked();
+  await expect(page.getByRole("region", { name: "Excepción por clasificar" })).toBeVisible();
+}
 
-test.describe("Flujo: clasificar un movimiento (/caja/por-clasificar)", () => {
-  test("abre el drawer, elige categoría de gestión y guarda → cierra", async ({
+test.describe("Flujo: clasificar desde la Bandeja V07", () => {
+  test("la ruta histórica abre la pestaña correcta y una sola decisión", async ({
     page,
     context,
   }) => {
-    await loginAs(context, "owner");
-    await page.goto("/caja/por-clasificar");
+    await abrirClasificacion(page, context);
 
-    // La pantalla (no FeatureUnavailableState) y la lista de movimientos.
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Movimientos por clasificar" }),
-    ).toBeVisible();
-    const clasificar = page.getByRole("button", { name: /^Clasificar movimiento/ }).first();
-    await expect(clasificar).toBeVisible();
-
-    // Abrir el drawer de clasificación.
-    await clasificar.click();
-    const drawerTitle = page.getByRole("heading", { name: "Clasificar movimiento", exact: true });
-    await expect(drawerTitle).toBeVisible();
-
-    // "Guardar" arranca deshabilitado: falta la categoría de gestión (422 sin
-    // management_account_id — el contrato la exige).
-    const guardar = page.getByRole("button", { name: "Guardar", exact: true });
-    await expect(guardar).toBeDisabled();
-
-    // Elegir una cuenta de gestión (botón en la lista del selector, del árbol
-    // que sirve MSW: "Ventas de productos" es una hoja activa/seleccionable).
-    await page.getByRole("button", { name: "Ventas de productos", exact: true }).click();
-
-    // Ahora se habilita; guardar → classify (PATCH MSW) → onSuccess cierra.
-    await expect(guardar).toBeEnabled();
-    await guardar.click();
-    await expect(drawerTitle).toBeHidden();
+    await expect(page.getByText(/Clasificar 1 de 4/)).toBeVisible();
+    await expect(page.getByLabel("Tipo de movimiento")).toBeVisible();
+    await expect(page.getByLabel("Cuenta de gestión")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Guardar/ })).toBeVisible();
   });
 
-  test("sugerencia de cuenta: el drawer muestra 'Sugerido: …' y un clic clasifica", async ({
+  test("elige tipo y cuenta, guarda y avanza sin ofrecer un Deshacer falso", async ({
     page,
     context,
   }) => {
-    await loginAs(context, "owner");
-    await page.goto("/caja/por-clasificar");
+    await abrirClasificacion(page, context);
 
-    await page
-      .getByRole("button", { name: /^Clasificar movimiento/ })
-      .first()
-      .click();
-    const drawerTitle = page.getByRole("heading", { name: "Clasificar movimiento", exact: true });
-    await expect(drawerTitle).toBeVisible();
+    await page.getByLabel("Tipo de movimiento").selectOption({ label: "Pago a proveedor" });
+    await page.getByLabel("Cuenta de gestión").selectOption({ label: "Software y servicios" });
+    await page.getByRole("button", { name: /Guardar/ }).click();
 
-    // Banner #794-4: la cuenta sugerida por las reglas activas (MSW → "Sueldos y remuneraciones"),
-    // NO el viejo banner de "crear una regla de glosa" (pedido de Fernando). El texto "según tus
-    // reglas activas" es único del banner ("Sueldos y remuneraciones" también es opción del selector).
-    await expect(page.getByText(/Sugerido:/)).toBeVisible();
-    await expect(page.getByText("según tus reglas activas")).toBeVisible();
-    await expect(page.getByText("Ver sugerencia")).toHaveCount(0); // el banner viejo ya no está
-
-    // Un clic en "Clasificar" del banner → classify (PATCH MSW) → onSuccess cierra el drawer.
-    await page.getByRole("button", { name: "Clasificar", exact: true }).click();
-    await expect(drawerTitle).toBeHidden();
-    await expect(page.getByText("Movimiento clasificado")).toBeVisible();
+    await expect(page.getByText(/Clasificado como Software y servicios/).first()).toBeVisible();
+    await expect(page.getByText(/Clasificar 1 de 3/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Deshacer" })).toHaveCount(0);
   });
 
-  test("triage por teclado: Enter en la lista abre el drawer del activo", async ({
-    page,
-    context,
-  }) => {
-    await loginAs(context, "owner");
-    await page.goto("/caja/por-clasificar");
+  test("Guardar explica qué falta cuando no se eligió el tipo", async ({ page, context }) => {
+    await abrirClasificacion(page, context);
 
-    // La lista es un listbox navegable por teclado (↑↓ mover, Enter clasificar).
-    const list = page.getByRole("listbox", { name: "Movimientos por clasificar" });
-    await expect(list).toBeVisible();
+    await page.getByLabel("Tipo de movimiento").selectOption("");
+    await page.getByRole("button", { name: /Guardar/ }).click();
 
-    // `press` enfoca la lista y dispara Enter → abre el drawer del movimiento activo.
-    await list.press("Enter");
     await expect(
-      page.getByRole("heading", { name: "Clasificar movimiento", exact: true }),
+      page.getByText("Elige el tipo de movimiento para completar la clasificación."),
     ).toBeVisible();
   });
 
-  test("clasificar en lote: seleccionar todos → aplicar una categoría a todos", async ({
+  test("clasifica un grupo sólo después de revisar y confirmar los tres movimientos", async ({
     page,
     context,
   }) => {
-    await loginAs(context, "owner");
-    await page.goto("/caja/por-clasificar");
+    await abrirClasificacion(page, context);
 
-    // Seleccionar todos → aparece la barra de lote con el conteo.
-    await page.getByRole("checkbox", { name: "Seleccionar todos los movimientos" }).check();
-    const openBulk = page.getByRole("button", { name: /^Clasificar \d+$/ }).first();
-    await expect(openBulk).toBeVisible();
-    await openBulk.click();
+    await expect(page.getByText(/Hay 2 más de .*TRANSFERENCIA PROVEEDOR ACME SPA/)).toBeVisible();
+    await page.getByRole("button", { name: /Revisar los 3 seguidos/ }).click();
+    await page.getByLabel("Tipo de movimiento").selectOption({ label: "Pago a proveedor" });
+    await page.getByLabel("Cuenta de gestión").selectOption({ label: "Software y servicios" });
+    await page.getByRole("button", { name: "Clasificar 3 de una vez" }).click();
 
-    // Diálogo del lote: elegir cuenta y aplicar.
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("heading", { name: /Clasificar \d+ movimiento/ })).toBeVisible();
-    await dialog.getByLabel("Cuenta de gestión").selectOption({ index: 1 });
-    await dialog.getByRole("button", { name: /^Clasificar \d+$/ }).click();
-
-    // Confirmación (toast) de los movimientos clasificados.
-    await expect(page.getByText(/movimientos? clasificados?/i)).toBeVisible();
-  });
-
-  test("aplicar reglas: batch clasifica los sin clasificar y confirma con toast", async ({
-    page,
-    context,
-  }) => {
-    await loginAs(context, "owner");
-    await page.goto("/caja/por-clasificar");
-
-    const aplicar = page.getByRole("button", { name: "Aplicar reglas", exact: true });
-    await expect(aplicar).toBeVisible();
-    await aplicar.click();
-
-    // MSW devuelve clasificados:5 de evaluados:12 → toast de éxito con el conteo.
-    await expect(page.getByText(/Clasificamos 5 de 12 movimientos con tus reglas/)).toBeVisible();
-  });
-
-  test("detectar traspasos: marca la plata entre cuentas propias y confirma con toast", async ({
-    page,
-    context,
-  }) => {
-    await loginAs(context, "owner");
-    await page.goto("/caja/por-clasificar");
-
-    const btn = page.getByRole("button", { name: "Detectar traspasos", exact: true });
-    await expect(btn).toBeVisible();
-    await btn.click();
-
-    // MSW devuelve pares:2, clasificados:4 → toast de éxito (D1, traspasos internos).
-    await expect(page.getByText(/Detectamos 2 traspasos entre tus cuentas/)).toBeVisible();
-  });
-
-  test("cancelar cierra el drawer sin guardar", async ({ page, context }) => {
-    await loginAs(context, "owner");
-    await page.goto("/caja/por-clasificar");
-
-    await page
-      .getByRole("button", { name: /^Clasificar movimiento/ })
-      .first()
-      .click();
-    const drawerTitle = page.getByRole("heading", { name: "Clasificar movimiento", exact: true });
-    await expect(drawerTitle).toBeVisible();
-
-    await page.getByRole("button", { name: "Cancelar", exact: true }).click();
-    await expect(drawerTitle).toBeHidden();
+    const confirmation = page.getByRole("alert").filter({
+      hasText: "Vas a clasificar 3 movimientos",
+    });
+    await expect(confirmation).toContainText(
+      "Vas a clasificar 3 movimientos como Pago a proveedor · Software y servicios",
+    );
+    const requestSent = page.waitForRequest(
+      (request) =>
+        request.method() === "POST" &&
+        request.url().endsWith("/api/treasury/bank-movements/classify-bulk"),
+    );
+    await confirmation.getByRole("button", { name: "Sí, clasificar 3" }).click();
+    const request = await requestSent;
+    const body = request.postDataJSON() as {
+      movement_ids: string[];
+      management_account_id: string;
+      canonical_category: string;
+      idempotency_key: string;
+    };
+    expect(body).toMatchObject({
+      movement_ids: ["mov-unclas-1", "mov-unclas-3", "mov-unclas-4"],
+      management_account_id: "acc-servicios",
+      canonical_category: "supplier_payment",
+    });
+    expect(body.idempotency_key).toMatch(/^[0-9a-f-]{36}$/i);
+    await expect(
+      page.getByText(/Clasificamos 3 movimientos como Software y servicios/),
+    ).toBeVisible();
   });
 });

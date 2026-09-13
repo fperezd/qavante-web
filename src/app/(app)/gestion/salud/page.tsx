@@ -36,7 +36,7 @@ export default function SaludPage() {
       <QavanteEmpty
         icon={HeartPulse}
         title="Salud de tu empresa"
-        description="Aquí vas a ver tus dos lecturas en una sola pantalla: el Pulso (cómo viene la caja de este mes) y el Health Score (hacia dónde va tu empresa), con las causas y qué decisiones puedes tomar. Muy pronto disponible."
+        description="Esta lectura todavía no está disponible. El Pulso muestra cómo viene la caja del mes; la lectura de salud financiera aún no cuenta con datos confirmados."
       />
     </div>
   );

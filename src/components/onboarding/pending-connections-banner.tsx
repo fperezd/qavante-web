@@ -56,7 +56,7 @@ export function PendingConnectionsBanner() {
         <PlugZap className="mt-0.5 h-4 w-4 flex-shrink-0 text-warning-700" aria-hidden="true" />
         <p className="text-sm text-neutral-dark">
           Te falta conectar <strong>{names}</strong>. Mientras tanto, Qavante no muestra esos datos
-          (no los inventamos ni los damos por cero).
+          y sus datos todavía no están disponibles.
         </p>
       </div>
       <div className="flex items-center gap-1">

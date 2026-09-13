@@ -29,8 +29,8 @@ test.describe("Flujo: Ciclo de caja (/gestion/ciclo-de-caja)", () => {
     await expect(main.getByText("Plata atrapada")).toBeVisible();
 
     // Saldos vivos por cobrar / por pagar.
-    await expect(main.getByText("Por cobrar (vivo)")).toBeVisible();
-    await expect(main.getByText("Por pagar (vivo)")).toBeVisible();
+    await expect(main.getByText("Pendiente de cobro")).toBeVisible();
+    await expect(main.getByText("Pendiente de pago")).toBeVisible();
 
     // La ventana del cálculo (3 meses cerrados).
     await expect(main.getByText(/3 meses cerrados/i)).toBeVisible();

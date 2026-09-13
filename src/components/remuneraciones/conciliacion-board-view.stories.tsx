@@ -107,8 +107,8 @@ export const AsignarUnaAUna: Story = {
     await userEvent.click(c.getByRole("checkbox", { name: /Ana Pérez Soto/ }));
     await userEvent.click(c.getByRole("button", { name: /Validar antes de conciliar/ }));
     await expect(args.onValidate).toHaveBeenCalledWith("bm_sueldos", ["12.345.678-9"]);
-    await expect(c.getByText("Simulación verificada por el API")).toBeInTheDocument();
-    await expect(c.getByText(/pagado resultante/)).toBeInTheDocument();
+    const validacion = c.getByText("Validación previa completada").parentElement;
+    await expect(validacion).toHaveTextContent("conciliado resultante");
     await userEvent.click(c.getByRole("button", { name: /Confirmar conciliación/ }));
     await expect(args.onAssign).toHaveBeenCalledWith("bm_sueldos", ["12.345.678-9"]);
   },
@@ -139,7 +139,7 @@ export const VariasMarcadas: Story = {
     await userEvent.click(c.getByRole("checkbox", { name: /Ana Pérez Soto/ }));
     await userEvent.click(c.getByRole("checkbox", { name: /Benjamín Rojas Díaz/ }));
     await userEvent.click(c.getByRole("button", { name: /Validar antes de conciliar/ }));
-    await expect(c.getByText("Simulación verificada por el API")).toBeInTheDocument();
+    await expect(c.getByText("Validación previa completada")).toBeInTheDocument();
     await userEvent.click(c.getByRole("button", { name: /Confirmar conciliación/ }));
     await expect(args.onAssign).toHaveBeenCalledWith("bm_sueldos", ["12.345.678-9", "9.876.543-2"]);
   },
@@ -152,9 +152,11 @@ export const Desasignar: Story = {
     await expect(c.getByText("TRANSFERENCIA A FERNANDO PEREZ")).toBeInTheDocument();
     await userEvent.click(c.getByRole("button", { name: /Desasignar/ }));
     await expect(args.onRevert).not.toHaveBeenCalled();
-    await expect(
-      c.getByRole("alertdialog", { name: /Confirmar desasignación de Carrasco/i }),
-    ).toHaveTextContent("bm_fp");
+    const confirmacion = c.getByRole("alertdialog", {
+      name: /Confirmar desasignación de Carrasco/i,
+    });
+    await expect(confirmacion).toHaveTextContent("volverá a quedar disponible para revisión");
+    await expect(confirmacion).not.toHaveTextContent("bm_fp");
     await userEvent.click(c.getByRole("button", { name: /Confirmar desasignación/ }));
     await expect(args.onRevert).toHaveBeenCalledWith("lnk_carrasco");
   },

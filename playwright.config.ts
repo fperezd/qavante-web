@@ -83,6 +83,11 @@ export default defineConfig({
       NEXT_PUBLIC_FF_DASHBOARD_SUMMARY: "true",
       NEXT_PUBLIC_FF_PULSO_DETAIL: "true",
       NEXT_PUBLIC_FF_ASSISTANT: "true",
+      /* Variantes visibles activas en producción: la matriz de auditoría debe validar estas
+         pantallas, no sus fallbacks o versiones anteriores. */
+      NEXT_PUBLIC_FF_HOY_V01: "true",
+      NEXT_PUBLIC_FF_BANDEJA_V07: "true",
+      NEXT_PUBLIC_FF_BANCO_V03: "true",
       /* Panel F29 (SII) — FE-first contra el backend ya listo; cubierto por e2e. */
       NEXT_PUBLIC_FF_SII_QUERIES: "true",
       NEXT_PUBLIC_FF_OBLIGATIONS: "true",
@@ -123,6 +128,10 @@ export default defineConfig({
       NEXT_PUBLIC_FF_PRESUPUESTO: "true",
       /* Administración → MCP — ON en e2e (OFF en prod hasta validar). */
       NEXT_PUBLIC_FF_MCP: "true",
+      /* Financiamiento y Simular se validan exclusivamente contra las respuestas controladas de
+         MSW. Los flags siguen sujetos a sus gates de producción fuera de esta configuración. */
+      NEXT_PUBLIC_FF_FINANCIAMIENTO_V13: "true",
+      NEXT_PUBLIC_FF_SIMULADOR_V14: "true",
       /* Conciliar fila-por-fila en Caja (#851) — ON en e2e para ejercer el botón "Ya lo cobré"
          contra el MSW de mark-collected; OFF en prod hasta que Fernando valide el write. */
       NEXT_PUBLIC_FF_CAJA_MARK_COLLECTED: "true",

@@ -73,10 +73,10 @@ export function ManagementAccountsTree({
                   !row.active && "opacity-60",
                 )}
               >
-                <span className="shrink-0 font-mono text-xs text-neutral-mid">{row.code}</span>
                 <span className="min-w-0 flex-1 truncate text-sm text-neutral-dark">
                   {row.name}
                 </span>
+                <span className="shrink-0 font-mono text-xs text-neutral-mid">{row.code}</span>
                 {!row.active && <QavanteBadge variant="default">Inactiva</QavanteBadge>}
                 {row.active && !row.isVisible && (
                   <QavanteBadge variant="warning">Oculta</QavanteBadge>

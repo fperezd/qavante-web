@@ -32,7 +32,7 @@ export function FinanciamientoV13View({ model }: FinanciamientoV13ViewProps) {
             ¿Te conviene financiarte?
           </h1>
           <p className="mt-1 text-[13px] text-rediseno-tinta-2">
-            Una vista verificable de tu deuda y de las alternativas que el motor puede comparar.
+            Una vista verificable de tu deuda y de las alternativas que hoy pueden compararse.
           </p>
         </div>
         <div className="text-right text-[12px] text-rediseno-tinta-2">
@@ -66,7 +66,9 @@ export function FinanciamientoV13View({ model }: FinanciamientoV13ViewProps) {
           <KpiCard
             className={kpiContrast}
             label="Deuda vigente"
-            sinDato={{ reason: "El corte no certifica el principal completo para este scope." }}
+            sinDato={{
+              reason: "El corte no certifica el saldo completo para esta empresa y moneda.",
+            }}
             period={model.currency}
             detail={`${model.coverageLabel} · ${evidenceDetail}`}
           />
@@ -135,7 +137,8 @@ export function FinanciamientoV13View({ model }: FinanciamientoV13ViewProps) {
           >
             <p className="font-medium text-rediseno-tinta">Deuda sin dato verificable</p>
             <p className="mt-1 text-[13px] text-rediseno-tinta-2">
-              El scope no entregó una fila publicable. Esto no afirma que tu deuda sea cero.
+              La información disponible no contiene una deuda verificable. Esto no afirma que tu
+              deuda sea cero.
             </p>
           </div>
         ) : (
@@ -179,7 +182,7 @@ export function FinanciamientoV13View({ model }: FinanciamientoV13ViewProps) {
                     </td>
                     <td className="px-4 py-3 text-rediseno-tinta-2">
                       {debt.rateLabel ?? (
-                        <SinDato label="tasa" reason="Contrato sin tasa comparable." />
+                        <SinDato label="tasa" reason="La fuente no informa una tasa comparable." />
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums text-rediseno-tinta">
@@ -210,7 +213,7 @@ export function FinanciamientoV13View({ model }: FinanciamientoV13ViewProps) {
         {model.evaluation && (
           <div className="rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie px-4 py-3 text-[13px] text-rediseno-tinta-2">
             <p className="font-medium text-rediseno-tinta">
-              Evaluación del motor · {model.evaluation.stateLabel}
+              Estado de la evaluación · {model.evaluation.stateLabel}
             </p>
             {model.evaluation.reasons.length > 0 && (
               <p className="mt-1">Motivos · {model.evaluation.reasons.join(" · ")}</p>
@@ -297,8 +300,8 @@ export function FinanciamientoV13View({ model }: FinanciamientoV13ViewProps) {
         </h2>
         {model.combinations.length === 0 ? (
           <div className="rounded-[14px] border border-dashed border-rediseno-hairline bg-rediseno-superficie px-5 py-4 text-[13px] text-rediseno-tinta-2">
-            El motor no entregó una combinación publicable para este corte. Esto no reemplaza una
-            combinación por una suma hecha en el navegador.
+            No hay una combinación verificable para este corte. No calculamos una combinación
+            alternativa en esta pantalla.
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
@@ -311,7 +314,7 @@ export function FinanciamientoV13View({ model }: FinanciamientoV13ViewProps) {
                   {combination.componentLabels.join(" + ")}
                 </h3>
                 <p className="mt-1 break-words text-[12px] text-rediseno-tinta-2">
-                  Regla · {combination.appliedRule} · Política · {combination.policyRef}
+                  Criterios de evaluación verificados
                 </p>
                 <dl className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
                   <Metric
@@ -349,12 +352,12 @@ export function FinanciamientoV13View({ model }: FinanciamientoV13ViewProps) {
                     "combinación excluida",
                     "combinaciones excluidas",
                   )}{" "}
-                  por el motor.
+                  en esta evaluación.
                 </p>
               )}
               {model.evaluation.combinationsTruncated && (
                 <p>
-                  Resultado limitado por el backend
+                  Resultado limitado
                   {model.evaluation.maxCombinations === null
                     ? "."
                     : ` a ${model.evaluation.maxCombinations} ${concordar(

@@ -239,9 +239,12 @@ export const ComoSeCalcula: Story = {
     await userEvent.click(boton);
     await expect(boton).toHaveAttribute("aria-expanded", "true");
     const panel = canvas.getByRole("region", { name: "Cómo se calcula la proyección" });
-    await expect(panel).toHaveTextContent("Saldo bancario real de hoy");
+    await expect(panel).toHaveTextContent("Saldo proyectado al cierre de cada día");
     await expect(panel).toHaveTextContent("No cuenta $39.600.000 por cobrar vencidos o sin fecha");
-    await expect(panel).toHaveTextContent("/api/treasury/cash-projection");
+    await expect(panel).toHaveTextContent(
+      "Saldos bancarios, cobros con fecha y pagos comprometidos",
+    );
+    await expect(panel).not.toHaveTextContent("/api/");
     await expect(panel).toHaveTextContent("calculado el 30 ago 2026");
     await userEvent.keyboard("{Escape}");
     await expect(boton).toHaveAttribute("aria-expanded", "false");

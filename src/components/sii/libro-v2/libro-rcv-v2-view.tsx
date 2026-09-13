@@ -132,7 +132,7 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
   const secundarios: HeroSecundario[] = [
     {
       label: copy.ivaLabel,
-      valor: totals.breakdown ? formatClp(totals.breakdown.iva) : "s/d",
+      valor: totals.breakdown ? formatClp(totals.breakdown.iva) : "Sin información",
       tono: "brand",
     },
     {
@@ -144,7 +144,7 @@ export function LibroRcvV2View({ kind }: { kind: RcvKind }) {
       valor:
         totals.breakdown && totals.ncTotal !== null && totals.ncCount
           ? formatClp(-totals.ncTotal)
-          : "s/d",
+          : "Sin información",
       tono: "neg",
     },
   ];

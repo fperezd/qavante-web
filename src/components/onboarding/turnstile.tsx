@@ -94,7 +94,7 @@ export function Turnstile({ onVerify, onExpire, className }: TurnstileProps) {
   if (!SITE_KEY) {
     return (
       <p className="text-xs text-neutral-mid">
-        Verificación anti-bot no configurada en este entorno.
+        La verificación de seguridad no está disponible. Intenta nuevamente más tarde.
       </p>
     );
   }

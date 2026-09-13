@@ -109,8 +109,7 @@ describe("BandejaV07View — cabecera y progreso", () => {
     expect(t).toContain("0 de 7 resueltos en esta sesión");
     expect(t).toContain("$0 dejaron de estar en duda");
     expect(t).not.toContain("resueltos hoy");
-    // Y el hueco queda declarado en la pantalla, no sólo en el PR.
-    expect(t).toContain("El progreso cuenta lo resuelto en esta sesión y no “hoy”");
+    expect(t).toContain("El progreso corresponde a esta sesión");
   });
 
   it("usa Sora en títulos y montos, Figtree en copy operativo y mono sólo en atajos", () => {
@@ -119,7 +118,7 @@ describe("BandejaV07View — cabecera y progreso", () => {
     // El div raíz, no sólo el eyebrow, da Figtree a TODO el copy operativo de la pantalla.
     // El ancla de contenido evita que una clase en un contenedor vacío certifique el contrato.
     expect(h).toMatch(
-      /<div class="space-y-4 font-rediseno-sans">[\s\S]*?<p[^>]*>Bandeja · lo que el piloto separó para ti<\/p>/,
+      /<div class="space-y-4 font-rediseno-sans">[\s\S]*?<p[^>]*>Bandeja · decisiones que requieren tu revisión<\/p>/,
     );
     const vacia = html({
       conciliar: itemsConciliar(colaConciliarVacia()),
@@ -153,7 +152,7 @@ describe("BandejaV07View — cabecera y progreso", () => {
 describe("BandejaV07View — carta de conciliar CON evidencia (Kaufmann)", () => {
   it("el why dice por qué no lo resolvió solo", () => {
     expect(texto(html())).toContain(
-      "Conciliar 1 de 2 · el piloto no lo resolvió solo: requiere confirmación manual",
+      "Conciliar 1 de 2 · requiere revisión: requiere confirmación manual",
     );
   });
 
@@ -206,7 +205,7 @@ describe("BandejaV07View — carta de conciliar SIN evidencia (el caso del HTML 
   it("CERO chips, y se dice por qué no hay ninguno (no se pinta un chip que no pasó)", () => {
     const h = html(volcan());
     expect(chips(h)).toEqual([]);
-    expect(texto(h)).toContain("ninguna verificación pasó entre estos dos lados");
+    expect(texto(h)).toContain("no encontramos coincidencias suficientes");
     // Gemelo positivo con la MISMA query: el caso con evidencia sí trae chips.
     expect(chips(html())).toHaveLength(5);
   });
@@ -214,7 +213,7 @@ describe("BandejaV07View — carta de conciliar SIN evidencia (el caso del HTML 
   it("el why enumera lo que falta, y la diferencia se muestra como parcialidad", () => {
     const t = texto(html(volcan()));
     expect(t).toContain(
-      "el piloto no lo resolvió solo: el monto no calza exacto y el RUT no aparece en la glosa y la fecha está lejos",
+      "requiere revisión: el monto no calza exacto y el RUT no aparece en la glosa y la fecha está lejos",
     );
     expect(t).toContain(
       "Pago parcial: entraron $1.033.076 de $1.063.341; quedan $30.265 por cobrar.",
@@ -305,16 +304,15 @@ describe("BandejaV07View — carta de clasificar", () => {
     const t = texto(h);
     expect(t).toContain("+ Agregar detalle (opcional)");
     expect(t).toContain("Nota para el contador");
-    expect(t).toContain("Las vistas de gestión (dimensiones) todavía no se asignan desde acá");
+    expect(t).toContain("Las vistas de gestión todavía no se asignan desde esta pantalla");
     expect(h).toContain(`href="/caja/por-clasificar?movimiento=${MOV_DATTATEC}"`);
   });
 
   it("dice, ANTES de guardar, que ESE guardado no va a tener Deshacer y por qué (no es un hueco: es del usuario, no automático)", () => {
     const t = texto(html(conRegla()));
-    expect(t).toContain(
-      "Al guardar no vas a ver un “Deshacer” acá: esto lo decidiste tú, no Qavante solo",
-    );
-    expect(t).toContain("la Ley 5 cubre lo automático");
+    expect(t).toContain("Al guardar no vas a ver “Deshacer”");
+    expect(t).toContain("esta clasificación corresponde a una decisión manual");
+    expect(t).not.toContain("Ley 5");
   });
 
   it("lote: 3 del mismo RUT ⇒ banner 'Hay 2 más' y el bulk manual pide confirmación", () => {
@@ -475,7 +473,7 @@ describe("BandejaV07View — estados", () => {
     );
     expect(t).toContain("No pudimos consultar tu bandeja de excepciones");
     expect(t).toContain("error de red");
-    expect(t).toContain("esta pantalla no está vacía, está ciega");
+    expect(t).toContain("No podemos confirmar si existen tu bandeja de excepciones");
   });
 
   it("un aviso de escritura fallida va en ámbar, no gasta el único rojo (Ley 2)", () => {
@@ -504,9 +502,9 @@ describe("BandejaV07View — Leyes 2 y 7", () => {
 
   it("declara el límite real que queda: una decisión manual no tiene Deshacer", () => {
     const t = texto(html());
-    expect(t).toContain("deshacer la clasificación que TÚ decidiste al apretar Guardar");
-    expect(t).toContain("clasificar un lote");
-    expect(t).toContain("la Ley 5 cubre lo automático, no eso");
-    expect(t).toContain("Sucesor: #90.");
+    expect(t).toContain("Las clasificaciones manuales y por lote no se pueden deshacer");
+    expect(t).toContain("Revisa la selección antes de guardar");
+    expect(t).not.toContain("Ley 5");
+    expect(t).not.toContain("#90");
   });
 });

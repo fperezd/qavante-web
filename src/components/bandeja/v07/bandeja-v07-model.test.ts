@@ -94,7 +94,7 @@ describe("normalización de RUT y texto", () => {
   it("cuenta días civiles entre fechas ISO, y dice 'no sé' con basura", () => {
     expect(diasEntre("2026-08-05", "2026-08-26")).toBe(21);
     expect(diasEntre("2026-08-19", "2026-04-14")).toBe(-127);
-    expect(diasEntre("s/d", "2026-08-26")).toBeNull();
+    expect(diasEntre("Sin información", "2026-08-26")).toBeNull();
     expect(diasEntre("2026-13-01", "2026-08-26")).toBeNull();
   });
 });
@@ -265,7 +265,7 @@ describe("LEY 3 — las verificaciones que pasan, y sólo esas", () => {
 });
 
 describe("por qué no lo resolvió solo, y la línea de diferencia", () => {
-  it("Volcán: enumera las verificaciones que faltan, no un motivo inventado del motor", () => {
+  it("Volcán: enumera las verificaciones que faltan sin exponer términos internos", () => {
     expect(motivosNoAutomatico(VOLCAN(), CAND_VOLCAN())).toEqual([
       "el monto no calza exacto",
       "el RUT no aparece en la glosa",

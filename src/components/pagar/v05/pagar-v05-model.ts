@@ -446,12 +446,12 @@ export function kpiCritico(
   const motivoSinCaja = !ap
     ? "sin cuentas por pagar no llegó el saldo proyectado"
     : cajaFinal == null
-      ? "el backend no pudo proyectar el saldo final a 14 días"
+      ? "no se pudo proyectar el saldo final a 14 días"
       : null;
   const motivoSinCobertura = !ap
     ? "sin cuentas por pagar no llegó el estado de cobertura"
     : cobertura == null
-      ? "el backend no pudo determinar la cobertura con los datos disponibles"
+      ? "no se pudo determinar la cobertura con los datos disponibles"
       : null;
   return {
     total,
@@ -625,14 +625,14 @@ function frescuraDe(ap: AccountsPayableResponse | null | undefined, hoy: Date): 
     : "sin fecha de cálculo";
 }
 
-const FUENTE = "GET /api/treasury/accounts-payable · la misma fuente que “Sale · 14 días” en Caja";
+const FUENTE = "Cuentas por pagar y flujo de caja registrados en Qavante";
 
 export function explicacionVencido(
   ap: AccountsPayableResponse | null | undefined,
   hoy: Date,
 ): ExplicacionV05 {
   const excluye = [
-    "Documentos sin fecha de vencimiento: el endpoint no los lista ni los pone en ningún tramo",
+    "Documentos sin fecha de vencimiento: no se incluyen en la lista ni en los tramos por fecha",
     "Pagos en otra moneda sin tipo de cambio: no se suman como pesos",
   ];
   const n = ap?.undated_count ?? 0;
@@ -663,11 +663,11 @@ export function explicacionPorPagar(
   hoy: Date,
 ): ExplicacionV05 {
   return {
-    definicion: `Por pagar · ${periodo} días es lo que vence de aquí a ${periodo} días, convertido a pesos, e INCLUYE lo ya vencido. Es el número que publica el backend, no una suma de la tabla.`,
+    definicion: `Por pagar · ${periodo} días es lo que vence de aquí a ${periodo} días, convertido a pesos, e INCLUYE lo ya vencido. Este total viene de la consulta completa y no se recalcula desde la tabla visible.`,
     incluye: ["Todo lo listado con vencimiento hasta ese día, más lo vencido"],
     excluye: [
       "Documentos sin fecha de vencimiento (no están en ningún tramo)",
-      "Monedas sin tipo de cambio (el backend las avisa en “fuentes que faltan”)",
+      "Monedas sin tipo de cambio, informadas como fuentes faltantes",
     ],
     fuente: FUENTE,
     frescura: frescuraDe(ap, hoy),
@@ -679,12 +679,12 @@ export function explicacionCritico(
   hoy: Date,
 ): ExplicacionV05 {
   return {
-    definicion: `El saldo proyectado es la caja final al día ${VENTANA_DIAS} del flujo vigente y ya incluye los pagos comprometidos. Crítico en la lista visible es el contexto trazable de lo que no se posterga ·impuestos, sueldos y deuda financiera· y vence dentro de ${VENTANA_DIAS} días o ya venció. Si la lista alcanza ${TOPE_ITEMS} ítems o un pago no tiene conversión a pesos, ese subtotal es sólo un piso o se abstiene. No se resta de la caja. La cobertura es el estado triestado independiente que publica el backend; no se deriva del subtotal visible. El contrato actual no expone la caja mínima para cuantificar una brecha intrahorizonte.`,
+    definicion: `El saldo proyectado es la caja final al día ${VENTANA_DIAS} del flujo vigente y ya incluye los pagos comprometidos. Crítico en la lista visible es el contexto trazable de lo que no se posterga ·impuestos, sueldos y deuda financiera· y vence dentro de ${VENTANA_DIAS} días o ya venció. Si la lista alcanza ${TOPE_ITEMS} ítems o un pago no tiene conversión a pesos, ese subtotal es sólo un piso o se abstiene. No se resta de la caja. La cobertura se informa por separado y no se deriva del subtotal visible. Esta consulta no informa la caja mínima dentro del horizonte.`,
     incluye: ["Impuestos, sueldos, cotizaciones y cuotas de deuda con vencimiento en la ventana"],
     excluye: [
-      "Proveedores y arriendos: son negociables por tipo de pago (el backend no manda postergabilidad por documento)",
+      "Proveedores y arriendos: se muestran como negociables según el tipo de pago",
       "Documentos sin fecha de vencimiento",
-      "La caja mínima intrahorizonte: el contrato actual no la publica en esta respuesta",
+      "Caja mínima dentro del horizonte: esta consulta no la informa",
     ],
     fuente: FUENTE,
     frescura: frescuraDe(ap, hoy),

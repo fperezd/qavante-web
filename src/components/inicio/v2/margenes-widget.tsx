@@ -18,7 +18,7 @@ export interface MargenesWidgetProps {
   cta?: string;
 }
 
-const pct = (v: number | null): string => (v == null ? "s/d" : formatPct(v));
+const pct = (v: number | null): string => (v == null ? "Sin información" : formatPct(v));
 
 export function MargenesWidget({
   data,
@@ -71,8 +71,9 @@ export function MargenesWidget({
             ("de cada $100 vendidos"), y desde que el modelo dejó de redondear —para no
             divergir de Gestión— esta frase imprimía el float entero:
             "te quedan $34.232365145228215". El redondeo al peso lo hace el formateador. */}
-        De cada $100 vendidos, te quedan {data.brutoPct != null ? formatClp(data.brutoPct) : "s/d"}{" "}
-        después del costo directo
+        De cada $100 vendidos, te quedan{" "}
+        {data.brutoPct != null ? formatClp(data.brutoPct) : "Sin información"} después del costo
+        directo
         {data.netoPct != null ? ` y ${formatClp(data.netoPct)} al final` : ""}.
       </p>
 

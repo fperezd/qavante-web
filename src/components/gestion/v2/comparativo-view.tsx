@@ -521,11 +521,11 @@ function Eficiencia({
       <span className="text-neutral-mid">{label}</span>
       <span className="flex items-center gap-3">
         <span className="font-bold tabular-nums text-neutral-dark">
-          {a === null ? "s/d" : formatPct(a)}
+          {a === null ? "Sin información" : formatPct(a)}
         </span>
         <span className="text-[11px] text-neutral-mid">
-          mes ant. {p === null ? "s/d" : formatPct(p)} · año ant.{" "}
-          {yy === null ? "s/d" : formatPct(yy)}
+          mes ant. {p === null ? "Sin información" : formatPct(p)} · año ant.{" "}
+          {yy === null ? "Sin información" : formatPct(yy)}
         </span>
       </span>
     </div>

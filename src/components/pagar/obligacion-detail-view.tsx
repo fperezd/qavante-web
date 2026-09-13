@@ -78,7 +78,7 @@ export function ObligacionDetailView({ id }: { id: string }) {
               <Field label="Tasa anual">
                 {query.data.obligation.annual_rate
                   ? formatPct(Number(query.data.obligation.annual_rate) * 100)
-                  : "s/d"}
+                  : "Tasa no informada"}
               </Field>
               <Field label="Inicio">{formatDateLike(query.data.obligation.origination_date)}</Field>
             </dl>

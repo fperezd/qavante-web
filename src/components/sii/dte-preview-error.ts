@@ -5,7 +5,7 @@
    página de login (HTML) en vez del documento, o el listado de emitidos trae 0
    documentos— se traduce a lenguaje de dueño + la acción concreta (reconectar en
    Credenciales), replicando `f29-sync-message.ts`. NO se oculta el hecho: para otros
-   errores se muestra el motivo crudo del backend si vino; nunca se inventa. */
+   errores se conserva una explicación neutra y el diagnóstico queda fuera de la vista. */
 
 export type DtePreviewError =
   | { kind: "sii_session"; title: string; description: string }
@@ -94,9 +94,13 @@ export function classifyDtePreviewError(
     };
   }
 
-  // Otro error CON motivo del backend → mostrarlo tal cual (no ocultarlo).
+  // Otro error con motivo: conservar que la fuente informó un problema sin exponer el diagnóstico.
   if (message) {
-    return { kind: "backend", title: "No pudimos mostrar la vista previa", description: message };
+    return {
+      kind: "backend",
+      title: "No pudimos mostrar la vista previa",
+      description: "El SII informó un problema al preparar este documento. Intenta nuevamente.",
+    };
   }
 
   return { kind: "generic" };

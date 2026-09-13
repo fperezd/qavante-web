@@ -318,7 +318,7 @@ function Detalle({
           />
           <QavanteStatTile
             label={`% ${config.delTotal}`}
-            value={pct != null ? formatPct(pct) : "s/d"}
+            value={pct != null ? formatPct(pct) : "Sin información"}
             tone={pct != null && pct >= 25 ? "danger" : "default"}
             hint={
               pct != null && pct >= 25
@@ -551,11 +551,10 @@ function DiasDePago({ config }: { config: Config360 }) {
   const verbo = config.kind === "ventas" ? "en cobrar" : "en pagar";
   return (
     <section className="rounded-xl border border-warning-500/30 bg-warning-500/[.05] p-4 text-[13px]">
-      <p className="font-semibold text-neutral-dark">Días promedio {verbo}: en preparación</p>
+      <p className="font-semibold text-neutral-dark">Días promedio {verbo}: no disponible</p>
       <p className="mt-0.5 text-neutral-mid">
         El comportamiento de pago real (cuánto tarda de verdad, no el plazo pactado) necesita cruzar
-        cada factura con su pago en el banco. Ese motor lo está construyendo el backend; en cuanto
-        esté, aparece acá con su tendencia (si se está estirando).
+        cada factura con su pago en el banco. Esa información todavía no está disponible.
       </p>
     </section>
   );
@@ -583,7 +582,9 @@ function UltimosDocs({ docsSel }: { docsSel: DocConVencimiento[] }) {
             {ultimos.map((d, i) => (
               <tr key={`${d.folio}-${i}`} className="border-t border-border/60">
                 <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">{d.fecha}</td>
-                <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">{d.folio ?? "s/d"}</td>
+                <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
+                  {d.folio ?? "Folio no informado"}
+                </td>
                 <td className="py-1.5 pr-3 text-neutral-mid">
                   {d.tipoDoc === 61 || d.tipoDoc === 112 ? "Nota de crédito" : "Factura"}
                   {d.reclamado && (

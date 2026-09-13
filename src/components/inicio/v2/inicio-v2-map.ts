@@ -297,7 +297,7 @@ export function mapPagos(s: DashboardSummaryV2, now: Date): PagosTimelineProps |
 
 /** Margen operacional % SOLO si es plausible. Un |resultado| mayor que los ingresos es imposible
  *  (⇒ faltan costos: el mismo bug de datos que destapamos en Gestión, donde el backend manda
- *  labor_cost/direct_cost en $0). Ante eso devolvemos `null` y la vista muestra "s/d" en vez de un
+ *  labor_cost/direct_cost en $0). Ante eso devolvemos `null` y la vista muestra "Sin información" en vez de un
  *  "margen 1000%". No se inventa ni se clampa: se omite.
  *
  *  Devuelve el porcentaje CRUDO, sin redondear. El redondeo es una decisión de presentación y
@@ -324,7 +324,7 @@ export function mapResultado(s: DashboardSummaryV2): ResultadoPreliminarProps | 
     subtitulo: "Resultado operacional del mes",
     ingresos,
     margenLabel: "Margen operacional",
-    margen: margenPct != null ? formatPct(margenPct) : "s/d",
+    margen: margenPct != null ? formatPct(margenPct) : "Sin información",
     extra: [],
   };
 }
@@ -333,7 +333,7 @@ export function mapResultado(s: DashboardSummaryV2): ResultadoPreliminarProps | 
  *  (Fase 2). `null` si no hay DSO calculable (ventana devengada insuficiente). */
 export function cicloCajaExtra(c: CashCycleResponse | undefined): ResultadoExtra | null {
   if (!c || c.dso_days == null) return null;
-  const dpo = c.dpo_days != null ? `${c.dpo_days}d` : "s/d";
+  const dpo = c.dpo_days != null ? `${c.dpo_days}d` : "Sin información";
   return { label: "Ciclo de caja (cobra / paga)", valor: `${c.dso_days}d / ${dpo}` };
 }
 

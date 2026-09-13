@@ -1,4 +1,4 @@
-import { CheckCircle2 } from "lucide-react";
+import { CircleDot } from "lucide-react";
 import { formatDateTimeLike } from "@/lib/formatters/date";
 import type { ActividadRegistrada } from "./activity-registered-model";
 
@@ -22,7 +22,9 @@ export function ActivityRegisteredView({
   if (error) {
     return (
       <div className="space-y-2 text-sm text-neutral-mid" role="status">
-        <p>No pudimos cargar los hechos registrados. No sabemos qué actividad hubo en estas fuentes.</p>
+        <p>
+          No pudimos cargar los hechos registrados. No sabemos qué actividad hubo en estas fuentes.
+        </p>
         {onRetry && (
           <button type="button" onClick={onRetry} className={LINK_BUTTON}>
             Reintentar
@@ -43,12 +45,12 @@ export function ActivityRegisteredView({
     <ol className="divide-y divide-border" aria-label="Hechos registrados">
       {activities.map((activity) => (
         <li key={activity.id} className="flex flex-wrap items-start gap-x-3 gap-y-1 py-3 text-sm">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success-700" aria-hidden="true" />
+          <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-neutral-mid" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <p className="text-neutral-dark">{activity.resumen}</p>
             <p className="mt-0.5 text-xs text-neutral-mid">
-              {formatDateTimeLike(activity.creadaEn)} · {activity.etiquetaFuente}
-              {activity.resultado ? ` · Resultado registrado: ${activity.resultado}` : ""}
+              Registrado el {formatDateTimeLike(activity.creadaEn)} · {activity.etiquetaFuente}
+              {activity.resultado ? ` · Resultado: ${activity.resultado}` : ""}
             </p>
           </div>
           <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-mid">

@@ -55,7 +55,7 @@ describe("fechas — el 'no sé' es explícito, nunca 0 días ni 'vence hoy'", (
   it("sin fecha parseable → null (no 0)", () => {
     expect(diasHasta("", HOY)).toBeNull();
     expect(diasHasta(null, HOY)).toBeNull();
-    expect(diasHasta("s/d", HOY)).toBeNull();
+    expect(diasHasta("Sin información", HOY)).toBeNull();
     // Gemelo positivo: hoy es 0 de verdad, y ayer es −1.
     expect(diasHasta("2026-08-30", HOY)).toBe(0);
     expect(diasHasta("2026-08-29", HOY)).toBe(-1);
@@ -281,10 +281,10 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
     expect(c.cajaFinal).toBe(10_500);
     expect(c.monedaCaja).toBe("USD");
     expect(c.cobertura).toBeNull();
-    expect(c.motivoSinCobertura).toContain("no pudo determinar");
+    expect(c.motivoSinCobertura).toContain("no se pudo determinar");
     // Gemelo: sin proyección, el motivo es otro.
     const sinProy = kpiCritico(filas(), pagos({ projected_cash_14d: null }));
-    expect(sinProy.motivoSinCaja).toBe("el backend no pudo proyectar el saldo final a 14 días");
+    expect(sinProy.motivoSinCaja).toBe("no se pudo proyectar el saldo final a 14 días");
   });
 });
 
@@ -374,8 +374,8 @@ describe("explicaciones (§1.4) y faltantes", () => {
       explicacionPorPagar(pagos(), 14, HOY),
       explicacionCritico(pagos(), HOY),
     ]) {
-      expect(e.fuente).toContain("accounts-payable");
-      expect(e.fuente).toContain("Sale · 14 días");
+      expect(e.fuente).toContain("Cuentas por pagar");
+      expect(e.fuente).toContain("flujo de caja");
       expect(e.frescura).toContain("30 ago 2026");
     }
   });

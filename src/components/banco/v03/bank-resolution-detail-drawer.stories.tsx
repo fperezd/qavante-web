@@ -96,7 +96,8 @@ export const ConciliacionUnoAMuchosYClasificacionDistribuida: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await expect(canvas.getByRole("dialog", { name: "Cómo se resolvió" })).toBeInTheDocument();
-    await expect(canvas.getByText("1:N")).toBeInTheDocument();
+    await expect(canvas.queryByText("1:N")).not.toBeInTheDocument();
+    await expect(canvas.getByText("Factura 451 · Cliente Norte SpA")).toBeInTheDocument();
     await expect(canvas.getByText("Factura 450 · Cliente Norte SpA")).toBeInTheDocument();
     await expect(canvas.getByText("Componentes financieros")).toBeInTheDocument();
     await expect(canvas.getByText("Ventas de servicios")).toBeInTheDocument();

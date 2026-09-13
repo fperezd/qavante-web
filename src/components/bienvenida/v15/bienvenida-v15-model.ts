@@ -95,7 +95,7 @@ export function estadoFuenteRunLegible(status: RunSource["status"]): string {
 
 export function etapaRunLegible(step: string | null): string | null {
   if (step === null) return null;
-  return STEP_LABEL[step] ?? `Etapa informada por el motor: ${step.replaceAll("_", " ")}`;
+  return STEP_LABEL[step] ?? "Etapa en curso";
 }
 
 export interface FuenteRunV15 {

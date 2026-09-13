@@ -14,6 +14,10 @@
 // devuelve HttpOnly + Secure normalmente (regla 6 de CLAUDE.md
 // sigue vigente — los tokens reales nunca pasan por JS).
 import { http, HttpResponse } from "msw";
+import {
+  evaluationV13,
+  overviewCompletoV13,
+} from "@/components/financiamiento/v13/financiamiento-v13-fixtures";
 import { simulationReadyV14 } from "@/components/simular/v14/simulador-v14-fixtures";
 import type { SimulationEvaluateRequest } from "@/lib/api/simulations";
 import type {
@@ -435,6 +439,28 @@ const bankMovementsFixture = [
     canonical_category: null,
     management_account_id: null,
   },
+  {
+    id: "mov-unclas-3",
+    bank_account_id: "acct-1",
+    external_id: "ext-bice-1007",
+    description: "TRANSFERENCIA PROVEEDOR ACME SPA",
+    amount: "-125000.00",
+    date: "2026-05-11",
+    direction: "debit",
+    canonical_category: null,
+    management_account_id: null,
+  },
+  {
+    id: "mov-unclas-4",
+    bank_account_id: "acct-1",
+    external_id: "ext-bice-1008",
+    description: "TRANSFERENCIA PROVEEDOR ACME SPA",
+    amount: "-98000.00",
+    date: "2026-05-10",
+    direction: "debit",
+    canonical_category: null,
+    management_account_id: null,
+  },
   /* Clasificados (status='classified') — alimentan /caja/clasificados.
      Cubren los canonical_category más comunes de PYME para que la vista
      muestre badges variados al filtrar. */
@@ -804,6 +830,21 @@ const treasuryHandlers = [
         id: params.movementId,
         management_account_id: body.management_account_id ?? null,
         canonical_category: body.canonical_category ?? null,
+      },
+      { status: 200 },
+    );
+  }),
+  http.post("*/api/treasury/bank-movements/classify-bulk", async ({ request }) => {
+    const body = (await request.json()) as { movement_ids?: string[] };
+    return HttpResponse.json(
+      {
+        items: (body.movement_ids ?? []).map((movementId) => ({
+          movement_id: movementId,
+          status: "applied",
+          detail: "Clasificación aplicada.",
+        })),
+        reversible: false,
+        action_id: null,
       },
       { status: 200 },
     );
@@ -4148,23 +4189,88 @@ const reconciliationHandlers = [
       { status: 200 },
     ),
   ),
-  http.get("*/api/treasury/reconciliation/:movementId/suggestions", ({ params }) =>
-    HttpResponse.json(
-      {
-        movement_id: params.movementId,
-        suggestions: [
-          { rut: "76123456-0", name: "Comercial Los Andes SpA", score: "86" },
-          { rut: "77987654-3", name: "Los Andes Retail Ltda", score: "61" },
-        ],
-      },
+  http.get("*/api/treasury/reconciliation/:movementId/document-suggestions", ({ params }) => {
+    const movementId = String(params.movementId);
+    const candidates: Record<
+      string,
+      Array<{
+        document_id: string;
+        kind: string;
+        document_type: number;
+        folio: string;
+        rut: string;
+        name: string;
+        amount: string;
+        date: string;
+        score: number;
+        reasons: string[];
+      }>
+    > = {
+      "mov-unclas-2": [
+        {
+          document_id: "r-fac-1042",
+          kind: "receivable",
+          document_type: 33,
+          folio: "1042",
+          rut: "76.123.456-0",
+          name: "X Capital SpA",
+          amount: "1190000",
+          date: "2026-05-01",
+          score: 83,
+          reasons: ["folio", "amount"],
+        },
+      ],
+      "rec-mv-1": [
+        {
+          document_id: "r1",
+          kind: "receivable",
+          document_type: 33,
+          folio: "435",
+          rut: "76.123.456-0",
+          name: "Comercial Los Andes SpA",
+          amount: "1250000",
+          date: "2026-07-01",
+          score: 86,
+          reasons: ["amount", "name"],
+        },
+      ],
+      "rec-mv-2": [
+        {
+          document_id: "p1",
+          kind: "payable",
+          document_type: 33,
+          folio: "812",
+          rut: "77.987.654-3",
+          name: "Distribuidora del Sur Ltda",
+          amount: "340000",
+          date: "2026-07-02",
+          score: 72,
+          reasons: ["amount"],
+        },
+      ],
+    };
+    return HttpResponse.json(
+      { movement_id: movementId, suggestions: candidates[movementId] ?? [] },
       { status: 200 },
-    ),
-  ),
+    );
+  }),
   http.post("*/api/treasury/reconciliation/:movementId/confirm", ({ params }) =>
     HttpResponse.json({ movement_id: params.movementId, status: "confirmed" }, { status: 200 }),
   ),
   http.post("*/api/treasury/reconciliation/:movementId/reject", ({ params }) =>
     HttpResponse.json({ movement_id: params.movementId, status: "rejected" }, { status: 200 }),
+  ),
+  http.post(
+    "*/api/treasury/reconciliation/:movementId/document-suggestions/:documentId/reject",
+    ({ params }) =>
+      HttpResponse.json(
+        {
+          movement_id: params.movementId,
+          document_id: params.documentId,
+          status: "rejected",
+        },
+        { status: 200 },
+      ),
   ),
   http.post("*/api/treasury/reconciliation/confirm-batch", async ({ request }) => {
     const body = (await request.json()) as { movement_ids: string[] };
@@ -4261,7 +4367,25 @@ const apiKeysHandlers = [
   ),
 ];
 
-const simulationHandlers = [
+const financialDecisionHandlers = [
+  http.get("*/api/core/financial-scope", ({ request }) => {
+    const asOf = new URL(request.url).searchParams.get("as_of") ?? "2026-09-09";
+    return HttpResponse.json(
+      {
+        legal_entity_id: overviewCompletoV13.scope.legal_entity_id,
+        functional_currency_code: overviewCompletoV13.scope.currency,
+        as_of: asOf,
+        legal_entity_provenance: "test_fixture",
+      },
+      { status: 200 },
+    );
+  }),
+  http.get("*/api/treasury/financing-overview", () =>
+    HttpResponse.json(overviewCompletoV13, { status: 200 }),
+  ),
+  http.get("*/api/treasury/working-capital-refinancing-evaluation", () =>
+    HttpResponse.json(evaluationV13, { status: 200 }),
+  ),
   http.post("*/api/treasury/simulations/evaluate", async ({ request }) => {
     const body = (await request.json()) as SimulationEvaluateRequest;
     return HttpResponse.json(
@@ -4280,8 +4404,73 @@ const simulationHandlers = [
   }),
 ];
 
+const activityHandlers = [
+  http.get("*/api/activity-log", () =>
+    HttpResponse.json(
+      {
+        total: 2,
+        items: [
+          {
+            source: "audit_event",
+            source_id: "audit-1",
+            event_type: "classification_rule.create",
+            summary: "classification_rule.create",
+            created_at: "2026-09-11T14:30:00Z",
+            outcome: null,
+          },
+          {
+            source: "sync_run",
+            source_id: "sync-1",
+            event_type: "sii.sync",
+            summary: "sii.sync completed",
+            created_at: "2026-09-11T13:00:00Z",
+            outcome: "completed",
+          },
+        ],
+      },
+      { status: 200 },
+    ),
+  ),
+  http.get("*/api/reversible-actions", () =>
+    HttpResponse.json(
+      {
+        total: 1,
+        items: [
+          {
+            action_id: "payable-proveedor-uno",
+            action_type: "payable.postpone",
+            summary:
+              "Postergamos 15 días el pago a Proveedor Uno: vencía el 2026-03-10 y ahora vence el 2026-03-25",
+            created_at: "2026-09-11T12:00:00Z",
+            undo_expires_at: "2026-09-18T12:00:00Z",
+            undo_available: true,
+            undo_result: null,
+            status: "active",
+            reverted_at: null,
+            reverted_by: null,
+          },
+        ],
+      },
+      { status: 200 },
+    ),
+  ),
+  http.post("*/api/reversible-actions/:actionId/revert", ({ params }) =>
+    HttpResponse.json(
+      {
+        action_id: String(params.actionId),
+        action_type: "payable.postpone",
+        result: "reverted",
+        reverted_at: "2026-09-12T12:00:00Z",
+        detail: {},
+      },
+      { status: 200 },
+    ),
+  ),
+];
+
 export const handlers = [
-  ...simulationHandlers,
+  ...financialDecisionHandlers,
+  ...activityHandlers,
   ...apiKeysHandlers,
   ...authHandlers,
   ...cajaV2Handlers,

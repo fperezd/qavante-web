@@ -78,9 +78,22 @@ describe("conexionBanco — el estado de la conexión, sin defaults tranquilizad
     const c = conexionBanco(sourcesOk(), saldoSesionVencida(), tarjetasOk());
     expect(c.estado).toBe("accion_requerida");
     expect(c.pill).toBe("Tu acción");
-    expect(c.motivo).toBe("Sesión BICE no disponible (reconectar)");
+    expect(c.motivo).toBe(
+      "El último intento de actualizar esta fuente falló. El motivo requiere revisión de soporte.",
+    );
     // Gemelo: NO es "Conectada ✓".
     expect(c.pill).not.toBe("Conectada ✓");
+  });
+
+  it("no expone configuración ni trazas contenidas en el mensaje libre de BICE", () => {
+    const c = conexionBanco(sourcesOk(), {
+      status: "error",
+      message:
+        "BiceAuthError: BICE_LOGIN_STRATEGY=local_only storage_state missing at /srv/bice.py:42",
+    });
+
+    expect(c.motivo).toContain("requiere revisión de soporte");
+    expect(c.motivo).not.toMatch(/BiceAuthError|local_only|storage_state|\/srv\/|\.py/i);
   });
 
   it("la forma real del 2026-08-30: sources error + bice error → Tu acción, ámbar, con la última sync", () => {
@@ -214,7 +227,7 @@ describe("cuentasV03 — la tabla de cuentas", () => {
     expect(filas).toHaveLength(2);
     expect(filas[0]!.saldo).toBeNull();
     expect(filas[0]!.saldo).not.toBe(0);
-    expect(filas[0]!.saldoMotivo).toContain("Sesión BICE no disponible");
+    expect(filas[0]!.saldoMotivo).toContain("requiere revisión de soporte");
     expect(filas[0]!.sub).toBe(
       "desde el 28 ago no llegan movimientos · 4 movimientos por conciliar",
     );
@@ -487,7 +500,7 @@ describe("movimientosV03 — normalización", () => {
   it("declara moneda desconocida si no viene ni en el movimiento ni en su cuenta", () => {
     const unknown = { ...movimientos()[0]!, currency_code: null } as BankMovement;
     const [row] = movimientosV03({ items: [unknown], cuentas: new Map(), categorias: new Map() });
-    expect(row?.moneda).toBe("S/D");
+    expect(row?.moneda).toBe("Moneda no informada");
   });
 
   it("cuenta desconocida → 'Cuenta ····<últimos 4 del id>' y la moneda declarada del movimiento", () => {

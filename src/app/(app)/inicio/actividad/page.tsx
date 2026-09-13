@@ -20,9 +20,10 @@ export default function ActividadInicioPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">Actividad reciente registrada</h1>
+        <h1 className="text-2xl font-bold text-neutral-dark">Actividad reciente</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Hechos persistidos por fuentes explícitas. No representa toda la actividad de tu empresa.
+          Cambios y actualizaciones registrados por Qavante. Puede no incluir toda la actividad de
+          tu empresa.
         </p>
       </header>
 
@@ -31,18 +32,18 @@ export default function ActividadInicioPage() {
           Hechos registrados
         </h2>
         <p className="max-w-prose text-xs text-neutral-mid">
-          Incluye sólo automatismos reversibles, eventos auditados y sincronizaciones que tengan
-          una fila persistida. No infiere hechos ni confirma que no haya otros fuera de estas fuentes.
+          Incluye acciones automáticas, cambios de negocio y actualizaciones confirmadas por las
+          fuentes disponibles.
         </p>
         <ActivityRegisteredLive />
       </section>
 
       <section aria-labelledby="automatismos-reversibles" className="space-y-2">
         <h2 id="automatismos-reversibles" className="text-lg font-semibold text-neutral-dark">
-          Automatismos reversibles
+          Acciones que puedes deshacer
         </h2>
         <p className="max-w-prose text-xs text-neutral-mid">
-          Este listado conserva las acciones de Qavante que todavía tienen Deshacer disponible.
+          Revisa las acciones automáticas y deshazlas cuando esa opción siga disponible.
         </p>
         <ActivityLogLive complete />
       </section>

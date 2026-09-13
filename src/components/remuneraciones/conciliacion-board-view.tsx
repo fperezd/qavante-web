@@ -195,7 +195,7 @@ export function ConciliacionBoardView({
                             {worker.workerName}
                           </span>
                           <span className="font-mono text-[11px] text-neutral-mid">
-                            {worker.workerRut ? formatRut(worker.workerRut) : "s/d"}
+                            {worker.workerRut ? formatRut(worker.workerRut) : "Sin información"}
                           </span>
                         </td>
                         <td className="py-3 pr-3">
@@ -227,10 +227,9 @@ export function ConciliacionBoardView({
                             </summary>
                             <div className="mt-2 space-y-2 rounded-lg border border-border bg-neutral-light/20 p-3 text-xs text-neutral-mid">
                               <p>
-                                Líquido {formatClp(worker.liquido)} · pagado{" "}
+                                Líquido {formatClp(worker.liquido)} · conciliado{" "}
                                 {formatClp(worker.paidAmount)} · pendiente{" "}
-                                {formatClp(worker.outstanding)} · estado API{" "}
-                                {worker.status || "s/d"}
+                                {formatClp(worker.outstanding)}
                               </p>
                               {classificationsState === "ready" && allocations.length > 0 ? (
                                 <div>
@@ -244,8 +243,8 @@ export function ConciliacionBoardView({
                                     ))}
                                   </ul>
                                   <p className="mt-1">
-                                    Puedes modificar el reparto en Clasificación. Retirarlo requiere
-                                    el comando auditable del API.
+                                    Puedes modificar el reparto en Clasificación. Para retirarlo,
+                                    usa Desasignar cuando esté disponible.
                                   </p>
                                 </div>
                               ) : classificationsState === "ready" ? (
@@ -255,14 +254,14 @@ export function ConciliacionBoardView({
                               )}
                               {workerLinks.length > 0 ? (
                                 <div>
-                                  <p className="font-medium text-neutral-dark">Matches bancarios</p>
+                                  <p className="font-medium text-neutral-dark">
+                                    Movimientos bancarios conciliados
+                                  </p>
                                   <ul className="space-y-1">
                                     {workerLinks.map((link) => (
                                       <li key={link.linkId}>
-                                        {formatClp(link.amount)} · {link.glosa || "sin glosa"} ·
-                                        mov.{" "}
-                                        <span className="font-mono">{link.bankMovementId}</span> ·
-                                        link <span className="font-mono">{link.linkId}</span>
+                                        {formatClp(link.amount)} ·{" "}
+                                        {link.glosa || "Glosa no informada"}
                                         {link.createdAt
                                           ? ` · ${formatDateLike(link.createdAt)}`
                                           : ""}
@@ -337,7 +336,7 @@ export function ConciliacionBoardView({
                           >
                             <span className="min-w-0">
                               <span className="block truncate text-neutral-dark">
-                                {c.glosa || "s/d"}
+                                {c.glosa || "Glosa no informada"}
                               </span>
                               <span className="block text-[11px] text-neutral-mid">
                                 {formatDateLike(c.date)}
@@ -388,7 +387,7 @@ export function ConciliacionBoardView({
                                 {w.workerName}
                               </span>
                               <span className="block font-mono text-[11px] text-neutral-mid">
-                                {w.workerRut ? formatRut(w.workerRut) : "s/d"}
+                                {w.workerRut ? formatRut(w.workerRut) : "RUT no informado"}
                               </span>
                             </span>
                           </span>
@@ -420,10 +419,10 @@ export function ConciliacionBoardView({
                 className="rounded-lg border border-brand-primary/40 bg-brand-primary-50/60 p-3 text-sm"
                 aria-live="polite"
               >
-                <p className="font-semibold text-neutral-dark">Simulación verificada por el API</p>
+                <p className="font-semibold text-neutral-dark">Validación previa completada</p>
                 <p className="mt-1 text-xs text-neutral-mid">
-                  Aún no se modificó ningún dato. Método: {preview.method || "s/d"} · período{" "}
-                  {preview.period}.
+                  Aún no se modificó ningún dato. Período: {preview.period}. Revisa trabajadores,
+                  montos y movimientos antes de confirmar.
                 </p>
                 <ul className="mt-2 space-y-1" aria-label="Aplicaciones simuladas">
                   {preview.applied.map((row) => (
@@ -436,9 +435,9 @@ export function ConciliacionBoardView({
                         ({formatRut(row.workerRut)})
                       </span>
                       <span className="block text-xs text-neutral-mid">
-                        Aplicará {formatClp(row.applyAmount)} · pagado resultante{" "}
-                        {formatClp(row.newPaid)} · saldo resultante {formatClp(row.newOutstanding)}{" "}
-                        · estado {row.newStatus}
+                        Aplicará {formatClp(row.applyAmount)} · conciliado resultante{" "}
+                        {formatClp(row.newPaid)} · saldo resultante{" "}
+                        {formatClp(row.newOutstanding)}{" "}
                       </span>
                     </li>
                   ))}
@@ -511,7 +510,7 @@ export function ConciliacionBoardView({
                           {formatClp(l.amount)}
                         </td>
                         <td className="max-w-[220px] truncate py-2 pr-3 text-xs text-neutral-mid">
-                          {l.glosa || "s/d"}
+                          {l.glosa || "Glosa no informada"}
                         </td>
                         <td className="py-2 text-right">
                           <QavanteButton
@@ -532,10 +531,9 @@ export function ConciliacionBoardView({
                               aria-label={`Confirmar desasignación de ${l.workerName}`}
                             >
                               <p className="text-neutral-dark">
-                                ¿Desasignar {formatClp(l.amount)} de {l.workerName}? Movimiento{" "}
-                                <span className="font-mono">{l.bankMovementId}</span>, link{" "}
-                                <span className="font-mono">{l.linkId}</span>. Esta acción queda
-                                registrada por el API.
+                                ¿Desasignar {formatClp(l.amount)} de {l.workerName}? El movimiento
+                                volverá a quedar disponible para revisión. Esta acción quedará
+                                registrada.
                               </p>
                               <div className="mt-2 flex justify-end gap-1">
                                 <QavanteButton

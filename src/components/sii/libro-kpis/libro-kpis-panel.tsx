@@ -52,7 +52,7 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
           />
           <KpiCell
             label={ivaLabel}
-            value={totals.breakdown ? formatClp(totals.breakdown.iva) : "s/d"}
+            value={totals.breakdown ? formatClp(totals.breakdown.iva) : "Sin información"}
             valueClassName="text-brand-primary"
           />
           <KpiCell
@@ -65,7 +65,7 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
             value={
               totals.breakdown && totals.ncTotal !== null && totals.ncCount > 0
                 ? `−${formatClp(totals.ncTotal)}`
-                : "s/d"
+                : "Sin información"
             }
             sub={
               totals.breakdown && totals.ncTotal !== null && totals.ncCount > 0
@@ -106,8 +106,11 @@ export function LibroKpisPanel({ docs, kind, periodo }: LibroKpisPanelProps) {
         ) : (
           <ul className="space-y-2.5">
             {conc.map((c, i) => (
-              // key: el RUT si viene; sin RUT ("s/d"), nombre+índice para no colisionar dos partes.
-              <li key={c.rut !== "s/d" ? c.rut : `${c.name}-${i}`} className="space-y-1">
+              // key: el RUT si viene; sin RUT ("Sin información"), nombre+índice para no colisionar dos partes.
+              <li
+                key={c.rut !== "Sin información" ? c.rut : `${c.name}-${i}`}
+                className="space-y-1"
+              >
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate">
                     <span className="font-medium text-neutral-dark">{c.name}</span>

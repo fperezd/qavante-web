@@ -22,6 +22,7 @@ import { useRevertReversibleAction } from "@/lib/api/reversible-actions";
 import { useManagementAccountsTree } from "@/lib/api/management";
 import { useSiiF29Impuesto } from "@/lib/api/sii";
 import { ApiError } from "@/lib/api/errors";
+import { unknownErrorToUserMessage } from "@/lib/api/error-messages";
 import { DotacionView } from "./dotacion-view";
 import { PlanillaView } from "./planilla-view";
 import { ClasificacionCuentasView } from "./clasificacion-cuentas-view";
@@ -129,9 +130,9 @@ export function RemuneracionesView({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 max-w-full space-y-4">
       <div
-        className="flex gap-1 border-b border-border"
+        className="grid min-w-0 max-w-full grid-cols-2 gap-1 border-b border-border sm:flex"
         role="tablist"
         aria-label="Secciones de Remuneraciones"
       >
@@ -145,7 +146,7 @@ export function RemuneracionesView({
               aria-selected={active}
               onClick={() => setTab(id)}
               className={cn(
-                "-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+                "-mb-px inline-flex min-w-0 items-center justify-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors sm:justify-start sm:px-4",
                 active
                   ? "border-brand-primary text-brand-primary"
                   : "border-transparent text-neutral-mid hover:text-neutral-dark",
@@ -301,7 +302,9 @@ function ClasificacionCuentasLive({
                         }
                       },
                       onError: (error) =>
-                        toast.error("No se pudo restaurar", { description: error.message }),
+                        toast.error("No se pudo restaurar", {
+                          description: unknownErrorToUserMessage(error),
+                        }),
                     }),
                 }
               : undefined,

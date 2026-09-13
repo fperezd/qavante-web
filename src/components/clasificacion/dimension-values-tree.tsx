@@ -57,12 +57,12 @@ export function DimensionValuesTree({
                   !row.active && "opacity-60",
                 )}
               >
-                {row.code && (
-                  <span className="shrink-0 font-mono text-xs text-neutral-mid">{row.code}</span>
-                )}
                 <span className="min-w-0 flex-1 truncate text-sm text-neutral-dark">
                   {row.name}
                 </span>
+                {row.code && (
+                  <span className="shrink-0 font-mono text-xs text-neutral-mid">{row.code}</span>
+                )}
                 {!row.active && <QavanteBadge variant="default">Inactivo</QavanteBadge>}
                 <div className="flex shrink-0 items-center gap-1">
                   <ActionButton

@@ -85,12 +85,13 @@ export function PresupuestoV09View({
   issueSucesor,
   resultOperacional,
 }: PresupuestoV09ViewProps) {
+  void issueSucesor;
   if (error) {
     return (
       <DataState
         status="error"
         what="tu presupuesto vs. real"
-        cause={error}
+        cause="No pudimos consultar el presupuesto de este período. No confirmamos sus cifras; vuelve a intentar."
         action={
           onReintentar
             ? { label: "Reintentar", onClick: onReintentar }
@@ -268,8 +269,8 @@ function BannerIncompleto({
       <span>
         {dataState === "estimated" ? "Dato estimado: " : "Dato parcial: "}
         {n > 0
-          ? `${n} ${concordar(n, "fuente", "fuentes")} sin consultar (${missingSources.join(", ")}).`
-          : "el motor no confirma todas las fuentes de este período."}
+          ? `${n} ${concordar(n, "fuente", "fuentes")} sin consultar. Revisa el detalle de conexiones para identificarlas.`
+          : "no se pudieron confirmar todas las fuentes de este período."}
       </span>
     </div>
   );
@@ -292,11 +293,11 @@ function BannerInvarianteRoto({ real, resultado }: { real: number; resultado: nu
 
 /* ── Huecos declarados (issue #74): visibles EN la pantalla, no sólo en el PR ────────────────── */
 function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
+  void issueSucesor;
   return (
     <p className="pt-1 text-center text-[12px] text-rediseno-tinta-3-light">
-      Todavía no: el link de cada desvío a los documentos que lo explican, y el aviso de cómo vas a
-      cerrar el año. Esperan una decisión de forma del dueño (ADR-0091 F1b)
-      {issueSucesor ? ` · issue sucesor ${issueSucesor}` : ""}.
+      El detalle documental de cada desvío y la proyección de cierre del año todavía no están
+      disponibles.
     </p>
   );
 }

@@ -143,7 +143,7 @@ export function BheListView({
       documentKind: "professional_fee",
       classificationSide: "bhe",
       sourceExternalId,
-      label: `BHE ${document.folio ?? "s/d"} · ${document.nombre_emisor ?? "Sin nombre"}`,
+      label: `BHE ${document.folio ?? "Sin información"} · ${document.nombre_emisor ?? "Sin nombre"}`,
     });
   };
 
@@ -200,7 +200,8 @@ export function BheListView({
                   {items.length} {items.length === 1 ? "boleta" : "boletas"}
                 </QavanteBadge>
                 <span className="text-sm tabular-nums text-neutral-dark">
-                  Líquido pagado: <span className="font-semibold">{formatClp(liquidoTotal)}</span>
+                  Líquido registrado:{" "}
+                  <span className="font-semibold">{formatClp(liquidoTotal)}</span>
                 </span>
               </div>
             </div>
@@ -357,7 +358,9 @@ export function BheListView({
                     </td>
                     <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className={cn(b.anulada && "line-through")}>{b.folio ?? "s/d"}</span>
+                        <span className={cn(b.anulada && "line-through")}>
+                          {b.folio ?? "Sin información"}
+                        </span>
                         {b.anulada && <QavanteBadge variant="danger">Anulada</QavanteBadge>}
                       </span>
                     </td>
@@ -367,7 +370,9 @@ export function BheListView({
                         b.anulada && "line-through",
                       )}
                     >
-                      {typeof b.monto_bruto === "number" ? formatClp(b.monto_bruto) : "s/d"}
+                      {typeof b.monto_bruto === "number"
+                        ? formatClp(b.monto_bruto)
+                        : "Sin información"}
                     </td>
                     <td
                       className={cn(
@@ -375,7 +380,7 @@ export function BheListView({
                         b.anulada && "line-through",
                       )}
                     >
-                      {typeof b.retencion === "number" ? formatClp(b.retencion) : "s/d"}
+                      {typeof b.retencion === "number" ? formatClp(b.retencion) : "Sin información"}
                     </td>
                     <td
                       className={cn(
@@ -383,7 +388,9 @@ export function BheListView({
                         b.anulada && "font-normal line-through",
                       )}
                     >
-                      {typeof b.monto_liquido === "number" ? formatClp(b.monto_liquido) : "s/d"}
+                      {typeof b.monto_liquido === "number"
+                        ? formatClp(b.monto_liquido)
+                        : "Sin información"}
                     </td>
                     <td className="py-2 text-right">
                       <DteActions

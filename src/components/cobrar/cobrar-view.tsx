@@ -147,7 +147,7 @@ function Receivable({
         />
         <QavanteStatTile
           label="Vencido"
-          value={vencido == null ? "s/d" : <AmountCountUp value={vencido} />}
+          value={vencido == null ? "Sin información" : <AmountCountUp value={vencido} />}
           /* Sin dato NO es rojo: el rojo afirma un juicio ("esto está mal") que
              justamente no tenemos. Cero verificado tampoco: es una buena noticia. */
           tone={vencido == null ? "muted" : vencido > 0 ? "danger" : "success"}
@@ -164,7 +164,7 @@ function Receivable({
         />
         <QavanteStatTile
           label="% vencido"
-          value={vencidoPct == null ? "s/d" : formatPct(vencidoPct)}
+          value={vencidoPct == null ? "Sin información" : formatPct(vencidoPct)}
           tone={vencidoPct == null ? "muted" : vencidoPct > 0 ? "danger" : "success"}
           hint={vencidoPct == null ? "No se puede calcular sin los vencimientos." : undefined}
           info="Qué parte del total por cobrar ya está vencida. Mientras más alto, más apretada tu cobranza."
@@ -244,7 +244,7 @@ function Receivable({
 /* Antigüedad de saldos. Dos caminos que NO se mezclan (H6):
    - completo → barra apilada con los % reales;
    - incompleto (algún tramo `null`) → franja de "no se sabe" + explicación. Los
-     tramos desconocidos se muestran "s/d"; el vigente, que el contrato garantiza
+     tramos desconocidos se muestran "Sin información"; el vigente, que el contrato garantiza
      no-null, mantiene su monto real (no se pierde un dato que sí tenemos). */
 function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato: VencidoSinDato }) {
   return (
@@ -278,7 +278,7 @@ function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato: Vencido
                 b.amount == null ? "text-neutral-mid" : "text-neutral-dark",
               )}
             >
-              {b.amount == null ? "s/d" : formatClp(b.amount)}
+              {b.amount == null ? "Sin información" : formatClp(b.amount)}
             </dd>
           </div>
         ))}
@@ -456,10 +456,10 @@ export function DebtorInvoicesPanel({
               {ordered.map((doc, i) => (
                 <tr key={`${doc.folio}-${i}`} className="border-b border-border/50 last:border-b-0">
                   <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">
-                    {doc.folio ?? "s/d"}
+                    {doc.folio ?? "Sin información"}
                   </td>
                   <td className="py-1.5 pr-3 text-neutral-mid">
-                    {doc.fecha ? formatDateLike(doc.fecha) : "s/d"}
+                    {doc.fecha ? formatDateLike(doc.fecha) : "Sin información"}
                   </td>
                   <td className="py-1.5 text-right tabular-nums text-neutral-dark">
                     {formatClp(Number(doc.monto_total) || 0)}

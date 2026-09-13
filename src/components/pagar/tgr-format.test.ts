@@ -9,9 +9,9 @@ describe("formularioLabelTgr", () => {
     expect(formularioLabelTgr("99")).toBe("Multas e intereses");
   });
 
-  it("código desconocido → 'Formulario N'; vacío/null → 's/d'", () => {
+  it("código desconocido → 'Formulario N'; vacío/null → formulario no informado", () => {
     expect(formularioLabelTgr("50")).toBe("Formulario 50");
-    expect(formularioLabelTgr(null)).toBe("s/d");
-    expect(formularioLabelTgr(undefined)).toBe("s/d");
+    expect(formularioLabelTgr(null)).toBe("Formulario no informado");
+    expect(formularioLabelTgr(undefined)).toBe("Formulario no informado");
   });
 });

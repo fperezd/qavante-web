@@ -71,10 +71,9 @@ export default function PagarImpuestosPage() {
           }
         >
           <div className="space-y-2">
-            <QavanteBadge variant="default">Próximamente: Fase 2</QavanteBadge>
+            <QavanteBadge variant="default">No disponible</QavanteBadge>
             <p className="text-sm text-neutral-mid">
-              Renta anual con simulador de impuestos y descargas del Formulario 22. Llega en una
-              próxima entrega.
+              La consulta de renta anual y Formulario 22 todavía no está disponible en Qavante.
             </p>
           </div>
         </QavanteCard>

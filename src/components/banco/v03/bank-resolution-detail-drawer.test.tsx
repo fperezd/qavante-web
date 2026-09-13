@@ -84,8 +84,10 @@ describe("BankResolutionDetailDrawer", () => {
     expect(rendered).toContain("Clasificación");
     expect(rendered).toContain("Nómina septiembre");
     expect(rendered).toContain("Componentes financieros");
-    expect(rendered).toContain("factoring_settlement");
-    expect(rendered).toContain("op-77");
+    expect(rendered).toContain("Interés financiero");
+    expect(rendered).not.toContain("op-77");
+    expect(rendered).toContain("Tratamiento tributario: Exento");
+    expect(rendered).not.toContain("exempt");
     expect(rendered).toContain("Remuneraciones administración");
     expect(rendered).toContain("Desconciliar");
     expect(rendered).toContain("Modificar clasificación");
@@ -134,7 +136,7 @@ describe("BankResolutionDetailDrawer", () => {
         onUnreconcile={vi.fn()}
       />,
     );
-    expect(loading).toContain("Cargando el detalle canónico del movimiento");
+    expect(loading).toContain("Cargando el detalle del movimiento");
     expect(loading).not.toContain("Desconciliar");
 
     const error = renderToStaticMarkup(
@@ -148,7 +150,7 @@ describe("BankResolutionDetailDrawer", () => {
         onUnreconcile={vi.fn()}
       />,
     );
-    expect(error).toContain("No pudimos cargar el detalle canónico del movimiento");
+    expect(error).toContain("No pudimos cargar el detalle del movimiento");
     expect(error).not.toContain("Desconciliar");
   });
 });

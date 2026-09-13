@@ -40,7 +40,7 @@ const iconCls =
   "inline-flex h-7 w-7 items-center justify-center rounded-md text-neutral-mid transition-colors hover:bg-surface-muted hover:text-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
 
 export function DteActions({ url, label }: { url: string | null; label?: string }) {
-  if (!url) return <span className="text-xs text-neutral-light">s/d</span>;
+  if (!url) return <span className="text-xs text-neutral-light">Sin información</span>;
   const suffix = label ? ` ${label}` : "";
   return (
     <span className="inline-flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -331,8 +331,8 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
                   </Link>
                 </div>
               ) : (
-                /* Fallback honesto: si vino un motivo del backend, se muestra tal cual;
-                   si no, el genérico. En ambos se ofrece descargar. */
+                /* Fallback honesto: declara el fallo sin reenviar el diagnóstico interno.
+                   En ambos casos se conserva la descarga disponible. */
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
                   <FileWarning className="h-9 w-9 text-neutral-mid" aria-hidden="true" />
                   <p className="text-sm font-medium text-neutral-dark">

@@ -6,6 +6,7 @@ import { QavanteBadge, QavanteInlineError, QavanteStatTile } from "@/components/
 import { useCashCycle, type CashCycleResponse } from "@/lib/api/treasury";
 import { parseAmount } from "../gestion-format";
 import { formatClp } from "@/lib/formatters/clp";
+import { formatDateLike } from "@/lib/formatters/date";
 import { ComportamientoPagoCard } from "./comportamiento-pago-card";
 
 /* Gestión → Ciclo de caja (pedido de Fernando 2026-07-29, "las 3" de control de
@@ -15,9 +16,9 @@ import { ComportamientoPagoCard } from "./comportamiento-pago-card";
    cuando el backend no puede calcular el ratio (ventana dominada por NC → *_days
    null). Sin `export const runtime` (regla 4). */
 
-/** Días → "N días" (redondeado) / "s/d" si null. */
+/** Días → "N días" (redondeado) / estado explícito si null. */
 function dias(n: number | null): string {
-  if (n == null) return "s/d";
+  if (n == null) return "Sin información";
   const r = Math.round(n);
   return `${r} ${Math.abs(r) === 1 ? "día" : "días"}`;
 }
@@ -85,13 +86,13 @@ export function CicloCajaView({
       {/* Saldos vivos */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <QavanteStatTile
-          label="Por cobrar (vivo)"
+          label="Pendiente de cobro"
           value={formatClp(ar)}
           tone="default"
           hint="Facturas emitidas que aún no te pagan."
         />
         <QavanteStatTile
-          label="Por pagar (vivo)"
+          label="Pendiente de pago"
           value={formatClp(ap)}
           tone="default"
           hint="Facturas recibidas que aún no pagas."
@@ -215,7 +216,8 @@ function VentanaPie({ c }: { c: CashCycleResponse }) {
         {c.window_months} {c.window_months === 1 ? "mes" : "meses"} cerrados
       </QavanteBadge>
       <span>
-        {c.window_from} → {c.window_to} · calculado {c.as_of}
+        {formatDateLike(c.window_from)} a {formatDateLike(c.window_to)} · actualizado{" "}
+        {formatDateLike(c.as_of)}
       </span>
     </div>
   );

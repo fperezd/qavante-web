@@ -144,23 +144,28 @@ function ResumenCard({
           </p>
           <p className="mt-1 text-lg font-semibold text-neutral-dark">
             {resumen.conciliados} de {resumen.totalEmpleados}{" "}
-            {concordar(resumen.totalEmpleados, "empleado conciliado", "empleados conciliados")}
+            {concordar(
+              resumen.totalEmpleados,
+              "empleado con coincidencia",
+              "empleados con coincidencia",
+            )}
           </p>
           <p className="text-sm tabular-nums text-neutral-mid">
-            Conciliado: <span className="font-medium">{formatClp(resumen.montoConciliado)}</span>
+            Coincidencias por monto:{" "}
+            <span className="font-medium">{formatClp(resumen.montoConciliado)}</span>
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {todosOk ? (
             <QavanteBadge variant="success">
               <CheckCircle2 className="mr-1 inline h-3 w-3" aria-hidden="true" />
-              Todo conciliado
+              Todos con coincidencia
             </QavanteBadge>
           ) : (
             <>
               {resumen.empleadosPendientes > 0 && (
                 <QavanteBadge variant="warning">
-                  {resumen.empleadosPendientes} sin pagar
+                  {resumen.empleadosPendientes} sin coincidencia
                 </QavanteBadge>
               )}
               {resumen.debitosSinAsignar > 0 && (
@@ -190,7 +195,12 @@ function ConciliadosTable({ matched }: { matched: Matched }) {
   const sort = useTableSort(cols, "empleado");
   const rows = React.useMemo(() => sort.sorted(matched), [sort, matched]);
   return (
-    <Section icon={CheckCircle2} title="Conciliados" count={matched.length} tone="success">
+    <Section
+      icon={CheckCircle2}
+      title="Coincidencias para revisar"
+      count={matched.length}
+      tone="success"
+    >
       <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
@@ -231,14 +241,14 @@ function ConciliadosTable({ matched }: { matched: Matched }) {
             >
               <td className="py-2 pr-3 text-neutral-dark">{empleado.nombre}</td>
               <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
-                {empleado.rut ? formatRut(empleado.rut) : "s/d"}
+                {empleado.rut ? formatRut(empleado.rut) : "RUT no informado"}
               </td>
               <td className="py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark">
-                {empleado.liquido !== null ? formatClp(empleado.liquido) : "s/d"}
+                {empleado.liquido !== null ? formatClp(empleado.liquido) : "Importe no disponible"}
               </td>
               <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(movimiento.date)}</td>
               <td className="py-2 truncate text-xs text-neutral-mid">
-                {movimiento.description ?? "s/d"}
+                {movimiento.description ?? "Glosa no informada"}
               </td>
             </tr>
           ))}
@@ -260,7 +270,12 @@ function PendientesTable({ empleados }: { empleados: EmployeePayroll[] }) {
   const sort = useTableSort(cols, "liquido");
   const rows = React.useMemo(() => sort.sorted(empleados), [sort, empleados]);
   return (
-    <Section icon={UserX} title="Empleados sin débito" count={empleados.length} tone="warning">
+    <Section
+      icon={UserX}
+      title="Empleados sin coincidencia"
+      count={empleados.length}
+      tone="warning"
+    >
       <table className="w-full min-w-[420px] text-sm">
         <thead>
           <tr className="border-b border-border-strong text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
@@ -289,10 +304,10 @@ function PendientesTable({ empleados }: { empleados: EmployeePayroll[] }) {
             <tr key={`${e.id}-${i}`} className="border-b border-border/60 last:border-b-0">
               <td className="py-2 pr-3 text-neutral-dark">{e.nombre}</td>
               <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
-                {e.rut ? formatRut(e.rut) : "s/d"}
+                {e.rut ? formatRut(e.rut) : "RUT no informado"}
               </td>
               <td className="py-2 text-right tabular-nums text-neutral-dark">
-                {e.liquido !== null ? formatClp(e.liquido) : "s/d"}
+                {e.liquido !== null ? formatClp(e.liquido) : "Importe no disponible"}
               </td>
             </tr>
           ))}
@@ -342,7 +357,9 @@ function DebitosSinAsignarTable({ debitos }: { debitos: BankDebitLike[] }) {
           {rows.map((d, i) => (
             <tr key={`${d.id}-${i}`} className="border-b border-border/60 last:border-b-0">
               <td className="py-2 pr-3 text-neutral-mid">{formatDateLike(d.date)}</td>
-              <td className="py-2 pr-3 text-neutral-dark">{d.description ?? "s/d"}</td>
+              <td className="py-2 pr-3 text-neutral-dark">
+                {d.description ?? "Glosa no informada"}
+              </td>
               <td className="py-2 text-right tabular-nums text-neutral-dark">
                 {formatClp(Math.abs(Number(d.amount) || 0))}
               </td>

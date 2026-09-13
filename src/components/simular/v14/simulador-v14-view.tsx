@@ -142,13 +142,19 @@ function LoadingState() {
     <section className={CARD} role="status" aria-busy="true">
       <p className="font-semibold">Contrastando el supuesto con tu modelo financiero…</p>
       <p className="mt-1 text-[12.5px] text-rediseno-tinta-2">
-        La fuente todavía no publica una ETA para esta evaluación.
+        La fuente todavía no informa un tiempo estimado para esta evaluación.
       </p>
     </section>
   );
 }
 
 function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const visibleMessage =
+    /(?:\/api\/|\b(?:backend|endpoint|schema|scope|tenant|token|trace|stack|contract)\b|\b[a-z][a-z0-9]*_[a-z0-9_]+\b)/i.test(
+      message,
+    )
+      ? "La información necesaria no está disponible para esta evaluación."
+      : normalizeVisibleText(message);
   return (
     <section
       className="rounded-[14px] border border-rediseno-rojo bg-rediseno-rojo-soft p-[18px]"
@@ -159,7 +165,7 @@ function ErrorState({ message, onRetry }: { message: string; onRetry?: () => voi
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rediseno-rojo" aria-hidden />
         <div>
           <h2 className="font-semibold">No pudimos evaluar esta pregunta.</h2>
-          <p className="mt-1 text-[13px] text-rediseno-tinta-2">{normalizeVisibleText(message)}</p>
+          <p className="mt-1 text-[13px] text-rediseno-tinta-2">{visibleMessage}</p>
           {onRetry ? (
             <button type="button" onClick={onRetry} className={`${SECONDARY} mt-3`}>
               <RefreshCw className="h-4 w-4" aria-hidden /> Reintentar
@@ -183,7 +189,7 @@ function Memo({ model, onDismiss }: { model: SimuladorV14Model; onDismiss: () =>
           {model.structurallyComplete
             ? "Evaluación completa"
             : model.state === "abstained"
-              ? "El motor se abstuvo"
+              ? "No fue posible evaluar"
               : "Evaluación parcial"}
         </p>
         <span className="rounded-full bg-rediseno-neutro-bg px-3 py-1 text-[11.5px] font-semibold text-rediseno-neutro-text">
@@ -236,20 +242,23 @@ function Memo({ model, onDismiss }: { model: SimuladorV14Model; onDismiss: () =>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <Evidence title="Supuestos usados" items={model.assumptions} empty="Supuestos sin dato" />
-        <Evidence title="Evidencia del motor" items={model.evidence} empty="Evidencia sin dato" />
+        <Evidence
+          title="Antecedentes de la evaluación"
+          items={model.evidence}
+          empty="Antecedentes sin dato"
+        />
       </div>
       {model.sources.length > 0 ? <Sources model={model} /> : null}
       {model.limitations.length > 0 ? (
         <Evidence title="Qué limita esta respuesta" items={model.limitations} empty="" />
       ) : null}
       <p className="mt-3 text-[11.5px] text-rediseno-tinta-3">
-        Contrato de contexto {model.contextContractVersion} ·{" "}
-        {normalizeVisibleText(model.scopeLabel)}
+        Contexto evaluado · {normalizeVisibleText(model.scopeLabel)}
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2 border-t border-rediseno-hairline pt-4">
         <button type="button" disabled className={`${SECONDARY} cursor-not-allowed opacity-55`}>
-          Guardar en memoria · pendiente en esta pantalla
+          Guardar en memoria · aún no disponible
         </button>
         <Link href="/financiamiento" className={SECONDARY}>
           Ver alternativa
@@ -260,8 +269,8 @@ function Memo({ model, onDismiss }: { model: SimuladorV14Model; onDismiss: () =>
       </div>
       <p className="mt-2 text-[11.5px] text-rediseno-tinta-3">
         {model.saveAdvertisedByApi
-          ? "La API publica un guardado idempotente separado; esta preparación no lo ejecuta."
-          : "El guardado sigue separado de evaluar y no está conectado en esta pantalla."}
+          ? "El guardado está disponible por separado; esta pantalla no lo ejecuta."
+          : "El guardado sigue separado de evaluar y aún no está disponible en esta pantalla."}
       </p>
       {model.saveReasons.length > 0 ? (
         <p className="mt-1 text-[11.5px] text-rediseno-tinta-3">

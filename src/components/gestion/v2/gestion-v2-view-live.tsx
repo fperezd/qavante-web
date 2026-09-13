@@ -340,10 +340,9 @@ function DatosIncompletos({ mes }: { mes: OperationalResultResponse }) {
           El resultado requiere revisión
         </p>
         <p className="mt-2 text-[13px] text-neutral-dark">
-          El resultado del mes iguala o supera a tus ingresos, lo que daría un margen imposible
-          (100% o más). Suele pasar cuando un gasto se revierte o llega mal clasificado ese mes, así
-          que el resultado queda inflado. Es un problema de datos del backend, ya escalado · no lo
-          mostramos como si fuera real.
+          El resultado del mes iguala o supera a tus ingresos y necesita revisión. Revisa el detalle
+          de ingresos, costos y gastos del período antes de usar esta cifra; no la mostramos como un
+          resultado confirmado.
         </p>
         <dl className="mt-3 flex flex-col text-[12.5px]">
           <div className="flex items-baseline justify-between gap-3 py-1">

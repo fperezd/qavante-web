@@ -72,13 +72,18 @@ describe("classifyDtePreviewError", () => {
     );
   });
 
-  it("dte_not_found de un folio realmente inexistente (sin señal de sesión) → backend crudo", () => {
+  it("un motivo no reconocido conserva el fallo sin exponer el diagnóstico", () => {
     const body = JSON.stringify({
       detail: { code: "dte_not_found", message: "el folio 999 no existe en el rango consultado" },
     });
     const out = classifyDtePreviewError(404, "application/json", body);
     expect(out.kind).toBe("backend");
-    if (out.kind === "backend") expect(out.description).toMatch(/no existe en el rango/);
+    if (out.kind === "backend") {
+      expect(out.description).toBe(
+        "El SII informó un problema al preparar este documento. Intenta nuevamente.",
+      );
+      expect(out.description).not.toMatch(/folio 999|rango consultado/);
+    }
   });
 
   it("sin cuerpo ni pistas → genérico", () => {

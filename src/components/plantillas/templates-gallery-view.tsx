@@ -260,8 +260,7 @@ export function TemplatesGalleryView() {
     <div className="space-y-3">
       <p className="text-sm text-neutral-mid">
         Elige una plantilla y ve qué cuentas y vistas de gestión sugiere Qavante para tu rubro. La
-        vista previa no aplica nada, vas a poder confirmar antes (§14.1: nunca borramos ni pisamos
-        datos).
+        vista previa no modifica tu configuración: revisa lo que se agregará antes de confirmar.
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {templates.map((t) => (

@@ -1,4 +1,5 @@
 import type { BankMovement, MovementResolutionDetailResponse } from "@/lib/api/treasury";
+import { financialEventLabel } from "@/lib/formatters/financial-event";
 import { formatClpBare, formatMoney } from "@/lib/formatters/clp";
 import { formatPct } from "@/lib/formatters/pct";
 import type { EstadoClasificacionV03, EstadoConciliacionV03 } from "./banco-v03-model";
@@ -85,7 +86,7 @@ export function resolutionDetailFromMovement(
     },
     classification: {
       status: estadoClasificacionDe(movement),
-      canonicalType: canonicalLabel,
+      canonicalType: financialEventLabel(canonicalLabel),
       allocations: [],
       source: movement.classified_by ?? null,
       confidence:
@@ -123,7 +124,11 @@ export function resolutionDetailFromApi(
   ).map((item, index) => ({
     id: `${item.node_kind}:${item.node_id}:${index}`,
     kind: item.node_kind === "bank_movement" ? "bank_movement" : "document",
-    label: item.source_label ?? `${item.node_kind} ${item.node_id}`,
+    label:
+      item.source_label ??
+      (item.node_kind === "bank_movement"
+        ? "Movimiento bancario relacionado"
+        : "Documento relacionado"),
     amountFormatted: displayMoney(item.signed_amount, item.currency_code),
     origin: item.source_path ? { label: "Ir al origen", href: item.source_path } : null,
   }));
@@ -131,8 +136,7 @@ export function resolutionDetailFromApi(
     (item) => ({
       id: item.id,
       kind: "document",
-      label:
-        item.document_ref ?? item.counterparty_name ?? `${item.document_kind} ${item.document_id}`,
+      label: item.document_ref ?? item.counterparty_name ?? "Documento relacionado",
       amountFormatted: displayMoney(item.amount_applied, item.currency_code),
       origin: item.source_path ? { label: "Ir al origen", href: item.source_path } : null,
     }),
@@ -163,22 +167,25 @@ export function resolutionDetailFromApi(
         detail.reconciliation.remaining_amount,
         detail.movement.currency_code,
       ),
-      evidence: (detail.reconciliation.evidence ?? current?.evidence ?? []).map(
-        (item) => `${item.code}: ${item.result}`,
+      evidence: (detail.reconciliation.evidence ?? current?.evidence ?? []).map((item) =>
+        /^(true|pass|passed|matched|ok|success)$/i.test(item.result)
+          ? "Coincidencia verificada"
+          : "Antecedente revisado sin coincidencia confirmada",
       ),
       source: current?.engine_version ?? publishedComponents[0]?.source ?? null,
       confidence: current?.score ? formatPct(Number(current.score) * 100) : null,
       history: detail.reconciliation.history.map((item) => ({
         id: item.id,
-        label: `${item.decision} · ${item.status}`,
+        label: historyLabel(item.decision, item.status),
         occurredAt: item.confirmed_at ?? item.reverted_at ?? item.created_at,
         actor: item.created_by,
       })),
     },
     classification: {
       status: detail.classification.status === "classified" ? "clasificado" : "por_clasificar",
-      canonicalType:
+      canonicalType: financialEventLabel(
         detail.classification.financial_event_type ?? detail.classification.canonical_category,
+      ),
       allocations: detail.classification.allocations.map((item, index) => ({
         id: item.id ?? `${item.management_account_id}:${index}`,
         kind: "classification",
@@ -186,15 +193,15 @@ export function resolutionDetailFromApi(
           item.management_account_name ??
           item.management_account_code ??
           item.label ??
-          item.management_account_id,
+          "Cuenta de gestión no identificada",
         amountFormatted: formatMoney(
           Number(item.amount),
           item.currency_code ?? detail.movement.currency_code,
         ),
         percentage: item.percentage ? formatPct(Number(item.percentage)) : null,
         dimensions: item.dimensions.map((dimension) => ({
-          name: dimension.dimension_name ?? dimension.dimension_id ?? "Dimensión",
-          value: dimension.value_name ?? dimension.dimension_value_id ?? "Sin valor",
+          name: dimension.dimension_name ?? "Dimensión",
+          value: dimension.value_name ?? "Valor no identificado",
         })),
       })),
       source: detail.classification.source,
@@ -205,7 +212,7 @@ export function resolutionDetailFromApi(
       classifiedAt: detail.classification.classified_at,
       history: detail.classification.history.map((item) => ({
         id: item.id,
-        label: item.action,
+        label: historyLabel(item.action),
         occurredAt: item.created_at,
         actor: item.actor_user_id,
       })),
@@ -215,6 +222,25 @@ export function resolutionDetailFromApi(
 
 function displayMoney(amount: string, currency?: string | null): string {
   const value = Number(amount);
-  if (!Number.isFinite(value)) return "s/d";
+  if (!Number.isFinite(value)) return "Sin información";
   return currency ? formatMoney(value, currency) : `${formatClpBare(value)} · moneda desconocida`;
+}
+
+function historyLabel(action: string, status?: string | null): string {
+  const labels: Record<string, string> = {
+    classify: "Clasificación registrada",
+    classified: "Clasificación registrada",
+    reconcile: "Conciliación registrada",
+    reconciled: "Conciliación registrada",
+    confirm: "Confirmación registrada",
+    confirmed: "Confirmación registrada",
+    revert: "Reversión registrada",
+    reverted: "Reversión registrada",
+  };
+  const actionLabel = labels[action.toLowerCase()] ?? "Cambio registrado";
+  if (!status) return actionLabel;
+  const statusLabel = labels[status.toLowerCase()];
+  return statusLabel && statusLabel !== actionLabel
+    ? `${actionLabel} · ${statusLabel}`
+    : actionLabel;
 }

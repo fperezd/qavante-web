@@ -65,8 +65,8 @@ function errorMessage(error: unknown): string {
       return "Falta contexto verificable para esta fecha. La evaluación se cerró sin inventar un resultado.";
     }
     if (error.status === 422)
-      return `El supuesto contradice el contrato financiero · ${error.message}`;
-    return error.message;
+      return "El supuesto no es compatible con la información financiera disponible.";
+    return "La evaluación no respondió. Vuelve a intentar en un momento.";
   }
   return "La evaluación no respondió. No mostramos un memo parcial como si estuviera completo.";
 }

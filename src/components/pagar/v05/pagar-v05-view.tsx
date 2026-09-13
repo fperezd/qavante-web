@@ -97,6 +97,7 @@ export function PagarV05View({
   issueSucesor,
   hoy = new Date(),
 }: PagarV05ViewProps) {
+  void issueSucesor;
   const [periodo, setPeriodo] = React.useState<PeriodoV05>(14);
   const [filtro, setFiltro] = React.useState<FiltroV05>("todos");
   const [consulta, setConsulta] = React.useState("");
@@ -258,7 +259,7 @@ export function PagarV05View({
           <KpiCard
             label="Por pagar"
             period={`${periodo} días`}
-            sinDato={{ reason: "El backend no publicó este tramo." }}
+            sinDato={{ reason: "La fuente no informó este tramo." }}
             detail={<SelectorPeriodo periodo={periodo} onChange={setPeriodo} />}
           />
         )}
@@ -378,13 +379,10 @@ export function PagarV05View({
           <b className="font-semibold text-rediseno-tinta-2">
             No existe un botón “pagar todo”, y postergar no es una acción aquí:
           </b>{" "}
-          mover plata siempre lleva firma humana. {LEY_9_TEXTO} Esta vista enlaza cada pago a su
-          detalle en vez de duplicar la decisión de postergar que vive en Caja/Hoy. El “posible
-          duplicado” llega como una señal read-only del registro, correlacionada por UUID y
-          calculada sobre el devengado completo; esta pantalla no lo reconstruye desde texto, RUT,
-          monto ni fecha; la pill “Servicio” de la spec no se produce: el contrato no distingue un
-          servicio recurrente de una factura cualquiera
-          {issueSucesor ? ` (${issueSucesor})` : ""}.
+          mover plata siempre lleva firma humana. {LEY_9_TEXTO} Cada fila abre el respaldo del pago.
+          Una alerta de posible duplicado indica que debes revisar ambos registros antes de pagar;
+          no elimina ni modifica obligaciones. La fuente todavía no distingue servicios recurrentes
+          de otras facturas.
         </p>
       </section>
     </div>

@@ -28,7 +28,7 @@ function iso(d: Date): string {
  * ignora y el SII devuelve otro documento del rango, que es peor que fallar.
  *
  * Los DTE se piden por RANGO (el endpoint los ubica por folio adentro) y la BHE por PERIODO.
- * Sin fecha de emision no hay ni rango ni periodo: devuelve `null` y `DteActions` pinta "s/d"
+ * Sin fecha de emision no hay ni rango ni periodo: devuelve `null` y `DteActions` pinta "Sin información"
  * en vez de un boton que no puede funcionar.
  */
 export function pdfUrlDeDoc(

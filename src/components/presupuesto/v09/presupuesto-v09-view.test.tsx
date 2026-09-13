@@ -171,12 +171,12 @@ describe("PresupuestoV09View — tabla de desvíos", () => {
 describe("PresupuestoV09View — huecos declarados (issue #74)", () => {
   it("declara en pantalla que el link a documentos y la proyección de cierre faltan", () => {
     const t = texto(html());
-    expect(t).toMatch(/link de cada desvío a los documentos/i);
-    expect(t).toMatch(/cómo vas a\s*cerrar el año/i);
+    expect(t).toMatch(/detalle documental de cada desvío/i);
+    expect(t).toMatch(/proyección de cierre del año/i);
   });
 
-  it("incluye el issue sucesor cuando se lo pasan", () => {
-    expect(texto(html({ issueSucesor: "#101" }))).toContain("#101");
+  it("no muestra el issue sucesor aunque se lo pasen", () => {
+    expect(texto(html({ issueSucesor: "#101" }))).not.toContain("#101");
   });
 
   it("no ofrece NINGÚN link ni botón cuyo texto sea 'ver documentos' (el drill-down no existe)", () => {
@@ -198,16 +198,18 @@ describe("PresupuestoV09View — 'no sé' explícito (Ley 3)", () => {
   it("dato incompleto: declara qué fuente falta, no lo esconde", () => {
     const t = texto(html({ bva: budgetVsActualIncompleto() }));
     expect(t).toMatch(/dato parcial/i);
-    expect(t).toContain("sii_rcv");
+    expect(t).toMatch(/1 fuente sin consultar/i);
+    expect(t).not.toContain("sii_rcv");
   });
 
   it("[control positivo] con dato completo, el banner de 'dato parcial' NO aparece", () => {
     expect(texto(html())).not.toMatch(/dato parcial/i);
   });
 
-  it("error: dice la causa y ofrece reintentar", () => {
+  it("error: no refleja la causa técnica y ofrece reintentar", () => {
     const t = texto(html({ bva: undefined, error: "el motor de planificación no respondió" }));
-    expect(t).toContain("el motor de planificación no respondió");
+    expect(t).toMatch(/no pudimos consultar el presupuesto/i);
+    expect(t).not.toContain("motor de planificación");
   });
 
   it("[mutante nulo de control] los cuatro estados (normal/sin_presupuesto/incompleto/error) producen HTML distinto", () => {

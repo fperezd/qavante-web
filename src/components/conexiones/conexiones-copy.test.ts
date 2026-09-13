@@ -125,15 +125,16 @@ describe("sourceToConnectionCopy · los seis SourceState del contrato", () => {
     expect(copy.requiresOwnerAction).toBe(false);
   });
 
-  it("un estado fuera del contrato cae en 'no se sabe', no en una acción inventada", () => {
+  it("un estado fuera del contrato cae en estado no disponible, no en una acción inventada", () => {
     // Simula que la API agrega un SourceState nuevo: la UI no debe inventar qué hacer.
     const copy = sourceToConnectionCopy(
       src({ state: "quarantined" as unknown as SourceStatus["state"], reason: "lo que sea" }),
     );
     expect(copy.tone).toBe("unknown");
-    expect(copy.statusLabel).toBe("No se sabe");
+    expect(copy.statusLabel).toBe("Estado no disponible");
     expect(copy.requiresOwnerAction).toBe(false);
     expect(copy.cta).toBeNull();
+    expect(copy.message).toMatch(/no podemos confirmar si esta fuente está actualizada/i);
   });
 });
 
@@ -192,6 +193,18 @@ describe("sourceToConnectionCopy · clasificación de `error` por señal estruct
       que: "BiceAuthError",
       reason: "BiceAuthError: no se pudo iniciar sesión",
       cta: "Renovar credencial",
+    },
+    {
+      que: "BiceAuthError por estrategia local no acusa a la credencial",
+      reason:
+        "BiceAuthError: Sesión BICE no disponible y BICE_LOGIN_STRATEGY=local_only; login deshabilitado",
+      cta: "Revisar conexión",
+    },
+    {
+      que: "session_expired originado en configuración local no acusa a la credencial",
+      reason:
+        "upstream: session_expired: Sesión BICE sin storage_state; BICE_LOGIN_STRATEGY=local_only",
+      cta: "Revisar conexión",
     },
     {
       que: "F29SessionExpiredError",
@@ -339,11 +352,11 @@ describe("sourceToConnectionCopy · clasificación de `error` por señal estruct
     expect(copy.message).toMatch(/no tienes que cambiar ninguna clave/i);
   });
 
-  it("el fallo genérico dice que no sabemos por qué, no inventa la causa", () => {
+  it("el fallo genérico deriva la revisión a soporte sin inventar la causa", () => {
     const copy = sourceToConnectionCopy(
       src({ state: "error", reason: "Último check falló (failure_count=3)" }),
     );
-    expect(copy.message).toMatch(/no sabemos por qué/i);
+    expect(copy.message).toMatch(/requiere revisión de soporte/i);
   });
 });
 

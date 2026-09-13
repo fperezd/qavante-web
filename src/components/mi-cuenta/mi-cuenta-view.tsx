@@ -51,7 +51,7 @@ export interface MiCuentaContentProps {
    renderizarlo sin mock de react-query. El logout vive en su propio
    componente (`LogoutButton`) porque sí necesita el hook. */
 export function MiCuentaContent({ user }: MiCuentaContentProps) {
-  const roleLabel = ROLE_LABELS[user.role as UserRole] ?? user.role;
+  const roleLabel = ROLE_LABELS[user.role as UserRole] ?? "Rol no disponible";
 
   const rows: ReadonlyArray<{ Icon: LucideIcon; label: string; value: React.ReactNode }> = [
     { Icon: User2, label: "Nombre", value: user.name?.trim() || "Sin nombre configurado" },
@@ -59,13 +59,7 @@ export function MiCuentaContent({ user }: MiCuentaContentProps) {
     {
       Icon: Building2,
       label: "Empresa",
-      /* Preferimos el nombre de empresa (tenant_name, expuesto por el backend
-         2026-06-22); fallback al UUID si no viene. */
-      value: user.tenant_name?.trim() ? (
-        user.tenant_name
-      ) : (
-        <span className="font-mono text-xs break-all">{user.tenant_id}</span>
-      ),
+      value: user.tenant_name?.trim() || "Nombre de empresa no disponible",
     },
     { Icon: Clock, label: "Último ingreso", value: formatLastLogin(user.last_login_at) },
   ];

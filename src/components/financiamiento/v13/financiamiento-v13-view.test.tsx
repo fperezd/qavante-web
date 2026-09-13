@@ -47,14 +47,14 @@ describe("FinanciamientoV13View", () => {
     expect(rendered).toContain("La opción de no financiar");
   });
 
-  it("publica estados, motivos y razones de cada alternativa sin reducir el contrato", () => {
+  it("publica estados, motivos y razones de cada alternativa", () => {
     const rendered = renderToStaticMarkup(
       <FinanciamientoV13View
         model={financingV13Model(overviewParcialV13, evaluationAbstenidaV13)}
       />,
     );
 
-    expect(rendered).toContain("Evaluación del motor · No evaluable");
+    expect(rendered).toContain("Estado de la evaluación · No evaluable");
     expect(rendered).toContain("Falta deuda verificada para esta entidad legal y moneda.");
     expect(rendered).toContain("Falta una oferta verificada para comparar esta alternativa.");
     expect(rendered).toContain(
@@ -81,7 +81,7 @@ describe("FinanciamientoV13View", () => {
     expect(rendered).toContain("Elegibilidad · No elegible");
   });
 
-  it("mantiene visible un código de motivo desconocido", () => {
+  it("neutraliza un código de motivo desconocido", () => {
     const alternative = evaluationV13.working_capital.alternatives[0]!;
     const rendered = evaluationHtml({
       ...evaluationV13,
@@ -91,19 +91,18 @@ describe("FinanciamientoV13View", () => {
       },
     });
 
-    expect(rendered).toContain(
-      "La fuente informó una limitación que todavía no está normalizada · código reviewer_unknown_code_237",
-    );
+    expect(rendered).toContain("La fuente informó una limitación todavía no identificada.");
+    expect(rendered).not.toContain("reviewer_unknown_code_237");
   });
 
-  it("muestra combinaciones y tradeoffs exactamente como los entregó el backend", () => {
+  it("muestra combinaciones y cambios con sus cifras intactas", () => {
     const rendered = html(overviewCompletoV13);
 
     expect(rendered).toContain("Combinaciones verificadas");
     expect(rendered).toContain("Capital de trabajo + Refinanciamiento");
     expect(rendered).toContain("$5.000.000");
-    expect(rendered).toContain("1 combinación excluida por el motor");
-    expect(rendered).toContain("Resultado limitado por el backend a 1 combinación");
+    expect(rendered).toContain("1 combinación excluida en esta evaluación");
+    expect(rendered).toContain("Resultado limitado a 1 combinación");
     expect(rendered).toContain("Antes y después del refinanciamiento");
     expect(rendered).toContain("$116.924");
     expect(rendered).toContain("−$150.000");
@@ -129,7 +128,7 @@ describe("FinanciamientoV13View", () => {
     expect(rendered).toContain("$7.654.321");
   });
 
-  it("publica la regla y política que respaldan cada combinación", () => {
+  it("no expone las referencias internas que respaldan cada combinación", () => {
     const combination = evaluationV13.combinations.combinations![0]!;
     const rendered = evaluationHtml({
       ...evaluationV13,
@@ -145,8 +144,9 @@ describe("FinanciamientoV13View", () => {
       },
     });
 
-    expect(rendered).toContain("Regla · regla_review_237");
-    expect(rendered).toContain("Política · policy:review:237");
+    expect(rendered).toContain("Criterios de evaluación verificados");
+    expect(rendered).not.toContain("regla_review_237");
+    expect(rendered).not.toContain("policy:review:237");
   });
 
   it("muestra los objetos current y proposed completos del trade-off", () => {

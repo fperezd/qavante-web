@@ -26,7 +26,7 @@ describe("ActivityLogView — Mientras no estabas (Ley 5, #65)", () => {
     );
     expect(html).toContain(ACTIVIDAD.resumen);
     expect(html).toMatch(/<button[^>]*>Deshacer<\/button>/);
-    expect(html).toMatch(/href="\/inicio\/actividad#actividad-accion-1"[^>]*>Ver<\/a>/);
+    expect(html).toMatch(/href="\/inicio\/actividad#actividad-accion-1"[^>]*>Ver acción<\/a>/);
   });
 
   it("no ofrece un Deshacer mudo si el backend dice que el estado ya no permite revertir", () => {
@@ -42,7 +42,7 @@ describe("ActivityLogView — Mientras no estabas (Ley 5, #65)", () => {
     );
     // Gemelo positivo con la MISMA regex vive en el test anterior.
     expect(html).not.toMatch(/<button[^>]*>Deshacer<\/button>/);
-    expect(html).toContain("Deshacer no disponible ahora");
+    expect(html).toContain("Deshacer no disponible");
   });
 
   it("distingue vacío y falla sin inventar una acción", () => {

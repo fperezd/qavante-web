@@ -280,10 +280,10 @@ describe("interpretarErrorConciliar", () => {
     expect(interpretarErrorConciliar(new ApiError("x", 404)).yaNoEnRevision).toBe(true);
   });
 
-  it("otro ApiError (500) con detalle real lo surfacea, y NO refresca", () => {
+  it("otro ApiError (500) no expone el detalle interno y NO refresca", () => {
     const r = interpretarErrorConciliar(new ApiError("El documento ya estaba pagado", 500));
     expect(r.yaNoEnRevision).toBe(false);
-    expect(r.mensaje).toBe("El documento ya estaba pagado"); // apiErrorToUserMessage surfacea el detalle
+    expect(r.mensaje).toBe("No pudimos cargar la información. Intenta nuevamente.");
   });
 
   it("error no-Api (red caída, throw plano) cae a un mensaje seguro", () => {

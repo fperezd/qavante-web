@@ -355,12 +355,6 @@ export function DocumentResolutionDrawer({ target, onClose }: DocumentResolution
                             <p className="mt-1 truncate text-neutral-mid">
                               {item.description ?? "Sin glosa"}
                             </p>
-                            {item.topology && (
-                              <p className="mt-1 text-[11px] text-neutral-mid">
-                                Relación {item.topology}
-                                {item.case_id ? ` · caso ${item.case_id}` : ""}
-                              </p>
-                            )}
                             {(item.allocations?.length ?? 0) > 0 && (
                               <div className="mt-2 rounded-md bg-surface-muted p-2">
                                 <p className="text-[11px] font-semibold text-neutral-dark">

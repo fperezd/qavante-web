@@ -598,7 +598,7 @@ export function BancoV03View({
 function fechaCorta(iso: string): string {
   /* Import local para no arrastrar el formateador a los props: la fecha corta de la spec. */
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (!m) return "s/d";
+  if (!m) return "Sin información";
   const meses = [
     "ene",
     "feb",
@@ -613,7 +613,7 @@ function fechaCorta(iso: string): string {
     "nov",
     "dic",
   ];
-  return `${Number(m[3])} ${meses[Number(m[2]) - 1] ?? "s/d"}`;
+  return `${Number(m[3])} ${meses[Number(m[2]) - 1] ?? "Sin información"}`;
 }
 
 /** El apellido de "Caja hoy" + el cuadre con el banco, con su ⓘ (spec §1.4). */

@@ -47,7 +47,7 @@ export type SinDatoMotivo =
 
 export type SinDatoProps = SinDatoMotivo & {
   /**
-   * `inline` (default) → "sin dato". `compact` → "s/d", para celdas de tabla
+   * `inline` (default) → "sin dato". `compact` → "Sin información", para celdas de tabla
    * donde la columna es angosta y el texto largo rompería la grilla.
    */
   variant?: "inline" | "compact";
@@ -90,7 +90,7 @@ export function SinDato({
   return (
     <span className={cn("relative inline-flex items-baseline gap-1", className)}>
       <span className="font-rediseno-sans text-rediseno-tinta-3-light italic">
-        {variant === "compact" ? "s/d" : "sin dato"}
+        {variant === "compact" ? "Sin información" : "sin dato"}
       </span>
       <button
         ref={triggerRef}

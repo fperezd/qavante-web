@@ -41,7 +41,7 @@ export function FinanciamientoV13Live() {
       <DataState
         status="error"
         what="el corte de tu empresa"
-        cause="El resumen financiero no respondió. Sin ese corte no elegimos una fecha local ni un scope plausible."
+        cause="No pudimos confirmar la fecha de la información financiera para esta consulta."
         action={{ label: "Reintentar", onClick: () => void summary.refetch() }}
       />
     );
@@ -52,7 +52,7 @@ export function FinanciamientoV13Live() {
       <DataState
         status="error"
         what="la entidad y moneda de esta lectura"
-        cause="El servidor no pudo resolver un único scope financiero verificable. No usamos el tenant ni CLP como reemplazo."
+        cause="No pudimos confirmar la empresa y moneda para consultar el financiamiento."
         action={{ label: "Reintentar", onClick: () => void financialScope.refetch() }}
       />
     );
@@ -63,7 +63,7 @@ export function FinanciamientoV13Live() {
       <DataState
         status="error"
         what="tu financiamiento"
-        cause="El read model de deuda no respondió. No mostramos saldos ni capacidad hasta recuperar su evidencia."
+        cause="La lectura de deuda no respondió. No mostramos saldos ni capacidad hasta recuperar su respaldo."
         action={{ label: "Reintentar", onClick: () => void overview.refetch() }}
       />
     );

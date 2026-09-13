@@ -229,12 +229,13 @@ describe("ImpuestosV06View — Ley 9: footer fijo literal (issue #73)", () => {
 describe("ImpuestosV06View — huecos declarados (issue #73)", () => {
   it("declara en pantalla sólo la conciliación bancaria faltante", () => {
     const t = texto(html());
-    expect(t).toMatch(/conciliado con el cargo\s*bancario/i);
+    expect(t).toMatch(/pago son estados distintos/i);
+    expect(t).toMatch(/movimiento bancario específico/i);
     expect(t).not.toMatch(/necesita contrastarse contra un F-29 real/i);
   });
 
-  it("incluye el issue sucesor cuando se lo pasan", () => {
-    expect(texto(html({ issueSucesor: "#999" }))).toContain("#999");
+  it("no muestra el issue sucesor aunque se lo pasen", () => {
+    expect(texto(html({ issueSucesor: "#999" }))).not.toContain("#999");
   });
 });
 

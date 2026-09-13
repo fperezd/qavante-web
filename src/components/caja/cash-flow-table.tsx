@@ -5,7 +5,12 @@ import { AlertTriangle } from "lucide-react";
 import { QavanteCard, QavanteBadge } from "@/components/qavante";
 import { formatClp } from "@/lib/formatters/clp";
 import type { CashFlowBucket, CashFlowReportResponse } from "@/lib/api/treasury-reports";
-import { formatPeriodLabel, formatBucketLabel, parseDecimal, normalizeNet } from "./cash-flow-format";
+import {
+  formatPeriodLabel,
+  formatBucketLabel,
+  parseDecimal,
+  normalizeNet,
+} from "./cash-flow-format";
 
 export { formatPeriodLabel } from "./cash-flow-format";
 
@@ -160,8 +165,8 @@ export function CashFlowTable({ data }: CashFlowTableProps) {
         )}
 
         <p className="text-xs text-neutral-mid">
-          Reporte agregado del backend sobre los financial impacts ya clasificados. Caja mínima,
-          alertas de brecha y acciones recomendadas vienen en Fase 2.
+          Resumen de movimientos ya clasificados. Esta vista no calcula una caja mínima ni propone
+          acciones sobre eventuales brechas.
         </p>
       </div>
     </QavanteCard>

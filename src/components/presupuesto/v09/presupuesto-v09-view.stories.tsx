@@ -128,7 +128,8 @@ export const Normal: Story = {
     await expect(canvas.getByText("Gastos operacionales")).toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
     // Huecos declarados, visibles en pantalla.
-    expect(texto(canvasElement)).toContain("issue sucesor #101");
+    expect(texto(canvasElement)).toContain("El detalle documental de cada desvío");
+    expect(texto(canvasElement)).not.toContain("issue sucesor");
   },
 };
 
@@ -149,7 +150,8 @@ export const DatoIncompleto: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(/Dato parcial/i)).toBeInTheDocument();
-    expect(texto(canvasElement)).toContain("sii_rcv");
+    expect(texto(canvasElement)).toContain("Revisa el detalle de conexiones");
+    expect(texto(canvasElement)).not.toContain("sii_rcv");
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };
@@ -169,9 +171,8 @@ export const ErrorDeConexion: Story = {
   args: { bva: undefined, error: "No pudimos conectar con Planificación (error de red)." },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText("No pudimos conectar con Planificación (error de red).", { exact: false }),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/No pudimos consultar el presupuesto/)).toBeInTheDocument();
+    expect(texto(canvasElement)).not.toContain("error de red");
     await expect(canvas.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
   },

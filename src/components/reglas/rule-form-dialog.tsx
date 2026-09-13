@@ -268,7 +268,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
 
             <div className="space-y-1">
               <label htmlFor="rule-category" className="text-sm font-medium text-neutral-dark">
-                Categoría canónica <span className="text-neutral-mid">(opcional)</span>
+                Tipo de movimiento <span className="text-neutral-mid">(opcional)</span>
               </label>
               <Controller
                 control={control}
@@ -329,7 +329,7 @@ export function RuleFormDialog({ open, onOpenChange, rule, suggestion }: RuleFor
                   )}
                 />
                 <p id="rule-priority-hint" className="text-xs text-neutral-mid">
-                  Menor = corre antes (§17.6).
+                  Las reglas con un número menor se aplican primero.
                 </p>
                 {errors.priority && (
                   <p id="rule-priority-error" className="text-xs text-danger-500" role="alert">

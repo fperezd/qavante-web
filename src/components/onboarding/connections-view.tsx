@@ -156,8 +156,7 @@ export function ConnectionsView() {
         {!isUnknown && pendingCount > 0 && (
           <p className="flex items-start gap-2 text-sm text-neutral-mid">
             <Clock className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-            Mientras una fuente no esté conectada, Qavante no muestra sus datos. No los inventamos
-            ni los damos por cero.
+            Mientras una fuente no esté conectada, sus datos no estarán disponibles en Qavante.
           </p>
         )}
 

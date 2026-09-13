@@ -96,21 +96,22 @@ describe("MUTANTE (a) · el Resultado del mes es el número de V01", () => {
     expect(t).toContain("Es el mismo número que muestra el Inicio");
   });
 
-  it("con los dos motores de acuerdo la pantalla NO tiene ningún rojo (§5.3)", () => {
+  it("con las dos fuentes de acuerdo la pantalla NO tiene ningún rojo (§5.3)", () => {
     const h = html();
     expect(rojos(h)).toBe(0);
-    expect(texto(h)).not.toContain("Dos motores publican un resultado distinto");
+    expect(texto(h)).not.toContain("Dos fuentes publican un resultado distinto");
   });
 
-  it("cuando divergen, se muestran LOS DOS números con su endpoint y hay UN solo rojo", () => {
+  it("cuando divergen, se muestran LOS DOS números sin referencias técnicas y hay UN solo rojo", () => {
     const h = html({ summary: summaryDivergente() });
     const t = texto(h);
-    expect(t).toContain("Dos motores publican un resultado distinto para jul 2026");
+    expect(t).toContain("Dos fuentes publican un resultado distinto para jul 2026");
     expect(t).toContain("$16.779.000"); // lo que publica el Inicio
     expect(t).toContain("$16.779.336"); // lo que suma este cuadro
     expect(t).toContain("una diferencia de $336");
-    expect(t).toContain("/api/dashboard/summary");
-    expect(t).toContain("/api/management/operational-result/breakdown");
+    expect(t).toContain("El resumen de Inicio muestra");
+    expect(t).toContain("el desglose de Gestión suma");
+    expect(t).not.toContain("/api/");
     expect(rojos(h)).toBe(1);
   });
 
@@ -425,16 +426,16 @@ describe("MUTANTE (c) · 360 — el umbral de concentración", () => {
     expect(t).toContain("las notas de crédito restan");
   });
 
-  it("sin maestro, la pantalla dice que está ciega y no vacía", () => {
+  it("sin maestro, la pantalla declara el error y no inventa un vacío", () => {
     const t = texto(html({ tab: "clientes", docs360: null }));
     expect(t).toContain("No pudimos consultar tus ventas de los últimos 12 meses");
-    expect(t).toContain("esta pantalla no está vacía, está ciega");
+    expect(t).toContain("No podemos confirmar si existen tus ventas de los últimos 12 meses");
   });
 
-  it("con maestro vacío el cero es REAL y se dice así", () => {
+  it("con maestro vacío declara que no hay registros sin certificar un cero financiero", () => {
     const t = texto(html({ tab: "clientes", docs360: [] }));
     expect(t).toContain("No hay ventas en los últimos 12 meses");
-    expect(t).toContain("Este cero es real");
+    expect(t).not.toContain("Este cero es real");
   });
 });
 

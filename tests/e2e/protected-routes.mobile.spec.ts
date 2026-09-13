@@ -30,7 +30,7 @@ test.describe("Mobile (Pixel 5) — rutas protegidas /app/*", () => {
     await loginAs(context, "owner");
     await page.goto("/inicio");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Inicio Ejecutivo" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Inicio" })).toBeVisible();
 
     const overflows = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth,

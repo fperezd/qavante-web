@@ -34,7 +34,7 @@ export default function PresupuestoPage() {
       <QavanteEmpty
         icon={PiggyBank}
         title="Presupuesto"
-        description="Muy pronto vas a ver acá cómo vas contra tu plan del año, un presupuesto que Qavante te propone desde tu historial, y avisos antes de que te pases."
+        description="El presupuesto todavía no está disponible para esta empresa."
       />
     );
   }

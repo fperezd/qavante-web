@@ -94,12 +94,19 @@ const APROBAR_MFA: FallaConocida = {
 
 const FALLA_DESCONOCIDA: FallaConocida = {
   message:
-    "El último intento de leer esta fuente falló y no sabemos por qué. Revisa la conexión; el detalle técnico está en esta misma fila.",
+    "El último intento de actualizar esta fuente falló. El motivo requiere revisión de soporte.",
   cta: "Revisar conexión",
 };
 
 const UPSTREAM_CODE_RE = /^upstream:\s*([a-z0-9_]+)\s*:/i;
 const EXCEPCION_RE = /^([A-Za-z0-9_]*Error)\s*:/;
+
+/**
+ * `BiceAuthError` también envuelve fallas de despliegue y ausencia de una sesión que el
+ * servidor decidió no iniciar. Esas señales no acreditan que la clave del usuario sea mala.
+ */
+const BICE_SESSION_OR_CONFIG_RE =
+  /(?:BICE_LOGIN_STRATEGY|local_only|storage_state|login deshabilitado|patchright|BICE_PROXY_|BICE_BROWSER_CDP_URL|strategy=)/i;
 
 /** Códigos que el backend mismo mapea a `connection_status = 'credential_invalid'`:
  *  `_SII_AUTH_CODES` (api/sii.py) y el `is_auth` de `api/bice.py`, `api/buk.py` y `api/tgr.py`. */
@@ -151,6 +158,10 @@ function clasificarError(reason: string | null | undefined): FallaConocida {
   const raw = (reason ?? "").trim();
   if (!raw) return FALLA_DESCONOCIDA;
 
+  if (/BICE/i.test(raw) && BICE_SESSION_OR_CONFIG_RE.test(raw)) {
+    return FALLA_DESCONOCIDA;
+  }
+
   const upstream = UPSTREAM_CODE_RE.exec(raw);
   if (upstream) {
     const code = upstream[1]!.toLowerCase();
@@ -174,13 +185,19 @@ function clasificarError(reason: string | null | undefined): FallaConocida {
   return FALLA_DESCONOCIDA;
 }
 
+/** Traduce un error puntual de un conector sin exponer el mensaje libre del proveedor. */
+export function connectionFailureMessage(reason: string | null | undefined): string {
+  return clasificarError(reason).message;
+}
+
 /** Bucket explícito de "no se sabe": sólo se alcanza si la API agrega un `SourceState` nuevo.
  *  El parámetro `never` hace que ese día el build falle acá en vez de mentir en pantalla. */
 function estadoDesconocido(state: never): ConnectionCopy {
+  void state;
   return {
     tone: "unknown",
-    statusLabel: "No se sabe",
-    message: `Recibimos un estado que no reconocemos ("${String(state)}"). No podemos decirte si esta fuente está al día ni qué hacer.`,
+    statusLabel: "Estado no disponible",
+    message: "No podemos confirmar si esta fuente está actualizada.",
     cta: null,
     href: null,
     requiresOwnerAction: false,

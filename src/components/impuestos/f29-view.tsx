@@ -18,6 +18,7 @@ import { siiF29PdfUrl, useSiiF29, useSiiHealth, type F29Response } from "@/lib/a
 import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { f29FormSchema, parseFolio, type F29FormValues } from "./f29-form-schema";
+import { f29ResponseMessage } from "./f29-response-copy";
 
 /* Vista del consultor F29 — Sprint C1, ruta `/pagar/impuestos/f29`. Patrón
    "página = contenedor": el screen resuelve el flag `siiQueries`
@@ -67,13 +68,17 @@ function formatPeriod(p: F29Response["period"]): string {
 }
 
 function MontoRow({ label, amount }: { label: string; amount: number | null | undefined }) {
-  /* §15.7 / §17.4 — si el backend no completó el parseo, mostramos "s/d",
+  /* §15.7 / §17.4 — si el backend no completó el parseo, mostramos "Sin información",
      no "$ 0" (que sería falsa precisión). */
   return (
     <div className="flex items-baseline justify-between border-b border-border/60 py-1.5">
       <dt className="text-sm text-neutral-mid">{label}</dt>
       <dd className="text-sm font-medium tabular-nums text-neutral-dark">
-        {amount == null ? <span className="text-neutral-mid">s/d</span> : formatClp(amount)}
+        {amount == null ? (
+          <span className="text-neutral-mid">Sin información</span>
+        ) : (
+          formatClp(amount)
+        )}
       </dd>
     </div>
   );
@@ -124,17 +129,14 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
       <QavanteEmpty
         icon={Search}
         title="Sin declaración para este folio"
-        description={
-          data.message ??
-          "El folio no corresponde a una declaración del período consultado. Verifica el número y reintenta."
-        }
+        description={f29ResponseMessage("not_found")}
       />
     );
   }
 
   /* `status === "error"`: el SII respondió 200 pero con error de negocio (no
      es ok ni not_found). Sin esta rama caía a la tarjeta de éxito con los
-     montos en "s/d", sin explicar nada. */
+     montos en "Sin información", sin explicar nada. */
   if (data.status === "error") {
     return (
       <div
@@ -144,10 +146,7 @@ function F29Result({ data, folio }: { data: F29Response; folio: number }) {
         <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
         <div>
           <p className="font-medium">No pudimos consultar el F29</p>
-          <p className="mt-1 text-neutral-mid">
-            {data.message ??
-              "El SII devolvió un error para este folio. Intenta nuevamente más tarde."}
-          </p>
+          <p className="mt-1 text-neutral-mid">{f29ResponseMessage("error")}</p>
         </div>
       </div>
     );

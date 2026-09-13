@@ -705,8 +705,8 @@ export function SaludView({ model, className }: SaludViewProps) {
       </QavanteCard>
 
       <p className="text-center text-[11px] leading-relaxed text-neutral-mid">
-        <b className="text-neutral-mid">Prototipo UX</b> · datos ficticios · spec
-        pulso-y-health-score-spec-v1 / ADR-0064 · medimos caja, no contabilidad
+        Lectura orientativa de caja · no reemplaza la contabilidad ni acredita datos reales cuando
+        una fuente no está conectada
       </p>
     </div>
   );

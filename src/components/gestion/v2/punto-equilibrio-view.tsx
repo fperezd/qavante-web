@@ -56,7 +56,8 @@ export function PuntoEquilibrioView({ initialPeriod }: { initialPeriod: string }
             Tomamos lo que gastaste el <b>último mes cerrado ({formatPeriodLabel(pe.mes)})</b>, que
             está completo; el mes en curso no se usa porque puede estar a medio clasificar. Lo que
             gastaste pero aún no clasificaste igual cuenta (aparece como “Compras sin clasificar”,
-            clic para ver qué hay dentro). El IVA no cuenta (es un pasa-manos).
+            clic para ver qué hay dentro). El IVA no cuenta porque se recauda y luego se entrega al
+            fisco.
           </p>
         </>
       )}

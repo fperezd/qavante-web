@@ -97,11 +97,39 @@ describe("simuladorV14Model", () => {
     expect(JSON.stringify(cash)).not.toContain("$0");
   });
 
-  it("preserva las referencias baseline y del supuesto como evidencia separada", () => {
+  it("traduce las referencias de respaldo sin exponer sus identificadores", () => {
     expect(simuladorV14Model(simulationReadyV14).evidence).toEqual([
-      "projection:baseline-2026-09-09",
-      "user_assumption:suggestion.consultor",
+      "Proyección base utilizada",
+      "Supuesto confirmado por el usuario",
     ]);
+  });
+
+  it("neutraliza códigos y narrativas técnicas desconocidas", () => {
+    const model = simuladorV14Model({
+      ...simulationReadyV14,
+      interpretation: "falló /api/treasury/simulations/evaluate",
+      memo: {
+        ...simulationReadyV14.memo,
+        verdict: "unknown_backend_state",
+        condition: "scope tenant mismatch",
+        limitations: ["trace_id_not_available"],
+        evidence_refs: ["new-source:internal-123"],
+      },
+    });
+
+    expect(model.verdict).toBe(
+      "No fue posible resumir la evaluación con la información disponible.",
+    );
+    expect(model.interpretation).toBe(
+      "La evaluación tiene información que todavía no puede presentarse en esta pantalla.",
+    );
+    expect(model.condition).toBe("Revisa las fuentes pendientes antes de tomar una decisión.");
+    expect(model.limitations).toEqual([
+      "Existe una limitación adicional que todavía no puede identificarse.",
+    ]);
+    expect(model.evidence).toEqual(["Referencia de respaldo disponible"]);
+    expect(JSON.stringify(model)).not.toContain("unknown_backend_state");
+    expect(JSON.stringify(model)).not.toContain("internal-123");
   });
 
   it("las sugerencias de caja quedan dentro del horizonte y ancladas al corte del servidor", () => {

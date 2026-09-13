@@ -41,7 +41,7 @@ function bridgeAmount(
 ) {
   if (doc.complete !== true) return "incompleto";
   const value = doc[field];
-  return typeof value === "number" ? formatClp(value) : "s/d";
+  return typeof value === "number" ? formatClp(value) : "Sin información";
 }
 
 export function RcvDetalleGrid({
@@ -79,7 +79,9 @@ export function RcvDetalleGrid({
         header: "Folio",
         accessorFn: (d) => d.folio ?? "",
         cell: ({ row }) => (
-          <span className="font-mono text-xs text-neutral-dark">{row.original.folio ?? "s/d"}</span>
+          <span className="font-mono text-xs text-neutral-dark">
+            {row.original.folio ?? "Sin información"}
+          </span>
         ),
       },
       {

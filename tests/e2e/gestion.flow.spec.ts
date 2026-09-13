@@ -26,8 +26,10 @@ test.describe("Flujo: Resultado Operacional v2 (/gestion)", () => {
 
     // Un mes por defecto: vista v2 — respuesta de dueño (result del fixture = $3.900.000) + cascada.
     await expect(page.getByText("El negocio ganó este mes")).toBeVisible();
-    // El resultado ($3.900.000) aparece en el hero Y en la cascada — coinciden (footing correcto).
-    await expect.poll(() => page.getByText("$3.900.000").count()).toBeGreaterThanOrEqual(2);
+    // El resultado final del hero y el de la cascada coinciden (footing correcto).
+    const hero = page.getByText("El negocio ganó este mes", { exact: true }).locator("..");
+    await expect(hero.getByText("$3.900.000", { exact: true })).toBeVisible();
+    await expect(page.getByText("$3.900.000", { exact: true })).toHaveCount(2);
     await expect(page.getByText("Ingresos")).toBeVisible();
     await expect(page.getByText("$18.500.000")).toBeVisible(); // Ingresos, único
     await expect(page.getByText("Qué explica el resultado")).toBeVisible();

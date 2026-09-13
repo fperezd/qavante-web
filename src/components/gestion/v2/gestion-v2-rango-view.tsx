@@ -159,9 +159,8 @@ function RangoIncompleto({ data }: { data: OperationalResultBreakdown }) {
           El resultado del período requiere revisión
         </p>
         <p className="mt-2 text-[13px] text-neutral-dark">
-          El cálculo llega inconsistente (el resultado supera a los ingresos o faltan costos). Es un
-          problema de datos del backend, ya escalado, abajo dejamos la matriz cruda para inspección,
-          sin márgenes inventados.
+          El resultado supera a los ingresos o faltan costos del período. Revisa el desglose que
+          aparece abajo antes de usar estos márgenes.
         </p>
       </section>
       <ResultadoWarnings warnings={data.warnings} />

@@ -49,7 +49,7 @@ function LoadingSkeleton() {
 }
 
 function findCurrencyLabel(currencies: Currency[], code: string | null | undefined): string {
-  if (!code) return "s/d";
+  if (!code) return "Sin información";
   const c = currencies.find((x) => x.code === code);
   return c ? `${c.code} · ${c.name}` : code;
 }
@@ -214,7 +214,7 @@ export function CurrencySettingsView() {
               <dt className="text-neutral-mid">Monedas de reporte adicionales</dt>
               <dd className="flex flex-wrap gap-1 pt-1">
                 {reportingCodes.length === 0 ? (
-                  <span className="text-neutral-mid">s/d</span>
+                  <span className="text-neutral-mid">Sin información</span>
                 ) : (
                   reportingCodes.map((code: string) => (
                     <QavanteBadge key={code} variant="info">
@@ -231,7 +231,7 @@ export function CurrencySettingsView() {
             <div>
               <dt className="text-neutral-mid">Fuente de tipo de cambio</dt>
               <dd className="font-medium text-neutral-dark">
-                {settings.default_exchange_rate_source ?? "s/d"}
+                {settings.default_exchange_rate_source ?? "Sin información"}
               </dd>
             </div>
             <div>

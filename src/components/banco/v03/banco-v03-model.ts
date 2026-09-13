@@ -35,6 +35,10 @@ import { parseAmountOrNull } from "@/lib/formatters/amount";
 import { formatMoney } from "@/lib/formatters/clp";
 import { formatDateShort, formatRelative } from "@/lib/formatters/date";
 import { csv, csvCell } from "@/lib/export/csv";
+import {
+  connectionFailureMessage,
+  sourceToConnectionCopy,
+} from "@/components/conexiones/conexiones-copy";
 
 /* ── Conexión ────────────────────────────────────────────────────────────────── */
 
@@ -57,7 +61,7 @@ export interface ConexionBanco {
   tono: "ok" | "warn" | "mut";
   /** ISO de la última sincronización exitosa que se conoce, o `null`. */
   ultimaSync: string | null;
-  /** Motivo declarado por el backend (`reason` / `message`), o `null`. */
+  /** Explicación segura para la persona usuaria, o `null`. Nunca contiene el error crudo. */
   motivo: string | null;
   /** Progreso que el backend pudo comprobar durante este sync, o `null` si no lo publicó. */
   progreso: { startedAt: string; etaSeconds: number | null; step: string | null } | null;
@@ -148,10 +152,10 @@ export function conexionBanco(
   const err = errorDeBice(saldo) ?? (saldo == null ? errorDeBice(tarjetas) : null);
 
   let estado: EstadoConexion;
-  let motivo: string | null = fuente?.reason ?? null;
+  let motivo: string | null = fuente ? sourceToConnectionCopy(fuente).message : null;
   if (err) {
     estado = "accion_requerida";
-    motivo = err.message ?? motivo;
+    motivo = connectionFailureMessage(err.message);
   } else if (!fuente) {
     /* bice respondió cuentas pero el agregado no conoce la fuente: sabemos que responde, no
        sabemos su estado declarado. Con cuentas y sin error → conectada por evidencia directa. */
@@ -628,7 +632,8 @@ export function movimientosV03(input: MovimientosInput): MovimientoV03[] {
     const cuenta = input.cuentas.get(m.bank_account_id);
     /* Moneda: la del movimiento o su cuenta. Si ambas faltan se declara desconocida; nunca se
        inventa CLP, y el drawer bloquea la escritura hasta corregir el dato de origen. */
-    const moneda = (m.currency_code || cuenta?.currency_code || "s/d").toUpperCase();
+    const moneda =
+      (m.currency_code || cuenta?.currency_code)?.toUpperCase() || "Moneda no informada";
     const cat = m.canonical_category?.trim() || null;
     out.push({
       id: m.id,

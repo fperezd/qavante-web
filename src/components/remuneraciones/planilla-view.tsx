@@ -405,20 +405,20 @@ function DetalleEmpleados({
               >
                 <td className="py-2 pr-3 text-neutral-dark">{e.nombre}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-neutral-mid">
-                  {e.rut ? formatRut(e.rut) : "s/d"}
+                  {e.rut ? formatRut(e.rut) : "Sin información"}
                 </td>
                 {conHaberes && (
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-                    {e.haberes !== null ? formatClp(e.haberes) : "s/d"}
+                    {e.haberes !== null ? formatClp(e.haberes) : "Sin información"}
                   </td>
                 )}
                 {conCosto && (
                   <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
-                    {e.costoEmpresa !== null ? formatClp(e.costoEmpresa) : "s/d"}
+                    {e.costoEmpresa !== null ? formatClp(e.costoEmpresa) : "Sin información"}
                   </td>
                 )}
                 <td className="py-2 text-right tabular-nums font-medium text-neutral-dark">
-                  {e.liquido !== null ? formatClp(e.liquido) : "s/d"}
+                  {e.liquido !== null ? formatClp(e.liquido) : "Sin información"}
                 </td>
               </tr>
             ))}

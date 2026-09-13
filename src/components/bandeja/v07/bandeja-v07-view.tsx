@@ -336,7 +336,7 @@ function BandejaV07Contenido({
   if (pendientes === 0 && conciliar !== null && clasificar !== null) {
     return (
       <div className="space-y-4 font-rediseno-sans">
-        <p className={EYEBROW}>Bandeja · lo que el piloto separó para ti</p>
+        <p className={EYEBROW}>Bandeja · decisiones que requieren tu revisión</p>
         <h1 className="font-sans text-[26px] leading-tight font-semibold text-rediseno-tinta">
           Nada espera tu decisión
         </h1>
@@ -364,7 +364,7 @@ function BandejaV07Contenido({
 
   return (
     <div className="space-y-4 font-rediseno-sans">
-      <p className={EYEBROW}>Bandeja · lo que el piloto separó para ti</p>
+      <p className={EYEBROW}>Bandeja · decisiones que requieren tu revisión</p>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="font-sans text-[26px] leading-tight font-semibold text-rediseno-tinta">
@@ -685,7 +685,7 @@ function CartaConciliar({
       className="rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie p-[18px]"
     >
       <p className={EYEBROW}>
-        Conciliar {indice + 1} de {total} · el piloto no lo resolvió solo: {motivos.join(" y ")}
+        Conciliar {indice + 1} de {total} · requiere revisión: {motivos.join(" y ")}
       </p>
 
       <h2 className="mt-2 font-sans text-[19px] leading-snug font-semibold break-words text-rediseno-tinta">
@@ -714,9 +714,8 @@ function CartaConciliar({
       ) : (
         !cargando && (
           <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">
-            <span className={EYEBROW}>Evidencia</span> ninguna verificación pasó entre estos dos
-            lados, así que no mostramos ningún chip: los chips son verificaciones reales, no
-            adornos.
+            <span className={EYEBROW}>Evidencia</span> no encontramos coincidencias suficientes
+            entre el movimiento y este documento.
           </p>
         )
       )}
@@ -1044,10 +1043,7 @@ function BitacoraAutoClasificar({
         /* "no sé" explícito: el backend no dio un motivo reconocido. No se inventa uno. */
         show({
           message: (
-            <>
-              No pudimos deshacer esto: el backend no dio un motivo que reconozcamos. No se tocó
-              nada.
-            </>
+            <>No pudimos deshacer esta acción ni confirmar el motivo. No se registraron cambios.</>
           ),
           action: { label: "Reintentar", onClick: () => void deshacer(accion) },
         });
@@ -1498,8 +1494,8 @@ function CartaClasificar({
               className="w-full rounded-xl border border-rediseno-hairline px-3 py-2 text-[13px] focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
             />
             <p className="text-[12px] text-rediseno-tinta-3">
-              Las vistas de gestión (dimensiones) todavía no se asignan desde acá: el contrato las
-              crea en una llamada aparte, después de clasificar. Se asignan en{" "}
+              Las vistas de gestión todavía no se asignan desde esta pantalla. Puedes completarlas
+              después de clasificar, en{" "}
               <Link href={`/caja/por-clasificar?movimiento=${item.id}`} className={LINK}>
                 Movimientos por clasificar
               </Link>
@@ -1571,9 +1567,8 @@ function CartaClasificar({
         )}
 
         <p className="mt-3 text-[12px] text-rediseno-tinta-3">
-          Al guardar no vas a ver un “Deshacer” acá: esto lo decidiste tú, no Qavante solo · la Ley
-          5 cubre lo automático. Lo que Qavante clasificó por su cuenta sí tiene Deshacer, en el
-          banner de arriba de esta carta.
+          Al guardar no vas a ver “Deshacer”: esta clasificación corresponde a una decisión manual.
+          Las acciones automáticas se identifican por separado cuando admiten reversión.
         </p>
       </section>
 
@@ -1691,14 +1686,12 @@ function OfertaRegla({
 /* ── Huecos declarados ───────────────────────────────────────────────────────────────────── */
 
 function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
+  void issueSucesor;
   return (
     <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-      Lo que esta bandeja todavía NO hace, dicho acá y no escondido: deshacer la clasificación que
-      TÚ decidiste al apretar Guardar o al clasificar un lote (la Ley 5 cubre lo automático, no eso
-      · lo que Qavante clasificó solo sí tiene Deshacer, arriba de esta carta). El progreso cuenta
-      lo resuelto en <b>esta sesión</b> y no “hoy”, porque no hay bitácora consultable que lo
-      respalde.
-      {issueSucesor ? ` Sucesor: ${issueSucesor}.` : ""}
+      Las clasificaciones manuales y por lote no se pueden deshacer desde esta bandeja. Revisa la
+      selección antes de guardar. Las acciones automáticas muestran Deshacer cuando sigue
+      disponible. El progreso corresponde a <b>esta sesión</b>.
     </p>
   );
 }

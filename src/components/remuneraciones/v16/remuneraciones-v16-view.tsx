@@ -295,8 +295,7 @@ function InfoPopover() {
             Fuente
           </span>{" "}
           <span className="font-rediseno-mono text-[11px]">
-            GET /api/buk/payroll/detail (costo por persona) · GET /api/management/operational-result
-            (ingresos)
+            Planilla de remuneraciones y resultado operacional del período.
           </span>
         </p>
       </div>
@@ -357,7 +356,8 @@ function TablaPersonas({
         accessorFn: (p) => p.liquido ?? -1,
         header: `Líquido ${periodoLabel}`,
         meta: { align: "right" },
-        cell: ({ row }) => (row.original.liquido != null ? formatClp(row.original.liquido) : "s/d"),
+        cell: ({ row }) =>
+          row.original.liquido != null ? formatClp(row.original.liquido) : "Importe no disponible",
       },
       {
         id: "liquidacion",

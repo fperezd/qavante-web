@@ -25,6 +25,7 @@ import {
 } from "@/lib/api/management";
 import { useSourcesStatus } from "@/lib/api/sources-status";
 import { ApiError } from "@/lib/api/errors";
+import { unknownErrorToUserMessage } from "@/lib/api/error-messages";
 import { toast } from "sonner";
 import { BancoV03View } from "./banco-v03-view";
 import { resolutionDetailFromApi } from "./bank-resolution-detail-model";
@@ -243,7 +244,7 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
             else toast.error("No se revirtió ningún vínculo; el movimiento se volvió a cargar");
             refreshResolution();
           },
-          onError: (error) => toast.error(error.message),
+          onError: (error) => toast.error(unknownErrorToUserMessage(error)),
         })
       }
       onUnclassify={(movementId) =>
@@ -265,7 +266,7 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
               toast[feedback.kind](feedback.message);
               refreshResolution();
             },
-            onError: (error) => toast.error(error.message),
+            onError: (error) => toast.error(unknownErrorToUserMessage(error)),
           },
         )
       }
@@ -295,7 +296,11 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
                   toast.success("Clasificación guardada");
                   refreshResolution();
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "No se pudo clasificar");
+                  toast.error(
+                    error instanceof ApiError
+                      ? unknownErrorToUserMessage(error)
+                      : "No se pudo guardar la clasificación. Intenta nuevamente.",
+                  );
                   throw error;
                 }
               },

@@ -138,10 +138,10 @@ const REASON_LABELS: Record<string, string> = {
   legacy_debt_scope_not_reproducible:
     "La deuda histórica no tiene una entidad legal y moneda reproducibles.",
   legal_entity_not_found_in_tenant: "La entidad legal no pertenece a la empresa seleccionada.",
-  "missing_debt_term:rate_type": "El contrato no informa el tipo de tasa.",
-  "missing_debt_term:repayment_schedule": "El contrato no informa un calendario de cuotas.",
+  "missing_debt_term:rate_type": "La fuente no informa el tipo de tasa.",
+  "missing_debt_term:repayment_schedule": "La fuente no informa un calendario de cuotas.",
   refinancing_context_schema_version_mismatch:
-    "La evidencia usa una versión de contrato distinta a la de financiamiento.",
+    "La evidencia disponible no es compatible con esta evaluación de financiamiento.",
   refinancing_lineage_mismatch: "La evidencia de deuda no conserva una trazabilidad verificable.",
   refinancing_source_freshness_not_verified:
     "La vigencia de la fuente de deuda no está verificada.",
@@ -155,7 +155,7 @@ const REASON_LABELS: Record<string, string> = {
   no_cash_gap: "El corte no muestra una brecha de caja que justifique financiarse.",
   structural_need_does_not_authorize_debt:
     "La necesidad parece estructural y no autoriza recomendar deuda por sí sola.",
-  max_combinations_reached: "El motor alcanzó el máximo de combinaciones permitido.",
+  max_combinations_reached: "La evaluación alcanzó el máximo de combinaciones permitido.",
 };
 
 export function financingV13Model(
@@ -336,10 +336,7 @@ function labelInstrument(value: string | null | undefined): string {
 }
 
 function reasonLabel(code: string): string {
-  return (
-    REASON_LABELS[code] ??
-    `La fuente informó una limitación que todavía no está normalizada · código ${code}`
-  );
+  return REASON_LABELS[code] ?? "La fuente informó una limitación todavía no identificada.";
 }
 
 function eligibilityStateLabel(state: FinancingAlternativeContract["eligibility_state"]): string {

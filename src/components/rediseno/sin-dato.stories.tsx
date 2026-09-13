@@ -20,7 +20,7 @@ export const Default: Story = {
   },
 };
 
-/** En celda de tabla el texto largo rompe la grilla: "s/d" y el ⓘ al lado. */
+/** En celda de tabla el texto largo rompe la grilla: "Sin información" y el ⓘ al lado. */
 export const Compacto: Story = {
   args: {
     variant: "compact",

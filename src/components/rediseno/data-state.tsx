@@ -1,6 +1,6 @@
 import * as React from "react";
 import Link from "next/link";
-import { Inbox, PlugZap } from "lucide-react";
+import { Inbox, LoaderCircle, PlugZap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { estaVacio, type ContenidoVisible } from "./contenido-visible";
 
@@ -54,11 +54,25 @@ export type DataStateProps = DataStateBaseProps &
   (
     | { status: "ready"; children: React.ReactNode; cause?: never; action?: never; hint?: never }
     | {
+        status: "loading";
+        children?: never;
+        cause?: never;
+        hint?: ContenidoVisible;
+        action?: never;
+      }
+    | {
         status: "empty";
         children?: never;
         cause?: never;
         /** Qué podría explicar el vacío o qué hacer con él. Opcional. */
         hint?: ContenidoVisible;
+        action?: DataStateAction;
+      }
+    | {
+        status: "stale" | "partial";
+        children?: never;
+        cause?: never;
+        hint: ContenidoVisible;
         action?: DataStateAction;
       }
     | {
@@ -81,21 +95,36 @@ export function DataState(props: DataStateProps) {
   if (props.status === "ready") return <>{props.children}</>;
 
   const esError = props.status === "error";
-  const Icon = esError ? PlugZap : Inbox;
+  const cargando = props.status === "loading";
+  const advertencia = props.status === "stale" || props.status === "partial";
+  const Icon = esError || advertencia ? PlugZap : cargando ? LoaderCircle : Inbox;
+  const title = esError
+    ? `No pudimos consultar ${props.what}`
+    : cargando
+      ? `Consultando ${props.what}`
+      : props.status === "stale"
+        ? `La información de ${props.what} está desactualizada`
+        : props.status === "partial"
+          ? `La información de ${props.what} está incompleta`
+          : `No hay ${props.what}`;
 
   return (
     <div
       role="status"
       className={cn(
         "flex flex-col items-center justify-center gap-2 rounded-xl bg-rediseno-superficie px-6 py-10 text-center",
-        esError
+        esError || advertencia
           ? "border border-rediseno-hairline border-l-[3px] border-l-rediseno-ambar-border"
           : "border border-dashed border-rediseno-hairline",
         props.className,
       )}
     >
       <Icon
-        className={cn("size-7", esError ? "text-rediseno-ambar" : "text-rediseno-tinta-3-light")}
+        className={cn(
+          "size-7",
+          cargando && "animate-spin",
+          esError || advertencia ? "text-rediseno-ambar" : "text-rediseno-tinta-3-light",
+        )}
         aria-hidden
       />
       <h3
@@ -104,33 +133,31 @@ export function DataState(props: DataStateProps) {
           props.headingClassName,
         )}
       >
-        {esError ? `No pudimos consultar ${props.what}` : `No hay ${props.what}`}
+        {title}
       </h3>
       <p className="max-w-[26rem] text-[13px] leading-relaxed text-rediseno-tinta-2">
-        {esError ? (
-          /* El tipo obliga a pasar `cause`, pero no puede prohibir la cadena
+        {esError
+          ? /* El tipo obliga a pasar `cause`, pero no puede prohibir la cadena
              vacía. Si llega vacía lo decimos: quedarse mudo acá sería repetir
              exactamente el bug que este componente vino a arreglar. */
-          estaVacio(props.cause) ? (
-            "La fuente falló sin decirnos por qué. Vuelve a intentar; si sigue igual, revisa tus conexiones."
-          ) : (
-            props.cause
-          )
-        ) : (
-          <>
-            Consultamos la fuente y no había nada que mostrar. Este cero es real, no un dato que nos
-            falte.
-          </>
-        )}
+            estaVacio(props.cause)
+            ? "No recibimos información suficiente sobre el problema. Intenta nuevamente; si continúa, revisa tus conexiones."
+            : props.cause
+          : cargando
+            ? estaVacio(props.hint)
+              ? "Espera un momento mientras obtenemos la información."
+              : props.hint
+            : advertencia
+              ? props.hint
+              : "No encontramos registros para la consulta realizada. Esto no confirma que el importe sea cero."}
       </p>
       {/* Solo el error dice "no sabemos": el vacío ya afirmó que sí sabe. */}
       {esError && (
         <p className="max-w-[26rem] text-[12.5px] leading-relaxed text-rediseno-tinta-3">
-          Mientras tanto no sabemos si hay {props.what} o no: esta pantalla no está vacía, está
-          ciega.
+          No podemos confirmar si existen {props.what} hasta que la consulta funcione.
         </p>
       )}
-      {!esError && !estaVacio(props.hint) && (
+      {!esError && !cargando && !advertencia && !estaVacio(props.hint) && (
         <p className="max-w-[26rem] text-[12.5px] leading-relaxed text-rediseno-tinta-3">
           {props.hint}
         </p>

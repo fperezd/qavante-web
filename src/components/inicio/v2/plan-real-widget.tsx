@@ -92,7 +92,9 @@ export function PlanRealWidget({
                     f.favorable ? "text-success-700" : "text-danger-500",
                   )}
                 >
-                  {f.variacionPct != null ? formatPct(f.variacionPct, { signed: true }) : "s/d"}
+                  {f.variacionPct != null
+                    ? formatPct(f.variacionPct, { signed: true })
+                    : "Sin información"}
                 </td>
               </tr>
             );

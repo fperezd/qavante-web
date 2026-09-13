@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { CircleDot } from "lucide-react";
 import type { RevertActionResponse } from "@/lib/api/reversible-actions";
 import { formatDateTimeLike } from "@/lib/formatters/date";
 import type { ActividadAutomatica } from "./activity-log-model";
@@ -23,9 +23,7 @@ function mensajeDeshacer(result: RevertActionResponse): string {
   if (result.result === "already_reverted") return "Esta acción ya estaba deshecha.";
   if (result.result === "undo_expired") return "El plazo para deshacer esta acción venció.";
   if (result.result === "undo_not_supported") {
-    return typeof result.detail?.explicacion === "string"
-      ? result.detail.explicacion
-      : "No pudimos confirmar que esta acción aún se pueda deshacer.";
+    return "No pudimos confirmar que esta acción aún se pueda deshacer.";
   }
   return "No pudimos confirmar el resultado de Deshacer.";
 }
@@ -89,14 +87,22 @@ export function ActivityLogView({
           id={`${idPrefix}-${activity.actionId}`}
           className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-sm text-neutral-mid"
         >
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-success-700" aria-hidden="true" />
+          <CircleDot className="h-4 w-4 shrink-0 text-neutral-mid" aria-hidden="true" />
           <p className="min-w-0 flex-1">
             <strong className="text-neutral-dark">{activity.resumen}</strong>
-            <span className="ml-1 text-xs">· {formatDateTimeLike(activity.creadaEn)}</span>
+            <span className="ml-1 text-xs">
+              · Registrado el {formatDateTimeLike(activity.creadaEn)}
+            </span>
+            {activity.deshacerDisponible && (
+              <span className="ml-1 text-xs">
+                · Deshacer disponible hasta {formatDateTimeLike(activity.venceEn)}
+              </span>
+            )}
           </p>
           {activity.deshacerDisponible && onUndo && (
             <button
               type="button"
+              aria-label={`Deshacer: ${activity.resumen}`}
               onClick={() => void deshacer(activity.actionId)}
               disabled={pending === activity.actionId}
               className={LINK_BUTTON}
@@ -105,11 +111,11 @@ export function ActivityLogView({
             </button>
           )}
           {!activity.deshacerDisponible && (
-            <span className="shrink-0 text-xs text-neutral-mid">Deshacer no disponible ahora</span>
+            <span className="shrink-0 text-xs text-neutral-mid">Deshacer no disponible</span>
           )}
           {detailLinks && (
             <Link href={`/inicio/actividad#actividad-${activity.actionId}`} className={LINK_BUTTON}>
-              Ver
+              Ver acción
             </Link>
           )}
         </div>

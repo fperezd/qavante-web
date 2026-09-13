@@ -19,6 +19,7 @@ import { useCanonicalCategories } from "@/lib/api/treasury";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { cn } from "@/lib/utils";
+import { foreignPurchaseDisplayMoney } from "./foreign-purchase-money";
 
 /* Compras al extranjero (Caja). Salen de la cartola de tarjeta. Cada una se
    clasifica con concepto + categoría. Montos: USD crudo (string), CLP operativo
@@ -34,6 +35,12 @@ const SELECT_CLASS = cn(
   "flex h-10 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-dark",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
 );
+
+const COUNTRY_NAME: Record<string, string> = {
+  CL: "Chile",
+  US: "Estados Unidos",
+  LU: "Luxemburgo",
+};
 
 export function ForeignPurchasesView() {
   const query = useForeignPurchases();
@@ -122,6 +129,7 @@ function PurchaseRow({
   const [category, setCategory] = React.useState(p.category ?? "");
 
   const canSubmit = concept.trim().length >= 1 && category.trim().length >= 1;
+  const displayMoney = foreignPurchaseDisplayMoney(p);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -133,19 +141,25 @@ function PurchaseRow({
     <li className="space-y-2 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium text-neutral-dark">{p.merchant}</p>
+          <p className="truncate font-medium text-neutral-dark">
+            {p.concept || "Compra por identificar"}
+          </p>
           <p className="text-xs text-neutral-mid">
             {formatDateLike(p.op_date)}
-            {p.country && <> · {p.country}</>}
+            {p.country && <> · {COUNTRY_NAME[p.country] ?? "País no identificado"}</>}
           </p>
+          <details className="mt-1 text-xs text-neutral-mid">
+            <summary className="cursor-pointer">Ver referencia bancaria</summary>
+            <p className="mt-1 break-words">{p.merchant}</p>
+          </details>
         </div>
         <div className="text-right">
           <p className="font-medium tabular-nums text-neutral-dark">
-            {formatMoney(Number(p.amount_usd), "USD")}
+            {formatMoney(displayMoney.amount, displayMoney.currency)}
           </p>
           {p.clp_operative && (
             <p className="text-xs text-neutral-mid tabular-nums">
-              {formatClp(Number(p.clp_operative))}
+              Equivalente registrado: {formatClp(Number(p.clp_operative))} CLP
             </p>
           )}
         </div>
@@ -189,7 +203,6 @@ function PurchaseRow({
       ) : (
         <div className="flex items-center gap-2 text-sm">
           <QavanteBadge variant="success">Clasificada</QavanteBadge>
-          {p.concept && <span className="text-neutral-dark">{p.concept}</span>}
           {p.category && <span className="text-neutral-mid">· {categoryLabel(p.category)}</span>}
         </div>
       )}

@@ -385,7 +385,7 @@ export function haySugerenciaConciliar(item: ItemConciliarV07, cand: CandidatoV0
 /** Por qué el piloto NO lo resolvió solo, leído de los dos lados que la pantalla muestra. Nunca
  *  inventa un motivo del motor: enumera qué verificación falta. */
 export function motivosNoAutomatico(item: ItemConciliarV07, cand: CandidatoV07 | null): string[] {
-  if (!cand) return ["el motor no encontró un documento candidato"];
+  if (!cand) return ["no encontramos un documento candidato"];
   const out: string[] = [];
   const dif = diferenciaMonto(item, cand);
   if (dif == null) out.push("el documento no trae monto comparable");

@@ -178,7 +178,7 @@ export function ClasificadosStats({
                     ? "1 movimiento"
                     : `${stats.topCanonical.count} movimientos`
               }
-              tooltip="Categoría canónica con más movimientos en los filtros actuales."
+              tooltip="Tipo de movimiento más frecuente en los filtros actuales."
               active={topCanonicalActive}
               onClick={
                 onApplyCanonicalCategoryFilter
@@ -222,7 +222,7 @@ export function ClasificadosStats({
 
 function formatLastClassified(iso: string): string {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "s/d";
+  if (Number.isNaN(d.getTime())) return "Sin información";
   return formatDate(d);
 }
 

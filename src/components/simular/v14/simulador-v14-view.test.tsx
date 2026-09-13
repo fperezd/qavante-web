@@ -28,7 +28,7 @@ function html(
 }
 
 describe("SimuladorV14View", () => {
-  it("normaliza todo el copy dinámico del memo sólo en el boundary visual", () => {
+  it("normaliza narrativas y neutraliza referencias dinámicas en el límite visual", () => {
     const dynamic: typeof simulationReadyV14 = {
       ...simulationReadyV14,
       interpretation: "Interpretación — dinámica",
@@ -74,10 +74,11 @@ describe("SimuladorV14View", () => {
     expect(rendered).toContain("Veredicto · dinámico");
     expect(rendered).toContain("Condición · dinámica");
     expect(rendered).toContain("Supuesto · dinámico");
-    expect(rendered).toContain("evidence · dinámica");
+    expect(rendered).toContain("Referencia de respaldo disponible");
     expect(rendered).toContain("Limitación · dinámica");
-    expect(rendered).toContain("source evidence · dinámica");
-    expect(rendered).toContain("source reason · dinámica");
+    expect(rendered).toContain("La fuente informó una limitación todavía no identificada.");
+    expect(rendered).not.toContain("source evidence");
+    expect(rendered).not.toContain("source reason");
     expect(JSON.stringify(dynamic)).toMatch(EM_DASH);
   });
 
@@ -88,15 +89,17 @@ describe("SimuladorV14View", () => {
     expect(rendered).toContain("Actual");
     expect(rendered).toContain("Propuesto");
     expect(rendered).toContain("−$2.500.000");
-    expect(rendered).toContain("projection:baseline-2026-09-09");
-    expect(rendered).toContain("user_assumption:suggestion.consultor");
+    expect(rendered).toContain("Proyección base utilizada");
+    expect(rendered).toContain("Supuesto confirmado por el usuario");
     expect(rendered).toContain("Fuentes del contexto");
     expect(rendered).toContain("Política de caja");
-    expect(rendered).toContain("cash-policy:v1");
-    expect(rendered).toContain("Contrato de contexto v1");
+    expect(rendered).toContain("Política de caja vigente");
+    expect(rendered).toContain("Contexto evaluado · CLP");
+    expect(rendered).not.toContain("cash-policy:v1");
+    expect(rendered).not.toContain("Contrato de contexto");
     expect(rendered).toContain("Simulación · no ejecuta");
-    expect(rendered).toContain("Guardar en memoria · pendiente en esta pantalla");
-    expect(rendered).toContain("La API publica un guardado idempotente separado");
+    expect(rendered).toContain("Guardar en memoria · aún no disponible");
+    expect(rendered).toContain("El guardado está disponible por separado");
   });
 
   it("un ready/current contradictorio con impacto unknown se presenta parcial y ámbar", () => {
@@ -169,11 +172,19 @@ describe("SimuladorV14View", () => {
     expect(rawError.message).toMatch(EM_DASH);
   });
 
+  it("no imprime un diagnóstico técnico recibido como error", () => {
+    const rendered = html(null, { error: "backend /api/simulations trace_id_123" });
+
+    expect(rendered).toContain("La información necesaria no está disponible");
+    expect(rendered).not.toContain("/api/simulations");
+    expect(rendered).not.toContain("trace_id_123");
+  });
+
   it("la carga explica qué ocurre y no promete una ETA inventada", () => {
     const rendered = html(null, { loading: true });
 
     expect(rendered).toContain("Contrastando el supuesto");
-    expect(rendered).toContain("no publica una ETA");
+    expect(rendered).toContain("no informa un tiempo estimado");
     expect(rendered).not.toContain("Todavía no hay un memo");
   });
 
@@ -192,7 +203,7 @@ describe("SimuladorV14View", () => {
     expect(partial).toContain("Evaluación parcial");
     expect(partial).toContain("Frescura sin dato");
     expect(partial).toContain("Sin dato");
-    expect(abstained).toContain("El motor se abstuvo");
+    expect(abstained).toContain("No fue posible evaluar");
     expect(abstained).toContain("No puedo evaluar esta decisión");
   });
 

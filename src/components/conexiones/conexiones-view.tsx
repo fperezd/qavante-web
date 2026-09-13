@@ -136,8 +136,7 @@ export function ConexionesTabla({ sources }: { sources: SourceStatus[] }) {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {/* Sin acción posible no se ofrece un enlace decorativo: el `<details>`
-                        técnico queda igual para quien quiera mirar. */}
+                    {/* Sin acción posible no se ofrece un enlace decorativo. */}
                     {copy.cta && copy.href ? (
                       <Link
                         href={copy.href}
@@ -152,12 +151,6 @@ export function ConexionesTabla({ sources }: { sources: SourceStatus[] }) {
                     ) : (
                       <p className="text-sm text-neutral-mid">Nada que hacer por ahora.</p>
                     )}
-                    <details className="mt-2 text-xs text-neutral-mid">
-                      <summary className="cursor-pointer list-none">Detalle técnico</summary>
-                      <p className="mt-1 rounded-md bg-neutral-light/30 p-2">
-                        {source.reason || "Sin detalle técnico disponible."}
-                      </p>
-                    </details>
                   </td>
                 </tr>
               );

@@ -432,9 +432,9 @@ export function comoSeCalcula(
   if (sync) partes.push(`saldo del banco sincronizado ${formatRelative(sync, hoy)}`);
   return {
     definicion:
-      "Saldo proyectado al cierre de cada día: parte del saldo real del banco de hoy y le suma los cobros esperados y le resta los pagos comprometidos.",
+      "Saldo proyectado al cierre de cada día: parte del saldo bancario disponible informado para hoy, suma los cobros esperados y resta los pagos comprometidos.",
     incluye: [
-      "Saldo bancario real de hoy (todos los movimientos, clasificados o no)",
+      "Saldo bancario disponible informado para hoy (con movimientos clasificados y sin clasificar)",
       "Cobros esperados con fecha, según el comportamiento de pago de cada cliente",
       "Pagos comprometidos: proveedores, obligaciones y F29",
     ],
@@ -447,7 +447,7 @@ export function comoSeCalcula(
         : p
           ? ["La proyección no declara exclusiones para tu empresa"]
           : ["Sin proyección no hay exclusiones que declarar"],
-    fuente: "GET /api/treasury/cash-projection (una sola proyección para toda la app)",
-    frescura: partes.length > 0 ? partes.join(" · ") : "Sin sello de frescura",
+    fuente: "Saldos bancarios, cobros con fecha y pagos comprometidos registrados en Qavante",
+    frescura: partes.length > 0 ? partes.join(" · ") : "Fecha de actualización no disponible",
   };
 }

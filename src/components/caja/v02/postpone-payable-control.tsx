@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import type { PostponeDays } from "@/lib/api/pagos";
+import { unknownErrorToUserMessage } from "@/lib/api/error-messages";
 
 const SEGUNDOS_ARREPENTIMIENTO = 5;
 const DIAS: readonly PostponeDays[] = [7, 15, 30];
@@ -49,7 +50,7 @@ export function PostponePayableControl({
         setSeleccion(null);
       } catch (causa) {
         setSeleccion(null);
-        setError(causa instanceof Error ? causa.message : "No pudimos postergar este pago.");
+        setError(unknownErrorToUserMessage(causa, "Intenta nuevamente."));
       }
     })();
     return undefined;

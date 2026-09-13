@@ -52,7 +52,7 @@ export default async function RemuneracionesPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Remuneraciones</h1>
         <p className="mt-1 text-sm text-neutral-mid">

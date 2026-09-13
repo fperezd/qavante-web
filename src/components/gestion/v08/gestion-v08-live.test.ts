@@ -8,7 +8,7 @@ describe("error del export Excel", () => {
       motivoExportExcel(
         new ApiError("El servidor no entregó un archivo Excel válido.", 200, "invalid_xlsx_magic"),
       ),
-    ).toBe("El servidor no entregó un archivo Excel válido. No se descargó nada.");
+    ).toBe("El archivo recibido no era un Excel válido. No se descargó nada.");
   });
 
   it("un error de red conserva la explicación y la acción existente", () => {

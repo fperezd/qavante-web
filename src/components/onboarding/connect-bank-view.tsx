@@ -188,7 +188,7 @@ export function ConnectBankView() {
               <p>
                 Guardamos tus datos de acceso. La primera sincronización con el banco corre en
                 segundo plano, así que todavía no podemos confirmar la conexión. Hasta que la
-                confirmemos no mostramos tus movimientos ni tu saldo (no los damos por cero).
+                confirmemos, tus movimientos y saldo no estarán disponibles.
               </p>
               <QavanteButton size="sm" variant="ghost" onClick={() => refetch()}>
                 <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -352,8 +352,8 @@ export function ConnectBankView() {
           {!connected && !saved && (
             <p className="text-xs text-neutral-mid">
               ¿Prefieres hacerlo más tarde? Sigue sin problema: hasta que conectes el banco no vamos
-              a mostrar tus movimientos ni tu saldo (no los damos por cero). Puedes conectarlo
-              cuando quieras desde <strong>Tus conexiones</strong>.
+              a mostrar tus movimientos ni tu saldo. Puedes conectarlo cuando quieras desde{" "}
+              <strong>Tus conexiones</strong>.
             </p>
           )}
 

@@ -476,7 +476,7 @@ function Tendencia({
   const peor = puntos.find((p) => p.margenPct === min);
   // "oct 2025" (con año, para no confundir dos octubres de años distintos).
   const mesAno = (p?: TendenciaPunto | null) => {
-    if (!p) return "s/d";
+    if (!p) return "Sin información";
     const y = p.periodoFull?.match(/^(\d{4})-/);
     return `${mesCorto(p.periodoFull ?? p.periodo)}${y ? ` ${y[1]}` : ""}`;
   };
@@ -568,7 +568,7 @@ function Delta({ label, actual, base }: { label: string; actual: number; base?: 
   return (
     <span className={`inline-flex items-center gap-1 text-[11px] ${color}`}>
       <Icon className="h-3 w-3" aria-hidden="true" />
-      {label}: {diff === null ? "s/d" : formatPct(diff, { signed: true })}
+      {label}: {diff === null ? "Sin información" : formatPct(diff, { signed: true })}
     </span>
   );
 }
@@ -593,9 +593,8 @@ function NoConfiable() {
         Este dato requiere revisión
       </p>
       <p className="mt-2 text-[13px] text-neutral-dark">
-        El resultado del mes da un margen imposible (100% o más), típicamente un gasto revertido o
-        mal clasificado infla el número. Es un problema de datos del backend, ya escalado; no lo
-        mostramos como si fuera real. Mira el detalle en <b>Resultado</b>.
+        El resultado del mes iguala o supera a los ingresos y necesita revisión. No lo mostramos
+        como confirmado; revisa ingresos, costos y gastos en <b>Resultado</b>.
       </p>
     </section>
   );

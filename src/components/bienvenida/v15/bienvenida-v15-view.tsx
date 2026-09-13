@@ -228,7 +228,7 @@ function PasoProgreso({
         <DataState
           status="empty"
           what="algo que construir todavía"
-          hint="Conecta al menos una fuente en el paso 1 para que el piloto empiece a leer tus datos."
+          hint="Conecta al menos una fuente en el paso 1 para que Qavante empiece a leer tus datos."
           action={{ label: "Ir al paso 1", href: "#paso-1-titulo" }}
         />
       ) : !run && errorConsulta ? (
@@ -251,7 +251,7 @@ function PasoProgreso({
             Todo listo para iniciar la sincronización
           </h2>
           <p className="text-[12.5px] text-rediseno-tinta-2">
-            Iniciaremos un proceso consultable para mostrar sólo el progreso que el motor publique.
+            Iniciaremos la sincronización y te mostraremos su avance a medida que esté disponible.
           </p>
           {errorInicio && (
             <DataState

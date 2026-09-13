@@ -40,7 +40,7 @@ export const SinUrl: Story = {
   args: { url: null },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("s/d")).toBeVisible();
+    await expect(canvas.getByText("Sin información")).toBeVisible();
     await expect(canvas.queryByRole("button", { name: /Vista previa/ })).toBeNull();
   },
 };

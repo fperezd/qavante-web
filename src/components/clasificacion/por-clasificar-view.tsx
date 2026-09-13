@@ -75,7 +75,7 @@ function LoadingSkeleton() {
 function movementSummary(m: BankMovement, currency?: string) {
   const sign = m.direction === "credit" ? "+" : "−";
   return {
-    date: m.date ? formatDateLike(m.date) : "s/d",
+    date: m.date ? formatDateLike(m.date) : "Sin información",
     description: m.description,
     // §17.1: no mostrar número de cuenta completo.
     bankLabel: `Cuenta ····${m.bank_account_id.slice(-4)}`,
@@ -689,7 +689,7 @@ export function PorClasificarView({
                     aria-label={`Seleccionar ${m.description}`}
                   />
                   <span className="w-24 shrink-0 text-sm text-neutral-mid">
-                    {m.date ? formatDateLike(m.date) : "s/d"}
+                    {m.date ? formatDateLike(m.date) : "Sin información"}
                   </span>
                   <span
                     className="min-w-0 flex-1 truncate text-sm text-neutral-dark"
@@ -751,7 +751,7 @@ export function PorClasificarView({
             {
               status: "done",
               title: "Detectado en tu banco",
-              children: `${selected.date ? formatDateLike(selected.date) : "s/d"} · Cuenta ····${selected.bank_account_id.slice(-4)}`,
+              children: `${selected.date ? formatDateLike(selected.date) : "Sin información"} · Cuenta ····${selected.bank_account_id.slice(-4)}`,
             },
             {
               status: "current",
@@ -839,7 +839,7 @@ export function PorClasificarView({
               </label>
               <label className="block text-sm">
                 <span className="mb-1 block font-medium text-neutral-dark">
-                  Categoría canónica{" "}
+                  Tipo de movimiento{" "}
                   <span className="font-normal text-neutral-mid">(opcional)</span>
                 </span>
                 <select
@@ -847,7 +847,7 @@ export function PorClasificarView({
                   onChange={(e) => setBulkCanonical(e.target.value)}
                   className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-neutral-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                 >
-                  <option value="">Sin categoría canónica</option>
+                  <option value="">Sin tipo de movimiento</option>
                   {canonicalOptions.map((c) => (
                     <option key={c.code} value={c.code}>
                       {c.label}

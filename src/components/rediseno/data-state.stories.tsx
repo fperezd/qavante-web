@@ -83,7 +83,7 @@ export const ErrorNoSeConfundeConVacio: Story = {
   },
 };
 
-/** El vacío afirma el cero; nunca insinúa una falla que no ocurrió. */
+/** El vacío confirma que no hubo registros, sin convertir esa ausencia en un cero financiero. */
 export const VacioAfirmaElCero: Story = {
   args: {
     status: "empty",
@@ -93,7 +93,7 @@ export const VacioAfirmaElCero: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("No hay documentos de venta en agosto")).toBeVisible();
-    await expect(canvas.getByText(/Este cero es real, no un dato que nos falte/)).toBeVisible();
+    await expect(canvas.getByText(/Esto no confirma que el importe sea cero/)).toBeVisible();
     await expect(canvas.getByText(/Cambia el período/)).toBeVisible();
     // No hay lenguaje de falla en el estado vacío.
     await expect(canvas.queryByText(/No pudimos/)).toBeNull();
@@ -111,7 +111,9 @@ export const CausaVaciaNoQuedaMuda: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("No pudimos consultar tus documentos de venta")).toBeVisible();
-    await expect(canvas.getByText(/La fuente falló sin decirnos por qué/)).toBeVisible();
+    await expect(
+      canvas.getByText(/No recibimos información suficiente sobre el problema/),
+    ).toBeVisible();
   },
 };
 

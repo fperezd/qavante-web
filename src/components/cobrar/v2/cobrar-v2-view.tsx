@@ -119,7 +119,7 @@ export function CobrarV2View({
 /* Antigüedad de saldos. Con algún tramo en `null` (qavante-api#123) la barra apilada
    NO se pinta: con los cuatro tramos de mora desconocidos quedaba 100% "Vigente", o sea
    "todo al día" justo cuando no se sabe nada (hallazgo H6). En su lugar va la franja de
-   desconocimiento + el porqué. Los tramos sin dato se rotulan "s/d"; el vigente, que el
+   desconocimiento + el porqué. Los tramos sin dato se rotulan "Sin información"; el vigente, que el
    contrato garantiza no-null, conserva su monto real. */
 function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato?: VencidoSinDato }) {
   return (
@@ -155,7 +155,7 @@ function AgingCard({ aging, sinDato }: { aging: AgingBreakdown; sinDato?: Vencid
                 b.amount == null ? "text-neutral-mid" : "text-neutral-dark",
               )}
             >
-              {b.amount == null ? "s/d" : formatClp(b.amount)}
+              {b.amount == null ? "Sin información" : formatClp(b.amount)}
             </dd>
           </div>
         ))}
@@ -455,13 +455,13 @@ function DeudorDocsPanel({
               >
                 <td className="py-1.5 pr-3 tabular-nums text-neutral-dark">
                   {doc.esNotaCredito ? "NC " : ""}
-                  {doc.folio ?? "s/d"}
+                  {doc.folio ?? "Sin información"}
                 </td>
                 <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
-                  {doc.fechaEmision ? formatDate(doc.fechaEmision) : "s/d"}
+                  {doc.fechaEmision ? formatDate(doc.fechaEmision) : "Sin información"}
                 </td>
                 <td className="py-1.5 pr-3 tabular-nums text-neutral-mid">
-                  {doc.vencimiento ? formatDate(doc.vencimiento) : "s/d"}
+                  {doc.vencimiento ? formatDate(doc.vencimiento) : "Sin información"}
                 </td>
                 <td className="py-1.5 pr-3 tabular-nums">
                   {excluida ? (
@@ -524,7 +524,7 @@ function DeudorDocsPanel({
    los docs sin fecha no tienen vencimiento → guion. */
 function DiasVencimiento({ doc }: { doc: DocMaestro }) {
   if (doc.esNotaCredito || doc.diasParaVencer == null) {
-    return <span className="text-neutral-mid">s/d</span>;
+    return <span className="text-neutral-mid">Sin información</span>;
   }
   const d = doc.diasParaVencer;
   if (d < 0) return <span className="font-medium text-danger-500">Vencida hace {-d} d</span>;

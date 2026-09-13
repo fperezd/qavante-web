@@ -252,7 +252,7 @@ function AssistantBubble({
                 className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
               >
                 <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                {s.label ?? s.url}
+                {s.label?.trim() || "Fuente consultada"}
               </Link>
             </li>
           ))}

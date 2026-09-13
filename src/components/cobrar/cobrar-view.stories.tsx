@@ -162,7 +162,7 @@ export const VencidoSinDato: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByText("Vencido")).toBeInTheDocument());
-    await expect(canvas.getAllByText("s/d").length).toBeGreaterThan(0);
+    await expect(canvas.getAllByText("Sin información").length).toBeGreaterThan(0);
     await expect(
       canvas.getAllByText(/No podemos calcular cuánto está vencido/i).length,
     ).toBeGreaterThan(0);

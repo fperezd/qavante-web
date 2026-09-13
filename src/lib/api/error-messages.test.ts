@@ -3,13 +3,15 @@
    falla; cambios accidentales en el mapeo se notan inmediatamente. */
 
 import { describe, expect, it } from "vitest";
-import { apiErrorToUserMessage } from "./error-messages";
+import { apiErrorToUserMessage, unknownErrorToUserMessage } from "./error-messages";
 import { ApiError } from "./errors";
 
 describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
-  it("network error (status 0) → 'perdiste conexión'", () => {
+  it("network error (status 0) no atribuye la causa a internet del usuario", () => {
     const err = new ApiError("network", 0, "network_error");
-    expect(apiErrorToUserMessage(err)).toBe("Parece que perdiste conexión. Verifica tu internet.");
+    expect(apiErrorToUserMessage(err)).toBe(
+      "No pudimos comunicarnos con Qavante. Intenta nuevamente.",
+    );
   });
 
   it("401 en context login → copy específico 'RUT o clave incorrectos'", () => {
@@ -31,9 +33,9 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
   });
 
-  it("403 con detalle del backend → muestra el detalle (no el genérico)", () => {
+  it("403 con detalle del backend no expone el texto recibido", () => {
     expect(apiErrorToUserMessage(new ApiError("El SII rechazó la consulta.", 403))).toBe(
-      "El SII rechazó la consulta.",
+      "No tienes permisos para realizar esta acción.",
     );
   });
 
@@ -42,7 +44,7 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
       "Credenciales SII inválidas o sin autorización para el RUT de la empresa. Cert .pfx no disponible. Subilo via POST /api/sii/seed-cert (body: {cert_b64, password}) o seteá SII_CERT_PATH en el entorno.";
     const out = apiErrorToUserMessage(new ApiError(raw, 400));
     expect(out).toBe(
-      "El SII no aceptó las credenciales para sincronizar el RUT de tu empresa: no está autorizado o falta un certificado válido del SII. Revisa tu clave y tu certificado del SII en Administración → Credenciales.",
+      "No pudimos actualizar la información del SII. Revisa el estado de la conexión en Administración → Credenciales.",
     );
     expect(out).not.toContain("seed-cert");
     expect(out).not.toContain("SII_CERT_PATH");
@@ -93,9 +95,9 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
   });
 
-  it("5xx con detalle del backend → muestra el detalle (no esconde la causa)", () => {
+  it("5xx con detalle del backend no expone el texto recibido", () => {
     expect(apiErrorToUserMessage(new ApiError("El SII no respondió a tiempo.", 500))).toBe(
-      "El SII no respondió a tiempo.",
+      "No pudimos cargar la información. Intenta nuevamente.",
     );
   });
 
@@ -110,21 +112,34 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     expect(apiErrorToUserMessage(err)).toBe("La fuente no está disponible en este momento.");
   });
 
-  it("code=config_missing con status 0 → mensaje técnico (gana sobre network)", () => {
-    /* config_missing se lanza desde client.ts cuando NEXT_PUBLIC_API_URL
-       no está seteado; comparte status=0 con un network error real pero
-       el copy técnico ayuda al troubleshooting dev (Anexo C.3 fallback). */
+  it("code=config_missing con status 0 no expone la variable interna", () => {
     const err = new ApiError("NEXT_PUBLIC_API_URL no configurada", 0, "config_missing");
-    expect(apiErrorToUserMessage(err)).toBe("NEXT_PUBLIC_API_URL no configurada");
+    expect(apiErrorToUserMessage(err)).toBe("Esta función no está disponible en este momento.");
   });
 
-  it("status 400 desconocido cae al mensaje original como fallback", () => {
+  it("status 400 desconocido cae a un mensaje seguro", () => {
     const err = new ApiError("custom 400 message", 400);
-    expect(apiErrorToUserMessage(err)).toBe("custom 400 message");
+    expect(apiErrorToUserMessage(err)).toBe("Ocurrió un error inesperado. Intenta nuevamente.");
   });
 
   it("status desconocido + sin message → fallback 'inesperado'", () => {
     const err = new ApiError("", 418);
-    expect(apiErrorToUserMessage(err)).toBe("Ocurrió un error inesperado.");
+    expect(apiErrorToUserMessage(err)).toBe("Ocurrió un error inesperado. Intenta nuevamente.");
+  });
+
+  it("nunca refleja stack, UUID, ruta ni código desconocido", () => {
+    const raw =
+      "TypeError: boom at /api/private/tenant/123e4567-e89b-12d3-a456-426614174000 code=UNEXPECTED";
+    const out = apiErrorToUserMessage(new ApiError(raw, 500, "unknown_code"));
+    expect(out).toBe("No pudimos cargar la información. Intenta nuevamente.");
+    expect(out).not.toMatch(/TypeError|\/api\/|123e4567|UNEXPECTED/);
+  });
+
+  it("el boundary de error desconocido nunca refleja un Error técnico", () => {
+    const raw = new Error("TypeError at /api/private trace_id_123");
+    const out = unknownErrorToUserMessage(raw, "No pudimos completar la acción.");
+
+    expect(out).toBe("No pudimos completar la acción.");
+    expect(out).not.toMatch(/TypeError|\/api\/|trace_id/);
   });
 });

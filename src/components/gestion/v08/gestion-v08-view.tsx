@@ -254,7 +254,7 @@ function TabResultado({
           what="tu Estado de Resultados"
           cause={
             motivos?.resultado ??
-            "El motor de gestión no respondió. Vuelve a intentar en un momento; si sigue igual, revisa tus conexiones."
+            "El resultado de gestión no está disponible. Vuelve a intentar en un momento; si sigue igual, revisa tus conexiones."
           }
           action={onReintentar ? { label: "Reintentar", onClick: onReintentar } : undefined}
         />
@@ -297,17 +297,13 @@ function TabResultado({
           )}
         >
           <b>
-            Dos motores publican un resultado distinto para{" "}
+            Dos fuentes publican un resultado distinto para{" "}
             {chequeo.periodo ? formatPeriodLabel(chequeo.periodo) : "el mes"}.
           </b>{" "}
-          El Inicio muestra <b>{formatClp(chequeo.v01 ?? 0)}</b> (
-          <span className="font-rediseno-mono text-[11px]">/api/dashboard/summary</span>) y este
-          cuadro suma <b>{formatClp(chequeo.pivote ?? 0)}</b> (
-          <span className="font-rediseno-mono text-[11px]">
-            /api/management/operational-result/breakdown
-          </span>
-          ) · una diferencia de <b>{formatClp(chequeo.diferencia ?? 0)}</b>. No elegimos uno por ti:
-          hasta que cuadren, trata las dos cifras como estimaciones.
+          El resumen de Inicio muestra <b>{formatClp(chequeo.v01 ?? 0)}</b> y el desglose de Gestión
+          suma <b>{formatClp(chequeo.pivote ?? 0)}</b> · una diferencia de{" "}
+          <b>{formatClp(chequeo.diferencia ?? 0)}</b>. No elegimos uno por ti: hasta que cuadren,
+          trata las dos cifras como estimaciones.
         </div>
       )}
 
@@ -485,7 +481,7 @@ function Pivote({
                       className={cn(TD, MONTO, i !== ultimo && "hidden sm:table-cell")}
                     >
                       {c.monto == null ? (
-                        <span className="text-rediseno-tinta-3-light">s/d</span>
+                        <span className="text-rediseno-tinta-3-light">Sin información</span>
                       ) : (
                         formatClpBare(c.monto)
                       )}
@@ -513,7 +509,7 @@ function Pivote({
                               className={cn(TD, MONTO, i !== ultimo && "hidden sm:table-cell")}
                             >
                               {c.monto == null ? (
-                                <span className="text-rediseno-tinta-3-light">s/d</span>
+                                <span className="text-rediseno-tinta-3-light">Sin información</span>
                               ) : (
                                 <button
                                   type="button"
@@ -585,7 +581,7 @@ function Pivote({
         <span>
           {excepciones.n == null ? (
             <>
-              no sabemos cuántas excepciones quedan fuera de este cuadro (el motor no publicó el
+              no sabemos cuántas excepciones quedan fuera de este cuadro (la fuente no informó el
               conteo)
             </>
           ) : (
@@ -755,7 +751,7 @@ function SeccionCostos({
         meta: { align: "right", hideBelow: "sm" },
         cell: ({ row }) =>
           row.original.pctIngresos == null ? (
-            <span className="text-rediseno-tinta-3-light">s/d</span>
+            <span className="text-rediseno-tinta-3-light">Sin información</span>
           ) : (
             formatPct(row.original.pctIngresos)
           ),
@@ -841,7 +837,7 @@ function TabMargenes({ mes, ciclo, breakdown, motivos, onReintentar }: GestionV0
               tone={k.tono}
               value={
                 k.monto == null
-                  ? "s/d"
+                  ? "Sin información"
                   : `${formatClp(k.monto)}${k.pct != null ? ` · ${formatPct(k.pct)}` : ""}`
               }
               detail={k.detalle}
@@ -952,7 +948,7 @@ function TabTendencia({ breakdownLargo, motivos, onReintentar }: GestionV08ViewP
           what="la serie de tus márgenes"
           cause={
             motivos?.resultado ??
-            "El motor de gestión no respondió para el rango. Vuelve a intentar en un momento."
+            "El resultado de gestión no está disponible para el rango. Vuelve a intentar en un momento."
           }
           action={onReintentar ? { label: "Reintentar", onClick: onReintentar } : undefined}
         />
@@ -997,7 +993,7 @@ function TabTendencia({ breakdownLargo, motivos, onReintentar }: GestionV08ViewP
             return (
               <li key={p.periodo} className="flex min-w-0 flex-1 flex-col items-center gap-1">
                 <span className="font-rediseno-mono text-[10px] text-rediseno-tinta-3-light">
-                  {p.margenPct == null ? "s/d" : formatPct(pct)}
+                  {p.margenPct == null ? "Sin información" : formatPct(pct)}
                 </span>
                 <span
                   aria-hidden
@@ -1045,7 +1041,7 @@ function TabComparativo({
           what="la comparación con el mes anterior"
           cause={
             motivos?.comparativo ??
-            "El corte al día del mes no llegó. No lo simulamos recortando una serie mensual: sería un número que ningún endpoint puede reproducir."
+            "El corte al día del mes no llegó. No lo simulamos recortando una serie mensual: el resultado no sería reproducible con la información disponible."
           }
           action={onReintentar ? { label: "Reintentar", onClick: onReintentar } : undefined}
         />
@@ -1100,12 +1096,18 @@ function TabComparativo({
                   {/* El gemelo angosto de la columna colapsada: mismo número, mismo apellido. */}
                   <span className="mt-0.5 block font-normal text-[11.5px] text-rediseno-tinta-3-light tabular-nums sm:hidden">
                     {columnaMes(c.periodoAnterior)} · al día {c.hastaDia}:{" "}
-                    {f.anteriorMismaAltura == null ? "s/d" : formatClp(f.anteriorMismaAltura)}
+                    {f.anteriorMismaAltura == null
+                      ? "Sin información"
+                      : formatClp(f.anteriorMismaAltura)}
                   </span>
                 </td>
-                <td className={cn(TD, MONTO)}>{f.actual == null ? "s/d" : formatClp(f.actual)}</td>
+                <td className={cn(TD, MONTO)}>
+                  {f.actual == null ? "Sin información" : formatClp(f.actual)}
+                </td>
                 <td className={cn(TD, MONTO, "hidden sm:table-cell")}>
-                  {f.anteriorMismaAltura == null ? "s/d" : formatClp(f.anteriorMismaAltura)}
+                  {f.anteriorMismaAltura == null
+                    ? "Sin información"
+                    : formatClp(f.anteriorMismaAltura)}
                 </td>
                 <td className={cn(TD, MONTO, "hidden text-rediseno-tinta-3-light sm:table-cell")}>
                   {f.anteriorCompleto == null ? "·" : formatClp(f.anteriorCompleto)}

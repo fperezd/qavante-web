@@ -201,9 +201,7 @@ export const ConciliarSinEvidencia: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/ninguna verificación pasó entre estos dos lados/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/no encontramos coincidencias suficientes/)).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /Sí, conciliar/ })).toBeNull();
     await expect(canvas.getByRole("button", { name: /Buscar el documento/ })).toBeInTheDocument();
 

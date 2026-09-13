@@ -65,7 +65,7 @@ describe("V15 sync-runs: datos honestos", () => {
     expect(estadoRunLegible("running")).toBe("En curso");
     expect(etapaRunLegible("reading_documents")).toBe("Leyendo documentos");
     expect(etapaRunLegible("normalizing_documents")).toBe("Ordenando documentos");
-    expect(etapaRunLegible("paso_nuevo")).toBe("Etapa informada por el motor: paso nuevo");
+    expect(etapaRunLegible("paso_nuevo")).toBe("Etapa en curso");
   });
 });
 

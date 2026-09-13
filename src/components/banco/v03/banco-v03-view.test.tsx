@@ -138,7 +138,7 @@ describe("BancoV03View — estado de conexión: el 'no sé' es explícito", () =
     expect(t).toContain("desde el 28 ago no llegan movimientos");
     // Las cuentas siguen listadas (existen), sin saldo y con motivo.
     expect(t).toContain("BICE · Cuenta Corriente CLP");
-    expect(t).toContain("s/d");
+    expect(t).toContain("Sin información");
     expect(t).toContain("2 cuentas sin saldo informado");
     expect(t).not.toContain("Conectada ✓");
     expect(t).not.toContain("Saldo contable según el banco, por moneda: CLP $0");

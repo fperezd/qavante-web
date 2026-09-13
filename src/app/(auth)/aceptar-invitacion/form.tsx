@@ -46,10 +46,9 @@ export function AceptarInvitacionForm() {
   if (!token) {
     return (
       <div className="rounded-lg bg-surface p-6 shadow-md">
-        <h1 className="text-xl font-bold text-neutral-dark">Link incompleto</h1>
+        <h1 className="text-xl font-bold text-neutral-dark">Enlace de invitación no válido</h1>
         <p className="mt-2 text-sm text-neutral-mid">
-          El link no incluye un token de invitación válido. Pídele a un administrador que te invite
-          de nuevo.
+          Solicita a un administrador que te envíe una nueva invitación.
         </p>
         <Link
           href="/login"

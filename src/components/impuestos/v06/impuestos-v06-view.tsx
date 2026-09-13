@@ -68,6 +68,7 @@ export function ImpuestosV06View({
   onReintentar,
   issueSucesor,
 }: ImpuestosV06ViewProps) {
+  void issueSucesor;
   if (error) {
     return (
       <DataState
@@ -153,7 +154,10 @@ export function ImpuestosV06View({
             }
           />
         ) : (
-          <KpiCard label="Deudas TGR" sinDato={{ reason: tgr.motivo ?? "Sin dato." }} />
+          <KpiCard
+            label="Deudas TGR"
+            sinDato={{ reason: tgr.motivo ?? "Información no disponible." }}
+          />
         )}
       </section>
 
@@ -189,12 +193,11 @@ export function ImpuestosV06View({
 
 /* ── Huecos declarados (issue #73): visibles EN la pantalla, no sólo en el PR ────────────────── */
 function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
+  void issueSucesor;
   return (
     <p className="pt-1 text-center text-[12px] text-rediseno-tinta-3-light">
-      Todavía no: el vínculo &quot;conciliado con el cargo bancario&quot; de cada F-29 declarado (el
-      contrato no liga hoy un F-29 a un movimiento de banco específico; el comprobante de cada fila
-      enlaza al F-29 real del SII)
-      {issueSucesor ? ` · issue sucesor ${issueSucesor}` : ""}.
+      La declaración del F-29 y la verificación de su pago son estados distintos. Qavante todavía no
+      puede vincular este F-29 con un movimiento bancario específico.
     </p>
   );
 }
@@ -292,7 +295,7 @@ function TablaCalendario({
           const f = row.original;
           return f.monto == null ? (
             <SinDato
-              reason={f.motivoSinMonto ?? "Sin dato."}
+              reason={f.motivoSinMonto ?? "Información no disponible."}
               label={`el monto de ${f.label}`}
               variant="compact"
             />

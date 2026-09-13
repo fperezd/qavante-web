@@ -57,7 +57,30 @@ const REASONS: Record<string, string> = {
 };
 
 function reasonLabel(code: string): string {
-  return REASONS[code] ?? `Limitación informada por el motor · código ${code}`;
+  return REASONS[code] ?? "La fuente informó una limitación todavía no identificada.";
+}
+
+const TECHNICAL_NARRATIVE_RE =
+  /(?:\/api\/|\b(?:backend|endpoint|schema|scope|tenant|token|trace|stack|contract)\b|\b[a-z][a-z0-9]*_[a-z0-9_]+\b|\b[0-9a-f]{8}-[0-9a-f-]{27,}\b)/i;
+
+function businessNarrative(value: string | null | undefined, fallback: string): string {
+  const clean = value?.trim();
+  if (!clean || TECHNICAL_NARRATIVE_RE.test(clean)) return fallback;
+  return clean;
+}
+
+function evidenceLabel(reference: string): string {
+  if (reference.startsWith("projection:")) return "Proyección base utilizada";
+  if (reference.startsWith("user_assumption:")) return "Supuesto confirmado por el usuario";
+  if (reference.startsWith("reserves:")) return "Reservas verificadas";
+  if (reference.startsWith("cash-policy:")) return "Política de caja vigente";
+  if (reference.startsWith("margin:")) return "Resultado y margen disponibles";
+  if (reference.startsWith("break-even:")) return "Punto de equilibrio disponible";
+  return "Referencia de respaldo disponible";
+}
+
+function evidenceLabels(references: readonly string[] | null | undefined): string[] {
+  return [...new Set((references ?? []).map(evidenceLabel))];
 }
 
 function decimal(raw: string | null | undefined): number | null {
@@ -107,7 +130,7 @@ function sourceLabel(block: SimulationSourceStatus["block"]): string {
     margin: "Margen",
     break_even: "Punto de equilibrio",
   };
-  return labels[block] ?? block;
+  return labels[block] ?? "Fuente no identificada";
 }
 
 function sourceStateLabel(state: SimulationSourceStatus["state"]): string {
@@ -122,7 +145,7 @@ function sourceView(source: SimulationSourceStatus): SimulationSourceView {
     label: sourceLabel(source.block),
     state: source.state,
     stateLabel: sourceStateLabel(source.state),
-    evidence: source.evidence_refs ?? [],
+    evidence: evidenceLabels(source.evidence_refs),
     reasons: (source.reason_codes ?? []).map(reasonLabel),
   };
 }
@@ -169,8 +192,16 @@ function assumptionLabel(assumption: SimulationAssumption): string {
     const direction = assumption.kind === "cash_inflow" ? "Entrada" : "Salida";
     return `${direction} · ${assumption.label} · ${formatted} · ${formatDateLike(assumption.effective_date)}`;
   }
+  const kindLabel =
+    assumption.kind === "revenue_change"
+      ? "Cambio en ventas"
+      : assumption.kind === "direct_cost_change"
+        ? "Cambio en costos directos"
+        : assumption.kind === "operating_expense_change"
+          ? "Cambio en gastos operacionales"
+          : "Cambio porcentual";
   return "percent_change" in assumption
-    ? `${assumption.label} · ${formatPct(Number(assumption.percent_change), { signed: true })} · ${assumption.kind}`
+    ? `${assumption.label} · ${formatPct(Number(assumption.percent_change), { signed: true })} · ${kindLabel}`
     : `${assumption.label} · supuesto sin detalle`;
 }
 
@@ -179,9 +210,18 @@ export function simuladorV14Model(response: SimulationResponse): SimuladorV14Mod
     state: response.state,
     structurallyComplete: isStructurallyComplete(response),
     contextContractVersion: response.context_contract_version,
-    verdict: response.memo.verdict,
-    interpretation: response.interpretation,
-    condition: response.memo.condition,
+    verdict: businessNarrative(
+      response.memo.verdict,
+      "No fue posible resumir la evaluación con la información disponible.",
+    ),
+    interpretation: businessNarrative(
+      response.interpretation,
+      "La evaluación tiene información que todavía no puede presentarse en esta pantalla.",
+    ),
+    condition: businessNarrative(
+      response.memo.condition,
+      "Revisa las fuentes pendientes antes de tomar una decisión.",
+    ),
     freshness: response.memo.freshness,
     freshnessLabel:
       response.memo.freshness === "current"
@@ -196,9 +236,14 @@ export function simuladorV14Model(response: SimulationResponse): SimuladorV14Mod
       impactView("break-even", "Punto de equilibrio", response.memo.break_even),
     ],
     assumptions: response.memo.assumptions.map(assumptionLabel),
-    evidence: response.memo.evidence_refs ?? [],
+    evidence: evidenceLabels(response.memo.evidence_refs),
     sources: (response.memo.sources ?? []).map(sourceView),
-    limitations: response.memo.limitations ?? [],
+    limitations: (response.memo.limitations ?? []).map((limitation) =>
+      businessNarrative(
+        limitation,
+        "Existe una limitación adicional que todavía no puede identificarse.",
+      ),
+    ),
     saveAvailable: false,
     saveAdvertisedByApi: response.save?.state === "available",
     saveReasons: response.save?.reason_codes?.map(reasonLabel) ?? [],

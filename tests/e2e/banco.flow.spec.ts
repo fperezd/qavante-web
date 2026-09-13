@@ -1,29 +1,22 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — pantalla Banco (gated `bancoScreen`, ON en el e2e). Los productos del tenant por banco:
-   cuentas corrientes (saldo + línea de crédito) + tarjetas de crédito (cupo). Contra MSW (bice). */
+/* Banco V03 activo en producción: cuentas y tarjetas en una tabla, con una cartola filtrable sin
+   mezclar monedas. Los detalles históricos siguen siendo destinos válidos. */
 
 test.describe("Flujo: Banco (/banco)", () => {
   test("muestra el banco con sus cuentas y tarjetas de crédito", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/banco");
 
-    await expect(page.getByRole("heading", { level: 1, name: "Banco" })).toBeVisible();
-
-    // Sección del banco (BICE) con sus dos grupos de productos. (Regex sin tildes: evita el mismatch de
-    // normalización Unicode de la "é" entre el string del test y el DOM.)
-    await expect(page.getByRole("region", { name: "Banco BICE" })).toBeVisible();
-    await expect(page.getByText("Cuentas corrientes")).toBeVisible();
-    await expect(page.getByText(/Tarjetas de cr/).first()).toBeVisible();
-
-    // La cuenta corriente con su saldo (la línea de crédito la cubren unit + story).
-    await expect(page.getByText("Cuenta Corriente", { exact: true })).toBeVisible();
-    await expect(page.getByText(/disponible/).first()).toBeVisible();
-
-    // Una tarjeta de crédito con su cupo disponible.
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Tus cuentas y tarjetas" }),
+    ).toBeVisible();
+    await expect(page.getByRole("region", { name: "Cuentas" })).toBeVisible();
+    await expect(page.getByText(/Cuenta Corriente/).first()).toBeVisible();
     await expect(page.getByText(/Tarjeta de Cr/).first()).toBeVisible();
-    await expect(page.getByText(/Disponible/).first()).toBeVisible();
+    await expect(page.getByText(/Las monedas no se suman entre sí/)).toBeVisible();
+    await expect(page.getByRole("region", { name: /Cartola/ })).toBeVisible();
   });
 
   test("el ítem 'Banco' aparece en el menú lateral", async ({ page, context }) => {
@@ -39,8 +32,9 @@ test.describe("Flujo: Banco (/banco)", () => {
     await loginAs(context, "owner");
     await page.goto("/banco");
 
-    // La cuenta es clickeable (regla "todo clickeable a detalle").
-    await page.getByRole("link", { name: /Ver movimientos de Cuenta Corriente/ }).click();
+    const accountLink = page.locator('a[href="/banco/cuenta/tok-cc-clp"]');
+    await expect(accountLink).toBeVisible();
+    await Promise.all([page.waitForURL("**/banco/cuenta/tok-cc-clp"), accountLink.click()]);
     await expect(page.getByText("Volver a Banco")).toBeVisible();
     await expect(page.getByRole("button", { name: "Mes actual" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Mes anterior" })).toBeVisible();
@@ -58,7 +52,9 @@ test.describe("Flujo: Banco (/banco)", () => {
   test("Fase 2: conciliar un movimiento desde su match propuesto", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/banco");
-    await page.getByRole("link", { name: /Ver movimientos de Cuenta Corriente/ }).click();
+    const accountLink = page.locator('a[href="/banco/cuenta/tok-cc-clp"]');
+    await expect(accountLink).toBeVisible();
+    await Promise.all([page.waitForURL("**/banco/cuenta/tok-cc-clp"), accountLink.click()]);
     await page.locator('input[type="month"]').fill("2026-05");
 
     // La cola de conciliación tiene un match para un movimiento de la cuenta (mov-unclas-2) → aparece
@@ -82,10 +78,9 @@ test.describe("Flujo: Banco (/banco)", () => {
     await loginAs(context, "owner");
     await page.goto("/banco");
 
-    await page
-      .getByRole("link", { name: /Ver movimientos de Tarjeta de Cr/ })
-      .first()
-      .click();
+    const cardLink = page.locator('a[href="/banco/tarjeta/42595474000067584"]');
+    await expect(cardLink).toBeVisible();
+    await Promise.all([page.waitForURL("**/banco/tarjeta/42595474000067584"), cardLink.click()]);
     await expect(page.getByText("Volver a Banco")).toBeVisible();
     await page.locator('input[type="month"]').fill("2026-08");
     await expect(page.getByText("MERCADOLIBRE")).toBeVisible();

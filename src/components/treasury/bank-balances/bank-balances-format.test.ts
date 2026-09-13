@@ -32,7 +32,7 @@ describe("bank-balances-format · formatSaldo", () => {
     expect(formatSaldo("1000", null)).toBe("$1.000");
   });
   it("sin dato → guion", () => {
-    expect(formatSaldo(null, "CLP")).toBe("s/d");
-    expect(formatSaldo("", "USD")).toBe("s/d");
+    expect(formatSaldo(null, "CLP")).toBe("Sin información");
+    expect(formatSaldo("", "USD")).toBe("Sin información");
   });
 });

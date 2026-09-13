@@ -28,8 +28,8 @@ type Story = StoryObj<typeof meta>;
 export const ConAccionDeshacible: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Deshacer" })).toBeEnabled();
-    await expect(canvas.getByRole("link", { name: "Ver" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Deshacer:.*Clasificó/i })).toBeEnabled();
+    await expect(canvas.getByRole("link", { name: "Ver acción" })).toBeInTheDocument();
   },
 };
 

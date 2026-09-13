@@ -249,7 +249,7 @@ export const ResultadoLey1Divergente: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(
-      c.getByText(/Dos motores publican un resultado distinto para jul 2026/),
+      c.getByText(/Dos fuentes publican un resultado distinto para jul 2026/),
     ).toBeInTheDocument();
     await expect(c.getByText(/una diferencia de/)).toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(1);
@@ -465,7 +465,7 @@ export const Contrapartes360SinDato: Story = {
   args: { tab: "clientes", docs360: null },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await expect(c.getByText(/esta pantalla no está vacía, está ciega/)).toBeInTheDocument();
+    await expect(c.getByText(/No podemos confirmar si existen/)).toBeInTheDocument();
   },
 };
 

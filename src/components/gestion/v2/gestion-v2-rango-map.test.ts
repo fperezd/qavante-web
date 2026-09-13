@@ -18,8 +18,10 @@ describe("warningLabel", () => {
     expect(warningLabel("payroll_cost_missing")).toMatch(/nómina/i);
     expect(warningLabel("payroll_cost_missing")).toMatch(/sincroniza remuneraciones/i);
   });
-  it("código desconocido → se muestra tal cual (no inventamos)", () => {
-    expect(warningLabel("algo_nuevo_del_backend")).toBe("algo_nuevo_del_backend");
+  it("código desconocido → usa un aviso seguro y no expone el código", () => {
+    expect(warningLabel("algo_nuevo_del_backend")).toBe(
+      "Hay información del período que requiere revisión.",
+    );
   });
 });
 

@@ -16,6 +16,6 @@ export function formatSaldo(
   moneda: string | null | undefined,
 ): string {
   const n = parseSaldo(value);
-  if (n == null) return "s/d";
+  if (n == null) return "Sin información";
   return formatMoney(n, moneda);
 }

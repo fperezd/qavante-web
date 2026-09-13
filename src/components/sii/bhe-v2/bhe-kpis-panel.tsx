@@ -41,7 +41,11 @@ export function BheKpisPanel({ items, periodo }: { items: BheRecibida[]; periodo
             </a>
           }
         />
-        <KpiCell label="Líquido pagado" value={formatClp(t.liquido)} sub="A los profesionales" />
+        <KpiCell
+          label="Líquido registrado"
+          value={formatClp(t.liquido)}
+          sub="En boletas de profesionales"
+        />
         <KpiCell
           label="Boletas"
           value={String(t.count)}
@@ -55,15 +59,18 @@ export function BheKpisPanel({ items, periodo }: { items: BheRecibida[]; periodo
           header={
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-              <span className="font-medium">A qué profesionales pagas más</span>
+              <span className="font-medium">Profesionales con mayor líquido registrado</span>
             </div>
           }
         >
           <ul className="space-y-2.5">
             {conc.map((c, i) => (
-              // key: el RUT si viene; si falta ("s/d"), nombre + índice para no colisionar
+              // key: el RUT si viene; si falta ("Sin información"), nombre + índice para no colisionar
               // dos profesionales sin RUT.
-              <li key={c.rut !== "s/d" ? c.rut : `${c.name}-${i}`} className="space-y-1">
+              <li
+                key={c.rut !== "Sin información" ? c.rut : `${c.name}-${i}`}
+                className="space-y-1"
+              >
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="min-w-0 truncate">
                     <span className="font-medium text-neutral-dark">{c.name}</span>

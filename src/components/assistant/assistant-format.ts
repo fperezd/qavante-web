@@ -11,15 +11,14 @@ const TOOL_LABEL: Record<string, string> = {
   pagos: "pagos",
   pagar: "pagos",
   resultado: "resultado operacional",
-  drivers: "drivers",
+  drivers: "factores del resultado",
   movimientos: "movimientos",
 };
 
-/** Etiqueta legible para un nombre de tool. Desconocida → el nombre tal cual
-   (en minúscula), sin exponer estructura. */
+/** Etiqueta legible para un nombre de herramienta. Una desconocida nunca expone su código. */
 export function toolLabel(tool: string): string {
   const key = tool.trim().toLowerCase();
-  return TOOL_LABEL[key] ?? key;
+  return TOOL_LABEL[key] ?? "tus datos";
 }
 
 /* Defensa en profundidad (ADR-0004 — "no confiar ciegamente en el modelo"). El

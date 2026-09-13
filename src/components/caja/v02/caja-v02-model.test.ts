@@ -406,13 +406,15 @@ describe("comoSeCalcula — definición, incluye/excluye, fuente y frescura (§1
     const c = comoSeCalcula(PROYECCION_BAJO_CERO, HOY);
     expect(c.frescura).toBe("calculado el 30 ago 2026 · saldo del banco sincronizado hoy");
     expect(c.excluye[0]).toContain("$39.600.000");
-    expect(c.fuente).toContain("/api/treasury/cash-projection");
+    expect(c.fuente).toBe(
+      "Saldos bancarios, cobros con fecha y pagos comprometidos registrados en Qavante",
+    );
     expect(c.incluye).toHaveLength(3);
   });
 
   it('sin proyección: frescura honesta y el "no sé" explícito, no una afirmación de exclusiones', () => {
     const c = comoSeCalcula(null, HOY);
-    expect(c.frescura).toBe("Sin sello de frescura");
+    expect(c.frescura).toBe("Fecha de actualización no disponible");
     // "no declara exclusiones" afirmaría que la proyección CORRIÓ y no encontró nada que excluir;
     // acá no hay proyección, así que no hay ni "sí" ni "no" que declarar (remanente #82.2).
     expect(c.excluye).toEqual(["Sin proyección no hay exclusiones que declarar"]);

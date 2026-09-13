@@ -17,6 +17,8 @@ import {
 } from "@/lib/api/treasury";
 import { useMyPermissions } from "@/lib/api/users";
 import { hasPermission } from "@/lib/auth/permissions";
+import { ApiError } from "@/lib/api/errors";
+import { unknownErrorToUserMessage } from "@/lib/api/error-messages";
 import {
   useReconciliationReview,
   useConfirmReconciliation,
@@ -294,7 +296,7 @@ export function CuentaDetalleLive({
                       else toast.error("No se revirtió ningún vínculo; el movimiento se recargó");
                       refrescarMovimientos();
                     },
-                    onError: (error) => toast.error(error.message),
+                    onError: (error) => toast.error(unknownErrorToUserMessage(error)),
                   })
               : undefined
           }
@@ -325,7 +327,7 @@ export function CuentaDetalleLive({
                         );
                         refrescarMovimientos();
                       },
-                      onError: (error) => toast.error(error.message),
+                      onError: (error) => toast.error(unknownErrorToUserMessage(error)),
                     },
                   )
               : undefined
@@ -359,7 +361,11 @@ export function CuentaDetalleLive({
                       toast.success("Clasificación guardada");
                       refrescarMovimientos();
                     } catch (error) {
-                      toast.error(error instanceof Error ? error.message : "No se pudo clasificar");
+                      toast.error(
+                        error instanceof ApiError
+                          ? unknownErrorToUserMessage(error)
+                          : "No se pudo guardar la clasificación. Intenta nuevamente.",
+                      );
                       throw error;
                     }
                   },

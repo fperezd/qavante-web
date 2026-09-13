@@ -308,7 +308,7 @@ describe("elUnicoRojoV06 — Ley 2, máximo un rojo por pantalla", () => {
       sub: "",
       estado: "no_declarado_vencido",
       vencimiento: null,
-      vencimientoLabel: "s/d",
+      vencimientoLabel: "Sin información",
       dias,
       monto: null,
       moneda: "CLP",

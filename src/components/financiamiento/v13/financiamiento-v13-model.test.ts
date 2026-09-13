@@ -174,7 +174,7 @@ describe("financingV13Model", () => {
     expect(model.principal).toBeNull();
   });
 
-  it("traduce códigos conocidos y conserva visible uno desconocido sin inventar su causa", () => {
+  it("traduce códigos conocidos y neutraliza uno desconocido sin inventar su causa", () => {
     const model = financingV13Model({
       ...OVERVIEW,
       reason_codes: ["verified_credit_capacity_required", "new_backend_reason"],
@@ -182,7 +182,7 @@ describe("financingV13Model", () => {
 
     expect(model.reasons).toEqual([
       "Falta una capacidad de crédito verificada.",
-      "La fuente informó una limitación que todavía no está normalizada · código new_backend_reason",
+      "La fuente informó una limitación todavía no identificada.",
     ]);
   });
 
@@ -215,9 +215,7 @@ describe("financingV13Model", () => {
         {
           label: "Refinanciamiento",
           stateLabel: "Sólo observado",
-          reasons: [
-            "La fuente informó una limitación que todavía no está normalizada · código new_backend_reason",
-          ],
+          reasons: ["La fuente informó una limitación todavía no identificada."],
         },
       ],
     });
@@ -243,7 +241,7 @@ describe("financingV13Model", () => {
       excludedCombinationCount: 1,
       combinationsTruncated: true,
       maxCombinations: 1,
-      excludedCombinationReasons: ["El motor alcanzó el máximo de combinaciones permitido."],
+      excludedCombinationReasons: ["La evaluación alcanzó el máximo de combinaciones permitido."],
     });
     expect(model.tradeoffs).toEqual([
       expect.objectContaining({

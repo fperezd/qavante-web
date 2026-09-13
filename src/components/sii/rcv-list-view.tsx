@@ -176,7 +176,7 @@ function formatBridgeAmount(
 ) {
   if (doc.complete !== true) return "incompleto";
   const value = doc[field];
-  if (typeof value !== "number") return "s/d";
+  if (typeof value !== "number") return "Sin información";
   return negative ? `−${formatClp(Math.abs(value))}` : formatClp(value);
 }
 
@@ -464,7 +464,7 @@ export function RcvListView({
               <QavanteEmpty
                 icon={Inbox}
                 title="Sin resultados para los filtros aplicados"
-                description="Prueba removiendo filtros o cambiando el período. El backend SII solo permite filtrar por período; el resto de los filtros se aplican en pantalla sobre los documentos descargados."
+                description="Prueba removiendo filtros o cambiando el período. La fuente del SII permite consultar por período; los demás filtros se aplican sobre los documentos descargados."
               />
             ) : viewMode === "agrupado" ? (
               <>
@@ -485,7 +485,7 @@ export function RcvListView({
                       documentKind: kind === "ventas" ? "receivable" : "payable",
                       classificationSide: kind,
                       sourceExternalId,
-                      label: `${tipoDocMeta(doc.tipo_doc ?? null).abbr} ${doc.folio ?? "s/d"} · ${
+                      label: `${tipoDocMeta(doc.tipo_doc ?? null).abbr} ${doc.folio ?? "Sin información"} · ${
                         doc.razon_social ?? "Sin nombre"
                       }`,
                     });
@@ -520,7 +520,7 @@ export function RcvListView({
                     documentKind: kind === "ventas" ? "receivable" : "payable",
                     classificationSide: kind,
                     sourceExternalId,
-                    label: `${tipoDocMeta(doc.tipo_doc ?? null).abbr} ${doc.folio ?? "s/d"} · ${
+                    label: `${tipoDocMeta(doc.tipo_doc ?? null).abbr} ${doc.folio ?? "Sin información"} · ${
                       doc.razon_social ?? "Sin nombre"
                     }`,
                   });
@@ -748,7 +748,7 @@ export function GroupedTable({
                     </span>
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
-                    {d.folio ?? "s/d"}
+                    {d.folio ?? "Sin información"}
                   </td>
                   <td className="py-2 pr-3 text-neutral-dark">{formatDateLike(d.fecha)}</td>
                   {showDueDate && (
@@ -852,7 +852,9 @@ export function GroupedTable({
                 </td>
                 <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className={cn(anulada && "line-through")}>{f.folio ?? "s/d"}</span>
+                    <span className={cn(anulada && "line-through")}>
+                      {f.folio ?? "Sin información"}
+                    </span>
                     {f.reclamado === true && <ReclamadaBadge />}
                   </span>
                 </td>
@@ -949,7 +951,7 @@ export function GroupedTable({
                       </button>
                     </span>
                   ) : (
-                    <span className="text-neutral-mid">s/d</span>
+                    <span className="text-neutral-mid">Sin información</span>
                   )}
                 </td>
                 {dteKind && <td className="py-2 text-right">{dteCell(dteKind, f, dteWindow)}</td>}

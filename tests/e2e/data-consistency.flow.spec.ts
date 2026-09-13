@@ -19,9 +19,11 @@ test.describe("Consistencia de datos (Gestión + Presupuesto)", () => {
     await page.goto("/gestion");
     await expect(page.getByRole("heading", { level: 1, name: "Gestión" })).toBeVisible();
 
-    // El resultado ($3.900.000) sale en el hero Y en la cascada: la MISMA cifra, sin contradicción.
+    // El resultado final del hero también aparece en el resto del desglose, sin contradicción.
     // (18.500.000 − 7.400.000 − 4.200.000 − 900.000 − 2.100.000 = 3.900.000 → footea.)
-    await expect.poll(() => page.getByText("$3.900.000").count()).toBeGreaterThanOrEqual(2);
+    const hero = page.getByText("El negocio ganó este mes", { exact: true }).locator("..");
+    await expect(hero.getByText("$3.900.000", { exact: true })).toBeVisible();
+    await expect(page.getByText("$3.900.000", { exact: true })).toHaveCount(2);
     await expect(page.getByText("$18.500.000")).toBeVisible(); // Ingresos de la cascada (único)
 
     // Ritmo coherente: vs mes anterior en MONTO (+$600.000), no en % (que explota en base chica).
@@ -50,7 +52,11 @@ test.describe("Consistencia de datos (Gestión + Presupuesto)", () => {
       page.getByRole("row").filter({ hasText: "Costos directos" }).getByText("4.000.000").first(),
     ).toBeVisible();
     await expect(
-      page.getByRole("row").filter({ hasText: "Gastos operacionales" }).getByText("1.000.000").first(),
+      page
+        .getByRole("row")
+        .filter({ hasText: "Gastos operacionales" })
+        .getByText("1.000.000")
+        .first(),
     ).toBeVisible();
     // El footing: la fila Resultado muestra 5.000.000 (= 10 − 4 − 1). Si el modelo sumara mal, fallaría.
     await expect(

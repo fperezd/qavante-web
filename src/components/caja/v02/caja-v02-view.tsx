@@ -395,7 +395,7 @@ function ComoSeCalcula({ info }: { info: ComoSeCalculaV02 }) {
           </p>
           <p className="mt-1">
             <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-              Frescura
+              Actualización
             </span>{" "}
             {info.frescura}
           </p>

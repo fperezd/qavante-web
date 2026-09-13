@@ -160,6 +160,7 @@ describe("resolutionDetailFromApi", () => {
       sourceReference: "op-77",
       taxTreatment: "exempt",
     });
+    expect(detail.classification.canonicalType).toBe("Pago a proveedor");
     expect(detail.classification.allocations).toHaveLength(2);
     expect(detail.classification.allocations[0]?.dimensions).toEqual([
       { name: "Sucursal", value: "Santiago" },

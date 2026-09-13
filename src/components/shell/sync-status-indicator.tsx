@@ -11,6 +11,10 @@ import {
   type SourceStatus,
 } from "@/lib/api/sources-status";
 import { useDismiss } from "@/lib/hooks/use-dismiss";
+import {
+  sourceToConnectionCopy,
+  sourceToImpactLine,
+} from "@/components/conexiones/conexiones-copy";
 
 /* Indicador de sincronización (header, arriba a la derecha). Muestra el estado
    agregado de las fuentes (SII, banco, TGR, etc.) + la última actualización, y
@@ -33,7 +37,7 @@ const LABEL: Record<string, string> = {
 
 /** ISO UTC → "DD-MM-AAAA HH:MM:SS" (convención Qavante: día-mes-año). */
 function formatDateTime(iso: string | null): string {
-  if (!iso) return "s/d";
+  if (!iso) return "Sin información";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const p = (n: number) => String(n).padStart(2, "0");
@@ -147,23 +151,18 @@ export function SyncStatusIndicator() {
 }
 
 function SourceRow({ source: s }: { source: SourceStatus }) {
-  const badge = STATE_BADGE[s.state] ?? { variant: "default" as const, label: s.state };
+  const copy = sourceToConnectionCopy(s);
+  const badge = STATE_BADGE[s.state] ?? { variant: "default" as const, label: copy.statusLabel };
   return (
     <li className="flex items-start justify-between gap-2 rounded-lg px-1 py-2">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-neutral-dark">
           {s.display_name || s.source}
         </p>
-        {s.last_sync ? (
-          <p className="text-xs text-neutral-mid tabular-nums">{formatDateTime(s.last_sync)}</p>
-        ) : (
-          <p className="text-xs text-neutral-mid">Sin sincronizar</p>
-        )}
-        {s.reason && s.state !== "ok" && (
-          <p className="mt-0.5 text-xs text-neutral-mid">{s.reason}</p>
-        )}
+        <p className="text-xs text-neutral-mid">{sourceToImpactLine(s)}</p>
+        {s.state !== "ok" && <p className="mt-0.5 text-xs text-neutral-mid">{copy.message}</p>}
       </div>
-      <QavanteBadge variant={badge.variant}>{badge.label}</QavanteBadge>
+      <QavanteBadge variant={badge.variant}>{copy.statusLabel}</QavanteBadge>
     </li>
   );
 }

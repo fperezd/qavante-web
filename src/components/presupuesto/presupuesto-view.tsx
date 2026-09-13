@@ -255,14 +255,13 @@ export function PresupuestoView() {
               <TrendingDown className="h-5 w-5" aria-hidden="true" />
             </span>
             <p className="text-sm text-neutral-mid">
-              Muy pronto: la proyección de cierre de año y el aviso “vas a pasarte” antes de que
-              ocurra.
+              La proyección de cierre de año todavía no está disponible.
             </p>
           </div>
 
           <p className="pt-1 text-center text-xs text-neutral-mid">
-            Presupuesto propositivo · Fase 1 (Resultado). El presupuesto se propone desde tu
-            historial; tú lo ajustas y Qavante te avisa antes de que te pases.
+            Presupuesto propuesto desde tu historial. Puedes revisar y ajustar los montos antes de
+            aceptarlo.
           </p>
         </>
       )}

@@ -78,7 +78,7 @@ export function movimientosDeCuenta(
       return {
         id: m.id,
         fecha: m.date,
-        glosa: m.description ?? "s/d",
+        glosa: m.description ?? "Sin información",
         monto,
         // La moneda pertenece al movimiento. La cuenta puede ser multi-moneda y `null`
         // significa que ninguna fuente entregó evidencia: nunca lo aplastamos a CLP.
@@ -146,7 +146,7 @@ export function movimientosDeTarjeta(
       const monto = -raw;
       return {
         fecha: m.date ?? "",
-        glosa: m.description ?? "s/d",
+        glosa: m.description ?? "Sin información",
         monto,
         moneda: (m.currency ?? "CLP").toUpperCase(),
         esAbono: monto >= 0,

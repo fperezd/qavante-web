@@ -34,7 +34,7 @@ function errMsg(e: unknown): string {
   if (e instanceof ApiError && e.status === 403)
     return "La conciliación de sueldos es visible sólo para el dueño o un administrador.";
   if (e instanceof ApiError && (e.status === 400 || e.status === 409))
-    return "El backend rechazó la asignación (revisa el débito y el monto).";
+    return "No pudimos validar la asignación. Revisa el movimiento y el monto.";
   return "Intenta de nuevo en un momento.";
 }
 
@@ -107,7 +107,7 @@ export function ConciliacionBoardLive({
       toast.success(
         workerRuts.length === 1 ? "Sueldo conciliado" : `${workerRuts.length} sueldos conciliados`,
         {
-          description: `Aplicado ${outcome.appliedTotal}. Evidencia: ${outcome.applied.map((row) => row.settlementId).join(", ")}`,
+          description: `Monto conciliado: ${outcome.appliedTotal}. Revisa el estado actualizado antes de continuar.`,
         },
       );
       return true;
@@ -128,12 +128,13 @@ export function ConciliacionBoardLive({
           const result = raw as { reverted?: unknown } | null;
           if (result?.reverted !== true) {
             toast.error("No se confirmó la desasignación", {
-              description: "El API no devolvió evidencia de que el match fue revertido.",
+              description:
+                "No recibimos confirmación del cambio. Revisa el estado antes de reintentar.",
             });
             setRevertingId(null);
             return;
           }
-          toast.success("Match desasignado", { description: `Evidencia: ${linkId}` });
+          toast.success("Asignación retirada", { description: "La conciliación se actualizó." });
           setRevertingId(null);
         },
         onError: (e) => {
@@ -154,7 +155,7 @@ export function ConciliacionBoardLive({
         <QavanteEmpty
           icon={Landmark}
           title="Concilia los sueldos del período"
-          description="Elige un mes: vas a cruzar cada trabajador contra los débitos de la cartola y marcar qué está pagado."
+          description="Elige un mes para revisar qué movimientos bancarios pueden conciliarse con cada trabajador."
         />
       )}
 

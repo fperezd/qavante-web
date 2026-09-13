@@ -198,8 +198,8 @@ export const AccionRequerida: Story = {
     await expect(
       canvas.getByText("desde el 28 ago no llegan movimientos · 4 movimientos por conciliar"),
     ).toBeInTheDocument();
-    // Saldo del banco: sin dato (s/d + ⓘ), no $0. Caja hoy sigue (es otra fuente) pero marcada vieja.
-    await expect(canvas.getAllByText("s/d").length).toBeGreaterThan(0);
+    // Saldo del banco: sin dato (Sin información + ⓘ), no $0. Caja hoy sigue (es otra fuente) pero marcada vieja.
+    await expect(canvas.getAllByText("Sin información").length).toBeGreaterThan(0);
     await expect(canvas.getByText("BICE · hace 2 días")).toBeInTheDocument();
     await expect(canvas.getByText(/Puede estar desactualizado/)).toBeInTheDocument();
     /* Ley 2: "requiere tu acción" es ÁMBAR. Cero rojos, y el gemelo positivo: sí hay ámbar. */

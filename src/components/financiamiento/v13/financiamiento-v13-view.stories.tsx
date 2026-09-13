@@ -65,7 +65,7 @@ export const EvaluacionAbstenida: Story = {
   args: { model: financingV13Model(overviewParcialV13, evaluationAbstenidaV13) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Evaluación del motor · No evaluable")).toBeInTheDocument();
+    await expect(canvas.getByText("Estado de la evaluación · No evaluable")).toBeInTheDocument();
     await expect(
       canvas.getByText(/Falta deuda verificada para esta entidad legal y moneda/),
     ).toBeInTheDocument();
@@ -75,6 +75,6 @@ export const EvaluacionAbstenida: Story = {
     await expect(
       canvas.getByText(/El corte no muestra una brecha de caja que justifique financiarse/),
     ).toBeInTheDocument();
-    await expect(canvas.getByText(/no entregó una combinación publicable/)).toBeInTheDocument();
+    await expect(canvas.getByText(/No hay una combinación verificable/)).toBeInTheDocument();
   },
 };

@@ -12,7 +12,7 @@ export default function SimularPage() {
   ) : (
     <FeatureUnavailableState
       title="Simulador · todavía no disponible"
-      description="Estamos conectando la evaluación segura de hipótesis. Se activará después del despliegue y smoke del contrato financiero; no mostramos resultados de ejemplo como si fueran reales."
+      description="El simulador aún no está disponible. Cuando esté habilitado, las simulaciones no ejecutarán operaciones ni representarán una aprobación crediticia."
     />
   );
 }

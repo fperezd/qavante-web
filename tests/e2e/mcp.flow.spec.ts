@@ -11,20 +11,21 @@ test.describe("Flujo: Administración → MCP (/administracion/mcp)", () => {
     await page.goto("/administracion/mcp");
 
     await expect(
-      page.getByRole("heading", { level: 1, name: "Conectar un asistente (MCP)" }),
+      page.getByRole("heading", { level: 1, name: "Conectar un asistente" }),
     ).toBeVisible();
 
     // Cómo conectar: dirección del server + auth + el instructivo del backend (docs.pasos/clientes).
     await expect(page.getByText("https://mcp.qavante.com")).toBeVisible();
     await expect(page.getByText("X-Api-Key").first()).toBeVisible();
     await expect(page.getByText(/cómo va mi caja/i)).toBeVisible(); // un paso del instructivo
-    await expect(page.getByText(/Llega en la fase 3/i)).toBeVisible(); // cliente OAuth (no soportado aún)
+    await expect(page.getByText(/Aún no disponible/i)).toBeVisible(); // cliente OAuth no soportado aún
+    await expect(page.getByText(/fase 3/i)).toHaveCount(0);
 
     // La key que ya existe (fixture).
     await expect(page.getByText("Asistente de finanzas")).toBeVisible();
 
     // Crear una nueva → la key entera se muestra UNA vez.
-    await page.getByRole("button", { name: /Crear API-key/i }).click();
+    await page.getByRole("button", { name: /Crear clave/i }).click();
     await page.getByPlaceholder("Asistente de finanzas").fill("Mi ChatGPT");
     await page.getByRole("button", { name: "Crear", exact: true }).click();
     await expect(page.getByText(/no se vuelve a mostrar/i)).toBeVisible();

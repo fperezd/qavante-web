@@ -21,7 +21,7 @@ const WARNING_LABEL: Record<string, string> = {
     "Parte del costo directo fue reversado por notas de crédito, así que el costo puede estar sub-declarado (margen inflado) hasta que sincronice.",
 };
 export function warningLabel(code: string): string {
-  return WARNING_LABEL[code.trim()] ?? code;
+  return WARNING_LABEL[code.trim()] ?? "Hay información del período que requiere revisión.";
 }
 
 /* Códigos de `warnings` que significan que el MARGEN está distorsionado (inflado) — el resultado no es

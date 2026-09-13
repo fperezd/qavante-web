@@ -159,7 +159,9 @@ export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
       drillCargando={drill != null && documentos.isLoading}
       onDrill={setDrill}
       motivos={{
-        resultado: breakdown.isError ? motivo(breakdown.error, "el motor de gestión") : undefined,
+        resultado: breakdown.isError
+          ? motivo(breakdown.error, "el resultado de gestión")
+          : undefined,
         comparativo: alDia.isError ? motivo(alDia.error, "el corte al día del mes") : undefined,
         ciclo: ciclo.isError ? motivo(ciclo.error, "el cálculo del ciclo de caja") : undefined,
         contrapartes: maestro.isError ? motivo(null, "el registro de compras y ventas") : undefined,
@@ -194,7 +196,7 @@ export function motivoExportExcel(err: unknown): string {
       "invalid_xlsx_magic",
     ].includes(err.code ?? "")
   ) {
-    return `${err.message} No se descargó nada.`;
+    return "El archivo recibido no era un Excel válido. No se descargó nada.";
   }
   return motivo(err, "el archivo Excel de tu Estado de Resultados");
 }

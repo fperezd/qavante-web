@@ -12,8 +12,15 @@ function num(v: number | null | undefined): number {
  *  Ley 21.133. El MONTO real siempre sale de la boleta del SII; esto es solo para el recordatorio
  *  tributario, así que no puede quedar "congelado" en un año equivocado. */
 const RETENCION_HONORARIOS_PCT: Record<number, number> = {
-  2020: 10.75, 2021: 11.5, 2022: 12.25, 2023: 13, 2024: 13.75,
-  2025: 14.5, 2026: 15.25, 2027: 16, 2028: 17,
+  2020: 10.75,
+  2021: 11.5,
+  2022: 12.25,
+  2023: 13,
+  2024: 13.75,
+  2025: 14.5,
+  2026: 15.25,
+  2027: 16,
+  2028: 17,
 };
 
 /** Tasa de retención de honorarios del `year` (ej. `15.25` para 2026). Tope 17% desde 2028;
@@ -65,7 +72,7 @@ export interface EmisorShare {
 }
 
 /** Top profesionales por líquido pagado (excluye anuladas). Clave por RUT; sin
- *  RUT, por nombre — para no fundir profesionales distintos en un bucket "s/d". */
+ *  RUT, por nombre — para no fundir profesionales distintos en un bucket "Sin información". */
 export function concentrationByEmisor(items: BheRecibida[], topN = 5): EmisorShare[] {
   const map = new Map<string, { rut: string; name: string; liquido: number }>();
   let grand = 0;
@@ -75,7 +82,7 @@ export function concentrationByEmisor(items: BheRecibida[], topN = 5): EmisorSha
     const l = num(b.monto_liquido);
     grand += l;
     const cur = map.get(key) ?? {
-      rut: b.rut_emisor ?? "s/d",
+      rut: b.rut_emisor ?? "Sin información",
       name: b.nombre_emisor ?? "Sin nombre",
       liquido: 0,
     };

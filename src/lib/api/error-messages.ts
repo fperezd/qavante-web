@@ -21,7 +21,7 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
     case "source_unavailable":
       return "La fuente no está disponible en este momento.";
     case "config_missing":
-      return err.message;
+      return "Esta función no está disponible en este momento.";
     /* Captcha (Turnstile): el token es de un solo uso y expira → un reintento
        con el token viejo da `captcha_failed` (status 403). NO es un problema de
        permisos: hay que rehacer el captcha. Mapear explícito antes del switch
@@ -36,24 +36,18 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
      `cert_b64`). Damos un mensaje limpio y accionable en su lugar (surface honesto, no ocultamos el
      problema — decimos qué pasa y dónde mirar). */
   if (/seed-cert|sii_cert_path|cert_b64/i.test(err.message ?? "")) {
-    return "El SII no aceptó las credenciales para sincronizar el RUT de tu empresa: no está autorizado o falta un certificado válido del SII. Revisa tu clave y tu certificado del SII en Administración → Credenciales.";
+    return "No pudimos actualizar la información del SII. Revisa el estado de la conexión en Administración → Credenciales.";
   }
 
   if (err.isNetworkError()) {
-    return "Parece que perdiste conexión. Verifica tu internet.";
+    return "No pudimos comunicarnos con Qavante. Intenta nuevamente.";
   }
 
   switch (err.status) {
     case 401:
       return "Tu sesión expiró. Vuelve a iniciar sesión.";
     case 403:
-      /* El backend suele mandar un detalle específico y user-facing en el 403
-         (ej. por qué el SII rechaza la consulta, falta de consentimiento, etc.).
-         Lo preferimos sobre el genérico — el "No tienes permisos" escondía la
-         causa real. Cae al genérico solo si no hay detalle útil. */
-      return err.message && err.message !== `Error ${err.status}`
-        ? err.message
-        : "No tienes permisos para realizar esta acción.";
+      return "No tienes permisos para realizar esta acción.";
     case 404:
       return "No encontramos la información que buscas.";
     case 408:
@@ -68,14 +62,16 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
   }
 
   if (err.status >= 500) {
-    /* Igual que el 403: si el backend mandó un detalle específico y útil (no un
-       genérico tipo "Internal Server Error"), lo mostramos en vez de esconder la
-       causa. Ayuda a diagnosticar 500 inesperados (ej. el RCV del SII que falla
-       al traer en vivo). Cae al genérico si el detalle no aporta. */
-    const generic = "No pudimos cargar la información. Intenta nuevamente.";
-    const bare = ["Internal Server Error", "Service Unavailable", `Error ${err.status}`];
-    return err.message && !bare.includes(err.message) ? err.message : generic;
+    return "No pudimos cargar la información. Intenta nuevamente.";
   }
 
-  return err.message || "Ocurrió un error inesperado.";
+  return "Ocurrió un error inesperado. Intenta nuevamente.";
+}
+
+/** Boundary seguro para callbacks cuya librería tipa el fallo como `Error` o `unknown`. */
+export function unknownErrorToUserMessage(
+  err: unknown,
+  fallback = "Ocurrió un error inesperado. Intenta nuevamente.",
+): string {
+  return err instanceof ApiError ? apiErrorToUserMessage(err) : fallback;
 }

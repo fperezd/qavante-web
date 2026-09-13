@@ -105,7 +105,10 @@ export function McpView() {
     <div className="space-y-4">
       {/* Cómo conectar — el instructivo lo mantiene el backend (/api/mcp/connection); acá lo mostramos
           tal cual, con fallback estático si el endpoint no responde. */}
-      <QavanteCard variant="bordered" header={<span className="font-medium">Cómo conectar</span>}>
+      <QavanteCard
+        variant="bordered"
+        header={<span className="font-medium">Configuración avanzada de conexión</span>}
+      >
         <p className="mb-3 text-sm text-neutral-mid">
           {conn.data?.docs?.resumen ??
             "Conecta las finanzas de tu empresa a un asistente (Claude, ChatGPT) por MCP: consulta tu caja, resultado, cobros/pagos y presupuesto en lenguaje natural, con tus datos reales."}
@@ -147,7 +150,11 @@ export function McpView() {
                   </span>
                   <span className="text-neutral-dark">
                     {c.nombre}
-                    {c.nota ? <span className="text-neutral-mid"> · {c.nota}</span> : null}
+                    {c.soportado && c.nota ? (
+                      <span className="text-neutral-mid"> · {c.nota}</span>
+                    ) : !c.soportado ? (
+                      <span className="text-neutral-mid"> · Aún no disponible.</span>
+                    ) : null}
                   </span>
                 </li>
               ))}
@@ -161,10 +168,10 @@ export function McpView() {
         variant="bordered"
         header={
           <div className="flex items-center justify-between gap-2">
-            <span className="font-medium">Tus API-keys</span>
+            <span className="font-medium">Claves de conexión</span>
             {!creando && !nuevaKey && (
               <QavanteButton size="sm" variant="ghost" onClick={() => setCreando(true)}>
-                <Plus className="mr-1 h-4 w-4" /> Crear API-key
+                <Plus className="mr-1 h-4 w-4" /> Crear clave
               </QavanteButton>
             )}
           </div>
@@ -178,7 +185,7 @@ export function McpView() {
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface px-3 py-2">
               <code className="break-all font-mono text-xs text-neutral-dark">{nuevaKey.key}</code>
-              <CopyButton value={nuevaKey.key} label="API-key" />
+              <CopyButton value={nuevaKey.key} label="Clave de conexión" />
             </div>
             <button
               type="button"
@@ -240,7 +247,7 @@ export function McpView() {
           <div className="h-16 animate-pulse rounded-lg bg-neutral-light/30" aria-busy="true" />
         ) : activas.length === 0 && !nuevaKey ? (
           <p className="py-3 text-sm text-neutral-mid">
-            Todavía no tienes API-keys. Crea una para conectar tu asistente.
+            Todavía no tienes claves. Crea una para conectar tu asistente.
           </p>
         ) : (
           <ul className="divide-y divide-border/60">
@@ -262,7 +269,7 @@ export function McpView() {
                       <span className="font-mono text-xs text-neutral-mid">{k.key_prefix}…</span>
                     </p>
                     <p className="text-xs text-neutral-mid">
-                      {ROL_LABEL.get(k.role_code) ?? k.role_code}
+                      {ROL_LABEL.get(k.role_code) ?? "Permiso no disponible"}
                       {" · "}
                       {k.revoked_at
                         ? "revocada"

@@ -39,7 +39,7 @@ export default function BandejaPage() {
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Bandeja de excepciones</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Sólo lo que el piloto no resolvió solo: conciliar y clasificar, de a uno.
+          Sólo lo que requiere tu revisión: conciliar y clasificar, de a uno.
         </p>
       </header>
       <div className="rounded-xl border border-border bg-white p-6">

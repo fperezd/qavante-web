@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/sii";
 import { useMe } from "@/lib/api/users";
 import { ApiError } from "@/lib/api/errors";
+import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { normalizeRut } from "@/lib/validators/rut";
 import { formatDateLike } from "@/lib/formatters/date";
 import { formatClp, formatClpCompact } from "@/lib/formatters/clp";
@@ -23,16 +24,14 @@ import { f29SyncFailureToast } from "./f29-sync-message";
 import { F29MonthDetail } from "./f29-month-detail";
 import { MESES_LARGOS_CAP as MESES } from "@/lib/formatters/months";
 
-/* Describe el error de un sync fallido con el dato real del backend (status +
-   code + motivo) en vez de un genérico — permite diagnosticar sin logs. */
-function describeReqError(err: unknown): string {
+/* Describe el error sin trasladar estados, códigos ni diagnósticos internos a la vista. */
+export function describeReqError(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 0) return "No pudimos conectar con el servidor. Revisa tu conexión.";
     if (err.status === 504 || err.status === 408) {
-      return "El SII tardó demasiado y la conexión se cortó (timeout). Intenta de nuevo en un rato.";
+      return "El SII tardó demasiado y la conexión se cortó. Intenta de nuevo en un rato.";
     }
-    const code = err.code ? ` · ${err.code}` : "";
-    return `El servidor respondió ${err.status}${code}. ${err.message}`;
+    return apiErrorToUserMessage(err);
   }
   return "El SII no respondió. Intenta de nuevo en un rato.";
 }

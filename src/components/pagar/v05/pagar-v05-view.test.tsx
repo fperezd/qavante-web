@@ -170,9 +170,9 @@ describe("PagarV05View — tabla y footer", () => {
     expect(t).toContain("Negociable");
     expect(t).toContain("Crédito");
     expect(t).toContain("No se posterga");
-    // Ninguna pill dice "Servicio" (la única mención es el hueco declarado, entre comillas).
+    // Ninguna pill ni nota técnica dice "Servicio".
     expect(html()).not.toMatch(/>Servicio</);
-    expect(t).toContain("la pill “Servicio” de la spec no se produce");
+    expect(t).not.toContain("la pill “Servicio” de la spec no se produce");
   });
 
   it("NO existe un botón 'pagar todo' (Ley 9), y el texto fijo de la ley está literal", () => {
@@ -254,7 +254,7 @@ describe("PagarV05View — el 'no sé' explícito", () => {
   it("caja proyectada en USD conserva su unidad y la cobertura se abstiene", () => {
     const t = texto(html({ pagos: pagosDegradados() }));
     expect(t).toMatch(/Caja proyectada 14 días US\$\s10\.500,00/);
-    expect(t).toContain("el backend no pudo determinar la cobertura con los datos disponibles");
+    expect(t).toContain("no se pudo determinar la cobertura con los datos disponibles");
     expect(t).not.toContain("faltan $");
   });
 

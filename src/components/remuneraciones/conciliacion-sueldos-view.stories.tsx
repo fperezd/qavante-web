@@ -91,7 +91,7 @@ export const TodoConciliado: Story = {
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     // [control positivo] N≠1: plural.
-    await expect(c.getByText(/3 de 3 empleados conciliados/)).toBeInTheDocument();
+    await expect(c.getByText(/3 de 3 empleados con coincidencia/)).toBeInTheDocument();
   },
 };
 
@@ -105,8 +105,8 @@ export const UnEmpleado: Story = {
   },
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
-    await expect(c.getByText("1 de 1 empleado conciliado")).toBeInTheDocument();
-    await expect(c.queryByText("1 de 1 empleados conciliados")).not.toBeInTheDocument();
+    await expect(c.getByText("1 de 1 empleado con coincidencia")).toBeInTheDocument();
+    await expect(c.queryByText("1 de 1 empleados con coincidencia")).not.toBeInTheDocument();
   },
 };
 

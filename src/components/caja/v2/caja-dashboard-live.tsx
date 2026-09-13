@@ -72,7 +72,7 @@ export function CajaDashboardLive({
             href="/caja/por-clasificar"
             icon={Inbox}
             title="Por clasificar"
-            description="Movimientos pendientes de clasificación. Asigna categoría canónica y cuenta de gestión."
+            description="Movimientos pendientes de clasificación. Asigna tipo de movimiento y cuenta de gestión."
             badge="Acción pendiente"
             badgeVariant="warning"
           />

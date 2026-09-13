@@ -226,8 +226,8 @@ export function ConnectSiiView() {
         {!connected && (
           <p className="text-xs text-neutral-mid">
             ¿No tienes la clave a mano? Sigue sin problema: hasta que conectes el SII no vamos a
-            mostrar tus ventas, compras ni impuestos (no los inventamos). Puedes conectarlo cuando
-            quieras desde <strong>Tus conexiones</strong>.
+            mostrar tus ventas, compras ni impuestos. Puedes conectarlo cuando quieras desde{" "}
+            <strong>Tus conexiones</strong>.
           </p>
         )}
 

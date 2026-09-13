@@ -20,7 +20,7 @@ function tono(variacion: number): string {
 }
 
 function Celda({ celda }: { celda: PlanRealCelda | null }) {
-  if (!celda) return <span className="text-neutral-mid/50">s/d</span>;
+  if (!celda) return <span className="text-neutral-mid/50">Sin información</span>;
   return (
     <span
       className={cn("tabular-nums", tono(celda.variacion))}

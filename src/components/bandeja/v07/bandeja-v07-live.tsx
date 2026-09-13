@@ -157,8 +157,7 @@ export function cuerpoReglaDesdePropuesta(
     operator: textoObligatorio(propuesta, "operator"),
     condition_value: textoObligatorio(propuesta, "condition_value"),
     management_account_id: cuentaId,
-    canonical_category:
-      categoriaCanonica as CreateClassificationRuleRequest["canonical_category"],
+    canonical_category: categoriaCanonica as CreateClassificationRuleRequest["canonical_category"],
     priority: typeof propuesta.priority === "number" ? propuesta.priority : 10,
     confidence: typeof propuesta.confidence === "number" ? propuesta.confidence : 1,
   };
@@ -426,8 +425,7 @@ function CargandoBandeja() {
   return (
     <div className="space-y-4" aria-busy="true" aria-live="polite">
       <p className="text-sm text-rediseno-tinta-3">
-        Estamos juntando lo que el piloto no resolvió solo: la cola de conciliación y los
-        movimientos sin clasificar (~5 s).
+        Estamos cargando los casos que requieren conciliación o clasificación (~5 s).
       </p>
       <div className="h-14 animate-pulse rounded-[14px] bg-rediseno-neutro-bg" aria-hidden="true" />
       <div className="h-64 animate-pulse rounded-[14px] bg-rediseno-neutro-bg" aria-hidden="true" />

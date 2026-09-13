@@ -271,7 +271,7 @@ export const LoteResultadosParciales: Story = {
     await waitFor(() => expect(args.onEnviarLote).toHaveBeenCalledTimes(1), { timeout: 5000 });
     await expect(panel.getByRole("status")).toHaveTextContent("Se envió 1 recordatorio");
     await expect(panel.getByRole("status")).toHaveTextContent("1 sin destinatario");
-    await expect(panel.getByRole("status")).toHaveTextContent("1 omitido por idempotencia");
+    await expect(panel.getByRole("status")).toHaveTextContent("1 ya procesado anteriormente");
     await expect(panel.getByRole("list", { name: "Resultado por documento" })).toHaveTextContent(
       "sin destinatario",
     );

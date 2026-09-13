@@ -492,7 +492,7 @@ export function ClasificadosView() {
                         className="border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted"
                       >
                         <td className="py-2 pr-3 text-neutral-dark">
-                          {m.date ? formatDateLike(m.date) : "s/d"}
+                          {m.date ? formatDateLike(m.date) : "Sin información"}
                         </td>
                         <td className="py-2 pr-3 text-neutral-dark" title={m.description}>
                           <span className="line-clamp-2 max-w-[320px]">{m.description}</span>
@@ -594,8 +594,8 @@ export function ClasificadosView() {
 
           <p className="text-xs text-neutral-mid">
             Movimientos bancarios ya clasificados. Para reclasificar uno, haz clic en{" "}
-            <span className="font-medium text-neutral-dark">Reclasificar</span> en su fila, el
-            drawer del flujo §17 abre con la clasificación actual prellenada.
+            <span className="font-medium text-neutral-dark">Reclasificar</span> en su fila. Verás la
+            clasificación actual antes de guardar cambios.
           </p>
         </div>
       </QavanteCard>
@@ -606,7 +606,9 @@ export function ClasificadosView() {
           open
           onClose={() => setReclasifyTarget(null)}
           movement={{
-            date: reclasifyTarget.date ? formatDateLike(reclasifyTarget.date) : "s/d",
+            date: reclasifyTarget.date
+              ? formatDateLike(reclasifyTarget.date)
+              : "Fecha no disponible",
             description: reclasifyTarget.description,
             bankLabel: `Cuenta ····${reclasifyTarget.bank_account_id.slice(-4)}`,
             amountFormatted: formatMoney(
@@ -623,7 +625,9 @@ export function ClasificadosView() {
             {
               status: "done",
               title: "Detectado en tu banco",
-              children: reclasifyTarget.date ? formatDateLike(reclasifyTarget.date) : "s/d",
+              children: reclasifyTarget.date
+                ? formatDateLike(reclasifyTarget.date)
+                : "Fecha no disponible",
             },
             {
               status: "done",

@@ -7,12 +7,13 @@ describe("toolLabel", () => {
     expect(toolLabel("caja")).toBe("caja");
     expect(toolLabel("cobranza")).toBe("cobranza");
     expect(toolLabel("forecast")).toBe("caja proyectada");
+    expect(toolLabel("drivers")).toBe("factores del resultado");
   });
   it("es case-insensitive y trimea", () => {
     expect(toolLabel("  PULSO ")).toBe("Pulso");
   });
-  it("desconocida → el nombre en minúscula (sin exponer estructura)", () => {
-    expect(toolLabel("Xyz")).toBe("xyz");
+  it("desconocida → etiqueta neutra sin exponer estructura", () => {
+    expect(toolLabel("Xyz")).toBe("tus datos");
   });
 });
 
@@ -40,7 +41,9 @@ describe("sanitizeAssistantContent — defensa en profundidad ADR-0004", () => {
     );
     // El caso de fuga real: razonamiento + doble salto + respuesta.
     expect(
-      sanitizeAssistantContent("**Thinking:** el cliente debe $2M, sugerir cobrar.\n\nTienes $2M en mora."),
+      sanitizeAssistantContent(
+        "**Thinking:** el cliente debe $2M, sugerir cobrar.\n\nTienes $2M en mora.",
+      ),
     ).toBe("Tienes $2M en mora.");
     expect(sanitizeAssistantContent("**Thinking:** interno")).toBe("");
   });

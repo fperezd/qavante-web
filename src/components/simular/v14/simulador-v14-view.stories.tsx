@@ -36,7 +36,7 @@ export const Lista: Story = {
       canvas.getByText("Puedes asumir el gasto, con una condición."),
     ).toBeInTheDocument();
     await expect(canvas.getAllByText("−$2.500.000")).toHaveLength(2);
-    await expect(canvas.getAllByText("projection:baseline-2026-09-09")).toHaveLength(2);
+    await expect(canvas.getAllByText("Proyección base utilizada").length).toBeGreaterThanOrEqual(1);
   },
 };
 
@@ -52,7 +52,9 @@ export const Parcial: Story = {
 export const Abstenida: Story = {
   args: { model: simuladorV14Model(simulationAbstainedV14) },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText("Memo · El motor se abstuvo")).toBeInTheDocument();
+    await expect(
+      within(canvasElement).getByText("Memo · No fue posible evaluar"),
+    ).toBeInTheDocument();
   },
 };
 

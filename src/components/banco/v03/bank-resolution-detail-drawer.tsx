@@ -156,13 +156,13 @@ export function BankResolutionDetailDrawer({
         <div className="flex-1 space-y-5 p-5">
           {resolutionLoading && (
             <p role="status" aria-live="polite" className="text-sm text-neutral-mid">
-              Cargando el detalle canónico del movimiento…
+              Cargando el detalle del movimiento…
             </p>
           )}
           {resolutionError != null && (
             <QavanteInlineError
               error={resolutionError}
-              what="el detalle canónico del movimiento"
+              what="el detalle del movimiento"
               onRetry={onRetryResolution}
             />
           )}
@@ -172,12 +172,9 @@ export function BankResolutionDetailDrawer({
                 title="Conciliación"
                 pill={<Pill variant={reconciliationPill.tono}>{reconciliationPill.texto}</Pill>}
               >
-                {detail.reconciliation.topology && (
-                  <Fact label="Relación" value={detail.reconciliation.topology} />
-                )}
                 <Allocations
                   items={detail.reconciliation.allocations}
-                  empty="El estado está disponible, pero la API todavía no publicó contra qué documento(s) se concilió."
+                  empty="El estado está disponible, pero no pudimos identificar los documentos relacionados."
                 />
                 <Components items={detail.reconciliation.components} />
                 {detail.reconciliation.balanceFormatted && (
@@ -186,7 +183,6 @@ export function BankResolutionDetailDrawer({
                     value={detail.reconciliation.balanceFormatted}
                   />
                 )}
-                <Trace source={detail.reconciliation.source} />
                 {(detail.reconciliation.evidence?.length ?? 0) > 0 && (
                   <ul className="list-disc space-y-1 pl-5 text-xs text-neutral-mid">
                     {detail.reconciliation.evidence!.map((e) => (
@@ -229,13 +225,9 @@ export function BankResolutionDetailDrawer({
                 )}
                 <Allocations
                   items={detail.classification.allocations}
-                  empty="La API todavía no publicó la cuenta de gestión o su distribución para este movimiento."
+                  empty="No pudimos identificar la cuenta de gestión o su distribución para este movimiento."
                 />
-                <Trace
-                  source={detail.classification.source}
-                  actor={detail.classification.actor}
-                  occurredAt={detail.classification.classifiedAt}
-                />
+                <Trace occurredAt={detail.classification.classifiedAt} />
                 <History items={detail.classification.history} />
                 {editingClassification && classificationEditor && canEditClassification && (
                   <DistributedClassificationEditor
@@ -299,16 +291,16 @@ function Components({ items }: { items: ResolutionComponent[] }) {
         {items.map((item) => (
           <li key={item.id} className="space-y-1 p-3 text-xs">
             <div className="flex items-start justify-between gap-3">
-              <span className="font-medium text-neutral-dark">{item.kind}</span>
+              <span className="font-medium text-neutral-dark">{componentLabel(item.kind)}</span>
               <span className="whitespace-nowrap font-semibold text-neutral-dark">
                 {item.amountFormatted}
               </span>
             </div>
-            <p className="text-neutral-mid">
-              Origen: {item.source}
-              {item.sourceReference ? ` · Referencia: ${item.sourceReference}` : ""}
-              {item.taxTreatment ? ` · Tratamiento tributario: ${item.taxTreatment}` : ""}
-            </p>
+            {taxTreatmentLabel(item.taxTreatment) && (
+              <p className="text-neutral-mid">
+                Tratamiento tributario: {taxTreatmentLabel(item.taxTreatment)}
+              </p>
+            )}
           </li>
         ))}
       </ul>
@@ -386,22 +378,9 @@ function Allocations({ items, empty }: { items: ResolutionAllocation[]; empty: s
   );
 }
 
-function Trace({
-  source,
-  actor,
-  occurredAt,
-}: {
-  source?: string | null;
-  actor?: string | null;
-  occurredAt?: string | null;
-}) {
-  const values = [
-    source && `Origen: ${source}`,
-    actor && `Actor: ${actor}`,
-    occurredAt && `Fecha: ${formatDateShort(occurredAt)}`,
-  ].filter(Boolean);
-  return values.length > 0 ? (
-    <p className="text-xs text-neutral-mid">{values.join(" · ")}</p>
+function Trace({ occurredAt }: { occurredAt?: string | null }) {
+  return occurredAt ? (
+    <p className="text-xs text-neutral-mid">Fecha registrada: {formatDateShort(occurredAt)}</p>
   ) : null;
 }
 
@@ -417,10 +396,31 @@ function History({ items }: { items?: ResolutionHistoryEntry[] }) {
           <li key={item.id}>
             <span className="font-medium text-neutral-dark">{item.label}</span> ·{" "}
             {formatDateShort(item.occurredAt)}
-            {item.actor ? ` · ${item.actor}` : ""}
           </li>
         ))}
       </ol>
     </details>
   );
+}
+
+function componentLabel(kind: string): string {
+  const labels: Record<string, string> = {
+    payment: "Pago",
+    document: "Documento",
+    fee: "Comisión bancaria",
+    commission: "Comisión bancaria",
+    tax: "Impuesto",
+    interest: "Interés financiero",
+  };
+  return labels[kind.toLowerCase()] ?? "Componente del movimiento";
+}
+
+function taxTreatmentLabel(value?: string | null): string | null {
+  if (!value) return null;
+  const labels: Record<string, string> = {
+    exempt: "Exento",
+    taxable: "Afecto",
+    non_taxable: "No afecto",
+  };
+  return labels[value.toLowerCase()] ?? null;
 }

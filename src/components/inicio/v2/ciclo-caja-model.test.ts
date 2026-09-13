@@ -111,8 +111,8 @@ describe("statsCicloCaja — el ejemplo LITERAL del issue #94: 'Cobras en 1 día
     expect(ciclo).toEqual({ label: "Ciclo", valor: "-1", sufijo: "día" });
   });
 
-  it("valor null: 's/d', sin sufijo (no se inventa un '0 días')", () => {
+  it("valor null: 'Sin información', sin sufijo (no se inventa un '0 días')", () => {
     const [cobras] = statsCicloCaja(null, 10, 9);
-    expect(cobras).toEqual({ label: "Cobras en", valor: "s/d", sufijo: undefined });
+    expect(cobras).toEqual({ label: "Cobras en", valor: "Sin información", sufijo: undefined });
   });
 });

@@ -12,10 +12,10 @@ export default function McpPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">Conectar un asistente (MCP)</h1>
+        <h1 className="text-2xl font-bold text-neutral-dark">Conectar un asistente</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Deja que un asistente como ChatGPT o Claude lea tus datos de Qavante para responderte sobre
-          tu negocio. Se conecta con una API-key que creas acá y puedes revocar cuando quieras.
+          Deja que un asistente como ChatGPT o Claude lea tus datos de Qavante para responderte
+          sobre tu negocio. Tú controlas la clave de conexión y puedes revocarla cuando quieras.
         </p>
       </header>
 

@@ -65,7 +65,7 @@ export function statsCicloCaja(
   dpo: number | null,
   ccc: number | null,
 ): [CicloCajaStat, CicloCajaStat, CicloCajaStat] {
-  const valorDias = (v: number | null) => (v != null ? `${v}` : "s/d");
+  const valorDias = (v: number | null) => (v != null ? `${v}` : "Sin información");
   const sufijoDias = (v: number | null) =>
     v != null ? concordar(Math.abs(v), "día", "días") : undefined;
   return [
