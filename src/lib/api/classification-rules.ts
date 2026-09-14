@@ -12,6 +12,7 @@
  *
  * Tipos del OpenAPI generado (`./types`), NUNCA hand-rolled (regla 3). El
  * gating de la UI lo hace `classificationRules` (ADR-0008) en su PR de wire. */
+import { useRef } from "react";
 import {
   useMutation,
   useQueries,
@@ -76,6 +77,13 @@ function invalidateAfterRuleChange(qc: QueryClient): void {
   qc.invalidateQueries({ queryKey: ["treasury-reports"] });
 }
 
+/** Fingerprint estable de una intención de creación. Mismo body → misma llave de retry. */
+export function classificationRuleIntentFingerprint(body: CreateClassificationRuleRequest): string {
+  return JSON.stringify(
+    Object.fromEntries(Object.entries(body).sort(([a], [b]) => a.localeCompare(b))),
+  );
+}
+
 /** `GET /api/treasury/classification-rules` — lista ordenada por priority ASC. */
 export function useClassificationRules() {
   return useQuery({
@@ -111,13 +119,28 @@ export function useClassificationRuleUsages(ruleIds: string[]) {
 
 /** `POST /api/treasury/classification-rules` — crear regla. 403 si
  *  role !owner/admin (§20); 404 si management_account_id no existe;
- *  422 si dominio inválido. Invalida el listado al éxito. */
+ *  422 si dominio inválido. Reintentos del MISMO body reutilizan la misma
+ *  `Idempotency-Key` hasta obtener éxito; sólo entonces se descarta. */
 export function useCreateClassificationRule() {
   const qc = useQueryClient();
+  const retryKeys = useRef(new Map<string, string>());
   return useMutation({
-    mutationFn: (body: CreateClassificationRuleRequest) =>
-      api.post<ClassificationRule>("/api/treasury/classification-rules", { body }),
-    onSuccess: () => invalidateAfterRuleChange(qc),
+    mutationFn: (body: CreateClassificationRuleRequest) => {
+      const fingerprint = classificationRuleIntentFingerprint(body);
+      let idempotencyKey = retryKeys.current.get(fingerprint);
+      if (!idempotencyKey) {
+        idempotencyKey = crypto.randomUUID();
+        retryKeys.current.set(fingerprint, idempotencyKey);
+      }
+      return api.post<ClassificationRule>("/api/treasury/classification-rules", {
+        body,
+        headers: { "Idempotency-Key": idempotencyKey },
+      });
+    },
+    onSuccess: (_rule, body) => {
+      retryKeys.current.delete(classificationRuleIntentFingerprint(body));
+      invalidateAfterRuleChange(qc);
+    },
   });
 }
 
