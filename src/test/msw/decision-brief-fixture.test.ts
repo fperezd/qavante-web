@@ -18,6 +18,13 @@ describe("fixture MSW de CashDecisionBrief", () => {
     expect(DECISION_BRIEF_E2E_FIXTURE.coverage.excluded_other_currency_items).toBe(2);
   });
 
+  /* Sin decimales en la fixture, el E2E no podría distinguir una pantalla que
+     redondea de una que nunca recibió una fracción. */
+  it("trae los dos decimales que publica producción para que el E2E los ejercite", () => {
+    expect(DECISION_BRIEF_E2E_FIXTURE.problem.amount?.amount).toBe("52418151.00");
+    expect(DECISION_BRIEF_E2E_FIXTURE.evidence?.[0]?.amount?.amount).toBe("-52418151.362000000000");
+  });
+
   it("publica cada CTA con sólo decision_id y context_hash, en ese orden", () => {
     for (const href of Object.values(DECISION_BRIEF_E2E_CTA_HREFS)) {
       const url = new URL(href, "https://app.qavante.test");

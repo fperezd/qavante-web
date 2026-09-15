@@ -199,7 +199,7 @@ describe("DecisionBriefPanel — envelope server-owned", () => {
     expect(rendered).not.toContain("$0");
   });
 
-  it("renderiza Decimal exacto sin pasar por IEEE-754, incluidos negativos y fracciones CLP", () => {
+  it("renderiza Decimal exacto sin pasar por IEEE-754, y en CLP redondea al peso", () => {
     const brief: CashDecisionBrief = {
       ...BRIEF,
       problem: {
@@ -226,16 +226,56 @@ describe("DecisionBriefPanel — envelope server-owned", () => {
     };
 
     const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={brief} />));
-    expect(rendered).toContain("$9.007.199.254.740.993,50");
-    expect(rendered).toContain("−$9.007.199.254.740.993,005");
+    // El entero sobrevive dígito por dígito; la fracción CLP se redondea al peso.
+    expect(rendered).toContain("$9.007.199.254.740.994");
+    expect(rendered).toContain("−$9.007.199.254.740.993");
     expect(rendered).not.toContain("$9.007.199.254.740.992");
+    // Gemelo del redondeo: en pesos no queda ninguna coma decimal.
+    expect(rendered).not.toContain("740.993,50");
+    expect(rendered).not.toContain("740.993,005");
+  });
+
+  /* Strings REALES medidos el 2026-09-15 contra la proyección productiva de Tooxs:
+     el backend publica `str(Decimal)`, así que un residuo FX llega con doce
+     decimales y un `NUMERIC(18,2)` con ".00". El panel es la superficie donde eso
+     se vería, así que se ejercita acá y no sólo en el formateador. */
+  it("no pinta los decimales que publica producción en un monto en pesos", () => {
+    const brief: CashDecisionBrief = {
+      ...BRIEF,
+      problem: {
+        ...BRIEF.problem,
+        amount: { amount: "40791386.00", currency: "CLP", label: "Faltante proyectado" },
+      },
+      evidence: [
+        {
+          kind: "cash_projection",
+          label: "Menor saldo proyectado",
+          note: "Residuo de conversión con doce decimales.",
+          amount: {
+            amount: "-31016973.362000000000",
+            currency: "CLP",
+            label: "Menor saldo proyectado",
+          },
+          observed_on: "2026-09-12",
+        },
+      ],
+    };
+
+    const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={brief} />));
+    expect(rendered).toContain("$40.791.386");
+    expect(rendered).toContain("−$31.016.973");
+    // Gemelos: ni el ".00" ni los doce decimales llegan a la pantalla.
+    expect(rendered).not.toContain("$40.791.386,00");
+    expect(rendered).not.toContain("31.016.973,362000000000");
+    expect(rendered).not.toContain("31.016.973,36");
   });
 
   /* Los dos límites que el review R2 pidió por nombre: un entero por encima de
-     2^53, donde `Number()` ya cambia el último dígito, y una fracción CLP que
-     el redondeo al peso borraría. Cada negativo lleva su positivo gemelo con la
+     2^53, donde `Number()` ya cambia el último dígito, y una fracción CLP, que
+     desde la activación se redondea al peso en TEXTO (sin `Number()`, así que el
+     entero grande sigue intacto). Cada negativo lleva su positivo gemelo con la
      MISMA cifra para que no pase por bueno un assert que nunca casa. */
-  it("renderiza el entero sobre 2^53 y la fracción CLP tal como los publicó el contrato", () => {
+  it("renderiza el entero sobre 2^53 exacto y la fracción CLP al peso", () => {
     const exacto = (amount: string): string =>
       text(
         renderToStaticMarkup(
@@ -255,7 +295,12 @@ describe("DecisionBriefPanel — envelope server-owned", () => {
     expect(grande).not.toContain("$9.007.199.254.740.992");
 
     const fraccion = exacto("1234.56");
-    expect(fraccion).toContain("$1.234,56");
-    expect(fraccion).not.toContain("$1.235");
+    expect(fraccion).toContain("$1.235");
+    expect(fraccion).not.toContain("$1.234,56");
+
+    // Gemelo del criterio: por debajo de la mitad baja, y tampoco muestra coma.
+    const fraccionBaja = exacto("1234.44");
+    expect(fraccionBaja).toContain("$1.234");
+    expect(fraccionBaja).not.toContain("$1.234,44");
   });
 });

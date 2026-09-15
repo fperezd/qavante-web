@@ -88,7 +88,14 @@ test.describe("Decision Brief canónico en las cinco superficies", () => {
         await expect(
           brief.getByText("Tu caja no alcanza para cubrir los próximos pagos"),
         ).toBeVisible();
-        await expect(brief.getByText("−$52.418.151")).toBeVisible();
+        /* La fixture publica "52418151.00" y "-52418151.362000000000", los dos
+           formatos que trae producción. En pesos se muestran al peso: estos dos
+           positivos y su gemelo negativo miden justamente eso. */
+        await expect(brief.getByText("$52.418.151", { exact: true })).toBeVisible();
+        await expect(brief.getByText("−$52.418.151", { exact: true })).toBeVisible();
+        await expect(brief.getByText("$52.418.151,00")).toHaveCount(0);
+        await expect(brief.getByText("52.418.151,362000000000")).toHaveCount(0);
+        await expect(brief.getByText("52.418.151,36")).toHaveCount(0);
         await expect(brief.getByText("Registros en otra moneda: 2")).toBeVisible();
 
         /* No se reconstruyen con pathname/router: llegan literales, con sólo los dos

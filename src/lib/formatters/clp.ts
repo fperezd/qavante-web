@@ -76,8 +76,55 @@ function groupThousands(digits: string): string {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
+function currencyCode(currency: string | null | undefined): string {
+  return (currency || "CLP").trim().toUpperCase() || "CLP";
+}
+
+/* Suma 1 a un número escrito como dígitos, propagando el acarreo. Sin `Number()`
+   ni `BigInt`: la cifra puede exceder 2^53 y ahí cualquier conversión ya miente.
+   El índice en `DIGITS` reemplaza la aritmética. */
+const DIGITS = "0123456789";
+
+function incrementDigits(digits: string): string {
+  const out = digits.split("");
+  let i = out.length - 1;
+  while (i >= 0) {
+    if (out[i] === "9") {
+      out[i] = "0";
+      i -= 1;
+      continue;
+    }
+    out[i] = DIGITS.charAt(DIGITS.indexOf(out[i]!) + 1);
+    break;
+  }
+  // Acarreo que desbordó por la izquierda: "999" + 1 = "1000".
+  return i < 0 ? `1${out.join("")}` : out.join("");
+}
+
+/* Redondea la MAGNITUD a `places` decimales, media hacia arriba, operando sobre
+   texto. Es el mismo criterio que `formatClp`, que redondea con `Intl` sobre
+   `Math.abs(value)` y por defecto aleja las mitades del cero; acá el signo se
+   decide después, sobre el resultado ya redondeado. */
+function roundDecimalMagnitude(
+  integer: string,
+  fraction: string | null,
+  places: number,
+): { integer: string; fraction: string } {
+  const digits = fraction ?? "";
+  const kept = digits.slice(0, places).padEnd(places, "0");
+  const next = digits.charAt(places);
+  if (next === "" || next < "5") return { integer, fraction: kept };
+
+  const carried = incrementDigits(`${integer}${kept}`);
+  const cut = carried.length - places;
+  return {
+    integer: carried.slice(0, cut) || "0",
+    fraction: carried.slice(cut),
+  };
+}
+
 function moneyPrefix(currency: string | null | undefined): string {
-  const code = (currency || "CLP").trim().toUpperCase() || "CLP";
+  const code = currencyCode(currency);
   if (code === "CLP") return "$";
   // El NBSP mantiene símbolo/código y cifra unidos, como `formatMoney`.
   return `${code === "USD" ? "US$" : code}\u00a0`;
@@ -87,6 +134,17 @@ function moneyPrefix(currency: string | null | undefined): string {
  * Formatea un decimal exacto del contrato sin convertirlo a `number`.
  * `null`, vacío o sólo espacios se mantienen como ausencia; texto no decimal
  * vuelve literalmente para que la interfaz no afirme una cifra que no recibió.
+ *
+ * La PRECISIÓN del contrato no es la precisión de la pantalla. El backend publica
+ * `str(Decimal)`, así que un residuo de conversión FX llega como
+ * "-31016973.362000000000" y un `NUMERIC(18,2)` como "40791386.00" (medido el
+ * 2026-09-15 contra la proyección productiva de Tooxs). Mostrarlos literalmente
+ * pintaría "$31.016.973,362000000000" en pesos, contra la regla ratificada de CLP
+ * sin decimales. Acá se aplica la regla de la MONEDA sobre el string exacto: CLP
+ * al peso, el resto a dos decimales, redondeando en TEXTO para que un entero sobre
+ * 2^53 siga saliendo dígito por dígito. El backend sigue siendo dueño de la cifra:
+ * esto es presentación, no aritmética de negocio. La cuantización en origen es
+ * qavante-api#598; el frontend no depende de que llegue.
  */
 export function formatMoneyFromDecimalString(
   raw: string | null | undefined,
@@ -97,14 +155,17 @@ export function formatMoneyFromDecimalString(
   const decimal = exactDecimal(raw);
   if (!decimal) return raw;
 
-  const numberText = `${groupThousands(decimal.integer)}${
-    decimal.fraction === null ? "" : `,${decimal.fraction}`
+  const places = currencyCode(currency) === "CLP" ? 0 : 2;
+  const rounded = roundDecimalMagnitude(decimal.integer, decimal.fraction, places);
+  const numberText = `${groupThousands(rounded.integer)}${
+    places === 0 ? "" : `,${rounded.fraction}`
   }`;
-  /* El cero no lleva signo, igual que en `formatClp`: un "-0" o un "-0.00" del
-     contrato son cero exacto, y pintar "−$0" sugiere una magnitud negativa que
-     el dato no tiene. Se mira TODA la cifra recibida, entero y fracción, así que
-     "-0.01" sí conserva el menos. */
-  const isZero = !/[1-9]/.test(`${decimal.integer}${decimal.fraction ?? ""}`);
+  /* El cero no lleva signo, igual que en `formatClp`: un "-0", un "-0.00" o un
+     "-0.4" que redondea a cero son cero en pantalla, y pintar "−$0" sugiere una
+     magnitud negativa que la cifra mostrada no tiene. El juicio va sobre los
+     dígitos YA redondeados, no sobre los recibidos: con los recibidos, "-0.4"
+     habría salido con un menos delante de un "$0". */
+  const isZero = !/[1-9]/.test(`${rounded.integer}${rounded.fraction}`);
   const sign = decimal.negative && !isZero ? "−" : "";
   return `${sign}${moneyPrefix(currency)}${numberText}`;
 }

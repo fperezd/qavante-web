@@ -225,37 +225,89 @@ describe("formatClpFromString", () => {
   it("redondea al peso el decimal de dos dígitos, y NO es el formateador exacto", () => {
     expect(norm(formatClpFromString("1140000.00"))).toBe("$1.140.000");
     expect(norm(formatClpFromString("1140000.60"))).toBe("$1.140.001");
-    // Gemelo del contraste: el exacto sí conserva los centavos del contrato.
-    expect(norm(formatMoneyFromDecimalString("1140000.00", "CLP") ?? "")).toBe("$1.140.000,00");
+    // Gemelo del contraste: el exacto llega al MISMO peso por otro camino, sin
+    // pasar por Number(). Se diferencian en que el exacto conserva los dígitos de
+    // un entero sobre 2^53; la regla CLP sin decimales es la misma para los dos.
+    expect(norm(formatMoneyFromDecimalString("1140000.00", "CLP") ?? "")).toBe("$1.140.000");
+    expect(norm(formatMoneyFromDecimalString("1140000.60", "CLP") ?? "")).toBe("$1.140.001");
   });
 });
 
 describe("formatMoneyFromDecimalString — contrato Decimal exacto", () => {
-  it("preserva enteros fuera de IEEE-754 y la fracción CLP sin redondearla", () => {
-    expect(formatMoneyFromDecimalString("9007199254740993.50", "CLP")).toBe(
-      "$9.007.199.254.740.993,50",
+  /* Strings REALES medidos el 2026-09-15 contra la proyección productiva de Tooxs
+     por el conector MCP. El backend publica `str(Decimal)`, así que un residuo de
+     conversión FX llega con doce decimales y un `NUMERIC(18,2)` con ".00". */
+  it("aplica la regla CLP al peso sobre los decimales que publica producción", () => {
+    expect(formatMoneyFromDecimalString("-31016973.362000000000", "CLP")).toBe("−$31.016.973");
+    expect(formatMoneyFromDecimalString("31016973.362000000000", "CLP")).toBe("$31.016.973");
+    expect(formatMoneyFromDecimalString("40791386.00", "CLP")).toBe("$40.791.386");
+    expect(formatMoneyFromDecimalString("21585664.00", "CLP")).toBe("$21.585.664");
+    // Gemelo negativo: ninguna de las cuatro deja caer una coma decimal en pesos.
+    for (const raw of [
+      "-31016973.362000000000",
+      "31016973.362000000000",
+      "40791386.00",
+      "21585664.00",
+    ]) {
+      expect(formatMoneyFromDecimalString(raw, "CLP")).not.toContain(",");
+    }
+  });
+
+  it("redondea media hacia arriba sobre el texto, con acarreo y sin signo en el cero", () => {
+    expect(formatMoneyFromDecimalString("1234.56", "CLP")).toBe("$1.235");
+    expect(formatMoneyFromDecimalString("1234.44", "CLP")).toBe("$1.234");
+    expect(formatMoneyFromDecimalString("999.5", "CLP")).toBe("$1.000");
+    expect(formatMoneyFromDecimalString("-999.5", "CLP")).toBe("−$1.000");
+    // El acarreo cruza todos los nueves sin pasar por un número.
+    expect(formatMoneyFromDecimalString("9999999999999999999.5", "CLP")).toBe(
+      "$10.000.000.000.000.000.000",
     );
-    expect(formatMoneyFromDecimalString("9007199254740993.50", "CLP")).not.toContain(
+    // Redondea a cero: el menos desaparece porque la cifra mostrada no es negativa.
+    expect(formatMoneyFromDecimalString("-0.4", "CLP")).toBe("$0");
+    // Gemelo: desde la mitad ya hay magnitud, y el menos vuelve.
+    expect(formatMoneyFromDecimalString("-0.5", "CLP")).toBe("−$1");
+  });
+
+  it("preserva enteros fuera de IEEE-754 dígito por dígito", () => {
+    expect(formatMoneyFromDecimalString("9007199254740993", "CLP")).toBe("$9.007.199.254.740.993");
+    expect(formatMoneyFromDecimalString("9007199254740993", "CLP")).not.toContain(
       "9.007.199.254.740.992",
+    );
+    // La ruta por Number() sí pierde el último dígito: por eso este formateador existe.
+    expect(Number("9007199254740993")).toBe(9007199254740992);
+    // Con decimales y redondeo al peso, el entero sigue intacto.
+    expect(formatMoneyFromDecimalString("9007199254740993.50", "CLP")).toBe(
+      "$9.007.199.254.740.994",
+    );
+    expect(formatMoneyFromDecimalString("9007199254740993.49", "CLP")).toBe(
+      "$9.007.199.254.740.993",
     );
   });
 
-  it("conserva el signo negativo y usa un prefijo seguro para otras monedas", () => {
+  it("conserva el signo negativo y da dos decimales a las monedas con centavos", () => {
     expect(formatMoneyFromDecimalString("-9007199254740993.005", "CLP")).toBe(
-      "−$9.007.199.254.740.993,005",
+      "−$9.007.199.254.740.993",
     );
     expect(formatMoneyFromDecimalString("9007199254740993.50", "USD")).toBe(
       "US$ 9.007.199.254.740.993,50",
     );
-    expect(formatMoneyFromDecimalString("19.123", "EUR")).toBe("EUR 19,123");
+    // Dos decimales como `formatMoney`, redondeando con la misma regla.
+    expect(formatMoneyFromDecimalString("1234.567", "USD")).toBe("US$ 1.234,57");
+    expect(formatMoneyFromDecimalString("1234.564", "USD")).toBe("US$ 1.234,56");
+    expect(formatMoneyFromDecimalString("1.999", "USD")).toBe("US$ 2,00");
+    expect(formatMoneyFromDecimalString("19.123", "EUR")).toBe("EUR 19,12");
+    // Rellena a dos decimales cuando el contrato manda menos dígitos.
+    expect(formatMoneyFromDecimalString("19", "EUR")).toBe("EUR 19,00");
   });
 
   it("trata el cero negativo del contrato como cero, igual que formatClp", () => {
     expect(formatMoneyFromDecimalString("-0", "CLP")).toBe("$0");
-    expect(formatMoneyFromDecimalString("-0.00", "CLP")).toBe("$0,00");
-    expect(formatMoneyFromDecimalString("-0", "USD")).toBe("US$ 0");
-    // Gemelo: el menos sí sobrevive apenas hay una magnitud real, por chica que sea.
-    expect(formatMoneyFromDecimalString("-0.01", "CLP")).toBe("−$0,01");
+    expect(formatMoneyFromDecimalString("-0.00", "CLP")).toBe("$0");
+    expect(formatMoneyFromDecimalString("-0", "USD")).toBe("US$ 0,00");
+    // En CLP un centavo no llega al peso: se muestra el cero, no un "−$0".
+    expect(formatMoneyFromDecimalString("-0.01", "CLP")).toBe("$0");
+    // Gemelo con centavos: ahí el menos sí sobrevive, porque la cifra mostrada existe.
+    expect(formatMoneyFromDecimalString("-0.01", "USD")).toBe("−US$ 0,01");
     expect(formatMoneyFromDecimalString("-1", "CLP")).toBe("−$1");
   });
 

@@ -34,7 +34,9 @@ export const DECISION_BRIEF_E2E_FIXTURE = {
   problem: {
     title: "Tu caja no alcanza para cubrir los próximos pagos",
     summary: "En los próximos 14 días, los pagos programados superan la caja proyectada.",
-    amount: { amount: "52418151", currency: "CLP", label: "Faltante proyectado" },
+    /* ".00" tal como lo publica un `NUMERIC(18,2)` del backend: el E2E comprueba
+       que la pantalla lo muestra al peso y no como "$52.418.151,00". */
+    amount: { amount: "52418151.00", currency: "CLP", label: "Faltante proyectado" },
   },
   alternatives: [
     {
@@ -76,7 +78,13 @@ export const DECISION_BRIEF_E2E_FIXTURE = {
       kind: "cash_projection",
       label: "Menor saldo proyectado",
       note: "Proyección de caja de 14 días.",
-      amount: { amount: "-52418151", currency: "CLP", label: "Menor saldo proyectado" },
+      /* Residuo de conversión FX con doce decimales, como los strings medidos en la
+         proyección productiva el 2026-09-15. La pantalla debe dejarlo en pesos. */
+      amount: {
+        amount: "-52418151.362000000000",
+        currency: "CLP",
+        label: "Menor saldo proyectado",
+      },
       observed_on: "2026-09-12",
     },
     {
