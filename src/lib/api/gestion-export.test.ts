@@ -89,7 +89,7 @@ describe("exportación XLSX nativa de Gestión", () => {
     );
   });
 
-  it("preserva el ApiError HTTP del cliente común", async () => {
+  it("preserva el estado HTTP y no expone el detalle libre del servidor", async () => {
     server.use(
       http.get(ENDPOINT, () =>
         HttpResponse.json({ detail: "El rango no es válido." }, { status: 422 }),
@@ -97,7 +97,7 @@ describe("exportación XLSX nativa de Gestión", () => {
     );
     await expect(exportOperationalResultXlsx("2026-05", "2026-07")).rejects.toMatchObject({
       status: 422,
-      message: "El rango no es válido.",
+      message: "Algunos datos no son válidos. Revisa el formulario.",
     });
   });
 });

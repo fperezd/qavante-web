@@ -1,4 +1,5 @@
 import { ApiError } from "./errors";
+import { fallbackUserMessage, parseUserMessage, renderUserMessage } from "./user-message";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -62,11 +63,7 @@ async function request<T>(
   parseSuccess: SuccessParser<T> = parseResponse<T>,
 ): Promise<T> {
   if (!API_URL) {
-    throw new ApiError(
-      "NEXT_PUBLIC_API_URL no configurada. Revisar .env.local.",
-      0,
-      "config_missing",
-    );
+    throw new ApiError(fallbackUserMessage(0, "config_missing"), 0, "config_missing");
   }
 
   const { body, skipAuthRetry, headers, ...rest } = options;
@@ -128,8 +125,11 @@ async function request<T>(
     } catch {
       parsed = undefined;
     }
-    const { message, code } = extractApiError(parsed, response.status);
-    throw new ApiError(message, response.status, code, parsed);
+    const { code, userMessage } = extractApiError(parsed, response.headers.get("x-correlation-id"));
+    const message = userMessage
+      ? renderUserMessage(userMessage)
+      : fallbackUserMessage(response.status, code);
+    throw new ApiError(message, response.status, code, parsed, userMessage ?? undefined);
   }
 
   return parseSuccess(response);
@@ -195,28 +195,29 @@ async function parseFileResponse(response: Response): Promise<ApiFileResponse> {
    - `{ detail: [{ msg, loc, ... }] }`   → validación 422 de FastAPI
    - `{ message, code }`                 → handlers propios
    Devuelve siempre un `message` string + `code` opcional. */
-function extractApiError(parsed: unknown, status: number): { message: string; code?: string } {
-  const fallback = `Error ${status}`;
-  if (!parsed || typeof parsed !== "object") return { message: fallback };
-  const obj = parsed as { code?: string; message?: string; detail?: unknown };
+function extractApiError(
+  parsed: unknown,
+  correlationId?: string | null,
+): { code?: string; userMessage: ReturnType<typeof parseUserMessage> } {
+  if (!parsed || typeof parsed !== "object") return { userMessage: null };
+  const obj = parsed as {
+    code?: unknown;
+    detail?: unknown;
+    user_message?: unknown;
+  };
   const detail = obj.detail;
-
-  if (typeof detail === "string") return { message: detail, code: obj.code };
-  if (Array.isArray(detail)) {
-    const first = detail[0] as { msg?: string } | undefined;
-    return { message: first?.msg ?? obj.message ?? fallback, code: obj.code };
-  }
-  if (detail && typeof detail === "object") {
-    const d = detail as { code?: string; detail?: unknown; message?: unknown };
-    const msg =
-      typeof d.detail === "string"
-        ? d.detail
-        : typeof d.message === "string"
-          ? d.message
-          : undefined;
-    return { message: msg ?? obj.message ?? fallback, code: d.code ?? obj.code };
-  }
-  return { message: obj.message ?? fallback, code: obj.code };
+  const detailObject =
+    detail && typeof detail === "object" && !Array.isArray(detail)
+      ? (detail as Record<string, unknown>)
+      : undefined;
+  const code =
+    typeof detailObject?.code === "string"
+      ? detailObject.code
+      : typeof obj.code === "string"
+        ? obj.code
+        : undefined;
+  const candidate = obj.user_message ?? detailObject?.user_message ?? detailObject ?? parsed;
+  return { code, userMessage: parseUserMessage(candidate, correlationId) };
 }
 
 export const api = {

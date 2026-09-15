@@ -27,7 +27,8 @@ import { PresupuestoV09View } from "./presupuesto-v09-view";
  * Período: fijo al último mes CERRADO (`periodoDefaultV09`), sin selector — MVP de una pantalla,
  * una pregunta (Ley 10), igual que V16 · Remuneraciones. */
 
-export function PresupuestoV09Live({ issueSucesor }: { issueSucesor?: string }) {
+export function PresupuestoV09Live(_props: { issueSucesor?: string } = {}) {
+  void _props;
   const [periodo] = React.useState(() => periodoDefaultV09(new Date()));
 
   const bvaQuery = useBudgetVsActual(periodo);
@@ -47,7 +48,6 @@ export function PresupuestoV09Live({ issueSucesor }: { issueSucesor?: string }) 
       onProponer={() => propose.mutate({ fiscal_year: Number(periodo.slice(0, 4)) })}
       proponiendo={propose.isPending}
       errorProponer={propose.isError}
-      issueSucesor={issueSucesor}
       resultOperacional={resultQuery.data?.result}
     />
   );
@@ -66,7 +66,7 @@ function CargandoPresupuesto() {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
       <p className="text-sm text-rediseno-tinta-3">
-        Estamos trayendo tu presupuesto vs. real (~3 s).
+        Estamos trayendo tu presupuesto y su comparación con el resultado real.
       </p>
       <div className="grid gap-3 sm:grid-cols-3" aria-hidden="true">
         {Array.from({ length: 3 }).map((_, i) => (

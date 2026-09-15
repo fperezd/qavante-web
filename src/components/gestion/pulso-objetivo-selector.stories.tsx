@@ -24,8 +24,9 @@ export const Equilibrado: Story = {
     // Los 4 objetivos como radios; "Equilibrado" activo.
     await expect(c.getByRole("radio", { name: "Equilibrado" })).toBeChecked();
     await expect(c.getByRole("radio", { name: "Cuidar la caja" })).not.toBeChecked();
-    // El caption explica el foco actual.
-    await expect(c.getByText(/foco en/i)).toBeInTheDocument();
+    // El caption nombra el foco elegido y declara que este corte es el Pulso base.
+    await expect(c.getByText(/Foco seleccionado:/i)).toBeInTheDocument();
+    await expect(c.getByText(/Este es el Pulso base del negocio\./)).toBeInTheDocument();
     // Elegir otro objetivo avisa al contenedor con su key.
     await userEvent.click(c.getByRole("radio", { name: "Cuidar la caja" }));
     await expect(args.onChange).toHaveBeenCalledWith("cuidar_caja");

@@ -728,7 +728,7 @@ function LotePanel({
   );
 }
 
-function ResultadosLote({
+export function ResultadosLote({
   resultados,
   nombresPorId,
 }: {

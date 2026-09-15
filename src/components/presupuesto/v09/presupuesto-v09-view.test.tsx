@@ -175,7 +175,7 @@ describe("PresupuestoV09View — huecos declarados (issue #74)", () => {
     expect(t).toMatch(/proyección de cierre del año/i);
   });
 
-  it("no muestra el issue sucesor aunque se lo pasen", () => {
+  it("no presenta referencias internas aunque se reciba la prop heredada", () => {
     expect(texto(html({ issueSucesor: "#101" }))).not.toContain("#101");
   });
 

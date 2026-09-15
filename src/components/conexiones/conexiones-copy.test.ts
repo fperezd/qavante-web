@@ -352,11 +352,13 @@ describe("sourceToConnectionCopy · clasificación de `error` por señal estruct
     expect(copy.message).toMatch(/no tienes que cambiar ninguna clave/i);
   });
 
-  it("el fallo genérico deriva la revisión a soporte sin inventar la causa", () => {
+  it("el fallo genérico declara que no se sabe la causa y deja salida a la conexión", () => {
     const copy = sourceToConnectionCopy(
       src({ state: "error", reason: "Último check falló (failure_count=3)" }),
     );
-    expect(copy.message).toMatch(/requiere revisión de soporte/i);
+    expect(copy.message).toMatch(/no sabemos por qué/i);
+    expect(copy.message).toMatch(/revisa la conexión/i);
+    expect(copy.message).not.toMatch(/failure_count/i);
   });
 });
 

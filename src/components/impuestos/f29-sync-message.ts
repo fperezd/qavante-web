@@ -3,7 +3,7 @@
    ocultamos el motivo real del backend; para el patrón conocido "el SII devolvió
    una página HTML en vez del PDF" (sesión SII caída / no conectada) lo traducimos
    a lenguaje de dueño + acción concreta, sin borrar el hecho. Para errores
-   desconocidos, dejamos el detalle crudo del backend visible tal cual. */
+   desconocidos, mostramos un fallback accionable sin publicar el detalle técnico. */
 
 export interface F29FailureDetail {
   /** Tipo del backend: F29NotFoundError | F29FetchError | F29ParseError | identity_mismatch. */
@@ -17,7 +17,9 @@ export interface F29FailureDetail {
 export function isSiiHtmlInsteadOfPdf(detail: F29FailureDetail | null): boolean {
   if (!detail) return false;
   const d = (detail.detail ?? "").toLowerCase();
-  return detail.error === "F29NotFoundError" && (d.includes("no es pdf") || d.includes("text/html"));
+  return (
+    detail.error === "F29NotFoundError" && (d.includes("no es pdf") || d.includes("text/html"))
+  );
 }
 
 export interface ToastCopy {
@@ -44,12 +46,9 @@ export function f29SyncFailureToast(
     };
   }
 
-  // Error desconocido → dejar el detalle crudo del backend visible tal cual.
   const failed = siiErrors === 1 ? "F29 falló" : "F29 fallaron";
   return {
     title: `${siiErrors} ${failed} al bajar`,
-    description: detail
-      ? `${detail.error}: ${detail.detail}${reqNote}`
-      : `El SII rechazó algunos folios. Revisa tu conexión al SII e intenta de nuevo${reqNote}.`,
+    description: `El SII rechazó algunos folios. Revisa tu conexión al SII e intenta de nuevo${reqNote}.`,
   };
 }

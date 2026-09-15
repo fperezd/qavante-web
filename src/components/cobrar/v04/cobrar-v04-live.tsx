@@ -170,7 +170,7 @@ function CargandoCobrar() {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
       <p className="text-sm text-rediseno-tinta-3">
-        Estamos trayendo tus cuentas por cobrar y tus gestiones registradas (~5 s).
+        Estamos trayendo tus cuentas por cobrar y tus gestiones registradas.
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-hidden="true">
         {Array.from({ length: 5 }).map((_, i) => (

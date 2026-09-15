@@ -152,11 +152,13 @@ export const AprobadoSoloLectura: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Aprobado")).toBeInTheDocument();
     await expect(canvas.getByText("Sólo lectura")).toBeInTheDocument();
+    await expect(canvas.getByText(/estado fue informado por Qavante/i)).toBeInTheDocument();
     await expect(
-      canvas.getByText(/estado fue informado por Qavante/i),
-    ).toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: /solicitar aprobación/i })).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: /cotizar|enviar|ejecutar/i })).not.toBeInTheDocument();
+      canvas.queryByRole("button", { name: /solicitar aprobación/i }),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("button", { name: /cotizar|enviar|ejecutar/i }),
+    ).not.toBeInTheDocument();
   },
 };
 
@@ -171,8 +173,12 @@ export const OtroEstadoEsSoloLectura: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Estado informado")).toBeInTheDocument();
-    await expect(canvas.getByText(/«submitted»/)).toBeInTheDocument();
+    await expect(canvas.getByText("Enviado")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("El plan fue enviado y está a la espera de procesamiento."),
+    ).toBeInTheDocument();
+    // El código interno del estado no se publica: se presenta su etiqueta, no «submitted».
+    await expect(canvas.queryByText(/submitted/)).not.toBeInTheDocument();
     await expect(canvas.getByText("Sólo lectura")).toBeInTheDocument();
   },
 };

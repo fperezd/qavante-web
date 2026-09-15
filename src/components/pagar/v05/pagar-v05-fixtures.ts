@@ -5,7 +5,12 @@
  * `due_date asc`, `source_external_id` con la clave natural del RCV ('tipo-folio-rut') o la de
  * nómina ('payroll-YYYYMM'), y los `due_*` acumulativos INCLUYENDO lo vencido. */
 
-import type { AccountsPayableResponse, PayableDuplicatePair, PayableItem } from "@/lib/api/pagos";
+import type {
+  D02AccountsPayableResponse as AccountsPayableResponse,
+  PayableAggregateSummary,
+  PayableDuplicatePair,
+  PayableItem,
+} from "@/lib/api/pagos";
 
 export const HOY = new Date("2026-08-30T12:00:00Z");
 
@@ -15,6 +20,22 @@ export const RUT_CHIPAX = "76444444-4";
 export const RUT_ENTEL = "76555555-5";
 export const RUT_MELI = "76666666-6";
 
+function aggregate(
+  amount: string | null,
+  count: number,
+  over: Partial<PayableAggregateSummary> = {},
+): PayableAggregateSummary {
+  return {
+    amount_clp: amount,
+    known_amount_clp: amount ?? "0",
+    complete: amount !== null,
+    count,
+    unknown_due_date_count: 0,
+    excluded_by_currency: [],
+    ...over,
+  };
+}
+
 /* La factura vencida hace ~18 meses (545 días): el caso VIVO de producción — el backend ordena
  * por `due_date asc` e incluye lo vencido, así que esto es lo primero que llega. */
 export const KENNEDY: PayableItem = {
@@ -22,6 +43,7 @@ export const KENNEDY: PayableItem = {
   label: "Inmobiliaria Vista Kennedy SpA · Factura 1201",
   category: "supplier",
   due_date: "2025-03-03",
+  due_date_certainty: "confirmed",
   amount: "7078882",
   criticality: "high",
   source: "SII",
@@ -39,6 +61,7 @@ export const VASQUEZ: PayableItem = {
   label: "Soc. de Profesionales Vásquez, González y Cía. · Factura 88",
   category: "supplier",
   due_date: "2026-06-06",
+  due_date_certainty: "confirmed",
   amount: "1447161",
   criticality: "high",
   source: "SII",
@@ -56,6 +79,7 @@ export const ENTEL_A: PayableItem = {
   label: "Entel PCS Telecomunicaciones S.A. · Factura 9001",
   category: "supplier",
   due_date: "2026-08-12",
+  due_date_certainty: "confirmed",
   amount: "203607",
   criticality: "high",
   source: "SII",
@@ -74,6 +98,7 @@ export const ENTEL_B: PayableItem = {
   label: "Entel PCS Telecomunicaciones S.A. · Factura 9017",
   category: "supplier",
   due_date: "2026-08-27",
+  due_date_certainty: "confirmed",
   amount: "205000",
   criticality: "high",
   source: "SII",
@@ -91,6 +116,7 @@ export const BICE: PayableItem = {
   label: "Banco BICE · cuota crédito",
   category: "debt",
   due_date: "2026-09-01",
+  due_date_certainty: "confirmed",
   amount: "503076",
   criticality: "high",
   source: "Manual",
@@ -110,6 +136,7 @@ export const REMUNERACIONES: PayableItem = {
   label: "Remuneraciones",
   category: "payroll",
   due_date: "2026-09-04",
+  due_date_certainty: "confirmed",
   amount: "7400000",
   criticality: "high",
   source: "BUK",
@@ -127,6 +154,7 @@ export const MELI_USD: PayableItem = {
   label: "MercadoLibre Chile Ltda. · Factura 77",
   category: "supplier",
   due_date: "2026-09-08",
+  due_date_certainty: "confirmed",
   amount: "1240",
   criticality: "medium",
   source: "SII",
@@ -144,6 +172,7 @@ export const F29: PayableItem = {
   label: "F29 · IVA de julio",
   category: "tax",
   due_date: "2026-09-12",
+  due_date_certainty: "confirmed",
   amount: "174979",
   criticality: "medium",
   source: "SII",
@@ -161,6 +190,7 @@ export const CHIPAX: PayableItem = {
   label: "Chipax SpA · Factura 5540",
   category: "supplier",
   due_date: "2026-09-20",
+  due_date_certainty: "confirmed",
   amount: "1207105",
   criticality: "low",
   source: "SII",
@@ -173,12 +203,12 @@ export const CHIPAX: PayableItem = {
   amount_clp: null,
 };
 
-/** Caso NORMAL: 8 pagos, 3 vencidos (el más antiguo, 545 días), 3 críticos (deuda + sueldos +
- *  F29 = $8.078.055) como contexto separado del saldo final proyectado de $5.200.000;
+/** Caso NORMAL: una página de 8 pagos y agregados globales de 3 vencidos ($8.729.650) y
+ *  6 críticos ($16.807.705), separados del saldo final proyectado de $5.200.000;
  *  `covers_critical=false` viene del backend. $1.190.400 negociable en 14 días (la factura USD,
  *  convertida); nada sin fecha; sin duplicados. */
 export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPayableResponse {
-  return {
+  const response: AccountsPayableResponse = {
     total: "19205210",
     total_by_currency: [
       { currency: "CLP", amount: "18014810" },
@@ -187,17 +217,100 @@ export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPaya
     due_7d: "16632726",
     due_14d: "17998105",
     due_30d: "19205210",
+    excluded_from_total_by_currency: [],
     undated_amount: "0",
     undated_count: 0,
+    estimated_due_date_count: 0,
+    undated_summary: aggregate("0", 0),
     items: [KENNEDY, VASQUEZ, ENTEL_A, BICE, REMUNERACIONES, MELI_USD, F29, CHIPAX],
+    items_total: 8,
+    limit: 100,
+    has_more: false,
+    next_cursor: null,
+    overdue_summary: aggregate("8729650", 3),
+    non_postponable_or_overdue_14d: aggregate("16807705", 6),
+    by_category: [
+      { ...aggregate("11127155", 5), category: "supplier" },
+      { ...aggregate("174979", 1), category: "tax" },
+      { ...aggregate("7400000", 1), category: "payroll" },
+      { ...aggregate("0", 0), category: "rent" },
+      { ...aggregate("503076", 1), category: "debt" },
+      { ...aggregate("0", 0), category: "leasing" },
+      { ...aggregate("0", 0), category: "other" },
+    ],
+    credits: aggregate("0", 0),
+    zero_balance_count: 0,
+    filter_metadata: {
+      unfiltered_items_total: 8,
+      matched_items_total: 8,
+      by_category: [
+        { category: "supplier", count: 5 },
+        { category: "tax", count: 1 },
+        { category: "payroll", count: 1 },
+        { category: "rent", count: 0 },
+        { category: "debt", count: 1 },
+        { category: "leasing", count: 0 },
+        { category: "other", count: 0 },
+      ],
+      by_criticality: [
+        { criticality: "high", count: 5 },
+        { criticality: "medium", count: 2 },
+        { criticality: "low", count: 1 },
+      ],
+      by_state: [
+        { state: "open", count: 8 },
+        { state: "partially_paid", count: 0 },
+      ],
+    },
+    payroll_coverage: {
+      complete: true,
+      sources: [
+        {
+          source: "buk",
+          status: "ready",
+          last_success_at: "2026-08-30T08:00:00Z",
+          freshness_confirmed: true,
+          covered: true,
+        },
+        {
+          source: "previred",
+          status: "ready",
+          last_success_at: "2026-08-30T08:00:00Z",
+          freshness_confirmed: true,
+          covered: true,
+        },
+      ],
+    },
+    as_of: "2026-08-30",
+    snapshot_id: "a".repeat(64),
+    next_payroll: {
+      label: "Remuneraciones",
+      category: "payroll",
+      due_date: "2026-09-04",
+      amount: "7400000",
+      currency: "CLP",
+      amount_clp: null,
+      is_overdue: false,
+    },
     projected_cash_14d: "5200000",
     projected_cash_currency: "CLP",
+    min_14d: "-1200000",
+    cash_gap_amount_14d: "1200000",
+    has_gap: true,
+    cash_projection_publicable_14d: true,
     covers_critical: false,
     confidence: "high",
     data_state: "available",
     missing_sources: [],
     generated_at: "2026-08-30T08:12:00Z",
     ...over,
+  };
+  return {
+    ...response,
+    items: response.items?.map((item) => ({
+      ...item,
+      reclamado: item.reclamado ?? false,
+    })),
   };
 }
 
@@ -209,6 +322,7 @@ export function pagosAuditoriaD01(): AccountsPayableResponse {
     label: "Pagos críticos de auditoría",
     category: "tax",
     due_date: "2026-09-10",
+    due_date_certainty: "confirmed",
     amount: "10373669",
     criticality: "high",
     source: "Auditoría V2",
@@ -222,14 +336,25 @@ export function pagosAuditoriaD01(): AccountsPayableResponse {
     due_14d: "10373669",
     due_30d: "10373669",
     items: [critico],
+    items_total: 1,
+    overdue_summary: aggregate("0", 0),
+    non_postponable_or_overdue_14d: aggregate("10373669", 1),
+    filter_metadata: {
+      ...pagos().filter_metadata,
+      unfiltered_items_total: 1,
+      matched_items_total: 1,
+    },
     projected_cash_14d: "-46865254",
+    min_14d: "-46865254",
+    cash_gap_amount_14d: "46865254",
+    has_gap: true,
     projected_cash_currency: "CLP",
     covers_critical: false,
   });
 }
 
-/** Caso adversarial del cap de `items`: los 100 visibles son negociables, pero
- * `covers_critical=false` puede responder por una obligación 101 no listada. */
+/** Caso adversarial: los 100 visibles son negociables, pero el agregado global incluye una
+ * obligación crítica 101 que no está en esta página. */
 export function pagosListaTopeadaSinCriticos(): AccountsPayableResponse {
   const items = Array.from(
     { length: 100 },
@@ -250,6 +375,8 @@ export function pagosListaTopeadaSinCriticos(): AccountsPayableResponse {
     due_14d: "100000",
     due_30d: "100000",
     items,
+    items_total: 101,
+    non_postponable_or_overdue_14d: aggregate("250000", 1),
     projected_cash_14d: "1",
     covers_critical: false,
   });
@@ -269,6 +396,31 @@ export function pagosConDuplicado(
     due_14d: "18203105",
     due_30d: "19410210",
     items: [KENNEDY, VASQUEZ, ENTEL_A, ENTEL_B, BICE, REMUNERACIONES, MELI_USD, F29, CHIPAX],
+    items_total: 9,
+    /* Los conteos de los chips los publica el servidor sobre TODO el registro (D02/D15): con una
+       factura más que el caso normal, el agregado tiene que decir 9, no 8. */
+    filter_metadata: {
+      unfiltered_items_total: 9,
+      matched_items_total: 9,
+      by_category: [
+        { category: "supplier", count: 6 },
+        { category: "tax", count: 1 },
+        { category: "payroll", count: 1 },
+        { category: "rent", count: 0 },
+        { category: "debt", count: 1 },
+        { category: "leasing", count: 0 },
+        { category: "other", count: 0 },
+      ],
+      by_criticality: [
+        { criticality: "high", count: 5 },
+        { criticality: "medium", count: 3 },
+        { criticality: "low", count: 1 },
+      ],
+      by_state: [
+        { state: "open", count: 9 },
+        { state: "partially_paid", count: 0 },
+      ],
+    },
     ...over,
   });
 }
@@ -287,6 +439,7 @@ export function pagosSoloImpuestosYSueldos(
     label: "Previred · cotizaciones",
     category: "payroll",
     due_date: "2026-09-10",
+    due_date_certainty: "confirmed",
     amount: "1230000",
     criticality: "medium",
     source: "Previred",
@@ -305,7 +458,47 @@ export function pagosSoloImpuestosYSueldos(
     due_14d: "8804979",
     due_30d: "8804979",
     items: [REMUNERACIONES, previred, F29],
+    items_total: 3,
+    /* Agregados coherentes con las 3 obligaciones del escenario: ninguna vencida al corte y las
+       tres no postergables dentro de 14 días (Ley 9). Los chips y la tríada leen esto, no la
+       tabla. */
+    overdue_summary: aggregate("0", 0),
+    non_postponable_or_overdue_14d: aggregate("8804979", 3),
+    by_category: [
+      { ...aggregate("0", 0), category: "supplier" },
+      { ...aggregate("174979", 1), category: "tax" },
+      { ...aggregate("8630000", 2), category: "payroll" },
+      { ...aggregate("0", 0), category: "rent" },
+      { ...aggregate("0", 0), category: "debt" },
+      { ...aggregate("0", 0), category: "leasing" },
+      { ...aggregate("0", 0), category: "other" },
+    ],
+    filter_metadata: {
+      unfiltered_items_total: 3,
+      matched_items_total: 3,
+      by_category: [
+        { category: "supplier", count: 0 },
+        { category: "tax", count: 1 },
+        { category: "payroll", count: 2 },
+        { category: "rent", count: 0 },
+        { category: "debt", count: 0 },
+        { category: "leasing", count: 0 },
+        { category: "other", count: 0 },
+      ],
+      by_criticality: [
+        { criticality: "high", count: 1 },
+        { criticality: "medium", count: 2 },
+        { criticality: "low", count: 0 },
+      ],
+      by_state: [
+        { state: "open", count: 3 },
+        { state: "partially_paid", count: 0 },
+      ],
+    },
     projected_cash_14d: "9100000",
+    min_14d: "1000000",
+    cash_gap_amount_14d: "0",
+    has_gap: false,
     covers_critical: true,
     ...over,
   });
@@ -323,6 +516,7 @@ export function pagosDegradados(
     label: "Aguas Cordillera S.A. · Factura 310",
     category: "supplier",
     due_date: "",
+    due_date_certainty: "confirmed",
     amount: "96500",
     criticality: "low",
     source: "SII",
@@ -339,6 +533,7 @@ export function pagosDegradados(
     label: "Amazon Web Services · Factura 4410",
     category: "supplier",
     due_date: "2026-09-05",
+    due_date_certainty: "confirmed",
     amount: "830",
     criticality: "high",
     source: "SII",
@@ -361,6 +556,7 @@ export function pagosDegradados(
     due_30d: "9525216",
     undated_amount: "2450000",
     undated_count: 3,
+    undated_summary: aggregate("2450000", 3),
     items: [VASQUEZ, sinFecha, usdSinTc, BICE, REMUNERACIONES, F29],
     projected_cash_14d: "10500",
     projected_cash_currency: "USD",
@@ -374,6 +570,7 @@ export function pagosDegradados(
 
 /** El registro sin nada agendado (SII sin conectar): la pantalla dice qué falta. */
 export function pagosVacio(over: Partial<AccountsPayableResponse> = {}): AccountsPayableResponse {
+  const base = pagos();
   return pagos({
     total: "0",
     total_by_currency: undefined,
@@ -381,7 +578,23 @@ export function pagosVacio(over: Partial<AccountsPayableResponse> = {}): Account
     due_14d: "0",
     due_30d: "0",
     items: [],
+    items_total: 0,
+    overdue_summary: aggregate("0", 0),
+    non_postponable_or_overdue_14d: aggregate("0", 0),
+    filter_metadata: {
+      ...base.filter_metadata,
+      unfiltered_items_total: 0,
+      matched_items_total: 0,
+      by_category: base.filter_metadata.by_category.map((facet) => ({ ...facet, count: 0 })),
+      by_criticality: base.filter_metadata.by_criticality.map((facet) => ({ ...facet, count: 0 })),
+      by_state: base.filter_metadata.by_state.map((facet) => ({ ...facet, count: 0 })),
+    },
+    next_payroll: null,
     projected_cash_14d: null,
+    cash_projection_publicable_14d: false,
+    min_14d: null,
+    cash_gap_amount_14d: null,
+    has_gap: null,
     covers_critical: null,
     data_state: "partial",
     confidence: "low",

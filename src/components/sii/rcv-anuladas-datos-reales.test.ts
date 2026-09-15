@@ -70,21 +70,27 @@ const KAUFMANN_JUNIO: AnulableDoc[] = [
 ];
 
 describe("rcv-anuladas · datos reales (regresión de bugs de prod)", () => {
-  it("Kaufmann Junio: agrupa fiel al ref (417 con 3 NC, 415 y 418 con 1 c/u)", () => {
-    const { rows, notasHuerfanas } = agruparConReferencias(KAUFMANN_JUNIO);
+  it("Kaufmann Junio: conserva las cinco referencias como efecto por verificar", () => {
+    const { rows, notasHuerfanas, asociacionesPendientes } = agruparConReferencias(KAUFMANN_JUNIO);
     expect(rows).toHaveLength(8); // 8 facturas
-    expect(notasHuerfanas).toHaveLength(0); // las 5 NC matchean por ref
+    expect(notasHuerfanas).toHaveLength(5);
+    expect(asociacionesPendientes).toHaveLength(5);
+    expect(
+      asociacionesPendientes.every(
+        (association) => association.status === "reference_effect_unknown",
+      ),
+    ).toBe(true);
 
     const r417 = rows.find((r) => r.factura.folio === 417);
-    expect(r417?.notas).toHaveLength(3);
-    expect(r417?.estado).toBe("anulada");
-    expect(r417?.sobreCredito).toBe(true);
+    expect(r417?.notas).toHaveLength(0);
+    expect(r417?.estado).toBe("vigente");
+    expect(r417?.sobreCredito).toBe(false);
 
-    // 415 y 418 se anulan exacto (1 NC cada una), sin sobre-crédito.
+    // Sin CodRef/fecha/procedencia ninguna referencia legacy cambia la factura.
     for (const folio of [415, 418]) {
       const r = rows.find((x) => x.factura.folio === folio);
-      expect(r?.estado).toBe("anulada");
-      expect(r?.neto).toBe(0);
+      expect(r?.estado).toBe("vigente");
+      expect(r?.neto).toBe(r?.factura.monto_total);
       expect(r?.sobreCredito).toBe(false);
     }
 
@@ -100,13 +106,11 @@ describe("rcv-anuladas · datos reales (regresión de bugs de prod)", () => {
     expect(totals.ncCount).toBe(5);
   });
 
-  it("Kaufmann Junio: ningún neto de fila se expone en negativo (clamp en la UI)", () => {
+  it("Kaufmann Junio: ninguna inferencia legacy altera el neto de una fila", () => {
     const { rows } = agruparConReferencias(KAUFMANN_JUNIO);
-    // El neto crudo de la 417 sí es negativo (dato), pero está flagueado para
-    // que la UI lo muestre en $0. Verificamos el contrato: sobreCredito ⟺ neto<0.
     for (const r of rows) {
-      if (r.neto < 0) expect(r.sobreCredito).toBe(true);
-      if (r.sobreCredito) expect(r.neto).toBeLessThan(0);
+      expect(r.neto).toBe(r.factura.monto_total);
+      expect(r.sobreCredito).toBe(false);
     }
   });
 

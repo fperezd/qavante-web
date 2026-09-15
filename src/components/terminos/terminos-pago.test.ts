@@ -216,7 +216,7 @@ describe("buildMaestro", () => {
     expect(kauf.terminoCustom).toBe(true);
   });
 
-  it("una Nota de Crédito (tipo 61) RESTA del total y del vencido; suma su magnitud", () => {
+  it("una Nota de Crédito resta del total pero no de un vencimiento sin vínculo confirmado", () => {
     const conNC: DocConVencimiento[] = [
       {
         rut: "96572360-9",
@@ -237,13 +237,14 @@ describe("buildMaestro", () => {
     ];
     const k = buildMaestro(conNC, readTerminos(undefined), "ventas", HOY)[0]!;
     expect(k.total).toBe(3_000_000); // 5M − 2M
-    expect(k.vencido).toBe(3_000_000); // ambos vencidos → neto 3M
+    expect(k.vencido).toBe(5_000_000); // el crédito no se asigna a esta factura por heurística
     const nc = k.docs.find((d) => d.folio === 2)!;
     expect(nc.esNotaCredito).toBe(true);
     expect(nc.monto).toBe(-2_000_000); // firmado negativo
+    expect(nc.associationStatus).toBe("unresolved");
   });
 
-  it("la NC 'por vencer' netea el VENCIDO primero (caso TD Synnex): vencido ≤ total", () => {
+  it("la NC sin referencia no se reparte arbitrariamente al vencido (caso TD Synnex)", () => {
     const conNC: DocConVencimiento[] = [
       // factura vieja VENCIDA (18/03 + 30 = 17/04 < hoy)
       {
@@ -266,12 +267,12 @@ describe("buildMaestro", () => {
     ];
     const k = buildMaestro(conNC, readTerminos(undefined), "compras", HOY)[0]!;
     expect(k.total).toBe(1_663_148); // 5.663.148 − 4.000.000
-    expect(k.vencido).toBe(1_663_148); // la NC netea el vencido de más viejo a más nuevo
+    expect(k.vencido).toBe(5_663_148); // queda bruto hasta resolver a qué documento aplica la NC
     expect(k.porVencer).toBe(0);
-    expect(k.vencido).toBeLessThanOrEqual(k.total); // nunca vencido > total
+    expect(k.docs.find((d) => d.folio === 3241)?.associationStatus).toBe("unresolved");
   });
 
-  it("una NC con ref anula su factura: quedan juntas (NC sigue a la factura) + estado anulada", () => {
+  it("una referencia legacy sin CodRef no anula ni cambia el vencimiento", () => {
     const conRef: DocConVencimiento[] = [
       { rut: "1-9", name: "X", fecha: "01/06/2026", monto: 5_000_000, folio: 100, tipoDoc: 33 },
       {
@@ -287,17 +288,17 @@ describe("buildMaestro", () => {
     ];
     const k = buildMaestro(conRef, readTerminos(undefined), "compras", HOY)[0]!;
     expect(k.total).toBe(0); // 5M − 5M
-    expect(k.vencido).toBe(0);
-    // La factura y su NC quedan contiguas: factura primero, NC (anula N° 100) debajo.
+    expect(k.vencido).toBe(5_000_000);
     expect(k.docs[0]!.folio).toBe(100);
     expect(k.docs[0]!.esNotaCredito).toBe(false);
-    expect(k.docs[0]!.anulacion).toBe("anulada");
+    expect(k.docs[0]!.anulacion).toBeNull();
     expect(k.docs[1]!.folio).toBe(200);
     expect(k.docs[1]!.esNotaCredito).toBe(true);
-    expect(k.docs[1]!.refFolio).toBe(100);
+    expect(k.docs[1]!.refFolio).toBeNull();
+    expect(k.docs[1]!.associationStatus).toBe("reference_effect_unknown");
   });
 
-  it("una NC vinculada que SOBRE-acredita su factura no deja vencido > saldo (re-balance)", () => {
+  it("una referencia legacy sobre-acreditada tampoco redistribuye saldos", () => {
     // #1 vencida $5M; #2 vigente $2M con una NC de $3M que la referencia (sobre-crédito de $1M).
     const docs: DocConVencimiento[] = [
       { rut: "1-9", name: "X", fecha: "01/06/2026", monto: 5_000_000, folio: 1, tipoDoc: 33 },
@@ -315,9 +316,9 @@ describe("buildMaestro", () => {
     ];
     const k = buildMaestro(docs, readTerminos(undefined), "compras", HOY)[0]!;
     expect(k.total).toBe(4_000_000); // 5M + 2M − 3M
-    // El exceso de $1M de la NC (que pisó el bucket de #2 en 0) baja el vencido de $5M a $4M.
-    expect(k.vencido).toBe(4_000_000);
-    expect(k.vencido).toBeLessThanOrEqual(k.total); // invariante restaurada
+    expect(k.vencido).toBe(5_000_000);
+    expect(k.docs.find((d) => d.folio === 2)?.anulacion).toBeNull();
+    expect(k.docs.find((d) => d.folio === 3)?.associationStatus).toBe("reference_effect_unknown");
   });
 
   it("propaga `reclamado` del RCV al DocMaestro (para pintar la R)", () => {
@@ -338,8 +339,7 @@ describe("buildMaestro", () => {
     expect(k.docs.find((d) => d.folio === 501)!.reclamado).toBe(false);
   });
 
-  it("una factura FUTURA anulada al 100% no cuenta como próximo vencimiento (neto 0)", () => {
-    // Factura del 18/07 (vence 17/08, futura vs HOY 20/07) anulada por su NC → neto 0.
+  it("una factura futura con referencia legacy sigue visible como próximo vencimiento", () => {
     const conRef: DocConVencimiento[] = [
       { rut: "1-9", name: "X", fecha: "18/07/2026", monto: 1_000_000, folio: 300, tipoDoc: 33 },
       {
@@ -355,9 +355,9 @@ describe("buildMaestro", () => {
     ];
     const k = buildMaestro(conRef, readTerminos(undefined), "compras", HOY)[0]!;
     expect(k.total).toBe(0);
-    expect(k.docs.find((d) => d.folio === 300)!.anulacion).toBe("anulada");
-    // Antes del fix el próximo apuntaba al 17/08 de la factura anulada; ahora es null (no hay deuda futura real).
-    expect(k.proximoVencimiento).toBeNull();
+    expect(k.docs.find((d) => d.folio === 300)!.anulacion).toBeNull();
+    expect(k.docs.find((d) => d.folio === 301)!.associationStatus).toBe("reference_effect_unknown");
+    expect(k.proximoVencimiento?.toISOString().slice(0, 10)).toBe("2026-08-17");
   });
 
   it("la NC neta aunque el SII la mande positiva o negativa (por magnitud)", () => {

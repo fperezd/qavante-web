@@ -13,7 +13,7 @@ vi.mock("@/components/impuestos/v06/impuestos-v06-live", () => ({
 afterEach(() => vi.unstubAllEnvs());
 
 describe("V06: activación productiva y rollback", () => {
-  it("el override versionado en vars habilita la ruta real y conserva su sucesor", () => {
+  it("el override versionado en vars habilita la ruta real sin exponer referencias internas", () => {
     const toml = readFileSync("wrangler.toml", "utf8");
     const vars = toml.split(/^\[vars\]\s*$/m)[1]?.split(/^\[/m)[0] ?? "";
     const value = vars.match(/^NEXT_PUBLIC_FF_IMPUESTOS_V06\s*=\s*"(true|false)"$/m)?.[1];
@@ -22,7 +22,7 @@ describe("V06: activación productiva y rollback", () => {
     vi.stubEnv("NEXT_PUBLIC_FF_IMPUESTOS_V06", value);
     const html = renderToStaticMarkup(<ImpuestosPage />);
     expect(html).toContain('data-testid="impuestos-live"');
-    expect(html).toContain("tooxs-digital/qavante-api#440");
+    expect(html).not.toContain("tooxs-digital/qavante-api#440");
     expect(html).not.toContain("Esta pantalla todavía no está disponible");
   });
 

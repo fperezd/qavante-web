@@ -9,13 +9,11 @@ import { usePreferences } from "@/lib/api/preferences";
 import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
 import { buildMaestro, readTerminos, readPagados } from "@/components/terminos/terminos-pago";
 import { parseAmount } from "../pagos-format";
-import { isOverdue } from "../pagos-v2-format";
 import { payrollPeriodFromExternalId } from "../pagos-group";
-import { formatClp, formatMoney } from "@/lib/formatters/clp";
-import { calcularBrecha } from "./brecha-caja-model";
+import { formatMoney } from "@/lib/formatters/clp";
 import { PagarV2View, type PagarMovible } from "./pagar-v2-view";
 import { PagarHero } from "./pagar-hero";
-import { BrechaCaja } from "./brecha-caja";
+import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
 import { FechasClaveMes } from "./fechas-clave-mes";
 import { VencimientosTimeline, type Vencimiento } from "./vencimientos-timeline";
 import { ConcentracionClientes } from "@/components/sii/libro-v2/concentracion-clientes";
@@ -25,11 +23,7 @@ import {
   mapVencimientos,
   mapFechasClave,
   mapConcentracion,
-  mapBrecha,
-  overdueCLP,
-  montoCLP,
   cpToPayableItem,
-  sumItemsHasta,
   type VencimientosOrder,
   type OnClickDe,
 } from "./pagar-v2-map";
@@ -46,10 +40,11 @@ function hrefDePago(item: PayableItem): string | undefined {
   return undefined;
 }
 
-/* Vista LIVE de Pagar v2 (rediseño aprobado 2026-07-14), gated por `pagarV2` (OFF).
+/* Vista LIVE de Pagar v2 (rediseño aprobado 2026-07-14), gated por `pagarV2`, HOY ON en
+   producción (`wrangler.toml`).
    Orquesta `accounts-payable` (contrato ya vivo) y compone `PagarV2View`. Todo lo que
    la pantalla muestra se deriva en el mapper puro (`pagar-v2-map`): vencimientos, las 3
-   del mes, mayores compromisos y la brecha de caja. Degradado honesto: en estado
+   del mes, mayores compromisos y las señales de caja. Degradado honesto: en estado
    `partial` (devengado vacío) el backend omite `items` → defaulteamos a [] y mostramos el
    vacío honesto; la postergabilidad es HEURÍSTICA hasta que CC-API mande el flag por ítem.
    Container: NO se testea por Storybook play (ADR-0018); la lógica vive en `pagar-v2-map`. */
@@ -85,8 +80,8 @@ export function PagarV2ViewLive({
   // UNIFICACIÓN: los PROVEEDORES salen del maestro RCV compras (net NC, conciliado, vencido
   // derivado) y los HONORARIOS del BHE — el detalle que accounts-payable OMITE (partial) y que
   // sobreestima al no netear NC. Sueldos/impuestos/manuales se toman de accounts-payable (no-DTE).
-  // El total se recalcula desde los ítems combinados; accounts-payable NO trae items 'supplier'
-  // → sin doble-conteo.
+  // El detalle se compone desde ambas fuentes. Totales, conteos y ventanas ejecutivas salen
+  // exclusivamente de los agregados full-universe de accounts-payable, nunca de esta lista.
   const { supplierItems, honorariosItems } = React.useMemo(() => {
     const terminos = readTerminos(prefs.data?.preferences);
     const pagados = readPagados(prefs.data?.preferences);
@@ -103,12 +98,11 @@ export function PagarV2ViewLive({
     };
   }, [comprasDocs.docs, honorariosDocs.docs, prefs.data, now]);
 
-  const rcvItems = supplierItems.length + honorariosItems.length;
   // Esperar a las PREFS (conciliaciones): sin ellas, buildMaestro trata las compras/honorarios como
   // impagas → obligaciones ya pagadas se contarían de nuevo (race).
   if (prefs.isLoading) return <LiveSkeleton />;
-  if (ap.isLoading && rcvItems === 0) return <LiveSkeleton />;
-  if (ap.isError && rcvItems === 0) {
+  if (ap.isLoading) return <LiveSkeleton />;
+  if (ap.isError) {
     return (
       <QavanteInlineError
         error={ap.error}
@@ -122,7 +116,9 @@ export function PagarV2ViewLive({
   // accounts-payable aporta lo NO-proveedor (sueldos, impuestos, arriendos, deuda, manuales).
   const apItems = (resp?.items ?? []).filter((it) => it.category !== "supplier");
   const items = [...apItems, ...supplierItems, ...honorariosItems];
-  const montoTotal = items.reduce((s, it) => s + montoCLP(it), 0);
+  /* D02 — el total es el agregado del servidor sobre TODO el registro, no la suma de la lista
+     traída, que viene topeada por `limit`. */
+  const montoTotal = parseAmount(resp?.total ?? "0");
   if (montoTotal === 0 && items.length === 0) {
     return (
       <EmptyState
@@ -136,21 +132,17 @@ export function PagarV2ViewLive({
     const href = hrefDePago(item);
     return href ? () => router.push(href) : undefined;
   };
-  const brecha = suppressRecommendations ? null : mapBrecha(resp, items, now);
-  // Sin caja proyectada (null) no calculamos cobertura: no afirmamos "la caja no alcanza"
-  // sobre un $0 inventado. La línea del hero degrada a neutral.
-  const cobertura =
-    brecha?.cajaProyectada != null
-      ? calcularBrecha(brecha.cajaProyectada, brecha.pagosCriticos)
-      : null;
-  const vencidos = items.filter((it) => isOverdue(it, now)).length;
-  const due7 = sumItemsHasta(items, now, 7);
-  const due30 = sumItemsHasta(items, now, 30);
+  /* D02 — los tramos son los que publica el contrato, no una suma de la lista visible. */
+  const due7 = parseAmount(resp?.due_7d ?? "0");
+  const due30 = parseAmount(resp?.due_30d ?? "0");
+
+  /* D01 — la brecha NO se resta acá: la publica el run canónico del backend, que ocupa el slot
+     `estadoCaja`. Por eso esta pantalla ya no arma su mapa de brecha local ni el helper que
+     restaba obligaciones contra la caja; el guard de `no-local-cash-gap` lo fija. */
 
   // "Las 3 del mes" elige localmente un subconjunto de pagos. Con el Brief activo,
   // la evidencia queda completa y cronológica; la selección de qué mirar pertenece al servidor.
   const fechas = suppressRecommendations ? [] : mapFechasClave(items, now, onClickDe);
-  const totalFechas = fechas.reduce((s, f) => s + f.monto, 0);
 
   // Con brief canónico la tabla es evidencia cronológica: no reusa el ranking ni la
   // postergabilidad heurística del flujo heredado.
@@ -161,6 +153,7 @@ export function PagarV2ViewLive({
     order: vencimientosOrder,
     includePostergabilidad: !suppressRecommendations,
   });
+  const vencidosVisibles = vencimientos.filter((item) => item.vencido).length;
   const vencimientosSorted = suppressRecommendations ? vencimientos : vencSort.sorted(vencimientos);
   const vencSortControl =
     !suppressRecommendations && vencimientos.length > 1 ? (
@@ -182,49 +175,39 @@ export function PagarV2ViewLive({
       hero={
         !suppressRecommendations && (
           <PagarHero
-            titulo="La empresa debe pagar"
-            montoTotal={montoTotal}
-            cobertura={
-              cobertura
-                ? coberturaLinea(cobertura.cubre, cobertura.faltante, cobertura.holgura)
-                : "Aún no podemos decir si la caja alcanza: falta la caja proyectada a 14 días."
+            titulo={
+              resp?.data_state === "available"
+                ? "La empresa debe pagar"
+                : "Monto conocido por pagar"
             }
-            coberturaTono={cobertura ? (cobertura.cubre ? "ok" : "bad") : "neutral"}
-            subtitulo={subtitulo(items.length, vencidos)}
-            infoHint="Total de pagos y obligaciones pendientes: proveedores (net de notas de crédito) y honorarios del SII, más impuestos, cotizaciones, sueldos, arriendos y deuda. La cobertura compara la caja proyectada a 14 días contra lo que no se puede postergar."
+            montoTotal={montoTotal}
+            cobertura="La cobertura se lee en la proyección canónica de 14 días."
+            coberturaTono="neutral"
+            subtitulo={subtitulo(resp?.items_total, resp?.has_more)}
+            infoHint="Total de pagos y obligaciones pendientes: proveedores (net de notas de crédito) y honorarios del SII, más impuestos, cotizaciones, sueldos, arriendos y deuda. La cobertura la publica la proyección canónica de 14 días."
           />
         )
       }
-      brecha={
-        brecha && (
-          <BrechaCaja
-            cajaProyectada={brecha.cajaProyectada}
-            pagosCriticos={brecha.pagosCriticos}
-            dias={14}
-            postergable={brecha.postergable}
-            // Hoy la postergabilidad la infiere el FE por tipo de pago (heurística); el backend aún
-            // no manda un flag por documento (A3, escalado). Cuando llegue, pasar `false`.
-            postergabilidadEstimada
-          />
+      /* Con el Brief activo la lectura de caja la publica él: esta pantalla no monta una segunda
+         foto del mismo corte. Sin Brief, el slot lo llena el run canónico del backend. */
+      estadoCaja={
+        suppressRecommendations ? null : (
+          <CashProjectionRunPanel horizonDays={14} title="Caja para decidir pagos" />
         )
       }
-      secundarios={
-        <Secundarios
-          items={items}
-          due7={due7}
-          due30={due30}
-          usd={resp?.total_by_currency}
-          now={now}
-        />
-      }
+      secundarios={<Secundarios due7={due7} due30={due30} usd={resp?.total_by_currency} />}
       fechasClave={
-        !suppressRecommendations && fechas.length > 0 ? (
-          <FechasClaveMes items={fechas} total={totalFechas} />
-        ) : null
+        /* Con el Brief activo no hay selección local: el slot queda vacío de verdad (null), no
+           con un relleno que ocupe la grilla. */
+        suppressRecommendations ? null : fechas.length > 0 ? (
+          <FechasClaveMes titulo="Obligaciones clave del detalle visible" items={fechas} />
+        ) : (
+          <div />
+        )
       }
       movibles={buildMovibles(
         items,
-        vencidos,
+        vencidosVisibles,
         vencimientosSorted,
         vencSortControl,
         vencimientosOrder,
@@ -234,45 +217,22 @@ export function PagarV2ViewLive({
   );
 }
 
-function coberturaLinea(cubre: boolean, faltante: number, holgura: number): React.ReactNode {
-  if (cubre) {
-    return (
-      <>
-        La caja alcanza para los pagos críticos de 14 días · holgura <b>{formatClp(holgura)}</b>.
-      </>
-    );
-  }
-  return (
-    <>
-      La caja no alcanza: faltan <b>{formatClp(faltante)}</b> para los pagos críticos de 14 días.
-    </>
-  );
+function subtitulo(itemsTotal: number | undefined, hasMore: boolean | undefined): string {
+  if (itemsTotal == null) return "Detalle disponible de obligaciones pendientes";
+  const base = `${itemsTotal} ${itemsTotal === 1 ? "obligación con vencimiento" : "obligaciones con vencimiento"}`;
+  return hasMore ? `${base} · se muestran las más próximas` : base;
 }
 
-function subtitulo(total: number, vencidos: number): string {
-  const partes = [`${total} ${total === 1 ? "pago pendiente" : "pagos pendientes"}`];
-  if (vencidos > 0) partes.push(`${vencidos} ${vencidos === 1 ? "vencido" : "vencidos"}`);
-  return partes.join(" · ");
-}
-
-/** Desglose secundario: vencido / próximos 7d / este mes / en dólares (si hay). Los montos por
- *  ventana se recalculan desde los ítems combinados (no de accounts-payable, que sobreestima). */
+/** Desglose secundario: ventanas y monedas agregadas por el servidor antes de paginar. */
 function Secundarios({
-  items,
   due7,
   due30,
   usd,
-  now,
 }: {
-  items: PayableItem[];
   due7: number;
   due30: number;
   usd?: PayableCurrencyTotal[];
-  now: Date;
 }) {
-  const vencido = overdueCLP(items, now);
-  const prox7 = due7;
-  const mes = due30;
   // Desglose por moneda extranjera (CC-API #560): la primera != CLP.
   const usdItem = usd?.find((c) => c.currency.toUpperCase() !== "CLP");
 
@@ -288,14 +248,8 @@ function Secundarios({
   return (
     <div className="p-5">
       <dl className="flex flex-col text-[13px]">
-        {row(
-          "Vencido",
-          formatClp(vencido),
-          vencido > 0 ? "text-danger-500" : "text-neutral-dark",
-          false,
-        )}
-        {row("Próximos 7 días", formatClp(prox7), "text-warning-700")}
-        {row("Este mes", formatClp(mes), "text-neutral-dark")}
+        {row("Próximos 7 días", formatMoney(due7, "CLP"), "text-warning-700", false)}
+        {row("Próximos 30 días", formatMoney(due30, "CLP"), "text-neutral-dark")}
         {usdItem &&
           row(
             "En dólares",
@@ -327,11 +281,11 @@ function buildMovibles(
           <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
             <h2 className="text-sm font-bold text-neutral-dark">Por vencer y vencidos</h2>
             <span className="rounded-full bg-brand-primary/10 px-2.5 py-0.5 text-[11.5px] font-bold text-brand-primary">
-              {items.length} {items.length === 1 ? "pago" : "pagos"}
+              {items.length} {items.length === 1 ? "pago mostrado" : "pagos mostrados"}
             </span>
             {vencidos > 0 && (
               <span className="rounded-full bg-danger-500/10 px-2.5 py-0.5 text-[11.5px] font-bold text-danger-500">
-                {vencidos} {vencidos === 1 ? "vencido" : "vencidos"}
+                {vencidos} {vencidos === 1 ? "vencido visible" : "vencidos visibles"}
               </span>
             )}
             {sortControl && <div className="ml-auto">{sortControl}</div>}
@@ -351,7 +305,7 @@ function buildMovibles(
       label: "Mayores compromisos",
       node: (
         <ConcentracionClientes
-          titulo="Mayores compromisos"
+          titulo="Mayores compromisos del detalle visible"
           items={compromisos}
           emptyLabel="Sin pagos en el período."
         />
@@ -391,7 +345,7 @@ function EmptyState({
             ? `Falta sincronizar: ${falta}. Cuando llegue el detalle vas a ver aquí los pagos y compromisos registrados.`
             : "Conecta tus fuentes para ver los pagos y compromisos que respaldan la decisión."
           : falta
-            ? `Falta sincronizar: ${falta}. Cuando llegue el detalle vas a ver acá tus vencimientos, las 3 del mes y la brecha de caja.`
+            ? `Falta sincronizar: ${falta}. Cuando llegue el detalle vas a ver acá tus vencimientos, las 3 del mes y el estado de caja.`
             : "Conecta tu SII y tu banco para ver tus vencimientos, las 3 del mes y cuánto de eso cubre tu caja."
       }
     />

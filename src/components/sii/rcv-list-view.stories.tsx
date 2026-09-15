@@ -28,6 +28,24 @@ const DOCUMENT_STATES = http.post(
     });
   },
 );
+const DOCUMENT_LINKS = http.post("*/api/sii/document-links/current", async ({ request }) => {
+  const body = (await request.json()) as {
+    documents: Array<{ document_kind: "payable" | "receivable"; source_external_id: string }>;
+  };
+  return HttpResponse.json({
+    classification_version: "dte-reference-v2",
+    items: body.documents.map((document) => ({
+      ...document,
+      status: "unresolved",
+      effect_kind: "none",
+      evidence_authorizes_effect: false,
+      authoritative_source: null,
+      observed_at: null,
+      conflict_digests: [],
+      reason_codes: ["no_authoritative_evidence"],
+    })),
+  });
+});
 const MANAGEMENT_ACCOUNTS = http.get("*/api/management/accounts/tree", () =>
   HttpResponse.json({ items: [] }),
 );
@@ -154,10 +172,9 @@ const SUCCESS_VENTAS: RcvVentasResponse = {
   error: null,
 } as unknown as RcvVentasResponse;
 
-/* Ventas con anulaciones — demuestra el modo "agrupado" (default): la factura
-   anulada se muestra tachada con badge "Anulada" y sus NC se pliegan al modal.
-   Incluye el caso lindo de la ref exacta: dos facturas idénticas (5020/5021) y
-   la NC referencia la 5021 → se anula esa, no la 5020. */
+/* Ventas con documentos correctores: la vista compacta conserva una fila por DTE.
+   Incluye dos facturas idénticas y una NC con referencia explícita para comprobar
+   que la UI no deriva identidad ni efecto desde RUT+monto. */
 const VENTAS_ANULADAS: RcvVentasResponse = {
   status: "ok",
   periodo: "2026-07",
@@ -293,7 +310,7 @@ const meta = {
   component: RcvListView,
   parameters: {
     layout: "padded",
-    msw: { handlers: [DOCUMENT_STATES, MANAGEMENT_ACCOUNTS, DOCUMENT_DETAIL] },
+    msw: { handlers: [DOCUMENT_STATES, DOCUMENT_LINKS, MANAGEMENT_ACCOUNTS, DOCUMENT_DETAIL] },
     docs: {
       description: {
         component:
@@ -358,11 +375,24 @@ export const VentasOk: Story = {
 };
 
 export const VentasConAnuladas: Story = {
-  name: "Ventas · con anuladas (modo agrupado)",
+  name: "Ventas · con anuladas (vista compacta)",
   args: {
     kind: "ventas",
     period: "2026-07",
     query: buildQuery({ data: VENTAS_ANULADAS }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const detailButton = canvas.getByRole("button", { name: "Ver detalle" });
+    await expect(detailButton).toHaveAttribute("title", "Ver más columnas para cada documento");
+    await expect(canvas.queryByText(/agrupar|asociar/i)).not.toBeInTheDocument();
+
+    await userEvent.click(detailButton);
+    await expect(canvas.getByRole("button", { name: "Vista compacta" })).toHaveAttribute(
+      "title",
+      "Ver las columnas esenciales de cada documento",
+    );
+    await expect(canvas.queryByText(/agrupar|asociar/i)).not.toBeInTheDocument();
   },
 };
 

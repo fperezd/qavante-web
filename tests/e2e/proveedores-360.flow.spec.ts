@@ -3,7 +3,7 @@ import { loginAs } from "./helpers";
 
 /* Flujo — Gestión → Proveedores 360 (pedido de Fernando 2026-07-30, simétrico al de clientes).
    Comportamiento de compra con un proveedor en el tiempo desde el RCV compras (MSW sirve Proveedor
-   SpA / Insumos Chile). Estructura, no montos. Gated `operationalResult`. */
+   SpA / Insumos Chile) y reconcilia monto y documentos del contrato contenido. */
 
 test.describe("Flujo: Proveedores 360 (/gestion/proveedores)", () => {
   test("muestra el selector y los bloques de análisis del proveedor", async ({ page, context }) => {
@@ -15,8 +15,14 @@ test.describe("Flujo: Proveedores 360 (/gestion/proveedores)", () => {
     const main = page.locator("#main-content");
     await expect(main.getByText("Busca un proveedor por nombre o RUT")).toBeVisible();
     await expect(main.getByText("Compras mes a mes (últimos 12 meses)")).toBeVisible();
-    await expect(main.getByRole("heading", { name: "Estacionalidad" })).toBeVisible();
+    await expect(main.getByText(/tendencia|estacionalidad/i)).toHaveCount(0);
     await expect(main.getByRole("heading", { name: "Últimos documentos" })).toBeVisible();
+    await expect(main.getByRole("heading", { name: "Insumos Chile Ltda" })).toBeVisible();
+    await expect(
+      main.getByText("Compras (últimos 12 meses)", { exact: true }).locator(".."),
+    ).toContainText("$17.136.000");
+    await expect(main.getByText("Documentos", { exact: true }).locator("..")).toContainText("12");
+    await expect(main.getByText(/12\/12 meses respondieron/)).toBeVisible();
     // Días de pago real: honesto, pendiente CC-API.
     await expect(main.getByText(/Días promedio en pagar.*no disponible/i)).toBeVisible();
   });

@@ -107,7 +107,10 @@ export interface RedisenoTableProps<TData> {
   /** Total real (puede diferir de `data.length` si el fetch está paginado server-side). */
   totalCount?: number;
   pageSize?: number;
+  /** Desactiva la paginación cliente cuando el endpoint ya entrega una página completa. */
+  pagination?: boolean;
   onExport?: () => void;
+  exportLabel?: string;
   emptyMessage?: string;
   /** Sustantivo del conteo del footer ("registros" por defecto; "clientes con saldo" en Cobrar). */
   countNoun?: string;
@@ -128,7 +131,9 @@ export function RedisenoTable<TData>({
   data,
   totalCount,
   pageSize = 50,
+  pagination = true,
   onExport,
+  exportLabel = "Exportar",
   emptyMessage = "Sin resultados.",
   countNoun = "registros",
   footer,
@@ -145,12 +150,12 @@ export function RedisenoTable<TData>({
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: pagination ? getPaginationRowModel() : undefined,
     initialState: { pagination: { pageSize } },
   });
 
   const leafCols = table.getAllLeafColumns();
-  const pageCount = table.getPageCount();
+  const pageCount = pagination ? table.getPageCount() : 1;
   const pageIndex = table.getState().pagination.pageIndex;
   const total = totalCount ?? data.length;
 
@@ -271,7 +276,7 @@ export function RedisenoTable<TData>({
         </span>
         {onExport && (
           <button type="button" onClick={onExport} className="font-bold text-rediseno-azul">
-            Exportar
+            {exportLabel}
           </button>
         )}
         {footer}

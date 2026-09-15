@@ -26,7 +26,7 @@ export default function ImpuestosPage() {
             Impuestos
           </h1>
         </header>
-        <ImpuestosV06Live issueSucesor={ISSUE_SUCESOR} />
+        <ImpuestosV06Live />
       </div>
     );
   }
@@ -61,4 +61,3 @@ export default function ImpuestosPage() {
 
 /** Hueco restante de V06: la conciliación bancaria de un F-29 declarado no tiene todavía vínculo
  *  contractual con un movimiento específico. */
-const ISSUE_SUCESOR = "tooxs-digital/qavante-api#440";

@@ -1,13 +1,13 @@
 /* Mapper PURO de Pagar v2 live (sin React): deriva desde `accounts-payable` los
    vencimientos (ordenados + postergabilidad), las 3 fechas clave del mes, la
-   concentración por acreedor y la brecha de caja. Reusa los helpers del Pagar clásico
+   concentración por acreedor y las señales de caja del contrato. Reusa los helpers del Pagar clásico
    (overdueThenCritical, overdueTotal, daysUntilDue, parseAmount). Montos string-decimal.
 
    Postergabilidad: HEURÍSTICA por categoría/criticidad (impuestos/sueldos/deuda = no
    postergable; baja criticidad = cubierto; resto = negociable). El backend no manda un
-   flag de postergabilidad por ítem (brecha abierta, escalada); cuando llegue, se usa. */
+   flag de postergabilidad por ítem (pendiente escalado); cuando llegue, se usa. */
 
-import type { PayableItem, AccountsPayableResponse } from "@/lib/api/pagos";
+import type { PayableItem } from "@/lib/api/pagos";
 import type { ContraparteMaestro } from "@/components/terminos/terminos-pago";
 import { parseAmount, paymentCategoryLabel, montoCLP, montoCLPFaltante } from "../pagos-format";
 import { daysUntilDue, isOverdue, overdueThenCritical } from "../pagos-v2-format";
@@ -48,6 +48,9 @@ export function cpToPayableItem(cp: ContraparteMaestro, source: string): Payable
     label: cp.name,
     category: "supplier",
     due_date: due ? due.toISOString().slice(0, 10) : "",
+    /* La fecha sale del maestro de contrapartes, no de un payable publicado: el frontend no
+       certifica su vencimiento (la certeza es server-owned). */
+    due_date_certainty: "unconfirmed",
     amount: String(Math.round(neto)),
     criticality: cp.vencido > 0 ? "high" : "medium",
     source,
@@ -180,42 +183,8 @@ export function mapConcentracion(items: PayableItem[], topN = 6): ConcentracionI
     .map((v) => ({ nombre: v.nombre, rut: v.rut, monto: v.monto, pct: (v.monto / total) * 100 }));
 }
 
-export interface BrechaInput {
-  /** Caja proyectada a 14 días. `null` si el backend no la pudo calcular
-   *  (`projected_cash_14d: null`) — NO se degrada a $0 (faltante ≠ 0, §13). */
-  cajaProyectada: number | null;
-  pagosCriticos: number;
-  postergable: number;
-}
-
 /** Suma en CLP de lo vencido. Usa `montoCLP` (amount_clp para extranjeras), no el nominal
  *  crudo de `overdueTotal` — así un vencido en USD no se cuenta como si fueran pesos. */
 export function overdueCLP(items: PayableItem[], now: Date): number {
   return items.reduce((acc, it) => acc + (isOverdue(it, now) ? montoCLP(it) : 0), 0);
-}
-
-/** Insumos de la brecha: caja proyectada 14d (del backend) vs pagos críticos (vencido +
- *  no postergables que vencen ≤14d), y cuánto de eso es postergable. */
-export function mapBrecha(
-  resp: AccountsPayableResponse | null | undefined,
-  items: PayableItem[],
-  now: Date,
-): BrechaInput {
-  const dentroDe14 = (i: PayableItem) => {
-    const d = daysUntilDue(i.due_date, now);
-    return d != null && d >= 0 && d <= 14;
-  };
-  const criticos = items
-    .filter((i) => postergabilidadDe(i) === "no_postergable" && dentroDe14(i))
-    .reduce((s, i) => s + montoCLP(i), 0);
-  const postergable = items
-    .filter((i) => postergabilidadDe(i) === "negociable" && dentroDe14(i))
-    .reduce((s, i) => s + montoCLP(i), 0);
-  return {
-    // null (no calculable) ≠ $0: si lo tratáramos como cero, mostraríamos un "faltan $X"
-    // seguro sobre una caja que no conocemos. Solo parseamos si hay dato.
-    cajaProyectada: resp?.projected_cash_14d == null ? null : parseAmount(resp.projected_cash_14d),
-    pagosCriticos: overdueCLP(items, now) + criticos,
-    postergable,
-  };
 }

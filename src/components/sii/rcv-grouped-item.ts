@@ -1,8 +1,8 @@
-/* Tipos compartidos del Libro (Ventas/Compras): el doc del RCV y la fila del modo
-   "agrupado". Extraídos a un módulo propio para que rcv-list-view y rcv-sort los
+/* Tipos compartidos del Libro (Ventas/Compras): el doc del RCV y la fila de la vista
+   compacta. Extraídos a un módulo propio para que rcv-list-view y rcv-sort los
    compartan sin import circular. */
 
-import type { FacturaRow } from "./rcv-anuladas";
+import type { FacturaRow, PendingAssociation } from "./rcv-anuladas";
 import type { components } from "@/lib/api/types";
 
 type GeneratedBridgeFields = Partial<
@@ -54,6 +54,8 @@ export function rcvDueDateIsEstimated(doc: RcvDoc): boolean {
   return rcvDueDate(doc) !== null && source === "assumed_30d";
 }
 
-/** Fila del Libro en modo "agrupado": o una factura (con sus NC vinculadas) o
- *  una nota de crédito huérfana (sin factura asociada en el período). */
-export type GroupedItem = { t: "fac"; row: FacturaRow<RcvDoc> } | { t: "nc"; doc: RcvDoc };
+/** Shape de compatibilidad para la vista compacta; cada item se renderiza como
+ *  una fila independiente, incluida cada nota de crédito. */
+export type GroupedItem =
+  | { t: "fac"; row: FacturaRow<RcvDoc> }
+  | { t: "nc"; doc: RcvDoc; association: PendingAssociation<RcvDoc> };

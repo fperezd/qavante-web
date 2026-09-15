@@ -48,7 +48,7 @@ export function CashGapProposalPanel({
       {loading && proposals.length === 0 ? (
         <QavanteCard variant="bordered">
           <p role="status" className="text-sm text-neutral-mid">
-            Preparando propuestas de pagos y cobranza con tus datos vigentes (~5 s).
+            Estamos preparando propuestas de pagos y cobranza con tus datos vigentes.
           </p>
         </QavanteCard>
       ) : (
@@ -106,7 +106,6 @@ export function CashGapProposalPanel({
                             <span className="font-medium text-neutral-dark">
                               {normalizeVisibleText(target.label)}
                             </span>
-                            <span> · {normalizeVisibleText(target.reason)}</span>
                           </li>
                         ))}
                       </ul>
@@ -150,7 +149,7 @@ export function CashGapProposalPanel({
           ))}
           {loading && (
             <li className="text-sm text-neutral-mid" role="status">
-              Completando la lectura de la otra alternativa (~5 s).
+              Estamos completando la lectura de la otra alternativa.
             </li>
           )}
         </ul>

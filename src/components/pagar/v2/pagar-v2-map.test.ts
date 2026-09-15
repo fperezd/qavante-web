@@ -6,11 +6,10 @@ import {
   mapVencimientos,
   mapFechasClave,
   mapConcentracion,
-  mapBrecha,
   cpToPayableItem,
   sumItemsHasta,
 } from "./pagar-v2-map";
-import type { PayableItem, AccountsPayableResponse } from "@/lib/api/pagos";
+import type { PayableItem } from "@/lib/api/pagos";
 import type { ContraparteMaestro, DocMaestro } from "@/components/terminos/terminos-pago";
 
 const NOW = new Date(2026, 6, 14); // 14-jul-2026
@@ -143,36 +142,6 @@ describe("mapConcentracion", () => {
     const out = mapConcentracion(items);
     expect(out[0]).toEqual({ nombre: "KAUFMANN", rut: undefined, monto: 3_000_000, pct: 75 });
     expect(out[1]?.nombre).toBe("DIVEIMPORT");
-  });
-});
-
-describe("mapBrecha", () => {
-  it("caja proyectada vs (vencido + no-postergables ≤14d); postergable aparte", () => {
-    const items = [
-      item({
-        label: "prov vencido",
-        category: "supplier",
-        due_date: "2026-07-10",
-        amount: "2000000",
-      }), // vencido
-      item({ label: "F29", category: "tax", due_date: "2026-07-20", amount: "4200000" }), // crítico ≤14d
-      item({ label: "prov neg", category: "supplier", due_date: "2026-07-17", amount: "1000000" }), // negociable ≤14d
-    ];
-    const resp = { projected_cash_14d: "9400000" } as AccountsPayableResponse;
-    const b = mapBrecha(resp, items, NOW);
-    expect(b.cajaProyectada).toBe(9_400_000);
-    expect(b.pagosCriticos).toBe(6_200_000); // 2M vencido + 4.2M F29
-    expect(b.postergable).toBe(1_000_000);
-  });
-
-  it("projected_cash_14d null → cajaProyectada null (NO $0: faltante ≠ 0, §13)", () => {
-    const items = [
-      item({ label: "F29", category: "tax", due_date: "2026-07-20", amount: "4200000" }),
-    ];
-    const resp = { projected_cash_14d: null } as unknown as AccountsPayableResponse;
-    const b = mapBrecha(resp, items, NOW);
-    expect(b.cajaProyectada).toBeNull(); // el backend no la calculó → desconocida, no cero
-    expect(b.pagosCriticos).toBe(4_200_000);
   });
 });
 

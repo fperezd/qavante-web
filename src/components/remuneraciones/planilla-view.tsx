@@ -469,7 +469,7 @@ function Metric({ label, value, help }: { label: string; value: number | null; h
           (pending ? "text-neutral-mid/70" : "text-neutral-dark")
         }
       >
-        {pending ? "En preparación" : formatClp(value)}
+        {pending ? "Sin información disponible" : formatClp(value)}
       </p>
       {help && <p className="mt-1 text-[11px] leading-snug text-neutral-mid">{help}</p>}
     </div>

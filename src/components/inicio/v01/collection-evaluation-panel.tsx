@@ -166,8 +166,7 @@ export function CollectionEvaluationPanel({
             <div>
               <p className="font-semibold text-neutral-dark">No hay recomendación de cobranza</p>
               <p className="mt-1 text-sm text-neutral-mid">
-                El backend se abstuvo; esta vista no convierte la falta de evidencia en una
-                sugerencia.
+                No hay evidencia suficiente para formular una sugerencia.
               </p>
               <ReasonList label="Motivos de abstención" reasons={view.abstainReasons} />
             </div>
@@ -185,8 +184,7 @@ export function CollectionEvaluationPanel({
             <div>
               <p className="font-semibold text-neutral-dark">Situación de cobranza no informada</p>
               <p className="mt-1 text-sm text-neutral-mid">
-                El backend se abstuvo de informar documentos; esta vista no los representa como
-                cero.
+                No recibimos documentos para este alcance y no los representamos como cero.
               </p>
               <ReasonList
                 label="Motivos de abstención de la situación"

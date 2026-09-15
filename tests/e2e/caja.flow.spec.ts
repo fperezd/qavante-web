@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — Caja v2+v3 (`cajaV2`/`cajaV3` ON en prod y en el env de e2e). La vista LIVE muestra la
-   respuesta de dueño (hero + saldo hoy), el MEDIDOR de días de caja (Caja v3, derivado de la
-   proyección del backend) y la tabla de entradas/salidas por período. Cubre esos tres. El flujo de
-   conciliar fila-por-fila desde el caveat vive en caja-mark-collected.flow.spec. */
+/* Flujo — Caja. `/caja/proyeccion` conserva el reporte v2+v3 (hero, saldo hoy y la tabla por
+   período); `/caja` sirve la pantalla V02 que producción tiene encendida. En las dos, la
+   proyección la publica el run inmutable del backend: el medidor derivado en el frontend se
+   retiró con D03. El flujo de conciliar fila-por-fila vive en caja-mark-collected.flow.spec. */
 
 test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
   test("respuesta de dueño + saldo hoy + curva + flujos por período", async ({ page, context }) => {
@@ -21,13 +21,13 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
     // Caja v3 (ON en prod): el "Saldo proyectado" es el MEDIDOR de días de caja (no la curva clásica).
     // El fixture proyecta un piso bajo la mínima → "Caja ajustada". ("Total en caja hoy" se oculta con
     // v3: el saldo ya vive en el hero, no se repite.)
-    await expect(page.getByText(/Caja (holgada|ajustada|en riesgo)/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Proyección canónica" })).toBeVisible();
     // La tabla de entradas/salidas por período (con la columna "Saldo al cierre" derivada) sigue debajo.
     await expect(page.getByText("Entradas y salidas · por período")).toBeVisible();
     await expect(page.getByText("Saldo al cierre")).toBeVisible();
   });
 
-  test("la landing /caja encabeza con el Resumen v2 + herramientas debajo", async ({
+  test("la landing /caja sirve V02 con la proyección canónica y la auditoría debajo", async ({
     page,
     context,
   }) => {
@@ -35,15 +35,24 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
     await page.goto("/caja");
 
     await expect(page.getByRole("heading", { level: 1, name: "Caja" })).toBeVisible();
-    // v2 arriba: respuesta de dueño + medidor de caja (contesta el "¿me alcanza?" del título).
-    await expect(page.getByText("La empresa tiene en caja")).toBeVisible();
-    await expect(page.getByText(/Caja (holgada|ajustada|en riesgo)/)).toBeVisible();
-    // La suite normal construye con Decision Brief OFF; el flujo legado conserva
-    // su auditoría de movimientos. El montaje ON se prueba en su config aislada.
-    // La auditoría no se presenta como requisito.
+    /* Producción sirve V02 (`cajaV02` ON en `wrangler.toml`): una pantalla, una pregunta. Arriba
+       la lectura de hoy; la proyección es el run inmutable del backend (D03), que separa saldo
+       final, mínimo del horizonte y brecha contra cero sin restar obligaciones dos veces (D01). */
+    await expect(page.getByText("¿Me alcanza la caja?")).toBeVisible();
+    await expect(page.getByText("Saldo en tus cuentas · el mismo número que en Hoy")).toBeVisible();
+    await expect(page.getByText("$9.800.000").first()).toBeVisible();
+    await expect(page.getByText("Proyección canónica")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Saldo final")).toBeVisible();
+    await expect(page.getByText(/Mínimo · \d{4}-\d{2}-\d{2}/)).toBeVisible();
+    await expect(page.getByText("Brecha contra cero")).toBeVisible();
+    /* El medidor de días derivado en el frontend ya no existe (D03). Gemelo positivo con la
+       MISMA regex sobre el texto que SÍ se publica: la etiqueta del escenario canónico. */
+    await expect(page.getByText(/Caja (holgada|ajustada|en riesgo)/)).toHaveCount(0);
+    await expect(
+      page.getByText(/Caja para decidir pagos|Proyección canónica/).first(),
+    ).toBeVisible();
+    // La auditoría de movimientos queda después de la respuesta financiera, no como requisito.
     await expect(page.getByText("Calidad y auditoría de movimientos")).toBeVisible();
     await expect(page.getByText("Movimientos pendientes")).toBeVisible();
-    // La card "Reporte de caja" es redundante con el v2 arriba → se omite.
-    await expect(page.getByText("Reporte de caja")).toHaveCount(0);
   });
 });

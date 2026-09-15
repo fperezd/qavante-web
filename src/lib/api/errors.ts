@@ -1,18 +1,27 @@
-/* Error class para respuestas no-OK del backend. Mensaje en español,
-   código del backend si está disponible. Mapping a textos amigables
-   queda para el llamador via switch sobre .code (ver Anexo C.3 v2.6.4). */
+import type { UserMessage } from "./user-message";
+
+/* Error class para respuestas no-OK. `detail` conserva evidencia técnica para
+   observabilidad; `userMessage` es la única carga del servidor renderizable. */
 
 export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
   readonly detail?: unknown;
+  readonly userMessage?: UserMessage;
 
-  constructor(message: string, status: number, code?: string, detail?: unknown) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    detail?: unknown,
+    userMessage?: UserMessage,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.detail = detail;
+    this.userMessage = userMessage;
   }
 
   isNetworkError(): boolean {

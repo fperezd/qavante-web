@@ -1,4 +1,5 @@
 import { ApiError } from "./errors";
+import { fallbackUserMessage, renderUserMessage } from "./user-message";
 
 /* Mapping de errores técnicos -> mensajes visibles al usuario.
    Implementa Anexo C.3 del Documento Maestro v2.6.4.
@@ -12,60 +13,8 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
     return "RUT o clave incorrectos. Verifica tus datos.";
   }
 
-  /* Codes específicos antes que isNetworkError(): config_missing se lanza con
-     status 0, igual que un network error real, pero el mensaje técnico es
-     más útil para el dev. */
-  switch (err.code) {
-    case "invalid_credentials":
-      return "La credencial requiere revisión.";
-    case "source_unavailable":
-      return "La fuente no está disponible en este momento.";
-    case "config_missing":
-      return "Esta función no está disponible en este momento.";
-    /* Captcha (Turnstile): el token es de un solo uso y expira → un reintento
-       con el token viejo da `captcha_failed` (status 403). NO es un problema de
-       permisos: hay que rehacer el captcha. Mapear explícito antes del switch
-       de status (que lo mostraba como "No tienes permisos"). */
-    case "captcha_failed":
-      return "No pudimos verificar el captcha. Recárgalo e intenta de nuevo.";
-  }
-
-  /* El backend a veces filtra el `detail` con instrucciones de DEV (endpoints internos, variables de
-     entorno) — eso NUNCA va al dueño. Caso conocido: el sync del SII cuando el RUT de la empresa no
-     está autorizado o falta el certificado del SII (el detalle menciona `seed-cert`/`SII_CERT_PATH`/
-     `cert_b64`). Damos un mensaje limpio y accionable en su lugar (surface honesto, no ocultamos el
-     problema — decimos qué pasa y dónde mirar). */
-  if (/seed-cert|sii_cert_path|cert_b64/i.test(err.message ?? "")) {
-    return "No pudimos actualizar la información del SII. Revisa el estado de la conexión en Administración → Credenciales.";
-  }
-
-  if (err.isNetworkError()) {
-    return "No pudimos comunicarnos con Qavante. Intenta nuevamente.";
-  }
-
-  switch (err.status) {
-    case 401:
-      return "Tu sesión expiró. Vuelve a iniciar sesión.";
-    case 403:
-      return "No tienes permisos para realizar esta acción.";
-    case 404:
-      return "No encontramos la información que buscas.";
-    case 408:
-    case 504:
-      return "La operación está demorando más de lo esperado.";
-    case 422:
-      return "Algunos datos no son válidos. Revisa el formulario.";
-    case 429:
-      return "Hiciste muchas operaciones seguidas. Espera unos segundos.";
-    case 503:
-      return "Qavante está en mantenimiento. Volvemos pronto.";
-  }
-
-  if (err.status >= 500) {
-    return "No pudimos cargar la información. Intenta nuevamente.";
-  }
-
-  return "Ocurrió un error inesperado. Intenta nuevamente.";
+  if (err.userMessage) return renderUserMessage(err.userMessage);
+  return fallbackUserMessage(err.status, err.code);
 }
 
 /** Boundary seguro para callbacks cuya librería tipa el fallo como `Error` o `unknown`. */

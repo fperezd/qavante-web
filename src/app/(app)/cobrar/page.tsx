@@ -17,7 +17,7 @@ export default function CobrarPage() {
   const { siiQueries, accountsReceivable, cobrarV2, cobrarV04, decisionBrief } =
     resolveFeatureFlags();
 
-  /* V04 · Cobrar (rediseño Fase 2, issue #69) — gated por `cobrarV04`, HOY APAGADO. Reemplaza la
+  /* V04 · Cobrar (rediseño Fase 2, issue #69) — gated por `cobrarV04`, HOY ENCENDIDO en producción (`wrangler.toml`). Reemplaza la
      landing entera por la vista de la spec (una pantalla, una pregunta: "¿quién me debe?"). Con
      OFF nada de abajo cambia (cero regresión: producción sigue sirviendo v2). Se conservan los
      accesos "Ver facturas" y "Clientes": son las rutas de detalle a las que la tabla no llega sola. */

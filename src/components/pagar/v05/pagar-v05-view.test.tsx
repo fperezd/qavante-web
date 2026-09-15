@@ -48,18 +48,32 @@ function elRojo(h: string): string {
 }
 
 describe("PagarV05View — tríada (caso normal)", () => {
-  it("Vencido con su apellido: 3 pagos, el más antiguo hace 545 días — y NO va en rojo", () => {
+  it("Vencido usa el agregado global: 3 pagos en todo el registro — y NO va en rojo", () => {
     const h = html();
     const t = texto(h);
     expect(t).toContain("Vencido $8.729.650");
-    expect(t).toContain("3 pagos · el más antiguo, 545 días");
+    expect(t).toContain("3 pagos en todo el registro");
     // El HTML de referencia pinta este KPI rojo; la spec (Ley 2) manda: acá va en tinta.
     expect(h).not.toMatch(/class="[^"]*rediseno-rojo[^"]*"[^>]*>\s*\$8\.729\.650/);
   });
 
-  it("Vencido singular: 1 pago, el más antiguo hace 1 día", () => {
-    const t = texto(html({ pagos: pagos({ items: [{ ...KENNEDY, due_date: "2026-08-29" }] }) }));
-    expect(t).toContain("1 pago · el más antiguo, 1 día");
+  it("Vencido singular se obtiene del agregado global, no de la página", () => {
+    const t = texto(
+      html({
+        pagos: pagos({
+          items: [{ ...KENNEDY, due_date: "2026-08-29" }],
+          overdue_summary: {
+            amount_clp: "7078882",
+            known_amount_clp: "7078882",
+            complete: true,
+            count: 1,
+            unknown_due_date_count: 0,
+            excluded_by_currency: [],
+          },
+        }),
+      }),
+    );
+    expect(t).toContain("1 pago en todo el registro");
     expect(t).not.toContain("1 pagos");
     expect(t).not.toContain("1 días");
   });
@@ -79,10 +93,10 @@ describe("PagarV05View — tríada (caso normal)", () => {
     const t = texto(html());
     expect(t).toContain("Caja proyectada 14 días $5.200.000");
     expect(t).toContain(
-      "Pagos críticos en la lista visible: $8.078.055 · 3 pagos que no se postergan en 14 días",
+      "Pagos críticos en todo el registro: $16.807.705 · 6 pagos que no se postergan en 14 días",
     );
     expect(t).toContain(
-      "Los pagos visibles ya están incluidos en el flujo proyectado; no se vuelven a restar",
+      "Las obligaciones comprometidas ya están incluidas en el flujo proyectado; no se vuelven a restar",
     );
     expect(t).toContain("Estado de cobertura del horizonte: no cubre");
     expect(t).not.toContain("$2.878.055");
@@ -92,20 +106,22 @@ describe("PagarV05View — tríada (caso normal)", () => {
     const t = texto(html({ pagos: pagosAuditoriaD01() }));
 
     expect(t).toContain("Caja proyectada 14 días −$46.865.254");
-    expect(t).toContain("Pagos críticos en la lista visible: $10.373.669");
+    expect(t).toContain("Pagos críticos en todo el registro: $10.373.669");
     expect(t).not.toContain("$57.238.923");
     expect(t).not.toContain("faltan $");
   });
 
-  it("lista capada sin críticos visibles se abstiene del subtotal y conserva cobertura", () => {
+  /* Única página completa del tope (100 filas), cada una con su detalle y su acción de
+     documento: es el render más caro de la suite y excede el timeout por defecto cuando los
+     archivos corren en paralelo. El margen es de tiempo, no de cobertura — no se relaja ninguna
+     aserción. */
+  it("lista sin críticos visibles conserva el agregado global y la cobertura", () => {
     const t = texto(html({ pagos: pagosListaTopeadaSinCriticos() }));
 
-    expect(t).toContain("Pagos críticos en la lista visible: subtotal no disponible");
-    expect(t).toContain("la lista alcanzó el tope de 100 y puede omitir pagos críticos");
+    expect(t).toContain("Pagos críticos en todo el registro: $250.000 · 1 pago");
     expect(t).toContain("Estado de cobertura del horizonte: no cubre");
-    expect(t).not.toContain("Pagos críticos en la lista visible: $0");
-    expect(t).not.toContain("ningún pago crítico visible");
-  });
+    expect(t).not.toContain("Pagos críticos en todo el registro: $0");
+  }, 20_000);
 
   it("USD 830 crítico sin TC se abstiene del subtotal sin alterar la cobertura", () => {
     const usdSinTc = {
@@ -116,14 +132,27 @@ describe("PagarV05View — tríada (caso normal)", () => {
       currency: "USD",
       amount_clp: null,
     };
-    const t = texto(html({ pagos: pagos({ items: [usdSinTc], covers_critical: false }) }));
-
-    expect(t).toContain("Pagos críticos en la lista visible: subtotal no disponible · 1 pago");
-    expect(t).toContain(
-      "1 pago crítico visible tiene monto no disponible por falta de tipo de cambio",
+    const t = texto(
+      html({
+        pagos: pagos({
+          items: [usdSinTc],
+          covers_critical: false,
+          non_postponable_or_overdue_14d: {
+            amount_clp: null,
+            known_amount_clp: "0",
+            complete: false,
+            count: 1,
+            unknown_due_date_count: 0,
+            excluded_by_currency: [{ currency: "USD", amount: "830" }],
+          },
+        }),
+      }),
     );
+
+    expect(t).toContain("Pagos críticos en todo el registro: subtotal no disponible · 1 pago");
+    expect(t).toContain("1 moneda excluida por falta de tipo de cambio");
     expect(t).toContain("Estado de cobertura del horizonte: no cubre");
-    expect(t).not.toContain("Pagos críticos en la lista visible: $0 · 1 pago");
+    expect(t).not.toContain("Pagos críticos en todo el registro: $0 · 1 pago");
   });
 
   it("críticos conocidos y sin TC presentan el subtotal conocido como piso", () => {
@@ -136,18 +165,31 @@ describe("PagarV05View — tríada (caso normal)", () => {
       currency: "USD",
       amount_clp: null,
     };
-    const t = texto(html({ pagos: pagos({ items: [BICE, usdSinTc] }) }));
+    const t = texto(
+      html({
+        pagos: pagos({
+          items: [BICE, usdSinTc],
+          non_postponable_or_overdue_14d: {
+            amount_clp: null,
+            known_amount_clp: "503076",
+            complete: false,
+            count: 2,
+            unknown_due_date_count: 0,
+            excluded_by_currency: [{ currency: "USD", amount: "830" }],
+          },
+        }),
+      }),
+    );
 
-    expect(t).toContain("Pagos críticos en la lista visible: al menos $503.076 · 2 pagos");
-    expect(t).not.toContain("Pagos críticos en la lista visible: $503.076 · 2 pagos");
+    expect(t).toContain("Pagos críticos en todo el registro: al menos $503.076 · 2 pagos");
+    expect(t).not.toContain("Pagos críticos en todo el registro: $503.076 · 2 pagos");
   });
 
-  it("banner de postergables → la decisión vive en Hoy (link a /), sin ejecución masiva acá", () => {
+  it("se abstiene de publicar un monto negociable sin agregado global del API", () => {
     const h = html();
-    expect(texto(h)).toContain("$1.190.400 de lo que vence en 14 días es negociable");
-    expect(texto(h)).toContain("La decisión de qué postergar vive en Hoy");
-    expect(h).toContain('href="/"');
-    // Gemelo: sin nada postergable el banner no está.
+    expect(texto(h)).not.toContain("es negociable");
+    expect(texto(h)).not.toContain("La decisión de qué postergar vive en Hoy");
+    expect(texto(h)).not.toContain("Ver Hoy");
     expect(texto(html({ pagos: pagosSoloImpuestosYSueldos() }))).not.toContain("es negociable");
   });
 
@@ -155,25 +197,29 @@ describe("PagarV05View — tríada (caso normal)", () => {
     const h = html({ suppressRecommendations: true });
     const t = texto(h);
 
+    // Los agregados del servidor y la evidencia se conservan: el Brief no los reemplaza.
     expect(t).toContain("Por pagar 14 días $17.998.105");
     expect(t).toContain("Inmobiliaria Vista Kennedy SpA");
     expect(t).toContain("Los pagos se muestran en el orden publicado por la fuente.");
-    expect(t).not.toContain("La decisión de qué postergar vive en Hoy");
-    expect(t).not.toContain("de lo que vence en 14 días es negociable");
+
+    /* Lo que SÍ desaparece son las señales de DECISIÓN locales: la columna de tipo con sus
+       pills y el pie de la Ley 9, que es política de postergación. */
     expect(t).not.toContain("Negociable");
     expect(t).not.toContain("No se posterga");
-    expect(t).not.toContain("Críticos");
-    expect(t).not.toContain("Postergables");
     expect(t).not.toContain("Impuestos y sueldos jamás entran en postergaciones automáticas.");
     expect(h).not.toContain(">Tipo<");
 
-    /* Gemelos con la MISMA cadena sobre el render sin supresión. "Críticos" y
-       "Postergables" son rótulos del plan local: si desaparecieran del modo
-       normal, sus ausencias de arriba pasarían por buenas sin medir nada. */
+    /* Gemelos con la MISMA cadena sobre el render sin supresión: si estos rótulos
+       desaparecieran también del modo normal, las ausencias de arriba pasarían por buenas
+       sin medir nada. */
     const conPlanLocal = texto(html());
-    expect(conPlanLocal).toContain("Críticos");
-    expect(conPlanLocal).toContain("Postergables");
-    expect(conPlanLocal).toContain("La decisión de qué postergar vive en Hoy");
+    const hConPlanLocal = html();
+    expect(conPlanLocal).toContain("Negociable");
+    expect(conPlanLocal).toContain("No se posterga");
+    expect(conPlanLocal).toContain(
+      "Impuestos y sueldos jamás entran en postergaciones automáticas.",
+    );
+    expect(hConPlanLocal).toContain(">Tipo<");
   });
 });
 
@@ -197,7 +243,8 @@ describe("PagarV05View — tabla y footer", () => {
     expect(t).toContain("No se posterga");
     // Ninguna pill ni nota técnica dice "Servicio".
     expect(html()).not.toMatch(/>Servicio</);
-    expect(t).not.toContain("la pill “Servicio” de la spec no se produce");
+    expect(t).toContain("La fuente todavía no distingue servicios recurrentes");
+    expect(t).not.toContain("spec");
   });
 
   it("NO existe un botón 'pagar todo' (Ley 9), y el texto fijo de la ley está literal", () => {

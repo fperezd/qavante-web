@@ -56,7 +56,7 @@ export interface ImpuestosV06ViewProps {
   estimacionF29?: EstimacionF29V06;
   error?: string | null;
   onReintentar?: () => void;
-  /** Issue sucesor del vínculo pendiente entre F-29 declarado y cargo bancario. */
+  /** Compatibilidad de stories antiguas; nunca se presenta al usuario. */
   issueSucesor?: string;
 }
 
@@ -66,9 +66,7 @@ export function ImpuestosV06View({
   estimacionF29,
   error,
   onReintentar,
-  issueSucesor,
 }: ImpuestosV06ViewProps) {
-  void issueSucesor;
   if (error) {
     return (
       <DataState
@@ -186,14 +184,13 @@ export function ImpuestosV06View({
         de IVA postergado, que sólo informa una postergación que ya hizo el SII.
       </p>
 
-      <HuecosDeclarados issueSucesor={issueSucesor} />
+      <HuecosDeclarados />
     </div>
   );
 }
 
 /* ── Huecos declarados (issue #73): visibles EN la pantalla, no sólo en el PR ────────────────── */
-function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
-  void issueSucesor;
+function HuecosDeclarados() {
   return (
     <p className="pt-1 text-center text-[12px] text-rediseno-tinta-3-light">
       La declaración del F-29 y la verificación de su pago son estados distintos. Qavante todavía no

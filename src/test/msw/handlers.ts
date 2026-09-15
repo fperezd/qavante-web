@@ -37,6 +37,7 @@ import {
 } from "./db";
 import { DECISION_BRIEF_E2E_FIXTURE } from "./decision-brief-fixture";
 import { SEED_SESSION_USER } from "./fixtures";
+import { cashProjectionRunHandlers } from "./cash-projection-runs";
 
 const SESSION_COOKIE = "qavante_session=msw-mock-token; Path=/; SameSite=Lax";
 
@@ -2114,7 +2115,117 @@ const classificationRulesHandlers = [
 
 const SII_F29_FIXTURE_FOLIO = 1234567890;
 
+/* D07 — `GET /api/sii/document-links`: observaciones de referencia entre DTE. El fixture cubre
+   los dos casos que la pantalla tiene que distinguir: una anulación ACREDITADA por el productor
+   (`automatic_allowed`) y una referencia observada SIN acreditación, que nunca puede rotularse
+   como anulada. Las claves son las mismas del RCV (`tipo-folio-RUT`). */
+const documentLinkFixtures = [
+  {
+    id: "dl-anulada",
+    document_kind: "payable",
+    correcting_document_id: "doc-nc-1",
+    correcting_source_external_id: "61-9001-76543210-9",
+    correcting_document_type: 61,
+    target_document_id: "doc-fac-1",
+    target_source_external_id: "33-5001-76543210-9",
+    target_match_count: 1,
+    link_status: "annulled_confirmed",
+    reference_evidence: {
+      source: "sii_rcv",
+      reference_index: 1,
+      observed_at: "2026-06-02T12:00:00Z",
+      digest_sha256: "d".repeat(64),
+      validated: true,
+      identity_consistent: true,
+      observation_kind: "reference",
+      cod_ref: 1,
+      referenced_document_type: 33,
+      referenced_folio: "5001",
+    },
+    monetary_effect: {
+      kind: "full_cancellation",
+      automatic_allowed: true,
+      amount: "119000",
+      currency_code: "CLP",
+    },
+    classification_version: "dte-reference-v2",
+    classification_reason: "reference_exact",
+    is_current: true,
+  },
+  {
+    id: "dl-posible",
+    document_kind: "payable",
+    correcting_document_id: "doc-nc-2",
+    correcting_source_external_id: "61-9002-76543210-9",
+    correcting_document_type: 61,
+    target_document_id: null,
+    target_source_external_id: null,
+    target_match_count: 0,
+    link_status: "annulled_confirmed",
+    reference_evidence: {
+      source: "sii_rcv",
+      reference_index: 1,
+      observed_at: "2026-06-02T12:00:00Z",
+      digest_sha256: "e".repeat(64),
+      validated: false,
+      identity_consistent: false,
+      observation_kind: "reference",
+      cod_ref: null,
+    },
+    monetary_effect: {
+      kind: "unknown",
+      automatic_allowed: false,
+      amount: null,
+      currency_code: null,
+    },
+    classification_version: "dte-reference-v2",
+    classification_reason: "reference_ambiguous",
+    is_current: true,
+  },
+  /* Reemplazada: el cliente no puede dejar que pise a la vigente. */
+  {
+    id: "dl-historica",
+    document_kind: "payable",
+    correcting_document_id: "doc-nc-1",
+    correcting_source_external_id: "61-9001-76543210-9",
+    correcting_document_type: 61,
+    target_document_id: null,
+    target_source_external_id: null,
+    target_match_count: 0,
+    link_status: "unresolved",
+    reference_evidence: {
+      source: "legacy",
+      reference_index: null,
+      observed_at: "2026-05-02T12:00:00Z",
+      digest_sha256: "f".repeat(64),
+      validated: false,
+      identity_consistent: false,
+      observation_kind: "no_references",
+      cod_ref: null,
+    },
+    monetary_effect: {
+      kind: "none",
+      automatic_allowed: false,
+      amount: null,
+      currency_code: null,
+    },
+    classification_version: "dte-reference-v1",
+    classification_reason: "superseded",
+    is_current: false,
+  },
+];
+
 const siiHandlers = [
+  http.get("*/api/sii/document-links", ({ request }) => {
+    const url = new URL(request.url);
+    const kind = url.searchParams.get("kind");
+    const includeHistory = url.searchParams.get("include_history") === "true";
+    const items = documentLinkFixtures.filter(
+      (link) =>
+        (kind === null || link.document_kind === kind) && (includeHistory || link.is_current),
+    );
+    return HttpResponse.json({ count: items.length, items }, { status: 200 });
+  }),
   http.post("*/api/sii/sync-rcv", () =>
     HttpResponse.json({ status: "ok", periodo: "2026-05" }, { status: 200 }),
   ),
@@ -2379,14 +2490,16 @@ const siiHandlers = [
         status: 422,
       });
     }
+    const canonicalPeriod = periodo.replace(/^(\d{4})(\d{2})$/, "$1-$2");
+    const folioBase = Number(canonicalPeriod.replace("-", "")) * 10;
     return HttpResponse.json(
       {
         status: "ok",
         compras: [
           {
             tipo_doc: 33,
-            folio: 1001,
-            fecha: "2026-04-03",
+            folio: folioBase + 1,
+            fecha: `${canonicalPeriod}-01`,
             rut_contraparte: "76555444-K",
             razon_social: "Proveedor SpA",
             monto_neto: 800000,
@@ -2395,8 +2508,8 @@ const siiHandlers = [
           },
           {
             tipo_doc: 33,
-            folio: 1002,
-            fecha: "2026-04-18",
+            folio: folioBase + 2,
+            fecha: `${canonicalPeriod}-01`,
             rut_contraparte: "77123456-7",
             razon_social: "Insumos Chile Ltda",
             monto_neto: 1200000,
@@ -2420,14 +2533,16 @@ const siiHandlers = [
         status: 422,
       });
     }
+    const canonicalPeriod = periodo.replace(/^(\d{4})(\d{2})$/, "$1-$2");
+    const folioBase = Number(canonicalPeriod.replace("-", "")) * 10;
     return HttpResponse.json(
       {
         status: "ok",
         ventas: [
           {
             tipo_doc: 33,
-            folio: 5001,
-            fecha: "2026-04-05",
+            folio: folioBase + 1,
+            fecha: `${canonicalPeriod}-01`,
             rut_contraparte: "78000111-K",
             razon_social: "Cliente A SA",
             monto_neto: 3000000,
@@ -2436,8 +2551,8 @@ const siiHandlers = [
           },
           {
             tipo_doc: 33,
-            folio: 5002,
-            fecha: "2026-04-25",
+            folio: folioBase + 2,
+            fecha: `${canonicalPeriod}-01`,
             rut_contraparte: "79222333-4",
             razon_social: "Cliente B Ltda",
             monto_neto: 2000000,
@@ -2660,57 +2775,182 @@ const preferencesHandlers = [
   }),
 ];
 
-/* Pagar — cuentas por pagar (Sprint C4, contrato FE-first). Endpoint real aún
-   no existe (ver docs/backend-contracts/pagar-accounts-payable-contract.md). */
+/* Pagar — cuentas por pagar. Publica el contrato D02 COMPLETO (agregados sobre todo el
+   registro + metadatos de filtro + paginación), que es lo que el cliente exige en runtime:
+   `assertAccountsPayableResponse` falla cerrado ante un payload legacy y la pantalla queda
+   ciega. Los ítems y los tramos son los mismos de siempre; lo nuevo es el sobre. */
+const AP_ITEMS = [
+  {
+    id: "ap-f29-202605",
+    label: "IVA / F29 mayo",
+    category: "tax" as const,
+    due_date: "2026-06-12",
+    due_date_certainty: "confirmed" as const,
+    amount: "2400000",
+    criticality: "high" as const,
+    source: "SII",
+    currency: "CLP",
+    amount_clp: null,
+    reclamado: false,
+  },
+  {
+    id: "ap-payroll-202606",
+    label: "Sueldos junio",
+    category: "payroll" as const,
+    due_date: "2026-06-30",
+    due_date_certainty: "confirmed" as const,
+    amount: "4200000",
+    criticality: "high" as const,
+    source: "Previred",
+    source_external_id: "payroll-202606",
+    currency: "CLP",
+    amount_clp: null,
+    reclamado: false,
+  },
+  {
+    id: "ap-telefonica-4471",
+    label: "Proveedor Telefónica",
+    category: "supplier" as const,
+    due_date: "2026-06-18",
+    due_date_certainty: "confirmed" as const,
+    amount: "890000",
+    criticality: "medium" as const,
+    source: "SII",
+    currency: "CLP",
+    amount_clp: null,
+    reclamado: false,
+  },
+  {
+    id: "ap-arriendo-bodega",
+    label: "Arriendo bodega",
+    category: "rent" as const,
+    due_date: "2026-06-05",
+    due_date_certainty: "confirmed" as const,
+    amount: "1300000",
+    criticality: "medium" as const,
+    source: "Manual",
+    currency: "CLP",
+    amount_clp: null,
+    reclamado: false,
+  },
+  {
+    id: "ap-leasing-camioneta",
+    label: "Leasing camioneta",
+    category: "leasing" as const,
+    due_date: "2026-06-22",
+    due_date_certainty: "confirmed" as const,
+    amount: "640000",
+    criticality: "low" as const,
+    source: "Manual",
+    currency: "CLP",
+    amount_clp: null,
+    reclamado: false,
+  },
+];
+
+/** Agregado completo: monto conocido == publicado, sin monedas excluidas ni fechas ausentes. */
+const apAggregate = (amount: string, count: number) => ({
+  amount_clp: amount,
+  known_amount_clp: amount,
+  complete: true,
+  count,
+  unknown_due_date_count: 0,
+  excluded_by_currency: [],
+});
+
 const accountsPayableFixture = {
-  total: "12600000",
-  due_7d: "3800000",
-  due_14d: "6200000",
-  due_30d: "9100000",
-  items: [
-    {
-      label: "IVA / F29 mayo",
-      category: "tax",
-      due_date: "2026-06-12",
-      amount: "2400000",
-      criticality: "high",
-      source: "SII",
-    },
-    {
-      label: "Sueldos junio",
-      category: "payroll",
-      due_date: "2026-06-30",
-      amount: "4200000",
-      criticality: "high",
-      source: "Previred",
-      source_external_id: "payroll-202606",
-    },
-    {
-      label: "Proveedor Telefónica",
-      category: "supplier",
-      due_date: "2026-06-18",
-      amount: "890000",
-      criticality: "medium",
-      source: "SII",
-    },
-    {
-      label: "Arriendo bodega",
-      category: "rent",
-      due_date: "2026-06-05",
-      amount: "1300000",
-      criticality: "medium",
-      source: "Manual",
-    },
-    {
-      label: "Leasing camioneta",
-      category: "leasing",
-      due_date: "2026-06-22",
-      amount: "640000",
-      criticality: "low",
-      source: "Manual",
-    },
+  as_of: "2026-06-02",
+  snapshot_id: "a".repeat(64),
+  items: AP_ITEMS,
+  items_total: AP_ITEMS.length,
+  limit: 100,
+  has_more: false,
+  next_cursor: null,
+  total: "9430000",
+  total_by_currency: [{ currency: "CLP", amount: "9430000" }],
+  excluded_from_total_by_currency: [],
+  /* Acumulativos desde `as_of` 2026-06-02: 7 días = arriendo (05-jun); 14 días = + F29
+     (12-jun); 30 días = todo el registro. */
+  due_7d: "1300000",
+  due_14d: "3700000",
+  due_30d: "9430000",
+  /* Coherente con `as_of` 2026-06-02 y los vencimientos 05/12/18/22/30-jun: al corte NO hay
+     nada vencido. Un agregado de vencido inventado haría que la pantalla afirme mora que el
+     propio corte desmiente. */
+  overdue_summary: apAggregate("0", 0),
+  /* Impuestos y sueldos no se postergan (Ley 9): dentro de 14 días desde el corte sólo entra
+     el F29 del 12-jun; los sueldos del 30-jun caen fuera de la ventana. */
+  non_postponable_or_overdue_14d: apAggregate("2400000", 1),
+  by_category: [
+    { ...apAggregate("890000", 1), category: "supplier" },
+    { ...apAggregate("2400000", 1), category: "tax" },
+    { ...apAggregate("4200000", 1), category: "payroll" },
+    { ...apAggregate("1300000", 1), category: "rent" },
+    { ...apAggregate("0", 0), category: "debt" },
+    { ...apAggregate("640000", 1), category: "leasing" },
+    { ...apAggregate("0", 0), category: "other" },
   ],
+  undated_summary: apAggregate("0", 0),
+  undated_amount: "0",
+  undated_count: 0,
+  credits: apAggregate("0", 0),
+  zero_balance_count: 0,
+  filter_metadata: {
+    unfiltered_items_total: AP_ITEMS.length,
+    matched_items_total: AP_ITEMS.length,
+    by_category: [
+      { category: "supplier", count: 1 },
+      { category: "tax", count: 1 },
+      { category: "payroll", count: 1 },
+      { category: "rent", count: 1 },
+      { category: "debt", count: 0 },
+      { category: "leasing", count: 1 },
+      { category: "other", count: 0 },
+    ],
+    by_criticality: [
+      { criticality: "high", count: 2 },
+      { criticality: "medium", count: 2 },
+      { criticality: "low", count: 1 },
+    ],
+    by_state: [
+      { state: "open", count: 5 },
+      { state: "partially_paid", count: 0 },
+    ],
+  },
+  payroll_coverage: {
+    complete: true,
+    sources: [
+      {
+        source: "buk",
+        status: "ready",
+        last_success_at: "2026-06-02T08:00:00Z",
+        freshness_confirmed: true,
+        covered: true,
+      },
+      {
+        source: "previred",
+        status: "ready",
+        last_success_at: "2026-06-02T08:00:00Z",
+        freshness_confirmed: true,
+        covered: true,
+      },
+    ],
+  },
+  next_payroll: {
+    label: "Sueldos junio",
+    category: "payroll",
+    due_date: "2026-06-30",
+    amount: "4200000",
+    currency: "CLP",
+    amount_clp: null,
+    is_overdue: false,
+  },
+  cash_projection_publicable_14d: true,
   projected_cash_14d: "5400000",
+  projected_cash_currency: "CLP",
+  min_14d: "-800000",
+  cash_gap_amount_14d: "800000",
+  has_gap: true,
   covers_critical: false,
   confidence: "high",
   data_state: "available",
@@ -3057,7 +3297,94 @@ const pulsoDetailFixture = {
   generated_at: "2026-06-03T12:00:00Z",
 };
 
+function pulsoScoreReadingFixture(objetivo: string | null) {
+  const focused = objetivo !== null && objetivo !== "equilibrado";
+  return {
+    publication_state: "available",
+    abstention_reason: null,
+    focused_abstention_reason: null,
+    legal_entity_id: "11111111-1111-1111-1111-111111111111",
+    currency: "CLP",
+    score_kind: focused ? "focused" : "base",
+    objective_requested: objetivo ?? "equilibrado",
+    objective_applied: objetivo ?? "equilibrado",
+    objective_effective: focused,
+    base_score: 68,
+    base_status: "stable",
+    score: focused ? 74 : 68,
+    status: "stable",
+    delta_vs_base: focused ? 6 : 0,
+    /* Factores del Pulso base (contrato `PulsoScoreWeight`): la vista canónica compone
+       "Qué compone tu Pulso" desde acá, no desde los `components` legacy. */
+    weights: [
+      {
+        key: "COB",
+        score: 72,
+        exact_score: 72.4,
+        configured_weight: 40,
+        multiplier: 1,
+        raw_weight: 40,
+        effective_weight: 40,
+        contribution: 28.96,
+      },
+      {
+        key: "RUN",
+        score: 65,
+        exact_score: 65.1,
+        configured_weight: 25,
+        multiplier: 1,
+        raw_weight: 25,
+        effective_weight: 25,
+        contribution: 16.28,
+      },
+      {
+        key: "DPC",
+        score: 60,
+        exact_score: 60,
+        configured_weight: 20,
+        multiplier: 1,
+        raw_weight: 20,
+        effective_weight: 20,
+        contribution: 12,
+      },
+      {
+        key: "CAL",
+        score: 74,
+        exact_score: 74.2,
+        configured_weight: 15,
+        multiplier: 1,
+        raw_weight: 15,
+        effective_weight: 15,
+        contribution: 11.13,
+      },
+    ],
+    coverage: { available_weight: 100, configured_weight: 100, ratio: 1 },
+    omitted: [],
+    knockout_code: null,
+    knockout_cap: null,
+    evaluation_id: `evaluation-${objetivo ?? "equilibrado"}`,
+    input_snapshot_id: "snapshot-1",
+    model_version: "PULSO-2.0",
+    methodology_id: "PULSO-2.0+pulso-focus-personal-v1",
+    calculated_at: "2026-06-03T12:00:00Z",
+    data_as_of: "2026-06-03",
+    status_thresholds: [
+      { minimum_score: 80, status: "strong" },
+      { minimum_score: 60, status: "stable" },
+      { minimum_score: 40, status: "weak" },
+      { minimum_score: 20, status: "weak" },
+      { minimum_score: 0, status: "critical" },
+    ],
+    freshness_state: "unknown",
+    freshness_reason: "source_lineage_not_available",
+  };
+}
+
 const pulsoHandlers = [
+  http.get("*/api/management/pulso/score-reading", ({ request }) => {
+    const objetivo = new URL(request.url).searchParams.get("objetivo");
+    return HttpResponse.json(pulsoScoreReadingFixture(objetivo), { status: 200 });
+  }),
   http.get("*/api/management/pulso", ({ request }) => {
     // Simula el re-ponderado por objetivo que hará CC-API: con un `?objetivo=` distinto de
     // equilibrado, el backend devolverá el Pulso con el foco aplicado. Acá reflejamos el foco en el
@@ -4509,6 +4836,7 @@ const activityHandlers = [
 export const handlers = [
   ...financialDecisionHandlers,
   ...activityHandlers,
+  ...cashProjectionRunHandlers,
   ...apiKeysHandlers,
   ...authHandlers,
   ...cajaV2Handlers,

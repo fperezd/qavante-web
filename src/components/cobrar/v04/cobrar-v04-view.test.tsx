@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentProps } from "react";
-import { CobrarV04View } from "./cobrar-v04-view";
+import { CobrarV04View, ResultadosLote } from "./cobrar-v04-view";
 import {
   HOY,
   ar,
@@ -279,5 +279,19 @@ describe("CobrarV04View — estados que hablan (§5.4, Ley 8)", () => {
     expect(t).toContain("No pudimos consultar las cuentas por cobrar");
     expect(t).toContain("El registro de cobranza no respondió (error de red).");
     expect(t).toContain("Reintentar");
+  });
+});
+
+describe("ResultadosLote — frontera de mensajes", () => {
+  it("no renderiza detail libre del payload 200", () => {
+    const secreto = "SMTP Bearer secret-token SELECT * FROM users /api/internal";
+    const h = renderToStaticMarkup(
+      <ResultadosLote
+        resultados={[{ receivable_id: "doc-1", status: "error", detail: secreto }]}
+        nombresPorId={new Map([["doc-1", "Factura 1"]])}
+      />,
+    );
+    expect(h).not.toContain(secreto);
+    expect(texto(h)).toContain("Factura 1: con error");
   });
 });

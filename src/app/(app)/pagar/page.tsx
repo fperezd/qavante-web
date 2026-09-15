@@ -6,6 +6,7 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { PagarView } from "@/components/pagar/pagar-view";
 import { PagarV2ViewLive } from "@/components/pagar/v2/pagar-v2-view-live";
 import { PagarV05Live } from "@/components/pagar/v05/pagar-v05-live";
+import { resolvePagarVariant } from "./pagar-route";
 import { DecisionBriefSlot } from "@/components/decision-brief/decision-brief-slot";
 
 /* Pagar (Sprint C4). Server Component: resuelve los flags. La landing quedó limpia
@@ -15,13 +16,14 @@ import { DecisionBriefSlot } from "@/components/decision-brief/decision-brief-sl
    como tarjetas acá. Sin `export const runtime` (regla 4). */
 export default function PagarPage() {
   const { siiQueries, accountsPayable, pagarV2, pagarV05, decisionBrief } = resolveFeatureFlags();
+  const variant = resolvePagarVariant({ pagarV05, pagarV2, accountsPayable });
 
-  /* V05 · Pagar (rediseño Fase 2, issue #70) — gated por `pagarV05`, HOY APAGADO. Reemplaza la
+  /* V05 · Pagar (rediseño Fase 2, issue #70) — gated por `pagarV05`. Reemplaza la
      landing entera por la vista de la spec (una pantalla, una pregunta: "¿a quién le pago, y qué
      es crítico?"). Con OFF nada de abajo cambia (cero regresión: producción sigue sirviendo el
      Pagar clásico). Se conserva el acceso "Ver facturas": es la ruta de detalle a la que la tabla
      enlaza por fila. */
-  if (pagarV05) {
+  if (variant === "v05") {
     return (
       <div className="space-y-6">
         <header className="flex flex-wrap items-start justify-between gap-3">
@@ -62,12 +64,12 @@ export default function PagarPage() {
 
       {decisionBrief && <DecisionBriefSlot surface="pagar" />}
 
-      {/* `pagarV2` (rediseño 2026-07-14) tiene prioridad: respuesta de dueño + brecha de caja.
+      {/* `pagarV2` (rediseño 2026-07-14) muestra respuesta de dueño + señales de caja.
          Requiere `accountsPayable` (misma fuente). Con OFF, el Pagar clásico intacto. */}
-      {pagarV2 && accountsPayable ? (
+      {variant === "v2" ? (
         <PagarV2ViewLive suppressRecommendations={decisionBrief} />
       ) : (
-        accountsPayable && <PagarView suppressRecommendations={decisionBrief} />
+        variant === "classic" && <PagarView suppressRecommendations={decisionBrief} />
       )}
 
       {!accountsPayable && !siiQueries && <FeatureUnavailableState />}

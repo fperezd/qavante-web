@@ -3,7 +3,8 @@ import { isSiiHtmlInsteadOfPdf, f29SyncFailureToast } from "./f29-sync-message";
 
 const htmlInsteadOfPdf = {
   error: "F29NotFoundError",
-  detail: "response no es PDF (content-type=text/html;charset=ISO-8859-1); probable folio inexistente o cod_int inválido",
+  detail:
+    "response no es PDF (content-type=text/html;charset=ISO-8859-1); probable folio inexistente o cod_int inválido",
 };
 
 describe("isSiiHtmlInsteadOfPdf", () => {
@@ -36,11 +37,13 @@ describe("f29SyncFailureToast", () => {
     expect(description).toContain("64 folios");
   });
 
-  it("deja el detalle CRUDO del backend visible para errores desconocidos", () => {
+  it("no expone el detalle crudo para errores desconocidos", () => {
     const detail = { error: "F29FetchError", detail: "timeout al SII" };
     const { title, description } = f29SyncFailureToast(3, detail);
     expect(title).toBe("3 F29 fallaron al bajar");
-    expect(description).toBe("F29FetchError: timeout al SII");
+    expect(description).toMatch(/El SII rechazó algunos folios/);
+    expect(description).not.toContain("F29FetchError");
+    expect(description).not.toContain("timeout");
   });
 
   it("singular/plural y sin detalle", () => {

@@ -94,12 +94,13 @@ export function classifyDtePreviewError(
     };
   }
 
-  // Otro error con motivo: conservar que la fuente informó un problema sin exponer el diagnóstico.
+  /* Otro error con motivo: se conserva que el intento falló, sin exponer el diagnóstico y sin
+     atribuirle la causa al SII — no sabemos de qué lado se cortó. */
   if (message) {
     return {
       kind: "backend",
       title: "No pudimos mostrar la vista previa",
-      description: "El SII informó un problema al preparar este documento. Intenta nuevamente.",
+      description: "No pudimos traer este documento como PDF. Intenta nuevamente.",
     };
   }
 

@@ -13,8 +13,10 @@
 
 import type { PreferencesBlob } from "@/lib/api/preferences";
 import { normalizeRut } from "@/lib/validators/rut";
-import { isNotaCredito } from "@/components/sii/tipo-doc";
-import { agruparConReferencias } from "@/components/sii/rcv-anuladas";
+import {
+  agruparConReferencias,
+  type PendingAssociationStatus,
+} from "@/components/sii/rcv-anuladas";
 
 export type MaestroKind = "ventas" | "compras" | "honorarios";
 
@@ -278,6 +280,8 @@ export interface DocMaestro {
   esNotaCredito: boolean;
   /** Para una NC: folio de la factura que anula (se muestra "anula N° X"). null si huérfana. */
   refFolio: number | string | null;
+  /** Evaluación conservadora del vínculo legacy; nunca equivale a anulación fiscal. */
+  associationStatus?: PendingAssociationStatus;
   /** Para una factura con NC vinculadas: si quedó totalmente anulada o parcialmente. */
   anulacion: "anulada" | "parcial" | null;
   /** Neto de la factura tras sus NC (solo cuando `anulacion` != null). */
@@ -442,12 +446,15 @@ export function buildMaestro(
       }
     }
 
-    // NC huérfanas (sin factura vinculada): restan del total y se netean de más viejo a
-    // más nuevo contra los buckets. Se muestran al final del detalle.
-    let orphanNc = 0;
+    // NC sin efecto documental confirmado: restan del total general porque son DTE reales,
+    // pero no se asignan a una factura ni a un bucket de vencimiento. El contrato legacy no
+    // trae CodRef/fecha/procedencia suficientes y repartirlas desde el front alteraría mora y
+    // prioridades por una heurística. Se muestran al final del detalle.
     for (const nc of grouped.notasHuerfanas) {
+      const pendingAssociation = grouped.asociacionesPendientes.find(
+        (association) => association.nota === nc,
+      );
       const mnc = Math.abs(Number.isFinite(nc.monto_total) ? nc.monto_total : 0);
-      orphanNc += mnc;
       total -= mnc;
       const emN = parseSiiDate(nc.fecha);
       const vN = emN ? addDays(emN, termino) : null;
@@ -463,11 +470,12 @@ export function buildMaestro(
         tipoDoc: nc.tipo_doc ?? null,
         esNotaCredito: true,
         refFolio: null,
+        associationStatus: pendingAssociation?.status ?? "unresolved",
         anulacion: null,
         neto: null,
       });
     }
-    let r = orphanNc + excesoVinculado;
+    let r = excesoVinculado;
     const tv = Math.min(r, vencido);
     vencido -= tv;
     r -= tv;

@@ -705,8 +705,8 @@ export function SaludView({ model, className }: SaludViewProps) {
       </QavanteCard>
 
       <p className="text-center text-[11px] leading-relaxed text-neutral-mid">
-        Lectura orientativa de caja · no reemplaza la contabilidad ni acredita datos reales cuando
-        una fuente no está conectada
+        <b className="text-neutral-mid">Vista demostrativa</b> · usa datos ficticios y no representa
+        tu contabilidad.
       </p>
     </div>
   );

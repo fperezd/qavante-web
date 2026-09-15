@@ -65,7 +65,7 @@ export interface PresupuestoV09ViewProps {
   onProponer?: () => void;
   proponiendo?: boolean;
   errorProponer?: boolean;
-  /** Issue sucesor de los huecos declarados (drill-down + proyección de cierre). */
+  /** Compatibilidad de stories antiguas; nunca se presenta al usuario. */
   issueSucesor?: string;
   /** `GET /api/management/operational-result?period=`.`result`, del MISMO período que `bva` —
    *  SOLO para el guard de INV-FIN-001 (Ley 1, ver cabecera del módulo). La tríada nunca pinta
@@ -82,10 +82,8 @@ export function PresupuestoV09View({
   onProponer,
   proponiendo = false,
   errorProponer = false,
-  issueSucesor,
   resultOperacional,
 }: PresupuestoV09ViewProps) {
-  void issueSucesor;
   if (error) {
     return (
       <DataState
@@ -110,7 +108,7 @@ export function PresupuestoV09View({
       <DataState
         status="empty"
         what={`presupuesto de ${periodoLabel}`}
-        hint="Estamos trayendo tu presupuesto vs. real (~3 s)."
+        hint="Estamos trayendo tu presupuesto y su comparación con el resultado real."
       />
     );
   }
@@ -210,7 +208,7 @@ export function PresupuestoV09View({
         )}
       </section>
 
-      <HuecosDeclarados issueSucesor={issueSucesor} />
+      <HuecosDeclarados />
     </div>
   );
 }
@@ -292,8 +290,7 @@ function BannerInvarianteRoto({ real, resultado }: { real: number; resultado: nu
 }
 
 /* ── Huecos declarados (issue #74): visibles EN la pantalla, no sólo en el PR ────────────────── */
-function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
-  void issueSucesor;
+function HuecosDeclarados() {
   return (
     <p className="pt-1 text-center text-[12px] text-rediseno-tinta-3-light">
       El detalle documental de cada desvío y la proyección de cierre del año todavía no están

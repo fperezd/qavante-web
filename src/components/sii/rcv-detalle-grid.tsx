@@ -12,13 +12,14 @@ import { rcvDueDate, rcvDueDateIsEstimated, type RcvDoc } from "./rcv-grouped-it
 import type { RcvKind } from "./rcv-list-view";
 import { DteActions } from "./dte-actions";
 import { dtePdfUrlForDoc } from "./dte-pdf";
-import { rcvSourceExternalId } from "./document-resolution-id";
+import { isDteCorrector, rcvSourceExternalId } from "./document-resolution-id";
 import type { DocumentRowStatus } from "@/lib/api/reconciliation";
 import { DocumentRowStatusBadges } from "./document-row-status";
+import { resolveDocumentLink, type DteDocumentLink } from "@/lib/api/document-links";
+import { DocumentLinkStatusBadge } from "./document-link-status";
 
-/* Grilla del Libro en modo "detalle" (lista plana): la tabla dinámica completa
-   —ordenar (clic), mover columnas (arrastrar), filtrar por columna—. La vista
-   "agrupado" (anuladas) queda con su render propio + orden por clic. */
+/* Grilla del Libro en modo "detalle" (lista plana): la tabla dinámica permite
+   ordenar, mover y filtrar columnas; la vista compacta conserva columnas fijas. */
 
 export interface RcvDetalleGridProps {
   docs: RcvDoc[];
@@ -31,6 +32,10 @@ export interface RcvDetalleGridProps {
   dteWindow?: { desde: string; hasta: string } | null;
   onManageDocument?: (doc: RcvDoc) => void;
   statusById?: Map<string, DocumentRowStatus>;
+  documentLinksIndex: ReadonlyMap<string, DteDocumentLink>;
+  /** La consulta D07 falló: la fila dice "no disponible", nunca "sin evidencia". */
+  documentLinksFailed?: boolean;
+  documentLinksLoading?: boolean;
   /** Ventas puede traer el vencimiento enriquecido desde el backend. */
   showDueDate?: boolean;
 }
@@ -53,6 +58,9 @@ export function RcvDetalleGrid({
   dteWindow = null,
   onManageDocument,
   statusById,
+  documentLinksIndex,
+  documentLinksFailed = false,
+  documentLinksLoading = false,
   showDueDate = false,
 }: RcvDetalleGridProps) {
   const columns = React.useMemo<ColumnDef<RcvDoc, unknown>[]>(
@@ -186,6 +194,27 @@ export function RcvDetalleGrid({
           <span className="font-medium">{bridgeAmount(row.original, "total")}</span>
         ),
       },
+      {
+        id: "evidencia-fiscal",
+        header: "Evidencia fiscal",
+        enableColumnFilter: false,
+        enableSorting: false,
+        cell: ({ row }) => {
+          if (!isDteCorrector(row.original)) {
+            return <span aria-label="Evidencia fiscal no aplica">·</span>;
+          }
+          const sourceExternalId = rcvSourceExternalId(row.original);
+          const resolution = resolveDocumentLink(documentLinksIndex, sourceExternalId, {
+            failed: documentLinksFailed,
+          });
+          return (
+            <DocumentLinkStatusBadge
+              resolution={resolution}
+              loading={documentLinksLoading && Boolean(sourceExternalId)}
+            />
+          );
+        },
+      },
       ...(dteKind !== undefined
         ? [
             {
@@ -223,7 +252,17 @@ export function RcvDetalleGrid({
           ]
         : []),
     ],
-    [partyLabel, dteKind, dteWindow, showDueDate, onManageDocument, statusById],
+    [
+      partyLabel,
+      dteKind,
+      dteWindow,
+      showDueDate,
+      onManageDocument,
+      statusById,
+      documentLinksIndex,
+      documentLinksFailed,
+      documentLinksLoading,
+    ],
   );
 
   return (

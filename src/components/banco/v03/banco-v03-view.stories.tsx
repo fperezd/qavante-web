@@ -223,7 +223,7 @@ export const SinMovimientos: Story = {
 };
 
 export const Actualizando: Story = {
-  name: "Actualizando · ETA y etapa publicados por el sync",
+  name: "Actualizando · el tiempo estimado que publica el sync, sin la etapa libre de la fuente",
   args: {
     saldo: null,
     tarjetas: null,
@@ -236,14 +236,15 @@ export const Actualizando: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getAllByText("Actualizando").length).toBeGreaterThan(0);
     // El `.sub` lleva además los pendientes ("· N movimientos por conciliar"): se busca por prefijo.
+    await expect(canvas.getAllByText(/^trayendo la cartola… listo en 45 s/).length).toBeGreaterThan(
+      0,
+    );
     await expect(
-      canvas.getAllByText(/^trayendo la cartola… listo en 45 s · Leyendo cartola/).length,
-    ).toBeGreaterThan(0);
-    await expect(
-      canvas.getByText(
-        "Actualizando saldos con el banco (trayendo la cartola… listo en 45 s · Leyendo cartola)",
-      ),
+      canvas.getByText("Actualizando saldos con el banco (trayendo la cartola… listo en 45 s)"),
     ).toBeInTheDocument();
+    /* `sync_progress.step` es texto libre de la fuente: no cruza a la pantalla. Gemelo con la
+       MISMA palabra que sí trae la fixture. */
+    await expect(canvas.queryByText(/Leyendo cartola/)).not.toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };

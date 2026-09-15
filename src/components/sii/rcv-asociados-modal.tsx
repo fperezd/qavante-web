@@ -18,9 +18,8 @@ export function notasSobreCreditoLabel(n: number): string {
   return `${concordar(n, "la", "las")} ${formatCount(n)} ${concordar(n, "nota", "notas")} de crédito`;
 }
 
-/* Modal "Documentos asociados" — muestra una factura anulada/parcial junto con
-   las notas de crédito que la modifican y el neto resultante. Estilo Chipax.
-   Se abre al hacer clic en una fila anulada del Libro. */
+/* Modal legacy para un agrupamiento recibido. Mientras el contrato no traiga
+   evidencia D07 autoritativa, el copy se abstiene de declarar anulación fiscal. */
 
 export function RcvAsociadosModal({
   row,
@@ -50,7 +49,7 @@ export function RcvAsociadosModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-dark/40 p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Documentos asociados"
+      aria-label="Documentos relacionados"
       onClick={onClose}
     >
       <div
@@ -58,7 +57,7 @@ export function RcvAsociadosModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between bg-brand-primary px-5 py-3">
-          <h2 className="text-base font-semibold text-surface">Documentos asociados</h2>
+          <h2 className="text-base font-semibold text-surface">Documentos relacionados</h2>
           <button
             type="button"
             onClick={onClose}
@@ -74,13 +73,14 @@ export function RcvAsociadosModal({
               <strong>Revisar:</strong> {notasSobreCreditoLabel(row.notas.length)} (
               {formatClp(ncTotal)}) superan el monto de la factura ({formatClp(facturaTotal)}).
               Suele ser un error de referencia en el SII (varias NC apuntando al mismo folio). La
-              factura se considera anulada; el exceso conviene revisarlo con tu contador.
+              referencia y su efecto deben verificarse; este agrupamiento no cambia el estado fiscal
+              de la factura.
             </p>
           )}
           {!row.matchExacto && !row.sobreCredito && (
             <p className="mb-3 rounded-lg bg-warning-50 px-3 py-2 text-xs text-warning-700">
-              Vinculación referencial (por {partyLabel.toLowerCase()} y monto): esta nota de crédito
-              no traía la referencia exacta del documento en el SII.
+              Asociación posible (por {partyLabel.toLowerCase()} y monto): no confirma una anulación
+              fiscal ni modifica el documento original.
             </p>
           )}
           <div className="overflow-x-auto">
@@ -135,7 +135,7 @@ export function RcvAsociadosModal({
                     colSpan={3}
                     className="py-2.5 pr-3 text-[11px] font-semibold uppercase tracking-wider text-neutral-mid"
                   >
-                    Neto
+                    Diferencia referencial
                   </td>
                   <td
                     className={

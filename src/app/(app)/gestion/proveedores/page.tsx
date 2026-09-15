@@ -31,7 +31,7 @@ export default function Page() {
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Proveedores 360</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Cómo se comporta cada proveedor en el tiempo: compra, tendencia, estacionalidad y riesgo.
+          Revisa las compras observadas, la concentración y la actividad reciente de cada proveedor.
         </p>
       </header>
 

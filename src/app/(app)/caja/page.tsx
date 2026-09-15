@@ -28,9 +28,10 @@ export default function CajaPage() {
     decisionBrief,
   } = resolveFeatureFlags();
 
-  /* V02 · Caja (rediseño Fase 2, issue #67) — gated por `cajaV02`, HOY APAGADO. Reemplaza la
+  /* V02 · Caja (rediseño Fase 2, issue #67) — gated por `cajaV02`, HOY ENCENDIDO en producción
+     (`wrangler.toml`). Reemplaza la
      landing entera por la vista de la spec (una pantalla, una pregunta: "¿me alcanza la caja?").
-     Con OFF nada de abajo cambia (cero regresión). La auditoría de movimientos queda disponible
+     Con el flag apagado nada de abajo cambia (cero regresión). La auditoría de movimientos queda disponible
      como detalle secundario: no es el paso que responde si la caja alcanza. */
   if (cajaV02) {
     return (

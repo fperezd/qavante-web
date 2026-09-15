@@ -94,7 +94,7 @@ const APROBAR_MFA: FallaConocida = {
 
 const FALLA_DESCONOCIDA: FallaConocida = {
   message:
-    "El último intento de actualizar esta fuente falló. El motivo requiere revisión de soporte.",
+    "El último intento de leer esta fuente falló y no sabemos por qué. Revisa la conexión e intenta nuevamente.",
   cta: "Revisar conexión",
 };
 

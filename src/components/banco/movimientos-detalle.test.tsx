@@ -159,7 +159,9 @@ describe("MovimientosDetalle · resolución visible", () => {
 
     expect(html).toContain("Información del respaldo incompleta");
     expect(html).toContain("El respaldo cambió o ya no está disponible.");
-    expect(html).toContain("Datos del movimiento incompletos; no se puede actuar sobre esta propuesta.");
+    expect(html).toContain(
+      "Datos del movimiento incompletos; no se puede actuar sobre esta propuesta.",
+    );
     expect(html).not.toContain("1:1 · 1 respaldo");
     expect(html).toContain("Acción no disponible");
     expect(html).not.toContain("Revisar");

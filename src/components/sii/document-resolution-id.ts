@@ -7,6 +7,12 @@ function normalizedRut(value: string | null | undefined): string {
     .toUpperCase();
 }
 
+const DTE_CORRECTOR_TYPES = new Set([56, 61, 111, 112]);
+
+export function isDteCorrector(doc: Pick<RcvDoc, "tipo_doc">): boolean {
+  return typeof doc.tipo_doc === "number" && DTE_CORRECTOR_TYPES.has(doc.tipo_doc);
+}
+
 /** Misma clave natural persistida por el importador RCV del API. */
 export function rcvSourceExternalId(doc: RcvDoc): string | null {
   if (doc.tipo_doc == null || doc.folio == null || doc.rut_contraparte == null) return null;

@@ -134,3 +134,35 @@ describe("MSW handlers — users", () => {
     expect(body.code).toBe("not_found");
   });
 });
+
+describe("MSW handlers — RCV mensual", () => {
+  it("ventas responde el período solicitado con total y count exactos", async () => {
+    const { status, body } = await json<{
+      periodo: string;
+      count: number;
+      ventas: Array<{ fecha: string; monto_total: number }>;
+    }>("/api/sii/rcv/ventas?periodo=2026-03");
+
+    expect(status).toBe(200);
+    expect(body.periodo).toBe("2026-03");
+    expect(body.count).toBe(2);
+    expect(body.ventas).toHaveLength(2);
+    expect(body.ventas.every((document) => document.fecha.startsWith("2026-03-"))).toBe(true);
+    expect(body.ventas.reduce((sum, document) => sum + document.monto_total, 0)).toBe(5_950_000);
+  });
+
+  it("compras responde el período solicitado con total y count exactos", async () => {
+    const { status, body } = await json<{
+      periodo: string;
+      count: number;
+      compras: Array<{ fecha: string; monto_total: number }>;
+    }>("/api/sii/rcv/compras?periodo=2025-11");
+
+    expect(status).toBe(200);
+    expect(body.periodo).toBe("2025-11");
+    expect(body.count).toBe(2);
+    expect(body.compras).toHaveLength(2);
+    expect(body.compras.every((document) => document.fecha.startsWith("2025-11-"))).toBe(true);
+    expect(body.compras.reduce((sum, document) => sum + document.monto_total, 0)).toBe(2_380_000);
+  });
+});

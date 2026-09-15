@@ -309,7 +309,36 @@ describe("OperationPlan view-model F2", () => {
       statusLabel: "Esperando aprobación",
       readOnly: true,
       canRequestApproval: false,
-      errors: [{ label: "Vencido", detail: "terms_expired" }],
+      errors: [{ label: "Vencido", detail: "La vigencia de la operación terminó." }],
+    });
+    if (view.kind === "present") {
+      expect(JSON.stringify(view.errors)).not.toContain("terms_expired");
+    }
+  });
+
+  it("no transporta reason libre de errors[] al view-model", () => {
+    const base = read();
+    const secreto = "Bearer secret-token SELECT * FROM users /api/internal";
+    const view = operationPlanViewFromRead(
+      read({
+        operation_plan: {
+          ...base.operation_plan!,
+          errors: [
+            {
+              event_id: "80000000-0000-4000-8000-000000000001",
+              status: "cancelled",
+              occurred_at: "2026-09-03T00:00:00Z",
+              reason: secreto,
+            },
+          ],
+        },
+      }),
+      true,
+    );
+    expect(JSON.stringify(view)).not.toContain(secreto);
+    expect(view).toMatchObject({
+      kind: "present",
+      errors: [{ label: "Cancelado", detail: "La operación fue cancelada." }],
     });
   });
 
@@ -330,16 +359,39 @@ describe("OperationPlan view-model F2", () => {
     ).toBeNull();
   });
 
-  it("distingue draft y awaiting_approval; cualquier otro estado queda sólo lectura", () => {
+  it("cubre todos los estados OpenAPI y mantiene sólo draft editable", () => {
     expect(operationPlanStatusView("draft")).toMatchObject({ readOnly: false });
-    expect(operationPlanStatusView("awaiting_approval")).toMatchObject({
-      statusLabel: "Esperando aprobación",
-      readOnly: true,
-    });
+    const readOnlyStatuses = [
+      "awaiting_approval",
+      "approved",
+      "submitted",
+      "acknowledged",
+      "in_evaluation",
+      "approved_by_provider",
+      "rejected_by_provider",
+      "cancelled",
+      "expired",
+      "funded_or_effective",
+      "settled",
+      "observed",
+      "closed",
+    ];
+    for (const status of readOnlyStatuses) {
+      const copy = operationPlanStatusView(status);
+      expect(copy.readOnly, status).toBe(true);
+      expect(copy.statusLabel, status).not.toBe("Estado no disponible");
+    }
     expect(operationPlanStatusView("submitted")).toMatchObject({
-      statusLabel: "Estado informado",
+      statusLabel: "Enviado",
       readOnly: true,
     });
+  });
+
+  it("no interpola un estado desconocido en el copy visible", () => {
+    const secreto = "Bearer secret-token SELECT * FROM users /api/internal";
+    const copy = operationPlanStatusView(secreto);
+    expect(copy).toMatchObject({ statusLabel: "Estado no disponible", readOnly: true });
+    expect(JSON.stringify(copy)).not.toContain(secreto);
   });
 
   it("mantiene abstención distinta de no_action", () => {

@@ -11,7 +11,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "eslint . && npm run qa:user-copy",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
@@ -30,7 +30,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "chromatic": "chromatic --exit-zero-on-changes --only-changed",
-    "qa:rediseno": "node scripts/qa-rediseno-lint.mjs"
+    "qa:rediseno": "node scripts/qa-rediseno-lint.mjs",
+    "qa:user-copy": "node scripts/check-user-facing-copy.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [

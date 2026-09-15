@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { BankMovement } from "@/lib/api/treasury";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import {
-  ETA_ACTUALIZANDO,
   chipCajaHoy,
   cicloDe,
   coincideBusqueda,
@@ -78,8 +77,10 @@ describe("conexionBanco — el estado de la conexión, sin defaults tranquilizad
     const c = conexionBanco(sourcesOk(), saldoSesionVencida(), tarjetasOk());
     expect(c.estado).toBe("accion_requerida");
     expect(c.pill).toBe("Tu acción");
+    /* El mensaje libre del conector no encaja en ninguna señal documentada: se dice que no
+       se sabe, con salida a la conexión. No se adivina "credencial inválida" por prosa. */
     expect(c.motivo).toBe(
-      "El último intento de actualizar esta fuente falló. El motivo requiere revisión de soporte.",
+      "El último intento de leer esta fuente falló y no sabemos por qué. Revisa la conexión e intenta nuevamente.",
     );
     // Gemelo: NO es "Conectada ✓".
     expect(c.pill).not.toBe("Conectada ✓");
@@ -92,7 +93,7 @@ describe("conexionBanco — el estado de la conexión, sin defaults tranquilizad
         "BiceAuthError: BICE_LOGIN_STRATEGY=local_only storage_state missing at /srv/bice.py:42",
     });
 
-    expect(c.motivo).toContain("requiere revisión de soporte");
+    expect(c.motivo).toContain("no sabemos por qué");
     expect(c.motivo).not.toMatch(/BiceAuthError|local_only|storage_state|\/srv\/|\.py/i);
   });
 
@@ -149,11 +150,9 @@ describe("frescuraCuenta — el `.sub` en humano", () => {
 
   it("actualizando usa el ETA y la etapa publicados por el backend", () => {
     const conexion = conexionBanco(sourcesSyncing(), null);
-    expect(frescuraCuenta(conexion, HOY)).toBe(
-      "trayendo la cartola… listo en 45 s · Leyendo cartola",
-    );
+    expect(frescuraCuenta(conexion, HOY)).toBe("trayendo la cartola… listo en 45 s");
     expect(textoActualizando(conexion, HOY)).toContain("45 s");
-    expect(textoActualizando(conexion, HOY)).toContain("Leyendo cartola");
+    expect(textoActualizando(conexion, HOY)).not.toContain("Leyendo cartola");
   });
 
   it("sin ETA backend muestra progreso transcurrido y declara la ausencia; sin progreso conserva la referencia fija", () => {
@@ -169,14 +168,14 @@ describe("frescuraCuenta — el `.sub` en humano", () => {
       null,
     );
     expect(textoActualizando(sinEta, HOY)).toBe(
-      "trayendo la cartola… en curso hace 2 min; el banco no informó ETA",
+      "trayendo la cartola… en curso hace 2 min; el banco no informó un tiempo estimado",
     );
     const legado = conexionBanco(
       [{ source: "bank_bice", state: "syncing", category: "bank" }],
       null,
     );
     expect(textoActualizando(legado, HOY)).toBe(
-      `trayendo la cartola… listo en ${ETA_ACTUALIZANDO} (referencia fija)`,
+      "trayendo la cartola… en curso; el banco no informó un tiempo estimado",
     );
   });
 
@@ -227,7 +226,7 @@ describe("cuentasV03 — la tabla de cuentas", () => {
     expect(filas).toHaveLength(2);
     expect(filas[0]!.saldo).toBeNull();
     expect(filas[0]!.saldo).not.toBe(0);
-    expect(filas[0]!.saldoMotivo).toContain("requiere revisión de soporte");
+    expect(filas[0]!.saldoMotivo).toContain("no sabemos por qué");
     expect(filas[0]!.sub).toBe(
       "desde el 28 ago no llegan movimientos · 4 movimientos por conciliar",
     );

@@ -269,7 +269,7 @@ describe("MUTANTE (e) · drill-down monto → documentos", () => {
 
   it("mientras carga dice qué trae y cuánto tarda (§5.4)", () => {
     const t = texto(html({ drill: abierto, drillDocs: null, drillCargando: true }));
-    expect(t).toContain("Estamos trayendo los documentos de Servicio mensual en jul 2026 (~3 s)");
+    expect(t).toContain("Estamos trayendo los documentos de Servicio mensual en jul 2026");
   });
 });
 
@@ -284,9 +284,10 @@ describe("sección Costos y gastos (dentro de Resultado)", () => {
     expect(t).not.toMatch(/confianza/i);
   });
 
-  it("declara que la descarga Excel conserva las filas y montos del cuadro", () => {
+  it("describe la descarga disponible sin referencias internas", () => {
     const t = texto(html());
-    expect(t).toContain("La descarga Excel contiene las mismas filas y montos del cuadro");
+    expect(t).toContain("La descarga disponible es un CSV con las filas que ves");
+    expect(t).not.toContain("#92");
   });
 });
 
@@ -411,10 +412,10 @@ describe("MUTANTE (c) · 360 — el umbral de concentración", () => {
     expect(rojos(h)).toBe(0);
   });
 
-  it("'días promedio en pagar' conserva su 'en preparación' honesto", () => {
+  it("'días promedio en pagar' declara que no hay información", () => {
     const t = texto(html({ tab: "proveedores", docs360: docsCompras() }));
     expect(t).toContain("Días promedio en pagar");
-    expect(t).toContain("en preparación");
+    expect(t).toContain("sin información disponible");
     expect(t).toContain("necesita cruzar cada factura con su pago en el banco");
     expect(t).toContain("Todavía no lo tenemos, así que no lo estimamos");
   });
@@ -442,7 +443,7 @@ describe("MUTANTE (c) · 360 — el umbral de concentración", () => {
 describe("estados de carga y error (§5.4)", () => {
   it("ningún 'Cargando…' desnudo: todo estado dice qué trae y cuánto tarda", () => {
     const t = texto(html({ tab: "clientes", docs360: [], docs360Cargando: true }));
-    expect(t).toContain("Estamos trayendo tus ventas de los últimos 12 meses, mes por mes (~15 s)");
+    expect(t).toContain("Estamos trayendo tus ventas de los últimos 12 meses, mes por mes");
   });
 
   it("sin breakdown, el Resultado declara la causa y ofrece reintentar", () => {

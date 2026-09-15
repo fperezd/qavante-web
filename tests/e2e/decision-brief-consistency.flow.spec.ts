@@ -138,7 +138,12 @@ test.describe("Decision Brief canónico en las cinco superficies", () => {
           await expect(
             page.getByText("Los pagos se muestran en el orden publicado por la fuente."),
           ).toBeVisible();
-          await expect(page.getByText("La decisión de qué postergar vive en Hoy")).toHaveCount(0);
+          /* La política de postergación es del Brief: V05 no la reproduce. La frase existe en el
+             producto cuando el Brief está apagado (pie de la Ley 9), así que el negativo puede
+             fallar de verdad; su gemelo positivo vive en el spec OFF. */
+          await expect(
+            page.getByText("Impuestos y sueldos jamás entran en postergaciones automáticas."),
+          ).toHaveCount(0);
           await expect(page.getByRole("columnheader", { name: "Tipo" })).toHaveCount(0);
           await expect(page.getByRole("link", { name: "Ver facturas" })).toBeVisible();
         }

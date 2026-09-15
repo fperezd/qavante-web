@@ -201,7 +201,9 @@ export const ConciliarSinEvidencia: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(/no encontramos coincidencias suficientes/)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/ninguna verificación coincide entre el movimiento y el documento/),
+    ).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /Sí, conciliar/ })).toBeNull();
     await expect(canvas.getByRole("button", { name: /Buscar el documento/ })).toBeInTheDocument();
 
@@ -541,9 +543,11 @@ export const ClasificarAutoProtegido: Story = {
     await expect(args.onDeshacerAutoClasificar).toHaveBeenCalledTimes(1);
 
     await waitFor(async () => await expect(toasts()).toHaveLength(1));
+    /* El copy es LOCAL y cerrado: la prosa que manda el servidor en `explicacion` no se refleja. */
     await expect(toasts()[0]!).toHaveTextContent(
-      "Algo cambió después de esta acción: no se tocó nada.",
+      "Algo cambió después de esta clasificación automática (probablemente la reclasificaste tú). Ese cambio sigue en pie: no se tocó nada.",
     );
+    await expect(toasts()[0]!).not.toHaveTextContent("después de esta acción: no se tocó nada.");
     /* LA COMPUERTA que pide el issue #90: estado_derivado NO es reintentable — no hay nada que
        arreglar reintentando, el cambio del dueño sigue vigente. Gemelo con `ClasificarAutoBloqueado`,
        MISMA query de rol/nombre, resultado opuesto. */
@@ -574,7 +578,10 @@ export const ClasificarAutoBloqueado: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Deshacer" }));
 
     await waitFor(async () => await expect(toasts()).toHaveLength(1));
-    await expect(toasts()[0]!).toHaveTextContent("Otra operación está usando esto mismo");
+    await expect(toasts()[0]!).toHaveTextContent(
+      "Otra operación está usando este movimiento justo ahora.",
+    );
+    await expect(toasts()[0]!).not.toHaveTextContent("Otra operación está usando esto mismo");
     /* Gemelo POSITIVO de `ClasificarAutoProtegido`, misma query: acá SÍ está. */
     const reintentar = within(toasts()[0]!).getByRole("button", { name: "Reintentar" });
 

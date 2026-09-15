@@ -51,7 +51,8 @@ const MESES_TENDENCIA = 12;
  *  así que no hay carga nueva sobre el SII. */
 const MESES_360 = 24;
 
-export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
+export function GestionV08Live(_props: { issueSucesor?: string } = {}) {
+  void _props;
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -168,7 +169,6 @@ export function GestionV08Live({ issueSucesor }: { issueSucesor?: string }) {
       }}
       onReintentar={recargar}
       hoy={hoy}
-      issueSucesor={issueSucesor}
       onExportarPivote={exportarPivote}
       exportandoPivote={exportando}
       errorExportPivote={errorExport}
@@ -210,7 +210,7 @@ function CargandoGestion() {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
       <p className="text-sm text-rediseno-tinta-3">
-        Estamos armando tu Estado de Resultados de los últimos tres meses, cuenta por cuenta (~6 s).
+        Estamos armando tu Estado de Resultados de los últimos tres meses, cuenta por cuenta.
       </p>
       <div className="grid gap-3 sm:grid-cols-3" aria-hidden="true">
         {Array.from({ length: 3 }).map((_, i) => (

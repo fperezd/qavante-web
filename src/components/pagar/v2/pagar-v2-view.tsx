@@ -6,7 +6,7 @@ import { DraggableCard } from "@/components/inicio/v2/draggable-card";
 import { moveItem } from "@/components/inicio/v2/widget-order";
 
 /* PagarV2View — shell de composición de Pagar v2 (rediseño aprobado 2026-07-14). Baranda
-   FIJA arriba: la respuesta de dueño (hero + brecha + secundarios) y "Las 3 del mes" — el
+   FIJA arriba: la respuesta de dueño (hero + estado de caja + secundarios) y "Las 3 del mes" — el
    mensaje no se mueve. Debajo, las cajas secundarias (vencimientos, mayores compromisos)
    son MOVIBLES: el usuario las reordena (mismo mecanismo del Inicio — DraggableCard; en
    vivo el orden se persiste en `/api/me/preferences`). Presentacional (slots). */
@@ -20,8 +20,9 @@ export interface PagarMovible {
 export interface PagarV2ViewProps {
   /** <PagarHero/> (fijo). */
   hero?: React.ReactNode;
-  /** <BrechaCaja/> (fijo). */
-  brecha?: React.ReactNode;
+  /** Lectura de caja del horizonte (fijo). Hoy la llena el panel del run canónico del
+   *  backend: la pantalla no vuelve a derivar saldo, mínimo ni brecha. */
+  estadoCaja: React.ReactNode;
   /** Bloque de secundarios (vencido / próx. 7d / mes / USD) (fijo). */
   secundarios: React.ReactNode;
   /** <FechasClaveMes/> (fijo, destacado). */
@@ -33,7 +34,7 @@ export interface PagarV2ViewProps {
 
 export function PagarV2View({
   hero,
-  brecha,
+  estadoCaja,
   secundarios,
   fechasClave,
   movibles,
@@ -57,21 +58,20 @@ export function PagarV2View({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {hero || brecha ? (
-        /* Baranda: respuesta de dueño (hero + brecha + secundarios). */
+      {hero ? (
+        /* Baranda: respuesta de dueño (hero + lectura de caja + secundarios). */
         <div className="grid items-stretch gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-2 lg:grid-cols-[1.05fr_1fr_0.8fr]">
           <div className="bg-surface">{hero}</div>
-          <div className="bg-surface">{brecha}</div>
+          <div className="bg-surface">{estadoCaja}</div>
           <div className="bg-surface">{secundarios}</div>
         </div>
       ) : (
-        /* Con brief activo, este bloque conserva cifras de apoyo sin presentar otro plan. */
-        <section
-          aria-label="Resumen de pagos"
-          className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
-        >
-          {secundarios}
-        </section>
+        /* Con el brief activo el hero se suprime, pero la lectura de caja del servidor y las
+           cifras de apoyo se conservan: son evidencia, no otro plan. */
+        <div className="grid items-stretch gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-2">
+          <div className="bg-surface">{estadoCaja}</div>
+          <div className="bg-surface">{secundarios}</div>
+        </div>
       )}
 
       {/* Baranda: las 3 del mes (destacadas) */}

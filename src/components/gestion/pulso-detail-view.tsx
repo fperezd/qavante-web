@@ -5,7 +5,13 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Activity, AlertCircle, ArrowRight, TrendingDown, TrendingUp } from "lucide-react";
 import { QavanteCard, QavanteEmpty } from "@/components/qavante";
-import { usePulsoDetail, type PulsoDetailResponse, type PulsoDriverDetail } from "@/lib/api/pulso";
+import {
+  usePulsoDetail,
+  usePulsoScoreReading,
+  type PulsoDetailResponse,
+  type PulsoDriverDetail,
+  type PulsoScoreReading,
+} from "@/lib/api/pulso";
 import { usePreferences, useUpdatePreferences } from "@/lib/api/preferences";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
@@ -25,6 +31,7 @@ import {
   withPulsoObjetivo,
   type PulsoObjetivo,
 } from "./pulso-objetivo";
+import { pulsoScoreReadingModel } from "./pulso-score-reading-model";
 
 /* Pulso detalle (Sprint C6/C7, Maestro §7): "¿Por qué está así mi Pulso?".
    Score + estado + ejes que lo componen + drivers (+/-) + tendencia. Cada
@@ -46,7 +53,10 @@ export function PulsoDetailView({ objetivoEnabled = false }: { objetivoEnabled?:
     if (objetivoEnabled) setObjetivo(savedObjetivo);
   }, [objetivoEnabled, savedObjetivo]);
 
-  const query = usePulsoDetail(objetivoEnabled ? objetivo : undefined);
+  // The detail remains the canonical base view. The objective is rendered only
+  // through the separate D09 reading so components and drivers cannot drift.
+  const query = usePulsoDetail(undefined, !objetivoEnabled);
+  const scoreQuery = usePulsoScoreReading(objetivo, objetivoEnabled);
 
   function cambiarObjetivo(o: PulsoObjetivo) {
     setObjetivo(o); // refetch con el nuevo foco
@@ -64,13 +74,26 @@ export function PulsoDetailView({ objetivoEnabled = false }: { objetivoEnabled?:
       value={objetivo}
       onChange={cambiarObjetivo}
       saving={updatePrefs.isPending}
+      applicationState={
+        objetivo === "equilibrado"
+          ? "base"
+          : scoreQuery.isLoading
+            ? "pending"
+            : scoreQuery.isError || !scoreQuery.data
+              ? "unverified"
+              : scoreQuery.data.objective_effective &&
+                  scoreQuery.data.focused_abstention_reason === null
+                ? "applied"
+                : "not_applied"
+      }
     />
   ) : null;
 
   let contenido: React.ReactNode;
-  if (query.isLoading) {
+  if (objetivoEnabled ? scoreQuery.isLoading : query.isLoading) {
     contenido = <LoadingSkeleton />;
-  } else if (query.isError) {
+  } else if (objetivoEnabled ? scoreQuery.isError : query.isError) {
+    const error = objetivoEnabled ? scoreQuery.error : query.error;
     contenido = (
       <div
         role="alert"
@@ -78,16 +101,16 @@ export function PulsoDetailView({ objetivoEnabled = false }: { objetivoEnabled?:
       >
         <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-500" aria-hidden="true" />
         <p>
-          {query.error instanceof ApiError
-            ? apiErrorToUserMessage(query.error)
+          {error instanceof ApiError
+            ? apiErrorToUserMessage(error)
             : "No pudimos cargar el detalle de tu Pulso. Intenta nuevamente."}
         </p>
       </div>
     );
-  } else if (!query.data) {
-    contenido = null;
+  } else if (objetivoEnabled) {
+    contenido = scoreQuery.data ? <Detail scoreReading={scoreQuery.data} /> : null;
   } else {
-    contenido = <Detail data={query.data} />;
+    contenido = query.data ? <Detail data={query.data} /> : null;
   }
 
   if (!selector) return <>{contenido}</>;
@@ -99,11 +122,38 @@ export function PulsoDetailView({ objetivoEnabled = false }: { objetivoEnabled?:
   );
 }
 
-function Detail({ data }: { data: PulsoDetailResponse }) {
-  if (isEmptyPulsoDetail(data)) return <EmptyDetail />;
+function Detail({
+  data,
+  scoreReading,
+}: {
+  data?: PulsoDetailResponse;
+  scoreReading?: PulsoScoreReading;
+}) {
+  const scoreModel = scoreReading ? pulsoScoreReadingModel(scoreReading) : null;
+  if (scoreModel?.state === "unavailable") {
+    return (
+      <QavanteEmpty
+        icon={Activity}
+        title="Pulso no publicable todavía"
+        description={scoreModel.unavailableReason ?? "No hay evidencia suficiente para calcularlo."}
+      />
+    );
+  }
+  if (
+    (!scoreModel && (!data || isEmptyPulsoDetail(data))) ||
+    (scoreModel && scoreModel.baseScore === null)
+  ) {
+    return <EmptyDetail />;
+  }
 
-  const positives = sortDriversByImpact(data.drivers.filter((d) => d.direction === "positive"));
-  const negatives = sortDriversByImpact(data.drivers.filter((d) => d.direction === "negative"));
+  const positives = sortDriversByImpact(
+    (data?.drivers ?? []).filter((d) => d.direction === "positive"),
+  );
+  const negatives = sortDriversByImpact(
+    (data?.drivers ?? []).filter((d) => d.direction === "negative"),
+  );
+  const displayedScore = scoreModel ? scoreModel.baseScore : data?.score;
+  const displayedStatus = scoreModel ? scoreModel.baseStatus : data?.status;
 
   return (
     <div className="space-y-4">
@@ -112,26 +162,63 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid">
-              Pulso del negocio
+              {scoreModel ? "Pulso base del negocio" : "Pulso del negocio"}
             </p>
-            <p className={"text-4xl font-bold " + pulsoStatusTone(data.status)}>
-              {data.score}
-              <span className="ml-2 text-xl">{pulsoStatusLabel(data.status)}</span>
+            <p className={"text-4xl font-bold " + pulsoStatusTone(displayedStatus)}>
+              {displayedScore}
+              <span className="ml-2 text-xl">{pulsoStatusLabel(displayedStatus)}</span>
             </p>
-            {data.preliminary && <p className="mt-0.5 text-xs text-neutral-mid">Preliminar</p>}
+            {!scoreModel && data?.preliminary && (
+              <p className="mt-0.5 text-xs text-neutral-mid">Preliminar</p>
+            )}
           </div>
         </div>
-        {data.headline && <p className="mt-3 text-sm text-neutral-dark">{data.headline}</p>}
+        {!scoreModel && data?.headline && (
+          <p className="mt-3 text-sm text-neutral-dark">{data.headline}</p>
+        )}
+        {scoreModel && (
+          <div className="mt-3 border-t border-neutral-light pt-3 text-xs text-neutral-mid">
+            <p>{scoreModel.freshnessLabel}</p>
+            <p className="mt-0.5">Metodología {scoreModel.methodologyLabel}</p>
+          </div>
+        )}
       </QavanteCard>
 
+      {scoreModel?.focusLabel && (
+        <QavanteCard
+          variant="bordered"
+          header={<span className="font-medium">Lectura con foco: {scoreModel.focusLabel}</span>}
+        >
+          {scoreModel.focusUnavailable ? (
+            <p className="text-sm text-neutral-mid">
+              El Pulso base está disponible, pero este foco no se pudo aplicar al mismo corte con
+              evidencia suficiente. No mostramos una cifra estimada.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-baseline gap-3">
+              <p className={"text-3xl font-bold " + pulsoStatusTone(scoreModel.focusedStatus)}>
+                {scoreModel.focusedScore}
+                <span className="ml-2 text-base">{pulsoStatusLabel(scoreModel.focusedStatus)}</span>
+              </p>
+              {scoreModel.delta !== null && (
+                <p className="text-sm tabular-nums text-neutral-mid">
+                  {scoreModel.delta >= 0 ? "+" : ""}
+                  {scoreModel.delta} puntos frente al Pulso base
+                </p>
+              )}
+            </div>
+          )}
+        </QavanteCard>
+      )}
+
       {/* Ejes que componen el índice. */}
-      {data.components.length > 0 && (
+      {(scoreModel ? scoreModel.baseFactors.length > 0 : (data?.components.length ?? 0) > 0) && (
         <QavanteCard
           variant="bordered"
           header={<span className="font-medium">Qué compone tu Pulso</span>}
         >
           <ul className="qv-stagger-bars space-y-3">
-            {data.components.map((c) => (
+            {(scoreModel?.baseFactors ?? data?.components ?? []).map((c) => (
               <li key={c.key}>
                 <div className="flex items-baseline justify-between gap-2 text-sm">
                   <span className="text-neutral-dark">{c.label}</span>
@@ -152,6 +239,12 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
         </QavanteCard>
       )}
 
+      {scoreModel && scoreModel.omittedFactorLabels.length > 0 && (
+        <p className="text-xs text-neutral-mid">
+          Factores sin evidencia en este corte: {scoreModel.omittedFactorLabels.join(", ")}.
+        </p>
+      )}
+
       {/* Drivers. */}
       {(positives.length > 0 || negatives.length > 0) && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -161,7 +254,7 @@ function Detail({ data }: { data: PulsoDetailResponse }) {
       )}
 
       {/* Tendencia. */}
-      {data.trend.length > 0 && (
+      {!scoreModel && data && data.trend.length > 0 && (
         <QavanteCard variant="bordered" header={<span className="font-medium">Tendencia</span>}>
           <div className="flex items-end justify-between gap-2" aria-hidden="true">
             {data.trend.map((t) => (
@@ -249,12 +342,15 @@ function EmptyDetail() {
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-4" aria-hidden="true">
-      <div className="h-28 animate-pulse rounded-xl bg-neutral-light/30" />
-      <div className="h-40 animate-pulse rounded-xl bg-neutral-light/30" />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" />
-        <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" />
+    <div className="space-y-4" role="status" aria-live="polite">
+      <span className="sr-only">Cargando la lectura del Pulso.</span>
+      <div aria-hidden="true" className="space-y-4">
+        <div className="h-28 animate-pulse rounded-xl bg-neutral-light/30" />
+        <div className="h-40 animate-pulse rounded-xl bg-neutral-light/30" />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" />
+          <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" />
+        </div>
       </div>
     </div>
   );

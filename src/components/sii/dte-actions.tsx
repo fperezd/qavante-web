@@ -364,12 +364,11 @@ function DtePreview({ url, suffix }: { url: string; suffix: string }) {
 }
 
 /* Carga inequívoca desde el PRIMER frame (Ley 8: "cargando…" infinito prohibido;
-   los esqueletos llevan texto y ETA). Antes acá había un spinner solo y un
-   `sr-only`: durante ~2,7 s el popover se veía vacío y el usuario no tenía forma
-   de saber si estaba pasando algo, cuánto faltaba, ni que moverse lo cancelaba.
-   El esqueleto con forma de documento comunica QUÉ va a aparecer; el texto dice
-   DÓNDE lo estamos buscando y CUÁNTO suele tardar. El número (~3 segundos) es el
-   medido contra una BHE real, no una estimación de escritorio. */
+   los esqueletos llevan texto). Antes acá había un spinner solo y un `sr-only`: el
+   popover se veía vacío y el usuario no tenía forma de saber si estaba pasando algo
+   ni que moverse lo cancelaba. El esqueleto con forma de documento comunica QUÉ va a
+   aparecer y el texto dice DÓNDE lo estamos buscando. Ya NO se publica una duración
+   estimada: el tiempo lo pone el SII y no lo medimos por consulta. */
 function DtePreviewSkeleton() {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
@@ -391,8 +390,7 @@ function DtePreviewSkeleton() {
         Buscando el documento en el SII…
       </p>
       <p className="max-w-[20rem] text-xs leading-relaxed text-neutral-mid">
-        El SII genera el PDF en el momento: suele demorar unos 3 segundos. Puedes mover el mouse
-        tranquilo · esta ventana queda abierta hasta que la cierres.
+        El SII genera el PDF en el momento. Esta ventana queda abierta hasta que la cierres.
       </p>
     </div>
   );

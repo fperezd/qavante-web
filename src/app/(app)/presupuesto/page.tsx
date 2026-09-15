@@ -24,7 +24,7 @@ export default function PresupuestoPage() {
             Presupuesto
           </h1>
         </header>
-        <PresupuestoV09Live issueSucesor={ISSUE_SUCESOR_V09} />
+        <PresupuestoV09Live />
       </div>
     );
   }
@@ -41,7 +41,3 @@ export default function PresupuestoPage() {
 
   return <PresupuestoView />;
 }
-
-/** Huecos declarados de V09: drill-down monto→documentos + banner de proyección de cierre (ambos
- *  bloqueados por la misma decisión de forma del BO, ADR-0091 F1b — ver `feature-flags.ts`). */
-const ISSUE_SUCESOR_V09 = "#101";

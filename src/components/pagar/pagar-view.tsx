@@ -44,6 +44,7 @@ import {
   payrollPeriodFromExternalId,
 } from "./pagos-group";
 import type { PayableItem } from "@/lib/api/pagos";
+import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
 
 /* Pagar — cuentas por pagar (Sprint C4, Maestro §7.4): resumen (total + 7/14/30
    días), relación contra caja, y pagos/obligaciones (proveedores + IVA/PPM/
@@ -68,44 +69,70 @@ export function PagarView({
   suppressRecommendations?: boolean;
 }) {
   const query = useAccountsPayable();
+  const projection = <CashProjectionRunPanel horizonDays={14} title="Caja para decidir pagos" />;
 
-  if (query.isLoading) return <LoadingSkeleton />;
+  if (query.isLoading)
+    return (
+      <div className="space-y-4">
+        {projection}
+        <LoadingSkeleton />
+      </div>
+    );
   if (query.isError) {
     return (
-      <QavanteInlineError
-        error={query.error}
-        what="las cuentas por pagar"
-        onRetry={() => query.refetch()}
-      />
+      <div className="space-y-4">
+        {projection}
+        <QavanteInlineError
+          error={query.error}
+          what="las cuentas por pagar"
+          onRetry={() => query.refetch()}
+        />
+      </div>
     );
   }
   if (query.data && parseAmount(query.data.total) === 0) {
-    return isSyncPending(query.data) ? (
-      <SyncPendingState missingSources={query.data.missing_sources} what="tus cuentas por pagar" />
-    ) : (
-      <QavanteEmpty
-        title="No tienes pagos pendientes"
-        description={
-          suppressRecommendations
-            ? "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá como respaldo de la decisión."
-            : "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá priorizados por criticidad."
-        }
-      />
+    return (
+      <div className="space-y-4">
+        {projection}
+        {isSyncPending(query.data) ? (
+          <SyncPendingState
+            missingSources={query.data.missing_sources}
+            what="tus cuentas por pagar"
+          />
+        ) : (
+          <QavanteEmpty
+            title="No tienes pagos pendientes"
+            description={
+              suppressRecommendations
+                ? "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá como respaldo de la decisión."
+                : "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá priorizados por criticidad."
+            }
+          />
+        )}
+      </div>
     );
   }
   if (!query.data) {
     return (
-      <QavanteEmpty
-        title="No tienes pagos pendientes"
-        description={
-          suppressRecommendations
-            ? "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá como respaldo de la decisión."
-            : "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá priorizados por criticidad."
-        }
-      />
+      <div className="space-y-4">
+        {projection}
+        <QavanteEmpty
+          title="No tienes pagos pendientes"
+          description={
+            suppressRecommendations
+              ? "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá como respaldo de la decisión."
+              : "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá priorizados por criticidad."
+          }
+        />
+      </div>
     );
   }
-  return <Payable data={query.data} suppressRecommendations={suppressRecommendations} />;
+  return (
+    <div className="space-y-4">
+      {projection}
+      <Payable data={query.data} suppressRecommendations={suppressRecommendations} />
+    </div>
+  );
 }
 
 function Payable({

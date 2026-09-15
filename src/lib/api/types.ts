@@ -2759,6 +2759,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/management/operational-result/v2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resultado operacional V2 desde un snapshot V14 sellado */
+        get: operations["management_operational_result_v2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/management/pulso": {
         parameters: {
             query?: never;
@@ -2768,6 +2785,40 @@ export interface paths {
         };
         /** Pulso (detalle) — score + componentes + drivers */
         get: operations["management_pulso_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/pulso/score-reading": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lectura canónica y enfocada del Pulso */
+        get: operations["management_pulso_score_reading"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/management/salud": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Salud financiera — PULSO + Qavante Health Score */
+        get: operations["management_salud_detail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4414,6 +4465,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/accounts-receivable/debtors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Directorio canónico paginado de deudores por cobrar */
+        get: operations["treasury_accounts_receivable_debtors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/bank-accounts": {
         parameters: {
             query?: never;
@@ -4799,6 +4867,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/cash-cycle-estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Estimación trazable del proxy de ciclo de caja */
+        get: operations["treasury_cash_cycle_estimate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/cash-minimum": {
         parameters: {
             query?: never;
@@ -4835,6 +4920,40 @@ export interface paths {
          *     Reemplaza las 3 proyecciones divergentes (cash_forecast + DPC + reproyección FE).
          */
         get: operations["treasury_cash_projection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/cash-projection-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Projection Run */
+        post: operations["create_cash_projection_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/cash-projection-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Projection Run */
+        get: operations["get_cash_projection_run"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5976,6 +6095,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/payroll-evidence/{period}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Evidencia de obligación y pagos de nómina por período */
+        get: operations["treasury_payroll_evidence_period_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/payroll-payday": {
         parameters: {
             query?: never;
@@ -6747,6 +6883,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/sales-floor-estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Piso histórico de ventas basado en gastos observados */
+        get: operations["treasury_sales_floor_estimate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/simulations/evaluate": {
         parameters: {
             query?: never;
@@ -7085,10 +7238,26 @@ export interface components {
          */
         AccountsPayableResponse: {
             /**
+             * As Of
+             * Format: date
+             * @description Fecha de negocio usada por vencido y ventanas, en `America/Santiago`.
+             */
+            as_of: string;
+            /**
              * By Category
              * @description Totales SIGNADOS y cantidades por categoría sobre todo el universo vivo, incluidos créditos y documentos sin fecha. La suma de `known_amount_clp` cuadra con `total`; si excede la cota matemática de redondeo FX, los buckets fallan cerrados con `complete=false` y `amount_clp=null`.
              */
             by_category: components["schemas"]["PayableCategorySummary"][];
+            /**
+             * Cash Gap Amount 14D
+             * @description Brecha canónica contra cero de la misma curva: `max(0, -min_14d)`. Las obligaciones comprometidas ya están incluidas en los saldos proyectados y no se vuelven a restar. `null` cuando `cash_projection_publicable_14d=false`.
+             */
+            cash_gap_amount_14d: string | null;
+            /**
+             * Cash Projection Publicable 14D
+             * @description Gate de las cifras decisionales de la curva a 14 días. Es `false` sin proyección, cuando falta alguna cifra canónica o cuando la proyección descartó saldo/flujos de esa ventana (`cash_estimated_14d`). En ese estado `min_14d`, `cash_gap_amount_14d` y `has_gap` son `null`: ningún consumidor debe convertir la ausencia en cero.
+             */
+            cash_projection_publicable_14d: boolean;
             /**
              * Confidence
              * @enum {string}
@@ -7096,7 +7265,7 @@ export interface components {
             confidence: "high" | "medium" | "low";
             /**
              * Covers Critical
-             * @description ¿La caja proyectada cubre lo que vence en 14 días? **Tri-estado.** `null` = no se puede responder, y son SIETE casos: cuatro del denominador, dos del numerador y uno de la división misma. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el sexto no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma cobertura sobre TODO lo que vence, comparado contra TODA la caja, en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
+             * @description ¿La caja proyectada cubre lo que vence en 14 días? Se responde comprobando si la curva completa se mantiene en o sobre cero durante los 14 días: las obligaciones ya están neteadas en la curva y no se vuelven a restar. **Tri-estado.** `null` = no se puede responder, y son SIETE casos: cuatro de la cobertura documental, dos de la caja y uno de unidad. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el séptimo no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma que la curva completa —con TODO lo que vence ya incorporado— nunca baja de cero en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
              */
             covers_critical?: boolean | null;
             /** @description Créditos/ajustes con saldo negativo, separados de las obligaciones críticas. El monto conserva su signo negativo y también recorre todo el universo vivo. */
@@ -7126,14 +7295,20 @@ export interface components {
              * @description Montos crudos excluidos del `total` CLP por falta de tipo de cambio. Vacío significa que el total no tuvo exclusiones de moneda.
              */
             excluded_from_total_by_currency: components["schemas"]["PayableCurrencyTotal"][];
+            filter_metadata: components["schemas"]["PayableFilterMetadata"];
             /**
              * Generated At
              * Format: date-time
              */
             generated_at: string;
             /**
+             * Has Gap
+             * @description `true` sólo cuando `min_14d < 0`; tocar exactamente cero no es brecha. `null` cuando la curva de 14 días no es publicable.
+             */
+            has_gap: boolean | null;
+            /**
              * Has More
-             * @description `true` cuando existen más obligaciones fechadas que las incluidas en `items`.
+             * @description `true` cuando existen más obligaciones fechadas que las incluidas en `items`; siempre equivale a `next_cursor != null`.
              */
             has_more: boolean;
             /**
@@ -7151,10 +7326,26 @@ export interface components {
              * @description Límite aplicado a `items` en esta respuesta.
              */
             limit: number;
+            /**
+             * Min 14D
+             * @description Menor saldo proyectado alcanzado dentro de la misma curva de 14 días, incluido el saldo de apertura. No es el saldo final ni el umbral de caja mínima configurado. `null` cuando esa curva no es publicable; nunca se deriva desde `due_14d`.
+             */
+            min_14d: string | null;
             /** Missing Sources */
             missing_sources?: string[];
+            /**
+             * Next Cursor
+             * @description Cursor opaco versionado para continuar por `(due_date ASC, id ASC)`. Está ligado al tenant, filtros, `as_of` y snapshot; `null` significa fin de la colección.
+             */
+            next_cursor: string | null;
+            /** @description Próxima obligación viva de nómina del mismo snapshot AP: futura más cercana, empate por monto/identidad; si no hay futura cae a una vencida con `is_overdue=true`. Un `null` sólo confirma ausencia cuando `payroll_coverage.complete=true`; en cualquier otro caso es abstención. */
+            next_payroll: components["schemas"]["PayablePayrollHighlight"] | null;
             /** @description Regla ejecutable de V05 sobre todo el universo vivo: saldos POSITIVOS ya vencidos de cualquier categoría, más saldos POSITIVOS `tax`, `payroll` o `debt` que vencen entre hoy y 14 días inclusive (Ley 9: no postergables). La taxonomía ejecutable clasifica `tgr` como tax, `buk`/`previred` como payroll y `bice` como debt porque ADR-0050 persiste sus cargos de tarjeta como pasivos AP; proveedores desconocidos son `other`. No deriva de `PayableItem.criticality` ni redefine `covers_critical`, que evalúa la proyección completa. Si hay saldos positivos sin vencimiento confirmado o falta un TC dentro del bucket, `complete=false` y `amount_clp=null`; la parte conocida queda explícita. */
             non_postponable_or_overdue_14d: components["schemas"]["PayableAggregateSummary"];
+            /** @description Saldos POSITIVOS con `due_date < as_of`, sobre el universo global no filtrado. Créditos y ceros no entran; obligaciones positivas sin fecha o monedas sin TC vuelven el agregado incompleto y nunca se publican como $0 conocido. */
+            overdue_summary: components["schemas"]["PayableAggregateSummary"];
+            /** @description Cobertura real de Buk y Previred para interpretar `next_payroll`. No se deriva de que la lista contenga o no contenga filas de nómina. */
+            payroll_coverage: components["schemas"]["PayablePayrollCoverage"];
             /**
              * Projected Cash 14D
              * @description Saldo FINAL proyectado al cierre del día 14 (del cash-flow), no el mínimo de la ventana; `null` sin saldo. **Viene en la moneda funcional del tenant, que NO es necesariamente CLP** — la declara `projected_cash_currency`, acá al lado. Es el único monto de esta respuesta que no está en pesos: `total` y los `due_*` se totalizan siempre en CLP. Compararlos sin mirar la moneda es dividir dólares por pesos, y ya pasó dos veces (`covers_critical` y el plan de pagos).
@@ -7162,10 +7353,15 @@ export interface components {
             projected_cash_14d?: string | null;
             /**
              * Projected Cash Currency
-             * @description Moneda de `projected_cash_14d`, que es la moneda funcional del tenant. Se publica porque sin ella el consumidor no puede darse cuenta de que está comparando unidades distintas: la única señal que salía antes era una frase en castellano dentro de `missing_sources`, y ningún código puede parsear eso. Convertir a CLP es el #160.
+             * @description Moneda de `projected_cash_14d`, `min_14d` y `cash_gap_amount_14d`, que es la moneda funcional del tenant. Se publica porque sin ella el consumidor no puede darse cuenta de que está comparando unidades distintas: la única señal que salía antes era una frase en castellano dentro de `missing_sources`, y ningún código puede parsear eso. Convertir a CLP es el #160.
              * @default CLP
              */
             projected_cash_currency: string;
+            /**
+             * Snapshot Id
+             * @description Identidad opaca del corte del universo AP vivo y sus tipos de cambio. Se conserva entre páginas/filtros mientras esos datos no cambien; no cubre la proyección de caja D01, que mantiene su propio gate `cash_projection_publicable_14d`.
+             */
+            snapshot_id: string;
             /**
              * Total
              * @description Total por pagar **convertido a CLP** al tipo de cambio vigente (para la cobertura de caja). El desglose crudo por moneda va en `total_by_currency`. Las monedas sin TC quedan fuera de este total (avisadas en `missing_sources`).
@@ -8848,6 +9044,39 @@ export interface components {
             /** Items Totales */
             items_totales: number;
         };
+        /** CandidateSearchCoverage */
+        CandidateSearchCoverage: {
+            /**
+             * Eligible Count
+             * @description Universo que aprobó filtros duros; null si la búsqueda falló.
+             */
+            eligible_count: number | null;
+            /** Evaluated Count */
+            evaluated_count: number;
+            /** Exhaustive */
+            exhaustive: boolean;
+            /** Scan Limit */
+            scan_limit: number;
+        };
+        /** CandidateSearchState */
+        CandidateSearchState: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /**
+             * Count
+             * @description Candidatos encontrados dentro de la cobertura declarada.
+             */
+            count: number;
+            coverage: components["schemas"]["CandidateSearchCoverage"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_run" | "complete" | "partial" | "failed";
+        };
         /**
          * CanonicalCategoriesResponse
          * @description Respuesta de `GET /api/treasury/canonical-categories`.
@@ -9146,6 +9375,113 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** CashCycleEstimateCoverage */
+        CashCycleEstimateCoverage: {
+            /** Reason Codes */
+            reason_codes?: ("non_clp_payables_excluded" | "unvalued_payables_excluded" | "ceded_marking_incomplete" | "non_positive_revenue" | "non_positive_cogs" | "required_source_incomplete" | "cogs_classification_incomplete" | "negative_receivables_balance" | "negative_commercial_ap_balance")[];
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "complete" | "partial" | "abstained";
+        };
+        /**
+         * CashCycleEstimateResponse
+         * @description Estimación D17: distingue régimen, límite de cartera y efectivo liberable.
+         */
+        CashCycleEstimateResponse: {
+            /** As Of */
+            as_of: string;
+            /** Assumptions */
+            assumptions: string[];
+            /** Business Date */
+            business_date: string;
+            /**
+             * Can Claim Current
+             * @default false
+             * @constant
+             */
+            can_claim_current: false;
+            /** Cash Cycle Proxy Days */
+            cash_cycle_proxy_days: number | null;
+            /** Commercial Ap Total */
+            commercial_ap_total: string;
+            coverage: components["schemas"]["CashCycleEstimateCoverage"];
+            /**
+             * Currency
+             * @default CLP
+             * @constant
+             */
+            currency: "CLP";
+            /** Current Portfolio Upper Bound */
+            current_portfolio_upper_bound: string | null;
+            /** Currently Releasable Cash */
+            currently_releasable_cash?: null;
+            /**
+             * Definition Id
+             * @default cash_cycle_estimate.v1
+             * @constant
+             */
+            definition_id: "cash_cycle_estimate.v1";
+            /** Dio Days */
+            dio_days?: null;
+            /** Dpo Days */
+            dpo_days: number | null;
+            /** Dso Days */
+            dso_days: number | null;
+            /**
+             * Formula
+             * @default cash_cycle_proxy_days = dso_days - dpo_days; steady_state_effect = revenue_own_window / window_days * days_improved
+             * @constant
+             */
+            formula: "cash_cycle_proxy_days = dso_days - dpo_days; steady_state_effect = revenue_own_window / window_days * days_improved";
+            /**
+             * Model
+             * @default cash_cycle_proxy
+             * @constant
+             */
+            model: "cash_cycle_proxy";
+            /** Non Clp Payables Excluded Count */
+            non_clp_payables_excluded_count: number;
+            /**
+             * Precision
+             * @default days: 0.1; CLP scenarios: 1
+             * @constant
+             */
+            precision: "days: 0.1; CLP scenarios: 1";
+            /** Revenue Own Window */
+            revenue_own_window: string;
+            /**
+             * Snapshot Consistency
+             * @default repeatable_read
+             * @constant
+             */
+            snapshot_consistency: "repeatable_read";
+            /** Source Periods */
+            source_periods?: components["schemas"]["EstimateSourcePeriod"][];
+            /** Steady State Sensitivity */
+            steady_state_sensitivity: components["schemas"]["CashCycleSensitivity"][];
+            /**
+             * Timezone
+             * @default America/Santiago
+             * @constant
+             */
+            timezone: "America/Santiago";
+            /** Unvalued Payables Excluded Count */
+            unvalued_payables_excluded_count: number;
+            /**
+             * Version
+             * @default v1.2026-09-13
+             * @constant
+             */
+            version: "v1.2026-09-13";
+            /** Window Days */
+            window_days: number;
+            /** Window From */
+            window_from: string;
+            /** Window To Exclusive */
+            window_to_exclusive: string;
+        };
         /**
          * CashCycleResponse
          * @description Ciclo de conversión de caja: DSO / DPO / CCC (ADR-0033 derivados, Fase 2).
@@ -9221,6 +9557,17 @@ export interface components {
              */
             revenue_window: string;
             /**
+             * Source Periods
+             * @description Cobertura/frescura por cada mes cerrado usado en los denominadores.
+             */
+            source_periods?: components["schemas"]["EstimateSourcePeriod"][];
+            /**
+             * Unclassified Purchases Window
+             * @description Compras RCV de la ventana sin clasificación entre COGS y gasto. Si es distinto de cero, el DPO estimado tiene cobertura parcial.
+             * @default 0
+             */
+            unclassified_purchases_window: string;
+            /**
              * Window From
              * @description 1º del primer mes de la ventana (YYYY-MM-DD).
              */
@@ -9235,6 +9582,16 @@ export interface components {
              * @description 1º del último mes de la ventana (YYYY-MM-DD).
              */
             window_to: string;
+        };
+        /** CashCycleSensitivity */
+        CashCycleSensitivity: {
+            /**
+             * Days Improved
+             * @enum {integer}
+             */
+            days_improved: 1 | 5 | 10;
+            /** Steady State Working Capital Effect */
+            steady_state_working_capital_effect: string;
         };
         /**
          * CashDecisionBriefResponse
@@ -9582,6 +9939,72 @@ export interface components {
              */
             target_date: string;
         };
+        /** CashProjectionBridge */
+        CashProjectionBridge: {
+            /** Component Count */
+            component_count: number;
+            /** Components */
+            components: components["schemas"]["CashProjectionBridgeComponent"][];
+            coverage: components["schemas"]["CashProjectionDecisionCoverage"];
+        };
+        /** CashProjectionBridgeComponent */
+        CashProjectionBridgeComponent: {
+            /** Component Key */
+            component_key: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "inflow" | "outflow";
+            /** Evidence Ref */
+            evidence_ref: string;
+            /** Functional Amount */
+            functional_amount: string;
+            /**
+             * Impact Date
+             * Format: date
+             */
+            impact_date: string;
+            /** Source Ref */
+            source_ref: string;
+        };
+        /** CashProjectionDecisionCoverage */
+        CashProjectionDecisionCoverage: {
+            /** Coverage Valid Through */
+            coverage_valid_through?: string | null;
+            /**
+             * Decision Support
+             * @enum {string}
+             */
+            decision_support: "eligible" | "abstain";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "current" | "partial";
+        };
+        /** CashProjectionErrorDetail */
+        CashProjectionErrorDetail: {
+            /** Code */
+            code: string;
+        };
+        /** CashProjectionErrorResponse */
+        CashProjectionErrorResponse: {
+            detail: components["schemas"]["CashProjectionErrorDetail"];
+        };
+        /** CashProjectionExclusion */
+        CashProjectionExclusion: {
+            /** Cash Relevant */
+            cash_relevant: boolean;
+            /** Reason */
+            reason: string;
+            /** Scenario Ids */
+            scenario_ids: ("scheduled_expected_v1" | "outflows_only_v1" | "scheduled_with_arrears_recovery_v1" | "scheduled_with_recurring_income_v1")[];
+            /** Source Ref */
+            source_ref: string;
+        };
         /**
          * CashProjectionResponse
          * @description Proyección de caja unificada (ADR-0085 + RFC CC-WEB). Anclada en el saldo bancario real; NO
@@ -9649,6 +10072,149 @@ export interface components {
             /** Serie */
             serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
             vencido: components["schemas"]["Vencido"];
+        };
+        /** CashProjectionRunCreateRequest */
+        CashProjectionRunCreateRequest: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Horizon Days
+             * @default 90
+             */
+            horizon_days: number;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+        };
+        /** CashProjectionRunResponse */
+        CashProjectionRunResponse: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Calculation Version */
+            calculation_version: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Cutoff At
+             * Format: date-time
+             */
+            cutoff_at: string;
+            /** Horizon Days */
+            horizon_days: number;
+            /** Input Digest */
+            input_digest: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /**
+             * Projection Run Id
+             * Format: uuid
+             */
+            projection_run_id: string;
+            /** Scenarios */
+            scenarios: components["schemas"]["CashProjectionScenarioResponse"][];
+            /**
+             * V14 Generation Id
+             * Format: uuid
+             */
+            v14_generation_id: string;
+            /**
+             * V14 Projection Snapshot Id
+             * Format: uuid
+             */
+            v14_projection_snapshot_id: string;
+        };
+        /** CashProjectionScenarioResponse */
+        CashProjectionScenarioResponse: {
+            /** Assumptions */
+            assumptions: {
+                [key: string]: string;
+            };
+            bridge: components["schemas"]["CashProjectionBridge"];
+            /** Ending Cash */
+            ending_cash: string;
+            /** Exclusions */
+            exclusions: components["schemas"]["CashProjectionExclusion"][];
+            /** Gap Against Zero */
+            gap_against_zero: string;
+            /** Inflows Total */
+            inflows_total: string;
+            /** Minimum Cash */
+            minimum_cash: string;
+            /**
+             * Minimum Cash Date
+             * Format: date
+             */
+            minimum_cash_date: string;
+            /** Opening Cash */
+            opening_cash: string;
+            /** Outflows Total */
+            outflows_total: string;
+            /** Scenario Digest */
+            scenario_digest: string;
+            /**
+             * Scenario Id
+             * @enum {string}
+             */
+            scenario_id: "scheduled_expected_v1" | "outflows_only_v1" | "scheduled_with_arrears_recovery_v1" | "scheduled_with_recurring_income_v1";
+            /**
+             * Scenario Name
+             * @enum {string}
+             */
+            scenario_name: "scheduled_expected_v1" | "outflows_only_v1" | "scheduled_with_arrears_recovery_v1" | "scheduled_with_recurring_income_v1";
+            /** Series */
+            series: components["schemas"]["CashProjectionSeriesPoint"][];
+            /** Source Coverage */
+            source_coverage: components["schemas"]["CashProjectionSourceCoverage"][];
+        };
+        /** CashProjectionSeriesPoint */
+        CashProjectionSeriesPoint: {
+            /** Closing Cash */
+            closing_cash: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Inflows */
+            inflows: string;
+            /** Outflows */
+            outflows: string;
+        };
+        /** CashProjectionSourceCoverage */
+        CashProjectionSourceCoverage: {
+            /** Catalog Version */
+            catalog_version: string;
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /** Observed Count */
+            observed_count: number;
+            /** Reason Codes */
+            reason_codes: string[];
+            /** Required Source Ref */
+            required_source_ref: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "current" | "partial" | "stale" | "missing" | "error";
+            /** Valid Through */
+            valid_through?: string | null;
         };
         /** CashSafetyPolicyHistoryItem */
         CashSafetyPolicyHistoryItem: {
@@ -11427,6 +11993,19 @@ export interface components {
              */
             counterparty_type: string;
         };
+        /** CounterpartyResolutionState */
+        CounterpartyResolutionState: {
+            /**
+             * Counterparty Key
+             * @description UUID canónico tenant-scoped; existe únicamente cuando status=resolved.
+             */
+            counterparty_key?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unresolved" | "resolved" | "ambiguous" | "unavailable";
+        };
         /** CounterpartySuggestion */
         CounterpartySuggestion: {
             /** Name */
@@ -12468,6 +13047,7 @@ export interface components {
              * @enum {string}
              */
             kind: "collection_plan" | "payment_plan";
+            projection_reference?: components["schemas"]["ProjectionRunReference"] | null;
             /** Reasons */
             reasons?: string[];
             /**
@@ -12574,6 +13154,62 @@ export interface components {
         DimensionsListResponse: {
             /** Items */
             items: components["schemas"]["ManagementDimension"][];
+        };
+        /** DirectCostBaseBreakdown */
+        DirectCostBaseBreakdown: {
+            /** Cogs */
+            cogs: string;
+            /** Direct Labor */
+            direct_labor: string;
+        };
+        /** DirectCostComposition */
+        DirectCostComposition: {
+            /**
+             * Base
+             * @description Exact legacy direct_cost: cogs + direct_labor. Sign is preserved.
+             */
+            base: string;
+            /**
+             * Definition Id
+             * @default bo.direct_cost.compound.v1
+             * @constant
+             */
+            definition_id: "bo.direct_cost.compound.v1";
+            operating_natures: components["schemas"]["DirectCostOperatingNatures"];
+            /** Professional Fees */
+            professional_fees: string;
+            /**
+             * Remunerations
+             * @description Payroll outside base (overhead_labor); direct labor is already in base.
+             */
+            remunerations: string;
+            /** Total */
+            total: string;
+        };
+        /**
+         * DirectCostOperatingNatures
+         * @description Mapeo explícito al vocabulario ``operating_nature`` de V14.
+         *
+         *     La taxonomía aprobada por el BO presenta los tres componentes como
+         *     ``direct_cost``. El adapter debe resolver esta autoridad; el núcleo puro sólo
+         *     la valida y nunca reclasifica silenciosamente ``operating_expense``.
+         */
+        DirectCostOperatingNatures: {
+            /**
+             * Base
+             * @constant
+             */
+            base: "direct_cost";
+            /**
+             * Professional Fees
+             * @constant
+             */
+            professional_fees: "direct_cost";
+            /**
+             * Remunerations
+             * @constant
+             */
+            remunerations: "direct_cost";
         };
         /** DispatchEmailResponse */
         DispatchEmailResponse: {
@@ -13079,10 +13715,18 @@ export interface components {
              */
             score: number;
         };
+        /** DocumentSuggestionsOperationalState */
+        DocumentSuggestionsOperationalState: {
+            candidate_search: components["schemas"]["CandidateSearchState"];
+            counterparty_resolution: components["schemas"]["CounterpartyResolutionState"];
+            tax_id_evidence: components["schemas"]["TaxIdEvidenceState"];
+        };
         /** DocumentSuggestionsResponse */
         DocumentSuggestionsResponse: {
             /** Movement Id */
             movement_id: string;
+            /** @description Estado operacional D16-B. Ausente sólo en payloads legacy; nunca debe inferirse desde texto libre en el cliente. */
+            operational_state?: components["schemas"]["DocumentSuggestionsOperationalState"] | null;
             /** Suggestions */
             suggestions: components["schemas"]["DocumentSuggestion"][];
         };
@@ -13683,6 +14327,23 @@ export interface components {
              * @description Σ del por-cobrar-vencido que se recupera repartido, string-decimal.
              */
             total_recuperado: string;
+        };
+        /**
+         * EstimateSourcePeriod
+         * @description Cobertura y frescura de las fuentes que sostienen un período estimado.
+         */
+        EstimateSourcePeriod: {
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Missing Sources */
+            missing_sources?: string[];
+            /** Period */
+            period: string;
+            /** Sources */
+            sources?: components["schemas"]["SourceFreshness"][];
         };
         /** EvidenceDetail */
         EvidenceDetail: {
@@ -17099,6 +17760,40 @@ export interface components {
             /** Items */
             items?: components["schemas"]["ObligationListItem"][];
         };
+        /**
+         * OmittedPeriodLine
+         * @description Una fila real que no puede convertirse a CLP; nunca se materializa como cero.
+         */
+        OmittedPeriodLine: {
+            /** Currency */
+            currency?: string | null;
+            /** Exchange Rate */
+            exchange_rate?: string | null;
+            /** Exchange Rate Date */
+            exchange_rate_date?: string | null;
+            /** Exchange Rate Provenance */
+            exchange_rate_provenance?: string | null;
+            /** Exchange Rate Source */
+            exchange_rate_source?: string | null;
+            /** Exchange Rate Version */
+            exchange_rate_version?: string | null;
+            /** Original Amount */
+            original_amount: string;
+            /** Period */
+            period: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "missing_fx_rate" | "missing_fx_source" | "missing_fx_version" | "missing_fx_date" | "missing_currency" | "unsupported_currency";
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "foreign_purchase" | "obligation";
+            /** Source Id */
+            source_id: string;
+        };
         /** OnboardingImportWindowRequest */
         OnboardingImportWindowRequest: {
             /**
@@ -18226,6 +18921,67 @@ export interface components {
              */
             unclassified_purchases: string;
         };
+        /** OperationalResultV2Authority */
+        OperationalResultV2Authority: {
+            /** Catalog Version */
+            catalog_version?: string | null;
+            /** Payload Hash */
+            payload_hash?: string | null;
+            /** Producer Ref */
+            producer_ref?: string | null;
+            /** Snapshot Id */
+            snapshot_id?: string | null;
+            /** Snapshot Version */
+            snapshot_version?: string | null;
+            /**
+             * Source
+             * @default treasury.operating_metric_snapshots
+             * @constant
+             */
+            source: "treasury.operating_metric_snapshots";
+        };
+        /** OperationalResultV2Coverage */
+        OperationalResultV2Coverage: {
+            /**
+             * Decision Support
+             * @enum {string}
+             */
+            decision_support: "eligible" | "abstain";
+            /**
+             * Reason Codes
+             * @default []
+             */
+            reason_codes: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "unavailable";
+        };
+        /** OperationalResultV2Response */
+        OperationalResultV2Response: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            authority: components["schemas"]["OperationalResultV2Authority"];
+            /**
+             * Calculation Version
+             * @default v2.2026-09-08
+             * @constant
+             */
+            calculation_version: "v2.2026-09-08";
+            coverage: components["schemas"]["OperationalResultV2Coverage"];
+            /**
+             * Definition Id
+             * @default qavante.period_statement.v2
+             * @constant
+             */
+            definition_id: "qavante.period_statement.v2";
+            scope: components["schemas"]["PeriodStatementScope"];
+            statement_v2: components["schemas"]["PeriodStatementV2"] | null;
+        };
         /** OperationalVariation */
         OperationalVariation: {
             vs_previous_month?: components["schemas"]["ResultVariation"] | null;
@@ -18643,6 +19399,16 @@ export interface components {
              */
             unknown_due_date_count: number;
         };
+        /** PayableCategoryFacet */
+        PayableCategoryFacet: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "supplier" | "tax" | "payroll" | "rent" | "debt" | "leasing" | "other";
+            /** Count */
+            count: number;
+        };
         /**
          * PayableCategorySummary
          * @description Total y cantidad de una categoría sobre todas las obligaciones vivas, no sobre `items`.
@@ -18683,6 +19449,16 @@ export interface components {
              * @description Obligaciones positivas sin vencimiento confirmado que podrían pertenecer a la ventana (fecha ausente o procedencia no verificable). Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.
              */
             unknown_due_date_count: number;
+        };
+        /** PayableCriticalityFacet */
+        PayableCriticalityFacet: {
+            /** Count */
+            count: number;
+            /**
+             * Criticality
+             * @enum {string}
+             */
+            criticality: "high" | "medium" | "low" | "unknown";
         };
         /**
          * PayableCurrencyTotal
@@ -18727,6 +19503,37 @@ export interface components {
              * Format: uuid
              */
             payable_id: string;
+        };
+        /**
+         * PayableFilterMetadata
+         * @description Facets del universo fechado antes de paginar, nunca derivados de `items`.
+         */
+        PayableFilterMetadata: {
+            /**
+             * By Category
+             * @description Todos los valores del enum, incluidos ceros. Aplica los demás filtros y omite sólo `category`; búsqueda y rango de fecha siempre aplican.
+             */
+            by_category: components["schemas"]["PayableCategoryFacet"][];
+            /**
+             * By Criticality
+             * @description Todos los valores del enum, incluidos ceros. Aplica los demás filtros y omite sólo `criticality`; búsqueda y rango de fecha siempre aplican.
+             */
+            by_criticality: components["schemas"]["PayableCriticalityFacet"][];
+            /**
+             * By State
+             * @description Todos los estados vivos, incluidos ceros. Aplica los demás filtros y omite sólo `state`; búsqueda y rango de fecha siempre aplican.
+             */
+            by_state: components["schemas"]["PayableStateFacet"][];
+            /**
+             * Matched Items Total
+             * @description Obligaciones fechadas que satisfacen todos los filtros; igual a `items_total`.
+             */
+            matched_items_total: number;
+            /**
+             * Unfiltered Items Total
+             * @description Obligaciones fechadas vivas antes de aplicar filtros.
+             */
+            unfiltered_items_total: number;
         };
         /**
          * PayableItem
@@ -18823,6 +19630,95 @@ export interface components {
              */
             tipo_dte?: number | null;
         };
+        /**
+         * PayablePayrollCoverage
+         * @description Cobertura necesaria para interpretar un `next_payroll=null`.
+         */
+        PayablePayrollCoverage: {
+            /**
+             * Complete
+             * @description `true` sólo cuando Buk y Previred tienen cobertura y frescura dataset/período confirmadas por D10; una conexión ready/connected no basta. Si es `false`, `next_payroll=null` significa abstención, no ausencia de obligaciones de nómina.
+             */
+            complete: boolean;
+            /**
+             * Sources
+             * @description Buk y Previred en orden estable, con su estado y gate ejecutable.
+             */
+            sources: components["schemas"]["PayablePayrollSourceCoverage"][];
+        };
+        /**
+         * PayablePayrollHighlight
+         * @description Próxima obligación de nómina con monto y unidad explícitos.
+         */
+        PayablePayrollHighlight: {
+            /**
+             * Amount
+             * @description Monto original en `currency`; string-decimal en JSON.
+             */
+            amount: string;
+            /**
+             * Amount Clp
+             * @description Conversión a CLP capturada en el mismo snapshot AP+FX. `null` para montos ya CLP (se usa `amount`) o cuando falta un tipo de cambio publicable.
+             */
+            amount_clp: string | null;
+            /**
+             * Category
+             * @constant
+             */
+            category: "payroll";
+            /**
+             * Currency
+             * @description Moneda original ISO 4217 de `amount`.
+             */
+            currency: string;
+            /**
+             * Due Date
+             * Format: date
+             */
+            due_date: string;
+            /** Is Overdue */
+            is_overdue: boolean;
+            /** Label */
+            label: string;
+        };
+        /** PayablePayrollSourceCoverage */
+        PayablePayrollSourceCoverage: {
+            /**
+             * Covered
+             * @description `true` sólo si la conexión está disponible y `freshness_confirmed=true`; nunca se infiere desde items ni desde `last_success_at` a nivel conexión.
+             */
+            covered: boolean;
+            /**
+             * Freshness Confirmed
+             * @description Resultado de la política D10 versionada sobre sesión, último éxito, corte y cobertura durable del dataset/período.
+             */
+            freshness_confirmed: boolean;
+            /**
+             * Last Success At
+             * @description Último éxito durable del dataset de obligaciones de nómina. No se sustituye por el éxito genérico de la conexión.
+             */
+            last_success_at: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "buk" | "previred";
+            /**
+             * Status
+             * @description Estado real de `core.connection_status` para la fuente.
+             */
+            status: string;
+        };
+        /** PayableStateFacet */
+        PayableStateFacet: {
+            /** Count */
+            count: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "partially_paid";
+        };
         /** PaymentMovement */
         PaymentMovement: {
             /** Account Name */
@@ -18913,6 +19809,52 @@ export interface components {
              * @description Día del mes (1-31) en que se pagan los sueldos, o null = último día hábil del mes (default).
              */
             payday_day?: number | null;
+        };
+        /** PayrollPeriodEvidenceResponse */
+        PayrollPeriodEvidenceResponse: {
+            /** Abstention Reasons */
+            abstention_reasons: string[];
+            /**
+             * Allocation Coverage
+             * @enum {string}
+             */
+            allocation_coverage: "unallocated" | "partial" | "full";
+            /**
+             * Confirmed Outstanding Amount
+             * @description Saldo sólo con evidencia positiva completa; null es abstención, no impago.
+             */
+            confirmed_outstanding_amount: string | null;
+            /** Currency Code */
+            currency_code: string;
+            /**
+             * Legacy Outstanding Amount
+             * @description Saldo legacy sólo comparativo; nunca confirma el saldo real.
+             */
+            legacy_outstanding_amount: string | null;
+            /**
+             * Legacy Outstanding Quality
+             * @constant
+             */
+            legacy_outstanding_quality: "legacy_unverified";
+            /**
+             * Obligation Amount
+             * @description Monto observado del snapshot; null cuando no existe evidencia durable.
+             */
+            obligation_amount: string | null;
+            /** Obligation Observed At */
+            obligation_observed_at: string | null;
+            /**
+             * Observed Payment Amount
+             * @description Pagos externos candidatos o confirmados observados; null ante conflicto de moneda.
+             */
+            observed_payment_amount: string | null;
+            /** Period */
+            period: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "accrued_liquid" | "observed_unconfirmed" | "confirmed_outstanding" | "confirmed_paid" | "conflict" | "unknown";
         };
         /** PayrollReconcileRequest */
         PayrollReconcileRequest: {
@@ -19114,6 +20056,91 @@ export interface components {
             /** Percent Change */
             percent_change: string;
         };
+        /** PeriodStatementScope */
+        PeriodStatementScope: {
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /** Period From */
+            period_from: string;
+            /** Period To */
+            period_to: string;
+            /**
+             * Timezone
+             * @default America/Santiago
+             * @constant
+             */
+            timezone: "America/Santiago";
+        };
+        /**
+         * PeriodStatementV2
+         * @description Bloque público aditivo; todos los costos conservan signo y se restan una vez.
+         */
+        PeriodStatementV2: {
+            base_breakdown: components["schemas"]["DirectCostBaseBreakdown"];
+            /**
+             * Basis
+             * @default accrual
+             * @constant
+             */
+            basis: "accrual";
+            coverage: components["schemas"]["StatementCoverage"];
+            /**
+             * Definition Id
+             * @default qavante.period_statement.v2
+             * @constant
+             */
+            definition_id: "qavante.period_statement.v2";
+            direct_cost: components["schemas"]["DirectCostComposition"];
+            /** Financial Expense */
+            financial_expense: string;
+            /** Omitted Lines */
+            omitted_lines: components["schemas"]["OmittedPeriodLine"][];
+            /** Recurring Expenses */
+            recurring_expenses: string;
+            /**
+             * Reporting Currency
+             * @default CLP
+             * @constant
+             */
+            reporting_currency: "CLP";
+            /** Required Source Refs */
+            required_source_refs: string[];
+            /** Result After Financial */
+            result_after_financial: string;
+            /** Result Before Financial */
+            result_before_financial: string;
+            /** Revenue */
+            revenue: string;
+            scope: components["schemas"]["PeriodStatementScope"];
+            /**
+             * Sign Convention
+             * @default expense_magnitudes
+             * @constant
+             */
+            sign_convention: "expense_magnitudes";
+            /** Source Coverage */
+            source_coverage: components["schemas"]["RequiredSourceCoverage"][];
+            /**
+             * Unclassified
+             * @description Legacy scalar: obligation-unclassified + valued foreign purchases.
+             */
+            unclassified: string;
+            unclassified_breakdown: components["schemas"]["UnclassifiedComposition"];
+            /**
+             * Unclassified Purchases
+             * @description RCV purchases that could not be classified as direct cost or OPEX.
+             */
+            unclassified_purchases: string;
+            /**
+             * Version
+             * @default v2.2026-09-08
+             * @constant
+             */
+            version: "v2.2026-09-08";
+        };
         /** PermissionResponse */
         PermissionResponse: {
             /** Action */
@@ -19257,6 +20284,8 @@ export interface components {
         PlanTarget: {
             /** Amount */
             amount: string;
+            /** Component Key */
+            component_key?: string | null;
             /** Days Overdue */
             days_overdue?: number | null;
             /** Due Date */
@@ -19493,6 +20522,42 @@ export interface components {
             settlement_days_min: number;
         };
         /**
+         * ProjectionRunReference
+         * @description Exact immutable cash scenario selected for a payment plan.
+         */
+        ProjectionRunReference: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Calculation Version */
+            calculation_version: string;
+            /** Coverage Valid Through */
+            coverage_valid_through?: string | null;
+            /** Currency */
+            currency: string;
+            /** Horizon Days */
+            horizon_days: number;
+            /** Input Digest */
+            input_digest: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /**
+             * Run
+             * Format: uuid
+             */
+            run: string;
+            /**
+             * Scenario
+             * @enum {string}
+             */
+            scenario: "scheduled_expected_v1" | "outflows_only_v1" | "scheduled_with_arrears_recovery_v1" | "scheduled_with_recurring_income_v1";
+        };
+        /**
          * ProjectionVsNominal
          * @description Comparación comportamiento vs vencimiento nominal (el insight del diferenciador).
          */
@@ -19634,6 +20699,123 @@ export interface components {
             /** Label */
             label: string;
         };
+        /**
+         * PulsoScoreCoverage
+         * @description Weight coverage; denominator includes configured but unavailable factors.
+         */
+        PulsoScoreCoverage: {
+            /** Available Weight */
+            available_weight: number;
+            /** Configured Weight */
+            configured_weight: number;
+            /** Ratio */
+            ratio: number;
+        };
+        /**
+         * PulsoScoreReadingResponse
+         * @description Public, entity-scoped reading with explicit publication and freshness state.
+         */
+        PulsoScoreReadingResponse: {
+            /** Abstention Reason */
+            abstention_reason: ("cash_balance_unavailable" | "pulso_snapshot_unavailable" | "unverified_entity_scope") | null;
+            /** Base Score */
+            base_score: number | null;
+            /** Base Status */
+            base_status: ("critical" | "weak" | "stable" | "strong") | null;
+            /**
+             * Calculated At
+             * Format: date-time
+             */
+            calculated_at: string;
+            coverage: components["schemas"]["PulsoScoreCoverage"];
+            /** Currency */
+            currency: string | null;
+            /**
+             * Data As Of
+             * Format: date
+             */
+            data_as_of: string;
+            /** Delta Vs Base */
+            delta_vs_base: number | null;
+            /** Evaluation Id */
+            evaluation_id: string;
+            /** Focused Abstention Reason */
+            focused_abstention_reason: "focus_evidence_unavailable" | null;
+            /**
+             * Freshness Reason
+             * @constant
+             */
+            freshness_reason: "source_lineage_not_available";
+            /**
+             * Freshness State
+             * @description D09 no infiere frescura desde la fecha de cálculo. Permanece unknown hasta que todas las fuentes del score aporten evidencia D10 consumible.
+             * @constant
+             */
+            freshness_state: "unknown";
+            /** Input Snapshot Id */
+            input_snapshot_id: string;
+            /** Knockout Cap */
+            knockout_cap?: number | null;
+            /** Knockout Code */
+            knockout_code: string | null;
+            /** Legal Entity Id */
+            legal_entity_id: string | null;
+            /** Methodology Id */
+            methodology_id: string;
+            /** Model Version */
+            model_version: string;
+            /**
+             * Objective Applied
+             * @enum {string}
+             */
+            objective_applied: "equilibrado" | "cuidar_caja" | "cumplir_pagos" | "crecer";
+            /** Objective Effective */
+            objective_effective: boolean;
+            /** Objective Requested */
+            objective_requested: string | null;
+            /** Omitted */
+            omitted: string[];
+            /**
+             * Publication State
+             * @enum {string}
+             */
+            publication_state: "available" | "abstained";
+            /** Score */
+            score: number | null;
+            /**
+             * Score Kind
+             * @enum {string}
+             */
+            score_kind: "base" | "focused";
+            /** Status */
+            status: ("critical" | "weak" | "stable" | "strong") | null;
+            /** Status Thresholds */
+            status_thresholds: components["schemas"]["PulsoStatusThresholdView"][];
+            /** Weights */
+            weights: components["schemas"]["PulsoScoreWeight"][];
+        };
+        /**
+         * PulsoScoreWeight
+         * @description One configured factor and its auditable weight in the selected reading.
+         */
+        PulsoScoreWeight: {
+            /** Configured Weight */
+            configured_weight: number;
+            /** Contribution */
+            contribution: number | null;
+            /** Effective Weight */
+            effective_weight: number;
+            /** Exact Score */
+            exact_score?: number | null;
+            /** Key */
+            key: string;
+            /** Multiplier */
+            multiplier: number;
+            /** Raw Weight */
+            raw_weight: number;
+            /** Score */
+            score: number | null;
+        };
         /** PulsoSnapshotResponse */
         PulsoSnapshotResponse: {
             /**
@@ -19656,6 +20838,19 @@ export interface components {
              * @description Tenants con caja procesados.
              */
             tenants: number;
+        };
+        /**
+         * PulsoStatusThresholdView
+         * @description Inclusive lower bound published with the methodology that produced the score.
+         */
+        PulsoStatusThresholdView: {
+            /** Minimum Score */
+            minimum_score: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "critical" | "weak" | "stable" | "strong";
         };
         /** PulsoTrendPoint */
         PulsoTrendPoint: {
@@ -20148,6 +21343,206 @@ export interface components {
              */
             currency: string;
         };
+        /** ReceivableDebtor */
+        ReceivableDebtor: {
+            /**
+             * Counterparty Key
+             * Format: uuid
+             * @description Nodo canónico vigente del grafo D08 del tenant.
+             */
+            counterparty_key: string;
+            /**
+             * Identity Resolution
+             * @enum {string}
+             */
+            identity_resolution: "graph" | "legacy_fallback" | "mixed";
+            /** Name */
+            name: string;
+            /**
+             * Receivable Ids
+             * @description Documentos cobrables incluidos en esta fila.
+             */
+            receivable_ids: string[];
+            /** Tax Id */
+            tax_id?: string | null;
+            /** Totals */
+            totals: components["schemas"]["ReceivableDebtorCurrencyTotal"][];
+        };
+        /**
+         * ReceivableDebtorCurrencyTotal
+         * @description Saldo de un deudor en una moneda, sin conversión FX implícita.
+         */
+        ReceivableDebtorCurrencyTotal: {
+            /**
+             * Currency
+             * @description Código de moneda conocido; null cuando la fuente no permite determinarlo.
+             */
+            currency: string | null;
+            /**
+             * Currency Status
+             * @enum {string}
+             */
+            currency_status: "known" | "unknown";
+            /** Document Count */
+            document_count: number;
+            /**
+             * Overdue
+             * @description Saldo vencido. null si la moneda es desconocida o si sólo existen documentos sin vencimiento; null nunca se interpreta como cero.
+             */
+            overdue: string | null;
+            /**
+             * Total
+             * @description Saldo cobrable en esta moneda; null cuando la moneda es desconocida.
+             */
+            total: string | null;
+            /**
+             * Undated Amount
+             * @description Saldo sin vencimiento; null cuando la moneda es desconocida.
+             */
+            undated_amount: string | null;
+            /** Undated Document Count */
+            undated_document_count: number;
+        };
+        /** ReceivableDebtorsResponse */
+        ReceivableDebtorsResponse: {
+            /**
+             * As Of
+             * Format: date-time
+             * @description Corte con zona horaria America/Santiago.
+             */
+            as_of: string;
+            /**
+             * Coverage
+             * @description Siempre complete: si una CxC cobrable no se puede resolver contra D08, la lectura falla cerrada y no publica un directorio parcial.
+             * @constant
+             */
+            coverage: "complete";
+            /** Graph Contract Version */
+            graph_contract_version: string;
+            /** Graph Fingerprint */
+            graph_fingerprint: string;
+            /** Graph Version */
+            graph_version: number;
+            /** Has More */
+            has_more: boolean;
+            /** Identity Projection Fingerprint */
+            identity_projection_fingerprint: string;
+            /** Items */
+            items: components["schemas"]["ReceivableDebtor"][];
+            /**
+             * Items Total
+             * @description Deudores que cumplen los filtros, sin paginar.
+             */
+            items_total: number;
+            /** Net Bridge */
+            net_bridge: components["schemas"]["ReceivableNetBridge"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            portfolio_counts: components["schemas"]["ReceivablePortfolioCounts"];
+            /** Portfolio Partitions */
+            portfolio_partitions: components["schemas"]["ReceivablePortfolioPartition"][];
+            /** Ranking Bridge */
+            ranking_bridge: components["schemas"]["ReceivableRankingBridge"][];
+            /** Receivables Fingerprint */
+            receivables_fingerprint: string;
+            /** References Fingerprint */
+            references_fingerprint: string;
+            /** References Versions */
+            references_versions: string[];
+            /** Sentinel Registry Version */
+            sentinel_registry_version: string;
+            /** Snapshot Fingerprint */
+            snapshot_fingerprint: string;
+            summary: components["schemas"]["ReceivableDebtorsSummary"];
+        };
+        /** ReceivableDebtorsSummary */
+        ReceivableDebtorsSummary: {
+            /**
+             * Debtor Count
+             * @description Deudores filtrados, sin paginar.
+             */
+            debtor_count: number;
+            /**
+             * Document Count
+             * @description Documentos filtrados, sin paginar.
+             */
+            document_count: number;
+            /** Totals */
+            totals: components["schemas"]["ReceivableDebtorCurrencyTotal"][];
+        };
+        /** ReceivableNetBridge */
+        ReceivableNetBridge: {
+            /** Ceded Excluded Total */
+            ceded_excluded_total: string | null;
+            /** Collectable Total */
+            collectable_total: string | null;
+            /** Credit Total */
+            credit_total: string | null;
+            /** Currency */
+            currency: string | null;
+            /**
+             * Currency Status
+             * @enum {string}
+             */
+            currency_status: "known" | "unknown";
+            /** Gross With Ceded Total */
+            gross_with_ceded_total: string | null;
+            /** Net Collectable Total */
+            net_collectable_total: string | null;
+        };
+        /**
+         * ReceivablePortfolioCounts
+         * @description Partición disjunta del universo vivo antes de filtros de la pantalla.
+         */
+        ReceivablePortfolioCounts: {
+            /** Ceded Document Count */
+            ceded_document_count: number;
+            /** Collectable Document Count */
+            collectable_document_count: number;
+            /** Credit Note Document Count */
+            credit_note_document_count: number;
+            /** Non Positive Document Count */
+            non_positive_document_count: number;
+            /** Source Document Count */
+            source_document_count: number;
+            /** Unresolved Identity Document Count */
+            unresolved_identity_document_count: number;
+        };
+        /** ReceivablePortfolioPartition */
+        ReceivablePortfolioPartition: {
+            /** Document Count */
+            document_count: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "collectable" | "credit" | "ceded";
+            /** Totals */
+            totals: components["schemas"]["ReceivableDebtorCurrencyTotal"][];
+        };
+        /** ReceivableRankingBridge */
+        ReceivableRankingBridge: {
+            /** Currency */
+            currency: string | null;
+            /**
+             * Currency Status
+             * @enum {string}
+             */
+            currency_status: "known" | "unknown";
+            /** Debtor Count */
+            debtor_count: number;
+            /** Directory Total */
+            directory_total: string | null;
+            /** Remainder Total */
+            remainder_total: string | null;
+            /** Top Five Total */
+            top_five_total: string | null;
+            /**
+             * Top Limit
+             * @constant
+             */
+            top_limit: 5;
+        };
         /** ReconcileResponse */
         ReconcileResponse: {
             /**
@@ -20584,6 +21979,21 @@ export interface components {
             notes?: string | null;
         };
         /**
+         * RequiredSourceCoverage
+         * @description Hecho autoritativo de disponibilidad/frescura inyectado por el adapter futuro.
+         */
+        RequiredSourceCoverage: {
+            /** Reason Codes */
+            reason_codes: string[];
+            /** Source */
+            source: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "current" | "missing" | "stale" | "partial" | "error";
+        };
+        /**
          * ResendVerificationRequest
          * @description Body de `POST /api/auth/resend-verification` (onboarding O-1.b).
          */
@@ -20907,6 +22317,215 @@ export interface components {
             status: string;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * SalesFloorEstimateResponse
+         * @description Piso histórico de ventas; no afirma equilibrio económico.
+         */
+        SalesFloorEstimateResponse: {
+            /** As Of */
+            as_of: string;
+            /** Assumptions */
+            assumptions: string[];
+            /** Business Date */
+            business_date: string;
+            /**
+             * Can Claim Economic Break Even
+             * @default false
+             * @constant
+             */
+            can_claim_economic_break_even: false;
+            /**
+             * Coverage
+             * @enum {string}
+             */
+            coverage: "complete" | "partial" | "abstained";
+            /**
+             * Currency
+             * @default CLP
+             * @constant
+             */
+            currency: "CLP";
+            /**
+             * Definition Id
+             * @default sales_floor_estimate.v1
+             * @constant
+             */
+            definition_id: "sales_floor_estimate.v1";
+            /** Expense Period */
+            expense_period: string;
+            /**
+             * Formula
+             * @default sum(observed_expense_lines) * expense_scenario
+             * @constant
+             */
+            formula: "sum(observed_expense_lines) * expense_scenario";
+            /** Point Estimate */
+            point_estimate: string | null;
+            /**
+             * Precision
+             * @default CLP: 1
+             * @constant
+             */
+            precision: "CLP: 1";
+            /** Reason Codes */
+            reason_codes?: ("period_empty" | "required_source_incomplete" | "non_positive_observed_expenses")[];
+            /** Sensitivity */
+            sensitivity: components["schemas"]["SalesFloorSensitivity"][];
+            /**
+             * Snapshot Consistency
+             * @default repeatable_read
+             * @constant
+             */
+            snapshot_consistency: "repeatable_read";
+            /** Source Periods */
+            source_periods?: components["schemas"]["EstimateSourcePeriod"][];
+            /**
+             * Timezone
+             * @default America/Santiago
+             * @constant
+             */
+            timezone: "America/Santiago";
+            /**
+             * Version
+             * @default v1.2026-09-13
+             * @constant
+             */
+            version: "v1.2026-09-13";
+        };
+        /** SalesFloorSensitivity */
+        SalesFloorSensitivity: {
+            /**
+             * Expense Change Pct
+             * @enum {integer}
+             */
+            expense_change_pct: -10 | 0 | 10;
+            /** Sales Floor */
+            sales_floor: string;
+        };
+        /** SaludDriver */
+        SaludDriver: {
+            /** Description */
+            description?: string | null;
+            /** Direction */
+            direction?: string | null;
+            /** Impact Points */
+            impact_points?: number | null;
+            /** Reason Code */
+            reason_code: string;
+            /** Severity */
+            severity?: string | null;
+            /** Subindex Code */
+            subindex_code?: string | null;
+        };
+        /** SaludQualityItem */
+        SaludQualityItem: {
+            /** Code */
+            code: string;
+            /** Detail */
+            detail?: unknown | null;
+            /** Value */
+            value: number;
+            /** Weight */
+            weight?: number | null;
+        };
+        /** SaludResponse */
+        SaludResponse: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            pulso: components["schemas"]["SaludScoreSnapshot"] | null;
+            qhs: components["schemas"]["SaludScoreSnapshot"] | null;
+            scope: components["schemas"]["SaludScope"];
+        };
+        /** SaludScope */
+        SaludScope: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Legal Entity Provenance */
+            legal_entity_provenance: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+        };
+        /** SaludScoreSnapshot */
+        SaludScoreSnapshot: {
+            /** Band */
+            band: string;
+            /** Data Confidence */
+            data_confidence?: number | null;
+            /**
+             * Definitive
+             * @description Sólo true cuando el snapshot puede presentarse como definitivo. Para QHS exige cinco subíndices con pesos de la policy activa, Data Confidence suficiente y evidencia positiva de evaluación de los guardrails PULSO 30d y persistencia GEN.
+             */
+            definitive: boolean;
+            /** Drivers */
+            drivers?: components["schemas"]["SaludDriver"][];
+            /**
+             * Instrument
+             * @enum {string}
+             */
+            instrument: "pulso" | "qhs";
+            /** Knockout Code */
+            knockout_code?: string | null;
+            /** Model Version */
+            model_version: string;
+            /** Preliminary */
+            preliminary: boolean;
+            /** Quality */
+            quality?: components["schemas"]["SaludQualityItem"][];
+            /** Score */
+            score: number;
+            /**
+             * Score Date
+             * Format: date
+             */
+            score_date: string;
+            /** Subindices */
+            subindices?: components["schemas"]["SaludSubindex"][];
+            /** Trend */
+            trend?: components["schemas"]["SaludTrendPoint"][];
+            /** Trend Delta */
+            trend_delta?: number | null;
+        };
+        /** SaludSubindex */
+        SaludSubindex: {
+            /** Band */
+            band?: string | null;
+            /** Code */
+            code: string;
+            /** Value */
+            value: number;
+            /** Weight */
+            weight: number;
+        };
+        /** SaludTrendPoint */
+        SaludTrendPoint: {
+            /** Band */
+            band: string;
+            /** Preliminary */
+            preliminary: boolean;
+            /** Score */
+            score: number;
+            /**
+             * Score Date
+             * Format: date
+             */
+            score_date: string;
         };
         /**
          * Scenario
@@ -21876,6 +23495,26 @@ export interface components {
              */
             sources: components["schemas"]["SourceStatusResponse"][];
         };
+        /** StatementCoverage */
+        StatementCoverage: {
+            /**
+             * Decision Support
+             * @enum {string}
+             */
+            decision_support: "eligible" | "abstain";
+            /** Omitted Count */
+            omitted_count: number;
+            /**
+             * Reason Codes
+             * @default []
+             */
+            reason_codes: ("unvalued_period_lines" | "required_source_stale" | "required_source_missing" | "required_source_partial" | "required_source_error")[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "complete" | "partial";
+        };
         /** StatusResponse */
         StatusResponse: {
             /**
@@ -22164,6 +23803,19 @@ export interface components {
              */
             tipo: string;
         };
+        /** TaxIdEvidenceState */
+        TaxIdEvidenceState: {
+            /**
+             * Sentinel Registry Version
+             * @description Registry D08 aplicado antes de validar el dígito verificador.
+             */
+            sentinel_registry_version: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "not_evaluated" | "absent" | "detected_invalid" | "detected_valid" | "foreign_placeholder" | "multiple";
+        };
         /** TenantResponse */
         TenantResponse: {
             /** Activity Start Date */
@@ -22423,6 +24075,15 @@ export interface components {
              * @description RUT contraparte (del devengado); null si falta.
              */
             rut?: string | null;
+            /** Total */
+            total: string;
+        };
+        /** UnclassifiedComposition */
+        UnclassifiedComposition: {
+            /** Foreign Purchases */
+            foreign_purchases: string;
+            /** Obligations */
+            obligations: string;
             /** Total */
             total: string;
         };
@@ -28492,6 +30153,46 @@ export interface operations {
             };
         };
     };
+    management_operational_result_v2: {
+        parameters: {
+            query: {
+                /** @description Entidad legal canónica del scope V14. */
+                legal_entity_id: string;
+                /** @description Corte V14 YYYY-MM-DD. */
+                as_of: string;
+                horizon_days?: number;
+                currency?: string;
+                /** @description Snapshot sellado exacto; sin valor usa el último del mismo scope. */
+                snapshot_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Statement V2 o abstención explícita si el snapshot no acredita el cálculo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OperationalResultV2Response"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     management_pulso_detail: {
         parameters: {
             query?: {
@@ -28513,6 +30214,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PulsoDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    management_pulso_score_reading: {
+        parameters: {
+            query?: {
+                /** @description Foco de lectura. El score base y su estado nunca se reemplazan. */
+                objetivo?: "equilibrado" | "cuidar_caja" | "cumplir_pagos" | "crecer";
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Score base y lectura enfocada sobre el mismo snapshot; se abstiene explícitamente si el scope económico no es demostrable. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulsoScoreReadingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    management_salud_detail: {
+        parameters: {
+            query: {
+                /** @description Entidad legal explícita del scope financiero. */
+                legal_entity_id: string;
+                /** @description Moneda ISO 4217 explícita del scope; no existe fallback a CLP. */
+                currency: string;
+                /** @description Fecha de corte explícita; nunca se infieren datos posteriores. */
+                as_of: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaludResponse"];
                 };
             };
             /** @description Validation Error */
@@ -31886,7 +33659,20 @@ export interface operations {
     };
     treasury_accounts_payable: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Cursor opaco keyset ligado al tenant, filtros y snapshot. Ausente inicia la primera página; uno inválido, vencido o mayor a 2048 caracteres falla con `invalid_cursor`. */
+                cursor?: string | null;
+                limit?: number;
+                category?: ("supplier" | "tax" | "payroll" | "rent" | "debt" | "leasing" | "other") | null;
+                /** @description Proximidad de `PayableItem`: high ≤7d, medium 8..14d, low >14d. No equivale al agregado de no postergables. */
+                criticality?: ("high" | "medium" | "low") | null;
+                /** @description Vencimiento desde, inclusivo. */
+                due_from?: string | null;
+                /** @description Vencimiento hasta, inclusivo. */
+                due_to?: string | null;
+                state?: ("open" | "partially_paid") | null;
+                search?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -31904,14 +33690,12 @@ export interface operations {
                     "application/json": components["schemas"]["AccountsPayableResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Filtros inválidos o cursor ajeno, alterado o vencido. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
@@ -32033,6 +33817,52 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    treasury_accounts_receivable_debtors: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+                search?: string | null;
+                state?: "collectable" | "credit" | "ceded" | "all";
+                due_state?: ("overdue" | "current" | "undated") | null;
+                document_status?: ("open" | "partially_paid") | null;
+                currency?: string | null;
+                currency_status?: ("known" | "unknown") | null;
+                sort?: "name_asc" | "name_desc" | "document_count_desc" | "total_desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceivableDebtorsResponse"];
+                };
+            };
+            /** @description El grafo canónico D08 no tiene cobertura completa o el snapshot cambió. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cursor ajeno, alterado o incompatible con los filtros. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -32831,6 +34661,39 @@ export interface operations {
             };
         };
     };
+    treasury_cash_cycle_estimate: {
+        parameters: {
+            query?: {
+                window_months?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashCycleEstimateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_cash_minimum_get: {
         parameters: {
             query?: never;
@@ -32952,6 +34815,156 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    create_cash_projection_run: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CashProjectionRunCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Exact replay. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashProjectionRunResponse"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashProjectionRunResponse"];
+                };
+            };
+            /** @description Idempotency key reused for another request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "idempotency_key_reused"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
+                };
+            };
+            /** @description Invalid request or header. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "invalid_idempotency_key"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
+                };
+            };
+            /** @description No accredited V14 generation is available. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "cash_projection_snapshot_unavailable"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
+                };
+            };
+        };
+    };
+    get_cash_projection_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashProjectionRunResponse"];
+                };
+            };
+            /** @description Run absent or outside the authenticated tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "cash_projection_run_not_found"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Projection ledger unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "cash_projection_store_unavailable"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
+                };
             };
         };
     };
@@ -33648,7 +35661,12 @@ export interface operations {
     };
     treasury_payment_plan: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Immutable run; must be paired with scenario_id. */
+                projection_run_id?: string | null;
+                /** @description Scenario persisted inside projection_run_id. */
+                scenario_id?: ("scheduled_expected_v1" | "outflows_only_v1" | "scheduled_with_arrears_recovery_v1" | "scheduled_with_recurring_income_v1") | null;
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -33666,13 +35684,52 @@ export interface operations {
                     "application/json": components["schemas"]["DecisionPlanResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Projection run absent or outside the authenticated tenant. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "cash_projection_run_not_found"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
+                };
+            };
+            /** @description Run and scenario must be supplied together. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "projection_run_and_scenario_are_required_together"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
+                };
+            };
+            /** @description Projection run ledger unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "detail": {
+                     *         "code": "cash_projection_store_unavailable"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CashProjectionErrorResponse"];
                 };
             };
         };
@@ -35466,6 +37523,39 @@ export interface operations {
             };
         };
     };
+    treasury_payroll_evidence_period_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                period: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPeriodEvidenceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_payroll_payday_get: {
         parameters: {
             query?: never;
@@ -37052,6 +39142,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    treasury_sales_floor_estimate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesFloorEstimateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

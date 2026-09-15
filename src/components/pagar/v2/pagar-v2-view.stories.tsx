@@ -2,12 +2,11 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, expect, waitFor } from "storybook/test";
 import { PagarV2View, type PagarMovible } from "./pagar-v2-view";
 import { PagarHero } from "./pagar-hero";
-import { BrechaCaja } from "./brecha-caja";
 import { FechasClaveMes } from "./fechas-clave-mes";
 import { VencimientosTimeline } from "./vencimientos-timeline";
 import { ConcentracionClientes } from "@/components/sii/libro-v2/concentracion-clientes";
 
-/* Pantalla de Pagar v2 ensamblada: respuesta de dueño (hero + brecha + secundarios) +
+/* Pantalla de Pagar v2 ensamblada: respuesta de dueño (hero + estado de caja + secundarios) +
    "Las 3 del mes" (baranda) + cajas movibles (vencimientos + mayores compromisos). */
 
 const meta = {
@@ -134,22 +133,23 @@ export const Completa: Story = {
       <PagarHero
         titulo="La empresa debe pagar"
         montoTotal={34_525_000}
-        cobertura={
-          <>
-            La caja no alcanza: faltan <b>$8.700.000</b> para los pagos críticos de 14 días.
-          </>
-        }
+        cobertura="La caja cae bajo cero dentro de 14 días · brecha máxima $8.700.000."
         coberturaTono="bad"
-        subtitulo="5 vencimientos esta semana · 1 vencido"
+        subtitulo="128 obligaciones con vencimiento · se muestran las más próximas"
       />
     ),
-    brecha: (
-      <BrechaCaja
-        cajaProyectada={9_400_000}
-        pagosCriticos={18_100_000}
-        dias={14}
-        postergable={5_500_000}
-      />
+    /* El slot lo llena el panel del run canónico del backend (`CashProjectionRunPanel`), que
+       necesita datos vivos. En la story va un marcador de posición: la maqueta fija el layout,
+       no vuelve a derivar saldo, mínimo ni brecha. */
+    estadoCaja: (
+      <section className="p-5" aria-label="Estado de caja y obligaciones">
+        <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+          Caja para decidir pagos · 14 días
+        </p>
+        <p className="mt-2 text-[12.5px] text-neutral-mid">
+          La lectura de caja la publica el servidor en la pantalla real.
+        </p>
+      </section>
     ),
     secundarios,
     fechasClave: (
@@ -191,8 +191,13 @@ export const Completa: Story = {
     await waitFor(() => expect(canvas.getByText("$34.525.000")).toBeInTheDocument(), {
       timeout: 3000,
     });
-    // Brecha + las 3 del mes.
-    await expect(canvas.getByText(/es postergable/)).toBeInTheDocument();
+    /* La lectura de caja ocupa su propio slot y la publica el servidor en la pantalla real
+       (panel del run canónico): la maqueta sólo fija que el slot existe y dónde va. */
+    await expect(canvas.getByText("Caja para decidir pagos · 14 días")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("La lectura de caja la publica el servidor en la pantalla real."),
+    ).toBeInTheDocument();
+    // Las obligaciones clave del detalle visible siguen en su bloque destacado.
     await expect(canvas.getByText("Imposiciones · Previred")).toBeInTheDocument();
     // Cajas movibles: vencimientos + mayores compromisos, con asa.
     await expect(canvas.getByText("Por vencer y vencidos")).toBeInTheDocument();

@@ -1,11 +1,14 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Inicio V01 activo en producción. Valida que el saldo conserve su fuente y frescura, y que una
-   proyección no disponible se presente como dato pendiente con una salida útil. */
+/* Flujo — Inicio (/inicio), V01 activo en producción. Valida tres cosas a la vez: que el saldo
+   conserve su fuente y su frescura; que la decisión de caja venga del run canónico H=14 con
+   saldo final, mínimo y brecha contra cero como hechos DISTINTOS del servidor (nunca la resta
+   legacy obligaciones−caja); y que una proyección que no llegó se presente como "sin dato" con
+   una salida útil, jamás como $0. */
 
 test.describe("Flujo: Inicio (/inicio)", () => {
-  test("muestra saldo con contexto y declara honestamente la proyección pendiente", async ({
+  test("publica el run canónico H=14 y declara honestamente la proyección pendiente", async ({
     page,
     context,
   }) => {
@@ -16,6 +19,13 @@ test.describe("Flujo: Inicio (/inicio)", () => {
     await expect(page.getByText("$9.800.000").first()).toBeVisible();
     await expect(page.getByText("CLP · Resumen financiero")).toBeVisible();
     await expect(page.getByText(/Banco actualizado hace \d+ días/)).toBeVisible();
+
+    const panel = page.locator("[data-projection-run]").first();
+    await expect(panel.getByText(/14 días · CLP/)).toBeVisible();
+    await expect(panel.getByText("Saldo final")).toBeVisible();
+    await expect(panel.getByText(/Mínimo · 2026-09-12/)).toBeVisible();
+    await expect(panel.getByText("Brecha contra cero")).toBeVisible();
+    await expect(page.getByText(/Te faltan \$1\.200\.000/)).toHaveCount(0);
 
     const projection = page.getByRole("region", { name: "Faltante proyectado" });
     await expect(projection.getByText("Sin dato", { exact: true })).toBeVisible();

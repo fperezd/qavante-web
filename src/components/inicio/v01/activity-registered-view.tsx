@@ -17,7 +17,7 @@ export function ActivityRegisteredView({
   onRetry,
 }: ActivityRegisteredViewProps) {
   if (loading) {
-    return <p className="text-sm text-neutral-mid">Cargando actividad registrada (~2 s).</p>;
+    return <p className="text-sm text-neutral-mid">Estamos cargando la actividad registrada.</p>;
   }
   if (error) {
     return (

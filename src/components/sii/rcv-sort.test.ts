@@ -76,7 +76,16 @@ describe("rcv-sort · sortGroupedItems / docOf", () => {
         sobreCredito: false,
       },
     },
-    { t: "nc", doc: { folio: 1, complete: true, total: 100 } },
+    {
+      t: "nc",
+      doc: { folio: 1, complete: true, total: 100 },
+      association: {
+        nota: { folio: 1, complete: true, total: 100 },
+        status: "unresolved",
+        candidateFolios: [],
+        reason: "no_candidate",
+      },
+    },
   ];
   it("docOf extrae la factura o la NC huérfana", () => {
     expect(docOf(items[0]!).folio).toBe(2);

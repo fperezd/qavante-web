@@ -529,7 +529,7 @@ describe("bitácora de auto-clasificación (Ley 5)", () => {
     expect(interpretarDeshacer(revert({ result: "undo_expired" }))).toEqual({ tipo: "vencido" });
   });
 
-  it("LA COMPUERTA: estado_derivado y estado_bloqueado son DOS `tipo` distintos, cada uno con el texto del backend — no un 'no se pudo deshacer' genérico", () => {
+  it("LA COMPUERTA: estado_derivado y estado_bloqueado son DOS `tipo` distintos con copy local cerrado", () => {
     const derivado = interpretarDeshacer(
       revert({
         result: "undo_not_supported",
@@ -550,15 +550,29 @@ describe("bitácora de auto-clasificación (Ley 5)", () => {
     );
     expect(derivado).toEqual({
       tipo: "protegido",
-      explicacion: "Algo cambió después de esta acción: no se tocó nada.",
+      explicacion:
+        "Algo cambió después de esta clasificación automática (probablemente la reclasificaste tú). Ese cambio sigue en pie: no se tocó nada.",
     });
     expect(bloqueado).toEqual({
       tipo: "bloqueado",
-      explicacion: "Otra operación está modificando esto mismo. No se tocó nada.",
+      explicacion:
+        "Otra operación está usando este movimiento justo ahora. No se tocó nada; puedes reintentar en unos segundos.",
     });
     // El positivo gemelo del assert que de verdad importa: si algún día alguien colapsa las
     // dos ramas en un solo `tipo`, este `expect` es el que se rompe.
     expect(derivado.tipo).not.toBe(bloqueado.tipo);
+  });
+
+  it("ignora explicacion libre del payload 200 aun con un motivo reconocido", () => {
+    const secreto = "Bearer secret-token SELECT * FROM users /api/internal";
+    const resultado = interpretarDeshacer(
+      revert({
+        result: "undo_not_supported",
+        detail: { motivo: "estado_derivado", explicacion: secreto },
+      }),
+    );
+    expect(resultado).toMatchObject({ tipo: "protegido" });
+    if (resultado.tipo === "protegido") expect(resultado.explicacion).not.toContain(secreto);
   });
 
   it("protegido NO es lo mismo que bloqueado tampoco a la inversa (gemelo positivo del anterior)", () => {

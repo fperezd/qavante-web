@@ -14,7 +14,7 @@ export default async function Page({
   const { movement, account } = await searchParams;
   const { bancoScreen, bancoV03 } = resolveFeatureFlags();
 
-  /* V03 · Banco (rediseño Fase 2, issue #68) — gated por `bancoV03`, HOY APAGADO. Reemplaza la
+  /* V03 · Banco (rediseño Fase 2, issue #68) — gated por `bancoV03`, HOY ENCENDIDO en producción (`wrangler.toml`). Reemplaza la
      pantalla entera por la vista de la spec ("Tus cuentas y tarjetas"). Con OFF nada de abajo
      cambia (cero regresión). */
   if (bancoV03) {

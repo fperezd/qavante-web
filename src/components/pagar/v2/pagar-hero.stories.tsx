@@ -24,19 +24,17 @@ export const NoAlcanza: Story = {
   args: {
     titulo: "La empresa debe pagar",
     montoTotal: 34_525_000,
-    cobertura: (
-      <>
-        La caja no alcanza: faltan <b>$8.700.000</b> para los pagos críticos de 14 días.
-      </>
-    ),
+    cobertura: "La caja cae bajo cero dentro de 14 días · brecha máxima $8.700.000.",
     coberturaTono: "bad",
-    subtitulo: "5 vencimientos esta semana · 1 vencido",
+    subtitulo: "128 obligaciones con vencimiento · se muestran las más próximas",
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("La empresa debe pagar")).toBeInTheDocument();
-    await waitFor(() => expect(canvas.getByText("$34.525.000")).toBeInTheDocument(), { timeout: 3000 });
-    await expect(canvas.getByText(/La caja no alcanza/)).toBeInTheDocument();
+    await waitFor(() => expect(canvas.getByText("$34.525.000")).toBeInTheDocument(), {
+      timeout: 3000,
+    });
+    await expect(canvas.getByText(/La caja cae bajo cero/)).toBeInTheDocument();
   },
 };
 
@@ -44,7 +42,7 @@ export const Cubre: Story = {
   args: {
     titulo: "La empresa debe pagar",
     montoTotal: 12_300_000,
-    cobertura: "La caja proyectada cubre los pagos críticos de los próximos 14 días.",
+    cobertura: "La caja se mantiene sobre cero y cubre los vencimientos críticos conocidos.",
     coberturaTono: "ok",
     subtitulo: "3 vencimientos esta semana",
   },

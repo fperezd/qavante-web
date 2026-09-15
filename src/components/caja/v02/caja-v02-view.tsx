@@ -84,6 +84,8 @@ export interface CajaV02ViewProps {
   suppressRecommendations?: boolean;
   /** Referencia de "hoy". Explícita para tests y stories deterministas. */
   hoy?: Date;
+  /** D03: reemplaza íntegramente las secciones derivadas del endpoint legacy. */
+  canonicalProjection?: React.ReactNode;
 }
 
 const LINK =
@@ -101,6 +103,7 @@ export function CajaV02View({
   onPostpone,
   suppressRecommendations = false,
   hoy = new Date(),
+  canonicalProjection,
 }: CajaV02ViewProps) {
   const caja = cajaHoy(summary);
   const hoyKpi = kpiHoy(caja, bancos, hoy);
@@ -219,104 +222,108 @@ export function CajaV02View({
         </Banner>
       )}
 
-      {/* (3) Barras de 4 semanas + ¿cómo se calcula? */}
-      <section aria-labelledby="caja-semanas" className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2
-            id="caja-semanas"
-            className="font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3"
-          >
-            Próximas {SEMANAS} semanas
-          </h2>
-          <ComoSeCalcula info={calculo} />
-        </div>
-        {barras.length > 0 ? (
-          <Barras semanas={barras} rojoEnPiso={piso?.bajoCero === true} />
-        ) : (
-          <DataState
-            status="error"
-            what="la proyección de caja"
-            cause={
-              proyeccionMotivo ??
-              (caja.monto == null
-                ? "Sin el saldo del banco no hay punto de partida: no proyectamos una curva desde $0."
-                : "La proyección no trajo una serie de saldos.")
-            }
-            action={{ label: "Revisar conexiones", href: "/conexiones" }}
-          />
-        )}
-      </section>
-
-      {/* (4) Qué te lleva al punto más bajo */}
-      {piso && (
-        <section aria-labelledby="caja-piso" className="space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2
-              id="caja-piso"
-              className="font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3"
-            >
-              {suppressRecommendations ? (
-                "Pagos registrados en la proyección"
-              ) : (
-                <>
-                  Qué te lleva al punto más bajo · {piso.fechaLabel} ·{" "}
-                  <span className="font-rediseno-sans normal-case tracking-normal tabular-nums text-rediseno-tinta">
-                    {formatClp(piso.saldo)}
-                  </span>
-                </>
-              )}
-            </h2>
-            {!suppressRecommendations && (
-              <Link href="/pagar" className={cn(LINK, "text-[12.5px]")}>
-                Ver todos los pagos
-              </Link>
+      {canonicalProjection ?? (
+        <>
+          {/* (3) Barras de 4 semanas + ¿cómo se calcula? */}
+          <section aria-labelledby="caja-semanas" className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2
+                id="caja-semanas"
+                className="font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3"
+              >
+                Próximas {SEMANAS} semanas
+              </h2>
+              <ComoSeCalcula info={calculo} />
+            </div>
+            {barras.length > 0 ? (
+              <Barras semanas={barras} rojoEnPiso={piso?.bajoCero === true} />
+            ) : (
+              <DataState
+                status="error"
+                what="la proyección de caja"
+                cause={
+                  proyeccionMotivo ??
+                  (caja.monto == null
+                    ? "Sin el saldo del banco no hay punto de partida: no proyectamos una curva desde $0."
+                    : "La proyección no trajo una serie de saldos.")
+                }
+                action={{ label: "Revisar conexiones", href: "/conexiones" }}
+              />
             )}
-          </div>
-          <p className="text-[12.5px] text-rediseno-tinta-3">
-            {suppressRecommendations
-              ? "Estos pagos son parte de la proyección publicada y respaldan la decisión de caja."
-              : quiebre
-                ? `Los mayores pagos hasta que la caja cruza tu mínimo (el ${quiebre}).`
-                : "Tu caja no cruza tu mínimo en el horizonte: la proyección no nombra causas."}
-          </p>
-          {causas.length > 0 && (
-            <RedisenoTable
-              columns={columnasCausas(onPostpone, {
-                showDecisionSignals: !suppressRecommendations,
-              })}
-              data={causas}
-              emptyMessage="La proyección no nombra pagos para este punto."
-            />
-          )}
-          {suppressRecommendations ? (
-            <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-              El detalle se muestra como respaldo de la proyección; las alternativas están arriba en
-              la decisión de caja.
-            </p>
-          ) : (
-            <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-              Postergar mueve la fecha comprometida 7, 15 o 30 días y refresca la proyección. La
-              acción espera cinco segundos para que puedas cancelarla; impuestos, remuneraciones y
-              causas sin identidad segura se gestionan desde Pagar.
-            </p>
-          )}
-        </section>
-      )}
+          </section>
 
-      {/* (5) Footer: exclusiones del cálculo */}
-      <footer className="border-t border-rediseno-hairline pt-3 text-[12.5px] text-rediseno-tinta-3">
-        {fuera.length > 0 ? (
-          <ul className="space-y-0.5">
-            {fuera.map((linea) => (
-              <li key={linea}>{linea}</li>
-            ))}
-          </ul>
-        ) : proyeccion ? (
-          <p>La proyección no declara exclusiones para tu empresa.</p>
-        ) : (
-          <p>Sin proyección no hay exclusiones que declarar.</p>
-        )}
-      </footer>
+          {/* (4) Qué te lleva al punto más bajo */}
+          {piso && (
+            <section aria-labelledby="caja-piso" className="space-y-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2
+                  id="caja-piso"
+                  className="font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3"
+                >
+                  {suppressRecommendations ? (
+                    "Pagos registrados en la proyección"
+                  ) : (
+                    <>
+                      Qué te lleva al punto más bajo · {piso.fechaLabel} ·{" "}
+                      <span className="font-rediseno-sans normal-case tracking-normal tabular-nums text-rediseno-tinta">
+                        {formatClp(piso.saldo)}
+                      </span>
+                    </>
+                  )}
+                </h2>
+                {!suppressRecommendations && (
+                  <Link href="/pagar" className={cn(LINK, "text-[12.5px]")}>
+                    Ver todos los pagos
+                  </Link>
+                )}
+              </div>
+              <p className="text-[12.5px] text-rediseno-tinta-3">
+                {suppressRecommendations
+                  ? "Estos pagos son parte de la proyección publicada y respaldan la decisión de caja."
+                  : quiebre
+                    ? `Los mayores pagos hasta que la caja cruza tu mínimo (el ${quiebre}).`
+                    : "Tu caja no cruza tu mínimo en el horizonte: la proyección no nombra causas."}
+              </p>
+              {causas.length > 0 && (
+                <RedisenoTable
+                  columns={columnasCausas(onPostpone, {
+                    showDecisionSignals: !suppressRecommendations,
+                  })}
+                  data={causas}
+                  emptyMessage="La proyección no nombra pagos para este punto."
+                />
+              )}
+              {suppressRecommendations ? (
+                <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
+                  El detalle se muestra como respaldo de la proyección; las alternativas están
+                  arriba en la decisión de caja.
+                </p>
+              ) : (
+                <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
+                  Postergar mueve la fecha comprometida 7, 15 o 30 días y refresca la proyección. La
+                  acción espera cinco segundos para que puedas cancelarla; impuestos, remuneraciones
+                  y causas sin identidad segura se gestionan desde Pagar.
+                </p>
+              )}
+            </section>
+          )}
+
+          {/* (5) Footer: exclusiones del cálculo */}
+          <footer className="border-t border-rediseno-hairline pt-3 text-[12.5px] text-rediseno-tinta-3">
+            {fuera.length > 0 ? (
+              <ul className="space-y-0.5">
+                {fuera.map((linea) => (
+                  <li key={linea}>{linea}</li>
+                ))}
+              </ul>
+            ) : proyeccion ? (
+              <p>La proyección no declara exclusiones para tu empresa.</p>
+            ) : (
+              <p>Sin proyección no hay exclusiones que declarar.</p>
+            )}
+          </footer>
+        </>
+      )}
     </div>
   );
 }

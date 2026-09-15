@@ -724,8 +724,8 @@ export type ResultadoDeshacerV07 =
  *
  * LA COMPUERTA que pide el issue #90: colapsar `estado_derivado` y `estado_bloqueado` en un "no
  * se pudo deshacer" genérico es el default plausible que la política prohíbe. Acá es literal: un
- * `tipo` DISTINTO para cada uno, con el texto que manda el backend (no uno inventado en el FE) y
- * sólo un texto por defecto si `detail.explicacion` no vino.
+ * `tipo` DISTINTO para cada uno y copy local cerrado; la prosa libre del transporte nunca cruza
+ * a la vista.
  */
 export function interpretarDeshacer(resp: RevertActionResponse): ResultadoDeshacerV07 {
   switch (resp.result) {
@@ -737,13 +737,11 @@ export function interpretarDeshacer(resp: RevertActionResponse): ResultadoDeshac
       return { tipo: "vencido" };
     case "undo_not_supported": {
       const motivo = typeof resp.detail?.motivo === "string" ? resp.detail.motivo : null;
-      const explicacion =
-        typeof resp.detail?.explicacion === "string" ? resp.detail.explicacion : null;
       if (motivo === MOTIVO_ESTADO_DERIVADO) {
-        return { tipo: "protegido", explicacion: explicacion ?? EXPLICACION_DERIVADO_POR_DEFECTO };
+        return { tipo: "protegido", explicacion: EXPLICACION_DERIVADO_POR_DEFECTO };
       }
       if (motivo === MOTIVO_ESTADO_BLOQUEADO) {
-        return { tipo: "bloqueado", explicacion: explicacion ?? EXPLICACION_BLOQUEADO_POR_DEFECTO };
+        return { tipo: "bloqueado", explicacion: EXPLICACION_BLOQUEADO_POR_DEFECTO };
       }
       return { tipo: "no-reconocido" };
     }

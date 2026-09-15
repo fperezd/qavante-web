@@ -18,11 +18,19 @@ export interface ActivityLogViewProps {
   idPrefix?: string;
 }
 
-function mensajeDeshacer(result: RevertActionResponse): string {
+export function mensajeDeshacer(result: RevertActionResponse): string {
   if (result.result === "reverted") return "Acción deshecha.";
   if (result.result === "already_reverted") return "Esta acción ya estaba deshecha.";
   if (result.result === "undo_expired") return "El plazo para deshacer esta acción venció.";
   if (result.result === "undo_not_supported") {
+    /* `motivo` es un código enumerado por el productor (`estado_derivado` / `estado_bloqueado`),
+       no prosa libre: se traduce a copy fijo, nunca se refleja el texto recibido. */
+    if (result.detail?.motivo === "estado_derivado") {
+      return "Algo cambió después de esta acción. No se tocó nada.";
+    }
+    if (result.detail?.motivo === "estado_bloqueado") {
+      return "Otra operación está usando este movimiento. No se tocó nada; vuelve a intentarlo.";
+    }
     return "No pudimos confirmar que esta acción aún se pueda deshacer.";
   }
   return "No pudimos confirmar el resultado de Deshacer.";
@@ -55,9 +63,7 @@ export function ActivityLogView({
   }
 
   if (loading) {
-    return (
-      <p className="text-sm text-neutral-mid">Estamos buscando lo que Qavante hizo solo (~2 s).</p>
-    );
+    return <p className="text-sm text-neutral-mid">Estamos buscando lo que Qavante hizo solo.</p>;
   }
   if (error) {
     return (

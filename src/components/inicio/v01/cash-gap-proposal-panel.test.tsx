@@ -81,7 +81,8 @@ describe("CashGapProposalPanel", () => {
       renderToStaticMarkup(<CashGapProposalPanel loading={false} proposals={proposals} />),
     );
 
-    expect(rendered).toContain("BANCO BICE · Factura 3218763 · vence primero");
+    expect(rendered).toContain("BANCO BICE · Factura 3218763");
+    expect(rendered).not.toContain("vence primero");
     expect(rendered).not.toMatch(EM_DASH);
     expect(proposals[0]?.targets[0]?.label).toBe(rawLabel);
   });
@@ -102,7 +103,8 @@ describe("CashGapProposalPanel", () => {
               {
                 label: "Remuneraciones de agosto",
                 amount: "7400000",
-                reason: "vence primero",
+                /* Prosa cruda del transporte: el panel NO puede reflejarla. */
+                reason: "Bearer secret-token SELECT * FROM users /api/internal",
                 due_date_certainty: "confirmed" as const,
               },
             ],
@@ -128,8 +130,11 @@ describe("CashGapProposalPanel", () => {
     expect(rendered).toContain("Negociar pagos críticos");
     expect(rendered).toContain("$1.121.250");
     expect(rendered).toContain("Límites informados");
-    expect(rendered).toContain("source_stale:sii_rcv");
-    expect(rendered).toContain("Remuneraciones de agosto · vence primero");
+    expect(rendered).toContain("Una o más fuentes pueden estar desactualizadas.");
+    expect(rendered).not.toContain("source_stale:sii_rcv");
+    expect(rendered).toContain("Remuneraciones de agosto");
+    expect(rendered).not.toContain("Bearer secret-token");
+    expect(rendered).not.toContain("/api/internal");
     expect(html).toContain('href="/pagar"');
     expect(rendered).not.toContain("Remuneraciones de agosto · $7.400.000");
   });
@@ -169,7 +174,8 @@ describe("CashGapProposalPanel", () => {
     );
     const rendered = text(html);
     expect(rendered).toContain("Sin monto publicable");
-    expect(rendered).toContain("missing_due_dates");
+    expect(rendered).toContain("Faltan fechas de vencimiento para completar la evaluación.");
+    expect(rendered).not.toContain("missing_due_dates");
     expect(rendered).not.toContain("$120.000");
   });
 });

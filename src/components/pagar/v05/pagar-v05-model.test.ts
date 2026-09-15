@@ -3,7 +3,6 @@ import { formatMoney } from "@/lib/formatters/clp";
 import { sale14d } from "@/components/caja/v02/caja-v02-model";
 import {
   LEY_9_TEXTO,
-  bannerPostergables,
   coincideConsulta,
   contarPagos,
   csvPagos,
@@ -226,10 +225,10 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
 
   it("mantiene caja final, críticos y cobertura canónica como conceptos separados", () => {
     const c = kpiCritico(filas(), pagos());
-    expect(c.total).toBe(8_078_055);
-    expect(c.n).toBe(3);
-    expect(c.listaPosiblementeTopeada).toBe(false);
-    expect(c.yaVencido).toBe(0);
+    expect(c.total).toBe(16_807_705);
+    expect(c.n).toBe(6);
+    expect(c.monedasExcluidas).toBe(0);
+    expect(c.yaVencido).toBe(8_729_650);
     expect(c.cajaFinal).toBe(5_200_000);
     expect(c.monedaCaja).toBe("CLP");
     expect(c.cobertura).toBe(false);
@@ -260,22 +259,34 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
       currency: "USD",
       amount_clp: null,
     };
-    const ap = pagos({ items: [usdSinTc], covers_critical: false });
+    const ap = pagos({
+      items: [usdSinTc],
+      covers_critical: false,
+      non_postponable_or_overdue_14d: {
+        amount_clp: null,
+        known_amount_clp: "0",
+        complete: false,
+        count: 1,
+        unknown_due_date_count: 0,
+        excluded_by_currency: [{ currency: "USD", amount: "830" }],
+      },
+    });
     const c = kpiCritico(pagosV05(ap, HOY), ap);
 
     expect(c.total).toBe(0);
     expect(c.n).toBe(1);
-    expect(c.montosDesconocidos).toBe(1);
+    expect(c.fechasDesconocidas).toBe(0);
+    expect(c.monedasExcluidas).toBe(1);
     expect(c.cobertura).toBe(false);
   });
 
-  it("100 ítems negociables no convierten el subtotal visible $0 en un total global", () => {
+  it("100 ítems negociables visibles no ocultan el crítico global fuera de la página", () => {
     const ap = pagosListaTopeadaSinCriticos();
     const c = kpiCritico(pagosV05(ap, HOY), ap);
 
-    expect(c.total).toBe(0);
-    expect(c.n).toBe(0);
-    expect(c.listaPosiblementeTopeada).toBe(true);
+    expect(c.total).toBe(250_000);
+    expect(c.n).toBe(1);
+    expect(c.monedasExcluidas).toBe(0);
     expect(c.cobertura).toBe(false);
   });
 
@@ -297,17 +308,26 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
     const sinProy = kpiCritico(filas(), pagos({ projected_cash_14d: null }));
     expect(sinProy.motivoSinCaja).toBe("no se pudo proyectar el saldo final a 14 días");
   });
-});
 
-describe("banner de postergables — el mismo número que V02", () => {
-  it("Normal: $1.190.400 negociable en 14 días (la factura USD convertida)", () => {
-    const b = bannerPostergables(pagos(), HOY);
-    expect(b).toEqual({ monto: 1_190_400, ventana: 17_998_105 });
-    expect(b!.monto).toBe(sale14d(pagos(), HOY)!.postergable);
-  });
-
-  it("sólo impuestos y sueldos: NADA postergable → sin banner (Ley 9)", () => {
-    expect(bannerPostergables(pagosSoloImpuestosYSueldos(), HOY)).toBeNull();
+  it("un saldo proyectado que el servidor NO declara publicable no se muestra", () => {
+    /* El productor manda el número y, por separado, si puede publicarse. Con la bandera en
+       false la pantalla se abstiene aunque el monto venga: leerlo igual sería publicar una
+       cifra que el servidor no respalda. Mata el mutante
+       `cajaFinal = parseAmountOrNull(ap?.projected_cash_14d)` sin el gate. */
+    const noPublicable = pagos({
+      cash_projection_publicable_14d: false,
+      projected_cash_14d: "5200000",
+      min_14d: null,
+      cash_gap_amount_14d: null,
+      has_gap: null,
+      covers_critical: null,
+    });
+    const c = kpiCritico(pagosV05(noPublicable, HOY), noPublicable);
+    expect(c.cajaFinal).toBeNull();
+    expect(c.cajaFinal).not.toBe(5_200_000);
+    expect(c.motivoSinCaja).toBe("no se pudo proyectar el saldo final a 14 días");
+    // Gemelo positivo: el MISMO monto, declarado publicable, sí se muestra.
+    expect(kpiCritico(filas(), pagos()).cajaFinal).toBe(5_200_000);
   });
 });
 

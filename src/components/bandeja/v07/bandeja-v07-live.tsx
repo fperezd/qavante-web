@@ -77,7 +77,6 @@ import {
  * es un volumen chico (acotado a `bank_movement.auto_classify` + `only_undoable`) y cambiar de tab
  * no debería disparar un fetch nuevo. */
 
-const ISSUE_SUCESOR = "#90";
 const TOPE_CLASIFICAR = 100;
 const TOPE_HISTORIAL = 200;
 /** El banner muestra sólo la más reciente + un conteo del resto (ver `BitacoraAutoClasificar`);
@@ -164,12 +163,10 @@ export function cuerpoReglaDesdePropuesta(
 }
 
 export function BandejaV07Live({
-  issueSucesor = ISSUE_SUCESOR,
   tabInicial,
   movimientoInicial,
   secondaryAudit = false,
 }: {
-  issueSucesor?: string;
   /** Conserva la intención al entrar por las rutas clásicas. */
   tabInicial?: TabV07;
   /** Abre el movimiento pedido por un enlace clásico, si todavía está pendiente. */
@@ -417,7 +414,6 @@ export function BandejaV07Live({
         void categoriasCanonicas.refetch();
         void autoClasificadas.refetch();
       }}
-      issueSucesor={issueSucesor}
       hoy={hoy}
       tabInicial={tabInicial}
     />
@@ -429,7 +425,7 @@ function CargandoBandeja() {
   return (
     <div className="space-y-4" aria-busy="true" aria-live="polite">
       <p className="text-sm text-rediseno-tinta-3">
-        Estamos cargando los casos que requieren conciliación o clasificación (~5 s).
+        Estamos cargando los casos que requieren conciliación o clasificación.
       </p>
       <div className="h-14 animate-pulse rounded-[14px] bg-rediseno-neutro-bg" aria-hidden="true" />
       <div className="h-64 animate-pulse rounded-[14px] bg-rediseno-neutro-bg" aria-hidden="true" />

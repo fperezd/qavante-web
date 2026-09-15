@@ -79,9 +79,7 @@ describe("classifyDtePreviewError", () => {
     const out = classifyDtePreviewError(404, "application/json", body);
     expect(out.kind).toBe("backend");
     if (out.kind === "backend") {
-      expect(out.description).toBe(
-        "El SII informó un problema al preparar este documento. Intenta nuevamente.",
-      );
+      expect(out.description).toBe("No pudimos traer este documento como PDF. Intenta nuevamente.");
       expect(out.description).not.toMatch(/folio 999|rango consultado/);
     }
   });

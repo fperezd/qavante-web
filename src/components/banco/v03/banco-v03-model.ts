@@ -64,11 +64,8 @@ export interface ConexionBanco {
   /** Explicación segura para la persona usuaria, o `null`. Nunca contiene el error crudo. */
   motivo: string | null;
   /** Progreso que el backend pudo comprobar durante este sync, o `null` si no lo publicó. */
-  progreso: { startedAt: string; etaSeconds: number | null; step: string | null } | null;
+  progreso: { startedAt: string; etaSeconds: number | null } | null;
 }
-
-/** Referencia heredada para servidores que aún no publican progreso. No es una ETA calculada. */
-export const ETA_ACTUALIZANDO = "~30 s";
 
 const PILL: Record<EstadoConexion, { pill: string; tono: ConexionBanco["tono"] }> = {
   conectada: { pill: "Conectada ✓", tono: "ok" },
@@ -127,7 +124,6 @@ function progresoDe(fuente: SourceStatus | null): ConexionBanco["progreso"] {
       progreso.eta_seconds >= 0
         ? progreso.eta_seconds
         : null,
-    step: typeof progreso.step === "string" && progreso.step.trim() ? progreso.step.trim() : null,
   };
 }
 
@@ -155,6 +151,8 @@ export function conexionBanco(
   let motivo: string | null = fuente ? sourceToConnectionCopy(fuente).message : null;
   if (err) {
     estado = "accion_requerida";
+    /* Un solo clasificador traduce la falla (Ley 1): acá no se vuelve a adivinar por código.
+       Lo que no encaja en una señal documentada cae al bucket explícito de "no sabemos". */
     motivo = connectionFailureMessage(err.message);
   } else if (!fuente) {
     /* bice respondió cuentas pero el agregado no conoce la fuente: sabemos que responde, no
@@ -208,18 +206,16 @@ function duracionHumana(segundos: number): string {
 export function textoActualizando(conexion: ConexionBanco, hoy: Date): string {
   const progreso = conexion.progreso;
   if (progreso?.etaSeconds != null) {
-    const etapa = progreso.step ? ` · ${progreso.step}` : "";
-    return `trayendo la cartola… listo en ${duracionHumana(progreso.etaSeconds)}${etapa}`;
+    return `trayendo la cartola… listo en ${duracionHumana(progreso.etaSeconds)}`;
   }
   if (progreso) {
     const transcurrido = Math.max(
       0,
       Math.floor((hoy.getTime() - Date.parse(progreso.startedAt)) / 1000),
     );
-    const etapa = progreso.step ? ` · ${progreso.step}` : "";
-    return `trayendo la cartola… en curso hace ${duracionHumana(transcurrido)}${etapa}; el banco no informó ETA`;
+    return `trayendo la cartola… en curso hace ${duracionHumana(transcurrido)}; el banco no informó un tiempo estimado`;
   }
-  return `trayendo la cartola… listo en ${ETA_ACTUALIZANDO} (referencia fija)`;
+  return "trayendo la cartola… en curso; el banco no informó un tiempo estimado";
 }
 
 /** La frescura de una cuenta, en lenguaje humano, para el `.sub` (spec §V03). `hoy` explícito. */

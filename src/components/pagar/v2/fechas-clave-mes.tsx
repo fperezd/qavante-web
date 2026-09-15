@@ -39,7 +39,7 @@ const ICONO: Record<FechaClaveIcono, React.ComponentType<{ className?: string }>
 };
 
 export function FechasClaveMes({
-  titulo = "Las 3 del mes · no se postergan",
+  titulo = "Obligaciones clave del detalle visible",
   items,
   total,
   className,
@@ -47,7 +47,9 @@ export function FechasClaveMes({
   return (
     <section className={className} aria-label={titulo}>
       <div className="mb-2 flex items-baseline justify-between gap-3 px-0.5">
-        <span className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">{titulo}</span>
+        <span className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">
+          {titulo}
+        </span>
         {total != null && (
           <span className="text-[12.5px] text-neutral-mid">
             Suman <b className="font-bold tabular-nums text-neutral-dark">{formatClp(total)}</b>
@@ -69,7 +71,10 @@ export function FechasClaveMes({
           const content = (
             <>
               {clickable && (
-                <ChevronRight className="absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-neutral-light group-hover:text-brand-primary" aria-hidden="true" />
+                <ChevronRight
+                  className="absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-neutral-light group-hover:text-brand-primary"
+                  aria-hidden="true"
+                />
               )}
               <span className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-bold text-neutral-dark">
                 <Icon className="size-4 shrink-0 text-brand-primary" aria-hidden="true" />
@@ -89,7 +94,8 @@ export function FechasClaveMes({
                     Venció <b className="text-danger-500">{it.vence}</b>
                     {" · "}
                     <span className="font-bold text-danger-500">
-                      hace {Math.abs(it.enDias as number)} día{Math.abs(it.enDias as number) === 1 ? "" : "s"}
+                      hace {Math.abs(it.enDias as number)} día
+                      {Math.abs(it.enDias as number) === 1 ? "" : "s"}
                     </span>
                   </>
                 ) : (

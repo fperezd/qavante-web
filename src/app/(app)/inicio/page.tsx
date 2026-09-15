@@ -31,8 +31,9 @@ export default function InicioPage() {
     decisionBrief,
   } = resolveFeatureFlags();
 
-  /* V01 · Hoy (rediseño Fase 2, issue #62) — gated por `hoyV01`, HOY APAGADO. Convive con el
-     Inicio actual en vez de reemplazarlo: con el flag OFF nada de abajo cambia (cero regresión).
+  /* V01 · Hoy (rediseño Fase 2, issue #62) — gated por `hoyV01`, HOY ENCENDIDO en producción
+     (`wrangler.toml`). Convive con el Inicio actual en vez de reemplazarlo: con el flag apagado
+     nada de abajo cambia (cero regresión).
      Va ANTES del resto porque no es otra card del dashboard, es otra pantalla: tiene su propio
      titular ("Hoy") y su propia pregunta, así que tampoco hereda el header de Inicio Ejecutivo. */
   if (hoyV01) {

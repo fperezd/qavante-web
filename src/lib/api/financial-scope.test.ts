@@ -6,14 +6,16 @@ import {
 } from "./financial-scope";
 
 describe("serverAsOfDate", () => {
-  it("uses the calendar date supplied by the server without consulting browser time", () => {
-    expect(serverAsOfDate("2026-09-03T02:30:00Z")).toBe("2026-09-03");
+  it("uses the Chilean financial calendar date without consulting browser time", () => {
+    expect(serverAsOfDate("2026-09-03T02:30:00Z")).toBe("2026-09-02");
+    expect(serverAsOfDate("2026-09-03T04:30:00Z")).toBe("2026-09-03");
     expect(serverAsOfDate("2026-09-03")).toBe("2026-09-03");
   });
 
   it("fails closed for missing, malformed or impossible server cut-offs", () => {
     expect(serverAsOfDate(null)).toBeNull();
     expect(serverAsOfDate("2026-02-30")).toBeNull();
+    expect(serverAsOfDate("2026-02-30T02:30:00Z")).toBeNull();
     expect(serverAsOfDate("03-09-2026")).toBeNull();
     expect(serverAsOfDate("2026-09-03T02:30:00")).toBeNull();
   });

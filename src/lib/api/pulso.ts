@@ -20,6 +20,7 @@ export type PulsoDriverDetail = components["schemas"]["PulsoDriver"];
 export type PulsoTrendPoint = components["schemas"]["PulsoTrendPoint"];
 export type PulsoDirection = PulsoDriverDetail["direction"];
 export type PulsoImpact = PulsoDriverDetail["impact"];
+export type PulsoScoreReading = components["schemas"]["PulsoScoreReadingResponse"];
 
 type RawPulsoDetail = components["schemas"]["PulsoDetailResponse"];
 
@@ -36,13 +37,14 @@ export interface PulsoDetailResponse extends Omit<
 export const pulsoKeys = {
   all: ["pulso"] as const,
   detail: (objetivo?: string) => [...pulsoKeys.all, "detail", objetivo ?? null] as const,
+  scoreReading: (objetivo: string) => [...pulsoKeys.all, "score-reading", objetivo] as const,
 };
 
 /** `GET /api/management/pulso` — detalle del Pulso Empresa. NO retry.
  *  `objetivo` (opcional): re-pondera los ejes según lo que prioriza la empresa. El re-ponderado lo
  *  hace el BACKEND (el FE no calcula Pulso); acá solo se pasa el parámetro. Si el backend aún no lo
  *  honra, devuelve el Pulso equilibrado (sin número falso). */
-export function usePulsoDetail(objetivo?: string) {
+export function usePulsoDetail(objetivo?: string, enabled = true) {
   return useQuery({
     queryKey: pulsoKeys.detail(objetivo),
     queryFn: () =>
@@ -57,6 +59,22 @@ export function usePulsoDetail(objetivo?: string) {
       drivers: d.drivers ?? [],
       trend: d.trend ?? [],
     }),
+    enabled,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+/** Lectura D09: mantiene visible el score base y separa la reponderación elegida.
+ *  No se usa como sustituto del detalle legacy hasta que el flag de objetivo esté activo. */
+export function usePulsoScoreReading(objetivo: string, enabled: boolean) {
+  return useQuery({
+    queryKey: pulsoKeys.scoreReading(objetivo),
+    queryFn: () =>
+      api.get<PulsoScoreReading>(
+        `/api/management/pulso/score-reading?objetivo=${encodeURIComponent(objetivo)}`,
+      ),
+    enabled,
     staleTime: 30_000,
     retry: false,
   });

@@ -119,7 +119,7 @@ function HealthBanner({ message }: { message: string }) {
   );
 }
 
-function F29Result({ data, folio }: { data: F29Response; folio: number }) {
+export function F29Result({ data, folio }: { data: F29Response; folio: number }) {
   const isOk = data.status === "ok";
   const notFound = data.status === "not_found";
   const pdfUrl = isOk ? siiF29PdfUrl(folio) : null;

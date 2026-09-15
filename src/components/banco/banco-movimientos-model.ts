@@ -209,7 +209,8 @@ function snapshotMovimientoRevision(item: ReviewItemLike): MovimientoRevisionCon
   const fecha = item.date?.trim() || null;
   const glosa = item.description?.trim() || null;
   const moneda = item.currency_code?.trim().toUpperCase() || null;
-  const direccion = item.direction === "credit" || item.direction === "debit" ? item.direction : null;
+  const direccion =
+    item.direction === "credit" || item.direction === "debit" ? item.direction : null;
   const monto =
     typeof item.amount === "string" && item.amount.trim() !== "" ? parseAmount(item.amount) : null;
   const montoValido = monto != null && Number.isFinite(monto);

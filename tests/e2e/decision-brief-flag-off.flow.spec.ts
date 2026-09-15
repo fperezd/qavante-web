@@ -17,9 +17,10 @@ const SURFACES = [
     testIds: ["inicio-resumen"],
   },
   {
-    /* El entorno E2E no enciende `cajaV02`; la landing cae al piloto de bloques. */
+    /* El entorno E2E enciende `cajaV02` como producción: la landing es V02, con su pregunta
+       propia y la auditoría de movimientos debajo. */
     path: "/caja",
-    visible: ["¿Me alcanza la caja y qué puedo hacer?", "Calidad y auditoría de movimientos"],
+    visible: ["¿Me alcanza la caja?", "Calidad y auditoría de movimientos"],
     testIds: [],
   },
   {
@@ -30,7 +31,10 @@ const SURFACES = [
   {
     path: "/pagar",
     /* Sin Brief, V05 sí rankea por urgencia y no anuncia el orden de la fuente. */
-    visible: ["¿A quién le pago, y qué es crítico?"],
+    visible: [
+      "¿A quién le pago, y qué es crítico?",
+      "Impuestos y sueldos jamás entran en postergaciones automáticas.",
+    ],
     absent: ["Los pagos se muestran en el orden publicado por la fuente."],
     testIds: [],
   },

@@ -57,10 +57,15 @@ export interface OperationPlanAbsentView {
 
 export type OperationPlanView = OperationPlanPresentView | OperationPlanAbsentView;
 
-const STATUS: Record<
-  string,
-  Pick<OperationPlanPresentView, "statusLabel" | "statusDescription" | "statusTone" | "readOnly">
-> = {
+type OperationStatus = NonNullable<
+  NonNullable<OperationPlanRead["operation_plan"]>["current_status"]
+>;
+type OperationStatusCopy = Pick<
+  OperationPlanPresentView,
+  "statusLabel" | "statusDescription" | "statusTone" | "readOnly"
+>;
+
+const STATUS = {
   draft: {
     statusLabel: "Borrador",
     statusDescription: "El plan está preparado, pero aún no fue enviado a aprobación.",
@@ -79,9 +84,33 @@ const STATUS: Record<
     statusTone: "success",
     readOnly: true,
   },
-  rejected: {
-    statusLabel: "No aprobado",
-    statusDescription: "El estado fue informado por Qavante. Esta vista es sólo lectura.",
+  submitted: {
+    statusLabel: "Enviado",
+    statusDescription: "El plan fue enviado y está a la espera de procesamiento.",
+    statusTone: "info",
+    readOnly: true,
+  },
+  acknowledged: {
+    statusLabel: "Recibido",
+    statusDescription: "La recepción del plan fue confirmada. Esta vista es sólo lectura.",
+    statusTone: "info",
+    readOnly: true,
+  },
+  in_evaluation: {
+    statusLabel: "En evaluación",
+    statusDescription: "El plan está siendo evaluado. Esta vista es sólo lectura.",
+    statusTone: "warning",
+    readOnly: true,
+  },
+  approved_by_provider: {
+    statusLabel: "Aprobado por proveedor",
+    statusDescription: "El proveedor aprobó el plan. Esta vista es sólo lectura.",
+    statusTone: "success",
+    readOnly: true,
+  },
+  rejected_by_provider: {
+    statusLabel: "Rechazado por proveedor",
+    statusDescription: "El proveedor no aprobó el plan. Esta vista es sólo lectura.",
     statusTone: "neutral",
     readOnly: true,
   },
@@ -97,19 +126,42 @@ const STATUS: Record<
     statusTone: "warning",
     readOnly: true,
   },
+  funded_or_effective: {
+    statusLabel: "Activo",
+    statusDescription: "El plan está vigente. Esta vista es sólo lectura.",
+    statusTone: "success",
+    readOnly: true,
+  },
+  settled: {
+    statusLabel: "Liquidado",
+    statusDescription: "El plan fue liquidado. Esta vista es sólo lectura.",
+    statusTone: "success",
+    readOnly: true,
+  },
+  observed: {
+    statusLabel: "Con observaciones",
+    statusDescription: "El plan requiere revisión. Esta vista es sólo lectura.",
+    statusTone: "warning",
+    readOnly: true,
+  },
+  closed: {
+    statusLabel: "Cerrado",
+    statusDescription: "El plan está cerrado. Esta vista es sólo lectura.",
+    statusTone: "neutral",
+    readOnly: true,
+  },
+} satisfies Record<OperationStatus, OperationStatusCopy>;
+
+const UNKNOWN_STATUS: OperationStatusCopy = {
+  statusLabel: "Estado no disponible",
+  statusDescription:
+    "El plan informó un estado que aún no podemos presentar. Esta vista es sólo lectura.",
+  statusTone: "neutral",
+  readOnly: true,
 };
 
-export function operationPlanStatusView(
-  status: string,
-): Pick<OperationPlanPresentView, "statusLabel" | "statusDescription" | "statusTone" | "readOnly"> {
-  return (
-    STATUS[status] ?? {
-      statusLabel: "Estado informado",
-      statusDescription: `Qavante informó el estado «${status || "sin identificar"}». Esta vista es sólo lectura.`,
-      statusTone: "neutral",
-      readOnly: true,
-    }
-  );
+export function operationPlanStatusView(status: string): OperationStatusCopy {
+  return Object.hasOwn(STATUS, status) ? STATUS[status as OperationStatus] : UNKNOWN_STATUS;
 }
 
 export function noActionOperationPlanView(): OperationPlanAbsentView {
@@ -228,13 +280,13 @@ export function operationPlanViewFromRead(
       id: `term-${index}`,
       label: term,
       state: "unknown" as const,
-      detail: "Cumplimiento no evaluado por el backend.",
+      detail: "No hay una evaluación de cumplimiento disponible.",
     })),
     ...(plan.checklist.required_evidence ?? []).map((evidence, index) => ({
       id: `evidence-${index}`,
       label: evidence,
       state: "unknown" as const,
-      detail: "Cumplimiento no evaluado por el backend.",
+      detail: "No hay una evaluación de cumplimiento disponible.",
     })),
   ];
   const validity = plan.configuration?.effective_until;
@@ -268,7 +320,12 @@ export function operationPlanViewFromRead(
           : error.status === "cancelled"
             ? "Cancelado"
             : "Vencido",
-      detail: error.reason ?? null,
+      detail:
+        error.status === "rejected_by_provider"
+          ? "El proveedor rechazó la operación."
+          : error.status === "cancelled"
+            ? "La operación fue cancelada."
+            : "La vigencia de la operación terminó.",
     })),
   };
 }

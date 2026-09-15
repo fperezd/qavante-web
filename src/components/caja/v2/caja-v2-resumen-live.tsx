@@ -12,18 +12,13 @@ import {
   type CashFlowGranularity,
 } from "@/lib/api/treasury-reports";
 import { useCashMinimum } from "@/lib/api/cash-minimum";
-import {
-  useUnclassifiedInRange,
-  useCashProjection,
-  type UnclassifiedSummary,
-} from "@/lib/api/treasury";
+import { useUnclassifiedInRange, type UnclassifiedSummary } from "@/lib/api/treasury";
 import { parseAmount } from "@/components/inicio/dashboard-format";
 import { cajaHoy } from "@/lib/finanzas/caja-hoy";
 import { formatClp } from "@/lib/formatters/clp";
 import { CajaV2Resumen, type CajaMovible } from "./caja-v2-resumen";
 import { CajaHero } from "./caja-hero";
 import { SaldoPorBanco } from "./saldo-por-banco";
-import { CajaCurva } from "./caja-curva";
 import {
   serieAnclada,
   cajaMinimoCLP,
@@ -32,6 +27,7 @@ import {
   completitudFlujoVisible,
   entradasSinClasificarLabel,
 } from "./caja-v2-map";
+import { CajaCurva } from "./caja-curva";
 import { CajaProyeccionLive } from "./caja-proyeccion-live";
 import { fechaCortaLabel } from "./caja-proyeccion-model";
 import { formatBucketLabel } from "@/components/caja/cash-flow-format";
@@ -140,7 +136,6 @@ function CajaV2Contenido({
   // #853 — sobregiro: leemos la proyección (caché compartida con el medidor) para saber si el saldo de
   // hoy ya está bajo el mínimo. En ese caso `days_of_cash` del dashboard es degenerado (~1) y NO lo
   // mostramos como "días de caja" en el hero: el medidor de abajo cuenta la recuperación real.
-  const cashProj = useCashProjection(90);
   if (cf.isLoading || dash.isLoading) return <LiveSkeleton />;
   if (cf.isError) {
     return (
@@ -186,8 +181,7 @@ function CajaV2Contenido({
   const cruceIdx = primerCruceFuturo(serie, allBuckets, granularity, now, minimo);
   // #853 — con `cajaV3` y sobregiro, `days_of_cash` es degenerado (~1) → no lo mostramos como "días de
   // caja" (el medidor cuenta la recuperación). Sin sobregiro, o en v2 clásico, va como siempre.
-  const enSobregiro = cajaV3 && (cashProj.data?.en_sobregiro ?? false);
-  const dias = enSobregiro ? null : (dash.data?.cash_forecast?.days_of_cash ?? null);
+  const dias = null;
   // Caja en cero o negativa → tono crítico honesto (no un ✓ verde "alcanza ~0 días").
   const negativa = saldoHoy <= 0;
   const tono = negativa ? "crit" : cruceIdx != null ? "warn" : "ok";

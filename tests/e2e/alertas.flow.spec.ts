@@ -11,22 +11,25 @@ import { loginAs } from "./helpers";
 async function esperarDetalleDeAlertas(page: import("@playwright/test").Page) {
   await expect(page.getByRole("heading", { level: 1, name: "Alertas" })).toBeVisible();
 
-  // Score destacado + headline rule-based (datos de MSW).
-  await expect(page.getByText("Pulso del negocio")).toBeVisible();
-  await expect(page.getByText(/la cobranza más lenta lo frena/i)).toBeVisible();
+  // Score destacado. Con la lectura canónica D09 (`/pulso/score-reading` en MSW) el título es
+  // "Pulso base del negocio" y el titular rule-based legacy deja de mostrarse: en su lugar la
+  // vista declara la vigencia de las fuentes tal como la publica el backend (D10, sin inferir).
+  await expect(page.getByText("Pulso base del negocio", { exact: true })).toBeVisible();
+  await expect(page.getByText("Vigencia de las fuentes no verificable.")).toBeVisible();
+  await expect(page.getByText(/Metodología PULSO-2\.0/)).toBeVisible();
 
-  // Ejes que componen el índice.
+  // Factores que componen el Pulso base (vienen del contrato `weights`, no del legacy).
   await expect(page.getByText("Qué compone tu Pulso")).toBeVisible();
-  await expect(page.getByText("Liquidez")).toBeVisible();
+  await expect(page.getByText("Cobertura de pagos")).toBeVisible();
 
-  // Drivers (+/-).
-  await expect(page.getByText("Lo que ayuda")).toBeVisible();
-  await expect(page.getByText("Lo que pesa")).toBeVisible();
-  await expect(page.getByText("Cobranza lenta")).toBeVisible();
+  // Drivers (+/-): con la lectura canónica (D09) no se mezclan los drivers rule-based del
+  // detalle legacy con los factores publicados por el backend, para que no driften entre sí.
+  await expect(page.getByText("Lo que ayuda")).toHaveCount(0);
+  await expect(page.getByText("Lo que pesa")).toHaveCount(0);
 
-  // Tendencia (scopeado al contenido: el sidebar tiene un link "Tendencia" —sub-ítem de
-  // Gestión— que también matchea el texto).
-  await expect(page.locator("#main-content").getByText("Tendencia")).toBeVisible();
+  // La tendencia legacy no forma parte de la lectura canónica (D09): no se muestra ninguna
+  // serie que no publique el backend en el mismo corte.
+  await expect(page.locator("#main-content").getByText("Tendencia")).toHaveCount(0);
 }
 
 test.describe("Flujo: Alertas (/alertas)", () => {
@@ -44,8 +47,9 @@ test.describe("Flujo: Alertas (/alertas)", () => {
     await loginAs(context, "owner");
     await page.goto("/gestion/pulso");
 
-    // No basta con que redirija: el usuario tiene que terminar viendo su detalle.
-    await expect(page).toHaveURL(/\/alertas$/);
+    /* No basta con que redirija: el usuario tiene que terminar viendo su detalle. El redirect
+       es del servidor y arrastra una navegación completa; bajo carga tarda más que el default. */
+    await expect(page).toHaveURL(/\/alertas$/, { timeout: 20_000 });
     await esperarDetalleDeAlertas(page);
   });
 
@@ -63,8 +67,9 @@ test.describe("Flujo: Alertas (/alertas)", () => {
       (r) => r.url().includes("/api/me/preferences") && r.request().method() === "PUT",
     );
     await page.getByRole("radio", { name: "Cuidar la caja" }).click();
-    await expect(page.getByText(/foco en cuidar la caja/i)).toBeVisible();
-    await expect(page.getByText(/Foco: cuidar_caja/)).toBeVisible();
+    // D09: el foco es una lectura separada del Pulso base, con su propio encabezado; el titular
+    // legacy con el objetivo interpolado ya no se renderiza junto a la lectura canónica.
+    await expect(page.getByText(/Lectura con foco: Cuidar la caja/i)).toBeVisible();
     const res = await putPrefs;
     expect(res.ok()).toBeTruthy();
   });

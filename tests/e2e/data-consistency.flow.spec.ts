@@ -74,7 +74,10 @@ test.describe("Consistencia de datos (Gestión + Presupuesto)", () => {
 
     // Fixture budget-vs-actual que footea: revenue +4M (a favor), costos −5M/−2M (en contra) →
     // resultado 3M ABAJO del plan. El hero y los desvíos deben contar la misma historia.
-    await expect(page.getByText(/vas/)).toBeVisible();
+    /* El hero por su título, no por la subcadena "vas": ésta aparece también en el subtítulo de
+       la página y en la prosa del resultado, y el locator se volvía ambiguo en cuanto cargaba
+       el dato (strict mode). */
+    await expect(page.getByText(/¿Cómo vas en \w+\?/)).toBeVisible();
     await expect(page.getByText("$3.000.000")).toBeVisible(); // la variación del resultado (10M plan → 7M real)
     await expect(page.getByText(/abajo/)).toBeVisible();
 

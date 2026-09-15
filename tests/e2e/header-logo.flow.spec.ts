@@ -11,6 +11,8 @@ test.describe("Flujo: logo del header → Inicio", () => {
 
     await page.getByRole("link", { name: "Ir al Inicio" }).click();
 
-    await expect(page).toHaveURL(/\/inicio$/);
+    /* Navegación real de Next: bajo carga el router tarda más que el default de 5 s. El margen
+       es de tiempo; la aserción sigue exigiendo que el logo aterrice en /inicio. */
+    await expect(page).toHaveURL(/\/inicio$/, { timeout: 20_000 });
   });
 });

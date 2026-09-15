@@ -13,7 +13,10 @@ import {
   useLatestLiquidityEvaluation,
   useOperationPlanForDecision,
 } from "@/lib/api/financial-decisions";
-import { useCollectionDecisionPlan, usePaymentDecisionPlan } from "@/lib/api/decision-plans";
+import {
+  useCanonicalPaymentDecisionPlan,
+  useCollectionDecisionPlan,
+} from "@/lib/api/decision-plans";
 import { toFinancialDecisionReadScope, useFinancialScope } from "@/lib/api/financial-scope";
 import {
   useFxEvaluations,
@@ -31,6 +34,11 @@ import { cashGapProposals } from "./cash-gap-proposal-model";
 import { InicioResumenView } from "../resumen/inicio-resumen-view";
 import { InicioCreditosLive } from "../resumen/inicio-creditos-live";
 import { InicioBancosLive } from "../resumen/inicio-bancos-live";
+import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
+import {
+  paymentPlanMatchesProjection,
+  type CashProjectionViewModel,
+} from "@/components/cash-projection-runs/cash-projection-run-model";
 
 /* Cableado de V01 · Hoy. La vista es presentacional; acá se resuelven las dos fuentes:
  *
@@ -51,6 +59,7 @@ export function HoyLive({
   /** El brief canónico ya ocupa el lugar de las recomendaciones heredadas. */
   suppressRecommendations?: boolean;
 }) {
+  const [projection, setProjection] = React.useState<CashProjectionViewModel | null>(null);
   const summary = useDashboardSummary();
   /* Las lecturas de DECISIÓN local se apagan cuando el Brief ocupa su lugar. No
      son evidencia: los planes y la evaluación F1 sólo se pintan dentro de
@@ -63,7 +72,13 @@ export function HoyLive({
      que apagarla acá corta las tres lecturas. */
   const decisionLocalHabilitada = summary.isSuccess && !suppressRecommendations;
   const liquidity = useLatestLiquidityEvaluation(decisionLocalHabilitada);
-  const paymentPlan = usePaymentDecisionPlan(decisionLocalHabilitada);
+  /* El plan de pagos se pide SÓLO contra la foto canónica vigente (mismo run, mismo escenario,
+     H=14): un plan que no referencia esa foto no describe la caja que la pantalla muestra. */
+  const paymentPlan = useCanonicalPaymentDecisionPlan(
+    projection?.runId ?? null,
+    projection?.scenario.scenario_id ?? null,
+    decisionLocalHabilitada && projection?.horizonDays === 14 && projection.state === "current",
+  );
   const collectionPlan = useCollectionDecisionPlan(decisionLocalHabilitada);
   const operationPlan = useOperationPlanForDecision(liquidity.data?.decision_id ?? null);
   /* F6/F7/F9 use the persisted evaluation only for its server-owned cut-off. Entity and
@@ -102,78 +117,89 @@ export function HoyLive({
     );
   }
 
+  const canonicalPaymentPlan = paymentPlanMatchesProjection(paymentPlan.data, projection)
+    ? paymentPlan.data
+    : undefined;
+
   return (
-    <InicioResumenView
-      balances={bankBalancesEnabled ? <InicioBancosLive /> : undefined}
-      credits={<InicioCreditosLive enabled={bankBalancesEnabled} />}
-      suppressRecommendations={suppressRecommendations}
-      data={summary.data ?? null}
-      empresa={me.data?.user?.tenant_name ?? null}
-      liquidityEvaluation={liquidity.data ?? null}
-      liquidityLoading={liquidity.isLoading}
-      liquidityFailed={liquidity.isError}
-      cashGapProposals={cashGapProposals(paymentPlan.data, collectionPlan.data)}
-      cashGapProposalsLoading={paymentPlan.isLoading || collectionPlan.isLoading}
-      canSelectLiquidity={role === "owner" || role === "admin"}
-      operationPlanRead={operationPlan.data ?? null}
-      operationPlanLoading={operationPlan.isLoading}
-      operationPlanError={operationPlan.error}
-      onRetryOperationPlan={() => void operationPlan.refetch()}
-      collectionSituation={collectionSituation.data ?? null}
-      collectionEvaluation={collectionEvaluation.data ?? null}
-      collectionLoading={collectionSituation.isLoading || collectionEvaluation.isLoading}
-      collectionError={collectionSituation.error ?? collectionEvaluation.error}
-      collectionScopeAvailable={collectionScope !== null}
-      onRetryCollection={
-        collectionScope
-          ? () => {
-              void collectionSituation.refetch();
-              void collectionEvaluation.refetch();
-            }
-          : undefined
-      }
-      decisionReaders={
-        decisionReadScope
-          ? {
-              fxExposures: {
-                data: fxExposures.data,
-                loading: fxExposures.isLoading,
-                failed: fxExposures.isError,
-              },
-              fxEvaluations: {
-                data: fxEvaluations.data,
-                loading: fxEvaluations.isLoading,
-                failed: fxEvaluations.isError,
-              },
-              investableSurplus: {
-                data: investableSurplus.data,
-                loading: investableSurplus.isLoading,
-                failed: investableSurplus.isError,
-              },
-              investmentEvaluations: {
-                data: investmentEvaluations.data,
-                loading: investmentEvaluations.isLoading,
-                failed: investmentEvaluations.isError,
-              },
-              outcomeValues: {
-                data: outcomeValues.data,
-                loading: outcomeValues.isLoading,
-                failed: outcomeValues.isError,
-              },
-              learningCandidates: {
-                data: learningCandidates.data,
-                loading: learningCandidates.isLoading,
-                failed: learningCandidates.isError,
-              },
-              sourceFreshness: {
-                data: sourceFreshness.data,
-                loading: sourceFreshness.isLoading,
-                failed: sourceFreshness.isError,
-              },
-            }
-          : null
-      }
-    />
+    <div className="space-y-6">
+      <CashProjectionRunPanel
+        horizonDays={14}
+        title="Caja para las decisiones de hoy"
+        onSnapshot={setProjection}
+      />
+      <InicioResumenView
+        balances={bankBalancesEnabled ? <InicioBancosLive /> : undefined}
+        credits={<InicioCreditosLive enabled={bankBalancesEnabled} />}
+        suppressRecommendations={suppressRecommendations}
+        data={summary.data ?? null}
+        empresa={me.data?.user?.tenant_name ?? null}
+        liquidityEvaluation={liquidity.data ?? null}
+        liquidityLoading={liquidity.isLoading}
+        liquidityFailed={liquidity.isError}
+        cashGapProposals={cashGapProposals(canonicalPaymentPlan, collectionPlan.data)}
+        cashGapProposalsLoading={paymentPlan.isLoading || collectionPlan.isLoading}
+        canSelectLiquidity={role === "owner" || role === "admin"}
+        operationPlanRead={operationPlan.data ?? null}
+        operationPlanLoading={operationPlan.isLoading}
+        operationPlanError={operationPlan.error}
+        onRetryOperationPlan={() => void operationPlan.refetch()}
+        collectionSituation={collectionSituation.data ?? null}
+        collectionEvaluation={collectionEvaluation.data ?? null}
+        collectionLoading={collectionSituation.isLoading || collectionEvaluation.isLoading}
+        collectionError={collectionSituation.error ?? collectionEvaluation.error}
+        collectionScopeAvailable={collectionScope !== null}
+        onRetryCollection={
+          collectionScope
+            ? () => {
+                void collectionSituation.refetch();
+                void collectionEvaluation.refetch();
+              }
+            : undefined
+        }
+        decisionReaders={
+          decisionReadScope
+            ? {
+                fxExposures: {
+                  data: fxExposures.data,
+                  loading: fxExposures.isLoading,
+                  failed: fxExposures.isError,
+                },
+                fxEvaluations: {
+                  data: fxEvaluations.data,
+                  loading: fxEvaluations.isLoading,
+                  failed: fxEvaluations.isError,
+                },
+                investableSurplus: {
+                  data: investableSurplus.data,
+                  loading: investableSurplus.isLoading,
+                  failed: investableSurplus.isError,
+                },
+                investmentEvaluations: {
+                  data: investmentEvaluations.data,
+                  loading: investmentEvaluations.isLoading,
+                  failed: investmentEvaluations.isError,
+                },
+                outcomeValues: {
+                  data: outcomeValues.data,
+                  loading: outcomeValues.isLoading,
+                  failed: outcomeValues.isError,
+                },
+                learningCandidates: {
+                  data: learningCandidates.data,
+                  loading: learningCandidates.isLoading,
+                  failed: learningCandidates.isError,
+                },
+                sourceFreshness: {
+                  data: sourceFreshness.data,
+                  loading: sourceFreshness.isLoading,
+                  failed: sourceFreshness.isError,
+                },
+              }
+            : null
+        }
+      />
+    </div>
   );
 }
 
@@ -182,7 +208,9 @@ export function HoyLive({
 function CargandoHoy() {
   return (
     <div className="space-y-6">
-      <p className="text-sm text-neutral-mid">Consultando saldos y proyección de caja…</p>
+      <p className="text-sm text-neutral-mid">
+        Estamos armando tu parte del día con tu banco y tus documentos del SII.
+      </p>
       <div className="h-32 animate-pulse rounded-xl bg-neutral-light/30" aria-hidden="true" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-hidden="true">
         {Array.from({ length: 4 }).map((_, i) => (

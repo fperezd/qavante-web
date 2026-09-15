@@ -1,15 +1,13 @@
-/* Vinculación Nota de Crédito → Factura para mostrar "Anuladas" en el Libro de
- * Ventas/Compras (estilo Chipax). PURO/testeable.
+/* Contención D07 para la asociación Nota de Crédito → documento. PURO/testeable.
  *
- * El backend expone la referencia real del DTE (`ref_tipo_doc`/`ref_folio` en el
- * slim del RCV) → link EXACTO NC↔factura. Cuando la NC trae ref, se linkea por
- * (ref_tipo_doc === factura.tipo_doc && ref_folio === factura.folio). Si la NC no
- * trae ref (docs viejos / de otro período), cae a la heurística por MISMO RUT +
- * MISMO monto_total (aproximada, se marca "referencial" en la UI).
+ * El contrato legacy sólo expone `ref_tipo_doc`/`ref_folio`: no incluye CodRef,
+ * fecha de referencia, procedencia ni validación. Por eso ni esa referencia
+ * incompleta ni una coincidencia RUT+monto autorizan a declarar una anulación o
+ * a modificar una factura. Hasta que llegue el read model D07 autoritativo, las
+ * NC permanecen separadas y sólo publicamos una pista de revisión fail-closed.
  *
- * Nota: NO recalcula finanzas (§17.4). Solo agrupa/presenta; el neto por fila es
- * factura.monto_total − Σ NC (aritmética de presentación, coherente con el
- * neteo de computeRcvTotals que ya alimenta los totales del período). */
+ * El total general del Libro sigue usando todos los DTE (incluidas las NC), pero
+ * esta función no asigna su efecto a un documento ni a un vencimiento concreto. */
 
 import { isNotaCredito } from "./tipo-doc";
 
@@ -45,6 +43,23 @@ function tieneRef(nc: AnulableDoc): boolean {
 
 export type EstadoDoc = "vigente" | "anulada" | "parcial";
 
+export type PendingAssociationStatus =
+  | "reference_effect_unknown"
+  | "possible_association"
+  | "ambiguous"
+  | "unresolved";
+
+export interface PendingAssociation<T extends AnulableDoc = AnulableDoc> {
+  nota: T;
+  status: PendingAssociationStatus;
+  candidateFolios: number[];
+  reason:
+    | "legacy_reference_without_fiscal_effect"
+    | "unique_rut_amount_match"
+    | "multiple_candidates"
+    | "no_candidate";
+}
+
 export interface FacturaRow<T extends AnulableDoc = AnulableDoc> {
   factura: T;
   notas: T[];
@@ -64,8 +79,10 @@ export interface FacturaRow<T extends AnulableDoc = AnulableDoc> {
 
 export interface LibroAgrupado<T extends AnulableDoc = AnulableDoc> {
   rows: FacturaRow<T>[];
-  /** NC que no matchearon ninguna factura (referencial / de otro período). */
+  /** En el contrato legacy ninguna NC se aplica automáticamente a una factura. */
   notasHuerfanas: T[];
+  /** Pistas de revisión sin efecto fiscal ni monetario sobre un documento concreto. */
+  asociacionesPendientes: PendingAssociation<T>[];
   totalBrutas: number;
   totalNc: number;
   totalNetas: number;
@@ -83,53 +100,89 @@ export function agruparConReferencias<T extends AnulableDoc>(docs: T[]): LibroAg
     matchExacto: true,
     sobreCredito: false,
   }));
-  const huerfanas: T[] = [];
+  const asociacionesPendientes: PendingAssociation<T>[] = [];
 
   for (const nc of notas) {
-    // 1) Ref exacta del DTE: (ref_tipo_doc, ref_folio) → (tipo_doc, folio).
-    //    `ref_tipo_doc` puede venir null en algunas NC; con folio alcanza para
-    //    desambiguar dentro del período, pero si viene lo exigimos.
-    let row: FacturaRow<T> | undefined;
-    let exacto = false;
+    let candidates: FacturaRow<T>[];
     if (tieneRef(nc)) {
-      row = rows.find(
+      candidates = rows.filter(
         (r) =>
           r.factura.folio === nc.ref_folio &&
           (nc.ref_tipo_doc == null || r.factura.tipo_doc === nc.ref_tipo_doc),
       );
-      exacto = !!row;
+      asociacionesPendientes.push({
+        nota: nc,
+        status: candidates.length > 1 ? "ambiguous" : "reference_effect_unknown",
+        candidateFolios: candidates.flatMap((candidate) =>
+          typeof candidate.factura.folio === "number" ? [candidate.factura.folio] : [],
+        ),
+        reason:
+          candidates.length > 1 ? "multiple_candidates" : "legacy_reference_without_fiscal_effect",
+      });
+      continue;
     }
-    // 2) Heurística (NC sin ref): mismo RUT + mismo monto_total con saldo.
-    if (!row) {
-      row = rows.find(
-        (r) =>
-          r.factura.rut_contraparte === nc.rut_contraparte &&
-          // magnitud: la NC puede venir negativa; la factura siempre positiva.
-          mag(r.factura.monto_total) === mag(nc.monto_total) &&
-          r.neto > 0,
-      );
-    }
-    if (row) {
-      row.notas.push(nc);
-      row.neto = num(row.factura.monto_total) - row.notas.reduce((a, n) => a + mag(n.monto_total), 0);
-      if (!exacto) row.matchExacto = false;
-    } else {
-      huerfanas.push(nc);
-    }
-  }
 
-  for (const r of rows) {
-    if (r.notas.length === 0) {
-      r.estado = "vigente";
-      r.matchExacto = true;
-    } else if (r.neto <= 0) {
-      r.estado = "anulada";
-      // neto < 0 ⇒ las NC superan el monto de la factura (anomalía del SII).
-      r.sobreCredito = r.neto < 0;
-    } else r.estado = "parcial";
+    const ncRut = nc.rut_contraparte?.trim();
+    const ncAmount = nc.monto_total;
+    candidates =
+      ncRut && typeof ncAmount === "number" && Number.isFinite(ncAmount) && mag(ncAmount) > 0
+        ? rows.filter(
+            (r) =>
+              r.factura.rut_contraparte?.trim() === ncRut &&
+              typeof r.factura.monto_total === "number" &&
+              Number.isFinite(r.factura.monto_total) &&
+              mag(r.factura.monto_total) === mag(ncAmount),
+          )
+        : [];
+    asociacionesPendientes.push({
+      nota: nc,
+      status:
+        candidates.length === 1
+          ? "possible_association"
+          : candidates.length > 1
+            ? "ambiguous"
+            : "unresolved",
+      candidateFolios: candidates.flatMap((candidate) =>
+        typeof candidate.factura.folio === "number" ? [candidate.factura.folio] : [],
+      ),
+      reason:
+        candidates.length === 1
+          ? "unique_rut_amount_match"
+          : candidates.length > 1
+            ? "multiple_candidates"
+            : "no_candidate",
+    });
   }
 
   const totalBrutas = facturas.reduce((a, f) => a + num(f.monto_total), 0);
   const totalNc = notas.reduce((a, n) => a + mag(n.monto_total), 0);
-  return { rows, notasHuerfanas: huerfanas, totalBrutas, totalNc, totalNetas: totalBrutas - totalNc };
+  return {
+    rows,
+    notasHuerfanas: notas,
+    asociacionesPendientes,
+    totalBrutas,
+    totalNc,
+    totalNetas: totalBrutas - totalNc,
+  };
+}
+
+/**
+ * Agrupa el subconjunto visible sin permitir que filtros de presentación cambien
+ * la clasificación calculada sobre el contexto completo descargado.
+ */
+export function agruparVisibleConContexto<T extends AnulableDoc>(
+  contextDocs: T[],
+  visibleDocs: T[],
+): LibroAgrupado<T> {
+  const context = agruparConReferencias(contextDocs);
+  const visible = agruparConReferencias(visibleDocs);
+  const associationByDocument = new Map(
+    context.asociacionesPendientes.map((association) => [association.nota, association]),
+  );
+  return {
+    ...visible,
+    asociacionesPendientes: visible.asociacionesPendientes.map(
+      (association) => associationByDocument.get(association.nota) ?? association,
+    ),
+  };
 }

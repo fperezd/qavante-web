@@ -3,6 +3,7 @@ import { api } from "./client";
 import { ApiError } from "./errors";
 import { XLSX_MIME } from "@/lib/export/xlsx";
 import type { components } from "./types";
+import type { FinancialDecisionReadScope } from "./financial-scope";
 
 /* Capa de datos — Resultado Operacional de Gestión (Sprint C5, Documento
    Maestro §7.5 / §11.5).
@@ -47,6 +48,7 @@ export type OperationalResultDocument = components["schemas"]["OperationalResult
    lo aproximaba sobre el RCV diario; ahora lo calcula el backend (autoritativo, saca lógica del FE).
    `actual`/`mes_anterior`/`variacion` son dicts libres (additionalProperties). Tipo GENERADO. */
 export type OperationalResultAlDia = components["schemas"]["OperationalResultAlDiaResponse"];
+export type OperationalResultV2Response = components["schemas"]["OperationalResultV2Response"];
 
 /* Propuestas de clasificación (IA + aprendizaje por contraparte, ADR-0062): para lo sin clasificar,
    sugiere la cuenta de gestión por documento. Confirmar aplica la sugerencia Y crea una regla por la
@@ -68,7 +70,37 @@ export const gestionKeys = {
     [...gestionKeys.all, "operational-result-documents", period, account] as const,
   operationalResultAlDia: (period: string, hastaDia: number) =>
     [...gestionKeys.all, "operational-result-al-dia", period, hastaDia] as const,
+  operationalResultV2: (scope: FinancialDecisionReadScope | null, horizonDays: number) =>
+    [
+      ...gestionKeys.all,
+      "operational-result-v2",
+      scope?.legal_entity_id,
+      scope?.currency,
+      scope?.as_of,
+      horizonDays,
+    ] as const,
 };
+
+/** Lee el estado de resultados canónico desde el mismo snapshot financiero sellado. */
+export function useOperationalResultV2(scope: FinancialDecisionReadScope | null, horizonDays = 90) {
+  return useQuery({
+    queryKey: gestionKeys.operationalResultV2(scope, horizonDays),
+    queryFn: () => {
+      const query = new URLSearchParams({
+        legal_entity_id: scope!.legal_entity_id,
+        currency: scope!.currency,
+        as_of: scope!.as_of,
+        horizon_days: String(horizonDays),
+      });
+      return api.get<OperationalResultV2Response>(
+        `/api/management/operational-result/v2?${query.toString()}`,
+      );
+    },
+    enabled: scope !== null,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
 
 /** `GET /api/management/operational-result/export` descarga el MISMO pivote
  * mensualizado que muestra Gestión. XLSX conserva tipos; el frontend no

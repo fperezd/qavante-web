@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ComponentProps } from "react";
-import { BandejaV07View } from "./bandeja-v07-view";
+import { BandejaV07View, mensajeSinSugerenciaConciliar } from "./bandeja-v07-view";
 import {
   candidatos as adaptarCandidatos,
   itemsClasificar,
@@ -109,6 +109,7 @@ describe("BandejaV07View — cabecera y progreso", () => {
     expect(t).toContain("0 de 7 resueltos en esta sesión");
     expect(t).toContain("$0 dejaron de estar en duda");
     expect(t).not.toContain("resueltos hoy");
+    // Y el hueco queda declarado en la pantalla, no sólo en la descripción del cambio.
     expect(t).toContain("El progreso corresponde a esta sesión");
   });
 
@@ -205,7 +206,7 @@ describe("BandejaV07View — carta de conciliar SIN evidencia (el caso del HTML 
   it("CERO chips, y se dice por qué no hay ninguno (no se pinta un chip que no pasó)", () => {
     const h = html(volcan());
     expect(chips(h)).toEqual([]);
-    expect(texto(h)).toContain("no encontramos coincidencias suficientes");
+    expect(texto(h)).toContain("ninguna verificación coincide entre el movimiento y el documento");
     // Gemelo positivo con la MISMA query: el caso con evidencia sí trae chips.
     expect(chips(html())).toHaveLength(5);
   });
@@ -225,11 +226,40 @@ describe("BandejaV07View — carta de conciliar SIN evidencia (el caso del HTML 
     expect(texto(h)).toContain("Buscar el documento B");
     expect(h).not.toMatch(/>Sí, conciliar <span/);
     expect(texto(h)).toContain(
-      "Sin el RUT en la glosa y sin un monto que calce, esto no se sugiere: va a revisión manual.",
+      "La glosa no incluye un RUT y ningún monto coincide con precisión suficiente.",
     );
     // Gemelo: en el caso con evidencia ese texto NO está y el botón sí.
     expect(texto(html())).not.toContain("va a revisión manual");
     expect(html()).toMatch(/>Sí, conciliar <span/);
+  });
+});
+
+describe("mensaje de asociación documental", () => {
+  const conRut = CONCILIAR().find((item) => item.id === MOV_KAUFMANN)!;
+  const sinRut = CONCILIAR().find((item) => item.id === MOV_VOLCAN)!;
+
+  it("no afirma que falta RUT cuando la glosa sí lo contiene", () => {
+    const message = mensajeSinSugerenciaConciliar(conRut, 1);
+    expect(message).toContain("La glosa incluye un RUT");
+    expect(message).not.toContain("no incluye un RUT");
+  });
+
+  it("distingue ausencia de RUT de ausencia de candidatos", () => {
+    expect(mensajeSinSugerenciaConciliar(sinRut, 1)).toContain("no incluye un RUT");
+    expect(mensajeSinSugerenciaConciliar(conRut, 0)).toContain("terminó sin documentos candidatos");
+  });
+
+  it("una consulta fallida se abstiene y no publica el detalle", () => {
+    const message = mensajeSinSugerenciaConciliar(
+      conRut,
+      0,
+      "Traceback SELECT token FROM users at /api/internal",
+    );
+    expect(message).toContain("No pudimos cargar los documentos candidatos");
+    expect(message).toContain("no se considera vacía");
+    expect(message).not.toContain("Traceback");
+    expect(message).not.toContain("SELECT");
+    expect(message).not.toContain("/api/");
   });
 });
 
@@ -393,7 +423,7 @@ describe("BandejaV07View — bitácora de auto-clasificación (Ley 5, issue #90)
       }),
     );
     expect(t).toContain("Hay 1 clasificación automática más, también deshacible.");
-    expect(t).not.toContain("clasificaciones automáticas");
+    expect(t).not.toContain("clasificaciones automáticas más");
   });
 
   it("gemelo positivo: con DOS más, el texto va en PLURAL ('2 clasificaciones automáticas más')", () => {
@@ -504,7 +534,9 @@ describe("BandejaV07View — Leyes 2 y 7", () => {
     const t = texto(html());
     expect(t).toContain("Las clasificaciones manuales y por lote no se pueden deshacer");
     expect(t).toContain("Revisa la selección antes de guardar");
+    expect(t).toContain("Las acciones automáticas muestran Deshacer cuando sigue disponible");
     expect(t).not.toContain("Ley 5");
+    expect(t).not.toContain("Sucesor");
     expect(t).not.toContain("#90");
   });
 });

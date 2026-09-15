@@ -15,10 +15,27 @@ export interface PulsoObjetivoSelectorProps {
   onChange: (o: PulsoObjetivo) => void;
   /** Persistencia en curso → deshabilita + spinner. */
   saving?: boolean;
+  applicationState?: "base" | "pending" | "applied" | "not_applied" | "unverified";
 }
 
-export function PulsoObjetivoSelector({ value, onChange, saving }: PulsoObjetivoSelectorProps) {
+export function PulsoObjetivoSelector({
+  value,
+  onChange,
+  saving,
+  applicationState = value === "equilibrado" ? "base" : "pending",
+}: PulsoObjetivoSelectorProps) {
   const activa = objetivoOption(value);
+
+  const applicationCopy =
+    applicationState === "base"
+      ? `${activa.descripcion} Este es el Pulso base del negocio.`
+      : applicationState === "applied"
+        ? `${activa.descripcion} Este foco sí está aplicado al corte mostrado.`
+        : applicationState === "not_applied"
+          ? `${activa.descripcion} Este corte no permite aplicar el foco; mostramos el Pulso base sin reponderarlo.`
+          : applicationState === "unverified"
+            ? `${activa.descripcion} No pudimos verificar si el foco se aplicó; no mostramos una cifra enfocada.`
+            : `${activa.descripcion} Estamos verificando si el foco puede aplicarse a este corte.`;
 
   return (
     <QavanteCard
@@ -57,9 +74,9 @@ export function PulsoObjetivoSelector({ value, onChange, saving }: PulsoObjetivo
         })}
       </div>
       <p className="mt-2.5 text-xs text-neutral-mid">
-        Estás midiendo tu salud con foco en{" "}
+        Foco seleccionado:{" "}
         <span className="font-medium text-neutral-dark">{activa.label.toLowerCase()}</span>.{" "}
-        {activa.descripcion} Tu Pulso pondera más los ejes de ese foco.
+        {applicationCopy}
       </p>
     </QavanteCard>
   );

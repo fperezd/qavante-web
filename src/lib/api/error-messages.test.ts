@@ -43,9 +43,9 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     const raw =
       "Credenciales SII inválidas o sin autorización para el RUT de la empresa. Cert .pfx no disponible. Subilo via POST /api/sii/seed-cert (body: {cert_b64, password}) o seteá SII_CERT_PATH en el entorno.";
     const out = apiErrorToUserMessage(new ApiError(raw, 400));
-    expect(out).toBe(
-      "No pudimos actualizar la información del SII. Revisa el estado de la conexión en Administración → Credenciales.",
-    );
+    /* La frontera sólo renderiza `message_code` enumerados: un detalle libre del backend —
+       incluso uno reconocible como el del SII — cae al genérico en vez de inspeccionarse. */
+    expect(out).toBe("Ocurrió un error inesperado. Intenta nuevamente.");
     expect(out).not.toContain("seed-cert");
     expect(out).not.toContain("SII_CERT_PATH");
   });
@@ -76,7 +76,7 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
 
   it("429 rate limit → 'muchas operaciones seguidas'", () => {
     expect(apiErrorToUserMessage(new ApiError("rate-limit", 429))).toBe(
-      "Hiciste muchas operaciones seguidas. Espera unos segundos.",
+      "Hiciste muchas operaciones seguidas. Espera un momento.",
     );
   });
 
@@ -113,8 +113,12 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
   });
 
   it("code=config_missing con status 0 no expone la variable interna", () => {
+    /* `config_missing` se lanza desde client.ts cuando falta la URL de la API: comparte
+       status 0 con un error de red real, y gana sobre él porque el corte no es de red. */
     const err = new ApiError("NEXT_PUBLIC_API_URL no configurada", 0, "config_missing");
-    expect(apiErrorToUserMessage(err)).toBe("Esta función no está disponible en este momento.");
+    const out = apiErrorToUserMessage(err);
+    expect(out).toBe("La aplicación no pudo conectarse al servicio. Intenta nuevamente.");
+    expect(out).not.toContain("NEXT_PUBLIC_API_URL");
   });
 
   it("status 400 desconocido cae a un mensaje seguro", () => {
@@ -133,6 +137,71 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     const out = apiErrorToUserMessage(new ApiError(raw, 500, "unknown_code"));
     expect(out).toBe("No pudimos cargar la información. Intenta nuevamente.");
     expect(out).not.toMatch(/TypeError|\/api\/|123e4567|UNEXPECTED/);
+  });
+
+  it("un message_code enumerado del servidor SÍ se renderiza; su texto libre no", () => {
+    /* La única rama en que la frontera usa carga del servidor: `userMessage` ya pasó por
+       `parseUserMessage`, así que sólo trae un código de la lista y parámetros enumerados. */
+    const raw = "Traceback: SELECT * FROM users at /api/private";
+    const err = new ApiError(
+      raw,
+      422,
+      "invalid_input",
+      { sql: raw },
+      {
+        message_code: "invalid_field",
+        params: { field: "rut" },
+        correlation_id: "req.42:abc",
+      },
+    );
+    const out = apiErrorToUserMessage(err);
+
+    expect(out).toBe("Revisa el campo RUT. Referencia: req.42:abc.");
+    // Gemelo positivo con la MISMA regex: el crudo sí contiene lo que el mensaje no refleja.
+    expect(raw).toMatch(/Traceback|SELECT|\/api\//);
+    expect(out).not.toMatch(/Traceback|SELECT|\/api\//);
+  });
+
+  it("el message_code del servidor gana sobre el fallback por status", () => {
+    const conCodigo = new ApiError("boom", 500, undefined, undefined, {
+      message_code: "source_unavailable",
+    });
+    const sinCodigo = new ApiError("boom", 500);
+
+    expect(apiErrorToUserMessage(conCodigo)).toBe("La fuente no está disponible en este momento.");
+    // Gemelo: el MISMO status, sin `userMessage`, cae al fallback y da otro texto.
+    expect(apiErrorToUserMessage(sinCodigo)).toBe(
+      "No pudimos cargar la información. Intenta nuevamente.",
+    );
+  });
+
+  it("en login, un status distinto de 401 no usa el copy de credenciales", () => {
+    const err = new ApiError("forbidden", 403);
+    expect(apiErrorToUserMessage(err, "login")).toBe(
+      "No tienes permisos para realizar esta acción.",
+    );
+    // Gemelo positivo con el MISMO contexto: con 401 sí aparece el copy de credenciales.
+    expect(apiErrorToUserMessage(new ApiError("unauthorized", 401), "login")).toBe(
+      "RUT o clave incorrectos. Verifica tus datos.",
+    );
+  });
+
+  it("el boundary desconocido delega en la frontera cuando el fallo SÍ es un ApiError", () => {
+    const err = new ApiError("not found", 404);
+    const fallback = "No pudimos completar la acción.";
+
+    expect(unknownErrorToUserMessage(err, fallback)).toBe(apiErrorToUserMessage(err));
+    expect(unknownErrorToUserMessage(err, fallback)).toBe(
+      "No encontramos la información que buscas.",
+    );
+    // Gemelo: con un fallo que NO es ApiError, el mismo fallback sí se usa.
+    expect(unknownErrorToUserMessage(new Error("not found"), fallback)).toBe(fallback);
+  });
+
+  it("sin fallback explícito, el boundary desconocido usa el genérico seguro", () => {
+    expect(unknownErrorToUserMessage(new Error("TypeError at /api/private"))).toBe(
+      "Ocurrió un error inesperado. Intenta nuevamente.",
+    );
   });
 
   it("el boundary de error desconocido nunca refleja un Error técnico", () => {

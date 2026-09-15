@@ -445,7 +445,13 @@ function DocDetail({
                     </span>
                   ) : d.esNotaCredito ? (
                     <span className="text-[10.5px] font-semibold text-neutral-mid">
-                      {d.refFolio != null ? `anula N° ${d.refFolio}` : "Crédito"}
+                      {d.associationStatus === "reference_effect_unknown"
+                        ? "Efecto por verificar"
+                        : d.associationStatus === "possible_association"
+                          ? "Asociación posible"
+                          : d.associationStatus === "ambiguous"
+                            ? "Asociación ambigua"
+                            : "Sin asociar"}
                     </span>
                   ) : d.anulacion === "anulada" ? (
                     <span className="inline-block rounded-full bg-danger-500/10 px-1.5 py-0.5 text-[10.5px] font-semibold text-danger-500">

@@ -1,26 +1,32 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — Caja como landing REORDENABLE (`cajaDashboard`, ON en el env de e2e; OFF en prod hasta que
-   Fernando lo valide). El dashboard muestra las MISMAS secciones que la landing clásica (resumen v2 +
-   movimientos), pero como bloques movibles/apagables (motor iPad del Inicio: asa de arrastre + "x" para
-   ocultar). Verificamos que el contenido sigue + que aparecen los controles de reordenar/ocultar. */
+/* Flujo — Caja reordenable (`cajaDashboard`). En producción `cajaV02` está ON y `cajaDashboard`
+   en "false" (`wrangler.toml`), y la página resuelve V02 ANTES del tablero: el dueño ve la
+   pantalla V02, no los bloques movibles. Este flujo fija esa precedencia —que es lo que el
+   usuario recibe— en vez de validar una variante que producción no sirve. */
 
 test.describe("Flujo: Caja reordenable (/caja, cajaDashboard)", () => {
-  test("las secciones se muestran como bloques movibles/apagables", async ({ page, context }) => {
+  test("con V02 encendida, la landing sirve V02 y el tablero movible no la reemplaza", async ({
+    page,
+    context,
+  }) => {
     await loginAs(context, "owner");
     await page.goto("/caja");
 
     await expect(page.getByRole("heading", { level: 1, name: "Caja" })).toBeVisible();
-
-    // Con el Brief OFF, la lectura existente y la auditoría de datos siguen disponibles.
-    await expect(page.getByText("La empresa tiene en caja")).toBeVisible();
+    // La pregunta y la lectura de V02 (no el hero del resumen v2 clásico).
+    await expect(page.getByText("¿Me alcanza la caja?")).toBeVisible();
+    await expect(page.getByText("Saldo en tus cuentas · el mismo número que en Hoy")).toBeVisible();
+    // La auditoría de movimientos queda disponible, pero secundaria.
     await expect(page.getByText("Calidad y auditoría de movimientos")).toBeVisible();
     await expect(page.getByText("Movimientos pendientes")).toBeVisible();
 
     const main = page.locator("#main-content");
-    // Cada bloque trae su asa de arrastre y su "x" de ocultar (siempre en el DOM; visibles atenuadas).
-    await expect(main.getByRole("button", { name: /para reordenar/ }).first()).toBeAttached();
-    await expect(main.getByRole("button", { name: /^Ocultar /i }).first()).toBeAttached();
+    /* Los controles del tablero NO están: V02 gana la precedencia. Gemelo positivo con la MISMA
+       query de rol: los botones de la pantalla V02 sí existen. */
+    await expect(main.getByRole("button", { name: /para reordenar/ })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: /^Ocultar /i })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: "Crear nueva foto" }).first()).toBeVisible();
   });
 });

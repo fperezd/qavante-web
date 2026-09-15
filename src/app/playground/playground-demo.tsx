@@ -13,6 +13,7 @@ import {
 } from "@/components/qavante";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
+import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 
 const brand = [
   { label: "primary", className: "bg-brand-primary", hex: "#177FC6" },
@@ -121,9 +122,9 @@ export function PlaygroundDemo() {
       setHealth({ kind: "ok", data });
     } catch (err) {
       if (err instanceof ApiError) {
-        setHealth({ kind: "error", message: err.message, status: err.status });
+        setHealth({ kind: "error", message: apiErrorToUserMessage(err), status: err.status });
       } else {
-        setHealth({ kind: "error", message: String(err), status: 0 });
+        setHealth({ kind: "error", message: "No pudimos completar la consulta.", status: 0 });
       }
     }
   }
@@ -196,9 +197,8 @@ export function PlaygroundDemo() {
           )}
           {health.kind === "error" && <p className="text-xs text-danger-500">{health.message}</p>}
           <p className="text-xs text-neutral-mid">
-            Llama al backend FastAPI en <code className="font-mono">NEXT_PUBLIC_API_URL</code> con
-            credentials include. Si vuelve 401, intenta auto-refresh contra{" "}
-            <code className="font-mono">/api/auth/refresh</code> y reintenta una vez.
+            Comprueba la conexión configurada para este entorno y renueva la sesión una vez si es
+            necesario.
           </p>
         </div>
       </Section>

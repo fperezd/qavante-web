@@ -1,23 +1,56 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Producción publica V04 antes de V2 (`cobrarV04=true` en wrangler.toml y en el entorno E2E).
-   Esta suite fija la cartera canónica de accounts-receivable, sus filtros y el registro explícito
-   de gestión; no afirma el hero RCV de una variante que no se monta con esos flags. */
+/* Flujo — Cobrar. Producción publica V04 antes de V2 (`cobrarV04="true"` en `wrangler.toml`, y el
+   mismo flag en el entorno E2E): una pantalla con la antigüedad que publica el servidor, el
+   vencido bruto y la cartera por cliente. Los tramos y los porcentajes vienen del contrato: la
+   pantalla no los recalcula desde la tabla, y no afirma el hero RCV de una variante que estos
+   flags no montan. */
 
 test.describe("Flujo: Cobrar V04 de producción (/cobrar)", () => {
-  test("publica antigüedad, vencido bruto y la cartera por cliente", async ({ page, context }) => {
+  test("tramos de antigüedad del servidor + vencido bruto + concentración", async ({
+    page,
+    context,
+  }) => {
     await loginAs(context, "owner");
     await page.goto("/cobrar");
 
     await expect(page.getByRole("heading", { level: 1, name: "Cobrar" })).toBeVisible();
+    await expect(page.getByText("¿Quién me debe?")).toBeVisible();
+
+    // Los cuatro tramos del contrato, cada uno con su parte del total.
+    for (const tramo of ["Vigente", "1–30 días", "31–60 días", "+61 días"]) {
+      await expect(page.getByText(tramo, { exact: true })).toBeVisible();
+    }
     const antiguedad = page.getByRole("region", { name: "Antigüedad de saldos" });
     await expect(antiguedad).toContainText("Vencido · bruto");
     await expect(antiguedad).toContainText("$7.900.000");
-    await expect(page.getByRole("heading", { name: "Clientes con saldo" })).toBeVisible();
-    await expect(page.getByText("Constructora Andes SpA")).toBeVisible();
-    await expect(page.getByRole("radio", { name: "Prioridad · 3" })).toBeChecked();
+    await expect(page.getByText(/31,9% del total/)).toBeVisible();
+
+    // La concentración se declara con su cobertura, sin prometer el cobro.
+    await expect(page.getByText(/3 clientes concentran .* del vencido/)).toBeVisible();
+
+    /* El hero de urgencia es de V2, que estos flags no montan. Gemelo positivo con la MISMA
+       pantalla: el encabezado que V04 sí publica. */
     await expect(page.getByText("Cóbrale primero a")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Clientes con saldo" })).toBeVisible();
+  });
+
+  test("la lista de clientes publica antigüedad, saldo y la gestión registrada", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/cobrar");
+
+    const fila = page.getByRole("row", { name: /Constructora Andes SpA/ });
+    await expect(fila).toBeVisible();
+    await expect(fila).toContainText("$9.800.000");
+    // El "sin gestión registrada" es un hecho del registro, no un default tranquilizador.
+    await expect(fila).toContainText("sin gestión registrada");
+    // Los chips traen el conteo que publica el servidor.
+    await expect(page.getByRole("radio", { name: "Prioridad · 3" })).toBeChecked();
+    await expect(page.getByRole("radio", { name: "Vencido · 3" })).toBeVisible();
   });
 
   test("filtra la cartera por vencidos sin inventar una prioridad local distinta", async ({
@@ -41,9 +74,10 @@ test.describe("Flujo: Cobrar V04 de producción (/cobrar)", () => {
     await loginAs(context, "owner");
     await page.goto("/cobrar");
 
-    const gestionar = page.getByRole("button", { name: "Gestionado" }).first();
-    await expect(gestionar).toBeVisible();
-    await gestionar.click();
-    await expect(page.getByRole("button", { name: "Reabrir" }).first()).toBeVisible();
+    const fila = page.getByRole("row", { name: /Constructora Andes SpA/ });
+    await expect(fila).toContainText("sin gestión registrada");
+    await fila.getByRole("button", { name: "Gestionado" }).first().click();
+    await expect(fila.getByRole("button", { name: "Reabrir" }).first()).toBeVisible();
+    await expect(fila).not.toContainText("sin gestión registrada");
   });
 });

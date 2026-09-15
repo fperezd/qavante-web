@@ -34,7 +34,8 @@ import { ImpuestosV06View } from "./impuestos-v06-view";
 
 const VENTANA_MESES = 6;
 
-export function ImpuestosV06Live({ issueSucesor }: { issueSucesor?: string }) {
+export function ImpuestosV06Live(_props: { issueSucesor?: string } = {}) {
+  void _props;
   const [hoy] = React.useState(() => new Date());
   const periodos = React.useMemo(() => ventanaPeriodosV06(hoy, VENTANA_MESES), [hoy]);
   const anios = React.useMemo(
@@ -64,7 +65,7 @@ export function ImpuestosV06Live({ issueSucesor }: { issueSucesor?: string }) {
     payroll.isLoading;
 
   if (cargando) {
-    return <ImpuestosV06View hoy={hoy} filas={undefined} issueSucesor={issueSucesor} />;
+    return <ImpuestosV06View hoy={hoy} filas={undefined} />;
   }
 
   if (f29Principal.isError) {
@@ -74,7 +75,6 @@ export function ImpuestosV06Live({ issueSucesor }: { issueSucesor?: string }) {
         filas={undefined}
         error={motivoSinF29(f29Principal.error)}
         onReintentar={() => void f29Principal.refetch()}
-        issueSucesor={issueSucesor}
       />
     );
   }
@@ -115,14 +115,7 @@ export function ImpuestosV06Live({ issueSucesor }: { issueSucesor?: string }) {
     hoy,
   });
 
-  return (
-    <ImpuestosV06View
-      hoy={hoy}
-      filas={filas}
-      estimacionF29={estimacion}
-      issueSucesor={issueSucesor}
-    />
-  );
+  return <ImpuestosV06View hoy={hoy} filas={filas} estimacionF29={estimacion} />;
 }
 
 export function resolverFuenteTgrV06(entrada: {

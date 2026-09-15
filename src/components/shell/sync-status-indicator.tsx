@@ -150,7 +150,7 @@ export function SyncStatusIndicator() {
   );
 }
 
-function SourceRow({ source: s }: { source: SourceStatus }) {
+export function SourceRow({ source: s }: { source: SourceStatus }) {
   const copy = sourceToConnectionCopy(s);
   const badge = STATE_BADGE[s.state] ?? { variant: "default" as const, label: copy.statusLabel };
   return (

@@ -2,15 +2,11 @@
 
 import * as React from "react";
 import { useDashboardSummary } from "@/lib/api/dashboard";
-import {
-  useBankAccounts,
-  useCashProjection,
-  useCollectionForecast,
-  useUnclassifiedInRange,
-} from "@/lib/api/treasury";
+import { useBankAccounts, useCollectionForecast, useUnclassifiedInRange } from "@/lib/api/treasury";
 import { useAccountsPayable, usePostponePayable } from "@/lib/api/pagos";
 import { ApiError } from "@/lib/api/errors";
 import { CajaV02View } from "./caja-v02-view";
+import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
 
 /* Cableado de V02 · Caja. La vista es presentacional; acá se resuelven las cinco fuentes:
  *
@@ -53,14 +49,13 @@ export function CajaV02Live({
   const mesActual = periodo(hoy);
 
   const dash = useDashboardSummary();
-  const proj = useCashProjection(90);
   const cob = useCollectionForecast();
   const ap = useAccountsPayable();
   const cuentas = useBankAccounts();
   const sinClasificar = useUnclassifiedInRange(mesAnterior, mesActual);
   const postergar = usePostponePayable();
 
-  if (dash.isLoading || proj.isLoading) return <CargandoCaja />;
+  if (dash.isLoading) return <CargandoCaja />;
 
   const bancos = (cuentas.data?.items ?? []).filter((a) => a.active).map((a) => a.bank_name);
 
@@ -68,8 +63,8 @@ export function CajaV02Live({
     <CajaV02View
       summary={dash.data ?? null}
       saldoError={dash.isError}
-      proyeccion={proj.data ?? null}
-      proyeccionMotivo={proj.isError ? motivoSinProyeccion(proj.error) : null}
+      proyeccion={null}
+      proyeccionMotivo={null}
       cobranza={cob.data ?? null}
       pagos={ap.data ?? null}
       sinClasificar={sinClasificar}
@@ -79,6 +74,7 @@ export function CajaV02Live({
       }
       suppressRecommendations={suppressRecommendations}
       hoy={hoy}
+      canonicalProjection={<CashProjectionRunPanel horizonDays={90} title="Proyección canónica" />}
     />
   );
 }

@@ -28,6 +28,7 @@ import {
   montoResuelto,
   motivosNoAutomatico,
   parcialidad,
+  primerRutEnTexto,
   progreso,
   trasResolver,
   trasSaltar,
@@ -170,7 +171,7 @@ export interface BandejaV07ViewProps {
   /** Avisa qué ítem está en pantalla, para que el padre traiga sus candidatos/su sugerencia. */
   onItemActivo?: (item: ItemV07 | null) => void;
   onReintentar?: () => void;
-  /** Issue sucesor de los huecos declarados. */
+  /** Compatibilidad de stories antiguas; nunca se presenta al usuario. */
   issueSucesor?: string;
   hoy?: Date;
   /** Tab inicial. Sólo para stories/tests deterministas. */
@@ -225,7 +226,6 @@ function BandejaV07Contenido({
   onCerrarAviso,
   onItemActivo,
   onReintentar,
-  issueSucesor,
   hoy = new Date(),
   tabInicial = "conciliar",
 }: BandejaV07ViewProps) {
@@ -359,7 +359,7 @@ function BandejaV07Contenido({
             </p>
           )}
         </div>
-        <HuecosDeclarados issueSucesor={issueSucesor} />
+        <HuecosDeclarados />
       </div>
     );
   }
@@ -546,7 +546,7 @@ function BandejaV07Contenido({
         </div>
       )}
 
-      <HuecosDeclarados issueSucesor={issueSucesor} />
+      <HuecosDeclarados />
     </div>
   );
 }
@@ -625,6 +625,9 @@ function CartaConciliar({
   const cargando = listos ? Boolean(candidatos.cargando) : Boolean(item);
   const candidato = item ? candidatoElegido(lista, item.documentoPropuesto, elegido) : null;
   const sugerible = item ? haySugerenciaConciliar(item, candidato) : false;
+  const motivoSinSugerencia = item
+    ? mensajeSinSugerenciaConciliar(item, lista.length, candidatos?.motivo)
+    : null;
 
   async function confirmarActual() {
     if (!item || !sugerible || procesandoRef.current) return;
@@ -725,8 +728,8 @@ function CartaConciliar({
       ) : (
         !cargando && (
           <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">
-            <span className={EYEBROW}>Evidencia</span> no encontramos coincidencias suficientes
-            entre el movimiento y este documento.
+            <span className={EYEBROW}>Evidencia</span> ninguna verificación coincide entre el
+            movimiento y el documento.
           </p>
         )
       )}
@@ -742,8 +745,7 @@ function CartaConciliar({
 
       {!sugerible && !cargando && (
         <p className="mt-2 text-[12.5px] text-rediseno-tinta-2">
-          Sin el RUT en la glosa y sin un monto que calce, esto no se sugiere: va a revisión manual.
-          Elige tú el documento o sáltalo.
+          {motivoSinSugerencia} Elige tú el documento o sáltalo.
         </p>
       )}
 
@@ -843,7 +845,7 @@ function LadoDocumento({
       >
         <p className={EYEBROW}>Documento candidato</p>
         <p className="mt-1 text-[12.5px] text-rediseno-tinta-2">
-          Estamos trayendo los documentos que podrían calzar (~2 s).
+          Estamos trayendo los documentos que podrían calzar.
         </p>
       </div>
     );
@@ -935,7 +937,7 @@ function ListaCandidatos({
   if (cargando) {
     return (
       <p className="mt-3 text-[12.5px] text-rediseno-tinta-2" aria-busy="true">
-        Estamos trayendo los documentos que podrían calzar (~2 s).
+        Estamos trayendo los documentos que podrían calzar.
       </p>
     );
   }
@@ -1696,8 +1698,7 @@ function OfertaRegla({
 
 /* ── Huecos declarados ───────────────────────────────────────────────────────────────────── */
 
-function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
-  void issueSucesor;
+function HuecosDeclarados() {
   return (
     <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
       Las clasificaciones manuales y por lote no se pueden deshacer desde esta bandeja. Revisa la
@@ -1705,6 +1706,23 @@ function HuecosDeclarados({ issueSucesor }: { issueSucesor?: string }) {
       disponible. El progreso corresponde a <b>esta sesión</b>.
     </p>
   );
+}
+
+export function mensajeSinSugerenciaConciliar(
+  item: ItemConciliarV07,
+  candidatosCount: number,
+  errorCandidatos?: string | null,
+): string {
+  if (errorCandidatos) {
+    return "No pudimos cargar los documentos candidatos. La consulta no se considera vacía.";
+  }
+  if (candidatosCount === 0) {
+    return "La consulta terminó sin documentos candidatos para este movimiento.";
+  }
+  if (primerRutEnTexto(item.glosa)) {
+    return "La glosa incluye un RUT, pero no encontramos una coincidencia suficiente.";
+  }
+  return "La glosa no incluye un RUT y ningún monto coincide con precisión suficiente.";
 }
 
 /* ── Atajos de teclado ───────────────────────────────────────────────────────────────────── */

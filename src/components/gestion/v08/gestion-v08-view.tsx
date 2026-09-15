@@ -96,7 +96,8 @@ import {
  * revierten.
  *
  * El pivote se exporta como XLSX tipado por el backend; la pantalla no vuelve a construir sus
- * filas. "Días promedio en pagar" del 360 conserva su "en preparación" honesto. */
+ * filas. "Días promedio en pagar" del 360 se declara "sin información disponible": no se estima
+ * con el plazo pactado. */
 
 export interface GestionV08ViewProps {
   tab: TabV08;
@@ -136,6 +137,7 @@ export interface GestionV08ViewProps {
   errorExportPivote?: string | null;
   exitoExportPivote?: string | null;
   hoy?: Date;
+  /** Compatibilidad de stories antiguas; nunca se presenta al usuario. */
   issueSucesor?: string;
 }
 
@@ -244,7 +246,6 @@ function TabResultado({
   exportandoPivote = false,
   errorExportPivote,
   exitoExportPivote,
-  issueSucesor,
 }: GestionV08ViewProps & { hoy: Date }) {
   if (!breakdown) {
     return (
@@ -351,7 +352,7 @@ function TabResultado({
         exitoExportPivote={exitoExportPivote}
       />
 
-      <SeccionCostos filas={filas} periodo={ultimoMes} issueSucesor={issueSucesor} />
+      <SeccionCostos filas={filas} periodo={ultimoMes} />
     </Panel>
   );
 }
@@ -628,7 +629,7 @@ function FilasDocumentos({
     return (
       <tr className="border-b border-rediseno-hairline-row-2 bg-rediseno-porcelana">
         <td colSpan={colSpan} className={cn(TD, "text-[12.5px] text-rediseno-tinta-3")}>
-          Estamos trayendo los documentos de {label} en {formatPeriodLabel(periodo)} (~3 s).
+          Estamos trayendo los documentos de {label} en {formatPeriodLabel(periodo)}.
         </td>
       </tr>
     );
@@ -706,14 +707,7 @@ function FilasDocumentos({
 
 /* ────────────────────────── Sección: Costos y gastos ────────────────────────── */
 
-function SeccionCostos({
-  filas,
-  periodo,
-}: {
-  filas: FilaPivote[];
-  periodo: string | null;
-  issueSucesor?: string;
-}) {
+function SeccionCostos({ filas, periodo }: { filas: FilaPivote[]; periodo: string | null }) {
   const lineas = React.useMemo(
     () => (periodo ? costosDelMes(filas, periodo) : []),
     [filas, periodo],
@@ -812,8 +806,8 @@ function SeccionCostos({
         </p>
       )}
       <p className="text-[12.5px] text-rediseno-tinta-3">
-        Cada cuenta se abre hasta el documento desde el cuadro de arriba (clic en el monto del mes).
-        La descarga Excel contiene las mismas filas y montos del cuadro.
+        Cada cuenta se abre hasta el documento desde el cuadro de arriba. La descarga disponible es
+        un CSV con las filas que ves.
       </p>
     </section>
   );
@@ -1182,7 +1176,7 @@ function Tab360(props: GestionV08ViewProps) {
     return (
       <Panel tab={tab}>
         <p className="text-sm text-rediseno-tinta-3" aria-busy="true" aria-live="polite">
-          Estamos trayendo tus {flujo} de los últimos 12 meses, mes por mes (~15 s).
+          Estamos trayendo tus {flujo} de los últimos 12 meses, mes por mes.
         </p>
         <div className="h-40 animate-pulse rounded-[14px] bg-rediseno-neutro-bg" aria-hidden />
       </Panel>
@@ -1334,7 +1328,7 @@ function Tab360(props: GestionV08ViewProps) {
           <section className="space-y-1">
             <h3 className="flex flex-wrap items-center gap-2">
               <span className={EYEBROW}>Días promedio en {esCliente ? "pagarte" : "pagar"}</span>
-              <Pill variant="mut">en preparación</Pill>
+              <Pill variant="mut">sin información disponible</Pill>
             </h3>
             <p className="text-[12.5px] leading-relaxed text-rediseno-tinta-3">
               El comportamiento de pago REAL (cuánto tarda de verdad, no el plazo pactado) necesita

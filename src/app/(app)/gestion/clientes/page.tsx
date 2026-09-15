@@ -31,7 +31,7 @@ export default function Page() {
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Clientes 360</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Cómo se comporta cada cliente en el tiempo: venta, tendencia, estacionalidad y riesgo.
+          Revisa las ventas observadas, la concentración y la actividad reciente de cada cliente.
         </p>
       </header>
 

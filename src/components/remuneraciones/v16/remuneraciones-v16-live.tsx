@@ -83,7 +83,7 @@ function CargandoRemuneraciones() {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
       <p className="text-sm text-rediseno-tinta-3">
-        Estamos trayendo tu planilla y el detalle por persona (~5 s).
+        Estamos trayendo tu planilla y el detalle por persona.
       </p>
       <div className="grid gap-3 sm:grid-cols-3" aria-hidden="true">
         {Array.from({ length: 3 }).map((_, i) => (

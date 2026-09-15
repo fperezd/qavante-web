@@ -1,32 +1,32 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp, X } from "lucide-react";
+import { TrendingUp, X } from "lucide-react";
 import { QavanteBadge, QavanteStatTile } from "@/components/qavante";
-import { useMaestroDocs } from "@/components/terminos/use-maestro-docs";
-import { addMonths, comparePeriod, toPeriod, type PeriodRange } from "@/lib/period/period-range";
 import { formatClp } from "@/lib/formatters/clp";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
 import { normalizeRut } from "@/lib/validators/rut";
-import type { DocConVencimiento } from "@/components/terminos/terminos-pago";
+import { tipoDocMeta } from "@/components/sii/tipo-doc";
 import {
-  agregarContrapartes,
+  aggregateCustomer360Counterparties,
   concentracionPct,
-  estacionalidad,
-  montoFirmado,
-  periodoDe,
-  serieMensual,
+  customer360DocumentDate,
+  customer360DocumentKind,
+  customer360Series,
+  customer360SignedAmount,
   sinMesEnCurso,
-  tendenciaAnual,
+  validateCustomer360Documents,
+  type Customer360Counterparty,
+  type Customer360Scope,
+  type ValidCustomer360Document,
 } from "./contraparte-360-model";
 import { formatPct } from "@/lib/formatters/pct";
-import { MESES_CORTOS_CAP as MESES_CORTOS } from "@/lib/formatters/months";
+import { useCustomer360Source, type Customer360PeriodCoverage } from "./use-customer-360-source";
 
-/* Contraparte 360 (pedido de Fernando 2026-07-30): análisis del comportamiento comercial de un
-   cliente (ventas) o proveedor (compras) en el tiempo — venta/compra mes a mes, tendencia año contra
-   año, estacionalidad, concentración y riesgo. Config-driven: la MISMA vista sirve para los dos 360,
-   cambia el lenguaje. Datos del maestro RCV (~24 meses). "Días de pago real" NO se calcula (es el
-   comportamiento_pago = brecha CC-API); se declara honesto. Sin `export const runtime` (regla 4). */
+/* Contención del 360 sobre una única ventana RCV de 12 meses. La misma población alimenta todas las
+   cifras visibles; los comparativos históricos quedan fuera hasta que exista el productor canónico.
+   Config-driven: la misma vista sirve para clientes y proveedores. "Días de pago real" no se calcula
+   hasta contar con el cruce documental y bancario. Sin `export const runtime` (regla 4). */
 
 /** "2026-07" → "07-2026" (mes-año, no año-mes). Deja el input si no parsea. */
 function mesAnioNum(periodo: string): string {
@@ -49,56 +49,66 @@ export interface Config360 {
 }
 
 export function Contraparte360View({ config }: { config: Config360 }) {
-  // Traemos ~24 meses (para el año-contra-año y la estacionalidad), pero el FOCO es los ÚLTIMOS
-  // 12 MESES (pedido de Fernando): el total, la concentración y las barras son de 12 meses.
-  const { range24, desde12 } = React.useMemo(() => {
-    const hasta = toPeriod(new Date());
-    // 25 meses: el año-contra-año y la estacionalidad EXCLUYEN el mes en curso (parcial) → necesitan
-    // 24 meses CERRADOS, que salen de descartar el último de estos 25 (ver `serie24.slice(0,-1)` abajo).
-    const range24: PeriodRange = { desde: addMonths(hasta, -24), hasta };
-    return { range24, desde12: addMonths(hasta, -11) };
-  }, []);
-
-  const maestro = useMaestroDocs(config.kind, true, range24);
-  const docs = maestro.docs;
-
-  const { agregados, totalGlobal, primerPorRut } = React.useMemo(() => {
-    const docs12 = docs.filter((d) => {
-      const p = periodoDe(d.fecha);
-      return p != null && comparePeriod(p, desde12) >= 0;
-    });
-    const ag = agregarContrapartes(docs12);
-    // "activo desde" = primer período REAL (ventana completa), no el recorte de 12m.
-    const primerPorRut = new Map(agregarContrapartes(docs).map((c) => [c.rut, c.primerPeriodo]));
-    return { agregados: ag, totalGlobal: ag.reduce((s, c) => s + c.total, 0), primerPorRut };
-  }, [docs, desde12]);
+  const source = useCustomer360Source(config.kind);
+  const validation = React.useMemo(
+    () =>
+      validateCustomer360Documents(
+        source.focusDocs,
+        source.canAggregatePeriods,
+        source.invalidDateDocuments,
+        source.ambiguousDocumentIdentities,
+      ),
+    [
+      source.focusDocs,
+      source.canAggregatePeriods,
+      source.invalidDateDocuments,
+      source.ambiguousDocumentIdentities,
+    ],
+  );
+  const agregados = React.useMemo(
+    () => (validation.canAggregate ? aggregateCustomer360Counterparties(validation.docs) : []),
+    [validation],
+  );
+  const totalGlobal = React.useMemo(
+    () => agregados.reduce((total, counterparty) => total + counterparty.total, 0),
+    [agregados],
+  );
 
   const [rut, setRut] = React.useState<string | null>(null);
   // Default: la contraparte que más pesa (una vez que llegan los datos).
   const rutSel = rut ?? agregados[0]?.rut ?? null;
   const sel = agregados.find((c) => c.rut === rutSel) ?? null;
 
-  if (maestro.isFetching && docs.length === 0) {
-    return <div className="h-48 animate-pulse rounded-xl bg-neutral-light/30" aria-busy="true" />;
-  }
-  // Error real (todas las consultas fallaron) ≠ "no hay actividad": no afirmamos $0 de ventas.
-  if (maestro.isError && docs.length === 0) {
+  if (!validation.canAggregate) {
     return (
-      <section className="rounded-xl border border-danger-500/40 bg-danger-500/[.06] p-6 text-sm text-neutral-dark">
-        No pudimos cargar tus {config.flujo.toLowerCase()} ahora. Reintenta en un momento.
-      </section>
+      <div className="space-y-4">
+        <ScopeSummary source={source} />
+        <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-6 text-sm text-neutral-dark">
+          <h2 className="font-semibold">Aún no podemos calcular este 360 con seguridad</h2>
+          <p className="mt-1 text-neutral-mid">
+            No mostramos tarjeta, ranking ni concentración mientras falte un mes, un monto válido o
+            una identidad confiable. Así evitamos publicar ausencias como $0 o juntar contrapartes
+            distintas.
+          </p>
+          <AbstainDetails coverage={source.coverage} reasons={validation.reasons} />
+        </section>
+      </div>
     );
   }
   if (agregados.length === 0) {
     return (
-      <section className="rounded-xl border border-border bg-surface p-6 text-sm text-neutral-mid">
-        Todavía no hay {config.flujo.toLowerCase()} en los últimos 12 meses para analizar.
-      </section>
+      <div className="space-y-4">
+        <ScopeSummary source={source} />
+        <section className="rounded-xl border border-border bg-surface p-6 text-sm text-neutral-mid">
+          No observamos {config.flujo.toLowerCase()} en la ventana indicada.
+        </section>
+      </div>
     );
   }
 
   return (
     <div className="space-y-5">
+      <ScopeSummary source={source} />
       <Selector
         agregados={agregados}
         value={rutSel}
@@ -106,24 +116,81 @@ export function Contraparte360View({ config }: { config: Config360 }) {
         config={config}
         totalGlobal={totalGlobal}
       />
-      {maestro.isFetching && (
-        <p className="text-xs text-neutral-light" role="status">
-          Cargando más meses… los números pueden ajustarse.
-        </p>
-      )}
       {sel && (
         <Detalle
           sel={sel}
-          docs={docs}
-          desde12={desde12}
-          desde24={range24.desde}
-          hasta={range24.hasta}
-          activoDesde={primerPorRut.get(sel.rut) ?? sel.primerPeriodo}
+          docs={validation.docs}
+          scope={source.scope}
           totalGlobal={totalGlobal}
           config={config}
         />
       )}
     </div>
+  );
+}
+
+function ScopeSummary({ source }: { source: ReturnType<typeof useCustomer360Source> }) {
+  const observed = source.coverage.filter(
+    (month) => month.state === "observed" || month.state === "observed_zero",
+  ).length;
+  const observedZero = source.coverage.filter((month) => month.state === "observed_zero").length;
+  const syncs = source.coverage
+    .map((month) => month.lastSyncedAt)
+    .filter((value): value is string => value != null)
+    .sort();
+  const lastSync = syncs.at(-1) ?? null;
+  return (
+    <section className="rounded-xl border border-border bg-surface px-4 py-3 text-xs text-neutral-mid">
+      <p className="font-semibold text-neutral-dark">
+        Ventana {formatPeriodLabel(source.scope.periodFrom)}–
+        {formatPeriodLabel(source.scope.periodTo)} · hasta {source.scope.asOfDate} en Santiago
+      </p>
+      <p className="mt-1">
+        Base bruta con IVA: NC restan, ND suman y reclamados se informan aparte. {observed}/12 meses
+        respondieron{observedZero > 0 ? `; ${observedZero} sin documentos observados` : ""}.
+      </p>
+      <p className="mt-1">
+        Cobertura observada desde respuestas mensuales; todavía no es un manifiesto de completitud.
+        {lastSync ? ` Última carga informada: ${lastSync}.` : " Sin hora de carga informada."}
+      </p>
+      {source.stalePeriods.length > 0 && (
+        <p className="mt-1 font-medium text-warning-700">
+          Datos desactualizados informados para: {source.stalePeriods.join(", ")}.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function AbstainDetails({
+  coverage,
+  reasons,
+}: {
+  coverage: Customer360PeriodCoverage[];
+  reasons: ReturnType<typeof validateCustomer360Documents>["reasons"];
+}) {
+  const unavailable = coverage.filter(
+    (month) => month.state === "loading" || month.state === "error" || month.state === "absent",
+  );
+  const labels: Record<(typeof reasons)[number], string> = {
+    period_coverage_incomplete: "La ventana mensual está incompleta.",
+    invalid_document_date: "Hay documentos sin una fecha de emisión válida.",
+    invalid_document_amount: "Hay documentos con monto ausente o inválido.",
+    unresolved_counterparty_identity: "Hay una contraparte sin identidad segura.",
+    ambiguous_document_identity:
+      "Hay documentos sin identidad fiscal completa o con la misma identidad y datos contradictorios.",
+  };
+  return (
+    <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-neutral-mid">
+      {reasons.map((reason) => (
+        <li key={reason}>{labels[reason]}</li>
+      ))}
+      {unavailable.map((month) => (
+        <li key={month.period}>
+          {month.period}: {month.state === "loading" ? "cargando" : "no disponible"}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -135,7 +202,7 @@ function Selector({
   config,
   totalGlobal,
 }: {
-  agregados: ReturnType<typeof agregarContrapartes>;
+  agregados: Customer360Counterparty[];
   value: string | null;
   onChange: (rut: string) => void;
   config: Config360;
@@ -225,7 +292,7 @@ function Selector({
           role="listbox"
           className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
         >
-          {filtered.slice(0, 60).map((c) => {
+          {filtered.map((c) => {
             const pct = concentracionPct(c.total, totalGlobal);
             return (
               <li key={c.rut} role="option" aria-selected={c.rut === value}>
@@ -259,48 +326,26 @@ function Selector({
 function Detalle({
   sel,
   docs,
-  desde12,
-  desde24,
-  hasta,
-  activoDesde,
+  scope,
   totalGlobal,
   config,
 }: {
-  sel: ReturnType<typeof agregarContrapartes>[number];
-  docs: DocConVencimiento[];
-  desde12: string;
-  desde24: string;
-  hasta: string;
-  activoDesde: string;
+  sel: Customer360Counterparty;
+  docs: ValidCustomer360Document[];
+  scope: Customer360Scope;
   totalGlobal: number;
   config: Config360;
 }) {
-  // Barras + total: últimos 12 meses (foco; el último es el mes en curso, "hasta hoy"). Año-contra-año
-  // + estacionalidad: 24 meses CERRADOS — se descarta el mes en curso (parcial), que si no compararía
-  // 11 meses completos + medio mes contra 12 completos (peras con manzanas) y hundiría el %/promedio.
   const serie12 = React.useMemo(
-    () => serieMensual(docs, sel.rut, desde12, hasta),
-    [docs, sel.rut, desde12, hasta],
+    () => customer360Series(docs, sel.rut, scope),
+    [docs, sel.rut, scope],
   );
-  const serie24Cerrada = React.useMemo(
-    // 25 meses del fetch → se descarta el mes en curso → 24 meses cerrados.
-    () => sinMesEnCurso(serieMensual(docs, sel.rut, desde24, hasta)),
-    [docs, sel.rut, desde24, hasta],
-  );
-  const tend = tendenciaAnual(serie24Cerrada);
-  const est = estacionalidad(serie24Cerrada);
   const pct = concentracionPct(sel.total, totalGlobal);
 
   // Riesgo: mayor documento y meses desde la última actividad.
   const docsSel = docs.filter((d) => normalizeRut(d.rut) === sel.rut);
-  // "Documento más grande" del período de FOCO (últimos 12 meses), coherente con el resto de la vista.
-  const mayor = docsSel
-    .filter((d) => {
-      const p = periodoDe(d.fecha);
-      return p != null && comparePeriod(p, desde12) >= 0;
-    })
-    .reduce((mx, d) => Math.max(mx, montoFirmado(d)), 0);
-  const mesesSinActividad = periodDiff(sel.ultimoPeriodo, hasta);
+  const mayor = docsSel.reduce((mx, d) => Math.max(mx, customer360SignedAmount(d)), 0);
+  const mesesSinActividad = periodDiff(sel.ultimoPeriodo, scope.periodTo);
 
   return (
     <>
@@ -308,7 +353,7 @@ function Detalle({
       <section className="rounded-xl border border-border bg-surface p-5">
         <h2 className="text-lg font-bold text-neutral-dark">{sel.name}</h2>
         <p className="text-xs text-neutral-mid">
-          RUT {sel.rut} · activo desde {formatPeriodLabel(activoDesde)}
+          RUT {sel.rut} · actividad observada desde {formatPeriodLabel(sel.primerPeriodo)}
         </p>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <QavanteStatTile
@@ -328,6 +373,12 @@ function Detalle({
           />
           <QavanteStatTile label="Documentos" value={String(sel.docs)} tone="default" />
         </div>
+        <p className="mt-3 text-xs text-neutral-mid">
+          Documentos positivos {formatClp(sel.breakdown.positiveDocumentsGross)} · ND +
+          {formatClp(sel.breakdown.debitNotesGross)} · NC −
+          {formatClp(sel.breakdown.creditNotesGross)} · reclamados excluidos{" "}
+          {formatClp(sel.breakdown.reclaimedGross)} ({sel.breakdown.reclaimedCount})
+        </p>
       </section>
 
       {/* Venta/compra en el tiempo */}
@@ -337,20 +388,14 @@ function Detalle({
           {config.flujo} mes a mes (últimos 12 meses)
         </div>
         <Barras serie={serie12} />
-        {tend && <TendenciaLinea tend={tend} config={config} />}
+        <p className="mt-3 border-t border-dashed border-border pt-3 text-xs text-neutral-mid">
+          Esta serie usa exclusivamente la ventana indicada arriba. Los comparativos históricos no
+          se muestran hasta contar con una fuente canónica de períodos equivalentes.
+        </p>
       </section>
 
       {/* Recuperación: mes en curso vs. el mejor mes → cuánto hay para recuperar */}
       <Recuperacion serie={serie12} config={config} />
-
-      {/* Estacionalidad */}
-      <section className="rounded-xl border border-border bg-surface p-5">
-        <h3 className="text-sm font-bold text-neutral-dark">Estacionalidad</h3>
-        <p className="text-xs text-neutral-mid">
-          Promedio por mes del año: en qué meses concentra.
-        </p>
-        <Estacional est={est} />
-      </section>
 
       {/* Riesgo + días de pago */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -381,34 +426,6 @@ function Detalle({
 }
 
 /* ---------- Sub-bloques ---------- */
-function TendenciaLinea({
-  tend,
-  config,
-}: {
-  tend: NonNullable<ReturnType<typeof tendenciaAnual>>;
-  config: Config360;
-}) {
-  const d = tend.deltaPct;
-  const sube = (d ?? 0) >= 0;
-  const Icon = d == null ? Minus : sube ? ArrowUpRight : ArrowDownRight;
-  const color = d == null ? "text-neutral-mid" : sube ? "text-success-700" : "text-danger-500";
-  return (
-    <p className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-dashed border-border pt-3 text-sm text-neutral-mid">
-      <Icon className={`h-4 w-4 ${color}`} aria-hidden="true" />
-      Últimos 12 meses <b className="text-neutral-dark">{formatClp(tend.ultimos12)}</b> vs. los 12
-      previos <b className="text-neutral-dark">{formatClp(tend.previos12)}</b>
-      {d != null && (
-        <span className={`font-semibold ${color}`}>
-          ({formatPct(d, { signed: true })} de {config.flujo.toLowerCase()})
-        </span>
-      )}
-    </p>
-  );
-}
-
-/** Barras verticales normalizadas al máximo de la serie. Cada columna es `h-full` + `items-end`
- *  para que la altura % de la barra resuelva contra una altura DEFINIDA (si el padre directo no
- *  tiene altura, el % cae a 0 y no se ve nada). */
 /** Recuperación: último mes CERRADO vs. el MEJOR mes de la serie → cuánto hay para recuperar (ventas)
  *  o cuánto bajó la relación (compras). Responde "¿qué debería recuperar de este cliente?".
  *  El último punto de la serie es el mes EN CURSO (parcial: recién empieza) → NO se compara: daría
@@ -502,51 +519,6 @@ function Barras({ serie }: { serie: { periodo: string; monto: number }[] }) {
   );
 }
 
-/** 12 barras Ene–Dic con el promedio; resalta el mes pico y muestra el valor al pasar el mouse. */
-function Estacional({ est }: { est: { mes: number; promedio: number }[] }) {
-  const [hover, setHover] = React.useState<number | null>(null);
-  const max = Math.max(1, ...est.map((e) => Math.abs(e.promedio)));
-  const pico = est.reduce((mx, e) => (e.promedio > mx.promedio ? e : mx), est[0]!);
-  const activo = hover != null ? est[hover] : pico;
-  return (
-    <div>
-      <div className="mt-3 flex items-end gap-1">
-        {est.map((e, i) => {
-          const h = Math.round((Math.abs(e.promedio) / max) * 100);
-          const esPico = e.mes === pico.mes && pico.promedio > 0;
-          const on = i === hover;
-          return (
-            <div
-              key={e.mes}
-              className="flex flex-1 flex-col items-center gap-1"
-              onMouseEnter={() => setHover(i)}
-              onMouseLeave={() => setHover(null)}
-            >
-              {/* Caja de altura DEFINIDA (h-20) + items-end para que la barra en % se vea. */}
-              <div className="flex h-20 w-full items-end">
-                <div
-                  className={`w-full rounded-t transition-colors ${
-                    on || esPico ? "bg-brand-primary" : "bg-brand-primary/40"
-                  }`}
-                  style={{ height: `${Math.max(3, h)}%` }}
-                  title={`${MESES_CORTOS[e.mes - 1]}: ${formatClp(e.promedio)}`}
-                />
-              </div>
-              <span className="text-[9px] text-neutral-mid">{MESES_CORTOS[e.mes - 1]}</span>
-            </div>
-          );
-        })}
-      </div>
-      {activo && activo.promedio > 0 && (
-        <p className="mt-1 text-xs text-neutral-mid">
-          <b className="text-neutral-dark">{MESES_CORTOS[activo.mes - 1]}</b> · promedio{" "}
-          {formatClp(activo.promedio)}
-        </p>
-      )}
-    </div>
-  );
-}
-
 function DiasDePago({ config }: { config: Config360 }) {
   const verbo = config.kind === "ventas" ? "en cobrar" : "en pagar";
   return (
@@ -560,9 +532,13 @@ function DiasDePago({ config }: { config: Config360 }) {
   );
 }
 
-function UltimosDocs({ docsSel }: { docsSel: DocConVencimiento[] }) {
+function UltimosDocs({ docsSel }: { docsSel: ValidCustomer360Document[] }) {
   const ultimos = [...docsSel]
-    .sort((a, b) => (periodoDe(b.fecha) ?? "").localeCompare(periodoDe(a.fecha) ?? ""))
+    .sort((a, b) =>
+      (customer360DocumentDate(b.fecha) ?? "").localeCompare(
+        customer360DocumentDate(a.fecha) ?? "",
+      ),
+    )
     .slice(0, 8);
   if (ultimos.length === 0) return null;
   return (
@@ -586,7 +562,11 @@ function UltimosDocs({ docsSel }: { docsSel: DocConVencimiento[] }) {
                   {d.folio ?? "Folio no informado"}
                 </td>
                 <td className="py-1.5 pr-3 text-neutral-mid">
-                  {d.tipoDoc === 61 || d.tipoDoc === 112 ? "Nota de crédito" : "Factura"}
+                  {customer360DocumentKind(d.tipoDoc) === "credit_note"
+                    ? "Nota de crédito"
+                    : customer360DocumentKind(d.tipoDoc) === "debit_note"
+                      ? "Nota de débito"
+                      : tipoDocMeta(d.tipoDoc).label}
                   {d.reclamado && (
                     <QavanteBadge variant="warning" className="ml-2">
                       R
@@ -594,7 +574,7 @@ function UltimosDocs({ docsSel }: { docsSel: DocConVencimiento[] }) {
                   )}
                 </td>
                 <td className="py-1.5 text-right font-semibold tabular-nums text-neutral-dark">
-                  {formatClp(montoFirmado(d))}
+                  {formatClp(customer360SignedAmount(d))}
                 </td>
               </tr>
             ))}

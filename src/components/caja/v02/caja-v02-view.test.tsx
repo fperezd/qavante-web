@@ -116,6 +116,7 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
       label: `Proveedor ${i + 1}`,
       category: "supplier" as const,
       due_date: "2026-09-05",
+      due_date_certainty: "confirmed" as const,
       amount: "10000",
       criticality: "low" as const,
       source: "SII",

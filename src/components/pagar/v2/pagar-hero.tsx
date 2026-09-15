@@ -15,7 +15,7 @@ export interface PagarHeroProps {
   titulo: string;
   /** Total por pagar (CLP). */
   montoTotal: number;
-  /** Línea de cobertura ("La caja no alcanza — faltan $Z"). */
+  /** Señal tri-estado de cobertura informada por la API, sin monto derivado localmente. */
   cobertura: React.ReactNode;
   /** Tono de la cobertura. Default "ok". */
   coberturaTono?: CoberturaTono;
@@ -34,7 +34,11 @@ export function PagarHero({
   className,
 }: PagarHeroProps) {
   const Icon =
-    coberturaTono === "ok" ? CheckCircle2 : coberturaTono === "neutral" ? HelpCircle : AlertTriangle;
+    coberturaTono === "ok"
+      ? CheckCircle2
+      : coberturaTono === "neutral"
+        ? HelpCircle
+        : AlertTriangle;
   return (
     <div className={cn("p-5", className)}>
       <p className="text-[11.5px] font-bold uppercase tracking-wide text-neutral-mid">{titulo}</p>

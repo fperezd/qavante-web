@@ -14,11 +14,10 @@ import { formatClp } from "@/lib/formatters/clp";
 import { isEmptySummary, parseAmount } from "../dashboard-format";
 import { InicioEjecutivoV2 } from "./inicio-ejecutivo-v2";
 import { AccionesList, type Accion } from "./acciones-list";
-import { BrechaPlan } from "./brecha-plan";
 import { SortableWidgetGrid } from "./sortable-widget-grid";
 import { type Termometro } from "./termometros";
 import { PulsoCard } from "./pulso-card";
-import { CajaProyeccion } from "./caja-proyeccion";
+import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
 import { CobranzaRealizable } from "./cobranza-realizable";
 import { PagosTimeline } from "./pagos-timeline";
 import { ResultadoPreliminar } from "./resultado-preliminar";
@@ -36,16 +35,13 @@ import { RemuneracionesLive } from "./remuneraciones-live";
 import { ComportamientoPagoLive } from "./comportamiento-pago-live";
 import { PuntoEquilibrioLive } from "./punto-equilibrio-live";
 import {
-  mapBrechaTotal,
   mapEstadoBrecha,
   respuestaEstadoBrecha,
   margenPlausiblePct,
-  mapCaja,
   cicloCajaExtra,
   mapCobranza,
   mapCobranzaForecast,
   mapFrase,
-  mapPlanBrecha,
   mapPagos,
   mapPulso,
   mapResultado,
@@ -135,7 +131,6 @@ function Assembled({
   const [personalizarOpen, setPersonalizarOpen] = React.useState(false);
 
   const pulso = mapPulso(data);
-  const caja = mapCaja(data);
   // Con collection-forecast (Fase 2) → cobranza realizable con segmentos; sin él (o
   // forecast sin receivables → null), degrada al total por cobrar del summary.
   const cobranza = (forecast ? mapCobranzaForecast(forecast) : null) ?? mapCobranza(data);
@@ -196,12 +191,11 @@ function Assembled({
   // como cualquier widget. El dueño lo apaga si le basta el badge del header (pedido de Fernando).
   if (pulso)
     widgets.push({ id: "pulso", label: "Pulso del negocio", node: <PulsoCard {...pulso} /> });
-  if (caja)
-    widgets.push({
-      id: "caja",
-      label: "Flujo de caja proyectado",
-      node: <CajaProyeccion {...caja} href="/caja/proyeccion" cta="Ver caja" />,
-    });
+  widgets.push({
+    id: "caja",
+    label: "Flujo de caja proyectado",
+    node: <CashProjectionRunPanel horizonDays={90} title="Proyección canónica" />,
+  });
   if (cobranza)
     widgets.push({
       id: "cobranza",
@@ -270,23 +264,19 @@ function Assembled({
     />
   );
 
-  // Plan cuantificado y decisiones locales se muestran juntos cuando no hay brief transversal.
-  // Con el brief activo, esta superficie conserva sólo sus datos de apoyo.
-  const brechaTotal = mapBrechaTotal(data);
-  const planBrecha = brechaTotal != null && forecast ? mapPlanBrecha(brechaTotal, forecast) : null;
+  /* El plan cuantificado de la brecha ya no se arma acá: la decisión de caja es server-owned y
+     el frontend no vuelve a restar obligaciones que la curva ya trae (D01). Queda "Qué hacer
+     primero" desde `priority_actions`, que sólo el brief transversal puede reemplazar. */
   const acciones = buildAcciones(data);
   const plan =
-    !suppressRecommendations && (planBrecha || acciones.length > 0) ? (
-      <div className="space-y-3">
-        {planBrecha && <BrechaPlan {...planBrecha} />}
-        {acciones.length > 0 && <AccionesList titulo="Qué hacer primero" acciones={acciones} />}
-      </div>
+    !suppressRecommendations && acciones.length > 0 ? (
+      <AccionesList titulo="Qué hacer primero" acciones={acciones} />
     ) : null;
 
   return (
     <InicioEjecutivoV2
       frase={mapFrase(data)}
-      termometros={buildTermometros(data)}
+      termometros={buildTermometros(data).filter((item) => item.n !== 1)}
       plan={plan}
       grid={grid}
       personalizar={personalizar}

@@ -234,7 +234,7 @@ describe("ImpuestosV06View — huecos declarados (issue #73)", () => {
     expect(t).not.toMatch(/necesita contrastarse contra un F-29 real/i);
   });
 
-  it("no muestra el issue sucesor aunque se lo pasen", () => {
+  it("no presenta referencias internas aunque se reciba la prop heredada", () => {
     expect(texto(html({ issueSucesor: "#999" }))).not.toContain("#999");
   });
 });

@@ -15,7 +15,7 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  *     (lo que NO tiene fecha: no está en ningún tramo ni en `items`), `projected_cash_14d` con su
  *     `projected_cash_currency`, y `missing_sources`.
  *     Es la MISMA fuente de "Sale · 14 días" en V02 (Ley 1): "Por pagar · 14 días" de acá es
- *     `due_14d` tal cual, y el postergable del banner sale de la MISMA función (`sale14d`).
+ *     `due_14d` tal cual.
  *
  * LO QUE ESTE MÓDULO DECIDE, escrito acá y no sólo en el PR:
  *   · VENCIDO ≠ CRÍTICO. Vencido = todo lo que tiene `due_date` anterior a hoy, de cualquier tipo
@@ -23,10 +23,9 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  *     que NO se posterga (Ley 9: impuestos, sueldos, deuda) y vence dentro de 14 días o ya venció.
  *     Una factura de proveedor vencida es "vencida" (ámbar) y negociable, no "crítica".
  *   · POSTERGABLE es por TIPO de pago, no por acuerdo con el proveedor: el backend no manda
- *     postergabilidad por ítem (es el gating de `pagarV2`, FE-first). Se reusa la heurística
- *     vigente (`postergabilidadDe`) para que el banner de acá y "Sale · 14 días" de V02 digan el
- *     mismo número. Impuestos y sueldos NUNCA son postergables (Ley 9), y el texto fijo de la ley
- *     se muestra literal.
+ *     postergabilidad por ítem (es el gating de `pagarV2`, FE-first). El filtro conserva la
+ *     clasificación vigente (`postergabilidadDe`), pero la vista no suma la página para publicar
+ *     un monto global. Impuestos y sueldos NUNCA son postergables (Ley 9).
  *   · POSIBLE DUPLICADO llega como un par de UUID de
  *     `GET /api/treasury/accounts-payable/anomalies`, calculado por el backend sobre todo el
  *     devengado elegible. Esta vista sólo relaciona esos UUID con `PayableItem.id`: NUNCA infiere
@@ -42,7 +41,12 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  *   · No hay "pagar todo" ni "postergar" en esta vista: mover plata lleva firma humana (Ley 9).
  *     La postergación operativa vive en Caja/Hoy, no acá. */
 
-import type { AccountsPayableResponse, PayableDuplicatePair, PayableItem } from "@/lib/api/pagos";
+import type {
+  AccountsPayableQuery,
+  D02AccountsPayableResponse as AccountsPayableResponse,
+  PayableDuplicatePair,
+  PayableItem,
+} from "@/lib/api/pagos";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 import { csv, csvCell } from "@/lib/export/csv";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
@@ -52,9 +56,8 @@ import { normalizeRut } from "@/lib/validators/rut";
 import { montoCLP, montoCLPFaltante, payableItemLabel } from "../pagos-format";
 import { payrollPeriodFromExternalId } from "../pagos-group";
 import { postergabilidadDe } from "../v2/pagar-v2-map";
-import { sale14d } from "@/components/caja/v02/caja-v02-model";
 
-/** Ventana del contexto crítico y del banner (la misma de V02: "Sale · 14 días"). */
+/** Ventana del contexto crítico. */
 export const VENTANA_DIAS = 14;
 /** Los tres tramos que el backend publica (`due_7d`, `due_14d`, `due_30d`). */
 export const PERIODOS = [7, 14, 30] as const;
@@ -224,8 +227,10 @@ function baseDe(
 ): Omit<PagoV05, "anomalia" | "sub"> {
   const dueDate = item.due_date?.trim() ? item.due_date : null;
   const dias = diasHasta(dueDate, hoy);
-  const moneda = (item.currency || "CLP").toUpperCase();
-  const sinConvertir = montoCLPFaltante(item);
+  /* Una fila sin moneda declarada NO se asume CLP: se rotula como sin moneda y queda fuera del
+     total en pesos (INV-FX-001). */
+  const moneda = item.currency?.trim().toUpperCase() || "SIN MONEDA";
+  const sinConvertir = moneda === "SIN MONEDA" || montoCLPFaltante(item);
   // El Brief canónico es el único dueño de "qué postergar". En modo evidencia no ejecutamos esta
   // heurística por tipo de pago ni construimos su taxonomía para la fila.
   const postergable = includeDecisionSignals ? esPostergable(item) : false;
@@ -407,6 +412,30 @@ export function kpiVencido(pagos: ReadonlyArray<PagoV05>): VencidoV05 {
   };
 }
 
+export interface AgregadoGlobalV05 {
+  total: number | null;
+  conocido: number;
+  n: number;
+  completo: boolean;
+  sinFecha: number;
+  monedasExcluidas: number;
+}
+
+/** KPI global D02: jamás deriva el monto desde la página visible. */
+export function kpiVencidoGlobal(
+  ap: AccountsPayableResponse | null | undefined,
+): AgregadoGlobalV05 {
+  const summary = ap?.overdue_summary;
+  return {
+    total: summary?.complete ? parseAmountOrNull(summary.amount_clp) : null,
+    conocido: parseAmount(summary?.known_amount_clp),
+    n: summary?.count ?? 0,
+    completo: summary?.complete === true,
+    sinFecha: summary?.unknown_due_date_count ?? 0,
+    monedasExcluidas: summary?.excluded_by_currency.length ?? 0,
+  };
+}
+
 export interface PorPagarV05 {
   periodo: PeriodoV05;
   /** `due_Nd` del backend (CLP convertido, acumulativo, INCLUYE lo vencido). `null` = no vino. */
@@ -433,13 +462,14 @@ export function kpiPorPagar(
 }
 
 export interface CriticoV05 {
-  /** Σ CLP conocido de lo crítico VISIBLE (no se posterga y vence en ≤ 14 días o ya venció). */
+  /** Σ CLP conocido del agregado crítico global del API. */
   total: number;
   n: number;
-  /** Pagos críticos visibles cuyo monto CLP no puede conocerse por falta de tipo de cambio. */
-  montosDesconocidos: number;
-  /** `items` llegó al tope conocido: el subtotal visible puede ser sólo un piso. */
-  listaPosiblementeTopeada: boolean;
+  /** Obligaciones cuya fecha no permitió clasificarlas en el agregado. */
+  fechasDesconocidas: number;
+  /** Buckets de moneda excluidos; nunca se interpreta como cantidad de pagos. */
+  monedasExcluidas: number;
+  completo: boolean;
   /** De eso, lo que YA venció. */
   yaVencido: number;
   /** Saldo FINAL proyectado al día 14. Ya incluye los pagos comprometidos. */
@@ -457,20 +487,22 @@ export interface CriticoV05 {
  * `caja - crítico`. La cobertura se consume de `covers_critical`, cuya fórmula y
  * abstenciones pertenecen al backend. */
 export function kpiCritico(
-  pagos: ReadonlyArray<PagoV05>,
+  _pagos: ReadonlyArray<PagoV05>,
   ap: AccountsPayableResponse | null | undefined,
 ): CriticoV05 {
-  const c = pagos.filter((p) => p.critico);
-  const total = c.reduce((s, p) => s + (p.montoClp ?? 0), 0);
-  const montosDesconocidos = c.filter((p) => p.montoClp == null).length;
-  const yaVencido = c.filter((p) => p.vencido).reduce((s, p) => s + (p.montoClp ?? 0), 0);
-  const cajaFinal = parseAmountOrNull(ap?.projected_cash_14d);
-  const monedaCaja = (ap?.projected_cash_currency || "CLP").toUpperCase();
+  const summary = ap?.non_postponable_or_overdue_14d;
+  const overdue = ap?.overdue_summary;
+  const total = parseAmount(summary?.complete ? summary.amount_clp : summary?.known_amount_clp);
+  const fechasDesconocidas = summary?.unknown_due_date_count ?? 0;
+  const monedasExcluidas = summary?.excluded_by_currency.length ?? 0;
+  const yaVencido = parseAmount(overdue?.complete ? overdue.amount_clp : overdue?.known_amount_clp);
+  const cajaPublicable = ap?.cash_projection_publicable_14d === true;
+  const cajaFinal = cajaPublicable ? parseAmountOrNull(ap?.projected_cash_14d) : null;
+  const monedaCaja = ap?.projected_cash_currency?.trim().toUpperCase() || "SIN MONEDA";
   const cobertura = ap?.covers_critical ?? null;
-  const listaPosiblementeTopeada = (ap?.items?.length ?? 0) >= TOPE_ITEMS;
   const motivoSinCaja = !ap
     ? "sin cuentas por pagar no llegó el saldo proyectado"
-    : cajaFinal == null
+    : !cajaPublicable || cajaFinal == null
       ? "no se pudo proyectar el saldo final a 14 días"
       : null;
   const motivoSinCobertura = !ap
@@ -480,9 +512,10 @@ export function kpiCritico(
       : null;
   return {
     total,
-    n: c.length,
-    montosDesconocidos,
-    listaPosiblementeTopeada,
+    n: summary?.count ?? 0,
+    fechasDesconocidas,
+    monedasExcluidas,
+    completo: summary?.complete === true,
     yaVencido,
     cajaFinal,
     monedaCaja,
@@ -490,25 +523,6 @@ export function kpiCritico(
     motivoSinCaja,
     motivoSinCobertura,
   };
-}
-
-/* ── (2) Banner de postergables ──────────────────────────────────────────────── */
-
-export interface PostergableV05 {
-  /** Σ CLP de lo negociable que vence en 0..14 días — la MISMA función que V02 ("Sale · 14 días"). */
-  monto: number;
-  /** `due_14d` del backend. */
-  ventana: number;
-}
-
-/** `null` cuando no hay nada postergable en la ventana (el banner no se muestra) o sin respuesta. */
-export function bannerPostergables(
-  ap: AccountsPayableResponse | null | undefined,
-  hoy: Date,
-): PostergableV05 | null {
-  const s = sale14d(ap, hoy);
-  if (!s || s.postergable <= 0) return null;
-  return { monto: s.postergable, ventana: s.total };
 }
 
 /* ── (3) Filtros con conteo + búsqueda ───────────────────────────────────────── */
@@ -534,6 +548,75 @@ export const FILTROS_V05: ReadonlyArray<{ id: FiltroV05; label: string; condicio
   { id: "revisar", label: "Revisar", condicional: true },
   { id: "sin_fecha", label: "Sin fecha", condicional: true },
 ];
+
+export type FiltroServidorV05 =
+  | "todos"
+  | "vencidos"
+  | "alta"
+  | "media"
+  | "baja"
+  | "impuestos"
+  | "remuneraciones"
+  | "pago_parcial";
+
+export const FILTROS_SERVIDOR_V05: ReadonlyArray<{ id: FiltroServidorV05; label: string }> = [
+  { id: "todos", label: "Todos" },
+  { id: "vencidos", label: "Vencidos" },
+  { id: "alta", label: "Alta" },
+  { id: "media", label: "Media" },
+  { id: "baja", label: "Baja" },
+  { id: "impuestos", label: "Impuestos" },
+  { id: "remuneraciones", label: "Remuneraciones" },
+  { id: "pago_parcial", label: "Pago parcial" },
+];
+
+export function queryFiltroServidor(
+  filtro: FiltroServidorV05,
+  asOf?: string,
+): AccountsPayableQuery {
+  switch (filtro) {
+    case "vencidos":
+      return asOf ? { due_to: isoDayBefore(asOf) } : {};
+    case "alta":
+    case "media":
+    case "baja":
+      return { criticality: filtro === "alta" ? "high" : filtro === "media" ? "medium" : "low" };
+    case "impuestos":
+      return { category: "tax" };
+    case "remuneraciones":
+      return { category: "payroll" };
+    case "pago_parcial":
+      return { state: "partially_paid" };
+    default:
+      return {};
+  }
+}
+
+function isoDayBefore(value: string): string {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+export function conteosServidor(ap: AccountsPayableResponse): Record<FiltroServidorV05, number> {
+  const category = Object.fromEntries(
+    ap.filter_metadata.by_category.map((f) => [f.category, f.count]),
+  );
+  const criticality = Object.fromEntries(
+    ap.filter_metadata.by_criticality.map((f) => [f.criticality, f.count]),
+  );
+  const state = Object.fromEntries(ap.filter_metadata.by_state.map((f) => [f.state, f.count]));
+  return {
+    todos: ap.filter_metadata.unfiltered_items_total,
+    vencidos: ap.overdue_summary.count,
+    alta: criticality.high ?? 0,
+    media: criticality.medium ?? 0,
+    baja: criticality.low ?? 0,
+    impuestos: category.tax ?? 0,
+    remuneraciones: category.payroll ?? 0,
+    pago_parcial: state.partially_paid ?? 0,
+  };
+}
 
 export function pasaFiltro(p: PagoV05, filtro: FiltroV05): boolean {
   switch (filtro) {
@@ -630,7 +713,7 @@ export function totales(
     totalClp: ap ? parseAmountOrNull(ap.total) : null,
     porMoneda,
     sinConvertir: pagos.filter((p) => p.sinConvertir).length,
-    posiblementeTopeado: (ap?.items?.length ?? 0) >= TOPE_ITEMS,
+    posiblementeTopeado: ap?.has_more === true,
   };
 }
 
@@ -718,7 +801,7 @@ export function explicacionCritico(
   hoy: Date,
 ): ExplicacionV05 {
   return {
-    definicion: `El saldo proyectado es la caja final al día ${VENTANA_DIAS} del flujo vigente y ya incluye los pagos comprometidos. Crítico en la lista visible es el contexto trazable de lo que no se posterga ·impuestos, sueldos y deuda financiera· y vence dentro de ${VENTANA_DIAS} días o ya venció. Si la lista alcanza ${TOPE_ITEMS} ítems o un pago no tiene conversión a pesos, ese subtotal es sólo un piso o se abstiene. No se resta de la caja. La cobertura se informa por separado y no se deriva del subtotal visible. Esta consulta no informa la caja mínima dentro del horizonte.`,
+    definicion: `El saldo proyectado es la caja final al día ${VENTANA_DIAS} del flujo vigente y ya incluye los pagos comprometidos. El agregado crítico se calcula sobre todo el registro: pagos vencidos y lo que no se posterga ·impuestos, sueldos y deuda financiera· dentro de ${VENTANA_DIAS} días. Si faltan fechas o tipos de cambio, publica sólo la parte conocida y se declara incompleto. No se resta de la caja. La cobertura se informa por separado y no se deriva del subtotal visible. Esta consulta no informa la caja mínima dentro del horizonte.`,
     incluye: ["Impuestos, sueldos, cotizaciones y cuotas de deuda con vencimiento en la ventana"],
     excluye: [
       "Proveedores y arriendos: se muestran como negociables según el tipo de pago",
@@ -777,6 +860,10 @@ export function csvPagosTable(
       p.anomalia?.detalle == null ? csvCell.missing() : csvCell.text(p.anomalia.detalle),
     ]),
   );
+}
+
+export function nombreExportPagina(pagina: number): string {
+  return `pagos-por-pagar-pagina-${Math.max(1, Math.trunc(pagina))}.xlsx`;
 }
 
 /** CSV interoperable: no contiene tipos de celda para Excel. */

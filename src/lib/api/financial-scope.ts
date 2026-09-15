@@ -27,10 +27,29 @@ export function serverAsOfDate(asOf: string | null | undefined): string | null {
   );
   if (!match) return null;
 
-  const date = new Date(`${match[1]}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== match[1]
-    ? null
-    : match[1];
+  const declaredDate = new Date(`${match[1]}T00:00:00.000Z`);
+  if (
+    Number.isNaN(declaredDate.getTime()) ||
+    declaredDate.toISOString().slice(0, 10) !== match[1]
+  ) {
+    return null;
+  }
+
+  if (!asOf.includes("T")) {
+    return match[1];
+  }
+
+  const instant = new Date(asOf);
+  if (Number.isNaN(instant.getTime())) return null;
+  // `en-CA` produce YYYY-MM-DD: es el formato con el que se le habla a la API, no al usuario
+  // (§5.8 lo permite; `dateInSantiago` del modelo de runs usa el mismo idioma).
+  const key = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(instant);
+  return /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null;
 }
 
 /**

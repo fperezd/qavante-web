@@ -849,7 +849,7 @@ function CargandoMovimientos() {
   return (
     <div className="space-y-2" aria-busy="true" aria-live="polite">
       <p className="text-sm text-rediseno-tinta-3">
-        Trayendo tus movimientos importados del banco (~5 s).
+        Estamos trayendo tus movimientos importados del banco.
       </p>
       <div className="h-40 animate-pulse rounded-[14px] bg-rediseno-neutro-bg" aria-hidden />
     </div>

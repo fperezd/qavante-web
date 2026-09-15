@@ -10,7 +10,6 @@ import {
   Layers,
   Rows3,
   SlidersHorizontal,
-  XCircle,
 } from "lucide-react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import {
@@ -28,10 +27,9 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike } from "@/lib/formatters/date";
 import { SiiPeriodForm } from "./sii-period-form";
 import { formatPeriodLabel } from "./sii-period-form-schema";
-import { TIPO_DOC_FAMILIES, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
+import { isNotaCredito, TIPO_DOC_FAMILIES, tipoDocMeta, type TipoDocFamily } from "./tipo-doc";
 import { computeRcvTotals } from "./rcv-totals";
-import { agruparConReferencias, type EstadoDoc, type FacturaRow } from "./rcv-anuladas";
-import { RcvAsociadosModal } from "./rcv-asociados-modal";
+import { agruparVisibleConContexto } from "./rcv-anuladas";
 import { RcvDetalleGrid } from "./rcv-detalle-grid";
 import { LibroKpisPanel } from "./libro-kpis/libro-kpis-panel";
 import { DteActions } from "./dte-actions";
@@ -49,13 +47,21 @@ import {
   DocumentResolutionDrawer,
   type DocumentResolutionTarget,
 } from "./document-resolution-drawer";
-import { rcvSourceExternalId } from "./document-resolution-id";
+import { isDteCorrector, rcvSourceExternalId } from "./document-resolution-id";
 import {
   useDocumentStatuses,
   type DocumentRowStatus,
   type DocumentStatusKey,
 } from "@/lib/api/reconciliation";
 import { DocumentRowStatusBadges } from "./document-row-status";
+import {
+  indexDocumentLinks,
+  resolveDocumentLink,
+  useDocumentLinks,
+  type DocumentLinkKind,
+  type DteDocumentLink,
+} from "@/lib/api/document-links";
+import { DocumentLinkStatusBadge } from "./document-link-status";
 
 /* Vista reusable para Libro de Compras / Libro de Ventas (Sprint C1
    PR-Lib, mejora 2026-05-24). Hoy el backend expone /api/sii/rcv/compras
@@ -72,14 +78,6 @@ import { DocumentRowStatusBadges } from "./document-row-status";
    §17.4: FE no calcula finanzas — el total se computa como suma simple
    de los `monto_total` descargados (agregado visual). Disclaimer
    explícito en el footer: "dato oficial es el del F29". */
-
-const ESTADO_BADGE: Record<
-  Exclude<EstadoDoc, "vigente">,
-  { variant: "danger" | "warning"; label: string }
-> = {
-  anulada: { variant: "danger", label: "Anulada" },
-  parcial: { variant: "warning", label: "Anulada parcial" },
-};
 
 export type RcvKind = "compras" | "ventas";
 
@@ -103,9 +101,8 @@ export interface RcvListViewProps {
    *  `formatPeriodLabel(period)` cuando se provee (modo rango). */
   headerLabel?: string;
   /** Modo "solo tabla" del Libro v2 (aditivo, default false → comportamiento previo):
-   *  oculta el filtro de período, el panel de KPIs y el toggle "Agrupar N/C" (los
-   *  aporta el shell v2 alrededor). La tabla mantiene el modo agrupado (anuladas con
-   *  su N/C + clic → detalle), sus filtros, paginación y estados. */
+   *  oculta el filtro de período, el panel de KPIs y el selector compacta/detalle
+   *  (los aporta el shell v2 alrededor). La tabla conserva cada DTE como fila propia. */
   tableOnly?: boolean;
 }
 
@@ -217,13 +214,12 @@ export function RcvListView({
   const [filtersOpen, setFiltersOpen] = React.useState(false);
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState<number>(20);
-  /* "agrupado" = facturas anuladas mostradas con sus NC vinculadas (estilo
-     Chipax, default). "detalle" = lista plana documento por documento. */
-  const [viewMode, setViewMode] = React.useState<"agrupado" | "detalle">("agrupado");
+  /* Ambas vistas mantienen una fila por DTE. "compacta" usa columnas fijas;
+     "detalle" permite configurar las columnas visibles. */
+  const [viewMode, setViewMode] = React.useState<"compacta" | "detalle">("compacta");
   const [resolutionFilter, setResolutionFilter] = React.useState<
     "all" | "unreconciled" | "unclassified"
   >("all");
-  const [selected, setSelected] = React.useState<FacturaRow<RcvDoc> | null>(null);
   const [resolutionTarget, setResolutionTarget] = React.useState<DocumentResolutionTarget | null>(
     null,
   );
@@ -243,6 +239,21 @@ export function RcvListView({
   }, [period]);
 
   const filteredDocs = React.useMemo(() => applyFilters(allDocs, filters), [allDocs, filters]);
+  const documentLinkKind: DocumentLinkKind = kind === "ventas" ? "receivable" : "payable";
+  /* D07 — una sola lectura por lado documental (`GET /api/sii/document-links`), indexada por el
+     DTE corrector. La pantalla no pide resoluciones por lote: ese endpoint no existe. */
+  const documentLinks = useDocumentLinks(
+    documentLinkKind,
+    Boolean(period && query.data && allDocs.length > 0),
+  );
+  const documentLinksIndex = React.useMemo(
+    () => indexDocumentLinks(documentLinks.data),
+    [documentLinks.data],
+  );
+  /* La pista legacy se evalúa contra todo el período descargado, antes de filtros,
+     paginación y estados de gestión. Así un filtro visual no puede convertir dos
+     candidatos en una falsa coincidencia única. El backend D07 reemplazará este
+     contexto acotado por una resolución global y autoritativa. */
   const statusKind = kind === "ventas" ? "receivable" : "payable";
   const statusDocuments = React.useMemo<DocumentStatusKey[]>(
     () =>
@@ -276,18 +287,45 @@ export function RcvListView({
     [filteredDocs, resolutionFilter, statusById, statuses.isSuccess],
   );
 
-  /* Agrupación NC→factura (modo "agrupado"). Facturas primero, luego las NC
-     huérfanas (sin factura del período). */
-  const grouped = React.useMemo(() => agruparConReferencias(visibleDocs), [visibleDocs]);
-  const groupedItems = React.useMemo<GroupedItem[]>(
-    () => [
-      ...grouped.rows.map((row) => ({ t: "fac" as const, row })),
-      ...grouped.notasHuerfanas.map((doc) => ({ t: "nc" as const, doc })),
-    ],
-    [grouped],
+  /* Se reutiliza el shape legacy para ordenar/renderizar la vista compacta, pero
+     visibleDocs sigue siendo la cardinalidad autoritativa: ninguna NC se anida ni oculta. */
+  const compactContext = React.useMemo(
+    () => agruparVisibleConContexto(allDocs, visibleDocs),
+    [allDocs, visibleDocs],
   );
+  const groupedItems = React.useMemo<GroupedItem[]>(() => {
+    const rowsByDoc = new Map(compactContext.rows.map((row) => [row.factura, row]));
+    const associationsByDoc = new Map(
+      compactContext.asociacionesPendientes.map((association) => [association.nota, association]),
+    );
+    return visibleDocs.map((doc) => {
+      if (isNotaCredito(doc.tipo_doc)) {
+        return {
+          t: "nc" as const,
+          doc,
+          association: associationsByDoc.get(doc) ?? {
+            nota: doc,
+            status: "unresolved",
+            candidateFolios: [],
+            reason: "no_candidate",
+          },
+        };
+      }
+      return {
+        t: "fac" as const,
+        row: rowsByDoc.get(doc) ?? {
+          factura: doc,
+          notas: [],
+          neto: typeof doc.monto_total === "number" ? doc.monto_total : 0,
+          estado: "vigente",
+          matchExacto: true,
+          sobreCredito: false,
+        },
+      };
+    });
+  }, [compactContext, visibleDocs]);
 
-  /* Orden aplicado sobre el set agrupado (antes de paginar). El modo "detalle"
+  /* Orden aplicado sobre el set compacto (antes de paginar). El modo "detalle"
      usa la grilla dinámica (RcvDetalleGrid), que ordena/filtra/pagina por sí. */
   const sortedGrouped = React.useMemo(
     () => sortGroupedItems(groupedItems, sort),
@@ -305,9 +343,15 @@ export function RcvListView({
      Notas de Crédito (restan) — antes se sumaban como una venta más, inflando el
      total. Ver computeRcvTotals (robusto al signo de la NC). */
   const totals = React.useMemo(() => computeRcvTotals(visibleDocs), [visibleDocs]);
-  const anuladasCount = React.useMemo(
-    () => grouped.rows.filter((r) => r.estado !== "vigente").length,
-    [grouped],
+  /* Sólo cuenta anulaciones que el productor acredita: `automatic_allowed` es su gate de
+     evidencia trazable. Una referencia observada sin ese respaldo NO es una anulación. */
+  const confirmedAnnulmentCount = React.useMemo(
+    () =>
+      Array.from(documentLinksIndex.values()).filter(
+        (link: DteDocumentLink) =>
+          link.link_status === "annulled_confirmed" && link.monetary_effect.automatic_allowed,
+      ).length,
+    [documentLinksIndex],
   );
 
   const hasActiveFilters =
@@ -359,9 +403,12 @@ export function RcvListView({
                     <span className="ml-1 text-xs opacity-80">de {allDocs.length}</span>
                   )}
                 </QavanteBadge>
-                {anuladasCount > 0 && (
+                {confirmedAnnulmentCount > 0 && (
                   <QavanteBadge variant="danger">
-                    {anuladasCount} {anuladasCount === 1 ? "anulada" : "anuladas"}
+                    {confirmedAnnulmentCount}{" "}
+                    {confirmedAnnulmentCount === 1
+                      ? "anulación fiscal confirmada"
+                      : "anulaciones fiscales confirmadas"}
                   </QavanteBadge>
                 )}
                 {!tableOnly && (
@@ -369,17 +416,17 @@ export function RcvListView({
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      setViewMode((m) => (m === "agrupado" ? "detalle" : "agrupado"));
+                      setViewMode((m) => (m === "compacta" ? "detalle" : "compacta"));
                       setPage(1);
                     }}
-                    aria-pressed={viewMode === "agrupado"}
+                    aria-pressed={viewMode === "compacta"}
                     title={
-                      viewMode === "agrupado"
-                        ? "Ver la lista plana, documento por documento"
-                        : "Agrupar las notas de crédito con su factura"
+                      viewMode === "compacta"
+                        ? "Ver más columnas para cada documento"
+                        : "Ver las columnas esenciales de cada documento"
                     }
                   >
-                    {viewMode === "agrupado" ? (
+                    {viewMode === "compacta" ? (
                       <>
                         <Rows3 className="h-3.5 w-3.5" aria-hidden="true" />
                         Ver detalle
@@ -387,7 +434,7 @@ export function RcvListView({
                     ) : (
                       <>
                         <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-                        Agrupar N/C
+                        Vista compacta
                       </>
                     )}
                   </QavanteButton>
@@ -445,6 +492,17 @@ export function RcvListView({
                 what="los estados de clasificación y conciliación"
               />
             )}
+            {documentLinks.isFetching && !documentLinks.data && (
+              <p className="text-xs text-neutral-mid" role="status">
+                Consultando evidencia fiscal… Los documentos conservan sus montos y estados.
+              </p>
+            )}
+            {documentLinks.isError && (
+              <p className="text-xs text-neutral-mid" role="status">
+                La evidencia fiscal no estuvo disponible. Se mantiene la contención sin modificar
+                montos, estados ni vencimientos.
+              </p>
+            )}
             {filtersOpen && (
               <FiltersPanel
                 kind={kind}
@@ -466,14 +524,13 @@ export function RcvListView({
                 title="Sin resultados para los filtros aplicados"
                 description="Prueba removiendo filtros o cambiando el período. La fuente del SII permite consultar por período; los demás filtros se aplican sobre los documentos descargados."
               />
-            ) : viewMode === "agrupado" ? (
+            ) : viewMode === "compacta" ? (
               <>
                 <GroupedTable
                   items={pagedGrouped}
                   totals={totals}
                   partyLabel={copy.partyLabel}
                   hasActiveFilters={hasActiveFilters}
-                  onSelect={setSelected}
                   sort={sort}
                   onToggleSort={onToggleSort}
                   dteKind={kind}
@@ -491,6 +548,9 @@ export function RcvListView({
                     });
                   }}
                   statusById={statusById}
+                  documentLinksIndex={documentLinksIndex}
+                  documentLinksFailed={documentLinks.isError}
+                  documentLinksLoading={documentLinks.isFetching && !documentLinks.data}
                   showDueDate={kind === "ventas"}
                 />
                 <PaginationBar
@@ -526,29 +586,22 @@ export function RcvListView({
                   });
                 }}
                 statusById={statusById}
+                documentLinksIndex={documentLinksIndex}
+                documentLinksFailed={documentLinks.isError}
+                documentLinksLoading={documentLinks.isFetching && !documentLinks.data}
                 showDueDate={kind === "ventas"}
               />
             )}
 
             <p className="text-xs text-neutral-mid">
-              Datos descargados del SII en vivo. Las notas de crédito se descuentan del total
-              {viewMode === "agrupado"
-                ? " y se muestran vinculadas a su factura (haz clic en una fila anulada para ver los documentos asociados)"
-                : ""}
-              . Las sumas son referenciales y se calculan sobre los documentos mostrados · el dato
-              oficial sigue siendo el del F29.
+              Datos descargados del SII en vivo. Cada DTE y nota de crédito permanece en una fila
+              separada. Las sumas son referenciales y se calculan sobre los documentos mostrados ·
+              el dato oficial sigue siendo el del F29.
             </p>
           </div>
         </QavanteCard>
       )}
 
-      {selected && (
-        <RcvAsociadosModal
-          row={selected}
-          partyLabel={copy.partyLabel}
-          onClose={() => setSelected(null)}
-        />
-      )}
       <DocumentResolutionDrawer
         target={resolutionTarget}
         onClose={() => setResolutionTarget(null)}
@@ -557,7 +610,7 @@ export function RcvListView({
   );
 }
 
-/* ── Tabla en modo "agrupado" (facturas + NC vinculadas, estilo Chipax) ──── */
+/* ── Tabla compacta: una fila independiente por cada DTE ──── */
 
 /* Header ordenable: clic → asc/desc/none, con flechas. */
 function SortHeader({
@@ -608,7 +661,6 @@ export interface GroupedTableProps {
   totals: ReturnType<typeof computeRcvTotals>;
   partyLabel: string;
   hasActiveFilters: boolean;
-  onSelect: (row: FacturaRow<RcvDoc>) => void;
   sort: SortState | null;
   onToggleSort: (key: SortKey) => void;
   /** Habilita la columna "DTE" (ver/descargar): `compras` y `ventas`. */
@@ -617,6 +669,10 @@ export interface GroupedTableProps {
   dteWindow?: { desde: string; hasta: string } | null;
   onManageDocument?: (doc: RcvDoc) => void;
   statusById?: Map<string, DocumentRowStatus>;
+  documentLinksIndex: ReadonlyMap<string, DteDocumentLink>;
+  /** La consulta D07 falló: las filas dicen "no disponible", nunca "sin evidencia". */
+  documentLinksFailed?: boolean;
+  documentLinksLoading?: boolean;
   /** Ventas puede traer el vencimiento enriquecido desde el backend. */
   showDueDate?: boolean;
 }
@@ -632,16 +688,19 @@ export function GroupedTable({
   totals,
   partyLabel,
   hasActiveFilters,
-  onSelect,
   sort,
   onToggleSort,
   dteKind,
   dteWindow = null,
   onManageDocument,
   statusById,
+  documentLinksIndex,
+  documentLinksFailed = false,
+  documentLinksLoading = false,
   showDueDate = false,
 }: GroupedTableProps) {
   const showDte = dteKind !== undefined;
+  const documentLinksState = { failed: documentLinksFailed };
   return (
     <div className={stickyScroll}>
       <table className="w-full min-w-[760px] text-sm">
@@ -689,7 +748,7 @@ export function GroupedTable({
               align="right"
             />
             <th scope="col" className="py-2 font-semibold">
-              Estado
+              Evidencia fiscal
             </th>
             {showDte && (
               <th scope="col" className="py-2 text-right font-semibold">
@@ -706,9 +765,16 @@ export function GroupedTable({
         <tbody>
           {items.map((item, i) => {
             if (item.t === "nc") {
-              // Nota de crédito huérfana (sin factura asociada en el período).
+              // Nota de crédito: siempre conserva una fila propia.
               const d = item.doc;
               const meta = tipoDocMeta(d.tipo_doc ?? null);
+              const isCorrector = isDteCorrector(d);
+              const sourceExternalId = rcvSourceExternalId(d);
+              const documentLink = resolveDocumentLink(
+                documentLinksIndex,
+                sourceExternalId,
+                documentLinksState,
+              );
               return (
                 <tr
                   key={`nc-${d.folio ?? "x"}-${i}`}
@@ -793,7 +859,16 @@ export function GroupedTable({
                   <td className="py-2 pr-3 text-right tabular-nums text-danger-500">
                     {formatBridgeAmount(d, "total", true)}
                   </td>
-                  <td className="py-2 text-[11px] text-neutral-mid">Nota de crédito</td>
+                  <td className="py-2 text-[11px] text-neutral-mid">
+                    {isCorrector ? (
+                      <DocumentLinkStatusBadge
+                        resolution={documentLink}
+                        loading={documentLinksLoading && Boolean(sourceExternalId)}
+                      />
+                    ) : (
+                      <span aria-label="Evidencia fiscal no aplica">·</span>
+                    )}
+                  </td>
                   {dteKind && <td className="py-2 text-right">{dteCell(dteKind, d, dteWindow)}</td>}
                   {onManageDocument && (
                     <td className="py-2 text-right">
@@ -809,9 +884,14 @@ export function GroupedTable({
             const { row } = item;
             const f = row.factura;
             const meta = tipoDocMeta(f.tipo_doc ?? null);
-            const anulada = row.estado === "anulada";
+            const isCorrector = isDteCorrector(f);
             const clickable = Boolean(onManageDocument);
-            const badge = row.estado !== "vigente" ? ESTADO_BADGE[row.estado] : null;
+            const sourceExternalId = rcvSourceExternalId(f);
+            const documentLink = resolveDocumentLink(
+              documentLinksIndex,
+              sourceExternalId,
+              documentLinksState,
+            );
             return (
               <tr
                 key={`fac-${f.folio ?? "x"}-${i}`}
@@ -839,7 +919,6 @@ export function GroupedTable({
                   "border-b border-border/60 transition-colors last:border-b-0 hover:bg-surface-muted",
                   clickable &&
                     "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-primary",
-                  anulada && "text-neutral-mid",
                 )}
               >
                 <td className="py-2 pr-3">
@@ -852,9 +931,7 @@ export function GroupedTable({
                 </td>
                 <td className="py-2 pr-3 font-mono text-xs text-neutral-dark">
                   <span className="inline-flex items-center gap-1.5">
-                    <span className={cn(anulada && "line-through")}>
-                      {f.folio ?? "Sin información"}
-                    </span>
+                    <span>{f.folio ?? "Sin información"}</span>
                     {f.reclamado === true && <ReclamadaBadge />}
                   </span>
                 </td>
@@ -875,83 +952,38 @@ export function GroupedTable({
                   </td>
                 )}
                 <td className="py-2 pr-3">
-                  <span className={cn("block text-neutral-dark", anulada && "line-through")}>
-                    {f.razon_social ?? "Sin nombre"}
-                  </span>
+                  <span className="block text-neutral-dark">{f.razon_social ?? "Sin nombre"}</span>
                   {f.rut_contraparte && (
                     <span className="block font-mono text-xs text-neutral-mid">
                       {f.rut_contraparte}
                     </span>
                   )}
                 </td>
-                <td
-                  className={cn(
-                    "py-2 pr-3 text-right tabular-nums text-neutral-dark",
-                    anulada && "line-through",
-                  )}
-                >
+                <td className="py-2 pr-3 text-right tabular-nums text-neutral-dark">
                   {formatBridgeAmount(f, "neto_afecto")}
                 </td>
-                <td
-                  className={cn(
-                    "py-2 pr-3 text-right tabular-nums text-neutral-mid",
-                    anulada && "line-through",
-                  )}
-                >
+                <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
                   {formatBridgeAmount(f, "exento")}
                 </td>
-                <td
-                  className={cn(
-                    "py-2 pr-3 text-right tabular-nums text-neutral-mid",
-                    anulada && "line-through",
-                  )}
-                >
+                <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
                   {formatBridgeAmount(f, "iva")}
                 </td>
-                <td
-                  className={cn(
-                    "py-2 pr-3 text-right tabular-nums text-neutral-mid",
-                    anulada && "line-through",
-                  )}
-                >
+                <td className="py-2 pr-3 text-right tabular-nums text-neutral-mid">
                   {formatBridgeAmount(f, "otros_ajustes_residual")}
                 </td>
-                <td
-                  className={cn(
-                    "py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark",
-                    anulada && "font-normal line-through",
-                  )}
-                >
+                <td className="py-2 pr-3 text-right tabular-nums font-medium text-neutral-dark">
                   {formatBridgeAmount(f, "total")}
                 </td>
                 <td className="py-2">
-                  {badge ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <QavanteBadge variant={badge.variant}>
-                        <XCircle className="mr-1 inline h-3 w-3" aria-hidden="true" />
-                        {badge.label}
-                      </QavanteBadge>
-                      {row.sobreCredito && (
-                        <span
-                          className="text-[11px] font-medium text-danger-500"
-                          title="Las notas de crédito superan el monto de la factura, posible error de referencia en el SII"
-                        >
-                          revisar
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-0.5 text-xs text-brand-primary hover:underline"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onSelect(row);
-                        }}
-                      >
-                        <Layers className="h-3.5 w-3.5" aria-hidden="true" /> asociados
-                      </button>
-                    </span>
+                  {isCorrector ? (
+                    <DocumentLinkStatusBadge
+                      resolution={documentLink}
+                      loading={documentLinksLoading && Boolean(sourceExternalId)}
+                    />
                   ) : (
-                    <span className="text-neutral-mid">Sin información</span>
+                    <span className="text-neutral-mid" aria-label="Evidencia fiscal no aplica">
+                      ·
+                    </span>
                   )}
                 </td>
                 {dteKind && <td className="py-2 text-right">{dteCell(dteKind, f, dteWindow)}</td>}

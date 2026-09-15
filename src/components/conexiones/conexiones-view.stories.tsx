@@ -176,14 +176,15 @@ export const TodoAlDia: Story = {
   },
 };
 
-/** Ley 8: el estado de carga dice qué está pasando y cuánto suele tardar. */
+/** Ley 8: el estado de carga dice qué está pasando; no promete una duración que no medimos. */
 export const Cargando: StoryObj<typeof ConexionesCargando> = {
   name: "Cargando (Ley 8)",
   render: () => <ConexionesCargando />,
   play: async ({ canvasElement }) => {
     const c = within(canvasElement);
     await expect(c.getByRole("status")).toHaveTextContent(/revisando el estado de tus conexiones/i);
-    await expect(c.getByRole("status")).toHaveTextContent(/menos de 5 segundos/i);
+    // Gemelo con la MISMA query: la estimación estática ya no se publica.
+    await expect(c.getByRole("status")).not.toHaveTextContent(/segundos/i);
   },
 };
 

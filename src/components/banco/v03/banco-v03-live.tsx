@@ -31,6 +31,10 @@ import { BancoV03View } from "./banco-v03-view";
 import { resolutionDetailFromApi } from "./bank-resolution-detail-model";
 import type { MovimientoV03 } from "./banco-v03-model";
 
+function mutationErrorMessage(error: unknown): string {
+  return unknownErrorToUserMessage(error, "No pudimos completar la acción. Intenta nuevamente.");
+}
+
 /* Cableado de V03 · Banco. La vista es presentacional; acá se resuelven las fuentes:
  *
  *   · `GET /api/dashboard/summary`               — "Caja hoy" vía `cajaHoy()` (la MISMA fuente que V01/V02);
@@ -244,7 +248,7 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
             else toast.error("No se revirtió ningún vínculo; el movimiento se volvió a cargar");
             refreshResolution();
           },
-          onError: (error) => toast.error(unknownErrorToUserMessage(error)),
+          onError: (error) => toast.error(mutationErrorMessage(error)),
         })
       }
       onUnclassify={(movementId) =>
@@ -266,7 +270,7 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
               toast[feedback.kind](feedback.message);
               refreshResolution();
             },
-            onError: (error) => toast.error(unknownErrorToUserMessage(error)),
+            onError: (error) => toast.error(mutationErrorMessage(error)),
           },
         )
       }
@@ -297,9 +301,10 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
                   refreshResolution();
                 } catch (error) {
                   toast.error(
-                    error instanceof ApiError
-                      ? unknownErrorToUserMessage(error)
-                      : "No se pudo guardar la clasificación. Intenta nuevamente.",
+                    unknownErrorToUserMessage(
+                      error,
+                      "No se pudo guardar la clasificación. Intenta nuevamente.",
+                    ),
                   );
                   throw error;
                 }

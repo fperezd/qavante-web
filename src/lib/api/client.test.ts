@@ -144,7 +144,7 @@ describe("Content-Disposition", () => {
 });
 
 describe("api — errores", () => {
-  it("respuesta no-OK lanza ApiError con status, code y detail como message", async () => {
+  it("respuesta no-OK conserva detail técnico pero no lo usa como message", async () => {
     server.use(
       http.get(`${BASE}/api/boom`, () =>
         HttpResponse.json({ code: "bad_thing", detail: "Algo salió mal." }, { status: 400 }),
@@ -153,12 +153,13 @@ describe("api — errores", () => {
     await expect(api.get("/api/boom")).rejects.toMatchObject({
       status: 400,
       code: "bad_thing",
-      message: "Algo salió mal.",
+      message: "Ocurrió un error inesperado. Intenta nuevamente.",
+      detail: { code: "bad_thing", detail: "Algo salió mal." },
     });
     await expect(api.get("/api/boom")).rejects.toBeInstanceOf(ApiError);
   });
 
-  it("detail anidado {code,detail} se extrae como message+code (no [object Object])", async () => {
+  it("detail anidado conserva code y no expone el texto crudo", async () => {
     server.use(
       http.get(`${BASE}/api/nested`, () =>
         HttpResponse.json(
@@ -170,11 +171,11 @@ describe("api — errores", () => {
     await expect(api.get("/api/nested")).rejects.toMatchObject({
       status: 403,
       code: "captcha_failed",
-      message: "Verificación de captcha fallida.",
+      message: "No pudimos verificar el captcha. Recárgalo e intenta de nuevo.",
     });
   });
 
-  it("detail array (validación 422) usa el primer msg, no [object Object]", async () => {
+  it("detail array de validación no expone msg crudo", async () => {
     server.use(
       http.get(`${BASE}/api/invalid`, () =>
         HttpResponse.json(
@@ -185,19 +186,19 @@ describe("api — errores", () => {
     );
     await expect(api.get("/api/invalid")).rejects.toMatchObject({
       status: 422,
-      message: "value is not a valid email",
+      message: "Algunos datos no son válidos. Revisa el formulario.",
     });
   });
 
-  it("error sin body usable → message fallback 'Error <status>'", async () => {
+  it("error sin body usable usa un fallback seguro", async () => {
     server.use(http.get(`${BASE}/api/empty`, () => new HttpResponse(null, { status: 500 })));
     await expect(api.get("/api/empty")).rejects.toMatchObject({
       status: 500,
-      message: "Error 500",
+      message: "No pudimos cargar la información. Intenta nuevamente.",
     });
   });
 
-  it("error con solo {message} (sin detail) usa message", async () => {
+  it("error con solo {message} no expone message", async () => {
     server.use(
       http.get(`${BASE}/api/msg`, () =>
         HttpResponse.json({ message: "Algo puntual" }, { status: 400 }),
@@ -205,11 +206,11 @@ describe("api — errores", () => {
     );
     await expect(api.get("/api/msg")).rejects.toMatchObject({
       status: 400,
-      message: "Algo puntual",
+      message: "Ocurrió un error inesperado. Intenta nuevamente.",
     });
   });
 
-  it("detail objeto sin string usa el code anidado y cae al fallback de message", async () => {
+  it("detail objeto sin texto conserva code y usa fallback seguro", async () => {
     server.use(
       http.get(`${BASE}/api/codeonly`, () =>
         HttpResponse.json({ detail: { code: "rate_limited" } }, { status: 429 }),
@@ -218,17 +219,73 @@ describe("api — errores", () => {
     await expect(api.get("/api/codeonly")).rejects.toMatchObject({
       status: 429,
       code: "rate_limited",
-      message: "Error 429",
+      message: "Hiciste muchas operaciones seguidas. Espera un momento.",
     });
   });
 
-  it("detail array vacío cae al fallback sin reventar", async () => {
+  it("detail array vacío cae al fallback seguro sin reventar", async () => {
     server.use(
       http.get(`${BASE}/api/emptyarr`, () => HttpResponse.json({ detail: [] }, { status: 422 })),
     );
     await expect(api.get("/api/emptyarr")).rejects.toMatchObject({
       status: 422,
-      message: "Error 422",
+      message: "Algunos datos no son válidos. Revisa el formulario.",
+    });
+  });
+
+  it("renderiza sólo UserMessage conocido con params y correlation_id seguros", async () => {
+    server.use(
+      http.get(`${BASE}/api/safe`, () =>
+        HttpResponse.json(
+          {
+            detail: {
+              code: "invalid_request",
+              message_code: "invalid_field",
+              params: { field: "rut" },
+              detail: "SELECT password_hash FROM users",
+            },
+          },
+          { status: 422, headers: { "x-correlation-id": "req_ABC-123" } },
+        ),
+      ),
+    );
+    await expect(api.get("/api/safe")).rejects.toMatchObject({
+      message: "Revisa el campo RUT. Referencia: req_ABC-123.",
+      userMessage: {
+        message_code: "invalid_field",
+        params: { field: "rut" },
+        correlation_id: "req_ABC-123",
+      },
+    });
+  });
+
+  it.each([
+    ["traceback", { detail: "Traceback: File /srv/api/users.py line 9" }],
+    ["SQL", { detail: "SELECT password_hash FROM users" }],
+    ["ruta", { message: "POST /api/internal/retry" }],
+    ["token", { detail: { message: "Bearer secret-token" } }],
+    ["upstream", { detail: "upstream http://10.0.0.4:8080 failed" }],
+    ["message_code desconocido", { message_code: "raw_message", params: { text: "secreto" } }],
+    ["params no permitidos", { message_code: "invalid_field", params: { field: "password_hash" } }],
+  ])("%s no cruza la frontera de presentación", async (_name, body) => {
+    server.use(http.get(`${BASE}/api/leak`, () => HttpResponse.json(body, { status: 500 })));
+    await expect(api.get("/api/leak")).rejects.toMatchObject({
+      message: "No pudimos cargar la información. Intenta nuevamente.",
+    });
+  });
+
+  it("descarta correlation_id inseguro aunque el message_code sea válido", async () => {
+    server.use(
+      http.get(`${BASE}/api/correlation`, () =>
+        HttpResponse.json(
+          { message_code: "service_unavailable", correlation_id: "Bearer secret/token" },
+          { status: 503 },
+        ),
+      ),
+    );
+    await expect(api.get("/api/correlation")).rejects.toMatchObject({
+      message: "No pudimos cargar la información. Intenta nuevamente.",
+      userMessage: { message_code: "service_unavailable" },
     });
   });
 

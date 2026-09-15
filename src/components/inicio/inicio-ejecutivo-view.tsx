@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   ArrowRight,
   Banknote,
-  CheckCircle2,
   Clock,
   Sparkles,
   TrendingDown,
@@ -31,6 +30,7 @@ import { parseAmount, isEmptySummary } from "./dashboard-format";
 import { describeCashGap14d } from "./cash-gap-14d";
 import { PulsoRing } from "./pulso-ring";
 import { estadoVencimientoCritico } from "./critical-payment-status";
+import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
 
 /* Inicio Ejecutivo (Sprint C8, Maestro §7.1): "¿Cómo está mi empresa hoy?".
    Refresh v1.3 — diseñado alrededor de LA DECISIÓN: el Pulso es la respuesta
@@ -46,15 +46,38 @@ export function InicioEjecutivoView({
   suppressRecommendations?: boolean;
 }) {
   const query = useDashboardSummary();
+  const projection = (
+    <CashProjectionRunPanel horizonDays={14} title="Caja para las decisiones de hoy" />
+  );
 
-  if (query.isLoading) return <LoadingSkeleton />;
+  if (query.isLoading)
+    return (
+      <div className="space-y-5">
+        {projection}
+        <LoadingSkeleton />
+      </div>
+    );
   if (query.isError) {
     return (
-      <QavanteInlineError error={query.error} what="tu resumen" onRetry={() => query.refetch()} />
+      <div className="space-y-5">
+        {projection}
+        <QavanteInlineError error={query.error} what="tu resumen" onRetry={() => query.refetch()} />
+      </div>
     );
   }
-  if (!query.data) return null;
-  return <Dashboard data={query.data} suppressRecommendations={suppressRecommendations} />;
+  if (!query.data)
+    return (
+      <div className="space-y-5">
+        {projection}
+        <EmptySummary />
+      </div>
+    );
+  return (
+    <div className="space-y-5">
+      {projection}
+      <Dashboard data={query.data} suppressRecommendations={suppressRecommendations} />
+    </div>
+  );
 }
 
 /** Etiqueta honesta para el destaque: el contrato #254 sólo llama "próximo" a un pago futuro.
@@ -144,17 +167,6 @@ export function Dashboard({
         </DashCard>
       )}
 
-      {/* Brecha de caja elevada: "¿me alcanza para lo que debo pagar?" es la
-          pregunta de supervivencia del dueño. Cuando NO alcanza, no puede ser una
-          card más del grid → banner de ancho completo con el FALTANTE cuantificado
-          (answer-first). El delta se calcula acá (CashGap ya trae las dos cifras). */}
-      {data.cash_gap?.has_gap && (
-        <CashGapBanner
-          critical={parseAmount(data.cash_gap.critical_obligations_14d)}
-          projected={parseAmount(data.cash_gap.projected_cash_14d)}
-        />
-      )}
-
       {/* Grid de bloques de soporte — cada card es clickeable, con entrada
           escalonada (las cards "aparecen" en cascada al cargar). */}
       <div className="qv-stagger grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -169,57 +181,6 @@ export function Dashboard({
                 updated={data.cash_today.last_updated}
                 state={data.cash_today.data_state}
               />
-            </>
-          ) : (
-            <NoData />
-          )}
-        </DashCard>
-
-        {/* Caja proyectada. */}
-        <DashCard title="Caja proyectada" href="/caja/proyeccion" cta="Ver proyección">
-          {data.cash_forecast ? (
-            <>
-              <dl className="space-y-1.5 text-sm">
-                <Row
-                  label="Mínima 14 días"
-                  value={formatClp(parseAmount(data.cash_forecast.min_14d))}
-                />
-                <Row
-                  label="Mínima 30 días"
-                  value={formatClp(parseAmount(data.cash_forecast.min_30d))}
-                />
-                {data.cash_forecast.days_of_cash != null && (
-                  <Row label="Días de caja" value={`~${data.cash_forecast.days_of_cash}`} />
-                )}
-              </dl>
-              <Freshness
-                updated={data.cash_forecast.last_updated}
-                source={data.cash_forecast.source}
-              />
-            </>
-          ) : (
-            <NoData />
-          )}
-        </DashCard>
-
-        {/* Brecha de caja. */}
-        <DashCard title="Brecha de caja" href="/caja/proyeccion" cta="Ver detalle">
-          {data.cash_gap ? (
-            <>
-              {data.cash_gap.has_gap ? (
-                <CashGapCardLine
-                  critical={parseAmount(data.cash_gap.critical_obligations_14d)}
-                  projected={parseAmount(data.cash_gap.projected_cash_14d)}
-                />
-              ) : (
-                <p className="flex items-start gap-2 text-sm text-success-700">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                  <span>
-                    La caja proyectada cubre las obligaciones críticas de los próximos 14 días.
-                  </span>
-                </p>
-              )}
-              <Freshness updated={data.cash_gap.last_updated} source={data.cash_gap.source} />
             </>
           ) : (
             <NoData />

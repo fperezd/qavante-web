@@ -380,9 +380,7 @@ export function MesaSugerencias({
                   {snapshot.fecha ? formatDateLike(snapshot.fecha) : "Fecha no informada"}
                   {subtitulo ? ` · ${subtitulo}` : ""}
                 </span>
-                <QavanteBadge
-                  variant={snapshot.direccion === "credit" ? "success" : "danger"}
-                >
+                <QavanteBadge variant={snapshot.direccion === "credit" ? "success" : "danger"}>
                   {snapshot.direccion === "credit"
                     ? "Abono"
                     : snapshot.direccion === "debit"
@@ -452,7 +450,9 @@ export function MesaSugerencias({
                       )}
                     </div>
                     <strong className="shrink-0 text-sm tabular-nums text-neutral-dark">
-                      {snapshot.moneda ? formatMoney(doc.monto, snapshot.moneda) : "Moneda no informada"}
+                      {snapshot.moneda
+                        ? formatMoney(doc.monto, snapshot.moneda)
+                        : "Moneda no informada"}
                     </strong>
                   </div>
                 ))}
@@ -590,7 +590,7 @@ function SugerenciaBanda({
               : "Propuesta incompleta: falta identificar la contraparte"}
           </span>
           {sug.nombre && <span className="font-medium">{sug.nombre}</span>}
-            {sug.documentCount != null && sug.documentCount > 1 && (
+          {sug.documentCount != null && sug.documentCount > 1 && (
             <span className="text-neutral-mid"> · {sug.documentCount} documentos</span>
           )}
         </span>

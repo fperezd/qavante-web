@@ -109,7 +109,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V08 · Gestión (ESPECIFICACION §V08): las nueve páginas de /gestion en UNA vista con seis tabs · Resultado (con el pivote de 3 meses, el drill-down al documento y la sección Costos y gastos), Márgenes (con Ciclo de caja y Punto de equilibrio), Tendencia, Comparativo (regla de oro: mes en curso contra el mes anterior a la MISMA altura) y los dos 360. El titular del Resultado publica el mismo número que V01 · Hoy y lo compara contra el pivote (Ley 1). El pivote se descarga como XLSX tipado por el backend. "Días promedio en pagar" conserva su "en preparación" honesto.',
+          'V08 · Gestión (ESPECIFICACION §V08): las nueve páginas de /gestion en UNA vista con seis tabs · Resultado (con el pivote de 3 meses, el drill-down al documento y la sección Costos y gastos), Márgenes (con Ciclo de caja y Punto de equilibrio), Tendencia, Comparativo (regla de oro: mes en curso contra el mes anterior a la MISMA altura) y los dos 360. El titular del Resultado publica el mismo número que V01 · Hoy y lo compara contra el pivote (Ley 1). El pivote se descarga como XLSX tipado por el backend. "Días promedio en pagar" declara que no hay información y no se estima con el plazo pactado.',
       },
     },
   },
@@ -350,7 +350,10 @@ export const Proveedores360: Story = {
     await expect(
       c.getByText(/Dependes mucho de esta contraparte \(54,4% de tus compras\)/),
     ).toBeInTheDocument();
-    await expect(c.getByText("en preparación")).toBeInTheDocument();
+    await expect(c.getByText("Días promedio en pagar")).toBeInTheDocument();
+    await expect(c.getByText("sin información disponible")).toBeInTheDocument();
+    // Gemelo: no se anuncia una función "en preparación" con fecha implícita.
+    await expect(c.queryByText(/en preparación/)).not.toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(1);
   },
 };

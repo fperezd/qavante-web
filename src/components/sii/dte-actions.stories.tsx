@@ -46,8 +46,8 @@ export const SinUrl: Story = {
 };
 
 /**
- * U3 — el corazón del arreglo: el primer frame del popover ya dice qué está
- * pasando, dónde y cuánto tarda. Antes había un spinner mudo durante ~2,7 s.
+ * U3 — el corazón del arreglo: el primer frame del popover ya dice qué está pasando y dónde.
+ * Antes había un spinner mudo. No promete una duración: no la medimos.
  */
 export const CargaDiceQueEstaPasando: Story = {
   parameters: { msw: { handlers: [CARGA_ETERNA] } },
@@ -59,7 +59,9 @@ export const CargaDiceQueEstaPasando: Story = {
 
     // Sin `findBy`: tiene que estar YA, no "en algún momento".
     await expect(body.getByText("Buscando el documento en el SII…")).toBeVisible();
-    await expect(body.getByText(/suele demorar unos 3 segundos/)).toBeVisible();
+    await expect(body.getByText(/El SII genera el PDF en el momento/)).toBeVisible();
+    // Gemelo: el estado de carga no inventa una duración que nadie mide.
+    await expect(body.queryByText(/segundos/)).toBeNull();
   },
 };
 

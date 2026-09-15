@@ -78,7 +78,7 @@ describe("PagarV2ViewLive · Brief canónico", () => {
     renderToStaticMarkup(<PagarV2ViewLive suppressRecommendations />);
 
     expect(arnes.props?.hero).toBe(false);
-    expect(arnes.props?.brecha).toBeNull();
+    expect(arnes.props?.estadoCaja).toBeNull();
     expect(arnes.props?.fechasClave).toBeNull();
     expect((arnes.props?.movibles ?? []).map((movible) => movible.id)).toEqual(["vencimientos"]);
   });
@@ -87,7 +87,7 @@ describe("PagarV2ViewLive · Brief canónico", () => {
     renderToStaticMarkup(<PagarV2ViewLive />);
 
     expect(arnes.props?.hero).not.toBe(false);
-    expect(arnes.props?.brecha).not.toBeNull();
+    expect(arnes.props?.estadoCaja).not.toBeNull();
     expect(arnes.props?.fechasClave).not.toBeNull();
     expect((arnes.props?.movibles ?? []).map((movible) => movible.id)).toEqual([
       "vencimientos",

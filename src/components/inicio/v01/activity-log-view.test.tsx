@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ActivityLogView } from "./activity-log-view";
+import { ActivityLogView, mensajeDeshacer } from "./activity-log-view";
 
 const ACTIVIDAD = {
   actionId: "accion-1",
@@ -53,5 +53,17 @@ describe("ActivityLogView — Mientras no estabas (Ley 5, #65)", () => {
     expect(empty).toContain("Aún no hay automatismos reversibles registrados");
     expect(error).toContain("No sabemos qué hizo Qavante");
     expect(error).not.toContain("Clasificó");
+  });
+
+  it("ignora explicacion libre del payload 200 al informar Deshacer", () => {
+    const secreto = "Bearer secret-token SELECT * FROM users /api/internal";
+    const mensaje = mensajeDeshacer({
+      action_id: "accion-1",
+      action_type: "bank_movement.auto_classify",
+      result: "undo_not_supported",
+      detail: { motivo: "estado_derivado", explicacion: secreto },
+    });
+    expect(mensaje).toBe("Algo cambió después de esta acción. No se tocó nada.");
+    expect(mensaje).not.toContain(secreto);
   });
 });

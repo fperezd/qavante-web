@@ -15,7 +15,7 @@ test.describe("Flujo: conciliar cobros fila-por-fila en Caja (#851)", () => {
     await page.goto("/caja/proyeccion");
 
     // Medidor de caja (Caja v3): el fixture proyecta un piso bajo la mínima → "Caja ajustada".
-    await expect(page.getByText(/Caja (holgada|ajustada|en riesgo)/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Proyección canónica" })).toBeVisible();
 
     // Caveat honesto: la proyección NO cuenta lo por cobrar vencido. El "N documentos" es un toggle.
     const toggle = page.getByRole("button", { name: /documentos vencidos o sin fecha/ });

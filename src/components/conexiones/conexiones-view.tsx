@@ -30,7 +30,7 @@ export function ConexionesCargando() {
       {/* Ley 8: el estado de carga habla y tiene estimación. Antes eran 4 barras `aria-hidden`
           sin texto — un lector de pantalla no recibía absolutamente nada. */}
       <p role="status" aria-live="polite" className="text-sm text-neutral-mid">
-        Revisando el estado de tus conexiones… normalmente toma menos de 5 segundos.
+        Estamos revisando el estado de tus conexiones.
       </p>
       <div className="space-y-2" aria-hidden="true">
         {Array.from({ length: 4 }).map((_, i) => (

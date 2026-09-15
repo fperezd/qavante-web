@@ -56,19 +56,26 @@ export const Normal: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("$8.729.650")).toBeInTheDocument();
-    await expect(canvas.getByText(/3 pagos · el más antiguo, 545 días/)).toBeInTheDocument();
+    await expect(canvas.getByText(/3 pagos en todo el registro/)).toBeInTheDocument();
     await expect(canvas.getByText("$17.998.105")).toBeInTheDocument();
+    /* D02/D15 — el subtotal crítico lo publica el servidor sobre TODO el registro, no sobre la
+       página visible: 6 pagos por $16.807.705, no los que alcanzan a caber en la tabla. */
     await expect(
-      canvas.getByText(/Pagos críticos en la lista visible: \$8\.078\.055/),
+      canvas.getByText(/Pagos críticos en todo el registro: \$16\.807\.705 · 6 pagos/),
     ).toBeInTheDocument();
+    await expect(canvas.queryByText(/en la lista visible/)).not.toBeInTheDocument();
     await expect(
       canvas.getByText(/Estado de cobertura del horizonte: no cubre/),
     ).toBeInTheDocument();
     await expect(canvas.queryByText(/\$2\.878\.055/)).not.toBeInTheDocument();
-    await expect(canvas.getByRole("note")).toHaveTextContent(
-      "$1.190.400 de lo que vence en 14 días es negociable",
-    );
-    await expect(canvas.getByRole("link", { name: "Ver Hoy" })).toHaveAttribute("href", "/");
+    /* D01 — el monto negociable ya no se deriva de la tabla; la caja proyectada no vuelve a
+       restar lo que la curva ya trae. */
+    await expect(canvas.queryByRole("note")).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        /Las obligaciones comprometidas ya están incluidas en el flujo proyectado; no se vuelven a restar\./,
+      ),
+    ).toBeInTheDocument();
     // Ley 2: UN rojo, y es el relativo de la fila crítica más urgente (Banco BICE, en 2 días).
     const marcados = rojos(canvasElement);
     await expect(marcados).toHaveLength(1);
@@ -98,7 +105,7 @@ export const AuditoriaD01: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("−$46.865.254")).toBeInTheDocument();
     await expect(
-      canvas.getByText(/Pagos críticos en la lista visible: \$10\.373\.669/),
+      canvas.getByText(/Pagos críticos en todo el registro: \$10\.373\.669 · 1 pago/),
     ).toBeInTheDocument();
     await expect(canvas.queryByText(/57\.238\.923/)).not.toBeInTheDocument();
     await expect(canvas.queryByText(/faltan \$/i)).not.toBeInTheDocument();
@@ -138,11 +145,11 @@ export const ConDuplicado: Story = {
         "posible duplicado señalado por el registro: Factura 9017 (27 ago, $205.000)",
       ),
     ).toHaveLength(2);
-    // El chip condicional aparece con su conteo y filtra.
-    await userEvent.click(canvas.getByRole("radio", { name: "Revisar · 2" }));
-    await expect(filas(canvasElement)).toHaveLength(2);
+    /* El duplicado es una señal de la fila, no un filtro: no existe un chip que recorte la
+       página por él. Los chips son los que publica el servidor sobre todo el registro. */
+    await expect(canvas.queryByRole("radio", { name: /^Revisar/ })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "Todos · 9" })).toBeInTheDocument();
     // Gemelo del rojo: el relativo de la fila crítica (en 2 días) quedó SIN rojo.
-    await userEvent.click(canvas.getByRole("radio", { name: "Todos · 9" }));
     const critico = canvas.getByText("en 2 días");
     await expect(critico.className).not.toContain("rediseno-rojo");
   },
@@ -163,28 +170,29 @@ export const AnomaliasSinDato: Story = {
 };
 
 export const FiltrosYBusqueda: Story = {
-  name: "Filtros con conteo y búsqueda · los chips filtran; los conteos siguen la búsqueda",
-  play: async ({ canvasElement }) => {
+  name: "Filtros y búsqueda · el servidor filtra y cuenta; la vista no recorta la página",
+  args: { onFiltroChange: fn(), onConsultaChange: fn() },
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+    /* D02/D15 — los conteos de los chips los publica `filter_metadata` sobre TODO el registro:
+       no salen de contar la tabla ni se mueven al filtrar o buscar. */
+    await expect(canvas.getByRole("radio", { name: "Todos · 8" })).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "Vencidos · 3" })).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "Alta · 5" })).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "Impuestos · 1" })).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "Remuneraciones · 1" })).toBeInTheDocument();
+
+    // Elegir un chip es una CONSULTA nueva: se le pide al servidor, no se recorta lo ya traído.
     await expect(filas(canvasElement)).toHaveLength(8);
     await userEvent.click(canvas.getByRole("radio", { name: "Vencidos · 3" }));
-    await expect(filas(canvasElement)).toHaveLength(3);
-    await userEvent.click(canvas.getByRole("radio", { name: "Críticos · 3" }));
-    await expect(filas(canvasElement)).toHaveLength(3);
-    await expect(canvas.getAllByText("Remuneraciones: Agosto 2026").length).toBeGreaterThan(0);
-    await userEvent.click(canvas.getByRole("radio", { name: "Impuestos · 1" }));
-    await expect(filas(canvasElement)).toHaveLength(1);
-    await expect(canvas.getAllByText("F29 · IVA de julio").length).toBeGreaterThan(0);
-    await userEvent.click(canvas.getByRole("radio", { name: "Remuneraciones · 1" }));
-    await expect(filas(canvasElement)).toHaveLength(1);
-    await userEvent.click(canvas.getByRole("radio", { name: "Todos · 8" }));
+    await expect(args.onFiltroChange).toHaveBeenCalledWith("vencidos");
+    await expect(filas(canvasElement)).toHaveLength(8);
+    await expect(canvas.getByRole("radio", { name: "Todos · 8" })).toBeInTheDocument();
+
+    // La búsqueda también viaja al servidor, y tampoco mueve los conteos publicados.
     await userEvent.type(canvas.getByRole("searchbox"), "76.555.555");
-    await expect(filas(canvasElement)).toHaveLength(1);
-    await expect(canvas.getAllByText("Entel PCS Telecomunicaciones S.A.").length).toBeGreaterThan(
-      0,
-    );
-    // Los conteos siguen la búsqueda.
-    await expect(canvas.getByRole("radio", { name: "Todos · 1" })).toBeInTheDocument();
+    await expect(args.onConsultaChange).toHaveBeenCalled();
+    await expect(canvas.getByRole("radio", { name: "Todos · 8" })).toBeInTheDocument();
   },
 };
 
@@ -212,12 +220,13 @@ export const SoloImpuestosYSueldos: Story = {
   args: { pagos: pagosSoloImpuestosYSueldos() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // El filtro los muestra…
+    // El filtro los muestra, con los conteos que publica el servidor…
     await expect(canvas.getByRole("radio", { name: "Impuestos · 1" })).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: "Remuneraciones · 2" })).toBeInTheDocument();
-    // …y NADA entra en postergaciones: chip en cero, sin banner.
-    await expect(canvas.getByRole("radio", { name: "Postergables · 0" })).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "Todos · 3" })).toBeInTheDocument();
+    // …y NADA entra en postergaciones: ninguna fila negociable y sin banner de postergables.
     await expect(canvas.queryByRole("note")).not.toBeInTheDocument();
+    await expect(canvas.queryByText(/es negociable/)).not.toBeInTheDocument();
     await expect(canvas.getAllByText("No se posterga")).toHaveLength(3);
     await expect(
       canvas.getByText(/Impuestos y sueldos jamás entran en postergaciones automáticas\./),
@@ -253,9 +262,9 @@ export const DatosDegradados: Story = {
     await expect(
       canvas.getByText(/no se pudo determinar la cobertura con los datos disponibles/),
     ).toBeInTheDocument();
-    // El chip condicional "Sin fecha" existe con su conteo.
-    await userEvent.click(canvas.getByRole("radio", { name: "Sin fecha · 1" }));
-    await expect(filas(canvasElement)).toHaveLength(1);
+    /* Lo sin fecha no se esconde detrás de un chip que lo recorte en el cliente: se declara en
+       la tríada con su monto y su conteo, y la fila queda visible con su "sin fecha". */
+    await expect(canvas.queryByRole("radio", { name: /^Sin fecha/ })).not.toBeInTheDocument();
   },
 };
 

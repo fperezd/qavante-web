@@ -8,10 +8,12 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Info, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rovingIndex } from "@/lib/a11y/roving";
-import type { AccountsPayableResponse, PayableDuplicatePair } from "@/lib/api/pagos";
+import type {
+  D02AccountsPayableResponse as AccountsPayableResponse,
+  PayableDuplicatePair,
+} from "@/lib/api/pagos";
 import { formatClp, formatMoney } from "@/lib/formatters/clp";
-import { parseAmountOrNull } from "@/lib/formatters/amount";
-import { concordar, formatCount, formatDays } from "@/lib/formatters/count";
+import { concordar, formatCount } from "@/lib/formatters/count";
 import { Banner } from "@/components/rediseno/banner";
 import { DataState } from "@/components/rediseno/data-state";
 import { FilterChips } from "@/components/rediseno/filter-chip";
@@ -19,14 +21,13 @@ import { KpiCard } from "@/components/rediseno/kpi-card";
 import { Pill } from "@/components/rediseno/pill";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
 import {
-  FILTROS_V05,
+  FILTROS_SERVIDOR_V05,
   LEY_9_TEXTO,
   PERIODOS,
   TIPO_LABEL,
   TOPE_ITEMS,
   VENTANA_DIAS,
-  bannerPostergables,
-  contarPagos,
+  conteosServidor,
   csvPagosTable,
   elUnicoRojo,
   explicacionCritico,
@@ -34,15 +35,14 @@ import {
   explicacionVencido,
   explicacionVencidoEvidencia,
   faltantes,
-  filtrarPagos,
   kpiCritico,
   kpiPorPagar,
-  kpiVencido,
+  kpiVencidoGlobal,
+  nombreExportPagina,
   pagosV05,
   totales,
   type ExplicacionV05,
-  type CriticoV05,
-  type FiltroV05,
+  type FiltroServidorV05,
   type PagoV05,
   type PeriodoV05,
   type RojoV05,
@@ -50,14 +50,14 @@ import {
 
 /* V05 · Pagar — "¿a quién le pago, y qué es crítico?" (rediseño Fase 2, issue #70).
  *
- * PRESENTACIONAL: entra la respuesta de `accounts-payable`, sale una pantalla. Sin hooks de datos
- * — el cableado vive en `pagar-v05-live.tsx`. Así la vista entera se renderea en un test
+ * PRESENTACIONAL: entra la respuesta de `accounts-payable`, sale una pantalla. La vista no
+ * consulta nada — el cableado vive en `pagar-v05-live.tsx`. Así se renderea entera en un test
  * (`react-dom/server`) y en una story sin MSW. El único estado propio es de UI: período de la
- * tarjeta "Por pagar", filtro y búsqueda.
+ * tarjeta "Por pagar", el filtro y la búsqueda (que se delegan al servidor cuando el contenedor
+ * los controla) y el interruptor de "en seguimiento", que sólo oculta filas de ESTA página.
  *
  * LEY 1 — "Por pagar · 14 días" es `due_14d` del contrato tal cual: el MISMO número que
- * "Sale · 14 días" en V02 · Caja. El postergable del banner sale de la MISMA función (`sale14d`
- * de `caja-v02-model`): un concepto, un número. La vista no recalcula esos tramos desde la tabla
+ * "Sale · 14 días" en V02 · Caja. La vista no recalcula esos tramos desde la tabla
  * (`items` está topeado y las monedas sin TC no suman).
  *
  * LEY 2 — máximo UN rojo por pantalla, decidido en el modelo (`elUnicoRojo`): la pill "Revisar"
@@ -66,7 +66,7 @@ import {
  * lógica). Lo demás es ámbar o gris. Las stories y el test CUENTAN `rediseno-rojo` + `danger-`.
  *
  * LEY 9 — NO existe "pagar todo" ni "postergar": el texto fijo de la ley va literal bajo la
- * tabla, y el banner de postergables enlaza a Hoy (la ejecución masiva no vive aquí).
+ * tabla. Tampoco publica un monto negociable sin un agregado global autoritativo del API.
  *
  * "NO SÉ" explícito — una fila sin fecha parseable dice "sin fecha" (nunca "vence hoy" ni 0
  * días); los documentos sin vencimiento que el backend deja fuera de la tabla (`undated_*`) se
@@ -82,11 +82,22 @@ export interface PagarV05ViewProps {
   anomalias?: ReadonlyArray<PayableDuplicatePair> | null;
   anomaliasMotivo?: string | null;
   onReintentar?: () => void;
-  /** Issue sucesor de los huecos declarados (por ejemplo, la taxonomía "Servicio"). */
+  /** Compatibilidad de stories antiguas; nunca se presenta al usuario. */
   issueSucesor?: string;
   /** Referencia de "hoy". Explícita para tests y stories deterministas. */
   hoy?: Date;
-  /** El brief canonical ya resolvió la recomendación; conserva sólo datos y navegación de detalle. */
+  filtro?: FiltroServidorV05;
+  consulta?: string;
+  pagina?: number;
+  cursorAviso?: string | null;
+  cargandoPagina?: boolean;
+  onFiltroChange?: (filtro: FiltroServidorV05) => void;
+  onConsultaChange?: (consulta: string) => void;
+  onAnterior?: () => void;
+  onSiguiente?: () => void;
+  /** D03: sustituye la caja final/cobertura legacy de Accounts Payable. */
+  canonicalProjection?: React.ReactNode;
+  /** El brief canónico ya resolvió la recomendación; conserva sólo datos y navegación de detalle. */
   suppressRecommendations?: boolean;
 }
 
@@ -102,16 +113,30 @@ export function PagarV05View({
   anomalias = [],
   anomaliasMotivo,
   onReintentar,
-  issueSucesor,
   hoy = new Date(),
+  filtro: filtroControlado,
+  consulta: consultaControlada,
+  pagina = 1,
+  cursorAviso,
+  cargandoPagina = false,
+  onFiltroChange,
+  onConsultaChange,
+  onAnterior,
+  onSiguiente,
+  canonicalProjection,
   suppressRecommendations = false,
 }: PagarV05ViewProps) {
-  void issueSucesor;
   const [periodo, setPeriodo] = React.useState<PeriodoV05>(14);
-  const [filtro, setFiltro] = React.useState<FiltroV05>("todos");
-  const [consulta, setConsulta] = React.useState("");
+  const [filtroLocal, setFiltroLocal] = React.useState<FiltroServidorV05>("todos");
+  const [consultaLocal, setConsultaLocal] = React.useState("");
   const [includeFollowup, setIncludeFollowup] = React.useState(false);
+  const filtro = filtroControlado ?? filtroLocal;
+  const consulta = consultaControlada ?? consultaLocal;
+  const setFiltro = onFiltroChange ?? setFiltroLocal;
+  const setConsulta = onConsultaChange ?? setConsultaLocal;
 
+  /* Con el Brief activo la tabla es EVIDENCIA: orden de la fuente y sin señales de decisión
+     (criticidad y postergabilidad son heurísticas locales que el Brief ya no delega acá). */
   const filas = React.useMemo(
     () =>
       pagosV05(ap, hoy, anomalias ?? [], {
@@ -121,12 +146,17 @@ export function PagarV05View({
     [ap, hoy, anomalias, suppressRecommendations],
   );
   const rojo = suppressRecommendations ? null : elUnicoRojo(filas);
-  const vencido = kpiVencido(filas);
+  const vencido = kpiVencidoGlobal(ap);
   const porPagar = kpiPorPagar(ap, periodo);
-  const critico = suppressRecommendations ? null : kpiCritico(filas, ap);
-  const banner = suppressRecommendations ? null : bannerPostergables(ap, hoy);
-  const conteos = contarPagos(filas, consulta);
-  const visibles = filtrarPagos(filas, filtro, consulta).filter(
+  const critico = kpiCritico(filas, ap);
+  const infoVencido = suppressRecommendations
+    ? explicacionVencidoEvidencia(ap, hoy)
+    : explicacionVencido(ap, hoy);
+  /* Los conteos de los chips los publica el servidor sobre TODO el registro: filtrar o paginar
+     no puede cambiarlos (D02/D15). "En seguimiento" es sólo un ocultamiento de filas de ESTA
+     página: no entra en ningún agregado. */
+  const conteos = ap ? conteosServidor(ap) : null;
+  const visibles = filas.filter(
     (p) => includeFollowup || !p.item.id || !deferredIds.includes(p.item.id),
   );
   const tot = totales(ap, filas);
@@ -135,9 +165,6 @@ export function PagarV05View({
     anomalias != null && (ap?.items ?? []).some((item) => !item.id?.trim());
   const motivoAnomaliasIncompletas =
     "Algunos pagos no tienen identificador estable; no pudimos correlacionar sus posibles duplicados.";
-  const infoVencido = suppressRecommendations
-    ? explicacionVencidoEvidencia(ap, hoy)
-    : explicacionVencido(ap, hoy);
 
   /* (0) Sin respuesta: la pantalla no está vacía, está ciega — y lo dice. */
   if (!ap) {
@@ -159,7 +186,7 @@ export function PagarV05View({
   }
 
   /* (0') Sin nada agendado ni nada sin fecha: no hay tabla que mostrar; se dice qué falta. */
-  if (filas.length === 0 && (ap.undated_count ?? 0) === 0) {
+  if (ap.filter_metadata.unfiltered_items_total === 0 && (ap.undated_count ?? 0) === 0) {
     return (
       <DataState
         status="empty"
@@ -174,19 +201,58 @@ export function PagarV05View({
     );
   }
 
-  const cajaFinal = suppressRecommendations
-    ? parseAmountOrNull(ap.projected_cash_14d)
-    : critico!.cajaFinal;
-  const monedaCaja = suppressRecommendations
-    ? (ap.projected_cash_currency || "CLP").toUpperCase()
-    : critico!.monedaCaja;
-  const motivoSinCaja = suppressRecommendations
-    ? "El saldo proyectado no llegó."
-    : critico!.motivoSinCaja;
-  const detalleCaja = suppressRecommendations ? (
-    <span className="block">Saldo final del flujo publicado por el registro.</span>
+  const coberturaTexto =
+    critico.cobertura === true
+      ? "Estado de cobertura del horizonte: cubre."
+      : critico.cobertura === false
+        ? "Estado de cobertura del horizonte: no cubre."
+        : `Estado de cobertura del horizonte: indeterminado; ${critico.motivoSinCobertura}.`;
+  const subtotalCriticoIncompleto = !critico.completo;
+  const notaFechasDesconocidas =
+    critico.fechasDesconocidas > 0
+      ? ` · ${critico.fechasDesconocidas} ${critico.fechasDesconocidas === 1 ? "obligación sin fecha clasificable" : "obligaciones sin fecha clasificable"}`
+      : "";
+  const notaMonedasExcluidas = critico.monedasExcluidas
+    ? ` · ${critico.monedasExcluidas} ${critico.monedasExcluidas === 1 ? "moneda excluida" : "monedas excluidas"} por falta de tipo de cambio; el API no publica cuántos pagos contiene`
+    : "";
+  const contextoCritico = subtotalCriticoIncompleto ? (
+    critico.total > 0 ? (
+      <>
+        Pagos críticos en todo el registro: al menos {formatClp(critico.total)} · {critico.n}{" "}
+        {critico.n === 1 ? "pago" : "pagos"} en {VENTANA_DIAS} días
+        {critico.yaVencido > 0 && ` · al menos ${formatClp(critico.yaVencido)} ya vencido`}
+        {notaFechasDesconocidas}
+        {notaMonedasExcluidas}.
+      </>
+    ) : (
+      <>
+        Pagos críticos en todo el registro: subtotal no disponible
+        {critico.n > 0 &&
+          ` · ${critico.n} ${critico.n === 1 ? "pago" : "pagos"} en ${VENTANA_DIAS} días`}
+        {notaFechasDesconocidas}
+        {notaMonedasExcluidas}.
+      </>
+    )
   ) : (
-    <DetalleCajaLocal critico={critico!} pagos={ap} hoy={hoy} />
+    <>
+      Pagos críticos en todo el registro: {formatClp(critico.total)} ·{" "}
+      {critico.n > 0
+        ? `${critico.n} ${critico.n === 1 ? "pago que no se posterga" : "pagos que no se postergan"} en ${VENTANA_DIAS} días`
+        : `ningún pago crítico en todo el registro dentro de ${VENTANA_DIAS} días`}
+      {critico.yaVencido > 0 && ` · ${formatClp(critico.yaVencido)} ya vencido`}.
+    </>
+  );
+  const detalleCaja = (
+    <>
+      <span className="block">Saldo final del flujo vigente.</span>
+      <span className="block">{contextoCritico}</span>
+      <span className="block">
+        Las obligaciones comprometidas ya están incluidas en el flujo proyectado; no se vuelven a
+        restar.
+      </span>
+      <span className="block">{coberturaTexto}</span>{" "}
+      <InfoPopover label="Qué significan Caja y críticos" info={explicacionCritico(ap, hoy)} />
+    </>
   );
 
   return (
@@ -198,21 +264,22 @@ export function PagarV05View({
       >
         <KpiCard
           label="Vencido"
-          value={formatClp(vencido.total)}
+          {...(vencido.total == null
+            ? { sinDato: { reason: "La cobertura de fechas o monedas está incompleta." } }
+            : { value: formatClp(vencido.total) })}
           detail={
             <>
               {vencido.n > 0 ? (
                 <>
-                  {formatCount(vencido.n)} {concordar(vencido.n, "pago", "pagos")} · el más antiguo,{" "}
-                  {formatDays(vencido.masAntiguoDias!)}
-                  {!suppressRecommendations &&
-                    vencido.noPostergable > 0 &&
-                    ` · ${formatClp(vencido.noPostergable)} no se posterga`}
-                  {vencido.sinConvertir > 0 &&
-                    ` · +${vencido.sinConvertir} en otra moneda sin convertir`}
+                  {formatCount(vencido.n)} {concordar(vencido.n, "pago", "pagos")} en todo el
+                  registro
+                  {!vencido.completo && ` · al menos ${formatClp(vencido.conocido)} conocidos`}
+                  {vencido.monedasExcluidas > 0 &&
+                    ` · ${vencido.monedasExcluidas} monedas sin conversión`}
+                  {vencido.sinFecha > 0 && ` · ${vencido.sinFecha} sin fecha clasificable`}
                 </>
               ) : (
-                "nada vencido entre los pagos con fecha"
+                "ningún pago vencido conocido"
               )}{" "}
               <InfoPopover label="Qué es Vencido" info={infoVencido} />
             </>
@@ -246,41 +313,27 @@ export function PagarV05View({
             detail={<SelectorPeriodo periodo={periodo} onChange={setPeriodo} />}
           />
         )}
-        {cajaFinal != null ? (
-          <KpiCard
-            label="Caja proyectada"
-            period={`${VENTANA_DIAS} días`}
-            value={formatMoney(cajaFinal, monedaCaja)}
-            detail={detalleCaja}
-          />
-        ) : (
-          <KpiCard
-            label="Caja proyectada"
-            period={`${VENTANA_DIAS} días`}
-            sinDato={{ reason: motivoSinCaja ?? "El saldo proyectado no llegó." }}
-            detail={detalleCaja}
-          />
-        )}
+        {!canonicalProjection &&
+          (critico.cajaFinal != null ? (
+            <KpiCard
+              label="Caja proyectada"
+              period={`${VENTANA_DIAS} días`}
+              value={formatMoney(critico.cajaFinal, critico.monedaCaja)}
+              detail={detalleCaja}
+            />
+          ) : (
+            <KpiCard
+              label="Caja proyectada"
+              period={`${VENTANA_DIAS} días`}
+              sinDato={{ reason: critico.motivoSinCaja ?? "El saldo proyectado no llegó." }}
+              detail={detalleCaja}
+            />
+          ))}
       </section>
 
-      {/* (2) Banner de postergables → la decisión vive en Hoy (la ejecución masiva NO vive aquí). */}
-      {!suppressRecommendations && banner && (
-        <Banner role="note">
-          <span>
-            <b className="text-rediseno-tinta">
-              {formatClp(banner.monto)} de lo que vence en {VENTANA_DIAS} días es negociable
-            </b>{" "}
-            (proveedores y arriendos, por tipo de pago · el mismo número que en Caja). La decisión
-            de qué postergar vive en Hoy; acá no hay ejecución masiva.
-          </span>
-          <Link
-            href="/"
-            className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-rediseno-tinta px-4 py-2 text-[12.5px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul"
-          >
-            Ver Hoy
-          </Link>
-        </Banner>
-      )}
+      {canonicalProjection}
+
+      <EstadoNomina ap={ap} />
 
       {(anomalias == null || correlacionAnomaliasIncompleta) && (
         <Banner role="status">
@@ -297,16 +350,17 @@ export function PagarV05View({
         </Banner>
       )}
 
+      {cursorAviso && (
+        <Banner role="status">
+          <span>{cursorAviso}</span>
+        </Banner>
+      )}
+
       {/* (3) Filtros con conteo + búsqueda, (4) tabla. */}
       <section aria-labelledby="v05-pagos" className="space-y-2">
         <h2 id="v05-pagos" className={EYEBROW}>
           Pagos y obligaciones
         </h2>
-        {suppressRecommendations && (
-          <p className="text-[12.5px] text-rediseno-tinta-3">
-            Los pagos se muestran en el orden publicado por la fuente.
-          </p>
-        )}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <label className="relative min-w-0 flex-1 basis-[16rem]">
             <Search
@@ -325,12 +379,11 @@ export function PagarV05View({
           <FilterChips
             aria-label="Filtrar pagos"
             className="mt-0 mb-0"
-            options={FILTROS_V05.filter((f) => {
-              if (suppressRecommendations && (f.id === "criticos" || f.id === "postergables")) {
-                return false;
-              }
-              return !f.condicional || conteos[f.id] > 0 || filtro === f.id;
-            }).map((f) => ({ id: f.id, label: f.label, count: conteos[f.id] }))}
+            options={FILTROS_SERVIDOR_V05.map((f) => ({
+              id: f.id,
+              label: f.label,
+              count: conteos?.[f.id] ?? 0,
+            }))}
             value={filtro}
             onChange={setFiltro}
           />
@@ -349,14 +402,19 @@ export function PagarV05View({
             </label>
           )}
         </div>
+        {suppressRecommendations && (
+          <p className="text-[12.5px] text-rediseno-tinta-3">
+            Los pagos se muestran en el orden publicado por la fuente.
+          </p>
+        )}
         <TablaPagos
           pagos={visibles}
-          totalPagos={filas.length}
+          totalPagos={ap.items_total}
           rojo={rojo}
           showDecisionSignals={!suppressRecommendations}
           onExport={() =>
             descargarExcel(
-              "pagos-por-pagar.xlsx",
+              nombreExportPagina(pagina),
               csvPagosTable(visibles, { includeDecisionSignals: !suppressRecommendations }),
             )
           }
@@ -366,6 +424,31 @@ export function PagarV05View({
               : "Ningún pago en este filtro."
           }
         />
+
+        <div className="flex items-center justify-between gap-3 text-xs text-rediseno-tinta-3">
+          <span>
+            Página {pagina} · exporta sólo esta página
+            {cargandoPagina ? " · actualizando…" : ""}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={LINK}
+              disabled={!onAnterior || cargandoPagina}
+              onClick={onAnterior}
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              className={LINK}
+              disabled={!onSiguiente || !ap.next_cursor || cargandoPagina}
+              onClick={onSiguiente}
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
 
         {/* Footer §5.5: el total con su apellido, por moneda (INV-FX-001). */}
         <p className="text-[12.5px] text-rediseno-tinta-3">
@@ -384,8 +467,8 @@ export function PagarV05View({
           {falta && <> · falta: {falta}</>}
         </p>
 
-        {/* Con Brief activo el pie sólo describe la evidencia; la política de postergación no se
-            reproduce por una segunda vía en el cliente. */}
+        {/* Ley 9 (texto fijo, literal) + huecos declarados. Con Brief activo el pie sólo describe
+            la evidencia: la política de postergación no se reproduce por una segunda vía. */}
         {suppressRecommendations ? (
           <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
             Cada fila abre el respaldo del pago. Una alerta de posible duplicado indica que el
@@ -405,74 +488,6 @@ export function PagarV05View({
         )}
       </section>
     </div>
-  );
-}
-
-/** Diagnóstico heredado de Pagar V05. Sólo se monta cuando no existe un Brief canónico: el Brief
- * no comparte sus heurísticas de criticidad/postergabilidad con esta tarjeta. */
-function DetalleCajaLocal({
-  critico,
-  pagos,
-  hoy,
-}: {
-  critico: CriticoV05;
-  pagos: AccountsPayableResponse;
-  hoy: Date;
-}) {
-  const coberturaTexto =
-    critico.cobertura === true
-      ? "Estado de cobertura del horizonte: cubre."
-      : critico.cobertura === false
-        ? "Estado de cobertura del horizonte: no cubre."
-        : `Estado de cobertura del horizonte: indeterminado; ${critico.motivoSinCobertura}.`;
-  const subtotalCriticoIncompleto =
-    critico.listaPosiblementeTopeada || critico.montosDesconocidos > 0;
-  const notaMontosDesconocidos =
-    critico.montosDesconocidos > 0
-      ? ` · ${critico.montosDesconocidos} ${critico.montosDesconocidos === 1 ? "pago crítico visible tiene" : "pagos críticos visibles tienen"} monto no disponible por falta de tipo de cambio`
-      : "";
-  const notaListaTopeada = critico.listaPosiblementeTopeada
-    ? ` · la lista alcanzó el tope de ${TOPE_ITEMS} y puede omitir pagos críticos`
-    : "";
-  const contextoCritico = subtotalCriticoIncompleto ? (
-    critico.total > 0 ? (
-      <>
-        Pagos críticos en la lista visible: al menos {formatClp(critico.total)} ·{" "}
-        {critico.listaPosiblementeTopeada && "al menos "}
-        {critico.n} {critico.n === 1 ? "pago" : "pagos"} en {VENTANA_DIAS} días
-        {critico.yaVencido > 0 && ` · al menos ${formatClp(critico.yaVencido)} ya vencido`}
-        {notaMontosDesconocidos}
-        {notaListaTopeada}.
-      </>
-    ) : (
-      <>
-        Pagos críticos en la lista visible: subtotal no disponible
-        {critico.n > 0 &&
-          ` · ${critico.listaPosiblementeTopeada ? "al menos " : ""}${critico.n} ${critico.n === 1 ? "pago" : "pagos"} en ${VENTANA_DIAS} días`}
-        {notaMontosDesconocidos}
-        {notaListaTopeada}.
-      </>
-    )
-  ) : (
-    <>
-      Pagos críticos en la lista visible: {formatClp(critico.total)} ·{" "}
-      {critico.n > 0
-        ? `${critico.n} ${critico.n === 1 ? "pago que no se posterga" : "pagos que no se postergan"} en ${VENTANA_DIAS} días`
-        : `ningún pago crítico visible en ${VENTANA_DIAS} días`}
-      {critico.yaVencido > 0 && ` · ${formatClp(critico.yaVencido)} ya vencido`}.
-    </>
-  );
-
-  return (
-    <>
-      <span className="block">Saldo final del flujo vigente.</span>
-      <span className="block">{contextoCritico}</span>
-      <span className="block">
-        Los pagos visibles ya están incluidos en el flujo proyectado; no se vuelven a restar.
-      </span>
-      <span className="block">{coberturaTexto}</span>{" "}
-      <InfoPopover label="Qué significan Caja y críticos" info={explicacionCritico(pagos, hoy)} />
-    </>
   );
 }
 
@@ -584,16 +599,17 @@ function TablaPagos({
   pagos,
   totalPagos,
   rojo,
-  showDecisionSignals,
   onExport,
   emptyMessage,
+  showDecisionSignals = true,
 }: {
   pagos: PagoV05[];
   totalPagos: number;
   rojo: RojoV05;
-  showDecisionSignals: boolean;
   onExport: () => void;
   emptyMessage: string;
+  /** Con el Brief activo la tabla no pinta pills de decisión: es evidencia. */
+  showDecisionSignals?: boolean;
 }) {
   const columns = React.useMemo<ColumnDef<PagoV05, unknown>[]>(
     () => [
@@ -635,6 +651,8 @@ function TablaPagos({
           );
         },
       },
+      /* La columna "Tipo" es una señal de DECISIÓN (negociable / no se posterga / crédito). Con el
+         Brief activo la tabla es evidencia y el modelo ya no la calcula: la columna no se monta. */
       ...(showDecisionSignals
         ? [
             {
@@ -676,15 +694,16 @@ function TablaPagos({
         cell: ({ row }) => <DetallePago pago={row.original} />,
       },
     ],
-    [rojo, showDecisionSignals],
+    [rojo],
   );
   return (
     <RedisenoTable
       columns={columns}
       data={pagos}
       totalCount={totalPagos}
-      pageSize={25}
+      pagination={false}
       onExport={onExport}
+      exportLabel="Exportar esta página"
       emptyMessage={emptyMessage}
     />
   );
@@ -746,3 +765,45 @@ function Dato({ k, v }: { k: string; v: string }) {
 
 /** Exportar (§5.5): descarga Excel con celdas tipadas en el navegador. Sólo corre en cliente. */
 const descargarExcel = downloadXlsx;
+
+function EstadoNomina({ ap }: { ap: AccountsPayableResponse }) {
+  const next = ap.next_payroll;
+  const cobertura = ap.payroll_coverage;
+  if (next) {
+    const currency = next.currency.trim().toUpperCase();
+    const original = formatMoney(Number(next.amount), currency);
+    const convertido =
+      currency !== "CLP" && next.amount_clp != null
+        ? ` · ${formatClp(Number(next.amount_clp))} convertido`
+        : "";
+    return (
+      <Banner role="status">
+        <span>
+          Próxima nómina: <b>{next.label}</b> · {next.due_date} · {original}
+          {convertido}
+          {next.is_overdue ? " · vencida" : ""}
+          {!cobertura.complete ? " · cobertura de nómina incompleta" : ""}.
+        </span>
+      </Banner>
+    );
+  }
+  if (cobertura.complete) {
+    return (
+      <Banner role="status">
+        <span>No hay obligaciones vivas de nómina en el corte actual.</span>
+      </Banner>
+    );
+  }
+  const pendientes = cobertura.sources
+    .filter((source) => !source.covered)
+    .map((source) => `${source.source}: frescura no confirmada`)
+    .join(" · ");
+  return (
+    <Banner role="status">
+      <span>
+        Próxima nómina: no determinada; la cobertura del período está incompleta
+        {pendientes ? ` (${pendientes})` : ""}.
+      </span>
+    </Banner>
+  );
+}

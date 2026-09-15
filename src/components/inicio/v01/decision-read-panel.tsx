@@ -54,8 +54,8 @@ export function DecisionReadPanel({ readers }: { readers: DecisionReadersView })
           Exposición, excedentes y resultados
         </h3>
         <p className="mt-1 text-sm text-neutral-mid">
-          Snapshots acotados a la entidad, moneda y fecha publicadas por el backend. No crean ni
-          seleccionan operaciones.
+          Lecturas acotadas a la entidad, moneda y fecha publicadas. No crean ni seleccionan
+          operaciones.
         </p>
       </div>
       <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2" aria-label="Lecturas del Decision OS">
@@ -134,7 +134,7 @@ function SourceFreshnessCard({ state }: { state: ReaderState<SourceFreshnessRead
           <div>
             <h4 className="font-semibold text-neutral-dark">F10 · frescura de fuentes</h4>
             <p className="mt-1 text-sm text-neutral-mid">
-              Lectura del backend según la política publicada; no ajusta sus reglas desde aquí.
+              Lectura según la política publicada; sus reglas no se ajustan desde aquí.
             </p>
           </div>
           <StateBadge loading={state.loading} failed={state.failed} abstained={notEvaluable} />

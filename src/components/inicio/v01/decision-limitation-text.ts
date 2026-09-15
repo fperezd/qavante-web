@@ -9,5 +9,11 @@ export function decisionLimitationText(reason: string): string {
   if (reason === MISSING_POLICY_REASON) {
     return "No hay una política vigente y validada para este plan ni un mínimo de caja en CLP definido por la empresa. La propuesta se basa en los antecedentes disponibles; no supone un mínimo de caja de $0.";
   }
+  if (reason.startsWith("source_stale:")) {
+    return "Una o más fuentes pueden estar desactualizadas.";
+  }
+  if (reason === "missing_due_dates") {
+    return "Faltan fechas de vencimiento para completar la evaluación.";
+  }
   return normalizeVisibleText(reason);
 }
