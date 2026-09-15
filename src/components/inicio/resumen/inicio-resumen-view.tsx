@@ -26,10 +26,12 @@ const primary =
 export interface InicioResumenViewProps extends HoyViewProps {
   credits?: React.ReactNode;
   balances?: React.ReactNode;
+  /** Cuando el Decision Brief está visible, este resumen conserva evidencia pero no duplica planes. */
+  suppressRecommendations?: boolean;
 }
 
 export function InicioResumenView(props: InicioResumenViewProps) {
-  const { data, hoy = new Date(), credits, balances } = props;
+  const { data, hoy = new Date(), credits, balances, suppressRecommendations = false } = props;
   const cash = resumenCaja(data, hoy);
   const crumb = crumbHoy(props.empresa, cash.cash, hoy);
   const [decisionOpen, setDecisionOpen] = React.useState(false);
@@ -37,11 +39,12 @@ export function InicioResumenView(props: InicioResumenViewProps) {
     props.operationPlanRead?.selection || props.operationPlanRead?.operation_plan,
   );
   const showDecision =
-    cash.needsAttention ||
-    hasPlan ||
-    Boolean(props.operationPlanError) ||
-    props.operationPlanLoading;
-  const actions = accionesFinancierasInicio(data);
+    !suppressRecommendations &&
+    (cash.needsAttention ||
+      hasPlan ||
+      Boolean(props.operationPlanError) ||
+      props.operationPlanLoading);
+  const actions = suppressRecommendations ? [] : accionesFinancierasInicio(data);
   const heroAmount = cash.needsAttention ? cash.gapAmount : cash.minimum;
 
   return (

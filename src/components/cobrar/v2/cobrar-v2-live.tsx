@@ -71,7 +71,14 @@ function todayISO(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
 }
 
-export function CobrarV2Live({ siiEnabled }: { siiEnabled: boolean }) {
+export function CobrarV2Live({
+  siiEnabled,
+  suppressRecommendations = false,
+}: {
+  siiEnabled: boolean;
+  /** El brief server-owned ya selecciona la decisión; este detalle conserva evidencia y gestiones. */
+  suppressRecommendations?: boolean;
+}) {
   const query = useAccountsReceivable();
 
   if (query.isLoading) return <LoadingSkeleton />;
@@ -92,19 +99,31 @@ export function CobrarV2Live({ siiEnabled }: { siiEnabled: boolean }) {
     ) : (
       <QavanteEmpty
         title="No tienes cuentas por cobrar"
-        description="Cuando tengas documentos por cobrar pendientes, vas a verlos acá ordenados por prioridad."
+        description={
+          suppressRecommendations
+            ? "Cuando tengas documentos por cobrar pendientes, los vas a ver acá."
+            : "Cuando tengas documentos por cobrar pendientes, vas a verlos acá ordenados por prioridad."
+        }
       />
     );
   }
-  return <Assembled data={data} siiEnabled={siiEnabled} />;
+  return (
+    <Assembled
+      data={data}
+      siiEnabled={siiEnabled}
+      suppressRecommendations={suppressRecommendations}
+    />
+  );
 }
 
 function Assembled({
   data,
   siiEnabled,
+  suppressRecommendations,
 }: {
   data: AccountsReceivableResponse;
   siiEnabled: boolean;
+  suppressRecommendations: boolean;
 }) {
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
@@ -188,8 +207,8 @@ function Assembled({
      · Estás al día". La causa del "no sé" sale del dato, y de un solo lugar. */
 
   const ordered = React.useMemo(
-    () => sortDebtors(debtors, gestionadoMap),
-    [debtors, gestionadoMap],
+    () => (suppressRecommendations ? debtors : sortDebtors(debtors, gestionadoMap)),
+    [debtors, gestionadoMap, suppressRecommendations],
   );
   /* Orden de la LISTA de deudores. Por defecto (sortKey null) respeta el ranking
      curado de `ordered` (a quién cobrar primero); el usuario puede reordenar por
@@ -212,7 +231,7 @@ function Assembled({
   );
   const debtorSort = useTableSort(debtorCols, null);
   const displayed = debtorSort.sorted(ordered);
-  const sortControl = (
+  const sortControl = suppressRecommendations ? null : (
     <SortBar
       options={[
         { key: "prioridad", label: "Prioridad" },
@@ -227,10 +246,12 @@ function Assembled({
     />
   );
   const pendientes = ordered.filter((d) => !isGestionado(gestionadoMap, d.rut));
-  const prioridad = pickPrioridad({ ...data, top_debtors: pendientes });
+  const prioridad = suppressRecommendations
+    ? null
+    : pickPrioridad({ ...data, top_debtors: pendientes });
   /* Qué puede AFIRMAR la pantalla sobre lo vencido. El ranking (`prioridad.mode`)
      entra como insumo del relato, pero NO decide la causa: eso sale del dato. */
-  const relato = relatoVencido({ prioridadMode: prioridad?.mode ?? null, totalVencido });
+  const relato = prioridad ? relatoVencido({ prioridadMode: prioridad.mode, totalVencido }) : null;
 
   const [openRut, setOpenRut] = React.useState<string | null>(null);
   const [copiadoRut, setCopiadoRut] = React.useState<string | null>(null);
@@ -318,7 +339,7 @@ function Assembled({
     });
   };
 
-  const hero = prioridad ? (
+  const hero = suppressRecommendations ? null : prioridad && relato ? (
     <CobrarHero
       /* TODO el hero lee `relato.hero`, incluido el titular. Antes el titular leía
          `prioridad.mode` y la bajada `relato.hero`: hoy dan lo mismo, pero son dos
@@ -385,7 +406,13 @@ function Assembled({
             rut={d.rut ?? null}
             total={parseAmount(d.total)}
             overdue={vencidoDeDeudor(d)}
-            pct={grandTotal > 0 ? (parseAmount(d.total) / grandTotal) * 100 : 0}
+            pct={
+              suppressRecommendations
+                ? undefined
+                : grandTotal > 0
+                  ? (parseAmount(d.total) / grandTotal) * 100
+                  : 0
+            }
             gestionado={gestionadoMap[rut] ?? null}
             onCopiar={() => copiar(d)}
             copiado={copiadoRut === rut}
@@ -398,6 +425,7 @@ function Assembled({
             docs={docsByRut.get(rut) ?? []}
             gestionadoDocs={gestionadoDocsMap}
             onToggleDoc={(folio) => toggleGestionadoDoc(d.rut, folio)}
+            showDecisionSignals={!suppressRecommendations}
           />
         );
       })}
@@ -407,6 +435,7 @@ function Assembled({
   return (
     <CobrarV2View
       hero={hero}
+      neutralCollectionList={suppressRecommendations}
       sortControl={sortControl}
       resumen={
         <ResumenCobranza

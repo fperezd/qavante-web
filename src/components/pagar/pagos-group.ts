@@ -21,10 +21,17 @@ const KNOWN_CATEGORIES: ReadonlySet<string> = new Set([
   "other",
 ]);
 
-/** Agrupa por categoría y ordena por subtotal desc (dónde se concentra el pago).
-    Una categoría que el backend agregue y el FE aún no conozca cae en "other" (un
-    solo grupo "Otros", no dos). */
-export function groupByCategory(items: ReadonlyArray<PayableItem>): PayableGroup[] {
+export type PayableGroupOrder = "subtotal" | "source";
+
+/** Agrupa por categoría. La vista heredada conserva el subtotal descendente; el
+    modo `source` conserva el primer orden publicado por el registro y evita
+    convertir la evidencia en un ranking financiero local. Una categoría que el
+    backend agregue y el FE aún no conozca cae en "other" (un solo grupo "Otros",
+    no dos). */
+export function groupByCategory(
+  items: ReadonlyArray<PayableItem>,
+  { order = "subtotal" }: { order?: PayableGroupOrder } = {},
+): PayableGroup[] {
   const map = new Map<PaymentCategory, PayableItem[]>();
   for (const it of items) {
     const category = (KNOWN_CATEGORIES.has(it.category) ? it.category : "other") as PaymentCategory;
@@ -32,13 +39,12 @@ export function groupByCategory(items: ReadonlyArray<PayableItem>): PayableGroup
     if (arr) arr.push(it);
     else map.set(category, [it]);
   }
-  return [...map.entries()]
-    .map(([category, groupItems]) => ({
-      category,
-      items: groupItems,
-      subtotal: groupItems.reduce((s, i) => s + montoCLP(i), 0),
-    }))
-    .sort((a, b) => b.subtotal - a.subtotal);
+  const groups = [...map.entries()].map(([category, groupItems]) => ({
+    category,
+    items: groupItems,
+    subtotal: groupItems.reduce((s, i) => s + montoCLP(i), 0),
+  }));
+  return order === "source" ? groups : groups.sort((a, b) => b.subtotal - a.subtotal);
 }
 
 const GROUP_LABEL: Record<PaymentCategory, string> = {

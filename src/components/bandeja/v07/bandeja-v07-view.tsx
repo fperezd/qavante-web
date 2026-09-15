@@ -107,6 +107,8 @@ export interface SugerenciaDelItemV07 {
 }
 
 export interface BandejaV07ViewProps {
+  /** El brief financiero está visible en la ruta; esta cola queda como auditoría secundaria. */
+  secondaryAudit?: boolean;
   /** Ítems de la carta de conciliar. `null` = la cola no llegó. */
   conciliar: ItemConciliarV07[] | null;
   /** Total no paginado informado por la API. Si falta, degrada al largo recibido. */
@@ -196,6 +198,7 @@ export function BandejaV07View(props: BandejaV07ViewProps) {
 }
 
 function BandejaV07Contenido({
+  secondaryAudit = false,
   conciliar,
   conciliarTotal,
   clasificar,
@@ -336,9 +339,13 @@ function BandejaV07Contenido({
   if (pendientes === 0 && conciliar !== null && clasificar !== null) {
     return (
       <div className="space-y-4 font-rediseno-sans">
-        <p className={EYEBROW}>Bandeja · decisiones que requieren tu revisión</p>
+        <p className={EYEBROW}>
+          {secondaryAudit
+            ? "Bandeja · auditoría de movimientos"
+            : "Bandeja · decisiones que requieren tu revisión"}
+        </p>
         <h1 className="font-sans text-[26px] leading-tight font-semibold text-rediseno-tinta">
-          Nada espera tu decisión
+          {secondaryAudit ? "No hay movimientos por revisar" : "Nada espera tu decisión"}
         </h1>
         <div className="rounded-[14px] border border-rediseno-hairline border-l-[3px] border-l-rediseno-verde bg-rediseno-superficie px-[17px] py-4">
           <p className="text-[13.5px] text-rediseno-tinta-2">
@@ -364,7 +371,11 @@ function BandejaV07Contenido({
 
   return (
     <div className="space-y-4 font-rediseno-sans">
-      <p className={EYEBROW}>Bandeja · decisiones que requieren tu revisión</p>
+      <p className={EYEBROW}>
+        {secondaryAudit
+          ? "Bandeja · auditoría de movimientos"
+          : "Bandeja · decisiones que requieren tu revisión"}
+      </p>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="font-sans text-[26px] leading-tight font-semibold text-rediseno-tinta">

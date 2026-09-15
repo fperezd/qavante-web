@@ -85,6 +85,22 @@ describe("mapVencimientos", () => {
     const f29 = out.find((v) => v.acreedor === "F29");
     expect(f29?.postergabilidad).toBe("no_postergable");
   });
+
+  it("en modo de evidencia cronológica no deriva etiquetas de postergabilidad ni ranking de urgencia", () => {
+    const items = [
+      item({ label: "Más tarde", due_date: "2026-07-25", category: "supplier" }),
+      item({ label: "Antes", due_date: "2026-07-15", category: "tax" }),
+      item({ label: "Sin fecha", due_date: "", category: "payroll" }),
+    ];
+
+    const out = mapVencimientos(items, NOW, undefined, {
+      order: "chronological",
+      includePostergabilidad: false,
+    });
+
+    expect(out.map((v) => v.acreedor)).toEqual(["Antes", "Más tarde", "Sin fecha"]);
+    expect(out.every((v) => v.postergabilidad === undefined)).toBe(true);
+  });
 });
 
 describe("mapFechasClave", () => {

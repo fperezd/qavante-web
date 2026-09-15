@@ -39,7 +39,12 @@ import { estadoVencimientoCritico } from "./critical-payment-status";
    ícono+color (daltonismo-safe). Cada bloque es NULLABLE (una fuente puede faltar
    sin tumbar el dashboard). Contrato FE-first gated por `dashboardSummary`. */
 
-export function InicioEjecutivoView() {
+export function InicioEjecutivoView({
+  suppressRecommendations = false,
+}: {
+  /** El brief canónico reemplaza sólo la lista heredada de prioridades. */
+  suppressRecommendations?: boolean;
+}) {
   const query = useDashboardSummary();
 
   if (query.isLoading) return <LoadingSkeleton />;
@@ -49,7 +54,7 @@ export function InicioEjecutivoView() {
     );
   }
   if (!query.data) return null;
-  return <Dashboard data={query.data} />;
+  return <Dashboard data={query.data} suppressRecommendations={suppressRecommendations} />;
 }
 
 /** Etiqueta honesta para el destaque: el contrato #254 sólo llama "próximo" a un pago futuro.
@@ -63,11 +68,16 @@ export function etiquetaProximoPago(
   return estado === "vencido" ? "Más vencido" : "Próximo";
 }
 
-export function Dashboard({ data }: { data: DashboardSummaryResponse }) {
-  // El servidor decide qué acciones son prioritarias. Esta vista sólo las presenta;
-  // no infiere auditoría o clasificación desde rutas ni texto.
-  const actions = data.priority_actions ?? [];
-
+export function Dashboard({
+  data,
+  suppressRecommendations = false,
+}: {
+  data: DashboardSummaryResponse;
+  suppressRecommendations?: boolean;
+}) {
+  // El servidor decide qué acciones son prioritarias. Con el brief canónico activo,
+  // esta superficie conserva los datos de apoyo sin publicar una segunda decisión.
+  const actions = suppressRecommendations ? [] : (data.priority_actions ?? []);
   /* Empresa nueva / sin fuentes: el backend responde 200 con todo null. */
   if (isEmptySummary(data)) return <EmptySummary />;
 

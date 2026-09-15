@@ -63,7 +63,14 @@ describe("CashGapProposalPanel", () => {
         confidence: "medium" as const,
         evidenceCount: 1,
         limitations: [],
-        targets: [{ label: rawLabel, amount: "120000", reason: "vence primero" }],
+        targets: [
+          {
+            label: rawLabel,
+            amount: "120000",
+            reason: "vence primero",
+            due_date_certainty: "confirmed" as const,
+          },
+        ],
         impacts: [],
         href: "/pagar" as const,
         cta: "Revisar pagos propuestos",
@@ -92,7 +99,12 @@ describe("CashGapProposalPanel", () => {
             evidenceCount: 1,
             limitations: ["source_stale:sii_rcv"],
             targets: [
-              { label: "Remuneraciones de agosto", amount: "7400000", reason: "vence primero" },
+              {
+                label: "Remuneraciones de agosto",
+                amount: "7400000",
+                reason: "vence primero",
+                due_date_certainty: "confirmed" as const,
+              },
             ],
             impacts: [
               {

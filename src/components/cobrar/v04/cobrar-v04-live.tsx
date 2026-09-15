@@ -40,7 +40,12 @@ export function motivoSinRegistro(err: unknown): string {
   return "El registro de cobranza no respondió. Vuelve a intentar en un momento; si sigue igual, revisa tus conexiones.";
 }
 
-export function CobrarV04Live() {
+export function CobrarV04Live({
+  suppressRecommendations = false,
+}: {
+  /** El brief server-owned reemplaza sólo el lote recomendado; conserva la cartera y sus datos. */
+  suppressRecommendations?: boolean;
+}) {
   const [hoy] = React.useState(() => new Date());
   const ar = useAccountsReceivable();
   const deferred = useDeferredDocuments("receivable");
@@ -154,6 +159,7 @@ export function CobrarV04Live() {
         onCopiar={copiar}
         onReintentar={() => void ar.refetch()}
         hoy={hoy}
+        suppressRecommendations={suppressRecommendations}
       />
     </>
   );

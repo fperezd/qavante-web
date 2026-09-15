@@ -4,7 +4,9 @@ import {
   type CreateClassificationRuleRequest,
 } from "./classification-rules";
 
-function body(over: Partial<CreateClassificationRuleRequest> = {}): CreateClassificationRuleRequest {
+function body(
+  over: Partial<CreateClassificationRuleRequest> = {},
+): CreateClassificationRuleRequest {
   return {
     name: "Proveedor recurrente",
     source_type: "bank_movement",

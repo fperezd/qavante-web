@@ -28,7 +28,14 @@ export function motivoSinPagos(err: unknown): string {
   return "El registro de pagos no respondió. Vuelve a intentar en un momento; si sigue igual, revisa tus conexiones.";
 }
 
-export function PagarV05Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?: string }) {
+export function PagarV05Live({
+  issueSucesor = ISSUE_SUCESOR,
+  suppressRecommendations = false,
+}: {
+  issueSucesor?: string;
+  /** El brief server-owned ya ocupa la decisión principal; V05 conserva evidencia y tabla. */
+  suppressRecommendations?: boolean;
+}) {
   const [hoy] = React.useState(() => new Date());
   const ap = useAccountsPayable();
   const deferred = useDeferredDocuments("payable");
@@ -64,6 +71,7 @@ export function PagarV05Live({ issueSucesor = ISSUE_SUCESOR }: { issueSucesor?: 
         }}
         issueSucesor={issueSucesor}
         hoy={hoy}
+        suppressRecommendations={suppressRecommendations}
       />
     </>
   );

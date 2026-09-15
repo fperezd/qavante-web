@@ -19,9 +19,9 @@ export interface PagarMovible {
 
 export interface PagarV2ViewProps {
   /** <PagarHero/> (fijo). */
-  hero: React.ReactNode;
+  hero?: React.ReactNode;
   /** <BrechaCaja/> (fijo). */
-  brecha: React.ReactNode;
+  brecha?: React.ReactNode;
   /** Bloque de secundarios (vencido / próx. 7d / mes / USD) (fijo). */
   secundarios: React.ReactNode;
   /** <FechasClaveMes/> (fijo, destacado). */
@@ -31,7 +31,14 @@ export interface PagarV2ViewProps {
   className?: string;
 }
 
-export function PagarV2View({ hero, brecha, secundarios, fechasClave, movibles, className }: PagarV2ViewProps) {
+export function PagarV2View({
+  hero,
+  brecha,
+  secundarios,
+  fechasClave,
+  movibles,
+  className,
+}: PagarV2ViewProps) {
   const [order, setOrder] = React.useState<string[]>(() => movibles.map((m) => m.id));
 
   const ordered = React.useMemo(() => {
@@ -50,12 +57,22 @@ export function PagarV2View({ hero, brecha, secundarios, fechasClave, movibles, 
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Baranda: respuesta de dueño (hero + brecha + secundarios) */}
-      <div className="grid items-stretch gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-2 lg:grid-cols-[1.05fr_1fr_0.8fr]">
-        <div className="bg-surface">{hero}</div>
-        <div className="bg-surface">{brecha}</div>
-        <div className="bg-surface">{secundarios}</div>
-      </div>
+      {hero || brecha ? (
+        /* Baranda: respuesta de dueño (hero + brecha + secundarios). */
+        <div className="grid items-stretch gap-px overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-2 lg:grid-cols-[1.05fr_1fr_0.8fr]">
+          <div className="bg-surface">{hero}</div>
+          <div className="bg-surface">{brecha}</div>
+          <div className="bg-surface">{secundarios}</div>
+        </div>
+      ) : (
+        /* Con brief activo, este bloque conserva cifras de apoyo sin presentar otro plan. */
+        <section
+          aria-label="Resumen de pagos"
+          className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
+        >
+          {secundarios}
+        </section>
+      )}
 
       {/* Baranda: las 3 del mes (destacadas) */}
       {fechasClave}
@@ -64,7 +81,13 @@ export function PagarV2View({ hero, brecha, secundarios, fechasClave, movibles, 
       <div className="grid items-start gap-4 md:grid-cols-2">
         {ordered.map((m, i) =>
           reorderable ? (
-            <DraggableCard key={m.id} label={m.label} index={i} count={ordered.length} onMove={reorder}>
+            <DraggableCard
+              key={m.id}
+              label={m.label}
+              index={i}
+              count={ordered.length}
+              onMove={reorder}
+            >
               {m.node}
             </DraggableCard>
           ) : (

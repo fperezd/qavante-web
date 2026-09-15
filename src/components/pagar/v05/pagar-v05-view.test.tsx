@@ -150,6 +150,31 @@ describe("PagarV05View — tríada (caso normal)", () => {
     // Gemelo: sin nada postergable el banner no está.
     expect(texto(html({ pagos: pagosSoloImpuestosYSueldos() }))).not.toContain("es negociable");
   });
+
+  it("con un brief canónico conserva los pagos como evidencia y quita el plan local de postergación", () => {
+    const h = html({ suppressRecommendations: true });
+    const t = texto(h);
+
+    expect(t).toContain("Por pagar 14 días $17.998.105");
+    expect(t).toContain("Inmobiliaria Vista Kennedy SpA");
+    expect(t).toContain("Los pagos se muestran en el orden publicado por la fuente.");
+    expect(t).not.toContain("La decisión de qué postergar vive en Hoy");
+    expect(t).not.toContain("de lo que vence en 14 días es negociable");
+    expect(t).not.toContain("Negociable");
+    expect(t).not.toContain("No se posterga");
+    expect(t).not.toContain("Críticos");
+    expect(t).not.toContain("Postergables");
+    expect(t).not.toContain("Impuestos y sueldos jamás entran en postergaciones automáticas.");
+    expect(h).not.toContain(">Tipo<");
+
+    /* Gemelos con la MISMA cadena sobre el render sin supresión. "Críticos" y
+       "Postergables" son rótulos del plan local: si desaparecieran del modo
+       normal, sus ausencias de arriba pasarían por buenas sin medir nada. */
+    const conPlanLocal = texto(html());
+    expect(conPlanLocal).toContain("Críticos");
+    expect(conPlanLocal).toContain("Postergables");
+    expect(conPlanLocal).toContain("La decisión de qué postergar vive en Hoy");
+  });
 });
 
 describe("PagarV05View — tabla y footer", () => {

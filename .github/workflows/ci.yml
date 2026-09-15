@@ -92,7 +92,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: bash scripts/install-playwright-ci.sh chromium
+      # Suite normal: build OFF, flujos legacy y prueba explícita del kill switch.
       - run: npm run e2e
+      # Build/servidor ON separado: contrato MSW del Brief en las cinco rutas.
+      - run: npm run e2e:decision-brief
 
   lighthouse:
     runs-on: ubuntu-latest

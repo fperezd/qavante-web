@@ -8,6 +8,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import { classificationRulesKeys } from "./classification-rules";
+import { invalidateCashDecisionBrief } from "./cash-decision-brief";
 import { treasuryReportsKeys } from "./treasury-reports";
 import { obligationKeys } from "./obligations";
 import { pagosKeys } from "./pagos";
@@ -343,7 +344,10 @@ export function useCreateBankAccount() {
   return useMutation({
     mutationFn: (body: CreateBankAccountRequest) =>
       api.post<BankAccountItem>("/api/treasury/bank-accounts", { body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: treasuryKeys.bankAccountsAll() }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: treasuryKeys.bankAccountsAll() });
+      void invalidateCashDecisionBrief(qc);
+    },
   });
 }
 
@@ -359,6 +363,7 @@ export function useLinkBiceAccount() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: treasuryKeys.biceAccounts() });
       qc.invalidateQueries({ queryKey: treasuryKeys.bankAccountsAll() });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }
@@ -489,6 +494,7 @@ export function useReplaceBankMovementClassification() {
     onSuccess: (detail, { movementId }) => {
       qc.setQueryData(treasuryKeys.bankMovementResolution(movementId), detail);
       qc.invalidateQueries({ queryKey: treasuryKeys.bankMovementsAll() });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }
@@ -505,6 +511,7 @@ export function useUnclassifyBankMovement() {
     onSuccess: (_response, { movementId }) => {
       qc.invalidateQueries({ queryKey: treasuryKeys.bankMovementResolution(movementId) });
       qc.invalidateQueries({ queryKey: treasuryKeys.bankMovementsAll() });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }
@@ -670,6 +677,7 @@ export function useClassifyBankMovement() {
          prefijo → invalidarlos aparte (code-review #3). */
       qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
       qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }
@@ -687,6 +695,7 @@ export function useClassifyBankMovementsBulk() {
       qc.invalidateQueries({ queryKey: treasuryKeys.all });
       qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
       qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }
@@ -712,6 +721,7 @@ export function useApplyRules() {
       qc.invalidateQueries({ queryKey: treasuryKeys.all });
       qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
       qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }
@@ -729,6 +739,7 @@ export function useDetectInternalTransfers() {
       qc.invalidateQueries({ queryKey: treasuryKeys.all });
       qc.invalidateQueries({ queryKey: classificationRulesKeys.all });
       qc.invalidateQueries({ queryKey: treasuryReportsKeys.all });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }
@@ -759,6 +770,7 @@ export function useSetPayrollPayday() {
       // "Remuneraciones" (treasury.payables) → refrescar accounts-payable.
       qc.invalidateQueries({ queryKey: pagosKeys.accountsPayable() });
       qc.invalidateQueries({ queryKey: obligationKeys.all });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { invalidateCashDecisionBrief } from "./cash-decision-brief";
 import type { components } from "./types";
 
 /* Capa de datos — estado del onboarding. Sprint onboarding.
@@ -75,7 +76,13 @@ export function completeOnboardingMutationOptions(qc: QueryClient) {
     mutationFn: () => api.post<OnboardingStatus>("/api/onboarding/complete"),
     // Corre ANTES del `onSuccess`/`onSettled` del llamador (react-query v5), o
     // sea antes de que la vista navegue al panel: el guard ya lee la verdad nueva.
-    onSuccess: (data: OnboardingStatus) => applyOnboardingStatus(qc, data),
+    onSuccess: (data: OnboardingStatus) => {
+      applyOnboardingStatus(qc, data);
+      /* El panel no puede reutilizar un diagnóstico anterior después del cierre
+         del wizard. Esto sólo invalida la MISMA lectura server-owned; no inicia
+         una consulta ni decide nada desde onboarding. */
+      void invalidateCashDecisionBrief(qc);
+    },
     // Si falló no sabemos en qué quedó el backend → que el próximo lector
     // refetchee, en vez de confiar en el dato viejo.
     onError: () => void qc.invalidateQueries({ queryKey: onboardingStatusKeys.status }),
@@ -93,6 +100,19 @@ export function useCompleteOnboarding() {
     con status `ok` | `failed` | `skipped` (no conectada). */
 export type OnboardingSyncResponse = components["schemas"]["OnboardingSyncResponse"];
 
+/** Opciones exportadas para probar que la importación no deja un brief viejo en
+ * cache. El siguiente lector (Inicio/Caja/…) volverá a pedir el mismo envelope
+ * al servidor; este flujo nunca construye uno local. */
+export function triggerOnboardingSyncMutationOptions(qc: QueryClient) {
+  return {
+    mutationFn: () => api.post<OnboardingSyncResponse>("/api/onboarding/sync"),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: onboardingStatusKeys.status });
+      void invalidateCashDecisionBrief(qc);
+    },
+  };
+}
+
 /** `POST /api/onboarding/sync` — dispara la traída inicial (SII + banco). NO retry.
  *
  *  El sync cambia el estado de las fuentes (y con él los pasos del wizard), así
@@ -100,8 +120,5 @@ export type OnboardingSyncResponse = components["schemas"]["OnboardingSyncRespon
  *  mostrando el estado previo por hasta 30 s. */
 export function useTriggerOnboardingSync() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => api.post<OnboardingSyncResponse>("/api/onboarding/sync"),
-    onSettled: () => void qc.invalidateQueries({ queryKey: onboardingStatusKeys.status }),
-  });
+  return useMutation(triggerOnboardingSyncMutationOptions(qc));
 }

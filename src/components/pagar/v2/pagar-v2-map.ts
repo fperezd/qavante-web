@@ -68,13 +68,36 @@ export function sumItemsHasta(items: PayableItem[], now: Date, maxDias: number):
  *  `undefined` para ítems sin destino → esos NO se renderean clickeables (sin afordance no-op). */
 export type OnClickDe = (item: PayableItem) => (() => void) | undefined;
 
-/** Vencimientos ordenados por urgencia (vencido → criticidad) con su postergabilidad. */
+export type VencimientosOrder = "urgency" | "chronological";
+
+export interface MapVencimientosOptions {
+  /** La vista de evidencia usa fecha explícita; la vista heredada conserva su orden de urgencia. */
+  order?: VencimientosOrder;
+  /** La postergabilidad heredada es heurística y no puede acompañar al brief canónico. */
+  includePostergabilidad?: boolean;
+}
+
+/** Vencimientos con orden y taxonomía explícitos para que la vista no infiera un plan por accidente. */
 export function mapVencimientos(
   items: PayableItem[],
   now: Date,
   onClickDe?: OnClickDe,
+  options: MapVencimientosOptions = {},
 ): Vencimiento[] {
-  return overdueThenCritical(items, now).map((it, i) => {
+  const order = options.order ?? "urgency";
+  const orderedItems =
+    order === "urgency"
+      ? overdueThenCritical(items, now)
+      : items
+          .map((item, index) => ({ item, index }))
+          .sort((a, b) => {
+            const dueA = sortableDueDate(a.item.due_date);
+            const dueB = sortableDueDate(b.item.due_date);
+            return dueA - dueB || a.index - b.index;
+          })
+          .map(({ item }) => item);
+
+  return orderedItems.map((it, i) => {
     const extranjera = (it.currency ?? "CLP").toUpperCase() !== "CLP";
     return {
       id: it.source_external_id ?? `${it.label}-${i}`,
@@ -86,11 +109,16 @@ export function mapVencimientos(
       monto: montoCLP(it),
       montoOrigen: extranjera ? formatMoney(parseAmount(it.amount), it.currency) : undefined,
       sinConversion: montoCLPFaltante(it),
-      postergabilidad: postergabilidadDe(it),
+      postergabilidad: options.includePostergabilidad === false ? undefined : postergabilidadDe(it),
       estimado: it.estimated ?? false,
       onClick: onClickDe?.(it),
     };
   });
+}
+
+function sortableDueDate(dueDate: string | null | undefined): number {
+  const parsed = dueDate ? Date.parse(dueDate) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
 }
 
 /** Las 3 fechas clave del mes (imposiciones · impuestos · sueldos), si están en los ítems. */

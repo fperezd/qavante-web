@@ -33,7 +33,7 @@ const AGING_COLOR: Record<string, string> = {
 
 export interface CobrarV2ViewProps {
   /** Hero "Cóbrale primero a…" (o el estado "todo gestionado"). */
-  hero: React.ReactNode;
+  hero?: React.ReactNode;
   /** Resumen honesto (total + vencido/% o nota de vencimientos pendientes). */
   resumen: React.ReactNode;
   /** Antigüedad de saldos — solo si hay vencimientos (modo urgencia). Los tramos
@@ -49,6 +49,8 @@ export interface CobrarV2ViewProps {
   banner?: React.ReactNode;
   /** Acceso al Libro de Ventas SII (si `siiQueries`). */
   siiEnabled?: boolean;
+  /** El brief transversal ya ordena la decisión; la lista queda como evidencia, sin ranking local. */
+  neutralCollectionList?: boolean;
 }
 
 export function CobrarV2View({
@@ -60,15 +62,18 @@ export function CobrarV2View({
   sortControl,
   banner,
   siiEnabled,
+  neutralCollectionList = false,
 }: CobrarV2ViewProps) {
   return (
     <div className="space-y-4">
       {banner}
 
-      {/* Hero — la respuesta de dueño. */}
-      <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-        {hero}
-      </section>
+      {hero && (
+        /* Hero — la respuesta de dueño cuando no existe el brief transversal. */
+        <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+          {hero}
+        </section>
+      )}
 
       {resumen}
 
@@ -78,12 +83,14 @@ export function CobrarV2View({
         <AgingCard aging={aging} sinDato={agingSinDato} />
       )}
 
-      {/* A quién cobrarle — por defecto ordenados por prioridad; el usuario puede reordenar. */}
+      {/* Con brief activo la lista conserva el orden de la fuente: no es otra recomendación. */}
       <QavanteCard
         variant="bordered"
         header={
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="font-medium">A quién cobrarle</span>
+            <span className="font-medium">
+              {neutralCollectionList ? "Clientes con saldo" : "A quién cobrarle"}
+            </span>
             {sortControl}
           </div>
         }
@@ -274,8 +281,8 @@ export interface DeudorRowProps {
   total: number;
   /** `null` = el contrato no pudo computar la mora de ESTE deudor (#124). No es 0. */
   overdue: number | null;
-  /** Qué parte del total por cobrar es este cliente (%). */
-  pct: number;
+  /** Qué parte del total por cobrar es este cliente (%). Sólo existe fuera del Brief. */
+  pct?: number;
   /** Fecha ISO en que se marcó gestionado, o null. */
   gestionado: string | null;
   /** Acciones (copiar/WhatsApp/mail/gestionado) para este deudor. */
@@ -293,6 +300,8 @@ export interface DeudorRowProps {
   /** Facturas gestionadas (mapa `rut:folio`→ISO) + toggle por documento. */
   gestionadoDocs: GestionadoMap;
   onToggleDoc: (folio: number | string | null) => void;
+  /** El Brief canónico conserva la cartera como evidencia, sin concentración local. */
+  showDecisionSignals?: boolean;
 }
 
 export function DeudorRow(props: DeudorRowProps) {
@@ -314,6 +323,7 @@ export function DeudorRow(props: DeudorRowProps) {
     docs,
     gestionadoDocs,
     onToggleDoc,
+    showDecisionSignals = true,
   } = props;
 
   // Mora "de un vistazo" (sin expandir): los días del documento más vencido.
@@ -355,7 +365,9 @@ export function DeudorRow(props: DeudorRowProps) {
           <p className="font-semibold text-neutral-dark">{formatClp(total)}</p>
           {/* Del lado de #40 viene `formatPct`; del lado de #44, los tres estados del
               vencido. Se combinan: el formato NO puede pisar la semántica. */}
-          {pct >= 10 && <p className="text-xs text-neutral-mid">{formatPct(pct)} del total</p>}
+          {showDecisionSignals && pct != null && pct >= 10 && (
+            <p className="text-xs text-neutral-mid">{formatPct(pct)} del total</p>
+          )}
           {overdue === null ? (
             /* El "no sé" se dice. Antes `overdue > 0` con un null no pintaba nada y
                la fila quedaba igual a la de un cliente al día. */

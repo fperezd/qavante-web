@@ -40,6 +40,8 @@ export interface Vencimiento {
 export interface VencimientosTimelineProps {
   items: Vencimiento[];
   className?: string;
+  /** El brief puede pedir evidencia cronológica, sin reutilizar el ranking local heredado. */
+  order?: "urgency" | "chronological";
   /** Cuántos mostrar de entrada; el resto queda tras "Mostrar más" (evita el muro). */
   initialVisible?: number;
 }
@@ -53,6 +55,7 @@ const TAG: Record<Postergabilidad, { label: string; cls: string }> = {
 export function VencimientosTimeline({
   items,
   className,
+  order = "urgency",
   initialVisible = 25,
 }: VencimientosTimelineProps) {
   const [visible, setVisible] = React.useState(initialVisible);
@@ -60,7 +63,11 @@ export function VencimientosTimeline({
   const hasMore = items.length > shown.length;
   return (
     <>
-      <ul className={cn("divide-y divide-border", className)}>
+      <ul
+        className={cn("divide-y divide-border", className)}
+        data-order={order}
+        aria-label={order === "chronological" ? "Vencimientos en orden cronológico" : undefined}
+      >
         {shown.map((it) => {
           const tag = it.postergabilidad ? TAG[it.postergabilidad] : null;
           // Solo es un botón (con foco + chevron) si tiene destino; si no, un contenedor plano
@@ -172,7 +179,10 @@ export function VencimientosTimeline({
             </QavanteButton>
           )}
           <p className="tabular-nums">
-            Mostrando {shown.length} de {items.length} · ordenados por urgencia (lo vencido primero)
+            Mostrando {shown.length} de {items.length} ·{" "}
+            {order === "chronological"
+              ? "ordenados por fecha de vencimiento"
+              : "ordenados por urgencia (lo vencido primero)"}
           </p>
         </div>
       )}

@@ -9,6 +9,8 @@ import {
   formatClpFromString,
   formatClpCompact,
   formatMoney,
+  formatMoneyFromDecimalString,
+  isNonZeroDecimalString,
 } from "./clp";
 
 /* Quita cualquier espacio (incluido el NBSP que algunas versiones de ICU
@@ -214,5 +216,56 @@ describe("formatClpFromString", () => {
   it("lo que NO es número vuelve tal cual — nunca un '$0' inventado", () => {
     expect(formatClpFromString("s/d")).toBe("s/d");
     expect(formatClpFromString("pendiente")).toBe("pendiente");
+  });
+
+  /* Obligaciones (Pagar) recibe `NUMERIC(18,2)`, así que sus montos llegan con dos
+     decimales. Este formateador compartido redondea al peso: es la regla CLP del
+     módulo. El contraste con el formateador exacto queda fijado acá a propósito,
+     para que nadie vuelva a unificarlos sin ver las dos salidas juntas. */
+  it("redondea al peso el decimal de dos dígitos, y NO es el formateador exacto", () => {
+    expect(norm(formatClpFromString("1140000.00"))).toBe("$1.140.000");
+    expect(norm(formatClpFromString("1140000.60"))).toBe("$1.140.001");
+    // Gemelo del contraste: el exacto sí conserva los centavos del contrato.
+    expect(norm(formatMoneyFromDecimalString("1140000.00", "CLP") ?? "")).toBe("$1.140.000,00");
+  });
+});
+
+describe("formatMoneyFromDecimalString — contrato Decimal exacto", () => {
+  it("preserva enteros fuera de IEEE-754 y la fracción CLP sin redondearla", () => {
+    expect(formatMoneyFromDecimalString("9007199254740993.50", "CLP")).toBe(
+      "$9.007.199.254.740.993,50",
+    );
+    expect(formatMoneyFromDecimalString("9007199254740993.50", "CLP")).not.toContain(
+      "9.007.199.254.740.992",
+    );
+  });
+
+  it("conserva el signo negativo y usa un prefijo seguro para otras monedas", () => {
+    expect(formatMoneyFromDecimalString("-9007199254740993.005", "CLP")).toBe(
+      "−$9.007.199.254.740.993,005",
+    );
+    expect(formatMoneyFromDecimalString("9007199254740993.50", "USD")).toBe(
+      "US$ 9.007.199.254.740.993,50",
+    );
+    expect(formatMoneyFromDecimalString("19.123", "EUR")).toBe("EUR 19,123");
+  });
+
+  it("trata el cero negativo del contrato como cero, igual que formatClp", () => {
+    expect(formatMoneyFromDecimalString("-0", "CLP")).toBe("$0");
+    expect(formatMoneyFromDecimalString("-0.00", "CLP")).toBe("$0,00");
+    expect(formatMoneyFromDecimalString("-0", "USD")).toBe("US$ 0");
+    // Gemelo: el menos sí sobrevive apenas hay una magnitud real, por chica que sea.
+    expect(formatMoneyFromDecimalString("-0.01", "CLP")).toBe("−$0,01");
+    expect(formatMoneyFromDecimalString("-1", "CLP")).toBe("−$1");
+  });
+
+  it("no convierte texto inválido en cero y distingue cero exacto de un monto", () => {
+    expect(formatMoneyFromDecimalString("pendiente", "CLP")).toBe("pendiente");
+    expect(isNonZeroDecimalString("-0.00")).toBe(false);
+    expect(isNonZeroDecimalString("9007199254740993")).toBe(true);
+    // Bajo IEEE-754 esto llega a 0; para el contrato Decimal sigue siendo un
+    // monto distinto de cero y no se puede ocultar como si no hubiera impacto.
+    expect(isNonZeroDecimalString(`0.${"0".repeat(400)}1`)).toBe(true);
+    expect(isNonZeroDecimalString("pendiente")).toBe(true);
   });
 });

@@ -43,13 +43,28 @@ import { InicioBancosLive } from "../resumen/inicio-bancos-live";
  * `/api/me` NO bloquea la pantalla: si falla o tarda, el crumb dice "Tu empresa" y el resto se
  * pinta igual. El nombre de la empresa es contexto, no el dato de la vista. */
 
-export function HoyLive({ bankBalancesEnabled = false }: { bankBalancesEnabled?: boolean }) {
+export function HoyLive({
+  bankBalancesEnabled = false,
+  suppressRecommendations = false,
+}: {
+  bankBalancesEnabled?: boolean;
+  /** El brief canónico ya ocupa el lugar de las recomendaciones heredadas. */
+  suppressRecommendations?: boolean;
+}) {
   const summary = useDashboardSummary();
-  const liquidity = useLatestLiquidityEvaluation();
-  /* No recalculan la caja: sólo se leen con el resumen ya disponible. Si fallan,
-     Hoy conserva las acciones prioritarias del summary como fallback. */
-  const paymentPlan = usePaymentDecisionPlan(summary.isSuccess);
-  const collectionPlan = useCollectionDecisionPlan(summary.isSuccess);
+  /* Las lecturas de DECISIÓN local se apagan cuando el Brief ocupa su lugar. No
+     son evidencia: los planes y la evaluación F1 sólo se pintan dentro de
+     "Opciones y seguimiento" de `InicioResumenView`, que la supresión fuerza a
+     cerrado. Pedirlas para descartar su salida gasta lecturas del backend y deja
+     rastro de una segunda decisión que nadie va a mostrar.
+
+     `useLatestLiquidityEvaluation` encadena `decisions` → `liquidity-evaluations`,
+     y su `decision_id` es además la entrada de `useOperationPlanForDecision`, así
+     que apagarla acá corta las tres lecturas. */
+  const decisionLocalHabilitada = summary.isSuccess && !suppressRecommendations;
+  const liquidity = useLatestLiquidityEvaluation(decisionLocalHabilitada);
+  const paymentPlan = usePaymentDecisionPlan(decisionLocalHabilitada);
+  const collectionPlan = useCollectionDecisionPlan(decisionLocalHabilitada);
   const operationPlan = useOperationPlanForDecision(liquidity.data?.decision_id ?? null);
   /* F6/F7/F9 use the persisted evaluation only for its server-owned cut-off. Entity and
      currency are resolved again by /api/core/financial-scope, which fails closed when the
@@ -91,6 +106,7 @@ export function HoyLive({ bankBalancesEnabled = false }: { bankBalancesEnabled?:
     <InicioResumenView
       balances={bankBalancesEnabled ? <InicioBancosLive /> : undefined}
       credits={<InicioCreditosLive enabled={bankBalancesEnabled} />}
+      suppressRecommendations={suppressRecommendations}
       data={summary.data ?? null}
       empresa={me.data?.user?.tenant_name ?? null}
       liquidityEvaluation={liquidity.data ?? null}

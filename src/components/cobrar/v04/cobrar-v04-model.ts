@@ -239,12 +239,15 @@ export function clienteMasGrave<
   return peor;
 }
 
-function subDe(c: {
-  vencido: number | null;
-  dias: number | null;
-  ultimaGestion: string | null;
-  pctDelTotal: number | null;
-}): string {
+function subDe(
+  c: {
+    vencido: number | null;
+    dias: number | null;
+    ultimaGestion: string | null;
+    pctDelTotal: number | null;
+  },
+  { includeConcentracion = true }: { includeConcentracion?: boolean } = {},
+): string {
   const partes: string[] = [];
   if (c.vencido == null) partes.push("vencido: no se sabe");
   else if (c.vencido > 0) {
@@ -258,21 +261,36 @@ function subDe(c: {
   partes.push(
     c.ultimaGestion ? `gestionado ${formatDateShort(c.ultimaGestion)}` : "sin gestión registrada",
   );
-  if (c.pctDelTotal != null && c.pctDelTotal >= 10)
+  if (includeConcentracion && c.pctDelTotal != null && c.pctDelTotal >= 10)
     partes.push(`${formatPct(c.pctDelTotal)} del total`);
   return partes.join(" · ");
 }
 
-/** Las filas de la tabla, en orden de PRIORIDAD (la misma urgencia que Cobrar v2: vencido conocido
- *  de mayor a menor, luego los "no se sabe", al final los al día; desempata el saldo). */
+/** Orden de presentación de la tabla. `source` conserva el orden publicado por el registro: es
+ * evidencia, no una nueva recomendación construida en el cliente. */
+export type ClientesV04Order = "priority" | "source";
+
+export interface ClientesV04Options {
+  order?: ClientesV04Order;
+  /** El Brief ya evalúa la decisión: no crear severidad ni concentración local en la cartera. */
+  includeDecisionSignals?: boolean;
+}
+
+/** Las filas de la tabla. Por defecto conserva el orden de PRIORIDAD heredado (vencido conocido de
+ * mayor a menor, luego los "no se sabe", al final los al día; desempata el saldo). Cuando el Brief
+ * canónico está activo, la vista pide `source` y no vuelve a crear un ranking local. */
 export function clientesV04(
   ar: AccountsReceivableResponse | null | undefined,
   gestionado: GestionadoMap,
+  options: ClientesV04Options = {},
 ): ClienteV04[] {
   if (!ar) return [];
   const total = parseAmount(ar.total);
+  const includeDecisionSignals = options.includeDecisionSignals ?? true;
   const docs = docsVencidosPorRut(ar.overdue_documents);
-  const base = sortByUrgency(ar.top_debtors ?? []).map((d: TopDebtor) => {
+  const debtors =
+    options.order === "source" ? (ar.top_debtors ?? []) : sortByUrgency(ar.top_debtors ?? []);
+  const base = debtors.map((d: TopDebtor) => {
     const k = rutKey(d.rut);
     const vencido = vencidoDeDeudor(d);
     const suyos = k ? docs.get(k) : undefined;
@@ -286,16 +304,25 @@ export function clientesV04(
       vencido,
       dias: suyos?.maxDias ?? null,
       docsVencidos: suyos?.n ?? 0,
-      pctDelTotal: concentracionPct(parseAmount(d.total), total),
+      pctDelTotal: includeDecisionSignals ? concentracionPct(parseAmount(d.total), total) : null,
       ultimaGestion: k && typeof gestionado[k] === "string" ? gestionado[k]! : null,
     };
   });
-  const grave = clienteMasGrave(base);
+  const grave = includeDecisionSignals ? clienteMasGrave(base) : null;
   return base.map((c) => ({
     ...c,
-    antiguedad: antiguedadDe(c, grave != null && grave.key === c.key),
-    sub: subDe(c),
+    antiguedad: includeDecisionSignals
+      ? antiguedadDe(c, grave != null && grave.key === c.key)
+      : antiguedadEvidencia(c),
+    sub: subDe(c, { includeConcentracion: includeDecisionSignals }),
   }));
+}
+
+/** La tabla de evidencia conserva el estado publicado sin convertirlo en ranking o alerta local. */
+function antiguedadEvidencia(c: { vencido: number | null }): AntiguedadV04 {
+  if (c.vencido == null) return { tono: "mut", texto: "Sin vencimiento conocido" };
+  if (c.vencido > 0) return { tono: "mut", texto: "Vencido" };
+  return { tono: "mut", texto: "Al día" };
 }
 
 /* ── (4) Filtros con conteo + búsqueda ───────────────────────────────────────── */
@@ -491,7 +518,7 @@ export function explicacionBruto(
       "Notas de crédito, restando",
     ],
     excluye,
-    fuente: "GET /api/treasury/accounts-receivable · el endpoint no distingue moneda",
+    fuente: "Registro de cuentas por cobrar disponible en Qavante · la fuente no distingue moneda",
     frescura: ar?.generated_at
       ? `calculado ${formatRelative(ar.generated_at, hoy)} (${formatDateLong(ar.generated_at)})`
       : "sin fecha de cálculo",

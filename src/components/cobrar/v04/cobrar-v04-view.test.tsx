@@ -81,6 +81,21 @@ describe("CobrarV04View — crumb, tarjetas, banner, tabla y footer (caso normal
     expect(t).not.toContain("$14.087.408"); // con el 4º
   });
 
+  it("con un brief canónico conserva la cartera pero no propone el lote local", () => {
+    const h = html({ suppressRecommendations: true });
+    const t = texto(h);
+
+    expect(t).toContain("Clientes con saldo");
+    expect(t).toContain("Empresa de Correos de Chile");
+    expect(t).not.toContain("3 clientes concentran");
+    expect(t).not.toContain("Enviar a los 3");
+    expect(t).toContain("Todos · 6");
+    expect(t).not.toContain("Prioridad ·");
+    expect(t).not.toContain("Antigüedad");
+    expect(t).not.toContain("27,2% del total");
+    expect(h).not.toMatch(/rediseno-rojo|danger-/);
+  });
+
   it("tabla: nombre completo, `.sub` con vencido + días + gestión, pill, saldo y las acciones actuales", () => {
     const h = html();
     const t = texto(h);

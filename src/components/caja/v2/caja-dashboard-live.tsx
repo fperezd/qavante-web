@@ -22,6 +22,8 @@ export interface CajaDashboardLiveProps {
   bankMovementClassification: boolean;
   reconciliationReview: boolean;
   markCollectedEnabled?: boolean;
+  /** El Brief canónico conserva este dashboard como evidencia y auditoría. */
+  suppressRecommendations?: boolean;
 }
 
 export function CajaDashboardLive({
@@ -32,6 +34,7 @@ export function CajaDashboardLive({
   bankMovementClassification,
   reconciliationReview,
   markCollectedEnabled = false,
+  suppressRecommendations = false,
 }: CajaDashboardLiveProps) {
   const seccion = (titulo: string, contenido: React.ReactNode): React.ReactNode => (
     <section className="space-y-3">
@@ -48,7 +51,11 @@ export function CajaDashboardLive({
       label: "Resumen de caja",
       node: seccion(
         "Resumen de caja",
-        <CajaV2ResumenLive cajaV3={cajaV3} markCollectedEnabled={markCollectedEnabled} />,
+        <CajaV2ResumenLive
+          cajaV3={cajaV3}
+          markCollectedEnabled={markCollectedEnabled}
+          suppressRecommendations={suppressRecommendations}
+        />,
       ),
     });
   }

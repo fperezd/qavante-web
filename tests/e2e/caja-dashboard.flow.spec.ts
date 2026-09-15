@@ -13,7 +13,7 @@ test.describe("Flujo: Caja reordenable (/caja, cajaDashboard)", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: "Caja" })).toBeVisible();
 
-    // La lectura financiera se presenta primero; la auditoría de datos queda disponible, pero secundaria.
+    // Con el Brief OFF, la lectura existente y la auditoría de datos siguen disponibles.
     await expect(page.getByText("La empresa tiene en caja")).toBeVisible();
     await expect(page.getByText("Calidad y auditoría de movimientos")).toBeVisible();
     await expect(page.getByText("Movimientos pendientes")).toBeVisible();

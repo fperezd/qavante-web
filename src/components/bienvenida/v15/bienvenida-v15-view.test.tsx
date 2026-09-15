@@ -69,10 +69,13 @@ describe("BienvenidaV15View", () => {
     expect(failed).toContain("Reintentar");
   });
 
-  it("muestra disponibilidad sólo cuando el run terminó", () => {
+  it("cuando el run termina confirma datos listos y que el panel refetcheará la decisión", () => {
     const completed = { ...run, status: "completed" as const };
     const rendered = text(completed);
-    expect(rendered).toContain("Tu primer parte ya está disponible.");
+    expect(rendered).toContain("Tus datos ya están listos para actualizar tu panel.");
+    expect(rendered).toContain(
+      "Al entrar al panel, Qavante volverá a consultar la evaluación con los datos recién importados.",
+    );
 
     const failed = text({ ...run, status: "failed" as const });
     expect(failed).toContain("Tu primer parte aún no está disponible.");

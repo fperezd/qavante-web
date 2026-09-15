@@ -8,7 +8,15 @@ import {
 import type { PayableItem } from "@/lib/api/pagos";
 
 const item = (category: PayableItem["category"], amount: string): PayableItem =>
-  ({ label: "x", category, due_date: "2026-07-10", amount, criticality: "medium", source: "SII", currency: "CLP" }) as PayableItem;
+  ({
+    label: "x",
+    category,
+    due_date: "2026-07-10",
+    amount,
+    criticality: "medium",
+    source: "SII",
+    currency: "CLP",
+  }) as PayableItem;
 
 describe("groupByCategory", () => {
   it("agrupa por categoría y ordena por subtotal desc", () => {
@@ -22,6 +30,15 @@ describe("groupByCategory", () => {
     expect(groups[0]?.subtotal).toBe(5000000);
     expect(groups[1]?.subtotal).toBe(3000000);
     expect(groups[1]?.items.length).toBe(2);
+  });
+
+  it("modo evidencia conserva el primer orden publicado, no el ranking por subtotal", () => {
+    const groups = groupByCategory(
+      [item("supplier", "1000000"), item("payroll", "5000000"), item("tax", "500000")],
+      { order: "source" },
+    );
+
+    expect(groups.map((g) => g.category)).toEqual(["supplier", "payroll", "tax"]);
   });
 
   it("categoryGroupLabel: etiquetas plurales por categoría", () => {

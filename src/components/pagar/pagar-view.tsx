@@ -62,7 +62,11 @@ const CRIT_LABEL: Record<"high" | "medium" | "low", string> = {
   low: "Bajo",
 };
 
-export function PagarView() {
+export function PagarView({
+  suppressRecommendations = false,
+}: {
+  suppressRecommendations?: boolean;
+}) {
   const query = useAccountsPayable();
 
   if (query.isLoading) return <LoadingSkeleton />;
@@ -81,7 +85,11 @@ export function PagarView() {
     ) : (
       <QavanteEmpty
         title="No tienes pagos pendientes"
-        description="Cuando tengas pagos u obligaciones por vencer, vas a verlos acá priorizados por criticidad."
+        description={
+          suppressRecommendations
+            ? "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá como respaldo de la decisión."
+            : "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá priorizados por criticidad."
+        }
       />
     );
   }
@@ -89,22 +97,38 @@ export function PagarView() {
     return (
       <QavanteEmpty
         title="No tienes pagos pendientes"
-        description="Cuando tengas pagos u obligaciones por vencer, vas a verlos acá priorizados por criticidad."
+        description={
+          suppressRecommendations
+            ? "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá como respaldo de la decisión."
+            : "Cuando tengas pagos u obligaciones por vencer, vas a verlos acá priorizados por criticidad."
+        }
       />
     );
   }
-  return <Payable data={query.data} />;
+  return <Payable data={query.data} suppressRecommendations={suppressRecommendations} />;
 }
 
-function Payable({ data }: { data: AccountsPayableResponse }) {
+function Payable({
+  data,
+  suppressRecommendations,
+}: {
+  data: AccountsPayableResponse;
+  suppressRecommendations: boolean;
+}) {
   // `now` estable por montaje (evita recomputar el bucketing en cada render).
   const now = React.useMemo(() => new Date(), []);
   // `items` es opcional en el contrato (backend lo omite en estado partial).
   const rawItems = React.useMemo(() => data.items ?? [], [data.items]);
   const overdue = React.useMemo(() => overdueTotal(rawItems, now), [rawItems, now]);
-  const subtotals = React.useMemo(() => subtotalsByCriticality(rawItems), [rawItems]);
+  const subtotals = React.useMemo(
+    () => (suppressRecommendations ? null : subtotalsByCriticality(rawItems)),
+    [rawItems, suppressRecommendations],
+  );
   // Agrupación por categoría (eje universal: "en qué se va la plata").
-  const groups = React.useMemo(() => groupByCategory(rawItems), [rawItems]);
+  const groups = React.useMemo(
+    () => groupByCategory(rawItems, { order: suppressRecommendations ? "source" : "subtotal" }),
+    [rawItems, suppressRecommendations],
+  );
   const total = parseAmount(data.total);
   return (
     <div className="space-y-4">
@@ -120,7 +144,7 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         <QavanteStatTile
           label="Próx. 7 días"
           value={<AmountCountUp value={parseAmount(data.due_7d)} />}
-          tone="danger"
+          tone={suppressRecommendations ? "default" : "danger"}
           info="Lo que vence dentro de los próximos 7 días. Es tu compromiso de caja más inmediato."
         />
         <QavanteStatTile
@@ -146,32 +170,50 @@ function Payable({ data }: { data: AccountsPayableResponse }) {
         ) : null;
       })()}
 
-      {/* Vencido: lo que ya pasó su fecha (lo más urgente) — destacado en rojo. */}
-      {overdue > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-danger-500/40 bg-danger-500/10 px-4 py-2.5 text-sm">
-          <span className="flex items-center gap-2 font-medium text-neutral-dark">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-danger-500" aria-hidden="true" />
-            Vencido, pagar cuanto antes
-          </span>
-          <span className="tabular-nums font-semibold text-danger-500">{formatClp(overdue)}</span>
-        </div>
-      )}
+      {/* Con Brief, vencido sigue siendo evidencia de fecha, no una instrucción local. */}
+      {overdue > 0 &&
+        (suppressRecommendations ? (
+          <div
+            role="status"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted px-4 py-2.5 text-sm"
+          >
+            <span className="font-medium text-neutral-dark">Pagos vencidos registrados</span>
+            <span className="tabular-nums font-semibold text-neutral-dark">
+              {formatClp(overdue)}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-danger-500/40 bg-danger-500/10 px-4 py-2.5 text-sm">
+            <span className="flex items-center gap-2 font-medium text-neutral-dark">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-danger-500" aria-hidden="true" />
+              Vencido, pagar cuanto antes
+            </span>
+            <span className="tabular-nums font-semibold text-danger-500">{formatClp(overdue)}</span>
+          </div>
+        ))}
 
       {/* Subtotales por criticidad (control de gestión: dónde está la plata que
           más urge). Solo cuando hay más de un nivel con monto. */}
-      {[subtotals.high, subtotals.medium, subtotals.low].filter((v) => v > 0).length > 1 && (
-        <div className="flex flex-wrap gap-x-6 gap-y-1 rounded-xl border border-border bg-surface-muted px-4 py-2.5 text-sm">
-          <CriticalitySubtotal label="Crítico" value={subtotals.high} tone="danger" />
-          <CriticalitySubtotal label="Medio" value={subtotals.medium} tone="warning" />
-          <CriticalitySubtotal label="Bajo" value={subtotals.low} tone="neutral" />
-        </div>
-      )}
+      {!suppressRecommendations &&
+        subtotals &&
+        [subtotals.high, subtotals.medium, subtotals.low].filter((v) => v > 0).length > 1 && (
+          <div className="flex flex-wrap gap-x-6 gap-y-1 rounded-xl border border-border bg-surface-muted px-4 py-2.5 text-sm">
+            <CriticalitySubtotal label="Crítico" value={subtotals.high} tone="danger" />
+            <CriticalitySubtotal label="Medio" value={subtotals.medium} tone="warning" />
+            <CriticalitySubtotal label="Bajo" value={subtotals.low} tone="neutral" />
+          </div>
+        )}
 
-      {/* Relación contra caja: SIEMPRE dice algo, en los tres estados. */}
-      <CoberturaDeCaja data={data} />
+      {/* La evaluación transversal reemplaza sólo este diagnóstico local; los montos permanecen. */}
+      {!suppressRecommendations && <CoberturaDeCaja data={data} />}
 
       {/* Pagos y obligaciones — agrupados por categoría (expandibles). */}
-      <PagosPorCategoria groups={groups} total={total} now={now} />
+      <PagosPorCategoria
+        groups={groups}
+        total={total}
+        now={now}
+        suppressRecommendations={suppressRecommendations}
+      />
     </div>
   );
 }
@@ -276,21 +318,27 @@ function PagosPorCategoria({
   groups,
   total,
   now,
+  suppressRecommendations,
 }: {
   groups: ReturnType<typeof groupByCategory>;
   total: number;
   now: Date;
+  suppressRecommendations: boolean;
 }) {
   const [openCat, setOpenCat] = React.useState<string | null>(groups[0]?.category ?? null);
   return (
     <QavanteCard
       variant="bordered"
-      header={<span className="font-medium">Pagos y obligaciones</span>}
+      header={
+        <span className="font-medium">
+          {suppressRecommendations ? "Pagos y obligaciones · evidencia" : "Pagos y obligaciones"}
+        </span>
+      }
     >
       <ul className="divide-y divide-border">
         {groups.map((g) => {
           const isOpen = openCat === g.category;
-          const pct = shareOfTotal(g.subtotal, total);
+          const pct = suppressRecommendations ? null : shareOfTotal(g.subtotal, total);
           return (
             <li key={g.category}>
               <button
@@ -316,14 +364,16 @@ function PagosPorCategoria({
                 </div>
                 <div className="shrink-0 text-right tabular-nums">
                   <span className="font-semibold text-neutral-dark">{formatClp(g.subtotal)}</span>
-                  {pct >= 0.5 && (
+                  {pct !== null && pct >= 0.5 && (
                     <span className="ml-2 text-xs text-neutral-mid">
                       {formatPct(pct)} del total
                     </span>
                   )}
                 </div>
               </button>
-              {isOpen && <CategoryItems items={g.items} now={now} />}
+              {isOpen && (
+                <CategoryItems items={g.items} now={now} neutralOrder={suppressRecommendations} />
+              )}
             </li>
           );
         })}
@@ -333,8 +383,19 @@ function PagosPorCategoria({
 }
 
 /* Ítems de una categoría (ordenados vencido→crítico). */
-function CategoryItems({ items, now }: { items: PayableItem[]; now: Date }) {
-  const ordered = React.useMemo(() => overdueThenCritical(items, now), [items, now]);
+function CategoryItems({
+  items,
+  now,
+  neutralOrder = false,
+}: {
+  items: PayableItem[];
+  now: Date;
+  neutralOrder?: boolean;
+}) {
+  const ordered = React.useMemo(
+    () => (neutralOrder ? items : overdueThenCritical(items, now)),
+    [items, neutralOrder, now],
+  );
   return (
     <div className={`mb-2 ml-6 ${stickyScroll}`}>
       <table className="w-full min-w-[520px] text-sm">
@@ -349,9 +410,11 @@ function CategoryItems({ items, now }: { items: PayableItem[]; now: Date }) {
             <th scope="col" className="py-1.5 pr-3 text-right font-medium">
               Monto
             </th>
-            <th scope="col" className="py-1.5 font-medium">
-              Criticidad
-            </th>
+            {!neutralOrder && (
+              <th scope="col" className="py-1.5 font-medium">
+                Criticidad
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -375,7 +438,9 @@ function CategoryItems({ items, now }: { items: PayableItem[]; now: Date }) {
               <td className="py-1.5 pr-3 text-neutral-mid">
                 <span className="inline-flex items-center gap-1.5">
                   {formatDateLike(it.due_date)}
-                  {isOverdue(it, now) && <QavanteBadge variant="danger">Vencido</QavanteBadge>}
+                  {!neutralOrder && isOverdue(it, now) && (
+                    <QavanteBadge variant="danger">Vencido</QavanteBadge>
+                  )}
                 </span>
               </td>
               <td className="py-1.5 pr-3 text-right tabular-nums text-neutral-dark">
@@ -390,11 +455,13 @@ function CategoryItems({ items, now }: { items: PayableItem[]; now: Date }) {
                   formatClp(montoCLP(it))
                 )}
               </td>
-              <td className="py-1.5">
-                <QavanteBadge variant={CRIT_VARIANT[it.criticality]}>
-                  {CRIT_LABEL[it.criticality]}
-                </QavanteBadge>
-              </td>
+              {!neutralOrder && (
+                <td className="py-1.5">
+                  <QavanteBadge variant={CRIT_VARIANT[it.criticality]}>
+                    {CRIT_LABEL[it.criticality]}
+                  </QavanteBadge>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

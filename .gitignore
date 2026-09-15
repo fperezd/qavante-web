@@ -18,6 +18,8 @@
 
 # next.js
 /.next/
+/.next-e2e-off/
+/.next-e2e-decision-brief-on/
 /out/
 
 # cloudflare (workers + opennext build output)

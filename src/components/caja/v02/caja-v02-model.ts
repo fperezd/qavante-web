@@ -174,10 +174,17 @@ function dentroDeVentana(it: PayableItem, hoy: Date): boolean {
   return d != null && d >= 0 && d <= VENTANA_DIAS;
 }
 
+export interface Sale14Options {
+  /** El Brief canónico ya evaluó alternativas: esta vista conserva el total publicado sin inferir
+   * postergabilidad desde categorías locales. */
+  includePostergabilidad?: boolean;
+}
+
 /** "Sale · 14 días" con su postergable. `null` = no vino accounts-payable o no trae `due_14d`. */
 export function sale14d(
   ap: AccountsPayableResponse | null | undefined,
   hoy: Date,
+  { includePostergabilidad = true }: Sale14Options = {},
 ): Sale14V02 | null {
   if (!ap) return null;
   const total = parseAmountOrNull(ap.due_14d);
@@ -186,9 +193,11 @@ export function sale14d(
   const items = todos.filter((it) => dentroDeVentana(it, hoy));
   /* Ley 9: impuestos y sueldos jamás entran en postergaciones — `postergabilidadDe` ya los deja
      en `no_postergable`; acá sólo se suma lo `negociable`. */
-  const postergable = items
-    .filter((it) => postergabilidadDe(it) === "negociable")
-    .reduce((s, it) => s + montoCLP(it), 0);
+  const postergable = includePostergabilidad
+    ? items
+        .filter((it) => postergabilidadDe(it) === "negociable")
+        .reduce((s, it) => s + montoCLP(it), 0)
+    : 0;
   const sinConvertir = items.filter(montoCLPFaltante).length;
   return { total, postergable, sinConvertir, posibleRecorte: todos.length >= ITEMS_CAP };
 }
@@ -318,28 +327,38 @@ function esRemuneracion(glosa: string): boolean {
 
 /** Las causas del punto de quiebre del backend (los mayores egresos hasta cruzar el mínimo),
  *  ordenadas del más grande al más chico. Vacío si no hay quiebre. */
-export function causasDelPiso(p: CashProjectionResponse | null | undefined): CausaV02[] {
+export interface CausasDelPisoOptions {
+  /** El detalle normal destaca los montos mayores; el Brief conserva la secuencia publicada. */
+  order?: "amount" | "source";
+  /** No inferir si un pago se puede postergar cuando el Brief canónico está visible. */
+  includePostergabilidad?: boolean;
+}
+
+export function causasDelPiso(
+  p: CashProjectionResponse | null | undefined,
+  { order = "amount", includePostergabilidad = true }: CausasDelPisoOptions = {},
+): CausaV02[] {
   const causas = p?.punto_quiebre?.causas ?? [];
-  return causas
-    .map((c) => {
-      const tipo = tipoCausa(c.tipo);
-      const payableId = c.payable_id ?? null;
-      const postergable =
-        tipo === "impuesto" || esRemuneracion(c.glosa)
-          ? ("no" as const)
-          : payableId
-            ? ("si" as const)
-            : ("sin_identidad" as const);
-      return {
-        glosa: c.glosa,
-        fechaLabel: formatDateShort(c.fecha ?? p?.punto_quiebre?.fecha ?? null),
-        monto: parseAmount(c.monto),
-        tipo,
-        payableId,
-        postergable,
-      };
-    })
-    .sort((a, b) => a.monto - b.monto);
+  const filas = causas.map((c) => {
+    const tipo = tipoCausa(c.tipo);
+    const payableId = c.payable_id ?? null;
+    const postergable = !includePostergabilidad
+      ? ("sin_identidad" as const)
+      : tipo === "impuesto" || esRemuneracion(c.glosa)
+        ? ("no" as const)
+        : payableId
+          ? ("si" as const)
+          : ("sin_identidad" as const);
+    return {
+      glosa: c.glosa,
+      fechaLabel: formatDateShort(c.fecha ?? p?.punto_quiebre?.fecha ?? null),
+      monto: parseAmount(c.monto),
+      tipo,
+      payableId,
+      postergable,
+    };
+  });
+  return order === "source" ? filas : filas.sort((a, b) => a.monto - b.monto);
 }
 
 /** Fecha corta del quiebre (primer día bajo el mínimo), o `null` si la caja no cruza el mínimo. */

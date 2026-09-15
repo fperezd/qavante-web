@@ -35,6 +35,7 @@ import {
   updateUser,
   isLastActiveOwner,
 } from "./db";
+import { DECISION_BRIEF_E2E_FIXTURE } from "./decision-brief-fixture";
 import { SEED_SESSION_USER } from "./fixtures";
 
 const SESSION_COOKIE = "qavante_session=msw-mock-token; Path=/; SameSite=Lax";
@@ -4401,6 +4402,10 @@ const apiKeysHandlers = [
 ];
 
 const financialDecisionHandlers = [
+  /* Envelope único de decisión para las cinco rutas. Los query params del CTA
+     son deliberados: los tests prueban que la UI los conserva literalmente y
+     no reconstruye links ni ids en el cliente. */
+  http.get("*/api/treasury/decision-brief", () => HttpResponse.json(DECISION_BRIEF_E2E_FIXTURE)),
   http.get("*/api/core/financial-scope", ({ request }) => {
     const asOf = new URL(request.url).searchParams.get("as_of") ?? "2026-09-09";
     return HttpResponse.json(

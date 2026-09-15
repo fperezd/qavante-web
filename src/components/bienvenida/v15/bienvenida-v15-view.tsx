@@ -344,7 +344,7 @@ function PasoEstado({ run }: { run: OnboardingSyncRun | null }) {
         className="font-rediseno-sans text-[22px] leading-snug font-medium text-rediseno-tinta"
       >
         {terminada
-          ? "Tu primer parte ya está disponible."
+          ? "Tus datos ya están listos para actualizar tu panel."
           : fallida
             ? "Tu primer parte aún no está disponible."
             : "Tu primer parte estará disponible cuando termine la sincronización."}
@@ -352,7 +352,9 @@ function PasoEstado({ run }: { run: OnboardingSyncRun | null }) {
       <p className="pt-1 text-[12.5px] text-rediseno-tinta-2">
         {fallida
           ? "La sincronización no terminó. Reinténtala desde el paso 2."
-          : "No prometemos una hora de entrega: el servicio todavía no publica un calendario ni una hora para este proceso."}
+          : terminada
+            ? "Al entrar al panel, Qavante volverá a consultar la evaluación con los datos recién importados."
+            : "No prometemos una hora de entrega: el servicio todavía no publica un calendario ni una hora para este proceso."}
       </p>
     </section>
   );

@@ -221,14 +221,21 @@ export const ErrorDeConexion: Story = {
 };
 
 export const SincronizacionTerminada: Story = {
-  name: "Completada · el primer parte ya está disponible",
+  name: "Completada · datos listos y evaluación actualizada al entrar",
   args: {
     run: { ...RUN_EN_CURSO, status: "completed" },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Sincronización · Completada")).toBeInTheDocument();
-    await expect(canvas.getByText("Tu primer parte ya está disponible.")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Tus datos ya están listos para actualizar tu panel."),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        "Al entrar al panel, Qavante volverá a consultar la evaluación con los datos recién importados.",
+      ),
+    ).toBeInTheDocument();
   },
 };
 

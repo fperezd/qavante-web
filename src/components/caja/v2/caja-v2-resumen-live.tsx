@@ -49,9 +49,12 @@ import { type SaldoPunto } from "./caja-curva-model";
 export function CajaV2ResumenLive({
   cajaV3 = false,
   markCollectedEnabled = false,
+  suppressRecommendations = false,
 }: {
   cajaV3?: boolean;
   markCollectedEnabled?: boolean;
+  /** Con el Brief canónico, conserva cifras y serie publicadas sin ofrecer un plan local. */
+  suppressRecommendations?: boolean;
 }) {
   // Selector de RANGO — el estándar de la app (`PeriodRangeFilter`, con presets Mes actual / Tres
   // meses / Este año…), el mismo que usan Gestión y el Libro. El v2 había metido un selector
@@ -104,6 +107,7 @@ export function CajaV2ResumenLive({
       granularity="week"
       cajaV3={cajaV3}
       markCollectedEnabled={markCollectedEnabled}
+      suppressRecommendations={suppressRecommendations}
       periodoSelector={periodoSelector}
       sinClasificar={sinClasificar}
     />
@@ -119,6 +123,7 @@ function CajaV2Contenido({
   granularity,
   cajaV3,
   markCollectedEnabled,
+  suppressRecommendations,
   periodoSelector,
   sinClasificar,
 }: {
@@ -128,6 +133,7 @@ function CajaV2Contenido({
   granularity: CashFlowGranularity;
   cajaV3: boolean;
   markCollectedEnabled: boolean;
+  suppressRecommendations: boolean;
   periodoSelector: React.ReactNode;
   sinClasificar: UnclassifiedSummary;
 }) {
@@ -192,17 +198,23 @@ function CajaV2Contenido({
   // dinámica]` no se inlinea en el bundle del browser.
   const saldoStale = caja.estado === "stale";
   const ultimaSync = caja.actualizado ? fechaCortaLabel(new Date(caja.actualizado)) : null;
-  const curvaSlot = cajaV3 ? (
-    <CajaProyeccionLive
-      saldoHoy={saldoHoy}
-      minimo={minimo}
-      saldoStale={saldoStale}
-      ultimaSync={ultimaSync}
-      markCollectedEnabled={markCollectedEnabled}
-    />
-  ) : (
-    <CurvaCard serie={serie} minimo={minimo} cruceIdx={cruceIdx} />
-  );
+  const curvaSlot =
+    cajaV3 && !suppressRecommendations ? (
+      <CajaProyeccionLive
+        saldoHoy={saldoHoy}
+        minimo={minimo}
+        saldoStale={saldoStale}
+        ultimaSync={ultimaSync}
+        markCollectedEnabled={markCollectedEnabled}
+      />
+    ) : (
+      <CurvaCard
+        serie={serie}
+        minimo={minimo}
+        cruceIdx={cruceIdx}
+        suppressRecommendations={suppressRecommendations}
+      />
+    );
 
   return (
     <CajaV2Resumen
@@ -211,11 +223,11 @@ function CajaV2Contenido({
           titulo="La empresa tiene en caja"
           saldo={saldoHoy}
           // Días de caja como NÚMERO junto al saldo (reemplaza el gauge, pedido de Fernando 2026-08-09).
-          diasCaja={dias}
+          diasCaja={suppressRecommendations ? undefined : dias}
           diasTono={tono}
           // Caja v3: el estado de riesgo se cuenta abajo → no repetimos la línea de runway acá.
           runway={
-            cajaV3
+            suppressRecommendations || cajaV3
               ? undefined
               : negativa
                 ? runwayNegativo(saldoHoy)
@@ -396,17 +408,23 @@ export function FlujoBlock({
   );
 }
 
-function CurvaCard({
+/* Exportada sólo para prueba, como `FlujoBlock`: es donde el modo evidencia
+   decide si la curva publica un evento de cruce y su plan de acción. */
+export function CurvaCard({
   serie,
   minimo,
   cruceIdx,
+  suppressRecommendations = false,
 }: {
   serie: SaldoPunto[];
   minimo: number | null;
   cruceIdx: number | null;
+  suppressRecommendations?: boolean;
 }) {
   const eventos =
-    cruceIdx != null ? [{ indice: cruceIdx, label: "Bajo el mínimo", tono: "crit" as const }] : [];
+    !suppressRecommendations && cruceIdx != null
+      ? [{ indice: cruceIdx, label: "Bajo el mínimo", tono: "crit" as const }]
+      : [];
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
@@ -421,7 +439,7 @@ function CurvaCard({
           <CajaCurva serie={serie} minimo={minimo} eventos={eventos} />
         )}
       </div>
-      {cruceIdx != null && (
+      {!suppressRecommendations && cruceIdx != null && (
         <p className="mx-4 mb-4 rounded-lg border border-danger-500/30 bg-danger-500/[.06] px-3 py-2 text-[13px] text-neutral-dark">
           El <b>{serie[cruceIdx]?.label}</b> la caja cae bajo tu mínimo.{" "}
           <Link

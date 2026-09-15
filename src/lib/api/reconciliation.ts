@@ -16,6 +16,7 @@ import { cobranzaKeys } from "./cobranza";
 import { gestionKeys } from "./gestion";
 import { pagosKeys } from "./pagos";
 import { siiKeys } from "./sii";
+import { invalidateCashDecisionBrief } from "./cash-decision-brief";
 import type { components } from "./types";
 
 export type ReviewQueueResponse = components["schemas"]["ReviewQueueResponse"];
@@ -209,7 +210,7 @@ export function useConfirmReconciliation() {
       api.post<ConfirmResponse>(
         `/api/treasury/reconciliation/${encodeURIComponent(movementId)}/confirm`,
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: reconciliationKeys.review() }),
+    onSuccess: () => invalidarDocumentos(qc),
   });
 }
 
@@ -225,6 +226,7 @@ export function useConfirmReconciliationWithDocument() {
     onSuccess: (_result, { movementId }) => {
       qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
       qc.invalidateQueries({ queryKey: reconciliationKeys.documentSuggestions(movementId) });
+      invalidarDocumentos(qc);
     },
   });
 }
@@ -238,7 +240,7 @@ export function useRejectReconciliation() {
       api.post<ConfirmResponse>(
         `/api/treasury/reconciliation/${encodeURIComponent(movementId)}/reject`,
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: reconciliationKeys.review() }),
+    onSuccess: () => invalidarPorConciliar(qc),
   });
 }
 
@@ -279,6 +281,7 @@ export function useRejectReconciliationSuggestion() {
     onSuccess: (_result, { movementId }) => {
       qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
       qc.invalidateQueries({ queryKey: reconciliationKeys.documentSuggestions(movementId) });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }
@@ -314,7 +317,7 @@ export function useConfirmReconciliationBatch() {
       api.post<ConfirmBatchResponse>("/api/treasury/reconciliation/confirm-batch", {
         body: { movement_ids: movementIds },
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: reconciliationKeys.review() }),
+    onSuccess: () => invalidarDocumentos(qc),
   });
 }
 
@@ -339,6 +342,7 @@ function invalidarPorConciliar(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: cobranzaKeys.all });
   qc.invalidateQueries({ queryKey: pagosKeys.all });
   qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
+  void invalidateCashDecisionBrief(qc);
 }
 
 /** Una acción desde el documento cambia Banco, libros, Cobrar/Pagar y Gestión. */
@@ -378,6 +382,7 @@ export function useReanalyzeReconciliation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: reconciliationKeys.review() });
       qc.invalidateQueries({ queryKey: reconciliationKeys.aliases() });
+      void invalidateCashDecisionBrief(qc);
     },
   });
 }
@@ -389,6 +394,6 @@ export function useRunReconcile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<ReconcileResponse>("/api/treasury/reconcile"),
-    onSuccess: () => qc.invalidateQueries({ queryKey: reconciliationKeys.review() }),
+    onSuccess: () => invalidarDocumentos(qc),
   });
 }

@@ -6,7 +6,7 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { CobrarView } from "@/components/cobrar/cobrar-view";
 import { CobrarV2Live } from "@/components/cobrar/v2/cobrar-v2-live";
 import { CobrarV04Live } from "@/components/cobrar/v04/cobrar-v04-live";
-import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brief";
+import { DecisionBriefSlot } from "@/components/decision-brief/decision-brief-slot";
 
 /* Cobrar (Sprint C4). Server Component: resuelve los flags. La IA usa LENGUAJE DE
    DUEÑO (pedido de Fernando 2026-07-28): arriba y a mano "Ver facturas" (lo que
@@ -14,7 +14,8 @@ import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brie
    "Clientes"; debajo el hero de prioridad ("a quién le cobras primero"). Sin
    `export const runtime` (regla 4). */
 export default function CobrarPage() {
-  const { siiQueries, accountsReceivable, cobrarV2, cobrarV04 } = resolveFeatureFlags();
+  const { siiQueries, accountsReceivable, cobrarV2, cobrarV04, decisionBrief } =
+    resolveFeatureFlags();
 
   /* V04 · Cobrar (rediseño Fase 2, issue #69) — gated por `cobrarV04`, HOY APAGADO. Reemplaza la
      landing entera por la vista de la spec (una pantalla, una pregunta: "¿quién me debe?"). Con
@@ -26,7 +27,9 @@ export default function CobrarPage() {
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
-            <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe?</p>
+            <p className="mt-1 text-sm text-neutral-mid">
+              {decisionBrief ? "Documentos y saldos por cobrar." : "¿Quién me debe?"}
+            </p>
           </div>
           {siiQueries && (
             <div className="flex flex-wrap gap-2">
@@ -35,8 +38,8 @@ export default function CobrarPage() {
             </div>
           )}
         </header>
-        <CashDecisionBriefCard />
-        <CobrarV04Live />
+        {decisionBrief && <DecisionBriefSlot surface="cobrar" />}
+        <CobrarV04Live suppressRecommendations={decisionBrief} />
       </div>
     );
   }
@@ -48,7 +51,9 @@ export default function CobrarPage() {
           <div>
             <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
             <p className="mt-1 text-sm text-neutral-mid">
-              ¿Quién me debe y qué debo cobrar primero?
+              {decisionBrief
+                ? "Documentos y saldos por cobrar."
+                : "¿Quién me debe y qué debo cobrar primero?"}
             </p>
           </div>
           {/* Accesos arriba, en lenguaje de dueño (antes "Libro de Ventas" al fondo). */}
@@ -59,8 +64,8 @@ export default function CobrarPage() {
             </div>
           )}
         </header>
-        <CashDecisionBriefCard />
-        <CobrarV2Live siiEnabled={siiQueries} />
+        {decisionBrief && <DecisionBriefSlot surface="cobrar" />}
+        <CobrarV2Live siiEnabled={siiQueries} suppressRecommendations={decisionBrief} />
       </div>
     );
   }
@@ -70,10 +75,14 @@ export default function CobrarPage() {
       <div className="space-y-6">
         <header>
           <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
-          <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
+          <p className="mt-1 text-sm text-neutral-mid">
+            {decisionBrief
+              ? "Documentos y saldos por cobrar."
+              : "¿Quién me debe y qué debo cobrar primero?"}
+          </p>
         </header>
-        <CashDecisionBriefCard />
-        <CobrarView siiEnabled={siiQueries} />
+        {decisionBrief && <DecisionBriefSlot surface="cobrar" />}
+        <CobrarView siiEnabled={siiQueries} suppressRecommendations={decisionBrief} />
       </div>
     );
   }
@@ -83,21 +92,29 @@ export default function CobrarPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
-          <p className="mt-1 text-sm text-neutral-mid">¿Quién me debe y qué debo cobrar primero?</p>
+          <p className="mt-1 text-sm text-neutral-mid">
+            {decisionBrief
+              ? "Documentos y saldos por cobrar."
+              : "¿Quién me debe y qué debo cobrar primero?"}
+          </p>
         </div>
         {siiQueries && (
           <QuickLink href="/cobrar/facturas-emitidas" icon={FileText} label="Ver facturas" />
         )}
       </header>
 
-      <CashDecisionBriefCard />
+      {decisionBrief && <DecisionBriefSlot surface="cobrar" />}
 
       {!siiQueries && <FeatureUnavailableState />}
 
       <QavanteEmpty
         icon={ArrowDownToLine}
         title="Cobranza"
-        description="Aquí vas a ver tus documentos por cobrar ordenados por prioridad, la cobranza vencida, la antigüedad de saldos y acciones sugeridas por cliente. Muy pronto disponible."
+        description={
+          decisionBrief
+            ? "Aquí vas a ver los documentos y saldos por cobrar cuando haya fuentes conectadas."
+            : "Aquí vas a ver tus documentos por cobrar ordenados por prioridad, la cobranza vencida, la antigüedad de saldos y acciones sugeridas por cliente. Muy pronto disponible."
+        }
       />
     </div>
   );

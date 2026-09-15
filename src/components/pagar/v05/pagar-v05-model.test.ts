@@ -140,6 +140,17 @@ describe("orden por urgencia (default de la tabla)", () => {
     ]);
     expect(mismoDia.map((p) => p.montoClp)).toEqual([50, 900, 100]);
   });
+
+  it("con el Brief conserva el orden publicado y no fabrica señales de postergabilidad", () => {
+    const ap = pagos({ items: [CHIPAX, BICE, KENNEDY] });
+    const evidencia = pagosV05(ap, HOY, [], {
+      order: "source",
+      includeDecisionSignals: false,
+    });
+
+    expect(evidencia.map((p) => p.item.id)).toEqual(ap.items!.map((item) => item.id));
+    expect(evidencia.every((p) => p.tipo === null && !p.critico && !p.postergable)).toBe(true);
+  });
 });
 
 describe("posible duplicado — sólo el par UUID publicado por el backend", () => {
@@ -398,5 +409,18 @@ describe("CSV (§5.5)", () => {
       "Amazon Web Services;Factura 4410;76888888-8;2026-09-05;6;Negociable;USD;830;sin dato",
     );
     expect(lineas).toHaveLength(1 + 6);
+  });
+
+  it("con el Brief no exporta la columna heurística Tipo", () => {
+    const evidencia = pagosV05(pagos(), HOY, [], {
+      order: "source",
+      includeDecisionSignals: false,
+    });
+    const encabezado = csvPagos(evidencia, { includeDecisionSignals: false }).split("\n")[0];
+
+    expect(encabezado).not.toContain("tipo");
+    expect(encabezado).toBe(
+      "proveedor;documento;rut;vence;dias;moneda;monto;monto_clp;fuente;anomalia",
+    );
   });
 });

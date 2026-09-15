@@ -121,6 +121,17 @@ describe("clientesV04 — la tabla en orden de prioridad", () => {
     ]);
   });
 
+  it("en modo source preserva el orden publicado y no vuelve a priorizar clientes", () => {
+    const source = clientesV04(ar(), gestionado(), {
+      order: "source",
+      includeDecisionSignals: false,
+    });
+    expect(source.map((c) => c.nombre)).toEqual((ar().top_debtors ?? []).map((c) => c.name));
+    expect(source.every((c) => c.antiguedad.tono === "mut")).toBe(true);
+    expect(source.every((c) => !c.sub.includes("del total"))).toBe(true);
+    expect(source.every((c) => c.pctDelTotal === null)).toBe(true);
+  });
+
   it("los días vienen del documento MÁS vencido del cliente (buckets = agrupación front)", () => {
     const gps = cs.find((c) => c.nombre === "GPS7000")!;
     /* La fixture lista el de 12 días ANTES que el de 80: "el primero" daría 12 y "el máximo" da
@@ -363,7 +374,8 @@ describe("footer — por cobrar (bruto)", () => {
     expect(e.definicion).toContain("bruto");
     expect(e.excluye.some((x) => x.includes("cedidas por factoring"))).toBe(true);
     expect(e.excluye.some((x) => x.includes("sin fecha de vencimiento"))).toBe(false);
-    expect(e.fuente).toContain("/api/treasury/accounts-receivable");
+    expect(e.fuente).toContain("Registro de cuentas por cobrar disponible en Qavante");
+    expect(e.fuente).not.toContain("/api/");
     expect(e.frescura).toContain("30 ago 2026");
     const sinFecha = explicacionBruto(arVencidoDesconocido(), HOY);
     expect(sinFecha.excluye.some((x) => x.includes(formatClp(42_579_467)))).toBe(true);

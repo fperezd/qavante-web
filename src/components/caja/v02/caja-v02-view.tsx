@@ -80,6 +80,8 @@ export interface CajaV02ViewProps {
   saldoError?: boolean;
   /** Ejecuta el POST sólo cuando terminó la ventana cancelable. */
   onPostpone: (payableId: string, days: PostponeDays) => Promise<void>;
+  /** El Brief server-owned ya resolvió la decisión; este tablero conserva sólo evidencia. */
+  suppressRecommendations?: boolean;
   /** Referencia de "hoy". Explícita para tests y stories deterministas. */
   hoy?: Date;
 }
@@ -97,16 +99,22 @@ export function CajaV02View({
   bancos = [],
   saldoError = false,
   onPostpone,
+  suppressRecommendations = false,
   hoy = new Date(),
 }: CajaV02ViewProps) {
   const caja = cajaHoy(summary);
   const hoyKpi = kpiHoy(caja, bancos, hoy);
   const entra = entra14d(cobranza);
-  const sale = sale14d(pagos, hoy);
+  const sale = sale14d(pagos, hoy, {
+    includePostergabilidad: !suppressRecommendations,
+  });
   const deuda = deudaDeDatos(sinClasificar);
   const piso = puntoMasBajo(proyeccion);
   const barras = semanas(proyeccion);
-  const causas = causasDelPiso(proyeccion);
+  const causas = causasDelPiso(proyeccion, {
+    order: suppressRecommendations ? "source" : "amount",
+    includePostergabilidad: !suppressRecommendations,
+  });
   const quiebre = fechaQuiebre(proyeccion);
   const fuera = exclusiones(proyeccion);
   const calculo = comoSeCalcula(proyeccion, hoy);
@@ -156,9 +164,11 @@ export function CajaV02View({
                 {/* Apellido (Ley 1): due_14d es acumulativo e incluye lo YA vencido, no sólo lo
                     que vence en los próximos 14 días — "negociable" sí es sólo 0..14. */}
                 incluye lo ya vencido ·{" "}
-                {sale.postergable > 0
+                {!suppressRecommendations && sale.postergable > 0
                   ? `${formatClp(sale.postergable)} negociable en 0-14 días`
-                  : "nada negociable en la ventana"}
+                  : !suppressRecommendations
+                    ? "nada negociable en la ventana"
+                    : "pagos comprometidos en los próximos 14 días"}
                 {sale.sinConvertir > 0 &&
                   ` · ${sale.sinConvertir} ${concordar(sale.sinConvertir, "pago", "pagos")} en otra moneda sin convertir`}
                 {sale.posibleRecorte &&
@@ -245,32 +255,51 @@ export function CajaV02View({
               id="caja-piso"
               className="font-rediseno-mono text-[12px] font-semibold uppercase tracking-[.12em] text-rediseno-tinta-3"
             >
-              Qué te lleva al punto más bajo · {piso.fechaLabel} ·{" "}
-              <span className="font-rediseno-sans normal-case tracking-normal tabular-nums text-rediseno-tinta">
-                {formatClp(piso.saldo)}
-              </span>
+              {suppressRecommendations ? (
+                "Pagos registrados en la proyección"
+              ) : (
+                <>
+                  Qué te lleva al punto más bajo · {piso.fechaLabel} ·{" "}
+                  <span className="font-rediseno-sans normal-case tracking-normal tabular-nums text-rediseno-tinta">
+                    {formatClp(piso.saldo)}
+                  </span>
+                </>
+              )}
             </h2>
-            <Link href="/pagar" className={cn(LINK, "text-[12.5px]")}>
-              Ver todos los pagos
-            </Link>
+            {!suppressRecommendations && (
+              <Link href="/pagar" className={cn(LINK, "text-[12.5px]")}>
+                Ver todos los pagos
+              </Link>
+            )}
           </div>
           <p className="text-[12.5px] text-rediseno-tinta-3">
-            {quiebre
-              ? `Los mayores pagos hasta que la caja cruza tu mínimo (el ${quiebre}).`
-              : "Tu caja no cruza tu mínimo en el horizonte: la proyección no nombra causas."}
+            {suppressRecommendations
+              ? "Estos pagos son parte de la proyección publicada y respaldan la decisión de caja."
+              : quiebre
+                ? `Los mayores pagos hasta que la caja cruza tu mínimo (el ${quiebre}).`
+                : "Tu caja no cruza tu mínimo en el horizonte: la proyección no nombra causas."}
           </p>
           {causas.length > 0 && (
             <RedisenoTable
-              columns={columnasCausas(onPostpone)}
+              columns={columnasCausas(onPostpone, {
+                showDecisionSignals: !suppressRecommendations,
+              })}
               data={causas}
               emptyMessage="La proyección no nombra pagos para este punto."
             />
           )}
-          <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-            Postergar mueve la fecha comprometida 7, 15 o 30 días y refresca la proyección. La
-            acción espera cinco segundos para que puedas cancelarla; impuestos, remuneraciones y
-            causas sin identidad segura se gestionan desde Pagar.
-          </p>
+          {suppressRecommendations ? (
+            <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
+              El detalle se muestra como respaldo de la proyección; las alternativas están arriba en
+              la decisión de caja.
+            </p>
+          ) : (
+            <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
+              Postergar mueve la fecha comprometida 7, 15 o 30 días y refresca la proyección. La
+              acción espera cinco segundos para que puedas cancelarla; impuestos, remuneraciones y
+              causas sin identidad segura se gestionan desde Pagar.
+            </p>
+          )}
         </section>
       )}
 
@@ -429,8 +458,9 @@ const TIPO_LABEL: Record<CausaV02["tipo"], string> = {
 
 function columnasCausas(
   onPostpone: (payableId: string, days: PostponeDays) => Promise<void>,
+  { showDecisionSignals = true }: { showDecisionSignals?: boolean } = {},
 ): ColumnDef<CausaV02, unknown>[] {
-  return [
+  const columns: ColumnDef<CausaV02, unknown>[] = [
     {
       accessorKey: "glosa",
       header: "Pago",
@@ -438,11 +468,18 @@ function columnasCausas(
       cell: ({ row }) => (
         <TablePrimaryCell
           value={row.original.glosa}
-          sub={`vence ${row.original.fechaLabel} · ${TIPO_LABEL[row.original.tipo].toLowerCase()}`}
+          sub={
+            showDecisionSignals
+              ? `vence ${row.original.fechaLabel} · ${TIPO_LABEL[row.original.tipo].toLowerCase()}`
+              : `vence ${row.original.fechaLabel}`
+          }
         />
       ),
     },
-    {
+  ];
+
+  if (showDecisionSignals) {
+    columns.push({
       id: "estado",
       header: "Estado",
       enableSorting: false,
@@ -454,14 +491,18 @@ function columnasCausas(
         if (c.tipo === "vencido") return <Pill variant="warn">Vencido</Pill>;
         return <Pill variant="mut">{TIPO_LABEL[c.tipo]}</Pill>;
       },
-    },
-    {
-      accessorKey: "monto",
-      header: "Monto",
-      meta: { align: "right" },
-      cell: ({ row }) => formatClp(row.original.monto),
-    },
-    {
+    });
+  }
+
+  columns.push({
+    accessorKey: "monto",
+    header: "Monto",
+    meta: { align: "right" },
+    cell: ({ row }) => formatClp(row.original.monto),
+  });
+
+  if (showDecisionSignals) {
+    columns.push({
       id: "accion",
       header: "",
       enableSorting: false,
@@ -483,6 +524,8 @@ function columnasCausas(
           </div>
         );
       },
-    },
-  ];
+    });
+  }
+
+  return columns;
 }

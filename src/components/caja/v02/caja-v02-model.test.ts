@@ -101,6 +101,22 @@ describe("kpiHoy — Ley 1: recibe el CajaHoy de la fuente única, no desarma el
   });
 });
 
+describe("evidencia para Decision Brief", () => {
+  it("no deriva postergabilidad ni reordena las causas cuando el Brief ya resolvió la decisión", () => {
+    const sale = sale14d(pagos(), HOY, { includePostergabilidad: false });
+    const causas = causasDelPiso(PROYECCION_BAJO_CERO, {
+      order: "source",
+      includePostergabilidad: false,
+    });
+
+    expect(sale?.postergable).toBe(0);
+    expect(causas.every((causa) => causa.postergable === "sin_identidad")).toBe(true);
+    expect(causas.map((causa) => causa.glosa)).toEqual(
+      (PROYECCION_BAJO_CERO.punto_quiebre?.causas ?? []).map((causa) => causa.glosa),
+    );
+  });
+});
+
 describe("entra14d — buckets 0-7 y 8-14 del forecast de cobranza", () => {
   it("suma esperado y nominal de los buckets que caen en 14 días, y NO el de 15-30", () => {
     const e = entra14d(cobranza())!;

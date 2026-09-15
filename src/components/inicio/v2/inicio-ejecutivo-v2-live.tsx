@@ -63,9 +63,12 @@ import { formatPct } from "@/lib/formatters/pct";
 export function InicioEjecutivoV2Live({
   widgetsEnabled = false,
   agendaEnabled = false,
+  suppressRecommendations = false,
 }: {
   widgetsEnabled?: boolean;
   agendaEnabled?: boolean;
+  /** El brief canónico ya presenta las alternativas; el dashboard conserva sus datos. */
+  suppressRecommendations?: boolean;
 }) {
   const query = useDashboardSummary();
   // Fase 2: cobranza realizable. Query independiente que degrada solo (retry:false)
@@ -90,6 +93,7 @@ export function InicioEjecutivoV2Live({
       cashCycle={cashCycle.data}
       widgetsEnabled={widgetsEnabled}
       agendaEnabled={agendaEnabled}
+      suppressRecommendations={suppressRecommendations}
     />
   );
 }
@@ -108,6 +112,7 @@ function Assembled({
   cashCycle,
   widgetsEnabled = false,
   agendaEnabled = false,
+  suppressRecommendations = false,
 }: {
   data: DashboardSummaryV2;
   forecast?: CollectionForecastResponse;
@@ -118,6 +123,8 @@ function Assembled({
   widgetsEnabled?: boolean;
   /** `inicioAgenda` ON → agrega la tarjeta "Agenda 2 semanas" al grid. */
   agendaEnabled?: boolean;
+  /** Evita mostrar el plan heredado cuando el brief canónico ya está arriba. */
+  suppressRecommendations?: boolean;
 }) {
   // Prefs del usuario en la empresa activa: orden + visibilidad de las tarjetas (persistido).
   const prefs = usePreferences();
@@ -263,13 +270,13 @@ function Assembled({
     />
   );
 
-  // Plan cuantificado y decisiones server-owned se muestran juntos cuando ambos existen;
-  // una superficie local no puede ocultar `priority_actions`.
+  // Plan cuantificado y decisiones locales se muestran juntos cuando no hay brief transversal.
+  // Con el brief activo, esta superficie conserva sólo sus datos de apoyo.
   const brechaTotal = mapBrechaTotal(data);
   const planBrecha = brechaTotal != null && forecast ? mapPlanBrecha(brechaTotal, forecast) : null;
   const acciones = buildAcciones(data);
   const plan =
-    planBrecha || acciones.length > 0 ? (
+    !suppressRecommendations && (planBrecha || acciones.length > 0) ? (
       <div className="space-y-3">
         {planBrecha && <BrechaPlan {...planBrecha} />}
         {acciones.length > 0 && <AccionesList titulo="Qué hacer primero" acciones={acciones} />}

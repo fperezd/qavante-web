@@ -7096,7 +7096,7 @@ export interface components {
             confidence: "high" | "medium" | "low";
             /**
              * Covers Critical
-             * @description ¿La caja proyectada cubre lo que vence en 14 días? **Tri-estado.** `null` = no se puede responder, y son SEIS casos: tres del denominador, dos del numerador y uno de la división misma. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN fecha de vencimiento (el CONTEO de documentos con `due_date` nulo, que es lo que el guard mira), porque `due_14d` no la incluye; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el sexto no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma cobertura sobre TODO lo que vence, comparado contra TODA la caja, en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
+             * @description ¿La caja proyectada cubre lo que vence en 14 días? **Tri-estado.** `null` = no se puede responder, y son SIETE casos: cuatro del denominador, dos del numerador y uno de la división misma. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el sexto no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma cobertura sobre TODO lo que vence, comparado contra TODA la caja, en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
              */
             covers_critical?: boolean | null;
             /** @description Créditos/ajustes con saldo negativo, separados de las obligaciones críticas. El monto conserva su signo negativo y también recorre todo el universo vivo. */
@@ -7115,6 +7115,12 @@ export interface components {
              * @description Saldo que vence en ≤7 días (CLP, acumulativo, incl. vencido).
              */
             due_7d: string;
+            /**
+             * Estimated Due Date Count
+             * @description Cantidad de pagos con fecha estimada a 30 días desde la emisión. No entran en `due_*`, no habilitan prioridad crítica y hacen que `covers_critical` se abstenga.
+             * @default 0
+             */
+            estimated_due_date_count: number;
             /**
              * Excluded From Total By Currency
              * @description Montos crudos excluidos del `total` CLP por falta de tipo de cambio. Vacío significa que el total no tuvo exclusiones de moneda.
@@ -7137,7 +7143,7 @@ export interface components {
             items?: components["schemas"]["PayableItem"][];
             /**
              * Items Total
-             * @description Cantidad total de obligaciones vivas con fecha que son elegibles para `items`, antes del límite. No incluye las sin fecha, declaradas en `undated_count`.
+             * @description Cantidad total de obligaciones vivas con fecha que son elegibles para `items`, antes del límite. Incluye fechas estimadas o no confirmadas para transparentarlas, pero esas filas no habilitan prioridad ni postergación; las sin fecha van en `undated_count`.
              */
             items_total: number;
             /**
@@ -7147,7 +7153,7 @@ export interface components {
             limit: number;
             /** Missing Sources */
             missing_sources?: string[];
-            /** @description Regla ejecutable de V05 sobre todo el universo vivo: saldos POSITIVOS ya vencidos de cualquier categoría, más saldos POSITIVOS `tax`, `payroll` o `debt` que vencen entre hoy y 14 días inclusive (Ley 9: no postergables). La taxonomía ejecutable clasifica `tgr` como tax, `buk`/`previred` como payroll y `bice` como debt porque ADR-0050 persiste sus cargos de tarjeta como pasivos AP; proveedores desconocidos son `other`. No deriva de `PayableItem.criticality` ni redefine `covers_critical`, que evalúa la proyección completa. Si hay saldos positivos sin fecha o falta un TC dentro del bucket, `complete=false` y `amount_clp=null`; la parte conocida queda explícita. */
+            /** @description Regla ejecutable de V05 sobre todo el universo vivo: saldos POSITIVOS ya vencidos de cualquier categoría, más saldos POSITIVOS `tax`, `payroll` o `debt` que vencen entre hoy y 14 días inclusive (Ley 9: no postergables). La taxonomía ejecutable clasifica `tgr` como tax, `buk`/`previred` como payroll y `bice` como debt porque ADR-0050 persiste sus cargos de tarjeta como pasivos AP; proveedores desconocidos son `other`. No deriva de `PayableItem.criticality` ni redefine `covers_critical`, que evalúa la proyección completa. Si hay saldos positivos sin vencimiento confirmado o falta un TC dentro del bucket, `complete=false` y `amount_clp=null`; la parte conocida queda explícita. */
             non_postponable_or_overdue_14d: components["schemas"]["PayableAggregateSummary"];
             /**
              * Projected Cash 14D
@@ -7212,6 +7218,12 @@ export interface components {
              */
             document_count: number;
             /**
+             * Estimated Due Date Count
+             * @description Documentos con `due_date_source=assumed_30d`. La fecha es útil para ordenar el Libro, pero no alimenta mora confirmada, recordatorios ni propuestas de cobranza.
+             * @default 0
+             */
+            estimated_due_date_count: number;
+            /**
              * Generated At
              * Format: date-time
              */
@@ -7241,7 +7253,7 @@ export interface components {
             total_by_currency?: components["schemas"]["ReceivableCurrencyTotal"][];
             /**
              * Undated Amount
-             * @description Saldo vivo SIN fecha de vencimiento, es decir la plata que queda fuera del aging. Explica el `null`: con `undated_amount == total` no se sabe nada de la mora. Sin default, por la misma razón que los buckets: es el campo con el que la pantalla explica el `null`, así que no puede ser el único que a veces no venga.
+             * @description Saldo vivo SIN vencimiento confirmado (fecha ausente, procedencia no verificable o `assumed_30d`), es decir la plata que queda fuera del aging. Explica el `null`: con `undated_amount == total` no se sabe nada de la mora. Sin default, por la misma razón que los buckets: es el campo con el que la pantalla explica el `null`, así que no puede ser el único que a veces no venga.
              */
             undated_amount: string;
         };
@@ -12229,6 +12241,10 @@ export interface components {
             assumed_receivables_excluded?: components["schemas"]["DecisionBriefMoney"] | null;
             /** Assumed Receivables Excluded Count */
             assumed_receivables_excluded_count?: number | null;
+            conditional_due_date_collections_14d?: components["schemas"]["DecisionBriefMoney"] | null;
+            /** Conditional Due Date Items 14D */
+            conditional_due_date_items_14d?: number | null;
+            conditional_due_date_payments_14d?: components["schemas"]["DecisionBriefMoney"] | null;
             /** Dated Items */
             dated_items?: number | null;
             /** Excluded Other Currency Items */
@@ -12250,7 +12266,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "cash_projection" | "scheduled_payments" | "source_status";
+            kind: "cash_projection" | "scheduled_payments" | "conditional_due_dates" | "source_status";
             /** Label */
             label: string;
             /** Note */
@@ -12346,12 +12362,12 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "pending_interpretation" | "incomplete_financial_source";
+            kind: "pending_interpretation" | "incomplete_financial_source" | "estimated_due_date";
             /**
              * Monetary Effect
              * @enum {string}
              */
-            monetary_effect: "not_material_to_bank_balance" | "unknown";
+            monetary_effect: "not_material_to_bank_balance" | "unknown" | "conditional";
             /** Summary */
             summary: string;
         };
@@ -18544,6 +18560,23 @@ export interface components {
              */
             due_date: string;
             /**
+             * Due Date Certainty
+             * @description Certeza server-owned de la fecha. Sólo `confirmed` puede sustentar mora, recordatorios o una acción material.
+             * @default unconfirmed
+             * @enum {string}
+             */
+            due_date_certainty: "confirmed" | "estimated" | "unconfirmed";
+            /**
+             * Due Date Note
+             * @description Copy UX server-owned para una fecha estimada. No se reconstruye ni se traduce en el frontend.
+             */
+            due_date_note?: string | null;
+            /**
+             * Due Date Source
+             * @description Procedencia del vencimiento (`sii`, `contado`, `postponed`, `assumed_30d`, o la fuente directa `bice`/`buk`/`previred`; null si no hay evidencia verificable). La pantalla no infiere certeza sólo porque exista una fecha.
+             */
+            due_date_source?: string | null;
+            /**
              * Id
              * Format: uuid
              * @description UUID trazable de `treasury.receivables`. Se usa para seleccionar este documento en acciones de cobranza; no se infiere desde campos visibles (#311).
@@ -18606,7 +18639,7 @@ export interface components {
             known_amount_clp: string;
             /**
              * Unknown Due Date Count
-             * @description Obligaciones positivas sin vencimiento que podrían pertenecer a la ventana. Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.
+             * @description Obligaciones positivas sin vencimiento confirmado que podrían pertenecer a la ventana (fecha ausente o procedencia no verificable). Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.
              */
             unknown_due_date_count: number;
         };
@@ -18647,7 +18680,7 @@ export interface components {
             known_amount_clp: string;
             /**
              * Unknown Due Date Count
-             * @description Obligaciones positivas sin vencimiento que podrían pertenecer a la ventana. Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.
+             * @description Obligaciones positivas sin vencimiento confirmado que podrían pertenecer a la ventana (fecha ausente o procedencia no verificable). Sólo es distinto de cero en agregados cuya clasificación depende de la fecha.
              */
             unknown_due_date_count: number;
         };
@@ -18726,7 +18759,7 @@ export interface components {
              * Criticality
              * @enum {string}
              */
-            criticality: "high" | "medium" | "low";
+            criticality: "high" | "medium" | "low" | "unknown";
             /**
              * Currency
              * @description Moneda ISO-4217 del `amount` (por ejemplo, 'CLP' o 'USD'). El RCV reporta en pesos, pero los cargos internacionales de tarjeta persistidos por ADR-0050 pueden venir en USD.
@@ -18738,6 +18771,23 @@ export interface components {
              * Format: date
              */
             due_date: string;
+            /**
+             * Due Date Certainty
+             * @description Certeza server-owned de la fecha de vencimiento.
+             * @default unconfirmed
+             * @enum {string}
+             */
+            due_date_certainty: "confirmed" | "estimated" | "unconfirmed";
+            /**
+             * Due Date Note
+             * @description Copy UX server-owned para una fecha estimada o no confirmada.
+             */
+            due_date_note?: string | null;
+            /**
+             * Due Date Source
+             * @description Procedencia de `due_date`: `sii` o `contado` confirma el vencimiento; `assumed_30d` es una fecha estimada y nunca autoriza una prioridad o acción.
+             */
+            due_date_source?: string | null;
             /**
              * Folio
              * @description Folio del DTE. Null cuando la obligación no es un DTE (ej. nómina).
@@ -19211,6 +19261,23 @@ export interface components {
             days_overdue?: number | null;
             /** Due Date */
             due_date?: string | null;
+            /**
+             * Due Date Certainty
+             * @description Certeza server-owned. Un target que habilita una acción material debe ser `confirmed`.
+             * @default unconfirmed
+             * @enum {string}
+             */
+            due_date_certainty: "confirmed" | "estimated" | "unconfirmed";
+            /**
+             * Due Date Note
+             * @description Copy UX server-owned si la fecha es estimada.
+             */
+            due_date_note?: string | null;
+            /**
+             * Due Date Source
+             * @description Procedencia del vencimiento. El consumidor no infiere certeza sólo porque el target incluya una fecha.
+             */
+            due_date_source?: string | null;
             /** Label */
             label: string;
             /** Reason */
@@ -19781,8 +19848,18 @@ export interface components {
              */
             due_date?: string | null;
             /**
+             * Due Date Certainty
+             * @description Certeza server-owned de due_date. `estimated` conserva la regla de 30 días desde emisión, pero no acredita un vencimiento pactado.
+             */
+            due_date_certainty?: ("confirmed" | "estimated" | "unconfirmed") | null;
+            /**
+             * Due Date Note
+             * @description Copy UX server-owned cuando due_date es estimada; el frontend no lo reconstruye ni la llama mora confirmada.
+             */
+            due_date_note?: string | null;
+            /**
              * Due Date Source
-             * @description Origen de due_date: sii, contado o assumed_30d.
+             * @description Origen de due_date: sii, contado, postponed o assumed_30d. La fecha no se presenta como confirmada sólo por existir.
              */
             due_date_source?: string | null;
             /**
@@ -31910,7 +31987,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description La postergación no procede. `detail.code`: `ley9_no_postergable` (impuestos y sueldos NUNCA se postergan) · `documento_no_vivo` (ya pagado o anulado) · `sin_vencimiento` (no tiene fecha que correr). */
+            /** @description La postergación no procede. `detail.code`: `ley9_no_postergable` (impuestos, sueldos y deudas NUNCA se postergan) · `documento_no_vivo` (ya pagado o anulado) · `sin_vencimiento` (no tiene fecha que correr) · `vencimiento_no_confirmado` (la fecha es estimada, no tiene procedencia verificable o ya fue postergada; confírmala antes de mover el compromiso). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -32944,7 +33021,10 @@ export interface operations {
     classification_rules_create: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Llave estable para reintentar la misma creación sin duplicar la regla. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: {
                 qavante_session?: string | null;

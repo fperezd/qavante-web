@@ -3,10 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 
 const arnes = vi.hoisted(() => ({
   bandejaV07: true,
+  decisionBrief: false,
 }));
 
 vi.mock("@/lib/feature-flags", () => ({
-  resolveFeatureFlags: () => ({ bandejaV07: arnes.bandejaV07 }),
+  resolveFeatureFlags: () => ({
+    bandejaV07: arnes.bandejaV07,
+    decisionBrief: arnes.decisionBrief,
+  }),
 }));
 
 vi.mock("@/components/bandeja/v07/bandeja-v07-live", () => ({
@@ -15,10 +19,6 @@ vi.mock("@/components/bandeja/v07/bandeja-v07-live", () => ({
 
 vi.mock("@/components/bandeja/bandeja-audit-landing", () => ({
   BandejaAuditLanding: () => <div data-testid="bandeja-audit-landing">Landing de auditoría</div>,
-}));
-
-vi.mock("@/components/decisions/cash-decision-brief", () => ({
-  CashDecisionBriefCard: () => <div data-testid="cash-decision-brief">Decisión de caja</div>,
 }));
 
 import BandejaPage from "./page";

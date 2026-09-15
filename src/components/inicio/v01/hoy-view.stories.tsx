@@ -98,7 +98,14 @@ const PROPUESTA_PAGOS: CashGapProposal = {
   confidence: "medium",
   evidenceCount: 2,
   limitations: ["source_stale:sii_rcv"],
-  targets: [{ label: "Remuneraciones de agosto", amount: "7400000", reason: "vence primero" }],
+  targets: [
+    {
+      label: "Remuneraciones de agosto",
+      amount: "7400000",
+      reason: "vence primero",
+      due_date_certainty: "confirmed" as const,
+    },
+  ],
   impacts: [
     {
       metric: "cash_gap_14d",

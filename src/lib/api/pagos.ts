@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import { dashboardKeys } from "./dashboard";
+import { invalidateCashDecisionBrief } from "./cash-decision-brief";
 import type { components } from "./types";
 
 /* Capa de datos — Pagar / Cuentas por pagar (Sprint C4, Documento Maestro
@@ -173,6 +174,7 @@ export function usePostponePayable() {
         queryClient.invalidateQueries({ queryKey: pagosKeys.all }),
         queryClient.invalidateQueries({ queryKey: ["treasury", "cash-projection"] }),
         queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+        invalidateCashDecisionBrief(queryClient),
       ]);
     },
   });

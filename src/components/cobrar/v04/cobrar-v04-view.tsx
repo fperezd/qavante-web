@@ -92,6 +92,8 @@ export interface CobrarV04ViewProps {
   loteSegundos?: number;
   /** Referencia de "hoy". Explícita para tests y stories deterministas. */
   hoy?: Date;
+  /** El brief canonical ya ofrece la recomendación principal; no se muestra el lote local. */
+  suppressRecommendations?: boolean;
 }
 
 const LINK =
@@ -116,7 +118,10 @@ export function CobrarV04View({
   onReintentar,
   loteSegundos = LOTE_SEGUNDOS,
   hoy = new Date(),
+  suppressRecommendations = false,
 }: CobrarV04ViewProps) {
+  // `prioridad` es internamente el filtro que deja pasar toda la cartera. Con el Brief activo se
+  // presenta como "Todos", para no convertir una conveniencia de estado en un ranking local.
   const [filtro, setFiltro] = React.useState<FiltroV04>("prioridad");
   const [consulta, setConsulta] = React.useState("");
   const [includeFollowup, setIncludeFollowup] = React.useState(false);
@@ -125,11 +130,20 @@ export function CobrarV04View({
   const copyTimer = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   React.useEffect(() => () => clearTimeout(copyTimer.current), []);
 
-  const clientes = React.useMemo(() => clientesV04(ar, gestionado), [ar, gestionado]);
+  const clientes = React.useMemo(
+    () =>
+      clientesV04(ar, gestionado, {
+        order: suppressRecommendations ? "source" : "priority",
+        includeDecisionSignals: !suppressRecommendations,
+      }),
+    [ar, gestionado, suppressRecommendations],
+  );
   const crumb = crumbGestion(clientes, hoy);
   const tarjetas = tarjetasAging(ar);
   const sinVencido = motivoSinVencido(ar);
-  const concentration = concentracion(clientes, ar);
+  // La concentración selecciona un lote y propone un envío. Si hay Brief, no se
+  // calcula siquiera: la cartera se conserva como evidencia, no como un segundo plan.
+  const concentration = suppressRecommendations ? null : concentracion(clientes, ar);
   // Do not recommend a bulk reminder that includes a document already being followed up.
   // Financial totals remain untouched; no client-side redistribution of overdue amounts.
   const conc = concentration?.clientes.some((c) =>
@@ -294,11 +308,15 @@ export function CobrarV04View({
           <FilterChips
             aria-label="Filtrar clientes"
             className="mt-0 mb-0"
-            options={FILTROS_V04.filter(
-              /* El bucket del "no sé" se ofrece sólo cuando existe: con todos los vencimientos
-                 conocidos un chip "Sin vencimiento conocido · 0" es ruido. */
-              (f) => f.id !== "sin_vencimiento" || conteos.sin_vencimiento > 0 || filtro === f.id,
-            ).map((f) => ({ ...f, count: conteos[f.id] }))}
+            options={FILTROS_V04.map((f) =>
+              suppressRecommendations && f.id === "prioridad" ? { ...f, label: "Todos" } : f,
+            )
+              .filter(
+                /* El bucket del "no sé" se ofrece sólo cuando existe: con todos los vencimientos
+                   conocidos un chip "Sin vencimiento conocido · 0" es ruido. */
+                (f) => f.id !== "sin_vencimiento" || conteos.sin_vencimiento > 0 || filtro === f.id,
+              )
+              .map((f) => ({ ...f, count: conteos[f.id] }))}
             value={filtro}
             onChange={setFiltro}
           />
@@ -325,6 +343,7 @@ export function CobrarV04View({
           copiadoKey={copiadoKey}
           onCopiar={copiar}
           onToggleGestionado={onToggleGestionado}
+          showDecisionSignals={!suppressRecommendations}
           onExport={() => descargarExcel("clientes-por-cobrar.xlsx", csvClientesTable(visibles))}
           emptyMessage={
             clientes.length === 0
@@ -809,6 +828,7 @@ function TablaClientes({
   copiadoKey,
   onCopiar,
   onToggleGestionado,
+  showDecisionSignals = true,
   onExport,
   emptyMessage,
 }: {
@@ -819,6 +839,8 @@ function TablaClientes({
   copiadoKey: string | null;
   onCopiar: (r: RecordatorioV04) => void;
   onToggleGestionado?: (c: ClienteV04) => void;
+  /** Con Brief, los vencimientos quedan en el detalle textual sin una severidad local. */
+  showDecisionSignals?: boolean;
   onExport: () => void;
   emptyMessage: string;
 }) {
@@ -838,23 +860,27 @@ function TablaClientes({
           />
         ),
       },
-      {
-        id: "antiguedad",
-        /* Orden por días de mora; el "no se sabe" al final, pero presente. */
-        accessorFn: (c) => (c.vencido == null ? -2 : (c.dias ?? (c.vencido > 0 ? -1 : -1.5))),
-        header: "Antigüedad",
-        /* §1.3/§5.2: "en viewport angosto colapsar columnas de metadato, jamás la principal ni el
+      ...(showDecisionSignals
+        ? ([
+            {
+              id: "antiguedad",
+              /* Orden por días de mora; el "no se sabe" al final, pero presente. */
+              accessorFn: (c) => (c.vencido == null ? -2 : (c.dias ?? (c.vencido > 0 ? -1 : -1.5))),
+              header: "Antigüedad",
+              /* §1.3/§5.2: "en viewport angosto colapsar columnas de metadato, jamás la principal ni el
            monto". Los días de mora ya están escritos en el `.sub` de la fila (y en el CSV), así
            que colapsar esta columna no esconde información: evita que el SALDO se recorte.
 
            `hideBelowTable` y no `hideBelow`: se mide contra el ancho de la TABLA. Es opt-in del
            primitivo — las tablas de caja v02, banco v03 y pagar v05 siguen midiendo contra el
            viewport, exactamente como en `main`. */
-        meta: { hideBelowTable: "sm" },
-        cell: ({ row }) => (
-          <Pill variant={row.original.antiguedad.tono}>{row.original.antiguedad.texto}</Pill>
-        ),
-      },
+              meta: { hideBelowTable: "sm" },
+              cell: ({ row }) => (
+                <Pill variant={row.original.antiguedad.tono}>{row.original.antiguedad.texto}</Pill>
+              ),
+            },
+          ] satisfies ColumnDef<ClienteV04, unknown>[])
+        : []),
       {
         id: "saldo",
         accessorFn: (c) => c.saldo,
@@ -894,7 +920,7 @@ function TablaClientes({
         },
       },
     ],
-    [copiadoKey, onCopiar, onToggleGestionado],
+    [copiadoKey, onCopiar, onToggleGestionado, showDecisionSignals],
   );
   return (
     <RedisenoTable

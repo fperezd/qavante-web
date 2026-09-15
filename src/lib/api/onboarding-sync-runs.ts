@@ -1,5 +1,7 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import * as React from "react";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "./client";
+import { invalidateCashDecisionBrief } from "./cash-decision-brief";
 import type { components } from "./types";
 
 export type OnboardingSyncRun = components["schemas"]["OnboardingSyncRunResponse"];
@@ -17,7 +19,8 @@ export function useStartOnboardingSyncRun() {
 
 /** Lee sólo el run del tenant actual. Deja de sondear cuando alcanza un estado terminal. */
 export function useOnboardingSyncRun(runId: string | null) {
-  return useQuery({
+  const qc = useQueryClient();
+  const query = useQuery({
     queryKey: onboardingSyncRunKeys.detail(runId ?? ""),
     queryFn: () =>
       api.get<OnboardingSyncRun>(`/api/onboarding/sync-runs/${encodeURIComponent(runId ?? "")}`),
@@ -29,4 +32,20 @@ export function useOnboardingSyncRun(runId: string | null) {
       return status === "queued" || status === "running" ? 2_000 : false;
     },
   });
+
+  React.useEffect(() => {
+    // El run puede haber incorporado parte de una fuente antes de fallar. Al terminar, sea
+    // exitoso o fallido, se pide un envelope nuevo al servidor en vez de mezclar el Brief previo.
+    if (query.data?.status === "completed" || query.data?.status === "failed") {
+      invalidateDecisionBriefAfterOnboardingSync(qc);
+    }
+  }, [qc, query.data?.status]);
+
+  return query;
+}
+
+/** Finalizar un run cambia la evidencia disponible. Sólo marcamos stale la clave
+ * compartida: al abrir el panel se obtiene otro envelope del servidor. */
+export function invalidateDecisionBriefAfterOnboardingSync(qc: QueryClient): void {
+  void invalidateCashDecisionBrief(qc);
 }

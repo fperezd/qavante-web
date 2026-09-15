@@ -27,7 +27,7 @@ export const ONBOARDING_SOURCE_META: Record<OnboardingSourceId, OnboardingSource
   bank: {
     id: "bank",
     label: "Banco",
-    benefit: "Trae tus movimientos para clasificarlos y proyectar tu caja.",
+    benefit: "Trae tus movimientos para actualizar tu caja y sus proyecciones.",
     missingConsequence: "Sin el banco no vemos tus movimientos ni tu saldo real.",
   },
 };

@@ -85,6 +85,10 @@ export const FEATURE_FLAGS = [
   "impuestosV06",
   "financiamientoV13",
   "simuladorV14",
+  /* Decisión de caja canónica: un envelope server-owned para Inicio, Caja,
+     Bandeja, Pagar y Cobrar. Default OFF hasta que el contrato R2 esté
+     desplegado y validado con datos reales; no existe fallback de cliente. */
+  "decisionBrief",
 ] as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[number];
@@ -498,6 +502,7 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      devuelve un memo explícitamente no ejecutable. Default OFF hasta que
      qavante-api#467 integre los productores live y su smoke productivo quede aprobado. */
   simuladorV14: "/api/treasury/simulations/evaluate",
+  decisionBrief: "/api/treasury/decision-brief",
 };
 
 /** Campo de contrato que un consumidor necesita además del endpoint. La identidad de gating es

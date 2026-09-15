@@ -30,6 +30,7 @@ import {
   montoCLP,
   cpToPayableItem,
   sumItemsHasta,
+  type VencimientosOrder,
   type OnClickDe,
 } from "./pagar-v2-map";
 
@@ -67,7 +68,12 @@ const VENC_COLS: SortColumn<Vencimiento>[] = [
   { key: "acreedor", kind: "text", get: (v) => v.acreedor },
 ];
 
-export function PagarV2ViewLive() {
+export function PagarV2ViewLive({
+  suppressRecommendations = false,
+}: {
+  /** El brief server-owned reemplaza sólo el diagnóstico/plan local, no las tablas de pagos. */
+  suppressRecommendations?: boolean;
+}) {
   const ap = useAccountsPayable();
   const comprasDocs = useMaestroDocs("compras");
   const honorariosDocs = useMaestroDocs("honorarios");
@@ -117,31 +123,47 @@ export function PagarV2ViewLive() {
   const apItems = (resp?.items ?? []).filter((it) => it.category !== "supplier");
   const items = [...apItems, ...supplierItems, ...honorariosItems];
   const montoTotal = items.reduce((s, it) => s + montoCLP(it), 0);
-  if (montoTotal === 0 && items.length === 0) return <EmptyState missing={resp?.missing_sources} />;
+  if (montoTotal === 0 && items.length === 0) {
+    return (
+      <EmptyState
+        missing={resp?.missing_sources}
+        suppressRecommendations={suppressRecommendations}
+      />
+    );
+  }
 
   const onClickDe: OnClickDe = (item) => {
     const href = hrefDePago(item);
     return href ? () => router.push(href) : undefined;
   };
-  const brecha = mapBrecha(resp, items, now);
+  const brecha = suppressRecommendations ? null : mapBrecha(resp, items, now);
   // Sin caja proyectada (null) no calculamos cobertura: no afirmamos "la caja no alcanza"
   // sobre un $0 inventado. La línea del hero degrada a neutral.
   const cobertura =
-    brecha.cajaProyectada == null
-      ? null
-      : calcularBrecha(brecha.cajaProyectada, brecha.pagosCriticos);
+    brecha?.cajaProyectada != null
+      ? calcularBrecha(brecha.cajaProyectada, brecha.pagosCriticos)
+      : null;
   const vencidos = items.filter((it) => isOverdue(it, now)).length;
   const due7 = sumItemsHasta(items, now, 7);
   const due30 = sumItemsHasta(items, now, 30);
 
-  const fechas = mapFechasClave(items, now, onClickDe);
+  // "Las 3 del mes" elige localmente un subconjunto de pagos. Con el Brief activo,
+  // la evidencia queda completa y cronológica; la selección de qué mirar pertenece al servidor.
+  const fechas = suppressRecommendations ? [] : mapFechasClave(items, now, onClickDe);
   const totalFechas = fechas.reduce((s, f) => s + f.monto, 0);
 
-  // "Por vencer y vencidos": curado por urgencia por defecto, reordenable por el usuario.
-  const vencimientos = mapVencimientos(items, now, onClickDe);
-  const vencimientosSorted = vencSort.sorted(vencimientos);
+  // Con brief canónico la tabla es evidencia cronológica: no reusa el ranking ni la
+  // postergabilidad heurística del flujo heredado.
+  const vencimientosOrder: VencimientosOrder = suppressRecommendations
+    ? "chronological"
+    : "urgency";
+  const vencimientos = mapVencimientos(items, now, onClickDe, {
+    order: vencimientosOrder,
+    includePostergabilidad: !suppressRecommendations,
+  });
+  const vencimientosSorted = suppressRecommendations ? vencimientos : vencSort.sorted(vencimientos);
   const vencSortControl =
-    vencimientos.length > 1 ? (
+    !suppressRecommendations && vencimientos.length > 1 ? (
       <SortBar
         options={[
           { key: "urgencia", label: "Urgencia" },
@@ -158,29 +180,33 @@ export function PagarV2ViewLive() {
   return (
     <PagarV2View
       hero={
-        <PagarHero
-          titulo="La empresa debe pagar"
-          montoTotal={montoTotal}
-          cobertura={
-            cobertura
-              ? coberturaLinea(cobertura.cubre, cobertura.faltante, cobertura.holgura)
-              : "Aún no podemos decir si la caja alcanza: falta la caja proyectada a 14 días."
-          }
-          coberturaTono={cobertura ? (cobertura.cubre ? "ok" : "bad") : "neutral"}
-          subtitulo={subtitulo(items.length, vencidos)}
-          infoHint="Total de pagos y obligaciones pendientes: proveedores (net de notas de crédito) y honorarios del SII, más impuestos, cotizaciones, sueldos, arriendos y deuda. La cobertura compara la caja proyectada a 14 días contra lo que no se puede postergar."
-        />
+        !suppressRecommendations && (
+          <PagarHero
+            titulo="La empresa debe pagar"
+            montoTotal={montoTotal}
+            cobertura={
+              cobertura
+                ? coberturaLinea(cobertura.cubre, cobertura.faltante, cobertura.holgura)
+                : "Aún no podemos decir si la caja alcanza: falta la caja proyectada a 14 días."
+            }
+            coberturaTono={cobertura ? (cobertura.cubre ? "ok" : "bad") : "neutral"}
+            subtitulo={subtitulo(items.length, vencidos)}
+            infoHint="Total de pagos y obligaciones pendientes: proveedores (net de notas de crédito) y honorarios del SII, más impuestos, cotizaciones, sueldos, arriendos y deuda. La cobertura compara la caja proyectada a 14 días contra lo que no se puede postergar."
+          />
+        )
       }
       brecha={
-        <BrechaCaja
-          cajaProyectada={brecha.cajaProyectada}
-          pagosCriticos={brecha.pagosCriticos}
-          dias={14}
-          postergable={brecha.postergable}
-          // Hoy la postergabilidad la infiere el FE por tipo de pago (heurística); el backend aún
-          // no manda un flag por documento (A3, escalado). Cuando llegue, pasar `false`.
-          postergabilidadEstimada
-        />
+        brecha && (
+          <BrechaCaja
+            cajaProyectada={brecha.cajaProyectada}
+            pagosCriticos={brecha.pagosCriticos}
+            dias={14}
+            postergable={brecha.postergable}
+            // Hoy la postergabilidad la infiere el FE por tipo de pago (heurística); el backend aún
+            // no manda un flag por documento (A3, escalado). Cuando llegue, pasar `false`.
+            postergabilidadEstimada
+          />
+        )
       }
       secundarios={
         <Secundarios
@@ -192,9 +218,18 @@ export function PagarV2ViewLive() {
         />
       }
       fechasClave={
-        fechas.length > 0 ? <FechasClaveMes items={fechas} total={totalFechas} /> : <div />
+        !suppressRecommendations && fechas.length > 0 ? (
+          <FechasClaveMes items={fechas} total={totalFechas} />
+        ) : null
       }
-      movibles={buildMovibles(items, vencidos, vencimientosSorted, vencSortControl)}
+      movibles={buildMovibles(
+        items,
+        vencidos,
+        vencimientosSorted,
+        vencSortControl,
+        vencimientosOrder,
+        !suppressRecommendations,
+      )}
     />
   );
 }
@@ -278,6 +313,8 @@ function buildMovibles(
   vencidos: number,
   vencimientos: Vencimiento[],
   sortControl: React.ReactNode,
+  order: VencimientosOrder,
+  includeConcentracion: boolean,
 ): PagarMovible[] {
   const out: PagarMovible[] = [];
 
@@ -299,13 +336,15 @@ function buildMovibles(
             )}
             {sortControl && <div className="ml-auto">{sortControl}</div>}
           </div>
-          <VencimientosTimeline items={vencimientos} />
+          <VencimientosTimeline items={vencimientos} order={order} />
         </div>
       ),
     });
   }
 
-  const compromisos = mapConcentracion(items);
+  // "Mayores compromisos" ordena y recorta por monto en el cliente. Es útil en la
+  // vista heredada, pero sería una segunda prioridad cuando existe el Brief canónico.
+  const compromisos = includeConcentracion ? mapConcentracion(items) : [];
   if (compromisos.length > 0) {
     out.push({
       id: "compromisos",
@@ -334,16 +373,26 @@ function LiveSkeleton() {
   );
 }
 
-function EmptyState({ missing }: { missing?: string[] }) {
+function EmptyState({
+  missing,
+  suppressRecommendations,
+}: {
+  missing?: string[];
+  suppressRecommendations: boolean;
+}) {
   const falta = missing && missing.length > 0 ? missing.join(" · ") : null;
   return (
     <QavanteEmpty
       icon={Wallet}
       title="Aún no hay pagos por mostrar"
       description={
-        falta
-          ? `Falta sincronizar: ${falta}. Cuando llegue el detalle vas a ver acá tus vencimientos, las 3 del mes y la brecha de caja.`
-          : "Conecta tu SII y tu banco para ver tus vencimientos, las 3 del mes y cuánto de eso cubre tu caja."
+        suppressRecommendations
+          ? falta
+            ? `Falta sincronizar: ${falta}. Cuando llegue el detalle vas a ver aquí los pagos y compromisos registrados.`
+            : "Conecta tus fuentes para ver los pagos y compromisos que respaldan la decisión."
+          : falta
+            ? `Falta sincronizar: ${falta}. Cuando llegue el detalle vas a ver acá tus vencimientos, las 3 del mes y la brecha de caja.`
+            : "Conecta tu SII y tu banco para ver tus vencimientos, las 3 del mes y cuánto de eso cubre tu caja."
       }
     />
   );

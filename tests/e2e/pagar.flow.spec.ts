@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 
-/* Flujo — Pagar v2 (rediseño 2026-07-14, `pagarV2` ON en prod y en el env de e2e). Pantalla
-   FE-first contra MSW (accounts-payable). Valida la respuesta de dueño (cuánto debe pagar +
-   ¿la caja alcanza?), las 3 del mes, los vencimientos y el drill-down al detalle. */
+/* Producción publica V05 antes de V2 (`pagarV05=true` en wrangler.toml y en el entorno E2E).
+   Se valida la fuente canónica de cuentas por pagar, sus vencimientos y los límites explícitos
+   de acción humana de V05; no una variante V2 que esos mismos flags no montan. */
 
-test.describe("Flujo: Pagar v2 (/pagar)", () => {
-  test("respuesta de dueño + las 3 del mes + vencimientos + mayores compromisos", async ({
+test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
+  test("publica vencidos, horizonte de 14 días y pagos no postergables", async ({
     page,
     context,
   }) => {
@@ -14,38 +14,32 @@ test.describe("Flujo: Pagar v2 (/pagar)", () => {
     await page.goto("/pagar");
 
     await expect(page.getByRole("heading", { level: 1, name: "Pagar" })).toBeVisible();
-
-    // Hero "respuesta de dueño": cuánto debe pagar. El total se RECOMPUTA al unificar
-    // accounts-payable + maestro RCV compras + BHE (#645), y el fixture MSW de RCV ignora el
-    // período (mismos docs por mes) → el monto no es determinístico en el test. Verificamos que
-    // el hero renderiza un total en pesos, sin fijar la cifra exacta (en prod no multiplica).
-    await expect(page.getByText("La empresa debe pagar")).toBeVisible();
-    const totalPagar = page
-      .getByText("La empresa debe pagar")
-      .locator("xpath=following-sibling::p[1]");
-    await expect(totalPagar).toHaveText(/\$[1-9][\d.]*/, { timeout: 5000 });
-
-    // Las 3 del mes (no se postergan): impuestos (F29) + imposiciones (Previred).
-    await expect(page.getByText(/no se postergan/i)).toBeVisible();
-
-    // Cajas movibles: vencimientos + mayores compromisos.
-    await expect(page.getByText("Por vencer y vencidos")).toBeVisible();
-    await expect(page.getByText("Mayores compromisos")).toBeVisible();
-    // Postergabilidad (heurística): impuestos/sueldos = No postergable.
-    await expect(page.getByText("No postergable").first()).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: "Vencido, por pagar y caja proyectada" }),
+    ).toBeVisible();
+    const resumen = page.getByRole("region", { name: "Vencido, por pagar y caja proyectada" });
+    await expect(resumen).toContainText("Por pagar");
+    await expect(resumen).toContainText("14 días");
+    await expect(resumen).toContainText("$6.200.000");
+    await expect(page.getByRole("radio", { name: "14 días" })).toBeChecked();
+    const pagos = page.getByRole("region", { name: "Pagos y obligaciones" });
+    await expect(pagos).toBeVisible();
+    await expect(pagos.getByText("Remuneraciones: Junio 2026").first()).toBeVisible();
+    await expect(page.getByText("No se posterga").first()).toBeVisible();
+    await expect(page.getByText("La empresa debe pagar")).toHaveCount(0);
   });
 
-  test("drill-down: el pago de sueldos lleva al detalle por empleado del período", async ({
+  test("declara que no ejecuta pagos masivos ni posterga automáticamente", async ({
     page,
     context,
   }) => {
     await loginAs(context, "owner");
     await page.goto("/pagar");
 
-    // El ítem de nómina (source_external_id payroll-202606) es clickeable → deep-link al período.
-    const sueldos = page.getByRole("button", { name: /Sueldos junio/ }).first();
-    await expect(sueldos).toBeVisible();
-    await sueldos.click();
-    await expect(page).toHaveURL(/\/remuneraciones\?period=2026-06/);
+    await expect(page.getByText("No existe un botón “pagar todo”")).toBeVisible();
+    await expect(
+      page.getByText("Impuestos y sueldos jamás entran en postergaciones automáticas."),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /pagar todo/i })).toHaveCount(0);
   });
 });

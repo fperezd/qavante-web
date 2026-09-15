@@ -191,7 +191,8 @@ export interface PagoV05 {
   critico: boolean;
   /** Ley 9. */
   postergable: boolean;
-  tipo: TipoV05;
+  /** `null` en modo de evidencia: no se fabrica una taxonomía local de decisión. */
+  tipo: TipoV05 | null;
   /** Monto en CLP para sumar. `null` = moneda extranjera SIN conversión (no se suma como pesos). */
   montoClp: number | null;
   /** Monto en su moneda de origen, formateado ("$1.207.105" / "US$ 1.240,00"). */
@@ -215,12 +216,19 @@ function keyDe(item: PayableItem, i: number): string {
   return item.id?.trim() || item.source_external_id?.trim() || `${item.label}#${i}`;
 }
 
-function baseDe(item: PayableItem, i: number, hoy: Date): Omit<PagoV05, "anomalia" | "sub"> {
+function baseDe(
+  item: PayableItem,
+  i: number,
+  hoy: Date,
+  includeDecisionSignals = true,
+): Omit<PagoV05, "anomalia" | "sub"> {
   const dueDate = item.due_date?.trim() ? item.due_date : null;
   const dias = diasHasta(dueDate, hoy);
   const moneda = (item.currency || "CLP").toUpperCase();
   const sinConvertir = montoCLPFaltante(item);
-  const postergable = esPostergable(item);
+  // El Brief canónico es el único dueño de "qué postergar". En modo evidencia no ejecutamos esta
+  // heurística por tipo de pago ni construimos su taxonomía para la fila.
+  const postergable = includeDecisionSignals ? esPostergable(item) : false;
   const rut = item.counterparty_rut?.trim() || null;
   return {
     key: keyDe(item, i),
@@ -237,9 +245,9 @@ function baseDe(item: PayableItem, i: number, hoy: Date): Omit<PagoV05, "anomali
     venceLabel: venceLabelDe(dueDate, hoy),
     relativoLabel: relativoDe(dias, dueDate, hoy),
     vencido: dias != null && dias < 0,
-    critico: !postergable && dias != null && dias <= VENTANA_DIAS,
+    critico: includeDecisionSignals && !postergable && dias != null && dias <= VENTANA_DIAS,
     postergable,
-    tipo: tipoDe(item),
+    tipo: includeDecisionSignals ? tipoDe(item) : null,
     montoClp: sinConvertir ? null : montoCLP(item),
     montoLabel: formatMoney(parseAmount(item.amount), moneda),
     moneda,
@@ -305,7 +313,7 @@ const RANGO_TIPO: Record<TipoV05, number> = {
  *  FECHA (no se sabe cuándo vence: no se le inventa un lugar en el medio). A igual día, primero lo
  *  que no se posterga, después el monto mayor. Estable. */
 export function ordenarPorUrgencia<
-  T extends { dias: number | null; tipo: TipoV05; montoClp: number | null },
+  T extends { dias: number | null; tipo: TipoV05 | null; montoClp: number | null },
 >(pagos: ReadonlyArray<T>): T[] {
   return pagos
     .map((p, i) => ({ p, i }))
@@ -315,8 +323,8 @@ export function ordenarPorUrgencia<
       if (da == null && db != null) return 1;
       if (da != null && db == null) return -1;
       if (da != null && db != null && da !== db) return da - db;
-      const ra = RANGO_TIPO[a.p.tipo];
-      const rb = RANGO_TIPO[b.p.tipo];
+      const ra = a.p.tipo == null ? Number.MAX_SAFE_INTEGER : RANGO_TIPO[a.p.tipo];
+      const rb = b.p.tipo == null ? Number.MAX_SAFE_INTEGER : RANGO_TIPO[b.p.tipo];
       if (ra !== rb) return ra - rb;
       const ma = a.p.montoClp ?? 0;
       const mb = b.p.montoClp ?? 0;
@@ -326,20 +334,37 @@ export function ordenarPorUrgencia<
     .map((x) => x.p);
 }
 
-/** Las filas de la tabla, ordenadas por urgencia y con sus anomalías. Vacío sin respuesta. */
+export type PagosV05Order = "urgency" | "source";
+
+export interface PagosV05Options {
+  /** `source` conserva exactamente el orden publicado por accounts-payable. */
+  order?: PagosV05Order;
+  /** Las señales de postergabilidad/criticidad son heurísticas heredadas, no evidencia del Brief. */
+  includeDecisionSignals?: boolean;
+}
+
+/** Las filas de la tabla, con anomalías que publicó el backend. El default conserva el orden de
+ * urgencia histórico; el Brief solicita `source` y sin señales de decisión para que la tabla sea
+ * sólo evidencia. */
 export function pagosV05(
   ap: AccountsPayableResponse | null | undefined,
   hoy: Date,
   pares: ReadonlyArray<PayableDuplicatePair> = [],
+  options: PagosV05Options = {},
 ): PagoV05[] {
-  const base = (ap?.items ?? []).map((it, i) => baseDe(it, i, hoy));
+  const includeDecisionSignals = options.includeDecisionSignals !== false;
+  const base = (ap?.items ?? []).map((it, i) => baseDe(it, i, hoy, includeDecisionSignals));
   const dups = marcarDuplicados(base, pares);
   const filas = base.map((b) => {
     const anomalia = dups.get(b.key) ?? null;
-    const conAnomalia = { ...b, anomalia, tipo: anomalia ? ("revisar" as const) : b.tipo };
+    const conAnomalia = {
+      ...b,
+      anomalia,
+      tipo: includeDecisionSignals && anomalia ? ("revisar" as const) : b.tipo,
+    };
     return { ...conAnomalia, sub: subDe(conAnomalia) };
   });
-  return ordenarPorUrgencia(filas);
+  return options.order === "source" ? filas : ordenarPorUrgencia(filas);
 }
 
 /* ── Ley 2: el único rojo ────────────────────────────────────────────────────── */
@@ -657,6 +682,20 @@ export function explicacionVencido(
   };
 }
 
+/** Variante de evidencia del mismo dato. El Brief ya decide qué pago tratar primero;
+ * por eso esta ayuda no introduce la taxonomía local de criticidad/postergabilidad. */
+export function explicacionVencidoEvidencia(
+  ap: AccountsPayableResponse | null | undefined,
+  hoy: Date,
+): ExplicacionV05 {
+  const explicacion = explicacionVencido(ap, hoy);
+  return {
+    ...explicacion,
+    definicion:
+      "Vencido es la suma, en pesos, de los pagos listados cuya fecha de vencimiento ya pasó. Es un dato de fecha de cada registro.",
+  };
+}
+
 export function explicacionPorPagar(
   ap: AccountsPayableResponse | null | undefined,
   periodo: PeriodoV05,
@@ -702,8 +741,12 @@ export function faltantes(ap: AccountsPayableResponse | null | undefined): strin
 /* ── Exportar (§5.5) ─────────────────────────────────────────────────────────── */
 
 /** CSV con `;` (Excel es-CL). Montos crudos en su moneda; el CLP convertido aparte; el "no sé" va
- *  como "sin dato"/"sin fecha". */
-export function csvPagosTable(pagos: ReadonlyArray<PagoV05>): ExportTable {
+ *  como "sin dato"/"sin fecha". Cuando el Brief es dueño de la decisión, `tipo` se omite: es una
+ *  taxonomía heurística heredada, no una etiqueta publicada por el servidor. */
+export function csvPagosTable(
+  pagos: ReadonlyArray<PagoV05>,
+  { includeDecisionSignals = true }: { includeDecisionSignals?: boolean } = {},
+): ExportTable {
   return exportTable(
     [
       "proveedor",
@@ -711,7 +754,7 @@ export function csvPagosTable(pagos: ReadonlyArray<PagoV05>): ExportTable {
       "rut",
       "vence",
       "dias",
-      "tipo",
+      ...(includeDecisionSignals ? ["tipo"] : []),
       "moneda",
       "monto",
       "monto_clp",
@@ -724,7 +767,9 @@ export function csvPagosTable(pagos: ReadonlyArray<PagoV05>): ExportTable {
       p.rut == null ? csvCell.missing() : csvCell.identifier(p.rut),
       p.dueDate == null ? csvCell.text("sin fecha") : csvCell.date(p.dueDate),
       p.dias == null ? csvCell.text("sin fecha") : csvCell.integer(p.dias),
-      csvCell.text(TIPO_LABEL[p.tipo]),
+      ...(includeDecisionSignals
+        ? [p.tipo == null ? csvCell.missing() : csvCell.text(TIPO_LABEL[p.tipo])]
+        : []),
       csvCell.text(p.moneda),
       csvCell.decimal(parseAmount(p.item.amount)),
       p.montoClp == null ? csvCell.text("sin dato") : csvCell.decimal(p.montoClp),
@@ -735,7 +780,10 @@ export function csvPagosTable(pagos: ReadonlyArray<PagoV05>): ExportTable {
 }
 
 /** CSV interoperable: no contiene tipos de celda para Excel. */
-export function csvPagos(pagos: ReadonlyArray<PagoV05>): string {
-  const table = csvPagosTable(pagos);
+export function csvPagos(
+  pagos: ReadonlyArray<PagoV05>,
+  options: { includeDecisionSignals?: boolean } = {},
+): string {
+  const table = csvPagosTable(pagos, options);
   return csv(table.headers, table.rows, table.dialect);
 }

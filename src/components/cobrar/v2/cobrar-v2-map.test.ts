@@ -55,6 +55,7 @@ const base = (top: TopDebtor[]): AccountsReceivableResponse => ({
   aging: { current: "0", d1_30: "0", d31_60: "0", d61_90: "0", d90_plus: "0" },
   top_debtors: top,
   undated_amount: "0",
+  estimated_due_date_count: 0,
   document_count: 0,
   overdue_documents: [],
   confidence: "medium",

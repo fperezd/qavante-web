@@ -10,6 +10,9 @@ const eslintConfig = defineConfig([
   prettierConfig,
   globalIgnores([
     ".open-next/**",
+    // Los artefactos de las dos suites E2E son builds de Next, no código fuente.
+    // Sin este patrón `eslint .` puede recorrer ambos distDirs y agotar memoria.
+    ".next-e2e-*/**",
     "storybook-static/**", // build output de `npm run build-storybook`
     "src/lib/api/types.ts",
     "public/mockServiceWorker.js", // generado por `npx msw init`, no editar

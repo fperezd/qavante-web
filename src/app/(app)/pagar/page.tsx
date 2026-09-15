@@ -6,7 +6,7 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { PagarView } from "@/components/pagar/pagar-view";
 import { PagarV2ViewLive } from "@/components/pagar/v2/pagar-v2-view-live";
 import { PagarV05Live } from "@/components/pagar/v05/pagar-v05-live";
-import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brief";
+import { DecisionBriefSlot } from "@/components/decision-brief/decision-brief-slot";
 
 /* Pagar (Sprint C4). Server Component: resuelve los flags. La landing quedó limpia
    (pedido de Fernando 2026-07-28): el hero de prioridad + "Ver facturas" arriba.
@@ -14,7 +14,7 @@ import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brie
    Impuestos y TGR, Préstamos) vive ahora en el SIDEBAR (sub-ítems de Pagar), no
    como tarjetas acá. Sin `export const runtime` (regla 4). */
 export default function PagarPage() {
-  const { siiQueries, accountsPayable, pagarV2, pagarV05 } = resolveFeatureFlags();
+  const { siiQueries, accountsPayable, pagarV2, pagarV05, decisionBrief } = resolveFeatureFlags();
 
   /* V05 · Pagar (rediseño Fase 2, issue #70) — gated por `pagarV05`, HOY APAGADO. Reemplaza la
      landing entera por la vista de la spec (una pantalla, una pregunta: "¿a quién le pago, y qué
@@ -27,14 +27,18 @@ export default function PagarPage() {
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-neutral-dark">Pagar</h1>
-            <p className="mt-1 text-sm text-neutral-mid">¿A quién le pago, y qué es crítico?</p>
+            <p className="mt-1 text-sm text-neutral-mid">
+              {decisionBrief
+                ? "Pagos y compromisos de tu empresa."
+                : "¿A quién le pago, y qué es crítico?"}
+            </p>
           </div>
           {siiQueries && (
             <QuickLink href="/pagar/facturas-recibidas" icon={FileText} label="Ver facturas" />
           )}
         </header>
-        <CashDecisionBriefCard />
-        <PagarV05Live />
+        {decisionBrief && <DecisionBriefSlot surface="pagar" />}
+        <PagarV05Live suppressRecommendations={decisionBrief} />
       </div>
     );
   }
@@ -45,7 +49,9 @@ export default function PagarPage() {
         <div>
           <h1 className="text-2xl font-bold text-neutral-dark">Pagar</h1>
           <p className="mt-1 text-sm text-neutral-mid">
-            ¿A quién le pago y qué pagos son críticos?
+            {decisionBrief
+              ? "Pagos y compromisos de tu empresa."
+              : "¿A quién le pago y qué pagos son críticos?"}
           </p>
         </div>
         {/* "Ver facturas" arriba y a mano (antes "Libro de Compras (SII)" al fondo). */}
@@ -54,11 +60,15 @@ export default function PagarPage() {
         )}
       </header>
 
-      <CashDecisionBriefCard />
+      {decisionBrief && <DecisionBriefSlot surface="pagar" />}
 
       {/* `pagarV2` (rediseño 2026-07-14) tiene prioridad: respuesta de dueño + brecha de caja.
          Requiere `accountsPayable` (misma fuente). Con OFF, el Pagar clásico intacto. */}
-      {pagarV2 && accountsPayable ? <PagarV2ViewLive /> : accountsPayable && <PagarView />}
+      {pagarV2 && accountsPayable ? (
+        <PagarV2ViewLive suppressRecommendations={decisionBrief} />
+      ) : (
+        accountsPayable && <PagarView suppressRecommendations={decisionBrief} />
+      )}
 
       {!accountsPayable && !siiQueries && <FeatureUnavailableState />}
 
@@ -66,7 +76,11 @@ export default function PagarPage() {
         <QavanteEmpty
           icon={ArrowUpFromLine}
           title="Pagos a proveedores"
-          description="Aquí vas a ver tus pagos pendientes priorizados, los pagos críticos por vencer, recordatorios y proveedores frecuentes. Muy pronto disponible."
+          description={
+            decisionBrief
+              ? "Aquí vas a ver los pagos y compromisos registrados cuando haya fuentes conectadas."
+              : "Aquí vas a ver tus pagos pendientes priorizados, los pagos críticos por vencer, recordatorios y proveedores frecuentes. Muy pronto disponible."
+          }
         />
       )}
     </div>

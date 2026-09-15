@@ -6,7 +6,7 @@ import { CajaV2ResumenLive } from "@/components/caja/v2/caja-v2-resumen-live";
 import { CajaSubCard } from "@/components/caja/caja-sub-card";
 import { CajaDashboardLive } from "@/components/caja/v2/caja-dashboard-live";
 import { CajaV02Live } from "@/components/caja/v02/caja-v02-live";
-import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brief";
+import { DecisionBriefSlot } from "@/components/decision-brief/decision-brief-slot";
 
 /* Landing del módulo Caja. Sprint C3 MVP cableó `/caja/proyeccion` con el
    reporte agregado de `/api/treasury/reports/cash-flow` — si el flag
@@ -25,6 +25,7 @@ export default function CajaPage() {
     cajaDashboard,
     cajaMarkCollected,
     cajaV02,
+    decisionBrief,
   } = resolveFeatureFlags();
 
   /* V02 · Caja (rediseño Fase 2, issue #67) — gated por `cajaV02`, HOY APAGADO. Reemplaza la
@@ -38,8 +39,8 @@ export default function CajaPage() {
           <h1 className="text-2xl font-bold text-neutral-dark">Caja</h1>
           <p className="mt-1 text-sm text-neutral-mid">¿Me alcanza la caja?</p>
         </header>
-        <CashDecisionBriefCard />
-        <CajaV02Live />
+        {decisionBrief && <DecisionBriefSlot surface="caja" />}
+        <CajaV02Live suppressRecommendations={decisionBrief} />
         {bankMovementClassification && (
           <section aria-labelledby="herramientas-section" className="space-y-3">
             <h2 id="herramientas-section" className="text-base font-semibold text-neutral-dark">
@@ -59,7 +60,7 @@ export default function CajaPage() {
         <p className="mt-1 text-sm text-neutral-mid">¿Me alcanza la caja y qué puedo hacer?</p>
       </header>
 
-      <CashDecisionBriefCard />
+      {decisionBrief && <DecisionBriefSlot surface="caja" />}
 
       {cajaDashboard ? (
         /* Piloto `cajaDashboard`: las mismas secciones, como bloques movibles/apagables (motor iPad). */
@@ -71,6 +72,7 @@ export default function CajaPage() {
           bankMovementClassification={bankMovementClassification}
           reconciliationReview={reconciliationReview}
           markCollectedEnabled={cajaMarkCollected}
+          suppressRecommendations={decisionBrief}
         />
       ) : (
         <>
@@ -78,7 +80,11 @@ export default function CajaPage() {
               página (contestan el "¿me alcanza?" del título); las cards de abajo quedan como
               herramientas. Con `cajaV2` OFF o sin reporte de caja, la landing cae al menú clásico. */}
           {cajaV2 && cashFlowReport && (
-            <CajaV2ResumenLive cajaV3={cajaV3} markCollectedEnabled={cajaMarkCollected} />
+            <CajaV2ResumenLive
+              cajaV3={cajaV3}
+              markCollectedEnabled={cajaMarkCollected}
+              suppressRecommendations={decisionBrief}
+            />
           )}
 
           {bankBalances && (

@@ -6,7 +6,7 @@ import { InicioEjecutivoView } from "@/components/inicio/inicio-ejecutivo-view";
 import { InicioEjecutivoV2Live } from "@/components/inicio/v2/inicio-ejecutivo-v2-live";
 import { FinancialPositionCard } from "@/components/inicio/financial-position-card";
 import { HoyLive } from "@/components/inicio/v01/hoy-live";
-import { CashDecisionBriefCard } from "@/components/decisions/cash-decision-brief";
+import { DecisionBriefSlot } from "@/components/decision-brief/decision-brief-slot";
 
 /* Inicio Ejecutivo (Sprint C8). **Server Component** (como gestion/cobrar/pagar):
    resuelve el flag en runtime del Worker leyendo `NEXT_PUBLIC_FF_*` vía la
@@ -28,6 +28,7 @@ export default function InicioPage() {
     inicioAgenda,
     hoyV01,
     bankBalances,
+    decisionBrief,
   } = resolveFeatureFlags();
 
   /* V01 · Hoy (rediseño Fase 2, issue #62) — gated por `hoyV01`, HOY APAGADO. Convive con el
@@ -40,8 +41,8 @@ export default function InicioPage() {
         <header>
           <h1 className="text-2xl font-semibold text-neutral-dark">Inicio</h1>
         </header>
-        <CashDecisionBriefCard />
-        <HoyLive bankBalancesEnabled={bankBalances} />
+        {decisionBrief && <DecisionBriefSlot surface="inicio" />}
+        <HoyLive bankBalancesEnabled={bankBalances} suppressRecommendations={decisionBrief} />
       </div>
     );
   }
@@ -53,14 +54,17 @@ export default function InicioPage() {
         <p className="mt-1 text-sm text-neutral-mid">¿Cómo está mi empresa hoy?</p>
       </header>
 
-      <CashDecisionBriefCard />
-
-      {financialDecisionHome && <FinancialPositionCard />}
+      {decisionBrief && <DecisionBriefSlot surface="inicio" />}
+      {!decisionBrief && financialDecisionHome && <FinancialPositionCard />}
 
       {inicioEjecutivoV2 ? (
-        <InicioEjecutivoV2Live widgetsEnabled={inicioWidgets} agendaEnabled={inicioAgenda} />
+        <InicioEjecutivoV2Live
+          widgetsEnabled={inicioWidgets}
+          agendaEnabled={inicioAgenda}
+          suppressRecommendations={decisionBrief}
+        />
       ) : dashboardSummary ? (
-        <InicioEjecutivoView />
+        <InicioEjecutivoView suppressRecommendations={decisionBrief} />
       ) : inicioMvp ? (
         <InicioMvpView />
       ) : (

@@ -41,10 +41,92 @@ export function formatClpBare(value: number, opts?: { signed?: boolean }): strin
   return `${sign}${Math.abs(r).toLocaleString("es-CL")}`;
 }
 
+/* Decimal-string del API → moneda, SIN pasar por IEEE-754.
+
+   Algunos contratos financieros publican `Decimal` como string precisamente para
+   que el cliente no pierda precisión al leerlo. `Number("9007199254740993")`
+   ya cambia la cifra antes de que `Intl` pueda formatearla; tampoco podemos
+   redondear fracciones CLP sólo porque la moneda normalmente no use decimales.
+
+   Esta variante sólo interpreta la SINTAXIS decimal (signo, entero y fracción),
+   agrupa el entero como texto y conserva cada dígito fraccional recibido. No es
+   un parser para cálculos: el backend sigue siendo dueño de la cifra y de toda
+   aritmética. Si llega algo que no es Decimal canónico, se devuelve tal cual en
+   vez de inventar cero, redondear o esconder el dato. */
+type ExactDecimal = {
+  negative: boolean;
+  integer: string;
+  fraction: string | null;
+};
+
+function exactDecimal(raw: string): ExactDecimal | null {
+  const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(raw.trim());
+  if (!match) return null;
+
+  return {
+    negative: match[1] === "-",
+    // Los ceros de relleno no cambian el valor, pero sí se conserva toda la
+    // fracción (incluidos ceros finales), que puede ser material en el contrato.
+    integer: match[2]!.replace(/^0+(?=\d)/, ""),
+    fraction: match[3] ?? null,
+  };
+}
+
+function groupThousands(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+function moneyPrefix(currency: string | null | undefined): string {
+  const code = (currency || "CLP").trim().toUpperCase() || "CLP";
+  if (code === "CLP") return "$";
+  // El NBSP mantiene símbolo/código y cifra unidos, como `formatMoney`.
+  return `${code === "USD" ? "US$" : code}\u00a0`;
+}
+
+/**
+ * Formatea un decimal exacto del contrato sin convertirlo a `number`.
+ * `null`, vacío o sólo espacios se mantienen como ausencia; texto no decimal
+ * vuelve literalmente para que la interfaz no afirme una cifra que no recibió.
+ */
+export function formatMoneyFromDecimalString(
+  raw: string | null | undefined,
+  currency: string | null | undefined,
+): string | null {
+  if (raw == null || raw.trim() === "") return null;
+
+  const decimal = exactDecimal(raw);
+  if (!decimal) return raw;
+
+  const numberText = `${groupThousands(decimal.integer)}${
+    decimal.fraction === null ? "" : `,${decimal.fraction}`
+  }`;
+  /* El cero no lleva signo, igual que en `formatClp`: un "-0" o un "-0.00" del
+     contrato son cero exacto, y pintar "−$0" sugiere una magnitud negativa que
+     el dato no tiene. Se mira TODA la cifra recibida, entero y fracción, así que
+     "-0.01" sí conserva el menos. */
+  const isZero = !/[1-9]/.test(`${decimal.integer}${decimal.fraction ?? ""}`);
+  const sign = decimal.negative && !isZero ? "−" : "";
+  return `${sign}${moneyPrefix(currency)}${numberText}`;
+}
+
+/** Determina cero sobre los dígitos del Decimal, nunca sobre un `number`. */
+export function isNonZeroDecimalString(raw: string | null | undefined): boolean {
+  if (raw == null || raw.trim() === "") return false;
+  const decimal = exactDecimal(raw);
+  // Un valor no canónico no se debe suprimir: mostrarlo es más honesto que
+  // convertirlo implícitamente en un impacto cero.
+  if (!decimal) return true;
+  return /[1-9]/.test(`${decimal.integer}${decimal.fraction ?? ""}`);
+}
+
 /* String-decimal del backend → CLP, devolviendo el string TAL CUAL si no es un
    número. Es la variante defensiva para endpoints cuyo contrato no garantiza el
    formato: mejor mostrar lo que llegó (y que se note) que un "$0" inventado.
    Cuando el contrato SÍ garantiza número, usa `parseAmount` + `formatClp`. */
+/* NO delega en `formatMoneyFromDecimalString`. Sus consumidores son Obligaciones
+   (Pagar), cuyo contrato entrega `NUMERIC(18,2)`: delegar pintaba "$1.140.000,00"
+   donde la regla CLP de este módulo manda "$1.140.000". El panel del Decision
+   Brief llama al formateador exacto directo, que es donde la fracción importa. */
 export function formatClpFromString(raw: string): string {
   const n = Number(raw);
   return Number.isFinite(n) ? formatClp(n) : raw;

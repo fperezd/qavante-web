@@ -34,7 +34,14 @@ function plan(
             confidence_method: "evidence_bounded",
           },
         ],
-        targets: [{ label: "Documento prioritario", amount: "120000", reason: "vence primero" }],
+        targets: [
+          {
+            label: "Documento prioritario",
+            amount: "120000",
+            reason: "vence primero",
+            due_date_certainty: "confirmed" as const,
+          },
+        ],
       },
     ],
     evidence,

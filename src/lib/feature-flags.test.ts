@@ -106,6 +106,15 @@ describe("resolveFeatureFlag — jerarquía ADR-0008 + ADR-0012", () => {
       }),
     ).toBe(false);
   });
+
+  it("Decision Brief queda apagado por defecto y sólo se habilita con override explícito", () => {
+    expect(resolveFeatureFlag("decisionBrief", { env: devEnv })).toBe(false);
+    expect(
+      resolveFeatureFlag("decisionBrief", {
+        env: { ...devEnv, NEXT_PUBLIC_FF_DECISION_BRIEF: "true" },
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("flagEnvVar — mapeo camelCase → SCREAMING_SNAKE", () => {
@@ -114,6 +123,7 @@ describe("flagEnvVar — mapeo camelCase → SCREAMING_SNAKE", () => {
     ["bankMovementClassification", "NEXT_PUBLIC_FF_BANK_MOVEMENT_CLASSIFICATION"],
     ["phase2PlanningPreview", "NEXT_PUBLIC_FF_PHASE2_PLANNING_PREVIEW"],
     ["bandejaV07", "NEXT_PUBLIC_FF_BANDEJA_V07"],
+    ["decisionBrief", "NEXT_PUBLIC_FF_DECISION_BRIEF"],
   ];
   it.each(cases)("%s → %s", (flag, expected) => {
     expect(flagEnvVar(flag)).toBe(expected);

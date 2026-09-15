@@ -167,12 +167,15 @@ export function BandejaV07Live({
   issueSucesor = ISSUE_SUCESOR,
   tabInicial,
   movimientoInicial,
+  secondaryAudit = false,
 }: {
   issueSucesor?: string;
   /** Conserva la intención al entrar por las rutas clásicas. */
   tabInicial?: TabV07;
   /** Abre el movimiento pedido por un enlace clásico, si todavía está pendiente. */
   movimientoInicial?: string;
+  /** El brief financiero ya está arriba; esta vista se presenta como auditoría secundaria. */
+  secondaryAudit?: boolean;
 }) {
   const [hoy] = React.useState(() => new Date());
   /* Guardamos la identidad, no el objeto que deriva cada query. Las respuestas de React Query
@@ -260,6 +263,7 @@ export function BandejaV07Live({
 
   return (
     <BandejaV07View
+      secondaryAudit={secondaryAudit}
       conciliar={itemsC}
       conciliarTotal={review.data?.count ?? null}
       clasificar={itemsK}

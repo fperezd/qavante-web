@@ -183,6 +183,28 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).toContain("causas sin identidad segura se gestionan desde Pagar");
   });
 
+  it("con Brief activo deja la proyección como evidencia sin proponer postergar ni clasificar", () => {
+    const h = html({ suppressRecommendations: true });
+    const t = texto(h);
+
+    expect(t).toContain("Pagos registrados en la proyección");
+    expect(t).toContain("respaldan la decisión de caja");
+    expect(t).toContain("pagos comprometidos en los próximos 14 días");
+    expect(t).not.toContain("negociable en 0-14 días");
+    expect(t).not.toContain("No se posterga");
+    expect(t).not.toContain("Postergar mueve la fecha");
+    expect(h).not.toContain('data-postergar="true"');
+    expect(h).not.toContain('href="/pagar"');
+
+    /* Gemelos con la MISMA cadena sobre el render sin supresión: si mañana el
+       texto cambia, las tres ausencias de arriba dejarían de medir nada y este
+       bloque falla primero. */
+    const conPlanLocal = texto(html());
+    expect(conPlanLocal).toContain("negociable en 0-14 días");
+    expect(conPlanLocal).toContain("No se posterga");
+    expect(conPlanLocal).toContain("Postergar mueve la fecha");
+  });
+
   it("footer con las exclusiones y su conteo", () => {
     const t = texto(html());
     expect(t).toContain("No cuenta $39.600.000 por cobrar vencidos o sin fecha (17 documentos)");

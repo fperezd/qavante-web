@@ -76,6 +76,10 @@ export function ImportView() {
           <>
             <CheckCircle2 className="h-12 w-12 text-success-600" aria-hidden="true" />
             <p className="text-sm text-neutral-dark">La importación fue iniciada.</p>
+            <p className="text-xs text-neutral-mid">
+              Al entrar a tu panel, Qavante actualizará las cifras con la información que termine de
+              procesar. No mostraremos una evaluación anterior como si estuviera al día.
+            </p>
             {sync.data?.sources && (
               <ul className="space-y-1 text-xs text-neutral-mid">
                 {(["sii", "bank"] as const).map((src) => {

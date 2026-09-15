@@ -43,7 +43,11 @@ export function motivoSinProyeccion(err: unknown): string {
   return "No pudimos traer la proyección ahora. Vuelve a intentar en un momento.";
 }
 
-export function CajaV02Live() {
+export function CajaV02Live({
+  suppressRecommendations = false,
+}: {
+  suppressRecommendations?: boolean;
+}) {
   const [hoy] = React.useState(() => new Date());
   const mesAnterior = periodo(new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1));
   const mesActual = periodo(hoy);
@@ -73,6 +77,7 @@ export function CajaV02Live() {
       onPostpone={(payableId, days) =>
         postergar.mutateAsync({ payableId, days }).then(() => undefined)
       }
+      suppressRecommendations={suppressRecommendations}
       hoy={hoy}
     />
   );

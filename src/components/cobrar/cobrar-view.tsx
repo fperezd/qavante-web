@@ -55,6 +55,8 @@ import { formatPct } from "@/lib/formatters/pct";
 export interface CobrarViewProps {
   /** Si el flag `siiQueries` está ON, muestra el acceso al Libro de Ventas SII. */
   siiEnabled: boolean;
+  /** El brief transversal ya resuelve la prioridad; esta variante sólo muestra cartera/evidencia. */
+  suppressRecommendations?: boolean;
 }
 
 /* Severidad creciente del aging: vigente (ok) → 90+ (crítico). */
@@ -66,7 +68,7 @@ const AGING_COLOR: Record<string, string> = {
   d90_plus: "bg-danger-500",
 };
 
-export function CobrarView({ siiEnabled }: CobrarViewProps) {
+export function CobrarView({ siiEnabled, suppressRecommendations = false }: CobrarViewProps) {
   const query = useAccountsReceivable();
 
   return (
@@ -88,11 +90,19 @@ export function CobrarView({ siiEnabled }: CobrarViewProps) {
         ) : (
           <QavanteEmpty
             title="No tienes cuentas por cobrar"
-            description="Cuando tengas documentos por cobrar pendientes, vas a verlos acá ordenados por prioridad."
+            description={
+              suppressRecommendations
+                ? "Cuando tengas documentos por cobrar pendientes, vas a verlos acá como respaldo de la decisión."
+                : "Cuando tengas documentos por cobrar pendientes, vas a verlos acá ordenados por prioridad."
+            }
           />
         )
       ) : query.data ? (
-        <Receivable data={query.data} siiEnabled={siiEnabled} />
+        <Receivable
+          data={query.data}
+          siiEnabled={siiEnabled}
+          suppressRecommendations={suppressRecommendations}
+        />
       ) : null}
 
       {siiEnabled && (
@@ -123,9 +133,11 @@ export function CobrarView({ siiEnabled }: CobrarViewProps) {
 function Receivable({
   data,
   siiEnabled,
+  suppressRecommendations,
 }: {
   data: AccountsReceivableResponse;
   siiEnabled: boolean;
+  suppressRecommendations: boolean;
 }) {
   const aging = agingBreakdown(data.aging);
   /* Los TRES estados del vencido (H6). `null` = la API NO pudo computarlo
@@ -176,7 +188,12 @@ function Receivable({
 
       {/* Top deudores — cada deudor expande a sus facturas (Libro de Ventas). */}
       {(data.top_debtors ?? []).length > 0 && (
-        <TopDebtors debtors={data.top_debtors ?? []} total={data.total} siiEnabled={siiEnabled} />
+        <TopDebtors
+          debtors={data.top_debtors ?? []}
+          total={data.total}
+          siiEnabled={siiEnabled}
+          neutralOrder={suppressRecommendations}
+        />
       )}
 
       {/* Documentos vencidos. */}
@@ -306,26 +323,41 @@ export function TopDebtors({
   debtors,
   total,
   siiEnabled,
+  neutralOrder = false,
 }: {
   debtors: TopDebtor[];
   total: string;
   siiEnabled: boolean;
+  neutralOrder?: boolean;
 }) {
   const [openRut, setOpenRut] = React.useState<string | null>(null);
   const [everOpened, setEverOpened] = React.useState(false);
   const range = React.useMemo(() => defaultRange(), []);
   const invoices = useDebtorInvoices(range, siiEnabled && everOpened);
   // Orden por urgencia: primero el más vencido (a quién perseguir primero).
-  const ordered = React.useMemo(() => sortByUrgency(debtors), [debtors]);
+  const ordered = React.useMemo(
+    () => (neutralOrder ? debtors : sortByUrgency(debtors)),
+    [debtors, neutralOrder],
+  );
+  // El porcentaje umbral de concentración es una señal local heredada. Con el Brief, la tabla
+  // conserva montos y vencimientos publicados sin sugerir que un cliente debe ir primero.
+  const showDecisionSignals = !neutralOrder;
 
   return (
-    <QavanteCard variant="bordered" header={<span className="font-medium">Top deudores</span>}>
+    <QavanteCard
+      variant="bordered"
+      header={
+        <span className="font-medium">{neutralOrder ? "Clientes con saldo" : "Top deudores"}</span>
+      }
+    >
       <ul className="divide-y divide-border">
         {ordered.map((d) => {
           const rut = rutKey(d.rut);
           const isOpen = openRut === rut;
           const docs = invoices.byRut.get(rut) ?? [];
-          const pct = shareOfTotal(d.total, total);
+          // El Brief canónico ya publica la alternativa. No calculamos concentración local
+          // cuando la cartera sólo se presenta como evidencia.
+          const pct = showDecisionSignals ? shareOfTotal(d.total, total) : null;
           return (
             <li key={rut || d.name}>
               <button
@@ -357,7 +389,7 @@ export function TopDebtors({
                     {formatClp(parseAmount(d.total))}
                   </p>
                   {/* Concentración: qué parte del total por cobrar es este cliente. */}
-                  {pct >= 0.5 && (
+                  {showDecisionSignals && pct != null && pct >= 0.5 && (
                     <p className="text-xs text-neutral-mid">{formatPct(pct)} del total</p>
                   )}
                   {/* Tres estados, no dos. Antes esto era `parseAmount(d.overdue) > 0`,

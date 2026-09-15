@@ -47,8 +47,13 @@ export function useFinancialDecisions() {
  * La lista ya viene ordenada por `generated_at DESC` desde el backend. El cliente sólo resuelve
  * el id y lee el agregado: no detecta brechas, no reordena alternativas y no completa costos.
  * `null` significa que el tenant todavía no tiene una evaluación persistida.
+ *
+ * `enabled` existe para la superficie que ya no publica esta decisión: la lectura
+ * encadena `decisions` → `liquidity-evaluations` → `operation-plan`, así que apagarla
+ * acá corta las tres. Pedirlas para descartar su salida gasta lecturas del backend
+ * y deja rastro de una segunda decisión que nadie va a mostrar.
  */
-export function useLatestLiquidityEvaluation() {
+export function useLatestLiquidityEvaluation(enabled = true) {
   return useQuery({
     queryKey: financialDecisionKeys.latestLiquidityEvaluation(),
     queryFn: async (): Promise<LiquidityEvaluation | null> => {
@@ -61,6 +66,7 @@ export function useLatestLiquidityEvaluation() {
         `/api/treasury/liquidity-evaluations/${encodeURIComponent(latest.id)}`,
       );
     },
+    enabled,
     staleTime: 30_000,
     retry: false,
   });
