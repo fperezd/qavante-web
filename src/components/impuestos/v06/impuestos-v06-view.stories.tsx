@@ -11,6 +11,7 @@ import {
   mesesF29V06,
   tgrMovimientosV06,
 } from "./impuestos-v06-fixtures";
+import { SOLO_TEST_STORYBOOK } from "@/test/storybook/solo-test-storybook";
 
 /* V06 · Impuestos — "¿qué impuestos vencen, y cuáles ya declaraste?" en sus estados
  * (ESPECIFICACION §V06, issue #73). Corren en Chromium headless como gate (`npm run test:storybook`).
@@ -266,6 +267,7 @@ export const ErrorDeConexion: Story = {
 /* ────────────────────────── Ley 7 · tres mediciones ────────────────────────── */
 
 export const Ley7Angosto360: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 360 px · el calendario entra completo, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 360);
@@ -273,6 +275,7 @@ export const Ley7Angosto360: Story = {
 };
 
 export const Ley7Angosto346: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 346 px · margen de fuente (= 360, holgura Linux/Windows)",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 346);
@@ -280,6 +283,7 @@ export const Ley7Angosto346: Story = {
 };
 
 export const Ley7Angosto320: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 320 px · ancho de teléfono, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 320);

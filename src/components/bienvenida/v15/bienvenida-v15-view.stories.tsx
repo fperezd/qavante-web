@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, expect, waitFor } from "storybook/test";
 import { BienvenidaV15View } from "./bienvenida-v15-view";
 import { AMBAS_CONECTADAS, NINGUNA_CONECTADA, UNA_DIFERIDA } from "./bienvenida-v15-fixtures";
+import { SOLO_TEST_STORYBOOK } from "@/test/storybook/solo-test-storybook";
 
 const RUN_EN_CURSO = {
   run_id: "00000000-0000-0000-0000-000000000001",
@@ -257,6 +258,7 @@ export const ProgresoNoDisponible: Story = {
 
 /** El mínimo que pide la spec (§5.2): sin scroll horizontal de página en ≥ 360 px. */
 export const Ley7Angosto360: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 360 px · sin scroll horizontal de página",
   args: { states: UNA_DIFERIDA, run: null },
   play: async ({ canvasElement }) => {
@@ -268,6 +270,7 @@ export const Ley7Angosto360: Story = {
  *  también acá, no sólo a 360: un desborde a 320 puede existir sin necesitar la brecha de fuente
  *  Linux/Windows que motiva el margen de 346 en otras vistas de este mismo rediseño. */
 export const Ley7Angosto320: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 320 px · ancho de teléfono, sin scroll horizontal",
   args: { states: UNA_DIFERIDA, run: null },
   play: async ({ canvasElement }) => {

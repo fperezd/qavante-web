@@ -10,6 +10,7 @@ import {
   budgetVsActualSinPresupuesto,
 } from "./presupuesto-v09-fixtures";
 import { formatPeriodLabel } from "@/components/sii/sii-period-form-schema";
+import { SOLO_TEST_STORYBOOK } from "@/test/storybook/solo-test-storybook";
 
 /* V09 · Presupuesto — "¿cómo vas contra tu plan?" en sus estados (ESPECIFICACION §V09, issue #74).
  * Corren en Chromium headless como gate (`npm run test:storybook`).
@@ -196,6 +197,7 @@ export const InvarianteRoto: Story = {
 
 /** El mínimo que pide la spec (§5.2): sin scroll horizontal de página en ≥ 360 px. */
 export const Ley7Angosto360: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 360 px · la tabla entra completa, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 360);
@@ -206,6 +208,7 @@ export const Ley7Angosto360: Story = {
  *  con la holgura Linux/Windows medida en esas vistas — la que de verdad decide si el gate de CI
  *  (Linux) va a pasar. */
 export const Ley7Angosto346: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 346 px · margen de fuente (= 360, holgura Linux/Windows)",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 346);
@@ -215,6 +218,7 @@ export const Ley7Angosto346: Story = {
 /** Ancho de teléfono más angosto habitual — la columna del pill (`hideBelowTable: "sm"`) colapsa
  *  acá; el concepto y el monto del desvío (dato primario) siguen enteros. */
 export const Ley7Angosto320: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 320 px · ancho de teléfono, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 320);

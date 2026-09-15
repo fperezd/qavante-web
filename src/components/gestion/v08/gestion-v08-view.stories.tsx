@@ -19,6 +19,7 @@ import {
   summary,
   summaryDivergente,
 } from "./gestion-v08-fixtures";
+import { SOLO_TEST_STORYBOOK } from "@/test/storybook/solo-test-storybook";
 
 /* V08 · Gestión — las seis tabs en sus estados, en Chromium headless (`npm run test:storybook`).
  *
@@ -472,6 +473,7 @@ export const Contrapartes360SinDato: Story = {
 /* ────────────────────────── Ley 7 · medición a 346 px ────────────────────────── */
 
 export const Ley7ResultadoAngosto: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · Resultado a 346 px",
   args: {
     drill: {
@@ -485,12 +487,14 @@ export const Ley7ResultadoAngosto: Story = {
 };
 
 export const Ley7ComparativoAngosto: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · Comparativo a 346 px",
   args: { tab: "comparativo" },
   play: medirSinScrollHorizontal,
 };
 
 export const Ley7Proveedores360Angosto: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · Proveedores 360 a 346 px",
   args: { tab: "proveedores", docs360: docsCompras() },
   play: medirSinScrollHorizontal,

@@ -37,16 +37,20 @@ const splineSansMono = Spline_Sans_Mono({
 
 /* `NEXT_PUBLIC_API_URL` — hallazgo de revisión (PR #95): sin `.env.local` (gitignored, no
  * existe en CI ni en un worktree fresco), `src/lib/api/client.ts` corta ANTES de llamar a
- * `fetch` con "NEXT_PUBLIC_API_URL no configurada" (`ApiError` inmediato, NO la "loading state
- * perpetuo" que asumía el comentario de abajo). Toda story que monta un componente con hooks de
- * datos (`useXxx` sobre `api.get`) caía siempre a esa rama de error, nunca a los handlers MSW de
- * `parameters.msw.handlers`: los mocks estaban ahí, escritos, pero INERTES. Nadie lo notó porque
- * hasta ahora ninguna story tenía un `play()` que afirmara sobre texto derivado de datos reales.
+ * `fetch` con "NEXT_PUBLIC_API_URL no configurada" (`ApiError` inmediato con `code:
+ * "config_missing"`, NO un "loading state perpetuo"). Toda story que monta un componente con
+ * hooks de datos (`useXxx` sobre `api.get`) cae a esa rama de error y nunca llega a los handlers
+ * MSW de `parameters.msw.handlers`: los mocks quedan escritos pero INERTES.
  *
- * Se parchea ACÁ (no en `vitest.config.ts`) porque un `define` a nivel de proyecto Vitest resultó
- * filtrarse al proyecto `unit` — reprodujo un `href` con slash final espurio en
- * `administracion-v12-view.test.tsx` corriendo AISLADO, con `--project unit` solo. Este archivo
- * sólo lo carga el proyecto `storybook`, así que no hay blast radius fuera de las stories.
+ * La variable se inyecta en `.storybook/main.ts` (`viteFinal` -> `define` de Vite; el campo
+ * `env` de Storybook 10 se probó primero y NO llega al bundle), NO acá. Este archivo tenía un
+ * `process.env.NEXT_PUBLIC_API_URL ||= ...` en tiempo de módulo que funcionaba en `test-storybook`
+ * (vitest browser mode deja un `process.env` real y mutable) pero era INERTE en `storybook build`:
+ * el builder reemplaza `process.env` por un objeto literal `{}`, así que el bundle terminaba con
+ * `({}).NEXT_PUBLIC_API_URL ||= "..."` — una escritura sobre un objeto descartable — y
+ * `client.ts` leía `({}).NEXT_PUBLIC_API_URL ?? ""` = cadena vacía. Ése es el motivo por el que
+ * 34 stories fallaban SOLO en Chromatic (que snapshotea el build estático) y pasaban en
+ * `test-storybook` (issue #299). Ver la nota en `main.ts`.
  *
  * El dominio es adrede `.invalid` (RFC 2606: reservado, NUNCA resuelve) — no
  * `https://api.qavante.com` real: con `onUnhandledRequest: "bypass"` (abajo), cualquier request
@@ -54,12 +58,7 @@ const splineSansMono = Spline_Sans_Mono({
  * mockea) se habría ido de verdad a producción. Contra un `.invalid`, el mismo request falla
  * rápido con un error de red (`ApiError network_error`) — nunca un 401 real que dispare
  * `redirectToLogin()` y navegue el iframe del test (lo probé: con un dominio real, eso rompía
- * `empresas-view.stories.tsx` con "Cannot connect to the iframe"). Corre ANTES que cualquier
- * story importe (transitivamente) `client.ts`, así que la constante ya queda resuelta cuando ese
- * módulo se evalúa por primera vez. */
-if (typeof process !== "undefined") {
-  process.env.NEXT_PUBLIC_API_URL ||= "https://api.storybook.invalid";
-}
+ * `empresas-view.stories.tsx` con "Cannot connect to the iframe"). */
 
 /* msw-storybook-addon — habilita stories de vistas-contenedor que llaman
    hooks de TanStack Query. Cada story declara `parameters.msw.handlers`

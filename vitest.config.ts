@@ -19,8 +19,13 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
    (~7s vs ~30-60s del proyecto storybook). El job `test:storybook` corre
    en CI como gate separado.
 
-   Ver ADR-0005 (MSW) — el plugin storybookTest no requiere MSW porque
-   las stories renderean con mocks inline / fixtures, no fetches reales. */
+   Ver ADR-0005 (MSW). Ojo: este comentario decía que las stories "renderean con mocks inline /
+   fixtures, no fetches reales" y eso es FALSO desde el cableado de las vistas-contenedor —
+   refutado midiendo en el issue #299. Muchas stories montan hooks de datos que SÍ llaman `fetch`
+   contra la URL base inyectada en `.storybook/main.ts`, y lo que responde es el service worker de
+   MSW activado por `mswLoader` con los `parameters.msw.handlers` de cada story. El dominio es un
+   `.invalid` que nunca resuelve, así que una story sin handler falla con error de red en vez de
+   salir a la red de verdad. */
 export default defineConfig({
   resolve: {
     alias: {

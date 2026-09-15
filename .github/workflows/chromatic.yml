@@ -6,13 +6,25 @@ name: Chromatic
 # UI de Chromatic donde el reviewer aprueba/rechaza cada cambio.
 #
 # Gate: si CHROMATIC_PROJECT_TOKEN no está seteado en GitHub secrets, el job
-# se skipea silenciosamente (no bloquea CI). Setup pendiente del owner —
-# ver CONTRIBUTING.md § Chromatic.
+# se skipea silenciosamente (no bloquea CI). El secret YA está seteado
+# (verificado en el run 34792686157 del 2026-09-15: skip=false, build 2250).
+# El check es parte de REQUIRED_RELEASE_CHECKS de .github/release-gate.mjs:
+# rojo acá bloquea el release a producción. Ver CONTRIBUTING.md § Chromatic.
 
 on:
   push:
     branches: [main]
   pull_request:
+  # Disparo manual para re-establecer la línea base completa sobre un sha dado
+  # (típicamente `main`) sin esperar a que un push toque los archivos correctos.
+  # Con `full_rebaseline: true` se desactiva TurboSnap y se capturan TODAS las
+  # historias — ver CONTRIBUTING.md § Chromatic.
+  workflow_dispatch:
+    inputs:
+      full_rebaseline:
+        description: "Capturar TODAS las historias (desactiva TurboSnap) para re-establecer la línea base"
+        type: boolean
+        default: false
 
 jobs:
   chromatic:
@@ -51,4 +63,6 @@ jobs:
           exitZeroOnChanges: true
           # onlyChanged: true → re-snapshot solo de stories cuyos archivos
           # cambiaron en el PR (TurboSnap). Acelera runs sin perder cobertura.
-          onlyChanged: true
+          # Se apaga sólo en un `workflow_dispatch` con `full_rebaseline: true`,
+          # para volver a capturar todas las historias y fijar línea base nueva.
+          onlyChanged: ${{ !(github.event_name == 'workflow_dispatch' && inputs.full_rebaseline) }}

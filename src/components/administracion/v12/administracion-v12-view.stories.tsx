@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { within, expect, waitFor } from "storybook/test";
 import { AdministracionV12View } from "./administracion-v12-view";
 import { FILAS_HUB_EJEMPLO } from "./administracion-v12-fixtures";
+import { SOLO_TEST_STORYBOOK } from "@/test/storybook/solo-test-storybook";
 
 /* V12 · Administración — el hub como tabla de 8 entradas con estado por fila (ESPECIFICACION
  * §V12). Corren en Chromium headless como gate (`npm run test:storybook`).
@@ -144,6 +145,7 @@ export const NueveConMcp: Story = {
 
 /** El mínimo que pide la spec (§5.2): sin scroll horizontal de página en ≥ 360 px. */
 export const Ley7Angosto360: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 360 px · la tabla entra completa, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 360);
@@ -156,6 +158,7 @@ export const Ley7Angosto360: Story = {
  *  adopta el MISMO margen por la MISMA razón, en vez de reinventar un número propio. Ésta es la
  *  medición que decide el gate: si pasa acá, pasa a 360 en cualquier máquina. */
 export const Ley7Angosto346: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 346 px · margen de fuente (= 360, holgura Linux/Windows de gestion-v08)",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 346);
@@ -166,6 +169,7 @@ export const Ley7Angosto346: Story = {
  *  misma tabla desbordaba 21 px incluso en Windows, sin necesitar las fuentes de Linux para
  *  romperse. Con la columna Estado colapsada (`hideBelowTable`) entra con margen real. */
 export const Ley7Angosto320: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   name: "Ley 7 · 320 px · ancho de teléfono, sin scroll horizontal",
   play: async ({ canvasElement }) => {
     await medirLey7SinDesborde(canvasElement, 320);

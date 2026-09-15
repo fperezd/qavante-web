@@ -221,19 +221,34 @@ CI corre ambos jobs por separado (`test` + `test-storybook`). Mantenemos `test` 
 
 ### Chromatic — visual regression
 
-Wireup técnico listo en `.github/workflows/chromatic.yml` + npm script `chromatic`. El job se **skipea silenciosamente** mientras no exista el secret `CHROMATIC_PROJECT_TOKEN` en GitHub.
+Corre en `.github/workflows/chromatic.yml` + npm script `chromatic`. El secret `CHROMATIC_PROJECT_TOKEN` **ya está seteado** (verificado en el run 34792686157 del 2026-09-15: `skip=false`, build 2250, 894 historias y 1788 capturas — ese build es previo a `SOLO_TEST_STORYBOOK`; hoy las capturables son 878). Si algún día falta el secret, el job se **skipea silenciosamente** en vez de fallar.
 
-**Setup pendiente (acción del owner):**
+Cada PR muestra link a la UI de Chromatic con los snapshots diff vs `main`. El reviewer aprueba/rechaza cada cambio visual desde la UI. `exitZeroOnChanges: true` hace que un **cambio visual** no ponga rojo el check; un **error de componente** (la historia revienta al renderear o su `play` falla) sí lo pone rojo, y eso es deliberado.
 
-1. Crear cuenta en [chromatic.com](https://chromatic.com) (gratis hasta 5 000 snapshots/mes).
-2. Conectar el repo `fperezd/qavante-web` desde la UI de Chromatic.
-3. Copiar el `Project Token` que muestra Chromatic.
-4. En GitHub: Settings → Secrets and variables → Actions → New repository secret.
-   - Name: `CHROMATIC_PROJECT_TOKEN`
-   - Value: el token de Chromatic.
-5. Push a `main` o re-run del workflow → Chromatic genera el baseline inicial con todas las stories actuales (Capa 1 + Capa 2).
+**Dónde pega un check rojo:** `chromatic` no está en la protección de rama de `main`, pero sí en `REQUIRED_RELEASE_CHECKS` de `.github/release-gate.mjs`. Mientras quede rojo sobre el sha de release, **ningún release a producción pasa el gate**.
 
-A partir del 6, cada PR muestra link a la UI de Chromatic con los snapshots diff vs `main`. El reviewer aprueba/rechaza cada cambio visual desde la UI.
+**Verde hueco por cuota agotada (issue #299, leer antes de confiar en un pass):** el plan tiene un tope mensual de snapshots. Cuando se agota, el build publica el Storybook, NO captura nada y el check igual sale **pass**. Se reconoce en el log del job por dos señales textuales:
+
+```
+⚠ Snapshot quota reached
+  This build is limited because your account is out of snapshots for the month.
+```
+
+y por una tercera que es una **ausencia**: un build que midió termina con una línea así, y un build con cuota agotada no la trae en ninguna forma (no existe un `captured 0 snapshots`; simplemente no hay línea de captura).
+
+```
+→ Tested 894 stories across 212 components; captured 102 snapshots and found 51 component errors
+```
+
+Si esa línea no está en el log, no se midió nada y el pass **no es evidencia de nada**. `release-gate.mjs` lo acepta igual, porque sólo mira el estado del check, así que la comprobación es humana y hay que hacerla leyendo el log antes de firmar un release. Lo que había detrás del último verde de semanas eran 51 errores de componente que nadie estaba midiendo. Qué hacer: esperar el corte del mes o subir el plan, y recién entonces re-correr con `workflow_dispatch` + `full_rebaseline: true` y confirmar en el log que aparece la línea de captura.
+
+**Cuidado con `workflow_dispatch` como tapa de un rojo:** cada corrida manual crea un check nuevo sobre el mismo sha y `latestCheckByName` del gate se queda con el más reciente. Un verde hueco disparado a mano pisa un rojo legítimo anterior y el gate lo da por bueno. Se usa para re-establecer la línea base, nunca para destrabar un release.
+
+**Re-establecer la línea base a mano:** Actions → Chromatic → _Run workflow_, con `full_rebaseline: true`. Eso desactiva TurboSnap para esa corrida y vuelve a capturar las 878 historias capturables (894 menos las 16 de `SOLO_TEST_STORYBOOK`, ver abajo) sobre el sha elegido (típicamente `main`), en vez de esperar a que un push toque los archivos correctos. Con `full_rebaseline: false` (default) la corrida manual se comporta igual que un push.
+
+**Historias fuera de la captura visual:** las que sólo puede ejecutar `test-storybook` — hoy las de Ley 7, que reflowan la ventana con `page.viewport()` de `@vitest/browser/context` — llevan `parameters: SOLO_TEST_STORYBOOK` (`src/test/storybook/solo-test-storybook.ts`). Ese módulo existe únicamente dentro del runner de Vitest; en Chromatic el `play` revienta con "vitest/browser can be imported only inside the Browser Mode". No se pierde cobertura: el gate de esas historias es `test-storybook` en CI (Linux). Ver issue #299.
+
+**`NEXT_PUBLIC_API_URL` en el build estático:** lo inyecta `.storybook/main.ts` vía `define` de Vite. No se puede setear escribiendo `process.env` en tiempo de módulo desde `preview.tsx`: el builder reemplaza `process.env` por un objeto literal `{}` y la escritura cae sobre un objeto descartable — el bundle queda con `({}).NEXT_PUBLIC_API_URL`, `src/lib/api/client.ts` lee cadena vacía y lanza `config_missing` antes de tocar `fetch`, así que los handlers de `parameters.msw.handlers` nunca se ejercitan. Eso sólo rompe en el build estático (lo que snapshotea Chromatic), no en `test-storybook`, donde `process.env` es un objeto real y mutable.
 
 **Run local (opcional, requiere el token en `.env.local`):**
 

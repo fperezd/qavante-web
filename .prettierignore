@@ -13,6 +13,15 @@ coverage/
 # Generated from OpenAPI; do not format by hand
 src/lib/api/types.ts
 
+# Generado por el postinstall de msw en CADA `npm ci` (`msw init public/`), con el estilo
+# propio de msw (comillas simples, sin punto y coma). Si Prettier lo reformatea, el árbol
+# queda sucio después de instalar y Chromatic lo reporta como archivo cambiado
+# ("Found 1 changed files: public/mockServiceWorker.js", issue #299): `--only-changed` no
+# puede rastrearlo a ninguna historia y ensucia el scoping de TurboSnap: aparece como
+# archivo cambiado en todos los builds (2247, 2249, 2252, 2253). Se versiona tal como lo
+# emite msw y no se toca a mano.
+public/mockServiceWorker.js
+
 # Lock files
 package-lock.json
 

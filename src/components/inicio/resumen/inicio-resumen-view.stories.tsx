@@ -5,6 +5,7 @@ import { InicioCreditos } from "./inicio-creditos-live";
 import { InicioBancos } from "./inicio-bancos-live";
 import { DEFICIT, EVALUATION, NO_DEFICIT, NOW } from "./inicio-resumen.fixtures";
 import { MULTI_BANK_ACCOUNTS, MULTI_BANK_CREDITS } from "./inicio-bancos.fixtures";
+import { SOLO_TEST_STORYBOOK } from "@/test/storybook/solo-test-storybook";
 
 const meta = {
   title: "Inicio/Resumen aprobado",
@@ -114,6 +115,7 @@ export const DatosAntiguos: Story = {
   },
 };
 export const Celular: Story = {
+  parameters: SOLO_TEST_STORYBOOK,
   decorators: [
     (Story) => (
       <div style={{ width: 360, maxWidth: "100%" }}>
@@ -151,6 +153,7 @@ export const Celular: Story = {
 };
 export const CelularSinDeficit: Story = {
   ...Celular,
+  parameters: SOLO_TEST_STORYBOOK,
   args: { data: NO_DEFICIT, liquidityEvaluation: null },
   play: async ({ canvasElement }) => {
     const { page } = await import("@vitest/browser/context");
@@ -217,10 +220,7 @@ export const AccionesFinancieras: Story = {
       "href",
       "/cobrar",
     );
-    await expect(canvas.getByRole("link", { name: "Ver pago" })).toHaveAttribute(
-      "href",
-      "/pagar",
-    );
+    await expect(canvas.getByRole("link", { name: "Ver pago" })).toHaveAttribute("href", "/pagar");
     await expect(canvas.getByRole("link", { name: "Ver conciliación" })).toHaveAttribute(
       "href",
       "/caja/conciliacion?decision_id=11111111-1111-4111-8111-111111111111",
