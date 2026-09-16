@@ -357,7 +357,7 @@ function formatBriefMoney(money: BriefMoney | null | undefined): string | null {
 }
 
 function hasNonZeroAmount(money: BriefMoney | null | undefined): boolean {
-  return money ? isNonZeroDecimalString(money.amount) : false;
+  return money ? isNonZeroDecimalString(money.amount, money.currency) : false;
 }
 
 function isPositiveCount(value: number | null | undefined): value is number {

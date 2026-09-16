@@ -303,4 +303,46 @@ describe("DecisionBriefPanel — envelope server-owned", () => {
     expect(fraccionBaja).toContain("$1.234");
     expect(fraccionBaja).not.toContain("$1.234,44");
   });
+
+  /* #303: el juicio de "hay impacto" tiene que usar la misma regla de moneda que
+     la pantalla. Un residuo sub-peso CLP es "$0" en formatMoneyFromDecimalString;
+     antes del fix, isNonZeroDecimalString lo juzgaba "no cero" sobre los dígitos
+     crudos y la fila de cobertura pintaba "· $0". Gemelo positivo con la MISMA
+     estructura y un monto real para que el negativo no pase por bueno solo. */
+  it("no pinta una fila de cobertura con «· $0» por un residuo sub-peso CLP", () => {
+    const conCero: CashDecisionBrief = {
+      ...BRIEF,
+      coverage: {
+        ...BRIEF.coverage,
+        assumed_receivables_excluded: {
+          amount: "0.36",
+          currency: "CLP",
+          label: "Cobros estimados excluidos",
+        },
+        assumed_receivables_excluded_count: 0,
+        undated_items: 0,
+      },
+    };
+
+    const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={conCero} />));
+    expect(rendered).not.toContain("Cobros estimados excluidos");
+    expect(rendered).not.toContain("$0");
+
+    const conMonto: CashDecisionBrief = {
+      ...BRIEF,
+      coverage: {
+        ...BRIEF.coverage,
+        assumed_receivables_excluded: {
+          amount: "8947745.00",
+          currency: "CLP",
+          label: "Cobros estimados excluidos",
+        },
+        assumed_receivables_excluded_count: 0,
+        undated_items: 0,
+      },
+    };
+
+    const renderedConMonto = text(renderToStaticMarkup(<DecisionBriefPanel brief={conMonto} />));
+    expect(renderedConMonto).toContain("Cobros estimados excluidos · $8.947.745");
+  });
 });

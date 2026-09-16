@@ -315,9 +315,31 @@ describe("formatMoneyFromDecimalString — contrato Decimal exacto", () => {
     expect(formatMoneyFromDecimalString("pendiente", "CLP")).toBe("pendiente");
     expect(isNonZeroDecimalString("-0.00")).toBe(false);
     expect(isNonZeroDecimalString("9007199254740993")).toBe(true);
-    // Bajo IEEE-754 esto llega a 0; para el contrato Decimal sigue siendo un
-    // monto distinto de cero y no se puede ocultar como si no hubiera impacto.
-    expect(isNonZeroDecimalString(`0.${"0".repeat(400)}1`)).toBe(true);
+    // Un valor no canónico no se suprime, sea cual sea la moneda.
     expect(isNonZeroDecimalString("pendiente")).toBe(true);
+    expect(isNonZeroDecimalString("pendiente", "USD")).toBe(true);
+  });
+
+  it("juzga cero con la misma regla de MONEDA que la pantalla, no sobre los dígitos crudos", () => {
+    // CLP redondea al peso: un residuo sub-peso es "$0" en pantalla y también
+    // debe juzgarse cero, para no pintar una fila de cobertura con "· $0".
+    expect(isNonZeroDecimalString("0.36")).toBe(false);
+    expect(isNonZeroDecimalString("0.36", "CLP")).toBe(false);
+    expect(isNonZeroDecimalString("0.5")).toBe(true);
+    expect(isNonZeroDecimalString("0.5", "CLP")).toBe(true);
+    // USD/otras monedas redondean a dos decimales, no al peso.
+    expect(isNonZeroDecimalString("0.004", "USD")).toBe(false);
+    expect(isNonZeroDecimalString("0.005", "USD")).toBe(true);
+    // El signo no cambia el juicio: se decide sobre la MAGNITUD redondeada, igual
+    // que `formatMoneyFromDecimalString`.
+    expect(isNonZeroDecimalString("-0.36", "CLP")).toBe(false);
+    expect(isNonZeroDecimalString("-0.5", "CLP")).toBe(true);
+    expect(isNonZeroDecimalString("-0.004", "USD")).toBe(false);
+    expect(isNonZeroDecimalString("-0.005", "USD")).toBe(true);
+    // Un Decimal con muchos más dígitos que los que la pantalla puede mostrar
+    // redondea a cero igual que un residuo FX real de #598/#600.
+    expect(isNonZeroDecimalString(`0.${"0".repeat(400)}1`, "CLP")).toBe(false);
+    // Con un residuo grande, la fila sí es real y se muestra: gemelo positivo.
+    expect(isNonZeroDecimalString("8947745.00", "CLP")).toBe(true);
   });
 });

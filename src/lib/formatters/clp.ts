@@ -45,14 +45,17 @@ export function formatClpBare(value: number, opts?: { signed?: boolean }): strin
 
    Algunos contratos financieros publican `Decimal` como string precisamente para
    que el cliente no pierda precisión al leerlo. `Number("9007199254740993")`
-   ya cambia la cifra antes de que `Intl` pueda formatearla; tampoco podemos
-   redondear fracciones CLP sólo porque la moneda normalmente no use decimales.
+   ya cambia la cifra antes de que `Intl` pueda formatearla.
 
-   Esta variante sólo interpreta la SINTAXIS decimal (signo, entero y fracción),
-   agrupa el entero como texto y conserva cada dígito fraccional recibido. No es
-   un parser para cálculos: el backend sigue siendo dueño de la cifra y de toda
-   aritmética. Si llega algo que no es Decimal canónico, se devuelve tal cual en
-   vez de inventar cero, redondear o esconder el dato. */
+   La precisión del CONTRATO no es la precisión de PANTALLA. Esta variante sólo
+   interpreta la SINTAXIS decimal (signo, entero y fracción) y conserva cada dígito
+   fraccional recibido: esa es la precisión de contrato, se fija al parsear
+   (`exactDecimal`) y no se pierde acá. La precisión de pantalla la fija la MONEDA,
+   en `formatMoneyFromDecimalString`: CLP redondea al peso (half-up, en texto), el
+   resto redondea a dos decimales. No es un parser para cálculos: el backend sigue
+   siendo dueño de la cifra y de toda aritmética. Si llega algo que no es Decimal
+   canónico, se devuelve tal cual en vez de inventar cero, redondear o esconder el
+   dato. */
 type ExactDecimal = {
   negative: boolean;
   integer: string;
@@ -65,8 +68,9 @@ function exactDecimal(raw: string): ExactDecimal | null {
 
   return {
     negative: match[1] === "-",
-    // Los ceros de relleno no cambian el valor, pero sí se conserva toda la
-    // fracción (incluidos ceros finales), que puede ser material en el contrato.
+    // Los ceros de relleno del entero no cambian el valor; la fracción SÍ conserva
+    // cada dígito (incluidos ceros finales) — es precisión de CONTRATO. La pantalla
+    // redondea esto después, según la moneda (`formatMoneyFromDecimalString`).
     integer: match[2]!.replace(/^0+(?=\d)/, ""),
     fraction: match[3] ?? null,
   };
@@ -170,24 +174,40 @@ export function formatMoneyFromDecimalString(
   return `${sign}${moneyPrefix(currency)}${numberText}`;
 }
 
-/** Determina cero sobre los dígitos del Decimal, nunca sobre un `number`. */
-export function isNonZeroDecimalString(raw: string | null | undefined): boolean {
+/**
+ * Determina "no cero" con la misma regla de MONEDA que decide la pantalla: redondea
+ * en texto con `roundDecimalMagnitude` (la misma rutina que usa
+ * `formatMoneyFromDecimalString`, CLP al peso half-up y el resto a dos decimales) y
+ * juzga sobre esos dígitos YA redondeados, nunca sobre un `number` ni sobre los
+ * dígitos crudos del Decimal. Así una fracción sub-peso en CLP ("0.36") que la
+ * pantalla pinta "$0" también juzga cero acá, en vez de contarse como impacto real.
+ * Un valor no canónico no se suprime: mostrarlo es más honesto que convertirlo
+ * implícitamente en un impacto cero.
+ */
+export function isNonZeroDecimalString(
+  raw: string | null | undefined,
+  currency: string | null | undefined = "CLP",
+): boolean {
   if (raw == null || raw.trim() === "") return false;
   const decimal = exactDecimal(raw);
-  // Un valor no canónico no se debe suprimir: mostrarlo es más honesto que
-  // convertirlo implícitamente en un impacto cero.
   if (!decimal) return true;
-  return /[1-9]/.test(`${decimal.integer}${decimal.fraction ?? ""}`);
+  const places = currencyCode(currency) === "CLP" ? 0 : 2;
+  const rounded = roundDecimalMagnitude(decimal.integer, decimal.fraction, places);
+  return /[1-9]/.test(`${rounded.integer}${rounded.fraction}`);
 }
 
 /* String-decimal del backend → CLP, devolviendo el string TAL CUAL si no es un
    número. Es la variante defensiva para endpoints cuyo contrato no garantiza el
    formato: mejor mostrar lo que llegó (y que se note) que un "$0" inventado.
    Cuando el contrato SÍ garantiza número, usa `parseAmount` + `formatClp`. */
-/* NO delega en `formatMoneyFromDecimalString`. Sus consumidores son Obligaciones
-   (Pagar), cuyo contrato entrega `NUMERIC(18,2)`: delegar pintaba "$1.140.000,00"
-   donde la regla CLP de este módulo manda "$1.140.000". El panel del Decision
-   Brief llama al formateador exacto directo, que es donde la fracción importa. */
+/* Defensiva vía `Number()`, para contratos que no garantizan el formato del
+   Decimal (hoy: Obligaciones/Pagar, con `NUMERIC(18,2)`). En CLP hoy COINCIDE
+   con el exacto: `formatMoneyFromDecimalString` también redondea al peso, así
+   que "1140000.00" da "$1.140.000" por las dos rutas. El exacto existe por dos
+   razones que `Number()` sí rompe y que esta variante no cubre: enteros sobre
+   2^53 (pierde el último dígito) y monedas con centavos (necesita el decimal
+   exacto del contrato, no el que aproxima `Number()`). El panel del Decision
+   Brief llama al formateador exacto directo por eso, no por la fracción CLP. */
 export function formatClpFromString(raw: string): string {
   const n = Number(raw);
   return Number.isFinite(n) ? formatClp(n) : raw;
