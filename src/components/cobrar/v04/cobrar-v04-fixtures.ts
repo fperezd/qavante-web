@@ -318,6 +318,52 @@ export function arTodoAlDia(
   });
 }
 
+/** Nota server-owned de una fecha estimada (contrato #558), tal cual la publicaría el registro. */
+export const NOTA_ESTIMADA =
+  "Fecha estimada a 30 días desde la emisión; no acredita un vencimiento pactado.";
+
+/** Los TRES valores de certeza en la cartera normal: Diveimport suma un documento ESTIMADO más
+ *  atrasado (90 días) que su confirmado (73) — si moviera los días o el rojo, se notaría—;
+ *  Correos suma uno SIN CONFIRMAR y sin nota; el resto sigue confirmado. El registro cuenta
+ *  1 documento con fecha estimada en el resumen. Los agregados no cambian: lo estimado no es
+ *  mora para el servidor. */
+export function arConFechasEstimadas(
+  over: Partial<AccountsReceivableResponse> = {},
+): AccountsReceivableResponse {
+  const base = ar();
+  return ar({
+    estimated_due_date_count: 1,
+    overdue_documents: [
+      ...base.overdue_documents!,
+      {
+        id: "00000000-0000-4000-8000-000000000008",
+        client_name: "Diveimport S.A.",
+        client_rut: RUT_DIVEIMPORT,
+        document: "Factura 462",
+        due_date: "2026-06-01",
+        due_date_certainty: "estimated" as const,
+        due_date_note: NOTA_ESTIMADA,
+        amount: "1500000",
+        balance: "1500000",
+        days_overdue: 90,
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000009",
+        client_name: "Empresa de Correos de Chile",
+        client_rut: RUT_CORREOS,
+        document: "Factura 495",
+        due_date: "2026-08-25",
+        due_date_certainty: "unconfirmed" as const,
+        due_date_note: "",
+        amount: "600000",
+        balance: "600000",
+        days_overdue: 5,
+      },
+    ],
+    ...over,
+  });
+}
+
 /** Gestiones registradas (prefs `cobranza_gestionado`, Cobrar v2): rut normalizado → ISO. */
 export function gestionado(over: GestionadoMap = {}): GestionadoMap {
   return {

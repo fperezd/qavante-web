@@ -4,7 +4,9 @@ import type { ComponentProps } from "react";
 import { CobrarV04View, ResultadosLote } from "./cobrar-v04-view";
 import {
   HOY,
+  NOTA_ESTIMADA,
   ar,
+  arConFechasEstimadas,
   arConcentracionAlta,
   arSinClientes,
   arTodoAlDia,
@@ -62,7 +64,7 @@ describe("CobrarV04View — crumb, tarjetas, banner, tabla y footer (caso normal
     expect(t).toContain("+61 días $9.479.467 22,3% del total");
     expect(t).toContain("Vencido · bruto $27.779.467 65,2% del total");
     expect(t).toContain(
-      "Vencido (bruto) es la parte del por cobrar cuya fecha de vencimiento ya pasó",
+      "Vencido (bruto) es la parte del por cobrar cuya fecha de vencimiento confirmada ya pasó",
     );
   });
 
@@ -293,5 +295,56 @@ describe("ResultadosLote — frontera de mensajes", () => {
     );
     expect(h).not.toContain(secreto);
     expect(texto(h)).toContain("Factura 1: con error");
+  });
+});
+
+describe("CobrarV04View — certeza de la fecha (server-owned, contrato #558)", () => {
+  it("pill y nota server-owned por documento bajo la fila del cliente; sin nota, sólo el estado", () => {
+    const h = html({ ar: arConFechasEstimadas() });
+    const t = texto(h);
+    const pills = (etiqueta: string) =>
+      (h.match(new RegExp(`class="[^"]*rounded-full[^"]*"[^>]*>${etiqueta}<`, "g")) ?? []).length;
+    expect(pills("Fecha estimada")).toBe(1);
+    expect(pills("Fecha sin confirmar")).toBe(1);
+    expect(t).toContain(`Fecha estimada Factura 462 · ${NOTA_ESTIMADA}`);
+    expect(t).toContain("Fecha sin confirmar Factura 495");
+    expect(t).not.toMatch(/Factura 495 · /); // ninguna nota inventada
+    // Gemelo: con todos confirmados no hay pills de certeza.
+    expect(pills("Fecha estimada") + pills("Fecha sin confirmar")).toBe(2);
+    expect(html()).not.toMatch(/>Fecha estimada<|>Fecha sin confirmar<|>Certeza no informada</);
+  });
+
+  it("lo estimado no mueve los días ni el rojo: Diveimport sigue en 73 días ámbar; GPS7000 es el rojo", () => {
+    const h = html({ ar: arConFechasEstimadas() });
+    const t = texto(h);
+    expect(t).toContain("vencido $3.300.000 hace 73 días");
+    expect(t).not.toContain("hace 90 días");
+    expect(rojos(h)).toBe(1);
+    expect(h).toMatch(/class="[^"]*rediseno-rojo[^"]*"[^>]*>80 días</);
+    expect(h).toMatch(/class="[^"]*rediseno-ambar[^"]*"[^>]*>73 días</);
+    expect(h).not.toMatch(/>90 días</);
+  });
+
+  it("conteo de estimados del servidor junto a Vencido · bruto; con 0 no se dice nada", () => {
+    const t = texto(html({ ar: arConFechasEstimadas() }));
+    expect(t).toContain("Vencido · bruto $27.779.467 65,2% del total");
+    expect(t).toContain("1 documento con fecha estimada, fuera de la mora");
+    expect(t).toContain("Hoy: 1 documento con fecha estimada según el registro");
+    expect(texto(html())).not.toContain("con fecha estimada, fuera de la mora");
+    // También cuando el vencido no se sabe: el conteo del servidor se publica igual.
+    const desconocido = texto(
+      html({ ar: arVencidoDesconocido({ estimated_due_date_count: 3 }), gestionado: {} }),
+    );
+    expect(desconocido).toContain("3 documentos con fecha estimada, fuera de la mora");
+  });
+
+  it("un documento sin el campo no se asume confirmado: 'Certeza no informada'", () => {
+    const docs = ar().overdue_documents!.map((d, i) =>
+      i === 0 ? ({ ...d, due_date_certainty: undefined } as unknown as typeof d) : d,
+    );
+    const h = html({ ar: ar({ overdue_documents: docs }) });
+    expect(h).toContain(">Certeza no informada<");
+    expect(texto(h)).toContain("Certeza no informada Factura 450");
+    expect(html()).not.toContain(">Certeza no informada<");
   });
 });

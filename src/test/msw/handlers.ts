@@ -2717,12 +2717,18 @@ const accountsReceivableFixture = {
     { name: "Comercial del Sur Ltda", rut: "77.987.654-3", total: "6100000", overdue: "2400000" },
     { name: "Minera Atacama SA", rut: "96.555.444-2", total: "4300000", overdue: "1100000" },
   ],
+  /* Certeza de la fecha (contrato #558): `due_date_certainty` es requerido por documento y
+     `due_date_note` es copy del servidor. El E2E de Cobrar cubre los TRES valores: los tres
+     confirmados de siempre, un ESTIMADO más atrasado que el confirmado de su cliente (si moviera
+     los días de mora se notaría) y uno SIN CONFIRMAR sin nota. Sólo lo confirmado es mora. */
+  estimated_due_date_count: 1,
   overdue_documents: [
     {
       client_name: "Constructora Andes SpA",
       client_rut: "76.123.456-7",
       document: "Factura 1234",
       due_date: "2026-05-10",
+      due_date_certainty: "confirmed",
       amount: "3200000",
       balance: "3200000",
       days_overdue: 23,
@@ -2732,18 +2738,43 @@ const accountsReceivableFixture = {
       client_rut: "77.987.654-3",
       document: "Factura 5678",
       due_date: "2026-05-18",
+      due_date_certainty: "confirmed",
       amount: "2400000",
       balance: "2400000",
       days_overdue: 15,
+    },
+    {
+      client_name: "Comercial del Sur Ltda",
+      client_rut: "77.987.654-3",
+      document: "Factura 5680",
+      due_date: "2026-04-23",
+      due_date_certainty: "estimated",
+      due_date_note:
+        "Fecha estimada a 30 días desde la emisión; no acredita un vencimiento pactado.",
+      amount: "950000",
+      balance: "950000",
+      days_overdue: 40,
     },
     {
       client_name: "Minera Atacama SA",
       client_rut: "96.555.444-2",
       document: "Factura 9012",
       due_date: "2026-05-25",
+      due_date_certainty: "confirmed",
       amount: "1100000",
       balance: "800000",
       days_overdue: 8,
+    },
+    {
+      client_name: "Minera Atacama SA",
+      client_rut: "96.555.444-2",
+      document: "Factura 9020",
+      due_date: "2026-05-31",
+      due_date_certainty: "unconfirmed",
+      due_date_note: "",
+      amount: "300000",
+      balance: "300000",
+      days_overdue: 2,
     },
   ],
   confidence: "high",
@@ -2807,12 +2838,17 @@ const AP_ITEMS = [
     amount_clp: null,
     reclamado: false,
   },
+  /* Certeza de la fecha (contrato #558): el E2E de Pagar cubre los TRES valores. Este ítem va
+     ESTIMADO con la nota del servidor; el leasing va SIN CONFIRMAR con su nota; el resto,
+     confirmado. Lo estimado no entra en `due_*` (ver `due_30d`) y se cuenta aparte. */
   {
     id: "ap-telefonica-4471",
     label: "Proveedor Telefónica",
     category: "supplier" as const,
     due_date: "2026-06-18",
-    due_date_certainty: "confirmed" as const,
+    due_date_certainty: "estimated" as const,
+    due_date_note:
+      "Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado.",
     amount: "890000",
     criticality: "medium" as const,
     source: "SII",
@@ -2838,7 +2874,8 @@ const AP_ITEMS = [
     label: "Leasing camioneta",
     category: "leasing" as const,
     due_date: "2026-06-22",
-    due_date_certainty: "confirmed" as const,
+    due_date_certainty: "unconfirmed" as const,
+    due_date_note: "La fecha viene del contrato registrado a mano y no fue verificada.",
     amount: "640000",
     criticality: "low" as const,
     source: "Manual",
@@ -2870,10 +2907,12 @@ const accountsPayableFixture = {
   total_by_currency: [{ currency: "CLP", amount: "9430000" }],
   excluded_from_total_by_currency: [],
   /* Acumulativos desde `as_of` 2026-06-02: 7 días = arriendo (05-jun); 14 días = + F29
-     (12-jun); 30 días = todo el registro. */
+     (12-jun); 30 días = todo el registro MENOS la factura con fecha estimada (Telefónica,
+     $890.000): el contrato la cuenta en `estimated_due_date_count` y no en ningún tramo. */
   due_7d: "1300000",
   due_14d: "3700000",
-  due_30d: "9430000",
+  due_30d: "8540000",
+  estimated_due_date_count: 1,
   /* Coherente con `as_of` 2026-06-02 y los vencimientos 05/12/18/22/30-jun: al corte NO hay
      nada vencido. Un agregado de vencido inventado haría que la pantalla afirme mora que el
      propio corte desmiente. */

@@ -67,6 +67,44 @@ test.describe("Flujo: Cobrar V04 de producción (/cobrar)", () => {
     await expect(page.getByText("vencido $3.200.000 hace 23 días")).toBeVisible();
   });
 
+  test("certeza de la fecha: pill y nota del servidor por documento; lo estimado no es mora", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/cobrar");
+
+    /* Los tres valores del contrato en la misma cartera. La pill y la nota son server-owned
+       (`due_date_certainty` + `due_date_note` de cada documento vencido). Control negativo: sin el
+       render de la certeza, "Fecha estimada" no existe en el DOM y este test falla. */
+    const comercial = page.getByRole("row", { name: /Comercial del Sur Ltda/ });
+    await expect(comercial).toBeVisible();
+    await expect(comercial.getByText("Fecha estimada", { exact: true })).toBeVisible();
+    await expect(
+      comercial.getByText(
+        /Factura 5680 · Fecha estimada a 30 días desde la emisión; no acredita un vencimiento pactado\./,
+      ),
+    ).toBeVisible();
+    /* El documento estimado dice 40 días; el confirmado, 15. Los días de mora de la fila son los
+       del confirmado: lo estimado se lista, pero no alimenta el "vencido" derivado. */
+    await expect(comercial).toContainText("vencido $2.400.000 hace 15 días");
+    await expect(comercial).not.toContainText("hace 40 días");
+
+    const minera = page.getByRole("row", { name: /Minera Atacama SA/ });
+    await expect(minera.getByText("Fecha sin confirmar", { exact: true })).toBeVisible();
+    await expect(minera.getByText("Factura 9020", { exact: true })).toBeVisible();
+    await expect(minera).toContainText("hace 8 días");
+
+    // Gemelo: el cliente con todo confirmado no lleva pill de certeza.
+    const andes = page.getByRole("row", { name: /Constructora Andes SpA/ });
+    await expect(andes.getByText(/Fecha estimada|Fecha sin confirmar|Certeza/)).toHaveCount(0);
+
+    // El conteo de estimados es `estimated_due_date_count` del servidor, junto a Vencido · bruto.
+    const antiguedad = page.getByRole("region", { name: "Antigüedad de saldos" });
+    await expect(antiguedad).toContainText("1 documento con fecha estimada, fuera de la mora");
+    await expect(antiguedad).toContainText("$7.900.000"); // el vencido del contrato no cambia
+  });
+
   test("marcar gestionado actualiza explícitamente el registro del cliente", async ({
     page,
     context,

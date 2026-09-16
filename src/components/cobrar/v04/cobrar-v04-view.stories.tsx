@@ -3,7 +3,9 @@ import { within, expect, userEvent, fn, waitFor } from "storybook/test";
 import { CobrarV04View } from "./cobrar-v04-view";
 import {
   HOY,
+  NOTA_ESTIMADA,
   ar,
+  arConFechasEstimadas,
   arConcentracionAlta,
   arSinClientes,
   arTodoAlDia,
@@ -120,6 +122,34 @@ export const VencidoDesconocido: Story = {
       "Sin gestiones registradas",
     );
     await expect(rojos(canvasElement)).toHaveLength(0);
+  },
+};
+
+export const FechasEstimadas: Story = {
+  name: "Certeza de la fecha · pill y nota del servidor por documento; lo estimado no es mora",
+  args: { ar: arConFechasEstimadas() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Los tres valores del contrato en la misma cartera: una estimada, una sin confirmar, el resto
+    // confirmadas (sin pill).
+    await expect(canvas.getByText("Fecha estimada")).toBeInTheDocument();
+    await expect(canvas.getByText("Fecha sin confirmar")).toBeInTheDocument();
+    // La nota server-owned va tal cual junto al documento; sin nota, sólo el documento.
+    await expect(canvas.getByText(`Factura 462 · ${NOTA_ESTIMADA}`)).toBeInTheDocument();
+    await expect(canvas.getByText("Factura 495")).toBeInTheDocument();
+    // Lo estimado no mueve los días de mora: Diveimport sigue en 73 (no 90) y en ámbar.
+    const dive = filas(canvasElement).find((f) => f.textContent?.includes("Diveimport"))!;
+    await expect(dive).toHaveTextContent("vencido $3.300.000 hace 73 días");
+    await expect(dive).not.toHaveTextContent("90 días");
+    // Ley 2: el único rojo sigue siendo GPS7000 (80 días confirmados).
+    const marcados = rojos(canvasElement);
+    await expect(marcados).toHaveLength(1);
+    await expect(marcados[0]!).toHaveTextContent("80 días");
+    // El conteo de estimados es del servidor y vive junto a Vencido · bruto.
+    await expect(
+      canvas.getByText(/1 documento con fecha estimada, fuera de la mora/),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("$27.779.467")).toBeInTheDocument(); // el vencido no cambia
   },
 };
 

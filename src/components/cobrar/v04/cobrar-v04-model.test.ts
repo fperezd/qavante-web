@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { formatClp } from "@/lib/formatters/clp";
 import {
   antiguedadDe,
+  certezasCsv,
   clienteMasGrave,
   clientesV04,
   coincideConsulta,
@@ -9,7 +10,10 @@ import {
   contarClientes,
   crumbGestion,
   csvClientes,
+  docsVencidosPorRut,
+  estimadasDe,
   explicacionBruto,
+  explicacionVencido,
   filtrarClientes,
   loteRecordatorios,
   receivableIdsDeLote,
@@ -20,11 +24,14 @@ import {
 } from "./cobrar-v04-model";
 import {
   HOY,
+  NOTA_ESTIMADA,
   RUT_ANDINOS,
+  RUT_CORREOS,
   RUT_DIVEIMPORT,
   RUT_GPS,
   RUT_KAUFMANN,
   ar,
+  arConFechasEstimadas,
   arConcentracionAlta,
   arSinClientes,
   arTodoAlDia,
@@ -444,13 +451,102 @@ describe("csvClientes — exportar", () => {
   it("cabecera + una fila por cliente, montos crudos y el 'no se sabe' explícito", () => {
     const csv = csvClientes(clientesV04(ar(), gestionado()));
     const lineas = csv.split("\n");
-    expect(lineas[0]).toBe("cliente;rut;saldo;vencido;dias_vencido;antiguedad;ultima_gestion");
+    expect(lineas[0]).toBe(
+      "cliente;rut;saldo;vencido;dias_vencido;antiguedad;ultima_gestion;fechas_no_confirmadas",
+    );
     expect(lineas[3]).toBe(
-      `Diveimport S.A.;${RUT_DIVEIMPORT};11582539;3300000;73;73 días;2026-08-28`,
+      `Diveimport S.A.;${RUT_DIVEIMPORT};11582539;3300000;73;73 días;2026-08-28;`,
     );
     expect(lineas[5]).toBe(
-      `Servicios Andinos Ltda;${RUT_ANDINOS};980000;sin dato;;Sin vencimiento conocido;`,
+      `Servicios Andinos Ltda;${RUT_ANDINOS};980000;sin dato;;Sin vencimiento conocido;;`,
     );
-    expect(lineas[2]).toContain(`${RUT_KAUFMANN};4322373;4322373;34;34 días;2026-08-21`);
+    expect(lineas[2]).toContain(`${RUT_KAUFMANN};4322373;4322373;34;34 días;2026-08-21;`);
+  });
+
+  it("exporta los documentos con fecha no confirmada por cliente; la nota no viaja al CSV", () => {
+    const csv = csvClientes(clientesV04(arConFechasEstimadas(), gestionado()));
+    expect(csv).toContain(
+      `Diveimport S.A.;${RUT_DIVEIMPORT};11582539;3300000;73;73 días;2026-08-28;Factura 462: estimada`,
+    );
+    expect(csv).toContain("Factura 495: sin confirmar");
+    expect(csv).not.toContain(NOTA_ESTIMADA);
+  });
+});
+
+describe("certeza de la fecha — server-owned, nunca inferida (contrato #558)", () => {
+  const cs = () => clientesV04(arConFechasEstimadas(), gestionado());
+  const cliente = (nombre: string) => cs().find((c) => c.nombre === nombre)!;
+
+  it("lista por cliente los documentos estimados/sin confirmar con la certeza y la nota tal cual", () => {
+    expect(cliente("Diveimport S.A.").certezas).toEqual([
+      { documento: "Factura 462", certeza: "estimated", nota: NOTA_ESTIMADA },
+    ]);
+    // Nota vacía → null: la pill sola dice el estado, no se inventa un texto.
+    expect(cliente("Empresa de Correos de Chile").certezas).toEqual([
+      { documento: "Factura 495", certeza: "unconfirmed", nota: null },
+    ]);
+    // Gemelo: con todos confirmados, nada que listar.
+    expect(cliente("GPS7000").certezas).toEqual([]);
+    expect(clientesV04(ar(), gestionado()).every((c) => c.certezas.length === 0)).toBe(true);
+    expect(certezasCsv(cliente("Diveimport S.A."))).toBe("Factura 462: estimada");
+  });
+
+  it("un documento ESTIMADO no mueve los días de mora ni el rojo, aunque esté 'más vencido'", () => {
+    // Diveimport: el estimado dice 90 días, el confirmado 73. Los días son los del confirmado.
+    expect(cliente("Diveimport S.A.").dias).toBe(73);
+    expect(cliente("Diveimport S.A.").dias).not.toBe(90);
+    expect(cliente("Diveimport S.A.").docsVencidos).toBe(2); // listado igual: son documentos del registro
+    // Gemelo positivo: el MISMO documento, confirmado, sí fija 90 días.
+    const confirmado = arConFechasEstimadas({
+      overdue_documents: arConFechasEstimadas().overdue_documents!.map((d) =>
+        d.document === "Factura 462" ? { ...d, due_date_certainty: "confirmed" as const } : d,
+      ),
+    });
+    expect(
+      clientesV04(confirmado, gestionado()).find((c) => c.nombre === "Diveimport S.A.")!.dias,
+    ).toBe(90);
+    // Ley 2: el único rojo sigue siendo GPS7000 (80 días confirmados), no Diveimport con 90 estimados.
+    const grave = clienteMasGrave(cs());
+    expect(grave?.nombre).toBe("GPS7000");
+    expect(cliente("Diveimport S.A.").antiguedad).toEqual({ tono: "warn", texto: "73 días" });
+    // Correos: el sin confirmar (5 días) tampoco toca sus 21 días confirmados.
+    expect(cliente("Empresa de Correos de Chile").dias).toBe(21);
+  });
+
+  it("un documento SIN el campo no se asume confirmado: no alimenta la mora y se declara", () => {
+    const sinCampo = {
+      ...ar().overdue_documents![0]!,
+      client_rut: RUT_CORREOS,
+      document: "Factura 900",
+      days_overdue: 200,
+      due_date_certainty: undefined,
+    } as unknown as NonNullable<ReturnType<typeof ar>["overdue_documents"]>[number];
+    const docs = docsVencidosPorRut([sinCampo]);
+    const correos = docs.get([...docs.keys()][0]!)!;
+    expect(correos.maxDias).toBeNull();
+    expect(correos.certezas).toEqual([
+      { documento: "Factura 900", certeza: "no_informada", nota: null },
+    ]);
+    // Gemelo: confirmado, el mismo documento fija los 200 días.
+    const conCampo = docsVencidosPorRut([{ ...sinCampo, due_date_certainty: "confirmed" }]);
+    expect(conCampo.get([...conCampo.keys()][0]!)!.maxDias).toBe(200);
+  });
+
+  it("estimated_due_date_count es del servidor: se publica tal cual; sin el campo es null, no 0", () => {
+    expect(estimadasDe(arConFechasEstimadas())).toBe(1);
+    expect(estimadasDe(ar())).toBe(0);
+    expect(estimadasDe(ar({ estimated_due_date_count: undefined as never }))).toBeNull();
+    expect(estimadasDe(null)).toBeNull();
+    // No se recuenta desde los documentos: el servidor manda 4 aunque la página liste 1.
+    expect(estimadasDe(arConFechasEstimadas({ estimated_due_date_count: 4 }))).toBe(4);
+  });
+
+  it("el ⓘ de Vencido · bruto declara que lo estimado no es mora, con el conteo del servidor", () => {
+    const con = explicacionVencido(arConFechasEstimadas(), HOY);
+    expect(con.excluye).toContain(
+      "Documentos con fecha estimada: sirven para ordenar, pero el registro no los cuenta como mora",
+    );
+    expect(con.excluye).toContain("Hoy: 1 documento con fecha estimada según el registro");
+    expect(explicacionVencido(ar(), HOY).excluye.some((x) => x.startsWith("Hoy:"))).toBe(false);
   });
 });

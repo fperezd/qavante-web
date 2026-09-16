@@ -203,6 +203,62 @@ export const CHIPAX: PayableItem = {
   amount_clp: null,
 };
 
+/* Certeza de la fecha (contrato #558): los tres valores, con la nota server-owned tal cual. */
+
+/** `estimated` con nota: el registro estimó el vencimiento a 30 días desde la emisión. */
+export const TELEFONICA_ESTIMADA: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000013",
+  label: "Telefónica Chile S.A. · Factura 4471",
+  category: "supplier",
+  due_date: "2026-09-03",
+  due_date_certainty: "estimated",
+  due_date_note:
+    "Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado.",
+  amount: "890000",
+  criticality: "medium",
+  source: "SII",
+  source_external_id: "33-4471-76999999-9",
+  counterparty_name: "Telefónica Chile S.A.",
+  counterparty_rut: "76999999-9",
+  folio: 4471,
+  tipo_dte: 33,
+  currency: "CLP",
+  amount_clp: null,
+};
+
+/** `estimated` en un IMPUESTO dentro de la ventana: confirmado sería crítico; estimado no. */
+export const F29_ESTIMADO: PayableItem = {
+  ...F29,
+  id: "00000000-0000-4000-8000-000000000014",
+  label: "F29 · IVA de agosto",
+  due_date: "2026-09-05",
+  due_date_certainty: "estimated",
+  due_date_note: "El formulario aún no está emitido; la fecha es una estimación del registro.",
+  criticality: "high",
+  source_external_id: "f29-202608",
+};
+
+/** `unconfirmed` con fecha YA PASADA y nota vacía: ni ámbar ni "vencido", y ninguna nota
+ *  inventada — la pill sola dice el estado. */
+export const ARRIENDO_SIN_CONFIRMAR: PayableItem = {
+  id: "00000000-0000-4000-8000-000000000015",
+  label: "Arriendo oficina",
+  category: "rent",
+  due_date: "2026-08-20",
+  due_date_certainty: "unconfirmed",
+  due_date_note: "",
+  amount: "1300000",
+  criticality: "medium",
+  source: "Manual",
+  source_external_id: "obligation-81",
+  counterparty_name: "Inmobiliaria Los Leones Ltda.",
+  counterparty_rut: null,
+  folio: null,
+  tipo_dte: null,
+  currency: "CLP",
+  amount_clp: null,
+};
+
 /** Caso NORMAL: una página de 8 pagos y agregados globales de 3 vencidos ($8.729.650) y
  *  6 críticos ($16.807.705), separados del saldo final proyectado de $5.200.000;
  *  `covers_critical=false` viene del backend. $1.190.400 negociable en 14 días (la factura USD,
@@ -312,6 +368,62 @@ export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPaya
       reclamado: item.reclamado ?? false,
     })),
   };
+}
+
+/** Los TRES valores de certeza en una página: dos fechas estimadas (una de ellas un impuesto que
+ *  confirmado sería crítico), una sin confirmar ya pasada y sin nota, y tres confirmadas. Los
+ *  agregados siguen al contrato: lo estimado NO entra en `due_*`, en `overdue_summary` ni en el
+ *  agregado crítico, y `estimated_due_date_count` lo cuenta aparte. El arriendo sin confirmar
+ *  tampoco se suma acá: el fixture no afirma cómo lo trata el servidor, sólo que el front no lo
+ *  convierte en mora. */
+export function pagosConFechasEstimadas(
+  over: Partial<AccountsPayableResponse> = {},
+): AccountsPayableResponse {
+  return pagos({
+    total: "11154042",
+    total_by_currency: [{ currency: "CLP", amount: "11154042" }],
+    due_7d: "7581958",
+    due_14d: "7581958",
+    due_30d: "8789063",
+    estimated_due_date_count: 2,
+    items: [KENNEDY, ARRIENDO_SIN_CONFIRMAR, TELEFONICA_ESTIMADA, BICE, F29_ESTIMADO, CHIPAX],
+    items_total: 6,
+    overdue_summary: aggregate("7078882", 1),
+    non_postponable_or_overdue_14d: aggregate("7581958", 2),
+    by_category: [
+      { ...aggregate("9175987", 3), category: "supplier" },
+      { ...aggregate("174979", 1), category: "tax" },
+      { ...aggregate("0", 0), category: "payroll" },
+      { ...aggregate("1300000", 1), category: "rent" },
+      { ...aggregate("503076", 1), category: "debt" },
+      { ...aggregate("0", 0), category: "leasing" },
+      { ...aggregate("0", 0), category: "other" },
+    ],
+    filter_metadata: {
+      unfiltered_items_total: 6,
+      matched_items_total: 6,
+      by_category: [
+        { category: "supplier", count: 3 },
+        { category: "tax", count: 1 },
+        { category: "payroll", count: 0 },
+        { category: "rent", count: 1 },
+        { category: "debt", count: 1 },
+        { category: "leasing", count: 0 },
+        { category: "other", count: 0 },
+      ],
+      by_criticality: [
+        { criticality: "high", count: 3 },
+        { criticality: "medium", count: 2 },
+        { criticality: "low", count: 1 },
+      ],
+      by_state: [
+        { state: "open", count: 6 },
+        { state: "partially_paid", count: 0 },
+      ],
+    },
+    next_payroll: null,
+    ...over,
+  });
 }
 
 /** Valores exactos de la auditoría V2 D01 (#197). El pago crítico ya está

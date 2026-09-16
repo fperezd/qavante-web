@@ -79,6 +79,54 @@ test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
     await expect(page.getByText("Brecha contra cero")).toBeVisible();
   });
 
+  test("certeza de la fecha: pill y nota del servidor por ítem; lo estimado se cuenta aparte", async ({
+    page,
+    context,
+  }) => {
+    await loginAs(context, "owner");
+    await page.goto("/pagar");
+
+    const pagos = page.getByRole("region", { name: "Pagos y obligaciones" });
+    await expect(pagos).toBeVisible();
+
+    /* Los tres valores del contrato en la misma página. La pill y la nota son server-owned: el
+       mock publica `due_date_certainty` + `due_date_note` y la pantalla los muestra tal cual, sin
+       inferir certeza por la fecha ni por la fuente. Control negativo: sin el render de la
+       certeza, "Fecha estimada" no existe en el DOM y este test falla. */
+    const telefonica = pagos.getByRole("row", { name: /Proveedor Telefónica/ });
+    await expect(telefonica).toBeVisible();
+    await expect(telefonica.getByText("Fecha estimada", { exact: true })).toBeVisible();
+    /* La nota vive en el `.sub` visible de la fila y, repetida, en su "detalle ▾" (cerrado):
+       se comprueba la visible. */
+    await expect(
+      telefonica
+        .getByText(
+          "Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado.",
+        )
+        .first(),
+    ).toBeVisible();
+
+    const leasing = pagos.getByRole("row", { name: /Leasing camioneta/ });
+    await expect(leasing.getByText("Fecha sin confirmar", { exact: true })).toBeVisible();
+    await expect(
+      leasing
+        .getByText("La fecha viene del contrato registrado a mano y no fue verificada.")
+        .first(),
+    ).toBeVisible();
+
+    // Gemelo: el ítem confirmado no lleva pill ni nota de certeza.
+    const sueldos = pagos.getByRole("row", { name: /Remuneraciones: Junio 2026/ });
+    await expect(sueldos).toBeVisible();
+    await expect(sueldos.getByText(/Fecha estimada|Fecha sin confirmar|Certeza/)).toHaveCount(0);
+
+    /* El conteo de estimados es `estimated_due_date_count` del servidor, en la tarjeta "Por
+       pagar", fuera de los tramos: no se recuenta desde la tabla. */
+    const resumen = page.getByRole("region", { name: "Vencido, por pagar y caja proyectada" });
+    await expect(resumen).toContainText("1 pago con fecha estimada, fuera de los tramos");
+    // Y sigue sin haber vencidos: la fecha estimada del 18-jun no se convierte en mora.
+    await expect(page.getByText("ningún pago vencido conocido")).toBeVisible();
+  });
+
   test("declara que no ejecuta pagos masivos ni posterga automáticamente", async ({
     page,
     context,

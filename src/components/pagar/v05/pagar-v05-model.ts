@@ -39,7 +39,13 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  *   · "Servicio" (una de las cuatro pills de la spec) NO se produce: el contrato no distingue un
  *     servicio recurrente de una factura cualquiera, y adivinarlo sería un default plausible.
  *   · No hay "pagar todo" ni "postergar" en esta vista: mover plata lleva firma humana (Ley 9).
- *     La postergación operativa vive en Caja/Hoy, no acá. */
+ *     La postergación operativa vive en Caja/Hoy, no acá.
+ *   · CERTEZA DE LA FECHA es server-owned (`due_date_certainty` + `due_date_note`, ver
+ *     `rediseno/certeza-vencimiento.ts`). Una fila `estimated`/`unconfirmed` lleva la pill y la
+ *     nota tal cual llegan; se ordena por su fecha pero NUNCA cuenta como vencida ni como crítica
+ *     (el backend tampoco la mete en `due_*` ni en el agregado crítico). Sin el campo, la fila NO
+ *     se asume confirmada: se marca "certeza no informada". `estimated_due_date_count` se publica
+ *     en "Por pagar" como conteo del servidor, fuera de los tramos. */
 
 import type {
   AccountsPayableQuery,
@@ -56,6 +62,14 @@ import { normalizeRut } from "@/lib/validators/rut";
 import { montoCLP, montoCLPFaltante, payableItemLabel } from "../pagos-format";
 import { payrollPeriodFromExternalId } from "../pagos-group";
 import { postergabilidadDe } from "../v2/pagar-v2-map";
+import {
+  CERTEZA_CSV,
+  certezaDe,
+  certezaTexto,
+  conteoEstimadasDe,
+  esConfirmada,
+  type CertezaPresentada,
+} from "@/components/rediseno/certeza-vencimiento";
 
 /** Ventana del contexto crítico. */
 export const VENTANA_DIAS = 14;
@@ -189,8 +203,13 @@ export interface PagoV05 {
   venceLabel: string;
   /** "hace 545 días" / "en 5 días" / "hoy" / "sin fecha". */
   relativoLabel: string;
+  /** Certeza server-owned de la fecha. `no_informada` si el ítem no trae el campo. */
+  certeza: CertezaPresentada;
+  /** `due_date_note` tal cual (recortada), o `null`. Nunca se inventa. */
+  notaVencimiento: string | null;
+  /** Fecha anterior a hoy Y confirmada. Una fecha estimada o sin confirmar nunca es "vencida". */
   vencido: boolean;
-  /** No se posterga y vence dentro de la ventana (o ya venció). */
+  /** No se posterga y vence dentro de la ventana (o ya venció), con fecha confirmada. */
   critico: boolean;
   /** Ley 9. */
   postergable: boolean;
@@ -235,6 +254,10 @@ function baseDe(
   // heurística por tipo de pago ni construimos su taxonomía para la fila.
   const postergable = includeDecisionSignals ? esPostergable(item) : false;
   const rut = item.counterparty_rut?.trim() || null;
+  /* Sólo una fecha CONFIRMADA sustenta un vencido o un crítico derivado acá: `estimated`,
+     `unconfirmed` y "no informada" se ordenan por fecha pero no se presentan como mora. */
+  const { certeza, nota } = certezaDe(item);
+  const confirmada = esConfirmada(certeza);
   return {
     key: keyDe(item, i),
     nombre: nombreDe(item),
@@ -249,8 +272,11 @@ function baseDe(
     dias,
     venceLabel: venceLabelDe(dueDate, hoy),
     relativoLabel: relativoDe(dias, dueDate, hoy),
-    vencido: dias != null && dias < 0,
-    critico: includeDecisionSignals && !postergable && dias != null && dias <= VENTANA_DIAS,
+    certeza,
+    notaVencimiento: nota,
+    vencido: confirmada && dias != null && dias < 0,
+    critico:
+      includeDecisionSignals && confirmada && !postergable && dias != null && dias <= VENTANA_DIAS,
     postergable,
     tipo: includeDecisionSignals ? tipoDe(item) : null,
     montoClp: sinConvertir ? null : montoCLP(item),
@@ -295,14 +321,23 @@ function marcarDuplicados(
 }
 
 function subDe(p: Omit<PagoV05, "sub">): string {
-  if (p.anomalia) return p.anomalia.detalle;
+  /* La nota de certeza es copy del servidor y va tal cual, también cuando la fila lleva una
+     anomalía: la pill dice el estado; la nota dice por qué. */
+  const nota = p.notaVencimiento;
+  if (p.anomalia) return nota ? `${p.anomalia.detalle} · ${nota}` : p.anomalia.detalle;
   const partes: string[] = [];
   if (p.documento) partes.push(p.documento);
   partes.push(p.fuente);
   if (p.reclamado) partes.push("reclamada al SII");
   if (p.sinConvertir) partes.push(`en ${p.moneda} sin tipo de cambio: no se suma como pesos`);
   else if (p.moneda !== "CLP") partes.push(`${formatClp(p.montoClp ?? 0)} al tipo de cambio`);
+  if (nota) partes.push(nota);
   return partes.join(" · ");
+}
+
+/** Texto de certeza para la fila ("Fecha estimada · <nota>"), `null` si la fecha es confirmada. */
+export function certezaLabelDe(p: Pick<PagoV05, "certeza" | "notaVencimiento">): string | null {
+  return certezaTexto({ certeza: p.certeza, nota: p.notaVencimiento });
 }
 
 /* ── Orden por urgencia (default de la tabla) ───────────────────────────────── */
@@ -442,6 +477,14 @@ export interface PorPagarV05 {
   total: number | null;
   /** Lo que el backend NO pudo agendar: sin fecha de vencimiento. */
   sinFecha: { monto: number | null; n: number } | null;
+  /** `estimated_due_date_count` del backend: pagos con fecha estimada, que NO entran en ningún
+   *  tramo `due_*`. `null` si el campo no vino (no se asume 0). */
+  estimadas: number | null;
+}
+
+/** El conteo de fechas estimadas que publica el servidor. `null` = no vino; nunca 0 por defecto. */
+export function estimadasDe(ap: AccountsPayableResponse | null | undefined): number | null {
+  return conteoEstimadasDe(ap?.estimated_due_date_count);
 }
 
 /** "Por pagar · N días": el tramo del backend tal cual (Ley 1: el de 14 es "Sale · 14 días" en
@@ -458,6 +501,7 @@ export function kpiPorPagar(
     periodo,
     total: ap ? parseAmountOrNull(campo) : null,
     sinFecha: undatedN > 0 ? { monto: undated, n: undatedN } : null,
+    estimadas: estimadasDe(ap),
   };
 }
 
@@ -784,13 +828,21 @@ export function explicacionPorPagar(
   periodo: PeriodoV05,
   hoy: Date,
 ): ExplicacionV05 {
+  const excluye = [
+    "Documentos sin fecha de vencimiento (no están en ningún tramo)",
+    "Pagos con fecha estimada: el registro los cuenta aparte y no los mete en ningún tramo",
+    "Monedas sin tipo de cambio, informadas como fuentes faltantes",
+  ];
+  const estimadas = estimadasDe(ap);
+  if (estimadas != null && estimadas > 0) {
+    excluye.push(
+      `Hoy: ${estimadas} ${estimadas === 1 ? "pago" : "pagos"} con fecha estimada según el registro`,
+    );
+  }
   return {
     definicion: `Por pagar · ${periodo} días es lo que vence de aquí a ${periodo} días, convertido a pesos, e INCLUYE lo ya vencido. Este total viene de la consulta completa y no se recalcula desde la tabla visible.`,
-    incluye: ["Todo lo listado con vencimiento hasta ese día, más lo vencido"],
-    excluye: [
-      "Documentos sin fecha de vencimiento (no están en ningún tramo)",
-      "Monedas sin tipo de cambio, informadas como fuentes faltantes",
-    ],
+    incluye: ["Todo lo listado con vencimiento confirmado hasta ese día, más lo vencido"],
+    excluye,
     fuente: FUENTE,
     frescura: frescuraDe(ap, hoy),
   };
@@ -837,6 +889,8 @@ export function csvPagosTable(
       "rut",
       "vence",
       "dias",
+      "certeza_fecha",
+      "nota_fecha",
       ...(includeDecisionSignals ? ["tipo"] : []),
       "moneda",
       "monto",
@@ -850,6 +904,8 @@ export function csvPagosTable(
       p.rut == null ? csvCell.missing() : csvCell.identifier(p.rut),
       p.dueDate == null ? csvCell.text("sin fecha") : csvCell.date(p.dueDate),
       p.dias == null ? csvCell.text("sin fecha") : csvCell.integer(p.dias),
+      csvCell.text(CERTEZA_CSV[p.certeza]),
+      p.notaVencimiento == null ? csvCell.missing() : csvCell.text(p.notaVencimiento),
       ...(includeDecisionSignals
         ? [p.tipo == null ? csvCell.missing() : csvCell.text(TIPO_LABEL[p.tipo])]
         : []),

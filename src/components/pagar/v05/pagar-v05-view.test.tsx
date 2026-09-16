@@ -9,6 +9,7 @@ import {
   pagos,
   pagosAuditoriaD01,
   pagosConDuplicado,
+  pagosConFechasEstimadas,
   pagosDegradados,
   pagosListaTopeadaSinCriticos,
   pagosSoloImpuestosYSueldos,
@@ -347,5 +348,63 @@ describe("PagarV05View — el 'no sé' explícito", () => {
     const t = texto(html({ pagos: null, pagosMotivo: "No pudimos conectar (error de red)." }));
     expect(t).toContain("No pudimos consultar las cuentas por pagar");
     expect(t).toContain("error de red");
+  });
+});
+
+describe("PagarV05View — certeza de la fecha (server-owned, contrato #558)", () => {
+  const NOTA_TELEFONICA =
+    "Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado.";
+
+  it("pill y nota server-owned por fila: 'Fecha estimada' con su nota; 'Fecha sin confirmar' sola", () => {
+    const h = html({ pagos: pagosConFechasEstimadas() });
+    const t = texto(h);
+    // Dos filas estimadas (Telefónica y el F29) → dos pills; una sin confirmar → una pill.
+    const pills = (etiqueta: string) =>
+      (h.match(new RegExp(`class="[^"]*rounded-full[^"]*"[^>]*>${etiqueta}<`, "g")) ?? []).length;
+    expect(pills("Fecha estimada")).toBe(2);
+    expect(pills("Fecha sin confirmar")).toBe(1);
+    // La nota va tal cual, en el `.sub` de la fila y en su "detalle ▾".
+    expect((t.match(new RegExp(NOTA_TELEFONICA.replace(/[.;]/g, "\\$&"), "g")) ?? []).length).toBe(
+      2,
+    );
+    expect(t).toContain("Certeza Fecha estimada · " + NOTA_TELEFONICA);
+    // Sin nota no se inventa una: el arriendo lleva la pill y nada más.
+    expect(t).toContain("Certeza Fecha sin confirmar");
+    expect(t).not.toMatch(/Fecha sin confirmar · /);
+    // Gemelo: las confirmadas no llevan pill ni línea de certeza.
+    expect(html()).not.toMatch(/>Fecha estimada<|>Fecha sin confirmar<|>Certeza</);
+  });
+
+  it("una fecha estimada o sin confirmar nunca se pinta como vencida ni como crítica", () => {
+    const h = html({ pagos: pagosConFechasEstimadas() });
+    // El arriendo (20 ago, hace 10 días) NO va en ámbar: no es mora confirmada.
+    expect(h).toMatch(/class="[^"]*text-rediseno-tinta-3[^"]*"[^>]*>hace 10 días</);
+    expect(h).not.toMatch(/class="[^"]*rediseno-ambar[^"]*"[^>]*>hace 10 días</);
+    // Gemelo: Kennedy (confirmada) sí va en ámbar con la MISMA query.
+    expect(h).toMatch(/class="[^"]*rediseno-ambar[^"]*"[^>]*>hace 545 días</);
+    // Ley 2: el único rojo sigue siendo la fila crítica confirmada (BICE, en 2 días); el F29
+    // estimado a 6 días no compite por él.
+    expect(rojos(h)).toBe(1);
+    expect(elRojo(h)).toBe("en 2 días");
+  });
+
+  it("conteo de estimados del servidor en Por pagar; con 0 no se dice nada", () => {
+    const t = texto(html({ pagos: pagosConFechasEstimadas() }));
+    expect(t).toContain("2 pagos con fecha estimada, fuera de los tramos");
+    expect(t).toContain("Hoy: 2 pagos con fecha estimada según el registro");
+    expect(texto(html())).not.toContain("con fecha estimada, fuera de los tramos");
+    expect(texto(html())).not.toContain("Hoy: ");
+    // No se recuenta desde la página: 1 según el servidor aunque haya 2 filas estimadas.
+    const uno = texto(html({ pagos: pagosConFechasEstimadas({ estimated_due_date_count: 1 }) }));
+    expect(uno).toContain("1 pago con fecha estimada, fuera de los tramos");
+    expect(uno).not.toContain("1 pagos");
+  });
+
+  it("sin el campo no se asume confirmada: pill 'Certeza no informada' y sin ámbar", () => {
+    const sinCampo = { ...KENNEDY, due_date_certainty: undefined as never };
+    const h = html({ pagos: pagos({ items: [sinCampo] }) });
+    expect(h).toContain(">Certeza no informada<");
+    expect(h).not.toMatch(/class="[^"]*rediseno-ambar[^"]*"[^>]*>hace 545 días</);
+    expect(html({ pagos: pagos({ items: [KENNEDY] }) })).not.toContain(">Certeza no informada<");
   });
 });

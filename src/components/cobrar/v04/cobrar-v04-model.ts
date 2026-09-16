@@ -31,7 +31,13 @@ import { exportTable, type ExportTable } from "@/lib/export/table";
  *   · No separa monedas: el endpoint no trae `currency_code` y suma `outstanding_amount` crudo. Se
  *     declara (INV-FX-001) en vez de fingir que todo es CLP verificado.
  *   · No reconstruye identidades de cobro: los envíos usan exclusivamente `receivable_ids` que
- *     publica el backend junto al deudor. Si faltan, no hay envío ni un default plausible (#311). */
+ *     publica el backend junto al deudor. Si faltan, no hay envío ni un default plausible (#311).
+ *   · No infiere la CERTEZA de un vencimiento: `due_date_certainty` y `due_date_note` de cada
+ *     `overdue_documents[]` son server-owned (ver `rediseno/certeza-vencimiento.ts`). Sólo los
+ *     documentos `confirmed` alimentan los días de mora de la fila; los `estimated`/`unconfirmed`
+ *     se listan con su pill y su nota tal cual, y un documento SIN el campo no se asume
+ *     confirmado. `estimated_due_date_count` se publica junto a "Vencido · bruto" como conteo
+ *     del servidor, fuera de la mora. */
 
 import type { AccountsReceivableResponse, OverdueDocument, TopDebtor } from "@/lib/api/cobranza";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
@@ -49,6 +55,13 @@ import {
   type VencidoSinDato,
 } from "../cobranza-format";
 import { mailtoHref, reminderText, waHref, type GestionadoMap } from "../v2/cobrar-v2-map";
+import {
+  CERTEZA_CSV,
+  certezaDe,
+  conteoEstimadasDe,
+  esConfirmada,
+  type CertezaPresentada,
+} from "@/components/rediseno/certeza-vencimiento";
 
 /** Spec §V04: la pill es `bad` recién pasados los 60 días de mora. */
 export const UMBRAL_GRAVE_DIAS = 60;
@@ -177,17 +190,35 @@ export interface ClienteV04 {
   pctDelTotal: number | null;
   /** ISO `YYYY-MM-DD` de la última vez que se marcó gestionado, o `null`. */
   ultimaGestion: string | null;
+  /** Documentos vencidos de este cliente cuya fecha NO está confirmada, con la certeza y la nota
+   *  que publicó el servidor. Vacío = todos confirmados (o ninguno listado). */
+  certezas: CertezaDocV04[];
   antiguedad: AntiguedadV04;
   /** El `.sub` de la spec: vencido + días + última gestión (+ concentración si pesa). */
   sub: string;
 }
 
-interface DocsDeCliente {
-  maxDias: number;
-  n: number;
+export interface CertezaDocV04 {
+  /** "Factura 462", tal cual lo publica el registro. */
+  documento: string;
+  certeza: Exclude<CertezaPresentada, "confirmed">;
+  /** `due_date_note` del documento, o `null` si no vino. Nunca se inventa. */
+  nota: string | null;
 }
 
-/** Agrupa los documentos vencidos por RUT (normalizado): días del más vencido + conteo. */
+interface DocsDeCliente {
+  /** Días del documento CONFIRMADO más vencido. `null` si ninguno confirmado. */
+  maxDias: number | null;
+  /** Todos los documentos vencidos listados para el cliente, con cualquier certeza. */
+  n: number;
+  certezas: CertezaDocV04[];
+}
+
+/** Agrupa los documentos vencidos por RUT (normalizado): días del más vencido + conteo.
+ *
+ *  Sólo un documento `confirmed` mueve `maxDias`: una fecha estimada o sin confirmar (o sin el
+ *  campo) no sustenta mora en el cliente, así que no puede fijar "hace N días" ni el rojo. Esos
+ *  documentos quedan en `certezas`, con su nota server-owned, para mostrarse como lo que son. */
 export function docsVencidosPorRut(
   docs: ReadonlyArray<OverdueDocument> | null | undefined,
 ): Map<string, DocsDeCliente> {
@@ -195,14 +226,22 @@ export function docsVencidosPorRut(
   for (const d of docs ?? []) {
     const k = rutKey(d.client_rut);
     if (!k) continue;
-    const cur = out.get(k);
-    if (!cur) out.set(k, { maxDias: d.days_overdue, n: 1 });
-    else {
-      cur.n += 1;
-      if (d.days_overdue > cur.maxDias) cur.maxDias = d.days_overdue;
+    const cur = out.get(k) ?? { maxDias: null, n: 0, certezas: [] };
+    cur.n += 1;
+    const { certeza, nota } = certezaDe(d);
+    if (esConfirmada(certeza)) {
+      if (cur.maxDias == null || d.days_overdue > cur.maxDias) cur.maxDias = d.days_overdue;
+    } else {
+      cur.certezas.push({ documento: d.document, certeza, nota });
     }
+    out.set(k, cur);
   }
   return out;
+}
+
+/** `estimated_due_date_count` del servidor. `null` si no vino: no se asume 0. */
+export function estimadasDe(ar: AccountsReceivableResponse | null | undefined): number | null {
+  return conteoEstimadasDe(ar?.estimated_due_date_count);
 }
 
 /** La pill de antigüedad (spec §V04: bad >60d, warn 1–60d, ok al día). El rojo es UNO por pantalla
@@ -304,6 +343,7 @@ export function clientesV04(
       vencido,
       dias: suyos?.maxDias ?? null,
       docsVencidos: suyos?.n ?? 0,
+      certezas: suyos?.certezas ?? [],
       pctDelTotal: includeDecisionSignals ? concentracionPct(parseAmount(d.total), total) : null,
       ultimaGestion: k && typeof gestionado[k] === "string" ? gestionado[k]! : null,
     };
@@ -531,14 +571,22 @@ export function explicacionVencido(
   hoy: Date,
 ): ExplicacionV04 {
   const base = explicacionBruto(ar, hoy);
+  const excluye = [
+    "Documentos sin fecha de vencimiento (el SII no la entrega hasta el XML del DTE)",
+    "Documentos con fecha estimada: sirven para ordenar, pero el registro no los cuenta como mora",
+    "Facturas cedidas por factoring",
+  ];
+  const estimadas = estimadasDe(ar);
+  if (estimadas != null && estimadas > 0) {
+    excluye.push(
+      `Hoy: ${estimadas} ${estimadas === 1 ? "documento" : "documentos"} con fecha estimada según el registro`,
+    );
+  }
   return {
     definicion:
-      "Vencido (bruto) es la parte del por cobrar cuya fecha de vencimiento ya pasó, neteada de notas de crédito vencidas. Cuando el registro no tiene las fechas, no se calcula y se dice.",
-    incluye: ["Saldo pendiente de facturas con fecha de vencimiento anterior a hoy"],
-    excluye: [
-      "Documentos sin fecha de vencimiento (el SII no la entrega hasta el XML del DTE)",
-      "Facturas cedidas por factoring",
-    ],
+      "Vencido (bruto) es la parte del por cobrar cuya fecha de vencimiento confirmada ya pasó, neteada de notas de crédito vencidas. Cuando el registro no tiene las fechas, no se calcula y se dice.",
+    incluye: ["Saldo pendiente de facturas con fecha de vencimiento confirmada anterior a hoy"],
+    excluye,
     fuente: base.fuente,
     frescura: base.frescura,
   };
@@ -593,10 +641,25 @@ export function textoCountdown(segundos: number, n: number): string {
 
 /* ── Exportar (§5.5) ─────────────────────────────────────────────────────────── */
 
+/** Los documentos con fecha no confirmada del cliente, en una celda: "Factura 462: estimada · …".
+ *  Vacío si todos están confirmados. La nota no va al CSV: es copy de pantalla, no un dato. */
+export function certezasCsv(c: Pick<ClienteV04, "certezas">): string {
+  return c.certezas.map((d) => `${d.documento}: ${CERTEZA_CSV[d.certeza]}`).join(" · ");
+}
+
 /** CSV con `;` (Excel es-CL). Montos crudos, sin formatear; el "no se sabe" va como "sin dato". */
 export function csvClientesTable(clientes: ReadonlyArray<ClienteV04>): ExportTable {
   return exportTable(
-    ["cliente", "rut", "saldo", "vencido", "dias_vencido", "antiguedad", "ultima_gestion"],
+    [
+      "cliente",
+      "rut",
+      "saldo",
+      "vencido",
+      "dias_vencido",
+      "antiguedad",
+      "ultima_gestion",
+      "fechas_no_confirmadas",
+    ],
     clientes.map((c) => [
       csvCell.text(c.nombre),
       c.rut == null ? csvCell.missing() : csvCell.identifier(c.rut),
@@ -605,6 +668,7 @@ export function csvClientesTable(clientes: ReadonlyArray<ClienteV04>): ExportTab
       c.dias == null ? csvCell.missing() : csvCell.integer(c.dias),
       csvCell.text(c.antiguedad.texto),
       c.ultimaGestion == null ? csvCell.missing() : csvCell.text(c.ultimaGestion),
+      c.certezas.length === 0 ? csvCell.missing() : csvCell.text(certezasCsv(c)),
     ]),
   );
 }

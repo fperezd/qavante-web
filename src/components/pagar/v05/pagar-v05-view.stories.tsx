@@ -7,6 +7,7 @@ import {
   pagos,
   pagosAuditoriaD01,
   pagosConDuplicado,
+  pagosConFechasEstimadas,
   pagosDegradados,
   pagosSoloImpuestosYSueldos,
   pagosVacio,
@@ -265,6 +266,47 @@ export const DatosDegradados: Story = {
     /* Lo sin fecha no se esconde detrás de un chip que lo recorte en el cliente: se declara en
        la tríada con su monto y su conteo, y la fila queda visible con su "sin fecha". */
     await expect(canvas.queryByRole("radio", { name: /^Sin fecha/ })).not.toBeInTheDocument();
+  },
+};
+
+export const FechasEstimadas: Story = {
+  name: "Certeza de la fecha · pill y nota del servidor por fila; lo estimado no es mora ni crítico",
+  args: { pagos: pagosConFechasEstimadas() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Los tres valores del contrato en la misma página: dos estimadas, una sin confirmar.
+    await expect(canvas.getAllByText("Fecha estimada")).toHaveLength(2);
+    // La pill del arriendo y, sin nota, la misma etiqueta sola en su "detalle ▾" (en el DOM).
+    await expect(canvas.getAllByText("Fecha sin confirmar")).toHaveLength(2);
+    // La nota server-owned va tal cual en el `.sub` de la fila y en su detalle (2 apariciones).
+    await expect(
+      canvas.getAllByText(
+        /Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado\./,
+      ),
+    ).toHaveLength(2);
+    // Sin nota no se inventa copy: el arriendo dice sólo su estado.
+    const arriendo = filas(canvasElement).find((f) =>
+      f.textContent?.includes("Inmobiliaria Los Leones"),
+    )!;
+    await expect(arriendo).toHaveTextContent("Fecha sin confirmar");
+    await expect(arriendo).toHaveTextContent("hace 10 días");
+    await expect(within(arriendo).getByText("hace 10 días").className).not.toContain(
+      "rediseno-ambar",
+    );
+    // Gemelo: la vencida confirmada (Kennedy) sí va en ámbar.
+    await expect(canvas.getByText("hace 545 días").className).toContain("rediseno-ambar");
+    // Ley 2: el único rojo sigue siendo la fila crítica CONFIRMADA (BICE), no el F29 estimado.
+    const marcados = rojos(canvasElement);
+    await expect(marcados).toHaveLength(1);
+    await expect(marcados[0]!).toHaveTextContent("en 2 días");
+    // El conteo de estimados es del servidor y vive en Por pagar, fuera de los tramos.
+    await expect(
+      canvas.getByText(/2 pagos con fecha estimada, fuera de los tramos/),
+    ).toBeInTheDocument();
+    // "detalle ▾" de la fila estimada trae la certeza con su nota.
+    const telefonica = filas(canvasElement).find((f) => f.textContent?.includes("Telefónica"))!;
+    await userEvent.click(within(telefonica).getByText("detalle ▾"));
+    await expect(within(telefonica).getByText("Certeza")).toBeInTheDocument();
   },
 };
 

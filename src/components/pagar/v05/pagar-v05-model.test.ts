@@ -3,6 +3,7 @@ import { formatMoney } from "@/lib/formatters/clp";
 import { sale14d } from "@/components/caja/v02/caja-v02-model";
 import {
   LEY_9_TEXTO,
+  certezaLabelDe,
   coincideConsulta,
   contarPagos,
   csvPagos,
@@ -10,6 +11,7 @@ import {
   documentoDe,
   elUnicoRojo,
   esPostergable,
+  estimadasDe,
   explicacionCritico,
   explicacionPorPagar,
   explicacionVencido,
@@ -26,18 +28,22 @@ import {
   venceLabelDe,
 } from "./pagar-v05-model";
 import {
+  ARRIENDO_SIN_CONFIRMAR,
   BICE,
   ANOMALIA_ENTEL,
   CHIPAX,
   ENTEL_A,
   ENTEL_B,
   F29,
+  F29_ESTIMADO,
   HOY,
   KENNEDY,
   REMUNERACIONES,
+  TELEFONICA_ESTIMADA,
   pagos,
   pagosAuditoriaD01,
   pagosConDuplicado,
+  pagosConFechasEstimadas,
   pagosDegradados,
   pagosListaTopeadaSinCriticos,
   pagosSoloImpuestosYSueldos,
@@ -422,11 +428,11 @@ describe("CSV (§5.5)", () => {
     const csv = csvPagos(pagosV05(pagosDegradados(), HOY));
     const lineas = csv.split("\n");
     expect(lineas[0]).toBe(
-      "proveedor;documento;rut;vence;dias;tipo;moneda;monto;monto_clp;fuente;anomalia",
+      "proveedor;documento;rut;vence;dias;certeza_fecha;nota_fecha;tipo;moneda;monto;monto_clp;fuente;anomalia",
     );
     expect(csv).toContain("Aguas Cordillera S.A.;Factura 310;76777777-7;sin fecha;sin fecha");
     expect(csv).toContain(
-      "Amazon Web Services;Factura 4410;76888888-8;2026-09-05;6;Negociable;USD;830;sin dato",
+      "Amazon Web Services;Factura 4410;76888888-8;2026-09-05;6;confirmada;;Negociable;USD;830;sin dato",
     );
     expect(lineas).toHaveLength(1 + 6);
   });
@@ -440,7 +446,117 @@ describe("CSV (§5.5)", () => {
 
     expect(encabezado).not.toContain("tipo");
     expect(encabezado).toBe(
-      "proveedor;documento;rut;vence;dias;moneda;monto;monto_clp;fuente;anomalia",
+      "proveedor;documento;rut;vence;dias;certeza_fecha;nota_fecha;moneda;monto;monto_clp;fuente;anomalia",
     );
+  });
+
+  it("exporta la certeza y la nota del servidor tal cual; sin nota, la celda va vacía", () => {
+    const csv = csvPagos(pagosV05(pagosConFechasEstimadas(), HOY));
+    expect(csv).toContain(
+      'Telefónica Chile S.A.;Factura 4471;76999999-9;2026-09-03;4;estimada;"Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado.";Negociable',
+    );
+    expect(csv).toContain(
+      "Inmobiliaria Los Leones Ltda.;;;2026-08-20;-10;sin confirmar;;Negociable",
+    );
+    expect(csv).toContain("Banco BICE;;;2026-09-01;2;confirmada;;Crédito");
+  });
+});
+
+describe("certeza de la fecha — server-owned, nunca inferida (contrato #558)", () => {
+  const filasCerteza = () => pagosV05(pagosConFechasEstimadas(), HOY);
+  const fila = (nombre: string) => filasCerteza().find((p) => p.nombre.startsWith(nombre))!;
+
+  it("lee los tres valores del contrato y la nota tal cual; nota vacía → null, no un texto inventado", () => {
+    expect(fila("Telefónica").certeza).toBe("estimated");
+    expect(fila("Telefónica").notaVencimiento).toBe(
+      "Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado.",
+    );
+    expect(fila("Inmobiliaria Los Leones").certeza).toBe("unconfirmed");
+    expect(fila("Inmobiliaria Los Leones").notaVencimiento).toBeNull();
+    expect(fila("Banco BICE").certeza).toBe("confirmed");
+    expect(fila("Banco BICE").notaVencimiento).toBeNull();
+  });
+
+  it("la etiqueta de la fila lleva la nota cuando existe y sólo el estado cuando no; confirmada no lleva nada", () => {
+    expect(certezaLabelDe(fila("Telefónica"))).toBe(
+      "Fecha estimada · Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado.",
+    );
+    expect(certezaLabelDe(fila("Inmobiliaria Los Leones"))).toBe("Fecha sin confirmar");
+    expect(certezaLabelDe(fila("Banco BICE"))).toBeNull();
+    // El `.sub` también lleva la nota, sin reescribirla.
+    expect(fila("Telefónica").sub).toBe(
+      "Factura 4471 · SII · Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado.",
+    );
+    expect(fila("Inmobiliaria Los Leones").sub).toBe("Manual");
+  });
+
+  it("una fecha ESTIMADA o SIN CONFIRMAR nunca es vencida ni crítica; la misma fecha confirmada sí", () => {
+    // Impuesto a 6 días: confirmado sería crítico (Ley 9 + ventana); estimado, no.
+    expect(fila("F29").critico).toBe(false);
+    expect(fila("F29").dias).toBe(6);
+    const [f29Confirmado] = pagosV05(
+      pagos({ items: [{ ...F29_ESTIMADO, due_date_certainty: "confirmed" }] }),
+      HOY,
+    );
+    expect(f29Confirmado!.critico).toBe(true); // gemelo positivo con la MISMA fecha
+    // Arriendo con fecha pasada sin confirmar: se ordena por su fecha, pero no es "vencido".
+    expect(fila("Inmobiliaria Los Leones").dias).toBe(-10);
+    expect(fila("Inmobiliaria Los Leones").vencido).toBe(false);
+    const [arriendoConfirmado] = pagosV05(
+      pagos({ items: [{ ...ARRIENDO_SIN_CONFIRMAR, due_date_certainty: "confirmed" }] }),
+      HOY,
+    );
+    expect(arriendoConfirmado!.vencido).toBe(true);
+    // Y por eso el filtro local de vencidos y el rojo no los cuentan.
+    expect(contarPagos(filasCerteza()).vencidos).toBe(1); // sólo Kennedy
+    expect(elUnicoRojo(filasCerteza())).toEqual({ key: BICE.id, motivo: "critico" });
+  });
+
+  it("sin el campo NO se asume confirmada: certeza 'no informada', ni vencida ni crítica", () => {
+    const sinCampo = {
+      ...F29_ESTIMADO,
+      due_date_certainty: undefined,
+      due_date_note: undefined,
+    } as unknown as typeof F29_ESTIMADO;
+    const [p] = pagosV05(pagos({ items: [sinCampo] }), HOY);
+    expect(p!.certeza).toBe("no_informada");
+    expect(p!.notaVencimiento).toBeNull();
+    expect(p!.critico).toBe(false);
+    expect(certezaLabelDe(p!)).toBe("Certeza no informada");
+    // Un valor fuera del enum tampoco se traduce a "confirmada".
+    const raro = { ...KENNEDY, due_date_certainty: "verified" as never };
+    const [q] = pagosV05(pagos({ items: [raro] }), HOY);
+    expect(q!.certeza).toBe("no_informada");
+    expect(q!.vencido).toBe(false);
+    expect(pagosV05(pagos({ items: [KENNEDY] }), HOY)[0]!.vencido).toBe(true); // gemelo
+  });
+
+  it("el orden por urgencia sigue usando la fecha (útil para ordenar), sin ascenderla a mora", () => {
+    const nombres = filasCerteza().map((p) => p.nombre);
+    expect(nombres.indexOf("Inmobiliaria Los Leones Ltda.")).toBeLessThan(
+      nombres.indexOf("Banco BICE"),
+    );
+    expect(nombres.indexOf("Telefónica Chile S.A.")).toBeLessThan(nombres.indexOf("Chipax SpA"));
+  });
+
+  it("estimated_due_date_count es del servidor: se publica en Por pagar; sin el campo es null, no 0", () => {
+    expect(estimadasDe(pagosConFechasEstimadas())).toBe(2);
+    expect(kpiPorPagar(pagosConFechasEstimadas(), 14).estimadas).toBe(2);
+    expect(kpiPorPagar(pagos(), 14).estimadas).toBe(0);
+    expect(estimadasDe(pagos({ estimated_due_date_count: undefined as never }))).toBeNull();
+    expect(estimadasDe(null)).toBeNull();
+    // No se recuenta desde la página: el servidor dice 5 aunque la página traiga 2.
+    expect(estimadasDe(pagosConFechasEstimadas({ estimated_due_date_count: 5 }))).toBe(5);
+  });
+
+  it("el ⓘ de Por pagar declara que lo estimado queda fuera de los tramos, con el conteo del servidor", () => {
+    const con = explicacionPorPagar(pagosConFechasEstimadas(), 14, HOY);
+    expect(con.excluye).toContain(
+      "Pagos con fecha estimada: el registro los cuenta aparte y no los mete en ningún tramo",
+    );
+    expect(con.excluye).toContain("Hoy: 2 pagos con fecha estimada según el registro");
+    const sin = explicacionPorPagar(pagos(), 14, HOY);
+    expect(sin.excluye.some((x) => x.startsWith("Hoy:"))).toBe(false);
+    expect(TELEFONICA_ESTIMADA.due_date_certainty).toBe("estimated"); // el fixture usa el enum
   });
 });

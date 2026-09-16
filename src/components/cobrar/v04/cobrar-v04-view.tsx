@@ -15,6 +15,8 @@ import { FilterChips } from "@/components/rediseno/filter-chip";
 import { KpiCard } from "@/components/rediseno/kpi-card";
 import { Pill } from "@/components/rediseno/pill";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
+import { CERTEZA_LABEL } from "@/components/rediseno/certeza-vencimiento";
+import { concordar, formatCount } from "@/lib/formatters/count";
 import type { GestionadoMap } from "../v2/cobrar-v2-map";
 import {
   FILTROS_V04,
@@ -24,6 +26,7 @@ import {
   contarClientes,
   crumbGestion,
   csvClientesTable,
+  estimadasDe,
   explicacionBruto,
   explicacionVencido,
   filtrarClientes,
@@ -63,7 +66,13 @@ import {
  *
  * LEY 4 — "Enviar a los 3" no dispara al presionar: abre una ventana visible y cancelable. Al
  * llegar a cero manda sólo UUIDs de `receivable_ids` al servidor; el resultado se muestra por
- * documento. `sin_destinatario`, `skipped` y `error` nunca se disfrazan de envío exitoso. */
+ * documento. `sin_destinatario`, `skipped` y `error` nunca se disfrazan de envío exitoso.
+ *
+ * CERTEZA DE LA FECHA — server-owned. Cada documento vencido `estimated`/`unconfirmed` del cliente
+ * aparece bajo su fila con la pill gris, el documento y la `due_date_note` tal cual; un documento
+ * sin el campo aparece como "Certeza no informada", nunca como confirmado. Ninguno de ellos mueve
+ * los días de mora ni el rojo (eso lo decide el modelo). `estimated_due_date_count` se publica en
+ * la tarjeta "Vencido · bruto" como conteo del servidor, fuera de la mora. */
 
 export interface CobrarV04ViewProps {
   deferredIds?: readonly string[];
@@ -141,6 +150,13 @@ export function CobrarV04View({
   const crumb = crumbGestion(clientes, hoy);
   const tarjetas = tarjetasAging(ar);
   const sinVencido = motivoSinVencido(ar);
+  /* `estimated_due_date_count` del servidor: documentos con fecha estimada que NO son mora. Con 0
+     no se dice nada; sin el campo tampoco (no se asume 0). */
+  const estimadas = estimadasDe(ar);
+  const notaEstimadas =
+    estimadas != null && estimadas > 0
+      ? ` · ${formatCount(estimadas)} ${concordar(estimadas, "documento", "documentos")} con fecha estimada, fuera de la mora`
+      : "";
   // La concentración selecciona un lote y propone un envío. Si hay Brief, no se
   // calcula siquiera: la cartera se conserva como evidencia, no como un segundo plan.
   const concentration = suppressRecommendations ? null : concentracion(clientes, ar);
@@ -230,7 +246,8 @@ export function CobrarV04View({
               detail={
                 t.key === "vencido" ? (
                   <>
-                    {sinVencido.accion}{" "}
+                    {sinVencido.accion}
+                    {notaEstimadas}{" "}
                     <InfoPopover label="Qué es Vencido bruto" info={explicacionVencido(ar, hoy)} />
                   </>
                 ) : (
@@ -257,6 +274,7 @@ export function CobrarV04View({
                     </>
                   )}
                   {t.key === "vencido" && t.monto === 0 && " · estás al día"}
+                  {t.key === "vencido" && notaEstimadas}
                 </>
               }
             />
@@ -366,6 +384,28 @@ export function CobrarV04View({
         </p>
       </section>
     </div>
+  );
+}
+
+/* ── Certeza de la fecha por documento (server-owned) ────────────────────────── */
+
+/** Los documentos vencidos del cliente cuya fecha NO está confirmada: pill gris con el estado, el
+ *  documento y la nota del servidor tal cual. Sin nota, la pill y el documento bastan: no se
+ *  inventa copy. Con todos confirmados no se monta nada. */
+function CertezaDocumentos({ certezas }: { certezas: ClienteV04["certezas"] }) {
+  if (certezas.length === 0) return null;
+  return (
+    <ul className="mt-1 space-y-0.5 text-[12px] text-rediseno-tinta-3-light">
+      {certezas.map((d, i) => (
+        <li key={`${d.documento}#${i}`} className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+          <Pill variant="mut">{CERTEZA_LABEL[d.certeza]}</Pill>
+          <span className="min-w-0 whitespace-normal break-words">
+            {d.documento}
+            {d.nota && ` · ${d.nota}`}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -852,12 +892,15 @@ function TablaClientes({
         header: "Cliente",
         meta: { principal: true },
         cell: ({ row }) => (
-          <TablePrimaryCell
-            value={row.original.nombre}
-            /* El primitivo compartido envuelve el `sub`: no se pierde el metadato ni se empuja el
-               saldo fuera del contenedor angosto (Ley 7). */
-            sub={row.original.sub}
-          />
+          <>
+            <TablePrimaryCell
+              value={row.original.nombre}
+              /* El primitivo compartido envuelve el `sub`: no se pierde el metadato ni se empuja el
+                 saldo fuera del contenedor angosto (Ley 7). */
+              sub={row.original.sub}
+            />
+            <CertezaDocumentos certezas={row.original.certezas} />
+          </>
         ),
       },
       ...(showDecisionSignals

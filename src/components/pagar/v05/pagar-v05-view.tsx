@@ -20,6 +20,7 @@ import { FilterChips } from "@/components/rediseno/filter-chip";
 import { KpiCard } from "@/components/rediseno/kpi-card";
 import { Pill } from "@/components/rediseno/pill";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
+import { CERTEZA_LABEL, esConfirmada } from "@/components/rediseno/certeza-vencimiento";
 import {
   FILTROS_SERVIDOR_V05,
   LEY_9_TEXTO,
@@ -27,6 +28,7 @@ import {
   TIPO_LABEL,
   TOPE_ITEMS,
   VENTANA_DIAS,
+  certezaLabelDe,
   conteosServidor,
   csvPagosTable,
   elUnicoRojo,
@@ -70,7 +72,13 @@ import {
  *
  * "NO SÉ" explícito — una fila sin fecha parseable dice "sin fecha" (nunca "vence hoy" ni 0
  * días); los documentos sin vencimiento que el backend deja fuera de la tabla (`undated_*`) se
- * declaran con monto y conteo; caja final, críticos y cobertura se presentan por separado. */
+ * declaran con monto y conteo; caja final, críticos y cobertura se presentan por separado.
+ *
+ * CERTEZA DE LA FECHA — server-owned. Una fila `estimated` o `unconfirmed` lleva la pill gris
+ * con su etiqueta y la `due_date_note` tal cual (en el `.sub` y en "detalle ▾"); su relativo va
+ * en tinta, nunca en ámbar ni en rojo, porque el modelo no la cuenta como vencida ni crítica. Una
+ * fila SIN el campo lleva "Certeza no informada": no se asume confirmada. `estimated_due_date_count`
+ * se publica en la tarjeta "Por pagar" como conteo del servidor, fuera de los tramos. */
 
 export interface PagarV05ViewProps {
   deferredIds?: readonly string[];
@@ -295,7 +303,12 @@ export function PagarV05View({
                 <span>
                   incluye lo vencido
                   {porPagar.sinFecha &&
-                    ` · ${porPagar.sinFecha.n} ${porPagar.sinFecha.n === 1 ? "documento" : "documentos"} ${porPagar.sinFecha.monto == null ? "con monto no disponible" : `por ${formatClp(porPagar.sinFecha.monto)}`} sin fecha, en ningún tramo`}{" "}
+                    ` · ${porPagar.sinFecha.n} ${porPagar.sinFecha.n === 1 ? "documento" : "documentos"} ${porPagar.sinFecha.monto == null ? "con monto no disponible" : `por ${formatClp(porPagar.sinFecha.monto)}`} sin fecha, en ningún tramo`}
+                  {/* `estimated_due_date_count` del servidor: fechas estimadas que no entran en
+                      los tramos. Con 0 no se dice nada; sin el campo tampoco (no se asume 0). */}
+                  {porPagar.estimadas != null &&
+                    porPagar.estimadas > 0 &&
+                    ` · ${formatCount(porPagar.estimadas)} ${concordar(porPagar.estimadas, "pago", "pagos")} con fecha estimada, fuera de los tramos`}{" "}
                   <InfoPopover
                     label="Qué es Por pagar"
                     info={explicacionPorPagar(ap, periodo, hoy)}
@@ -632,21 +645,31 @@ function TablaPagos({
           }
           const esElRojo = rojo?.motivo === "critico" && rojo.key === p.key;
           return (
-            <span className="whitespace-nowrap">
-              {p.venceLabel} ·{" "}
-              <span
-                className={cn(
-                  /* Ley 2: el relativo rojo es UNO — la fila crítica más urgente, y sólo cuando
-                     ningún duplicado se llevó el rojo de la pantalla. Lo vencido va en ámbar. */
-                  esElRojo
-                    ? "font-bold text-rediseno-rojo"
-                    : p.vencido
-                      ? "font-semibold text-rediseno-ambar"
-                      : "text-rediseno-tinta-3",
-                )}
-              >
-                {p.relativoLabel}
+            <span className="inline-flex flex-col items-start gap-0.5">
+              <span className="whitespace-nowrap">
+                {p.venceLabel} ·{" "}
+                <span
+                  className={cn(
+                    /* Ley 2: el relativo rojo es UNO — la fila crítica más urgente, y sólo cuando
+                       ningún duplicado se llevó el rojo de la pantalla. Lo vencido va en ámbar.
+                       Una fecha no confirmada nunca es vencida ni crítica (modelo): queda en tinta. */
+                    esElRojo
+                      ? "font-bold text-rediseno-rojo"
+                      : p.vencido
+                        ? "font-semibold text-rediseno-ambar"
+                        : "text-rediseno-tinta-3",
+                  )}
+                >
+                  {p.relativoLabel}
+                </span>
               </span>
+              {/* Certeza server-owned: pill gris con la etiqueta del estado; la nota va en el
+                  `.sub` de la fila y en "detalle ▾", tal cual llega. Confirmada = sin pill. */}
+              {!esConfirmada(p.certeza) && (
+                <Pill variant="mut" title={p.notaVencimiento ?? undefined}>
+                  {CERTEZA_LABEL[p.certeza]}
+                </Pill>
+              )}
             </span>
           );
         },
@@ -732,6 +755,8 @@ function DetallePago({ pago: p }: { pago: PagoV05 }) {
             k="Vence"
             v={p.dias == null ? "sin fecha" : `${p.venceLabel} (${p.relativoLabel})`}
           />
+          {/* La certeza y la nota del servidor, sin reescribir. Confirmada no necesita línea. */}
+          {certezaLabelDe(p) && <Dato k="Certeza" v={certezaLabelDe(p)!} />}
           <Dato
             k="Monto"
             v={`${p.montoLabel}${p.moneda !== "CLP" && p.montoClp != null ? ` · ${formatClp(p.montoClp)} al tipo de cambio` : ""}`}
