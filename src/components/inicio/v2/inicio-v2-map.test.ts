@@ -17,6 +17,7 @@ import {
   mapFrase,
   stampOf,
 } from "./inicio-v2-map";
+import { DEFICIT, NO_DEFICIT } from "../resumen/inicio-resumen.fixtures";
 
 /** Summary vacío (empresa nueva / sin fuentes): todos los bloques null. */
 function emptySummary(): DashboardSummaryV2 {
@@ -129,16 +130,36 @@ describe("mapCaja", () => {
   });
 });
 
-describe("mapBrechaTotal / mapEstadoBrecha", () => {
-  /* ESTE TEST FIJABA EL DOBLE CONTEO. Afirmaba `monto: 9_956_127` = 4.218.622 + 5.737.505,
-   * o sea obligaciones MAS el descubierto. Los dos no son disjuntos: la API arma
-   * `projected_cash_14d` acumulando el neto diario, que ya trae esos 4,2M de egresos
-   * restados, asi que el −5.737.505 es el saldo que queda DESPUES de pagarlos. La plata que
-   * hay que conseguir para no terminar en rojo al dia 14 es 5.737.505, no 9.956.127.
-   *
-   * El titulo del plan pedia conseguir 4,2M de mas. */
-  it("con caja bajo cero, el monto del plan es el DESCUBIERTO, no la suma", () => {
-    const s = {
+describe("mapBrechaTotal / mapEstadoBrecha — la brecha es la que publica el contrato (D01/D03)", () => {
+  /* CONTRASTE PREVIO (#296). Con el fixture canónico del repo (`cash_gap_amount_14d` 14.000.000,
+   * `projected_cash_14d` −10.000.000, `min_14d` −14.000.000) la versión anterior publicaba
+   * 10.000.000: el saldo final con el signo cambiado, reconstruido en el front. Saldo final ≠
+   * mínimo ≠ brecha: el número del plan es el que publica el backend. */
+  it("con el fixture DEFICIT publica 14.000.000 (cash_gap_amount_14d), no el saldo final", () => {
+    expect(mapBrechaTotal(DEFICIT)).toBe(14_000_000);
+    expect(mapBrechaTotal(DEFICIT)).not.toBe(10_000_000); // lo que publicaba la versión anterior
+    expect(mapEstadoBrecha(DEFICIT)).toEqual({ tipo: "brecha", monto: 14_000_000 });
+  });
+
+  it("GEMELO POSITIVO · sin brecha (cash_gap_amount_14d 0, has_gap false) → cubierto y null", () => {
+    expect(mapBrechaTotal(NO_DEFICIT)).toBeNull();
+    expect(mapEstadoBrecha(NO_DEFICIT)).toEqual({ tipo: "cubierto" });
+  });
+
+  it("brecha declarada con monto ausente → indeterminado, nunca $0 ni un saldo reconstruido", () => {
+    const s: DashboardSummaryV2 = {
+      ...DEFICIT,
+      cash_gap: { ...DEFICIT.cash_gap!, cash_gap_amount_14d: "" },
+    };
+    expect(mapEstadoBrecha(s)).toEqual({ tipo: "indeterminado" });
+    expect(mapBrechaTotal(s)).toBeNull();
+  });
+
+  it("sin cash_gap_amount_14d el front NO reconstruye el monto desde críticas y saldo final", () => {
+    /* Las dos formas que tenía la versión anterior, ahora sin efecto: con saldo negativo
+     * publicaba −saldo (5.737.505); con saldo positivo, críticas − caja (3.218.622). Sin el monto
+     * del contrato la brecha queda declarada, no cuantificada. */
+    const negativo = {
       ...emptySummary(),
       cash_gap: {
         has_gap: true,
@@ -146,21 +167,9 @@ describe("mapBrechaTotal / mapEstadoBrecha", () => {
         projected_cash_14d: "-5737505",
       },
     } as unknown as DashboardSummaryV2;
-    expect(mapEstadoBrecha(s)).toEqual({
-      tipo: "brecha_mixta",
-      descubierto: 5_737_505,
-      criticas: 4_218_622,
-    });
-    expect(mapBrechaTotal(s)).toBe(5_737_505);
-    expect(respuestaEstadoBrecha(mapEstadoBrecha(s))).toBe(
-      "La caja proyectada queda −$5.737.505 bajo cero, ya considerando $4.218.622 en pagos críticos de 14 días.",
-    );
-  });
-
-  it("CONTRAPESO · con la caja POSITIVA el monto SIGUE siendo obligaciones menos caja", () => {
-    /* Sin este, el cambio se satisface devolviendo siempre el descubierto — y con la caja
-     * positiva no hay descubierto: lo que falta ES la resta, y esa rama tiene que seguir viva. */
-    const s = {
+    expect(mapEstadoBrecha(negativo)).toEqual({ tipo: "indeterminado" });
+    expect(mapBrechaTotal(negativo)).toBeNull();
+    const positivo = {
       ...emptySummary(),
       cash_gap: {
         has_gap: true,
@@ -168,30 +177,42 @@ describe("mapBrechaTotal / mapEstadoBrecha", () => {
         projected_cash_14d: "1000000",
       },
     } as unknown as DashboardSummaryV2;
-    expect(mapEstadoBrecha(s)).toEqual({ tipo: "brecha", monto: 3_218_622 });
-    expect(mapBrechaTotal(s)).toBe(3_218_622);
+    expect(mapEstadoBrecha(positivo)).toEqual({ tipo: "indeterminado" });
+    expect(mapBrechaTotal(positivo)).toBeNull();
+  });
+  it("el copy Q1 publica la brecha canónica con su apellido, no una suma ni un saldo", () => {
+    expect(respuestaEstadoBrecha(mapEstadoBrecha(DEFICIT))).toBe(
+      "La empresa debe asegurar $14.000.000 para que su caja no quede bajo cero en los próximos 14 días.",
+    );
+    expect(respuestaEstadoBrecha({ tipo: "indeterminado" })).toBe(
+      "Hay una brecha de caja declarada, pero no podemos cuantificarla con los datos de hoy.",
+    );
+    expect(respuestaEstadoBrecha({ tipo: "cubierto" })).toBe(
+      "La caja proyectada cubre las obligaciones críticas de los próximos 14 días.",
+    );
   });
   it("null cuando no hay gap", () => {
     const s = { ...emptySummary(), cash_gap: { has_gap: false } } as unknown as DashboardSummaryV2;
     expect(mapBrechaTotal(s)).toBeNull();
     expect(mapEstadoBrecha(s)).toEqual({ tipo: "cubierto" });
   });
-  it("has_gap TRUE pero nuestra resta no la ve → 'indeterminado', NUNCA 'cubierto'", () => {
-    // El backend sabe del valle intra-período / caja mínima; nosotros solo el saldo al día 14.
+  it("has_gap TRUE con monto publicado → brecha aunque el saldo final sea holgado", () => {
+    // El backend sabe del valle intra-período; un cierre positivo no lo borra (D03).
     const s = {
       ...emptySummary(),
       cash_gap: {
         has_gap: true,
+        cash_gap_amount_14d: "1500000",
         critical_obligations_14d: "4218622",
         projected_cash_14d: "9000000",
       },
     } as unknown as DashboardSummaryV2;
-    expect(mapEstadoBrecha(s)).toEqual({ tipo: "indeterminado" });
-    expect(mapBrechaTotal(s)).toBeNull(); // no cuantificable
+    expect(mapEstadoBrecha(s)).toEqual({ tipo: "brecha", monto: 1_500_000 });
+    expect(mapBrechaTotal(s)).toBe(1_500_000);
   });
-  it("SIN obligaciones críticas ($0) y caja negativa → 'indeterminado', NO una brecha falsa", () => {
-    // Caso real Tooxs: críticas=0, caja=−3.935.682. El faltante (críticas−caja) daría $3,9M,
-    // pero es la caja negativa, no una brecha de pagos → no dispara el plan de cierre.
+  it("SIN obligaciones críticas ($0) y saldo negativo → 'indeterminado', NO una brecha falsa", () => {
+    // Caso real Tooxs: críticas=0, caja=−3.935.682, sin monto publicado. El saldo bajo cero NO es
+    // la brecha (D03) → no dispara el plan de cierre con un número que el backend no publicó.
     const s = {
       ...emptySummary(),
       cash_gap: { has_gap: true, critical_obligations_14d: "0", projected_cash_14d: "-3935682.15" },

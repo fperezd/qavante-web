@@ -28,6 +28,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { formatDateLike, formatDateTimeLike } from "@/lib/formatters/date";
 import { parseAmount, isEmptySummary } from "./dashboard-format";
 import { describeCashGap14d } from "./cash-gap-14d";
+import type { CashGap14dCifras, CashGap14dInput } from "./cash-gap-14d";
 import { PulsoRing } from "./pulso-ring";
 import { estadoVencimientoCritico } from "./critical-payment-status";
 import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-projection-run-panel";
@@ -356,41 +357,42 @@ export function Dashboard({
   );
 }
 
-/* Línea de la card "Brecha de caja" del grid. MISMO hecho que el banner de arriba, en versión
-   corta: las dos superficies se muestran JUNTAS (`Dashboard` monta el banner y después la card,
-   las dos bajo `data.cash_gap`), no son pantallas alternativas.
+/* Las dos superficies del MISMO hecho (banner de ancho completo + línea de la card del grid) se
+   leen juntas, así que comparten vocabulario y, sobre todo, comparten el NÚMERO: la brecha que
+   publica el backend (`cash_gap_amount_14d`), leída por `describeCashGap14d`.
 
-   POR ESO EL VOCABULARIO ES EL MISMO, no sólo el número. La versión anterior decía "queda en
-   −$1.000.000" en el caso mixto y "está en −$X (bajo cero)" en `overdraft`, mientras el banner
-   decía "queda bajo cero: −$X" y "está bajo cero: −$X": el mismo hecho, escrito de dos formas
-   distintas, a un scroll de distancia. Y la rama mixta confía el hecho entero al glifo del menos
-   — el defecto que el #54 §4 denuncia, que vivía en DOS publicadores y del que el primer
-   intento de este PR arregló sólo uno.
+   Lo que ninguna de las dos hace (D01/D03, #296): reconstruir la brecha como "críticas menos
+   caja" ni publicar el saldo final con el signo cambiado. El fixture canónico del repo tiene
+   brecha 14.000.000 con saldo final −10.000.000: la versión anterior mostraba el segundo con el
+   apellido del primero. Las tres cifras del contrato se muestran cada una con su nombre y NUNCA
+   combinadas; lo ausente dice "Sin dato", no "$0".
 
-   Extraído del IIFE inline que era antes por la misma razón que `CashGapBanner`: sin componente
-   con nombre no hay forma de montarlo en un test, y la mutación del #54 aplicada ACÍ sobrevivía
-   con los 1591 tests y el gate de Storybook en verde. Ver `cash-gap-banner.test.tsx`. */
-export function CashGapCardLine({ critical, projected }: { critical: number; projected: number }) {
-  const gap = describeCashGap14d(critical, projected);
+   Exportadas y sin hooks de datos a propósito: el signo y el apellido de una cifra de plata se
+   fijan en un test de función pura (`cash-gap-banner.test.tsx`), no sólo en Storybook (#54). */
+
+/** "Mínimo a 14 días · saldo al día 14 · pagos críticos", cada uno con su nombre; `null` → "Sin dato". */
+function CifrasBrecha({ minimo, saldoFinal, criticas }: CashGap14dCifras) {
+  const cifra = (v: number | null) => (
+    <span className="tabular-nums text-neutral-dark">{v == null ? "Sin dato" : formatClp(v)}</span>
+  );
+  return (
+    <>
+      Mínimo a 14 días {cifra(minimo)} · saldo al día 14 {cifra(saldoFinal)} · pagos críticos{" "}
+      {cifra(criticas)}
+    </>
+  );
+}
+
+export function CashGapCardLine({ summary }: { summary: CashGap14dInput }) {
+  const gap = describeCashGap14d(summary);
+  if (gap.kind === "sin_dato" || gap.kind === "cubierto") return null;
   return (
     <div className="flex items-start gap-2 text-sm text-danger-700">
       <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
-      {gap.kind === "shortfall" ? (
+      {gap.kind === "brecha" ? (
         <span>
-          Te faltan <b className="tabular-nums">{formatClp(gap.faltante)}</b> para tus pagos
-          críticos de 14 días.
-        </span>
-      ) : gap.kind === "overdraft_with_dues" ? (
-        <span>
-          En 14 días tu caja proyectada llega a{" "}
-          <b className="tabular-nums">{formatClp(-gap.descubierto)}</b>. Incluye{" "}
-          <b className="tabular-nums">{formatClp(gap.criticas)}</b> en pagos que vencen en ese
-          período.
-        </span>
-      ) : gap.kind === "overdraft" ? (
-        <span>
-          Tu caja proyectada a 14 días está bajo cero:{" "}
-          <b className="tabular-nums">{formatClp(gap.projected)}</b>.
+          Te faltan <b className="tabular-nums">{formatClp(gap.faltante)}</b> para que tu caja no
+          quede bajo cero en 14 días.
         </span>
       ) : (
         <span>Hay una brecha de caja declarada para los próximos 14 días.</span>
@@ -399,20 +401,12 @@ export function CashGapCardLine({ critical, projected }: { critical: number; pro
   );
 }
 
-/* Banner de brecha de caja (answer-first): el FALTANTE es el número que dispara la
-   acción — protagonista; el desglose (críticas / caja) es respaldo, más chico.
-   Clickeable al detalle de proyección. Solo se muestra cuando hay brecha.
-
-   EXPORTADO A PROPÓSITO, aunque la página monta `InicioEjecutivoView`: este es el sitio donde
-   el SIGNO de una cifra de plata decide si el dueño lee "tengo un millón" o "debo un millón",
-   en la primera pantalla. Sin export, el copy sólo se ejercitaba por Storybook y dos mutaciones
-   que invierten el sentido sobrevivían con la suite entera en verde (#54). Se testea directo,
-   sin react-query ni MSW de por medio: es una función pura de dos números a texto.
-   Ver `cash-gap-banner.test.tsx` y `cash-gap-banner.stories.tsx`. */
-export function CashGapBanner({ critical, projected }: { critical: number; projected: number }) {
-  // Copy honesto: con obligaciones críticas en $0, el "faltante" no es una brecha contra
-  // pagos (no los hay) sino la caja proyectada en negativo. Ver describeCashGap14d.
-  const gap = describeCashGap14d(critical, projected);
+/* Banner de brecha de caja (answer-first): el FALTANTE es el número que dispara la acción —
+   protagonista; el desglose (mínimo / saldo final / críticas) es respaldo, más chico. Clickeable
+   al detalle de proyección. Rinde `null` sin brecha declarada: no hay "todo bien" acá. */
+export function CashGapBanner({ summary }: { summary: CashGap14dInput }) {
+  const gap = describeCashGap14d(summary);
+  if (gap.kind === "sin_dato" || gap.kind === "cubierto") return null;
   return (
     <Link
       href="/caja/proyeccion"
@@ -429,44 +423,17 @@ export function CashGapBanner({ critical, projected }: { critical: number; proje
           />
           <div>
             <p className="text-sm font-semibold text-danger-700">
-              {gap.kind === "shortfall" ? (
+              {gap.kind === "brecha" ? (
                 <>
-                  Te faltan <span className="tabular-nums">{formatClp(gap.faltante)}</span> para
-                  cubrir tus pagos críticos de los próximos 14 días
-                </>
-              ) : gap.kind === "overdraft_with_dues" ? (
-                /* El copy aprobado nombra el plazo, muestra el monto con signo negativo y
-                   explica los pagos incluidos. `tabular-nums` mantiene la cifra legible al
-                   actualizarse. */
-                <>
-                  En 14 días tu caja proyectada llega a{" "}
-                  <span className="tabular-nums">{formatClp(-gap.descubierto)}</span>. Incluye{" "}
-                  <span className="tabular-nums">{formatClp(gap.criticas)}</span> en pagos que
-                  vencen en ese período.
-                </>
-              ) : gap.kind === "overdraft" ? (
-                <>
-                  Tu caja proyectada a 14 días está bajo cero:{" "}
-                  <span className="tabular-nums">{formatClp(gap.projected)}</span>
+                  Te faltan <span className="tabular-nums">{formatClp(gap.faltante)}</span> para que
+                  tu caja no quede bajo cero en los próximos 14 días
                 </>
               ) : (
                 <>Hay una brecha de caja declarada para los próximos 14 días</>
               )}
             </p>
             <p className="mt-0.5 text-xs text-neutral-mid">
-              {gap.kind === "overdraft" ? (
-                <>
-                  Sin pagos críticos registrados en 14 días · caja proyectada{" "}
-                  <span className="tabular-nums text-neutral-dark">{formatClp(projected)}</span>
-                </>
-              ) : (
-                <>
-                  Obligaciones críticas{" "}
-                  <span className="tabular-nums text-neutral-dark">{formatClp(critical)}</span> ·
-                  caja proyectada{" "}
-                  <span className="tabular-nums text-neutral-dark">{formatClp(projected)}</span>
-                </>
-              )}
+              <CifrasBrecha {...gap} />
             </p>
           </div>
         </div>

@@ -1,31 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  LOCAL_CASH_GAP_PATTERNS,
+  LOCAL_CASH_GAP_SAMPLES,
+  productionSources,
+} from "@/test/no-local-cash-gap";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const productionFiles = readdirSync(HERE)
-  .filter((name) => /\.tsx?$/.test(name) && !/\.(test|stories)\.tsx?$/.test(name))
-  .map((name) => ({ name, source: readFileSync(join(HERE, name), "utf8") }));
+const productionFiles = productionSources(HERE);
 
 describe("Pagar V2 no deriva brechas financieras", () => {
   it("prohíbe helpers y restas entre obligaciones y caja en código productivo", () => {
-    const forbidden = [
-      /calcularBrecha/,
-      /brechaResidual/,
-      /(?:criticos|críticos|pagosCriticos|due_14d)\s*-\s*(?:caja|cash|projected)/i,
-      /(?:caja|cash|projected)\s*-\s*(?:criticos|críticos|pagosCriticos|due_14d)/i,
-    ];
-
+    expect(productionFiles.length).toBeGreaterThan(0);
     for (const file of productionFiles) {
-      for (const pattern of forbidden) {
+      for (const pattern of LOCAL_CASH_GAP_PATTERNS) {
         expect(file.source, `${file.name} contiene ${pattern}`).not.toMatch(pattern);
       }
     }
   });
 
+  it("GEMELO POSITIVO · los patrones atrapan las formas que prohíben", () => {
+    for (const sample of LOCAL_CASH_GAP_SAMPLES) {
+      expect(
+        LOCAL_CASH_GAP_PATTERNS.some((pattern) => pattern.test(sample)),
+        `ningún patrón casa con: ${sample}`,
+      ).toBe(true);
+    }
+  });
+
   it("consume agregados ejecutivos full-universe y sólo rotula el detalle local como visible", () => {
-    const live = productionFiles.find((file) => file.name === "pagar-v2-view-live.tsx")?.source;
+    const live = productionFiles.find((file) =>
+      file.name.endsWith("pagar-v2-view-live.tsx"),
+    )?.source;
     expect(live).toBeDefined();
     expect(live).toContain("resp?.total");
     expect(live).toContain("resp?.due_7d");

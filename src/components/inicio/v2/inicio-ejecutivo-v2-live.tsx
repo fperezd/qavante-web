@@ -295,11 +295,11 @@ function buildTermometros(s: DashboardSummaryV2): Termometro[] {
   // separado: así no puede haber "🔴 Crítico" con texto "cubre", ni afirmar cobertura
   // sin dato de caja.
   // `has_gap` del backend manda: el FE NUNCA degrada una brecha declarada a "holgado" (él ve el
-  // valle intra-período y la caja mínima; nosotros solo el saldo al día 14). Si declara brecha y
-  // nuestra resta no la cuantifica → "sin confirmar", ni alarma ni tranquilidad falsa.
+  // valle intra-período y la caja mínima). El monto es `cash_gap_amount_14d` tal cual (D01); si
+  // declara brecha sin publicar el monto → "sin confirmar", ni alarma ni tranquilidad falsa.
   const estadoBrecha = mapEstadoBrecha(s);
   if (estadoBrecha.tipo !== "sin_dato") {
-    const crit = estadoBrecha.tipo === "brecha" || estadoBrecha.tipo === "brecha_mixta";
+    const crit = estadoBrecha.tipo === "brecha";
     const indet = estadoBrecha.tipo === "indeterminado";
     items.push({
       n: 1,

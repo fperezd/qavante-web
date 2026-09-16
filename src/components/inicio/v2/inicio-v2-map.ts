@@ -100,56 +100,45 @@ export function mapCaja(s: DashboardSummaryV2): CajaProyeccionProps | null {
 }
 
 /** Estado de cobertura de la brecha a 14 días. `has_gap` del backend es la FUENTE DE VERDAD (él
- *  sabe del valle intra-período y del colchón de caja mínima; nosotros solo vemos el saldo al día
- *  14). El FE nunca puede degradar un `has_gap: true` a "holgado": si el backend declara brecha
- *  pero nuestra resta no la ve, quedamos en `indeterminado` (ni alarma ni tranquilidad falsa). */
+ *  sabe del valle intra-período y del colchón de caja mínima; nosotros solo vemos las cifras que
+ *  publica). El FE nunca puede degradar un `has_gap: true` a "holgado": si el backend declara
+ *  brecha pero no publicó su monto, quedamos en `indeterminado` (ni alarma ni tranquilidad falsa).
+ *
+ *  El monto es `cash_gap_amount_14d` tal cual (D01/D03, #296): ni "críticas menos caja" ni el
+ *  saldo final con el signo cambiado. Ver `describeCashGap14d`. */
 export type EstadoBrecha =
   | { tipo: "sin_dato" } // el bloque cash_gap no vino
   | { tipo: "cubierto" } // el backend dice que NO hay brecha
-  | { tipo: "brecha"; monto: number } // hay brecha y la pudimos cuantificar
-  | { tipo: "brecha_mixta"; descubierto: number; criticas: number }
-  | { tipo: "indeterminado" }; // el backend dice que hay brecha pero no la podemos cuantificar
+  | { tipo: "brecha"; monto: number } // hay brecha y el backend la cuantificó
+  | { tipo: "indeterminado" }; // el backend dice que hay brecha pero no publicó el monto
 
 export function mapEstadoBrecha(s: DashboardSummaryV2): EstadoBrecha {
-  const g = s.cash_gap;
-  if (!g) return { tipo: "sin_dato" };
-  if (!g.has_gap) return { tipo: "cubierto" };
-  // "Brecha" (dispara el plan de cierre = cobrar + financiar obligaciones) SOLO si hay
-  // obligaciones críticas reales y la caja no alcanza. Con críticas en $0 el `faltante` sería
-  // la caja negativa, no una brecha de pagos → NO es un plan a ejecutar (queda indeterminado).
-  const gap = describeCashGap14d(
-    parseAmount(g.critical_obligations_14d),
-    parseAmount(g.projected_cash_14d),
-  );
-  // El CASO MIXTO (caja bajo cero Y obligaciones reales) TAMBIÉN es un plan a ejecutar: hay
-  // pagos críticos de verdad y la caja no los cubre. Pero el monto es el DESCUBIERTO, no
-  // `criticas + |proyectada|`: el saldo bajo cero ya es después de pagarlas, así que sumarlos
-  // es doble conteo y el título del plan pediría conseguir más plata de la que hace falta.
-  if (gap.kind === "overdraft_with_dues") {
-    return { tipo: "brecha_mixta", descubierto: gap.descubierto, criticas: gap.criticas };
+  const gap = describeCashGap14d(s);
+  switch (gap.kind) {
+    case "sin_dato":
+      return { tipo: "sin_dato" };
+    case "cubierto":
+      return { tipo: "cubierto" };
+    case "brecha":
+      return { tipo: "brecha", monto: gap.faltante };
+    default:
+      return { tipo: "indeterminado" };
   }
-  return gap.kind === "shortfall" && gap.faltante > 0
-    ? { tipo: "brecha", monto: gap.faltante }
-    : { tipo: "indeterminado" };
 }
 
-/** Brecha total a 14 días (positivo) cuando se pudo cuantificar; `null` en el resto de los casos.
- *  Alimenta el título del plan. Para el termómetro usar `mapEstadoBrecha` (distingue "cubierto"
- *  de "hay brecha pero no la podemos cuantificar"). */
+/** Brecha total a 14 días (positivo) tal como la publica el backend; `null` en el resto de los
+ *  casos. Para el termómetro usar `mapEstadoBrecha` (distingue "cubierto" de "hay brecha pero el
+ *  backend no la cuantificó"). */
 export function mapBrechaTotal(s: DashboardSummaryV2): number | null {
   const e = mapEstadoBrecha(s);
-  if (e.tipo === "brecha") return e.monto;
-  return e.tipo === "brecha_mixta" ? e.descubierto : null;
+  return e.tipo === "brecha" ? e.monto : null;
 }
 
-/** Copy Q1: el descubierto mixto es saldo final DESPUÉS de los pagos críticos; no los suma ni
- * los presenta como si fueran el mismo concepto. */
+/** Copy Q1: el monto es la brecha canónica contra cero de la curva (las obligaciones ya están
+ * dentro), no una suma ni un saldo. */
 export function respuestaEstadoBrecha(e: EstadoBrecha): string {
-  if (e.tipo === "brecha_mixta") {
-    return `La caja proyectada queda ${formatClp(-e.descubierto)} bajo cero, ya considerando ${formatClp(e.criticas)} en pagos críticos de 14 días.`;
-  }
   if (e.tipo === "brecha") {
-    return `La empresa debe asegurar ${formatClp(e.monto)} para sus pagos de 14 días.`;
+    return `La empresa debe asegurar ${formatClp(e.monto)} para que su caja no quede bajo cero en los próximos 14 días.`;
   }
   if (e.tipo === "indeterminado") {
     return "Hay una brecha de caja declarada, pero no podemos cuantificarla con los datos de hoy.";
