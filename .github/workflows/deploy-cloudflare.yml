@@ -198,12 +198,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.PRODUCTION_CLOUDFLARE_ACCOUNT_ID }}
           RELEASE_SHA: ${{ inputs.release_sha }}
           BUNDLE_SHA256: ${{ needs.build.outputs.bundle_sha256 }}
+          RUNTIME_RELEASE_URL: https://app.qavante.com/api/release
         shell: bash
         run: |
           npx wrangler deployments list --json > deployed-versions.json
-          curl --fail --silent --show-error --retry 5 --retry-all-errors \
-            https://app.qavante.com/api/release > runtime-release.json
-          node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync("runtime-release.json","utf8"));if(r.status!=="ok"||r.source_sha!==process.env.RELEASE_SHA||r.bundle_sha256!==process.env.BUNDLE_SHA256)throw new Error(`runtime provenance mismatch: ${JSON.stringify(r)}`)'
+          node .github/release/verify-runtime.mjs
       - name: Write final release provenance
         if: always()
         env:

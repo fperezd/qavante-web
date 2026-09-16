@@ -29,6 +29,22 @@ observación de `/api/release`. La configuración de release parte del
 `wrangler.toml` versionado y sólo sustituye los dos placeholders de procedencia;
 no usa `--var`, que podría omitir las demás variables versionadas.
 
+Verificar la procedencia en runtime es un sondeo con presupuesto, no una
+lectura única: tras `wrangler deploy`, `.github/release/verify-runtime.mjs`
+consulta `/api/release` cada 5 s durante hasta 120 s y da el paso por bueno en
+cuanto `status == "ok"` y `source_sha`/`bundle_sha256` coinciden con el
+release recién promovido. Un 5xx o un 200 con el bundle todavía anterior
+(Cloudflare propagando) no fallan de inmediato: son una respuesta más que no
+coincide y el sondeo reintenta hasta el siguiente intervalo. Sólo falla si se
+agota el presupuesto completo sin una coincidencia, mostrando la última
+respuesta vista (`runtime-release.json`, que también alimenta el artefacto de
+procedencia). En la práctica esto significa que `gh run rerun <run_id>
+--failed` ya no debería hacer falta por simple lag de propagación de
+Cloudflare: el propio paso espera lo necesario dentro del mismo run. Si el
+job igual falla, es porque `/api/release` no llegó a coincidir en 120 s
+reales, y ahí sí corresponde investigar (o, si el deploy resultó correcto más
+tarde, recién entonces re-ejecutar).
+
 ### Configuración obligatoria del gate compensatorio (una vez)
 
 En `Settings → Environments → production`:

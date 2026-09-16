@@ -11,6 +11,8 @@ on:
       - ".github/workflows/deploy-cloudflare.yml"
       - ".github/release-gate.mjs"
       - ".github/release-gate.check.mjs"
+      - ".github/release/verify-runtime.mjs"
+      - ".github/release/verify-runtime.check.mjs"
   push:
     branches: [main]
     paths:
@@ -21,6 +23,8 @@ on:
       - ".github/workflows/deploy-cloudflare.yml"
       - ".github/release-gate.mjs"
       - ".github/release-gate.check.mjs"
+      - ".github/release/verify-runtime.mjs"
+      - ".github/release/verify-runtime.check.mjs"
 
 permissions:
   contents: read
@@ -29,6 +33,11 @@ jobs:
   conformance:
     name: factory-conformance
     runs-on: ubuntu-latest
+    # --test-timeout corta un test que espera; no corta un bucle que sólo
+    # encadena microtareas sin await real (p.ej. una regresión que borre el
+    # throw por agotamiento de presupuesto en pollRuntimeProvenance). Sin este
+    # límite de job, ese caso cuelga el runner hasta el máximo de GitHub (6h).
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       - name: Validate Tooxs AI Factory Framework conformance
@@ -37,3 +46,5 @@ jobs:
         run: node .github/gate-review.check.mjs
       - name: Validate SHA-bound production release gate
         run: node .github/release-gate.check.mjs
+      - name: Validate runtime provenance polling
+        run: node --test --test-timeout=30000 .github/release/verify-runtime.check.mjs
