@@ -20,6 +20,7 @@ import { ConcentracionClientes } from "@/components/sii/libro-v2/concentracion-c
 import { useTableSort, type SortColumn } from "@/lib/hooks/use-table-sort";
 import { SortBar } from "@/components/filters/sort-bar";
 import {
+  HERO_TOTAL_HINT,
   mapVencimientos,
   mapFechasClave,
   mapConcentracion,
@@ -77,11 +78,13 @@ export function PagarV2ViewLive({
   const now = React.useMemo(() => ahora(), []);
   const vencSort = useTableSort(VENC_COLS, null);
 
-  // UNIFICACIÓN: los PROVEEDORES salen del maestro RCV compras (net NC, conciliado, vencido
-  // derivado) y los HONORARIOS del BHE — el detalle que accounts-payable OMITE (partial) y que
-  // sobreestima al no netear NC. Sueldos/impuestos/manuales se toman de accounts-payable (no-DTE).
-  // El detalle se compone desde ambas fuentes. Totales, conteos y ventanas ejecutivas salen
-  // exclusivamente de los agregados full-universe de accounts-payable, nunca de esta lista.
+  // DOS UNIVERSOS, declarados: el TITULAR es `resp.total`, el agregado del servidor sobre todo
+  // el registro de accounts-payable. La TABLA compone otro universo: proveedores desde el maestro
+  // RCV compras (net NC, conciliado, vencido derivado), honorarios desde el BHE y el resto
+  // (sueldos/impuestos/manuales, no-DTE) desde accounts-payable. Unificarlos es semántica
+  // financiera visible (R2) y queda fuera de #302; acá sólo se cuida que el hint del titular
+  // describa el NÚMERO (`HERO_TOTAL_HINT`) y no la composición de la tabla. Totales, conteos y
+  // ventanas ejecutivas salen exclusivamente de los agregados del servidor, nunca de esta lista.
   const { supplierItems, honorariosItems } = React.useMemo(() => {
     const terminos = readTerminos(prefs.data?.preferences);
     const pagados = readPagados(prefs.data?.preferences);
@@ -184,7 +187,7 @@ export function PagarV2ViewLive({
             cobertura="La cobertura se lee en la proyección canónica de 14 días."
             coberturaTono="neutral"
             subtitulo={subtitulo(resp?.items_total, resp?.has_more)}
-            infoHint="Total de pagos y obligaciones pendientes: proveedores (net de notas de crédito) y honorarios del SII, más impuestos, cotizaciones, sueldos, arriendos y deuda. La cobertura la publica la proyección canónica de 14 días."
+            infoHint={HERO_TOTAL_HINT}
           />
         )
       }

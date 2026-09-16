@@ -35,6 +35,8 @@ export interface RcvDetalleGridProps {
   documentLinksIndex: ReadonlyMap<string, DteDocumentLink>;
   /** La consulta D07 falló: la fila dice "no disponible", nunca "sin evidencia". */
   documentLinksFailed?: boolean;
+  /** La consulta D07 llegó al tope: un corrector ausente del índice dice "no disponible". */
+  documentLinksTruncated?: boolean;
   documentLinksLoading?: boolean;
   /** Ventas puede traer el vencimiento enriquecido desde el backend. */
   showDueDate?: boolean;
@@ -60,6 +62,7 @@ export function RcvDetalleGrid({
   statusById,
   documentLinksIndex,
   documentLinksFailed = false,
+  documentLinksTruncated = false,
   documentLinksLoading = false,
   showDueDate = false,
 }: RcvDetalleGridProps) {
@@ -206,6 +209,7 @@ export function RcvDetalleGrid({
           const sourceExternalId = rcvSourceExternalId(row.original);
           const resolution = resolveDocumentLink(documentLinksIndex, sourceExternalId, {
             failed: documentLinksFailed,
+            truncated: documentLinksTruncated,
           });
           return (
             <DocumentLinkStatusBadge
@@ -261,6 +265,7 @@ export function RcvDetalleGrid({
       statusById,
       documentLinksIndex,
       documentLinksFailed,
+      documentLinksTruncated,
       documentLinksLoading,
     ],
   );

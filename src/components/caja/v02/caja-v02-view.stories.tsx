@@ -39,7 +39,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'V02 · Caja (ESPECIFICACION §V02): tríada KPI (Hoy con chip banco+hora ✓ / Entra 14d / Sale 14d con postergable), banner de deuda de datos, barras de 4 semanas con "¿cómo se calcula?", tabla "Qué te lleva al punto más bajo" y footer con exclusiones. Postergar usa sólo el UUID publicado por la causa y tiene una ventana cancelable.',
+          'V02 · Caja (ESPECIFICACION §V02): tríada KPI (Hoy con chip banco+hora ✓ / Entra 14d / Sale 14d con su agregado no postergable del servidor), banner de deuda de datos, barras de 4 semanas con "¿cómo se calcula?", tabla "Qué te lleva al punto más bajo" y footer con exclusiones. Postergar usa sólo el UUID publicado por la causa y tiene una ventana cancelable.',
       },
     },
   },
@@ -67,7 +67,9 @@ export const Normal: Story = {
     await expect(kpis.getByText(/BICE · \d{2}:\d{2} ✓/)).toBeInTheDocument();
     await expect(canvas.getByText("+$14.498.964")).toBeInTheDocument();
     await expect(canvas.getByText("−$35.532.396")).toBeInTheDocument();
-    await expect(canvas.getByText(/\$1\.000\.000 negociable/)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/\$7\.574\.979 críticos en todo el registro/),
+    ).toBeInTheDocument();
     // 4 barras, ninguna en rojo.
     await expect(
       canvasElement.querySelectorAll('[aria-label="Neto por semana"] > li'),

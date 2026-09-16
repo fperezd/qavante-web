@@ -99,33 +99,53 @@ describe("CajaV02View — Ley 1: el KPI Hoy lee de cajaHoy() y de ningún otro l
 });
 
 describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
-  it("Entra 14d y Sale 14d con su postergable, con signos y menos tipográfico", () => {
+  it("Entra 14d y Sale 14d con su agregado no postergable, con signos y menos tipográfico", () => {
     const t = texto(html());
     expect(t).toContain("+$14.498.964");
     expect(t).toContain("−$35.532.396");
-    expect(t).toContain("$1.000.000 negociable");
+    /* El agregado del servidor (`non_postponable_or_overdue_14d`), el MISMO que V05 publica como
+       "Pagos críticos en todo el registro" (Ley 1). */
+    expect(t).toContain(
+      "$7.574.979 críticos en todo el registro (2 pagos que no se postergan o ya vencieron)",
+    );
+  });
+
+  it("no publica un negociable sumado desde los ítems de la página (#302 P2-6)", () => {
+    const t = texto(html());
+    /* Control negativo: Tradolarpeso + Vásquez (los dos "negociables" de la lista) suman
+       $1.000.000; ese número no puede aparecer con ningún rótulo. */
+    expect(t).not.toContain("$1.000.000");
+    expect(t).not.toContain("negociable");
+    // Gemelo: con el agregado ausente la pantalla lo declara en vez de aproximarlo.
+    expect(texto(html({ pagos: pagos({ non_postponable_or_overdue_14d: undefined }) }))).toContain(
+      "críticos en todo el registro: el servidor no publicó el agregado",
+    );
+  });
+
+  it("agregado parcial → 'al menos' con sus huecos declarados, nunca $0", () => {
+    const t = texto(
+      html({
+        pagos: pagos({
+          non_postponable_or_overdue_14d: {
+            amount_clp: null,
+            known_amount_clp: "174979",
+            complete: false,
+            count: 2,
+            unknown_due_date_count: 1,
+            excluded_by_currency: [{ currency: "USD", amount: "830" }],
+          },
+        }),
+      }),
+    );
+    expect(t).toContain(
+      "al menos $174.979 críticos en todo el registro (2 pagos que no se postergan o ya vencieron) · 1 obligación sin fecha clasificable · 1 moneda excluida por falta de tipo de cambio",
+    );
+    expect(t).not.toContain("$0 críticos");
   });
 
   it('apellido de "Sale": declara que due_14d incluye lo YA vencido (remanente #82.3)', () => {
     const t = texto(html());
     expect(t).toContain("incluye lo ya vencido");
-  });
-
-  it("items al tope del backend → el copy declara el recorte (remanente #82.4)", () => {
-    const cien = Array.from({ length: 100 }, (_, i) => ({
-      label: `Proveedor ${i + 1}`,
-      category: "supplier" as const,
-      due_date: "2026-09-05",
-      due_date_certainty: "confirmed" as const,
-      amount: "10000",
-      criticality: "low" as const,
-      source: "SII",
-      currency: "CLP",
-    }));
-    const t = texto(html({ pagos: pagos({ items: cien }) }));
-    expect(t).toContain("primeros 100 pagos por vencer");
-    // Gemelo: bajo el tope, el copy no declara ningún recorte.
-    expect(texto(html())).not.toContain("puede haber más");
   });
 
   it("muestra la calidad del dato como auditoría secundaria, no como CTA de clasificación", () => {
@@ -190,18 +210,17 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
 
     expect(t).toContain("Pagos registrados en la proyección");
     expect(t).toContain("respaldan la decisión de caja");
-    expect(t).toContain("pagos comprometidos en los próximos 14 días");
-    expect(t).not.toContain("negociable en 0-14 días");
+    /* El agregado del servidor es evidencia, no una decisión local: se conserva con el Brief. */
+    expect(t).toContain("$7.574.979 críticos en todo el registro");
     expect(t).not.toContain("No se posterga");
     expect(t).not.toContain("Postergar mueve la fecha");
     expect(h).not.toContain('data-postergar="true"');
     expect(h).not.toContain('href="/pagar"');
 
     /* Gemelos con la MISMA cadena sobre el render sin supresión: si mañana el
-       texto cambia, las tres ausencias de arriba dejarían de medir nada y este
+       texto cambia, las dos ausencias de arriba dejarían de medir nada y este
        bloque falla primero. */
     const conPlanLocal = texto(html());
-    expect(conPlanLocal).toContain("negociable en 0-14 días");
     expect(conPlanLocal).toContain("No se posterga");
     expect(conPlanLocal).toContain("Postergar mueve la fecha");
   });

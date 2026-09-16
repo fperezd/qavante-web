@@ -45,8 +45,10 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
     await expect(page.getByText("Saldo final")).toBeVisible();
     await expect(page.getByText(/Mínimo · \d{4}-\d{2}-\d{2}/)).toBeVisible();
     await expect(page.getByText("Brecha contra cero")).toBeVisible();
-    /* El medidor de días derivado en el frontend ya no existe (D03). Gemelo positivo con la
-       MISMA regex sobre el texto que SÍ se publica: la etiqueta del escenario canónico. */
+    /* El medidor de días derivado en el frontend ya no existe (D03): sus etiquetas
+       "Caja holgada/ajustada/en riesgo" no vuelven. El gemelo positivo NO usa la misma regex
+       (esas etiquetas no se publican en ninguna parte): ancla, con otra regex, el panel canónico
+       que ocupa el lugar del medidor, para que el negativo no pase por bueno en una página vacía. */
     await expect(page.getByText(/Caja (holgada|ajustada|en riesgo)/)).toHaveCount(0);
     await expect(
       page.getByText(/Caja para decidir pagos|Proyección canónica/).first(),

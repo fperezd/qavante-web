@@ -22,7 +22,6 @@ import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
 import { concordar } from "@/lib/formatters/count";
 import type { PostponeDays } from "@/lib/api/pagos";
 import {
-  ITEMS_CAP,
   SEMANAS,
   VENTANA_DIAS,
   causasDelPiso,
@@ -37,9 +36,31 @@ import {
   semanas,
   type CausaV02,
   type ComoSeCalculaV02,
+  type NoPostergable14V02,
   type SemanaV02,
 } from "./caja-v02-model";
 import { PostponePayableControl } from "./postpone-payable-control";
+
+/** Apellido de "Sale · 14 días": el agregado no postergable/vencido tal como lo publica el
+ *  servidor. Un agregado parcial se dice "al menos"; uno ausente se declara, nunca se aproxima. */
+function noPostergableTexto(np: NoPostergable14V02 | null): string {
+  if (!np) return "críticos en todo el registro: el servidor no publicó el agregado";
+  const pagos = `${np.n} ${concordar(np.n, "pago que no se posterga o ya venció", "pagos que no se postergan o ya vencieron")}`;
+  const notas =
+    (np.fechasDesconocidas > 0
+      ? ` · ${np.fechasDesconocidas} ${concordar(np.fechasDesconocidas, "obligación sin fecha clasificable", "obligaciones sin fecha clasificable")}`
+      : "") +
+    (np.monedasExcluidas > 0
+      ? ` · ${np.monedasExcluidas} ${concordar(np.monedasExcluidas, "moneda excluida", "monedas excluidas")} por falta de tipo de cambio`
+      : "");
+  if (np.completo && np.monto != null) {
+    return `${formatClp(np.monto)} críticos en todo el registro (${pagos})${notas}`;
+  }
+  if (np.conocido > 0) {
+    return `al menos ${formatClp(np.conocido)} críticos en todo el registro (${pagos})${notas}`;
+  }
+  return `críticos en todo el registro: subtotal no disponible (${pagos})${notas}`;
+}
 
 /* V02 · Caja — "¿me alcanza la caja?" (rediseño Fase 2, issue #67).
  *
@@ -108,9 +129,7 @@ export function CajaV02View({
   const caja = cajaHoy(summary);
   const hoyKpi = kpiHoy(caja, bancos, hoy);
   const entra = entra14d(cobranza);
-  const sale = sale14d(pagos, hoy, {
-    includePostergabilidad: !suppressRecommendations,
-  });
+  const sale = sale14d(pagos);
   const deuda = deudaDeDatos(sinClasificar);
   const piso = puntoMasBajo(proyeccion);
   const barras = semanas(proyeccion);
@@ -164,18 +183,11 @@ export function CajaV02View({
             value={formatClp(-sale.total)}
             detail={
               <>
-                {/* Apellido (Ley 1): due_14d es acumulativo e incluye lo YA vencido, no sólo lo
-                    que vence en los próximos 14 días — "negociable" sí es sólo 0..14. */}
-                incluye lo ya vencido ·{" "}
-                {!suppressRecommendations && sale.postergable > 0
-                  ? `${formatClp(sale.postergable)} negociable en 0-14 días`
-                  : !suppressRecommendations
-                    ? "nada negociable en la ventana"
-                    : "pagos comprometidos en los próximos 14 días"}
-                {sale.sinConvertir > 0 &&
-                  ` · ${sale.sinConvertir} ${concordar(sale.sinConvertir, "pago", "pagos")} en otra moneda sin convertir`}
-                {sale.posibleRecorte &&
-                  ` · calculado sobre los primeros ${ITEMS_CAP} pagos por vencer, puede haber más`}
+                {/* Apellido (Ley 1): due_14d es acumulativo e incluye lo YA vencido. Lo que no se
+                    posterga sale del agregado del servidor (`non_postponable_or_overdue_14d`), el
+                    MISMO que V05 publica como "Pagos críticos en todo el registro"; el contrato no
+                    publica cuánto es negociable y esta pantalla no lo reconstruye (#302 P2-6). */}
+                incluye lo ya vencido · {noPostergableTexto(sale.noPostergable)}
               </>
             }
           />

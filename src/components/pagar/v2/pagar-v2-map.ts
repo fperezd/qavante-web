@@ -18,6 +18,12 @@ import type { Vencimiento, Postergabilidad } from "./vencimientos-timeline";
 import type { FechaClave, FechaClaveIcono } from "./fechas-clave-mes";
 import type { ConcentracionItem } from "@/components/sii/libro-v2/concentracion-clientes";
 
+/** Apellido del titular de Pagar v2 (Ley 1: toda cifra lleva apellido). Describe el NÚMERO —
+ *  `total` de `accounts-payable`, el agregado del servidor sobre todo el registro— y no la tabla
+ *  de abajo, que compone otro universo (RCV compras + BHE + no-DTE) y no está completa (#302 P2-3). */
+export const HERO_TOTAL_HINT =
+  "Total que publica el servidor sobre todas tus cuentas por pagar registradas, convertido a pesos: proveedores, honorarios, impuestos, cotizaciones, sueldos, arriendos y deuda. Las monedas sin tipo de cambio quedan fuera de este total. No es la suma de la tabla de abajo: esa tabla compone proveedores y honorarios desde los libros del SII y no cubre todo el registro. La cobertura la publica la proyección canónica de 14 días.";
+
 const NO_POSTERGABLE = new Set(["tax", "payroll", "debt"]);
 
 /** Postergabilidad heurística de un ítem (hasta que el backend la mande). */

@@ -14,7 +14,7 @@ import { CashProjectionRunPanel } from "@/components/cash-projection-runs/cash-p
  *   · `GET /api/treasury/cash-projection`  — barras, punto más bajo, causas, exclusiones
  *                                            (caché compartida con el medidor de Caja v3);
  *   · `GET /api/treasury/collection-forecast` — Entra 14d;
- *   · `GET /api/treasury/accounts-payable`  — Sale 14d + postergable;
+ *   · `GET /api/treasury/accounts-payable`  — Sale 14d + su agregado no postergable (server-side);
  *   · movimientos sin clasificar del mes en curso y el anterior — el banner de deuda de datos;
  *   · `GET /api/treasury/bank-accounts`     — sólo el NOMBRE del banco para el chip (no el saldo:
  *                                            el saldo sale del summary, Ley 1).

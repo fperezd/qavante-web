@@ -1,6 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { isValidElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PagarV2ViewProps } from "./pagar-v2-view";
+import type { PagarHeroProps } from "./pagar-hero";
+import { HERO_TOTAL_HINT } from "./pagar-v2-map";
 
 const arnes = vi.hoisted(() => ({
   props: undefined as PagarV2ViewProps | undefined,
@@ -81,6 +84,21 @@ describe("PagarV2ViewLive · Brief canónico", () => {
     expect(arnes.props?.estadoCaja).toBeNull();
     expect(arnes.props?.fechasClave).toBeNull();
     expect((arnes.props?.movibles ?? []).map((movible) => movible.id)).toEqual(["vencimientos"]);
+  });
+
+  it("el hint del titular describe el número del servidor, no la composición de la tabla (#302 P2-3)", () => {
+    renderToStaticMarkup(<PagarV2ViewLive />);
+
+    const hero = arnes.props?.hero;
+    if (!isValidElement<PagarHeroProps>(hero)) throw new Error("el hero no se montó");
+    expect(hero.props.infoHint).toBe(HERO_TOTAL_HINT);
+    /* El número es `resp.total` (agregado del servidor sobre TODO el registro), no la suma de
+       los ítems de la tabla: el hint tiene que decir de dónde sale y qué NO es. */
+    expect(HERO_TOTAL_HINT).toMatch(/publica el servidor/);
+    expect(HERO_TOTAL_HINT).toMatch(/No es la suma de la tabla/);
+    /* Control negativo: la frase anterior describía la tabla ("net de notas de crédito") como si
+       fuera el número; el titular no netea nada por su cuenta y el hint no puede afirmarlo. */
+    expect(HERO_TOTAL_HINT).not.toMatch(/net de notas de crédito/);
   });
 
   it("mantiene las piezas heredadas cuando no existe Brief", () => {

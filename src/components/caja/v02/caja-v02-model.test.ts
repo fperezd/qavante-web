@@ -29,8 +29,8 @@ import {
 /* V02 · Caja — el modelo, fijado.
  *
  * Ley 1 (el "Hoy" sale de `cajaHoy()`), Ley 2 (el mínimo bajo cero es el único candidato a rojo),
- * la ventana de 14 días con su postergable (Ley 9), el "no sé" explícito y las exclusiones. Cada
- * negativo lleva su gemelo positivo con el MISMO valor. */
+ * la ventana de 14 días con su agregado no postergable del servidor (Ley 9), el "no sé" explícito
+ * y las exclusiones. Cada negativo lleva su gemelo positivo con el MISMO valor. */
 
 // Signo menos tipográfico (U+2212) de `formatClp`; no un guion.
 const MINUS = "−";
@@ -103,13 +103,14 @@ describe("kpiHoy — Ley 1: recibe el CajaHoy de la fuente única, no desarma el
 
 describe("evidencia para Decision Brief", () => {
   it("no deriva postergabilidad ni reordena las causas cuando el Brief ya resolvió la decisión", () => {
-    const sale = sale14d(pagos(), HOY, { includePostergabilidad: false });
     const causas = causasDelPiso(PROYECCION_BAJO_CERO, {
       order: "source",
       includePostergabilidad: false,
     });
 
-    expect(sale?.postergable).toBe(0);
+    /* "Sale · 14 días" ya no deriva nada: consume el agregado del servidor en ambos modos, así
+       que no hay una segunda variante que apagar (#302 P2-6). */
+    expect(sale14d(pagos())?.noPostergable?.monto).toBe(7_574_979);
     expect(causas.every((causa) => causa.postergable === "sin_identidad")).toBe(true);
     expect(causas.map((causa) => causa.glosa)).toEqual(
       (PROYECCION_BAJO_CERO.punto_quiebre?.causas ?? []).map((causa) => causa.glosa),
@@ -145,76 +146,61 @@ describe("entra14d — buckets 0-7 y 8-14 del forecast de cobranza", () => {
   });
 });
 
-describe("sale14d — due_14d del backend + lo negociable en 14 días", () => {
-  it("total = due_14d; postergable = sólo lo NEGOCIABLE que vence en 0..14 días", () => {
-    const s = sale14d(pagos(), HOY)!;
+describe("sale14d — due_14d del backend + su agregado no postergable, sin sumar items (#302 P2-6)", () => {
+  it("total = due_14d; lo no postergable es el agregado del servidor tal cual", () => {
+    const s = sale14d(pagos())!;
     expect(s.total).toBe(35_532_396);
-    // Tradolarpeso + Vásquez (supplier, medium) = negociable. F29 (tax) y Sueldos (payroll) NO
-    // (Ley 9). Arriendo vence a 20 días: fuera de la ventana aunque sea negociable.
-    expect(s.postergable).toBe(674_473 + 325_527);
-    expect(s.postergable).toBe(1_000_000);
-    expect(s.sinConvertir).toBe(0);
+    expect(s.noPostergable).toEqual({
+      monto: 7_574_979,
+      conocido: 7_574_979,
+      n: 2,
+      completo: true,
+      fechasDesconocidas: 0,
+      monedasExcluidas: 0,
+    });
   });
 
-  it("Ley 9: si el F29 y los sueldos entraran como negociables la cifra sería otra (gemelo)", () => {
-    const s = sale14d(pagos(), HOY)!;
-    expect(s.postergable).not.toBe(1_000_000 + 174_979 + 7_400_000);
-    expect(1_000_000 + 174_979 + 7_400_000).toBe(8_574_979);
+  it("no reconstruye nada desde `items`: la MISMA respuesta sin ítems da el MISMO agregado", () => {
+    const conItems = sale14d(pagos())!;
+    const sinItems = sale14d(pagos({ items: [] }))!;
+    expect(sinItems).toEqual(conItems);
+    /* Control negativo: si el modelo volviera a sumar lo "negociable" de la lista, con estos
+       ítems daría 1.000.000 (Tradolarpeso + Vásquez); ese número no existe en la salida. */
+    expect(JSON.stringify(conItems)).not.toContain("1000000");
   });
 
-  it("el corte es 14 días, no 30: el arriendo del día 20 no entra (gemelo con el corte ancho)", () => {
-    const s = sale14d(pagos(), HOY)!;
-    expect(s.postergable).not.toBe(2_500_000);
-    // Movido al día 10, SÍ entra.
-    const p = pagos();
-    p.items = p.items!.map((it) =>
-      it.label === "Arriendo oficina" ? { ...it, due_date: "2026-09-09" } : it,
-    );
-    expect(sale14d(p, HOY)!.postergable).toBe(2_500_000);
+  it("agregado parcial → `monto` null y el conocido como piso; nunca $0 conocido", () => {
+    const s = sale14d(
+      pagos({
+        non_postponable_or_overdue_14d: {
+          amount_clp: null,
+          known_amount_clp: "174979",
+          complete: false,
+          count: 2,
+          unknown_due_date_count: 1,
+          excluded_by_currency: [{ currency: "USD", amount: "830" }],
+        },
+      }),
+    )!;
+    expect(s.noPostergable).toEqual({
+      monto: null,
+      conocido: 174_979,
+      n: 2,
+      completo: false,
+      fechasDesconocidas: 1,
+      monedasExcluidas: 1,
+    });
   });
 
-  it("INV-FX-001: una extranjera sin amount_clp no se suma como pesos y se cuenta aparte", () => {
-    const p = pagos();
-    p.items = [
-      ...p.items!,
-      {
-        label: "AWS",
-        category: "supplier",
-        due_date: "2026-09-05",
-        due_date_certainty: "confirmed",
-        amount: "1240",
-        criticality: "medium",
-        source: "Tarjeta",
-        currency: "USD",
-        amount_clp: "",
-      },
-    ];
-    const s = sale14d(p, HOY)!;
-    expect(s.postergable).toBe(1_000_000);
-    expect(s.sinConvertir).toBe(1);
+  it("sin el agregado en la respuesta → `noPostergable` null (se declara, no se aproxima)", () => {
+    const s = sale14d(pagos({ non_postponable_or_overdue_14d: undefined }))!;
+    expect(s.total).toBe(35_532_396);
+    expect(s.noPostergable).toBeNull();
   });
 
   it("sin accounts-payable → null; con due_14d en blanco → null (no $0)", () => {
-    expect(sale14d(null, HOY)).toBeNull();
-    expect(sale14d(pagos({ due_14d: "" }), HOY)).toBeNull();
-  });
-
-  it('items al tope EXACTO del backend (100) → posibleRecorte (remanente #82.4, sin "hay más" en el contrato)', () => {
-    const cien = Array.from({ length: 100 }, (_, i) => ({
-      label: `Proveedor ${i + 1}`,
-      category: "supplier" as const,
-      due_date: "2026-09-05",
-      due_date_certainty: "confirmed" as const,
-      amount: "10000",
-      criticality: "low" as const,
-      source: "SII",
-      currency: "CLP",
-    }));
-    expect(sale14d(pagos({ items: cien }), HOY)!.posibleRecorte).toBe(true);
-    // Gemelo: 99 no llega al tope → no hay indicio de recorte.
-    expect(sale14d(pagos({ items: cien.slice(0, 99) }), HOY)!.posibleRecorte).toBe(false);
-    // Por encima del tope (no debería pasar nunca del backend real) sigue declarando el indicio.
-    expect(sale14d(pagos({ items: [...cien, cien[0]!] }), HOY)!.posibleRecorte).toBe(true);
+    expect(sale14d(null)).toBeNull();
+    expect(sale14d(pagos({ due_14d: "" }))).toBeNull();
   });
 });
 

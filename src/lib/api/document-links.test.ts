@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DOCUMENT_LINKS_LIMIT,
   DOCUMENT_LINKS_PATH,
+  documentLinksTruncated,
   indexDocumentLinks,
   resolveDocumentLink,
   type DteDocumentLink,
@@ -112,5 +113,61 @@ describe("document-links — lectura D07", () => {
     expect(resolveDocumentLink(new Map(), "61-1-76111111-1", {})).toEqual({
       availability: "not_observed",
     });
+  });
+});
+
+describe("document-links — el tope del contrato se declara, no se calla (#302 P2-2)", () => {
+  /** Exactamente `limit` correctores distintos: el caso en que el productor pudo cortar. */
+  const alTope = (limit: number) =>
+    response(
+      Array.from({ length: limit }, (_, i) =>
+        link({ id: `dl-${i}`, correcting_source_external_id: `61-${i + 1}-76111111-1` }),
+      ),
+    );
+
+  it("una respuesta con exactamente `limit` ítems puede estar cortada; con uno menos, no", () => {
+    expect(documentLinksTruncated(alTope(DOCUMENT_LINKS_LIMIT))).toBe(true);
+    expect(documentLinksTruncated(alTope(DOCUMENT_LINKS_LIMIT - 1))).toBe(false);
+    // El tope pedido manda: con un `limit` chico la MISMA regla aplica.
+    expect(documentLinksTruncated(alTope(3), 3)).toBe(true);
+    expect(documentLinksTruncated(alTope(2), 3)).toBe(false);
+  });
+
+  it("un `count` mayor que lo entregado también delata el corte", () => {
+    expect(documentLinksTruncated({ count: 5, items: [link()] })).toBe(true);
+    // Gemelo: `count` consistente con lo entregado no es un corte.
+    expect(documentLinksTruncated({ count: 1, items: [link()] })).toBe(false);
+  });
+
+  it("sin respuesta no hay corte que declarar", () => {
+    expect(documentLinksTruncated(undefined)).toBe(false);
+    expect(documentLinksTruncated(response([]))).toBe(false);
+  });
+
+  it("al tope, un corrector fuera del índice es 'no disponible', nunca 'sin evidencia'", () => {
+    const limit = 3;
+    const respuesta = alTope(limit);
+    const index = indexDocumentLinks(respuesta);
+    const truncated = documentLinksTruncated(respuesta, limit);
+    const fueraDelIndice = `61-${limit + 1}-76111111-1`;
+
+    expect(index.has(fueraDelIndice)).toBe(false);
+    expect(resolveDocumentLink(index, fueraDelIndice, { truncated })).toEqual({
+      availability: "unavailable",
+    });
+    // Un corrector que SÍ vino se resuelve igual aunque la respuesta esté cortada.
+    expect(resolveDocumentLink(index, "61-1-76111111-1", { truncated })).toEqual({
+      availability: "available",
+      link: index.get("61-1-76111111-1"),
+    });
+    /* Gemelo con la MISMA clave ausente y una respuesta completa (`limit - 1` ítems): ahí sí
+       se afirma que no hay observación. Es el control negativo del fix: sin él, ambos casos
+       dirían `not_observed`. */
+    const completa = alTope(limit - 1);
+    expect(
+      resolveDocumentLink(indexDocumentLinks(completa), fueraDelIndice, {
+        truncated: documentLinksTruncated(completa, limit),
+      }),
+    ).toEqual({ availability: "not_observed" });
   });
 });

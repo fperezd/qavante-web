@@ -26,7 +26,7 @@ import type {
   CollectionForecastResponse,
   UnclassifiedSummary,
 } from "@/lib/api/treasury";
-import type { AccountsPayableResponse, PayableItem } from "@/lib/api/pagos";
+import type { AccountsPayableResponse } from "@/lib/api/pagos";
 import type { CajaHoy } from "@/lib/finanzas/caja-hoy";
 import { parseAmount, parseAmountOrNull } from "@/lib/formatters/amount";
 import { formatClp } from "@/lib/formatters/clp";
@@ -38,9 +38,6 @@ import {
   formatHoraCorta,
   formatRelative,
 } from "@/lib/formatters/date";
-import { montoCLP, montoCLPFaltante } from "@/components/pagar/pagos-format";
-import { daysUntilDue } from "@/components/pagar/pagos-v2-format";
-import { postergabilidadDe } from "@/components/pagar/v2/pagar-v2-map";
 import { entradasSinClasificarLabel } from "@/components/caja/v2/caja-v2-map";
 
 /** Ventana de la tríada KPI (spec §V02: "Entra 14d / Sale 14d"). */
@@ -147,59 +144,60 @@ export function entra14d(f: CollectionForecastResponse | null | undefined): Entr
   return { esperado, nominal };
 }
 
-/** Tope de `items` que publica `payables_repo` (ordenados por `due_date ASC`, vencidos primero).
- *  Verificado en el pase §6 de #81: el backend no expone ningún indicador de "hay más" (`items`
- *  no trae total propio ni cursor) — esto es una heurística del FE, no un hecho declarado por el
- *  contrato. Si el conteo de `items` ALCANZA este número, "negociable" puede estar subestimado en
- *  tenants con más de {@link ITEMS_CAP} pagos vivos (el backend nunca debería mandar más, pero el
- *  indicio no depende de que respete el tope al pie de la letra). */
-export const ITEMS_CAP = 100;
+export interface NoPostergable14V02 {
+  /** `amount_clp` cuando el agregado está completo; `null` = subtotal no disponible. */
+  monto: number | null;
+  /** Parte conocida en CLP: un piso ("al menos") cuando `completo` es false. */
+  conocido: number;
+  /** Cantidad conocida de obligaciones del agregado. */
+  n: number;
+  completo: boolean;
+  /** Obligaciones sin vencimiento confirmado que podrían pertenecer a la ventana. */
+  fechasDesconocidas: number;
+  /** Buckets de moneda sin tipo de cambio; nunca se interpreta como cantidad de pagos. */
+  monedasExcluidas: number;
+}
 
 export interface Sale14V02 {
   /** `due_14d` del backend (ya en CLP). */
   total: number;
-  /** Σ de lo NEGOCIABLE que vence en 0..14 días (misma heurística que Pagar v2), en CLP. */
-  postergable: number;
-  /** Ítems en moneda extranjera SIN `amount_clp` dentro de la ventana: no se suman como pesos
-   *  (INV-FX-001) y se declaran. */
-  sinConvertir: number;
-  /** `true` cuando `ap.items` alcanza el tope del backend ({@link ITEMS_CAP}): señal de que puede
-   *  haber más pagos vivos de los que `postergable` alcanza a ver. El contrato no declara un
-   *  "hay más" real, así que esto es un indicio, no una certeza. */
-  posibleRecorte: boolean;
+  /** `non_postponable_or_overdue_14d` del backend: lo que YA venció más lo que vence en 14 días y
+   *  no se posterga (Ley 9 ejecutable: impuestos, sueldos, deuda). Es el MISMO agregado que V05
+   *  publica como "Pagos críticos en todo el registro" (Ley 1). `null` cuando el contrato no lo
+   *  trajo: la pantalla lo declara, no lo aproxima desde `items`. */
+  noPostergable: NoPostergable14V02 | null;
 }
 
-function dentroDeVentana(it: PayableItem, hoy: Date): boolean {
-  const d = daysUntilDue(it.due_date, hoy);
-  return d != null && d >= 0 && d <= VENTANA_DIAS;
-}
-
-export interface Sale14Options {
-  /** El Brief canónico ya evaluó alternativas: esta vista conserva el total publicado sin inferir
-   * postergabilidad desde categorías locales. */
-  includePostergabilidad?: boolean;
-}
-
-/** "Sale · 14 días" con su postergable. `null` = no vino accounts-payable o no trae `due_14d`. */
+/** "Sale · 14 días" con su parte no postergable. `null` = no vino accounts-payable o no trae
+ *  `due_14d`.
+ *
+ *  Antes esta función sumaba localmente lo "negociable" (`postergabilidadDe` sobre `items`, una
+ *  lista topeada por `limit`). El contrato no publica un agregado "negociable"; publica su
+ *  complemento (`non_postponable_or_overdue_14d`), y ése es el que se consume. La resta
+ *  `due_14d − no postergable` NO se hace acá: sería reconstruir una cifra que el servidor no
+ *  afirma (#302 P2-6). */
 export function sale14d(
   ap: AccountsPayableResponse | null | undefined,
-  hoy: Date,
-  { includePostergabilidad = true }: Sale14Options = {},
+  /** Ya no se usa: nada depende del reloj. Se conserva en la firma porque
+   *  `pagar-v05-model.test.ts` (rama de #315) todavía pasa la fecha; se retira cuando #315 entre. */
+  hoy?: Date,
 ): Sale14V02 | null {
+  void hoy;
   if (!ap) return null;
   const total = parseAmountOrNull(ap.due_14d);
   if (total == null) return null;
-  const todos = ap.items ?? [];
-  const items = todos.filter((it) => dentroDeVentana(it, hoy));
-  /* Ley 9: impuestos y sueldos jamás entran en postergaciones — `postergabilidadDe` ya los deja
-     en `no_postergable`; acá sólo se suma lo `negociable`. */
-  const postergable = includePostergabilidad
-    ? items
-        .filter((it) => postergabilidadDe(it) === "negociable")
-        .reduce((s, it) => s + montoCLP(it), 0)
-    : 0;
-  const sinConvertir = items.filter(montoCLPFaltante).length;
-  return { total, postergable, sinConvertir, posibleRecorte: todos.length >= ITEMS_CAP };
+  const summary = ap.non_postponable_or_overdue_14d;
+  const noPostergable: NoPostergable14V02 | null = summary
+    ? {
+        monto: summary.complete ? parseAmountOrNull(summary.amount_clp) : null,
+        conocido: parseAmount(summary.known_amount_clp),
+        n: summary.count,
+        completo: summary.complete === true,
+        fechasDesconocidas: summary.unknown_due_date_count,
+        monedasExcluidas: summary.excluded_by_currency.length,
+      }
+    : null;
+  return { total, noPostergable };
 }
 
 /* ── (3) Barras de 4 semanas + punto más bajo ─────────────────────────────────── */

@@ -1,7 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { pagos } from "./pagar-v05-fixtures";
+import { HOY, pagos } from "./pagar-v05-fixtures";
+import { esPostergable } from "./pagar-v05-model";
 import { PagarV05View } from "./pagar-v05-view";
+import { montoCLP, montoCLPFaltante } from "@/components/pagar/pagos-format";
+import { parseAmount } from "@/lib/formatters/amount";
+import { formatClp } from "@/lib/formatters/clp";
 
 describe("Pagar V05 D02 view", () => {
   it("declara abstención de nómina cuando la frescura no está confirmada", () => {
@@ -41,10 +45,41 @@ describe("Pagar V05 D02 view", () => {
     expect(html).toContain("Anterior");
   });
 
-  it("no publica monto negociable derivado de los ítems de la página", () => {
-    const html = renderToStaticMarkup(<PagarV05View pagos={pagos()} />);
-    expect(html).not.toContain("es negociable");
-    expect(html).not.toContain("Ver Hoy");
+  it("no publica un monto negociable derivado de los ítems de la página (#302 P3)", () => {
+    /* La página deja fuera al último proveedor (Chipax) para que la suma de la página no
+       coincida con el bucket `supplier` de `by_category` del servidor, que sí incluye a todos. */
+    const base = pagos();
+    const ap = pagos({ items: base.items!.slice(0, -1) });
+    const html = renderToStaticMarkup(<PagarV05View pagos={ap} hoy={HOY} />);
+
+    /* La cifra que publicaba el banner heredado ("$X de lo que vence es negociable · Ver Hoy"):
+       lo postergable de la PÁGINA sumado en CLP. Se recalcula acá con los mismos helpers para
+       que el negativo mida ese número y no una frase que ya no existe. */
+    const negociablePagina = ap
+      .items!.filter((it) => esPostergable(it) && !montoCLPFaltante(it))
+      .reduce((s, it) => s + montoCLP(it), 0);
+    expect(negociablePagina).toBeGreaterThan(0);
+    /* Guard del propio test: la suma no coincide con ningún agregado del servidor del fixture.
+       Si apareciera en el HTML, sólo puede haber salido de la página. */
+    const agregadosServidor = [
+      ap.total,
+      ap.due_7d,
+      ap.due_14d,
+      ap.due_30d,
+      ap.overdue_summary?.known_amount_clp,
+      ap.non_postponable_or_overdue_14d?.known_amount_clp,
+      ...(ap.by_category ?? []).map((b) => b.known_amount_clp),
+    ].map((v) => parseAmount(v ?? "0"));
+    expect(agregadosServidor).not.toContain(negociablePagina);
+    expect(html).not.toContain(formatClp(negociablePagina));
+
+    // Gemelo positivo: lo que SÍ se publica es el agregado del servidor sobre todo el registro.
+    expect(html).toContain("Pagos críticos en todo el registro: $16.807.705");
+
+    /* Tampoco hay un enlace que mande a Hoy a decidir postergaciones; la vista sí renderea
+       enlaces (el detalle de cada pago), así que la ausencia se mide sobre anclas reales. */
+    expect(html).toMatch(/<a\b/);
+    expect(html).not.toMatch(/<a\b[^>]*>[^<]*\bHoy\b[^<]*<\/a>/);
   });
 
   it("muestra todos los ítems de la página API sin una segunda paginación", () => {

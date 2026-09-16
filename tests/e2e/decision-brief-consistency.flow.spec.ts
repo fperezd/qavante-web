@@ -149,9 +149,12 @@ test.describe("Decision Brief canónico en las cinco superficies", () => {
         }
 
         if (surface.name === "cobrar") {
-          // V04 conserva la cartera recibida; no publica el filtro/ranking local de prioridad.
-          await expect(page.getByRole("radio", { name: /Todos/ })).toBeVisible();
-          await expect(page.getByText("Prioridad ·")).toHaveCount(0);
+          /* V04 conserva la cartera recibida; no publica el filtro/ranking local de prioridad.
+             El chip se mide por su rol y nombre accesible: con el Brief apagado es el radio
+             "Prioridad · 3" (gemelo positivo en `cobrar.flow.spec.ts`), y con el Brief encendido
+             ese mismo chip se rotula "Todos". Un `getByText` sobre un fragmento no medía eso. */
+          await expect(page.getByRole("radio", { name: /^Todos/ })).toBeVisible();
+          await expect(page.getByRole("radio", { name: /^Prioridad/ })).toHaveCount(0);
           await expect(page.getByRole("link", { name: "Ver facturas" })).toBeVisible();
           await expect(page.getByRole("link", { name: "Clientes" })).toBeVisible();
         }

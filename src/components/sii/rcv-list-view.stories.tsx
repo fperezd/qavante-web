@@ -28,24 +28,12 @@ const DOCUMENT_STATES = http.post(
     });
   },
 );
-const DOCUMENT_LINKS = http.post("*/api/sii/document-links/current", async ({ request }) => {
-  const body = (await request.json()) as {
-    documents: Array<{ document_kind: "payable" | "receivable"; source_external_id: string }>;
-  };
-  return HttpResponse.json({
-    classification_version: "dte-reference-v2",
-    items: body.documents.map((document) => ({
-      ...document,
-      status: "unresolved",
-      effect_kind: "none",
-      evidence_authorizes_effect: false,
-      authoritative_source: null,
-      observed_at: null,
-      conflict_digests: [],
-      reason_codes: ["no_authoritative_evidence"],
-    })),
-  });
-});
+/* D07 — la vista lee `GET /api/sii/document-links` (única lectura del contrato; el `POST
+   …/current` que se mockeaba antes no existe). Sin observaciones, cada corrector muestra
+   "Sin evidencia registrada" y la lista NO llega al tope, así que no se declara ningún corte. */
+const DOCUMENT_LINKS = http.get("*/api/sii/document-links", () =>
+  HttpResponse.json({ count: 0, items: [] }),
+);
 const MANAGEMENT_ACCOUNTS = http.get("*/api/management/accounts/tree", () =>
   HttpResponse.json({ items: [] }),
 );

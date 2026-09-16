@@ -17,7 +17,9 @@ export type DocumentLinkStatus = DteDocumentLink["link_status"];
 type DocumentLinksQuery = NonNullable<operations["sii_document_links"]["parameters"]["query"]>;
 
 export const DOCUMENT_LINKS_PATH = "/api/sii/document-links";
-/** Tope del contrato (`limit` máximo 1000). Un período RCV no supera ese orden de correctores. */
+/** Tope del contrato (`limit` máximo 1000). El productor no publica un "hay más": si la respuesta
+ *  llega AL tope, la pantalla no puede saber qué correctores quedaron fuera, y lo declara
+ *  ({@link documentLinksTruncated}) en vez de convertir un "no sé" en un "no hay". */
 export const DOCUMENT_LINKS_LIMIT = 1000;
 
 export const DOCUMENT_LINK_STATUS_LABELS: Record<DocumentLinkStatus, string> = {
@@ -36,10 +38,22 @@ export const DOCUMENT_LINK_NOT_OBSERVED_LABEL = "Sin evidencia registrada";
 export type DocumentLinkResolution =
   /** El servidor publicó una observación vigente para este corrector. */
   | { availability: "available"; link: DteDocumentLink }
-  /** La consulta respondió y este corrector no tiene observación vigente: no se infiere efecto. */
+  /** La consulta respondió COMPLETA y este corrector no tiene observación vigente: no se infiere efecto. */
   | { availability: "not_observed" }
-  /** La consulta no se pudo hacer o falló: la pantalla no sabe, y lo dice. */
+  /** La consulta no se pudo hacer, falló o quedó cortada por el tope: la pantalla no sabe, y lo dice. */
   | { availability: "unavailable"; error?: unknown };
+
+/** `true` cuando la respuesta pudo quedar cortada por `limit`: los ítems alcanzan el tope pedido o
+ *  el `count` publicado supera lo entregado. En ese caso "no está en el índice" NO significa "sin
+ *  evidencia": el corrector puede estar más allá del corte. Sin respuesta no hay corte que declarar. */
+export function documentLinksTruncated(
+  response: DteDocumentLinksResponse | undefined,
+  limit = DOCUMENT_LINKS_LIMIT,
+): boolean {
+  if (!response) return false;
+  const entregados = response.items?.length ?? 0;
+  return entregados >= limit || response.count > entregados;
+}
 
 /** Índice por el identificador estable del DTE **corrector** (la fila que lleva el badge). */
 export function indexDocumentLinks(
@@ -56,17 +70,20 @@ export function indexDocumentLinks(
   return index;
 }
 
-/** Resuelve una fila: distingue "no hay evidencia" de "no pudimos consultar". */
+/** Resuelve una fila: distingue "no hay evidencia" de "no pudimos consultar". Una observación
+ *  encontrada vale aunque la respuesta venga cortada; una AUSENCIA sólo afirma "sin evidencia" si
+ *  la respuesta fue completa (`truncated` en false). */
 export function resolveDocumentLink(
   index: ReadonlyMap<string, DteDocumentLink> | undefined,
   sourceExternalId: string | null | undefined,
-  state: { failed?: boolean },
+  state: { failed?: boolean; truncated?: boolean },
 ): DocumentLinkResolution | undefined {
   if (!sourceExternalId) return undefined;
   if (state.failed) return { availability: "unavailable" };
   if (!index) return undefined;
   const link = index.get(sourceExternalId);
-  return link ? { availability: "available", link } : { availability: "not_observed" };
+  if (link) return { availability: "available", link };
+  return state.truncated ? { availability: "unavailable" } : { availability: "not_observed" };
 }
 
 export const documentLinkKeys = {

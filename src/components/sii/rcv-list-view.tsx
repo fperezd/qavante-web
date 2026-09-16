@@ -55,6 +55,8 @@ import {
 } from "@/lib/api/reconciliation";
 import { DocumentRowStatusBadges } from "./document-row-status";
 import {
+  DOCUMENT_LINKS_LIMIT,
+  documentLinksTruncated as documentLinksResponseTruncated,
   indexDocumentLinks,
   resolveDocumentLink,
   useDocumentLinks,
@@ -250,6 +252,9 @@ export function RcvListView({
     () => indexDocumentLinks(documentLinks.data),
     [documentLinks.data],
   );
+  /* Al tope del contrato no se sabe qué correctores quedaron fuera: sus filas dicen "no
+     disponible" (no "sin evidencia") y la pantalla declara el corte. */
+  const documentLinksTruncated = documentLinksResponseTruncated(documentLinks.data);
   /* La pista legacy se evalúa contra todo el período descargado, antes de filtros,
      paginación y estados de gestión. Así un filtro visual no puede convertir dos
      candidatos en una falsa coincidencia única. El backend D07 reemplazará este
@@ -503,6 +508,12 @@ export function RcvListView({
                 montos, estados ni vencimientos.
               </p>
             )}
+            {documentLinksTruncated && (
+              <p className="text-xs text-neutral-mid" role="status">
+                La evidencia fiscal llegó al tope de {DOCUMENT_LINKS_LIMIT} observaciones: los
+                correctores que no aparecen quedan como estado no disponible, no como sin evidencia.
+              </p>
+            )}
             {filtersOpen && (
               <FiltersPanel
                 kind={kind}
@@ -550,6 +561,7 @@ export function RcvListView({
                   statusById={statusById}
                   documentLinksIndex={documentLinksIndex}
                   documentLinksFailed={documentLinks.isError}
+                  documentLinksTruncated={documentLinksTruncated}
                   documentLinksLoading={documentLinks.isFetching && !documentLinks.data}
                   showDueDate={kind === "ventas"}
                 />
@@ -588,6 +600,7 @@ export function RcvListView({
                 statusById={statusById}
                 documentLinksIndex={documentLinksIndex}
                 documentLinksFailed={documentLinks.isError}
+                documentLinksTruncated={documentLinksTruncated}
                 documentLinksLoading={documentLinks.isFetching && !documentLinks.data}
                 showDueDate={kind === "ventas"}
               />
@@ -672,6 +685,8 @@ export interface GroupedTableProps {
   documentLinksIndex: ReadonlyMap<string, DteDocumentLink>;
   /** La consulta D07 falló: las filas dicen "no disponible", nunca "sin evidencia". */
   documentLinksFailed?: boolean;
+  /** La consulta D07 llegó al tope: los correctores ausentes del índice dicen "no disponible". */
+  documentLinksTruncated?: boolean;
   documentLinksLoading?: boolean;
   /** Ventas puede traer el vencimiento enriquecido desde el backend. */
   showDueDate?: boolean;
@@ -696,11 +711,12 @@ export function GroupedTable({
   statusById,
   documentLinksIndex,
   documentLinksFailed = false,
+  documentLinksTruncated = false,
   documentLinksLoading = false,
   showDueDate = false,
 }: GroupedTableProps) {
   const showDte = dteKind !== undefined;
-  const documentLinksState = { failed: documentLinksFailed };
+  const documentLinksState = { failed: documentLinksFailed, truncated: documentLinksTruncated };
   return (
     <div className={stickyScroll}>
       <table className="w-full min-w-[760px] text-sm">

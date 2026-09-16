@@ -29,6 +29,8 @@ export function e2eBuildEnv(port: number, decisionBrief: boolean): Record<string
     /* Verificado contra `wrangler.toml` del Worker: si una variante está en "true" allá y falta
        acá, el E2E valida una pantalla que el usuario no ve. */
     NEXT_PUBLIC_FF_CAJA_V02: "true",
+    NEXT_PUBLIC_FF_LIBRO_VENTAS_V2: "true",
+    NEXT_PUBLIC_FF_LIBRO_COMPRAS_V2: "true",
     NEXT_PUBLIC_FF_IMPUESTOS_V06: "true",
     NEXT_PUBLIC_FF_BANDEJA_V07: "true",
     NEXT_PUBLIC_FF_BANCO_V03: "true",

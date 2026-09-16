@@ -201,6 +201,17 @@ export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPaya
       },
     ],
     projected_cash_14d: "-1121250",
+    /* El agregado ejecutable de la Ley 9 sobre TODO el registro (contrato D02): F29 174.979 +
+       sueldos 7.400.000 vencen dentro de 14 días y no se postergan; nada vencido todavía. Es lo
+       que "Sale · 14 días" muestra como críticos, sin sumar `items` (#302 P2-6). */
+    non_postponable_or_overdue_14d: {
+      amount_clp: "7574979",
+      known_amount_clp: "7574979",
+      complete: true,
+      count: 2,
+      unknown_due_date_count: 0,
+      excluded_by_currency: [],
+    },
     covers_critical: false,
     confidence: "high",
     data_state: "available",
