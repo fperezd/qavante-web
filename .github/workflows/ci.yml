@@ -43,6 +43,24 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
 
+  contract-drift:
+    # Gate mecánico del contrato (#298): src/lib/api/types.ts debe ser exactamente lo que
+    # openapi-typescript genera desde docs/contracts/openapi.snapshot.json (copia del productor
+    # qavante-api, con SHA de origen en openapi.snapshot.source.json). Falla si alguien editó
+    # types.ts a mano, cambió el snapshot sin regenerar o tocó el snapshot sin pasar por
+    # `npm run generate:api:sync`.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run contract:check
+      # contract:check ya regeneró types.ts; el árbol debe seguir limpio (criterio literal de #298).
+      - run: git diff --exit-code -- src/lib/api/types.ts
+
   test:
     runs-on: ubuntu-latest
     steps:

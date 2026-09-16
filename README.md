@@ -46,18 +46,20 @@ Sin `.env.local`, el API client lanza `ApiError("NEXT_PUBLIC_API_URL no configur
 
 ## Comandos
 
-| Comando                           | Qué hace                                                                |
-| --------------------------------- | ----------------------------------------------------------------------- |
-| `npm run dev`                     | Servidor local de Next.js con HMR                                       |
-| `npm run build`                   | Build de producción de Next.js                                          |
-| `npm run start`                   | Servidor de producción (requiere `build` previo)                        |
-| `npm run lint`                    | ESLint sobre todo el repo                                               |
-| `npm run typecheck`               | `tsc --noEmit` con strict mode                                          |
-| `npm run test`                    | Vitest unit tests (pasa con `--passWithNoTests` mientras no haya specs) |
-| `npm run e2e`                     | Playwright tests (levanta server prod automáticamente vía `webServer`)  |
-| `npm run generate:api`            | Regenera `src/lib/api/types.ts` desde `<API>/openapi.json`              |
-| `npm run build:cloudflare`        | Empaqueta el bundle del Worker (`opennextjs-cloudflare build`)          |
-| `npm run format` / `format:check` | Prettier                                                                |
+| Comando                           | Qué hace                                                                     |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| `npm run dev`                     | Servidor local de Next.js con HMR                                            |
+| `npm run build`                   | Build de producción de Next.js                                               |
+| `npm run start`                   | Servidor de producción (requiere `build` previo)                             |
+| `npm run lint`                    | ESLint sobre todo el repo                                                    |
+| `npm run typecheck`               | `tsc --noEmit` con strict mode                                               |
+| `npm run test`                    | Vitest unit tests (pasa con `--passWithNoTests` mientras no haya specs)      |
+| `npm run e2e`                     | Playwright tests (levanta server prod automáticamente vía `webServer`)       |
+| `npm run generate:api`            | Regenera `src/lib/api/types.ts` desde `docs/contracts/openapi.snapshot.json` |
+| `npm run generate:api:sync`       | Trae el snapshot OpenAPI del productor (`qavante-api@main`) y regenera       |
+| `npm run contract:check`          | Gate de CI: `types.ts` sin drift respecto del snapshot versionado            |
+| `npm run build:cloudflare`        | Empaqueta el bundle del Worker (`opennextjs-cloudflare build`)               |
+| `npm run format` / `format:check` | Prettier                                                                     |
 
 ## Stack y deploy
 
@@ -78,6 +80,7 @@ Target: **Cloudflare Workers** vía adapter `@opennextjs/cloudflare`. El build (
 - Ownership: [.github/CODEOWNERS](./.github/CODEOWNERS)
 - PR template: [.github/pull_request_template.md](./.github/pull_request_template.md)
 - CI (lint, typecheck, test, build, e2e, secrets-scan): [.github/workflows/ci.yml](./.github/workflows/ci.yml)
+- Contrato OpenAPI consumido (snapshot del productor + SHA de origen + gate de drift): [docs/contracts/README.md](./docs/contracts/README.md)
 - Branch strategy: feat/\* → main (squash, sin develop) — ver Kit Sprint C0 línea 12.
 
 ## Documentación

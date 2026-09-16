@@ -2,8 +2,6 @@ import { FeatureUnavailableState } from "@/components/qavante";
 import { SimuladorV14Live } from "@/components/simular/v14/simulador-v14-live";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
-export const runtime = "edge";
-
 export default function SimularPage() {
   const { simuladorV14 } = resolveFeatureFlags();
 

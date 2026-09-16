@@ -13,6 +13,10 @@ coverage/
 # Generated from OpenAPI; do not format by hand
 src/lib/api/types.ts
 
+# Copia byte a byte del snapshot del productor (qavante-api); debe seguir siendo comparable con
+# sha256sum contra el original, así que no se reformatea (#298).
+docs/contracts/openapi.snapshot.json
+
 # Generado por el postinstall de msw en CADA `npm ci` (`msw init public/`), con el estilo
 # propio de msw (comillas simples, sin punto y coma). Si Prettier lo reformatea, el árbol
 # queda sucio después de instalar y Chromatic lo reporta como archivo cambiado
