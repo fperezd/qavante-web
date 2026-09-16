@@ -69,12 +69,16 @@ export const dashboardKeys = {
 };
 
 /** `GET /api/dashboard/summary` — agregado del Inicio Ejecutivo. NO retry.
-   Devuelve el tipo extendido v2 (superset); el v1 lee solo los campos base. */
-export function useDashboardSummary() {
+   Devuelve el tipo extendido v2 (superset); el v1 lee solo los campos base.
+   `enabled` (default `true`) deja de pedir el summary cuando el llamador no
+   necesita el dato — ej. el header con `decisionBrief` ON (#305), que ya no
+   pinta el Pulso heredado y no tiene otro uso para este fetch. */
+export function useDashboardSummary(enabled: boolean = true) {
   return useQuery({
     queryKey: dashboardKeys.summary(),
     queryFn: () => api.get<DashboardSummaryV2>("/api/dashboard/summary"),
     staleTime: 30_000,
     retry: false,
+    enabled,
   });
 }

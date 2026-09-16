@@ -17,6 +17,8 @@ export interface AppShellProps {
   assistantEnabled?: boolean;
   /** `syncStatus` ON → muestra el indicador de sincronización en el header. */
   syncStatusEnabled?: boolean;
+  /** `decisionBrief` ON → el header deja de mostrar el Pulso heredado (#305). */
+  decisionBriefEnabled?: boolean;
   /** `remuneraciones` ON → inyecta el grupo Equipo (Remuneraciones) en el nav. */
   remuneracionesEnabled?: boolean;
   /** `bancoScreen` ON → muestra el ítem "Banco" en el nav. */
@@ -33,6 +35,7 @@ export function AppShell({
   userRole,
   assistantEnabled,
   syncStatusEnabled,
+  decisionBriefEnabled,
   remuneracionesEnabled,
   bancoEnabled,
   bandejaEnabled,
@@ -63,6 +66,7 @@ export function AppShell({
         onMenuClick={() => setSidebarOpen(true)}
         onOpenSearch={() => setPaletteOpen(true)}
         syncStatusEnabled={syncStatusEnabled}
+        decisionBriefEnabled={decisionBriefEnabled}
       />
 
       <div className="flex">

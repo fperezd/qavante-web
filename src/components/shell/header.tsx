@@ -16,6 +16,11 @@ export interface AppHeaderProps {
   onOpenSearch?: () => void;
   /** Monta el indicador de sincronización (gated `syncStatus`, server-resuelto). */
   syncStatusEnabled?: boolean;
+  /** `decisionBrief` ON → la pantalla ya trae su propio Decision Brief como única señal
+      de decisión; el header deja de mostrar el Pulso heredado (semáforo + palabra de
+      estado) para no contradecirlo con un segundo veredicto (#305). OFF → el header
+      queda byte a byte igual a hoy. Server-resuelto, mismo patrón que `syncStatusEnabled`. */
+  decisionBriefEnabled?: boolean;
 }
 
 /** Iniciales para el avatar a partir del nombre ("Fernando Pérez" → "FP"). */
@@ -28,14 +33,27 @@ function initialsOf(name?: string | null): string {
     .join("");
 }
 
-export function AppHeader({ onMenuClick, onOpenSearch, syncStatusEnabled }: AppHeaderProps) {
+export function AppHeader({
+  onMenuClick,
+  onOpenSearch,
+  syncStatusEnabled,
+  decisionBriefEnabled,
+}: AppHeaderProps) {
   const { data } = useMe();
   const user = data?.user;
   /* Pulso real del negocio (mismo dato que el Inicio Ejecutivo; comparte cache
      de React Query). Si el backend no lo expone (flag OFF o sin sesión), no
-     mostramos badge — nada de números placeholder que contradigan el dashboard. */
-  const { data: dashboard } = useDashboardSummary();
-  const pulso = dashboard?.pulso ?? null;
+     mostramos badge — nada de números placeholder que contradigan el dashboard.
+
+     Con `decisionBrief` ON, la pantalla ya resuelve su propia recomendación (el
+     Brief); el Pulso heredado —número + semáforo + palabra de estado— es una
+     SEGUNDA señal de decisión que puede contradecir a la primera (#305: "Pulso 33 ·
+     Crítica" en el header junto a un Brief que se abstiene). Se apaga entero, no se
+     reduce a un indicador secundario: no hay una lectura "sin semáforo" de un score
+     0-100 que no siga leyéndose como veredicto. Tampoco se pide el summary — el header
+     no tiene otro uso para ese fetch con el flag ON. */
+  const { data: dashboard } = useDashboardSummary(!decisionBriefEnabled);
+  const pulso = decisionBriefEnabled ? null : (dashboard?.pulso ?? null);
 
   return (
     <header className="glass sticky top-0 z-20 flex h-14 items-center gap-4 border-b border-border px-4">

@@ -18,6 +18,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     onboarding,
     onboardingBanner,
     syncStatus,
+    decisionBrief,
     remuneraciones,
     bancoScreen,
     bandejaV07,
@@ -30,6 +31,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       userRole={session?.user.role}
       assistantEnabled={assistant}
       syncStatusEnabled={syncStatus}
+      decisionBriefEnabled={decisionBrief}
       remuneracionesEnabled={remuneraciones}
       bancoEnabled={bancoScreen}
       bandejaEnabled={bandejaV07}
