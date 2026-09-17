@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DashboardSummaryV2 } from "@/lib/api/dashboard";
 import type {
@@ -25,17 +24,14 @@ import {
   SEMANAS,
   VENTANA_DIAS,
   causasDelPiso,
-  comoSeCalcula,
   deudaDeDatos,
   entra14d,
-  exclusiones,
   fechaQuiebre,
   kpiHoy,
   puntoMasBajo,
   sale14d,
   semanas,
   type CausaV02,
-  type ComoSeCalculaV02,
   type NoPostergable14V02,
   type SemanaV02,
 } from "./caja-v02-model";
@@ -44,22 +40,15 @@ import { PostponePayableControl } from "./postpone-payable-control";
 /** Apellido de "Sale · 14 días": el agregado no postergable/vencido tal como lo publica el
  *  servidor. Un agregado parcial se dice "al menos"; uno ausente se declara, nunca se aproxima. */
 function noPostergableTexto(np: NoPostergable14V02 | null): string {
-  if (!np) return "críticos en todo el registro: el servidor no publicó el agregado";
-  const pagos = `${np.n} ${concordar(np.n, "pago que no se posterga o ya venció", "pagos que no se postergan o ya vencieron")}`;
-  const notas =
-    (np.fechasDesconocidas > 0
-      ? ` · ${np.fechasDesconocidas} ${concordar(np.fechasDesconocidas, "obligación sin fecha clasificable", "obligaciones sin fecha clasificable")}`
-      : "") +
-    (np.monedasExcluidas > 0
-      ? ` · ${np.monedasExcluidas} ${concordar(np.monedasExcluidas, "moneda excluida", "monedas excluidas")} por falta de tipo de cambio`
-      : "");
+  if (!np) return "monto crítico sin dato";
+  const pagos = `${np.n} ${concordar(np.n, "pago crítico", "pagos críticos")}`;
   if (np.completo && np.monto != null) {
-    return `${formatClp(np.monto)} críticos en todo el registro (${pagos})${notas}`;
+    return `${formatClp(np.monto)} críticos · ${pagos}`;
   }
   if (np.conocido > 0) {
-    return `al menos ${formatClp(np.conocido)} críticos en todo el registro (${pagos})${notas}`;
+    return `al menos ${formatClp(np.conocido)} críticos · ${pagos}`;
   }
-  return `críticos en todo el registro: subtotal no disponible (${pagos})${notas}`;
+  return `${pagos} · monto sin dato`;
 }
 
 /* V02 · Caja — "¿me alcanza la caja?" (rediseño Fase 2, issue #67).
@@ -138,8 +127,6 @@ export function CajaV02View({
     includePostergabilidad: !suppressRecommendations,
   });
   const quiebre = fechaQuiebre(proyeccion);
-  const fuera = exclusiones(proyeccion);
-  const calculo = comoSeCalcula(proyeccion, hoy);
 
   return (
     <div className="space-y-5">
@@ -168,7 +155,7 @@ export function CajaV02View({
             label={`Entra · ${VENTANA_DIAS} días`}
             value={`+${formatClp(entra.esperado)}`}
             tone="ok"
-            detail={`cobros con fecha · ${formatClp(entra.nominal)} nominal, ponderado por cómo paga cada cliente`}
+            detail={`${formatClp(entra.nominal)} por cobrar`}
           />
         ) : (
           <KpiCard
@@ -187,7 +174,7 @@ export function CajaV02View({
                     posterga sale del agregado del servidor (`non_postponable_or_overdue_14d`), el
                     MISMO que V05 publica como "Pagos críticos en todo el registro"; el contrato no
                     publica cuánto es negociable y esta pantalla no lo reconstruye (#302 P2-6). */}
-                incluye lo ya vencido · {noPostergableTexto(sale.noPostergable)}
+                Incluye lo vencido · {noPostergableTexto(sale.noPostergable)}
               </>
             }
           />
@@ -206,9 +193,7 @@ export function CajaV02View({
       {deuda?.error && (
         <Banner variant="warn" role="note">
           <span className="min-w-0 flex-1">
-            <b className="text-rediseno-tinta">No pudimos revisar la calidad de tus datos:</b> la
-            proyección conserva las fuentes que sí llegaron, pero puede faltar detalle de
-            movimientos del banco.
+            <b className="text-rediseno-tinta">Faltan movimientos del banco.</b>
           </span>
         </Banner>
       )}
@@ -216,19 +201,19 @@ export function CajaV02View({
         <Banner variant="warn" role="note">
           <div className="flex flex-wrap items-center gap-3">
             <span className="min-w-0 flex-1">
-              <b className="text-rediseno-tinta">Calidad del dato:</b> {deuda.count}{" "}
-              {deuda.count === 1 ? "movimiento" : "movimientos"} del banco sin clasificar
+              <b className="text-rediseno-tinta">{deuda.count}</b>{" "}
+              {deuda.count === 1 ? "movimiento pendiente" : "movimientos pendientes"}
               {deuda.entradasLabel ? ` (~${deuda.entradasLabel} en entradas)` : ""}
               {deuda.entradasSinMoneda > 0
                 ? ` y ${deuda.entradasSinMoneda} ${deuda.entradasSinMoneda === 1 ? "entrada" : "entradas"} cuya moneda no conocemos`
                 : ""}
-              . Están en tu saldo; revisarlos puede mejorar el detalle del flujo.
+              .
             </span>
             <Link
               href="/bandeja"
               className="ml-auto inline-flex min-h-11 shrink-0 items-center whitespace-nowrap font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rediseno-azul"
             >
-              Ver auditoría
+              Revisar
             </Link>
           </div>
         </Banner>
@@ -245,7 +230,6 @@ export function CajaV02View({
               >
                 Próximas {SEMANAS} semanas
               </h2>
-              <ComoSeCalcula info={calculo} />
             </div>
             {barras.length > 0 ? (
               <Barras semanas={barras} rojoEnPiso={piso?.bajoCero === true} />
@@ -289,13 +273,11 @@ export function CajaV02View({
                   </Link>
                 )}
               </div>
-              <p className="text-[12.5px] text-rediseno-tinta-3">
-                {suppressRecommendations
-                  ? "Estos pagos son parte de la proyección publicada y respaldan la decisión de caja."
-                  : quiebre
-                    ? `Los mayores pagos hasta que la caja cruza tu mínimo (el ${quiebre}).`
-                    : "Tu caja no cruza tu mínimo en el horizonte: la proyección no nombra causas."}
-              </p>
+              {!suppressRecommendations && quiebre && (
+                <p className="text-[12.5px] text-rediseno-tinta-3">
+                  Mayores pagos antes de quedar bajo el mínimo ({quiebre}).
+                </p>
+              )}
               {causas.length > 0 && (
                 <RedisenoTable
                   columns={columnasCausas(onPostpone, {
@@ -305,35 +287,8 @@ export function CajaV02View({
                   emptyMessage="La proyección no nombra pagos para este punto."
                 />
               )}
-              {suppressRecommendations ? (
-                <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-                  El detalle se muestra como respaldo de la proyección; las alternativas están
-                  arriba en la decisión de caja.
-                </p>
-              ) : (
-                <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-                  Postergar mueve la fecha comprometida 7, 15 o 30 días y refresca la proyección. La
-                  acción espera cinco segundos para que puedas cancelarla; impuestos, remuneraciones
-                  y causas sin identidad segura se gestionan desde Pagar.
-                </p>
-              )}
             </section>
           )}
-
-          {/* (5) Footer: exclusiones del cálculo */}
-          <footer className="border-t border-rediseno-hairline pt-3 text-[12.5px] text-rediseno-tinta-3">
-            {fuera.length > 0 ? (
-              <ul className="space-y-0.5">
-                {fuera.map((linea) => (
-                  <li key={linea}>{linea}</li>
-                ))}
-              </ul>
-            ) : proyeccion ? (
-              <p>La proyección no declara exclusiones para tu empresa.</p>
-            ) : (
-              <p>Sin proyección no hay exclusiones que declarar.</p>
-            )}
-          </footer>
         </>
       )}
     </div>
@@ -389,80 +344,6 @@ function Barras({ semanas, rojoEnPiso }: { semanas: SemanaV02[]; rojoEnPiso: boo
         );
       })}
     </ol>
-  );
-}
-
-/* ── "¿Cómo se calcula? ⓘ" (§1.4: definición, incluye/excluye, fuente, frescura) ── */
-
-function ComoSeCalcula({ info }: { info: ComoSeCalculaV02 }) {
-  const [open, setOpen] = React.useState(false);
-  const id = React.useId();
-  const ref = React.useRef<HTMLButtonElement>(null);
-
-  React.useEffect(() => {
-    if (!open) return undefined;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      setOpen(false);
-      ref.current?.focus();
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open]);
-
-  return (
-    <div className="relative">
-      <button
-        ref={ref}
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-controls={open ? id : undefined}
-        className={cn(LINK, "inline-flex items-center gap-1 text-[12.5px]")}
-      >
-        ¿Cómo se calcula?
-        <Info className="size-3.5" aria-hidden="true" />
-      </button>
-      {open && (
-        <div
-          id={id}
-          role="region"
-          aria-label="Cómo se calcula la proyección"
-          className="absolute right-0 top-full z-40 mt-1.5 w-[min(24rem,90vw)] rounded-xl border border-rediseno-hairline bg-rediseno-superficie p-4 text-left text-[12.5px] leading-relaxed text-rediseno-tinta-2 shadow-lg"
-        >
-          <p className="font-semibold text-rediseno-tinta">{info.definicion}</p>
-          <Bloque titulo="Incluye" items={info.incluye} />
-          <Bloque titulo="Deja afuera" items={info.excluye} />
-          <p className="mt-2">
-            <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-              Fuente
-            </span>{" "}
-            <span className="font-rediseno-mono text-[12px]">{info.fuente}</span>
-          </p>
-          <p className="mt-1">
-            <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-              Actualización
-            </span>{" "}
-            {info.frescura}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Bloque({ titulo, items }: { titulo: string; items: string[] }) {
-  return (
-    <div className="mt-2">
-      <p className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-        {titulo}
-      </p>
-      <ul className="mt-0.5 list-disc space-y-0.5 pl-4">
-        {items.map((i) => (
-          <li key={i}>{i}</li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

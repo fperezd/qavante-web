@@ -17,7 +17,7 @@ test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
     await page.goto("/pagar");
 
     await expect(page.getByRole("heading", { level: 1, name: "Pagar" })).toBeVisible();
-    await expect(page.getByText("¿A quién le pago, y qué es crítico?")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Pagos y obligaciones" })).toBeVisible();
 
     const resumen = page.getByRole("region", { name: "Vencido, por pagar y caja proyectada" });
     await expect(resumen).toBeVisible();
@@ -95,7 +95,7 @@ test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
        certeza, "Fecha estimada" no existe en el DOM y este test falla. */
     const telefonica = pagos.getByRole("row", { name: /Proveedor Telefónica/ });
     await expect(telefonica).toBeVisible();
-    await expect(telefonica.getByText("Fecha estimada", { exact: true })).toBeVisible();
+    await expect(telefonica.getByText("Fecha aproximada", { exact: true }).first()).toBeVisible();
     /* La nota vive en el `.sub` visible de la fila y, repetida, en su "detalle ▾" (cerrado):
        se comprueba la visible. */
     await expect(
@@ -107,7 +107,7 @@ test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
     ).toBeVisible();
 
     const leasing = pagos.getByRole("row", { name: /Leasing camioneta/ });
-    await expect(leasing.getByText("Fecha sin confirmar", { exact: true })).toBeVisible();
+    await expect(leasing.getByText("Fecha por confirmar", { exact: true }).first()).toBeVisible();
     await expect(
       leasing
         .getByText("La fecha viene del contrato registrado a mano y no fue verificada.")
@@ -117,12 +117,12 @@ test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
     // Gemelo: el ítem confirmado no lleva pill ni nota de certeza.
     const sueldos = pagos.getByRole("row", { name: /Remuneraciones: Junio 2026/ });
     await expect(sueldos).toBeVisible();
-    await expect(sueldos.getByText(/Fecha estimada|Fecha sin confirmar|Certeza/)).toHaveCount(0);
+    await expect(sueldos.getByText(/Fecha aproximada|Fecha por confirmar|Certeza/)).toHaveCount(0);
 
     /* El conteo de estimados es `estimated_due_date_count` del servidor, en la tarjeta "Por
        pagar", fuera de los tramos: no se recuenta desde la tabla. */
     const resumen = page.getByRole("region", { name: "Vencido, por pagar y caja proyectada" });
-    await expect(resumen).toContainText("1 pago con fecha estimada, fuera de los tramos");
+    await expect(resumen).toContainText("1 pago con fecha aproximada");
     // Y sigue sin haber vencidos: la fecha estimada del 18-jun no se convierte en mora.
     await expect(page.getByText("ningún pago vencido conocido")).toBeVisible();
   });
@@ -134,10 +134,8 @@ test.describe("Flujo: Pagar V05 de producción (/pagar)", () => {
     await loginAs(context, "owner");
     await page.goto("/pagar");
 
-    await expect(page.getByText("No existe un botón “pagar todo”")).toBeVisible();
-    await expect(
-      page.getByText("Impuestos y sueldos jamás entran en postergaciones automáticas."),
-    ).toBeVisible();
+    await expect(page.getByText("No existe un botón “pagar todo”")).toHaveCount(0);
+    await expect(page.getByText(/jamás entran en postergaciones/)).toHaveCount(0);
     await expect(page.getByText("No se posterga").first()).toBeVisible();
     await expect(page.getByRole("button", { name: /pagar todo/i })).toHaveCount(0);
   });

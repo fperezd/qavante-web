@@ -109,31 +109,30 @@ describe("DecisionBriefPanel — envelope server-owned", () => {
 
     expect(html).toContain(`data-decision-id="${DECISION_ID}"`);
     expect(html).toContain(`data-context-hash="${CONTEXT_HASH}"`);
-    expect(html).toContain('data-decision-confidence="high"');
     expect(text(html)).toContain("Corte: 12-09-2026");
-    expect(text(html)).toContain("Confianza: Alta");
+    expect(text(html)).not.toContain("Confianza:");
     expect(html.indexOf("Primera alternativa del servidor")).toBeLessThan(
       html.indexOf("Segunda alternativa del servidor"),
     );
     expect(html).toContain(
       'href="/pagar?decision_id=6cb9e47a-f682-46d6-9d8a-3c851c8ff420&amp;context_hash=ed0c2b7304923da062e78ac73c54352bd3925d5c4bbee006fe9ae9d43346d66f"',
     );
-    expect(text(html)).toContain("Requiere tu confirmación antes de realizar cualquier acción.");
+    expect(text(html)).not.toContain(
+      "Requiere tu confirmación antes de realizar cualquier acción.",
+    );
   });
 
-  it("deja la auditoría después de las alternativas y no la convierte en la acción principal", () => {
+  it("deja la auditoría fuera del panel principal", () => {
     const html = renderToStaticMarkup(<DecisionBriefPanel brief={BRIEF} />);
 
-    expect(html.indexOf("Revisión opcional de datos")).toBeGreaterThan(
-      html.indexOf("Segunda alternativa del servidor"),
-    );
-    expect(text(html)).toContain("Esto no reemplaza la decisión que estás evaluando arriba.");
+    expect(text(html)).not.toContain("Revisión opcional de datos");
+    expect(text(html)).not.toContain("Esto no reemplaza la decisión que estás evaluando arriba.");
   });
 
   it("expone cada límite de cobertura que declaró el servidor sin sumar ni completar cifras", () => {
     const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={BRIEF} />));
 
-    expect(rendered).toContain("Información que quedó fuera de esta evaluación");
+    expect(rendered).toContain("Datos pendientes");
     expect(rendered).toContain("Cobros estimados excluidos · $1.800.000 · 3 cobros estimados");
     expect(rendered).toContain("Registros sin fecha de vencimiento: 12");
     expect(rendered).not.toContain("Registros en otra moneda:");
@@ -228,7 +227,6 @@ describe("DecisionBriefPanel — envelope server-owned", () => {
     const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={brief} />));
     // El entero sobrevive dígito por dígito; la fracción CLP se redondea al peso.
     expect(rendered).toContain("$9.007.199.254.740.994");
-    expect(rendered).toContain("−$9.007.199.254.740.993");
     expect(rendered).not.toContain("$9.007.199.254.740.992");
     // Gemelo del redondeo: en pesos no queda ninguna coma decimal.
     expect(rendered).not.toContain("740.993,50");
@@ -263,7 +261,6 @@ describe("DecisionBriefPanel — envelope server-owned", () => {
 
     const rendered = text(renderToStaticMarkup(<DecisionBriefPanel brief={brief} />));
     expect(rendered).toContain("$40.791.386");
-    expect(rendered).toContain("−$31.016.973");
     // Gemelos: ni el ".00" ni los doce decimales llegan a la pantalla.
     expect(rendered).not.toContain("$40.791.386,00");
     expect(rendered).not.toContain("31.016.973,362000000000");

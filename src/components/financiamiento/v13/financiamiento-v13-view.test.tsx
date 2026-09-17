@@ -32,42 +32,35 @@ describe("FinanciamientoV13View", () => {
     expect("<div>$0</div>").toMatch(zeroValue);
     expect(rendered).toContain("$8.503.076");
     expect(rendered).toContain("Banco de ejemplo");
-    expect(rendered).toContain("Por qué no sabemos costo comparable");
+    expect(rendered).toContain("Por qué no sabemos tasa");
     expect(rendered).toContain("Por qué no sabemos cupo disponible");
     expect(rendered).not.toMatch(zeroValue);
     expect(rendered).toContain("$650.000");
   });
 
-  it("rotula lo indicativo como referencia y nunca como oferta aceptable", () => {
+  it("rotula lo indicativo como referencia sin explicaciones adicionales", () => {
     const rendered = html();
 
     expect(rendered).toContain("Referencia indicativa");
-    expect(rendered).toContain("no es una oferta");
-    expect(rendered).toContain("no se puede aceptar desde Qavante");
-    expect(rendered).toContain("La opción de no financiar");
+    expect(rendered).toContain("No financiar");
+    expect(rendered).not.toContain("no se puede aceptar desde Qavante");
+    expect(rendered).not.toContain("La opción de no financiar");
   });
 
-  it("publica estados, motivos y razones de cada alternativa", () => {
+  it("oculta estados internos, motivos y razones de cada alternativa", () => {
     const rendered = renderToStaticMarkup(
       <FinanciamientoV13View
         model={financingV13Model(overviewParcialV13, evaluationAbstenidaV13)}
       />,
     );
 
-    expect(rendered).toContain("Estado de la evaluación · No evaluable");
-    expect(rendered).toContain("Falta deuda verificada para esta entidad legal y moneda.");
-    expect(rendered).toContain("Falta una oferta verificada para comparar esta alternativa.");
-    expect(rendered).toContain(
-      "El corte no muestra una brecha de caja que justifique financiarse.",
-    );
-    expect(rendered).toContain(
-      "Motivos · Falta una oferta verificada para comparar esta alternativa.",
-    );
-    expect(rendered).toContain("Elegibilidad · Elegible");
-    expect(rendered).toContain("Elegibilidad · Elegibilidad por verificar");
+    expect(rendered).not.toContain("Estado de la evaluación");
+    expect(rendered).not.toContain("Falta deuda verificada");
+    expect(rendered).not.toContain("Motivos ·");
+    expect(rendered).not.toContain("Elegibilidad ·");
   });
 
-  it("publica la elegibilidad recibida aunque el estado comparativo no cambie", () => {
+  it("no publica la elegibilidad interna", () => {
     const alternative = evaluationV13.working_capital.alternatives[0]!;
     const rendered = evaluationHtml({
       ...evaluationV13,
@@ -78,7 +71,7 @@ describe("FinanciamientoV13View", () => {
     });
 
     expect(rendered).toContain("Comparable");
-    expect(rendered).toContain("Elegibilidad · No elegible");
+    expect(rendered).not.toContain("Elegibilidad · No elegible");
   });
 
   it("neutraliza un código de motivo desconocido", () => {
@@ -91,27 +84,24 @@ describe("FinanciamientoV13View", () => {
       },
     });
 
-    expect(rendered).toContain("La fuente informó una limitación todavía no identificada.");
+    expect(rendered).not.toContain("La fuente informó una limitación todavía no identificada.");
     expect(rendered).not.toContain("reviewer_unknown_code_237");
   });
 
-  it("muestra combinaciones y cambios con sus cifras intactas", () => {
+  it("oculta combinaciones y conserva los cambios principales", () => {
     const rendered = html(overviewCompletoV13);
 
-    expect(rendered).toContain("Combinaciones verificadas");
-    expect(rendered).toContain("Capital de trabajo + Refinanciamiento");
-    expect(rendered).toContain("$5.000.000");
-    expect(rendered).toContain("1 combinación excluida en esta evaluación");
-    expect(rendered).toContain("Resultado limitado a 1 combinación");
-    expect(rendered).toContain("Antes y después del refinanciamiento");
+    expect(rendered).not.toContain("Combinaciones verificadas");
+    expect(rendered).not.toContain("Capital de trabajo + Refinanciamiento");
+    expect(rendered).not.toContain("1 combinación excluida en esta evaluación");
+    expect(rendered).toContain("Comparar refinanciamiento");
     expect(rendered).toContain("$116.924");
     expect(rendered).toContain("−$150.000");
     expect(rendered).toContain("+90 días");
-    expect(rendered).toContain("Calendario actual · 1 pago · Calendario propuesto · 2 pagos");
-    expect(rendered).toContain("Garantías agregadas · Garantía personal");
+    expect(rendered).toContain("Ver cuotas");
   });
 
-  it("muestra la concentración exacta de cada combinación", () => {
+  it("no muestra la concentración interna de combinaciones", () => {
     const evaluation: FinancingEvaluationContract = {
       ...evaluationV13,
       combinations: {
@@ -124,8 +114,8 @@ describe("FinanciamientoV13View", () => {
     };
     const rendered = evaluationHtml(evaluation);
 
-    expect(rendered).toContain("Concentración de pagos");
-    expect(rendered).toContain("$7.654.321");
+    expect(rendered).not.toContain("Concentración de pagos");
+    expect(rendered).not.toContain("$7.654.321");
   });
 
   it("no expone las referencias internas que respaldan cada combinación", () => {
@@ -144,12 +134,12 @@ describe("FinanciamientoV13View", () => {
       },
     });
 
-    expect(rendered).toContain("Criterios de evaluación verificados");
+    expect(rendered).not.toContain("Criterios de evaluación verificados");
     expect(rendered).not.toContain("regla_review_237");
     expect(rendered).not.toContain("policy:review:237");
   });
 
-  it("muestra los objetos current y proposed completos del trade-off", () => {
+  it("muestra las cifras principales de la comparación", () => {
     const tradeoff = evaluationV13.refinancing.tradeoffs![0]!;
     const evaluation: FinancingEvaluationContract = {
       ...evaluationV13,
@@ -180,20 +170,20 @@ describe("FinanciamientoV13View", () => {
     };
     const rendered = evaluationHtml(evaluation);
 
-    const actual = rendered.slice(rendered.indexOf(">Actual<"), rendered.indexOf(">Propuesto<"));
+    const actual = rendered.slice(rendered.indexOf(">Actual<"), rendered.indexOf(">Propuesta<"));
     const proposed = rendered.slice(
-      rendered.indexOf(">Propuesto<"),
-      rendered.indexOf("Cambio en costo total"),
+      rendered.indexOf(">Propuesta<"),
+      rendered.indexOf("Cambio en costo"),
     );
 
     expect(actual).toContain("$111.111");
     expect(actual).toContain("$122.222");
     expect(actual).toContain("144 días");
-    expect(actual).toContain("Garantía actual única");
+    expect(actual).not.toContain("Garantía actual única");
     expect(proposed).toContain("$211.111");
     expect(proposed).toContain("$222.222");
     expect(proposed).toContain("244 días");
-    expect(proposed).toContain("Garantía propuesta única");
+    expect(proposed).not.toContain("Garantía propuesta única");
   });
 
   it("muestra fechas y montos exactos de ambos calendarios", () => {
@@ -213,8 +203,8 @@ describe("FinanciamientoV13View", () => {
     };
     const rendered = evaluationHtml(evaluation);
 
-    expect(rendered).toContain("Detalle del calendario actual");
-    expect(rendered).toContain("Detalle del calendario propuesto");
+    expect(rendered).toContain("Cuotas actuales");
+    expect(rendered).toContain("Cuotas propuestas");
     expect(rendered).toContain("14-10-2026");
     expect(rendered).toContain("15-11-2026");
     expect(rendered).toContain("$341.987");
@@ -226,14 +216,14 @@ describe("FinanciamientoV13View", () => {
 
     expect(rendered).toContain("1,4%");
     expect(rendered).toContain("$3.000.000");
-    expect(rendered).toContain("Capacidad verificada · no es una oferta");
+    expect(rendered).not.toContain("Capacidad verificada · no es una oferta");
   });
 
   it("la tabla desplazable es alcanzable por teclado en móvil", () => {
     const rendered = html(overviewCompletoV13);
 
     expect(rendered).toContain('role="region"');
-    expect(rendered).toContain('aria-label="Detalle desplazable de deuda vigente"');
+    expect(rendered).toContain('aria-label="Detalle de préstamos"');
     expect(rendered).toContain('tabindex="0"');
   });
 
@@ -242,14 +232,11 @@ describe("FinanciamientoV13View", () => {
     const knownPrincipal = /\$8\.503\.076/;
 
     expect(html(overviewCompletoV13)).toMatch(knownPrincipal);
-    expect(rendered).toContain("todavía no puede recomendar");
-    expect(rendered).toContain(
-      "La deuda histórica no tiene una entidad legal y moneda reproducibles.",
-    );
-    expect(rendered).toContain("Por qué no sabemos deuda vigente");
-    expect(rendered).toContain("Esto no afirma que tu deuda sea cero");
+    expect(rendered).toContain("Faltan datos de algunos préstamos.");
+    expect(rendered).toContain("Por qué no sabemos deuda total");
+    expect(rendered).toContain("No hay préstamos para mostrar.");
     expect(rendered).not.toMatch(knownPrincipal);
-    expect(rendered).toContain("no acepta ofertas, no firma y no mueve");
+    expect(rendered).not.toContain("no acepta ofertas, no firma y no mueve");
   });
 
   it.each([

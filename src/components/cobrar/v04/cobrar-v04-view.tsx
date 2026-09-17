@@ -4,7 +4,7 @@ import * as React from "react";
 import { DocumentActionButton } from "@/components/documents/document-actions";
 import { downloadXlsx } from "@/lib/export/xlsx";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Info, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AccountsReceivableResponse, CollectionReminderItemResult } from "@/lib/api/cobranza";
 import { formatClp } from "@/lib/formatters/clp";
@@ -15,7 +15,6 @@ import { FilterChips } from "@/components/rediseno/filter-chip";
 import { KpiCard } from "@/components/rediseno/kpi-card";
 import { Pill } from "@/components/rediseno/pill";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
-import { CERTEZA_LABEL } from "@/components/rediseno/certeza-vencimiento";
 import { concordar, formatCount } from "@/lib/formatters/count";
 import type { GestionadoMap } from "../v2/cobrar-v2-map";
 import {
@@ -27,8 +26,6 @@ import {
   crumbGestion,
   csvClientesTable,
   estimadasDe,
-  explicacionBruto,
-  explicacionVencido,
   filtrarClientes,
   loteRecordatorios,
   motivoSinVencido,
@@ -39,7 +36,6 @@ import {
   totalBruto,
   type ClienteV04,
   type ConcentracionV04,
-  type ExplicacionV04,
   type FiltroV04,
   type RecordatorioV04,
 } from "./cobrar-v04-model";
@@ -241,14 +237,13 @@ export function CobrarV04View({
           t.monto == null ? (
             <KpiCard
               key={t.key}
-              label={t.label}
+              label={t.key === "vencido" ? "Vencido" : t.label}
               sinDato={{ reason: sinVencido.motivo, missingSources: ar.missing_sources ?? [] }}
               detail={
                 t.key === "vencido" ? (
                   <>
                     {sinVencido.accion}
-                    {notaEstimadas}{" "}
-                    <InfoPopover label="Qué es Vencido bruto" info={explicacionVencido(ar, hoy)} />
+                    {notaEstimadas}
                   </>
                 ) : (
                   "sin este tramo no hay reparto"
@@ -258,21 +253,12 @@ export function CobrarV04View({
           ) : (
             <KpiCard
               key={t.key}
-              label={t.label}
+              label={t.key === "vencido" ? "Vencido" : t.label}
               value={formatClp(t.monto)}
               detail={
                 <>
                   {t.piso && "al menos · "}
                   {t.pct == null ? "sin total que repartir" : `${formatPct(t.pct)} del total`}
-                  {t.key === "vencido" && (
-                    <>
-                      {" "}
-                      <InfoPopover
-                        label="Qué es Vencido bruto"
-                        info={explicacionVencido(ar, hoy)}
-                      />
-                    </>
-                  )}
                   {t.key === "vencido" && t.monto === 0 && " · estás al día"}
                   {t.key === "vencido" && notaEstimadas}
                 </>
@@ -357,7 +343,6 @@ export function CobrarV04View({
           clientes={visibles}
           totalClientes={clientes.length}
           bruto={bruto}
-          explicacion={explicacionBruto(ar, hoy)}
           copiadoKey={copiadoKey}
           onCopiar={copiar}
           onToggleGestionado={onToggleGestionado}
@@ -371,17 +356,6 @@ export function CobrarV04View({
                 : "Ningún cliente en este filtro."
           }
         />
-
-        {/* Límite del contrato: cada resultado conserva su estado, sin éxito implícito. */}
-        <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-          <b className="font-semibold text-rediseno-tinta-2">
-            El envío se confirma documento por documento:
-          </b>{" "}
-          después de la cuenta regresiva, Qavante envía sólo los documentos identificados por el
-          registro y muestra el resultado de cada uno. Si falta destinatario o el servidor omite un
-          documento, se declara aquí; no se confirma como enviado. Las facturas cedidas por
-          factoring ya vienen excluidas del registro; el registro no distingue moneda.
-        </p>
       </section>
     </div>
   );
@@ -398,7 +372,7 @@ function CertezaDocumentos({ certezas }: { certezas: ClienteV04["certezas"] }) {
     <ul className="mt-1 space-y-0.5 text-[12px] text-rediseno-tinta-3-light">
       {certezas.map((d, i) => (
         <li key={`${d.documento}#${i}`} className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          <Pill variant="mut">{CERTEZA_LABEL[d.certeza]}</Pill>
+          <Pill variant="mut">{fechaEstadoLabel(d.certeza)}</Pill>
           <span className="min-w-0 whitespace-normal break-words">
             {d.documento}
             {d.nota && ` · ${d.nota}`}
@@ -407,6 +381,12 @@ function CertezaDocumentos({ certezas }: { certezas: ClienteV04["certezas"] }) {
       ))}
     </ul>
   );
+}
+
+function fechaEstadoLabel(certeza: ClienteV04["certezas"][number]["certeza"]): string {
+  if (certeza === "estimated") return "Fecha aproximada";
+  if (certeza === "unconfirmed") return "Fecha por confirmar";
+  return "Sin fecha confirmada";
 }
 
 /* ── (1) Crumb ───────────────────────────────────────────────────────────────── */
@@ -421,70 +401,6 @@ function Crumb({ chip }: { chip: string }) {
         {chip}
       </Pill>
     </p>
-  );
-}
-
-/* ── ⓘ (§1.4: definición, incluye/excluye, fuente y frescura) ────────────────── */
-
-function InfoPopover({
-  label,
-  info,
-  hacia = "abajo",
-}: {
-  label: string;
-  info: ExplicacionV04;
-  /** `arriba` para los ⓘ que viven DENTRO del wrapper recortado de la tabla: abriéndose hacia
-   *  abajo quedan cortados por su `overflow-hidden`, y en angosto además se salen por la derecha. */
-  hacia?: "abajo" | "arriba";
-}) {
-  return (
-    <details className="group relative inline-block align-middle">
-      <summary
-        className="inline-flex cursor-pointer list-none items-center text-rediseno-tinta-3-light hover:text-rediseno-tinta-2 focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none [&::-webkit-details-marker]:hidden"
-        aria-label={label}
-      >
-        <Info className="size-3.5" aria-hidden />
-      </summary>
-      <div
-        className={cn(
-          "absolute z-40 rounded-xl border border-rediseno-hairline bg-rediseno-superficie p-3 text-left text-[12.5px] leading-relaxed font-normal text-rediseno-tinta-2 normal-case tracking-normal shadow-lg",
-          hacia === "arriba"
-            ? "right-0 bottom-full mb-1.5 w-[min(22rem,90cqw)]"
-            : "top-full left-0 mt-1.5 w-[min(22rem,80vw)]",
-        )}
-      >
-        <p className="font-semibold text-rediseno-tinta">{info.definicion}</p>
-        <Bloque titulo="Incluye" items={info.incluye} />
-        <Bloque titulo="Deja afuera" items={info.excluye} />
-        <p className="mt-2">
-          <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-            Fuente
-          </span>{" "}
-          <span className="font-rediseno-mono text-[12px]">{info.fuente}</span>
-        </p>
-        <p className="mt-1">
-          <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-            Frescura
-          </span>{" "}
-          {info.frescura}
-        </p>
-      </div>
-    </details>
-  );
-}
-
-function Bloque({ titulo, items }: { titulo: string; items: string[] }) {
-  return (
-    <div className="mt-2">
-      <p className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-        {titulo}
-      </p>
-      <ul className="mt-0.5 list-disc space-y-0.5 pl-4">
-        {items.map((i) => (
-          <li key={i}>{i}</li>
-        ))}
-      </ul>
-    </div>
   );
 }
 
@@ -864,7 +780,6 @@ function TablaClientes({
   clientes,
   totalClientes,
   bruto,
-  explicacion,
   copiadoKey,
   onCopiar,
   onToggleGestionado,
@@ -875,7 +790,6 @@ function TablaClientes({
   clientes: ClienteV04[];
   totalClientes: number;
   bruto: number;
-  explicacion: ExplicacionV04;
   copiadoKey: string | null;
   onCopiar: (r: RecordatorioV04) => void;
   onToggleGestionado?: (c: ClienteV04) => void;
@@ -981,15 +895,10 @@ function TablaClientes({
         <span className="inline-flex flex-wrap items-center gap-x-1">
           <span aria-hidden="true">·</span>
           <span>
-            total por cobrar (bruto){" "}
+            total por cobrar{" "}
             <span className="font-semibold tabular-nums text-rediseno-tinta">
               {formatClp(bruto)}
             </span>
-          </span>
-          <span aria-hidden="true">·</span>
-          <span className="inline-flex items-center gap-1 text-rediseno-azul">
-            ¿por qué “bruto”?
-            <InfoPopover label="Por qué el total es bruto" info={explicacion} hacia="arriba" />
           </span>
         </span>
       }

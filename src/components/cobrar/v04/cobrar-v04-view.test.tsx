@@ -56,21 +56,19 @@ describe("CobrarV04View — crumb, tarjetas, banner, tabla y footer (caso normal
     expect(h).toMatch(/class="[^"]*rediseno-verde[^"]*"[^>]*>Al día</);
   });
 
-  it("las cinco tarjetas con monto y % del total; Vencido · bruto con su ⓘ", () => {
+  it("las cinco tarjetas con monto y % del total", () => {
     const t = texto(html());
     expect(t).toContain("Vigente $14.800.000 34,8% del total");
     expect(t).toContain("1–30 días $9.400.000 22,1% del total");
     expect(t).toContain("31–60 días $8.900.000 20,9% del total");
     expect(t).toContain("+61 días $9.479.467 22,3% del total");
-    expect(t).toContain("Vencido · bruto $27.779.467 65,2% del total");
-    expect(t).toContain(
-      "Vencido (bruto) es la parte del por cobrar cuya fecha de vencimiento confirmada ya pasó",
-    );
+    expect(t).toContain("Vencido $27.779.467 65,2% del total");
+    expect(t).not.toContain("Vencido (bruto) es la parte");
   });
 
   it("Ley 1: Vencido es `overdue` del contrato, aunque los tramos sumen otra cosa", () => {
     const t = texto(html({ ar: ar({ overdue: "27000000", overdue_pct: "63.4" }) }));
-    expect(t).toContain("Vencido · bruto $27.000.000 63,4% del total");
+    expect(t).toContain("Vencido $27.000.000 63,4% del total");
     expect(t).not.toContain("$27.779.467");
     expect(texto(html())).toContain("$27.779.467"); // gemelo: el número existe cuando el contrato lo trae
   });
@@ -124,22 +122,20 @@ describe("CobrarV04View — crumb, tarjetas, banner, tabla y footer (caso normal
     expect(t).toContain("Al día · 1");
   });
 
-  it("footer: N clientes con saldo · Exportar · total por cobrar (bruto) = `total` del contrato, con su ⓘ (mutante e)", () => {
+  it("footer: N clientes con saldo · Exportar · total por cobrar = `total` del contrato", () => {
     const t = texto(html());
     expect(t).toContain("6 clientes con saldo");
     expect(t).toContain("Exportar");
-    expect(t).toContain("total por cobrar (bruto) $42.579.467");
-    expect(t).toContain("¿por qué “bruto”?");
-    expect(t).toContain("Lo que marcaste cobrado a mano en Clientes");
+    expect(t).toContain("total por cobrar $42.579.467");
+    expect(t).not.toContain("¿por qué “bruto”?");
     // Gemelo: la suma de los saldos de la tabla NO es el total y no se publica como tal.
     expect(t).not.toContain("$24.399.988");
   });
 
-  it("el lote real declara identidad trazable y no promete éxito cuando falta destinatario", () => {
+  it("el lote no agrega explicaciones técnicas", () => {
     const t = texto(html());
-    expect(t).toContain("El envío se confirma documento por documento");
-    expect(t).toContain("documentos identificados por el registro");
-    expect(t).toContain("no se confirma como enviado");
+    expect(t).not.toContain("El envío se confirma documento por documento");
+    expect(t).not.toContain("documentos identificados por el registro");
   });
 });
 
@@ -155,7 +151,7 @@ describe("CobrarV04View — el vencido desconocido (`overdue: null`, el caso VIV
     // Gemelo positivo: con todo al día, "$0" y "0% del total" SON la verdad y se ven.
     const hAlDia = html({ ar: arTodoAlDia(), gestionado: {} });
     const alDia = texto(hAlDia);
-    expect(alDia).toContain("Vencido · bruto $0 0% del total");
+    expect(alDia).toContain("Vencido $0 0% del total");
     expect(alDia).toContain("· estás al día");
     expect(alDia).toContain("+61 días $0 0% del total");
     expect(hAlDia).toMatch(/>Al día</);
@@ -304,14 +300,14 @@ describe("CobrarV04View — certeza de la fecha (server-owned, contrato #558)", 
     const t = texto(h);
     const pills = (etiqueta: string) =>
       (h.match(new RegExp(`class="[^"]*rounded-full[^"]*"[^>]*>${etiqueta}<`, "g")) ?? []).length;
-    expect(pills("Fecha estimada")).toBe(1);
-    expect(pills("Fecha sin confirmar")).toBe(1);
-    expect(t).toContain(`Fecha estimada Factura 462 · ${NOTA_ESTIMADA}`);
-    expect(t).toContain("Fecha sin confirmar Factura 495");
+    expect(pills("Fecha aproximada")).toBe(1);
+    expect(pills("Fecha por confirmar")).toBe(1);
+    expect(t).toContain(`Fecha aproximada Factura 462 · ${NOTA_ESTIMADA}`);
+    expect(t).toContain("Fecha por confirmar Factura 495");
     expect(t).not.toMatch(/Factura 495 · /); // ninguna nota inventada
     // Gemelo: con todos confirmados no hay pills de certeza.
-    expect(pills("Fecha estimada") + pills("Fecha sin confirmar")).toBe(2);
-    expect(html()).not.toMatch(/>Fecha estimada<|>Fecha sin confirmar<|>Certeza no informada</);
+    expect(pills("Fecha aproximada") + pills("Fecha por confirmar")).toBe(2);
+    expect(html()).not.toMatch(/>Fecha aproximada<|>Fecha por confirmar<|>Sin fecha confirmada</);
   });
 
   it("lo estimado no mueve los días ni el rojo: Diveimport sigue en 73 días ámbar; GPS7000 es el rojo", () => {
@@ -325,11 +321,11 @@ describe("CobrarV04View — certeza de la fecha (server-owned, contrato #558)", 
     expect(h).not.toMatch(/>90 días</);
   });
 
-  it("conteo de estimados del servidor junto a Vencido · bruto; con 0 no se dice nada", () => {
+  it("conteo de estimados del servidor junto a Vencido; con 0 no se dice nada", () => {
     const t = texto(html({ ar: arConFechasEstimadas() }));
-    expect(t).toContain("Vencido · bruto $27.779.467 65,2% del total");
+    expect(t).toContain("Vencido $27.779.467 65,2% del total");
     expect(t).toContain("1 documento con fecha estimada, fuera de la mora");
-    expect(t).toContain("Hoy: 1 documento con fecha estimada según el registro");
+    expect(t).not.toContain("Hoy: 1 documento con fecha estimada según el registro");
     expect(texto(html())).not.toContain("con fecha estimada, fuera de la mora");
     // También cuando el vencido no se sabe: el conteo del servidor se publica igual.
     const desconocido = texto(
@@ -338,13 +334,13 @@ describe("CobrarV04View — certeza de la fecha (server-owned, contrato #558)", 
     expect(desconocido).toContain("3 documentos con fecha estimada, fuera de la mora");
   });
 
-  it("un documento sin el campo no se asume confirmado: 'Certeza no informada'", () => {
+  it("un documento sin el campo muestra una fecha no confirmada", () => {
     const docs = ar().overdue_documents!.map((d, i) =>
       i === 0 ? ({ ...d, due_date_certainty: undefined } as unknown as typeof d) : d,
     );
     const h = html({ ar: ar({ overdue_documents: docs }) });
-    expect(h).toContain(">Certeza no informada<");
-    expect(texto(h)).toContain("Certeza no informada Factura 450");
-    expect(html()).not.toContain(">Certeza no informada<");
+    expect(h).toContain(">Sin fecha confirmada<");
+    expect(texto(h)).toContain("Sin fecha confirmada Factura 450");
+    expect(html()).not.toContain(">Sin fecha confirmada<");
   });
 });

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { formatClp } from "@/lib/formatters/clp";
 import { concordar, formatCount } from "@/lib/formatters/count";
@@ -26,7 +25,6 @@ import {
   interpretarDeshacer,
   lote,
   montoResuelto,
-  motivosNoAutomatico,
   parcialidad,
   primerRutEnTexto,
   progreso,
@@ -339,19 +337,12 @@ function BandejaV07Contenido({
   if (pendientes === 0 && conciliar !== null && clasificar !== null) {
     return (
       <div className="space-y-4 font-rediseno-sans">
-        <p className={EYEBROW}>
-          {secondaryAudit
-            ? "Bandeja · auditoría de movimientos"
-            : "Bandeja · decisiones que requieren tu revisión"}
-        </p>
+        <p className={EYEBROW}>Bandeja</p>
         <h1 className="font-sans text-[26px] leading-tight font-semibold text-rediseno-tinta">
           {secondaryAudit ? "No hay movimientos por revisar" : "Nada espera tu decisión"}
         </h1>
         <div className="rounded-[14px] border border-rediseno-hairline border-l-[3px] border-l-rediseno-verde bg-rediseno-superficie px-[17px] py-4">
-          <p className="text-[13.5px] text-rediseno-tinta-2">
-            No quedan movimientos por conciliar ni por clasificar. Tus informes y tu proyección ya
-            no dejan nada de esta bandeja afuera.
-          </p>
+          <p className="text-[13.5px] text-rediseno-tinta-2">No quedan movimientos por revisar.</p>
           {resueltos.length > 0 && (
             <p className="mt-1.5 text-[12.5px] text-rediseno-tinta-3">
               Resolviste <b className="tabular-nums">{resueltos.length}</b> en esta sesión ·{" "}
@@ -359,7 +350,6 @@ function BandejaV07Contenido({
             </p>
           )}
         </div>
-        <HuecosDeclarados />
       </div>
     );
   }
@@ -371,11 +361,7 @@ function BandejaV07Contenido({
 
   return (
     <div className="space-y-4 font-rediseno-sans">
-      <p className={EYEBROW}>
-        {secondaryAudit
-          ? "Bandeja · auditoría de movimientos"
-          : "Bandeja · decisiones que requieren tu revisión"}
-      </p>
+      <p className={EYEBROW}>Bandeja</p>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h1 className="font-sans text-[26px] leading-tight font-semibold text-rediseno-tinta">
@@ -401,8 +387,7 @@ function BandejaV07Contenido({
 
       {fuenteCaida && (
         <p className="text-[12.5px] text-rediseno-tinta-2">
-          Una de las dos fuentes no respondió, así que este conteo es parcial: falta lo que no
-          pudimos consultar.
+          El conteo está incompleto. Reintenta en un momento.
         </p>
       )}
 
@@ -545,8 +530,6 @@ function BandejaV07Contenido({
           />
         </div>
       )}
-
-      <HuecosDeclarados />
     </div>
   );
 }
@@ -625,9 +608,6 @@ function CartaConciliar({
   const cargando = listos ? Boolean(candidatos.cargando) : Boolean(item);
   const candidato = item ? candidatoElegido(lista, item.documentoPropuesto, elegido) : null;
   const sugerible = item ? haySugerenciaConciliar(item, candidato) : false;
-  const motivoSinSugerencia = item
-    ? mensajeSinSugerenciaConciliar(item, lista.length, candidatos?.motivo)
-    : null;
 
   async function confirmarActual() {
     if (!item || !sugerible || procesandoRef.current) return;
@@ -690,7 +670,6 @@ function CartaConciliar({
   }
 
   const evidencia = evidenciaConciliar(item, candidato);
-  const motivos = motivosNoAutomatico(item, candidato);
   const parte = parcialidad(item, candidato);
 
   return (
@@ -699,7 +678,7 @@ function CartaConciliar({
       className="rounded-[14px] border border-rediseno-hairline bg-rediseno-superficie p-[18px]"
     >
       <p className={EYEBROW}>
-        Conciliar {indice + 1} de {total} · requiere revisión: {motivos.join(" y ")}
+        Conciliar {indice + 1} de {total}
       </p>
 
       <h2 className="mt-2 font-sans text-[19px] leading-snug font-semibold break-words text-rediseno-tinta">
@@ -718,7 +697,7 @@ function CartaConciliar({
 
       {evidencia.length > 0 ? (
         <p className="mt-3 flex flex-wrap items-center gap-1.5 text-[12.5px] text-rediseno-tinta-2">
-          <span className={EYEBROW}>Evidencia</span>
+          <span className={EYEBROW}>Coincide en</span>
           {evidencia.map((e) => (
             <Pill key={e.id} variant="mut">
               {e.texto}
@@ -727,10 +706,7 @@ function CartaConciliar({
         </p>
       ) : (
         !cargando && (
-          <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">
-            <span className={EYEBROW}>Evidencia</span> ninguna verificación coincide entre el
-            movimiento y el documento.
-          </p>
+          <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">No hay coincidencia clara.</p>
         )
       )}
 
@@ -744,9 +720,7 @@ function CartaConciliar({
       )}
 
       {!sugerible && !cargando && (
-        <p className="mt-2 text-[12.5px] text-rediseno-tinta-2">
-          {motivoSinSugerencia} Elige tú el documento o sáltalo.
-        </p>
+        <p className="mt-2 text-[12.5px] text-rediseno-tinta-2">Elige un documento o sáltalo.</p>
       )}
 
       {buscando && (
@@ -1377,9 +1351,7 @@ function CartaClasificar({
       >
         <p className={EYEBROW}>
           Clasificar {indice + 1} de {total} ·{" "}
-          {valorSugerido
-            ? "una regla tuya calza con este movimiento"
-            : "sin regla que calce: sin evidencia no se sugiere"}
+          {valorSugerido ? "Sugerencia disponible" : "Elige una categoría"}
         </p>
 
         <h2 className="mt-2 font-sans text-[19px] leading-snug font-semibold break-words text-rediseno-tinta">
@@ -1454,9 +1426,6 @@ function CartaClasificar({
                 {categoriasCanonicasMotivo}
               </p>
             )}
-            <p className="mt-1 text-[11.5px] text-rediseno-tinta-3">
-              Define qué ocurrió en el banco: cobro, pago, impuesto, sueldo, factoring u otro.
-            </p>
           </div>
           <div>
             <label
@@ -1482,9 +1451,6 @@ function CartaClasificar({
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-[11.5px] text-rediseno-tinta-3">
-              Define dónde se analiza: ingresos, subcontratos, honorarios, impuestos u otra cuenta.
-            </p>
           </div>
         </div>
 
@@ -1506,14 +1472,6 @@ function CartaClasificar({
               onChange={(e) => setNotas(e.target.value)}
               className="w-full rounded-xl border border-rediseno-hairline px-3 py-2 text-[13px] focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none"
             />
-            <p className="text-[12px] text-rediseno-tinta-3">
-              Las vistas de gestión todavía no se asignan desde esta pantalla. Puedes completarlas
-              después de clasificar, en{" "}
-              <Link href={`/caja/por-clasificar?movimiento=${item.id}`} className={LINK}>
-                Movimientos por clasificar
-              </Link>
-              .
-            </p>
           </div>
         </details>
 
@@ -1578,11 +1536,6 @@ function CartaClasificar({
             </button>
           </Banner>
         )}
-
-        <p className="mt-3 text-[12px] text-rediseno-tinta-3">
-          Al guardar no vas a ver “Deshacer”: esta clasificación corresponde a una decisión manual.
-          Las acciones automáticas se identifican por separado cuando admiten reversión.
-        </p>
       </section>
 
       {ofertaRegla && (
@@ -1607,20 +1560,12 @@ function Frecuentes({
 }) {
   if (frec.criterio === "ninguno") {
     return (
-      <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">
-        Todavía no clasificaste nada parecido, así que no tenemos atajos que ofrecerte. Elige la
-        cuenta de gestión de la lista.
-      </p>
+      <p className="mt-3 text-[12.5px] text-rediseno-tinta-2">Elige una cuenta de la lista.</p>
     );
   }
   return (
     <div className="mt-3">
-      <p className="text-[12.5px] text-rediseno-tinta-2">
-        {frec.criterio === "monto-y-direccion"
-          ? "Lo que más usaste en movimientos de este tipo y de este tamaño"
-          : "No clasificaste nada de este tamaño; esto es lo que más usaste en movimientos de este tipo"}{" "}
-        · es tu historial, no una sugerencia:
-      </p>
+      <p className="text-[12.5px] text-rediseno-tinta-2">Usadas recientemente:</p>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {frec.items.map((f) => (
           <button
@@ -1693,18 +1638,6 @@ function OfertaRegla({
     >
       ¿Siempre <b className="break-words">{oferta.nombre}</b> para <b>{quien}</b>?
     </Banner>
-  );
-}
-
-/* ── Huecos declarados ───────────────────────────────────────────────────────────────────── */
-
-function HuecosDeclarados() {
-  return (
-    <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-      Las clasificaciones manuales y por lote no se pueden deshacer desde esta bandeja. Revisa la
-      selección antes de guardar. Las acciones automáticas muestran Deshacer cuando sigue
-      disponible. El progreso corresponde a <b>esta sesión</b>.
-    </p>
   );
 }
 

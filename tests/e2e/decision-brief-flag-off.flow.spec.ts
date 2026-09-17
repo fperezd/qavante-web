@@ -20,27 +20,24 @@ const SURFACES = [
     /* El entorno E2E enciende `cajaV02` como producción: la landing es V02, con su pregunta
        propia y la auditoría de movimientos debajo. */
     path: "/caja",
-    visible: ["¿Me alcanza la caja?", "Calidad y auditoría de movimientos"],
+    visible: ["Saldo en tus cuentas · el mismo número que en Hoy", "Movimientos"],
     testIds: [],
   },
   {
     path: "/bandeja",
-    visible: ["Bandeja · decisiones que requieren tu revisión"],
+    visible: ["Bandeja"],
     testIds: [],
   },
   {
     path: "/pagar",
     /* Sin Brief, V05 sí rankea por urgencia y no anuncia el orden de la fuente. */
-    visible: [
-      "¿A quién le pago, y qué es crítico?",
-      "Impuestos y sueldos jamás entran en postergaciones automáticas.",
-    ],
+    visible: ["Pagos y obligaciones"],
     absent: ["Los pagos se muestran en el orden publicado por la fuente."],
     testIds: [],
   },
   {
     path: "/cobrar",
-    visible: ["¿Quién me debe?"],
+    visible: ["Clientes con saldo"],
     testIds: [],
   },
 ] as const;

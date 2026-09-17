@@ -29,11 +29,6 @@ export default function PagarPage() {
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-neutral-dark">Pagar</h1>
-            <p className="mt-1 text-sm text-neutral-mid">
-              {decisionBrief
-                ? "Pagos y compromisos de tu empresa."
-                : "¿A quién le pago, y qué es crítico?"}
-            </p>
           </div>
           {siiQueries && (
             <QuickLink href="/pagar/facturas-recibidas" icon={FileText} label="Ver facturas" />
@@ -50,11 +45,6 @@ export default function PagarPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-dark">Pagar</h1>
-          <p className="mt-1 text-sm text-neutral-mid">
-            {decisionBrief
-              ? "Pagos y compromisos de tu empresa."
-              : "¿A quién le pago y qué pagos son críticos?"}
-          </p>
         </div>
         {/* "Ver facturas" arriba y a mano (antes "Libro de Compras (SII)" al fondo). */}
         {siiQueries && (
@@ -80,8 +70,8 @@ export default function PagarPage() {
           title="Pagos a proveedores"
           description={
             decisionBrief
-              ? "Aquí vas a ver los pagos y compromisos registrados cuando haya fuentes conectadas."
-              : "Aquí vas a ver tus pagos pendientes priorizados, los pagos críticos por vencer, recordatorios y proveedores frecuentes. Muy pronto disponible."
+              ? "Conecta tus datos para ver lo que debes pagar."
+              : "Todavía no hay pagos disponibles."
           }
         />
       )}

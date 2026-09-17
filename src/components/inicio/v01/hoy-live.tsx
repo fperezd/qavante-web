@@ -123,11 +123,13 @@ export function HoyLive({
 
   return (
     <div className="space-y-6">
-      <CashProjectionRunPanel
-        horizonDays={14}
-        title="Caja para las decisiones de hoy"
-        onSnapshot={setProjection}
-      />
+      {!suppressRecommendations && (
+        <CashProjectionRunPanel
+          horizonDays={14}
+          title="Caja para las decisiones de hoy"
+          onSnapshot={setProjection}
+        />
+      )}
       <InicioResumenView
         balances={bankBalancesEnabled ? <InicioBancosLive /> : undefined}
         credits={<InicioCreditosLive enabled={bankBalancesEnabled} />}

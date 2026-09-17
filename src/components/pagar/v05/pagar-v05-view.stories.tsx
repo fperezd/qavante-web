@@ -61,22 +61,14 @@ export const Normal: Story = {
     await expect(canvas.getByText("$17.998.105")).toBeInTheDocument();
     /* D02/D15 — el subtotal crítico lo publica el servidor sobre TODO el registro, no sobre la
        página visible: 6 pagos por $16.807.705, no los que alcanzan a caber en la tabla. */
-    await expect(
-      canvas.getByText(/Pagos críticos en todo el registro: \$16\.807\.705 · 6 pagos/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/\$16\.807\.705 críticos · 6 pagos/)).toBeInTheDocument();
     await expect(canvas.queryByText(/en la lista visible/)).not.toBeInTheDocument();
-    await expect(
-      canvas.getByText(/Estado de cobertura del horizonte: no cubre/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/No alcanza para los pagos críticos/)).toBeInTheDocument();
     await expect(canvas.queryByText(/\$2\.878\.055/)).not.toBeInTheDocument();
     /* D01 — el monto negociable ya no se deriva de la tabla; la caja proyectada no vuelve a
        restar lo que la curva ya trae. */
     await expect(canvas.queryByRole("note")).not.toBeInTheDocument();
-    await expect(
-      canvas.getByText(
-        /Las obligaciones comprometidas ya están incluidas en el flujo proyectado; no se vuelven a restar\./,
-      ),
-    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/no se vuelven a restar/)).not.toBeInTheDocument();
     // Ley 2: UN rojo, y es el relativo de la fila crítica más urgente (Banco BICE, en 2 días).
     const marcados = rojos(canvasElement);
     await expect(marcados).toHaveLength(1);
@@ -90,9 +82,7 @@ export const Normal: Story = {
     await expect(canvas.getAllByText("Remuneraciones: Agosto 2026")).toHaveLength(2);
     // Ley 9: no existe "pagar todo"; el texto fijo está literal.
     await expect(canvas.queryByRole("button", { name: /pagar todo/i })).not.toBeInTheDocument();
-    await expect(
-      canvas.getByText(/Impuestos y sueldos jamás entran en postergaciones automáticas\./),
-    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/jamás entran en postergaciones/)).not.toBeInTheDocument();
     // Footer §5.5 con el total del backend.
     await expect(canvas.getByText(/Total por pagar/)).toBeInTheDocument();
     await expect(canvas.getByText("$19.205.210")).toBeInTheDocument();
@@ -105,9 +95,7 @@ export const AuditoriaD01: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("−$46.865.254")).toBeInTheDocument();
-    await expect(
-      canvas.getByText(/Pagos críticos en todo el registro: \$10\.373\.669 · 1 pago/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/\$10\.373\.669 críticos · 1 pago/)).toBeInTheDocument();
     await expect(canvas.queryByText(/57\.238\.923/)).not.toBeInTheDocument();
     await expect(canvas.queryByText(/faltan \$/i)).not.toBeInTheDocument();
   },
@@ -229,11 +217,9 @@ export const SoloImpuestosYSueldos: Story = {
     await expect(canvas.queryByRole("note")).not.toBeInTheDocument();
     await expect(canvas.queryByText(/es negociable/)).not.toBeInTheDocument();
     await expect(canvas.getAllByText("No se posterga")).toHaveLength(3);
-    await expect(
-      canvas.getByText(/Impuestos y sueldos jamás entran en postergaciones automáticas\./),
-    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/jamás entran en postergaciones/)).not.toBeInTheDocument();
     // La cobertura canónica confirma que cubre; el único rojo sigue siendo la fila más urgente.
-    await expect(canvas.getByText(/Estado de cobertura del horizonte: cubre/)).toBeInTheDocument();
+    await expect(canvas.getByText(/Alcanza para los pagos críticos/)).toBeInTheDocument();
     const marcados = rojos(canvasElement);
     await expect(marcados).toHaveLength(1);
     await expect(marcados[0]!).toHaveTextContent("en 5 días");
@@ -260,9 +246,7 @@ export const DatosDegradados: Story = {
     ).toBeInTheDocument();
     // La caja conserva su moneda y el backend se abstiene de afirmar cobertura.
     await expect(canvas.getByText(/US\$\s10\.500,00/)).toBeInTheDocument();
-    await expect(
-      canvas.getByText(/no se pudo determinar la cobertura con los datos disponibles/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/Cobertura sin dato\./)).toBeInTheDocument();
     /* Lo sin fecha no se esconde detrás de un chip que lo recorte en el cliente: se declara en
        la tríada con su monto y su conteo, y la fila queda visible con su "sin fecha". */
     await expect(canvas.queryByRole("radio", { name: /^Sin fecha/ })).not.toBeInTheDocument();
@@ -275,20 +259,20 @@ export const FechasEstimadas: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // Los tres valores del contrato en la misma página: dos estimadas, una sin confirmar.
-    await expect(canvas.getAllByText("Fecha estimada")).toHaveLength(2);
+    await expect(canvas.getAllByText("Fecha aproximada")).toHaveLength(4);
     // La pill del arriendo y, sin nota, la misma etiqueta sola en su "detalle ▾" (en el DOM).
-    await expect(canvas.getAllByText("Fecha sin confirmar")).toHaveLength(2);
+    await expect(canvas.getAllByText("Fecha por confirmar")).toHaveLength(2);
     // La nota server-owned va tal cual en el `.sub` de la fila y en su detalle (2 apariciones).
     await expect(
       canvas.getAllByText(
         /Fecha estimada a 30 días desde la emisión; el documento no trae vencimiento pactado\./,
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     // Sin nota no se inventa copy: el arriendo dice sólo su estado.
     const arriendo = filas(canvasElement).find((f) =>
       f.textContent?.includes("Inmobiliaria Los Leones"),
     )!;
-    await expect(arriendo).toHaveTextContent("Fecha sin confirmar");
+    await expect(arriendo).toHaveTextContent("Fecha por confirmar");
     await expect(arriendo).toHaveTextContent("hace 10 días");
     await expect(within(arriendo).getByText("hace 10 días").className).not.toContain(
       "rediseno-ambar",
@@ -300,13 +284,11 @@ export const FechasEstimadas: Story = {
     await expect(marcados).toHaveLength(1);
     await expect(marcados[0]!).toHaveTextContent("en 2 días");
     // El conteo de estimados es del servidor y vive en Por pagar, fuera de los tramos.
-    await expect(
-      canvas.getByText(/2 pagos con fecha estimada, fuera de los tramos/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/2 pagos con fecha aproximada/)).toBeInTheDocument();
     // "detalle ▾" de la fila estimada trae la certeza con su nota.
     const telefonica = filas(canvasElement).find((f) => f.textContent?.includes("Telefónica"))!;
     await userEvent.click(within(telefonica).getByText("detalle ▾"));
-    await expect(within(telefonica).getByText("Certeza")).toBeInTheDocument();
+    await expect(within(telefonica).getByText("Fecha")).toBeInTheDocument();
   },
 };
 

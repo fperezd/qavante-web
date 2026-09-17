@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, CircleAlert, Clock3, ShieldAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleAlert, ShieldAlert } from "lucide-react";
 import { QavanteBadge, QavanteCard } from "@/components/qavante";
 import type { CashDecisionBrief } from "@/lib/api/cash-decision-brief";
 import { formatMoneyFromDecimalString, isNonZeroDecimalString } from "@/lib/formatters/clp";
@@ -15,6 +15,13 @@ type BriefMoney = NonNullable<CashDecisionBrief["problem"]["amount"]>;
  */
 export function DecisionBriefPanel({ brief }: { brief: CashDecisionBrief }) {
   const amount = formatBriefMoney(brief.problem.amount);
+  const recommended =
+    brief.alternatives.find(
+      (alternative) => alternative.alternative_id === brief.recommended_alternative_id,
+    ) ?? brief.alternatives[0];
+  const otherAlternatives = brief.alternatives.filter(
+    (alternative) => alternative.alternative_id !== recommended?.alternative_id,
+  );
   const coverageImpact = brief.coverage.assumed_receivables_excluded;
   const coverageImpactAmount = formatBriefMoney(coverageImpact);
   const hasCoverageImpactAmount = hasNonZeroAmount(coverageImpact);
@@ -50,10 +57,9 @@ export function DecisionBriefPanel({ brief }: { brief: CashDecisionBrief }) {
               Corte: {formatDateLike(brief.as_of)}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Confidence confidence={brief.confidence} />
-            <Freshness freshness={brief.freshness} />
-          </div>
+          {brief.freshness.state !== "current" && (
+            <span className="text-xs font-medium text-warning-700">Actualizar datos</span>
+          )}
         </div>
       }
     >
@@ -64,7 +70,6 @@ export function DecisionBriefPanel({ brief }: { brief: CashDecisionBrief }) {
             <h2 id="decision-brief-problem" className="text-lg font-semibold text-neutral-dark">
               {brief.problem.title}
             </h2>
-            <p className="mt-1 text-sm text-neutral-mid">{brief.problem.summary}</p>
             {amount && (
               <p className="mt-2 font-semibold tabular-nums text-neutral-dark">{amount}</p>
             )}
@@ -72,22 +77,34 @@ export function DecisionBriefPanel({ brief }: { brief: CashDecisionBrief }) {
         </div>
       </section>
 
-      <section
-        aria-label="Alternativas evaluadas"
-        className="mt-4 space-y-3 border-t border-border pt-4"
-      >
-        {brief.alternatives.map((alternative) => (
+      {recommended && (
+        <section
+          aria-label="Acción recomendada"
+          className="mt-4 space-y-3 border-t border-border pt-4"
+        >
           <AlternativeRow
-            key={alternative.alternative_id}
-            alternative={alternative}
-            recommended={alternative.alternative_id === brief.recommended_alternative_id}
+            alternative={recommended}
+            recommended={recommended.alternative_id === brief.recommended_alternative_id}
           />
-        ))}
-      </section>
+        </section>
+      )}
 
-      <section className="mt-4 border-t border-border pt-3" aria-label="Cobertura de la decisión">
-        <p className="text-sm text-neutral-mid">{brief.coverage.summary}</p>
-      </section>
+      {otherAlternatives.length > 0 && (
+        <details className="mt-3 border-t border-border pt-3">
+          <summary className="cursor-pointer text-sm font-medium text-brand-primary">
+            Ver otras opciones ({otherAlternatives.length})
+          </summary>
+          <div className="mt-3 space-y-2">
+            {otherAlternatives.map((alternative) => (
+              <AlternativeRow
+                key={alternative.alternative_id}
+                alternative={alternative}
+                recommended={false}
+              />
+            ))}
+          </div>
+        </details>
+      )}
 
       {hasCoverageImpact && (
         <section
@@ -98,9 +115,9 @@ export function DecisionBriefPanel({ brief }: { brief: CashDecisionBrief }) {
             id="decision-brief-coverage-impact"
             className="text-sm font-semibold text-neutral-dark"
           >
-            Información que quedó fuera de esta evaluación
+            Datos pendientes
           </h3>
-          <ul className="mt-2 space-y-1.5 text-sm text-neutral-mid">
+          <ul className="mt-1 space-y-1 text-sm text-neutral-mid">
             {coverageImpact &&
               (hasCoverageImpactAmount ||
                 isPositiveCount(brief.coverage.assumed_receivables_excluded_count)) && (
@@ -163,92 +180,6 @@ export function DecisionBriefPanel({ brief }: { brief: CashDecisionBrief }) {
           </ul>
         </section>
       )}
-
-      {brief.evidence && brief.evidence.length > 0 && (
-        <section
-          className="mt-4 border-t border-border pt-3"
-          aria-labelledby="decision-brief-evidence"
-        >
-          <h3 id="decision-brief-evidence" className="text-sm font-semibold text-neutral-dark">
-            Información considerada
-          </h3>
-          <ul className="mt-2 space-y-2">
-            {brief.evidence.map((evidence, index) => {
-              const evidenceAmount = formatBriefMoney(evidence.amount);
-              return (
-                <li
-                  key={`${evidence.kind}-${evidence.observed_on}-${index}`}
-                  data-evidence-kind={evidence.kind}
-                  className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-neutral-dark">{evidence.label}</p>
-                    {evidence.note && <p className="text-neutral-mid">{evidence.note}</p>}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2 text-neutral-mid">
-                    {evidenceAmount && (
-                      <span className="font-medium tabular-nums text-neutral-dark">
-                        {evidenceAmount}
-                      </span>
-                    )}
-                    <span>{formatDateLike(evidence.observed_on)}</span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-
-      {brief.uncertainties && brief.uncertainties.length > 0 && (
-        <section
-          className="mt-4 border-t border-border pt-3"
-          aria-labelledby="decision-brief-uncertainties"
-        >
-          <h3 id="decision-brief-uncertainties" className="text-sm font-semibold text-neutral-dark">
-            Información pendiente de confirmar
-          </h3>
-          <ul className="mt-2 space-y-1.5 text-sm text-neutral-mid">
-            {brief.uncertainties.map((uncertainty, index) => (
-              <li key={`${uncertainty.kind}-${index}`}>{uncertainty.summary}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {brief.secondary_actions && brief.secondary_actions.length > 0 && (
-        <section
-          className="mt-4 border-t border-border pt-3"
-          aria-labelledby="decision-brief-audit"
-        >
-          <h3 id="decision-brief-audit" className="text-sm font-semibold text-neutral-dark">
-            Revisión opcional de datos
-          </h3>
-          <p className="mt-1 text-sm text-neutral-mid">
-            Esto no reemplaza la decisión que estás evaluando arriba.
-          </p>
-          <ul className="mt-2 space-y-2">
-            {brief.secondary_actions.map((action) => (
-              <li
-                key={`${action.cta_href}-${action.title}`}
-                className="flex flex-wrap items-center justify-between gap-3"
-              >
-                <div className="min-w-0 text-sm">
-                  <p className="font-medium text-neutral-dark">{action.title}</p>
-                  <p className="text-neutral-mid">{action.description}</p>
-                </div>
-                <Link
-                  href={action.cta_href}
-                  className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-brand-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2"
-                >
-                  {action.cta_label}
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </QavanteCard>
   );
 }
@@ -271,7 +202,6 @@ function AlternativeRow({
             <h3 className="font-semibold text-neutral-dark">{alternative.title}</h3>
             {recommended && <QavanteBadge variant="info">Recomendado</QavanteBadge>}
           </div>
-          <p className="mt-1 text-sm text-neutral-mid">{alternative.description}</p>
         </div>
         {alternative.cta_href && alternative.cta_label && (
           <Link
@@ -298,13 +228,6 @@ function AlternativeRow({
           })}
         </ul>
       )}
-
-      {alternative.requires_human_confirmation && (
-        <p className="mt-2 flex items-start gap-1.5 text-xs text-neutral-mid">
-          <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          Requiere tu confirmación antes de realizar cualquier acción.
-        </p>
-      )}
     </article>
   );
 }
@@ -317,38 +240,6 @@ function ProblemIcon({ state }: { state: CashDecisionBrief["state"] }) {
     return <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-danger-700" aria-hidden="true" />;
   }
   return <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success-700" aria-hidden="true" />;
-}
-
-function Freshness({ freshness }: { freshness: CashDecisionBrief["freshness"] }) {
-  const icon = <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />;
-  const tone =
-    freshness.state === "current"
-      ? "text-success-700"
-      : freshness.state === "needs_update"
-        ? "text-warning-700"
-        : "text-neutral-mid";
-
-  return (
-    <span className={`inline-flex items-center gap-1 text-xs font-medium ${tone}`}>
-      {icon}
-      {freshness.summary}
-    </span>
-  );
-}
-
-/** La certeza llega enumerada desde el contrato; esto sólo la traduce para la interfaz. */
-function Confidence({ confidence }: { confidence: CashDecisionBrief["confidence"] }) {
-  const labels: Record<CashDecisionBrief["confidence"], string> = {
-    high: "Alta",
-    limited: "Limitada",
-    unavailable: "No disponible",
-  };
-
-  return (
-    <span data-decision-confidence={confidence} className="text-xs font-medium text-neutral-mid">
-      Confianza: {labels[confidence]}
-    </span>
-  );
 }
 
 function formatBriefMoney(money: BriefMoney | null | undefined): string | null {

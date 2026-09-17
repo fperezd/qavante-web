@@ -93,13 +93,8 @@ describe("PagarV05View — tríada (caso normal)", () => {
   it("muestra caja final, críticos y cobertura canónica por separado", () => {
     const t = texto(html());
     expect(t).toContain("Caja proyectada 14 días $5.200.000");
-    expect(t).toContain(
-      "Pagos críticos en todo el registro: $16.807.705 · 6 pagos que no se postergan en 14 días",
-    );
-    expect(t).toContain(
-      "Las obligaciones comprometidas ya están incluidas en el flujo proyectado; no se vuelven a restar",
-    );
-    expect(t).toContain("Estado de cobertura del horizonte: no cubre");
+    expect(t).toContain("$16.807.705 críticos · 6 pagos");
+    expect(t).toContain("No alcanza para los pagos críticos.");
     expect(t).not.toContain("$2.878.055");
   });
 
@@ -107,7 +102,7 @@ describe("PagarV05View — tríada (caso normal)", () => {
     const t = texto(html({ pagos: pagosAuditoriaD01() }));
 
     expect(t).toContain("Caja proyectada 14 días −$46.865.254");
-    expect(t).toContain("Pagos críticos en todo el registro: $10.373.669");
+    expect(t).toContain("$10.373.669 críticos · 1 pago");
     expect(t).not.toContain("$57.238.923");
     expect(t).not.toContain("faltan $");
   });
@@ -119,9 +114,9 @@ describe("PagarV05View — tríada (caso normal)", () => {
   it("lista sin críticos visibles conserva el agregado global y la cobertura", () => {
     const t = texto(html({ pagos: pagosListaTopeadaSinCriticos() }));
 
-    expect(t).toContain("Pagos críticos en todo el registro: $250.000 · 1 pago");
-    expect(t).toContain("Estado de cobertura del horizonte: no cubre");
-    expect(t).not.toContain("Pagos críticos en todo el registro: $0");
+    expect(t).toContain("$250.000 críticos · 1 pago");
+    expect(t).toContain("No alcanza para los pagos críticos.");
+    expect(t).not.toContain("$0 críticos");
   }, 20_000);
 
   it("USD 830 crítico sin TC se abstiene del subtotal sin alterar la cobertura", () => {
@@ -150,10 +145,9 @@ describe("PagarV05View — tríada (caso normal)", () => {
       }),
     );
 
-    expect(t).toContain("Pagos críticos en todo el registro: subtotal no disponible · 1 pago");
-    expect(t).toContain("1 moneda excluida por falta de tipo de cambio");
-    expect(t).toContain("Estado de cobertura del horizonte: no cubre");
-    expect(t).not.toContain("Pagos críticos en todo el registro: $0 · 1 pago");
+    expect(t).toContain("1 pago crítico · monto sin dato");
+    expect(t).toContain("No alcanza para los pagos críticos.");
+    expect(t).not.toContain("$0 críticos");
   });
 
   it("críticos conocidos y sin TC presentan el subtotal conocido como piso", () => {
@@ -182,8 +176,8 @@ describe("PagarV05View — tríada (caso normal)", () => {
       }),
     );
 
-    expect(t).toContain("Pagos críticos en todo el registro: al menos $503.076 · 2 pagos");
-    expect(t).not.toContain("Pagos críticos en todo el registro: $503.076 · 2 pagos");
+    expect(t).toContain("Al menos $503.076 críticos · 2 pagos");
+    expect(t).not.toContain("Pagos críticos en todo el registro: $503.076");
   });
 
   it("se abstiene de publicar un monto negociable sin agregado global del API", () => {
@@ -201,7 +195,7 @@ describe("PagarV05View — tríada (caso normal)", () => {
     // Los agregados del servidor y la evidencia se conservan: el Brief no los reemplaza.
     expect(t).toContain("Por pagar 14 días $17.998.105");
     expect(t).toContain("Inmobiliaria Vista Kennedy SpA");
-    expect(t).toContain("Los pagos se muestran en el orden publicado por la fuente.");
+    expect(t).not.toContain("Los pagos se muestran en el orden publicado por la fuente.");
 
     /* Lo que SÍ desaparece son las señales de DECISIÓN locales: la columna de tipo con sus
        pills y el pie de la Ley 9, que es política de postergación. */
@@ -217,7 +211,7 @@ describe("PagarV05View — tríada (caso normal)", () => {
     const hConPlanLocal = html();
     expect(conPlanLocal).toContain("Negociable");
     expect(conPlanLocal).toContain("No se posterga");
-    expect(conPlanLocal).toContain(
+    expect(conPlanLocal).not.toContain(
       "Impuestos y sueldos jamás entran en postergaciones automáticas.",
     );
     expect(hConPlanLocal).toContain(">Tipo<");
@@ -244,7 +238,7 @@ describe("PagarV05View — tabla y footer", () => {
     expect(t).toContain("No se posterga");
     // Ninguna pill ni nota técnica dice "Servicio".
     expect(html()).not.toMatch(/>Servicio</);
-    expect(t).toContain("La fuente todavía no distingue servicios recurrentes");
+    expect(t).not.toContain("La fuente todavía no distingue servicios recurrentes");
     expect(t).not.toContain("spec");
   });
 
@@ -252,8 +246,10 @@ describe("PagarV05View — tabla y footer", () => {
     const h = html();
     // Ningún botón ni link "Pagar todo" en el DOM (la única mención es la declaración de que NO existe).
     expect(h).not.toMatch(/<(button|a)\b[^>]*>[^<]*[Pp]agar todo/);
-    expect(texto(h)).toContain("No existe un botón “pagar todo”");
-    expect(texto(h)).toContain("Impuestos y sueldos jamás entran en postergaciones automáticas.");
+    expect(texto(h)).not.toContain("No existe un botón “pagar todo”");
+    expect(texto(h)).not.toContain(
+      "Impuestos y sueldos jamás entran en postergaciones automáticas.",
+    );
     expect(h).not.toContain(">Pagar todo<");
   });
 
@@ -327,7 +323,7 @@ describe("PagarV05View — el 'no sé' explícito", () => {
   it("caja proyectada en USD conserva su unidad y la cobertura se abstiene", () => {
     const t = texto(html({ pagos: pagosDegradados() }));
     expect(t).toMatch(/Caja proyectada 14 días US\$\s10\.500,00/);
-    expect(t).toContain("no se pudo determinar la cobertura con los datos disponibles");
+    expect(t).toContain("Cobertura sin dato.");
     expect(t).not.toContain("faltan $");
   });
 
@@ -361,18 +357,18 @@ describe("PagarV05View — certeza de la fecha (server-owned, contrato #558)", (
     // Dos filas estimadas (Telefónica y el F29) → dos pills; una sin confirmar → una pill.
     const pills = (etiqueta: string) =>
       (h.match(new RegExp(`class="[^"]*rounded-full[^"]*"[^>]*>${etiqueta}<`, "g")) ?? []).length;
-    expect(pills("Fecha estimada")).toBe(2);
-    expect(pills("Fecha sin confirmar")).toBe(1);
-    // La nota va tal cual, en el `.sub` de la fila y en su "detalle ▾".
+    expect(pills("Fecha aproximada")).toBe(2);
+    expect(pills("Fecha por confirmar")).toBe(1);
+    // La nota se muestra una sola vez en el detalle de la fila.
     expect((t.match(new RegExp(NOTA_TELEFONICA.replace(/[.;]/g, "\\$&"), "g")) ?? []).length).toBe(
-      2,
+      1,
     );
-    expect(t).toContain("Certeza Fecha estimada · " + NOTA_TELEFONICA);
+    expect(t).toContain("Fecha Fecha aproximada");
     // Sin nota no se inventa una: el arriendo lleva la pill y nada más.
-    expect(t).toContain("Certeza Fecha sin confirmar");
-    expect(t).not.toMatch(/Fecha sin confirmar · /);
+    expect(t).toContain("Fecha Fecha por confirmar");
+    expect(t).not.toMatch(/Fecha por confirmar · /);
     // Gemelo: las confirmadas no llevan pill ni línea de certeza.
-    expect(html()).not.toMatch(/>Fecha estimada<|>Fecha sin confirmar<|>Certeza</);
+    expect(html()).not.toMatch(/>Fecha aproximada<|>Fecha por confirmar<|>Sin fecha confirmada</);
   });
 
   it("una fecha estimada o sin confirmar nunca se pinta como vencida ni como crítica", () => {
@@ -390,21 +386,21 @@ describe("PagarV05View — certeza de la fecha (server-owned, contrato #558)", (
 
   it("conteo de estimados del servidor en Por pagar; con 0 no se dice nada", () => {
     const t = texto(html({ pagos: pagosConFechasEstimadas() }));
-    expect(t).toContain("2 pagos con fecha estimada, fuera de los tramos");
-    expect(t).toContain("Hoy: 2 pagos con fecha estimada según el registro");
-    expect(texto(html())).not.toContain("con fecha estimada, fuera de los tramos");
+    expect(t).toContain("2 pagos con fecha aproximada");
+    expect(t).not.toContain("Hoy: 2 pagos con fecha estimada según el registro");
+    expect(texto(html())).not.toContain("con fecha aproximada");
     expect(texto(html())).not.toContain("Hoy: ");
     // No se recuenta desde la página: 1 según el servidor aunque haya 2 filas estimadas.
     const uno = texto(html({ pagos: pagosConFechasEstimadas({ estimated_due_date_count: 1 }) }));
-    expect(uno).toContain("1 pago con fecha estimada, fuera de los tramos");
+    expect(uno).toContain("1 pago con fecha aproximada");
     expect(uno).not.toContain("1 pagos");
   });
 
-  it("sin el campo no se asume confirmada: pill 'Certeza no informada' y sin ámbar", () => {
+  it("sin el campo no se asume confirmada y no usa ámbar", () => {
     const sinCampo = { ...KENNEDY, due_date_certainty: undefined as never };
     const h = html({ pagos: pagos({ items: [sinCampo] }) });
-    expect(h).toContain(">Certeza no informada<");
+    expect(h).toContain(">Sin fecha confirmada<");
     expect(h).not.toMatch(/class="[^"]*rediseno-ambar[^"]*"[^>]*>hace 545 días</);
-    expect(html({ pagos: pagos({ items: [KENNEDY] }) })).not.toContain(">Certeza no informada<");
+    expect(html({ pagos: pagos({ items: [KENNEDY] }) })).not.toContain(">Sin fecha confirmada<");
   });
 });

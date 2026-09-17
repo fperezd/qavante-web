@@ -89,7 +89,8 @@ export const Normal: Story = {
     await expect(canvas.getByText("73 días")).toBeInTheDocument(); // el otro +60, en ámbar
     await expect(filas(canvasElement)).toHaveLength(6);
     await expect(canvas.getByText("Empresa de Correos de Chile")).toBeInTheDocument();
-    await expect(canvas.getByText(/total por cobrar \(bruto\)/)).toBeInTheDocument();
+    await expect(canvas.getByText(/total por cobrar/)).toBeInTheDocument();
+    await expect(canvas.queryByText(/total por cobrar \(bruto\)/)).not.toBeInTheDocument();
     await expect(canvas.getByText("$42.579.467")).toBeInTheDocument();
     await expect(canvas.getAllByRole("link", { name: "WhatsApp" })).toHaveLength(6);
     /* Gemelo positivo del padding compacto de `Angosto360`: con la tabla ancha son 18 px, o sea el
@@ -132,8 +133,8 @@ export const FechasEstimadas: Story = {
     const canvas = within(canvasElement);
     // Los tres valores del contrato en la misma cartera: una estimada, una sin confirmar, el resto
     // confirmadas (sin pill).
-    await expect(canvas.getByText("Fecha estimada")).toBeInTheDocument();
-    await expect(canvas.getByText("Fecha sin confirmar")).toBeInTheDocument();
+    await expect(canvas.getByText("Fecha aproximada")).toBeInTheDocument();
+    await expect(canvas.getByText("Fecha por confirmar")).toBeInTheDocument();
     // La nota server-owned va tal cual junto al documento; sin nota, sólo el documento.
     await expect(canvas.getByText(`Factura 462 · ${NOTA_ESTIMADA}`)).toBeInTheDocument();
     await expect(canvas.getByText("Factura 495")).toBeInTheDocument();

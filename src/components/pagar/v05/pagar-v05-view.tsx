@@ -5,7 +5,7 @@ import { DocumentActionButton } from "@/components/documents/document-actions";
 import { downloadXlsx } from "@/lib/export/xlsx";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Info, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rovingIndex } from "@/lib/a11y/roving";
 import type {
@@ -20,22 +20,16 @@ import { FilterChips } from "@/components/rediseno/filter-chip";
 import { KpiCard } from "@/components/rediseno/kpi-card";
 import { Pill } from "@/components/rediseno/pill";
 import { RedisenoTable, TablePrimaryCell } from "@/components/rediseno/table";
-import { CERTEZA_LABEL, esConfirmada } from "@/components/rediseno/certeza-vencimiento";
+import { esConfirmada } from "@/components/rediseno/certeza-vencimiento";
 import {
   FILTROS_SERVIDOR_V05,
-  LEY_9_TEXTO,
   PERIODOS,
   TIPO_LABEL,
   TOPE_ITEMS,
   VENTANA_DIAS,
-  certezaLabelDe,
   conteosServidor,
   csvPagosTable,
   elUnicoRojo,
-  explicacionCritico,
-  explicacionPorPagar,
-  explicacionVencido,
-  explicacionVencidoEvidencia,
   faltantes,
   kpiCritico,
   kpiPorPagar,
@@ -43,7 +37,6 @@ import {
   nombreExportPagina,
   pagosV05,
   totales,
-  type ExplicacionV05,
   type FiltroServidorV05,
   type PagoV05,
   type PeriodoV05,
@@ -157,9 +150,6 @@ export function PagarV05View({
   const vencido = kpiVencidoGlobal(ap);
   const porPagar = kpiPorPagar(ap, periodo);
   const critico = kpiCritico(filas, ap);
-  const infoVencido = suppressRecommendations
-    ? explicacionVencidoEvidencia(ap, hoy)
-    : explicacionVencido(ap, hoy);
   /* Los conteos de los chips los publica el servidor sobre TODO el registro: filtrar o paginar
      no puede cambiarlos (D02/D15). "En seguimiento" es sólo un ocultamiento de filas de ESTA
      página: no entra en ningún agregado. */
@@ -211,57 +201,16 @@ export function PagarV05View({
 
   const coberturaTexto =
     critico.cobertura === true
-      ? "Estado de cobertura del horizonte: cubre."
+      ? "Alcanza para los pagos críticos."
       : critico.cobertura === false
-        ? "Estado de cobertura del horizonte: no cubre."
-        : `Estado de cobertura del horizonte: indeterminado; ${critico.motivoSinCobertura}.`;
-  const subtotalCriticoIncompleto = !critico.completo;
-  const notaFechasDesconocidas =
-    critico.fechasDesconocidas > 0
-      ? ` · ${critico.fechasDesconocidas} ${critico.fechasDesconocidas === 1 ? "obligación sin fecha clasificable" : "obligaciones sin fecha clasificable"}`
-      : "";
-  const notaMonedasExcluidas = critico.monedasExcluidas
-    ? ` · ${critico.monedasExcluidas} ${critico.monedasExcluidas === 1 ? "moneda excluida" : "monedas excluidas"} por falta de tipo de cambio; el API no publica cuántos pagos contiene`
-    : "";
-  const contextoCritico = subtotalCriticoIncompleto ? (
-    critico.total > 0 ? (
-      <>
-        Pagos críticos en todo el registro: al menos {formatClp(critico.total)} · {critico.n}{" "}
-        {critico.n === 1 ? "pago" : "pagos"} en {VENTANA_DIAS} días
-        {critico.yaVencido > 0 && ` · al menos ${formatClp(critico.yaVencido)} ya vencido`}
-        {notaFechasDesconocidas}
-        {notaMonedasExcluidas}.
-      </>
-    ) : (
-      <>
-        Pagos críticos en todo el registro: subtotal no disponible
-        {critico.n > 0 &&
-          ` · ${critico.n} ${critico.n === 1 ? "pago" : "pagos"} en ${VENTANA_DIAS} días`}
-        {notaFechasDesconocidas}
-        {notaMonedasExcluidas}.
-      </>
-    )
-  ) : (
-    <>
-      Pagos críticos en todo el registro: {formatClp(critico.total)} ·{" "}
-      {critico.n > 0
-        ? `${critico.n} ${critico.n === 1 ? "pago que no se posterga" : "pagos que no se postergan"} en ${VENTANA_DIAS} días`
-        : `ningún pago crítico en todo el registro dentro de ${VENTANA_DIAS} días`}
-      {critico.yaVencido > 0 && ` · ${formatClp(critico.yaVencido)} ya vencido`}.
-    </>
-  );
-  const detalleCaja = (
-    <>
-      <span className="block">Saldo final del flujo vigente.</span>
-      <span className="block">{contextoCritico}</span>
-      <span className="block">
-        Las obligaciones comprometidas ya están incluidas en el flujo proyectado; no se vuelven a
-        restar.
-      </span>
-      <span className="block">{coberturaTexto}</span>{" "}
-      <InfoPopover label="Qué significan Caja y críticos" info={explicacionCritico(ap, hoy)} />
-    </>
-  );
+        ? "No alcanza para los pagos críticos."
+        : "Cobertura sin dato.";
+  const contextoCritico = critico.completo
+    ? `${formatClp(critico.total)} críticos · ${critico.n} ${concordar(critico.n, "pago", "pagos")}`
+    : critico.total > 0
+      ? `Al menos ${formatClp(critico.total)} críticos · ${critico.n} ${concordar(critico.n, "pago", "pagos")}`
+      : `${critico.n} ${concordar(critico.n, "pago crítico", "pagos críticos")} · monto sin dato`;
+  const detalleCaja = `${coberturaTexto} ${contextoCritico}`;
 
   return (
     <div className="space-y-5">
@@ -288,8 +237,7 @@ export function PagarV05View({
                 </>
               ) : (
                 "ningún pago vencido conocido"
-              )}{" "}
-              <InfoPopover label="Qué es Vencido" info={infoVencido} />
+              )}
             </>
           }
         />
@@ -308,11 +256,7 @@ export function PagarV05View({
                       los tramos. Con 0 no se dice nada; sin el campo tampoco (no se asume 0). */}
                   {porPagar.estimadas != null &&
                     porPagar.estimadas > 0 &&
-                    ` · ${formatCount(porPagar.estimadas)} ${concordar(porPagar.estimadas, "pago", "pagos")} con fecha estimada, fuera de los tramos`}{" "}
-                  <InfoPopover
-                    label="Qué es Por pagar"
-                    info={explicacionPorPagar(ap, periodo, hoy)}
-                  />
+                    ` · ${formatCount(porPagar.estimadas)} ${concordar(porPagar.estimadas, "pago", "pagos")} con fecha aproximada`}
                 </span>
                 <SelectorPeriodo periodo={periodo} onChange={setPeriodo} />
               </>
@@ -415,11 +359,6 @@ export function PagarV05View({
             </label>
           )}
         </div>
-        {suppressRecommendations && (
-          <p className="text-[12.5px] text-rediseno-tinta-3">
-            Los pagos se muestran en el orden publicado por la fuente.
-          </p>
-        )}
         <TablaPagos
           pagos={visibles}
           totalPagos={ap.items_total}
@@ -479,26 +418,6 @@ export function PagarV05View({
             ` · el registro lista hasta ${TOPE_ITEMS} pagos: puede haber más que no se muestran`}
           {falta && <> · falta: {falta}</>}
         </p>
-
-        {/* Ley 9 (texto fijo, literal) + huecos declarados. Con Brief activo el pie sólo describe
-            la evidencia: la política de postergación no se reproduce por una segunda vía. */}
-        {suppressRecommendations ? (
-          <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-            Cada fila abre el respaldo del pago. Una alerta de posible duplicado indica que el
-            registro señaló dos documentos para revisar; no elimina ni modifica obligaciones. La
-            fuente todavía no distingue servicios recurrentes de otras facturas.
-          </p>
-        ) : (
-          <p className="text-[12px] leading-relaxed text-rediseno-tinta-3">
-            <b className="font-semibold text-rediseno-tinta-2">
-              No existe un botón “pagar todo”, y postergar no es una acción aquí:
-            </b>{" "}
-            mover plata siempre lleva firma humana. {LEY_9_TEXTO} Cada fila abre el respaldo del
-            pago. Una alerta de posible duplicado indica que debes revisar ambos registros antes de
-            pagar; no elimina ni modifica obligaciones. La fuente todavía no distingue servicios
-            recurrentes de otras facturas.
-          </p>
-        )}
       </section>
     </div>
   );
@@ -545,53 +464,6 @@ function SelectorPeriodo({
         </button>
       ))}
     </span>
-  );
-}
-
-/* ── ⓘ (§1.4: definición, incluye/excluye, fuente y frescura) ────────────────── */
-
-function InfoPopover({ label, info }: { label: string; info: ExplicacionV05 }) {
-  return (
-    <details className="group relative inline-block align-middle">
-      <summary
-        className="inline-flex cursor-pointer list-none items-center text-rediseno-tinta-3-light hover:text-rediseno-tinta-2 focus-visible:ring-2 focus-visible:ring-rediseno-azul focus-visible:outline-none [&::-webkit-details-marker]:hidden"
-        aria-label={label}
-      >
-        <Info className="size-3.5" aria-hidden />
-      </summary>
-      <div className="absolute top-full left-0 z-40 mt-1.5 w-[min(22rem,80vw)] rounded-xl border border-rediseno-hairline bg-rediseno-superficie p-3 text-left text-[12.5px] leading-relaxed font-normal text-rediseno-tinta-2 normal-case tracking-normal shadow-lg">
-        <p className="font-semibold text-rediseno-tinta">{info.definicion}</p>
-        <Bloque titulo="Incluye" items={info.incluye} />
-        <Bloque titulo="Deja afuera" items={info.excluye} />
-        <p className="mt-2">
-          <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-            Fuente
-          </span>{" "}
-          <span className="font-rediseno-mono text-[12px]">{info.fuente}</span>
-        </p>
-        <p className="mt-1">
-          <span className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-            Frescura
-          </span>{" "}
-          {info.frescura}
-        </p>
-      </div>
-    </details>
-  );
-}
-
-function Bloque({ titulo, items }: { titulo: string; items: string[] }) {
-  return (
-    <div className="mt-2">
-      <p className="font-rediseno-mono text-[12px] uppercase tracking-[.1em] text-rediseno-tinta-3">
-        {titulo}
-      </p>
-      <ul className="mt-0.5 list-disc space-y-0.5 pl-4">
-        {items.map((i) => (
-          <li key={i}>{i}</li>
-        ))}
-      </ul>
-    </div>
   );
 }
 
@@ -667,7 +539,7 @@ function TablaPagos({
                   `.sub` de la fila y en "detalle ▾", tal cual llega. Confirmada = sin pill. */}
               {!esConfirmada(p.certeza) && (
                 <Pill variant="mut" title={p.notaVencimiento ?? undefined}>
-                  {CERTEZA_LABEL[p.certeza]}
+                  {fechaEstadoLabel(p.certeza)}
                 </Pill>
               )}
             </span>
@@ -717,7 +589,7 @@ function TablaPagos({
         cell: ({ row }) => <DetallePago pago={row.original} />,
       },
     ],
-    [rojo],
+    [rojo, showDecisionSignals],
   );
   return (
     <RedisenoTable
@@ -756,7 +628,7 @@ function DetallePago({ pago: p }: { pago: PagoV05 }) {
             v={p.dias == null ? "sin fecha" : `${p.venceLabel} (${p.relativoLabel})`}
           />
           {/* La certeza y la nota del servidor, sin reescribir. Confirmada no necesita línea. */}
-          {certezaLabelDe(p) && <Dato k="Certeza" v={certezaLabelDe(p)!} />}
+          {!esConfirmada(p.certeza) && <Dato k="Fecha" v={fechaEstadoLabel(p.certeza)} />}
           <Dato
             k="Monto"
             v={`${p.montoLabel}${p.moneda !== "CLP" && p.montoClp != null ? ` · ${formatClp(p.montoClp)} al tipo de cambio` : ""}`}
@@ -786,6 +658,12 @@ function Dato({ k, v }: { k: string; v: string }) {
       <dd className="min-w-0">{v}</dd>
     </div>
   );
+}
+
+function fechaEstadoLabel(certeza: PagoV05["certeza"]): string {
+  if (certeza === "estimated") return "Fecha aproximada";
+  if (certeza === "unconfirmed") return "Fecha por confirmar";
+  return "Sin fecha confirmada";
 }
 
 /** Exportar (§5.5): descarga Excel con celdas tipadas en el navegador. Sólo corre en cliente. */

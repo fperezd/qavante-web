@@ -201,9 +201,7 @@ export const ConciliarSinEvidencia: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/ninguna verificación coincide entre el movimiento y el documento/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText("No hay coincidencia clara.")).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: /Sí, conciliar/ })).toBeNull();
     await expect(canvas.getByRole("button", { name: /Buscar el documento/ })).toBeInTheDocument();
 
@@ -300,7 +298,7 @@ export const ClasificarConRegla: Story = {
     await expect(canvas.getByText("Clasificar · 117")).toBeInTheDocument();
     // El origen aparece en el encabezado y en la sugerencia; comprobar ambos
     // evita depender de un selector singular para dos textos válidos.
-    await expect(canvas.getAllByText(/una regla tuya/)).toHaveLength(2);
+    await expect(canvas.getAllByText(/una regla tuya/)).toHaveLength(1);
     await expect(canvas.queryByText(/confianza/i)).not.toBeInTheDocument();
     // La sugerencia PRE-SELECCIONA; nunca guarda sola.
     const select = canvas.getByLabelText("Cuenta de gestión") as HTMLSelectElement;
@@ -383,9 +381,7 @@ export const ClasificarSinSugerencia: Story = {
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/sin regla que calce: sin evidencia no se sugiere/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/Elige una categoría/)).toBeInTheDocument();
     await expect(canvas.getByText(/RUT en la glosa: 18\.974\.184-7/)).toBeInTheDocument();
     await expect(canvas.queryByText(/3\.266\.705-1/)).toBeNull();
     await expect(
@@ -657,9 +653,7 @@ export const BandejaVacia: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Nada espera tu decisión")).toBeInTheDocument();
-    await expect(
-      canvas.getByText(/Tus informes y tu proyección ya no dejan nada de esta bandeja afuera/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText("No quedan movimientos por revisar.")).toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };

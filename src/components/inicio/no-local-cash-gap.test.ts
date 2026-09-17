@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dirname } from "node:path";
+import { dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   LOCAL_CASH_GAP_PATTERNS,
@@ -39,7 +39,7 @@ describe("Inicio no deriva la brecha de caja: la publica el backend (D01/D03)", 
   it("los publicadores de la brecha leen cash_gap_amount_14d del contrato", () => {
     const publicadores = ["cash-gap-14d.ts", "resumen/inicio-resumen-model.ts"];
     for (const rel of publicadores) {
-      const file = productionFiles.find((f) => f.name.endsWith(rel));
+      const file = productionFiles.find((f) => f.name.endsWith(rel.replaceAll("/", sep)));
       expect(file, rel).toBeDefined();
       expect(file!.source).toContain("cash_gap_amount_14d");
     }

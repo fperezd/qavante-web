@@ -74,7 +74,7 @@ describe("Pagar V05 D02 view", () => {
     expect(html).not.toContain(formatClp(negociablePagina));
 
     // Gemelo positivo: lo que SÍ se publica es el agregado del servidor sobre todo el registro.
-    expect(html).toContain("Pagos críticos en todo el registro: $16.807.705");
+    expect(html).toContain("$16.807.705 críticos · 6 pagos");
 
     /* Tampoco hay un enlace que mande a Hoy a decidir postergaciones; la vista sí renderea
        enlaces (el detalle de cada pago), así que la ausencia se mide sobre anclas reales. */
@@ -125,8 +125,8 @@ describe("Pagar V05 D02 view", () => {
         }}
       />,
     );
-    expect(html).toContain("10 pagos en 14 días");
-    expect(html).toContain("1 moneda excluida por falta de tipo de cambio");
+    expect(html).toContain("10 pagos críticos · monto sin dato");
+    expect(html).not.toContain("1 moneda excluida");
     expect(html).not.toContain("1 pago crítico");
   });
 });

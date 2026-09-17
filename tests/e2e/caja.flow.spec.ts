@@ -38,7 +38,7 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
     /* Producción sirve V02 (`cajaV02` ON en `wrangler.toml`): una pantalla, una pregunta. Arriba
        la lectura de hoy; la proyección es el run inmutable del backend (D03), que separa saldo
        final, mínimo del horizonte y brecha contra cero sin restar obligaciones dos veces (D01). */
-    await expect(page.getByText("¿Me alcanza la caja?")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Hoy, entra y sale" })).toBeVisible();
     await expect(page.getByText("Saldo en tus cuentas · el mismo número que en Hoy")).toBeVisible();
     await expect(page.getByText("$9.800.000").first()).toBeVisible();
     await expect(page.getByText("Proyección canónica")).toBeVisible({ timeout: 20_000 });
@@ -54,7 +54,7 @@ test.describe("Flujo: Caja v2 (/caja/proyeccion)", () => {
       page.getByText(/Caja para decidir pagos|Proyección canónica/).first(),
     ).toBeVisible();
     // La auditoría de movimientos queda después de la respuesta financiera, no como requisito.
-    await expect(page.getByText("Calidad y auditoría de movimientos")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Movimientos" })).toBeVisible();
     await expect(page.getByText("Movimientos pendientes")).toBeVisible();
   });
 });

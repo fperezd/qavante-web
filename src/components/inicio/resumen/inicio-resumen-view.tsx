@@ -5,7 +5,6 @@ import { DocumentActionButton } from "@/components/documents/document-actions";
 import Link from "next/link";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { formatClp } from "@/lib/formatters/clp";
-import { formatDateShort } from "@/lib/formatters/date";
 import { parseAmountOrNull } from "@/lib/formatters/amount";
 import { cn } from "@/lib/utils";
 import { crumbHoy } from "../v01/hoy-model";
@@ -132,39 +131,6 @@ export function InicioResumenView(props: InicioResumenViewProps) {
             <Link href="/caja" className={showDecision ? link : primary}>
               Ver flujo de caja
             </Link>
-          </div>
-          <div className="mt-auto border-t border-border pt-1">
-            <InicioDisclosure label="Cómo se calcula">
-              <dl className="space-y-3 text-sm">
-                <div>
-                  <dt className="text-neutral-mid">Menor saldo proyectado · CLP</dt>
-                  <dd className="mt-1 tabular-nums">
-                    {cash.minimum == null ? "Sin dato" : formatClp(cash.minimum)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-neutral-mid">Saldo al final de los 14 días · CLP</dt>
-                  <dd className="mt-1 tabular-nums">
-                    {cash.projected == null ? "Sin dato" : formatClp(cash.projected)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-neutral-mid">Actualización de la proyección</dt>
-                  <dd>
-                    {data?.cash_forecast?.last_updated
-                      ? formatDateShort(data.cash_forecast.last_updated)
-                      : "Sin fecha informada"}
-                  </dd>
-                </div>
-              </dl>
-              <p className="text-sm text-neutral-mid">
-                La proyección considera los cobros y pagos previstos; no es el saldo bancario de
-                hoy.
-              </p>
-              <Link href="/caja" className={link}>
-                Revisar proyección
-              </Link>
-            </InicioDisclosure>
           </div>
         </section>
 

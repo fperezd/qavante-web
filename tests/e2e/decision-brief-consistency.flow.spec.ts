@@ -11,9 +11,8 @@ import { loginAs } from "./helpers";
  * desde el servidor, incluido el query string que permite conservar el corte.
  *
  * Con el flag encendido la pantalla NO se vacía: el Brief va primero y debajo
- * queda la vista existente en modo evidencia (`suppressRecommendations`, o
- * `secondaryAudit` en Bandeja), que conserva los documentos en el orden
- * publicado por la fuente y deja de emitir su propio ranking. Cada ausencia que
+ * queda la vista existente en modo evidencia, que conserva los documentos y
+ * deja de emitir su propio ranking. Cada ausencia que
  * se afirma acá tiene su gemelo presente en `decision-brief-flag-off.flow.spec.ts`
  * con la MISMA cadena, para que un assert negativo no pase por bueno sin casar. */
 const DECISION_ID = DECISION_BRIEF_E2E_DECISION_ID;
@@ -88,11 +87,10 @@ test.describe("Decision Brief canónico en las cinco superficies", () => {
         await expect(
           brief.getByText("Tu caja no alcanza para cubrir los próximos pagos"),
         ).toBeVisible();
-        /* La fixture publica "52418151.00" y "-52418151.362000000000", los dos
-           formatos que trae producción. En pesos se muestran al peso: estos dos
-           positivos y su gemelo negativo miden justamente eso. */
+        /* La fixture publica "52418151.00" como importe principal. En pesos se
+           muestra al peso, sin exponer el detalle técnico de la evidencia. */
         await expect(brief.getByText("$52.418.151", { exact: true })).toBeVisible();
-        await expect(brief.getByText("−$52.418.151", { exact: true })).toBeVisible();
+        await expect(brief.getByText("−$52.418.151", { exact: true })).toHaveCount(0);
         await expect(brief.getByText("$52.418.151,00")).toHaveCount(0);
         await expect(brief.getByText("52.418.151,362000000000")).toHaveCount(0);
         await expect(brief.getByText("52.418.151,36")).toHaveCount(0);
@@ -104,14 +102,13 @@ test.describe("Decision Brief canónico en las cinco superficies", () => {
           "href",
           DECISION_BRIEF_E2E_CTA_HREFS.reviewPayments,
         );
+        await expect(brief.getByRole("link", { name: "Ver proyección" })).toHaveCount(0);
+        await brief.getByText("Ver otras opciones (1)", { exact: true }).click();
         await expect(brief.getByRole("link", { name: "Ver proyección" })).toHaveAttribute(
           "href",
           DECISION_BRIEF_E2E_CTA_HREFS.viewProjection,
         );
-        await expect(brief.getByRole("link", { name: "Abrir auditoría" })).toHaveAttribute(
-          "href",
-          DECISION_BRIEF_E2E_CTA_HREFS.reviewAudit,
-        );
+        await expect(brief.getByRole("link", { name: "Abrir auditoría" })).toHaveCount(0);
 
         if (surface.name === "inicio") {
           // El resumen sigue montado como evidencia; su lista local de prioridades no.
@@ -120,24 +117,25 @@ test.describe("Decision Brief canónico en las cinco superficies", () => {
         }
 
         if (surface.name === "caja") {
-          // La auditoría de movimientos sigue accesible debajo del envelope.
-          await expect(page.getByText("Calidad y auditoría de movimientos")).toBeVisible();
+          // Los movimientos siguen accesibles debajo del envelope, con un título breve.
+          await expect(page.getByRole("heading", { name: "Movimientos" })).toBeVisible();
+          await expect(page.getByText("Calidad y auditoría de movimientos")).toHaveCount(0);
         }
 
         if (surface.name === "bandeja") {
-          // La cola sigue accesible, rotulada como auditoría y no como decisión pendiente.
-          await expect(page.getByText("Bandeja · auditoría de movimientos")).toBeVisible();
+          // La cola sigue accesible, sin subtítulos explicativos.
           await expect(
-            page.getByText("Bandeja · decisiones que requieren tu revisión"),
-          ).toHaveCount(0);
+            page.locator("main").getByText("Bandeja", { exact: true }),
+          ).toBeVisible();
+          await expect(page.getByText("Bandeja · auditoría de movimientos")).toHaveCount(0);
         }
 
         if (surface.name === "pagar") {
-          // V05 conserva los documentos como evidencia, en el orden de la fuente, y no
-          // fabrica una segunda decisión de postergabilidad.
+          // V05 conserva los documentos como evidencia y no fabrica otra recomendación.
+          await expect(page.getByRole("heading", { name: "Pagos y obligaciones" })).toBeVisible();
           await expect(
             page.getByText("Los pagos se muestran en el orden publicado por la fuente."),
-          ).toBeVisible();
+          ).toHaveCount(0);
           /* La política de postergación es del Brief: V05 no la reproduce. La frase existe en el
              producto cuando el Brief está apagado (pie de la Ley 9), así que el negativo puede
              fallar de verdad; su gemelo positivo vive en el spec OFF. */

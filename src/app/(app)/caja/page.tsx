@@ -38,14 +38,13 @@ export default function CajaPage() {
       <div className="space-y-6">
         <header>
           <h1 className="text-2xl font-bold text-neutral-dark">Caja</h1>
-          <p className="mt-1 text-sm text-neutral-mid">¿Me alcanza la caja?</p>
         </header>
         {decisionBrief && <DecisionBriefSlot surface="caja" />}
         <CajaV02Live suppressRecommendations={decisionBrief} />
         {bankMovementClassification && (
           <section aria-labelledby="herramientas-section" className="space-y-3">
             <h2 id="herramientas-section" className="text-base font-semibold text-neutral-dark">
-              Calidad y auditoría de movimientos
+              Movimientos
             </h2>
             <MovimientosSubCards reconciliationReview={reconciliationReview} />
           </section>
@@ -58,7 +57,6 @@ export default function CajaPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-bold text-neutral-dark">Caja</h1>
-        <p className="mt-1 text-sm text-neutral-mid">¿Me alcanza la caja y qué puedo hacer?</p>
       </header>
 
       {decisionBrief && <DecisionBriefSlot surface="caja" />}
@@ -109,8 +107,8 @@ export default function CajaPage() {
                   <CajaSubCard
                     href="/caja/proyeccion"
                     icon={TrendingUp}
-                    title="Reporte de caja"
-                    description="Entradas y salidas agregadas por período. Default ≈13 semanas con granularidad semanal sobre la capa comprometida."
+                    title="Proyección de caja"
+                    description="Lo que entra, sale y queda por semana."
                     badge="Proyección"
                     badgeVariant="info"
                   />
@@ -120,14 +118,14 @@ export default function CajaPage() {
               <QavanteEmpty
                 icon={Banknote}
                 title="Caja proyectada"
-                description="Aquí vas a ver tu flujo de caja, la brecha frente a tu caja mínima, las columnas de cobros, pagos, sueldos, impuestos y deuda, y acciones recomendadas. Muy pronto disponible."
+                description="Todavía no hay una proyección disponible."
               />
             ))}
 
           {bankMovementClassification ? (
             <section aria-labelledby="movimientos-section" className="space-y-3">
               <h2 id="movimientos-section" className="text-base font-semibold text-neutral-dark">
-                Calidad y auditoría de movimientos
+                Movimientos
               </h2>
               <MovimientosSubCards reconciliationReview={reconciliationReview} />
             </section>
@@ -149,23 +147,23 @@ function MovimientosSubCards({ reconciliationReview }: { reconciliationReview: b
         href="/caja/por-clasificar"
         icon={Inbox}
         title="Movimientos pendientes"
-        description="Movimientos sin categoría automática. Revísalos si necesitas mejorar el detalle de tus informes."
-        badge="Calidad del dato"
+        description="Movimientos que necesitan una categoría."
+        badge="Pendientes"
         badgeVariant="info"
       />
       <CajaSubCard
         href="/caja/clasificados"
         icon={CheckCircle2}
         title="Clasificados"
-        description="Auditoría de los ya clasificados. Filtra por categoría, dirección o período."
-        badge="Auditoría"
+        description="Revisa los movimientos ya ordenados."
+        badge="Listos"
         badgeVariant="success"
       />
       <CajaSubCard
         href="/caja/compras-extranjero"
         icon={Globe}
         title="Compras al extranjero"
-        description="Compras en moneda extranjera de tus cartolas de tarjeta. Asigna concepto y categoría."
+        description="Ordena las compras de tus tarjetas en otra moneda."
         badge="Tarjeta"
         badgeVariant="info"
       />
@@ -174,8 +172,8 @@ function MovimientosSubCards({ reconciliationReview }: { reconciliationReview: b
           href="/caja/conciliacion"
           icon={ArrowLeftRight}
           title="Conciliación"
-          description="Audita los documentos propuestos para cada movimiento."
-          badge="Auditoría"
+          description="Une cada movimiento con su documento."
+          badge="Revisar"
           badgeVariant="info"
         />
       )}

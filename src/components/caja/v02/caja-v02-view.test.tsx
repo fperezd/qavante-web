@@ -105,9 +105,7 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).toContain("−$35.532.396");
     /* El agregado del servidor (`non_postponable_or_overdue_14d`), el MISMO que V05 publica como
        "Pagos críticos en todo el registro" (Ley 1). */
-    expect(t).toContain(
-      "$7.574.979 críticos en todo el registro (2 pagos que no se postergan o ya vencieron)",
-    );
+    expect(t).toContain("$7.574.979 críticos · 2 pagos críticos");
   });
 
   it("no publica un negociable sumado desde los ítems de la página (#302 P2-6)", () => {
@@ -118,7 +116,7 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).not.toContain("negociable");
     // Gemelo: con el agregado ausente la pantalla lo declara en vez de aproximarlo.
     expect(texto(html({ pagos: pagos({ non_postponable_or_overdue_14d: undefined }) }))).toContain(
-      "críticos en todo el registro: el servidor no publicó el agregado",
+      "monto crítico sin dato",
     );
   });
 
@@ -137,24 +135,21 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
         }),
       }),
     );
-    expect(t).toContain(
-      "al menos $174.979 críticos en todo el registro (2 pagos que no se postergan o ya vencieron) · 1 obligación sin fecha clasificable · 1 moneda excluida por falta de tipo de cambio",
-    );
+    expect(t).toContain("al menos $174.979 críticos · 2 pagos críticos");
     expect(t).not.toContain("$0 críticos");
   });
 
   it('apellido de "Sale": declara que due_14d incluye lo YA vencido (remanente #82.3)', () => {
     const t = texto(html());
-    expect(t).toContain("incluye lo ya vencido");
+    expect(t).toContain("Incluye lo vencido");
   });
 
   it("muestra la calidad del dato como auditoría secundaria, no como CTA de clasificación", () => {
     const h = html();
     const t = texto(h);
-    expect(t).toContain("Calidad del dato:");
-    expect(t).toContain("3 movimientos del banco sin clasificar (~$2.100.000 en entradas)");
-    expect(t).toContain("Están en tu saldo; revisarlos puede mejorar el detalle del flujo.");
-    expect(t).toContain("Ver auditoría");
+    expect(t).not.toContain("Calidad del dato:");
+    expect(t).toContain("3 movimientos pendientes (~$2.100.000 en entradas)");
+    expect(t).toContain("Revisar");
     expect(h).toContain('href="/bandeja"');
     expect(h).not.toContain('href="/caja/por-clasificar"');
     expect(h).not.toMatch(/<a[^>]*>Clasificar<\/a>/);
@@ -170,15 +165,14 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     });
     const t = texto(h);
     expect(h).toContain('role="note"');
-    expect(t).toContain("No pudimos revisar la calidad de tus datos");
-    expect(t).toContain("puede faltar detalle de movimientos del banco");
+    expect(t).toContain("Faltan movimientos del banco.");
     // Gemelo: el mismo count=0 SIN error apaga el banner del todo (no es que "error" siempre
     // muestre algo — es el count=0 real el que lo apaga, y el error el que lo prende de nuevo).
     expect(
       texto(
         html({ sinClasificar: sinClasificar({ isError: false, count: 0, inflowByCurrency: [] }) }),
       ),
-    ).not.toContain("No pudimos revisar la calidad de tus datos");
+    ).not.toContain("Faltan movimientos del banco.");
   });
 
   it("4 barras con neto por semana y cierre; la del piso está marcada", () => {
@@ -201,7 +195,7 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).toContain("Vencido");
     expect((h.match(/href="\/pagar"/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect((h.match(/data-postergar="true"/g) ?? []).length).toBe(3);
-    expect(t).toContain("causas sin identidad segura se gestionan desde Pagar");
+    expect(t).not.toContain("causas sin identidad segura se gestionan desde Pagar");
   });
 
   it("con Brief activo deja la proyección como evidencia sin proponer postergar ni clasificar", () => {
@@ -209,9 +203,9 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     const t = texto(h);
 
     expect(t).toContain("Pagos registrados en la proyección");
-    expect(t).toContain("respaldan la decisión de caja");
+    expect(t).not.toContain("respaldan la decisión de caja");
     /* El agregado del servidor es evidencia, no una decisión local: se conserva con el Brief. */
-    expect(t).toContain("$7.574.979 críticos en todo el registro");
+    expect(t).toContain("$7.574.979 críticos");
     expect(t).not.toContain("No se posterga");
     expect(t).not.toContain("Postergar mueve la fecha");
     expect(h).not.toContain('data-postergar="true"');
@@ -222,13 +216,13 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
        bloque falla primero. */
     const conPlanLocal = texto(html());
     expect(conPlanLocal).toContain("No se posterga");
-    expect(conPlanLocal).toContain("Postergar mueve la fecha");
+    expect(conPlanLocal).not.toContain("Postergar mueve la fecha");
   });
 
   it("footer con las exclusiones y su conteo", () => {
     const t = texto(html());
-    expect(t).toContain("No cuenta $39.600.000 por cobrar vencidos o sin fecha (17 documentos)");
-    expect(t).toContain("3 de 12 obligaciones van con fecha estimada");
+    expect(t).not.toContain("No cuenta $39.600.000 por cobrar vencidos o sin fecha");
+    expect(t).not.toContain("3 de 12 obligaciones van con fecha estimada");
   });
 
   it("sin proyección: estado que habla (qué falta y qué hacer), sin barras ni piso", () => {
@@ -239,7 +233,7 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
     expect(t).toContain("Revisar conexiones");
     expect(h).not.toContain("data-piso");
     expect(t).not.toContain("Qué te lleva al punto más bajo");
-    expect(t).toContain("Sin proyección no hay exclusiones que declarar");
+    expect(t).not.toContain("Sin proyección no hay exclusiones que declarar");
   });
 });
 

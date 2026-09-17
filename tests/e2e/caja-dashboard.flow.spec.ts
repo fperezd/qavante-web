@@ -15,11 +15,11 @@ test.describe("Flujo: Caja reordenable (/caja, cajaDashboard)", () => {
     await page.goto("/caja");
 
     await expect(page.getByRole("heading", { level: 1, name: "Caja" })).toBeVisible();
-    // La pregunta y la lectura de V02 (no el hero del resumen v2 clásico).
-    await expect(page.getByText("¿Me alcanza la caja?")).toBeVisible();
+    // La lectura principal de V02 (no el hero del resumen v2 clásico).
+    await expect(page.getByRole("region", { name: "Hoy, entra y sale" })).toBeVisible();
     await expect(page.getByText("Saldo en tus cuentas · el mismo número que en Hoy")).toBeVisible();
     // La auditoría de movimientos queda disponible, pero secundaria.
-    await expect(page.getByText("Calidad y auditoría de movimientos")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Movimientos" })).toBeVisible();
     await expect(page.getByText("Movimientos pendientes")).toBeVisible();
 
     const main = page.locator("#main-content");

@@ -27,9 +27,6 @@ export default function CobrarPage() {
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
-            <p className="mt-1 text-sm text-neutral-mid">
-              {decisionBrief ? "Documentos y saldos por cobrar." : "¿Quién me debe?"}
-            </p>
           </div>
           {siiQueries && (
             <div className="flex flex-wrap gap-2">
@@ -50,11 +47,6 @@ export default function CobrarPage() {
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
-            <p className="mt-1 text-sm text-neutral-mid">
-              {decisionBrief
-                ? "Documentos y saldos por cobrar."
-                : "¿Quién me debe y qué debo cobrar primero?"}
-            </p>
           </div>
           {/* Accesos arriba, en lenguaje de dueño (antes "Libro de Ventas" al fondo). */}
           {siiQueries && (
@@ -75,11 +67,6 @@ export default function CobrarPage() {
       <div className="space-y-6">
         <header>
           <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
-          <p className="mt-1 text-sm text-neutral-mid">
-            {decisionBrief
-              ? "Documentos y saldos por cobrar."
-              : "¿Quién me debe y qué debo cobrar primero?"}
-          </p>
         </header>
         {decisionBrief && <DecisionBriefSlot surface="cobrar" />}
         <CobrarView siiEnabled={siiQueries} suppressRecommendations={decisionBrief} />
@@ -92,11 +79,6 @@ export default function CobrarPage() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-neutral-dark">Cobrar</h1>
-          <p className="mt-1 text-sm text-neutral-mid">
-            {decisionBrief
-              ? "Documentos y saldos por cobrar."
-              : "¿Quién me debe y qué debo cobrar primero?"}
-          </p>
         </div>
         {siiQueries && (
           <QuickLink href="/cobrar/facturas-emitidas" icon={FileText} label="Ver facturas" />
@@ -112,8 +94,8 @@ export default function CobrarPage() {
         title="Cobranza"
         description={
           decisionBrief
-            ? "Aquí vas a ver los documentos y saldos por cobrar cuando haya fuentes conectadas."
-            : "Aquí vas a ver tus documentos por cobrar ordenados por prioridad, la cobranza vencida, la antigüedad de saldos y acciones sugeridas por cliente. Muy pronto disponible."
+            ? "Conecta tus datos para ver lo que te deben."
+            : "Todavía no hay cuentas por cobrar disponibles."
         }
       />
     </div>

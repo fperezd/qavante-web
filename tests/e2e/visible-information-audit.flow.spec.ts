@@ -42,7 +42,7 @@ async function prepareRoute(page: Page, routeId: (typeof ROUTES)[number]["id"]) 
   if (routeId === "inbox") {
     // OFF mantiene la cola V07 de producción (`secondaryAudit=false`): es una
     // decisión que requiere revisión, no la landing secundaria del Brief ON.
-    await expect(page.getByText("Bandeja · decisiones que requieren tu revisión")).toBeVisible();
+    await expect(page.getByText("Bandeja", { exact: true }).first()).toBeVisible();
     await expect(page.getByRole("radio", { name: /Conciliar/i })).toBeVisible();
     await expect(page.getByRole("radio", { name: /Clasificar/i })).toBeVisible();
     return;

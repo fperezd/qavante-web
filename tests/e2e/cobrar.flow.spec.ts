@@ -16,14 +16,15 @@ test.describe("Flujo: Cobrar V04 de producción (/cobrar)", () => {
     await page.goto("/cobrar");
 
     await expect(page.getByRole("heading", { level: 1, name: "Cobrar" })).toBeVisible();
-    await expect(page.getByText("¿Quién me debe?")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Antigüedad de saldos" })).toBeVisible();
 
     // Los cuatro tramos del contrato, cada uno con su parte del total.
     for (const tramo of ["Vigente", "1–30 días", "31–60 días", "+61 días"]) {
       await expect(page.getByText(tramo, { exact: true })).toBeVisible();
     }
     const antiguedad = page.getByRole("region", { name: "Antigüedad de saldos" });
-    await expect(antiguedad).toContainText("Vencido · bruto");
+    await expect(antiguedad).toContainText("Vencido");
+    await expect(antiguedad).not.toContainText("bruto");
     await expect(antiguedad).toContainText("$7.900.000");
     await expect(page.getByText(/31,9% del total/)).toBeVisible();
 
@@ -79,7 +80,7 @@ test.describe("Flujo: Cobrar V04 de producción (/cobrar)", () => {
        render de la certeza, "Fecha estimada" no existe en el DOM y este test falla. */
     const comercial = page.getByRole("row", { name: /Comercial del Sur Ltda/ });
     await expect(comercial).toBeVisible();
-    await expect(comercial.getByText("Fecha estimada", { exact: true })).toBeVisible();
+    await expect(comercial.getByText("Fecha aproximada", { exact: true })).toBeVisible();
     await expect(
       comercial.getByText(
         /Factura 5680 · Fecha estimada a 30 días desde la emisión; no acredita un vencimiento pactado\./,
@@ -91,13 +92,13 @@ test.describe("Flujo: Cobrar V04 de producción (/cobrar)", () => {
     await expect(comercial).not.toContainText("hace 40 días");
 
     const minera = page.getByRole("row", { name: /Minera Atacama SA/ });
-    await expect(minera.getByText("Fecha sin confirmar", { exact: true })).toBeVisible();
+    await expect(minera.getByText("Fecha por confirmar", { exact: true })).toBeVisible();
     await expect(minera.getByText("Factura 9020", { exact: true })).toBeVisible();
     await expect(minera).toContainText("hace 8 días");
 
     // Gemelo: el cliente con todo confirmado no lleva pill de certeza.
     const andes = page.getByRole("row", { name: /Constructora Andes SpA/ });
-    await expect(andes.getByText(/Fecha estimada|Fecha sin confirmar|Certeza/)).toHaveCount(0);
+    await expect(andes.getByText(/Fecha aproximada|Fecha por confirmar|Certeza/)).toHaveCount(0);
 
     // El conteo de estimados es `estimated_due_date_count` del servidor, junto a Vencido · bruto.
     const antiguedad = page.getByRole("region", { name: "Antigüedad de saldos" });

@@ -67,20 +67,16 @@ export const Normal: Story = {
     await expect(kpis.getByText(/BICE · \d{2}:\d{2} ✓/)).toBeInTheDocument();
     await expect(canvas.getByText("+$14.498.964")).toBeInTheDocument();
     await expect(canvas.getByText("−$35.532.396")).toBeInTheDocument();
-    await expect(
-      canvas.getByText(/\$7\.574\.979 críticos en todo el registro/),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/\$7\.574\.979 críticos · 2 pagos críticos/)).toBeInTheDocument();
     // 4 barras, ninguna en rojo.
     await expect(
       canvasElement.querySelectorAll('[aria-label="Neto por semana"] > li'),
     ).toHaveLength(4);
     await expect(rojos(canvasElement)).toHaveLength(0);
-    // Sin quiebre, la tabla no nombra causas y lo dice.
-    await expect(canvas.getByText(/no cruza tu mínimo en el horizonte/)).toBeInTheDocument();
-    // Sin exclusiones declaradas, el footer no inventa ninguna.
     await expect(
-      canvas.getByText("La proyección no declara exclusiones para tu empresa."),
+      canvas.getByRole("heading", { name: /Qué te lleva al punto más bajo/ }),
     ).toBeInTheDocument();
+    await expect(canvas.queryByText(/exclusiones para tu empresa/)).not.toBeInTheDocument();
   },
 };
 
@@ -118,10 +114,7 @@ export const BajoCero: Story = {
     await expect(canvas.getByText("Vencido")).toBeInTheDocument();
     // Sólo las causas con UUID seguro ofrecen Postergar; F29 no y la Ley 2 sigue en un rojo.
     await expect(canvas.getAllByRole("button", { name: /^Postergar/ })).toHaveLength(3);
-    // Footer con exclusiones y conteo.
-    await expect(
-      canvas.getByText("No cuenta $39.600.000 por cobrar vencidos o sin fecha (17 documentos)"),
-    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/No cuenta \$39\.600\.000/)).not.toBeInTheDocument();
   },
 };
 
@@ -171,11 +164,9 @@ export const SinClasificar: Story = {
   args: { sinClasificar: sinClasificar() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("note")).toHaveTextContent(
-      "Calidad del dato: 3 movimientos del banco sin clasificar (~$2.100.000 en entradas). Están en tu saldo; revisarlos puede mejorar el detalle del flujo.",
-    );
-    const cta = canvas.getByRole("link", { name: "Ver auditoría" });
-    await expect(cta).toHaveAttribute("href", "/bandeja");
+    await expect(canvas.getByRole("note")).toHaveTextContent("3 movimientos pendientes");
+    await expect(canvas.getByRole("link", { name: "Revisar" })).toHaveAttribute("href", "/bandeja");
+    await expect(triada(canvasElement).getByText("$9.800.000")).toBeInTheDocument();
     // Un aviso administrativo es ámbar/neutro, nunca rojo (Ley 2).
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
@@ -186,12 +177,8 @@ export const SinClasificarError: Story = {
   args: { sinClasificar: sinClasificar({ isError: true, count: 0, inflowByCurrency: [] }) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("note")).toHaveTextContent(
-      "No pudimos revisar la calidad de tus datos:",
-    );
-    await expect(canvas.getByRole("note")).toHaveTextContent(
-      "la proyección conserva las fuentes que sí llegaron, pero puede faltar detalle de movimientos del banco.",
-    );
+    await expect(canvas.getByRole("note")).toHaveTextContent("Faltan movimientos del banco.");
+    await expect(triada(canvasElement).getByText("$9.800.000")).toBeInTheDocument();
     // Sigue siendo un aviso administrativo: ámbar/neutro, nunca rojo (Ley 2).
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
@@ -211,9 +198,7 @@ export const Vacio: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getAllByText("sin dato")).toHaveLength(3);
     await expect(canvas.queryByRole("note")).not.toBeInTheDocument();
-    await expect(
-      canvas.getByText("Sin proyección no hay exclusiones que declarar."),
-    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/exclusiones/)).not.toBeInTheDocument();
     await expect(rojos(canvasElement)).toHaveLength(0);
   },
 };
@@ -232,26 +217,16 @@ export const Ley1MismoSaldoQueHoy: Story = {
 };
 
 export const ComoSeCalcula: Story = {
-  name: "¿Cómo se calcula? · definición, incluye/excluye, fuente y frescura",
+  name: "Lectura directa · sin explicación técnica desplegable",
   args: { proyeccion: PROYECCION_BAJO_CERO },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const boton = canvas.getByRole("button", { name: /¿Cómo se calcula\?/ });
-    await expect(boton).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(boton);
-    await expect(boton).toHaveAttribute("aria-expanded", "true");
-    const panel = canvas.getByRole("region", { name: "Cómo se calcula la proyección" });
-    await expect(panel).toHaveTextContent("Saldo proyectado al cierre de cada día");
-    await expect(panel).toHaveTextContent("No cuenta $39.600.000 por cobrar vencidos o sin fecha");
-    await expect(panel).toHaveTextContent(
-      "Saldos bancarios, cobros con fecha y pagos comprometidos",
-    );
-    await expect(panel).not.toHaveTextContent("/api/");
-    await expect(panel).toHaveTextContent("calculado el 30 ago 2026");
-    await userEvent.keyboard("{Escape}");
-    await expect(boton).toHaveAttribute("aria-expanded", "false");
-    // El PR #81 afirmó que Escape "devuelve el foco"; el código lo hace (`ref.current?.focus()`)
-    // pero nada lo comprobaba acá — remanente #82.6.
-    await expect(boton).toHaveFocus();
+    await expect(
+      canvas.queryByRole("button", { name: /¿Cómo se calcula\?/ }),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByText(/Saldo proyectado al cierre de cada día/),
+    ).not.toBeInTheDocument();
+    await expect(canvas.getByText(/Qué te lleva al punto más bajo/)).toBeInTheDocument();
   },
 };

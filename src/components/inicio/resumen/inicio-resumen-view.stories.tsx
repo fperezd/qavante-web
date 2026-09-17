@@ -71,11 +71,8 @@ export const ConDeficit: Story = {
     await verifyLayout(canvasElement, false);
     await userEvent.click(control);
     await expect(control).toHaveAttribute("aria-expanded", "false");
-    const comparison = canvas.getByText("Cómo se calcula", { selector: "summary" });
-    await expect(comparison.closest("details")).not.toHaveAttribute("open");
-    await userEvent.click(comparison);
-    await expect(canvas.getByText("Saldo al final de los 14 días · CLP")).toBeVisible();
-    await userEvent.click(comparison);
+    await expect(canvas.queryByText("Cómo se calcula")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Saldo al final de los 14 días · CLP")).not.toBeInTheDocument();
   },
 };
 export const SinDeficit: Story = {

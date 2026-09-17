@@ -10,11 +10,10 @@ export default function FinanciamientoPage() {
     <FinanciamientoV13Live />
   ) : (
     <FeatureUnavailableState
-      title="Financiamiento · todavía no disponible"
+      title="Préstamos · todavía no disponible"
       description={
         <>
-          Estamos conectando la lectura verificable de deuda, costo y capacidad. Mientras tanto,
-          revisa tus préstamos y cuotas en{" "}
+          Revisa tus préstamos y cuotas en{" "}
           <Link className="font-semibold text-brand-primary underline" href="/pagar/obligaciones">
             Pagar
           </Link>
