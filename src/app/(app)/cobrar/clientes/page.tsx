@@ -9,13 +9,8 @@ import { MaestroLive } from "@/components/terminos/maestro-live";
 export default function ClientesPage() {
   const { siiQueries } = resolveFeatureFlags();
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">Clientes</h1>
-        <p className="mt-1 text-sm text-neutral-mid">
-          Todos tus clientes del año y el vencimiento de cada venta.
-        </p>
-      </header>
+    <div className="space-y-4">
+      <h1 className="text-xl font-bold text-neutral-dark">Clientes</h1>
       {siiQueries ? (
         <MaestroLive
           kind="ventas"

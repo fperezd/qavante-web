@@ -65,9 +65,9 @@ vi.mock("@/components/pagar/v05/pagar-v05-live", () => ({
     <div>pagar-v05 suppress={String(Boolean(suppressRecommendations))}</div>
   ),
 }));
-vi.mock("@/components/cobrar/v04/cobrar-v04-live", () => ({
-  CobrarV04Live: ({ suppressRecommendations }: { suppressRecommendations?: boolean }) => (
-    <div>cobrar-v04 suppress={String(Boolean(suppressRecommendations))}</div>
+vi.mock("@/components/cobrar/gestion-cobros-live", () => ({
+  GestionCobrosLive: ({ suppressRecommendations }: { suppressRecommendations?: boolean }) => (
+    <div>gestion-cobros suppress={String(Boolean(suppressRecommendations))}</div>
   ),
 }));
 
@@ -114,8 +114,8 @@ const WIRING: Wiring[] = [
   {
     surface: "cobrar",
     Page: CobrarPage,
-    evidence: "cobrar-v04 suppress=true",
-    ranking: "cobrar-v04 suppress=false",
+    evidence: "gestion-cobros suppress=true",
+    ranking: "gestion-cobros suppress=false",
   },
 ];
 

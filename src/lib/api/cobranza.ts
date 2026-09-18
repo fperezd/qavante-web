@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -98,9 +98,67 @@ export interface CollectionReminderBatchResponse {
   items: CollectionReminderItemResult[];
 }
 
+/* Contrato aditivo de qavante-api#619. Se mantiene explícito hasta que el endpoint esté
+ * desplegado y `generate:api` pueda consumirlo desde producción; el snapshot versionado vive en
+ * el PR backend. Mismo puente acotado que `TopDebtor.receivable_ids` arriba. */
+export interface ReceivableMoneyTotal {
+  currency: string;
+  amount: string;
+}
+export interface ReceivableDocumentItem {
+  id: string;
+  folio: string;
+  document_type?: number | null;
+  customer_name: string;
+  customer_rut?: string | null;
+  counterparty_key?: string | null;
+  issue_date: string;
+  due_date?: string | null;
+  due_date_certainty: "confirmed" | "estimated" | "unconfirmed";
+  status: "open" | "partially_paid" | "paid" | "cancelled";
+  total_amount: string;
+  outstanding_amount: string;
+  currency_code: string;
+  days_overdue?: number | null;
+  ceded?: boolean;
+  claimed?: boolean;
+  credit_note?: boolean;
+}
+export interface ReceivableDocumentsResponse {
+  items: ReceivableDocumentItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  overdue: ReceivableMoneyTotal[];
+  due_soon: ReceivableMoneyTotal[];
+  collected: ReceivableMoneyTotal[];
+  generated_at: string;
+}
+export interface CollectionReminderRule {
+  kind: "before_due" | "due_today" | "overdue";
+  enabled: boolean;
+  days_offset: number;
+  schedule_time: string;
+  audience_mode: "all" | "exclude" | "include";
+  counterparty_keys?: string[];
+  updated_at?: string | null;
+}
+export interface CollectionReminderRuleUpdate {
+  enabled: boolean;
+  days_offset: number;
+  schedule_time: string;
+  audience_mode: "all" | "exclude" | "include";
+  counterparty_keys?: string[];
+}
+export interface CollectionReminderRulesResponse {
+  items: CollectionReminderRule[];
+}
+
 export const cobranzaKeys = {
   all: ["cobranza"] as const,
   accountsReceivable: () => [...cobranzaKeys.all, "accounts-receivable"] as const,
+  documents: (q: string) => [...cobranzaKeys.all, "documents", q] as const,
+  reminderSettings: () => [...cobranzaKeys.all, "reminder-settings"] as const,
 };
 
 /** `GET /api/treasury/accounts-receivable` — snapshot actual de cuentas por
@@ -111,6 +169,46 @@ export function useAccountsReceivable() {
     queryFn: () => api.get<AccountsReceivableResponse>("/api/treasury/accounts-receivable"),
     staleTime: 30_000,
     retry: false,
+  });
+}
+
+export function useReceivableDocuments(q = "") {
+  const search = q.trim();
+  return useQuery({
+    queryKey: cobranzaKeys.documents(search),
+    queryFn: () =>
+      api.get<ReceivableDocumentsResponse>(
+        `/api/treasury/accounts-receivable/documents?limit=100${search ? `&q=${encodeURIComponent(search)}` : ""}`,
+      ),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useCollectionReminderSettings() {
+  return useQuery({
+    queryKey: cobranzaKeys.reminderSettings(),
+    queryFn: () =>
+      api.get<CollectionReminderRulesResponse>("/api/treasury/collection-reminders/settings"),
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
+export function useUpdateCollectionReminderSetting() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      kind,
+      input,
+    }: {
+      kind: CollectionReminderRule["kind"];
+      input: CollectionReminderRuleUpdate;
+    }) =>
+      api.put<CollectionReminderRule>(`/api/treasury/collection-reminders/settings/${kind}`, {
+        body: input,
+      }),
+    onSuccess: () => client.invalidateQueries({ queryKey: cobranzaKeys.reminderSettings() }),
   });
 }
 

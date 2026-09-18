@@ -2783,8 +2783,133 @@ const accountsReceivableFixture = {
 };
 
 const cobranzaHandlers = [
+  http.get("*/api/treasury/accounts-receivable/documents", () =>
+    HttpResponse.json(
+      {
+        items: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            folio: "1234",
+            document_type: 33,
+            customer_name: "Constructora Andes SpA",
+            customer_rut: "76.111.111-1",
+            counterparty_key: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            issue_date: "2026-05-01",
+            due_date: "2026-05-31",
+            due_date_certainty: "confirmed",
+            status: "open",
+            total_amount: "9800000",
+            outstanding_amount: "3200000",
+            currency_code: "CLP",
+            days_overdue: 23,
+            ceded: false,
+            claimed: false,
+            credit_note: false,
+          },
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            folio: "5680",
+            document_type: 33,
+            customer_name: "Comercial del Sur Ltda",
+            customer_rut: "77.987.654-3",
+            counterparty_key: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            issue_date: "2026-04-23",
+            due_date: null,
+            due_date_certainty: "estimated",
+            status: "open",
+            total_amount: "950000",
+            outstanding_amount: "950000",
+            currency_code: "CLP",
+            days_overdue: null,
+            ceded: false,
+            claimed: true,
+            credit_note: false,
+          },
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            folio: "9012",
+            document_type: 33,
+            customer_name: "Minera Atacama SA",
+            customer_rut: "96.555.444-2",
+            counterparty_key: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+            issue_date: "2026-05-10",
+            due_date: "2026-05-25",
+            due_date_certainty: "confirmed",
+            status: "open",
+            total_amount: "1100000",
+            outstanding_amount: "800000",
+            currency_code: "CLP",
+            days_overdue: 8,
+            ceded: true,
+            claimed: false,
+            credit_note: false,
+          },
+        ],
+        total: 3,
+        limit: 100,
+        offset: 0,
+        overdue: [{ currency: "CLP", amount: "4000000" }],
+        due_soon: [{ currency: "CLP", amount: "1250000" }],
+        collected: [{ currency: "CLP", amount: "2400000" }],
+        generated_at: "2026-06-02T12:00:00Z",
+      },
+      { status: 200 },
+    ),
+  ),
   http.get("*/api/treasury/accounts-receivable", () =>
     HttpResponse.json(accountsReceivableFixture, { status: 200 }),
+  ),
+  http.post("*/api/treasury/collection-reminders/send", async ({ request }) => {
+    const body = (await request.json()) as { receivable_ids?: string[] };
+    return HttpResponse.json(
+      {
+        items: (body.receivable_ids ?? []).map((receivable_id) => ({
+          receivable_id,
+          status: "sent",
+          detail: "Enviado.",
+        })),
+      },
+      { status: 200 },
+    );
+  }),
+  http.get("*/api/treasury/collection-reminders/settings", () =>
+    HttpResponse.json(
+      {
+        items: [
+          {
+            kind: "before_due",
+            enabled: false,
+            days_offset: 3,
+            schedule_time: "09:00:00",
+            audience_mode: "all",
+            counterparty_keys: [],
+          },
+          {
+            kind: "due_today",
+            enabled: false,
+            days_offset: 0,
+            schedule_time: "09:00:00",
+            audience_mode: "all",
+            counterparty_keys: [],
+          },
+          {
+            kind: "overdue",
+            enabled: false,
+            days_offset: 3,
+            schedule_time: "09:00:00",
+            audience_mode: "all",
+            counterparty_keys: [],
+          },
+        ],
+      },
+      { status: 200 },
+    ),
+  ),
+  http.put("*/api/treasury/collection-reminders/settings/:kind", async ({ request, params }) =>
+    HttpResponse.json(
+      { kind: params.kind, ...((await request.json()) as object) },
+      { status: 200 },
+    ),
   ),
 ];
 
