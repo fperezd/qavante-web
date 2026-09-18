@@ -36,6 +36,10 @@ const SELECT_CLASS = cn(
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary",
 );
 
+export function foreignPurchaseDisplayTitle(merchant: string): string {
+  return merchant.trim() || "Compra por identificar";
+}
+
 const COUNTRY_NAME: Record<string, string> = {
   CL: "Chile",
   US: "Estados Unidos",
@@ -130,6 +134,10 @@ function PurchaseRow({
 
   const canSubmit = concept.trim().length >= 1 && category.trim().length >= 1;
   const displayMoney = foreignPurchaseDisplayMoney(p);
+  // `merchant` viene de la cartola y es la identidad del comercio. `concept`
+  // es una clasificación que la persona completa después; no puede usarse como
+  // título sin ocultar un proveedor que ya conocemos.
+  const merchant = foreignPurchaseDisplayTitle(p.merchant);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -141,17 +149,11 @@ function PurchaseRow({
     <li className="space-y-2 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-medium text-neutral-dark">
-            {p.concept || "Compra por identificar"}
-          </p>
+          <p className="truncate font-medium text-neutral-dark">{merchant}</p>
           <p className="text-xs text-neutral-mid">
             {formatDateLike(p.op_date)}
             {p.country && <> · {COUNTRY_NAME[p.country] ?? "País no identificado"}</>}
           </p>
-          <details className="mt-1 text-xs text-neutral-mid">
-            <summary className="cursor-pointer">Ver referencia bancaria</summary>
-            <p className="mt-1 break-words">{p.merchant}</p>
-          </details>
         </div>
         <div className="text-right">
           <p className="font-medium tabular-nums text-neutral-dark">
