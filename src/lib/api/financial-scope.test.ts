@@ -27,6 +27,16 @@ describe("financialScopeKeys", () => {
       "financial-scope",
       "current",
       "2026-09-03",
+      null,
+    ]);
+  });
+
+  it("separates cache reads for different sociedades", () => {
+    expect(financialScopeKeys.current("2026-09-03", "sociedad-b")).toEqual([
+      "financial-scope",
+      "current",
+      "2026-09-03",
+      "sociedad-b",
     ]);
   });
 });
