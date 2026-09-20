@@ -11,7 +11,7 @@ export interface FinancialDecisionReadScope {
 
 export const financialScopeKeys = {
   all: ["financial-scope"] as const,
-  current: (asOf: string | null, legalEntityId: string | null) =>
+  current: (asOf: string | null, legalEntityId: string | null = null) =>
     [...financialScopeKeys.all, "current", asOf, legalEntityId] as const,
 };
 

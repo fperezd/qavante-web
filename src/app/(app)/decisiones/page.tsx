@@ -47,6 +47,7 @@ export default function DecisionesPage() {
   );
   const endDate = addDays(projection.data?.as_of, horizon);
   const hasGap = isNegative(scenario?.gap_against_zero);
+  const projectionError = projection.error ?? projection.scopeError;
 
   return (
     <main className="mx-auto max-w-7xl space-y-6">
@@ -132,9 +133,9 @@ export default function DecisionesPage() {
             </div>
           </section>
 
-          {projection.isError && (
+          {projectionError && (
             <QavanteInlineError
-              error={projection.error ?? projection.scopeError}
+              error={projectionError}
               what="la caja de esta sociedad"
               onRetry={() => projection.refetch()}
             />
