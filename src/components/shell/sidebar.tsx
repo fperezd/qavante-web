@@ -12,6 +12,7 @@ import {
   PiggyBank,
   WalletCards,
   FlaskConical,
+  CircleGauge,
   Settings,
   PlugZap,
   Inbox,
@@ -86,6 +87,7 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
     items: [
       { href: "/inicio", label: "Inicio", Icon: Home },
       { href: "/bandeja", label: "Bandeja", Icon: Inbox, needsBandeja: true },
+      { href: "/decisiones", label: "Decisiones", Icon: CircleGauge },
     ],
   },
   {

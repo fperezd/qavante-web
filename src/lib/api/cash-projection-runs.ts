@@ -122,10 +122,14 @@ export async function createCashProjectionRun(
   return run;
 }
 
-export function useCashProjectionRun(horizonDays: number, enabled = true) {
+export function useCashProjectionRun(
+  horizonDays: number,
+  enabled = true,
+  legalEntityId?: string | null,
+) {
   const me = useMe();
   const summary = useDashboardSummary();
-  const financialScope = useFinancialScope(summary.data?.generated_at);
+  const financialScope = useFinancialScope(summary.data?.generated_at, legalEntityId);
   const scope = toFinancialDecisionReadScope(financialScope.data);
   const queryClient = useQueryClient();
   const tenantId = me.data?.user.tenant_id ?? null;

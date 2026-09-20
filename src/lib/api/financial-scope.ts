@@ -11,7 +11,8 @@ export interface FinancialDecisionReadScope {
 
 export const financialScopeKeys = {
   all: ["financial-scope"] as const,
-  current: (asOf: string | null) => [...financialScopeKeys.all, "current", asOf] as const,
+  current: (asOf: string | null, legalEntityId: string | null) =>
+    [...financialScopeKeys.all, "current", asOf, legalEntityId] as const,
 };
 
 /**
@@ -57,15 +58,20 @@ export function serverAsOfDate(asOf: string | null | undefined): string | null {
  * supplies a server-sourced evaluation cut-off; absent or malformed cut-offs disable
  * the query rather than using tenant identity or today's browser date.
  */
-export function useFinancialScope(serverAsOf: string | null | undefined) {
+export function useFinancialScope(
+  serverAsOf: string | null | undefined,
+  legalEntityId?: string | null,
+) {
   const asOf = serverAsOfDate(serverAsOf);
+  const selectedEntity = legalEntityId?.trim() || null;
 
   return useQuery({
-    queryKey: financialScopeKeys.current(asOf),
-    queryFn: () =>
-      api.get<FinancialScope>(
-        `/api/core/financial-scope?${new URLSearchParams({ as_of: asOf! }).toString()}`,
-      ),
+    queryKey: financialScopeKeys.current(asOf, selectedEntity),
+    queryFn: () => {
+      const params = new URLSearchParams({ as_of: asOf! });
+      if (selectedEntity) params.set("legal_entity_id", selectedEntity);
+      return api.get<FinancialScope>(`/api/core/financial-scope?${params.toString()}`);
+    },
     enabled: asOf !== null,
     staleTime: 30_000,
     retry: false,
