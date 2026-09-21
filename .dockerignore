@@ -1,0 +1,14 @@
+.git
+.github
+.next
+.open-next
+.wrangler
+node_modules
+coverage
+test-results
+playwright-report
+playwright/.cache
+.lighthouseci
+.claude
+*.md
+.env*

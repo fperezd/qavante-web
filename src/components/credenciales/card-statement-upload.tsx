@@ -10,7 +10,7 @@ import { formatClp } from "@/lib/formatters/clp";
 import { concordar } from "@/lib/formatters/count";
 import { formatDateLike } from "@/lib/formatters/date";
 
-/* Subir cartola de tarjeta (PDF BICE). Importa compras (incl. al extranjero),
+/* Subir cartola de tarjeta (PDF). Importa compras (incl. al extranjero),
    pago detectado y cargos. Alternativa/complemento al sync automático. Montos:
    USD se muestra crudo (string), CLP con formatClp; fechas DD-MM-AAAA. */
 
@@ -66,8 +66,8 @@ export function CardStatementUpload() {
     >
       <div className="space-y-3">
         <p className="text-sm text-neutral-mid">
-          Sube el PDF de tu cartola BICE (nacional o internacional) para registrar tus compras,
-          incluidas las del extranjero. Lo procesamos y lo ves en Caja.
+          Sube el PDF de una cartola de tarjeta (nacional o internacional) para registrar tus
+          compras, incluidas las del extranjero. Lo procesamos y lo ves en Caja.
         </p>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -104,7 +104,7 @@ export function CardStatementUpload() {
             <p>
               {importCartola.error instanceof ApiError
                 ? apiErrorToUserMessage(importCartola.error)
-                : "No pudimos procesar la cartola. Verifica que sea el PDF de BICE e intenta de nuevo."}
+                : "No pudimos procesar la cartola. Verifica que sea el PDF de tu banco e intenta de nuevo."}
             </p>
           </div>
         )}

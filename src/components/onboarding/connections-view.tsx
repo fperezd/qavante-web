@@ -4,11 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Clock, Landmark, PlugZap, Receipt } from "lucide-react";
 import { QavanteButton, QavanteBadge, QavanteCard, QavanteInlineError } from "@/components/qavante";
-import { SourceConsentCard } from "@/components/credenciales/source-consent-card";
-import { LinkBankAccountsCard } from "@/components/treasury/link-bank-accounts-card";
-import { useBiceCredentialStatus } from "@/lib/api/bank-credentials";
-import { useSourceConsent } from "@/lib/api/source-consent";
-import { BANK_SOURCE_CODE } from "@/lib/onboarding/connect-bank";
+import { BancosConectadosPanel } from "@/components/banco/bancos-conectados-panel";
 import {
   ONBOARDING_SOURCE_IDS,
   useOnboardingSources,
@@ -25,16 +21,6 @@ import {
   sourceStateDescription,
 } from "./onboarding-source-meta";
 import { ONBOARDING_DONE_ROUTE, onboardingResumeRoute, routeForSource } from "./onboarding-steps";
-
-/* Hub de conexiones — el PUNTO DE RETORNO del patrón "siempre wizard, con
-   conexiones diferibles" (Fernando 2026-08-12). Acá el usuario ve, en un solo
-   lugar, qué fuentes tiene conectadas y cuáles dejó para después, y retoma
-   cualquiera de ellas sin re-registrarse ni pasar por todo el wizard.
-
-   NO es un paso numerado: no muestra "Paso N de 7" (el usuario ya no está
-   avanzando linealmente). Honestidad de estados: mientras no sabemos el estado
-   real (cargando / el status falló) NO pintamos "sin conectar" como si fuera un
-   hecho — se dice explícitamente que no pudimos leerlo, con reintentar. */
 
 const SOURCE_ICON: Record<OnboardingSourceId, typeof Landmark> = {
   sii: Receipt,
@@ -85,24 +71,12 @@ export function ConnectionsView() {
     useOnboardingSources(true);
 
   function handleConnect(id: OnboardingSourceId) {
-    // Retomar una conexión diferida = dejar de diferirla: si no, el guard la
-    // seguiría tratando como resuelta y el hub mentiría sobre su estado.
     undeferSource(id);
     router.push(routeForSource(id));
   }
 
   const pendingCount = ONBOARDING_SOURCE_IDS.filter((id) => states[id] !== "connected").length;
   const bankConnected = states.bank === "connected";
-  /* Banco con credencial guardada pero SIN autorización: es el caso que dejaba
-     al usuario sin salida (el paso decía "vincúlala después desde Tus
-     conexiones" y acá no había nada que hacer). La card de autorización es esa
-     salida — la misma que usa Administración. */
-  const bankCredential = useBiceCredentialStatus(!bankConnected);
-  const bankConsent = useSourceConsent(BANK_SOURCE_CODE, !bankConnected);
-  const faltaAutorizarBanco =
-    !bankConnected &&
-    bankCredential.data?.connected === true &&
-    bankConsent.data?.is_valid === false;
 
   return (
     <OnboardingShell
@@ -126,8 +100,6 @@ export function ConnectionsView() {
           </div>
         )}
 
-        {/* Sin dato real NO listamos estados: un "sin conectar" inventado es tan
-            engañoso como un cero inventado. */}
         {!isUnknown && (
           <QavanteCard
             variant="bordered"
@@ -160,23 +132,9 @@ export function ConnectionsView() {
           </p>
         )}
 
-        {/* Autorización del banco pendiente: sin esto la fuente queda en error y
-            el banco no sincroniza, por más que la credencial esté guardada. */}
-        {faltaAutorizarBanco && (
-          <SourceConsentCard
-            sourceCode={BANK_SOURCE_CODE}
-            label="Autorización de acceso al banco"
-          />
-        )}
-
-        {/* Cuentas por vincular de BICE: solo tiene sentido con el banco conectado
-            (contratos reales `GET/POST /api/bank-movements/bice/accounts…`). */}
-        {bankConnected && <LinkBankAccountsCard />}
+        {bankConnected && <BancosConectadosPanel />}
 
         <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end">
-          {/* Con el onboarding INCOMPLETO el panel rebota al wizard (el guard hace
-              su trabajo), así que no prometemos "ir a mi panel": se ofrece seguir
-              con el registro, que es lo que de verdad va a pasar. */}
           <QavanteButton
             variant="ghost"
             onClick={() =>

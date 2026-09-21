@@ -2,10 +2,6 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { http, HttpResponse, delay } from "msw";
 import { ConnectionsView } from "./connections-view";
 
-/* Hub de conexiones — punto de retorno de "conectar después". `useRouter`
-   auto-mock (appDirectory). Estados honestos: mientras no se sabe el estado real
-   NO se listan fuentes; si el status falla se dice, no se pinta "sin conectar". */
-
 const statusHandler = (sii: boolean, bank: boolean, completed = true) =>
   http.get("*/api/onboarding/status", () =>
     HttpResponse.json(
@@ -18,25 +14,21 @@ const statusHandler = (sii: boolean, bank: boolean, completed = true) =>
     ),
   );
 
-/* Cuentas BICE: solo se consulta con el banco conectado. */
-const BICE_ACCOUNTS = http.get("*/api/bank-movements/bice/accounts", () =>
+const FINTOC_CONNECTIONS = http.get("*/api/fintoc/connections", () =>
   HttpResponse.json(
-    {
-      accounts: [
-        {
-          external_id: "12-34567-8",
-          name: "Cta Cte CLP",
-          currency: "CLP",
-          linked_bank_account_id: null,
-        },
-        {
-          external_id: "12-34567-9",
-          name: "Cta Cte USD",
-          currency: "USD",
-          linked_bank_account_id: "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
-        },
-      ],
-    },
+    [
+      {
+        institution_id: "cl_banco_de_chile",
+        institution_name: "Banco de Chile",
+        holder_id: null,
+        holder_rut: null,
+        holder_name: null,
+        holder_type: "business",
+        status: "connected",
+        mode: "live",
+        data_source: "fintoc",
+      },
+    ],
     { status: 200 },
   ),
 );
@@ -56,7 +48,7 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     nextjs: { appDirectory: true },
-    msw: { handlers: [statusHandler(false, false), BICE_ACCOUNTS] },
+    msw: { handlers: [statusHandler(false, false), FINTOC_CONNECTIONS] },
   },
 } satisfies Meta<typeof ConnectionsView>;
 
@@ -66,13 +58,13 @@ type Story = StoryObj<typeof meta>;
 export const NadaConectado: Story = { name: "Ninguna fuente conectada" };
 
 export const BancoConectado: Story = {
-  name: "Banco conectado (cuentas por vincular)",
-  parameters: { msw: { handlers: [statusHandler(false, true), BICE_ACCOUNTS] } },
+  name: "Banco conectado",
+  parameters: { msw: { handlers: [statusHandler(false, true), FINTOC_CONNECTIONS] } },
 };
 
 export const TodoConectado: Story = {
   name: "Todo conectado",
-  parameters: { msw: { handlers: [statusHandler(true, true), BICE_ACCOUNTS] } },
+  parameters: { msw: { handlers: [statusHandler(true, true), FINTOC_CONNECTIONS] } },
 };
 
 export const Cargando: Story = {
@@ -80,7 +72,7 @@ export const Cargando: Story = {
   parameters: { msw: { handlers: [STATUS_SLOW] } },
 };
 
-export const ErrorDeEstado: Story = {
-  name: "El estado no se pudo leer",
+export const ErrorStatus: Story = {
+  name: "Error al leer el estado",
   parameters: { msw: { handlers: [STATUS_ERR] } },
 };

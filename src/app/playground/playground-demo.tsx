@@ -285,8 +285,8 @@ export function PlaygroundDemo() {
         <QavanteEmpty
           icon={Banknote}
           title="Caja sin movimientos importados"
-          description="Aún no tienes movimientos importados. Conecta tu Banco BICE para empezar a ver tu caja real."
-          cta={<QavanteButton size="sm">Conectar Banco BICE</QavanteButton>}
+          description="Aún no tienes movimientos importados. Conecta tu banco para empezar a ver tu caja real."
+          cta={<QavanteButton size="sm">Conectar banco</QavanteButton>}
         />
       </Section>
 

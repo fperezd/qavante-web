@@ -167,7 +167,7 @@ function Assembled({
   widgets.push({ id: "margenes", label: "Márgenes", node: <MargenesLive /> });
   // Ventas por mes (tendencia del neto vendido). Trae su propia data y degrada honesto → incondicional.
   widgets.push({ id: "ventas", label: "Ventas por mes", node: <VentasMesLive /> });
-  // "Saldos en banco" se QUITÓ del Inicio a propósito: `useBiceSaldo` es un scrape en vivo (~1 min) y
+  // "Saldos en banco" se QUITÓ del Inicio a propósito: el scrape en vivo era lento.
   // comparte caché con la pantalla /banco → dispararlo en el Inicio envenenaba esa caché ("No hay bancos
   // conectados"). Vuelve cuando exista un endpoint de saldos cache-first (api#849). Los archivos
   // saldos-banco-* quedan para reusar entonces.

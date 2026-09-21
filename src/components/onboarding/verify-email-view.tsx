@@ -148,7 +148,7 @@ function ResendBlock({
         variant="secondary"
         loading={resend.isPending}
         disabled={!captchaOk}
-        onClick={() => resend.mutate({ email, captcha_token: captchaToken ?? "" })}
+        onClick={() => resend.mutate({ email, captcha_token: captchaToken || "local-dev" })}
       >
         Reenviar correo
       </QavanteButton>

@@ -104,6 +104,21 @@ export function useMe() {
   });
 }
 
+export type PatchMeBody = {
+  name?: string;
+  rut?: string;
+};
+
+export function usePatchMe() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: PatchMeBody) => api.patch<MeResponse>("/api/me", { body }),
+    onSuccess: (data) => {
+      qc.setQueryData(usersKeys.me(), data);
+    },
+  });
+}
+
 /** Maneja el error de `POST /api/auth/logout`. Un 401 es éxito funcional:
  *  la sesión ya estaba inválida, así que el objetivo del logout ya se
  *  cumplió y lo tragamos. Cualquier otro error se propaga para que la UI
@@ -129,6 +144,25 @@ export function useLogout() {
     onSuccess: () => {
       if (typeof window !== "undefined") {
         window.location.href = "/login";
+      }
+    },
+  });
+}
+
+export const SELF_DELETE_EMAIL = "faranda@tooxs.com";
+
+export function isSelfDeleteEmail(email: string | null | undefined): boolean {
+  return (email ?? "").trim().toLowerCase() === SELF_DELETE_EMAIL;
+}
+
+/** `DELETE /api/auth/account` — borra usuario + empresa (allowlist QAS/local).
+ *  Tras 204 redirige a /registro para volver a crear la cuenta. */
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: () => api.delete<void>("/api/auth/account"),
+    onSuccess: () => {
+      if (typeof window !== "undefined") {
+        window.location.href = "/registro";
       }
     },
   });

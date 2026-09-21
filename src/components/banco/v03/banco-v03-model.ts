@@ -334,24 +334,23 @@ export function cuentasV03(input: CuentasInput): CuentaV03[] {
 
   const motivo =
     conexion.estado === "accion_requerida"
-      ? `No pudimos consultar el saldo: ${conexion.motivo ?? "la sesión con el banco no está disponible"}.`
+      ? `No pudimos consultar el saldo: ${conexion.motivo ?? "la conexión con el banco no está disponible"}.`
       : conexion.estado === "actualizando"
         ? textoActualizando(conexion, hoy)
-        : "El banco no respondió el saldo de esta cuenta.";
+        : "El banco no informó el saldo de esta cuenta.";
   return (cuentasQavante ?? [])
     .filter((a) => a.account_type !== "credit_card")
     .map((a) => {
       const porConciliar = pendientes ? (pendientes.get(a.id) ?? 0) : null;
+      const monto = parseAmountOrNull(a.balance);
       return {
         key: `qavante:${a.id}`,
         nombre: `${a.bank_name} · ${a.name}`.trim(),
         sub: conPendientes(frescura, porConciliar),
         moneda: (a.currency_code ?? "CLP").toUpperCase(),
-        saldo: null,
-        saldoMotivo: motivo,
-        /* Sin el token de bice no hay detalle al que llegar: el link se omite en vez de mandar a
-           una página que va a fallar (Ley 6: nada mudo). */
-        href: null,
+        saldo: monto,
+        saldoMotivo: monto == null ? motivo : null,
+        href: `/banco/cuenta/${encodeURIComponent(a.id)}`,
         accion: "cartola",
         porConciliar,
         tipo: "cuenta",
@@ -367,6 +366,7 @@ export function tarjetasV03(
   saldoPorTarjeta: ReadonlyMap<string, TarjetaSaldoData>,
   conexion: ConexionBanco,
   hoy: Date,
+  cuentasQavante?: readonly BankAccountItem[] | null,
 ): CuentaV03[] {
   const frescura = frescuraCuenta(conexion, hoy);
   const lista: TarjetaCredito[] =
@@ -414,7 +414,24 @@ export function tarjetasV03(
       });
     }
   }
-  return out;
+  if (out.length > 0) return out;
+  return (cuentasQavante ?? [])
+    .filter((a) => a.account_type === "credit_card")
+    .map((a) => {
+      const monto = parseAmountOrNull(a.balance);
+      return {
+        key: `qavante:${a.id}`,
+        nombre: `${a.bank_name} · ${a.name}`.trim(),
+        sub: monto == null ? frescura : `${frescura} · saldo informado`,
+        moneda: (a.currency_code ?? "CLP").toUpperCase(),
+        saldo: monto == null ? null : -Math.abs(monto),
+        saldoMotivo: monto == null ? "El banco no informó el saldo de esta tarjeta." : null,
+        href: `/banco/cuenta/${encodeURIComponent(a.id)}`,
+        accion: "ver",
+        porConciliar: null,
+        tipo: "tarjeta",
+      };
+    });
 }
 
 /** Suma de saldos POR MONEDA (INV-FX-001). Las filas sin saldo NO entran y se cuentan aparte:

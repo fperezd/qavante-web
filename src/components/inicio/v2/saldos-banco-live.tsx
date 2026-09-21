@@ -4,17 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { QavanteCard } from "@/components/qavante";
-import { useBiceSaldo } from "@/lib/api/treasury";
+import { useBankAccounts } from "@/lib/api/treasury";
 import { SaldosBancoWidget } from "./saldos-banco-widget";
-import { saldosBanco } from "./saldos-banco-model";
-
-/* Contenedor del widget "Saldos en banco" del Inicio. Trae `/api/bice/saldo` (cookie-open; degrada solo
-   si el banco no responde). Container: NO se testea por Storybook (ADR-0018); la lógica vive en
-   `saldos-banco-model` (unit). Siempre renderiza una tarjeta (no null): con los saldos, o estado honesto. */
+import { saldosBancoDesdeCuentas } from "./saldos-banco-model";
 
 export function SaldosBancoLive() {
-  const query = useBiceSaldo();
-  const data = React.useMemo(() => saldosBanco(query.data), [query.data]);
+  const query = useBankAccounts();
+  const data = React.useMemo(() => saldosBancoDesdeCuentas(query.data?.items), [query.data]);
 
   if (query.isLoading) {
     return <div className="h-44 animate-pulse rounded-xl bg-neutral-light/30" aria-busy="true" />;
@@ -28,7 +24,8 @@ export function SaldosBancoLive() {
         header={<span className="font-medium">Saldos en banco</span>}
       >
         <p className="py-3 text-sm text-neutral-mid">
-          No pudimos leer tus saldos del banco ahora. Conecta el banco o vuelve a intentar desde Banco.
+          No pudimos leer tus saldos del banco ahora. Conecta el banco o vuelve a intentar desde
+          Banco.
         </p>
         <Link
           href="/banco"

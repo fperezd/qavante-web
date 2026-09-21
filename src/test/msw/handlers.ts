@@ -70,12 +70,22 @@ const meTenantsState: Array<{
 
 export const authHandlers = [
   http.post("*/api/auth/login", async ({ request }) => {
-    const body = (await request.json()) as { rut: string; password: string };
-    if (!body?.rut || !body?.password) {
+    const body = (await request.json()) as { rut?: string; email?: string; password?: string };
+    if ((!body?.rut && !body?.email) || !body?.password) {
       return HttpResponse.json(errorBody("invalid_credentials", "Credenciales inválidas."), {
         status: 401,
       });
     }
+    return HttpResponse.json(
+      { user: SEED_SESSION_USER },
+      {
+        status: 200,
+        headers: { "Set-Cookie": SESSION_COOKIE },
+      },
+    );
+  }),
+
+  http.post("*/api/auth/oauth/callback", () => {
     return HttpResponse.json(
       { user: SEED_SESSION_USER },
       {
@@ -114,6 +124,22 @@ export const authHandlers = [
         ...SEED_SESSION_USER,
         tenant_id: "t_qavante_demo",
         name: "Fernando Pérez",
+        rut: "10341986-7",
+        company_rut: "76123456-0",
+        last_login_at: "2026-05-13T08:00:00Z",
+        permissions: ["users.read", "users.write"],
+      },
+    });
+  }),
+
+  http.patch("*/api/me", async ({ request }) => {
+    const body = (await request.json()) as { name?: string; rut?: string };
+    return HttpResponse.json({
+      user: {
+        ...SEED_SESSION_USER,
+        tenant_id: "t_qavante_demo",
+        name: body.name ?? "Fernando Pérez",
+        rut: body.rut ?? "10341986-7",
         company_rut: "76123456-0",
         last_login_at: "2026-05-13T08:00:00Z",
         permissions: ["users.read", "users.write"],
@@ -2272,6 +2298,26 @@ const siiHandlers = [
         giro: "Servicios de tecnología",
         actividades: [],
         inicio_actividades: "2023-03-01",
+      });
+    }
+    return HttpResponse.json({ status: "not_found", rut, razon_social: null }, { status: 200 });
+  }),
+
+  /* Signup sin sesión: misma consulta SII para nombre / razón social. */
+  http.get("*/api/auth/signup/contribuyente/:rut", ({ params }) => {
+    const rut = String(params.rut);
+    if (rut === "11111111-1") {
+      return HttpResponse.json({
+        status: "ok",
+        rut,
+        razon_social: "FERNANDO ARANDA",
+      });
+    }
+    if (rut === "76123456-0") {
+      return HttpResponse.json({
+        status: "ok",
+        rut,
+        razon_social: "EMPRESA DEMO SPA",
       });
     }
     return HttpResponse.json({ status: "not_found", rut, razon_social: null }, { status: 200 });

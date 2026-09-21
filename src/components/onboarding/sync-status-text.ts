@@ -3,9 +3,8 @@
 
    Contrato: `SyncSourceResult.status` de `POST /api/onboarding/sync`. Hoy en prod
    son `ok | failed | skipped`; el qavante-api #955 suma **`queued`** — el banco no
-   sincroniza dentro del request (login + scraping de BICE, ADR-0059): el pedido
-   queda anotado y lo corre el cron de bancos. Un `queued` NO es "listo": es
-   "todavía no hay datos", y así hay que decirlo.
+   sincroniza dentro del request: el pedido queda anotado y lo corre el sync de Fintoc.
+   Un `queued` NO es "listo": es "todavía no hay datos", y así hay que decirlo.
 
    Por qué es una función y no un `Record` indexado directo: el mapa anterior era
    `{ok, failed, skipped}` y se indexaba con el status crudo del backend, así que

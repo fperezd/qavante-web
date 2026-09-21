@@ -7,6 +7,7 @@ const valid = {
   ownerRut: "11.111.111-1",
   email: "fernando@tooxs.com",
   password: "claveSegura1",
+  passwordConfirmation: "claveSegura1",
   companyName: "Tooxs SpA",
   companyRut: "76.123.456-0",
 };
@@ -34,6 +35,21 @@ describe("signupFormSchema", () => {
 
   it("rechaza clave corta (<8)", () => {
     expect(signupFormSchema.safeParse({ ...valid, password: "corta" }).success).toBe(false);
+  });
+
+  it("rechaza si la confirmación no coincide", () => {
+    const parsed = signupFormSchema.safeParse({
+      ...valid,
+      passwordConfirmation: "otraClave9",
+    });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.flatten().fieldErrors.passwordConfirmation?.[0]).toMatch(/coinciden/i);
+    }
+  });
+
+  it("rechaza confirmación vacía", () => {
+    expect(signupFormSchema.safeParse({ ...valid, passwordConfirmation: "" }).success).toBe(false);
   });
 
   it("rechaza nombre / razón social vacíos", () => {

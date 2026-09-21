@@ -3,20 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff } from "lucide-react";
-import { QavanteButton, QavanteInput } from "@/components/qavante";
+import { Eye, EyeOff, Lock, User } from "lucide-react";
+import { QavanteButton } from "@/components/qavante";
+import {
+  GoogleSignInButton,
+  MicrosoftSignInButton,
+} from "@/components/forms/oauth-sign-in-buttons";
 import { api } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
-import { isValidRut } from "@/lib/validators/rut";
 import { safeInternalPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 const schema = z.object({
-  rut: z.string().min(1, "RUT requerido").refine(isValidRut, "RUT inválido"),
+  email: z.string().trim().min(1, "Ingresa tu correo").email("Correo inválido"),
   password: z.string().min(6, "Mínimo 6 caracteres"),
 });
 
@@ -29,13 +32,12 @@ export function LoginForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
-    control,
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { rut: "", password: "" },
+    defaultValues: { email: "", password: "" },
     mode: "onBlur",
   });
 
@@ -43,7 +45,7 @@ export function LoginForm() {
     setSubmitError(null);
     try {
       await api.post("/api/auth/login", {
-        body: { rut: values.rut, password: values.password },
+        body: { email: values.email.toLowerCase(), password: values.password },
         skipAuthRetry: true,
       });
       /* Navegación DURA (no `router.push`): tras setear la cookie de sesión, el
@@ -64,31 +66,48 @@ export function LoginForm() {
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-lg">
+      <div className="space-y-3">
+        <GoogleSignInButton />
+        <MicrosoftSignInButton />
+      </div>
+
+      <div className="relative py-4">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-border" />
+        </div>
+        <p className="relative flex justify-center text-xs text-neutral-mid">
+          <span className="bg-surface px-2">o</span>
+        </p>
+      </div>
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div className="space-y-1">
-          <label htmlFor="rut" className="text-sm font-medium text-neutral-dark">
-            RUT
+          <label htmlFor="email" className="text-sm font-medium text-neutral-dark">
+            Correo
           </label>
-          <Controller
-            control={control}
-            name="rut"
-            render={({ field }) => (
-              <QavanteInput
-                id="rut"
-                variant="rut"
-                placeholder="12.345.678-9"
-                value={field.value}
-                onValueChange={field.onChange}
-                onBlur={field.onBlur}
-                invalid={Boolean(errors.rut)}
-                autoComplete="username"
-                autoFocus
-              />
-            )}
-          />
-          {errors.rut && (
+          <div className="relative">
+            <User
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-mid"
+              aria-hidden="true"
+            />
+            <input
+              id="email"
+              type="email"
+              placeholder="tucorreo@empresa.cl"
+              autoComplete="username"
+              {...register("email")}
+              aria-invalid={Boolean(errors.email) || undefined}
+              className={cn(
+                "flex h-10 w-full rounded-lg border bg-surface py-2 pr-3 pl-9 text-sm text-neutral-dark transition-colors",
+                "placeholder:text-neutral-mid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:border-brand-primary",
+                "disabled:cursor-not-allowed disabled:opacity-50",
+                errors.email ? "border-danger-500" : "border-border-strong",
+              )}
+            />
+          </div>
+          {errors.email && (
             <p className="text-xs text-danger-500" role="alert">
-              {errors.rut.message}
+              {errors.email.message}
             </p>
           )}
         </div>
@@ -98,6 +117,10 @@ export function LoginForm() {
             Clave
           </label>
           <div className="relative">
+            <Lock
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-mid"
+              aria-hidden="true"
+            />
             <input
               id="password"
               type={showPassword ? "text" : "password"}
@@ -106,7 +129,7 @@ export function LoginForm() {
               {...register("password")}
               aria-invalid={Boolean(errors.password) || undefined}
               className={cn(
-                "flex h-10 w-full rounded-lg border bg-surface px-3 py-2 pr-10 text-sm text-neutral-dark transition-colors",
+                "flex h-10 w-full rounded-lg border bg-surface py-2 pr-10 pl-9 text-sm text-neutral-dark transition-colors",
                 "placeholder:text-neutral-mid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:border-brand-primary",
                 "disabled:cursor-not-allowed disabled:opacity-50",
                 errors.password ? "border-danger-500" : "border-border-strong",
@@ -114,7 +137,7 @@ export function LoginForm() {
             />
             <button
               type="button"
-              onClick={() => setShowPassword((s) => !s)}
+              onClick={() => setShowPassword((s) => (s ? false : true))}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-mid hover:text-neutral-dark"
               aria-label={showPassword ? "Ocultar clave" : "Mostrar clave"}
               tabIndex={-1}
@@ -142,9 +165,12 @@ export function LoginForm() {
           Iniciar sesión
         </QavanteButton>
 
-        <p className="text-center text-sm text-neutral-mid">
+        <p className="flex flex-col items-center gap-1 text-center text-sm text-neutral-mid">
           <Link href="/recuperar-clave" className="text-brand-primary hover:underline">
             ¿Olvidaste tu clave?
+          </Link>
+          <Link href="/registro" className="text-brand-primary hover:underline">
+            ¿Usuario nuevo?
           </Link>
         </p>
       </form>

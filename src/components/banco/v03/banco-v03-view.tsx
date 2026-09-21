@@ -213,7 +213,14 @@ export function BancoV03View({
     pendientes,
     hoy,
   });
-  const filasTarjetas = tarjetasV03(banco, tarjetas, saldoPorTarjeta, conexion, hoy);
+  const filasTarjetas = tarjetasV03(
+    banco,
+    tarjetas,
+    saldoPorTarjeta,
+    conexion,
+    hoy,
+    cuentasQavante,
+  );
   const filas = [...filasCuentas, ...filasTarjetas];
   const suma = sumaPorMoneda(filasCuentas);
   const cuadre = cuadreCajaHoy(caja, filasCuentas);

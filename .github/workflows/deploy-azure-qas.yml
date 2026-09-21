@@ -1,0 +1,93 @@
+name: Deploy web to Azure QAS
+
+# RF-ENV-01: GitHub → Azure QAS. NO toca Cloudflare/prod (deploy-cloudflare.yml / main).
+#
+# Rama actual (mientras el RF se cierra acá). Al mergear, cambiá SOLO esto:
+#   branches: [main]
+#   y en Azure: federated credential subject → refs/heads/main
+#
+# Secrets: repository secrets AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID
+# (sin GitHub Environment: este repo no expone Environments al rol actual).
+
+on:
+  push:
+    branches:
+      - feat/azure-web-qas
+    paths:
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "Dockerfile"
+      - "next.config.ts"
+      - ".github/workflows/deploy-azure-qas.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-azure-qas-web
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: deploy (azure qas)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ACR: acrqavanteqas
+      IMAGE_REPO: acrqavanteqas.azurecr.io/qavante-web
+      APP: ca-qavante-web-qas
+      RG: qavante-qas
+      NEXT_PUBLIC_API_URL: https://api-qas.qavante.com
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: 0x4AAAAAADpQkYv0x2Mvz7Xp
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Require Azure OIDC secrets
+        env:
+          CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          if [ -z "${CLIENT_ID}" ]; then
+            echo "::error::Faltan AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID (OIDC). No se deploya a QAS."
+            exit 1
+          fi
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image
+        run: |
+          set -euo pipefail
+          TAG="qas-${GITHUB_SHA}"
+          az acr login --name "${ACR}"
+          docker build \
+            --build-arg "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" \
+            --build-arg NEXT_PUBLIC_APP_ENV=qas \
+            --build-arg "NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}" \
+            -t "${IMAGE_REPO}:${TAG}" \
+            -t "${IMAGE_REPO}:qas" \
+            .
+          docker push "${IMAGE_REPO}:${TAG}"
+          docker push "${IMAGE_REPO}:qas"
+          echo "IMAGE=${IMAGE_REPO}:${TAG}" >> "${GITHUB_ENV}"
+
+      - name: Update Container App
+        run: |
+          set -euo pipefail
+          az containerapp update -n "${APP}" -g "${RG}" --image "${IMAGE}"
+          az containerapp revision list -n "${APP}" -g "${RG}" \
+            --query "[?properties.active].{name:name, health:properties.healthState, traffic:properties.trafficWeight}" \
+            -o table
+
+      - name: Health
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 8 --retry-all-errors --retry-delay 5 \
+            "https://app-qas.qavante.com/login" >/dev/null
+          echo "web login 200"

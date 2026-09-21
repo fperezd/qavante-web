@@ -1,15 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { Building2, Clock, LogOut, Mail, User2, type LucideIcon } from "lucide-react";
+import { Building2, Clock, LogOut, Mail, Trash2, User2, type LucideIcon } from "lucide-react";
 import { QavanteBadge, QavanteButton, QavanteCard, QavanteInlineError } from "@/components/qavante";
-import { useLogout, useMe, type MeUser } from "@/lib/api/users";
+import {
+  useDeleteAccount,
+  useLogout,
+  useMe,
+  isSelfDeleteEmail,
+  type MeUser,
+} from "@/lib/api/users";
 import { ApiError } from "@/lib/api/errors";
 import { apiErrorToUserMessage } from "@/lib/api/error-messages";
 import { ROLE_LABELS } from "@/components/administracion/role-labels";
 import type { UserRole } from "@/lib/auth/types";
 import { formatLastLogin } from "@/components/inicio/inicio-mvp-format";
 import { LogoutConfirmDialog } from "./logout-confirm-dialog";
+import { DeleteConfirmDialog } from "@/components/credenciales/delete-confirm-dialog";
 
 /* Pantalla "Mi cuenta". Muestra el perfil del usuario logueado (nombre,
    correo, empresa, rol, último ingreso) consumiendo `/api/me` — el mismo
@@ -18,6 +25,12 @@ import { LogoutConfirmDialog } from "./logout-confirm-dialog";
 
    Gateada por el flag `miCuenta` desde la page; cuando está OFF se ve el
    QavanteEmpty informativo (patrón "MVP honesto" ADR-0013). */
+
+function canShowSelfDelete(email: string): boolean {
+  if (!isSelfDeleteEmail(email)) return false;
+  const env = process.env.NEXT_PUBLIC_APP_ENV;
+  return env === "qas" || env === "development" || process.env.NODE_ENV === "development";
+}
 
 export function MiCuentaView() {
   const query = useMe();
@@ -97,6 +110,8 @@ export function MiCuentaContent({ user }: MiCuentaContentProps) {
           <LogoutButton />
         </div>
       </QavanteCard>
+
+      {canShowSelfDelete(user.email) && <DeleteAccountCard />}
     </div>
   );
 }
@@ -133,4 +148,43 @@ function LogoutButton() {
       />
     </>
   );
+}
+
+function DeleteAccountCard() {
+  const del = useDeleteAccount();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  return (
+    <QavanteCard
+      variant="bordered"
+      header={<span className="text-sm font-medium text-danger-500">Zona de peligro</span>}
+    >
+      <div className="space-y-3">
+        <p className="text-sm text-neutral-mid">
+          Borra tu usuario y la empresa de esta cuenta para volver a hacer el registro desde cero
+          (QAS / local). Esta acción no se puede deshacer.
+        </p>
+        <QavanteButton variant="danger" onClick={() => setConfirmOpen(true)}>
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          Borrar cuenta
+        </QavanteButton>
+        <DeleteConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title="¿Borrar tu cuenta?"
+          description="Se eliminan tu usuario, la empresa y los datos asociados. Después podés volver a crear la cuenta en /registro."
+          confirmLabel="Borrar cuenta"
+          loading={del.isPending}
+          error={del.isError ? deleteAccountErrorMessage(del.error) : null}
+          onConfirm={() => del.mutate()}
+        />
+      </div>
+    </QavanteCard>
+  );
+}
+
+function deleteAccountErrorMessage(error: unknown): string {
+  return error instanceof ApiError
+    ? apiErrorToUserMessage(error)
+    : "No pudimos borrar la cuenta. Intenta de nuevo.";
 }

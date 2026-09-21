@@ -1,0 +1,13 @@
+# Next.js en modo dev (HMR). Para el día a día es más rápido `npm run dev`
+# en el host; este Dockerfile es por si preferís no instalar Node.
+FROM node:24.19.0-bookworm-slim
+
+WORKDIR /app
+ENV HUSKY=0
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+EXPOSE 3000
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]

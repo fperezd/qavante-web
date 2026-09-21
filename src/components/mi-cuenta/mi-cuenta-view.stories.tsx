@@ -84,3 +84,14 @@ export const SinUltimoLogin: Story = {
     },
   },
 };
+
+export const BorrarCuentaFaranda: Story = {
+  name: "Borrar cuenta (faranda@tooxs.com)",
+  args: {
+    user: {
+      ...FERNANDO,
+      email: "faranda@tooxs.com",
+      name: "Fernando Aranda",
+    },
+  },
+};

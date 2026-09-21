@@ -106,7 +106,7 @@ export function CreateLoanForm() {
             </label>
             <QavanteInput
               id="loan-counterparty"
-              placeholder="Banco BICE"
+              placeholder="Nombre del banco"
               value={counterparty}
               onValueChange={setCounterparty}
               invalid={touched && !counterpartyValid}

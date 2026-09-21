@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/shell/app-shell";
 import { OnboardingGuard } from "@/components/onboarding/onboarding-guard";
+import { UserRutGuard } from "@/components/onboarding/user-rut-guard";
 import { PendingConnectionsBanner } from "@/components/onboarding/pending-connections-banner";
 import { auth } from "@/lib/auth/session";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
@@ -42,6 +43,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       {/* Gated por `onboarding` — ⚠️ ON en prod (`wrangler.toml`), no es un flag
           oscuro. Si el tenant no completó onboarding redirige al wizard, y solo
           con dato presente, fresco y `completed:false`. Fail-safe (ver el componente). */}
+      {onboarding && <UserRutGuard />}
       {onboarding && <OnboardingGuard />}
       {/* Entrada visible para retomar una conexión diferida ("conectar después").
           Flag PROPIO (`onboardingBanner`, OFF): alcanza a todos los tenants

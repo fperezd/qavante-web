@@ -153,11 +153,8 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      `no_session`, no "Falta X-Api-Key."). El flag ya está ON. La duda del comentario viejo
      ("podría ser api-key-only") quedó saldada. */
   remuneraciones: "/api/buk/employees",
-  /* Saldos de las cuentas de banco (Caja): saldo contable + disponible por cuenta (CLP/USD) + la LÍNEA
-     DE CRÉDITO (cupo/usado/disponible + venc. sobregiro, del balance por cuenta). `/api/bice/*` YA acepta
-     cookie (CC-API lo migró a require_session — sondeado 2026-08-03: `no_session`), así que el flag ya
-     puede encenderse en prod (editar wrangler.toml). Ver STATE_OF_THE_TRAIN. */
-  bankBalances: "/api/bice/saldo",
+  /* Saldos de las cuentas de banco (Caja): saldo informado por Fintoc en treasury. */
+  bankBalances: "/api/treasury/bank-accounts",
   /* Pantalla Salud (PULSO + Health Score, ADR-0064). FE-first: la vista
      (`SaludView`) ya existe (prototipo, PR #476, hoy solo en Storybook); la ruta
      renderiza SIEMPRE "En construcción" — sin datos de ejemplo en ningún
@@ -212,10 +209,8 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      nueva la consume; su endpoint de gating es la cola misma. LIVE en prod desde 2026-07-17
      (`NEXT_PUBLIC_FF_RECONCILIATION_REVIEW="true"` en wrangler.toml). */
   reconciliationReview: "/api/treasury/reconciliation/review",
-  /* Pantalla Banco (2026-08-04) — los PRODUCTOS del tenant por banco: cuentas corrientes (saldo + línea
-     de crédito) + tarjetas de crédito (cupo). Consume `/api/bice/*` (ya cookie-open). Gated OFF hasta
-     validar la UX con Fernando; encender = editar wrangler.toml. */
-  bancoScreen: "/api/bice/tarjetas",
+  /* Pantalla Banco — productos del tenant por banco conectado con Fintoc. */
+  bancoScreen: "/api/fintoc/connections",
   /* Conciliación de sueldos ACCIONABLE en Remuneraciones (#835) — el board del backend
      (`/api/admin/treasury/payroll-settlements/{period}`) es la fuente de verdad; deja conciliar
      una-a-una / varias marcadas y DESASIGNAR (revert). Los 3 endpoints (settlements/reconcile/revert)
@@ -267,7 +262,7 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      saldos en banco, movimientos, proyectada) como bloques movibles/apagables (motor iPad del Inicio),
      orden/visibilidad por `caja_widget_*`. OFF hasta validar; con OFF la Caja queda IGUAL → cero
      regresión. Encender = editar wrangler. */
-  cajaDashboard: "/api/bice/cuentas",
+  cajaDashboard: "/api/treasury/bank-accounts",
   /* Pantalla Presupuesto propositivo (ADR-0091, 2026-08-09): "cómo vas" contra el plan que Qavante
      PROPONE desde el histórico (POST budget/propose) + ajuste "+% ventas". Consume budget-vs-actual.
      Requiere el backend #870 (ya en main). Encender = editar wrangler. */
@@ -321,7 +316,7 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
      `cajaHoy()` (Ley 1, la misma función que V01/V02), la tabla de cuentas con frescura + pill de
      conexión + saldo según el banco, el banner "conectar otro banco", los filtros con conteo y la
      tabla de movimientos con pill {Conciliado ✓ / Clasificado ✓ / Por clasificar → Clasificar}. Todo
-     sobre endpoints VIVOS (summary, bice/*, bank-accounts, sources/status, bank-movements).
+     sobre endpoints VIVOS (summary, bank-accounts, sources/status, bank-movements).
 
      El contrato vivo `/api/sources/status` ahora publica `sync_progress` por fuente: `started_at`
      siempre que el sync siga vigente, y `eta_seconds`/`step` sólo cuando la integración los sabe.
@@ -510,6 +505,8 @@ export const FLAG_GATING_ENDPOINT: Record<FeatureFlag, string> = {
 export const FLAG_GATING_FIELD: Partial<Record<FeatureFlag, string>> = {
   bancoV03: "sync_progress",
   impuestosV06: "estimable",
+  bankBalances: "balance",
+  cajaDashboard: "bank_name",
 };
 
 export function flagGatingIdentity(flag: FeatureFlag): string {

@@ -1,87 +1,48 @@
 "use client";
 
-import { useQueries } from "@tanstack/react-query";
-import {
-  useBiceSaldo,
-  useBankAccounts,
-  treasuryKeys,
-  type CuentaBalanceResponse,
-} from "@/lib/api/treasury";
-import { api } from "@/lib/api/client";
+import { useBankAccounts } from "@/lib/api/treasury";
 import { formatMoney } from "@/lib/formatters/clp";
-import { creditoInformado } from "./inicio-resumen-model";
+import { parseAmountOrNull } from "@/lib/formatters/amount";
 
-/** BICE is the only existing detailed credit reader. Never label its subtotal as all banks. */
 export function InicioCreditosLive({ enabled }: { enabled: boolean }) {
   return enabled ? <CreditosConectados /> : null;
 }
 
 function CreditosConectados() {
-  const enabled = true;
-  const bankAccounts = useBankAccounts();
-  const accounts = useBiceSaldo(enabled);
-  const accountsFailed =
-    accounts.isError || (!accounts.isLoading && accounts.data?.status !== "ok");
-  const numbers = accountsFailed
-    ? []
-    : (accounts.data?.cuentas ?? []).map((account) => account.numeroCuenta);
-  // Retain the response envelope: BICE can report functional errors with HTTP 200.
-  const balances = useQueries({
-    queries: numbers.map((account) => ({
-      queryKey: treasuryKeys.biceCuentaBalance(account),
-      queryFn: () =>
-        api.get<CuentaBalanceResponse>(`/api/bice/cuentas/${encodeURIComponent(account)}/balance`, {
-          skipAuthRetry: true,
-        }),
-      enabled: enabled && account !== "",
-      staleTime: 5 * 60 * 1000,
-      retry: false,
-    })),
-  });
-  const balancesLoading = balances.some((balance) => balance.isLoading);
-  const balancesFailed = balances.some(
-    (balance) =>
-      balance.isError ||
-      (!balance.isLoading && (balance.data?.status !== "ok" || !balance.data.data)),
-  );
-  if (!enabled) return null;
-  const lines = (accountsFailed ? [] : (accounts.data?.cuentas ?? [])).flatMap((account, index) => {
-    const response = balances[index];
-    const credit = creditoInformado(
-      !response?.isError && response?.data?.status === "ok"
-        ? (response.data.data ?? undefined)
-        : undefined,
+  const query = useBankAccounts();
+  if (query.isLoading) {
+    return (
+      <div className="mt-4 space-y-3 rounded-xl bg-background p-3 text-sm">
+        <p className="text-sm font-medium">Tarjetas y créditos</p>
+        <p role="status">Consultando cuentas…</p>
+      </div>
     );
-    return credit
-      ? [{ ...credit, id: account.numeroCuenta, bank: "BICE", account: account.numeroFormateado }]
-      : [];
-  });
-  const otherBanks = [
-    ...new Set(
-      (bankAccounts.isError ? [] : (bankAccounts.data?.items ?? []))
-        .filter((a) => a.active && ["checking", "savings"].includes(a.account_type))
-        .map((a) => a.bank_name.trim())
-        .filter((name) => name && !/^(banco\s+)?bice$/i.test(name)),
-    ),
-  ];
+  }
+  if (query.isError) {
+    return (
+      <div className="mt-4 space-y-3 rounded-xl bg-background p-3 text-sm">
+        <p className="text-sm font-medium">Tarjetas y créditos</p>
+        <p className="text-xs text-warning-700">No se pudieron consultar las cuentas de crédito.</p>
+      </div>
+    );
+  }
+  const lines = (query.data?.items ?? [])
+    .filter((account) => account.account_type === "credit_card" || account.account_type === "loan")
+    .map((account) => ({
+      id: account.id,
+      bank: account.bank_name,
+      account: account.name,
+      currency: account.currency_code,
+      available: parseAmountOrNull(account.balance),
+      total: parseAmountOrNull(account.balance) ?? 0,
+    }));
   return (
     <div className="mt-4 space-y-3 rounded-xl bg-background p-3 text-sm">
-      <p className="text-sm font-medium">Líneas de crédito</p>
-      {accounts.isLoading || balancesLoading ? (
-        <p role="status">Consultando cupos…</p>
-      ) : (
+      <p className="text-sm font-medium">Tarjetas y créditos</p>
+      {lines.length > 0 ? (
         <InicioCreditos lines={lines} />
-      )}
-      {accountsFailed || balancesFailed ? (
-        <p className="text-xs text-warning-700">No se pudieron consultar todos los cupos.</p>
-      ) : !accounts.isLoading && !balancesLoading && !lines.length ? (
-        <p className="text-xs text-neutral-mid">BICE: sin cupos informados.</p>
-      ) : null}
-      <p className="text-xs text-neutral-mid">Cupos consultados: BICE.</p>
-      {otherBanks.length > 0 && (
-        <p className="text-xs text-neutral-mid">
-          {otherBanks.join(", ")}: información de cupos no disponible.
-        </p>
+      ) : (
+        <p className="text-xs text-neutral-mid">Sin tarjetas ni créditos informados.</p>
       )}
     </div>
   );
@@ -96,7 +57,6 @@ export interface InicioCredito {
   total: number;
 }
 
-/** One row per bank/account/currency, never a combined cross-currency credit total. */
 export function InicioCreditos({ lines }: { lines: readonly InicioCredito[] }) {
   const first = lines[0];
   if (!first) return null;
@@ -120,7 +80,7 @@ export function InicioCreditos({ lines }: { lines: readonly InicioCredito[] }) {
 }
 
 export function InicioCreditoLinea({
-  bank = "BICE",
+  bank = "Banco",
   account,
   currency,
   available,
@@ -135,17 +95,17 @@ export function InicioCreditoLinea({
   return (
     <div className="min-w-0">
       <p className="break-words text-xs text-neutral-mid">
-        {bank} · Cuenta {account} · {currency}
+        {bank} · {account} · {currency}
       </p>
       <dl className="mt-2 grid grid-cols-2 gap-3 text-sm tabular-nums">
         <div className="min-w-0">
-          <dt className="text-xs text-neutral-mid">Disponible</dt>
+          <dt className="text-xs text-neutral-mid">Saldo informado</dt>
           <dd className="mt-1 break-words font-medium">
             {available == null ? "Sin dato" : formatMoney(available, currency)}
           </dd>
         </div>
         <div className="min-w-0 border-l border-border pl-3">
-          <dt className="text-xs text-neutral-mid">Cupo total</dt>
+          <dt className="text-xs text-neutral-mid">En la cuenta</dt>
           <dd className="mt-1 break-words">{formatMoney(total, currency)}</dd>
         </div>
       </dl>

@@ -17,13 +17,14 @@ import {
 } from "./onboarding-steps";
 
 describe("onboarding-steps — modelo del wizard", () => {
-  it("tiene 7 pasos en orden, ids únicos", () => {
-    expect(TOTAL_ONBOARDING_STEPS).toBe(7);
+  it("tiene 8 pasos en orden, ids únicos", () => {
+    expect(TOTAL_ONBOARDING_STEPS).toBe(8);
     const ids = ONBOARDING_STEPS.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual([
       "signup",
       "verify-email",
+      "assign-rut",
       "connect-sii",
       "connect-bank",
       "industry",
@@ -47,9 +48,9 @@ describe("onboarding-steps — modelo del wizard", () => {
 
   it("stepIndex / stepNumber", () => {
     expect(stepIndex("signup")).toBe(0);
-    expect(stepIndex("import")).toBe(6);
+    expect(stepIndex("import")).toBe(7);
     expect(stepNumber("signup")).toBe(1);
-    expect(stepNumber("import")).toBe(7);
+    expect(stepNumber("import")).toBe(8);
   });
 
   it("stepByRoute matchea por ruta exacta y por prefijo", () => {
@@ -59,8 +60,8 @@ describe("onboarding-steps — modelo del wizard", () => {
     expect(stepByRoute("/otra-cosa")).toBeUndefined();
   });
 
-  it("progressPct: 1/7 ≈ 14, último = 100", () => {
-    expect(progressPct("signup")).toBe(14);
+  it("progressPct: 1/8 = 13, último = 100", () => {
+    expect(progressPct("signup")).toBe(13);
     expect(progressPct("import")).toBe(100);
   });
 

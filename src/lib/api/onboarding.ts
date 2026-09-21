@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "./client";
 import type { components } from "./types";
 
@@ -50,5 +50,23 @@ export function useResendVerification() {
   return useMutation({
     mutationFn: (body: ResendVerificationBody) =>
       api.post<void>("/api/auth/resend-verification", { body, skipAuthRetry: true }),
+  });
+}
+
+export type SignupContribuyenteResponse = components["schemas"]["ContribuyenteResponse"];
+
+/** `GET /api/auth/signup/contribuyente/{rut}` — getstc público (sin sesión) para
+    autocompletar nombre / razón social en `/registro`. */
+export function useSignupContribuyente(rut: string, enabled = true) {
+  return useQuery({
+    queryKey: ["signup", "contribuyente", rut],
+    queryFn: () =>
+      api.get<SignupContribuyenteResponse>(
+        `/api/auth/signup/contribuyente/${encodeURIComponent(rut)}`,
+        { skipAuthRetry: true },
+      ),
+    enabled: enabled && rut.trim().length >= 3,
+    staleTime: 60 * 60 * 1000,
+    retry: false,
   });
 }

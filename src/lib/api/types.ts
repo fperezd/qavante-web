@@ -17029,9 +17029,14 @@ export interface components {
             password: string;
             /**
              * Rut
-             * @description RUT chileno con DV (formato '12345678-9' o '12.345.678-9').
+             * @description RUT chileno con DV (formato '12345678-9' o '12.345.678-9'). Alternativa a `email`: enviá uno de los dos.
              */
-            rut: string;
+            rut?: string | null;
+            /**
+             * Email
+             * @description Email de la cuenta (case-insensitive). Alternativa a `rut`.
+             */
+            email?: string | null;
         };
         /** LoginResponse */
         LoginResponse: {
@@ -17411,7 +17416,12 @@ export interface components {
              * Name
              * @description Nombre del usuario.
              */
-            name: string;
+            name?: string | null;
+            /**
+             * Rut
+             * @description RUT personal (formato '12345678-9' o '12.345.678-9'). Solo la primera vez.
+             */
+            rut?: string | null;
         };
         /** MeResponse */
         MeResponse: {
@@ -17482,6 +17492,11 @@ export interface components {
              * @description Razón social del tenant activo (CC-WEB #3).
              */
             tenant_name?: string | null;
+            /**
+             * Rut
+             * @description RUT personal de la cuenta (`core.users.rut`). `null` si todavía no lo cargó — el FE manda al wizard `/onboarding/asignar-rut`.
+             */
+            rut?: string | null;
         };
         /**
          * MoveDimensionValueRequest
@@ -27349,7 +27364,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description RUT mal formateado o password muy corto. */
+            /** @description Identificador faltante/ambiguo, RUT mal formateado o password corto. */
             422: {
                 headers: {
                     [name: string]: unknown;

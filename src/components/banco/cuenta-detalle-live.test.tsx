@@ -70,19 +70,10 @@ vi.mock("@/lib/api/treasury", () => ({
   BANK_MOVEMENTS_LIMIT_MAX: 500,
   treasuryKeys: { all: ["treasury"] },
   createTreasuryIdempotencyKey: () => "idem-1",
-  useBiceSaldo: () =>
+  useBankAccounts: () =>
     query({
-      cuentas: [
-        {
-          numeroCuenta: "token-1",
-          numeroFormateado: "001-1",
-          nombreCuenta: "Cuenta USD",
-          moneda: "USD",
-        },
-      ],
+      items: [{ id: "account-1", name: "Cuenta USD", bank_name: "Banco", currency_code: "USD" }],
     }),
-  useBiceAccounts: () =>
-    query({ accounts: [{ external_id: "001-1", linked_bank_account_id: "account-1" }] }),
   useBankMovements: (params: BankMovementsParams) => {
     arnes.movementParams = params;
     return query({
@@ -193,7 +184,7 @@ describe("CuentaDetalleLive · wiring de resolución bancaria", () => {
 
   it("consulta la cuenta completa, abre el selector y confirma movimiento + documento", async () => {
     renderToStaticMarkup(
-      <CuentaDetalleLive numeroCuenta="token-1" mesActual="2026-09" conciliarEnabled />,
+      <CuentaDetalleLive numeroCuenta="account-1" mesActual="2026-09" conciliarEnabled />,
     );
 
     expect(arnes.movementParams).toEqual({
@@ -222,7 +213,7 @@ describe("CuentaDetalleLive · wiring de resolución bancaria", () => {
   it("un viewer abre el detalle de lectura, pero no recibe controles ni consultas de escritura", () => {
     arnes.writer = false;
     renderToStaticMarkup(
-      <CuentaDetalleLive numeroCuenta="token-1" mesActual="2026-09" conciliarEnabled />,
+      <CuentaDetalleLive numeroCuenta="account-1" mesActual="2026-09" conciliarEnabled />,
     );
 
     expect(arnes.listProps?.conciliarEnabled).toBe(false);
@@ -242,7 +233,7 @@ describe("CuentaDetalleLive · wiring de resolución bancaria", () => {
   it("un fallo del detalle canónico se declara y deshabilita todas sus acciones", () => {
     arnes.resolutionError = new Error("falló el detalle");
     renderToStaticMarkup(
-      <CuentaDetalleLive numeroCuenta="token-1" mesActual="2026-09" conciliarEnabled />,
+      <CuentaDetalleLive numeroCuenta="account-1" mesActual="2026-09" conciliarEnabled />,
     );
 
     expect(arnes.drawerProps?.resolutionError).toBe(arnes.resolutionError);

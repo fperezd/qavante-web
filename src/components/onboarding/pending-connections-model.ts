@@ -28,9 +28,8 @@ import {
 } from "@/lib/api/onboarding-sources";
 import type { SourceStatus } from "@/lib/api/sources-status";
 
-/** `source_code` del catálogo (`core.sources`) de cada fuente del wizard. Ojo:
- *  el provider de la credencial del banco es `bice` y el código del catálogo es
- *  `bank_bice` — no son lo mismo. */
+/** `source_code` del catálogo (`core.sources`) de cada fuente del wizard.
+ *  El banco se conecta con Fintoc; el código canónico sigue siendo `bank_bice`. */
 export const SOURCE_CODE_BY_ID: Record<OnboardingSourceId, string> = {
   sii: "sii_rcv",
   bank: "bank_bice",

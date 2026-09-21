@@ -20,6 +20,7 @@ import {
 export type OnboardingStepId =
   | "signup"
   | "verify-email"
+  | "assign-rut"
   | "connect-sii"
   | "connect-bank"
   | "industry"
@@ -55,6 +56,13 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     title: "Verifica tu correo",
     route: "/verificar",
     phase: "pre-auth",
+  },
+  {
+    id: "assign-rut",
+    label: "Tu RUT",
+    title: "Ingresa tu RUT",
+    route: "/onboarding/asignar-rut",
+    phase: "post-auth",
   },
   {
     id: "connect-sii",
@@ -114,7 +122,7 @@ export function stepByRoute(route: string): OnboardingStep | undefined {
   return ONBOARDING_STEPS.find((s) => route === s.route || route.startsWith(`${s.route}/`));
 }
 
-/** Progreso 1-based en porcentaje (paso 1 de 7 → 14, …, 7 de 7 → 100). 0 si no
+/** Progreso 1-based en porcentaje (paso 1 de 8 → 13, …, 8 de 8 → 100). 0 si no
     existe el paso. Redondeado a entero. */
 export function progressPct(id: OnboardingStepId): number {
   const i = stepIndex(id);

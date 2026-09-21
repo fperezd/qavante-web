@@ -230,8 +230,8 @@ describe("cuentasV03 — la tabla de cuentas", () => {
     expect(filas[0]!.sub).toBe(
       "desde el 28 ago no llegan movimientos · 4 movimientos por conciliar",
     );
-    // Sin token de bice no hay cartola a la que llegar: el link se omite, no se rompe.
-    expect(filas[0]!.href).toBeNull();
+    // El detalle vive en treasury: el id de la URL es `bank_account_id`.
+    expect(filas[0]!.href).toBe("/banco/cuenta/acc-clp");
   });
 
   it("sin pendientes contables (movimientos no llegaron) el `.sub` no inventa un cero", () => {

@@ -14,11 +14,20 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
   });
 
-  it("401 en context login → copy específico 'RUT o clave incorrectos'", () => {
+  it("401 en context login → copy específico 'Correo o clave incorrectos'", () => {
     const err = new ApiError("unauthorized", 401);
     expect(apiErrorToUserMessage(err, "login")).toBe(
-      "RUT o clave incorrectos. Verifica tus datos.",
+      "Correo o clave incorrectos. Verifica tus datos.",
     );
+  });
+
+  it("oauth_pending_verification no usa el copy de RUT/clave", () => {
+    const err = new ApiError(
+      "Esa cuenta existe pero todavía no confirmó el correo.",
+      401,
+      "oauth_pending_verification",
+    );
+    expect(apiErrorToUserMessage(err, "login")).toContain("confirmó el correo");
   });
 
   it("401 en context general → 'sesión expiró'", () => {
@@ -68,10 +77,14 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
   });
 
-  it("422 → 'datos no válidos'", () => {
-    expect(apiErrorToUserMessage(new ApiError("validation", 422))).toBe(
-      "Algunos datos no son válidos. Revisa el formulario.",
-    );
+  it("signup_conflict (409) → cuenta ya existe", () => {
+    const err = new ApiError("conflict", 409, "signup_conflict");
+    expect(apiErrorToUserMessage(err)).toContain("ya existe");
+  });
+
+  it("self_delete_forbidden (403) → no se puede borrar", () => {
+    const err = new ApiError("forbidden", 403, "self_delete_forbidden");
+    expect(apiErrorToUserMessage(err)).toContain("no se puede borrar");
   });
 
   it("429 rate limit → 'muchas operaciones seguidas'", () => {
@@ -182,7 +195,7 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
     // Gemelo positivo con el MISMO contexto: con 401 sí aparece el copy de credenciales.
     expect(apiErrorToUserMessage(new ApiError("unauthorized", 401), "login")).toBe(
-      "RUT o clave incorrectos. Verifica tus datos.",
+      "Correo o clave incorrectos. Verifica tus datos.",
     );
   });
 

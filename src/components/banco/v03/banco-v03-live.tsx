@@ -5,10 +5,6 @@ import { useDashboardSummary } from "@/lib/api/dashboard";
 import {
   useBankAccounts,
   useBankMovements,
-  useBiceAccounts,
-  useBiceSaldo,
-  useBiceTarjetas,
-  useBiceTarjetasSaldos,
   useCanonicalCategories,
   useBankMovementResolution,
   useFinancialEventTypes,
@@ -38,10 +34,7 @@ function mutationErrorMessage(error: unknown): string {
 /* Cableado de V03 · Banco. La vista es presentacional; acá se resuelven las fuentes:
  *
  *   · `GET /api/dashboard/summary`               — "Caja hoy" vía `cajaHoy()` (la MISMA fuente que V01/V02);
- *   · `GET /api/bice/saldo` + `/tarjetas` (+ saldo por tarjeta) — saldos y cupos que el banco informa en vivo;
- *   · `GET /api/treasury/bank-accounts?active=false` — las cuentas Qavante (filas cuando bice no
- *     responde; moneda y etiqueta de cada movimiento);
- *   · `GET /api/bank-movements/bice/accounts`     — el vínculo cuenta bice ↔ cuenta Qavante;
+ *   · `GET /api/treasury/bank-accounts?active=false` — cuentas y saldos que trajo Fintoc;
  *   · `GET /api/sources/status`                    — estado y frescura de la conexión;
  *   · `GET /api/bank-movements` (últimos 3 meses)  — los movimientos con su ciclo de vida;
  *   · `GET /api/treasury/canonical-categories`     — la etiqueta humana de cada categoría.
@@ -130,15 +123,7 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
   const hasta = periodo(hoy);
 
   const dash = useDashboardSummary();
-  const saldo = useBiceSaldo();
-  const tarjetas = useBiceTarjetas();
-  const ops = React.useMemo(
-    () => (tarjetas.data?.data ?? []).map((t) => t.operationNumber),
-    [tarjetas.data],
-  );
-  const { saldoPorTarjeta } = useBiceTarjetasSaldos(ops, ops.length > 0);
   const cuentas = useBankAccounts(true);
-  const links = useBiceAccounts();
   const sources = useSourcesStatus();
   React.useEffect(() => {
     if (selectedAccountId && cuentas.data?.items) {
@@ -220,15 +205,19 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
     void resolution.refetch();
   }
 
+  const saldoVivo = null;
+  const tarjetasVivas = null;
+  const sourcesVivas = sources.data?.sources ?? [];
+
   return (
     <BancoV03View
       summary={dash.data ?? null}
-      saldo={saldo.data ?? null}
-      tarjetas={tarjetas.data ?? null}
-      saldoPorTarjeta={saldoPorTarjeta}
+      saldo={saldoVivo}
+      tarjetas={tarjetasVivas}
+      saldoPorTarjeta={new Map()}
       cuentasQavante={cuentas.data?.items ?? null}
-      links={links.data?.accounts ?? null}
-      sources={sources.data?.sources ?? null}
+      links={null}
+      sources={sourcesVivas}
       movimientos={movs.data?.items ?? null}
       movimientosTotal={movs.data?.total ?? null}
       movimientosMotivo={movs.isError ? motivoSinMovimientos(movs.error) : null}
@@ -313,9 +302,9 @@ export function BancoV03Live({ initialAccountId, initialMovementId }: BancoV03Li
           : undefined
       }
       alcance={`los últimos ${MESES_ALCANCE} meses`}
-      cuentasCargando={saldo.isLoading || cuentas.isLoading}
+      cuentasCargando={cuentas.isLoading}
       movimientosCargando={movs.isLoading}
-      refrescando={!saldo.isLoading && (saldo.isFetching || tarjetas.isFetching)}
+      refrescando={!cuentas.isLoading && cuentas.isFetching}
       hoy={hoy}
     />
   );
