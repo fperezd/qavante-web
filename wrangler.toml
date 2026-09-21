@@ -234,10 +234,6 @@ NEXT_PUBLIC_FF_SYNC_STATUS = "true"
 # Degradación elegante: si el endpoint falla, error inline (no rompe la nav).
 NEXT_PUBLIC_FF_REMUNERACIONES = "true"
 
-# Custom domain declarativo. Idempotente: si el binding ya existe en el
-# dashboard (creado manualmente el 2026-05-12), wrangler lo respeta. Si se
-# recrea el Worker, este bloque lo restaura. Requiere que la zona qavante.com
-# esté en la misma cuenta de Cloudflare (sí: account 8783bdbfcb...).
-[[routes]]
-pattern = "app.qavante.com"
-custom_domain = true
+# app.qavante.com pasa a Azure Container Apps (CNAME + cert managed).
+# No re-declarar custom_domain: un wrangler deploy lo robaba de vuelta.
+# El Worker queda en *.workers.dev / routes de no-prod si existen.

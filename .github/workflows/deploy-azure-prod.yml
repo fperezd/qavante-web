@@ -6,8 +6,8 @@ name: Deploy web to Azure PROD
 # OIDC: federated credential de id-github-qavante-prod debe cubrir
 #   repo:tooxs-digital/qavante-web:ref:refs/heads/main
 #   además de refs/heads/integrate/main-azure-prod.
-# NEXT_PUBLIC_API_URL sigue el FQDN de Container Apps hasta el cutover DNS.
-# En el flip, rebuild con https://api.qavante.com (no antes: el hostname público aún es Fly).
+# api.qavante.com ya apunta a Container Apps (cutover DNS). Bake canónico
+# para que las cookies Domain=.qavante.com viajen con el front en app.qavante.com.
 # Client ID de esa identidad (no es secreto; el trust es el federated credential).
 # Tenant/subscription: mismos secrets de repo que QAS.
 
@@ -43,7 +43,7 @@ jobs:
       IMAGE_REPO: acrqavanteprod.azurecr.io/qavante-web
       APP: ca-qavante-web-prod
       RG: qavante-prod
-      NEXT_PUBLIC_API_URL: https://ca-qavante-api-prod.nicedesert-33644b01.chilecentral.azurecontainerapps.io
+      NEXT_PUBLIC_API_URL: https://api.qavante.com
       AZURE_CLIENT_ID_PROD: 47315a6f-65c3-4780-a6cc-d436d401353d
 
     steps:
