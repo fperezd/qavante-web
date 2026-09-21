@@ -10,7 +10,13 @@ test.describe("Flujo: Obligaciones en cuotas", () => {
     await loginAs(context, "owner");
     await page.goto("/pagar/obligaciones");
 
-    await expect(page.getByRole("heading", { name: "Obligaciones en cuotas" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Obligaciones con entidades financieras" }),
+    ).toBeVisible();
+    // Separadas por categoria, en orden fijo: Creditos, Compras en cuotas, Leasing.
+    await expect(page.getByRole("heading", { name: "Créditos" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Compras en cuotas" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Leasing" })).toBeVisible();
     const bice = page.getByText("Banco BICE").first();
     await expect(bice).toBeVisible();
     await expect(page.getByText("Leasing Andes").first()).toBeVisible();

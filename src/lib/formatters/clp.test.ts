@@ -134,6 +134,13 @@ describe("formatMoney", () => {
     expect(norm(formatMoney(1234.5, "XXX"))).toContain("1.234,50");
   });
 
+  it("UF: DOS decimales, igual que el resto — ratificado, no cuatro (#325)", () => {
+    // Intl no reconoce "UF" como ISO-4217 y cae al genérico; redondea igual que USD/EUR.
+    expect(norm(formatMoney(129.1234, "UF"))).toBe("UF129,12");
+    expect(norm(formatMoney(1500.25, "UF"))).toBe("UF1.500,25");
+    expect(norm(formatMoney(-1500.25, "UF"))).toBe("−UF1.500,25");
+  });
+
   it("moneda vacía '' → CLP (no RangeError de Intl)", () => {
     expect(norm(formatMoney(1000, ""))).toBe("$1.000");
   });
@@ -193,6 +200,12 @@ describe("formatMoney — el separador entre símbolo y número", () => {
        en vez de mirar si el locale ya lo puso. */
     expect(formatMoney(1234.5, "EUR")).toBe("EUR 1.234,50");
     expect(formatMoney(1234.5, "GBP")).toBe("GBP 1.234,50");
+  });
+
+  it("UF también negativa lleva el menos tipográfico, no el guion ASCII de Intl", () => {
+    expect(formatMoney(-1500.25, "UF")).toBe("−UF 1.500,25");
+    // Redondea a cero a dos decimales: sin menos.
+    expect(formatMoney(-0.001, "UF")).toBe("UF 0,00");
   });
 
   it("CLP no lleva separador: sigue pegado al $", () => {
@@ -282,6 +295,13 @@ describe("formatMoneyFromDecimalString — contrato Decimal exacto", () => {
     expect(formatMoneyFromDecimalString("9007199254740993.49", "CLP")).toBe(
       "$9.007.199.254.740.993",
     );
+  });
+
+  it("la UF va a dos decimales, igual que el resto — ratificado (#325)", () => {
+    expect(formatMoneyFromDecimalString("1500.25", "UF")).toBe("UF 1.500,25");
+    // Redondea media hacia arriba, mismo criterio que las demás monedas con centavos.
+    expect(formatMoneyFromDecimalString("129.1234", "UF")).toBe("UF 129,12");
+    expect(formatMoneyFromDecimalString("129.126", "UF")).toBe("UF 129,13");
   });
 
   it("conserva el signo negativo y da dos decimales a las monedas con centavos", () => {

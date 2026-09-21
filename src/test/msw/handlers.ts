@@ -3127,7 +3127,8 @@ const pagosHandlers = [
   ),
 ];
 
-/* Obligaciones / Préstamos (Tesorería). Seed con 1 préstamo + calendario. */
+/* Obligaciones con entidades financieras (Tesorería). Seed con una de cada categoría de la
+   pantalla —crédito, leasing y compra en cuotas— + calendario. */
 const obligationsSeed = [
   {
     id: "obl-1",
@@ -3146,7 +3147,7 @@ const obligationsSeed = [
   },
   {
     id: "obl-2",
-    type: "loan",
+    type: "leasing",
     counterparty: "Leasing Andes",
     principal_total: "4500000",
     annual_rate: "0.22",

@@ -84,6 +84,13 @@ function currencyCode(currency: string | null | undefined): string {
   return (currency || "CLP").trim().toUpperCase() || "CLP";
 }
 
+/* Decimales por moneda. Regla ratificada por Fernando: CLP sin decimales, UF
+   igual que el resto — dos decimales, no cuatro (2026-09-20, a instancia de
+   #325: la UF también se muestra con dos, aunque internamente traiga más). */
+function decimalPlaces(currency: string | null | undefined): number {
+  return currencyCode(currency) === "CLP" ? 0 : 2;
+}
+
 /* Suma 1 a un número escrito como dígitos, propagando el acarreo. Sin `Number()`
    ni `BigInt`: la cifra puede exceder 2^53 y ahí cualquier conversión ya miente.
    El índice en `DIGITS` reemplaza la aritmética. */
@@ -145,8 +152,8 @@ function moneyPrefix(currency: string | null | undefined): string {
  * 2026-09-15 contra la proyección productiva de Tooxs). Mostrarlos literalmente
  * pintaría "$31.016.973,362000000000" en pesos, contra la regla ratificada de CLP
  * sin decimales. Acá se aplica la regla de la MONEDA sobre el string exacto: CLP
- * al peso, el resto a dos decimales, redondeando en TEXTO para que un entero sobre
- * 2^53 siga saliendo dígito por dígito. El backend sigue siendo dueño de la cifra:
+ * al peso, el resto a dos decimales (`decimalPlaces`), redondeando en TEXTO para
+ * que un entero sobre 2^53 siga saliendo dígito por dígito. El backend sigue siendo dueño de la cifra:
  * esto es presentación, no aritmética de negocio. La cuantización en origen es
  * qavante-api#598; el frontend no depende de que llegue.
  */
@@ -159,7 +166,7 @@ export function formatMoneyFromDecimalString(
   const decimal = exactDecimal(raw);
   if (!decimal) return raw;
 
-  const places = currencyCode(currency) === "CLP" ? 0 : 2;
+  const places = decimalPlaces(currency);
   const rounded = roundDecimalMagnitude(decimal.integer, decimal.fraction, places);
   const numberText = `${groupThousands(rounded.integer)}${
     places === 0 ? "" : `,${rounded.fraction}`
@@ -177,7 +184,8 @@ export function formatMoneyFromDecimalString(
 /**
  * Determina "no cero" con la misma regla de MONEDA que decide la pantalla: redondea
  * en texto con `roundDecimalMagnitude` (la misma rutina que usa
- * `formatMoneyFromDecimalString`, CLP al peso half-up y el resto a dos decimales) y
+ * `formatMoneyFromDecimalString`, con los mismos decimales por moneda de
+ * `decimalPlaces`) y
  * juzga sobre esos dígitos YA redondeados, nunca sobre un `number` ni sobre los
  * dígitos crudos del Decimal. Así una fracción sub-peso en CLP ("0.36") que la
  * pantalla pinta "$0" también juzga cero acá, en vez de contarse como impacto real.
@@ -191,7 +199,7 @@ export function isNonZeroDecimalString(
   if (raw == null || raw.trim() === "") return false;
   const decimal = exactDecimal(raw);
   if (!decimal) return true;
-  const places = currencyCode(currency) === "CLP" ? 0 : 2;
+  const places = decimalPlaces(currency);
   const rounded = roundDecimalMagnitude(decimal.integer, decimal.fraction, places);
   return /[1-9]/.test(`${rounded.integer}${rounded.fraction}`);
 }
@@ -265,12 +273,13 @@ export function formatMoney(value: number, currency: string | null | undefined):
   // rompería `Intl.NumberFormat({currency:""})` con RangeError).
   const cur = (currency || "CLP").toUpperCase();
   if (cur === "CLP") return formatClp(value);
+  const places = decimalPlaces(cur);
   try {
     const parts = new Intl.NumberFormat("es-CL", {
       style: "currency",
       currency: cur,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: places,
+      maximumFractionDigits: places,
     }).formatToParts(Math.abs(value));
     /* Un solo separador entre el símbolo y el número cuando el símbolo va DELANTE
        y el locale no puso ninguno. Si el símbolo fuera sufijo (locales que lo ponen
@@ -289,12 +298,20 @@ export function formatMoney(value: number, currency: string | null | undefined):
       )
       .join("");
     // Magnitud, no valor con signo: ver la nota de `formatClp` (−0,005 daba "US$0,01").
-    return value < 0 && Math.round(Math.abs(value) * 100) !== 0 ? `−${abs}` : abs;
+    const scale = 10 ** places;
+    return value < 0 && Math.round(Math.abs(value) * scale) !== 0 ? `−${abs}` : abs;
   } catch {
+    // La UF (y cualquier código que Intl no reconozca como ISO-4217) cae acá:
+    // `Intl.NumberFormat({currency:"UF"})` lanza porque UF no es ISO-4217.
     const n = new Intl.NumberFormat("es-CL", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-    return `${cur} ${n}`;
+      minimumFractionDigits: places,
+      maximumFractionDigits: places,
+    }).format(Math.abs(value));
+    // Mismo menos tipográfico (U+2212) que la rama ISO de arriba y que `formatClp`;
+    // formatear `value` directo acá dejaba pasar el guion ASCII de Intl sin el
+    // criterio de "magnitud redondeada" (un −0,00001 no debe llevar menos).
+    const scale = 10 ** places;
+    const sign = value < 0 && Math.round(Math.abs(value) * scale) !== 0 ? "−" : "";
+    return `${sign}${cur} ${n}`;
   }
 }

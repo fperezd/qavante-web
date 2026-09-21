@@ -3,7 +3,9 @@ import { http, HttpResponse } from "msw";
 import { expect, within } from "storybook/test";
 import { ObligacionesListView } from "./obligaciones-list-view";
 
-/* Lista de obligaciones / préstamos (Pagar). `GET /api/treasury/obligations`.
+/* Obligaciones con entidades financieras (Pagar). `GET /api/treasury/obligations`.
+   La vista SEPARA por categoría (Créditos, Compras en cuotas, Leasing), así que el
+   fixture cargado trae una de cada una: una sola categoría no ejercita el agrupamiento.
    `useRouter`/Link auto-mock (appDirectory). */
 
 const LOADED = http.get("*/api/treasury/obligations", () =>
@@ -27,7 +29,7 @@ const LOADED = http.get("*/api/treasury/obligations", () =>
         },
         {
           id: "obl-2",
-          type: "loan",
+          type: "leasing",
           counterparty: "Leasing Andes",
           principal_total: "4500000",
           annual_rate: "0.22",
@@ -39,6 +41,21 @@ const LOADED = http.get("*/api/treasury/obligations", () =>
           pending_count: 11,
           next_due_date: "2026-07-01",
           outstanding_total: "2750000",
+        },
+        {
+          id: "obl-3",
+          type: "card_purchase",
+          counterparty: "SII",
+          principal_total: "627894",
+          annual_rate: null,
+          currency_code: "CLP",
+          origination_date: "2026-06-10",
+          installments_total: 6,
+          status: "active",
+          needs_review: false,
+          pending_count: 4,
+          next_due_date: "2026-08-10",
+          outstanding_total: "418596",
         },
       ],
     },
@@ -99,6 +116,11 @@ export const ConObligaciones: Story = {
     // [control positivo] 9 y 11 cuotas pendientes: plural, nunca singular.
     await expect((await c.findAllByText(/^\d+ cuotas pendientes$/)).length).toBeGreaterThan(0);
     await expect(c.queryByText(/^1 cuotas pendientes$/)).not.toBeInTheDocument();
+    // Las tres categorías, cada una con su encabezado. Sin esto, un fixture de un solo
+    // tipo dejaría pasar una vista que volviera a mezclarlo todo en una lista.
+    await expect(await c.findByRole("heading", { name: "Créditos" })).toBeInTheDocument();
+    await expect(c.getByRole("heading", { name: "Compras en cuotas" })).toBeInTheDocument();
+    await expect(c.getByRole("heading", { name: "Leasing" })).toBeInTheDocument();
   },
 };
 export const UnaCuotaPendiente: Story = {

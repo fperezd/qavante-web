@@ -59,7 +59,7 @@ const PAGAR_CHILDREN: ReadonlyArray<SubLink> = [
   { href: "/remuneraciones", label: "Remuneraciones", needsRemun: true },
   { href: "/pagar/previred", label: "Previred", needsRemun: true },
   { href: "/pagar/impuestos", label: "Impuestos y TGR" },
-  { href: "/pagar/obligaciones", label: "Préstamos" },
+  { href: "/pagar/obligaciones", label: "Obligaciones con entidades financieras" },
 ];
 
 /* Sub-ítems de Gestión (top 5 de análisis para el dueño, pedido de Fernando

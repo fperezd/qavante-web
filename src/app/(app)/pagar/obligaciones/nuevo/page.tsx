@@ -21,10 +21,10 @@ export default function PagarObligacionNuevaPage() {
       </Link>
 
       <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">Registrar préstamo</h1>
+        <h1 className="text-2xl font-bold text-neutral-dark">Registrar crédito</h1>
         <p className="mt-1 text-sm text-neutral-mid">
-          Carga el capital, la tasa mensual y las cuotas. Qavante deriva el calendario de pago y
-          concilia las cuotas contra los débitos de tu banco.
+          Elige la moneda (peso, UF o dólar) y carga el capital, la tasa mensual y las cuotas.
+          Qavante deriva el calendario de pago.
         </p>
       </header>
 
