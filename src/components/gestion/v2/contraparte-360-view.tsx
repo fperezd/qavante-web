@@ -73,6 +73,13 @@ export function Contraparte360View({ config }: { config: Config360 }) {
     () => agregados.reduce((total, counterparty) => total + counterparty.total, 0),
     [agregados],
   );
+  const observedPeriods = React.useMemo(
+    () =>
+      source.coverage
+        .filter((month) => month.state === "observed" || month.state === "observed_zero")
+        .map((month) => month.period),
+    [source.coverage],
+  );
 
   const [rut, setRut] = React.useState<string | null>(null);
   // Default: la contraparte que más pesa (una vez que llegan los datos).
@@ -86,9 +93,9 @@ export function Contraparte360View({ config }: { config: Config360 }) {
         <section className="rounded-xl border border-warning-500/40 bg-warning-500/[.06] p-6 text-sm text-neutral-dark">
           <h2 className="font-semibold">Aún no podemos calcular este 360 con seguridad</h2>
           <p className="mt-1 text-neutral-mid">
-            No mostramos tarjeta, ranking ni concentración mientras falte un mes, un monto válido o
-            una identidad confiable. Así evitamos publicar ausencias como $0 o juntar contrapartes
-            distintas.
+            No mostramos tarjeta, ranking ni concentración si no hay ningún mes válido, un monto
+            válido o una identidad confiable. Así evitamos publicar ausencias como $0 o juntar
+            contrapartes distintas.
           </p>
           <AbstainDetails coverage={source.coverage} reasons={validation.reasons} />
         </section>
@@ -100,7 +107,7 @@ export function Contraparte360View({ config }: { config: Config360 }) {
       <div className="space-y-4">
         <ScopeSummary source={source} />
         <section className="rounded-xl border border-border bg-surface p-6 text-sm text-neutral-mid">
-          No observamos {config.flujo.toLowerCase()} en la ventana indicada.
+          {emptyCoverageMessage(config.flujo, observedPeriods.length, source.isCoverageComplete)}
         </section>
       </div>
     );
@@ -123,10 +130,27 @@ export function Contraparte360View({ config }: { config: Config360 }) {
           scope={source.scope}
           totalGlobal={totalGlobal}
           config={config}
+          observedPeriods={observedPeriods}
+          isCoverageComplete={source.isCoverageComplete}
         />
       )}
     </div>
   );
+}
+
+/** El vacío parcial sólo habla de lo que respondió; nunca convierte los otros meses en ausencia. */
+export function emptyCoverageMessage(
+  flujo: string,
+  observedMonths: number,
+  isCoverageComplete: boolean,
+): string {
+  const lowerFlow = flujo.toLowerCase();
+  if (isCoverageComplete) return `No observamos ${lowerFlow} en la ventana indicada.`;
+  const noun = observedMonths === 1 ? "mes observado" : "meses observados";
+  const missing = Math.max(0, 12 - observedMonths);
+  return `No observamos ${lowerFlow} en ${observedMonths} ${noun}; ${missing} ${
+    missing === 1 ? "mes sigue sin respuesta" : "meses siguen sin respuesta"
+  }.`;
 }
 
 function ScopeSummary({ source }: { source: ReturnType<typeof useCustomer360Source> }) {
@@ -173,7 +197,7 @@ function AbstainDetails({
     (month) => month.state === "loading" || month.state === "error" || month.state === "absent",
   );
   const labels: Record<(typeof reasons)[number], string> = {
-    period_coverage_incomplete: "La ventana mensual está incompleta.",
+    period_coverage_incomplete: "Aún no hay ningún mes mensual válido para analizar.",
     invalid_document_date: "Hay documentos sin una fecha de emisión válida.",
     invalid_document_amount: "Hay documentos con monto ausente o inválido.",
     unresolved_counterparty_identity: "Hay una contraparte sin identidad segura.",
@@ -329,16 +353,20 @@ function Detalle({
   scope,
   totalGlobal,
   config,
+  observedPeriods,
+  isCoverageComplete,
 }: {
   sel: Customer360Counterparty;
   docs: ValidCustomer360Document[];
   scope: Customer360Scope;
   totalGlobal: number;
   config: Config360;
+  observedPeriods: string[];
+  isCoverageComplete: boolean;
 }) {
   const serie12 = React.useMemo(
-    () => customer360Series(docs, sel.rut, scope),
-    [docs, sel.rut, scope],
+    () => customer360Series(docs, sel.rut, scope, observedPeriods),
+    [docs, sel.rut, scope, observedPeriods],
   );
   const pct = concentracionPct(sel.total, totalGlobal);
 
@@ -357,12 +385,14 @@ function Detalle({
         </p>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <QavanteStatTile
-            label={`${config.flujo} (últimos 12 meses)`}
+            label={`${config.flujo} (${observedPeriods.length} ${
+              observedPeriods.length === 1 ? "mes observado" : "meses observados"
+            })`}
             value={formatClp(sel.total)}
             tone="default"
           />
           <QavanteStatTile
-            label={`% ${config.delTotal}`}
+            label={`% ${config.delTotal} observado`}
             value={pct != null ? formatPct(pct) : "Sin información"}
             tone={pct != null && pct >= 25 ? "danger" : "default"}
             hint={
@@ -385,35 +415,44 @@ function Detalle({
       <section className="rounded-xl border border-border bg-surface p-5">
         <div className="flex items-center gap-2 text-sm font-bold text-neutral-dark">
           <TrendingUp className="h-4 w-4 text-brand-primary" aria-hidden="true" />
-          {config.flujo} mes a mes (últimos 12 meses)
+          {config.flujo} por mes observado ({observedPeriods.length})
         </div>
         <Barras serie={serie12} />
         <p className="mt-3 border-t border-dashed border-border pt-3 text-xs text-neutral-mid">
-          Esta serie usa exclusivamente la ventana indicada arriba. Los comparativos históricos no
-          se muestran hasta contar con una fuente canónica de períodos equivalentes.
+          Esta serie usa sólo los meses que respondieron; los meses sin respuesta no se muestran
+          como $0. Los comparativos históricos no se muestran hasta contar con una fuente canónica
+          de períodos equivalentes.
         </p>
       </section>
 
       {/* Recuperación: mes en curso vs. el mejor mes → cuánto hay para recuperar */}
-      <Recuperacion serie={serie12} config={config} />
+      {isCoverageComplete && <Recuperacion serie={serie12} config={config} />}
 
       {/* Riesgo + días de pago */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <QavanteStatTile
-          label="Documento más grande"
+          label={isCoverageComplete ? "Documento más grande" : "Documento observado más grande"}
           value={formatClp(mayor)}
           tone="default"
-          hint="La mayor factura del período con esta contraparte."
+          hint={
+            isCoverageComplete
+              ? "La mayor factura del período con esta contraparte."
+              : "El mayor documento de los meses observados para esta contraparte."
+          }
         />
         <QavanteStatTile
-          label="Última actividad"
+          label={isCoverageComplete ? "Última actividad" : "Última actividad observada"}
           value={
             mesesSinActividad <= 0
               ? "Este mes"
               : `hace ${mesesSinActividad} ${mesesSinActividad === 1 ? "mes" : "meses"}`
           }
-          tone={mesesSinActividad >= 3 ? "danger" : "default"}
-          hint={mesesSinActividad >= 3 ? "Sin actividad reciente, posible fuga." : undefined}
+          tone={isCoverageComplete && mesesSinActividad >= 3 ? "danger" : "default"}
+          hint={
+            isCoverageComplete && mesesSinActividad >= 3
+              ? "Sin actividad reciente, posible fuga."
+              : undefined
+          }
         />
       </div>
 

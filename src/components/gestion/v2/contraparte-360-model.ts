@@ -180,7 +180,9 @@ export interface Customer360Validation {
   docs: ValidCustomer360Document[];
 }
 
-/** Gate único previo a cualquier tarjeta/ranking/concentración. No elimina filas problemáticas. */
+/** Gate único previo a cualquier tarjeta/ranking/concentración. No elimina filas problemáticas.
+ * `canAggregatePeriods` significa que existe al menos un mes observado: los meses no observados
+ * se declaran como cobertura parcial, no se convierten en cero ni bloquean la evidencia válida. */
 export function validateCustomer360Documents(
   docs: ReadonlyArray<Customer360Document>,
   canAggregatePeriods: boolean,
@@ -287,6 +289,7 @@ export function customer360Series(
   docs: ReadonlyArray<ValidCustomer360Document>,
   rut: string,
   scope: Customer360Scope,
+  observedPeriods?: ReadonlyArray<string>,
 ): PuntoMes[] {
   const normalized = normalizeRut(rut);
   const byPeriod = new Map<string, number>();
@@ -296,13 +299,15 @@ export function customer360Series(
     if (!period) continue;
     byPeriod.set(period, (byPeriod.get(period) ?? 0) + customer360SignedAmount(doc));
   }
-  const result: PuntoMes[] = [];
-  let period = scope.periodFrom;
-  for (let index = 0; index < 12 && comparePeriod(period, scope.periodTo) <= 0; index += 1) {
-    result.push({ periodo: period, monto: byPeriod.get(period) ?? 0 });
-    period = addMonths(period, 1);
-  }
-  return result;
+  const periods = observedPeriods ?? Array.from({ length: 12 }, (_, index) =>
+    addMonths(scope.periodFrom, index),
+  );
+  return periods
+    .filter(
+      (period) =>
+        comparePeriod(period, scope.periodFrom) >= 0 && comparePeriod(period, scope.periodTo) <= 0,
+    )
+    .map((period) => ({ periodo: period, monto: byPeriod.get(period) ?? 0 }));
 }
 
 /** Monto FIRMADO para netear: la NC resta; un doc reclamado no cuenta ($0). Magnitud → signo.

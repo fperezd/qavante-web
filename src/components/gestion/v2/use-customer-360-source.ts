@@ -44,6 +44,8 @@ export interface Customer360SourceState {
   coverage: Customer360PeriodCoverage[];
   focusDocs: Customer360Document[];
   canAggregatePeriods: boolean;
+  /** Todos los meses de la ventana respondieron con evidencia válida. */
+  isCoverageComplete: boolean;
   isInitialLoading: boolean;
   stalePeriods: string[];
   invalidDateDocuments: number;
@@ -256,7 +258,12 @@ export function composeCustomer360Source(
     periods,
     coverage,
     focusDocs: filterCustomer360FocusDocs(deduplicated.docs, scope),
-    canAggregatePeriods: coverage.every(
+    // Un 360 puede ser útil desde el primer mes observado. La cobertura incompleta se conserva
+    // separada para rotular el universo y no convertir meses ausentes en $0.
+    canAggregatePeriods: coverage.some(
+      (month) => month.state === "observed" || month.state === "observed_zero",
+    ),
+    isCoverageComplete: coverage.every(
       (month) => month.state === "observed" || month.state === "observed_zero",
     ),
     isInitialLoading: coverage.some((month) => month.state === "loading") && docs.length === 0,

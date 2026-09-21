@@ -19,8 +19,8 @@ test.describe("Flujo: Clientes 360 (/gestion/clientes)", () => {
     // Selector buscable de cliente (default = el que más pesa).
     await expect(main.getByText("Busca un cliente por nombre o RUT")).toBeVisible();
 
-    // El contrato contenido sólo presenta la serie de la misma ventana de 12 meses.
-    await expect(main.getByText("Ventas mes a mes (últimos 12 meses)")).toBeVisible();
+    // La serie declara los meses observados; con el fixture completo son los 12 de la ventana.
+    await expect(main.getByText("Ventas por mes observado (12)")).toBeVisible();
     await expect(main.getByText(/tendencia|estacionalidad/i)).toHaveCount(0);
     await expect(main.getByRole("heading", { name: "Últimos documentos" })).toBeVisible();
     // Recuperación: último mes CERRADO vs. mejor mes (el mes en curso es parcial → no se compara).
@@ -41,7 +41,7 @@ test.describe("Flujo: Clientes 360 (/gestion/clientes)", () => {
     // borrar texto (el input arranca vacío) → escribir filtra y elegir cambia la contraparte.
     await expect(main.getByRole("heading", { name: "Cliente A SA" })).toBeVisible();
     await expect(
-      main.getByText("Ventas (últimos 12 meses)", { exact: true }).locator(".."),
+      main.getByText("Ventas (12 meses observados)", { exact: true }).locator(".."),
     ).toContainText("$42.840.000");
     await expect(main.getByText("Documentos", { exact: true }).locator("..")).toContainText("12");
     await expect(main.getByText(/12\/12 meses respondieron/)).toBeVisible();
@@ -52,7 +52,7 @@ test.describe("Flujo: Clientes 360 (/gestion/clientes)", () => {
     await buscar.press("Enter"); // elige el primer resultado (teclado)
     await expect(main.getByRole("heading", { name: "Cliente B Ltda" })).toBeVisible();
     await expect(
-      main.getByText("Ventas (últimos 12 meses)", { exact: true }).locator(".."),
+      main.getByText("Ventas (12 meses observados)", { exact: true }).locator(".."),
     ).toContainText("$28.560.000");
     await expect(main.getByText("Documentos", { exact: true }).locator("..")).toContainText("12");
   });

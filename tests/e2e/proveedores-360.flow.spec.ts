@@ -14,12 +14,12 @@ test.describe("Flujo: Proveedores 360 (/gestion/proveedores)", () => {
 
     const main = page.locator("#main-content");
     await expect(main.getByText("Busca un proveedor por nombre o RUT")).toBeVisible();
-    await expect(main.getByText("Compras mes a mes (últimos 12 meses)")).toBeVisible();
+    await expect(main.getByText("Compras por mes observado (12)")).toBeVisible();
     await expect(main.getByText(/tendencia|estacionalidad/i)).toHaveCount(0);
     await expect(main.getByRole("heading", { name: "Últimos documentos" })).toBeVisible();
     await expect(main.getByRole("heading", { name: "Insumos Chile Ltda" })).toBeVisible();
     await expect(
-      main.getByText("Compras (últimos 12 meses)", { exact: true }).locator(".."),
+      main.getByText("Compras (12 meses observados)", { exact: true }).locator(".."),
     ).toContainText("$17.136.000");
     await expect(main.getByText("Documentos", { exact: true }).locator("..")).toContainText("12");
     await expect(main.getByText(/12\/12 meses respondieron/)).toBeVisible();

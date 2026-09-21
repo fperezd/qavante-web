@@ -9,6 +9,7 @@ import {
   type Customer360Scope,
   type ValidCustomer360Document,
 } from "./contraparte-360-model";
+import { emptyCoverageMessage } from "./contraparte-360-view";
 
 const scope: Customer360Scope = {
   periodFrom: "2025-10",
@@ -115,5 +116,30 @@ describe("identidad y reconciliación", () => {
       );
       expect(seriesTotal).toBe(item.total);
     }
+  });
+
+  it("la serie parcial sólo incluye meses observados y nunca rellena ausencias como cero", () => {
+    const docs = [
+      doc({ rut: "1-9", fecha: "01/10/2025", monto: 1000 }),
+      doc({ rut: "1-9", fecha: "10/03/2026", monto: 300 }),
+    ] as ValidCustomer360Document[];
+    expect(customer360Series(docs, "1-9", scope, ["2025-10", "2026-03"])).toEqual([
+      { periodo: "2025-10", monto: 1000 },
+      { periodo: "2026-03", monto: 300 },
+    ]);
+  });
+});
+
+describe("cobertura parcial visible", () => {
+  it("no presenta meses sin respuesta como una ausencia de ventas", () => {
+    expect(emptyCoverageMessage("Ventas", 1, false)).toBe(
+      "No observamos ventas en 1 mes observado; 11 meses siguen sin respuesta.",
+    );
+  });
+
+  it("sólo declara vacío de toda la ventana cuando la cobertura está completa", () => {
+    expect(emptyCoverageMessage("Compras", 12, true)).toBe(
+      "No observamos compras en la ventana indicada.",
+    );
   });
 });

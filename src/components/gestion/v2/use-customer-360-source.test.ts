@@ -60,11 +60,12 @@ describe("composeCustomer360Source", () => {
   const scope = customer360Scope(new Date("2026-09-08T15:00:00Z"));
   const periods = customer360Periods(scope);
 
-  it("una falla entre doce abstiene y no la convierte en cero", () => {
+  it("una falla entre doce conserva los meses observados y declara cobertura parcial", () => {
     const inputs = observedInputs(periods);
     inputs[4] = { period: periods[4]!, state: "error" };
     const source = composeCustomer360Source("ventas", scope, inputs);
-    expect(source.canAggregatePeriods).toBe(false);
+    expect(source.canAggregatePeriods).toBe(true);
+    expect(source.isCoverageComplete).toBe(false);
     expect(source.coverage[4]).toMatchObject({
       period: periods[4],
       state: "error",
@@ -77,6 +78,7 @@ describe("composeCustomer360Source", () => {
   it("respuesta exitosa vacía es observed_zero, no un claim complete", () => {
     const source = composeCustomer360Source("ventas", scope, observedInputs(periods));
     expect(source.canAggregatePeriods).toBe(true);
+    expect(source.isCoverageComplete).toBe(true);
     expect(source.coverage).toHaveLength(12);
     expect(source.coverage.every((month) => month.state === "observed_zero")).toBe(true);
     expect(source.focusDocs).toEqual([]);
@@ -115,9 +117,11 @@ describe("composeCustomer360Source", () => {
     expect(source.stalePeriods).toEqual(["2026-09"]);
   });
 
-  it("respuesta ausente o con count inconsistente abstiene", () => {
+  it("respuesta ausente o inconsistente queda fuera de cobertura, sin borrar evidencia válida", () => {
     const missing = observedInputs(periods).slice(1);
-    expect(composeCustomer360Source("ventas", scope, missing).canAggregatePeriods).toBe(false);
+    const partial = composeCustomer360Source("ventas", scope, missing);
+    expect(partial.canAggregatePeriods).toBe(true);
+    expect(partial.isCoverageComplete).toBe(false);
 
     const mismatch = observedInputs(periods);
     mismatch[0] = {
@@ -125,7 +129,10 @@ describe("composeCustomer360Source", () => {
       state: "success",
       response: response(periods[0]!, [], { count: 1 }),
     };
-    expect(composeCustomer360Source("ventas", scope, mismatch).coverage[0]?.state).toBe("absent");
+    const inconsistent = composeCustomer360Source("ventas", scope, mismatch);
+    expect(inconsistent.canAggregatePeriods).toBe(true);
+    expect(inconsistent.isCoverageComplete).toBe(false);
+    expect(inconsistent.coverage[0]?.state).toBe("absent");
   });
 
   it("reconcilia exactamente 12 documentos y su total cuando cada respuesta pertenece a su mes", () => {
@@ -158,7 +165,7 @@ describe("composeCustomer360Source", () => {
     expect(counterparty.total).toBe(12_000);
   });
 
-  it("abstiene si response.periodo no coincide con la consulta", () => {
+  it("excluye un período cuya respuesta no coincide, sin borrar los meses válidos", () => {
     const inputs = observedInputs(periods);
     inputs[0] = {
       period: periods[0]!,
@@ -166,14 +173,15 @@ describe("composeCustomer360Source", () => {
       response: response("2026-09", []),
     };
     const source = composeCustomer360Source("ventas", scope, inputs);
-    expect(source.canAggregatePeriods).toBe(false);
+    expect(source.canAggregatePeriods).toBe(true);
+    expect(source.isCoverageComplete).toBe(false);
     expect(source.coverage[0]).toMatchObject({
       state: "absent",
       reason: "response_period_mismatch",
     });
   });
 
-  it("abstiene si la fecha de un documento cae fuera del mes solicitado", () => {
+  it("excluye un documento cuya fecha no coincide con el mes solicitado", () => {
     const inputs = observedInputs(periods);
     inputs[0] = {
       period: periods[0]!,
@@ -193,11 +201,22 @@ describe("composeCustomer360Source", () => {
       ]),
     };
     const source = composeCustomer360Source("ventas", scope, inputs);
-    expect(source.canAggregatePeriods).toBe(false);
+    expect(source.canAggregatePeriods).toBe(true);
+    expect(source.isCoverageComplete).toBe(false);
     expect(source.coverage[0]).toMatchObject({
       state: "absent",
       reason: "document_period_mismatch",
     });
+  });
+
+  it("sin ningún mes válido se abstiene", () => {
+    const source = composeCustomer360Source(
+      "ventas",
+      scope,
+      periods.map((period) => ({ period, state: "error" as const })),
+    );
+    expect(source.canAggregatePeriods).toBe(false);
+    expect(source.isCoverageComplete).toBe(false);
   });
 
   it("deduplica evidencia idéntica y abstiene ante una colisión documental", () => {
