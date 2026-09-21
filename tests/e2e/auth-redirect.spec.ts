@@ -43,7 +43,11 @@ const PROTECTED_PATHS = rutasAutenticadasDelFilesystem();
 
 /* Sub-rutas que además se prueban explícitamente: el matcher usa `:path*`, así que un
    error de sufijo dejaría el hijo abierto con el padre cerrado. */
-const PROTECTED_SUBPATHS = ["/administracion/usuarios", "/gestion/pulso"];
+const PROTECTED_SUBPATHS = [
+  "/administracion/usuarios",
+  "/documentos/receivable/00000000-0000-4000-8000-000000000001",
+  "/gestion/pulso",
+];
 
 const PUBLIC_PATHS = ["/", "/login", "/recuperar-clave", "/playground", "/aceptar-invitacion"];
 

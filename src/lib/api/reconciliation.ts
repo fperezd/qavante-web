@@ -152,10 +152,13 @@ export function useAssignDocumentPayment() {
 
 /** `GET /api/treasury/reconciliation/review` — cola de revisión: movimientos con una sugerencia
  *  de match de confianza media (score 60-90) esperando confirmación. */
-export function useReconciliationReview(enabled = true) {
+export function useReconciliationReview(enabled = true, legalEntityId?: string | null) {
   return useQuery({
-    queryKey: reconciliationKeys.review(),
-    queryFn: () => api.get<ReviewQueueResponse>("/api/treasury/reconciliation/review"),
+    queryKey: [...reconciliationKeys.review(), legalEntityId],
+    queryFn: () =>
+      api.get<ReviewQueueResponse>(
+        `/api/treasury/reconciliation/review${legalEntityId ? `?legal_entity_id=${encodeURIComponent(legalEntityId)}` : ""}`,
+      ),
     enabled,
     staleTime: 30_000,
     retry: false,

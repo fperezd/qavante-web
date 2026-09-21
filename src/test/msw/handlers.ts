@@ -4998,7 +4998,71 @@ const activityHandlers = [
   ),
 ];
 
+const INBOX_ENTITY_A = "11111111-1111-4111-8111-111111111111";
+const INBOX_ENTITY_B = "22222222-2222-4222-8222-222222222222";
+
+export const workInboxHandlers = [
+  http.get("*/api/legal-entities", () =>
+    HttpResponse.json({
+      entities: [
+        { id: INBOX_ENTITY_A, legal_name: "Sociedad Alfa SpA", is_default: true },
+        { id: INBOX_ENTITY_B, legal_name: "Sociedad Beta SpA", is_default: false },
+      ],
+    }),
+  ),
+  http.get("*/api/treasury/work-inbox", ({ request }) => {
+    const entity = new URL(request.url).searchParams.get("legal_entity_id");
+    if (entity !== INBOX_ENTITY_A && entity !== INBOX_ENTITY_B) {
+      return HttpResponse.json(
+        { detail: { code: "scope_mismatch:legal_entity" } },
+        { status: 404 },
+      );
+    }
+    const beta = entity === INBOX_ENTITY_B;
+    const id = beta
+      ? "22222222-2222-4222-8222-222222222223"
+      : "11111111-1111-4111-8111-111111111112";
+    const href = `/documentos/receivable/${id}?legal_entity_id=${entity}`;
+    const item = {
+      id,
+      title: beta ? "Cobro Beta" : "Cobro Alfa",
+      amount: beta ? "200" : "1000",
+      currency: beta ? "USD" : "CLP",
+      relevant_date: "2026-09-18",
+      urgency: "overdue" as const,
+      status: "overdue",
+      href,
+    };
+    const queue = (kind: "receivables" | "payables" | "reconciliation" | "classification") => ({
+      kind,
+      label: {
+        receivables: "Cobrar",
+        payables: "Pagar",
+        reconciliation: "Conciliar",
+        classification: "Clasificar",
+      }[kind],
+      action_label: "Abrir siguiente documento",
+      href: kind === "receivables" ? href : `/bandeja?legal_entity_id=${entity}`,
+      count: kind === "receivables" ? 1 : 0,
+      amounts: kind === "receivables" ? [{ currency: item.currency, amount: item.amount }] : [],
+      data_state: kind === "receivables" ? "available" : "partial",
+      limitations: kind === "receivables" ? [] : ["Sin pendientes confirmados"],
+      next_date: kind === "receivables" ? item.relevant_date : null,
+      items: kind === "receivables" ? [item] : [],
+    });
+    return HttpResponse.json({
+      generated_at: "2026-09-21T10:00:00Z",
+      legal_entity_id: entity,
+      queues: ["receivables", "payables", "reconciliation", "classification"].map((kind) =>
+        queue(kind as "receivables" | "payables" | "reconciliation" | "classification"),
+      ),
+      priorities: [{ ...item, queue: "receivables" }],
+    });
+  }),
+];
+
 export const handlers = [
+  ...workInboxHandlers,
   ...financialDecisionHandlers,
   ...activityHandlers,
   ...cashProjectionRunHandlers,

@@ -1,9 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/* #285 pide que, con el Brief encendido, las cinco superficies conserven su
+/* #285 pide que, con el Brief encendido, las superficies financieras conserven su
  * evidencia y dejen de publicar un ranking propio. Esa mecánica ya vive en las
- * vistas (`suppressRecommendations`, y `secondaryAudit` en Bandeja); lo que este
+ * vistas (`suppressRecommendations`); lo que este
  * test fija es el cableado de las páginas, que es donde se perdió antes: el
  * Brief va PRIMERO y la vista existente se monta debajo en modo evidencia.
  *
@@ -45,6 +45,13 @@ vi.mock("@/components/decision-brief/decision-brief-slot", () => ({
   ),
 }));
 
+vi.mock("@/components/bandeja/work-inbox-summary", () => ({
+  WorkInboxSummary: () => <div>work-inbox</div>,
+}));
+vi.mock("@/components/bandeja/bandeja-scope", () => ({
+  BandejaScope: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock("@/components/inicio/v01/hoy-live", () => ({
   HoyLive: ({ suppressRecommendations }: { suppressRecommendations?: boolean }) => (
     <div>hoy-live suppress={String(Boolean(suppressRecommendations))}</div>
@@ -79,7 +86,7 @@ import PagarPage from "./pagar/page";
 
 type Wiring = {
   surface: string;
-  Page: () => React.JSX.Element;
+  Page: () => React.JSX.Element | Promise<React.JSX.Element>;
   /** Marca que el doble imprime cuando recibió el modo evidencia. */
   evidence: string;
   /** El mismo doble con el modo apagado: gemelo del assert negativo. */
@@ -100,12 +107,6 @@ const WIRING: Wiring[] = [
     ranking: "caja-v02 suppress=false",
   },
   {
-    surface: "bandeja",
-    Page: BandejaPage,
-    evidence: "bandeja-v07 secondary=true",
-    ranking: "bandeja-v07 secondary=false",
-  },
-  {
     surface: "pagar",
     Page: PagarPage,
     evidence: "pagar-v05 suppress=true",
@@ -119,15 +120,15 @@ const WIRING: Wiring[] = [
   },
 ];
 
-describe("Cableado del Decision Brief en las cinco superficies", () => {
+describe("Cableado del Decision Brief en superficies financieras", () => {
   beforeEach(() => {
     flags.decisionBrief = true;
   });
 
   it.each(WIRING)(
     "$surface monta el Brief primero y conserva su vista en modo evidencia",
-    ({ surface, Page, evidence, ranking }) => {
-      const html = renderToStaticMarkup(<Page />);
+    async ({ surface, Page, evidence, ranking }) => {
+      const html = renderToStaticMarkup(await Page());
 
       expect(html).toContain(`data-decision-brief-surface="${surface}"`);
       expect(html).toContain(evidence);
@@ -137,11 +138,18 @@ describe("Cableado del Decision Brief en las cinco superficies", () => {
     },
   );
 
+  it("Bandeja no muestra el Brief sin alcance por sociedad", async () => {
+    const html = renderToStaticMarkup(await BandejaPage());
+    expect(html).toContain("work-inbox");
+    expect(html).toContain("bandeja-v07 secondary=false");
+    expect(html).not.toContain('data-decision-brief-surface="bandeja"');
+  });
+
   it.each(WIRING)(
     "$surface con el flag apagado no monta el Brief y mantiene su ranking",
-    ({ surface, Page, evidence, ranking }) => {
+    async ({ surface, Page, evidence, ranking }) => {
       flags.decisionBrief = false;
-      const html = renderToStaticMarkup(<Page />);
+      const html = renderToStaticMarkup(await Page());
 
       expect(html).not.toContain(`data-decision-brief-surface="${surface}"`);
       expect(html).toContain(ranking);

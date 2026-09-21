@@ -77,6 +77,7 @@ export type TarjetaSaldoData = components["schemas"]["TarjetaSaldoData"];
 export const BANK_MOVEMENTS_LIMIT_MAX = 500;
 
 export interface BankMovementsParams {
+  legal_entity_id?: string;
   /** 'unclassified' | 'classified' | undefined (todos). */
   status?: string;
   /** Período YYYY-MM. */
@@ -380,6 +381,7 @@ export function useCanonicalCategories() {
 
 function buildBankMovementsQuery(p: BankMovementsParams): string {
   const s = new URLSearchParams();
+  if (p.legal_entity_id) s.set("legal_entity_id", p.legal_entity_id);
   if (p.status) s.set("status", p.status);
   if (p.period) s.set("period", p.period);
   if (p.period_from) s.set("period_from", p.period_from);

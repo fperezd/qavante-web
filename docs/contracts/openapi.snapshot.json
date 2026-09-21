@@ -929,8 +929,8 @@
           "pct": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -1154,26 +1154,26 @@
         "properties": {
           "clasificados": {
             "description": "Movimientos que matchearon una regla y quedaron clasificados.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Clasificados",
             "type": "integer"
           },
           "evaluados": {
             "description": "Movimientos sin clasificar evaluados contra las reglas.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Evaluados",
             "type": "integer"
           },
           "omitidos_transferencia": {
             "default": 0,
             "description": "Movimientos saltados por las reglas por ser probables patas de transferencia interna (RUT propio del tenant en la glosa) — los clasifica la detección de traspasos, no las reglas por keyword/monto. Evita el gasto-fantasma que no netea.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Omitidos Transferencia",
             "type": "integer"
           },
           "sin_regla": {
             "description": "Movimientos que no matchearon ninguna regla (siguen sin clasificar).",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Sin Regla",
             "type": "integer"
           }
@@ -1258,22 +1258,22 @@
         "additionalProperties": false,
         "properties": {
           "accounts_existing": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Accounts Existing",
             "type": "integer"
           },
           "accounts_to_add": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Accounts To Add",
             "type": "integer"
           },
           "dimensions_existing": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Dimensions Existing",
             "type": "integer"
           },
           "dimensions_to_add": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Dimensions To Add",
             "type": "integer"
           }
@@ -1524,13 +1524,13 @@
           },
           "processed": {
             "default": 0,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Processed",
             "type": "integer"
           },
           "reclaimed": {
             "default": 0,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Reclaimed",
             "type": "integer"
           }
@@ -1657,8 +1657,8 @@
           "max_months": {
             "anyOf": [
               {
-                "maximum": 48.0,
-                "minimum": 1.0,
+                "maximum": 48,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -2451,7 +2451,7 @@
           },
           "total": {
             "description": "Total de movimientos que matchean el filtro (sin paginar).",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Total",
             "type": "integer"
           }
@@ -3194,8 +3194,8 @@
             "title": "Impact Type"
           },
           "month": {
-            "maximum": 12.0,
-            "minimum": 1.0,
+            "maximum": 12,
+            "minimum": 1,
             "title": "Month",
             "type": "integer"
           }
@@ -3506,8 +3506,8 @@
         "properties": {
           "fiscal_year": {
             "description": "Año fiscal a presupuestar.",
-            "maximum": 2100.0,
-            "minimum": 2020.0,
+            "maximum": 2100,
+            "minimum": 2020,
             "title": "Fiscal Year",
             "type": "integer"
           },
@@ -3956,7 +3956,7 @@
           "eligible_count": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -3967,7 +3967,7 @@
             "title": "Eligible Count"
           },
           "evaluated_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Evaluated Count",
             "type": "integer"
           },
@@ -3976,7 +3976,7 @@
             "type": "boolean"
           },
           "scan_limit": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Scan Limit",
             "type": "integer"
           }
@@ -4000,7 +4000,7 @@
           },
           "count": {
             "description": "Candidatos encontrados dentro de la cobertura declarada.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Count",
             "type": "integer"
           },
@@ -4767,7 +4767,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -5426,7 +5426,7 @@
           },
           "row_count": {
             "default": 0,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Row Count",
             "type": "integer"
           },
@@ -5478,7 +5478,7 @@
           },
           "row_count": {
             "default": 0,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Row Count",
             "type": "integer"
           }
@@ -5527,7 +5527,7 @@
           },
           "row_count": {
             "default": 0,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Row Count",
             "type": "integer"
           }
@@ -5597,7 +5597,7 @@
           "excluded_attention": {
             "default": 0,
             "description": "Filas omitidas por data_status='requires_attention' cuando include_attention=false.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Excluded Attention",
             "type": "integer"
           },
@@ -5934,7 +5934,7 @@
         "additionalProperties": false,
         "properties": {
           "component_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Component Count",
             "type": "integer"
           },
@@ -6261,8 +6261,8 @@
           },
           "horizon_days": {
             "default": 90,
-            "maximum": 90.0,
-            "minimum": 7.0,
+            "maximum": 90,
+            "minimum": 7,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -6303,8 +6303,8 @@
             "type": "string"
           },
           "horizon_days": {
-            "maximum": 90.0,
-            "minimum": 7.0,
+            "maximum": 90,
+            "minimum": 7,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -6520,7 +6520,7 @@
             "type": "string"
           },
           "observed_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Observed Count",
             "type": "integer"
           },
@@ -7488,7 +7488,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -7528,8 +7528,8 @@
           "percentage": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
-                "maximum": 100.0,
+                "exclusiveMinimum": 0,
+                "maximum": 100,
                 "type": "number"
               },
               {
@@ -7987,7 +7987,7 @@
           "application_count": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -8010,7 +8010,7 @@
           "correction_count": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -9150,7 +9150,7 @@
           "max_combinations": {
             "anyOf": [
               {
-                "minimum": 1.0,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -9162,7 +9162,7 @@
           "max_components": {
             "anyOf": [
               {
-                "minimum": 2.0,
+                "minimum": 2,
                 "type": "integer"
               },
               {
@@ -9486,8 +9486,8 @@
           },
           "score": {
             "description": "Índice de Confianza 0-100.",
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Score",
             "type": "integer"
           }
@@ -10907,8 +10907,8 @@
           "statement_close_day": {
             "anyOf": [
               {
-                "maximum": 31.0,
-                "minimum": 1.0,
+                "maximum": 31,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -10953,8 +10953,8 @@
           },
           "confidence": {
             "default": 0.8,
-            "maximum": 1.0,
-            "minimum": 0.0,
+            "maximum": 1,
+            "minimum": 0,
             "title": "Confidence",
             "type": "number"
           },
@@ -11068,7 +11068,7 @@
           },
           "sort_order": {
             "default": 0,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Sort Order",
             "type": "integer"
           }
@@ -11132,7 +11132,7 @@
           },
           "sort_order": {
             "default": 0,
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Sort Order",
             "type": "integer"
           }
@@ -11169,15 +11169,15 @@
           },
           "installments": {
             "description": "Número de cuotas mensuales.",
-            "exclusiveMinimum": 0.0,
-            "maximum": 600.0,
+            "exclusiveMinimum": 0,
+            "maximum": 600,
             "title": "Installments",
             "type": "integer"
           },
           "monthly_rate": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -11204,7 +11204,7 @@
           "principal": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -12604,7 +12604,7 @@
           "assumed_receivables_excluded_count": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -12626,7 +12626,7 @@
           "conditional_due_date_items_14d": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -12648,7 +12648,7 @@
           "dated_items": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -12660,7 +12660,7 @@
           "excluded_other_currency_items": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -12685,7 +12685,7 @@
           "undated_items": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -12862,7 +12862,7 @@
             "type": "string"
           },
           "item_count": {
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Item Count",
             "type": "integer"
           },
@@ -12939,7 +12939,7 @@
           "item_count": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -12987,7 +12987,7 @@
           "abstained": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -13011,7 +13011,7 @@
           "no_action": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -13023,7 +13023,7 @@
           "observed": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -13035,7 +13035,7 @@
           "ready": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -14081,7 +14081,7 @@
           "expected_outstanding": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -14357,7 +14357,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -14380,7 +14380,7 @@
           "expected_outstanding": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -15171,7 +15171,7 @@
             "title": "Target Document Id"
           },
           "target_match_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Target Match Count",
             "type": "integer"
           },
@@ -15675,7 +15675,7 @@
           "reference_index": {
             "anyOf": [
               {
-                "minimum": 1.0,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -16949,8 +16949,8 @@
             "title": "Iva Debito Fiscal"
           },
           "period_month": {
-            "maximum": 12.0,
-            "minimum": 1.0,
+            "maximum": 12,
+            "minimum": 1,
             "title": "Period Month",
             "type": "integer"
           },
@@ -17016,15 +17016,15 @@
         "properties": {
           "month": {
             "description": "Mes (1-12).",
-            "maximum": 12.0,
-            "minimum": 1.0,
+            "maximum": 12,
+            "minimum": 1,
             "title": "Month",
             "type": "integer"
           },
           "year": {
             "description": "Año calendario.",
-            "maximum": 2100.0,
-            "minimum": 2000.0,
+            "maximum": 2100,
+            "minimum": 2000,
             "title": "Year",
             "type": "integer"
           }
@@ -17752,7 +17752,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -17768,7 +17768,7 @@
             "type": "string"
           },
           "sequence": {
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Sequence",
             "type": "integer"
           }
@@ -17813,7 +17813,7 @@
           "covered_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -17927,7 +17927,7 @@
           "agreed_total_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -18902,8 +18902,8 @@
           "confidence": {
             "anyOf": [
               {
-                "maximum": 1.0,
-                "minimum": 0.0,
+                "maximum": 1,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -19188,8 +19188,8 @@
           "confidence": {
             "anyOf": [
               {
-                "maximum": 1.0,
-                "minimum": 0.0,
+                "maximum": 1,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -19515,7 +19515,7 @@
             "type": "string"
           },
           "duration_days": {
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Duration Days",
             "type": "integer"
           },
@@ -19634,8 +19634,8 @@
             "type": "string"
           },
           "horizon_days": {
-            "maximum": 365.0,
-            "minimum": 1.0,
+            "maximum": 365,
+            "minimum": 1,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -19821,8 +19821,8 @@
           "month": {
             "anyOf": [
               {
-                "maximum": 12.0,
-                "minimum": 1.0,
+                "maximum": 12,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -19872,8 +19872,8 @@
           "year": {
             "anyOf": [
               {
-                "maximum": 2100.0,
-                "minimum": 2020.0,
+                "maximum": 2100,
+                "minimum": 2020,
                 "type": "integer"
               },
               {
@@ -19912,8 +19912,8 @@
           "month": {
             "anyOf": [
               {
-                "maximum": 12.0,
-                "minimum": 1.0,
+                "maximum": 12,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -19954,8 +19954,8 @@
           "year": {
             "anyOf": [
               {
-                "maximum": 2100.0,
-                "minimum": 2020.0,
+                "maximum": 2100,
+                "minimum": 2020,
                 "type": "integer"
               },
               {
@@ -20013,8 +20013,8 @@
           "month": {
             "anyOf": [
               {
-                "maximum": 12.0,
-                "minimum": 1.0,
+                "maximum": 12,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -20075,8 +20075,8 @@
           "year": {
             "anyOf": [
               {
-                "maximum": 2100.0,
-                "minimum": 2020.0,
+                "maximum": 2100,
+                "minimum": 2020,
                 "type": "integer"
               },
               {
@@ -20930,7 +20930,7 @@
           "fresh_sources": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -20949,7 +20949,7 @@
           "required_sources": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -21841,19 +21841,19 @@
         "properties": {
           "clasificados": {
             "description": "Patas clasificadas como internal_bank_transfer (2 por par).",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Clasificados",
             "type": "integer"
           },
           "evaluados": {
             "description": "Movimientos sin clasificar evaluados.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Evaluados",
             "type": "integer"
           },
           "pares": {
             "description": "Pares de traspaso interno (cargo↔abono) detectados.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Pares",
             "type": "integer"
           }
@@ -24546,7 +24546,7 @@
           "eta_seconds": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -24571,7 +24571,7 @@
           "records_read": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -26923,7 +26923,7 @@
           "duration_days": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -27347,27 +27347,27 @@
         "description": "Counts derived from immutable task events, never from a financial result.",
         "properties": {
           "cancelled": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Cancelled",
             "type": "integer"
           },
           "completed": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Completed",
             "type": "integer"
           },
           "in_progress": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "In Progress",
             "type": "integer"
           },
           "pending": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Pending",
             "type": "integer"
           },
           "total": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Total",
             "type": "integer"
           }
@@ -27431,7 +27431,7 @@
           "duration_days": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -28717,7 +28717,7 @@
             "title": "Employee Id"
           },
           "liquido": {
-            "default": 0.0,
+            "default": 0,
             "description": "Líquido a recibir del empleado (CLP).",
             "title": "Liquido",
             "type": "number"
@@ -28951,7 +28951,7 @@
         "properties": {
           "amount": {
             "description": "Monto del pago (de un movimiento bancario).",
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Amount",
             "type": "number"
           },
@@ -29139,27 +29139,27 @@
             "type": "integer"
           },
           "total_cotizaciones": {
-            "default": 0.0,
+            "default": 0,
             "title": "Total Cotizaciones",
             "type": "number"
           },
           "total_descuentos": {
-            "default": 0.0,
+            "default": 0,
             "title": "Total Descuentos",
             "type": "number"
           },
           "total_haberes": {
-            "default": 0.0,
+            "default": 0,
             "title": "Total Haberes",
             "type": "number"
           },
           "total_imponible": {
-            "default": 0.0,
+            "default": 0,
             "title": "Total Imponible",
             "type": "number"
           },
           "total_liquido": {
-            "default": 0.0,
+            "default": 0,
             "title": "Total Liquido",
             "type": "number"
           }
@@ -29247,8 +29247,8 @@
           "percent_change": {
             "anyOf": [
               {
-                "maximum": 1000.0,
-                "minimum": -100.0,
+                "maximum": 1000,
+                "minimum": -100,
                 "type": "number"
               },
               {
@@ -30391,8 +30391,8 @@
             "type": "boolean"
           },
           "score": {
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Score",
             "type": "integer"
           },
@@ -30647,20 +30647,20 @@
         "description": "Weight coverage; denominator includes configured but unavailable factors.",
         "properties": {
           "available_weight": {
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Available Weight",
             "type": "number"
           },
           "configured_weight": {
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Configured Weight",
             "type": "number"
           },
           "ratio": {
-            "maximum": 1.0,
-            "minimum": 0.0,
+            "maximum": 1,
+            "minimum": 0,
             "title": "Ratio",
             "type": "number"
           }
@@ -30696,8 +30696,8 @@
           "base_score": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -30792,8 +30792,8 @@
           "knockout_cap": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -30876,8 +30876,8 @@
           "score": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -30963,16 +30963,16 @@
         "description": "One configured factor and its auditable weight in the selected reading.",
         "properties": {
           "configured_weight": {
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Configured Weight",
             "type": "number"
           },
           "contribution": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -30982,16 +30982,16 @@
             "title": "Contribution"
           },
           "effective_weight": {
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Effective Weight",
             "type": "number"
           },
           "exact_score": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -31005,21 +31005,21 @@
             "type": "string"
           },
           "multiplier": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Multiplier",
             "type": "number"
           },
           "raw_weight": {
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Raw Weight",
             "type": "number"
           },
           "score": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -31078,8 +31078,8 @@
         "description": "Inclusive lower bound published with the methodology that produced the score.",
         "properties": {
           "minimum_score": {
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Minimum Score",
             "type": "integer"
           },
@@ -31180,7 +31180,7 @@
           "amount": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -31249,8 +31249,8 @@
           "payday_day": {
             "anyOf": [
               {
-                "maximum": 31.0,
-                "minimum": 1.0,
+                "maximum": 31,
+                "minimum": 1,
                 "type": "integer"
               },
               {
@@ -32084,7 +32084,7 @@
             "type": "string"
           },
           "document_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Document Count",
             "type": "integer"
           },
@@ -32128,7 +32128,7 @@
             "title": "Undated Amount"
           },
           "undated_document_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Undated Document Count",
             "type": "integer"
           }
@@ -32170,7 +32170,7 @@
             "type": "string"
           },
           "graph_version": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Graph Version",
             "type": "integer"
           },
@@ -32192,7 +32192,7 @@
           },
           "items_total": {
             "description": "Deudores que cumplen los filtros, sin paginar.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Items Total",
             "type": "integer"
           },
@@ -32290,13 +32290,13 @@
         "properties": {
           "debtor_count": {
             "description": "Deudores filtrados, sin paginar.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Debtor Count",
             "type": "integer"
           },
           "document_count": {
             "description": "Documentos filtrados, sin paginar.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Document Count",
             "type": "integer"
           },
@@ -32417,32 +32417,32 @@
         "description": "Partición disjunta del universo vivo antes de filtros de la pantalla.",
         "properties": {
           "ceded_document_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Ceded Document Count",
             "type": "integer"
           },
           "collectable_document_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Collectable Document Count",
             "type": "integer"
           },
           "credit_note_document_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Credit Note Document Count",
             "type": "integer"
           },
           "non_positive_document_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Non Positive Document Count",
             "type": "integer"
           },
           "source_document_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Source Document Count",
             "type": "integer"
           },
           "unresolved_identity_document_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Unresolved Identity Document Count",
             "type": "integer"
           }
@@ -32462,7 +32462,7 @@
         "additionalProperties": false,
         "properties": {
           "document_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Document Count",
             "type": "integer"
           },
@@ -32515,7 +32515,7 @@
             "type": "string"
           },
           "debtor_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Debtor Count",
             "type": "integer"
           },
@@ -32699,19 +32699,19 @@
         "properties": {
           "clasificados": {
             "description": "Clasificados desde su documento (receivable→cobro, payable→pago).",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Clasificados",
             "type": "integer"
           },
           "evaluados": {
             "description": "Movimientos conciliados sin clasificar evaluados.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Evaluados",
             "type": "integer"
           },
           "sin_categoria": {
             "description": "Conciliados que no se pudieron derivar a categoría/cuenta.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Sin Categoria",
             "type": "integer"
           }
@@ -33110,7 +33110,7 @@
         "additionalProperties": false,
         "properties": {
           "debt_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Debt Count",
             "type": "integer"
           },
@@ -33130,7 +33130,7 @@
             "type": "string"
           },
           "verified_offer_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Verified Offer Count",
             "type": "integer"
           }
@@ -33178,7 +33178,7 @@
             "type": "array"
           },
           "verified_offer_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Verified Offer Count",
             "type": "integer"
           }
@@ -33406,21 +33406,21 @@
           },
           "period_month": {
             "description": "Mes del período HACIA el cual arrastra.",
-            "maximum": 12.0,
-            "minimum": 1.0,
+            "maximum": 12,
+            "minimum": 1,
             "title": "Period Month",
             "type": "integer"
           },
           "period_year": {
             "description": "Año del período HACIA el cual arrastra.",
-            "maximum": 2100.0,
-            "minimum": 2000.0,
+            "maximum": 2100,
+            "minimum": 2000,
             "title": "Period Year",
             "type": "integer"
           },
           "remanente": {
             "description": "Remanente de crédito fiscal acumulado (CLP, >= 0) arrastrado HACIA ese período.",
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Remanente",
             "type": "integer"
           },
@@ -34635,8 +34635,8 @@
           "data_confidence": {
             "anyOf": [
               {
-                "maximum": 100.0,
-                "minimum": 0.0,
+                "maximum": 100,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -34692,8 +34692,8 @@
             "type": "array"
           },
           "score": {
-            "maximum": 100.0,
-            "minimum": 0.0,
+            "maximum": 100,
+            "minimum": 0,
             "title": "Score",
             "type": "integer"
           },
@@ -36076,8 +36076,8 @@
             "type": "string"
           },
           "horizon_days": {
-            "maximum": 180.0,
-            "minimum": 7.0,
+            "maximum": 180,
+            "minimum": 7,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -36253,8 +36253,8 @@
           "horizon_days": {
             "anyOf": [
               {
-                "maximum": 180.0,
-                "minimum": 7.0,
+                "maximum": 180,
+                "minimum": 7,
                 "type": "integer"
               },
               {
@@ -37040,7 +37040,7 @@
           "eta_seconds": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -37129,7 +37129,7 @@
             "type": "string"
           },
           "omitted_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Omitted Count",
             "type": "integer"
           },
@@ -37240,7 +37240,7 @@
             "title": "Canonical Category"
           },
           "confidence": {
-            "default": 0.0,
+            "default": 0,
             "description": "Confianza de la regla que matcheó [0..1].",
             "title": "Confidence",
             "type": "number"
@@ -38757,8 +38757,8 @@
           "confidence": {
             "anyOf": [
               {
-                "maximum": 1.0,
-                "minimum": 0.0,
+                "maximum": 1,
+                "minimum": 0,
                 "type": "number"
               },
               {
@@ -39001,7 +39001,7 @@
           "sort_order": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -39080,7 +39080,7 @@
           "sort_order": {
             "anyOf": [
               {
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               {
@@ -39669,8 +39669,8 @@
             "type": "string"
           },
           "horizon_days": {
-            "maximum": 180.0,
-            "minimum": 7.0,
+            "maximum": 180,
+            "minimum": 7,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -39873,7 +39873,7 @@
           "amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -39924,7 +39924,7 @@
           "mixed_fixed_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -39952,7 +39952,7 @@
           "mixed_variable_amount": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "exclusiveMinimum": 0,
                 "type": "number"
               },
               {
@@ -40417,7 +40417,7 @@
             "title": "Ends On"
           },
           "horizon_days": {
-            "exclusiveMinimum": 0.0,
+            "exclusiveMinimum": 0,
             "title": "Horizon Days",
             "type": "integer"
           },
@@ -40626,7 +40626,7 @@
             "type": "string"
           },
           "verified_working_capital_offer_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Verified Working Capital Offer Count",
             "type": "integer"
           },
@@ -40696,7 +40696,7 @@
             "type": "string"
           },
           "verified_working_capital_offer_count": {
-            "minimum": 0.0,
+            "minimum": 0,
             "title": "Verified Working Capital Offer Count",
             "type": "integer"
           }
@@ -40885,6 +40885,312 @@
           "neto"
         ],
         "title": "SeriePunto",
+        "type": "object"
+      },
+      "InboxItem": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "relevant_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relevant Date"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "urgency": {
+            "enum": [
+              "overdue",
+              "review",
+              "soon",
+              "normal"
+            ],
+            "title": "Urgency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "amount",
+          "currency",
+          "relevant_date",
+          "urgency",
+          "status",
+          "href"
+        ],
+        "title": "InboxItem",
+        "type": "object"
+      },
+      "InboxMoney": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda ISO-4217; null si la fuente no la informo.",
+            "title": "Currency"
+          }
+        },
+        "required": [
+          "currency",
+          "amount"
+        ],
+        "title": "InboxMoney",
+        "type": "object"
+      },
+      "InboxPriority": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "queue": {
+            "enum": [
+              "reconciliation",
+              "receivables",
+              "payables",
+              "classification"
+            ],
+            "title": "Queue",
+            "type": "string"
+          },
+          "relevant_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relevant Date"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "urgency": {
+            "enum": [
+              "overdue",
+              "review",
+              "soon",
+              "normal"
+            ],
+            "title": "Urgency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "amount",
+          "currency",
+          "relevant_date",
+          "urgency",
+          "status",
+          "href",
+          "queue"
+        ],
+        "title": "InboxPriority",
+        "type": "object"
+      },
+      "InboxQueue": {
+        "additionalProperties": false,
+        "properties": {
+          "action_label": {
+            "title": "Action Label",
+            "type": "string"
+          },
+          "amounts": {
+            "items": {
+              "$ref": "#/components/schemas/InboxMoney"
+            },
+            "title": "Amounts",
+            "type": "array"
+          },
+          "count": {
+            "minimum": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "data_state": {
+            "enum": [
+              "available",
+              "partial",
+              "estimated"
+            ],
+            "title": "Data State",
+            "type": "string"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "reconciliation",
+              "receivables",
+              "payables",
+              "classification"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "next_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Date"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "action_label",
+          "href",
+          "count",
+          "amounts",
+          "data_state",
+          "limitations",
+          "next_date",
+          "items"
+        ],
+        "title": "InboxQueue",
+        "type": "object"
+      },
+      "WorkInboxResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "legal_entity_id": {
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
+          "priorities": {
+            "items": {
+              "$ref": "#/components/schemas/InboxPriority"
+            },
+            "title": "Priorities",
+            "type": "array"
+          },
+          "queues": {
+            "items": {
+              "$ref": "#/components/schemas/InboxQueue"
+            },
+            "title": "Queues",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generated_at",
+          "legal_entity_id",
+          "queues",
+          "priorities"
+        ],
+        "title": "WorkInboxResponse",
         "type": "object"
       }
     },
@@ -45377,6 +45683,25 @@
         "description": "Devuelve los movimientos del tenant que matchean el filtro.\n\n`status=unclassified` es el caso default de la pantalla (los que\nafectan el Índice de Confianza). El `total` permite al frontend\npintar la paginación sin un segundo request. Filtros de Caja (barrido V1):\n`direction` (cobrar/pagar), rango `period_from`/`period_to`, y `bank_account_id`\n(para el selector de cuenta que evita mezclar CLP/USD).",
         "operationId": "bank_movements_list",
         "parameters": [
+          {
+            "description": "Filtra cuentas atribuidas a la sociedad seleccionada.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra cuentas atribuidas a la sociedad seleccionada.",
+              "title": "Legal Entity Id"
+            }
+          },
           {
             "description": "Filtro de clasificación: 'unclassified' | 'classified'. Omitir = todos.",
             "in": "query",
@@ -53428,6 +53753,25 @@
         "operationId": "reversible_actions_list",
         "parameters": [
           {
+            "description": "Sociedad del movimiento bancario.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sociedad del movimiento bancario.",
+              "title": "Legal Entity Id"
+            }
+          },
+          {
             "description": "Filtra por tipo de acción (p. ej. 'receivable.mark_ceded').",
             "in": "query",
             "name": "action_type",
@@ -57306,6 +57650,25 @@
         "description": "Devuelve los movimientos del tenant que matchean el filtro.\n\n`status=unclassified` es el caso default de la pantalla (los que\nafectan el Índice de Confianza). El `total` permite al frontend\npintar la paginación sin un segundo request. Filtros de Caja (barrido V1):\n`direction` (cobrar/pagar), rango `period_from`/`period_to`, y `bank_account_id`\n(para el selector de cuenta que evita mezclar CLP/USD).",
         "operationId": "treasury_bank_movements_list",
         "parameters": [
+          {
+            "description": "Filtra cuentas atribuidas a la sociedad seleccionada.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtra cuentas atribuidas a la sociedad seleccionada.",
+              "title": "Legal Entity Id"
+            }
+          },
           {
             "description": "Filtro de clasificación: 'unclassified' | 'classified'. Omitir = todos.",
             "in": "query",
@@ -65560,6 +65923,25 @@
         "operationId": "treasury_reconciliation_review",
         "parameters": [
           {
+            "description": "Sociedad de las cuentas bancarias.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sociedad de las cuentas bancarias.",
+              "title": "Legal Entity Id"
+            }
+          },
+          {
             "in": "cookie",
             "name": "qavante_session",
             "required": false,
@@ -67286,6 +67668,72 @@
           }
         },
         "summary": "Health Lite"
+      }
+    },
+    "/api/treasury/work-inbox": {
+      "get": {
+        "operationId": "treasury_work_inbox",
+        "parameters": [
+          {
+            "description": "Sociedad seleccionada dentro del tenant.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "description": "Sociedad seleccionada dentro del tenant.",
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkInboxResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Bandeja operativa priorizada por impacto y fecha",
+        "tags": [
+          "treasury"
+        ]
       }
     }
   },

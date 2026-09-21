@@ -87,6 +87,21 @@ function chips(h: string): string[] {
   );
 }
 
+describe("BandejaV07View — enlace a movimiento exacto", () => {
+  it("muestra la segunda conciliación y no la primera al entrar por su enlace", () => {
+    const t = texto(html({ tabInicial: "conciliar", movimientoInicial: MOV_VOLCAN }));
+    expect(t).toContain("Conciliar 2 de 2");
+    expect(t).toContain("ABONO TRANSFERENCIA MIRKO GONZALEZ");
+    expect(t).not.toContain("TRANSFERENCIA DE COMERCIAL KAUFMANN");
+  });
+
+  it("muestra la segunda clasificación y no la primera al entrar por su enlace", () => {
+    const t = texto(html({ tabInicial: "clasificar", movimientoInicial: MOV_TERCEROS }));
+    expect(t).toContain("TRANSF. A TERCEROS VIA INTERNET");
+    expect(t).not.toContain("PAGO SERVICIOS DATTATEC.COM");
+  });
+});
+
 describe("BandejaV07View — cabecera y progreso", () => {
   it("muestra N pendientes y las dos tabs con su conteo", () => {
     const t = texto(html());

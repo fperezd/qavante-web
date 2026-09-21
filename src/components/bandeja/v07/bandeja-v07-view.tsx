@@ -174,6 +174,10 @@ export interface BandejaV07ViewProps {
   hoy?: Date;
   /** Tab inicial. Sólo para stories/tests deterministas. */
   tabInicial?: TabV07;
+  /** Movimiento pendiente enlazado: selecciona su carta, no sólo sus datos auxiliares. */
+  movimientoInicial?: string;
+  /** La consulta de la pestaña enlazada devolvió datos (también una cola vacía). */
+  enlaceListo?: boolean;
 }
 
 const EYEBROW =
@@ -226,6 +230,8 @@ function BandejaV07Contenido({
   onReintentar,
   hoy = new Date(),
   tabInicial = "conciliar",
+  movimientoInicial,
+  enlaceListo = true,
 }: BandejaV07ViewProps) {
   const { show } = useRedisenoToast();
   const [tab, setTab] = React.useState<TabV07>(tabInicial);
@@ -233,6 +239,7 @@ function BandejaV07Contenido({
   const [montos, setMontos] = React.useState<number[]>([]);
   const [iConciliar, setIConciliar] = React.useState(0);
   const [iClasificar, setIClasificar] = React.useState(0);
+  const [enlacePendiente, setEnlacePendiente] = React.useState(movimientoInicial);
   const [ordenClasificar, setOrdenClasificar] = React.useState<string[] | null>(null);
 
   const colaConciliar = React.useMemo(
@@ -252,11 +259,40 @@ function BandejaV07Contenido({
   /* El índice EFECTIVO: el guardado, acotado a la cola viva. Se calcula una sola vez y se usa
      tanto para pintar como para avanzar — tener dos nociones de "cuál estoy viendo" es el camino
      directo a saltarse un ítem sin resolverlo. */
-  const idxConciliar = Math.min(iConciliar, Math.max(0, colaConciliar.length - 1));
-  const idxClasificar = Math.min(iClasificar, Math.max(0, colaClasificar.length - 1));
+  const indiceEnlazadoConciliar =
+    enlacePendiente && tabInicial === "conciliar"
+      ? colaConciliar.findIndex((item) => item.id === enlacePendiente)
+      : -1;
+  const indiceEnlazadoClasificar =
+    enlacePendiente && tabInicial === "clasificar"
+      ? colaClasificar.findIndex((item) => item.id === enlacePendiente)
+      : -1;
+  const idxConciliar =
+    indiceEnlazadoConciliar >= 0
+      ? indiceEnlazadoConciliar
+      : Math.min(iConciliar, Math.max(0, colaConciliar.length - 1));
+  const idxClasificar =
+    indiceEnlazadoClasificar >= 0
+      ? indiceEnlazadoClasificar
+      : Math.min(iClasificar, Math.max(0, colaClasificar.length - 1));
   const itemConciliar = colaConciliar[idxConciliar];
   const itemClasificar = colaClasificar[idxClasificar];
   const itemActivo: ItemV07 | null = (tab === "conciliar" ? itemConciliar : itemClasificar) ?? null;
+
+  React.useEffect(() => {
+    if (!enlacePendiente || !enlaceListo) return;
+    if (indiceEnlazadoConciliar >= 0) setIConciliar(indiceEnlazadoConciliar);
+    if (indiceEnlazadoClasificar >= 0) setIClasificar(indiceEnlazadoClasificar);
+    setEnlacePendiente(undefined);
+  }, [
+    enlacePendiente,
+    enlaceListo,
+    tabInicial,
+    conciliar,
+    clasificar,
+    indiceEnlazadoConciliar,
+    indiceEnlazadoClasificar,
+  ]);
 
   /* El padre necesita saber qué hay en pantalla para traer sus candidatos / su sugerencia. */
   const idActivo = itemActivo?.id ?? null;

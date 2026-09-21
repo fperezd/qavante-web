@@ -1,5 +1,6 @@
 import { FeatureUnavailableState } from "@/components/qavante";
 import { BandejaV07Live } from "@/components/bandeja/v07/bandeja-v07-live";
+import { BandejaScope } from "@/components/bandeja/bandeja-scope";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 import { PorClasificarView } from "@/components/clasificacion/por-clasificar-view";
 
@@ -17,16 +18,20 @@ import { PorClasificarView } from "@/components/clasificacion/por-clasificar-vie
 export default async function PorClasificarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ movimiento?: string }>;
+  searchParams: Promise<{ movimiento?: string; legal_entity_id?: string }>;
 }) {
   const { bankMovementClassification, managementDimensions, bandejaV07 } = resolveFeatureFlags();
-  const { movimiento } = await searchParams;
+  const { movimiento, legal_entity_id } = await searchParams;
 
   /* La Bandeja V07 es la experiencia vigente para las excepciones. Mantener esta ruta como
      entrada con la pestaña correcta evita que un marcador antiguo devuelva a una pantalla
      visualmente distinta. Con el flag OFF se conserva el flujo clásico para rollback. */
   if (bandejaV07) {
-    return <BandejaV07Live tabInicial="clasificar" movimientoInicial={movimiento} />;
+    return (
+      <BandejaScope initialLegalEntityId={legal_entity_id}>
+        <BandejaV07Live tabInicial="clasificar" movimientoInicial={movimiento} />
+      </BandejaScope>
+    );
   }
 
   return (

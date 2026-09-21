@@ -32,6 +32,7 @@ import {
   useRevertReversibleAction,
 } from "@/lib/api/reversible-actions";
 import { toManagementAccountTreeRows } from "@/components/clasificacion/adapters";
+import { useBandejaLegalEntityId } from "@/components/bandeja/bandeja-scope";
 import { BandejaV07View } from "./bandeja-v07-view";
 import {
   accionesAutoClasificar,
@@ -85,11 +86,14 @@ const TOPE_AUTO_CLASIFICAR = 20;
 
 type ReferenciaItemActivo = Pick<ItemV07, "id" | "tipo">;
 
-/** Selecciona sólo movimientos que todavía siguen en la cola de clasificación. */
+/** Selecciona un movimiento pendiente sólo desde la cola solicitada por el enlace. */
 export function referenciaMovimientoInicial(
-  items: readonly ItemV07[] | null,
+  tab: TabV07,
+  conciliar: readonly ItemV07[] | null,
+  clasificar: readonly ItemV07[] | null,
   movimientoInicial?: string,
 ): ReferenciaItemActivo | null {
+  const items = tab === "conciliar" ? conciliar : clasificar;
   if (!movimientoInicial || !items) return null;
   const movimiento = items.find((item) => item.id === movimientoInicial);
   return movimiento ? { id: movimiento.id, tipo: movimiento.tipo } : null;
@@ -174,6 +178,7 @@ export function BandejaV07Live({
   /** El brief financiero ya está arriba; esta vista se presenta como auditoría secundaria. */
   secondaryAudit?: boolean;
 }) {
+  const legalEntityId = useBandejaLegalEntityId();
   const [hoy] = React.useState(() => new Date());
   /* Guardamos la identidad, no el objeto que deriva cada query. Las respuestas de React Query
      pueden traer una referencia nueva aunque el contenido sea el mismo: guardar ese objeto haría
@@ -181,13 +186,22 @@ export function BandejaV07Live({
   const [activoRef, setActivoRef] = React.useState<ReferenciaItemActivo | null>(null);
   const [aviso, setAviso] = React.useState<string | null>(null);
 
-  const review = useReconciliationReview();
-  const sinClasificar = useBankMovements({ status: "unclassified", limit: TOPE_CLASIFICAR });
-  const historial = useBankMovements({ status: "classified", limit: TOPE_HISTORIAL });
+  const review = useReconciliationReview(Boolean(legalEntityId), legalEntityId);
+  const sinClasificar = useBankMovements({
+    status: "unclassified",
+    limit: TOPE_CLASIFICAR,
+    legal_entity_id: legalEntityId ?? undefined,
+  });
+  const historial = useBankMovements({
+    status: "classified",
+    limit: TOPE_HISTORIAL,
+    legal_entity_id: legalEntityId ?? undefined,
+  });
   const arbol = useManagementAccountsTree();
   const categoriasCanonicas = useCanonicalCategories();
   const autoClasificadas = useReversibleActions({
     actionType: ACTION_TYPE_BANK_MOVEMENT_AUTO_CLASSIFY,
+    legalEntityId: legalEntityId ?? undefined,
     onlyUndoable: true,
     limit: TOPE_AUTO_CLASIFICAR,
   });
@@ -237,12 +251,17 @@ export function BandejaV07Live({
   const categoria = useSuggestedCategory(idClasificar);
 
   React.useEffect(() => {
-    const movimiento = referenciaMovimientoInicial(itemsK, movimientoInicial);
+    const movimiento = referenciaMovimientoInicial(
+      tabInicial ?? "conciliar",
+      itemsC,
+      itemsK,
+      movimientoInicial,
+    );
     if (!movimiento) return;
     setActivoRef((anterior) =>
       anterior?.id === movimiento.id && anterior.tipo === movimiento.tipo ? anterior : movimiento,
     );
-  }, [itemsK, movimientoInicial]);
+  }, [tabInicial, itemsC, itemsK, movimientoInicial]);
 
   if (review.isLoading && sinClasificar.isLoading) return <CargandoBandeja />;
 
@@ -416,6 +435,12 @@ export function BandejaV07Live({
       }}
       hoy={hoy}
       tabInicial={tabInicial}
+      movimientoInicial={movimientoInicial}
+      enlaceListo={
+        (tabInicial ?? "conciliar") === "conciliar"
+          ? review.data !== undefined
+          : sinClasificar.data !== undefined
+      }
     />
   );
 }

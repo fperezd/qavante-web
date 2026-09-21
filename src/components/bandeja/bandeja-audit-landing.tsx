@@ -23,22 +23,24 @@ const AUDIT_AREAS = [
  * Los flujos manuales siguen disponibles en sus rutas, pero Inicio y Caja ya muestran las
  * decisiones con las fuentes disponibles antes de sugerir esta revisión opcional.
  */
-export function BandejaAuditLanding() {
+export function BandejaAuditLanding({ embedded = false }: { embedded?: boolean }) {
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-neutral-dark">Bandeja</h1>
-        <p className="mt-1 max-w-2xl text-sm text-neutral-mid">
-          Aquí puedes auditar el detalle de tus movimientos. La lectura de caja y las decisiones
-          financieras se muestran primero en Inicio y Caja.
-        </p>
-        <Link
-          className="mt-3 inline-flex rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-          href="/caja"
-        >
-          Ver estado de caja
-        </Link>
-      </header>
+      {!embedded && (
+        <header>
+          <h1 className="text-2xl font-bold text-neutral-dark">Bandeja</h1>
+          <p className="mt-1 max-w-2xl text-sm text-neutral-mid">
+            Aquí puedes auditar el detalle de tus movimientos. La lectura de caja y las decisiones
+            financieras se muestran primero en Inicio y Caja.
+          </p>
+          <Link
+            className="mt-3 inline-flex rounded font-semibold text-brand-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            href="/caja"
+          >
+            Ver estado de caja
+          </Link>
+        </header>
+      )}
 
       <section
         aria-labelledby="auditoria-heading"

@@ -1,12 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { colaConciliarVacia, MOV_DATTATEC, sinClasificar } from "./bandeja-v07-fixtures";
+import { colaConciliar, MOV_DATTATEC, MOV_VOLCAN, sinClasificar } from "./bandeja-v07-fixtures";
 import type { BandejaV07ViewProps } from "./bandeja-v07-view";
 
 const arnes = vi.hoisted(() => ({
   vistaProps: undefined as BandejaV07ViewProps | undefined,
   clasificar: vi.fn(),
   refetch: vi.fn(),
+  reviewPending: false,
+  reviewError: false,
 }));
 
 const consulta = <T,>(data: T) => ({
@@ -25,7 +27,12 @@ vi.mock("./bandeja-v07-view", () => ({
 }));
 
 vi.mock("@/lib/api/reconciliation", () => ({
-  useReconciliationReview: () => consulta(colaConciliarVacia()),
+  useReconciliationReview: () =>
+    arnes.reviewPending
+      ? { ...consulta(undefined), isLoading: true }
+      : arnes.reviewError
+        ? { ...consulta(undefined), isError: true, error: new Error("review failed") }
+        : consulta(colaConciliar()),
   useDocumentSuggestions: () => consulta(undefined),
   useConfirmReconciliation: () => ({ mutateAsync: vi.fn() }),
   useConfirmReconciliationWithDocument: () => ({ mutateAsync: vi.fn() }),
@@ -66,6 +73,8 @@ describe("BandejaV07Live · total real y fallos de escritura", () => {
     arnes.vistaProps = undefined;
     arnes.clasificar.mockReset();
     arnes.refetch.mockReset();
+    arnes.reviewPending = false;
+    arnes.reviewError = false;
   });
 
   it("publica data.total aunque la página tenga menos items", () => {
@@ -74,6 +83,39 @@ describe("BandejaV07Live · total real y fallos de escritura", () => {
     expect(html).toContain("Clasificar · 137");
     expect(arnes.vistaProps?.clasificar).toHaveLength(1);
     expect(arnes.vistaProps?.clasificarTotal).toBe(137);
+  });
+
+  it("entrega el movimiento enlazado a la vista que pinta la carta", () => {
+    renderToStaticMarkup(
+      <BandejaV07Live tabInicial="clasificar" movimientoInicial={MOV_DATTATEC} />,
+    );
+
+    expect(arnes.vistaProps?.tabInicial).toBe("clasificar");
+    expect(arnes.vistaProps?.movimientoInicial).toBe(MOV_DATTATEC);
+  });
+
+  it("conserva el enlace de conciliación mientras carga después de clasificación", () => {
+    arnes.reviewPending = true;
+    renderToStaticMarkup(<BandejaV07Live tabInicial="conciliar" movimientoInicial={MOV_VOLCAN} />);
+    expect(arnes.vistaProps?.enlaceListo).toBe(false);
+    expect(arnes.vistaProps?.conciliar).toEqual([]);
+
+    arnes.reviewPending = false;
+    renderToStaticMarkup(<BandejaV07Live tabInicial="conciliar" movimientoInicial={MOV_VOLCAN} />);
+    expect(arnes.vistaProps?.enlaceListo).toBe(true);
+    expect(arnes.vistaProps?.conciliar?.[1]?.id).toBe(MOV_VOLCAN);
+  });
+
+  it("conserva el enlace tras error para abrirlo al reintentar", () => {
+    arnes.reviewError = true;
+    renderToStaticMarkup(<BandejaV07Live tabInicial="conciliar" movimientoInicial={MOV_VOLCAN} />);
+    expect(arnes.vistaProps?.enlaceListo).toBe(false);
+    expect(arnes.vistaProps?.conciliar).toBeNull();
+
+    arnes.reviewError = false;
+    renderToStaticMarkup(<BandejaV07Live tabInicial="conciliar" movimientoInicial={MOV_VOLCAN} />);
+    expect(arnes.vistaProps?.enlaceListo).toBe(true);
+    expect(arnes.vistaProps?.conciliar?.[1]?.id).toBe(MOV_VOLCAN);
   });
 
   it("propaga mutateAsync fallido para que la vista no marque el movimiento resuelto", async () => {

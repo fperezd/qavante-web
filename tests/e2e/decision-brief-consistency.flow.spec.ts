@@ -6,7 +6,7 @@ import {
 } from "../../src/test/msw/decision-brief-fixture";
 import { loginAs } from "./helpers";
 
-/* El mismo envelope se monta en todas las superficies. Este flujo no recalcula
+/* El mismo envelope se monta en las superficies financieras. Este flujo no recalcula
  * ninguna cifra: comprueba que la identidad, el contexto y el CTA llegan igual
  * desde el servidor, incluido el query string que permite conservar el corte.
  *
@@ -51,7 +51,6 @@ function isDecisionProducerRequest(path: string) {
 const SURFACES = [
   { name: "inicio", path: "/inicio" },
   { name: "caja", path: "/caja" },
-  { name: "bandeja", path: "/bandeja" },
   { name: "pagar", path: "/pagar" },
   { name: "cobrar", path: "/cobrar" },
 ] as const;
@@ -62,7 +61,7 @@ const VIEWPORTS = [
   { name: "escritorio 1440", width: 1440, height: 900 },
 ] as const;
 
-test.describe("Decision Brief canónico en las cinco superficies", () => {
+test.describe("Decision Brief canónico en las cuatro superficies financieras", () => {
   for (const viewport of VIEWPORTS) {
     test(`${viewport.name}: conserva identidad, CTA y ancho`, async ({ page, context }) => {
       test.setTimeout(180_000);
@@ -122,14 +121,6 @@ test.describe("Decision Brief canónico en las cinco superficies", () => {
           await expect(page.getByText("Calidad y auditoría de movimientos")).toHaveCount(0);
         }
 
-        if (surface.name === "bandeja") {
-          // La cola sigue accesible, sin subtítulos explicativos.
-          await expect(
-            page.locator("main").getByText("Bandeja", { exact: true }),
-          ).toBeVisible();
-          await expect(page.getByText("Bandeja · auditoría de movimientos")).toHaveCount(0);
-        }
-
         if (surface.name === "pagar") {
           // V05 conserva los documentos como evidencia y no fabrica otra recomendación.
           await expect(page.getByRole("heading", { name: "Pagos y obligaciones" })).toBeVisible();
@@ -170,6 +161,14 @@ test.describe("Decision Brief canónico en las cinco superficies", () => {
           `${surface.path} no debe desbordar a ${viewport.width}px`,
         ).toBeLessThanOrEqual(viewportWidth + 1);
       }
+
+      await page.goto("/bandeja", { waitUntil: "domcontentloaded" });
+      await expect(
+        page.getByRole("combobox", { name: "Seleccionar sociedad de la Bandeja" }),
+      ).toBeVisible();
+      await expect(page.getByRole("heading", { name: /pendientes/ })).toBeVisible();
+      await expect(page.locator('[data-decision-brief-surface="bandeja"]')).toHaveCount(0);
+      await expect(page.getByTestId("cash-decision-brief")).toHaveCount(0);
     });
   }
 });

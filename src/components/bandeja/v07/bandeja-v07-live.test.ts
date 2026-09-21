@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { itemsClasificar } from "./bandeja-v07-model";
-import { MOV_DATTATEC, MOV_KAUFMANN, sinClasificar } from "./bandeja-v07-fixtures";
+import { itemsClasificar, itemsConciliar } from "./bandeja-v07-model";
+import { colaConciliar, MOV_DATTATEC, MOV_KAUFMANN, sinClasificar } from "./bandeja-v07-fixtures";
 import {
   cuerpoClasificacion,
   cuerpoClasificacionLote,
@@ -10,15 +10,36 @@ import {
 
 describe("BandejaV07Live · rutas clásicas", () => {
   it("abre el movimiento pendiente que llega desde /caja/por-clasificar", () => {
-    const pendiente = referenciaMovimientoInicial(itemsClasificar(sinClasificar()), MOV_DATTATEC);
+    const pendiente = referenciaMovimientoInicial(
+      "clasificar",
+      itemsConciliar(colaConciliar()),
+      itemsClasificar(sinClasificar()),
+      MOV_DATTATEC,
+    );
 
     expect(pendiente).toEqual({ id: MOV_DATTATEC, tipo: "clasificar" });
   });
 
   it("no abre un movimiento que ya no está pendiente", () => {
-    const ausente = referenciaMovimientoInicial(itemsClasificar(sinClasificar()), MOV_KAUFMANN);
+    const ausente = referenciaMovimientoInicial(
+      "clasificar",
+      itemsConciliar(colaConciliar()),
+      itemsClasificar(sinClasificar()),
+      MOV_KAUFMANN,
+    );
 
     expect(ausente).toBeNull();
+  });
+
+  it("abre la conciliación prioritaria desde /bandeja?tab=conciliar&movimiento=...", () => {
+    const pendiente = referenciaMovimientoInicial(
+      "conciliar",
+      itemsConciliar(colaConciliar()),
+      itemsClasificar(sinClasificar()),
+      MOV_KAUFMANN,
+    );
+
+    expect(pendiente).toEqual({ id: MOV_KAUFMANN, tipo: "conciliar" });
   });
 });
 

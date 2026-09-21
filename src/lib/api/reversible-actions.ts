@@ -47,6 +47,7 @@ export type RevertActionResponse = components["schemas"]["RevertActionResponse"]
 export const ACTION_TYPE_BANK_MOVEMENT_AUTO_CLASSIFY = "bank_movement.auto_classify";
 
 export interface ReversibleActionsParams {
+  legalEntityId?: string;
   actionType?: string;
   onlyUndoable?: boolean;
   limit?: number;
@@ -61,6 +62,7 @@ export const reversibleActionsKeys = {
 
 function buildQuery(p: ReversibleActionsParams): string {
   const s = new URLSearchParams();
+  if (p.legalEntityId) s.set("legal_entity_id", p.legalEntityId);
   if (p.actionType) s.set("action_type", p.actionType);
   if (p.onlyUndoable) s.set("only_undoable", "true");
   if (p.limit != null) s.set("limit", String(p.limit));

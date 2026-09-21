@@ -29,13 +29,15 @@ export function DocumentActionButton({
   documentId,
   query = "",
   label = "Gestionar",
+  autoOpen = false,
 }: {
   kind: DocumentKind;
   documentId?: string;
   query?: string;
   label?: string;
+  autoOpen?: boolean;
 }) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(autoOpen);
   return (
     <>
       <button type="button" className={button} onClick={() => setOpen(true)}>

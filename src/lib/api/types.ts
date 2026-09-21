@@ -7148,6 +7148,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/work-inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bandeja operativa priorizada por impacto y fecha */
+        get: operations["treasury_work_inbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -24894,6 +24911,111 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** InboxItem */
+        InboxItem: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string | null;
+            /** Href */
+            href: string;
+            /** Id */
+            id: string;
+            /** Relevant Date */
+            relevant_date: string | null;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /**
+             * Urgency
+             * @enum {string}
+             */
+            urgency: "overdue" | "review" | "soon" | "normal";
+        };
+        /** InboxMoney */
+        InboxMoney: {
+            /** Amount */
+            amount: string;
+            /**
+             * Currency
+             * @description Moneda ISO-4217; null si la fuente no la informo.
+             */
+            currency: string | null;
+        };
+        /** InboxPriority */
+        InboxPriority: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string | null;
+            /** Href */
+            href: string;
+            /** Id */
+            id: string;
+            /**
+             * Queue
+             * @enum {string}
+             */
+            queue: "reconciliation" | "receivables" | "payables" | "classification";
+            /** Relevant Date */
+            relevant_date: string | null;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /**
+             * Urgency
+             * @enum {string}
+             */
+            urgency: "overdue" | "review" | "soon" | "normal";
+        };
+        /** InboxQueue */
+        InboxQueue: {
+            /** Action Label */
+            action_label: string;
+            /** Amounts */
+            amounts: components["schemas"]["InboxMoney"][];
+            /** Count */
+            count: number;
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Href */
+            href: string;
+            /** Items */
+            items: components["schemas"]["InboxItem"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "reconciliation" | "receivables" | "payables" | "classification";
+            /** Label */
+            label: string;
+            /** Limitations */
+            limitations: string[];
+            /** Next Date */
+            next_date: string | null;
+        };
+        /** WorkInboxResponse */
+        WorkInboxResponse: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Priorities */
+            priorities: components["schemas"]["InboxPriority"][];
+            /** Queues */
+            queues: components["schemas"]["InboxQueue"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -27463,6 +27585,8 @@ export interface operations {
     bank_movements_list: {
         parameters: {
             query?: {
+                /** @description Filtra cuentas atribuidas a la sociedad seleccionada. */
+                legal_entity_id?: string | null;
                 /** @description Filtro de clasificación: 'unclassified' | 'classified'. Omitir = todos. */
                 status?: string | null;
                 /** @description Período YYYY-MM (filtra por mes calendario del movimiento). */
@@ -32056,6 +32180,8 @@ export interface operations {
     reversible_actions_list: {
         parameters: {
             query?: {
+                /** @description Sociedad del movimiento bancario. */
+                legal_entity_id?: string | null;
                 /** @description Filtra por tipo de acción (p. ej. 'receivable.mark_ceded'). */
                 action_type?: string | null;
                 /** @description Sólo las que se pueden deshacer ahora (activas y dentro de la ventana). */
@@ -34046,6 +34172,8 @@ export interface operations {
     treasury_bank_movements_list: {
         parameters: {
             query?: {
+                /** @description Filtra cuentas atribuidas a la sociedad seleccionada. */
+                legal_entity_id?: string | null;
                 /** @description Filtro de clasificación: 'unclassified' | 'classified'. Omitir = todos. */
                 status?: string | null;
                 /** @description Período YYYY-MM (filtra por mes calendario del movimiento). */
@@ -38683,7 +38811,10 @@ export interface operations {
     };
     treasury_reconciliation_review: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Sociedad de las cuentas bancarias. */
+                legal_entity_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -39649,6 +39780,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthLiteResponse"];
+                };
+            };
+        };
+    };
+    treasury_work_inbox: {
+        parameters: {
+            query: {
+                /** @description Sociedad seleccionada dentro del tenant. */
+                legal_entity_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkInboxResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

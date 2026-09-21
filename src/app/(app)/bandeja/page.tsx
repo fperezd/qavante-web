@@ -1,32 +1,40 @@
 import { BandejaAuditLanding } from "@/components/bandeja/bandeja-audit-landing";
 import { BandejaV07Live } from "@/components/bandeja/v07/bandeja-v07-live";
-import { DecisionBriefSlot } from "@/components/decision-brief/decision-brief-slot";
+import { BandejaScope } from "@/components/bandeja/bandeja-scope";
+import { WorkInboxSummary } from "@/components/bandeja/work-inbox-summary";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
 /**
  * Inicio y Caja son la entrada a la lectura financiera; Bandeja conserva la cola viva de auditoría
  * cuando V07 está habilitada. Con el flag apagado, la landing no inventa conteos ni estados.
  */
-export default function BandejaPage() {
-  const { bandejaV07, decisionBrief } = resolveFeatureFlags();
+export default async function BandejaPage(
+  {
+    searchParams,
+  }: {
+    searchParams: Promise<{ tab?: string; movimiento?: string; legal_entity_id?: string }>;
+  } = { searchParams: Promise.resolve({}) },
+) {
+  const { bandejaV07 } = resolveFeatureFlags();
+  const params = await searchParams;
+  const tabInicial = params.tab === "clasificar" ? "clasificar" : "conciliar";
 
   if (bandejaV07) {
     return (
-      <div className="space-y-6">
-        {decisionBrief && <DecisionBriefSlot surface="bandeja" />}
-        <BandejaV07Live secondaryAudit={decisionBrief} />
-      </div>
+      <BandejaScope initialLegalEntityId={params.legal_entity_id}>
+        <WorkInboxSummary />
+        <BandejaV07Live
+          tabInicial={tabInicial}
+          movimientoInicial={params.movimiento}
+        />
+      </BandejaScope>
     );
   }
 
-  if (decisionBrief) {
-    return (
-      <div className="space-y-6">
-        <DecisionBriefSlot surface="bandeja" />
-        <BandejaAuditLanding />
-      </div>
-    );
-  }
-
-  return <BandejaAuditLanding />;
+  return (
+    <BandejaScope initialLegalEntityId={params.legal_entity_id}>
+      <WorkInboxSummary />
+      <BandejaAuditLanding embedded />
+    </BandejaScope>
+  );
 }
