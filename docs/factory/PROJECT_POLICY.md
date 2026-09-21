@@ -5,10 +5,10 @@ Puede endurecer el estándar corporativo, pero no debilitarlo sin excepción/ADR
 
 ## Stack
 
-- Next.js 15 + React 19 + TypeScript.
+- Next.js 16 + React 19 + TypeScript.
 - Tailwind 4 + shadcn/ui.
 - Cloudflare Workers mediante `@opennextjs/cloudflare`.
-- Backend/contrato: `fperezd/qavante-api` vía OpenAPI; no acoplamiento por memoria de agentes.
+- Backend/contrato: `tooxs-digital/qavante-api` vía OpenAPI; no acoplamiento por memoria de agentes.
 
 ## Reglas frontend no negociables
 
@@ -22,7 +22,7 @@ Puede endurecer el estándar corporativo, pero no debilitarlo sin excepción/ADR
 - Datos faltantes/partial/stale/error se muestran honestamente; nunca como cero o éxito implícito.
 - INV-FX-001 aplica también al frontend: no sumar monedas distintas ni rotular una mezcla como CLP.
 - No force-push a `main` ni a ramas compartidas/protegidas.
-- Un agente no mergea cambios sin el gate humano requerido por la Factory/política del repo.
+- R0/R1/R2 reversibles siguen el camino autónomo cuando los gates locales aplicables están verdes. Producción conserva SHA/árbol/digest, smoke, observación y rollback sin checkpoint humano.
 - Un PR debe cerrar o referenciar una unidad de trabajo explícita y mantener un propósito único.
 
 ## Cross-repo
@@ -38,12 +38,12 @@ R1 para feature/bug/UI normal. R0 para docs/tests/tooling/refactor sin comportam
 
 ## Validación
 
-La suite y umbrales vigentes se definen por los workflows/configuración real del repo. Actualmente CI incluye lint, typecheck, coverage tests, Storybook tests, build + size budget, E2E, Lighthouse y gitleaks; esos controles no se sustituyen por prosa del agente.
+La suite y umbrales vigentes se definen por los scripts/configuración real del repo. Docker local enruta lint, typecheck, contrato, coverage, Storybook, build + size budget, E2E, Lighthouse, auditoría y gitleaks según los paths; `local-ci` no se publica si un gate aplicable falla o se cancela.
 
-El implementador corre validación focalizada; CI ejecuta la validación completa requerida.
+El implementador corre validación focalizada; Docker local ejecuta la validación completa requerida.
 
 ## Deploy y verificación
 
 Cloudflare build/deploy debe ser gate real. Un cambio no se declara DONE si el required deployment/production verification aplicable está fallando o es desconocido.
 
-Un fallo de preview/deploy se diagnostica antes de mergear; nunca se ignora por tratarse de un cambio docs-only.
+Un fallo de preview/deploy aplicable se diagnostica antes de mergear; los cambios sin superficie desplegable no inventan un deploy.

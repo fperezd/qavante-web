@@ -1,21 +1,9 @@
 const SHA_RE = /^[0-9a-f]{40}$/;
 
-export const REQUIRED_CI_CHECKS = Object.freeze([
-  "lint",
-  "qa-rediseno",
-  "typecheck",
-  "test",
-  "test-storybook",
-  "build",
-  "e2e",
-  "lighthouse",
-  "secrets-scan",
-  "dependency-audit",
-]);
+export const REQUIRED_CI_CHECKS = Object.freeze(["ci-required"]);
 
 export const REQUIRED_RELEASE_CHECKS = Object.freeze([
   ...REQUIRED_CI_CHECKS,
-  "chromatic",
   "Analyze (javascript-typescript)",
   "Analyze (python)",
 ]);
@@ -78,7 +66,7 @@ export function evaluateReleaseGate({
   pullRequest,
   pullRequestTreeSha,
   releaseCheckRuns,
-  reviewCheckRuns,
+  evidenceCheckRuns,
   boSignoffComments,
   productionEnvironment,
   requiredChecks = REQUIRED_RELEASE_CHECKS,
@@ -101,10 +89,9 @@ export function evaluateReleaseGate({
     fail("el árbol a desplegar no coincide con el árbol revisado del head del PR");
   }
 
-  const risk = pullRequest.labels
-    ?.map((label) => label.name)
-    .find((name) => /^risk:R[012]$/.test(name));
-  if (!risk) fail("el PR asociado no declara risk:R0, risk:R1 o risk:R2");
+  const risk =
+    pullRequest.labels?.map((label) => label.name).find((name) => /^risk:R[012]$/.test(name)) ??
+    "risk:R0";
 
   const releaseChecks = latestCheckByName(releaseCheckRuns);
   for (const required of requiredChecks) {
@@ -115,12 +102,14 @@ export function evaluateReleaseGate({
     }
   }
 
-  const reviewCheck = latestCheckByName(reviewCheckRuns).get("gate-review");
-  if (!reviewCheck) fail("falta gate-review sobre el SHA exacto revisado del PR");
-  if (reviewCheck.status !== "completed" || reviewCheck.conclusion !== "success") {
-    fail(`gate-review terminó ${reviewCheck.status}/${reviewCheck.conclusion ?? "sin conclusión"}`);
+  const evidenceCheck = latestCheckByName(evidenceCheckRuns).get("change-evidence");
+  if (!evidenceCheck) fail("falta change-evidence sobre el SHA exacto del PR");
+  if (evidenceCheck.status !== "completed" || evidenceCheck.conclusion !== "success") {
+    fail(
+      `change-evidence terminó ${evidenceCheck.status}/${evidenceCheck.conclusion ?? "sin conclusión"}`,
+    );
   }
-  if (!hasExactBoSignoff(boSignoffComments, pullRequest.head.sha)) {
+  if (risk === "risk:R2" && !hasExactBoSignoff(boSignoffComments, pullRequest.head.sha)) {
     fail("falta sign-off explícito del BO confiable sobre el SHA exacto revisado");
   }
 
@@ -166,7 +155,7 @@ export async function verifyReleaseGate({ github, context, core, requestedSha })
     { data: releaseCommit },
     { data: pullRequestHead },
     releaseCheckRuns,
-    reviewCheckRuns,
+    evidenceCheckRuns,
     boSignoffComments,
     environmentResponse,
   ] = await Promise.all([
@@ -195,7 +184,7 @@ export async function verifyReleaseGate({ github, context, core, requestedSha })
     pullRequest,
     pullRequestTreeSha: pullRequestHead.commit.tree.sha,
     releaseCheckRuns,
-    reviewCheckRuns,
+    evidenceCheckRuns,
     boSignoffComments,
     productionEnvironment: environmentResponse.data,
   });

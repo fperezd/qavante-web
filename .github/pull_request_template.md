@@ -1,21 +1,27 @@
-## Issue
+## Problema
 
-Closes #<numero-issue-c0>
+<!-- Issue o síntoma verificable. -->
 
-## Cambios
+## Cambio
 
-- [ ] Cambio 1
-- [ ] Cambio 2
+<!-- Scope mínimo y comportamiento nuevo. -->
 
-## Definition of Done aplicable
+## Risk
 
-- [ ] Sin `export const runtime = 'edge'` declarado (incompatible con @opennextjs/cloudflare)
-- [ ] Sin uso de any sin justificacion
-- [ ] Tests pasando localmente (npm test)
-- [ ] Lighthouse mobile >= 85 en rutas afectadas
-- [ ] Sin secrets en codigo
-- [ ] Documentacion actualizada si aplica
+<!-- R0 por defecto; usa risk:R2 si toca un path protegido. Explica R1/R2. -->
 
-## Screenshots / videos (si aplica)
+## Evidence
 
-## Notas para el reviewer
+<!-- Comandos/resultados. Expected vs observed. Invariantes si aplican. -->
+
+## Blast radius
+
+<!-- Áreas, datos, tenants, contratos o integraciones alcanzadas. -->
+
+## Rollback
+
+<!-- Revert, feature flag o procedimiento seguro. -->
+
+## Decisión humana requerida
+
+<!-- N/A por defecto. Para R2/irreversible: decisión exacta y momento. -->

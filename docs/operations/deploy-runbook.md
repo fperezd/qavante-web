@@ -6,15 +6,15 @@ el SHA completo del tip actual. El workflow valida de forma fail-closed que:
 
 - el SHA pertenece a un PR ya mergeado a `main` y su árbol coincide con el árbol
   revisado;
-- lint, QA, typecheck, unit, Storybook, build, E2E, Lighthouse, scans de
-  secretos/dependencias, CodeQL y Chromatic terminaron `success` para ese SHA
-  (missing/failure/cancelled/skipped bloquean);
-- `gate-review` terminó `success` sobre el head exacto del PR;
+- `ci-required` terminó `success` para ese SHA y, por tanto, todos los
+  checks aplicables por paths terminaron bien; CodeQL conserva sus checks;
+- `change-evidence` terminó `success` sobre el head exacto del PR;
 - `production` admite exclusivamente ramas protegidas;
-- `main` exige checks estrictos y actualizados, incluido `gate-review`, y los
+- `main` exige checks estrictos y actualizados, incluidos `ci-required`,
+  `change-evidence` y los checks CodeQL, y los
   aplica también a administradores como configuración operacional externa;
-- existe un sign-off explícito del BO confiable sobre el SHA exacto revisado,
-  además del pase adversarial que certifica `gate-review`.
+- para `risk:R2`, existe un sign-off explícito del BO confiable sobre el SHA
+  exacto. R0/R1 no añaden una aprobación ceremonial.
 
 El gate completo se vuelve a evaluar dentro del job de promoción, después del
 build. Justo antes de llamar a Wrangler se consulta otra vez el tip
@@ -53,8 +53,8 @@ En `Settings → Environments → production`:
    mantener `main` protegida.
 2. en la protección de `main`, exigir branches up to date (`strict`),
    `enforce_admins=true` y los checks
-   requeridos `lint`, `typecheck`, `test`, `build`, `e2e`, `lighthouse`,
-   `secrets-scan`, `dependency-audit` y `gate-review`, y aplicar la protección a
+   requeridos `ci-required`, `change-evidence`,
+   `Analyze (javascript-typescript)` y `Analyze (python)`, y aplicar la protección a
    administradores.
 3. crear `PRODUCTION_CLOUDFLARE_API_TOKEN` y
    `PRODUCTION_CLOUDFLARE_ACCOUNT_ID` **sólo** como secrets del environment
@@ -83,8 +83,8 @@ bo_signoff: APPROVED
 revisado: <SHA completo del head revisado>
 ```
 
-El release gate exige ese comentario de la cuenta BO confiable además de
-`gate-review` verde. La allowlist de BO vive en
+El release gate exige ese comentario de la cuenta BO confiable sólo para
+`risk:R2`; `change-evidence` cubre la evidencia mecánica de todo PR. La allowlist de BO vive en
 [`.github/release-gate.mjs`](../../.github/release-gate.mjs) y está cubierta por
 CODEOWNERS.
 
@@ -92,10 +92,10 @@ CODEOWNERS.
 ofrece native required reviewers ni la opción de desactivar el bypass de admins
 para environments. Por ello no se afirma una aprobación nativa de environment.
 Los controles compensatorios son la protección estricta y administrada de
-`main` (verificada operacionalmente, no reconsultada por el workflow), el pase
-adversarial, el sign-off BO anclado al SHA y la revalidación de SHA/árbol/CI
+`main` (verificada operacionalmente, no reconsultada por el workflow), la
+evidencia mecánica, el sign-off BO R2 anclado al SHA y la revalidación de SHA/árbol/CI
 antes y después de la espera del environment. Reducen el riesgo, pero no
-sustituyen una regla nativa de reviewer; migrar a Enterprise Cloud sigue siendo
+sustituyen una regla nativa de environment; migrar a Enterprise Cloud sigue siendo
 la mejora pendiente.
 
 ### Cierre de la migración de secrets (después del primer release gated)
@@ -109,7 +109,7 @@ podría intentar consumirlos quitando el environment de su propio YAML; por eso
 el cierre es obligatorio, pero hacerlo antes del merge rompería el workflow
 vigente.
 
-Para promover, después de CI + review + sign-off BO del PR:
+Para promover, después de CI + evidencia y, si es R2, sign-off BO del PR:
 
 ```bash
 git fetch origin main

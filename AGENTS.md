@@ -1,36 +1,39 @@
-# AGENTS.md — entrada portable de la Factory de `qavante-web`
+# AGENTS.md — Qavante Web
 
-Este repo adopta **TOOXS AI Factory Standard v1.0** con overlay específico de Qavante Web.
-Este archivo es la entrada portable para Codex, Claude, Gemini u otros agentes.
+## Principio operativo
 
-Antes de tocar código:
+Autonomía por defecto: implementa, valida y entrega el cambio sin pedir pasos humanos que puedan sustituirse por evidencia mecánica. Escala sólo ante una decisión irreversible, acceso/secretos, ambigüedad material de producto o finanzas, o falta de autoridad externa.
 
-1. Lee `docs/factory/FACTORY_POLICY.md`.
-2. Lee `docs/factory/PROJECT_POLICY.md`.
-3. Lee el Issue/PR que define el trabajo.
-4. Lee sólo ADRs, contratos y código relevantes al scope.
+No es obligatorio leer toda la política de Factory antes de trabajar. Parte del issue/PR y del código afectado; abre documentación especializada sólo cuando el cambio toca esa frontera.
 
 ## Source of truth
 
-1. código en `main`;
-2. CI/checks requeridos;
-3. contrato OpenAPI generado/consumido y configuración real;
-4. Issue/PR;
-5. ADR aceptado;
-6. documentación operativa vigente;
-7. documentación histórica.
+1. código y configuración en `main`;
+2. checks y contratos ejecutables;
+3. contrato OpenAPI versionado;
+4. issue/PR y ADR vigente;
+5. documentación operativa.
 
-## Ejecución por defecto
+## Flujo por defecto
 
-- 1 agente implementador activo por defecto.
-- Máximo 2 implementadores en paralelo sólo para tareas realmente independientes y aisladas por worktree/ownership.
-- No agent swarms.
-- R1/R2 requieren review independiente.
-- Modelo/razonamiento fuerte sólo cuando riesgo/complejidad lo justifique.
-- Tests focalizados en la sesión; suite completa, build, Lighthouse y demás gates donde CI los defina.
-- No implementar lógica financiera que pertenece al backend.
-- No inventar datos ni convertir silenciosamente monedas/estados faltantes.
+- Un agente implementador. Paraleliza sólo tareas independientes y aisladas.
+- Mantén el scope mínimo y corre tests focalizados; Docker local ejecuta las suites adicionales y publica estados `local-*` sobre el SHA exacto.
+- Deja en el PR evidencia reproducible, blast radius y rollback.
+- No exijas reviewer IA ni una segunda sesión por rutina.
+- Un fallo repetido una vez exige cambiar de estrategia o escalar; no entrar en loops.
 
-## Neutralidad de proveedor
+## Controles no negociables
 
-Codex, Claude u otro modelo son ejecutores reemplazables. Ninguna regla obligatoria debe depender exclusivamente de configuración de un proveedor.
+- No implementar lógica financiera que pertenece al backend ni inventar datos, monedas o estados.
+- Cambios de auth, secretos, contratos, dinero o producción requieren evidencia reforzada. Sólo las acciones destructivas irreversibles, nuevas credenciales/permisos o ambigüedad material se escalan.
+- Mantener `npm run contract:check`, build, seguridad, smoke/runtime verification y rollback cuando apliquen.
+- Nunca debilitar secretos, branch protection o producción para hacer pasar un cambio.
+
+## Contexto bajo demanda
+
+- Contrato API: `docs/contracts/README.md` y snapshot OpenAPI.
+- Deploy/producción: `docs/operations/deploy-runbook.md`.
+- Reglas especializadas e invariantes: `docs/factory/PROJECT_POLICY.md`.
+- Diseño general de la Factory: `docs/factory/FACTORY_POLICY.md`.
+
+Proveedor/modelo son reemplazables; ninguna regla crítica puede vivir sólo en un adapter.

@@ -1,97 +1,94 @@
-# FACTORY_POLICY.md — ley operativa de Qavante Web
+# Factory Policy — autonomía verificable
 
-Alineada a **TOOXS AI Factory Standard v1.0** el 2026-08-15. Aplica a humanos y agentes de cualquier proveedor.
+## 1. Principio
 
-Regla de oro: **el LLM es reemplazable; el sistema de ingeniería no.**
+La Factory optimiza para una persona aumentada por agentes:
 
-## 1. Source of truth
+**Autonomía por defecto**, con proveedor/modelo agnóstico y reemplazable.
 
-Orden de autoridad:
-1. código en `main`;
-2. CI/checks;
-3. contrato OpenAPI/configuración real;
-4. Issue/PR;
-5. ADR aceptado;
-6. documentación operativa vigente;
-7. documentación histórica.
+> máxima autonomía para lo reversible y verificable; intervención humana sólo por excepción.
 
-El antiguo prompt CC-WEB, Sprint C0 y documentos históricos no gobiernan trabajo actual salvo referencia explícita vigente.
+El camino normal es implementar, producir evidencia mecánica, integrar y verificar. Un reviewer IA, una segunda sesión o una aprobación ceremonial no son gates universales.
 
-## 2. Unidad de trabajo
+## 2. Contexto mínimo
 
-Todo cambio parte de un Issue/PR con objetivo, acceptance, scope, riesgo, dependencias y validación.
-Un PR = un propósito salvo excepción justificada.
+`AGENTS.md` es la entrada. Esta política y `PROJECT_POLICY.md` son contexto especializado bajo demanda; no se leen completos para todo cambio.
 
-## 3. Concurrencia IA
+La autoridad, en orden, es: código/configuración en `main`, checks y contratos ejecutables, issue/PR, ADR vigente y documentación operativa.
 
-- 1 implementador por defecto.
-- Máximo 2 en paralelo sólo con independencia real y worktrees/ownership aislados.
-- Estudios/documentación también consumen capacidad IA y cuentan para concurrencia.
-- No agent swarms.
-- No dos workers compartiendo el mismo working tree; una sesión no debe cambiarle la rama a otra.
+## 3. Ejecución
 
-## 4. Risk routing
+- Un implementador por defecto.
+- Tests focalizados durante la implementación; el ejecutor local corre en Docker los checks aplicables según paths y publica estados `local-*` sobre el SHA exacto.
+- Un reintento autónomo ante el mismo fallo. Después se cambia de estrategia o se escala.
+- No duplicar trabajo determinístico de CI con agentes adicionales.
+- Cada PR mantiene un propósito, evidencia reproducible, blast radius y rollback.
 
-### R0
-Docs, tests, tooling, typo, refactor sin cambio observable. Gate: CI → merge policy.
+## 4. Routing de riesgo
 
-### R1
-Bug/feature/UI normal. Gate: CI → review independiente → review humano breve → merge.
+### R0 — verificable y reversible
 
-### R2
-Semántica financiera visible, moneda, auth, secretos, contratos materiales, acción irreversible, seguridad o producción sensible.
-Gate: CI → review adversarial → invariantes → E2E/integration → dato real cuando corresponda → human gate → merge → prod verify.
+Documentación, refactors locales y cambios sin fronteras protegidas. Camino: evidencia mecánica → auto-merge cuando la configuración externa lo permita.
 
-Ante duda, subir riesgo.
+### R1 — impacto acotado
 
-## 5. Review independiente
+Cambios de comportamiento con tests y rollback claros. Camino: checks del área → merge autónomo si todo está verde.
 
-El implementador no certifica su propio R1/R2. Reviewer parte de Issue + acceptance + diff + contrato + evidencia.
-Veredicto: `PASS | FAIL | NEEDS_HUMAN`.
+### R2 — excepción protegida
 
-Review nuevo tras cambios materiales. No usar la conversación del implementador como fuente de verdad.
+Dinero/invariantes financieras, auth/tenant/RLS, secretos/permisos, migraciones destructivas, contrato incompatible, writes externos irreversibles, producción y cambio de los propios gates.
 
-## 6. Calidad y tests
+R2 se implementa, integra y despliega autónomamente cuando la operación es reversible y existe evidencia mecánica sobre el SHA/árbol/digest exactos. Producción y la protección de rama no requieren un checkpoint humano: requieren preflight, observación posterior y rollback probado.
 
-El agente ejecuta tests focalizados y changed-area validation. CI ejecuta la suite completa requerida, typecheck, lint, build, Storybook/E2E/Lighthouse y scans según workflows vigentes.
+La clasificación se valida mecánicamente por paths y labels. No declarar label equivale a R0 sólo cuando ningún path protegido exige R2.
 
-No repetir suites completas dentro de loops caros sólo para duplicar CI.
-Nunca se reduce cobertura, seguridad, contrato, review o prod verify para ahorrar uso IA.
+## 5. Evidencia en lugar de reviewer obligatorio
 
-## 7. Contexto
+El gate local `local-change-evidence` valida sobre el head del PR:
 
-Cargar mínimo contexto suficiente. Preferir búsqueda y archivos relevantes.
-No leer todo el repo, todos los ADRs ni documentos históricos por defecto.
-Reviewer recibe issue + diff + contratos + evidencia, no transcript completo.
+- clasificación de riesgo compatible con los paths;
+- secciones de evidencia y rollback para cambios materiales;
+- ausencia de contradicciones mecánicas obvias.
 
-## 8. Reintentos
+No certifica calidad subjetiva ni reemplaza tests. Ningún nivel de riesgo exige reviewer IA ni sign-off ceremonial cuando el cambio es reversible y los controles mecánicos aplicables están verdes.
 
-Un solo reintento automático por hallazgo. Una segunda falla exige cambiar enfoque o escalar; no loop.
+## 6. Controles no negociables
 
-## 9. Trabajo autónomo
+Nunca se relajan para ahorrar tiempo o tokens:
 
-Una sesión autónoma/nocturna recibe una prioridad explícita, un solo frente y un solo implementador por defecto. No expande automáticamente a otros READY ni hace trabajo especulativo.
+- contratos API y compatibilidad;
+- invariantes financieras y de tenant;
+- auth/security, secret scan y dependency audit aplicable;
+- build e integración de las áreas modificadas;
+- artefacto inmutable cuando corresponda;
+- smoke, health/runtime verification y rollback de producción;
+- trazabilidad entre PR, SHA, árbol y artefacto.
 
-## 10. Eficiencia y control financiero
+Un gate omitido por routing sólo es válido si el manifest local confirma que no aplicaba, no si falló o fue cancelado.
 
-### Capacidad incluida en suscripción
-Usarla eficientemente. No aplicar un tope monetario diario artificial sobre capacidad ya contratada.
+## 7. Producción
 
-### Uso incremental pagado
-Por defecto: sin compra automática, sin auto top-up, sin fallback a créditos pagados y sin sobreconsumo pagado sin autorización configurada del BO.
+Deploy exitoso no cierra el ciclo: `deploy → smoke → health/telemetry → PASS`. Ante fallo, rollback automático sólo cuando sea seguro; si no, escalamiento.
 
-Si se agota la capacidad incluida y no existe autorización incremental, se detiene el trabajo autónomo.
+Producción no se debilita para ganar autonomía. El release local vuelve a adquirir evidencia del SHA/árbol/digest exactos, conserva protección de secretos y credenciales, observa runtime y revierte automáticamente cuando sea seguro.
 
-### Model routing
-Usar la capacidad/razonamiento de menor costo que resuelva responsablemente la tarea. Reservar modelos/razonamiento fuertes para R2 o complejidad real, no para rutina.
+## 8. Escalamiento humano
 
-## 11. Reglas específicas de Qavante Web
+Escalar únicamente cuando se necesita una decisión o autoridad que el sistema no posee:
 
-Ver `PROJECT_POLICY.md`. Incluye OpenAPI tipado, runtime Cloudflare, data honesty, INV-FX-001, separación de lógica backend/frontend y seguridad cliente.
+1. operación irreversible o destructiva;
+2. ampliación de acceso, permisos o secretos;
+3. definición ambigua de una cifra o comportamiento material;
+4. cambio incompatible de contrato;
+5. gasto, credencial o acción externa no autorizada;
+Una operación R2 reversible, un cambio declarativo de branch protection o un deploy con rollback no son por sí solos causales de escalamiento.
 
-## 12. Enforcement
+CI local rojo, deuda de tests o documentación desalineada se corrigen; no son escalamiento por sí solos.
 
-Toda regla obligatoria que pueda ser mecánicamente verificada debe vivir en CI, branch protection, CODEOWNERS, tests, contracts o equivalente.
-Un check opcional rojo no es un gate real.
+## 9. Eficiencia
 
-La Factory nunca es dependencia de runtime del producto y R2 nunca se auto-mergea.
+Usar el modelo y contexto mínimos suficientes. No comprar capacidad incremental ni crear loops de agentes sin autorización. GitHub Actions permanece deshabilitado; se reutilizan imágenes y dependencias locales y se consolidan gates determinísticos.
+
+## 10. Enforcement
+
+Una regla obligatoria debe vivir en CI, tests, contratos, branch protection o release gates. La prosa explica; no simula enforcement. Si guard y documento difieren, se corrigen juntos en el mismo PR.

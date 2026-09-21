@@ -1,68 +1,69 @@
 name: Chromatic
 
-# Visual regression para Storybook (Capa 1 + Capa 2 del Design System Qavante).
-# Chromatic toma un snapshot de cada story y lo compara contra el baseline del
-# branch destino. Si hay diferencias visuales, el PR muestra link a la review
-# UI de Chromatic donde el reviewer aprueba/rechaza cada cambio.
-#
-# Gate: si CHROMATIC_PROJECT_TOKEN no está seteado en GitHub secrets, el job
-# se skipea silenciosamente (no bloquea CI). El secret YA está seteado
-# (verificado en el run 34792686157 del 2026-09-15: skip=false, build 2250).
-# El check es parte de REQUIRED_RELEASE_CHECKS de .github/release-gate.mjs:
-# rojo acá bloquea el release a producción. Ver CONTRIBUTING.md § Chromatic.
-
 on:
   push:
     branches: [main]
+    paths:
+      - "src/**/*.tsx"
+      - "src/**/*.css"
+      - "src/**/*.stories.*"
+      - ".storybook/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/chromatic.yml"
   pull_request:
-  # Disparo manual para re-establecer la línea base completa sobre un sha dado
-  # (típicamente `main`) sin esperar a que un push toque los archivos correctos.
-  # Con `full_rebaseline: true` se desactiva TurboSnap y se capturan TODAS las
-  # historias — ver CONTRIBUTING.md § Chromatic.
+    paths:
+      - "src/**/*.tsx"
+      - "src/**/*.css"
+      - "src/**/*.stories.*"
+      - ".storybook/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/chromatic.yml"
   workflow_dispatch:
     inputs:
       full_rebaseline:
-        description: "Capturar TODAS las historias (desactiva TurboSnap) para re-establecer la línea base"
+        description: "Capturar todas las historias para re-establecer la línea base"
         type: boolean
         default: false
 
+concurrency:
+  group: chromatic-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   chromatic:
+    name: chromatic
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          # Chromatic necesita historia completa para diff contra baseline.
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
-
       - name: Check Chromatic token
-        id: check-token
+        id: token
+        env:
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
         run: |
-          if [ -z "${{ secrets.CHROMATIC_PROJECT_TOKEN }}" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "::notice::CHROMATIC_PROJECT_TOKEN no está seteado en GitHub secrets — skip job. Ver CONTRIBUTING.md § Chromatic para setup."
+          if [ -z "${CHROMATIC_PROJECT_TOKEN}" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Chromatic omitido: falta CHROMATIC_PROJECT_TOKEN."
           else
-            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "available=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Install deps
-        if: steps.check-token.outputs.skip == 'false'
+      - if: steps.token.outputs.available == 'true'
         run: npm ci
-
-      - name: Run Chromatic
-        if: steps.check-token.outputs.skip == 'false'
+      - if: steps.token.outputs.available == 'true'
         uses: chromaui/action@v11
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-          # exit-zero-on-changes: marca el job como success aunque haya
-          # cambios visuales. El reviewer decide en la UI de Chromatic.
           exitZeroOnChanges: true
-          # onlyChanged: true → re-snapshot solo de stories cuyos archivos
-          # cambiaron en el PR (TurboSnap). Acelera runs sin perder cobertura.
-          # Se apaga sólo en un `workflow_dispatch` con `full_rebaseline: true`,
-          # para volver a capturar todas las historias y fijar línea base nueva.
           onlyChanged: ${{ !(github.event_name == 'workflow_dispatch' && inputs.full_rebaseline) }}

@@ -1,0 +1,66 @@
+name: change-evidence
+
+on:
+  pull_request:
+    types:
+      [
+        opened,
+        reopened,
+        synchronize,
+        edited,
+        labeled,
+        unlabeled,
+        ready_for_review,
+        converted_to_draft,
+      ]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: change-evidence-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    name: change-evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Evaluate mechanical evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import { evaluateChangeEvidence } from "./.github/change-evidence.mjs";
+
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+          let url = `${event.pull_request.url}/files?per_page=100`;
+          const files = [];
+
+          while (url) {
+            const response = await fetch(url, {
+              headers: {
+                Accept: "application/vnd.github+json",
+                Authorization: `Bearer ${process.env.GH_TOKEN}`,
+                "X-GitHub-Api-Version": "2022-11-28",
+              },
+            });
+            if (!response.ok) throw new Error(`No se pudieron leer los archivos del PR: ${response.status}`);
+            files.push(...(await response.json()).map((file) => file.filename));
+            const link = response.headers.get("link") || "";
+            url = link.match(/<([^>]+)>; rel="next"/)?.[1] || null;
+          }
+
+          const result = evaluateChangeEvidence({
+            labels: event.pull_request.labels.map((label) => label.name),
+            files,
+            body: event.pull_request.body || "",
+            draft: event.pull_request.draft,
+          });
+          console.log(JSON.stringify(result));
+          NODE

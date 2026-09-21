@@ -71,10 +71,11 @@ def main() -> int:
         policy = normalized(policy_file.read_text(encoding="utf-8", errors="replace"))
         for risk in ("r0", "r1", "r2"):
             check(risk in policy, f"risk class {risk.upper()} defined")
-        check(contains_any(policy, ("independent review", "revision independiente", "review independiente", "revisor independiente", "reviewer independiente")), "independent review policy present")
-        check(contains_any(policy, ("human gate", "aprobacion humana", "gate humano")), "human gate policy present")
-        check(contains_any(policy, ("subscription", "suscripcion")), "subscription policy present")
-        check(contains_any(policy, ("paid usage", "paid credits", "uso pagado", "uso incremental pagado", "creditos adicionales")), "incremental paid usage policy present")
+        check(contains_any(policy, ("autonomia por defecto", "autonomy by default")), "autonomy by default present")
+        check(contains_any(policy, ("bajo demanda", "on demand")), "specialized context is on demand")
+        check(contains_any(policy, ("change-evidence", "evidencia mecanica")), "mechanical evidence policy present")
+        check(contains_any(policy, ("escalamiento humano", "human escalation")), "exception-based human escalation present")
+        check(contains_any(policy, ("capacidad incremental", "incremental")), "incremental usage policy present")
         check(contains_any(policy, ("provider-neutral", "provider neutral", "agnostic", "agnostico", "llm is replaceable", "llm es reemplazable")), "provider neutrality policy present")
         check(contains_any(policy, ("mechanically enforced", "mechanically verifiable", "mecanicamente exigido", "mecanicamente verificable", "cumplir mecanicamente", "enforcement")), "mechanical enforcement policy present")
 

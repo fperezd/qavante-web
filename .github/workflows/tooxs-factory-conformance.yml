@@ -11,6 +11,9 @@ on:
       - ".github/workflows/deploy-cloudflare.yml"
       - ".github/release-gate.mjs"
       - ".github/release-gate.check.mjs"
+      - ".github/change-evidence.mjs"
+      - ".github/change-evidence.check.mjs"
+      - ".github/workflows/change-evidence.yml"
       - ".github/release/verify-runtime.mjs"
       - ".github/release/verify-runtime.check.mjs"
   push:
@@ -23,6 +26,9 @@ on:
       - ".github/workflows/deploy-cloudflare.yml"
       - ".github/release-gate.mjs"
       - ".github/release-gate.check.mjs"
+      - ".github/change-evidence.mjs"
+      - ".github/change-evidence.check.mjs"
+      - ".github/workflows/change-evidence.yml"
       - ".github/release/verify-runtime.mjs"
       - ".github/release/verify-runtime.check.mjs"
 
@@ -42,8 +48,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Validate Tooxs AI Factory Framework conformance
         run: python scripts/tooxs_factory_check.py --repo . --json
-      - name: Validate risk-routed review gate
-        run: node .github/gate-review.check.mjs
+      - name: Validate mechanical change evidence
+        run: node .github/change-evidence.check.mjs
       - name: Validate SHA-bound production release gate
         run: node .github/release-gate.check.mjs
       - name: Validate runtime provenance polling

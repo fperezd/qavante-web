@@ -1,15 +1,5 @@
-# CLAUDE.md — adapter de Claude para `qavante-web`
+# CLAUDE.md — adapter de Qavante Web
 
-Este archivo es deliberadamente mínimo. Claude no es la fuente de verdad de la Factory.
+Lee `AGENTS.md` y el issue/PR vigente. Carga contratos, ADRs o políticas especializadas sólo si el área modificada los requiere.
 
-Antes de tocar código:
-
-1. Lee `AGENTS.md`.
-2. Lee `docs/factory/FACTORY_POLICY.md`.
-3. Lee `docs/factory/PROJECT_POLICY.md`.
-4. Lee el Issue/PR vigente y sólo la documentación especializada relevante.
-
-GitHub, el contrato OpenAPI, el código actual y los gates determinísticos mandan sobre este adapter.
-Ninguna regla crítica puede existir únicamente aquí.
-
-No uses el antiguo Sprint C0 ni el Documento Maestro histórico como estado operacional actual salvo que el Issue/ADR vigente los cite expresamente.
+El código, los contratos versionados y los checks determinísticos mandan sobre este adapter. Ninguna regla crítica existe únicamente aquí.

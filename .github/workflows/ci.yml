@@ -3,25 +3,90 @@ name: CI
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
-  lint:
+  changes:
+    name: route changes
     runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.filter.outputs.app }}
+      contract: ${{ steps.filter.outputs.contract }}
+      visual: ${{ steps.filter.outputs.visual }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+      performance: ${{ steps.filter.outputs.performance }}
+      dependencies: ${{ steps.filter.outputs.dependencies }}
+      governance: ${{ steps.filter.outputs.governance }}
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
         with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: node scripts/install-playwright-ci.check.mjs
+          persist-credentials: false
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            app:
+              - 'src/**'
+              - 'tests/**'
+              - 'scripts/**'
+              - 'public/**'
+              - '*.config.*'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig.json'
+              - '.github/workflows/ci.yml'
+            contract:
+              - 'docs/contracts/**'
+              - 'src/lib/api/types.ts'
+              - 'scripts/openapi-snapshot.mjs'
+            visual:
+              - 'src/**/*.tsx'
+              - 'src/**/*.css'
+              - 'src/**/*.stories.*'
+              - '.storybook/**'
+              - 'public/**'
+              - 'package.json'
+              - 'package-lock.json'
+            e2e:
+              - 'src/**'
+              - 'tests/e2e/**'
+              - 'playwright*.ts'
+              - 'package.json'
+              - 'package-lock.json'
+            performance:
+              - 'src/**'
+              - 'public/**'
+              - 'next.config.ts'
+              - 'open-next.config.ts'
+              - '.lighthouserc.json'
+              - 'package.json'
+              - 'package-lock.json'
+            dependencies:
+              - 'package.json'
+              - 'package-lock.json'
+            governance:
+              - '.github/change-evidence.mjs'
+              - '.github/change-evidence.check.mjs'
+              - '.github/release-gate.mjs'
+              - '.github/release-gate.check.mjs'
+              - '.github/release/**'
+              - '.github/workflows/change-evidence.yml'
+              - '.github/workflows/tooxs-factory-conformance.yml'
+              - 'scripts/tooxs_factory_check.py'
+              - 'docs/factory/**'
 
-  qa-rediseno:
-    # Los criterios de aceptación del rediseño (ESPECIFICACION §5) que se pueden
-    # verificar leyendo el código. NO bloquea por los que hay que mirar en pantalla.
+  quality:
+    name: quality
+    needs: changes
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.contract == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -30,38 +95,22 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run qa:rediseno
-
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-
-  contract-drift:
-    # Gate mecánico del contrato (#298): src/lib/api/types.ts debe ser exactamente lo que
-    # openapi-typescript genera desde docs/contracts/openapi.snapshot.json (copia del productor
-    # qavante-api, con SHA de origen en openapi.snapshot.source.json). Falla si alguien editó
-    # types.ts a mano, cambió el snapshot sin regenerar o tocó el snapshot sin pasar por
-    # `npm run generate:api:sync`.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run contract:check
-      # contract:check ya regeneró types.ts; el árbol debe seguir limpio (criterio literal de #298).
-      - run: git diff --exit-code -- src/lib/api/types.ts
+      - name: Lint, static QA and types
+        run: |
+          npm run lint
+          npm run qa:rediseno
+          npm run typecheck
+          node scripts/install-playwright-ci.check.mjs
+      - name: Contract drift
+        if: needs.changes.outputs.contract == 'true'
+        run: |
+          npm run contract:check
+          git diff --exit-code -- src/lib/api/types.ts
 
   test:
+    name: unit coverage
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -72,7 +121,10 @@ jobs:
       - run: npm ci
       - run: npm run test:coverage
 
-  test-storybook:
+  storybook:
+    name: storybook
+    needs: changes
+    if: needs.changes.outputs.visual == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -81,13 +133,13 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # `chromium-headless-shell` es lo que @vitest/browser-playwright usa por
-      # default (no el chromium full). Si solo instalamos `chromium` el job
-      # falla con "Executable doesn't exist at chrome-headless-shell".
       - run: bash scripts/install-playwright-ci.sh chromium chromium-headless-shell
       - run: npm run test:storybook
 
   build:
+    name: build
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -97,10 +149,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Bundle size budget (Kit C0 DoD sec 5.2)
-        run: npm run size:check
+      - run: npm run size:check
 
   e2e:
+    name: e2e
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -110,12 +164,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: bash scripts/install-playwright-ci.sh chromium
-      # Suite normal: build OFF, flujos legacy y prueba explícita del kill switch.
       - run: npm run e2e
-      # Build/servidor ON separado: contrato MSW del Brief en las cinco rutas.
       - run: npm run e2e:decision-brief
 
   lighthouse:
+    name: lighthouse
+    needs: changes
+    if: needs.changes.outputs.performance == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -124,24 +179,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Build (Next.js production)
-        run: npm run build
-      - name: Lighthouse mobile (Kit C0 DoD sec 5.2 — /login + /credenciales >=85)
-        run: npm run lighthouse
-      - name: Upload Lighthouse report
-        if: always()
+      - run: npm run build
+      - run: npm run lighthouse
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lighthouseci
           path: .lighthouseci/
-          # `.lighthouseci` es un directorio-punto y actions/upload-artifact >=4.4 excluye los
-          # ocultos por defecto: sin esto, TODAS las corridas terminaban en "No files were found
-          # with the provided path" y no quedaba archivado un solo reporte. Por eso el umbral de
-          # /inicio se discutió dos veces de memoria en vez de con los LHR (#37).
           include-hidden-files: true
           retention-days: 7
 
   secrets-scan:
+    name: secrets-scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -154,11 +203,12 @@ jobs:
           curl -sSL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           tar -xzf gitleaks.tar.gz gitleaks
           sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
-          gitleaks version
       - run: gitleaks detect --no-banner --redact --verbose
 
   dependency-audit:
     name: dependency-audit
+    needs: changes
+    if: needs.changes.outputs.dependencies == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -167,7 +217,50 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci --ignore-scripts
-      # Critical advisories block immediately. High residuals are explicitly
-      # tracked in docs/security/dependency-risk-register.md and are not hidden
-      # by an automatic --force upgrade.
       - run: npm audit --audit-level=critical
+
+  governance:
+    name: governance guards
+    needs: changes
+    if: needs.changes.outputs.governance == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: node .github/change-evidence.check.mjs
+      - run: node .github/release-gate.check.mjs
+      - run: python scripts/tooxs_factory_check.py --repo . --json
+
+  required:
+    name: ci-required
+    if: always()
+    needs:
+      [
+        changes,
+        quality,
+        test,
+        storybook,
+        build,
+        e2e,
+        lighthouse,
+        secrets-scan,
+        dependency-audit,
+        governance,
+      ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every applicable job
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          node -e '
+            const needs = JSON.parse(process.env.NEEDS_JSON);
+            const bad = Object.entries(needs).filter(([, job]) => !["success", "skipped"].includes(job.result));
+            if (needs.changes.result !== "success" || needs["secrets-scan"].result !== "success" || bad.length) {
+              console.error("CI no concluyente:", bad.length ? bad : needs);
+              process.exit(1);
+            }
+            console.log("Todos los checks aplicables terminaron correctamente.");
+          '
