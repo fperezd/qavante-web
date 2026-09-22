@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GET, getReleaseMetadata } from "./route";
+import { GET } from "./route";
+import { getReleaseMetadata } from "@/lib/release-metadata";
 
 describe("release metadata", () => {
   afterEach(() => vi.unstubAllEnvs());

@@ -49,7 +49,14 @@ const PROTECTED_SUBPATHS = [
   "/gestion/pulso",
 ];
 
-const PUBLIC_PATHS = ["/", "/login", "/recuperar-clave", "/playground", "/aceptar-invitacion"];
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/login-correo",
+  "/recuperar-clave",
+  "/playground",
+  "/aceptar-invitacion",
+];
 
 test.describe("middleware: rutas protegidas (C0-13)", () => {
   test("el grupo (app) no está vacío (guarda contra un glob que no matchea nada)", () => {

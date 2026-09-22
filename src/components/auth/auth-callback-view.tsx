@@ -43,7 +43,7 @@ export function AuthCallbackView() {
       return;
     }
     if (!code || !state) {
-      setError("Falta el código de Auth0. Volvé a /login e intentá de nuevo.");
+      setError("Falta el código de Auth0. Volvé a /login-correo e intentá de nuevo.");
       return;
     }
 
@@ -61,7 +61,7 @@ export function AuthCallbackView() {
             window.location.assign(registro);
             return;
           }
-          setError(apiErrorToUserMessage(err, "login"));
+          setError(apiErrorToUserMessage(err, "login-correo"));
         } else {
           setError("No pudimos completar el login. Reintentá.");
         }
@@ -74,7 +74,7 @@ export function AuthCallbackView() {
       <div className="rounded-xl border border-danger-500/40 bg-danger-500/10 p-6 text-sm text-danger-500">
         <p role="alert">{error}</p>
         <p className="mt-4">
-          <Link href="/login" className="text-brand-primary hover:underline">
+          <Link href="/login-correo" className="text-brand-primary hover:underline">
             Volver al login
           </Link>
         </p>

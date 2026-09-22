@@ -75,7 +75,9 @@ export function BancosConectadosPanel() {
             <dl className="mt-2 grid gap-1 text-sm text-neutral-mid sm:grid-cols-2">
               <div className="flex justify-between gap-3 sm:justify-start sm:gap-2">
                 <dt>RUT</dt>
-                <dd className="font-medium text-neutral-dark">{row.holder_rut ?? "—"}</dd>
+                <dd className="font-medium text-neutral-dark">
+                  {row.holder_rut ?? "Sin información"}
+                </dd>
               </div>
               {row.holder_name ? (
                 <div className="flex justify-between gap-3 sm:justify-start sm:gap-2">

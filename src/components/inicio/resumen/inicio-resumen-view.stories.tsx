@@ -129,9 +129,9 @@ export const Celular: Story = {
       await verifyLayout(canvasElement, true);
       await page.viewport(390, 844);
       const lines = canvas.getByText("Ver todas las líneas (3)", { selector: "summary" });
-      await expect(canvas.getByText(/Santander · Cuenta 9988/)).not.toBeVisible();
+      await expect(canvas.getByText(/Santander · 9988 · USD/)).not.toBeVisible();
       await userEvent.click(lines);
-      await expect(canvas.getByText(/Santander · Cuenta 9988 · USD/)).toBeVisible();
+      await expect(canvas.getByText(/Santander · 9988 · USD/)).toBeVisible();
       await verifyLayout(canvasElement, true);
       await userEvent.click(lines);
       const accounts = canvas.getByText("Ver saldos por cuenta y fecha", { selector: "summary" });

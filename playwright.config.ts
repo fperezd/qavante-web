@@ -1,5 +1,8 @@
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { e2eBuildEnv } from "./playwright.e2e-env";
+
+const e2eGoogleFontMock = path.resolve("scripts/e2e-google-font-mock.cjs");
 
 /* Config Playwright para Sprint C0+. Dos projects:
    1. http — tests de request HTTP (sin browser engine), específicamente
@@ -55,7 +58,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run build && npm start -- -p 3100",
+    /* Webpack + mock de fuentes. Turbopack 16.3 no resuelve next/font/google
+       cuando la descarga falla, y ese fallo no se reintenta. */
+    command: "npx next build --webpack && npm start -- -p 3100",
     url: "http://localhost:3100/login",
     /* Nunca reusar un proceso local: de lo contrario un build ON previo puede
        volver verde falsamente el kill switch OFF. */
@@ -69,6 +74,7 @@ export default defineConfig({
     env: {
       // ON y OFF derivan del mismo set explícito; sólo el Brief cambia aquí.
       ...e2eBuildEnv(3100, false),
+      NEXT_FONT_GOOGLE_MOCKED_RESPONSES: e2eGoogleFontMock,
       NEXT_DIST_DIR: ".next-e2e-off",
     },
   },

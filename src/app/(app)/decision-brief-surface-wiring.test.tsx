@@ -139,7 +139,7 @@ describe("Cableado del Decision Brief en superficies financieras", () => {
   );
 
   it("Bandeja no muestra el Brief sin alcance por sociedad", async () => {
-    const html = renderToStaticMarkup(await BandejaPage());
+    const html = renderToStaticMarkup(await BandejaPage({ searchParams: Promise.resolve({}) }));
     expect(html).toContain("work-inbox");
     expect(html).toContain("bandeja-v07 secondary=false");
     expect(html).not.toContain('data-decision-brief-surface="bandeja"');

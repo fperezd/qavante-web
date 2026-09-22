@@ -14,10 +14,56 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
   });
 
-  it("401 en context login → copy específico 'Correo o clave incorrectos'", () => {
+  it("401 en context login → copy específico 'RUT o clave incorrectos'", () => {
     const err = new ApiError("unauthorized", 401);
     expect(apiErrorToUserMessage(err, "login")).toBe(
+      "RUT o clave incorrectos. Verifica tus datos.",
+    );
+  });
+
+  it("401 en context login-correo → copy específico 'Correo o clave incorrectos'", () => {
+    const err = new ApiError("unauthorized", 401);
+    expect(apiErrorToUserMessage(err, "login-correo")).toBe(
       "Correo o clave incorrectos. Verifica tus datos.",
+    );
+  });
+
+  it("OAuth y RUT usan el mensaje del servidor, o un respaldo si viene vacío", () => {
+    expect(apiErrorToUserMessage(new ApiError("", 404, "oauth_user_not_found"))).toBe(
+      "No hay una cuenta Qavante con ese correo. Registrate primero.",
+    );
+    expect(apiErrorToUserMessage(new ApiError("correo propio", 404, "oauth_user_not_found"))).toBe(
+      "correo propio",
+    );
+    expect(apiErrorToUserMessage(new ApiError("", 401, "oauth_pending_verification"))).toContain(
+      "confirmó el correo",
+    );
+    expect(apiErrorToUserMessage(new ApiError("", 400, "oauth_state_mismatch"))).toContain(
+      "Google o Microsoft",
+    );
+    expect(
+      apiErrorToUserMessage(new ApiError("falló el canje", 400, "oauth_exchange_failed")),
+    ).toBe("falló el canje");
+    expect(apiErrorToUserMessage(new ApiError("x", 503, "oauth_not_configured"))).toBe(
+      "Login con Google o Microsoft no está disponible en este ambiente.",
+    );
+    expect(apiErrorToUserMessage(new ApiError("", 409, "rut_taken"))).toBe(
+      "Ese RUT ya está en otra cuenta.",
+    );
+    expect(apiErrorToUserMessage(new ApiError("RUT ocupado", 409, "rut_taken"))).toBe(
+      "RUT ocupado",
+    );
+    expect(apiErrorToUserMessage(new ApiError("", 409, "rut_already_set"))).toBe(
+      "Esta cuenta ya tiene un RUT.",
+    );
+    expect(apiErrorToUserMessage(new ApiError("ya tiene", 409, "rut_already_set"))).toBe(
+      "ya tiene",
+    );
+  });
+
+  it("login-correo con un status distinto de 401 no usa el copy de correo", () => {
+    expect(apiErrorToUserMessage(new ApiError("forbidden", 403), "login-correo")).toBe(
+      "No tienes permisos para realizar esta acción.",
     );
   });
 
@@ -195,7 +241,7 @@ describe("apiErrorToUserMessage — mapping de Anexo C.3", () => {
     );
     // Gemelo positivo con el MISMO contexto: con 401 sí aparece el copy de credenciales.
     expect(apiErrorToUserMessage(new ApiError("unauthorized", 401), "login")).toBe(
-      "Correo o clave incorrectos. Verifica tus datos.",
+      "RUT o clave incorrectos. Verifica tus datos.",
     );
   });
 

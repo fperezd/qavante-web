@@ -19,7 +19,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Formulario de login. Primero Google/Microsoft, luego correo + clave. Validación con zod: email + clave ≥6. Toggle de visibilidad de clave, textos a recuperar clave (`/recuperar-clave`) y registro (`/registro`), y mapeo de error de submit vía apiErrorToUserMessage. En éxito redirige a `?redirect` o `/inicio`.",
+          "Formulario de login por RUT. Validación con zod: RUT chileno + clave ≥6. Toggle de visibilidad de clave, enlace a recuperar clave (`/recuperar-clave`) y mapeo de error de submit vía apiErrorToUserMessage. En éxito redirige a `?redirect` o `/inicio`. El login por correo y OAuth vive en `/login-correo`.",
       },
     },
   },

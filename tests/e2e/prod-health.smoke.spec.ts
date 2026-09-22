@@ -50,7 +50,7 @@ test.describe("prod smoke — FE alive (browser)", () => {
     // Selectores semánticos (labels + role) — independientes de la implementación
     // del wrapper QavanteInput o de si react-hook-form expone `name` al DOM.
     // exact:true en "Clave" evita match con el aria-label "Mostrar clave" del botón ojo.
-    await expect(page.getByLabel("Correo", { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel("RUT", { exact: true })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByLabel("Clave", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Iniciar sesión", exact: true })).toBeVisible();
   });

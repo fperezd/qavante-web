@@ -12,7 +12,7 @@ export default async function ConciliacionPage({
   searchParams,
 }: {
   searchParams: Promise<{ legal_entity_id?: string }>;
-} = { searchParams: Promise.resolve({}) }) {
+}) {
   const { reconciliationReview, bandejaV07 } = resolveFeatureFlags();
   const { legal_entity_id } = await searchParams;
 

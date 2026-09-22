@@ -6,7 +6,7 @@ import { fallbackUserMessage, renderUserMessage } from "./user-message";
    El contexto permite ajustar el copy: e.g. en login 401 no es
    "sesión expiró" sino "credenciales incorrectas". */
 
-export type ErrorContext = "general" | "login";
+export type ErrorContext = "general" | "login" | "login-correo";
 
 export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "general"): string {
   if (err.code === "oauth_user_not_found") {
@@ -38,6 +38,9 @@ export function apiErrorToUserMessage(err: ApiError, context: ErrorContext = "ge
   }
 
   if (context === "login" && err.status === 401) {
+    return "RUT o clave incorrectos. Verifica tus datos.";
+  }
+  if (context === "login-correo" && err.status === 401) {
     return "Correo o clave incorrectos. Verifica tus datos.";
   }
 

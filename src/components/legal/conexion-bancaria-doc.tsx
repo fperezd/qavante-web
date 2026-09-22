@@ -298,7 +298,7 @@ export function ConexionBancariaLegalDoc() {
 
         <h3 className="text-lg font-semibold">3.1. Contacto</h3>
         <p>
-          Qavante SpA — Delegado de protección de datos / responsable de privacidad
+          Qavante SpA · Delegado de protección de datos / responsable de privacidad
           <br />
           Correo: privacidad@qavante.com
           <br />
