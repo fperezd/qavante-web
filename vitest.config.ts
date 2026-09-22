@@ -70,6 +70,9 @@ export default defineConfig({
         oxc: { jsx: { runtime: "automatic" } },
         test: {
           name: "unit",
+          // El suite local ejecuta I/O real (CLI guards y round-trips XLSX). 5 s es
+          // insuficiente bajo la contención legítima de Docker; conserva un límite finito.
+          testTimeout: 30_000,
           exclude: ["**/node_modules/**", "**/.next/**", "tests/e2e/**", "**/*.stories.tsx"],
           setupFiles: ["./src/test/msw/vitest.setup.ts"],
         },

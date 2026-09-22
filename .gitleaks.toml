@@ -1,0 +1,5 @@
+# La coincidencia corresponde a una clave de caché React Query, no a una credencial.
+# Se permite sólo en el commit histórico identificado, sin suprimir coincidencias futuras.
+[[allowlists]]
+description = "False positive in SII React Query cache key"
+commits = ["03a6184485a5ad5df7bd289192207cd7a4525d44"]

@@ -110,5 +110,8 @@
     "workerDirectory": [
       "public"
     ]
+  },
+  "overrides": {
+    "uuid": "11.1.1"
   }
 }
