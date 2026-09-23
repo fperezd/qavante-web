@@ -163,9 +163,10 @@ test.describe("Decision Brief canónico en las cuatro superficies financieras", 
       }
 
       await page.goto("/bandeja", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("button", { name: /Empresa activa:/ })).toBeVisible();
       await expect(
         page.getByRole("combobox", { name: "Seleccionar sociedad de la Bandeja" }),
-      ).toBeVisible();
+      ).toHaveCount(0);
       await expect(page.getByRole("heading", { name: /pendientes/ })).toBeVisible();
       await expect(page.locator('[data-decision-brief-surface="bandeja"]')).toHaveCount(0);
       await expect(page.getByTestId("cash-decision-brief")).toHaveCount(0);

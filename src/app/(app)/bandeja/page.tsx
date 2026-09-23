@@ -8,20 +8,18 @@ import { resolveFeatureFlags } from "@/lib/feature-flags";
  * Inicio y Caja son la entrada a la lectura financiera; Bandeja conserva la cola viva de auditoría
  * cuando V07 está habilitada. Con el flag apagado, la landing no inventa conteos ni estados.
  */
-type BandejaSearchParams = Promise<{
-  tab?: string;
-  movimiento?: string;
-  legal_entity_id?: string;
-}>;
-
-export default async function BandejaPage({ searchParams }: { searchParams: BandejaSearchParams }) {
+export default async function BandejaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; movimiento?: string }>;
+}) {
   const { bandejaV07 } = resolveFeatureFlags();
   const params = await searchParams;
   const tabInicial = params.tab === "clasificar" ? "clasificar" : "conciliar";
 
   if (bandejaV07) {
     return (
-      <BandejaScope initialLegalEntityId={params.legal_entity_id}>
+      <BandejaScope>
         <WorkInboxSummary />
         <BandejaV07Live tabInicial={tabInicial} movimientoInicial={params.movimiento} />
       </BandejaScope>
@@ -29,7 +27,7 @@ export default async function BandejaPage({ searchParams }: { searchParams: Band
   }
 
   return (
-    <BandejaScope initialLegalEntityId={params.legal_entity_id}>
+    <BandejaScope>
       <WorkInboxSummary />
       <BandejaAuditLanding embedded />
     </BandejaScope>

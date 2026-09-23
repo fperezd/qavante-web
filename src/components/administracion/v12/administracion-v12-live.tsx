@@ -1,7 +1,7 @@
 "use client";
 
 import { useSourcesStatus } from "@/lib/api/sources-status";
-import { useMyTenants } from "@/lib/api/tenants";
+import { useLegalEntities } from "@/lib/api/legal-entities";
 import { useUsers } from "@/lib/api/users";
 import {
   useClassificationRules,
@@ -40,7 +40,7 @@ export interface AdministracionV12LiveProps {
 
 export function AdministracionV12Live({ mcp }: AdministracionV12LiveProps) {
   const sourcesQuery = useSourcesStatus();
-  const tenantsQuery = useMyTenants();
+  const companiesQuery = useLegalEntities();
   const usersQuery = useUsers();
   const rulesQuery = useClassificationRules();
   const rules = rulesQuery.data?.items ?? [];
@@ -80,9 +80,9 @@ export function AdministracionV12Live({ mcp }: AdministracionV12LiveProps) {
       isError: sourcesQuery.isError,
     }),
     empresas: cargaDeQuery({
-      data: tenantsQuery.data?.tenants.length,
-      isLoading: tenantsQuery.isLoading,
-      isError: tenantsQuery.isError,
+      data: companiesQuery.data?.entities.length,
+      isLoading: companiesQuery.isLoading,
+      isError: companiesQuery.isError,
     }),
     usuarios: cargaDeQuery({
       data: usersQuery.data?.total,

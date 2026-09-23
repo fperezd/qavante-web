@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { AppHeader } from "@/components/shell/header";
 import { Breadcrumbs } from "@/components/shell/breadcrumbs";
 import { SkipLink } from "@/components/shell/skip-link";
+import { CompanyScopeProvider } from "@/components/shell/company-scope";
 import type { UserRole } from "@/lib/auth/types";
 
 const CommandPalette = dynamic(() =>
@@ -77,51 +78,53 @@ export function AppShell({
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <SkipLink />
-      <AppHeader
-        onMenuClick={() => setSidebarOpen(true)}
-        onOpenSearch={() => setPaletteOpen(true)}
-        syncStatusEnabled={syncStatusEnabled}
-        decisionBriefEnabled={decisionBriefEnabled}
-      />
+    <CompanyScopeProvider>
+      <div className="min-h-screen bg-background">
+        <SkipLink />
+        <AppHeader
+          onMenuClick={() => setSidebarOpen(true)}
+          onOpenSearch={() => setPaletteOpen(true)}
+          syncStatusEnabled={syncStatusEnabled}
+          decisionBriefEnabled={decisionBriefEnabled}
+        />
 
-      <div className="flex">
-        {sidebarOpen || desktopSidebar ? (
-          <AppSidebar
-            mobileOpen={sidebarOpen}
-            onCloseMobile={() => setSidebarOpen(false)}
-            userRole={userRole}
-            remuneracionesEnabled={remuneracionesEnabled}
-            bancoEnabled={bancoEnabled}
-            bandejaEnabled={bandejaEnabled}
-            presupuestoEnabled={presupuestoEnabled}
-            financiamientoEnabled={financiamientoEnabled}
-            simuladorEnabled={simuladorEnabled}
-          />
-        ) : (
-          <aside
-            aria-label="Navegación principal"
-            className="fixed inset-y-0 left-0 z-40 w-60 -translate-x-full border-r border-border bg-surface md:sticky md:top-14 md:z-10 md:h-[calc(100vh-3.5rem)] md:translate-x-0"
-          />
-        )}
+        <div className="flex">
+          {sidebarOpen || desktopSidebar ? (
+            <AppSidebar
+              mobileOpen={sidebarOpen}
+              onCloseMobile={() => setSidebarOpen(false)}
+              userRole={userRole}
+              remuneracionesEnabled={remuneracionesEnabled}
+              bancoEnabled={bancoEnabled}
+              bandejaEnabled={bandejaEnabled}
+              presupuestoEnabled={presupuestoEnabled}
+              financiamientoEnabled={financiamientoEnabled}
+              simuladorEnabled={simuladorEnabled}
+            />
+          ) : (
+            <aside
+              aria-label="Navegación principal"
+              className="fixed inset-y-0 left-0 z-40 w-60 -translate-x-full border-r border-border bg-surface md:sticky md:top-14 md:z-10 md:h-[calc(100vh-3.5rem)] md:translate-x-0"
+            />
+          )}
 
-        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
-          <div className="mx-auto max-w-[1440px] space-y-6 p-6 md:p-8">
-            <Breadcrumbs />
-            {children}
-          </div>
-        </main>
-      </div>
+          <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
+            <div className="mx-auto max-w-[1440px] space-y-6 p-6 md:p-8">
+              <Breadcrumbs />
+              {children}
+            </div>
+          </main>
+        </div>
 
-      {paletteOpen ? (
-        <CommandPalette open onOpenChange={setPaletteOpen} userRole={userRole} />
-      ) : null}
+        {paletteOpen ? (
+          <CommandPalette open onOpenChange={setPaletteOpen} userRole={userRole} />
+        ) : null}
 
-      {/* Sin el flag `assistant` (endpoint /api/assistant/chat todavía no existe) NO montamos el FAB:
+        {/* Sin el flag `assistant` (endpoint /api/assistant/chat todavía no existe) NO montamos el FAB:
           antes se mostraba `AssistantTrigger`, un botón prominente "Preguntar a Qavante" que no hacía
           nada al clic (ni ⌘J wired) → trust-killer. Vuelve cuando el backend exponga el chat. */}
-      {assistantEnabled ? <Assistant /> : null}
-    </div>
+        {assistantEnabled ? <Assistant /> : null}
+      </div>
+    </CompanyScopeProvider>
   );
 }

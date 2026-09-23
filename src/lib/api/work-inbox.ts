@@ -19,6 +19,7 @@ export function useWorkInbox(legalEntityId: string | null) {
     queryFn: () =>
       api.get<WorkInboxResponse>(
         `/api/treasury/work-inbox?legal_entity_id=${encodeURIComponent(legalEntityId!)}`,
+        { headers: { "X-Qavante-Company-Id": legalEntityId! } },
       ),
     enabled: Boolean(legalEntityId),
     staleTime: 30_000,

@@ -21,13 +21,63 @@ import { ApiError } from "./errors";
 const BASE = "http://api.test";
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   server.resetHandlers();
 });
+
+function installCompanyStorage(companyId: string) {
+  const values = new Map<string, string>([["qavante.active-company-id", companyId]]);
+  vi.stubGlobal("window", {
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    },
+  });
+}
 
 describe("api — respuestas OK", () => {
   it("GET parsea JSON del backend", async () => {
     server.use(http.get(`${BASE}/api/ping`, () => HttpResponse.json({ ok: true })));
     await expect(api.get<{ ok: boolean }>("/api/ping")).resolves.toEqual({ ok: true });
+  });
+
+  it("propaga la Empresa activa en las requests operativas", async () => {
+    installCompanyStorage("company-123");
+    server.use(
+      http.get(`${BASE}/api/cash`, ({ request }) => {
+        expect(request.headers.get("x-qavante-company-id")).toBe("company-123");
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+    await expect(api.get("/api/cash")).resolves.toEqual({ ok: true });
+  });
+
+  it("prioriza la Empresa explicita de la consulta sobre un valor persistido anterior", async () => {
+    installCompanyStorage("company-old");
+    server.use(
+      http.get(`${BASE}/api/treasury/work-inbox`, ({ request }) => {
+        expect(request.headers.get("x-qavante-company-id")).toBe("company-current");
+        expect(new URL(request.url).searchParams.get("legal_entity_id")).toBe("company-current");
+        return HttpResponse.json({ queues: [] });
+      }),
+    );
+    await expect(
+      api.get("/api/treasury/work-inbox?legal_entity_id=company-current", {
+        headers: { "X-Qavante-Company-Id": "company-current" },
+      }),
+    ).resolves.toEqual({ queues: [] });
+  });
+
+  it("no deja que una Empresa persistida bloquee la lista del selector", async () => {
+    installCompanyStorage("company-from-another-tenant");
+    server.use(
+      http.get(`${BASE}/api/legal-entities`, ({ request }) => {
+        expect(request.headers.get("x-qavante-company-id")).toBeNull();
+        return HttpResponse.json({ entities: [] });
+      }),
+    );
+    await expect(api.get("/api/legal-entities")).resolves.toEqual({ entities: [] });
   });
 
   it("204 No Content resuelve a undefined", async () => {

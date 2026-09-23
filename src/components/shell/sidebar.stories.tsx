@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { http, HttpResponse } from "msw";
 import { fn } from "storybook/test";
+import { CompanyScopeProvider } from "./company-scope";
 import { AppSidebar } from "./sidebar";
 
 /* AppSidebar — navegación principal. Filtra el módulo Administración por
@@ -12,6 +14,15 @@ const meta = {
   parameters: {
     layout: "fullscreen",
     nextjs: { appDirectory: true, navigation: { pathname: "/inicio" } },
+    msw: {
+      handlers: [
+        http.get("*/api/legal-entities", () =>
+          HttpResponse.json({
+            entities: [{ id: "e_tooxs", legal_name: "Tooxs Digital SpA", is_default: true }],
+          }),
+        ),
+      ],
+    },
     docs: {
       description: {
         component:
@@ -21,9 +32,11 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className="flex min-h-[560px]">
-        <Story />
-      </div>
+      <CompanyScopeProvider>
+        <div className="flex min-h-[560px]">
+          <Story />
+        </div>
+      </CompanyScopeProvider>
     ),
   ],
   args: {

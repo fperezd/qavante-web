@@ -5,7 +5,7 @@ import { AdministracionV12Live } from "./administracion-v12-live";
 
 /* V12 · Administración — el hub CABLEADO (`AdministracionV12Live`), no sólo la vista pura.
  *
- * Hallazgo de revisión (PR #95): mientras `/api/sources/status`, `/api/me/tenants` y
+ * Hallazgo de revisión (PR #95): mientras `/api/sources/status`, `/api/legal-entities` y
  * `/api/users` están en vuelo, las TRES filas que sí calculan estado (Credenciales, Empresas,
  * Usuarios) se veían IDÉNTICAS a las 6 filas con hueco declarado (celda en blanco) — Ley 8 lo
  * prohíbe: "Cargando…' infinito prohibido" es sobre el TEXTO que falta, no sobre confundir "está
@@ -14,7 +14,7 @@ import { AdministracionV12Live } from "./administracion-v12-live";
  * otras dos (mismo criterio que el docstring de `AdministracionV12Live`). */
 
 const SOURCES_PATH = "*/api/sources/status";
-const TENANTS_PATH = "*/api/me/tenants";
+const COMPANIES_PATH = "*/api/legal-entities";
 const USERS_PATH = "*/api/users";
 const RULES_PATH = "*/api/treasury/classification-rules";
 const USAGE_PATH = "*/api/treasury/classification-rules/:ruleId/usage";
@@ -30,32 +30,28 @@ const SOURCES_ERROR = http.get(SOURCES_PATH, () =>
   HttpResponse.json({ code: "internal_error", detail: "no disponible" }, { status: 500 }),
 );
 
-const TENANTS_OK = http.get(TENANTS_PATH, () =>
+const COMPANIES_OK = http.get(COMPANIES_PATH, () =>
   HttpResponse.json(
     {
-      tenants: [
+      entities: [
         {
-          id: "t1",
-          slug: "tooxs",
+          id: "e1",
           legal_name: "Tooxs Digital SpA",
-          role: "owner",
-          is_active: true,
+          is_default: true,
         },
         {
-          id: "t2",
-          slug: "otra",
+          id: "e2",
           legal_name: "Otra Empresa Ltda",
-          role: "admin",
-          is_active: false,
+          is_default: false,
         },
       ],
     },
     { status: 200 },
   ),
 );
-const TENANTS_CARGANDO = http.get(TENANTS_PATH, async () => {
+const COMPANIES_CARGANDO = http.get(COMPANIES_PATH, async () => {
   await delay("infinite");
-  return HttpResponse.json({ tenants: [] }, { status: 200 });
+  return HttpResponse.json({ entities: [] }, { status: 200 });
 });
 
 const USERS_OK = http.get(USERS_PATH, () =>
@@ -133,7 +129,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Normal: Story = {
   name: "Las tres fuentes responden",
-  parameters: { msw: { handlers: [SOURCES_OK, TENANTS_OK, USERS_OK, RULES_OK, USAGE_OK] } },
+  parameters: { msw: { handlers: [SOURCES_OK, COMPANIES_OK, USERS_OK, RULES_OK, USAGE_OK] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText("2 empresas")).toBeInTheDocument();
@@ -151,7 +147,7 @@ export const Normal: Story = {
 export const Cargando: Story = {
   name: "Las tres en vuelo · NO se ven como las filas sin hueco (hueco ≠ cargando)",
   parameters: {
-    msw: { handlers: [SOURCES_CARGANDO, TENANTS_CARGANDO, USERS_CARGANDO, RULES_OK, USAGE_OK] },
+    msw: { handlers: [SOURCES_CARGANDO, COMPANIES_CARGANDO, USERS_CARGANDO, RULES_OK, USAGE_OK] },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -172,7 +168,7 @@ export const Cargando: Story = {
 export const UnaFuenteCaida: Story = {
   name: "Fuentes cae (500) · Empresas y Usuarios NO se tumban con ella",
   parameters: {
-    msw: { handlers: [SOURCES_ERROR, TENANTS_OK, USERS_OK, RULES_OK, USAGE_OK] },
+    msw: { handlers: [SOURCES_ERROR, COMPANIES_OK, USERS_OK, RULES_OK, USAGE_OK] },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -187,7 +183,7 @@ export const UnaFuenteCaida: Story = {
 export const ReglasCargando: Story = {
   name: "La lista de reglas está en vuelo",
   parameters: {
-    msw: { handlers: [SOURCES_OK, TENANTS_OK, USERS_OK, RULES_CARGANDO] },
+    msw: { handlers: [SOURCES_OK, COMPANIES_OK, USERS_OK, RULES_CARGANDO] },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -199,7 +195,7 @@ export const ReglasCargando: Story = {
 export const UsoDeReglaCaido: Story = {
   name: "Una métrica de uso falla",
   parameters: {
-    msw: { handlers: [SOURCES_OK, TENANTS_OK, USERS_OK, RULES_OK, USAGE_ERROR] },
+    msw: { handlers: [SOURCES_OK, COMPANIES_OK, USERS_OK, RULES_OK, USAGE_ERROR] },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

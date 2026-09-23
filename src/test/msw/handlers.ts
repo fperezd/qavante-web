@@ -68,6 +68,11 @@ const meTenantsState: Array<{
   },
 ];
 
+const legalEntitiesState = [
+  { id: "e_tooxs", legal_name: "Tooxs Digital SpA", is_default: true },
+  { id: "e_demo", legal_name: "Tooxs Operaciones SpA", is_default: false },
+];
+
 export const authHandlers = [
   http.post("*/api/auth/login", async ({ request }) => {
     const body = (await request.json()) as { rut?: string; email?: string; password?: string };
@@ -147,7 +152,36 @@ export const authHandlers = [
     });
   }),
 
-  /* N:M multi-empresa (ADR-0049): listar / crear / cambiar empresa activa. */
+  http.get("*/api/legal-entities", () =>
+    HttpResponse.json({ entities: legalEntitiesState }, { status: 200 }),
+  ),
+
+  http.post("*/api/legal-entities", async ({ request }) => {
+    const body = (await request.json()) as { legal_name?: string };
+    if (!body.legal_name?.trim()) {
+      return HttpResponse.json(errorBody("validation_error", "legal_name requerido."), {
+        status: 422,
+      });
+    }
+    const entity = {
+      id: `e_new_${legalEntitiesState.length + 1}`,
+      legal_name: body.legal_name.trim(),
+      is_default: false,
+    };
+    legalEntitiesState.push(entity);
+    return HttpResponse.json(entity, { status: 201 });
+  }),
+
+  http.patch("*/api/legal-entities/:entityId", async ({ params, request }) => {
+    const body = (await request.json()) as { legal_name?: string };
+    const entity = legalEntitiesState.find((item) => item.id === params.entityId);
+    if (!entity)
+      return HttpResponse.json(errorBody("not_found", "Empresa no encontrada."), { status: 404 });
+    if (body.legal_name?.trim()) entity.legal_name = body.legal_name.trim();
+    return HttpResponse.json(entity, { status: 200 });
+  }),
+
+  /* N:M multi-empresa (ADR-0049): rutas legacy internas de tenant. */
   http.get("*/api/me/tenants", () =>
     HttpResponse.json({ tenants: meTenantsState }, { status: 200 }),
   ),
@@ -5050,21 +5084,14 @@ const activityHandlers = [
   ),
 ];
 
-const INBOX_ENTITY_A = "11111111-1111-4111-8111-111111111111";
-const INBOX_ENTITY_B = "22222222-2222-4222-8222-222222222222";
+const INBOX_ENTITY_A = "e_tooxs";
+const INBOX_ENTITY_B = "e_demo";
 
 export const workInboxHandlers = [
-  http.get("*/api/legal-entities", () =>
-    HttpResponse.json({
-      entities: [
-        { id: INBOX_ENTITY_A, legal_name: "Sociedad Alfa SpA", is_default: true },
-        { id: INBOX_ENTITY_B, legal_name: "Sociedad Beta SpA", is_default: false },
-      ],
-    }),
-  ),
   http.get("*/api/treasury/work-inbox", ({ request }) => {
-    const entity = new URL(request.url).searchParams.get("legal_entity_id");
-    if (entity !== INBOX_ENTITY_A && entity !== INBOX_ENTITY_B) {
+    const entity = request.headers.get("x-qavante-company-id");
+    const requestedEntity = new URL(request.url).searchParams.get("legal_entity_id");
+    if ((entity !== INBOX_ENTITY_A && entity !== INBOX_ENTITY_B) || requestedEntity !== entity) {
       return HttpResponse.json(
         { detail: { code: "scope_mismatch:legal_entity" } },
         { status: 404 },
@@ -5074,7 +5101,7 @@ export const workInboxHandlers = [
     const id = beta
       ? "22222222-2222-4222-8222-222222222223"
       : "11111111-1111-4111-8111-111111111112";
-    const href = `/documentos/receivable/${id}?legal_entity_id=${entity}`;
+    const href = `/documentos/receivable/${id}`;
     const item = {
       id,
       title: beta ? "Cobro Beta" : "Cobro Alfa",
@@ -5094,7 +5121,7 @@ export const workInboxHandlers = [
         classification: "Clasificar",
       }[kind],
       action_label: "Abrir siguiente documento",
-      href: kind === "receivables" ? href : `/bandeja?legal_entity_id=${entity}`,
+      href: kind === "receivables" ? href : "/bandeja",
       count: kind === "receivables" ? 1 : 0,
       amounts: kind === "receivables" ? [{ currency: item.currency, amount: item.amount }] : [],
       data_state: kind === "receivables" ? "available" : "partial",

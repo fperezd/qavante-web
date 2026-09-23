@@ -8,19 +8,14 @@ import { AliasesAprendidosLive } from "@/components/caja/conciliacion/aliases-ap
 /* Cola de conciliación (ADR-0036/0042). Server Component: resuelve el flag `reconciliationReview`
    (default OFF — ADR-0008). Sin `export const runtime` (regla 4). El motor auto-aplica los matches
    con score >=90 y deja los 60-90 acá, de a 1 clic. Flag OFF → FeatureUnavailableState. */
-export default async function ConciliacionPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ legal_entity_id?: string }>;
-}) {
+export default function ConciliacionPage() {
   const { reconciliationReview, bandejaV07 } = resolveFeatureFlags();
-  const { legal_entity_id } = await searchParams;
 
   /* Igual que /caja/por-clasificar: los enlaces y marcadores históricos entran a la experiencia
      nueva sin perder su intención de conciliar. Apagar Bandeja conserva el rollback clásico. */
   if (bandejaV07) {
     return (
-      <BandejaScope initialLegalEntityId={legal_entity_id}>
+      <BandejaScope>
         <BandejaV07Live tabInicial="conciliar" />
       </BandejaScope>
     );

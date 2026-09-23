@@ -19,6 +19,10 @@ const consulta = <T,>(data: T) => ({
   refetch: arnes.refetch,
 });
 
+vi.mock("@/components/bandeja/bandeja-scope", () => ({
+  useBandejaLegalEntityId: () => "company-1",
+}));
+
 vi.mock("./bandeja-v07-view", () => ({
   BandejaV07View: (props: BandejaV07ViewProps) => {
     arnes.vistaProps = props;

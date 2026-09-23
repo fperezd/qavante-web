@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowRight, Building2, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { QavanteCard, QavanteInlineError } from "@/components/qavante";
+import { useCompanyScope } from "@/components/shell/company-scope";
 import { useCashProjectionRun, scenarioFromRun } from "@/lib/api/cash-projection-runs";
-import { useLegalEntities } from "@/lib/api/legal-entities";
 import { formatMoneyFromDecimalString } from "@/lib/formatters/clp";
 import { formatDateLong } from "@/lib/formatters/date";
 
@@ -27,24 +27,13 @@ function isNegative(amount: string | undefined) {
 
 export default function DecisionesPage() {
   const [horizon, setHorizon] = useState<(typeof HORIZONS)[number]>(14);
-  const companies = useLegalEntities();
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (selectedCompanyId || !companies.data?.entities.length) return;
-    setSelectedCompanyId(
-      companies.data.entities.find((company) => company.is_default)?.id ??
-        companies.data.entities[0]!.id,
-    );
-  }, [companies.data, selectedCompanyId]);
+  const companyScope = useCompanyScope();
+  const selectedCompanyId = companyScope.activeCompanyId;
+  const selectedCompany = companyScope.activeCompany;
 
   const projection = useCashProjectionRun(horizon, Boolean(selectedCompanyId), selectedCompanyId);
   const scenario = scenarioFromRun(projection.data, "scheduled_expected_v1");
   const currency = projection.data?.currency;
-  const selectedCompany = useMemo(
-    () => companies.data?.entities.find((company) => company.id === selectedCompanyId) ?? null,
-    [companies.data, selectedCompanyId],
-  );
   const endDate = addDays(projection.data?.as_of, horizon);
   const hasGap = isNegative(scenario?.gap_against_zero);
   const projectionError = projection.error ?? projection.scopeError;
@@ -63,45 +52,19 @@ export default function DecisionesPage() {
             Entiende el punto de partida y qué necesitas validar.
           </p>
         </div>
-        <label className="block min-w-72 text-sm font-medium text-neutral-mid">
-          Sociedad
-          <span className="relative mt-1.5 block">
-            <Building2
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-primary"
-              aria-hidden="true"
-            />
-            <select
-              value={selectedCompanyId ?? ""}
-              onChange={(event) => setSelectedCompanyId(event.target.value || null)}
-              disabled={!companies.data?.entities.length}
-              className="w-full appearance-none rounded-xl border border-border bg-surface py-2.5 pl-10 pr-9 text-sm font-semibold text-neutral-dark outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 disabled:cursor-not-allowed"
-              aria-label="Seleccionar sociedad"
-            >
-              {companies.data?.entities.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.legal_name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-mid"
-              aria-hidden="true"
-            />
-          </span>
-        </label>
       </header>
 
-      {companies.isError && (
+      {Boolean(companyScope.error) && (
         <QavanteInlineError
-          error={companies.error}
-          what="las sociedades"
-          onRetry={() => companies.refetch()}
+          error={companyScope.error}
+          what="las empresas"
+          onRetry={companyScope.refresh}
         />
       )}
-      {!companies.isLoading && !companies.data?.entities.length && (
+      {!companyScope.isLoading && !companyScope.companies.length && (
         <QavanteCard>
           <p className="font-semibold text-neutral-dark">
-            No hay una sociedad disponible para evaluar.
+            No hay una Empresa disponible para evaluar.
           </p>
         </QavanteCard>
       )}
@@ -136,14 +99,14 @@ export default function DecisionesPage() {
           {projectionError && (
             <QavanteInlineError
               error={projectionError}
-              what="la caja de esta sociedad"
+              what="la caja de esta Empresa"
               onRetry={() => projection.refetch()}
             />
           )}
           {projection.isLoading && (
             <QavanteCard>
               <p className="text-neutral-mid">
-                Preparando la posición de caja de {selectedCompany?.legal_name ?? "la sociedad"}…
+                Preparando la posición de caja de {selectedCompany?.legal_name ?? "la Empresa"}…
               </p>
             </QavanteCard>
           )}
@@ -203,7 +166,7 @@ export default function DecisionesPage() {
                 >
                   <div className="space-y-3">
                     <p className="text-sm text-neutral-mid">
-                      Las alternativas se calculan sobre esta sociedad, este período y los
+                      Las alternativas se calculan sobre esta Empresa, este período y los
                       documentos disponibles. Puedes combinar operaciones; nada se ejecuta desde
                       aquí.
                     </p>
@@ -228,7 +191,7 @@ export default function DecisionesPage() {
                 <QavanteCard header="Alcance de esta lectura">
                   <dl className="space-y-3 text-sm">
                     <Fact
-                      label="Sociedad"
+                      label="Empresa"
                       value={selectedCompany?.legal_name ?? "Dato pendiente"}
                     />
                     <Fact label="Moneda funcional" value={currency ?? "Dato pendiente"} />

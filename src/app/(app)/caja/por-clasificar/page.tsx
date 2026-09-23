@@ -18,17 +18,17 @@ import { PorClasificarView } from "@/components/clasificacion/por-clasificar-vie
 export default async function PorClasificarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ movimiento?: string; legal_entity_id?: string }>;
+  searchParams: Promise<{ movimiento?: string }>;
 }) {
   const { bankMovementClassification, managementDimensions, bandejaV07 } = resolveFeatureFlags();
-  const { movimiento, legal_entity_id } = await searchParams;
+  const { movimiento } = await searchParams;
 
   /* La Bandeja V07 es la experiencia vigente para las excepciones. Mantener esta ruta como
      entrada con la pestaña correcta evita que un marcador antiguo devuelva a una pantalla
      visualmente distinta. Con el flag OFF se conserva el flujo clásico para rollback. */
   if (bandejaV07) {
     return (
-      <BandejaScope initialLegalEntityId={legal_entity_id}>
+      <BandejaScope>
         <BandejaV07Live tabInicial="clasificar" movimientoInicial={movimiento} />
       </BandejaScope>
     );

@@ -52,6 +52,9 @@ test.describe("Flujo: Banco (/banco)", () => {
   test("Fase 2: conciliar un movimiento desde su match propuesto", async ({ page, context }) => {
     await loginAs(context, "owner");
     await page.goto("/banco");
+    await expect(
+      page.getByRole("button", { name: /Empresa activa: Tooxs Digital SpA/ }),
+    ).toBeVisible();
     const accountLink = page.locator('a[href="/banco/cuenta/acct-1"]');
     await expect(accountLink).toBeVisible();
     await Promise.all([page.waitForURL("**/banco/cuenta/acct-1"), accountLink.click()]);
