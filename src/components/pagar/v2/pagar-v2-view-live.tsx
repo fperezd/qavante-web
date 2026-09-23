@@ -237,7 +237,9 @@ function Secundarios({
   usd?: PayableCurrencyTotal[];
 }) {
   // Desglose por moneda extranjera (CC-API #560): la primera != CLP.
-  const usdItem = usd?.find((c) => c.currency.toUpperCase() !== "CLP");
+  const usdItem = usd?.find(
+    (c) => c.currency_status === "verified" && c.currency != null && c.currency !== "CLP",
+  );
 
   const row = (k: string, v: string, tono: string, dashed = true) => (
     <div

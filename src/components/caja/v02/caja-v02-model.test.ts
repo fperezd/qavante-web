@@ -178,7 +178,7 @@ describe("sale14d — due_14d del backend + su agregado no postergable, sin suma
           complete: false,
           count: 2,
           unknown_due_date_count: 1,
-          excluded_by_currency: [{ currency: "USD", amount: "830" }],
+          excluded_by_currency: [{ currency: "USD", amount: "830", currency_status: "verified" }],
         },
       }),
     )!;
@@ -353,6 +353,19 @@ describe("exclusiones — lo que la proyección deja afuera, con conteo", () => 
           fuentes: {
             saldo_synced_at: "2026-08-30T08:12:00Z",
             calidad_fechas: { con_fecha_real: 0, items_totales: 1 },
+            cobertura: {
+              f29_omitido_por_moneda: false,
+              moneda_distinta_excluidos: "0",
+              payables_fecha_asumida_excluidos: "0",
+              payables_fecha_asumida_excluidos_count: "0",
+              payables_fecha_no_verificada_excluidos: "0",
+              payables_fecha_no_verificada_excluidos_count: "0",
+              receivables_fecha_asumida_excluidos: "0",
+              receivables_fecha_asumida_excluidos_count: "0",
+              receivables_fecha_no_verificada_excluidos: "0",
+              receivables_fecha_no_verificada_excluidos_count: "0",
+              sin_fecha_excluidos: "0",
+            },
           },
         }),
       ),

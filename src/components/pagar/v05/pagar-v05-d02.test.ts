@@ -24,7 +24,7 @@ describe("Pagar V05 D02", () => {
         complete: false,
         count: 1,
         unknown_due_date_count: 1,
-        excluded_by_currency: [{ currency: "USD", amount: "20" }],
+        excluded_by_currency: [{ currency: "USD", amount: "20", currency_status: "verified" }],
       },
     });
     expect(kpiVencidoGlobal(ap)).toMatchObject({

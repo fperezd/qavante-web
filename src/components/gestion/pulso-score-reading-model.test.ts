@@ -6,6 +6,8 @@ function reading(overrides: Partial<PulsoScoreReading> = {}): PulsoScoreReading 
   return {
     publication_state: "available",
     abstention_reason: null,
+    abstention_detail: null,
+    abstention_evidence: [],
     focused_abstention_reason: null,
     legal_entity_id: "11111111-1111-1111-1111-111111111111",
     currency: "CLP",

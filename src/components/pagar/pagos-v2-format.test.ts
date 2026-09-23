@@ -18,6 +18,8 @@ function item(p: Partial<PayableItem>): PayableItem {
     amount: "1000",
     criticality: "low",
     source: "SII",
+    currency: "CLP",
+    currency_status: "verified",
     ...p,
   } as PayableItem;
 }

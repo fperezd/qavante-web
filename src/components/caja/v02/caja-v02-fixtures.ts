@@ -10,6 +10,20 @@ import type { UnclassifiedSummary } from "@/lib/api/treasury";
 export const HOY = new Date("2026-08-30T12:00:00Z");
 export const AS_OF = "2026-08-30";
 
+const COBERTURA_SIN_EXCLUSIONES = {
+  f29_omitido_por_moneda: false,
+  moneda_distinta_excluidos: "0",
+  payables_fecha_asumida_excluidos: "0",
+  payables_fecha_asumida_excluidos_count: "0",
+  payables_fecha_no_verificada_excluidos: "0",
+  payables_fecha_no_verificada_excluidos_count: "0",
+  receivables_fecha_asumida_excluidos: "0",
+  receivables_fecha_asumida_excluidos_count: "0",
+  receivables_fecha_no_verificada_excluidos: "0",
+  receivables_fecha_no_verificada_excluidos_count: "0",
+  sin_fecha_excluidos: "0",
+};
+
 export function summary(over: Partial<DashboardSummaryV2> = {}): DashboardSummaryV2 {
   return {
     executive_phrase: null,
@@ -55,6 +69,13 @@ export function proyeccion(over: Partial<CashProjectionResponse> = {}): CashProj
     saldo_final: "9800000",
     serie: serie(28, () => 9_800_000),
     escenario_duro: { dias_de_caja: null, piso: "9800000", piso_fecha: AS_OF },
+    escenario_condicionado: {
+      dias_de_caja: null,
+      saldo_final: "9800000",
+      n_flujos: 0,
+      total_cobros_condicionados: "0",
+      total_pagos_condicionados: "0",
+    },
     esperado_con_recuperacion: {
       saldo_final: "9800000",
       recuperacion_days: 30,
@@ -72,6 +93,7 @@ export function proyeccion(over: Partial<CashProjectionResponse> = {}): CashProj
     fuentes: {
       saldo_synced_at: "2026-08-30T08:12:00Z",
       calidad_fechas: { con_fecha_real: 1, items_totales: 12 },
+      cobertura: COBERTURA_SIN_EXCLUSIONES,
     },
     ...over,
   };
@@ -119,6 +141,7 @@ export const PROYECCION_BAJO_CERO: CashProjectionResponse = proyeccion({
   fuentes: {
     saldo_synced_at: "2026-08-30T08:12:00Z",
     calidad_fechas: { con_fecha_real: 0.75, items_totales: 12 },
+    cobertura: COBERTURA_SIN_EXCLUSIONES,
   },
 });
 

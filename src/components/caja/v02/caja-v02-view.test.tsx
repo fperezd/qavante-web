@@ -130,7 +130,7 @@ describe("CajaV02View — tríada, banner, barras, tabla y footer", () => {
             complete: false,
             count: 2,
             unknown_due_date_count: 1,
-            excluded_by_currency: [{ currency: "USD", amount: "830" }],
+            excluded_by_currency: [{ currency: "USD", amount: "830", currency_status: "verified" }],
           },
         }),
       }),

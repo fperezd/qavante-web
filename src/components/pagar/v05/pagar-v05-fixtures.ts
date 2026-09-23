@@ -20,6 +20,21 @@ export const RUT_CHIPAX = "76444444-4";
 export const RUT_ENTEL = "76555555-5";
 export const RUT_MELI = "76666666-6";
 
+/** Los fixtures D02 representan payloads ya validados por el boundary HTTP. */
+function withVerifiedFixtureCurrency(response: AccountsPayableResponse): AccountsPayableResponse {
+  const withStatus = <T extends { currency?: string | null; currency_status?: string }>(entry: T): T =>
+    entry.currency_status === undefined && entry.currency != null
+      ? { ...entry, currency_status: "verified" }
+      : entry;
+  return {
+    ...response,
+    items: response.items?.map(withStatus),
+    total_by_currency: response.total_by_currency?.map(withStatus),
+    excluded_from_total_by_currency: response.excluded_from_total_by_currency?.map(withStatus),
+    next_payroll: response.next_payroll ? withStatus(response.next_payroll) : response.next_payroll,
+  };
+}
+
 function aggregate(
   amount: string | null,
   count: number,
@@ -267,8 +282,8 @@ export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPaya
   const response: AccountsPayableResponse = {
     total: "19205210",
     total_by_currency: [
-      { currency: "CLP", amount: "18014810" },
-      { currency: "USD", amount: "1240" },
+      { currency: "CLP", amount: "18014810", currency_status: "verified" },
+      { currency: "USD", amount: "1240", currency_status: "verified" },
     ],
     due_7d: "16632726",
     due_14d: "17998105",
@@ -345,6 +360,7 @@ export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPaya
       due_date: "2026-09-04",
       amount: "7400000",
       currency: "CLP",
+      currency_status: "verified",
       amount_clp: null,
       is_overdue: false,
     },
@@ -361,13 +377,13 @@ export function pagos(over: Partial<AccountsPayableResponse> = {}): AccountsPaya
     generated_at: "2026-08-30T08:12:00Z",
     ...over,
   };
-  return {
+  return withVerifiedFixtureCurrency({
     ...response,
     items: response.items?.map((item) => ({
       ...item,
       reclamado: item.reclamado ?? false,
     })),
-  };
+  });
 }
 
 /** Los TRES valores de certeza en una página: dos fechas estimadas (una de ellas un impuesto que
@@ -381,7 +397,7 @@ export function pagosConFechasEstimadas(
 ): AccountsPayableResponse {
   return pagos({
     total: "11154042",
-    total_by_currency: [{ currency: "CLP", amount: "11154042" }],
+    total_by_currency: [{ currency: "CLP", amount: "11154042", currency_status: "verified" }],
     due_7d: "7581958",
     due_14d: "7581958",
     due_30d: "8789063",
@@ -501,8 +517,8 @@ export function pagosConDuplicado(
   return pagos({
     total: "19410210",
     total_by_currency: [
-      { currency: "CLP", amount: "18219810" },
-      { currency: "USD", amount: "1240" },
+      { currency: "CLP", amount: "18219810", currency_status: "verified" },
+      { currency: "USD", amount: "1240", currency_status: "verified" },
     ],
     due_7d: "16837726",
     due_14d: "18203105",
@@ -660,8 +676,8 @@ export function pagosDegradados(
   return pagos({
     total: "12071716",
     total_by_currency: [
-      { currency: "CLP", amount: "12071716" },
-      { currency: "USD", amount: "830" },
+      { currency: "CLP", amount: "12071716", currency_status: "verified" },
+      { currency: "USD", amount: "830", currency_status: "verified" },
     ],
     due_7d: "9350237",
     due_14d: "9525216",

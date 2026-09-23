@@ -8,6 +8,7 @@ const base: FinancialPosition = {
   integrity: "complete",
   freshness: "current",
   status: "eligible",
+  has_conditional_due_dates: false,
 };
 
 describe("financial position Home presentation", () => {

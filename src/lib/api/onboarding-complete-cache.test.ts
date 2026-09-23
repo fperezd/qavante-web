@@ -39,13 +39,13 @@ const BASE = "http://api.test";
 const INCOMPLETO: OnboardingStatus = {
   completed: false,
   completed_at: null,
-  steps: { sii_connected: false, bank_connected: false },
+  steps: { sii_connected: false, bank_connected: false, entities_identified: false },
 };
 
 const COMPLETO: OnboardingStatus = {
   completed: true,
   completed_at: "2026-08-14T20:00:00Z",
-  steps: { sii_connected: true, bank_connected: false },
+  steps: { sii_connected: true, bank_connected: false, entities_identified: true },
 };
 
 function nuevoCliente() {

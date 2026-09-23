@@ -748,8 +748,9 @@ export function totales(
   ap: AccountsPayableResponse | null | undefined,
   pagos: ReadonlyArray<PagoV05>,
 ): TotalesV05 {
-  const porMoneda = (ap?.total_by_currency ?? []).map((t) => {
-    const moneda = (t.currency || "CLP").toUpperCase();
+  const porMoneda = (ap?.total_by_currency ?? []).flatMap((t) => {
+    if (t.currency_status !== "verified" || typeof t.currency !== "string") return [];
+    const moneda = t.currency.toUpperCase();
     const monto = parseAmount(t.amount);
     return { moneda, monto, label: formatMoney(monto, moneda) };
   });

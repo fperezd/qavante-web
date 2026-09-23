@@ -10,7 +10,7 @@ import {
 import type { PayableItem } from "@/lib/api/pagos";
 
 const item = (over: Partial<PayableItem>): PayableItem =>
-  ({ label: "x", category: "supplier", amount: "0", currency: "CLP", amount_clp: null, ...over }) as PayableItem;
+  ({ label: "x", category: "supplier", amount: "0", currency: "CLP", currency_status: "verified", amount_clp: null, ...over }) as PayableItem;
 
 describe("montoCLP", () => {
   it("CLP con amount_clp presente: usa amount_clp", () => {
@@ -37,26 +37,26 @@ describe("multiCurrencyNote", () => {
   it("null con 0 o 1 moneda (no hay nada que desglosar)", () => {
     expect(multiCurrencyNote(undefined)).toBeNull();
     expect(multiCurrencyNote([])).toBeNull();
-    expect(multiCurrencyNote([{ currency: "CLP", amount: "1000" }])).toBeNull();
+    expect(multiCurrencyNote([{ currency: "CLP", currency_status: "verified", amount: "1000" }])).toBeNull();
   });
 
   it("desglosa CLP + USD con símbolo y código", () => {
     const note = multiCurrencyNote([
-      { currency: "CLP", amount: "12800000" },
-      { currency: "USD", amount: "2400.5" },
+      { currency: "CLP", currency_status: "verified", amount: "12800000" },
+      { currency: "USD", currency_status: "verified", amount: "2400.5" },
     ]);
     expect(note).toContain("(CLP)");
     expect(note).toContain("(USD)");
     expect(note).toContain(" + ");
   });
 
-  it("tolera moneda vacía cayendo a CLP", () => {
+  it("omite moneda no verificada del desglose", () => {
     expect(
       multiCurrencyNote([
-        { currency: "", amount: "100" },
-        { currency: "USD", amount: "5" },
+        { currency: null, currency_status: "unknown", amount: "100" },
+        { currency: "USD", currency_status: "verified", amount: "5" },
       ]),
-    ).toContain("(CLP)");
+    ).toBeNull();
   });
 });
 

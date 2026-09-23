@@ -274,7 +274,7 @@ describe("tríada — vencido ≠ crítico, con las cifras al peso", () => {
         complete: false,
         count: 1,
         unknown_due_date_count: 0,
-        excluded_by_currency: [{ currency: "USD", amount: "830" }],
+        excluded_by_currency: [{ currency: "USD", amount: "830", currency_status: "verified" }],
       },
     });
     const c = kpiCritico(pagosV05(ap, HOY), ap);

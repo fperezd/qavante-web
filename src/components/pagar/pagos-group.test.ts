@@ -16,6 +16,7 @@ const item = (category: PayableItem["category"], amount: string): PayableItem =>
     criticality: "medium",
     source: "SII",
     currency: "CLP",
+    currency_status: "verified",
   }) as PayableItem;
 
 describe("groupByCategory", () => {

@@ -32,6 +32,27 @@ describe("accounts payable D02 boundary", () => {
     );
   });
 
+  it("acepta moneda no verificable declarada y rechaza estados de moneda ausentes", () => {
+    const base = pagos();
+    const unknownCurrency = {
+      ...base.items![0]!,
+      currency: null,
+      currency_status: "unknown",
+      amount_clp: null,
+    };
+    expect(assertAccountsPayableResponse({ ...base, items: [unknownCurrency] }).items![0]).toEqual(
+      unknownCurrency,
+    );
+    expect(() =>
+      assertAccountsPayableResponse({
+        ...base,
+        items: [{ ...base.items![0]!, currency_status: undefined }],
+      }),
+    ).toThrow(/contrato completo/);
+    expect(() => assertAccountsPayableResponse({ ...base, items: [{ ...base.items![0]!, currency: null, currency_status: "verified" }] })).toThrow(/contrato completo/);
+    expect(() => assertAccountsPayableResponse({ ...base, items: [{ ...base.items![0]!, currency: "USD", currency_status: "unknown" }] })).toThrow(/contrato completo/);
+  });
+
   it("rechaza invariantes inconsistentes de cursor y facets", () => {
     expect(() =>
       assertAccountsPayableResponse(pagos({ has_more: true, next_cursor: null })),

@@ -9,17 +9,24 @@ function resp(
   accounts: BudgetByAccountResponse["accounts"],
   has_budget = true,
 ): BudgetByAccountResponse {
-  return { period, has_budget, data_state: "available", generated_at: "2026-08-01T00:00:00Z", accounts };
+  return {
+    period,
+    has_budget,
+    data_state: "available",
+    generated_at: "2026-08-01T00:00:00Z",
+    basis: "cash_committed",
+    accounts,
+  };
 }
 
 describe("buildPlanRealYear", () => {
   const grid = buildPlanRealYear([
     resp("2026-01", [
-      { account_id: "a1", account_code: "4.1", account_name: "Ventas", budget: "10000000", actual: "12000000", variance: "2000000", variance_pct: "20" },
-      { account_id: "c1", account_code: "5.1", account_name: "Sueldos", budget: "-4000000", actual: "-5000000", variance: "-1000000", variance_pct: "-25" },
+      { account_id: "a1", account_code: "4.1", account_name: "Ventas", budget: "10000000", actual: "12000000", variance: "2000000", variance_pct: "20", concept: "revenue", concept_status: "assigned" },
+      { account_id: "c1", account_code: "5.1", account_name: "Sueldos", budget: "-4000000", actual: "-5000000", variance: "-1000000", variance_pct: "-25", concept: "operating_expense", concept_status: "assigned" },
     ]),
     resp("2026-02", [
-      { account_id: "a1", account_code: "4.1", account_name: "Ventas", budget: "10000000", actual: "11000000", variance: "1000000", variance_pct: "10" },
+      { account_id: "a1", account_code: "4.1", account_name: "Ventas", budget: "10000000", actual: "11000000", variance: "1000000", variance_pct: "10", concept: "revenue", concept_status: "assigned" },
     ]),
   ]);
 

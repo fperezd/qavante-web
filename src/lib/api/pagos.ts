@@ -22,7 +22,8 @@ export type PaymentCategory = ContractPayableItem["category"];
 
 /** Compatibilidad de presentación durante el rollout: el guard HTTP exige estos campos,
  * pero fixtures y consumidores históricos todavía pueden construirlos sin ellos. */
-export interface PayableItem extends Omit<ContractPayableItem, "id" | "currency" | "reclamado"> {
+export interface PayableItem
+  extends Omit<ContractPayableItem, "id" | "currency" | "currency_status" | "reclamado"> {
   /** UUID estable del payable. Comparte espacio de identidad con los pares de anomalías (#318/#322).
    * Opcional sólo durante el despliegue gradual: las pantallas que correlacionan anomalías deben
    * abstenerse si falta; nunca reconstruirlo desde campos de negocio. */
@@ -46,8 +47,14 @@ export interface PayableItem extends Omit<ContractPayableItem, "id" | "currency"
   folio?: number | null;
   /** Código de tipo DTE del SII (33=Factura, 46=F.Compra, 61=NC…). Null si no aplica. */
   tipo_dte?: number | null;
-  /** Moneda ISO del `amount`. Hoy siempre 'CLP' (USD vive en compras extranjeras). */
-  currency?: string;
+  /** Moneda ISO del `amount`; `null` o ausencia no acreditan una unidad monetaria. */
+  currency?: string | null;
+  /**
+   * Durante el rollout, fixtures históricos no siempre traen este campo. Los datos HTTP se
+   * validan contra el contrato generado antes de llegar a la pantalla; consumidores deben
+   * tratar ausencia exactamente como moneda no verificable, nunca como CLP implícito.
+   */
+  currency_status?: ContractPayableItem["currency_status"];
   /** `amount` en CLP cuando `currency` != CLP; null si ya es CLP. */
   amount_clp?: string | null;
   /** Monto estimado por el backend (ej. F29 del período en curso antes de que el SII lo emita;
@@ -73,7 +80,14 @@ export interface PayableItem extends Omit<ContractPayableItem, "id" | "currency"
 
 /** Desglose crudo del total por moneda (sin convertir), para "(CLP $X + USD $Y)".
  *  CC-API #560. CLP primero. */
-export type PayableCurrencyTotal = components["schemas"]["PayableCurrencyTotal"];
+/**
+ * Capa de presentación compatible con fixtures previos al campo de procedencia. En datos
+ * recibidos, el contrato HTTP exige `currency_status`; el render nunca trata su ausencia
+ * como una moneda verificada.
+ */
+export type PayableCurrencyTotal = Omit<components["schemas"]["PayableCurrencyTotal"], "currency_status"> & {
+  currency_status?: components["schemas"]["PayableCurrencyTotal"]["currency_status"];
+};
 export type PayableAggregateSummary = components["schemas"]["PayableAggregateSummary"];
 export type PayableFilterMetadata = components["schemas"]["PayableFilterMetadata"];
 export type PayablePayrollCoverage = components["schemas"]["PayablePayrollCoverage"];
@@ -291,6 +305,25 @@ function isRfc3339DateTime(value: unknown): value is string {
   return true;
 }
 
+const PAYABLE_CURRENCY_STATUSES = [
+  "verified",
+  "functional_only",
+  "unknown",
+  "conflict",
+  "unsupported",
+] as const;
+
+function isCurrencyEvidence(value: Record<string, unknown>): boolean {
+  const status = value.currency_status;
+  const currency = value.currency;
+  if (!PAYABLE_CURRENCY_STATUSES.includes(status as (typeof PAYABLE_CURRENCY_STATUSES)[number])) {
+    return false;
+  }
+  return status === "verified"
+    ? typeof currency === "string" && /^[A-Z]{3}$/.test(currency)
+    : currency === null;
+}
+
 function isCurrencyTotals(value: unknown): value is Array<Record<string, unknown>> {
   if (!Array.isArray(value)) return false;
   const currencies = value.map((entry) => (isRecord(entry) ? entry.currency : null));
@@ -299,8 +332,7 @@ function isCurrencyTotals(value: unknown): value is Array<Record<string, unknown
     value.every(
       (entry) =>
         isRecord(entry) &&
-        typeof entry.currency === "string" &&
-        /^[A-Z]{3}$/.test(entry.currency) &&
+        isCurrencyEvidence(entry) &&
         decimal(entry.amount) !== null,
     )
   );
@@ -449,8 +481,7 @@ function isPayableItem(value: unknown): boolean {
     CRITICALITIES.includes(value.criticality as (typeof CRITICALITIES)[number]) &&
     typeof value.source === "string" &&
     value.source.trim().length > 0 &&
-    typeof value.currency === "string" &&
-    /^[A-Z]{3}$/.test(value.currency) &&
+    isCurrencyEvidence(value) &&
     (value.amount_clp === undefined ||
       value.amount_clp === null ||
       decimal(value.amount_clp) !== null) &&
@@ -467,8 +498,7 @@ function isNextPayroll(value: unknown): boolean {
       value.label.trim().length > 0 &&
       isIsoCalendarDate(value.due_date) &&
       decimal(value.amount) !== null &&
-      typeof value.currency === "string" &&
-      /^[A-Z]{3}$/.test(value.currency) &&
+      isCurrencyEvidence(value) &&
       (value.amount_clp === null || decimal(value.amount_clp) !== null) &&
       typeof value.is_overdue === "boolean")
   );

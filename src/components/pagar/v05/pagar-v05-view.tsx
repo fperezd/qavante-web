@@ -673,10 +673,13 @@ function EstadoNomina({ ap }: { ap: AccountsPayableResponse }) {
   const next = ap.next_payroll;
   const cobertura = ap.payroll_coverage;
   if (next) {
-    const currency = next.currency.trim().toUpperCase();
-    const original = formatMoney(Number(next.amount), currency);
+    const currency = next.currency?.trim().toUpperCase();
+    const monedaVerificada = next.currency_status === "verified" && currency != null;
+    const original = monedaVerificada
+      ? formatMoney(Number(next.amount), currency)
+      : "monto con moneda sin verificar";
     const convertido =
-      currency !== "CLP" && next.amount_clp != null
+      monedaVerificada && currency !== "CLP" && next.amount_clp != null
         ? ` · ${formatClp(Number(next.amount_clp))} convertido`
         : "";
     return (

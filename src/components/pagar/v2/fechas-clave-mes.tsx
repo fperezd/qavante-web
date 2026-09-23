@@ -13,7 +13,7 @@ export type FechaClaveIcono = "imposiciones" | "impuestos" | "sueldos";
 export interface FechaClave {
   id: string;
   label: string;
-  monto: number;
+  monto: number | null;
   /** Fecha de vencimiento legible (ej. "13-jul"). */
   vence: string;
   /** Días hasta el vencimiento (negativo = vencido). "en N días" / "hace N días"; ≤2 se resalta. */
@@ -86,7 +86,7 @@ export function FechasClaveMes({
                 )}
               </span>
               <span className="mt-1.5 block text-[21px] font-extrabold tabular-nums text-neutral-dark">
-                {formatClp(it.monto)}
+                {it.monto == null ? "Sin monto verificable" : formatClp(it.monto)}
               </span>
               <span className="mt-0.5 block text-[12px] text-neutral-mid">
                 {vencido ? (

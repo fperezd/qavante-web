@@ -314,6 +314,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/collection-reminders/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ejecuta recordatorios automáticos elegibles (cron) */
+        post: operations["admin_run_collection_reminders"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/connection-status": {
         parameters: {
             query?: never;
@@ -695,6 +712,29 @@ export interface paths {
         };
         /** SII: estado agregado de refresh durable */
         get: operations["admin_sii_refresh_cache_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/sii/refresh-queue-health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: estado agregado de la cola durable (observabilidad)
+         * @description Lectura para el check que vigila que la cola no quede atascada.
+         *
+         *     Es de SOLO LECTURA y no reclama nada: mirar la cola no puede tener el efecto de vaciarla,
+         *     porque entonces el propio chequeo escondería el síntoma que busca.
+         */
+        get: operations["admin_sii_refresh_queue_health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1277,6 +1317,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borra la cuenta del usuario logueado (allowlist QAS/local)
+         * @description Self-delete para re-probar `/registro` con el mismo correo en QAS/local.
+         */
+        delete: operations["auth_delete_account"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -1287,14 +1347,15 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Login con RUT + password — setea cookies de sesión + refresh
-         * @description Valida `(rut, password)` contra `core.users`, emite session + refresh
+         * Login con RUT o email + password — setea cookies de sesión + refresh
+         * @description Valida `(rut|email, password)` contra `core.users`, emite session + refresh
          *     tokens como cookies HttpOnly, y devuelve el user básico.
          *
          *     Errors:
          *       - 401 invalid_credentials para cualquier fallo de auth (genérico
          *         intencional — no leakear "user no existe" vs "password mal").
-         *       - 422 si el password no cumple política mínima (8 chars).
+         *       - 422 si falta identificador, hay ambos, el RUT no trae DV, o el
+         *         password no cumple política mínima (8 chars).
          */
         post: operations["auth_login"];
         delete?: never;
@@ -1328,6 +1389,40 @@ export interface paths {
          *       inmediatamente (no espera al `exp` del JWT).
          */
         post: operations["auth_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Canjea el code de Auth0 y setea cookies de sesión Qavante */
+        post: operations["auth_oauth_callback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/oauth/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Redirige a Auth0 (Google o Microsoft) para el login web */
+        get: operations["auth_oauth_start"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1406,6 +1501,28 @@ export interface paths {
          *     email). Captcha obligatorio (gated por TURNSTILE_SECRET → fail-closed sin él).
          */
         post: operations["auth_signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/signup/contribuyente/{rut}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SII: razón social por RUT (público, signup)
+         * @description Misma consulta pública `getstc` que `/api/sii/contribuyente/{rut}`, sin
+         *     sesión: el formulario de `/registro` autocompleta nombre y razón social
+         *     antes de existir la cuenta. Rate-limit por IP.
+         */
+        get: operations["auth_signup_contribuyente"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2226,6 +2343,200 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fintoc/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Widget */
+        post: operations["complete_widget_api_fintoc_complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fintoc/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Connect Bank */
+        post: operations["connect_bank_api_fintoc_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fintoc/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Connections */
+        get: operations["list_connections_api_fintoc_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fintoc/institutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Institutions */
+        get: operations["list_institutions_api_fintoc_institutions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fintoc/link-intent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Link Intent */
+        post: operations["create_link_intent_api_fintoc_link_intent_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fintoc/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync Fintoc */
+        post: operations["sync_fintoc_api_fintoc_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fintoc/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Fintoc Webhook */
+        post: operations["fintoc_webhook_api_fintoc_webhook_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/fintoc/widget-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Widget Config */
+        get: operations["widget_config_api_fintoc_widget_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/legal-entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sociedades del tenant con su identificador y la sugerencia pendiente
+         * @description Read-only: cualquier miembro autenticado del tenant ve sus sociedades.
+         */
+        get: operations["legal_entities_list"];
+        put?: never;
+        /**
+         * Crea una Empresa dentro del tenant actual
+         * @description Alta de Empresa; no crea ni cambia el tenant de la sesión.
+         */
+        post: operations["legal_entities_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/legal-entities/{legal_entity_id}/identifier": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Declarar el identificador tributario de una sociedad */
+        post: operations["legal_entities_declare_identifier"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/legal-entities/{legal_entity_id}/identifier/{identifier_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Retirar el identificador vigente (cierra la vigencia, no borra la historia) */
+        delete: operations["legal_entities_retract_identifier"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/management/accounts": {
         parameters: {
             query?: never;
@@ -2887,11 +3198,10 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Edita el perfil propio (hoy: name) — cookie qavante_session
-         * @description Auto-edición del perfil (Ask #2 CC-WEB). Cualquier rol autenticado edita
-         *     LO SUYO (sin gate de rol — `ctx.user_id` es el del propio token). Hoy solo
-         *     `name` → `core.users.full_name`. Devuelve el snapshot actualizado (mismo
-         *     shape que GET) para que el FE refresque sin un segundo request.
+         * Edita el perfil propio (name y/o rut) — cookie qavante_session
+         * @description Auto-edición del perfil. Cualquier rol autenticado edita LO SUYO
+         *     (`ctx.user_id` del token). `name` → `full_name`; `rut` solo si aún es NULL.
+         *     Devuelve el snapshot actualizado (mismo shape que GET).
          */
         patch: operations["auth_me_patch"];
         trace?: never;
@@ -3604,10 +3914,11 @@ export interface paths {
         };
         /**
          * SII: DTE emitidos por rango de fechas con el DTE completo (Obtener Envío)
-         * @description DTE emitidos por rango de fechas. Lista el portal (`mipeAdminDocsEmi.cgi`), baja el
-         *     XML (`EnvioDTE`) de cada documento vía "Obtener Envío" y devuelve el DTE **completo**
-         *     (emisor, receptor, ítems, totales, referencias, forma de pago, vencimiento) en
-         *     `dte_emitidos[]`. Auth/consent: el mismo certificado y consent del RCV (`sii_rcv`).
+         * @description DTE emitidos por rango de fechas. Prefiere el respaldo MiPyme (`ORIGEN=ENV`) con la
+         *     clave de la persona autorizada y la empresa seleccionada; ese respaldo entrega el XML
+         *     completo sin pasar por el Portal001 roto. Devuelve emisor, receptor, ítems, totales,
+         *     referencias, forma de pago y vencimiento en `dte_emitidos[]`. El certificado queda como
+         *     fallback legacy sólo cuando el tenant todavía no configuró la clave del representante.
          */
         get: operations["sii_dte_emitidos"];
         put?: never;
@@ -3789,13 +4100,14 @@ export interface paths {
         put?: never;
         /**
          * SII: persiste las líneas del DTE + giro de la contraparte (ADR-0062 PR-0)
-         * @description Baja el **DTE completo** del rango (recibidos via respaldo masivo XML, emitidos via
-         *     Portal001) y persiste el **detalle**: líneas (`treasury.document_lines`, NmbItem/DscItem/
+         * @description Baja el **DTE completo** del rango (respaldo MiPyme para recibidos y emitidos) y
+         *     persiste el **detalle**: líneas (`treasury.document_lines`, NmbItem/DscItem/
          *     montos) + giro en texto y acteco de la contraparte en receivables/payables.
          *
          *     Es la señal primaria del clasificador del Resultado Operacional por categoría
          *     (ADR-0062 §4.0). Idempotente: re-correr un rango reemplaza las líneas, no duplica.
-         *     Auth: certificado per-tenant (mismo consent que el RCV, `sii_rcv`).
+         *     Auth: clave de persona autorizada con empresa seleccionada; conserva el mismo consent
+         *     `sii_rcv`. El certificado es fallback legacy cuando falta esa clave.
          */
         post: operations["sii_enrich_dte_detail"];
         delete?: never;
@@ -4246,7 +4558,8 @@ export interface paths {
          *     - Las no conectadas reportan `state="missing"`.
          *     - Las expiradas reportan `state="stale"`.
          *     - Las con error reciente reportan `state="error"` con razón.
-         *     - Las marcadas como stubs Fase 1 (`sii_f22`, `direccion_trabajo`)
+         *     - Las marcadas como stubs Fase 1 (`sii_f22`, `direccion_trabajo`) o como agregados
+         *       sectoriales sin conexión por tenant (`superir`, `sii_advanced_stats`, `ine_advanced`)
          *       siempre reportan `state="unavailable"` independientemente del catálogo.
          *
          *     Si la DB está momentáneamente inaccesible, el endpoint **no cae** —
@@ -4474,6 +4787,23 @@ export interface paths {
         };
         /** Directorio canónico paginado de deudores por cobrar */
         get: operations["treasury_accounts_receivable_debtors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/accounts-receivable/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gestión de cobros — KPIs y documentos paginados */
+        get: operations["treasury_accounts_receivable_documents"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5130,6 +5460,40 @@ export interface paths {
         put?: never;
         /** Envía recordatorios de cobranza con intención por documento e idempotencia */
         post: operations["treasury_send_collection_reminders"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/collection-reminders/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Configuración de recordatorios automáticos de cobranza */
+        get: operations["treasury_collection_reminder_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/treasury/collection-reminders/settings/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Guarda una regla de recordatorio sin disparar correos */
+        put: operations["treasury_update_collection_reminder_setting"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6488,6 +6852,14 @@ export interface paths {
          * @description Marca documentos (por `source_external_id`) como conciliados: outstanding=0, status=paid. Para
          *     el botón "conciliar este cobro" del caveat de Caja — cuando la cobranza/anticipo ya está en el banco
          *     pero el receivable seguía en "por cobrar". Reversible (`.../mark-collected/revert`). Idempotente.
+         *
+         *     Exige el mismo rol financiero de escritura que `confirm`, `reject` y `revert` en este router, y
+         *     queda auditado con el actor. Antes lo podía disparar cualquier sesión del tenant y no dejaba
+         *     rastro de quién cerró qué.
+         *
+         *     El evento de auditoría se escribe en la misma transacción que el cambio de saldo: o quedan los
+         *     dos o no queda ninguno. Un choque de concurrencia devuelve 409 sin aplicar nada y se puede
+         *     reintentar tal cual.
          */
         post: operations["treasury_reconciliation_mark_collected"];
         delete?: never;
@@ -6508,7 +6880,10 @@ export interface paths {
         /**
          * Caja: DESconcilia cobros/pagos marcados (re-abre el documento)
          * @description Des-concilia (re-abre) los documentos marcados por `mark-collected`. Principio: toda
-         *     conciliación se desasigna.
+         *     conciliación se desasigna. Mismo gate de rol, misma auditoría transaccional y mismo 409
+         *     reintentable que el apply: re-abrir un documento también mueve lo que Cobrar/Pagar publica, y
+         *     además borra los marcadores `mark_collected_at`/`opening_cutoff_at`, que quedan registrados en
+         *     el `before_data` del evento.
          */
         post: operations["treasury_reconciliation_mark_collected_revert"];
         delete?: never;
@@ -6977,6 +7352,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/treasury/work-inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bandeja operativa priorizada por impacto y fecha */
+        get: operations["treasury_work_inbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/treasury/working-capital-refinancing-evaluation": {
         parameters: {
             query?: never;
@@ -7148,23 +7540,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/treasury/work-inbox": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Bandeja operativa priorizada por impacto y fecha */
-        get: operations["treasury_work_inbox"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7282,7 +7657,7 @@ export interface components {
             confidence: "high" | "medium" | "low";
             /**
              * Covers Critical
-             * @description ¿La caja proyectada cubre lo que vence en 14 días? Se responde comprobando si la curva completa se mantiene en o sobre cero durante los 14 días: las obligaciones ya están neteadas en la curva y no se vuelven a restar. **Tri-estado.** `null` = no se puede responder, y son SIETE casos: cuatro de la cobertura documental, dos de la caja y uno de unidad. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el séptimo no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma que la curva completa —con TODO lo que vence ya incorporado— nunca baja de cero en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
+             * @description ¿La caja proyectada cubre lo que vence en 14 días? Se responde comprobando si la curva completa se mantiene en o sobre cero durante los 14 días: las obligaciones ya están neteadas en la curva y no se vuelven a restar. **Tri-estado.** `null` = no se puede responder, y son SIETE casos: cuatro de la cobertura documental, dos de la caja y uno de unidad. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS —o con deuda en la ventana cuya moneda no se pudo verificar (#370, `total_by_currency[].currency: null`)—, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el séptimo no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma que la curva completa —con TODO lo que vence ya incorporado— nunca baja de cero en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).
              */
             covers_critical?: boolean | null;
             /** @description Créditos/ajustes con saldo negativo, separados de las obligaciones críticas. El monto conserva su signo negativo y también recorre todo el universo vivo. */
@@ -7309,7 +7684,7 @@ export interface components {
             estimated_due_date_count: number;
             /**
              * Excluded From Total By Currency
-             * @description Montos crudos excluidos del `total` CLP por falta de tipo de cambio. Vacío significa que el total no tuvo exclusiones de moneda.
+             * @description Montos crudos excluidos del `total` CLP, con `reason`: por falta de tipo de cambio (`fx_missing`) o porque la moneda no se pudo verificar (`currency: null`, `currency_missing` | `currency_not_in_catalog`). Vacío significa que el total no tuvo exclusiones de moneda.
              */
             excluded_from_total_by_currency: components["schemas"]["PayableCurrencyTotal"][];
             filter_metadata: components["schemas"]["PayableFilterMetadata"];
@@ -7386,7 +7761,7 @@ export interface components {
             total: string;
             /**
              * Total By Currency
-             * @description Desglose del total por pagar por moneda, SIN convertir — para mostrar '(CLP $X + USD $Y)' junto al total en CLP. CLP primero.
+             * @description Desglose del total por pagar por moneda, SIN convertir — para mostrar '(CLP $X + USD $Y)' junto al total en CLP. CLP primero, luego las demás monedas verificadas, y al final los buckets `currency: null` de documentos cuya moneda no se pudo verificar (#370): esos montos NO están en `total` ni en `due_*` y no se deben sumar ni mostrar como pesos.
              */
             total_by_currency?: components["schemas"]["PayableCurrencyTotal"][];
             /**
@@ -8537,6 +8912,12 @@ export interface components {
         /**
          * BudgetAccountLine
          * @description Budget vs actual de una cuenta de gestión (F2-A.2). Montos signados.
+         *
+         *     `concept` es el concepto canónico del P&L derivado de `financial_impacts.impact_type`
+         *     de la cuenta en el período (#432). Nunca se asigna por signo, nombre ni prefijo de
+         *     cuenta: si los impactos de la cuenta caen en más de un concepto va `null` con
+         *     `concept_status = "ambiguous"`; si ninguno pertenece al P&L operacional (tax, capex,
+         *     deuda…) va `null` con `"unassigned"`.
          */
         BudgetAccountLine: {
             /** Account Code */
@@ -8553,6 +8934,22 @@ export interface components {
             /** Budget */
             budget: string;
             /**
+             * Concept
+             * @description Concepto canónico del P&L de la cuenta (misma partición que las líneas de budget-vs-actual). null cuando `concept_status` no es 'assigned'.
+             */
+            concept: ("revenue" | "direct_cost" | "operating_expense") | null;
+            /**
+             * Concept Status
+             * @description assigned = un solo concepto; ambiguous = los impact_type de la cuenta caen en más de un concepto (conflicto explícito, no se reparte); unassigned = ningún impact_type pertenece al P&L operacional.
+             * @enum {string}
+             */
+            concept_status: "assigned" | "ambiguous" | "unassigned";
+            /**
+             * Impact Types
+             * @description impact_type distintos observados en la cuenta en el período (ambas capas), evidencia de `concept`/`concept_status`.
+             */
+            impact_types?: string[];
+            /**
              * Variance
              * @description actual - budget (signado).
              */
@@ -8564,10 +8961,22 @@ export interface components {
          * BudgetByAccountResponse
          * @description Respuesta de `GET /api/planning/budget-by-account?period=YYYY-MM` — drill-down
          *     por cuenta de gestión (budget vs actual committed).
+         *
+         *     INV-FIN-001 contra `budget-vs-actual` del mismo período: el `budget` cuadra por
+         *     construcción (misma tabla, capa y partición de `impact_type`): la suma de `budget` de las
+         *     cuentas `assigned` a un concepto es la línea de budget-vs-actual menos lo que viva en
+         *     cuentas `ambiguous`. El `actual` NO cuadra en monto, sólo en partición: acá es caja
+         *     committed (`basis`) y en budget-vs-actual es devengado (#281 §2.7).
          */
         BudgetByAccountResponse: {
             /** Accounts */
             accounts?: components["schemas"]["BudgetAccountLine"][];
+            /**
+             * Basis
+             * @description Base contable del `actual`: caja committed (financial_impacts layer=committed), NO devengado. budget-vs-actual publica el devengado.
+             * @constant
+             */
+            basis: "cash_committed";
             /**
              * Data State
              * @enum {string}
@@ -9055,7 +9464,7 @@ export interface components {
         CalidadFechas: {
             /**
              * Con Fecha Real
-             * @description Fracción [0..1] de obligaciones con fecha REAL (vencimiento/comportamiento) vs estimada. La proyección vale lo que valen las fechas.
+             * @description Fracción [0..1] de documentos cuya fecha tiene PROCEDENCIA confirmada (`due_date_source` verificable) sobre el universo vivo de la moneda funcional. La proyección vale lo que valen las fechas. Desde #564 mide procedencia y no la mera presencia de una fecha: antes el lado de los pagos publicaba 1.0 incluso con una cartera entera de vencimientos estimados.
              */
             con_fecha_real: number;
             /** Items Totales */
@@ -10047,6 +10456,8 @@ export interface components {
              * @default false
              */
             en_sobregiro: boolean;
+            /** @description #564: el esperado MÁS las fechas estimadas o sin procedencia verificable. Separado y explicable; nunca brecha dura, mora, pago crítico ni CTA. */
+            escenario_condicionado: components["schemas"]["EscenarioCondicionado"];
             escenario_duro: components["schemas"]["EscenarioDuro"];
             /** @description Banda ADR-0089: runway contando el ingreso recurrente proyectado (factoring/cliente/MX). */
             esperado_con_ingresos: components["schemas"]["EsperadoConIngresos"];
@@ -10397,7 +10808,7 @@ export interface components {
             payable_id?: string | null;
             /**
              * Tipo
-             * @description 'pago' | 'f29' | 'pago_vencido'.
+             * @description 'pago' | 'f29' | 'pago_vencido' | 'pago_condicionado'. El último sólo aparece dentro de `escenario_condicionado` y nunca trae `payable_id`.
              */
             tipo?: string | null;
         };
@@ -11089,6 +11500,54 @@ export interface components {
             /** Missing Periods */
             missing_periods?: string[];
         };
+        /**
+         * Cobertura
+         * @description Qué quedó FUERA del escenario firme y por qué — la misma nomenclatura que publica
+         *     `obligaciones_agendadas` en la proyección canónica, para que las dos superficies se puedan
+         *     poner una al lado de la otra sin traducir.
+         *
+         *     Los montos van en `moneda` y son string-decimal. `moneda_distinta_excluidos` es SÓLO un
+         *     conteo: sumar importes de otra unidad es exactamente lo que INV-FX-001 prohíbe.
+         *
+         *     **El alcance NO es el mismo en los cuatro buckets, y es deliberado** (espeja el del
+         *     productor canónico): los `*_fecha_asumida_*` y `*_fecha_no_verificada_*` se acotan a
+         *     `horizon_days`, porque describen lo que quedó fuera de ESTA curva; `sin_fecha_excluidos`
+         *     y `moneda_distinta_excluidos` cuentan el universo VIVO completo, porque un documento sin
+         *     vencimiento no tiene horizonte al que pertenecer y uno en otra moneda no entra a ninguno.
+         */
+        Cobertura: {
+            /**
+             * F29 Omitido Por Moneda
+             * @description True si la moneda funcional no es CLP y por eso el F29 no se proyectó.
+             */
+            f29_omitido_por_moneda: boolean;
+            /**
+             * Moneda Distinta Excluidos
+             * @description Documentos vivos en una moneda distinta de la funcional (conteo).
+             */
+            moneda_distinta_excluidos: string;
+            /** Payables Fecha Asumida Excluidos */
+            payables_fecha_asumida_excluidos: string;
+            /** Payables Fecha Asumida Excluidos Count */
+            payables_fecha_asumida_excluidos_count: string;
+            /** Payables Fecha No Verificada Excluidos */
+            payables_fecha_no_verificada_excluidos: string;
+            /** Payables Fecha No Verificada Excluidos Count */
+            payables_fecha_no_verificada_excluidos_count: string;
+            /** Receivables Fecha Asumida Excluidos */
+            receivables_fecha_asumida_excluidos: string;
+            /** Receivables Fecha Asumida Excluidos Count */
+            receivables_fecha_asumida_excluidos_count: string;
+            /** Receivables Fecha No Verificada Excluidos */
+            receivables_fecha_no_verificada_excluidos: string;
+            /** Receivables Fecha No Verificada Excluidos Count */
+            receivables_fecha_no_verificada_excluidos_count: string;
+            /**
+             * Sin Fecha Excluidos
+             * @description Documentos vivos sin `due_date` (conteo).
+             */
+            sin_fecha_excluidos: string;
+        };
         /** CollectionEvaluationAlternative */
         CollectionEvaluationAlternative: {
             /** Amount */
@@ -11266,6 +11725,70 @@ export interface components {
              * @enum {string}
              */
             status: "sent" | "sin_destinatario" | "skipped" | "error";
+        };
+        /** CollectionReminderRule */
+        CollectionReminderRule: {
+            /**
+             * Audience Mode
+             * @enum {string}
+             */
+            audience_mode: "all" | "exclude" | "include";
+            /** Counterparty Keys */
+            counterparty_keys?: string[];
+            /** Days Offset */
+            days_offset: number;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "before_due" | "due_today" | "overdue";
+            /**
+             * Schedule Time
+             * Format: time
+             */
+            schedule_time: string;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** CollectionReminderRuleUpdate */
+        CollectionReminderRuleUpdate: {
+            /**
+             * Audience Mode
+             * @default all
+             * @enum {string}
+             */
+            audience_mode: "all" | "exclude" | "include";
+            /** Counterparty Keys */
+            counterparty_keys?: string[];
+            /** Days Offset */
+            days_offset: number;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Schedule Time
+             * Format: time
+             */
+            schedule_time: string;
+        };
+        /** CollectionReminderRulesResponse */
+        CollectionReminderRulesResponse: {
+            /** Items */
+            items: components["schemas"]["CollectionReminderRule"][];
+        };
+        /** CollectionReminderRunResponse */
+        CollectionReminderRunResponse: {
+            /** Documents */
+            documents: number;
+            /** Errors */
+            errors: number;
+            /** Rules */
+            rules: number;
+            /** Sent */
+            sent: number;
+            /** Skipped */
+            skipped: number;
         };
         /** CollectionSituationItem */
         CollectionSituationItem: {
@@ -13112,6 +13635,21 @@ export interface components {
              */
             selection_id: string;
         };
+        /** DeclareIdentifierRequest */
+        DeclareIdentifierRequest: {
+            /** Identifier Scheme */
+            identifier_scheme: string;
+            /**
+             * Jurisdiction Code
+             * @description ISO 3166-1 alpha-2.
+             */
+            jurisdiction_code: string;
+            /**
+             * Value
+             * @description Tal como lo tipeó la persona.
+             */
+            value: string;
+        };
         /** DedupRcvRequest */
         DedupRcvRequest: {
             /**
@@ -14242,6 +14780,67 @@ export interface components {
             status: string;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * EscenarioCondicionado
+         * @description Escenario CONDICIONADO (#564): el esperado MÁS los documentos cuya fecha es estimada
+         *     (`due_date_source = 'assumed_30d'`) o no tiene procedencia verificable.
+         *
+         *     Existe para que esas fechas se conserven como cobertura visible sin volverse un hecho
+         *     financiero (regla BO, #558). Nada de acá es una brecha dura, una mora, un pago crítico ni
+         *     un CTA: `punto_quiebre.causas` NUNCA trae `payable_id`, justamente para que el cliente no
+         *     pueda colgarle Postergar a un quiebre hipotético. El escenario firme no cambia por lo que
+         *     diga este bloque, y el cliente no tiene que sumar nada: ambas series salen de la misma
+         *     aritmética, con distinto conjunto de documentos.
+         *
+         *     **Alcance: `due_date <= as_of + horizon_days`, el mismo de la consulta condicionada del
+         *     productor canónico** (`AND due_date <= horizon_end`) y el mismo de los dos buckets de
+         *     procedencia de `Cobertura`. Los tres conjuntos son idénticos a propósito: `serie`,
+         *     `saldo_final`, `punto_quiebre`, `total_pagos_condicionados`, `total_cobros_condicionados`
+         *     y `n_flujos` describen el universo que esta curva efectivamente recorre. Un documento
+         *     estimado que vence DESPUÉS del horizonte no aparece acá ni en `cobertura`, igual que no
+         *     aparece en el escenario condicionado del Brief.
+         */
+        EscenarioCondicionado: {
+            /**
+             * Dias De Caja
+             * @description Runway si además se cumplieran las fechas estimadas; null si nunca cae.
+             */
+            dias_de_caja?: number | null;
+            /**
+             * Dias Hasta Recuperar
+             * @description Si `en_sobregiro`: días hasta volver sobre el mínimo en este escenario.
+             */
+            dias_hasta_recuperar?: number | null;
+            /**
+             * Fecha Recuperar
+             * @description Día de recuperación (YYYY-MM-DD).
+             */
+            fecha_recuperar?: string | null;
+            /**
+             * N Flujos
+             * @description Nº de documentos que sólo viven en este escenario, dentro de `horizon_days`.
+             */
+            n_flujos: number;
+            /** @description Quiebre HIPOTÉTICO. No es la brecha confirmada ni habilita una acción. */
+            punto_quiebre?: components["schemas"]["PuntoQuiebre"] | null;
+            /**
+             * Saldo Final
+             * @description Saldo al final del horizonte (string-decimal).
+             */
+            saldo_final: string;
+            /** Serie */
+            serie?: components["schemas"]["app__api__cash_model__SeriePunto"][];
+            /**
+             * Total Cobros Condicionados
+             * @description Σ de los cobros con fecha estimada/no verificable que vencen DENTRO de `horizon_days` (positivo), string-decimal.
+             */
+            total_cobros_condicionados: string;
+            /**
+             * Total Pagos Condicionados
+             * @description Σ de los pagos con fecha estimada/no verificable que vencen DENTRO de `horizon_days` (negativo), string-decimal.
+             */
+            total_pagos_condicionados: string;
         };
         /** EscenarioDuro */
         EscenarioDuro: {
@@ -15722,12 +16321,26 @@ export interface components {
             current_cash?: string | null;
             /** Freshness */
             freshness: string;
+            /**
+             * Has Conditional Due Dates
+             * @description True si algún documento que vence dentro de `horizon_days` entra sólo al escenario condicionado. El alcance es el de la ventana, el mismo del escenario condicionado del Brief: un estimado que vence después no se declara acá porque tampoco mueve `minimum_projected_cash_with_conditional_due_dates`.
+             * @default false
+             */
+            has_conditional_due_dates: boolean;
             /** Horizon Days */
             horizon_days: number;
             /** Integrity */
             integrity: string;
-            /** Minimum Projected Cash */
+            /**
+             * Minimum Projected Cash
+             * @description Mínimo de la serie CONFIRMADA. Desde #564 la serie que lo produce admite sólo documentos de la moneda funcional con procedencia de vencimiento verificable, así que esta cifra ya no puede contradecir la brecha canónica del Brief por incluir supuestos o importes de otra moneda.
+             */
             minimum_projected_cash?: string | null;
+            /**
+             * Minimum Projected Cash With Conditional Due Dates
+             * @description Mínimo del escenario CONDICIONADO: el confirmado más las fechas estimadas o sin procedencia verificable que vencen DENTRO de `horizon_days`. Espeja `min_14d_with_conditional_due_dates` del Brief para que las tres superficies —Brief, Caja y posición financiera— publiquen la misma distinción sin que el cliente reconstruya nada. No es una brecha dura.
+             */
+            minimum_projected_cash_with_conditional_due_dates?: string | null;
             /** Safe Cash */
             safe_cash?: string | null;
             /** Stable Surplus */
@@ -15984,6 +16597,142 @@ export interface components {
             /** Verified Available Capacity */
             verified_available_capacity?: string | null;
         };
+        /** FintocCompleteRequest */
+        FintocCompleteRequest: {
+            /** Exchange Token */
+            exchange_token?: string | null;
+            /** Link */
+            link?: {
+                [key: string]: unknown;
+            } | null;
+            /** Link Token */
+            link_token?: string | null;
+        };
+        /** FintocConnectRequest */
+        FintocConnectRequest: {
+            /**
+             * Accept Consent
+             * @default false
+             */
+            accept_consent: boolean;
+            /** Institution Id */
+            institution_id: string;
+            /** Password */
+            password: string;
+            /** Rut */
+            rut: string;
+        };
+        /** FintocConnection */
+        FintocConnection: {
+            /**
+             * Data Source
+             * @default fintoc
+             */
+            data_source: string;
+            /** Holder Id */
+            holder_id?: string | null;
+            /** Holder Name */
+            holder_name?: string | null;
+            /** Holder Rut */
+            holder_rut?: string | null;
+            /** Holder Type */
+            holder_type?: string | null;
+            /** Institution Id */
+            institution_id: string;
+            /** Institution Name */
+            institution_name: string;
+            /** Link Id */
+            link_id?: string | null;
+            /** Mode */
+            mode?: string | null;
+            /**
+             * Status
+             * @default connected
+             */
+            status: string;
+            /** Sync */
+            sync?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** FintocInstitution */
+        FintocInstitution: {
+            /**
+             * Country
+             * @default cl
+             */
+            country: string;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** FintocLinkIntentResponse */
+        FintocLinkIntentResponse: {
+            /** Connected */
+            connected: boolean;
+            /**
+             * Country
+             * @default cl
+             */
+            country: string;
+            /**
+             * Holder Type
+             * @default business
+             */
+            holder_type: string;
+            /**
+             * Product
+             * @default movements
+             */
+            product: string;
+            /** Public Key */
+            public_key: string;
+            /** Webhook Url */
+            webhook_url?: string | null;
+            /** Widget Token */
+            widget_token: string;
+        };
+        /** FintocSyncResponse */
+        FintocSyncResponse: {
+            /** Accounts */
+            accounts: number;
+            /** Imported */
+            imported: number;
+            /** Per Account */
+            per_account?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+        };
+        /** FintocWidgetConfig */
+        FintocWidgetConfig: {
+            /** Connected */
+            connected: boolean;
+            /**
+             * Country
+             * @default cl
+             */
+            country: string;
+            /**
+             * Holder Type
+             * @default business
+             */
+            holder_type: string;
+            /**
+             * Product
+             * @default movements
+             */
+            product: string;
+            /** Public Key */
+            public_key: string;
+            /** Webhook Url */
+            webhook_url?: string | null;
+        };
         /**
          * ForecastAmount
          * @description Monto nominal (Σ outstanding) vs esperado (Σ ponderado por prob de pago).
@@ -16184,6 +16933,8 @@ export interface components {
         /** Fuentes */
         Fuentes: {
             calidad_fechas: components["schemas"]["CalidadFechas"];
+            /** @description Lo que quedó fuera del escenario firme, con monto y conteo por motivo. */
+            cobertura: components["schemas"]["Cobertura"];
             /** Saldo Synced At */
             saldo_synced_at?: string | null;
         };
@@ -16368,6 +17119,140 @@ export interface components {
             count: number;
             /** Items */
             items: components["schemas"]["HoldingMapping"][];
+        };
+        /** IdentifierView */
+        IdentifierView: {
+            /**
+             * Assertion Quality
+             * @description 'manual' = lo declaró una persona. 'verified' = hay evidencia externa.
+             * @enum {string}
+             */
+            assertion_quality: "verified" | "manual";
+            /** Evidence Ref */
+            evidence_ref: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Identifier Scheme
+             * @description 'rut' en Chile, 'ruc' en Perú, 'cuit' en AR…
+             */
+            identifier_scheme: string;
+            /**
+             * Jurisdiction Code
+             * @description ISO 3166-1 alpha-2, p. ej. 'CL'.
+             */
+            jurisdiction_code: string;
+            /**
+             * Label
+             * @description Cómo se llama en pantalla en ese país. DERIVADA, no persistida.
+             */
+            label: string;
+            /**
+             * Normalized Value
+             * @description Forma canónica del esquema. Lo que se compara.
+             */
+            normalized_value: string;
+            /**
+             * Valid From
+             * Format: date-time
+             */
+            valid_from: string;
+            /**
+             * Valid To
+             * @description null = vigente. Retirar cierra la vigencia, no borra la fila.
+             */
+            valid_to?: string | null;
+        };
+        /** InboxItem */
+        InboxItem: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string | null;
+            /** Href */
+            href: string;
+            /** Id */
+            id: string;
+            /** Relevant Date */
+            relevant_date: string | null;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /**
+             * Urgency
+             * @enum {string}
+             */
+            urgency: "overdue" | "review" | "soon" | "normal";
+        };
+        /** InboxMoney */
+        InboxMoney: {
+            /** Amount */
+            amount: string;
+            /**
+             * Currency
+             * @description Moneda ISO-4217; null si la fuente no la informo.
+             */
+            currency: string | null;
+        };
+        /** InboxPriority */
+        InboxPriority: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string | null;
+            /** Href */
+            href: string;
+            /** Id */
+            id: string;
+            /**
+             * Queue
+             * @enum {string}
+             */
+            queue: "reconciliation" | "receivables" | "payables" | "classification";
+            /** Relevant Date */
+            relevant_date: string | null;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+            /**
+             * Urgency
+             * @enum {string}
+             */
+            urgency: "overdue" | "review" | "soon" | "normal";
+        };
+        /** InboxQueue */
+        InboxQueue: {
+            /** Action Label */
+            action_label: string;
+            /** Amounts */
+            amounts: components["schemas"]["InboxMoney"][];
+            /** Count */
+            count: number;
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "available" | "partial" | "estimated";
+            /** Href */
+            href: string;
+            /** Items */
+            items: components["schemas"]["InboxItem"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "reconciliation" | "receivables" | "payables" | "classification";
+            /** Label */
+            label: string;
+            /** Limitations */
+            limitations: string[];
+            /** Next Date */
+            next_date: string | null;
         };
         /**
          * IncompleteMonth
@@ -16821,6 +17706,35 @@ export interface components {
             /** Total Amount */
             total_amount?: string | null;
         };
+        /** LegalEntitiesResponse */
+        LegalEntitiesResponse: {
+            /** Entities */
+            entities: components["schemas"]["LegalEntityView"][];
+        };
+        /** LegalEntityView */
+        LegalEntityView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Identifiers
+             * @description Los VIGENTES, uno por esquema.
+             */
+            identifiers: components["schemas"]["IdentifierView"][];
+            /** Is Default */
+            is_default: boolean;
+            /** Legal Name */
+            legal_name: string;
+            /** @description Propuesta a confirmar. NO está declarada: no se guarda hasta que alguien la confirme por POST. */
+            suggestion?: components["schemas"]["SuggestionView"] | null;
+            /**
+             * Suggestion Blocker
+             * @description Por qué no hay sugerencia. Cada motivo manda a una acción distinta: 'multiple_entities' pide elegir a mano; 'no_tenant_rut' pide cargar el dato.
+             */
+            suggestion_blocker?: ("already_declared" | "multiple_entities" | "no_tenant_rut" | "invalid_tenant_rut") | null;
+        };
         /**
          * LibroComparativosResponse
          * @description `GET /api/sii/rcv/{kind}/comparativos` — contrato CC-WEB 2026-07-13. Neto neteado de
@@ -17025,6 +17939,11 @@ export interface components {
         };
         /** LoginRequest */
         LoginRequest: {
+            /**
+             * Email
+             * @description Email de la cuenta (case-insensitive). Alternativa a `rut`.
+             */
+            email?: string | null;
             /** Password */
             password: string;
             /**
@@ -17032,11 +17951,6 @@ export interface components {
              * @description RUT chileno con DV (formato '12345678-9' o '12.345.678-9'). Alternativa a `email`: enviá uno de los dos.
              */
             rut?: string | null;
-            /**
-             * Email
-             * @description Email de la cuenta (case-insensitive). Alternativa a `rut`.
-             */
-            email?: string | null;
         };
         /** LoginResponse */
         LoginResponse: {
@@ -17404,12 +18318,11 @@ export interface components {
         };
         /**
          * MePatchRequest
-         * @description Body de `PATCH /api/me` — auto-edición del perfil (Ask #2 CC-WEB).
+         * @description Body de `PATCH /api/me` — auto-edición del perfil.
          *
-         *     Solo `name` (mapea a `core.users.full_name`). email/password/rol tienen
-         *     sus propios flujos (re-verificación / recuperación / gestión admin) y
-         *     quedan fuera de scope. `extra=forbid` rechaza intentos de tocar otros
-         *     campos por este endpoint.
+         *     `name` → `core.users.full_name`. `rut` → `core.users.rut` (solo si aún
+         *     está vacío). email/password/rol tienen sus propios flujos.
+         *     `extra=forbid` rechaza otros campos.
          */
         MePatchRequest: {
             /**
@@ -17485,6 +18398,11 @@ export interface components {
             permissions?: string[];
             /** Role */
             role: string;
+            /**
+             * Rut
+             * @description RUT personal de la cuenta (`core.users.rut`). `null` si todavía no lo cargó — el FE manda al wizard `/onboarding/asignar-rut`.
+             */
+            rut?: string | null;
             /** Tenant Id */
             tenant_id: string;
             /**
@@ -17492,11 +18410,6 @@ export interface components {
              * @description Razón social del tenant activo (CC-WEB #3).
              */
             tenant_name?: string | null;
-            /**
-             * Rut
-             * @description RUT personal de la cuenta (`core.users.rut`). `null` si todavía no lo cargó — el FE manda al wizard `/onboarding/asignar-rut`.
-             */
-            rut?: string | null;
         };
         /**
          * MoveDimensionValueRequest
@@ -17654,6 +18567,13 @@ export interface components {
             is_overdue: boolean;
             /** Label */
             label: string;
+        };
+        /** OAuthCallbackRequest */
+        OAuthCallbackRequest: {
+            /** Code */
+            code: string;
+            /** State */
+            state: string;
         };
         /**
          * ObligationDetailResponse
@@ -17877,9 +18797,15 @@ export interface components {
         OnboardingSteps: {
             /**
              * Bank Connected
-             * @description Fuente bancaria (BICE) conectada y fresca.
+             * @description Fuente bancaria conectada y fresca.
              */
             bank_connected: boolean;
+            /**
+             * Entities Identified
+             * @description Todas las sociedades del tenant tienen identificador tributario declarado (ADR-0118 D2). Mientras falte alguna, ninguna fuente se le puede atribuir y su PULSO queda preliminar — o sea que el QHS no avanza aunque banco y SII estén al día.
+             * @default false
+             */
+            entities_identified: boolean;
             /**
              * Sii Connected
              * @description Credencial SII (RCV) conectada y fresca.
@@ -19335,6 +20261,11 @@ export interface components {
             client_name: string;
             /** Client Rut */
             client_rut?: string | null;
+            /**
+             * Currency
+             * @description Moneda guardada del documento; null si no fue informada.
+             */
+            currency?: string | null;
             /** Days Overdue */
             days_overdue: number;
             /**
@@ -19417,7 +20348,7 @@ export interface components {
             count: number;
             /**
              * Excluded By Currency
-             * @description Montos crudos que no entraron en `known_amount_clp` porque falta el tipo de cambio.
+             * @description Montos crudos que no entraron en `known_amount_clp`: porque falta el tipo de cambio (`reason: fx_missing`) o porque la moneda no se pudo verificar (`currency: null`, `reason: currency_missing | currency_not_in_catalog`).
              */
             excluded_by_currency: components["schemas"]["PayableCurrencyTotal"][];
             /**
@@ -19468,7 +20399,7 @@ export interface components {
             count: number;
             /**
              * Excluded By Currency
-             * @description Montos crudos que no entraron en `known_amount_clp` porque falta el tipo de cambio.
+             * @description Montos crudos que no entraron en `known_amount_clp`: porque falta el tipo de cambio (`reason: fx_missing`) o porque la moneda no se pudo verificar (`currency: null`, `reason: currency_missing | currency_not_in_catalog`).
              */
             excluded_by_currency: components["schemas"]["PayableCurrencyTotal"][];
             /**
@@ -19495,6 +20426,10 @@ export interface components {
         /**
          * PayableCurrencyTotal
          * @description Total por pagar de UNA moneda, sin convertir — para el desglose '(CLP $X + USD $Y)'.
+         *
+         *     Desde #370 también es el bucket de lo NO verificable: `currency: null` con
+         *     `currency_status` y `reason`. Ese monto está en unidad desconocida; no se convierte, no se
+         *     suma a nada y no se muestra como pesos.
          */
         PayableCurrencyTotal: {
             /**
@@ -19504,9 +20439,21 @@ export interface components {
             amount: string;
             /**
              * Currency
-             * @description Moneda ISO-4217 (ej. 'CLP', 'USD').
+             * @description Moneda ISO-4217 (ej. 'CLP', 'USD'), o `null` cuando el bucket agrupa documentos cuya moneda no se pudo verificar (ver `currency_status`).
              */
-            currency: string;
+            currency: string | null;
+            /**
+             * Currency Status
+             * @description Elegibilidad de la moneda del bucket (contrato #370 v1). Sólo `verified` entra en `total`/`due_*`; `unknown` (sin moneda declarada) y `unsupported` (fuera del catálogo) quedan fuera de toda suma.
+             * @default verified
+             * @enum {string}
+             */
+            currency_status: "verified" | "functional_only" | "unknown" | "conflict" | "unsupported";
+            /**
+             * Reason
+             * @description Razón parseable de por qué el bucket no está en el total CLP: `fx_missing` (moneda verificada sin tipo de cambio), `currency_missing` (sin moneda declarada), `currency_not_in_catalog` (código bien formado fuera del catálogo vigente) o `declared_currency_invalid` (código mal formado). `null` en un bucket verificado de `total_by_currency`.
+             */
+            reason?: string | null;
         };
         /**
          * PayableDuplicateAnomaliesResponse
@@ -19576,7 +20523,7 @@ export interface components {
             amount: string;
             /**
              * Amount Clp
-             * @description `amount` convertido a CLP vía tipo de cambio, SOLO cuando `currency` != 'CLP'. Null cuando ya es CLP (usar `amount`) o cuando no hay tipo de cambio disponible.
+             * @description `amount` convertido a CLP vía tipo de cambio, SOLO cuando `currency` != 'CLP'. Null cuando ya es CLP (usar `amount`), cuando no hay tipo de cambio disponible, o cuando la moneda no se pudo verificar (`currency_status` != 'verified').
              */
             amount_clp?: string | null;
             /**
@@ -19601,10 +20548,16 @@ export interface components {
             criticality: "high" | "medium" | "low" | "unknown";
             /**
              * Currency
-             * @description Moneda ISO-4217 del `amount` (por ejemplo, 'CLP' o 'USD'). El RCV reporta en pesos, pero los cargos internacionales de tarjeta persistidos por ADR-0050 pueden venir en USD.
-             * @default CLP
+             * @description Moneda ISO-4217 del `amount` (por ejemplo, 'CLP' o 'USD'). El RCV reporta en pesos, pero los cargos internacionales de tarjeta persistidos por ADR-0050 pueden venir en USD. `null` cuando el documento no acredita una moneda del catálogo (ver `currency_status`): entonces `amount` es un monto crudo sin unidad afirmada y NO se debe mostrar ni sumar como pesos (#370).
              */
-            currency: string;
+            currency?: string | null;
+            /**
+             * Currency Status
+             * @description Elegibilidad de `currency` (contrato #370 v1). `verified`: moneda del catálogo, convertible y sumable. `unknown`: sin moneda declarada. `unsupported`: código fuera del catálogo vigente. `conflict`/`functional_only`: reservados por el contrato. Todo lo que no sea `verified` viene con `currency: null` y `amount_clp: null`.
+             * @default verified
+             * @enum {string}
+             */
+            currency_status: "verified" | "functional_only" | "unknown" | "conflict" | "unsupported";
             /**
              * Due Date
              * Format: date
@@ -19690,7 +20643,7 @@ export interface components {
             amount: string;
             /**
              * Amount Clp
-             * @description Conversión a CLP capturada en el mismo snapshot AP+FX. `null` para montos ya CLP (se usa `amount`) o cuando falta un tipo de cambio publicable.
+             * @description Conversión a CLP capturada en el mismo snapshot AP+FX. `null` para montos ya CLP (se usa `amount`), cuando falta un tipo de cambio publicable, o cuando la moneda no se pudo verificar.
              */
             amount_clp: string | null;
             /**
@@ -19700,9 +20653,16 @@ export interface components {
             category: "payroll";
             /**
              * Currency
-             * @description Moneda original ISO 4217 de `amount`.
+             * @description Moneda original ISO 4217 de `amount`; `null` si la fila no acredita una moneda del catálogo (ver `currency_status`, #370).
              */
-            currency: string;
+            currency: string | null;
+            /**
+             * Currency Status
+             * @description Elegibilidad de `currency` (contrato #370 v1); ver `PayableItem`.
+             * @default verified
+             * @enum {string}
+             */
+            currency_status: "verified" | "functional_only" | "unknown" | "conflict" | "unsupported";
             /**
              * Due Date
              * Format: date
@@ -20346,18 +21306,23 @@ export interface components {
         };
         /**
          * PorCobrarVencido
-         * @description Cobros vencidos/sin-fecha EXCLUIDOS del runway (señal que reemplaza al día-1 dump). El FE lo
+         * @description Cobros vencidos EXCLUIDOS del runway (señal que reemplaza al día-1 dump). El FE lo
          *     muestra como 'por cobrar atrasado', NO como caja futura cierta.
+         *
+         *     Sólo documentos con vencimiento de procedencia CONFIRMADA (#564). Alimenta el
+         *     `total_recuperado` de `esperado_con_recuperacion`, que publica runway: un supuesto no puede
+         *     sostener un runway. Lo estimado/no verificable va a `escenario_condicionado` y a
+         *     `fuentes.cobertura`.
          */
         PorCobrarVencido: {
             /**
              * N
-             * @description Cantidad de cobros vencidos/sin-fecha.
+             * @description Cantidad de cobros vencidos confirmados.
              */
             n: number;
             /**
              * Total
-             * @description Σ de los cobros vencidos/sin-fecha, string-decimal.
+             * @description Σ de los cobros vencidos confirmados, string-decimal.
              */
             total: string;
         };
@@ -20365,6 +21330,9 @@ export interface components {
          * PorPagarVencido
          * @description Pagos vencidos (lo que el tenant DEBE y ya venció), separado de los cobros. Monto NEGATIVO.
          *     Junto con `por_cobrar_vencido` reemplaza al ambiguo `vencido.total` (que netea signos opuestos).
+         *
+         *     Sólo vencimientos de procedencia CONFIRMADA (#564): un `assumed_30d` que "ya pasó" no es mora
+         *     ni un pago crítico, y publicarlo acá era afirmarlo.
          */
         PorPagarVencido: {
             /**
@@ -20639,6 +21607,22 @@ export interface components {
             top_driver_positive?: string | null;
         };
         /**
+         * PulsoAbstentionEvidenceItem
+         * @description Un hecho persistido que sostiene la abstención, tal como lo dejó el writer.
+         */
+        PulsoAbstentionEvidenceItem: {
+            /**
+             * Code
+             * @description Código del hecho: ENTITY_SCOPE_CANDIDATES, CASH_BALANCE_EVIDENCE, OPENING_BALANCE_EVIDENCE, SUBINDEX_COVERAGE, WEIGHT_COVERAGE, MISSING_SUBINDEX_WEIGHT.
+             */
+            code: string;
+            /**
+             * Detail
+             * @description El hecho concreto: qué falta, cuánto pesa, qué compite.
+             */
+            detail: string;
+        };
+        /**
          * PulsoComponent
          * @description Un factor del composite (auditable).
          */
@@ -20663,6 +21647,16 @@ export interface components {
          * @description Respuesta de `GET /api/management/pulso`.
          */
         PulsoDetailResponse: {
+            /**
+             * Abstention Detail
+             * @description La causa dicha como frase accionable, con los datos concretos. Es el mismo texto que `headline` en una respuesta abstenida; se publica aparte para que el FE pueda tratarla como diagnóstico y no como titular.
+             */
+            abstention_detail?: string | null;
+            /**
+             * Abstention Reason
+             * @description Causa enumerada de por qué `score` es null (#661). Ausente en el motor v1 y cuando hay número.
+             */
+            abstention_reason?: ("unverified_entity_scope" | "cash_balance_unavailable" | "opening_balance_unavailable" | "insufficient_model_coverage") | null;
             /** Components */
             components?: components["schemas"]["PulsoComponent"][];
             /**
@@ -20748,8 +21742,21 @@ export interface components {
          * @description Public, entity-scoped reading with explicit publication and freshness state.
          */
         PulsoScoreReadingResponse: {
-            /** Abstention Reason */
-            abstention_reason: ("cash_balance_unavailable" | "pulso_snapshot_unavailable" | "unverified_entity_scope") | null;
+            /**
+             * Abstention Detail
+             * @description La causa dicha como frase accionable, compuesta con la evidencia del momento de la falla («faltan facturas por cobrar y egresos comprometidos: cubren 20% del modelo y el mínimo es 50%»). Es lo que se muestra al usuario. Nunca un adjetivo del tipo «preliminar» o «sin dato», que describe el dato y no dice qué hacer.
+             */
+            abstention_detail: string | null;
+            /**
+             * Abstention Evidence
+             * @description Los hechos persistidos que sostienen la causa. Vacío cuando se publica un número, y cuando la causa es que no hay fila que consultar.
+             */
+            abstention_evidence: components["schemas"]["PulsoAbstentionEvidenceItem"][];
+            /**
+             * Abstention Reason
+             * @description Causa **persistida** por la que no hay número, de lista cerrada (#661). Las cuatro primeras las escribió el writer en la misma fila que habría llevado el score; la quinta es la ausencia de fila —el job no corrió para este tenant— y es un estado distinto, no un sinónimo de las otras. Antes del #661 este campo era siempre `unverified_entity_scope`: el lector no recibía la causa y adivinaba la primera.
+             */
+            abstention_reason: ("unverified_entity_scope" | "cash_balance_unavailable" | "opening_balance_unavailable" | "insufficient_model_coverage" | "pulso_snapshot_unavailable") | null;
             /** Base Score */
             base_score: number | null;
             /** Base Status */
@@ -20848,21 +21855,50 @@ export interface components {
             /** Score */
             score: number | null;
         };
-        /** PulsoSnapshotResponse */
+        /**
+         * PulsoSnapshotResponse
+         * @description El resultado del cron, contado POR CAUSA.
+         *
+         *     El campo `skipped` que vivía acá se retracta con el #661. Decía, textualmente, que la causa
+         *     concreta iba «en el log del job», y ése era justamente el defecto: cuatro situaciones
+         *     distintas colapsadas en un número, con el detalle en un log que nadie mira y que además
+         *     nunca se escribía para una de las cuatro. Ahora cada causa tiene su llave, y el detalle
+         *     accionable queda persistido junto a la fila de abstención del tenant.
+         */
         PulsoSnapshotResponse: {
+            /**
+             * Abstained
+             * @description Abstenciones persistidas (fila con score null + causa). Es la suma de las cuatro llaves de abajo; se publica para que un operador no tenga que sumarlas a mano.
+             */
+            abstained: number;
+            /**
+             * Abstained Cash Balance Unavailable
+             * @description Sin saldo de caja resoluble ni moneda funcional. Esperable >0 sólo en tenants recién creados: quien llegó acá calificó en `tenants_with_cash`, así que un número alto sostenido apunta a cuentas dadas de baja o a FX faltante.
+             */
+            abstained_cash_balance_unavailable: number;
+            /**
+             * Abstained Insufficient Model Coverage
+             * @description Cobertura de peso del modelo bajo el mínimo para publicar (0,50). Es la causa de onboarding incompleto: hay caja pero faltan facturas, egresos o recurrentes.
+             */
+            abstained_insufficient_model_coverage: number;
+            /**
+             * Abstained Opening Balance Unavailable
+             * @description El scope se resolvió y el motor igual se quedó sin saldo de apertura al computar.
+             */
+            abstained_opening_balance_unavailable: number;
+            /**
+             * Abstained Unverified Entity Scope
+             * @description El tenant tiene 0 o >1 sociedades y las fuentes de PULSO siguen siendo comunes a todas. Si este número sube de golpe, mirar scoping/onboarding, no los conectores.
+             */
+            abstained_unverified_entity_scope: number;
             /**
              * Errors
              * @description Errores best-effort (no abortan el resto).
              */
             errors: number;
             /**
-             * Skipped
-             * @description Saltados: `persist_snapshot` devolvió None pese a calificar en tenants_with_cash. La causa concreta va en el log del job (#115).
-             */
-            skipped: number;
-            /**
              * Snapshots
-             * @description Snapshots persistidos (idempotente por día).
+             * @description Snapshots CON score persistidos (idempotente por día).
              */
             snapshots: number;
             /**
@@ -21502,6 +22538,93 @@ export interface components {
             /** Totals */
             totals: components["schemas"]["ReceivableDebtorCurrencyTotal"][];
         };
+        /** ReceivableDocumentItem */
+        ReceivableDocumentItem: {
+            /**
+             * Ceded
+             * @default false
+             */
+            ceded: boolean;
+            /**
+             * Claimed
+             * @default false
+             */
+            claimed: boolean;
+            /** Counterparty Key */
+            counterparty_key?: string | null;
+            /**
+             * Credit Note
+             * @default false
+             */
+            credit_note: boolean;
+            /** Currency Code */
+            currency_code: string;
+            /** Customer Name */
+            customer_name: string;
+            /** Customer Rut */
+            customer_rut?: string | null;
+            /** Days Overdue */
+            days_overdue?: number | null;
+            /** Document Type */
+            document_type?: number | null;
+            /** Due Date */
+            due_date?: string | null;
+            /**
+             * Due Date Certainty
+             * @enum {string}
+             */
+            due_date_certainty: "confirmed" | "estimated" | "unconfirmed";
+            /** Folio */
+            folio: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Issue Date
+             * Format: date
+             */
+            issue_date: string;
+            /** Outstanding Amount */
+            outstanding_amount: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "partially_paid" | "paid" | "cancelled";
+            /** Total Amount */
+            total_amount: string;
+        };
+        /** ReceivableDocumentsResponse */
+        ReceivableDocumentsResponse: {
+            /** Collected */
+            collected: components["schemas"]["ReceivableMoneyTotal"][];
+            /** Due Soon */
+            due_soon: components["schemas"]["ReceivableMoneyTotal"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Items */
+            items: components["schemas"]["ReceivableDocumentItem"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Overdue */
+            overdue: components["schemas"]["ReceivableMoneyTotal"][];
+            /** Total */
+            total: number;
+        };
+        /** ReceivableMoneyTotal */
+        ReceivableMoneyTotal: {
+            /** Amount */
+            amount: string;
+            /** Currency */
+            currency: string;
+        };
         /** ReceivableNetBridge */
         ReceivableNetBridge: {
             /** Ceded Excluded Total */
@@ -21936,6 +23059,33 @@ export interface components {
             reclaimed: number;
         };
         /**
+         * RefreshQueueHealthResponse
+         * @description Estado agregado de la cola durable. Sólo metadata operacional.
+         */
+        RefreshQueueHealthResponse: {
+            /** Dead Letter */
+            dead_letter: number;
+            /** Last Succeeded Age Seconds */
+            last_succeeded_age_seconds?: number | null;
+            /** Last Succeeded At */
+            last_succeeded_at?: string | null;
+            /** Oldest Queued Age Seconds */
+            oldest_queued_age_seconds?: number | null;
+            /** Oldest Queued At */
+            oldest_queued_at?: string | null;
+            /** Oldest Run Age Seconds */
+            oldest_run_age_seconds?: number | null;
+            /** Queued */
+            queued: number;
+            /**
+             * Queued Eligible
+             * @default 0
+             */
+            queued_eligible: number;
+            /** Running */
+            running: number;
+        };
+        /**
          * RejectDocumentSuggestionResponse
          * @description Par negativo persistido. Repetir la misma petición conserva el mismo resultado.
          */
@@ -22032,7 +23182,8 @@ export interface components {
         ResendVerificationRequest: {
             /**
              * Captcha Token
-             * @description Token del captcha (Turnstile).
+             * @description Token del captcha (Turnstile). En local puede ir vacío.
+             * @default
              */
             captcha_token: string;
             /**
@@ -22911,7 +24062,8 @@ export interface components {
         SignupRequest: {
             /**
              * Captcha Token
-             * @description Token del captcha (Turnstile).
+             * @description Token del captcha (Turnstile). En local puede ir vacío.
+             * @default
              */
             captcha_token: string;
             /**
@@ -23606,6 +24758,22 @@ export interface components {
             /** Movement Id */
             movement_id: string;
             suggestion?: components["schemas"]["SuggestedCategory"] | null;
+        };
+        /** SuggestionView */
+        SuggestionView: {
+            /**
+             * Derived From
+             * @description De dónde salió, para que se pueda evaluar al confirmar.
+             */
+            derived_from: string;
+            /** Identifier Scheme */
+            identifier_scheme: string;
+            /** Jurisdiction Code */
+            jurisdiction_code: string;
+            /** Label */
+            label: string;
+            /** Normalized Value */
+            normalized_value: string;
         };
         /** SuggestionsResponse */
         SuggestionsResponse: {
@@ -24692,7 +25860,7 @@ export interface components {
             source_external_id?: string | null;
             /**
              * Tipo
-             * @description 'pago_vencido' | 'cobro_vencido' | 'cobro_sin_fecha'.
+             * @description 'pago_vencido' | 'cobro_vencido'. Desde #564 sólo llegan acá documentos con procedencia de vencimiento CONFIRMADA: una fecha estimada o sin origen verificable no acredita mora. `cobro_sin_fecha` ya no se emite — un documento sin `due_date` se declara en `fuentes.cobertura.sin_fecha_excluidos`.
              */
             tipo: string;
         };
@@ -24700,6 +25868,23 @@ export interface components {
         VerifyEmailRequest: {
             /** Token */
             token: string;
+        };
+        /** WorkInboxResponse */
+        WorkInboxResponse: {
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /**
+             * Legal Entity Id
+             * Format: uuid
+             */
+            legal_entity_id: string;
+            /** Priorities */
+            priorities: components["schemas"]["InboxPriority"][];
+            /** Queues */
+            queues: components["schemas"]["InboxQueue"][];
         };
         /** WorkerClassification */
         WorkerClassification: {
@@ -24926,110 +26111,28 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** InboxItem */
-        InboxItem: {
-            /** Amount */
-            amount: string;
-            /** Currency */
-            currency: string | null;
-            /** Href */
-            href: string;
-            /** Id */
-            id: string;
-            /** Relevant Date */
-            relevant_date: string | null;
-            /** Status */
-            status: string;
-            /** Title */
-            title: string;
-            /**
-             * Urgency
-             * @enum {string}
-             */
-            urgency: "overdue" | "review" | "soon" | "normal";
+        /**
+         * LegalEntityNameRequest
+         * @description Nombre de una Empresa operativa dentro del tenant autenticado.
+         */
+        LegalEntityNameRequest: {
+            /** Legal Name */
+            legal_name: string;
         };
-        /** InboxMoney */
-        InboxMoney: {
-            /** Amount */
-            amount: string;
+        /**
+         * ManagedLegalEntity
+         * @description Respuesta mínima de alta/edición para refrescar selector y administración.
+         */
+        ManagedLegalEntity: {
             /**
-             * Currency
-             * @description Moneda ISO-4217; null si la fuente no la informo.
-             */
-            currency: string | null;
-        };
-        /** InboxPriority */
-        InboxPriority: {
-            /** Amount */
-            amount: string;
-            /** Currency */
-            currency: string | null;
-            /** Href */
-            href: string;
-            /** Id */
-            id: string;
-            /**
-             * Queue
-             * @enum {string}
-             */
-            queue: "reconciliation" | "receivables" | "payables" | "classification";
-            /** Relevant Date */
-            relevant_date: string | null;
-            /** Status */
-            status: string;
-            /** Title */
-            title: string;
-            /**
-             * Urgency
-             * @enum {string}
-             */
-            urgency: "overdue" | "review" | "soon" | "normal";
-        };
-        /** InboxQueue */
-        InboxQueue: {
-            /** Action Label */
-            action_label: string;
-            /** Amounts */
-            amounts: components["schemas"]["InboxMoney"][];
-            /** Count */
-            count: number;
-            /**
-             * Data State
-             * @enum {string}
-             */
-            data_state: "available" | "partial" | "estimated";
-            /** Href */
-            href: string;
-            /** Items */
-            items: components["schemas"]["InboxItem"][];
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "reconciliation" | "receivables" | "payables" | "classification";
-            /** Label */
-            label: string;
-            /** Limitations */
-            limitations: string[];
-            /** Next Date */
-            next_date: string | null;
-        };
-        /** WorkInboxResponse */
-        WorkInboxResponse: {
-            /**
-             * Generated At
-             * Format: date-time
-             */
-            generated_at: string;
-            /**
-             * Legal Entity Id
+             * Id
              * Format: uuid
              */
-            legal_entity_id: string;
-            /** Priorities */
-            priorities: components["schemas"]["InboxPriority"][];
-            /** Queues */
-            queues: components["schemas"]["InboxQueue"][];
+            id: string;
+            /** Is Default */
+            is_default: boolean;
+            /** Legal Name */
+            legal_name: string;
         };
     };
     responses: never;
@@ -25534,6 +26637,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClassifyRunAllResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_run_collection_reminders: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Api-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionReminderRunResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26095,6 +27229,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_sii_refresh_queue_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefreshQueueHealthResponse"];
                 };
             };
         };
@@ -27333,6 +28487,44 @@ export interface operations {
             };
         };
     };
+    auth_delete_account: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cuenta y empresa borradas; cookies limpias. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Esta cuenta no se puede borrar en este ambiente. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     auth_login: {
         parameters: {
             query?: never;
@@ -27409,6 +28601,111 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    auth_oauth_callback: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                qavante_oauth_state?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthCallbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Login OK, cookies seteadas. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            /** @description state inválido, code rechazado o email sin cuenta Qavante. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description AUTH0_WEB_* no configurado. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_oauth_start: {
+        parameters: {
+            query?: {
+                provider?: "google" | "microsoft";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Redirect a Auth0 /authorize. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description provider inválido. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description AUTH0_WEB_* no configurado. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -27548,6 +28845,42 @@ export interface operations {
             };
             /** @description Rate limit excedido. */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    auth_signup_contribuyente: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rut: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Razón social del RUT (persona o empresa). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContribuyenteResponse"];
+                };
+            };
+            /** @description RUT inválido. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SII inalcanzable. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -29030,6 +30363,415 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SourceStatusResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_widget_api_fintoc_complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FintocCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocSyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connect_bank_api_fintoc_connect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FintocConnectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocConnection"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_connections_api_fintoc_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocConnection"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_institutions_api_fintoc_institutions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocInstitution"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_link_intent_api_fintoc_link_intent_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocLinkIntentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_fintoc_api_fintoc_sync_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocSyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fintoc_webhook_api_fintoc_webhook_post: {
+        parameters: {
+            query?: {
+                tenant_id?: string | null;
+            };
+            header?: {
+                "Fintoc-Signature"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    widget_config_api_fintoc_widget_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FintocWidgetConfig"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    legal_entities_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalEntitiesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    legal_entities_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                origin?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LegalEntityNameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManagedLegalEntity"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    legal_entities_declare_identifier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                legal_entity_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeclareIdentifierRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentifierView"];
+                };
+            };
+            /** @description `identifier_already_claimed`: el valor es de otra sociedad. `entity_already_has_identifier`: ésta ya tiene uno vigente de ese esquema. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Esquema no registrado, o valor que no cumple su regla. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    legal_entities_retract_identifier: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                legal_entity_id: string;
+                identifier_id: string;
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sociedad o identificador vigente inexistente. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -30577,7 +32319,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description name vacío / solo espacios / >160 chars. */
+            /** @description RUT ya asignado a esta u otra cuenta. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description name vacío / RUT inválido / body vacío. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -34007,6 +35756,41 @@ export interface operations {
             };
         };
     };
+    treasury_accounts_receivable_documents: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceivableDocumentsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_bank_accounts_list: {
         parameters: {
             query?: {
@@ -35456,6 +37240,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CollectionReminderBatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_collection_reminder_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionReminderRulesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    treasury_update_collection_reminder_setting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: "before_due" | "due_today" | "overdue";
+            };
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionReminderRuleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionReminderRule"];
                 };
             };
             /** @description Validation Error */
@@ -38515,6 +40367,13 @@ export interface operations {
                     "application/json": components["schemas"]["MarkCollectedResponse"];
                 };
             };
+            /** @description Otra escritura del tenant chocó con esta; nada se aplicó, reintenta. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -38549,6 +40408,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RevertMarkCollectedResponse"];
                 };
+            };
+            /** @description Otra escritura del tenant chocó con esta; nada se aplicó, reintenta. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -39483,6 +41349,40 @@ export interface operations {
             };
         };
     };
+    treasury_work_inbox: {
+        parameters: {
+            query: {
+                /** @description Sociedad seleccionada dentro del tenant. */
+                legal_entity_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                qavante_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkInboxResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     treasury_working_capital_refinancing_evaluation: {
         parameters: {
             query: {
@@ -39795,40 +41695,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthLiteResponse"];
-                };
-            };
-        };
-    };
-    treasury_work_inbox: {
-        parameters: {
-            query: {
-                /** @description Sociedad seleccionada dentro del tenant. */
-                legal_entity_id: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: {
-                qavante_session?: string | null;
-            };
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkInboxResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

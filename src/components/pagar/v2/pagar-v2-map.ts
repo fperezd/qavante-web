@@ -9,7 +9,7 @@
 
 import type { PayableItem } from "@/lib/api/pagos";
 import type { ContraparteMaestro } from "@/components/terminos/terminos-pago";
-import { parseAmount, paymentCategoryLabel, montoCLP, montoCLPFaltante } from "../pagos-format";
+import { parseAmount, paymentCategoryLabel, monedaVerificada, montoCLP, montoCLPFaltante } from "../pagos-format";
 import { daysUntilDue, isOverdue, overdueThenCritical } from "../pagos-v2-format";
 import { categoryGroupLabel } from "../pagos-group";
 import { formatMoney } from "@/lib/formatters/clp";
@@ -107,7 +107,7 @@ export function mapVencimientos(
           .map(({ item }) => item);
 
   return orderedItems.map((it, i) => {
-    const extranjera = (it.currency ?? "CLP").toUpperCase() !== "CLP";
+    const extranjera = monedaVerificada(it) && it.currency !== "CLP";
     return {
       id: it.source_external_id ?? `${it.label}-${i}`,
       vencido: isOverdue(it, now),
@@ -153,7 +153,7 @@ export function mapFechasClave(
     return {
       id,
       label,
-      monto: montoCLP(item),
+      monto: monedaVerificada(item) ? montoCLP(item) : null,
       vence: formatDateLike(item.due_date),
       enDias: dias ?? undefined,
       icono,

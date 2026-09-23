@@ -1,0 +1,3 @@
+# El snapshot es un artefacto contractual con SHA-256 publicado por qavante-api.
+# No convertir sus saltos de línea en check-in/check-out: alteraría la evidencia.
+docs/contracts/openapi.snapshot.json -text

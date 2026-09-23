@@ -225,7 +225,7 @@
                 "type": "null"
               }
             ],
-            "description": "¿La caja proyectada cubre lo que vence en 14 días? Se responde comprobando si la curva completa se mantiene en o sobre cero durante los 14 días: las obligaciones ya están neteadas en la curva y no se vuelven a restar. **Tri-estado.** `null` = no se puede responder, y son SIETE casos: cuatro de la cobertura documental, dos de la caja y uno de unidad. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el séptimo no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma que la curva completa —con TODO lo que vence ya incorporado— nunca baja de cero en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).",
+            "description": "¿La caja proyectada cubre lo que vence en 14 días? Se responde comprobando si la curva completa se mantiene en o sobre cero durante los 14 días: las obligaciones ya están neteadas en la curva y no se vuelven a restar. **Tri-estado.** `null` = no se puede responder, y son SIETE casos: cuatro de la cobertura documental, dos de la caja y uno de unidad. Denominador (lo que vence): sin ningún documento por pagar todavía (`data_state` degradado, típicamente SII sin conectar o sin sincronizar) — con `due_14d = 0` cualquier caja 'cubriría', y eso afirmaría cobertura sobre una deuda que aún no se conoce; con deuda viva SIN vencimiento confirmado (fecha ausente o procedencia no verificable, que es lo que el guard mira), porque `due_14d` no la incluye; con un vencimiento `assumed_30d`, porque es una fecha estimada y no confirma que la deuda venza en la ventana; o con el tipo de cambio pendiente de una moneda que tiene deuda DENTRO DE LOS 14 DÍAS —o con deuda en la ventana cuya moneda no se pudo verificar (#370, `total_by_currency[].currency: null`)—, porque ese pedazo del denominador no se pudo convertir. Que falte un tipo de cambio cualquiera NO alcanza: una factura en otra moneda a 45 días deja el TOTAL incompleto —y por eso se declara en `missing_sources`— pero no toca la ventana de 14, y abstenerse por ella dejaba sin indicador, de forma PERMANENTE y sin ninguna pantalla donde arreglarlo, a cualquier cliente con una factura en moneda extranjera a más de dos semanas. Numerador (la caja): sin proyección de caja; o con el saldo INCOMPLETO, que ocurre de SEIS formas y cinco de ellas descartan filas en silencio: una cuenta bancaria en moneda no-funcional sin tipo de cambio; una cuenta corriente o de ahorro ACTIVA a la que todavía no se le configuró ningún saldo (el estado normal de un onboarding a medio hacer); un impacto committed de la ventana que la proyección no pudo usar (sin conversión a la moneda funcional, o con `data_status` distinto de `available`); las obligaciones de F29 de un tenant cuya moneda funcional no es CLP, que hoy no se proyectan (la conversión del F29 es v2); el F29 de un tenant CLP cuyo remanente arrastrado no se pudo anclar; o —la sexta, y la única donde el dato NO falta— EL SALDO, por VIEJO: rige en las TRES ramas —el saldo que reporta el banco, la apertura más sus movimientos, y la semilla manual del tenant—, cada una fechada con su último dato; más vieja que la ventana comparada, o sin fecha, no la sostiene. LAS DOS DE F29 (la 4.ª y la 5.ª) son omisiones DELIBERADAS —proyectarlas sería inventar un pago— y lo que cambia es que dejan de ser calladas; la 6.ª no es una omisión: el dato está y está vencido. Este juicio se hace sobre la ventana de 14 días, no sobre el horizonte de 30: una fila rota del día 25 no pudo haber movido lo que se compara. La DIRECCIÓN del error no es fija —depende de qué se descartó y de su signo—, pero un numerador incompleto no permite afirmar cobertura en ninguno de los dos sentidos. Y el séptimo no es un dato que falte sino una división sin sentido: si la moneda funcional del tenant no es CLP, `projected_cash_14d` viene en esa moneda mientras `due_14d` se totaliza en CLP, así que compararlos es dividir dólares por pesos. Convertirlos bien es el #160 (decisión de plata); mientras tanto no se responde. Un `true` afirma que la curva completa —con TODO lo que vence ya incorporado— nunca baja de cero en la MISMA unidad: ausencia de vencimiento no es 'no vence dentro de 14 días' (#41).",
             "title": "Covers Critical"
           },
           "credits": {
@@ -264,7 +264,7 @@
             "type": "integer"
           },
           "excluded_from_total_by_currency": {
-            "description": "Montos crudos excluidos del `total` CLP por falta de tipo de cambio. Vacío significa que el total no tuvo exclusiones de moneda.",
+            "description": "Montos crudos excluidos del `total` CLP, con `reason`: por falta de tipo de cambio (`fx_missing`) o porque la moneda no se pudo verificar (`currency: null`, `currency_missing` | `currency_not_in_catalog`). Vacío significa que el total no tuvo exclusiones de moneda.",
             "items": {
               "$ref": "#/components/schemas/PayableCurrencyTotal"
             },
@@ -401,7 +401,7 @@
             "type": "string"
           },
           "total_by_currency": {
-            "description": "Desglose del total por pagar por moneda, SIN convertir — para mostrar '(CLP $X + USD $Y)' junto al total en CLP. CLP primero.",
+            "description": "Desglose del total por pagar por moneda, SIN convertir — para mostrar '(CLP $X + USD $Y)' junto al total en CLP. CLP primero, luego las demás monedas verificadas, y al final los buckets `currency: null` de documentos cuya moneda no se pudo verificar (#370): esos montos NO están en `total` ni en `due_*` y no se deben sumar ni mostrar como pesos.",
             "items": {
               "$ref": "#/components/schemas/PayableCurrencyTotal"
             },
@@ -2945,7 +2945,7 @@
       },
       "BudgetAccountLine": {
         "additionalProperties": false,
-        "description": "Budget vs actual de una cuenta de gestión (F2-A.2). Montos signados.",
+        "description": "Budget vs actual de una cuenta de gestión (F2-A.2). Montos signados.\n\n`concept` es el concepto canónico del P&L derivado de `financial_impacts.impact_type`\nde la cuenta en el período (#432). Nunca se asigna por signo, nombre ni prefijo de\ncuenta: si los impactos de la cuenta caen en más de un concepto va `null` con\n`concept_status = \"ambiguous\"`; si ninguno pertenece al P&L operacional (tax, capex,\ndeuda…) va `null` con `\"unassigned\"`.",
         "properties": {
           "account_code": {
             "anyOf": [
@@ -2984,6 +2984,41 @@
             "title": "Budget",
             "type": "string"
           },
+          "concept": {
+            "anyOf": [
+              {
+                "enum": [
+                  "revenue",
+                  "direct_cost",
+                  "operating_expense"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Concepto canónico del P&L de la cuenta (misma partición que las líneas de budget-vs-actual). null cuando `concept_status` no es 'assigned'.",
+            "title": "Concept"
+          },
+          "concept_status": {
+            "description": "assigned = un solo concepto; ambiguous = los impact_type de la cuenta caen en más de un concepto (conflicto explícito, no se reparte); unassigned = ningún impact_type pertenece al P&L operacional.",
+            "enum": [
+              "assigned",
+              "ambiguous",
+              "unassigned"
+            ],
+            "title": "Concept Status",
+            "type": "string"
+          },
+          "impact_types": {
+            "description": "impact_type distintos observados en la cuenta en el período (ambas capas), evidencia de `concept`/`concept_status`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Impact Types",
+            "type": "array"
+          },
           "variance": {
             "description": "actual - budget (signado).",
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
@@ -3001,14 +3036,16 @@
           "budget",
           "actual",
           "variance",
-          "variance_pct"
+          "variance_pct",
+          "concept",
+          "concept_status"
         ],
         "title": "BudgetAccountLine",
         "type": "object"
       },
       "BudgetByAccountResponse": {
         "additionalProperties": false,
-        "description": "Respuesta de `GET /api/planning/budget-by-account?period=YYYY-MM` — drill-down\npor cuenta de gestión (budget vs actual committed).",
+        "description": "Respuesta de `GET /api/planning/budget-by-account?period=YYYY-MM` — drill-down\npor cuenta de gestión (budget vs actual committed).\n\nINV-FIN-001 contra `budget-vs-actual` del mismo período: el `budget` cuadra por\nconstrucción (misma tabla, capa y partición de `impact_type`): la suma de `budget` de las\ncuentas `assigned` a un concepto es la línea de budget-vs-actual menos lo que viva en\ncuentas `ambiguous`. El `actual` NO cuadra en monto, sólo en partición: acá es caja\ncommitted (`basis`) y en budget-vs-actual es devengado (#281 §2.7).",
         "properties": {
           "accounts": {
             "items": {
@@ -3016,6 +3053,12 @@
             },
             "title": "Accounts",
             "type": "array"
+          },
+          "basis": {
+            "const": "cash_committed",
+            "description": "Base contable del `actual`: caja committed (financial_impacts layer=committed), NO devengado. budget-vs-actual publica el devengado.",
+            "title": "Basis",
+            "type": "string"
           },
           "data_state": {
             "enum": [
@@ -3050,6 +3093,7 @@
         },
         "required": [
           "period",
+          "basis",
           "has_budget",
           "data_state",
           "generated_at"
@@ -3934,7 +3978,7 @@
         "additionalProperties": false,
         "properties": {
           "con_fecha_real": {
-            "description": "Fracción [0..1] de obligaciones con fecha REAL (vencimiento/comportamiento) vs estimada. La proyección vale lo que valen las fechas.",
+            "description": "Fracción [0..1] de documentos cuya fecha tiene PROCEDENCIA confirmada (`due_date_source` verificable) sobre el universo vivo de la moneda funcional. La proyección vale lo que valen las fechas. Desde #564 mide procedencia y no la mera presencia de una fecha: antes el lado de los pagos publicaba 1.0 incluso con una cartera entera de vencimientos estimados.",
             "title": "Con Fecha Real",
             "type": "number"
           },
@@ -6150,6 +6194,10 @@
             "title": "En Sobregiro",
             "type": "boolean"
           },
+          "escenario_condicionado": {
+            "$ref": "#/components/schemas/EscenarioCondicionado",
+            "description": "#564: el esperado MÁS las fechas estimadas o sin procedencia verificable. Separado y explicable; nunca brecha dura, mora, pago crítico ni CTA."
+          },
           "escenario_duro": {
             "$ref": "#/components/schemas/EscenarioDuro"
           },
@@ -6238,6 +6286,7 @@
           "escenario_duro",
           "esperado_con_recuperacion",
           "esperado_con_ingresos",
+          "escenario_condicionado",
           "vencido",
           "por_cobrar_vencido",
           "por_pagar_vencido",
@@ -6933,7 +6982,7 @@
                 "type": "null"
               }
             ],
-            "description": "'pago' | 'f29' | 'pago_vencido'.",
+            "description": "'pago' | 'f29' | 'pago_vencido' | 'pago_condicionado'. El último sólo aparece dentro de `escenario_condicionado` y nunca trae `payable_id`.",
             "title": "Tipo"
           }
         },
@@ -8478,6 +8527,74 @@
         "title": "ClosingProjectionSource",
         "type": "object"
       },
+      "Cobertura": {
+        "additionalProperties": false,
+        "description": "Qué quedó FUERA del escenario firme y por qué — la misma nomenclatura que publica\n`obligaciones_agendadas` en la proyección canónica, para que las dos superficies se puedan\nponer una al lado de la otra sin traducir.\n\nLos montos van en `moneda` y son string-decimal. `moneda_distinta_excluidos` es SÓLO un\nconteo: sumar importes de otra unidad es exactamente lo que INV-FX-001 prohíbe.\n\n**El alcance NO es el mismo en los cuatro buckets, y es deliberado** (espeja el del\nproductor canónico): los `*_fecha_asumida_*` y `*_fecha_no_verificada_*` se acotan a\n`horizon_days`, porque describen lo que quedó fuera de ESTA curva; `sin_fecha_excluidos`\ny `moneda_distinta_excluidos` cuentan el universo VIVO completo, porque un documento sin\nvencimiento no tiene horizonte al que pertenecer y uno en otra moneda no entra a ninguno.",
+        "properties": {
+          "f29_omitido_por_moneda": {
+            "description": "True si la moneda funcional no es CLP y por eso el F29 no se proyectó.",
+            "title": "F29 Omitido Por Moneda",
+            "type": "boolean"
+          },
+          "moneda_distinta_excluidos": {
+            "description": "Documentos vivos en una moneda distinta de la funcional (conteo).",
+            "title": "Moneda Distinta Excluidos",
+            "type": "string"
+          },
+          "payables_fecha_asumida_excluidos": {
+            "title": "Payables Fecha Asumida Excluidos",
+            "type": "string"
+          },
+          "payables_fecha_asumida_excluidos_count": {
+            "title": "Payables Fecha Asumida Excluidos Count",
+            "type": "string"
+          },
+          "payables_fecha_no_verificada_excluidos": {
+            "title": "Payables Fecha No Verificada Excluidos",
+            "type": "string"
+          },
+          "payables_fecha_no_verificada_excluidos_count": {
+            "title": "Payables Fecha No Verificada Excluidos Count",
+            "type": "string"
+          },
+          "receivables_fecha_asumida_excluidos": {
+            "title": "Receivables Fecha Asumida Excluidos",
+            "type": "string"
+          },
+          "receivables_fecha_asumida_excluidos_count": {
+            "title": "Receivables Fecha Asumida Excluidos Count",
+            "type": "string"
+          },
+          "receivables_fecha_no_verificada_excluidos": {
+            "title": "Receivables Fecha No Verificada Excluidos",
+            "type": "string"
+          },
+          "receivables_fecha_no_verificada_excluidos_count": {
+            "title": "Receivables Fecha No Verificada Excluidos Count",
+            "type": "string"
+          },
+          "sin_fecha_excluidos": {
+            "description": "Documentos vivos sin `due_date` (conteo).",
+            "title": "Sin Fecha Excluidos",
+            "type": "string"
+          }
+        },
+        "required": [
+          "receivables_fecha_asumida_excluidos",
+          "receivables_fecha_asumida_excluidos_count",
+          "receivables_fecha_no_verificada_excluidos",
+          "receivables_fecha_no_verificada_excluidos_count",
+          "payables_fecha_asumida_excluidos",
+          "payables_fecha_asumida_excluidos_count",
+          "payables_fecha_no_verificada_excluidos",
+          "payables_fecha_no_verificada_excluidos_count",
+          "sin_fecha_excluidos",
+          "moneda_distinta_excluidos",
+          "f29_omitido_por_moneda"
+        ],
+        "title": "Cobertura",
+        "type": "object"
+      },
       "CollectionEvaluationAlternative": {
         "additionalProperties": false,
         "properties": {
@@ -8896,6 +9013,170 @@
           "detail"
         ],
         "title": "CollectionReminderItemResult",
+        "type": "object"
+      },
+      "CollectionReminderRule": {
+        "additionalProperties": false,
+        "properties": {
+          "audience_mode": {
+            "enum": [
+              "all",
+              "exclude",
+              "include"
+            ],
+            "title": "Audience Mode",
+            "type": "string"
+          },
+          "counterparty_keys": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Counterparty Keys",
+            "type": "array"
+          },
+          "days_offset": {
+            "maximum": 365,
+            "minimum": 0,
+            "title": "Days Offset",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "before_due",
+              "due_today",
+              "overdue"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "schedule_time": {
+            "format": "time",
+            "title": "Schedule Time",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "kind",
+          "enabled",
+          "days_offset",
+          "schedule_time",
+          "audience_mode"
+        ],
+        "title": "CollectionReminderRule",
+        "type": "object"
+      },
+      "CollectionReminderRuleUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "audience_mode": {
+            "default": "all",
+            "enum": [
+              "all",
+              "exclude",
+              "include"
+            ],
+            "title": "Audience Mode",
+            "type": "string"
+          },
+          "counterparty_keys": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Counterparty Keys",
+            "type": "array"
+          },
+          "days_offset": {
+            "maximum": 365,
+            "minimum": 0,
+            "title": "Days Offset",
+            "type": "integer"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "schedule_time": {
+            "format": "time",
+            "title": "Schedule Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "days_offset",
+          "schedule_time"
+        ],
+        "title": "CollectionReminderRuleUpdate",
+        "type": "object"
+      },
+      "CollectionReminderRulesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionReminderRule"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "CollectionReminderRulesResponse",
+        "type": "object"
+      },
+      "CollectionReminderRunResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "documents": {
+            "title": "Documents",
+            "type": "integer"
+          },
+          "errors": {
+            "title": "Errors",
+            "type": "integer"
+          },
+          "rules": {
+            "title": "Rules",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rules",
+          "documents",
+          "sent",
+          "skipped",
+          "errors"
+        ],
+        "title": "CollectionReminderRunResponse",
         "type": "object"
       },
       "CollectionSituationItem": {
@@ -13331,6 +13612,38 @@
         "title": "DecisionSelectionResponse",
         "type": "object"
       },
+      "DeclareIdentifierRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "identifier_scheme": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Identifier Scheme",
+            "type": "string"
+          },
+          "jurisdiction_code": {
+            "description": "ISO 3166-1 alpha-2.",
+            "maxLength": 2,
+            "minLength": 2,
+            "title": "Jurisdiction Code",
+            "type": "string"
+          },
+          "value": {
+            "description": "Tal como lo tipeó la persona.",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "jurisdiction_code",
+          "identifier_scheme",
+          "value"
+        ],
+        "title": "DeclareIdentifierRequest",
+        "type": "object"
+      },
       "DedupRcvRequest": {
         "additionalProperties": false,
         "properties": {
@@ -15931,6 +16244,94 @@
           "status"
         ],
         "title": "EmployeesListResponse",
+        "type": "object"
+      },
+      "EscenarioCondicionado": {
+        "additionalProperties": false,
+        "description": "Escenario CONDICIONADO (#564): el esperado MÁS los documentos cuya fecha es estimada\n(`due_date_source = 'assumed_30d'`) o no tiene procedencia verificable.\n\nExiste para que esas fechas se conserven como cobertura visible sin volverse un hecho\nfinanciero (regla BO, #558). Nada de acá es una brecha dura, una mora, un pago crítico ni\nun CTA: `punto_quiebre.causas` NUNCA trae `payable_id`, justamente para que el cliente no\npueda colgarle Postergar a un quiebre hipotético. El escenario firme no cambia por lo que\ndiga este bloque, y el cliente no tiene que sumar nada: ambas series salen de la misma\naritmética, con distinto conjunto de documentos.\n\n**Alcance: `due_date <= as_of + horizon_days`, el mismo de la consulta condicionada del\nproductor canónico** (`AND due_date <= horizon_end`) y el mismo de los dos buckets de\nprocedencia de `Cobertura`. Los tres conjuntos son idénticos a propósito: `serie`,\n`saldo_final`, `punto_quiebre`, `total_pagos_condicionados`, `total_cobros_condicionados`\ny `n_flujos` describen el universo que esta curva efectivamente recorre. Un documento\nestimado que vence DESPUÉS del horizonte no aparece acá ni en `cobertura`, igual que no\naparece en el escenario condicionado del Brief.",
+        "properties": {
+          "dias_de_caja": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Runway si además se cumplieran las fechas estimadas; null si nunca cae.",
+            "title": "Dias De Caja"
+          },
+          "dias_hasta_recuperar": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si `en_sobregiro`: días hasta volver sobre el mínimo en este escenario.",
+            "title": "Dias Hasta Recuperar"
+          },
+          "fecha_recuperar": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Día de recuperación (YYYY-MM-DD).",
+            "title": "Fecha Recuperar"
+          },
+          "n_flujos": {
+            "description": "Nº de documentos que sólo viven en este escenario, dentro de `horizon_days`.",
+            "title": "N Flujos",
+            "type": "integer"
+          },
+          "punto_quiebre": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PuntoQuiebre"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quiebre HIPOTÉTICO. No es la brecha confirmada ni habilita una acción."
+          },
+          "saldo_final": {
+            "description": "Saldo al final del horizonte (string-decimal).",
+            "title": "Saldo Final",
+            "type": "string"
+          },
+          "serie": {
+            "items": {
+              "$ref": "#/components/schemas/app__api__cash_model__SeriePunto"
+            },
+            "title": "Serie",
+            "type": "array"
+          },
+          "total_cobros_condicionados": {
+            "description": "Σ de los cobros con fecha estimada/no verificable que vencen DENTRO de `horizon_days` (positivo), string-decimal.",
+            "title": "Total Cobros Condicionados",
+            "type": "string"
+          },
+          "total_pagos_condicionados": {
+            "description": "Σ de los pagos con fecha estimada/no verificable que vencen DENTRO de `horizon_days` (negativo), string-decimal.",
+            "title": "Total Pagos Condicionados",
+            "type": "string"
+          }
+        },
+        "required": [
+          "saldo_final",
+          "total_pagos_condicionados",
+          "total_cobros_condicionados",
+          "n_flujos"
+        ],
+        "title": "EscenarioCondicionado",
         "type": "object"
       },
       "EscenarioDuro": {
@@ -19633,6 +20034,12 @@
             "title": "Freshness",
             "type": "string"
           },
+          "has_conditional_due_dates": {
+            "default": false,
+            "description": "True si algún documento que vence dentro de `horizon_days` entra sólo al escenario condicionado. El alcance es el de la ventana, el mismo del escenario condicionado del Brief: un estimado que vence después no se declara acá porque tampoco mueve `minimum_projected_cash_with_conditional_due_dates`.",
+            "title": "Has Conditional Due Dates",
+            "type": "boolean"
+          },
           "horizon_days": {
             "maximum": 365,
             "minimum": 1,
@@ -19653,7 +20060,21 @@
                 "type": "null"
               }
             ],
+            "description": "Mínimo de la serie CONFIRMADA. Desde #564 la serie que lo produce admite sólo documentos de la moneda funcional con procedencia de vencimiento verificable, así que esta cifra ya no puede contradecir la brecha canónica del Brief por incluir supuestos o importes de otra moneda.",
             "title": "Minimum Projected Cash"
+          },
+          "minimum_projected_cash_with_conditional_due_dates": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mínimo del escenario CONDICIONADO: el confirmado más las fechas estimadas o sin procedencia verificable que vencen DENTRO de `horizon_days`. Espeja `min_14d_with_conditional_due_dates` del Brief para que las tres superficies —Brief, Caja y posición financiera— publiquen la misma distinción sin que el cliente reconstruya nada. No es una brecha dura.",
+            "title": "Minimum Projected Cash With Conditional Due Dates"
           },
           "safe_cash": {
             "anyOf": [
@@ -20488,6 +20909,327 @@
         "title": "FinancingOverviewResponse",
         "type": "object"
       },
+      "FintocCompleteRequest": {
+        "properties": {
+          "exchange_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchange Token"
+          },
+          "link": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link"
+          },
+          "link_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Token"
+          }
+        },
+        "title": "FintocCompleteRequest",
+        "type": "object"
+      },
+      "FintocConnectRequest": {
+        "properties": {
+          "accept_consent": {
+            "default": false,
+            "title": "Accept Consent",
+            "type": "boolean"
+          },
+          "institution_id": {
+            "title": "Institution Id",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "rut": {
+            "title": "Rut",
+            "type": "string"
+          }
+        },
+        "required": [
+          "institution_id",
+          "rut",
+          "password"
+        ],
+        "title": "FintocConnectRequest",
+        "type": "object"
+      },
+      "FintocConnection": {
+        "properties": {
+          "data_source": {
+            "default": "fintoc",
+            "title": "Data Source",
+            "type": "string"
+          },
+          "holder_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Id"
+          },
+          "holder_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Name"
+          },
+          "holder_rut": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Rut"
+          },
+          "holder_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder Type"
+          },
+          "institution_id": {
+            "title": "Institution Id",
+            "type": "string"
+          },
+          "institution_name": {
+            "title": "Institution Name",
+            "type": "string"
+          },
+          "link_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Id"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "status": {
+            "default": "connected",
+            "title": "Status",
+            "type": "string"
+          },
+          "sync": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sync"
+          }
+        },
+        "required": [
+          "institution_id",
+          "institution_name"
+        ],
+        "title": "FintocConnection",
+        "type": "object"
+      },
+      "FintocInstitution": {
+        "properties": {
+          "country": {
+            "default": "cl",
+            "title": "Country",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "FintocInstitution",
+        "type": "object"
+      },
+      "FintocLinkIntentResponse": {
+        "properties": {
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "country": {
+            "default": "cl",
+            "title": "Country",
+            "type": "string"
+          },
+          "holder_type": {
+            "default": "business",
+            "title": "Holder Type",
+            "type": "string"
+          },
+          "product": {
+            "default": "movements",
+            "title": "Product",
+            "type": "string"
+          },
+          "public_key": {
+            "title": "Public Key",
+            "type": "string"
+          },
+          "webhook_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Url"
+          },
+          "widget_token": {
+            "title": "Widget Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "public_key",
+          "widget_token",
+          "connected"
+        ],
+        "title": "FintocLinkIntentResponse",
+        "type": "object"
+      },
+      "FintocSyncResponse": {
+        "properties": {
+          "accounts": {
+            "title": "Accounts",
+            "type": "integer"
+          },
+          "imported": {
+            "title": "Imported",
+            "type": "integer"
+          },
+          "per_account": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Per Account",
+            "type": "array"
+          },
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accounts",
+          "imported"
+        ],
+        "title": "FintocSyncResponse",
+        "type": "object"
+      },
+      "FintocWidgetConfig": {
+        "properties": {
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "country": {
+            "default": "cl",
+            "title": "Country",
+            "type": "string"
+          },
+          "holder_type": {
+            "default": "business",
+            "title": "Holder Type",
+            "type": "string"
+          },
+          "product": {
+            "default": "movements",
+            "title": "Product",
+            "type": "string"
+          },
+          "public_key": {
+            "title": "Public Key",
+            "type": "string"
+          },
+          "webhook_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Url"
+          }
+        },
+        "required": [
+          "public_key",
+          "connected"
+        ],
+        "title": "FintocWidgetConfig",
+        "type": "object"
+      },
       "ForecastAmount": {
         "additionalProperties": false,
         "description": "Monto nominal (Σ outstanding) vs esperado (Σ ponderado por prob de pago).",
@@ -20979,6 +21721,10 @@
           "calidad_fechas": {
             "$ref": "#/components/schemas/CalidadFechas"
           },
+          "cobertura": {
+            "$ref": "#/components/schemas/Cobertura",
+            "description": "Lo que quedó fuera del escenario firme, con monto y conteo por motivo."
+          },
           "saldo_synced_at": {
             "anyOf": [
               {
@@ -20992,7 +21738,8 @@
           }
         },
         "required": [
-          "calidad_fechas"
+          "calidad_fechas",
+          "cobertura"
         ],
         "title": "Fuentes",
         "type": "object"
@@ -21353,6 +22100,355 @@
           "count"
         ],
         "title": "HoldingMappingsResponse",
+        "type": "object"
+      },
+      "IdentifierView": {
+        "additionalProperties": false,
+        "properties": {
+          "assertion_quality": {
+            "description": "'manual' = lo declaró una persona. 'verified' = hay evidencia externa.",
+            "enum": [
+              "verified",
+              "manual"
+            ],
+            "title": "Assertion Quality",
+            "type": "string"
+          },
+          "evidence_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Ref"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "identifier_scheme": {
+            "description": "'rut' en Chile, 'ruc' en Perú, 'cuit' en AR…",
+            "title": "Identifier Scheme",
+            "type": "string"
+          },
+          "jurisdiction_code": {
+            "description": "ISO 3166-1 alpha-2, p. ej. 'CL'.",
+            "title": "Jurisdiction Code",
+            "type": "string"
+          },
+          "label": {
+            "description": "Cómo se llama en pantalla en ese país. DERIVADA, no persistida.",
+            "title": "Label",
+            "type": "string"
+          },
+          "normalized_value": {
+            "description": "Forma canónica del esquema. Lo que se compara.",
+            "title": "Normalized Value",
+            "type": "string"
+          },
+          "valid_from": {
+            "format": "date-time",
+            "title": "Valid From",
+            "type": "string"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null = vigente. Retirar cierra la vigencia, no borra la fila.",
+            "title": "Valid To"
+          }
+        },
+        "required": [
+          "id",
+          "jurisdiction_code",
+          "identifier_scheme",
+          "normalized_value",
+          "label",
+          "assertion_quality",
+          "evidence_ref",
+          "valid_from"
+        ],
+        "title": "IdentifierView",
+        "type": "object"
+      },
+      "InboxItem": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "relevant_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relevant Date"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "urgency": {
+            "enum": [
+              "overdue",
+              "review",
+              "soon",
+              "normal"
+            ],
+            "title": "Urgency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "amount",
+          "currency",
+          "relevant_date",
+          "urgency",
+          "status",
+          "href"
+        ],
+        "title": "InboxItem",
+        "type": "object"
+      },
+      "InboxMoney": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda ISO-4217; null si la fuente no la informo.",
+            "title": "Currency"
+          }
+        },
+        "required": [
+          "currency",
+          "amount"
+        ],
+        "title": "InboxMoney",
+        "type": "object"
+      },
+      "InboxPriority": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "queue": {
+            "enum": [
+              "reconciliation",
+              "receivables",
+              "payables",
+              "classification"
+            ],
+            "title": "Queue",
+            "type": "string"
+          },
+          "relevant_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relevant Date"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "urgency": {
+            "enum": [
+              "overdue",
+              "review",
+              "soon",
+              "normal"
+            ],
+            "title": "Urgency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "amount",
+          "currency",
+          "relevant_date",
+          "urgency",
+          "status",
+          "href",
+          "queue"
+        ],
+        "title": "InboxPriority",
+        "type": "object"
+      },
+      "InboxQueue": {
+        "additionalProperties": false,
+        "properties": {
+          "action_label": {
+            "title": "Action Label",
+            "type": "string"
+          },
+          "amounts": {
+            "items": {
+              "$ref": "#/components/schemas/InboxMoney"
+            },
+            "title": "Amounts",
+            "type": "array"
+          },
+          "count": {
+            "minimum": 0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "data_state": {
+            "enum": [
+              "available",
+              "partial",
+              "estimated"
+            ],
+            "title": "Data State",
+            "type": "string"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InboxItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "reconciliation",
+              "receivables",
+              "payables",
+              "classification"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "next_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Date"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "action_label",
+          "href",
+          "count",
+          "amounts",
+          "data_state",
+          "limitations",
+          "next_date",
+          "items"
+        ],
+        "title": "InboxQueue",
         "type": "object"
       },
       "IncompleteMonth": {
@@ -22308,6 +23404,86 @@
         "title": "LegacyDocumentDetail",
         "type": "object"
       },
+      "LegalEntitiesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/LegalEntityView"
+            },
+            "title": "Entities",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entities"
+        ],
+        "title": "LegalEntitiesResponse",
+        "type": "object"
+      },
+      "LegalEntityView": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "identifiers": {
+            "description": "Los VIGENTES, uno por esquema.",
+            "items": {
+              "$ref": "#/components/schemas/IdentifierView"
+            },
+            "title": "Identifiers",
+            "type": "array"
+          },
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
+          },
+          "legal_name": {
+            "title": "Legal Name",
+            "type": "string"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuggestionView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Propuesta a confirmar. NO está declarada: no se guarda hasta que alguien la confirme por POST."
+          },
+          "suggestion_blocker": {
+            "anyOf": [
+              {
+                "enum": [
+                  "already_declared",
+                  "multiple_entities",
+                  "no_tenant_rut",
+                  "invalid_tenant_rut"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Por qué no hay sugerencia. Cada motivo manda a una acción distinta: 'multiple_entities' pide elegir a mano; 'no_tenant_rut' pide cargar el dato.",
+            "title": "Suggestion Blocker"
+          }
+        },
+        "required": [
+          "id",
+          "legal_name",
+          "is_default",
+          "identifiers"
+        ],
+        "title": "LegalEntityView",
+        "type": "object"
+      },
       "LibroComparativosResponse": {
         "additionalProperties": true,
         "description": "`GET /api/sii/rcv/{kind}/comparativos` — contrato CC-WEB 2026-07-13. Neto neteado de\nNC (mismo criterio F29/computeRcvTotals). Cada bloque de comparativo es null si no es\ncalculable (base ≤ 0 / meses faltantes) → el FE lo omite (degradado honesto).",
@@ -22744,19 +23920,37 @@
       "LoginRequest": {
         "additionalProperties": false,
         "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Email de la cuenta (case-insensitive). Alternativa a `rut`.",
+            "title": "Email"
+          },
           "password": {
             "minLength": 1,
             "title": "Password",
             "type": "string"
           },
           "rut": {
-            "description": "RUT chileno con DV (formato '12345678-9' o '12.345.678-9').",
-            "title": "Rut",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RUT chileno con DV (formato '12345678-9' o '12.345.678-9'). Alternativa a `email`: enviá uno de los dos.",
+            "title": "Rut"
           }
         },
         "required": [
-          "rut",
           "password"
         ],
         "title": "LoginRequest",
@@ -23458,19 +24652,34 @@
       },
       "MePatchRequest": {
         "additionalProperties": false,
-        "description": "Body de `PATCH /api/me` — auto-edición del perfil (Ask #2 CC-WEB).\n\nSolo `name` (mapea a `core.users.full_name`). email/password/rol tienen\nsus propios flujos (re-verificación / recuperación / gestión admin) y\nquedan fuera de scope. `extra=forbid` rechaza intentos de tocar otros\ncampos por este endpoint.",
+        "description": "Body de `PATCH /api/me` — auto-edición del perfil.\n\n`name` → `core.users.full_name`. `rut` → `core.users.rut` (solo si aún\nestá vacío). email/password/rol tienen sus propios flujos.\n`extra=forbid` rechaza otros campos.",
         "properties": {
           "name": {
+            "anyOf": [
+              {
+                "maxLength": 160,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Nombre del usuario.",
-            "maxLength": 160,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+            "title": "Name"
+          },
+          "rut": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RUT personal (formato '12345678-9' o '12.345.678-9'). Solo la primera vez.",
+            "title": "Rut"
           }
         },
-        "required": [
-          "name"
-        ],
         "title": "MePatchRequest",
         "type": "object"
       },
@@ -23609,6 +24818,18 @@
           "role": {
             "title": "Role",
             "type": "string"
+          },
+          "rut": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "RUT personal de la cuenta (`core.users.rut`). `null` si todavía no lo cargó — el FE manda al wizard `/onboarding/asignar-rut`.",
+            "title": "Rut"
           },
           "tenant_id": {
             "title": "Tenant Id",
@@ -23956,6 +25177,27 @@
           "amount"
         ],
         "title": "NextCriticalPayment",
+        "type": "object"
+      },
+      "OAuthCallbackRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "state": {
+            "minLength": 1,
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "state"
+        ],
+        "title": "OAuthCallbackRequest",
         "type": "object"
       },
       "ObligationDetailResponse": {
@@ -24445,8 +25687,14 @@
         "additionalProperties": false,
         "properties": {
           "bank_connected": {
-            "description": "Fuente bancaria (BICE) conectada y fresca.",
+            "description": "Fuente bancaria conectada y fresca.",
             "title": "Bank Connected",
+            "type": "boolean"
+          },
+          "entities_identified": {
+            "default": false,
+            "description": "Todas las sociedades del tenant tienen identificador tributario declarado (ADR-0118 D2). Mientras falte alguna, ninguna fuente se le puede atribuir y su PULSO queda preliminar — o sea que el QHS no avanza aunque banco y SII estén al día.",
+            "title": "Entities Identified",
             "type": "boolean"
           },
           "sii_connected": {
@@ -27834,6 +29082,18 @@
             ],
             "title": "Client Rut"
           },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda guardada del documento; null si no fue informada.",
+            "title": "Currency"
+          },
           "days_overdue": {
             "title": "Days Overdue",
             "type": "integer"
@@ -28010,7 +29270,7 @@
             "type": "integer"
           },
           "excluded_by_currency": {
-            "description": "Montos crudos que no entraron en `known_amount_clp` porque falta el tipo de cambio.",
+            "description": "Montos crudos que no entraron en `known_amount_clp`: porque falta el tipo de cambio (`reason: fx_missing`) o porque la moneda no se pudo verificar (`currency: null`, `reason: currency_missing | currency_not_in_catalog`).",
             "items": {
               "$ref": "#/components/schemas/PayableCurrencyTotal"
             },
@@ -28109,7 +29369,7 @@
             "type": "integer"
           },
           "excluded_by_currency": {
-            "description": "Montos crudos que no entraron en `known_amount_clp` porque falta el tipo de cambio.",
+            "description": "Montos crudos que no entraron en `known_amount_clp`: porque falta el tipo de cambio (`reason: fx_missing`) o porque la moneda no se pudo verificar (`currency: null`, `reason: currency_missing | currency_not_in_catalog`).",
             "items": {
               "$ref": "#/components/schemas/PayableCurrencyTotal"
             },
@@ -28167,7 +29427,7 @@
       },
       "PayableCurrencyTotal": {
         "additionalProperties": false,
-        "description": "Total por pagar de UNA moneda, sin convertir — para el desglose '(CLP $X + USD $Y)'.",
+        "description": "Total por pagar de UNA moneda, sin convertir — para el desglose '(CLP $X + USD $Y)'.\n\nDesde #370 también es el bucket de lo NO verificable: `currency: null` con\n`currency_status` y `reason`. Ese monto está en unidad desconocida; no se convierte, no se\nsuma a nada y no se muestra como pesos.",
         "properties": {
           "amount": {
             "description": "Suma cruda del saldo pendiente en esa moneda (SIN convertir a CLP).",
@@ -28176,9 +29436,41 @@
             "type": "string"
           },
           "currency": {
-            "description": "Moneda ISO-4217 (ej. 'CLP', 'USD').",
-            "title": "Currency",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda ISO-4217 (ej. 'CLP', 'USD'), o `null` cuando el bucket agrupa documentos cuya moneda no se pudo verificar (ver `currency_status`).",
+            "title": "Currency"
+          },
+          "currency_status": {
+            "default": "verified",
+            "description": "Elegibilidad de la moneda del bucket (contrato #370 v1). Sólo `verified` entra en `total`/`due_*`; `unknown` (sin moneda declarada) y `unsupported` (fuera del catálogo) quedan fuera de toda suma.",
+            "enum": [
+              "verified",
+              "functional_only",
+              "unknown",
+              "conflict",
+              "unsupported"
+            ],
+            "title": "Currency Status",
             "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Razón parseable de por qué el bucket no está en el total CLP: `fx_missing` (moneda verificada sin tipo de cambio), `currency_missing` (sin moneda declarada), `currency_not_in_catalog` (código bien formado fuera del catálogo vigente) o `declared_currency_invalid` (código mal formado). `null` en un bucket verificado de `total_by_currency`.",
+            "title": "Reason"
           }
         },
         "required": [
@@ -28293,7 +29585,7 @@
                 "type": "null"
               }
             ],
-            "description": "`amount` convertido a CLP vía tipo de cambio, SOLO cuando `currency` != 'CLP'. Null cuando ya es CLP (usar `amount`) o cuando no hay tipo de cambio disponible.",
+            "description": "`amount` convertido a CLP vía tipo de cambio, SOLO cuando `currency` != 'CLP'. Null cuando ya es CLP (usar `amount`), cuando no hay tipo de cambio disponible, o cuando la moneda no se pudo verificar (`currency_status` != 'verified').",
             "title": "Amount Clp"
           },
           "category": {
@@ -28344,9 +29636,28 @@
             "type": "string"
           },
           "currency": {
-            "default": "CLP",
-            "description": "Moneda ISO-4217 del `amount` (por ejemplo, 'CLP' o 'USD'). El RCV reporta en pesos, pero los cargos internacionales de tarjeta persistidos por ADR-0050 pueden venir en USD.",
-            "title": "Currency",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda ISO-4217 del `amount` (por ejemplo, 'CLP' o 'USD'). El RCV reporta en pesos, pero los cargos internacionales de tarjeta persistidos por ADR-0050 pueden venir en USD. `null` cuando el documento no acredita una moneda del catálogo (ver `currency_status`): entonces `amount` es un monto crudo sin unidad afirmada y NO se debe mostrar ni sumar como pesos (#370).",
+            "title": "Currency"
+          },
+          "currency_status": {
+            "default": "verified",
+            "description": "Elegibilidad de `currency` (contrato #370 v1). `verified`: moneda del catálogo, convertible y sumable. `unknown`: sin moneda declarada. `unsupported`: código fuera del catálogo vigente. `conflict`/`functional_only`: reservados por el contrato. Todo lo que no sea `verified` viene con `currency: null` y `amount_clp: null`.",
+            "enum": [
+              "verified",
+              "functional_only",
+              "unknown",
+              "conflict",
+              "unsupported"
+            ],
+            "title": "Currency Status",
             "type": "string"
           },
           "due_date": {
@@ -28504,7 +29815,7 @@
                 "type": "null"
               }
             ],
-            "description": "Conversión a CLP capturada en el mismo snapshot AP+FX. `null` para montos ya CLP (se usa `amount`) o cuando falta un tipo de cambio publicable.",
+            "description": "Conversión a CLP capturada en el mismo snapshot AP+FX. `null` para montos ya CLP (se usa `amount`), cuando falta un tipo de cambio publicable, o cuando la moneda no se pudo verificar.",
             "title": "Amount Clp"
           },
           "category": {
@@ -28513,8 +29824,28 @@
             "type": "string"
           },
           "currency": {
-            "description": "Moneda original ISO 4217 de `amount`.",
-            "title": "Currency",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Moneda original ISO 4217 de `amount`; `null` si la fila no acredita una moneda del catálogo (ver `currency_status`, #370).",
+            "title": "Currency"
+          },
+          "currency_status": {
+            "default": "verified",
+            "description": "Elegibilidad de `currency` (contrato #370 v1); ver `PayableItem`.",
+            "enum": [
+              "verified",
+              "functional_only",
+              "unknown",
+              "conflict",
+              "unsupported"
+            ],
+            "title": "Currency Status",
             "type": "string"
           },
           "due_date": {
@@ -29856,15 +31187,15 @@
       },
       "PorCobrarVencido": {
         "additionalProperties": false,
-        "description": "Cobros vencidos/sin-fecha EXCLUIDOS del runway (señal que reemplaza al día-1 dump). El FE lo\nmuestra como 'por cobrar atrasado', NO como caja futura cierta.",
+        "description": "Cobros vencidos EXCLUIDOS del runway (señal que reemplaza al día-1 dump). El FE lo\nmuestra como 'por cobrar atrasado', NO como caja futura cierta.\n\nSólo documentos con vencimiento de procedencia CONFIRMADA (#564). Alimenta el\n`total_recuperado` de `esperado_con_recuperacion`, que publica runway: un supuesto no puede\nsostener un runway. Lo estimado/no verificable va a `escenario_condicionado` y a\n`fuentes.cobertura`.",
         "properties": {
           "n": {
-            "description": "Cantidad de cobros vencidos/sin-fecha.",
+            "description": "Cantidad de cobros vencidos confirmados.",
             "title": "N",
             "type": "integer"
           },
           "total": {
-            "description": "Σ de los cobros vencidos/sin-fecha, string-decimal.",
+            "description": "Σ de los cobros vencidos confirmados, string-decimal.",
             "title": "Total",
             "type": "string"
           }
@@ -29878,7 +31209,7 @@
       },
       "PorPagarVencido": {
         "additionalProperties": false,
-        "description": "Pagos vencidos (lo que el tenant DEBE y ya venció), separado de los cobros. Monto NEGATIVO.\nJunto con `por_cobrar_vencido` reemplaza al ambiguo `vencido.total` (que netea signos opuestos).",
+        "description": "Pagos vencidos (lo que el tenant DEBE y ya venció), separado de los cobros. Monto NEGATIVO.\nJunto con `por_cobrar_vencido` reemplaza al ambiguo `vencido.total` (que netea signos opuestos).\n\nSólo vencimientos de procedencia CONFIRMADA (#564): un `assumed_30d` que \"ya pasó\" no es mora\nni un pago crítico, y publicarlo acá era afirmarlo.",
         "properties": {
           "n": {
             "description": "Cantidad de pagos vencidos.",
@@ -30437,6 +31768,28 @@
         "title": "Pulso",
         "type": "object"
       },
+      "PulsoAbstentionEvidenceItem": {
+        "additionalProperties": false,
+        "description": "Un hecho persistido que sostiene la abstención, tal como lo dejó el writer.",
+        "properties": {
+          "code": {
+            "description": "Código del hecho: ENTITY_SCOPE_CANDIDATES, CASH_BALANCE_EVIDENCE, OPENING_BALANCE_EVIDENCE, SUBINDEX_COVERAGE, WEIGHT_COVERAGE, MISSING_SUBINDEX_WEIGHT.",
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "description": "El hecho concreto: qué falta, cuánto pesa, qué compite.",
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "detail"
+        ],
+        "title": "PulsoAbstentionEvidenceItem",
+        "type": "object"
+      },
       "PulsoComponent": {
         "additionalProperties": false,
         "description": "Un factor del composite (auditable).",
@@ -30473,6 +31826,36 @@
         "additionalProperties": false,
         "description": "Respuesta de `GET /api/management/pulso`.",
         "properties": {
+          "abstention_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La causa dicha como frase accionable, con los datos concretos. Es el mismo texto que `headline` en una respuesta abstenida; se publica aparte para que el FE pueda tratarla como diagnóstico y no como titular.",
+            "title": "Abstention Detail"
+          },
+          "abstention_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "unverified_entity_scope",
+                  "cash_balance_unavailable",
+                  "opening_balance_unavailable",
+                  "insufficient_model_coverage"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Causa enumerada de por qué `score` es null (#661). Ausente en el motor v1 y cuando hay número.",
+            "title": "Abstention Reason"
+          },
           "components": {
             "items": {
               "$ref": "#/components/schemas/PulsoComponent"
@@ -30677,13 +32060,35 @@
         "additionalProperties": false,
         "description": "Public, entity-scoped reading with explicit publication and freshness state.",
         "properties": {
+          "abstention_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La causa dicha como frase accionable, compuesta con la evidencia del momento de la falla («faltan facturas por cobrar y egresos comprometidos: cubren 20% del modelo y el mínimo es 50%»). Es lo que se muestra al usuario. Nunca un adjetivo del tipo «preliminar» o «sin dato», que describe el dato y no dice qué hacer.",
+            "title": "Abstention Detail"
+          },
+          "abstention_evidence": {
+            "description": "Los hechos persistidos que sostienen la causa. Vacío cuando se publica un número, y cuando la causa es que no hay fila que consultar.",
+            "items": {
+              "$ref": "#/components/schemas/PulsoAbstentionEvidenceItem"
+            },
+            "title": "Abstention Evidence",
+            "type": "array"
+          },
           "abstention_reason": {
             "anyOf": [
               {
                 "enum": [
+                  "unverified_entity_scope",
                   "cash_balance_unavailable",
-                  "pulso_snapshot_unavailable",
-                  "unverified_entity_scope"
+                  "opening_balance_unavailable",
+                  "insufficient_model_coverage",
+                  "pulso_snapshot_unavailable"
                 ],
                 "type": "string"
               },
@@ -30691,6 +32096,7 @@
                 "type": "null"
               }
             ],
+            "description": "Causa **persistida** por la que no hay número, de lista cerrada (#661). Las cuatro primeras las escribió el writer en la misma fila que habría llevado el score; la quinta es la ausencia de fila —el job no corrió para este tenant— y es un estado distinto, no un sinónimo de las otras. Antes del #661 este campo era siempre `unverified_entity_scope`: el lector no recibía la causa y adivinaba la primera.",
             "title": "Abstention Reason"
           },
           "base_score": {
@@ -30948,6 +32354,8 @@
           "data_as_of",
           "publication_state",
           "abstention_reason",
+          "abstention_detail",
+          "abstention_evidence",
           "focused_abstention_reason",
           "legal_entity_id",
           "currency",
@@ -31042,19 +32450,40 @@
         "type": "object"
       },
       "PulsoSnapshotResponse": {
+        "description": "El resultado del cron, contado POR CAUSA.\n\nEl campo `skipped` que vivía acá se retracta con el #661. Decía, textualmente, que la causa\nconcreta iba «en el log del job», y ése era justamente el defecto: cuatro situaciones\ndistintas colapsadas en un número, con el detalle en un log que nadie mira y que además\nnunca se escribía para una de las cuatro. Ahora cada causa tiene su llave, y el detalle\naccionable queda persistido junto a la fila de abstención del tenant.",
         "properties": {
+          "abstained": {
+            "description": "Abstenciones persistidas (fila con score null + causa). Es la suma de las cuatro llaves de abajo; se publica para que un operador no tenga que sumarlas a mano.",
+            "title": "Abstained",
+            "type": "integer"
+          },
+          "abstained_cash_balance_unavailable": {
+            "description": "Sin saldo de caja resoluble ni moneda funcional. Esperable >0 sólo en tenants recién creados: quien llegó acá calificó en `tenants_with_cash`, así que un número alto sostenido apunta a cuentas dadas de baja o a FX faltante.",
+            "title": "Abstained Cash Balance Unavailable",
+            "type": "integer"
+          },
+          "abstained_insufficient_model_coverage": {
+            "description": "Cobertura de peso del modelo bajo el mínimo para publicar (0,50). Es la causa de onboarding incompleto: hay caja pero faltan facturas, egresos o recurrentes.",
+            "title": "Abstained Insufficient Model Coverage",
+            "type": "integer"
+          },
+          "abstained_opening_balance_unavailable": {
+            "description": "El scope se resolvió y el motor igual se quedó sin saldo de apertura al computar.",
+            "title": "Abstained Opening Balance Unavailable",
+            "type": "integer"
+          },
+          "abstained_unverified_entity_scope": {
+            "description": "El tenant tiene 0 o >1 sociedades y las fuentes de PULSO siguen siendo comunes a todas. Si este número sube de golpe, mirar scoping/onboarding, no los conectores.",
+            "title": "Abstained Unverified Entity Scope",
+            "type": "integer"
+          },
           "errors": {
             "description": "Errores best-effort (no abortan el resto).",
             "title": "Errors",
             "type": "integer"
           },
-          "skipped": {
-            "description": "Saltados: `persist_snapshot` devolvió None pese a calificar en tenants_with_cash. La causa concreta va en el log del job (#115).",
-            "title": "Skipped",
-            "type": "integer"
-          },
           "snapshots": {
-            "description": "Snapshots persistidos (idempotente por día).",
+            "description": "Snapshots CON score persistidos (idempotente por día).",
             "title": "Snapshots",
             "type": "integer"
           },
@@ -31067,7 +32496,11 @@
         "required": [
           "tenants",
           "snapshots",
-          "skipped",
+          "abstained",
+          "abstained_unverified_entity_scope",
+          "abstained_cash_balance_unavailable",
+          "abstained_opening_balance_unavailable",
+          "abstained_insufficient_model_coverage",
           "errors"
         ],
         "title": "PulsoSnapshotResponse",
@@ -32316,6 +33749,229 @@
         "title": "ReceivableDebtorsSummary",
         "type": "object"
       },
+      "ReceivableDocumentItem": {
+        "additionalProperties": false,
+        "properties": {
+          "ceded": {
+            "default": false,
+            "title": "Ceded",
+            "type": "boolean"
+          },
+          "claimed": {
+            "default": false,
+            "title": "Claimed",
+            "type": "boolean"
+          },
+          "counterparty_key": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Key"
+          },
+          "credit_note": {
+            "default": false,
+            "title": "Credit Note",
+            "type": "boolean"
+          },
+          "currency_code": {
+            "title": "Currency Code",
+            "type": "string"
+          },
+          "customer_name": {
+            "title": "Customer Name",
+            "type": "string"
+          },
+          "customer_rut": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Rut"
+          },
+          "days_overdue": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Overdue"
+          },
+          "document_type": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Type"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "due_date_certainty": {
+            "enum": [
+              "confirmed",
+              "estimated",
+              "unconfirmed"
+            ],
+            "title": "Due Date Certainty",
+            "type": "string"
+          },
+          "folio": {
+            "title": "Folio",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "issue_date": {
+            "format": "date",
+            "title": "Issue Date",
+            "type": "string"
+          },
+          "outstanding_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Outstanding Amount",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "partially_paid",
+              "paid",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Total Amount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "folio",
+          "customer_name",
+          "issue_date",
+          "due_date_certainty",
+          "status",
+          "total_amount",
+          "outstanding_amount",
+          "currency_code"
+        ],
+        "title": "ReceivableDocumentItem",
+        "type": "object"
+      },
+      "ReceivableDocumentsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "collected": {
+            "items": {
+              "$ref": "#/components/schemas/ReceivableMoneyTotal"
+            },
+            "title": "Collected",
+            "type": "array"
+          },
+          "due_soon": {
+            "items": {
+              "$ref": "#/components/schemas/ReceivableMoneyTotal"
+            },
+            "title": "Due Soon",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReceivableDocumentItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "overdue": {
+            "items": {
+              "$ref": "#/components/schemas/ReceivableMoneyTotal"
+            },
+            "title": "Overdue",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset",
+          "overdue",
+          "due_soon",
+          "collected",
+          "generated_at"
+        ],
+        "title": "ReceivableDocumentsResponse",
+        "type": "object"
+      },
+      "ReceivableMoneyTotal": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "amount"
+        ],
+        "title": "ReceivableMoneyTotal",
+        "type": "object"
+      },
       "ReceivableNetBridge": {
         "additionalProperties": false,
         "properties": {
@@ -33365,6 +35021,92 @@
         "title": "RefreshDrainResponse",
         "type": "object"
       },
+      "RefreshQueueHealthResponse": {
+        "description": "Estado agregado de la cola durable. Sólo metadata operacional.",
+        "properties": {
+          "dead_letter": {
+            "title": "Dead Letter",
+            "type": "integer"
+          },
+          "last_succeeded_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Succeeded Age Seconds"
+          },
+          "last_succeeded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Succeeded At"
+          },
+          "oldest_queued_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Queued Age Seconds"
+          },
+          "oldest_queued_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Queued At"
+          },
+          "oldest_run_age_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldest Run Age Seconds"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "integer"
+          },
+          "queued_eligible": {
+            "default": 0,
+            "title": "Queued Eligible",
+            "type": "integer"
+          },
+          "running": {
+            "title": "Running",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "queued",
+          "running",
+          "dead_letter"
+        ],
+        "title": "RefreshQueueHealthResponse",
+        "type": "object"
+      },
       "RejectDocumentSuggestionResponse": {
         "additionalProperties": false,
         "description": "Par negativo persistido. Repetir la misma petición conserva el mismo resultado.",
@@ -33572,8 +35314,8 @@
         "description": "Body de `POST /api/auth/resend-verification` (onboarding O-1.b).",
         "properties": {
           "captcha_token": {
-            "description": "Token del captcha (Turnstile).",
-            "minLength": 1,
+            "default": "",
+            "description": "Token del captcha (Turnstile). En local puede ir vacío.",
             "title": "Captcha Token",
             "type": "string"
           },
@@ -33584,8 +35326,7 @@
           }
         },
         "required": [
-          "email",
-          "captcha_token"
+          "email"
         ],
         "title": "ResendVerificationRequest",
         "type": "object"
@@ -35719,8 +37460,8 @@
         "description": "Body de `POST /api/auth/signup` (onboarding O-1, ADR-0047).",
         "properties": {
           "captcha_token": {
-            "description": "Token del captcha (Turnstile).",
-            "minLength": 1,
+            "default": "",
+            "description": "Token del captcha (Turnstile). En local puede ir vacío.",
             "title": "Captcha Token",
             "type": "string"
           },
@@ -35769,8 +37510,7 @@
           "owner_full_name",
           "owner_rut",
           "email",
-          "password",
-          "captcha_token"
+          "password"
         ],
         "title": "SignupRequest",
         "type": "object"
@@ -37284,6 +39024,41 @@
           "movement_id"
         ],
         "title": "SuggestedCategoryResponse",
+        "type": "object"
+      },
+      "SuggestionView": {
+        "additionalProperties": false,
+        "properties": {
+          "derived_from": {
+            "description": "De dónde salió, para que se pueda evaluar al confirmar.",
+            "title": "Derived From",
+            "type": "string"
+          },
+          "identifier_scheme": {
+            "title": "Identifier Scheme",
+            "type": "string"
+          },
+          "jurisdiction_code": {
+            "title": "Jurisdiction Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "normalized_value": {
+            "title": "Normalized Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "jurisdiction_code",
+          "identifier_scheme",
+          "normalized_value",
+          "label",
+          "derived_from"
+        ],
+        "title": "SuggestionView",
         "type": "object"
       },
       "SuggestionsResponse": {
@@ -40321,7 +42096,7 @@
             "title": "Source External Id"
           },
           "tipo": {
-            "description": "'pago_vencido' | 'cobro_vencido' | 'cobro_sin_fecha'.",
+            "description": "'pago_vencido' | 'cobro_vencido'. Desde #564 sólo llegan acá documentos con procedencia de vencimiento CONFIRMADA: una fecha estimada o sin origen verificable no acredita mora. `cobro_sin_fecha` ya no se emite — un documento sin `due_date` se declara en `fuentes.cobertura.sin_fecha_excluidos`.",
             "title": "Tipo",
             "type": "string"
           }
@@ -40347,6 +42122,43 @@
           "token"
         ],
         "title": "VerifyEmailRequest",
+        "type": "object"
+      },
+      "WorkInboxResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "legal_entity_id": {
+            "format": "uuid",
+            "title": "Legal Entity Id",
+            "type": "string"
+          },
+          "priorities": {
+            "items": {
+              "$ref": "#/components/schemas/InboxPriority"
+            },
+            "title": "Priorities",
+            "type": "array"
+          },
+          "queues": {
+            "items": {
+              "$ref": "#/components/schemas/InboxQueue"
+            },
+            "title": "Queues",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generated_at",
+          "legal_entity_id",
+          "queues",
+          "priorities"
+        ],
+        "title": "WorkInboxResponse",
         "type": "object"
       },
       "WorkerClassification": {
@@ -40887,310 +42699,47 @@
         "title": "SeriePunto",
         "type": "object"
       },
-      "InboxItem": {
+      "LegalEntityNameRequest": {
         "additionalProperties": false,
+        "description": "Nombre de una Empresa operativa dentro del tenant autenticado.",
         "properties": {
-          "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
+          "legal_name": {
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Legal Name",
             "type": "string"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
-          },
-          "href": {
-            "title": "Href",
-            "type": "string"
-          },
+          }
+        },
+        "required": [
+          "legal_name"
+        ],
+        "title": "LegalEntityNameRequest",
+        "type": "object"
+      },
+      "ManagedLegalEntity": {
+        "additionalProperties": false,
+        "description": "Respuesta mínima de alta/edición para refrescar selector y administración.",
+        "properties": {
           "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "relevant_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Relevant Date"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "urgency": {
-            "enum": [
-              "overdue",
-              "review",
-              "soon",
-              "normal"
-            ],
-            "title": "Urgency",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "amount",
-          "currency",
-          "relevant_date",
-          "urgency",
-          "status",
-          "href"
-        ],
-        "title": "InboxItem",
-        "type": "object"
-      },
-      "InboxMoney": {
-        "additionalProperties": false,
-        "properties": {
-          "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Moneda ISO-4217; null si la fuente no la informo.",
-            "title": "Currency"
-          }
-        },
-        "required": [
-          "currency",
-          "amount"
-        ],
-        "title": "InboxMoney",
-        "type": "object"
-      },
-      "InboxPriority": {
-        "additionalProperties": false,
-        "properties": {
-          "amount": {
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Amount",
-            "type": "string"
-          },
-          "currency": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Currency"
-          },
-          "href": {
-            "title": "Href",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "queue": {
-            "enum": [
-              "reconciliation",
-              "receivables",
-              "payables",
-              "classification"
-            ],
-            "title": "Queue",
-            "type": "string"
-          },
-          "relevant_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Relevant Date"
-          },
-          "status": {
-            "title": "Status",
-            "type": "string"
-          },
-          "title": {
-            "title": "Title",
-            "type": "string"
-          },
-          "urgency": {
-            "enum": [
-              "overdue",
-              "review",
-              "soon",
-              "normal"
-            ],
-            "title": "Urgency",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "title",
-          "amount",
-          "currency",
-          "relevant_date",
-          "urgency",
-          "status",
-          "href",
-          "queue"
-        ],
-        "title": "InboxPriority",
-        "type": "object"
-      },
-      "InboxQueue": {
-        "additionalProperties": false,
-        "properties": {
-          "action_label": {
-            "title": "Action Label",
-            "type": "string"
-          },
-          "amounts": {
-            "items": {
-              "$ref": "#/components/schemas/InboxMoney"
-            },
-            "title": "Amounts",
-            "type": "array"
-          },
-          "count": {
-            "minimum": 0,
-            "title": "Count",
-            "type": "integer"
-          },
-          "data_state": {
-            "enum": [
-              "available",
-              "partial",
-              "estimated"
-            ],
-            "title": "Data State",
-            "type": "string"
-          },
-          "href": {
-            "title": "Href",
-            "type": "string"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/InboxItem"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "kind": {
-            "enum": [
-              "reconciliation",
-              "receivables",
-              "payables",
-              "classification"
-            ],
-            "title": "Kind",
-            "type": "string"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "limitations": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Limitations",
-            "type": "array"
-          },
-          "next_date": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Date"
-          }
-        },
-        "required": [
-          "kind",
-          "label",
-          "action_label",
-          "href",
-          "count",
-          "amounts",
-          "data_state",
-          "limitations",
-          "next_date",
-          "items"
-        ],
-        "title": "InboxQueue",
-        "type": "object"
-      },
-      "WorkInboxResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "generated_at": {
-            "format": "date-time",
-            "title": "Generated At",
-            "type": "string"
-          },
-          "legal_entity_id": {
             "format": "uuid",
-            "title": "Legal Entity Id",
+            "title": "Id",
             "type": "string"
           },
-          "priorities": {
-            "items": {
-              "$ref": "#/components/schemas/InboxPriority"
-            },
-            "title": "Priorities",
-            "type": "array"
+          "is_default": {
+            "title": "Is Default",
+            "type": "boolean"
           },
-          "queues": {
-            "items": {
-              "$ref": "#/components/schemas/InboxQueue"
-            },
-            "title": "Queues",
-            "type": "array"
+          "legal_name": {
+            "title": "Legal Name",
+            "type": "string"
           }
         },
         "required": [
-          "generated_at",
-          "legal_entity_id",
-          "queues",
-          "priorities"
+          "id",
+          "legal_name",
+          "is_default"
         ],
-        "title": "WorkInboxResponse",
+        "title": "ManagedLegalEntity",
         "type": "object"
       }
     },
@@ -42201,6 +43750,55 @@
         ]
       }
     },
+    "/api/admin/collection-reminders/run": {
+      "post": {
+        "operationId": "admin_run_collection_reminders",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Api-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionReminderRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ejecuta recordatorios automáticos elegibles (cron)",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/connection-status": {
       "get": {
         "description": "Lista el estado de conexión de cada fuente registrada (catálogo). Las\nfuentes que el tenant aún no configuró aparecen con `status=unconfigured`.",
@@ -43185,6 +44783,33 @@
           }
         ],
         "summary": "SII: estado agregado de refresh durable",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/sii/refresh-queue-health": {
+      "get": {
+        "description": "Lectura para el check que vigila que la cola no quede atascada.\n\nEs de SOLO LECTURA y no reclama nada: mirar la cola no puede tener el efecto de vaciarla,\nporque entonces el propio chequeo escondería el síntoma que busca.",
+        "operationId": "admin_sii_refresh_queue_health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshQueueHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "SII: estado agregado de la cola durable (observabilidad)",
         "tags": [
           "admin"
         ]
@@ -45283,9 +46908,71 @@
         ]
       }
     },
+    "/api/auth/account": {
+      "delete": {
+        "description": "Self-delete para re-probar `/registro` con el mismo correo en QAS/local.",
+        "operationId": "auth_delete_account",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Cuenta y empresa borradas; cookies limpias."
+          },
+          "403": {
+            "description": "Esta cuenta no se puede borrar en este ambiente."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Borra la cuenta del usuario logueado (allowlist QAS/local)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/auth/login": {
       "post": {
-        "description": "Valida `(rut, password)` contra `core.users`, emite session + refresh\ntokens como cookies HttpOnly, y devuelve el user básico.\n\nErrors:\n  - 401 invalid_credentials para cualquier fallo de auth (genérico\n    intencional — no leakear \"user no existe\" vs \"password mal\").\n  - 422 si el password no cumple política mínima (8 chars).",
+        "description": "Valida `(rut|email, password)` contra `core.users`, emite session + refresh\ntokens como cookies HttpOnly, y devuelve el user básico.\n\nErrors:\n  - 401 invalid_credentials para cualquier fallo de auth (genérico\n    intencional — no leakear \"user no existe\" vs \"password mal\").\n  - 422 si falta identificador, hay ambos, el RUT no trae DV, o el\n    password no cumple política mínima (8 chars).",
         "operationId": "auth_login",
         "parameters": [
           {
@@ -45330,13 +47017,13 @@
             "description": "Credenciales inválidas."
           },
           "422": {
-            "description": "RUT mal formateado o password muy corto."
+            "description": "Identificador faltante/ambiguo, RUT mal formateado o password corto."
           },
           "429": {
             "description": "Rate limit excedido (5 intentos/5min)."
           }
         },
-        "summary": "Login con RUT + password — setea cookies de sesión + refresh",
+        "summary": "Login con RUT o email + password — setea cookies de sesión + refresh",
         "tags": [
           "auth"
         ]
@@ -45412,6 +47099,145 @@
           }
         },
         "summary": "Cierra la sesión — limpia ambas cookies",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/oauth/callback": {
+      "post": {
+        "operationId": "auth_oauth_callback",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_oauth_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Oauth State"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthCallbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            },
+            "description": "Login OK, cookies seteadas."
+          },
+          "401": {
+            "description": "state inválido, code rechazado o email sin cuenta Qavante."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "AUTH0_WEB_* no configurado."
+          }
+        },
+        "summary": "Canjea el code de Auth0 y setea cookies de sesión Qavante",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/oauth/start": {
+      "get": {
+        "operationId": "auth_oauth_start",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "default": "google",
+              "enum": [
+                "google",
+                "microsoft"
+              ],
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "302": {
+            "description": "Redirect a Auth0 /authorize."
+          },
+          "400": {
+            "description": "provider inválido."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "AUTH0_WEB_* no configurado."
+          }
+        },
+        "summary": "Redirige a Auth0 (Google o Microsoft) para el login web",
         "tags": [
           "auth"
         ]
@@ -45609,6 +47435,45 @@
           }
         },
         "summary": "Crea empresa + owner (pending) y envía verificación de email",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/signup/contribuyente/{rut}": {
+      "get": {
+        "description": "Misma consulta pública `getstc` que `/api/sii/contribuyente/{rut}`, sin\nsesión: el formulario de `/registro` autocompleta nombre y razón social\nantes de existir la cuenta. Rate-limit por IP.",
+        "operationId": "auth_signup_contribuyente",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rut",
+            "required": true,
+            "schema": {
+              "title": "Rut",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContribuyenteResponse"
+                }
+              }
+            },
+            "description": "Razón social del RUT (persona o empresa)."
+          },
+          "422": {
+            "description": "RUT inválido."
+          },
+          "502": {
+            "description": "SII inalcanzable."
+          }
+        },
+        "summary": "SII: razón social por RUT (público, signup)",
         "tags": [
           "auth"
         ]
@@ -48385,6 +50250,753 @@
         ]
       }
     },
+    "/api/fintoc/complete": {
+      "post": {
+        "operationId": "complete_widget_api_fintoc_complete_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FintocCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FintocSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Complete Widget",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
+    "/api/fintoc/connect": {
+      "post": {
+        "operationId": "connect_bank_api_fintoc_connect_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FintocConnectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FintocConnection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Connect Bank",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
+    "/api/fintoc/connections": {
+      "get": {
+        "operationId": "list_connections_api_fintoc_connections_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FintocConnection"
+                  },
+                  "title": "Response List Connections Api Fintoc Connections Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Connections",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
+    "/api/fintoc/institutions": {
+      "get": {
+        "operationId": "list_institutions_api_fintoc_institutions_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FintocInstitution"
+                  },
+                  "title": "Response List Institutions Api Fintoc Institutions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Institutions",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
+    "/api/fintoc/link-intent": {
+      "post": {
+        "operationId": "create_link_intent_api_fintoc_link_intent_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FintocLinkIntentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Create Link Intent",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
+    "/api/fintoc/sync": {
+      "post": {
+        "operationId": "sync_fintoc_api_fintoc_sync_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FintocSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Sync Fintoc",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
+    "/api/fintoc/webhook": {
+      "post": {
+        "operationId": "fintoc_webhook_api_fintoc_webhook_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tenant_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Fintoc-Signature",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fintoc-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fintoc Webhook",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
+    "/api/fintoc/widget-config": {
+      "get": {
+        "operationId": "widget_config_api_fintoc_widget_config_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FintocWidgetConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Widget Config",
+        "tags": [
+          "fintoc"
+        ]
+      }
+    },
+    "/api/legal-entities": {
+      "get": {
+        "description": "Read-only: cualquier miembro autenticado del tenant ve sus sociedades.",
+        "operationId": "legal_entities_list",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegalEntitiesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Sociedades del tenant con su identificador y la sugerencia pendiente",
+        "tags": [
+          "legal-entities"
+        ]
+      },
+      "post": {
+        "description": "Alta de Empresa; no crea ni cambia el tenant de la sesión.",
+        "operationId": "legal_entities_create",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "origin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Origin"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LegalEntityNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedLegalEntity"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Crea una Empresa dentro del tenant actual",
+        "tags": [
+          "legal-entities"
+        ]
+      }
+    },
+    "/api/legal-entities/{legal_entity_id}/identifier": {
+      "post": {
+        "operationId": "legal_entities_declare_identifier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclareIdentifierRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentifierView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "`identifier_already_claimed`: el valor es de otra sociedad. `entity_already_has_identifier`: ésta ya tiene uno vigente de ese esquema."
+          },
+          "422": {
+            "description": "Esquema no registrado, o valor que no cumple su regla."
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Declarar el identificador tributario de una sociedad",
+        "tags": [
+          "legal-entities"
+        ]
+      }
+    },
+    "/api/legal-entities/{legal_entity_id}/identifier/{identifier_id}": {
+      "delete": {
+        "operationId": "legal_entities_retract_identifier",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "identifier_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Sociedad o identificador vigente inexistente."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Retirar el identificador vigente (cierra la vigencia, no borra la historia)",
+        "tags": [
+          "legal-entities"
+        ]
+      }
+    },
     "/api/management/accounts": {
       "post": {
         "operationId": "management_accounts_create",
@@ -51132,7 +53744,7 @@
         ]
       },
       "patch": {
-        "description": "Auto-edición del perfil (Ask #2 CC-WEB). Cualquier rol autenticado edita\nLO SUYO (sin gate de rol — `ctx.user_id` es el del propio token). Hoy solo\n`name` → `core.users.full_name`. Devuelve el snapshot actualizado (mismo\nshape que GET) para que el FE refresque sin un segundo request.",
+        "description": "Auto-edición del perfil. Cualquier rol autenticado edita LO SUYO\n(`ctx.user_id` del token). `name` → `full_name`; `rut` solo si aún es NULL.\nDevuelve el snapshot actualizado (mismo shape que GET).",
         "operationId": "auth_me_patch",
         "parameters": [
           {
@@ -51176,11 +53788,14 @@
           "401": {
             "description": "Sin sesión o sesión inválida."
           },
+          "409": {
+            "description": "RUT ya asignado a esta u otra cuenta."
+          },
           "422": {
-            "description": "name vacío / solo espacios / >160 chars."
+            "description": "name vacío / RUT inválido / body vacío."
           }
         },
-        "summary": "Edita el perfil propio (hoy: name) — cookie qavante_session",
+        "summary": "Edita el perfil propio (name y/o rut) — cookie qavante_session",
         "tags": [
           "auth"
         ]
@@ -54439,7 +57054,7 @@
     },
     "/api/sii/dte-emitidos": {
       "get": {
-        "description": "DTE emitidos por rango de fechas. Lista el portal (`mipeAdminDocsEmi.cgi`), baja el\nXML (`EnvioDTE`) de cada documento vía \"Obtener Envío\" y devuelve el DTE **completo**\n(emisor, receptor, ítems, totales, referencias, forma de pago, vencimiento) en\n`dte_emitidos[]`. Auth/consent: el mismo certificado y consent del RCV (`sii_rcv`).",
+        "description": "DTE emitidos por rango de fechas. Prefiere el respaldo MiPyme (`ORIGEN=ENV`) con la\nclave de la persona autorizada y la empresa seleccionada; ese respaldo entrega el XML\ncompleto sin pasar por el Portal001 roto. Devuelve emisor, receptor, ítems, totales,\nreferencias, forma de pago y vencimiento en `dte_emitidos[]`. El certificado queda como\nfallback legacy sólo cuando el tenant todavía no configuró la clave del representante.",
         "operationId": "sii_dte_emitidos",
         "parameters": [
           {
@@ -55158,7 +57773,7 @@
     },
     "/api/sii/enrich-dte-detail": {
       "post": {
-        "description": "Baja el **DTE completo** del rango (recibidos via respaldo masivo XML, emitidos via\nPortal001) y persiste el **detalle**: líneas (`treasury.document_lines`, NmbItem/DscItem/\nmontos) + giro en texto y acteco de la contraparte en receivables/payables.\n\nEs la señal primaria del clasificador del Resultado Operacional por categoría\n(ADR-0062 §4.0). Idempotente: re-correr un rango reemplaza las líneas, no duplica.\nAuth: certificado per-tenant (mismo consent que el RCV, `sii_rcv`).",
+        "description": "Baja el **DTE completo** del rango (respaldo MiPyme para recibidos y emitidos) y\npersiste el **detalle**: líneas (`treasury.document_lines`, NmbItem/DscItem/\nmontos) + giro en texto y acteco de la contraparte en receivables/payables.\n\nEs la señal primaria del clasificador del Resultado Operacional por categoría\n(ADR-0062 §4.0). Idempotente: re-correr un rango reemplaza las líneas, no duplica.\nAuth: clave de persona autorizada con empresa seleccionada; conserva el mismo consent\n`sii_rcv`. El certificado es fallback legacy cuando falta esa clave.",
         "operationId": "sii_enrich_dte_detail",
         "parameters": [
           {
@@ -56462,7 +59077,7 @@
     },
     "/api/sources/status": {
       "get": {
-        "description": "Devuelve el estado de TODAS las fuentes para el tenant:\n\n- Las conectadas reportan `state=\"ok\"` y `last_sync` con timestamp ISO.\n- Las no conectadas reportan `state=\"missing\"`.\n- Las expiradas reportan `state=\"stale\"`.\n- Las con error reciente reportan `state=\"error\"` con razón.\n- Las marcadas como stubs Fase 1 (`sii_f22`, `direccion_trabajo`)\n  siempre reportan `state=\"unavailable\"` independientemente del catálogo.\n\nSi la DB está momentáneamente inaccesible, el endpoint **no cae** —\ndevuelve al menos los stubs documentados, para que el dashboard del\nfrontend siga renderizando (Sec 11 TBL20 del doc maestro).",
+        "description": "Devuelve el estado de TODAS las fuentes para el tenant:\n\n- Las conectadas reportan `state=\"ok\"` y `last_sync` con timestamp ISO.\n- Las no conectadas reportan `state=\"missing\"`.\n- Las expiradas reportan `state=\"stale\"`.\n- Las con error reciente reportan `state=\"error\"` con razón.\n- Las marcadas como stubs Fase 1 (`sii_f22`, `direccion_trabajo`) o como agregados\n  sectoriales sin conexión por tenant (`superir`, `sii_advanced_stats`, `ine_advanced`)\n  siempre reportan `state=\"unavailable\"` independientemente del catálogo.\n\nSi la DB está momentáneamente inaccesible, el endpoint **no cae** —\ndevuelve al menos los stubs documentados, para que el dashboard del\nfrontend siga renderizando (Sec 11 TBL20 del doc maestro).",
         "operationId": "sources_status",
         "parameters": [
           {
@@ -57372,6 +59987,101 @@
           }
         ],
         "summary": "Directorio canónico paginado de deudores por cobrar",
+        "tags": [
+          "accounts-receivable"
+        ]
+      }
+    },
+    "/api/treasury/accounts-receivable/documents": {
+      "get": {
+        "operationId": "treasury_accounts_receivable_documents",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceivableDocumentsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Gestión de cobros — KPIs y documentos paginados",
         "tags": [
           "accounts-receivable"
         ]
@@ -59900,6 +62610,138 @@
           }
         ],
         "summary": "Envía recordatorios de cobranza con intención por documento e idempotencia",
+        "tags": [
+          "collection-reminders"
+        ]
+      }
+    },
+    "/api/treasury/collection-reminders/settings": {
+      "get": {
+        "operationId": "treasury_collection_reminder_settings",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionReminderRulesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Configuración de recordatorios automáticos de cobranza",
+        "tags": [
+          "collection-reminders"
+        ]
+      }
+    },
+    "/api/treasury/collection-reminders/settings/{kind}": {
+      "put": {
+        "operationId": "treasury_update_collection_reminder_setting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "before_due",
+                "due_today",
+                "overdue"
+              ],
+              "title": "Kind",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionReminderRuleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionReminderRule"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Guarda una regla de recordatorio sin disparar correos",
         "tags": [
           "collection-reminders"
         ]
@@ -65364,7 +68206,7 @@
     },
     "/api/treasury/reconciliation/mark-collected": {
       "post": {
-        "description": "Marca documentos (por `source_external_id`) como conciliados: outstanding=0, status=paid. Para\nel botón \"conciliar este cobro\" del caveat de Caja — cuando la cobranza/anticipo ya está en el banco\npero el receivable seguía en \"por cobrar\". Reversible (`.../mark-collected/revert`). Idempotente.",
+        "description": "Marca documentos (por `source_external_id`) como conciliados: outstanding=0, status=paid. Para\nel botón \"conciliar este cobro\" del caveat de Caja — cuando la cobranza/anticipo ya está en el banco\npero el receivable seguía en \"por cobrar\". Reversible (`.../mark-collected/revert`). Idempotente.\n\nExige el mismo rol financiero de escritura que `confirm`, `reject` y `revert` en este router, y\nqueda auditado con el actor. Antes lo podía disparar cualquier sesión del tenant y no dejaba\nrastro de quién cerró qué.\n\nEl evento de auditoría se escribe en la misma transacción que el cambio de saldo: o quedan los\ndos o no queda ninguno. Un choque de concurrencia devuelve 409 sin aplicar nada y se puede\nreintentar tal cual.",
         "operationId": "treasury_reconciliation_mark_collected",
         "parameters": [
           {
@@ -65405,6 +68247,9 @@
             },
             "description": "Successful Response"
           },
+          "409": {
+            "description": "Otra escritura del tenant chocó con esta; nada se aplicó, reintenta."
+          },
           "422": {
             "content": {
               "application/json": {
@@ -65424,7 +68269,7 @@
     },
     "/api/treasury/reconciliation/mark-collected/revert": {
       "post": {
-        "description": "Des-concilia (re-abre) los documentos marcados por `mark-collected`. Principio: toda\nconciliación se desasigna.",
+        "description": "Des-concilia (re-abre) los documentos marcados por `mark-collected`. Principio: toda\nconciliación se desasigna. Mismo gate de rol, misma auditoría transaccional y mismo 409\nreintentable que el apply: re-abrir un documento también mueve lo que Cobrar/Pagar publica, y\nademás borra los marcadores `mark_collected_at`/`opening_cutoff_at`, que quedan registrados en\nel `before_data` del evento.",
         "operationId": "treasury_reconciliation_mark_collected_revert",
         "parameters": [
           {
@@ -65464,6 +68309,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "Otra escritura del tenant chocó con esta; nada se aplicó, reintenta."
           },
           "422": {
             "content": {
@@ -67147,6 +69995,72 @@
         ]
       }
     },
+    "/api/treasury/work-inbox": {
+      "get": {
+        "operationId": "treasury_work_inbox",
+        "parameters": [
+          {
+            "description": "Sociedad seleccionada dentro del tenant.",
+            "in": "query",
+            "name": "legal_entity_id",
+            "required": true,
+            "schema": {
+              "description": "Sociedad seleccionada dentro del tenant.",
+              "format": "uuid",
+              "title": "Legal Entity Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "qavante_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Qavante Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkInboxResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Bandeja operativa priorizada por impacto y fecha",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
     "/api/treasury/working-capital-refinancing-evaluation": {
       "get": {
         "description": "Evalúa F4/F5 sin selección, aprobación, provider ni efecto externo.",
@@ -67668,72 +70582,6 @@
           }
         },
         "summary": "Health Lite"
-      }
-    },
-    "/api/treasury/work-inbox": {
-      "get": {
-        "operationId": "treasury_work_inbox",
-        "parameters": [
-          {
-            "description": "Sociedad seleccionada dentro del tenant.",
-            "in": "query",
-            "name": "legal_entity_id",
-            "required": true,
-            "schema": {
-              "description": "Sociedad seleccionada dentro del tenant.",
-              "format": "uuid",
-              "title": "Legal Entity Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "cookie",
-            "name": "qavante_session",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Qavante Session"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WorkInboxResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
-        "summary": "Bandeja operativa priorizada por impacto y fecha",
-        "tags": [
-          "treasury"
-        ]
       }
     }
   },

@@ -22,6 +22,8 @@ const item = (over: Partial<PayableItem>): PayableItem =>
     amount: "1000",
     criticality: "medium",
     source: "SII",
+    currency: "CLP",
+    currency_status: "verified",
     ...over,
   }) as PayableItem;
 
@@ -129,6 +131,10 @@ describe("mapFechasClave", () => {
     const items = [item({ label: "IVA F29", category: "tax", amount: "4200000", estimated: true })];
     const out = mapFechasClave(items, NOW);
     expect(out.find((f) => f.id === "impuestos")?.estimado).toBe(true);
+  });
+  it("se abstiene cuando el monto no tiene moneda verificada", () => {
+    const out = mapFechasClave([item({ label: "IVA F29", category: "tax", amount: "4200000", currency: null, currency_status: "unknown" })], NOW);
+    expect(out[0]?.monto).toBeNull();
   });
 });
 

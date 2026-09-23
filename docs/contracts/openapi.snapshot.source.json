@@ -1,20 +1,8 @@
 {
   "repo": "tooxs-digital/qavante-api",
   "ref": "main",
-  "sha": "fce95aec491882b84a3553247793ec8e36faedc5",
+  "sha": "cb6d9902cfa2afb674901751688f17b839cd58d5",
   "path": "docs/contracts/openapi.snapshot.json",
-  "sha256": "25b0cec977df82de223a5137ed24d45adb0b26314fc7c09a548a0c8f30bd3bd7",
-  "fetched_at": "2026-09-21T09:13:57.351Z",
-  "overlay": {
-    "base_sha": "c3c3a9f4b6a7afc4db98b28939984fb181fd055f",
-    "producer_pr": "https://github.com/tooxs-digital/qavante-api/pull/716",
-    "included_paths": [
-      "/api/treasury/work-inbox",
-      "/api/treasury/reconciliation/review",
-      "/api/bank-movements",
-      "/api/treasury/bank-movements",
-      "/api/reversible-actions"
-    ],
-    "reason": "Aisla Bandeja de cambios de contrato ajenos aun no consumidos por qavante-web."
-  }
+  "sha256": "0aa7328a3d4d32c5239f60aa31fb24fe696ca7bb076817877ea5163d24fc8df8",
+  "fetched_at": "2026-09-22T21:17:14.323Z"
 }

@@ -26,6 +26,10 @@ export interface PulsoScoreReadingModel {
 
 const ABSTENTION_COPY: Record<NonNullable<PulsoScoreReading["abstention_reason"]>, string> = {
   cash_balance_unavailable: "Falta un saldo de caja verificable para calcular el Pulso.",
+  opening_balance_unavailable:
+    "Falta un saldo de apertura verificable para calcular el Pulso.",
+  insufficient_model_coverage:
+    "La cobertura del modelo no alcanza para calcular el Pulso con seguridad.",
   pulso_snapshot_unavailable:
     "Todavía no existe un corte verificable del Pulso para esta empresa y moneda.",
   unverified_entity_scope:

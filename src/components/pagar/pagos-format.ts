@@ -16,11 +16,17 @@ function amountClpEnBlanco(v: string | null | undefined): boolean {
   return v == null || v === "";
 }
 
+/** Una moneda sólo es publicable cuando el productor la verificó explícitamente. */
+export function monedaVerificada(item: Pick<PayableItem, "currency" | "currency_status">): item is PayableItem & { currency: string } {
+  return item.currency_status === "verified" && typeof item.currency === "string" && /^[A-Z]{3}$/.test(item.currency);
+}
+
 /** ¿Es un ítem en moneda extranjera al que le FALTA el `amount_clp`? Entonces no tenemos su valor en
  *  pesos y NO debemos inventarlo con el nominal (US$1.240 ≠ $1.240). El backend debería mandar siempre
  *  `amount_clp` para las extranjeras (gap escalado, issue #726). Compartido por Pagar clásico y v2. */
 export function montoCLPFaltante(item: PayableItem): boolean {
-  const extranjera = (item.currency ?? "CLP").toUpperCase() !== "CLP";
+  if (!monedaVerificada(item)) return true;
+  const extranjera = item.currency !== "CLP";
   return extranjera && amountClpEnBlanco(item.amount_clp);
 }
 
@@ -41,9 +47,14 @@ export function multiCurrencyNote(
   items: readonly PayableCurrencyTotal[] | undefined,
 ): string | null {
   if (!items || items.length < 2) return null;
-  return items
+  const verified = items.filter(
+    (it): it is PayableCurrencyTotal & { currency: string } =>
+      it.currency_status === "verified" && typeof it.currency === "string",
+  );
+  if (verified.length < 2) return null;
+  return verified
     .map((it) => {
-      const cur = (it.currency || "CLP").toUpperCase();
+      const cur = it.currency.toUpperCase();
       return `${formatMoney(parseAmount(it.amount), cur)} (${cur})`;
     })
     .join(" + ");
