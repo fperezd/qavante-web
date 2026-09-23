@@ -3,6 +3,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { OnboardingGuard } from "@/components/onboarding/onboarding-guard";
 import { UserRutGuard } from "@/components/onboarding/user-rut-guard";
 import { PendingConnectionsBanner } from "@/components/onboarding/pending-connections-banner";
+import { AppProviders } from "@/components/providers/app-providers";
 import { auth } from "@/lib/auth/session";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
@@ -28,28 +29,30 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     simuladorV14,
   } = resolveFeatureFlags();
   return (
-    <AppShell
-      userRole={session?.user.role}
-      assistantEnabled={assistant}
-      syncStatusEnabled={syncStatus}
-      decisionBriefEnabled={decisionBrief}
-      remuneracionesEnabled={remuneraciones}
-      bancoEnabled={bancoScreen}
-      bandejaEnabled={bandejaV07}
-      presupuestoEnabled={presupuesto}
-      financiamientoEnabled={financiamientoV13}
-      simuladorEnabled={simuladorV14}
-    >
-      {/* Gated por `onboarding` — ⚠️ ON en prod (`wrangler.toml`), no es un flag
+    <AppProviders>
+      <AppShell
+        userRole={session?.user.role}
+        assistantEnabled={assistant}
+        syncStatusEnabled={syncStatus}
+        decisionBriefEnabled={decisionBrief}
+        remuneracionesEnabled={remuneraciones}
+        bancoEnabled={bancoScreen}
+        bandejaEnabled={bandejaV07}
+        presupuestoEnabled={presupuesto}
+        financiamientoEnabled={financiamientoV13}
+        simuladorEnabled={simuladorV14}
+      >
+        {/* Gated por `onboarding` — ⚠️ ON en prod (`wrangler.toml`), no es un flag
           oscuro. Si el tenant no completó onboarding redirige al wizard, y solo
           con dato presente, fresco y `completed:false`. Fail-safe (ver el componente). */}
-      {onboarding && <UserRutGuard />}
-      {onboarding && <OnboardingGuard />}
-      {/* Entrada visible para retomar una conexión diferida ("conectar después").
+        {onboarding && <UserRutGuard />}
+        {onboarding && <OnboardingGuard />}
+        {/* Entrada visible para retomar una conexión diferida ("conectar después").
           Flag PROPIO (`onboardingBanner`, OFF): alcanza a todos los tenants
           existentes, no solo a los que se registran — ver el componente. */}
-      {onboardingBanner && <PendingConnectionsBanner />}
-      {children}
-    </AppShell>
+        {onboardingBanner && <PendingConnectionsBanner />}
+        {children}
+      </AppShell>
+    </AppProviders>
   );
 }

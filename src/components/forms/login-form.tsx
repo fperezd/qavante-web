@@ -1,11 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
 import { QavanteButton, QavanteInput } from "@/components/qavante";
 import { api } from "@/lib/api/client";
@@ -15,35 +12,43 @@ import { isValidRut } from "@/lib/validators/rut";
 import { safeInternalPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
-const schema = z.object({
-  rut: z.string().min(1, "RUT requerido").refine(isValidRut, "RUT inválido"),
-  password: z.string().min(6, "Mínimo 6 caracteres"),
-});
+type FormErrors = { rut?: string; password?: string };
 
-type FormValues = z.infer<typeof schema>;
+function rutError(rut: string): string | undefined {
+  if (!rut.trim()) return "RUT requerido";
+  if (!isValidRut(rut)) return "RUT inválido";
+  return undefined;
+}
+
+function passwordError(password: string): string | undefined {
+  return password.length < 6 ? "Mínimo 6 caracteres" : undefined;
+}
+
+function validate(rut: string, password: string): FormErrors {
+  return { rut: rutError(rut), password: passwordError(password) };
+}
 
 export function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = safeInternalPath(searchParams.get("redirect"));
+  const [rut, setRut] = useState("");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const {
-    control,
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { rut: "", password: "" },
-    mode: "onBlur",
-  });
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextErrors = validate(rut, password);
+    setErrors(nextErrors);
+    if (nextErrors.rut || nextErrors.password) return;
 
-  async function onSubmit(values: FormValues) {
     setSubmitError(null);
+    setSubmitting(true);
     try {
       await api.post("/api/auth/login", {
-        body: { rut: values.rut, password: values.password },
+        body: { rut, password },
         skipAuthRetry: true,
       });
       /* Navegación DURA (no `router.push`): tras setear la cookie de sesión, el
@@ -59,36 +64,34 @@ export function LoginForm() {
       } else {
         setSubmitError("Error inesperado. Reintenta.");
       }
+      setSubmitting(false);
     }
   }
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-lg">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <div className="space-y-1">
           <label htmlFor="rut" className="text-sm font-medium text-neutral-dark">
             RUT
           </label>
-          <Controller
-            control={control}
-            name="rut"
-            render={({ field }) => (
-              <QavanteInput
-                id="rut"
-                variant="rut"
-                placeholder="12.345.678-9"
-                value={field.value}
-                onValueChange={field.onChange}
-                onBlur={field.onBlur}
-                invalid={Boolean(errors.rut)}
-                autoComplete="username"
-                autoFocus
-              />
-            )}
+          <QavanteInput
+            id="rut"
+            variant="rut"
+            placeholder="12.345.678-9"
+            value={rut}
+            onValueChange={(value) => {
+              setRut(value);
+              if (errors.rut) setErrors((current) => ({ ...current, rut: undefined }));
+            }}
+            onBlur={() => setErrors((current) => ({ ...current, rut: rutError(rut) }))}
+            invalid={Boolean(errors.rut)}
+            autoComplete="username"
+            autoFocus
           />
           {errors.rut && (
             <p className="text-xs text-danger-500" role="alert">
-              {errors.rut.message}
+              {errors.rut}
             </p>
           )}
         </div>
@@ -103,7 +106,16 @@ export function LoginForm() {
               type={showPassword ? "text" : "password"}
               placeholder="••••••••"
               autoComplete="current-password"
-              {...register("password")}
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (errors.password) {
+                  setErrors((current) => ({ ...current, password: undefined }));
+                }
+              }}
+              onBlur={() =>
+                setErrors((current) => ({ ...current, password: passwordError(password) }))
+              }
               aria-invalid={Boolean(errors.password) || undefined}
               className={cn(
                 "flex h-10 w-full rounded-lg border bg-surface px-3 py-2 pr-10 text-sm text-neutral-dark transition-colors",
@@ -124,7 +136,7 @@ export function LoginForm() {
           </div>
           {errors.password && (
             <p className="text-xs text-danger-500" role="alert">
-              {errors.password.message}
+              {errors.password}
             </p>
           )}
         </div>
@@ -138,7 +150,7 @@ export function LoginForm() {
           </div>
         )}
 
-        <QavanteButton type="submit" loading={isSubmitting} className="w-full" size="lg">
+        <QavanteButton type="submit" loading={submitting} className="w-full" size="lg">
           Iniciar sesión
         </QavanteButton>
 

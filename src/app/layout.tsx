@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Sora, Figtree, Spline_Sans_Mono } from "next/font/google";
-import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
 /* Sora — tipografía oficial Qavante (Manual de Marca v1.1 §7).
@@ -22,12 +21,14 @@ const figtree = Figtree({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
+  preload: false,
 });
 const splineSansMono = Spline_Sans_Mono({
   variable: "--font-spline-mono",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -45,7 +46,7 @@ export default function RootLayout({
       <body
         className={`${sora.variable} ${figtree.variable} ${splineSansMono.variable} antialiased`}
       >
-        <AppProviders>{children}</AppProviders>
+        {children}
       </body>
     </html>
   );

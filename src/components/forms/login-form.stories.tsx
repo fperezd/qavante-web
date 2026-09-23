@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { expect, userEvent, within } from "storybook/test";
 import { LoginForm } from "./login-form";
 
 /* LoginForm — ruta `/login`, la pantalla más crítica del producto (puerta
-   de entrada). Usa react-hook-form + zod (validación RUT/clave), `useRouter`
+   de entrada). Usa la validación contractual de RUT/clave, `useRouter`
    /`useSearchParams` (auto-mockeados por @storybook/nextjs-vite) y `api.post`
    en submit. El snapshot captura el estado inicial (form vacío); los estados
    de error de validación y de submit se ejercitan por interacción en la UI
@@ -19,7 +20,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Formulario de login por RUT. Validación con zod: RUT chileno + clave ≥6. Toggle de visibilidad de clave, enlace a recuperar clave (`/recuperar-clave`) y mapeo de error de submit vía apiErrorToUserMessage. En éxito redirige a `?redirect` o `/inicio`. El login por correo y OAuth vive en `/login-correo`.",
+          "Formulario de login por RUT. Valida RUT chileno + clave ≥6. Toggle de visibilidad de clave, enlace a recuperar clave (`/recuperar-clave`) y mapeo de error de submit vía apiErrorToUserMessage. En éxito redirige a `?redirect` o `/inicio`. El login por correo y OAuth vive en `/login-correo`.",
       },
     },
   },
@@ -37,4 +38,24 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   name: "Inicial (form vacío)",
+};
+
+export const ValidacionLocal: Story = {
+  name: "Validación local",
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Iniciar sesión" }));
+    await expect(canvas.getByText("RUT requerido")).toBeVisible();
+    await expect(canvas.getByText("Mínimo 6 caracteres")).toBeVisible();
+
+    await userEvent.type(canvas.getByLabelText("RUT"), "11.111.111-1");
+    await userEvent.type(canvas.getByLabelText("Clave", { selector: "input" }), "123456");
+    await userEvent.click(canvas.getByRole("button", { name: "Mostrar clave" }));
+    await expect(canvas.getByLabelText("Clave", { selector: "input" })).toHaveAttribute(
+      "type",
+      "text",
+    );
+    await expect(canvas.queryByText("RUT requerido")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Mínimo 6 caracteres")).not.toBeInTheDocument();
+  },
 };

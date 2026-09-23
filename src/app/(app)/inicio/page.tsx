@@ -1,12 +1,34 @@
 import { Activity } from "lucide-react";
+import dynamic from "next/dynamic";
 import { QavanteEmpty } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
-import { InicioMvpView } from "@/components/inicio/inicio-mvp-view";
-import { InicioEjecutivoView } from "@/components/inicio/inicio-ejecutivo-view";
-import { InicioEjecutivoV2Live } from "@/components/inicio/v2/inicio-ejecutivo-v2-live";
-import { FinancialPositionCard } from "@/components/inicio/financial-position-card";
-import { HoyLive } from "@/components/inicio/v01/hoy-live";
-import { DecisionBriefSlot } from "@/components/decision-brief/decision-brief-slot";
+
+const InicioMvpView = dynamic(() =>
+  import("@/components/inicio/inicio-mvp-view").then((module) => module.InicioMvpView),
+);
+const InicioEjecutivoView = dynamic(() =>
+  import("@/components/inicio/inicio-ejecutivo-view").then(
+    (module) => module.InicioEjecutivoView,
+  ),
+);
+const InicioEjecutivoV2Live = dynamic(() =>
+  import("@/components/inicio/v2/inicio-ejecutivo-v2-live").then(
+    (module) => module.InicioEjecutivoV2Live,
+  ),
+);
+const FinancialPositionCard = dynamic(() =>
+  import("@/components/inicio/financial-position-card").then(
+    (module) => module.FinancialPositionCard,
+  ),
+);
+const HoyLive = dynamic(() =>
+  import("@/components/inicio/v01/hoy-live").then((module) => module.HoyLive),
+);
+const DecisionBriefSlot = dynamic(() =>
+  import("@/components/decision-brief/decision-brief-slot").then(
+    (module) => module.DecisionBriefSlot,
+  ),
+);
 
 /* Inicio Ejecutivo (Sprint C8). **Server Component** (como gestion/cobrar/pagar):
    resuelve el flag en runtime del Worker leyendo `NEXT_PUBLIC_FF_*` vía la

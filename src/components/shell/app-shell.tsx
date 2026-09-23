@@ -1,13 +1,21 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { AppHeader } from "@/components/shell/header";
-import { AppSidebar } from "@/components/shell/sidebar";
 import { Breadcrumbs } from "@/components/shell/breadcrumbs";
 import { SkipLink } from "@/components/shell/skip-link";
-import { CommandPalette } from "@/components/shell/command-palette";
-import { Assistant } from "@/components/assistant/assistant";
 import type { UserRole } from "@/lib/auth/types";
+
+const CommandPalette = dynamic(() =>
+  import("@/components/shell/command-palette").then((module) => module.CommandPalette),
+);
+const AppSidebar = dynamic(() =>
+  import("@/components/shell/sidebar").then((module) => module.AppSidebar),
+);
+const Assistant = dynamic(() =>
+  import("@/components/assistant/assistant").then((module) => module.Assistant),
+);
 
 export interface AppShellProps {
   children: ReactNode;
@@ -44,6 +52,7 @@ export function AppShell({
   simuladorEnabled,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebar, setDesktopSidebar] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   /* Atajo global ⌘K / Ctrl+K → abre el command palette (navegación por teclado).
@@ -59,6 +68,14 @@ export function AppShell({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const update = () => setDesktopSidebar(desktop.matches);
+    update();
+    desktop.addEventListener("change", update);
+    return () => desktop.removeEventListener("change", update);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <SkipLink />
@@ -70,17 +87,24 @@ export function AppShell({
       />
 
       <div className="flex">
-        <AppSidebar
-          mobileOpen={sidebarOpen}
-          onCloseMobile={() => setSidebarOpen(false)}
-          userRole={userRole}
-          remuneracionesEnabled={remuneracionesEnabled}
-          bancoEnabled={bancoEnabled}
-          bandejaEnabled={bandejaEnabled}
-          presupuestoEnabled={presupuestoEnabled}
-          financiamientoEnabled={financiamientoEnabled}
-          simuladorEnabled={simuladorEnabled}
-        />
+        {sidebarOpen || desktopSidebar ? (
+          <AppSidebar
+            mobileOpen={sidebarOpen}
+            onCloseMobile={() => setSidebarOpen(false)}
+            userRole={userRole}
+            remuneracionesEnabled={remuneracionesEnabled}
+            bancoEnabled={bancoEnabled}
+            bandejaEnabled={bandejaEnabled}
+            presupuestoEnabled={presupuestoEnabled}
+            financiamientoEnabled={financiamientoEnabled}
+            simuladorEnabled={simuladorEnabled}
+          />
+        ) : (
+          <aside
+            aria-label="Navegación principal"
+            className="fixed inset-y-0 left-0 z-40 w-60 -translate-x-full border-r border-border bg-surface md:sticky md:top-14 md:z-10 md:h-[calc(100vh-3.5rem)] md:translate-x-0"
+          />
+        )}
 
         <main id="main-content" tabIndex={-1} className="min-w-0 flex-1">
           <div className="mx-auto max-w-[1440px] space-y-6 p-6 md:p-8">
@@ -90,7 +114,9 @@ export function AppShell({
         </main>
       </div>
 
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} userRole={userRole} />
+      {paletteOpen ? (
+        <CommandPalette open onOpenChange={setPaletteOpen} userRole={userRole} />
+      ) : null}
 
       {/* Sin el flag `assistant` (endpoint /api/assistant/chat todavía no existe) NO montamos el FAB:
           antes se mostraba `AssistantTrigger`, un botón prominente "Preguntar a Qavante" que no hacía
