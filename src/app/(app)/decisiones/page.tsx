@@ -166,9 +166,8 @@ export default function DecisionesPage() {
                 >
                   <div className="space-y-3">
                     <p className="text-sm text-neutral-mid">
-                      Las alternativas se calculan sobre esta Empresa, este período y los
-                      documentos disponibles. Puedes combinar operaciones; nada se ejecuta desde
-                      aquí.
+                      Las alternativas se calculan sobre esta Empresa, este período y los documentos
+                      disponibles. Puedes combinar operaciones; nada se ejecuta desde aquí.
                     </p>
                     <button
                       type="button"
@@ -190,10 +189,7 @@ export default function DecisionesPage() {
                 </QavanteCard>
                 <QavanteCard header="Alcance de esta lectura">
                   <dl className="space-y-3 text-sm">
-                    <Fact
-                      label="Empresa"
-                      value={selectedCompany?.legal_name ?? "Dato pendiente"}
-                    />
+                    <Fact label="Empresa" value={selectedCompany?.legal_name ?? "Dato pendiente"} />
                     <Fact label="Moneda funcional" value={currency ?? "Dato pendiente"} />
                     <Fact label="Corte" value={formatDateLong(projection.data?.as_of)} />
                   </dl>

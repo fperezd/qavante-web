@@ -10,9 +10,8 @@ import {
   type ReactNode,
 } from "react";
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
+import { ACTIVE_COMPANY_STORAGE_KEY, UNATTRIBUTED_COMPANY_ID } from "@/lib/company/active-company";
 import { legalEntityKeys, useLegalEntities, type LegalEntity } from "@/lib/api/legal-entities";
-
-const STORAGE_KEY = "qavante.active-company-id";
 
 type CompanyScope = {
   activeCompanyId: string | null;
@@ -44,6 +43,7 @@ export function isKnownCompany(
   const latest = queryClient.getQueryData<{ entities: LegalEntity[] }>(
     legalEntityKeys.all,
   )?.entities;
+  if (companyId === UNATTRIBUTED_COMPANY_ID) return true;
   return (latest ?? companies).some((company) => company.id === companyId);
 }
 
@@ -54,12 +54,13 @@ export function CompanyScopeProvider({ children }: { children: ReactNode }) {
   const [requestedCompanyId, setRequestedCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const stored = window.localStorage.getItem(ACTIVE_COMPANY_STORAGE_KEY);
     if (stored) setRequestedCompanyId(stored);
   }, []);
 
   const activeCompanyId = useMemo(() => {
     if (!companies.length) return null;
+    if (requestedCompanyId === UNATTRIBUTED_COMPANY_ID) return UNATTRIBUTED_COMPANY_ID;
     if (requestedCompanyId && companies.some((company) => company.id === requestedCompanyId)) {
       return requestedCompanyId;
     }
@@ -67,14 +68,14 @@ export function CompanyScopeProvider({ children }: { children: ReactNode }) {
   }, [companies, requestedCompanyId]);
 
   useEffect(() => {
-    if (activeCompanyId) window.localStorage.setItem(STORAGE_KEY, activeCompanyId);
+    if (activeCompanyId) window.localStorage.setItem(ACTIVE_COMPANY_STORAGE_KEY, activeCompanyId);
   }, [activeCompanyId]);
 
   const selectCompany = useCallback(
     (companyId: string) => {
       if (!isKnownCompany(queryClient, companies, companyId)) return;
       setRequestedCompanyId(companyId);
-      window.localStorage.setItem(STORAGE_KEY, companyId);
+      window.localStorage.setItem(ACTIVE_COMPANY_STORAGE_KEY, companyId);
       clearCacheForCompanyChange(queryClient);
     },
     [companies, queryClient],

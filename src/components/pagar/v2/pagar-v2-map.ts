@@ -9,7 +9,13 @@
 
 import type { PayableItem } from "@/lib/api/pagos";
 import type { ContraparteMaestro } from "@/components/terminos/terminos-pago";
-import { parseAmount, paymentCategoryLabel, monedaVerificada, montoCLP, montoCLPFaltante } from "../pagos-format";
+import {
+  parseAmount,
+  paymentCategoryLabel,
+  monedaVerificada,
+  montoCLP,
+  montoCLPFaltante,
+} from "../pagos-format";
 import { daysUntilDue, isOverdue, overdueThenCritical } from "../pagos-v2-format";
 import { categoryGroupLabel } from "../pagos-group";
 import { formatMoney } from "@/lib/formatters/clp";

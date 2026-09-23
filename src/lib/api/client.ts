@@ -1,17 +1,8 @@
+import { companyRequestHeaders } from "@/lib/company/active-company";
 import { ApiError } from "./errors";
 import { fallbackUserMessage, parseUserMessage, renderUserMessage } from "./user-message";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-const ACTIVE_COMPANY_STORAGE_KEY = "qavante.active-company-id";
-
-function activeCompanyHeaders(path: string): Record<string, string> {
-  // La lista que alimenta el selector siempre debe ver todas las Empresas del
-  // tenant. Un id persistido de una sesión anterior no puede bloquearla.
-  if (path === "/api/legal-entities") return {};
-  if (typeof window === "undefined") return {};
-  const companyId = window.localStorage.getItem(ACTIVE_COMPANY_STORAGE_KEY);
-  return companyId ? { "X-Qavante-Company-Id": companyId } : {};
-}
 
 export interface ApiRequestOptions extends Omit<RequestInit, "body" | "method"> {
   body?: unknown;
@@ -90,7 +81,7 @@ async function request<T>(
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
       Accept: "application/json",
-      ...activeCompanyHeaders(path),
+      ...companyRequestHeaders(path),
       ...headers,
     },
   };

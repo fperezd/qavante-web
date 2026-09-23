@@ -49,8 +49,18 @@ describe("accounts payable D02 boundary", () => {
         items: [{ ...base.items![0]!, currency_status: undefined }],
       }),
     ).toThrow(/contrato completo/);
-    expect(() => assertAccountsPayableResponse({ ...base, items: [{ ...base.items![0]!, currency: null, currency_status: "verified" }] })).toThrow(/contrato completo/);
-    expect(() => assertAccountsPayableResponse({ ...base, items: [{ ...base.items![0]!, currency: "USD", currency_status: "unknown" }] })).toThrow(/contrato completo/);
+    expect(() =>
+      assertAccountsPayableResponse({
+        ...base,
+        items: [{ ...base.items![0]!, currency: null, currency_status: "verified" }],
+      }),
+    ).toThrow(/contrato completo/);
+    expect(() =>
+      assertAccountsPayableResponse({
+        ...base,
+        items: [{ ...base.items![0]!, currency: "USD", currency_status: "unknown" }],
+      }),
+    ).toThrow(/contrato completo/);
   });
 
   it("rechaza invariantes inconsistentes de cursor y facets", () => {
@@ -109,9 +119,7 @@ describe("accounts payable D02 boundary", () => {
 
   it("rechaza contradicciones de agregados y de la curva de caja", () => {
     const base = pagos();
-    expect(() =>
-      assertAccountsPayableResponse({ ...base, cash_gap_amount_14d: "999" }),
-    ).toThrow();
+    expect(() => assertAccountsPayableResponse({ ...base, cash_gap_amount_14d: "999" })).toThrow();
     expect(() =>
       assertAccountsPayableResponse({ ...base, cash_projection_publicable_14d: false }),
     ).toThrow();

@@ -18,7 +18,13 @@ const meta = {
   title: "Capa 2 / Administración / EmpresasView",
   component: EmpresasView,
   parameters: { layout: "padded", msw: { handlers: [list] } },
-  decorators: [(Story) => <CompanyScopeProvider><Story /></CompanyScopeProvider>],
+  decorators: [
+    (Story) => (
+      <CompanyScopeProvider>
+        <Story />
+      </CompanyScopeProvider>
+    ),
+  ],
 } satisfies Meta<typeof EmpresasView>;
 
 export default meta;

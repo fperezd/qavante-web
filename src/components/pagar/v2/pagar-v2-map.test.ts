@@ -133,7 +133,18 @@ describe("mapFechasClave", () => {
     expect(out.find((f) => f.id === "impuestos")?.estimado).toBe(true);
   });
   it("se abstiene cuando el monto no tiene moneda verificada", () => {
-    const out = mapFechasClave([item({ label: "IVA F29", category: "tax", amount: "4200000", currency: null, currency_status: "unknown" })], NOW);
+    const out = mapFechasClave(
+      [
+        item({
+          label: "IVA F29",
+          category: "tax",
+          amount: "4200000",
+          currency: null,
+          currency_status: "unknown",
+        }),
+      ],
+      NOW,
+    );
     expect(out[0]?.monto).toBeNull();
   });
 });

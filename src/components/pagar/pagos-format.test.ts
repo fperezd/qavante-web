@@ -10,7 +10,15 @@ import {
 import type { PayableItem } from "@/lib/api/pagos";
 
 const item = (over: Partial<PayableItem>): PayableItem =>
-  ({ label: "x", category: "supplier", amount: "0", currency: "CLP", currency_status: "verified", amount_clp: null, ...over }) as PayableItem;
+  ({
+    label: "x",
+    category: "supplier",
+    amount: "0",
+    currency: "CLP",
+    currency_status: "verified",
+    amount_clp: null,
+    ...over,
+  }) as PayableItem;
 
 describe("montoCLP", () => {
   it("CLP con amount_clp presente: usa amount_clp", () => {
@@ -24,7 +32,9 @@ describe("montoCLP", () => {
     expect(montoCLP(item({ currency: "CLP", amount: "50000", amount_clp: "" }))).toBe(50_000);
   });
   it("extranjera con amount_clp: usa el convertido", () => {
-    expect(montoCLP(item({ currency: "USD", amount: "1240", amount_clp: "1190000" }))).toBe(1_190_000);
+    expect(montoCLP(item({ currency: "USD", amount: "1240", amount_clp: "1190000" }))).toBe(
+      1_190_000,
+    );
   });
   it("extranjera SIN amount_clp (null o ''): aporta 0 (no inventa el nominal como CLP)", () => {
     expect(montoCLP(item({ currency: "USD", amount: "1240", amount_clp: null }))).toBe(0);
@@ -37,7 +47,9 @@ describe("multiCurrencyNote", () => {
   it("null con 0 o 1 moneda (no hay nada que desglosar)", () => {
     expect(multiCurrencyNote(undefined)).toBeNull();
     expect(multiCurrencyNote([])).toBeNull();
-    expect(multiCurrencyNote([{ currency: "CLP", currency_status: "verified", amount: "1000" }])).toBeNull();
+    expect(
+      multiCurrencyNote([{ currency: "CLP", currency_status: "verified", amount: "1000" }]),
+    ).toBeNull();
   });
 
   it("desglosa CLP + USD con símbolo y código", () => {

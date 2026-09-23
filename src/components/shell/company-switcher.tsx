@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { useDismiss } from "@/lib/hooks/use-dismiss";
+import { UNATTRIBUTED_COMPANY_ID } from "@/lib/company/active-company";
 import { cn } from "@/lib/utils";
 import { useCompanyScope } from "./company-scope";
 
@@ -14,12 +15,16 @@ export type CompanySwitcherProps = { variant?: "header" | "mobile" };
 
 export function CompanySwitcher({ variant = "header" }: CompanySwitcherProps) {
   const isMobile = variant === "mobile";
-  const { activeCompany, companies, error, isLoading, selectCompany } = useCompanyScope();
+  const { activeCompany, activeCompanyId, companies, error, isLoading, selectCompany } =
+    useCompanyScope();
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   const close = React.useCallback(() => setOpen(false), []);
   const ref = useDismiss<HTMLDivElement>(open, close, triggerRef);
-  const label = activeCompany?.legal_name ?? (isLoading ? "Cargando..." : "Elige una empresa");
+  const label =
+    activeCompanyId === UNATTRIBUTED_COMPANY_ID
+      ? "Sin atribuir"
+      : (activeCompany?.legal_name ?? (isLoading ? "Cargando..." : "Elige una empresa"));
 
   function handleSelect(companyId: string) {
     selectCompany(companyId);
@@ -75,10 +80,25 @@ export function CompanySwitcher({ variant = "header" }: CompanySwitcherProps) {
                 className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm text-neutral-dark hover:bg-brand-primary-50"
               >
                 <span className="truncate font-medium">{company.legal_name}</span>
-                {isActive && <Check className="h-4 w-4 flex-shrink-0 text-brand-primary" aria-label="Activa" />}
+                {isActive && (
+                  <Check className="h-4 w-4 flex-shrink-0 text-brand-primary" aria-label="Activa" />
+                )}
               </button>
             );
           })}
+          {companies.length > 0 ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => handleSelect(UNATTRIBUTED_COMPANY_ID)}
+              className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-2 py-2 text-left text-sm text-neutral-dark hover:bg-brand-primary-50"
+            >
+              <span className="truncate font-medium">Sin atribuir</span>
+              {activeCompanyId === UNATTRIBUTED_COMPANY_ID ? (
+                <Check className="h-4 w-4 flex-shrink-0 text-brand-primary" aria-label="Activa" />
+              ) : null}
+            </button>
+          ) : null}
         </div>
       )}
     </div>

@@ -11,9 +11,9 @@ test("Bandeja cambia las cuatro colas con la Empresa activa", async ({ page, con
   });
 
   await page.goto("/bandeja");
-  await expect(
-    page.getByRole("button", { name: /Empresa activa: Tooxs Digital SpA/ }),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("button", { name: /Empresa activa: Tooxs Digital SpA/ })).toBeVisible(
+    { timeout: 15_000 },
+  );
   await expect(page.getByText("Cobro Alfa"), JSON.stringify(requests)).toBeVisible();
   await expect(page.getByText("Cobro Beta")).toHaveCount(0);
 

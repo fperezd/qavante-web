@@ -22,7 +22,9 @@ export const RUT_MELI = "76666666-6";
 
 /** Los fixtures D02 representan payloads ya validados por el boundary HTTP. */
 function withVerifiedFixtureCurrency(response: AccountsPayableResponse): AccountsPayableResponse {
-  const withStatus = <T extends { currency?: string | null; currency_status?: string }>(entry: T): T =>
+  const withStatus = <T extends { currency?: string | null; currency_status?: string }>(
+    entry: T,
+  ): T =>
     entry.currency_status === undefined && entry.currency != null
       ? { ...entry, currency_status: "verified" }
       : entry;

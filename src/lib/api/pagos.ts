@@ -22,8 +22,10 @@ export type PaymentCategory = ContractPayableItem["category"];
 
 /** Compatibilidad de presentación durante el rollout: el guard HTTP exige estos campos,
  * pero fixtures y consumidores históricos todavía pueden construirlos sin ellos. */
-export interface PayableItem
-  extends Omit<ContractPayableItem, "id" | "currency" | "currency_status" | "reclamado"> {
+export interface PayableItem extends Omit<
+  ContractPayableItem,
+  "id" | "currency" | "currency_status" | "reclamado"
+> {
   /** UUID estable del payable. Comparte espacio de identidad con los pares de anomalías (#318/#322).
    * Opcional sólo durante el despliegue gradual: las pantallas que correlacionan anomalías deben
    * abstenerse si falta; nunca reconstruirlo desde campos de negocio. */
@@ -85,7 +87,10 @@ export interface PayableItem
  * recibidos, el contrato HTTP exige `currency_status`; el render nunca trata su ausencia
  * como una moneda verificada.
  */
-export type PayableCurrencyTotal = Omit<components["schemas"]["PayableCurrencyTotal"], "currency_status"> & {
+export type PayableCurrencyTotal = Omit<
+  components["schemas"]["PayableCurrencyTotal"],
+  "currency_status"
+> & {
   currency_status?: components["schemas"]["PayableCurrencyTotal"]["currency_status"];
 };
 export type PayableAggregateSummary = components["schemas"]["PayableAggregateSummary"];
@@ -330,10 +335,7 @@ function isCurrencyTotals(value: unknown): value is Array<Record<string, unknown
   return (
     new Set(currencies).size === currencies.length &&
     value.every(
-      (entry) =>
-        isRecord(entry) &&
-        isCurrencyEvidence(entry) &&
-        decimal(entry.amount) !== null,
+      (entry) => isRecord(entry) && isCurrencyEvidence(entry) && decimal(entry.amount) !== null,
     )
   );
 }

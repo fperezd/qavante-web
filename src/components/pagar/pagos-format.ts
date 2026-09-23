@@ -17,8 +17,14 @@ function amountClpEnBlanco(v: string | null | undefined): boolean {
 }
 
 /** Una moneda sólo es publicable cuando el productor la verificó explícitamente. */
-export function monedaVerificada(item: Pick<PayableItem, "currency" | "currency_status">): item is PayableItem & { currency: string } {
-  return item.currency_status === "verified" && typeof item.currency === "string" && /^[A-Z]{3}$/.test(item.currency);
+export function monedaVerificada(
+  item: Pick<PayableItem, "currency" | "currency_status">,
+): item is PayableItem & { currency: string } {
+  return (
+    item.currency_status === "verified" &&
+    typeof item.currency === "string" &&
+    /^[A-Z]{3}$/.test(item.currency)
+  );
 }
 
 /** ¿Es un ítem en moneda extranjera al que le FALTA el `amount_clp`? Entonces no tenemos su valor en

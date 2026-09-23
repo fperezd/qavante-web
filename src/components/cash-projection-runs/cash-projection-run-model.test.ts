@@ -194,11 +194,15 @@ describe("cash projection run model", () => {
 
   it("acepta un plan sólo si coincide toda la referencia H=14", () => {
     const r = run();
-    const view = selectProjectionSnapshot(r, {
-      runId: r.projection_run_id,
-      calculationVersion: r.calculation_version,
-      scenarioId: "scheduled_expected_v1",
-    });
+    const view = selectProjectionSnapshot(
+      r,
+      {
+        runId: r.projection_run_id,
+        calculationVersion: r.calculation_version,
+        scenarioId: "scheduled_expected_v1",
+      },
+      "2026-09-22",
+    );
     const plan = {
       projection_reference: {
         run: r.projection_run_id,

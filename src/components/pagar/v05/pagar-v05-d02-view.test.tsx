@@ -120,7 +120,9 @@ describe("Pagar V05 D02 view", () => {
             complete: false,
             count: 10,
             unknown_due_date_count: 0,
-            excluded_by_currency: [{ currency: "USD", amount: "8300", currency_status: "verified" }],
+            excluded_by_currency: [
+              { currency: "USD", amount: "8300", currency_status: "verified" },
+            ],
           },
         }}
       />,
