@@ -1,5 +1,9 @@
 # Runbook — Deploy a producción (app.qavante.com)
 
+> Estado 2026-09-22: GitHub Actions esta deshabilitado. El procedimiento
+> `workflow_dispatch` siguiente es historico; usar
+> [release local verificable hacia Azure Container Apps](local-release.md) mientras permanezca apagado.
+
 El deploy automático por `push` está suspendido. Producción sólo se promueve con
 `Release to Cloudflare Workers`, ejecutado manualmente **desde `main`** e indicando
 el SHA completo del tip actual. El workflow valida de forma fail-closed que:

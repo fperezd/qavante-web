@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import { AppProviders } from "@/components/providers/app-providers";
 import { QavanteLogo } from "@/components/qavante";
 import { resolveFeatureFlags } from "@/lib/feature-flags";
 
@@ -12,11 +13,13 @@ export default function OnboardingLayout({ children }: { children: ReactNode }) 
   if (!onboarding) redirect("/login");
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex items-center justify-center border-b border-border/40 bg-surface/70 px-4 py-4 backdrop-blur">
-        <QavanteLogo variant="hero" alt="Qavante" />
-      </header>
-      <main className="flex flex-1 flex-col">{children}</main>
-    </div>
+    <AppProviders>
+      <div className="flex min-h-screen flex-col bg-background">
+        <header className="flex items-center justify-center border-b border-border/40 bg-surface/70 px-4 py-4 backdrop-blur">
+          <QavanteLogo variant="hero" alt="Qavante" />
+        </header>
+        <main className="flex flex-1 flex-col">{children}</main>
+      </div>
+    </AppProviders>
   );
 }
