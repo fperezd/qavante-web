@@ -1,10 +1,32 @@
 import { defineConfig } from "vitest/config";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
 import { playwright } from "@vitest/browser-playwright";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+
+// This worktree can reuse node_modules from a neighbouring checkout. Vitest's
+// Storybook plugin loads its setup module through Vite's /@fs endpoint, so Vite
+// must be allowed to serve that *resolved package directory*. Do not allow the
+// neighbouring checkout or its node_modules root: only the addon directory
+// containing the setup file is needed by the browser test runner.
+const storybookVitestSetupDirectory = path.dirname(
+  require.resolve("@storybook/addon-vitest/internal/setup-file"),
+);
+
+// Vitest Browser Mode defaults to ::1:63315. Windows commonly reserves
+// 63300-63399 for Hyper-V/WSL, making the real Chromium Storybook suite fail
+// before it can render any story. Keep the control plane on IPv4 loopback and
+// make the port explicit/overridable for a concurrent local run. `strictPort`
+// deliberately turns an occupied port into a visible failure instead of
+// silently changing the endpoint that the browser must reach.
+const browserApiPort = Number.parseInt(process.env.VITEST_BROWSER_API_PORT ?? "51315", 10);
+if (!Number.isInteger(browserApiPort) || browserApiPort < 1024 || browserApiPort > 65535) {
+  throw new Error("VITEST_BROWSER_API_PORT must be an integer between 1024 and 65535");
+}
 
 /* Vitest 4 con `projects[]` — 2 proyectos:
    1. `unit` — config histórica del repo. 500+ unit tests sobre src/.
@@ -27,6 +49,11 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
    `.invalid` que nunca resuelve, así que una story sin handler falla con error de red en vez de
    salir a la red de verdad. */
 export default defineConfig({
+  server: {
+    fs: {
+      allow: [storybookVitestSetupDirectory],
+    },
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
@@ -97,6 +124,11 @@ export default defineConfig({
             headless: true,
             provider: playwright({}),
             instances: [{ browser: "chromium" }],
+            api: {
+              host: "127.0.0.1",
+              port: browserApiPort,
+              strictPort: true,
+            },
           },
         },
       },

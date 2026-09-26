@@ -6,6 +6,7 @@ import { BancosConectadosPanel } from "./bancos-conectados-panel";
 import { FintocBankActions } from "./fintoc-bank-actions";
 import { CompanyScopeProvider } from "@/components/shell/company-scope";
 import { ACTIVE_COMPANY_STORAGE_KEY } from "@/lib/company/active-company";
+import { BANK_SOURCE_CODE } from "@/lib/onboarding/connect-bank";
 
 const COMPANY_ID = "company-first-render";
 
@@ -15,7 +16,9 @@ const handlers = [
       entities: [{ id: COMPANY_ID, legal_name: "Empresa de prueba SpA", is_default: true }],
     }),
   ),
-  http.get("*/api/admin/sources/bank/consent", () => HttpResponse.json({ is_valid: true })),
+  http.get(`*/api/admin/sources/${BANK_SOURCE_CODE}/consent`, () =>
+    HttpResponse.json({ is_valid: true }),
+  ),
   http.get("*/api/fintoc/connections", ({ request }) => {
     if (request.headers.get("X-Qavante-Company-Id") !== COMPANY_ID) {
       return HttpResponse.json({ detail: "missing explicit company scope" }, { status: 400 });
